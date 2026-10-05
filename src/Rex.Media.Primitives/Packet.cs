@@ -10,6 +10,7 @@ public sealed class Packet : IDisposable
     private static readonly SlotPool<Packet> Pool = new(1024);
 
     private MediaBuffer? _data;
+    private SlotPool<Packet>? _home;
 
     private Packet()
     {
@@ -37,10 +38,18 @@ public sealed class Packet : IDisposable
     public bool IsDisposed => _data is null;
 
     /// <summary>A packet that takes ownership of <paramref name="data"/>.</summary>
-    public static Packet Create(int trackId, MediaBuffer data, MediaTime pts, MediaTime dts, MediaTime duration, bool isKeyframe)
+    public static Packet Create(int trackId, MediaBuffer data, MediaTime pts, MediaTime dts, MediaTime duration, bool isKeyframe) =>
+        Create(Pool, trackId, data, pts, dts, duration, isKeyframe);
+
+    /// <summary>
+    /// Takes a packet from <paramref name="pool"/>; with no pool the packet is dropped when disposed
+    /// instead of being handed to someone else, which lets a test watch a disposed packet stay disposed.
+    /// </summary>
+    internal static Packet Create(SlotPool<Packet>? pool, int trackId, MediaBuffer data, MediaTime pts, MediaTime dts, MediaTime duration, bool isKeyframe)
     {
         ArgumentNullException.ThrowIfNull(data);
-        var packet = Pool.Take() ?? new Packet();
+        var packet = pool?.Take() ?? new Packet();
+        packet._home = pool;
         packet._data = data;
         packet.TrackId = trackId;
         packet.Pts = pts;
@@ -64,6 +73,6 @@ public sealed class Packet : IDisposable
         }
 
         data.Dispose();
-        Pool.Return(this);
+        _home?.Return(this);
     }
 }

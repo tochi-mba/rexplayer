@@ -13,6 +13,7 @@ public sealed class MediaBuffer : IDisposable
     private static readonly SlotPool<MediaBuffer> Shells = new(512);
 
     private byte[]? _array;
+    private SlotPool<MediaBuffer>? _home;
 
     private MediaBuffer()
     {
@@ -29,10 +30,17 @@ public sealed class MediaBuffer : IDisposable
     private byte[] Array => _array ?? throw new ObjectDisposedException(nameof(MediaBuffer));
 
     /// <summary>A buffer of exactly <paramref name="length"/> bytes. Its contents are undefined.</summary>
-    public static MediaBuffer Rent(int length)
+    public static MediaBuffer Rent(int length) => Rent(Shells, length);
+
+    /// <summary>
+    /// Rents a shell from <paramref name="shells"/>; with no pool the shell is dropped when disposed
+    /// instead of being handed to someone else, which lets a test watch a disposed buffer stay disposed.
+    /// </summary>
+    internal static MediaBuffer Rent(SlotPool<MediaBuffer>? shells, int length)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(length);
-        var buffer = Shells.Take() ?? new MediaBuffer();
+        var buffer = shells?.Take() ?? new MediaBuffer();
+        buffer._home = shells;
         buffer._array = ArrayPool<byte>.Shared.Rent(Math.Max(length, 1));
         buffer.Length = length;
         return buffer;
@@ -65,6 +73,6 @@ public sealed class MediaBuffer : IDisposable
 
         ArrayPool<byte>.Shared.Return(array);
         Length = 0;
-        Shells.Return(this);
+        _home?.Return(this);
     }
 }

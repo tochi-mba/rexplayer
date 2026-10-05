@@ -46,7 +46,8 @@ public sealed class MediaBufferTests
     [Fact]
     public void ADisposedBufferRefusesUseAndDisposingTwiceIsHarmless()
     {
-        var buffer = MediaBuffer.Rent(10);
+        // Unpooled: a pooled shell may already be someone else's by the time the asserts run.
+        var buffer = MediaBuffer.Rent(shells: null, 10);
         buffer.Dispose();
         buffer.Dispose();
 

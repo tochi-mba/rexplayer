@@ -80,10 +80,14 @@ public sealed class ModelTests
         Assert.Equal(2, packet.Data.Length);
 
         packet.Dispose();
-        packet.Dispose();
 
-        Assert.True(packet.IsDisposed);
-        Assert.Throws<ObjectDisposedException>(() => packet.Data);
+        // Unpooled: a pooled packet may already be someone else's by the time the asserts run.
+        var loose = Packet.Create(pool: null, 3, MediaBuffer.Rent(shells: null, 1), MediaTime.Zero, MediaTime.Zero, MediaTime.Zero, isKeyframe: true);
+        loose.Dispose();
+        loose.Dispose();
+
+        Assert.True(loose.IsDisposed);
+        Assert.Throws<ObjectDisposedException>(() => loose.Data);
         Assert.Throws<ArgumentNullException>(() => Packet.Create(0, null!, MediaTime.Zero, MediaTime.Zero, MediaTime.Zero, true));
     }
 
@@ -153,7 +157,8 @@ public sealed class ModelTests
     [Fact]
     public void ADisposedAudioFrameRefusesUse()
     {
-        var frame = AudioFrame.Rent(1000, 1, 4);
+        // Unpooled: a pooled frame may already be someone else's by the time the asserts run.
+        var frame = AudioFrame.Rent(pool: null, 1000, 1, 4);
         frame.Dispose();
         frame.Dispose();
 

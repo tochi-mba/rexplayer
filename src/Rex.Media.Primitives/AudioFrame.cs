@@ -14,6 +14,7 @@ public sealed class AudioFrame : IDisposable
 
     private float[]? _samples;
     private int _capacity;
+    private SlotPool<AudioFrame>? _home;
 
     private AudioFrame()
     {
@@ -40,14 +41,22 @@ public sealed class AudioFrame : IDisposable
 
     public MediaTime Duration => MediaTime.FromSamples(SampleCount, SampleRate);
 
-    public static AudioFrame Rent(int sampleRate, int channels, int sampleCount, ChannelLayout layout = ChannelLayout.None)
+    public static AudioFrame Rent(int sampleRate, int channels, int sampleCount, ChannelLayout layout = ChannelLayout.None) =>
+        Rent(Pool, sampleRate, channels, sampleCount, layout);
+
+    /// <summary>
+    /// Rents from <paramref name="pool"/>; with no pool the frame is dropped when disposed instead of
+    /// being handed to someone else, which lets a test watch a disposed frame stay disposed.
+    /// </summary>
+    internal static AudioFrame Rent(SlotPool<AudioFrame>? pool, int sampleRate, int channels, int sampleCount, ChannelLayout layout = ChannelLayout.None)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sampleRate);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(channels);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(channels, AudioFormat.MaxChannels);
         ArgumentOutOfRangeException.ThrowIfNegative(sampleCount);
         var capacity = Math.Max(sampleCount, 1);
-        var frame = Pool.Take() ?? new AudioFrame();
+        var frame = pool?.Take() ?? new AudioFrame();
+        frame._home = pool;
         frame._samples = ArrayPool<float>.Shared.Rent(capacity * channels);
         frame._capacity = capacity;
         frame.SampleRate = sampleRate;
@@ -104,7 +113,7 @@ public sealed class AudioFrame : IDisposable
 
         ArrayPool<float>.Shared.Return(samples);
         SampleCount = 0;
-        Pool.Return(this);
+        _home?.Return(this);
     }
 
     private float[] Samples => _samples ?? throw new ObjectDisposedException(nameof(AudioFrame));
