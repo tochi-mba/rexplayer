@@ -395,12 +395,28 @@ public sealed partial class MediaSession
             }
         }
 
-        /// <summary>For a precise seek, drops audio before the target. False when the whole frame goes.</summary>
+        /// <summary>
+        /// Drops audio before the target of a precise seek, and always before time zero (where a
+        /// gapless stream keeps its encoder delay). When the track declares trailing padding, audio
+        /// past its duration goes too. False when the whole frame goes.
+        /// </summary>
         private bool Trim(AudioFrame frame)
         {
-            if (_currentSeek.Mode == SeekMode.Precise && frame.Pts.IsKnown && frame.Pts < _currentSeek.Target)
+            if (!frame.Pts.IsKnown)
             {
-                frame.TrimStart((int)Math.Min(int.MaxValue, (_currentSeek.Target - frame.Pts).ToSamples(frame.SampleRate)));
+                return frame.SampleCount > 0;
+            }
+
+            var start = _currentSeek.Mode == SeekMode.Precise ? _currentSeek.Target : MediaTime.Zero;
+            if (frame.Pts < start)
+            {
+                frame.TrimStart((int)Math.Min(int.MaxValue, (start - frame.Pts).ToSamples(frame.SampleRate)));
+            }
+
+            if (_audioTrack.Audio is { TrailingPadding: > 0 } && _audioTrack.Duration.IsKnown)
+            {
+                var room = (_audioTrack.Duration - frame.Pts).ToSamples(frame.SampleRate);
+                frame.SetSampleCount((int)Math.Clamp(room, 0, frame.SampleCount));
             }
 
             return frame.SampleCount > 0;

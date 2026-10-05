@@ -139,6 +139,20 @@ public sealed class BitReaderTests
     }
 
     [Fact]
+    public void SeekingMovesBothWaysWithinTheData()
+    {
+        var reader = new BitReader([0b1010_0000, 0xFF]);
+        reader.SkipBits(12);
+
+        reader.Seek(2);
+        Assert.Equal(0b10u, reader.ReadBits(2));
+        reader.Seek(16);
+        Assert.Equal(0, reader.BitsRemaining);
+        Assert.Throws<MediaFormatException>(() => new BitReader([1]).Seek(9));
+        Assert.Throws<MediaFormatException>(() => new BitReader([1]).Seek(-1));
+    }
+
+    [Fact]
     public void AnExpGolombCodeLongerThanThirtyTwoBitsIsRejected()
     {
         var data = new byte[9];

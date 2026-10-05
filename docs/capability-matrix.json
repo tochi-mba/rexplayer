@@ -299,7 +299,7 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "FMT-C04",
@@ -649,7 +649,7 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "FMT-A03",
@@ -1109,7 +1109,7 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "built"
+      "status": "verified"
     },
     {
       "id": "META-02",

@@ -59,3 +59,46 @@ Invoke-Encoder `
     -Source 'aevalsrc=0.6*sin(2*PI*220*t)|0.55*sin(2*PI*220*t+0.3):s=22050:d=0.5' `
     -Options @('-c:a', 'flac', '-sample_fmt', 's16', '-compression_level', '0', '-ch_mode', 'mid_side') `
     -Output (Join-Path $flac 'stereo-16bit-22k-midside-fixed.flac')
+
+# MP3 from LAME through FFmpeg, each with a reference decode by FFmpeg's own decoder as 24-bit PCM,
+# already trimmed of the encoder delay and padding the LAME tag declares.
+$mp3 = Join-Path $root 'tests/fixtures/mp3'
+New-Item -ItemType Directory -Force $mp3 | Out-Null
+
+function Invoke-Mp3 {
+    param([string]$Source, [string[]]$Options, [string]$Name)
+    $output = Join-Path $mp3 "$Name.mp3"
+    Invoke-Encoder -Source $Source -Options (@('-c:a', 'libmp3lame') + $Options) -Output $output
+    $reference = Join-Path $mp3 "$Name.reference.wav"
+    & $Ffmpeg -hide_banner -loglevel error -y -i $output -c:a pcm_s24le -map_metadata -1 -fflags +bitexact -flags:a +bitexact $reference
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to decode $output."
+    }
+
+    Write-Host "Wrote $reference ($((Get-Item $reference).Length) bytes)."
+}
+
+# MPEG-1, constant bitrate, joint stereo: two tones with a little noise.
+Invoke-Mp3 -Name 'stereo-44k-128k-cbr' `
+    -Source 'aevalsrc=0.5*sin(2*PI*440*t)+0.02*(random(0)-0.5)|0.4*sin(2*PI*660*t)+0.02*(random(1)-0.5):s=44100:d=0.4' `
+    -Options @('-b:a', '128k')
+
+# Sharp bursts every 100 ms, so the encoder switches to short blocks around each one.
+Invoke-Mp3 -Name 'stereo-44k-vbr-bursts' `
+    -Source "aevalsrc='0.7*sin(2*PI*1500*t)*lt(mod(t,0.1),0.01)+0.05*sin(2*PI*220*t)|0.6*(random(0)-0.5)*lt(mod(t+0.05,0.1),0.008)':s=44100:d=0.4" `
+    -Options @('-q:a', '2')
+
+# Mono at 48 kHz, variable bitrate.
+Invoke-Mp3 -Name 'mono-48k-vbr' `
+    -Source 'aevalsrc=0.6*sin(2*PI*(300+3000*t)*t):s=48000:d=0.3' `
+    -Options @('-q:a', '5')
+
+# MPEG-2 (lower sampling frequencies): one granule per frame and 9-bit scalefactor compression.
+Invoke-Mp3 -Name 'stereo-22k-64k-mpeg2' `
+    -Source 'aevalsrc=0.5*sin(2*PI*330*t)+0.03*(random(0)-0.5)|0.5*sin(2*PI*495*t):s=22050:d=0.4' `
+    -Options @('-b:a', '64k')
+
+# MPEG 2.5 at 8 kHz.
+Invoke-Mp3 -Name 'mono-8k-16k-mpeg25' `
+    -Source 'aevalsrc=0.5*sin(2*PI*400*t)+0.3*sin(2*PI*1100*t):s=8000:d=0.5' `
+    -Options @('-b:a', '16k')

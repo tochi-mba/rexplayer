@@ -230,6 +230,9 @@ internal sealed class SplittingDecoderFactory : IDecoderFactory
 {
     public List<AudioFrame> Frames { get; } = [];
 
+    /// <summary>Leave the frames' timestamps unknown, as a decoder may for a stream with none.</summary>
+    public bool Untimed { get; init; }
+
     public string Name => "splitting";
 
     public DecoderSource Source => DecoderSource.Own;
@@ -238,9 +241,9 @@ internal sealed class SplittingDecoderFactory : IDecoderFactory
 
     public bool CanDecode(TrackInfo track) => true;
 
-    public IAudioDecoder CreateAudio(TrackInfo track) => new Decoder(new PcmDecoder(track), Frames);
+    public IAudioDecoder CreateAudio(TrackInfo track) => new Decoder(new PcmDecoder(track), Frames, Untimed);
 
-    private sealed class Decoder(PcmDecoder inner, List<AudioFrame> frames) : IAudioDecoder
+    private sealed class Decoder(PcmDecoder inner, List<AudioFrame> frames, bool untimed) : IAudioDecoder
     {
         public string Name => "splitting";
 
@@ -256,7 +259,7 @@ internal sealed class SplittingDecoderFactory : IDecoderFactory
                 foreach (var (start, count) in new[] { (0, half), (half, whole.SampleCount - half) })
                 {
                     var part = AudioFrame.Rent(pool: null, whole.SampleRate, whole.Channels, count, whole.Layout);
-                    part.Pts = whole.Pts;
+                    part.Pts = untimed ? MediaTime.Unknown : whole.Pts;
                     part.Generation = whole.Generation;
                     for (var c = 0; c < whole.Channels; c++)
                     {

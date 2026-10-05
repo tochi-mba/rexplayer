@@ -4,6 +4,7 @@ using Rex.Media.AppCore.Cli;
 using Rex.Media.AppCore.Machine;
 using Rex.Media.Audio;
 using Rex.Media.TestKit;
+using Rex.Media.Tests.Codecs;
 
 namespace Rex.Media.Tests.AppCore;
 
@@ -166,6 +167,27 @@ public sealed class CliApplicationTests : IDisposable
     }
 
     [Fact]
+    public void PlayingAnMp3CapturesExactlyTheGaplessLengthAndMatchesAnIndependentDecoder()
+    {
+        var input = RepoPaths.Combine("tests/fixtures/mp3/stereo-44k-128k-cbr.mp3");
+        var reference = Mp3FixtureTests.ReadReference(RepoPaths.Combine("tests/fixtures/mp3/stereo-44k-128k-cbr.reference.wav"));
+        var capture = Path.Combine(_directory, "mp3.wav");
+
+        var data = Single(Run(null, "play", input, "--aout", "wav:" + capture, "--json").Out).GetProperty("data");
+
+        Assert.True(data.GetProperty("finished").GetBoolean());
+        var wav = File.ReadAllBytes(capture);
+        var start = wav.AsSpan().IndexOf("data"u8) + 8;
+        var floats = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>(wav.AsSpan(start)).ToArray();
+        Assert.Equal(reference[0].Length * 2, floats.Length);
+        for (var c = 0; c < 2; c++)
+        {
+            var plane = floats.Where((_, i) => i % 2 == c).ToArray();
+            Assert.True(Mp3FixtureTests.Difference(plane, reference[c]).Peak <= Math.Pow(2, -14));
+        }
+    }
+
+    [Fact]
     public void PlayHonoursStartVolumeAndHumanOutput()
     {
         var input = Fixture("tone.wav", Pcm.SineWav(440, 8000, 1, 1.0));
@@ -247,12 +269,12 @@ public sealed class CliApplicationTests : IDisposable
     [Fact]
     public void AnUnplayableTrackFailsCleanly()
     {
-        var input = Fixture("mp3.wav", new WavBuilder().Format(0x55, 2, 44_100, 1, 0).Data(new byte[10]).Build());
+        var input = Fixture("dts.wav", new WavBuilder().Format(0x2001, 2, 44_100, 1, 0).Data(new byte[10]).Build());
 
         var (exit, _, error) = Run(null, "play", input);
 
         Assert.Equal(1, exit);
-        Assert.Equal("No decoder for MP3 is available.", error.Trim());
+        Assert.Equal("No decoder for DTS is available.", error.Trim());
     }
 
     [Fact]
@@ -275,8 +297,8 @@ public sealed class CliApplicationTests : IDisposable
     [Fact]
     public void TheRegistriesHoldTheShippedFormats()
     {
-        Assert.Equal(["wav", "aiff", "flac"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
-        Assert.Equal(["rexplayer PCM", "rexplayer FLAC"], MediaRegistries.Decoders().Factories.Select(f => f.Name));
+        Assert.Equal(["wav", "aiff", "flac", "mpeg-audio"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
+        Assert.Equal(["rexplayer PCM", "rexplayer FLAC", "rexplayer MP3"], MediaRegistries.Decoders().Factories.Select(f => f.Name));
         Assert.Throws<ArgumentNullException>(() => MediaRegistries.Decoders(null!));
     }
 }

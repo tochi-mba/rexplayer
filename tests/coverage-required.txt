@@ -30,6 +30,10 @@ FlacFrameHeader.cs
 FlacStreamInfo.cs
 FourCC.cs
 Id3v2.cs
+Layer3Huffman.cs
+Layer3SideInfo.cs
+Layer3Synthesis.cs
+Layer3Tables.cs
 MachineEnvelope.cs
 MediaBuffer.cs
 MediaClock.cs
@@ -40,6 +44,10 @@ MediaSession.Commands.cs
 MediaSession.cs
 MediaTime.cs
 MemoryByteSource.cs
+Mp3Decoder.cs
+MpegAudioDemuxer.cs
+MpegAudioHeader.cs
+MpegInfoTag.cs
 NullAudioSink.cs
 Packet.cs
 PcmDecoder.cs

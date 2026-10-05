@@ -12,6 +12,7 @@ description of how it was made. No downloaded media is used.
 | `Pcm.SineWav` | A sine wave as 16-bit WAV, for spectral checks |
 | `Pcm.RampWav` | A WAV whose samples count up, so any sample's position can be checked exactly |
 | `FlacBuilder` | FLAC streams coded exactly as a test asks: every subframe type and predictor, Rice and escaped residuals, wasted bits, every stereo mode, 4 to 32 bits, 1 to 8 channels, fixed or variable blocks, and every metadata block |
+| `Layer3FrameWriter` (in the tests) | Layer III frames written field by field: intensity stereo at every position and table, mixed blocks, reused scalefactors, CRC-protected frames, and each malformed field |
 | `Id3Builder` | ID3v2.2, 2.3 and 2.4 tags with every text encoding, unsynchronisation, compressed, encrypted and grouped frames, pictures and chapters |
 
 ## Committed
@@ -26,3 +27,15 @@ description of how it was made. No downloaded media is used.
 
 The FLAC fixtures come from an encoder rexplayer did not write. Their oracle is inside each file: the
 STREAMINFO MD5 the encoder computed from its source samples, which a lossless decode must reproduce.
+
+| `tests/fixtures/mp3/stereo-44k-128k-cbr.mp3` | 0.4 s, 440 Hz and 660 Hz with a little noise, MPEG-1, 44.1 kHz, 128 kbit/s, joint stereo | `scripts/make-fixtures.ps1` (FFmpeg with LAME) |
+| `tests/fixtures/mp3/stereo-44k-vbr-bursts.mp3` | 0.4 s of sharp bursts that force short blocks, MPEG-1, 44.1 kHz, variable bitrate | `scripts/make-fixtures.ps1` (FFmpeg with LAME, quality 2) |
+| `tests/fixtures/mp3/mono-48k-vbr.mp3` | 0.3 s rising sweep, MPEG-1, 48 kHz, mono, variable bitrate | `scripts/make-fixtures.ps1` (FFmpeg with LAME, quality 5) |
+| `tests/fixtures/mp3/stereo-22k-64k-mpeg2.mp3` | 0.4 s, two tones, MPEG-2, 22.05 kHz, 64 kbit/s | `scripts/make-fixtures.ps1` (FFmpeg with LAME) |
+| `tests/fixtures/mp3/mono-8k-16k-mpeg25.mp3` | 0.5 s, two tones, MPEG 2.5, 8 kHz, 16 kbit/s | `scripts/make-fixtures.ps1` (FFmpeg with LAME) |
+| `tests/fixtures/mp3/*.reference.wav` | Each MP3 above decoded by FFmpeg's own decoder to 24-bit PCM, encoder delay and padding already removed | `scripts/make-fixtures.ps1` |
+
+The MP3 fixtures come from an encoder rexplayer did not write, and their references from a decoder
+it did not write. rexplayer's decode must match each reference to the conformance standard's "full
+accuracy" (RMS difference under 2^-15/sqrt(12), no sample more than 2^-14 apart) and be exactly as
+long, which also proves the gapless trim.

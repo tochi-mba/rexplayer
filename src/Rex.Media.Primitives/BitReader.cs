@@ -99,6 +99,20 @@ public ref struct BitReader
     public void AlignToByte() => _position = (_position + 7) & ~7L;
 
     /// <summary>
+    /// Moves to an absolute bit position, backwards or forwards. Formats whose fields have a
+    /// declared length (a Layer III granule) jump to its end whatever the parse inside consumed.
+    /// </summary>
+    public void Seek(long bitPosition)
+    {
+        if (bitPosition < 0 || bitPosition > BitLength)
+        {
+            throw new MediaFormatException("A field points outside its bitstream.");
+        }
+
+        _position = bitPosition;
+    }
+
+    /// <summary>
     /// Counts zero bits up to and including the terminating one bit (FLAC's unary code). It looks at
     /// up to 32 bits at a time, because Rice-coded residuals make this the hottest read in a decoder.
     /// </summary>

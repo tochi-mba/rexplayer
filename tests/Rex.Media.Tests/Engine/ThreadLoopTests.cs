@@ -112,6 +112,19 @@ public sealed class SessionShutdownTests
     }
 
     [Fact]
+    public async Task FramesWithoutTimestampsPlayInFull()
+    {
+        var sink = new RecordingAudioSink(channels: 1);
+        var decoder = new SplittingDecoderFactory { Untimed = true };
+        using var harness = new SessionHarness(sink: sink, decoder: decoder);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Pcm.RampWav(8000, 800)));
+        await harness.FinishAsync();
+
+        Assert.Equal(800, harness.Recording.Channel(0).Length);
+    }
+
+    [Fact]
     public async Task AnEndReportedAfterANewerSeekIsIgnored()
     {
         var sink = new GatedDrainSink();
