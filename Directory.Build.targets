@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- Here rather than in Directory.Build.props: props are imported before a project's own
+       properties, so $(IntermediateOutputPath), $(AssemblyName) and $(IsTestProject) are still empty
+       there. The documentation file exists so the compiler reports unused usings; it never ships. -->
+  <PropertyGroup>
+    <DocumentationFile>$(IntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <IsPackable>false</IsPackable>
+    <!-- Test names are sentences; the underscores are what keep them readable in a runner. CA1861
+         asks for constant arrays to be hoisted into static fields for speed; in a test the array
+         written next to the assertion is the clearer statement of what is expected. -->
+    <NoWarn>$(NoWarn);CA1707;CA1861</NoWarn>
+  </PropertyGroup>
+
+</Project>

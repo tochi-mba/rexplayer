@@ -1,0 +1,41 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- The engine is portable .NET. Projects that talk to Windows (adapters, interop, the CLI and
+         the app) set their own Windows target framework; an architecture test pins every project's
+         framework so the engine cannot quietly grow an operating-system dependency. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Pinned to a band rather than latest-recommended: every newly recommended rule arrives as an
+         error here, so a floating level would let a newer SDK fail a commit that passed yesterday.
+         The rules this codebase turns off are listed in .editorconfig, each with its reason. -->
+    <AnalysisLevel>10.0-recommended</AnalysisLevel>
+    <!-- Generated so the build reports unused usings, which the compiler only tracks when it writes
+         documentation. Checked comments must be correct; not every member needs one. Where the file
+         goes is set in Directory.Build.targets. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
+    <CopyDocumentationFileToOutputDirectory>false</CopyDocumentationFileToOutputDirectory>
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- The one version every build, the installer and the release job read. -->
+    <Version>0.1.0</Version>
+    <Company>REX Technologies</Company>
+    <Authors>REX Technologies</Authors>
+    <Product>rexplayer</Product>
+    <Copyright>Copyright (c) 2026 REX Technologies</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

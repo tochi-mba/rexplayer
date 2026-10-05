@@ -1,0 +1,3175 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    {
+      "id": "PB-01",
+      "area": "Playback core",
+      "name": "Open & play any local file",
+      "details": "Content sniffing (never trust extensions), probe order by score, unknown-format message names the bytes it saw",
+      "milestone": "M1–M3",
+      "priority": "must",
+      "oracles": "FRM PCM EVT",
+      "status": "built"
+    },
+    {
+      "id": "PB-02",
+      "area": "Playback core",
+      "name": "Play / pause / stop / toggle",
+      "details": "Stop returns to start and releases devices; pause holds the decoders warm",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "EVT FRM",
+      "status": "verified"
+    },
+    {
+      "id": "PB-03",
+      "area": "Playback core",
+      "name": "Precise seek (time)",
+      "details": "Sample-accurate audio, frame-accurate video; seek bar click, drag (keyframe while dragging, precise on release)",
+      "milestone": "M2/M3",
+      "priority": "must",
+      "oracles": "FRM PCM EVT",
+      "status": "verified"
+    },
+    {
+      "id": "PB-04",
+      "area": "Playback core",
+      "name": "Relative jumps",
+      "details": "Very short 3 s, short 10 s, medium 60 s, long 300 s; every size configurable",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "FRM",
+      "status": "planned"
+    },
+    {
+      "id": "PB-05",
+      "area": "Playback core",
+      "name": "Go to time",
+      "details": "Dialog (Ctrl+T) accepting `h:mm:ss`, `mm:ss` or seconds; also `rexplay seek`",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "FRM UIA",
+      "status": "planned"
+    },
+    {
+      "id": "PB-06",
+      "area": "Playback core",
+      "name": "Playback rate",
+      "details": "0.25×–4×; coarse steps (0.25/0.5/0.75/1/1.25/1.5/2/3/4) and fine steps of ±0.1; reset to 1.0; pitch preserved by default",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "FRM SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "PB-07",
+      "area": "Playback core",
+      "name": "Frame step",
+      "details": "Forward E; backward Shift+E (decode-from-keyframe cache)",
+      "milestone": "M11",
+      "priority": "must/should",
+      "oracles": "FRM",
+      "status": "planned"
+    },
+    {
+      "id": "PB-08",
+      "area": "Playback core",
+      "name": "A-B loop",
+      "details": "Set A, set B, clear; loop survives a pause; snaps to frames",
+      "milestone": "M11",
+      "priority": "must",
+      "oracles": "FRM",
+      "status": "planned"
+    },
+    {
+      "id": "PB-09",
+      "area": "Playback core",
+      "name": "Titles & chapters",
+      "details": "Next/previous chapter and title; chapter menu; chapter marks on the seek bar",
+      "milestone": "M3/M11",
+      "priority": "must",
+      "oracles": "FRM EVT UIA",
+      "status": "planned"
+    },
+    {
+      "id": "PB-10",
+      "area": "Playback core",
+      "name": "Bookmarks (per file)",
+      "details": "Named positions with add, rename, delete and jump; stored in RexStore",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "STORE FRM",
+      "status": "planned"
+    },
+    {
+      "id": "PB-11",
+      "area": "Playback core",
+      "name": "Resume where you left off",
+      "details": "Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "STORE EVT UIA",
+      "status": "planned"
+    },
+    {
+      "id": "PB-12",
+      "area": "Playback core",
+      "name": "Repeat & shuffle",
+      "details": "Repeat off / one / all; shuffle with no repeats until the list is exhausted",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "PB-13",
+      "area": "Playback core",
+      "name": "Stop after current / pause after current",
+      "details": "One-shot toggles",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "PB-14",
+      "area": "Playback core",
+      "name": "Gapless playback",
+      "details": "Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "PCM",
+      "status": "planned"
+    },
+    {
+      "id": "PB-15",
+      "area": "Playback core",
+      "name": "Crossfade between tracks",
+      "details": "0–12 s setting (default off)",
+      "milestone": "M6",
+      "priority": "could",
+      "oracles": "PCM SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "PB-16",
+      "area": "Playback core",
+      "name": "Snapshot",
+      "details": "Current frame at source resolution, without the OSD; PNG/JPEG/BMP; folder, filename pattern and sequential numbering configurable",
+      "milestone": "M3/M11",
+      "priority": "must",
+      "oracles": "FILE FRM",
+      "status": "planned"
+    },
+    {
+      "id": "PB-17",
+      "area": "Playback core",
+      "name": "Track selection",
+      "details": "Video / audio / subtitle / secondary subtitle; preferred-language lists; \"off\" for each",
+      "milestone": "M3–M5",
+      "priority": "must",
+      "oracles": "PCM FRM EVT",
+      "status": "planned"
+    },
+    {
+      "id": "PB-18",
+      "area": "Playback core",
+      "name": "Program selection (TS)",
+      "details": "Next/previous program (service id) for multi-program transport streams",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "FRM EVT",
+      "status": "planned"
+    },
+    {
+      "id": "PB-19",
+      "area": "Playback core",
+      "name": "Audio delay",
+      "details": "±50 ms steps (J/K), reset, exact entry; range ±10 s; optionally remembered per file",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "SYNC",
+      "status": "planned"
+    },
+    {
+      "id": "PB-20",
+      "area": "Playback core",
+      "name": "Subtitle delay & sync",
+      "details": "±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "EVT PIX",
+      "status": "planned"
+    },
+    {
+      "id": "PB-21",
+      "area": "Playback core",
+      "name": "Sleep timer",
+      "details": "Stop or pause after N minutes or at the end of the current item, with a fade-out",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "EVT PCM",
+      "status": "planned"
+    },
+    {
+      "id": "PB-22",
+      "area": "Playback core",
+      "name": "Play-and-exit / play-and-stop / play-and-pause",
+      "details": "CLI and settings",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "CLI EVT",
+      "status": "verified"
+    },
+    {
+      "id": "PB-23",
+      "area": "Playback core",
+      "name": "Start/stop/run time per item",
+      "details": "`--start`, `--stop`, `--run-time`; per-item options in the playlist",
+      "milestone": "M4",
+      "priority": "should",
+      "oracles": "FRM CLI",
+      "status": "built"
+    },
+    {
+      "id": "PB-24",
+      "area": "Playback core",
+      "name": "Corrupt-file resilience",
+      "details": "Skip bad access units, keep playing other streams, rebuild a missing MP4/AVI index by scanning (with progress)",
+      "milestone": "M3/M7",
+      "priority": "must",
+      "oracles": "FUZZ EVT",
+      "status": "planned"
+    },
+    {
+      "id": "PB-25",
+      "area": "Playback core",
+      "name": "Instant start",
+      "details": "Cold start under 300 ms to UI; open to first frame under 500 ms on the hardware lane",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "PERF",
+      "status": "planned"
+    },
+    {
+      "id": "PB-26",
+      "area": "Playback core",
+      "name": "Scrubbing preview",
+      "details": "Seek-bar thumbnail preview generated off-thread from keyframes and cached",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX UIA",
+      "status": "planned"
+    },
+    {
+      "id": "PB-27",
+      "area": "Playback core",
+      "name": "Media key / external control",
+      "details": "SMTC, keyboard media keys, Bluetooth headset buttons (§6.13)",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "EVT HW",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C01",
+      "area": "Formats: Containers / demuxers",
+      "name": "WAV / RF64 / BW64 / Wave64",
+      "details": "WAVE_FORMAT_EXTENSIBLE, channel masks, `LIST/INFO`, `bext`, cue chunks",
+      "milestone": "M1",
+      "priority": "must",
+      "oracles": "",
+      "status": "verified"
+    },
+    {
+      "id": "FMT-C02",
+      "area": "Formats: Containers / demuxers",
+      "name": "AIFF / AIFF-C",
+      "details": "Big-endian PCM, `sowt`, float, markers",
+      "milestone": "M1",
+      "priority": "must",
+      "oracles": "",
+      "status": "verified"
+    },
+    {
+      "id": "FMT-C03",
+      "area": "Formats: Containers / demuxers",
+      "name": "MPEG audio elementary (MP1/2/3)",
+      "details": "Xing/Info/VBRI headers for duration and seek, LAME gapless delay/padding, ID3v1/v2, APEv2 at the tail",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C04",
+      "area": "Formats: Containers / demuxers",
+      "name": "FLAC native",
+      "details": "STREAMINFO, SEEKTABLE, PICTURE, VORBIS_COMMENT, CUESHEET; frame-scan seek when there is no seektable",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C05",
+      "area": "Formats: Containers / demuxers",
+      "name": "MP4 / MOV / 3GP / M4A / M4V / F4V",
+      "details": "Progressive + fragmented (moof/mfra/sidx), edit lists (gapless offset), `chap` chapters, `tx3g` text, multiple tracks, `ctts` B-frames, 64-bit boxes, fast-start and non-fast-start",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C06",
+      "area": "Formats: Containers / demuxers",
+      "name": "Matroska / WebM",
+      "details": "EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C07",
+      "area": "Formats: Containers / demuxers",
+      "name": "MPEG-TS / M2TS (BDAV)",
+      "details": "PAT/PMT/SDT/EIT, PCR clock recovery, multi-program, discontinuity handling, 188/192/204-byte packets, PES reassembly",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C08",
+      "area": "Formats: Containers / demuxers",
+      "name": "MPEG-PS / VOB / MPG",
+      "details": "Pack/system headers, private streams (AC-3/DTS/LPCM/SPU), SCR",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C09",
+      "area": "Formats: Containers / demuxers",
+      "name": "Ogg (+OGM Could)",
+      "details": "Vorbis, Opus, FLAC-in-Ogg, Theora, Speex; chained streams (internet radio); granule-position seek bisection",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C10",
+      "area": "Formats: Containers / demuxers",
+      "name": "AVI / OpenDML",
+      "details": "idx1 + indx super-index, broken-index rebuild, VBR MP3, DV type-1/2",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C11",
+      "area": "Formats: Containers / demuxers",
+      "name": "ASF / WMV / WMA",
+      "details": "Via MF's in-box ASF media source as a demux adapter (spec-licence checkpoint, §8.2); DRM-protected files refused with a message",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C12",
+      "area": "Formats: Containers / demuxers",
+      "name": "FLV",
+      "details": "AMF0 metadata, H.264/AAC/MP3 tags (VP6/Sorenson payloads: Won't)",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C13",
+      "area": "Formats: Containers / demuxers",
+      "name": "Raw elementary streams",
+      "details": "AAC ADTS/LATM, AC-3/E-AC-3, DTS, H.264/HEVC Annex B, MPEG-1/2 video ES, Y4M, raw PCM with user-set format",
+      "milestone": "M3/M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C14",
+      "area": "Formats: Containers / demuxers",
+      "name": "CAF",
+      "details": "Core Audio Format (ALAC/PCM/AAC payloads)",
+      "milestone": "M7",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C15",
+      "area": "Formats: Containers / demuxers",
+      "name": "AU / SND",
+      "details": "Sun/NeXT audio",
+      "milestone": "M7",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C16",
+      "area": "Formats: Containers / demuxers",
+      "name": "WavPack, TTA, Musepack, APE native",
+      "details": "With their codecs (§6.2.3)",
+      "milestone": "post",
+      "priority": "could/wont",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-C17",
+      "area": "Formats: Containers / demuxers",
+      "name": "MXF (OP1a)",
+      "details": "Broadcast exchange",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-C18",
+      "area": "Formats: Containers / demuxers",
+      "name": "DV raw",
+      "details": "DIF stream",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-C19",
+      "area": "Formats: Containers / demuxers",
+      "name": "Image files as media",
+      "details": "JPEG/PNG/BMP/GIF/TIFF/WebP/HEIC (via WIC, so OS codecs); a display duration for slideshows in playlists",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-C20",
+      "area": "Formats: Containers / demuxers",
+      "name": "Real/NSV/NUT/PVA/SMF-as-container",
+      "details": "Legacy",
+      "milestone": "—",
+      "priority": "wont",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-V01",
+      "area": "Formats: Video decoders",
+      "name": "H.264/AVC (all common profiles incl. High 10 where MF supports it)",
+      "details": "MF (D3D11VA → SW MFT)",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V02",
+      "area": "Formats: Video decoders",
+      "name": "HEVC/H.265 (Main, Main 10)",
+      "details": "MF + Store extension",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V03",
+      "area": "Formats: Video decoders",
+      "name": "AV1",
+      "details": "MF + AV1 extension; own post-1.0",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V04",
+      "area": "Formats: Video decoders",
+      "name": "VP9 (profiles 0/2)",
+      "details": "MF extension; own M12",
+      "milestone": "M3/M12",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V05",
+      "area": "Formats: Video decoders",
+      "name": "VP8",
+      "details": "Own (MF if present)",
+      "milestone": "M12",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V06",
+      "area": "Formats: Video decoders",
+      "name": "MPEG-2 video (MP@HL, 4:2:0; 4:2:2 Could)",
+      "details": "Own (field/frame pictures, 3:2 pulldown flags)",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V07",
+      "area": "Formats: Video decoders",
+      "name": "MPEG-1 video",
+      "details": "Own",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V08",
+      "area": "Formats: Video decoders",
+      "name": "MPEG-4 Part 2 ASP",
+      "details": "MF; own post-1.0",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V09",
+      "area": "Formats: Video decoders",
+      "name": "VC-1 / WMV1/2/3",
+      "details": "MF",
+      "milestone": "M3",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V10",
+      "area": "Formats: Video decoders",
+      "name": "H.263 / H.263+",
+      "details": "MF",
+      "milestone": "M3",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V11",
+      "area": "Formats: Video decoders",
+      "name": "MJPEG (A/B)",
+      "details": "Own baseline JPEG",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V12",
+      "area": "Formats: Video decoders",
+      "name": "Uncompressed (I420/NV12/UYVY/YUY2/v210/RGB/BGRA)",
+      "details": "Own",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V13",
+      "area": "Formats: Video decoders",
+      "name": "Theora",
+      "details": "MF if present; own Could",
+      "milestone": "M12",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V14",
+      "area": "Formats: Video decoders",
+      "name": "DV (25/50)",
+      "details": "MF",
+      "milestone": "M7",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-V15",
+      "area": "Formats: Video decoders",
+      "name": "VVC",
+      "details": "MF only if an extension exists",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-V16",
+      "area": "Formats: Video decoders",
+      "name": "Legacy (Cinepak, Indeo, Sorenson, RealVideo, VP3/5/6, ProRes, FFV1/HuffYUV)",
+      "details": "— (FFV1/HuffYUV own Could post-1.0)",
+      "milestone": "—",
+      "priority": "wont",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-A01",
+      "area": "Formats: Audio decoders",
+      "name": "PCM (u8/s16/s24/s32/f32/f64, LE/BE, A-law/µ-law)",
+      "details": "Own",
+      "milestone": "M1",
+      "priority": "must",
+      "oracles": "",
+      "status": "verified"
+    },
+    {
+      "id": "FMT-A02",
+      "area": "Formats: Audio decoders",
+      "name": "MP3 (incl. MPEG-2.5, free-format)",
+      "details": "Own",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A03",
+      "area": "Formats: Audio decoders",
+      "name": "MP1 / MP2",
+      "details": "Own",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A04",
+      "area": "Formats: Audio decoders",
+      "name": "FLAC (incl. 24/32-bit, up to 8 ch)",
+      "details": "Own",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A05",
+      "area": "Formats: Audio decoders",
+      "name": "AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it)",
+      "details": "MF",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A06",
+      "area": "Formats: Audio decoders",
+      "name": "AC-3",
+      "details": "Own (dialnorm, DRC modes, downmix coefficients)",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A07",
+      "area": "Formats: Audio decoders",
+      "name": "E-AC-3",
+      "details": "MF ext → own after legal checkpoint",
+      "milestone": "M11/M12",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A08",
+      "area": "Formats: Audio decoders",
+      "name": "DTS core (+ core extraction from DTS-HD)",
+      "details": "Own",
+      "milestone": "M12",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A09",
+      "area": "Formats: Audio decoders",
+      "name": "Vorbis",
+      "details": "Own",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A10",
+      "area": "Formats: Audio decoders",
+      "name": "Opus (SILK/CELT/hybrid, multistream for surround)",
+      "details": "Own",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A11",
+      "area": "Formats: Audio decoders",
+      "name": "ALAC",
+      "details": "Own",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A12",
+      "area": "Formats: Audio decoders",
+      "name": "WMA 1/2/Pro/Lossless",
+      "details": "MF",
+      "milestone": "M3",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A13",
+      "area": "Formats: Audio decoders",
+      "name": "AMR-NB/WB",
+      "details": "MF",
+      "milestone": "M7",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A14",
+      "area": "Formats: Audio decoders",
+      "name": "ADPCM variants (IMA, MS, ...)",
+      "details": "Own",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A15",
+      "area": "Formats: Audio decoders",
+      "name": "LPCM (DVD/BD/AES3)",
+      "details": "Own",
+      "milestone": "M7/M13",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A16",
+      "area": "Formats: Audio decoders",
+      "name": "TrueHD/MLP, DTS-HD",
+      "details": "Passthrough only at 1.0 (§6.3)",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A17",
+      "area": "Formats: Audio decoders",
+      "name": "Speex, WavPack, TTA, Musepack, APE",
+      "details": "Own Could",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-A18",
+      "area": "Formats: Audio decoders",
+      "name": "MIDI (SMF)",
+      "details": "Own small synthesiser (sine/wavetable GM-lite) or the OS synth via midiOut",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-A19",
+      "area": "Formats: Audio decoders",
+      "name": "Tracker modules (MOD/S3M/XM/IT)",
+      "details": "Own Could",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "FMT-A20",
+      "area": "Formats: Audio decoders",
+      "name": "G.711/G.722 (RTP telephony)",
+      "details": "Own G.711; G.722 Could",
+      "milestone": "M12",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "FMT-A21",
+      "area": "Formats: Audio decoders",
+      "name": "ATRAC, QDM2, MACE, RealAudio",
+      "details": "—",
+      "milestone": "—",
+      "priority": "wont",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "SUB-01",
+      "area": "Formats: Subtitles & captions",
+      "name": "SubRip (SRT)",
+      "details": "Basic tags `<b><i><u><font color>`; tolerant timestamps",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-02",
+      "area": "Formats: Subtitles & captions",
+      "name": "WebVTT",
+      "details": "Cue settings (line/position/align/size), regions basic, `::cue` styling basic, voice spans",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-03",
+      "area": "Formats: Subtitles & captions",
+      "name": "ASS / SSA",
+      "details": "v1 subset (§7.6), embedded fonts from MKV attachments, collisions, PlayRes scaling",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-04",
+      "area": "Formats: Subtitles & captions",
+      "name": "MP4 timed text (tx3g / mov_text)",
+      "details": "Styles, karaoke Could",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-05",
+      "area": "Formats: Subtitles & captions",
+      "name": "SAMI, MicroDVD (frame-based with fps), SubViewer 1/2, MPL2, VPlayer",
+      "details": "Text formats",
+      "milestone": "M5",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-06",
+      "area": "Formats: Subtitles & captions",
+      "name": "VobSub (idx/sub) & DVD SPU in VOB",
+      "details": "Palette, forced subtitles flag",
+      "milestone": "M7/M13",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-07",
+      "area": "Formats: Subtitles & captions",
+      "name": "PGS (HDMV .sup / in M2TS/MKV)",
+      "details": "Composition, cropping, forced",
+      "milestone": "M7",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-08",
+      "area": "Formats: Subtitles & captions",
+      "name": "DVB subtitles",
+      "details": "Region/CLUT/object segments",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-09",
+      "area": "Formats: Subtitles & captions",
+      "name": "CEA-608 (in H.264 SEI / MPEG-2 user data)",
+      "details": "Roll-up / pop-on / paint-on",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-10",
+      "area": "Formats: Subtitles & captions",
+      "name": "CEA-708",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "SUB-11",
+      "area": "Formats: Subtitles & captions",
+      "name": "TTML / DFXP / SMPTE-TT (text)",
+      "details": "—",
+      "milestone": "M15",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-12",
+      "area": "Formats: Subtitles & captions",
+      "name": "Teletext subtitles (DVB)",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "SUB-13",
+      "area": "Formats: Subtitles & captions",
+      "name": "JACOsub, PJS, MPSub, USF, SCC, RealText, Kate",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could/wont",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "SUB-14",
+      "area": "Formats: Subtitles & captions",
+      "name": "Sidecar autoload",
+      "details": "Same folder plus `Subs/`, `subs/`, `Subtitles/`, `subtitles/`; match levels exact / starts-with / contains / any; language codes in the filename (`movie.en.srt`, `movie.fr.forced.srt`)",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-15",
+      "area": "Formats: Subtitles & captions",
+      "name": "Character encoding",
+      "details": "BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16)",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-16",
+      "area": "Formats: Subtitles & captions",
+      "name": "Drop a subtitle file on the video",
+      "details": "Loads it as a subtitle track and selects it",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "SUB-17",
+      "area": "Formats: Subtitles & captions",
+      "name": "Online subtitle search",
+      "details": "Extension point only (§6.12); no service hard-wired in core",
+      "milestone": "M14",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-01",
+      "area": "Formats: Playlists",
+      "name": "M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI)",
+      "details": "R/W",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-02",
+      "area": "Formats: Playlists",
+      "name": "PLS",
+      "details": "R/W",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-03",
+      "area": "Formats: Playlists",
+      "name": "XSPF (incl. per-track extension data)",
+      "details": "R/W",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-04",
+      "area": "Formats: Playlists",
+      "name": "CUE sheets (single-file albums as virtual tracks, multi-file cues)",
+      "details": "R",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-05",
+      "area": "Formats: Playlists",
+      "name": "ASX / WAX / WVX",
+      "details": "R",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-06",
+      "area": "Formats: Playlists",
+      "name": "WPL / ZPL",
+      "details": "R",
+      "milestone": "M6",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-07",
+      "area": "Formats: Playlists",
+      "name": "B4S, QTL, iTunes XML, SMIL",
+      "details": "R",
+      "milestone": "post",
+      "priority": "could/wont",
+      "oracles": "",
+      "status": "post-1.0"
+    },
+    {
+      "id": "PLF-08",
+      "area": "Formats: Playlists",
+      "name": "Podcast RSS/Atom feeds",
+      "details": "R",
+      "milestone": "M8",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "PLF-09",
+      "area": "Formats: Playlists",
+      "name": "Directory / recursive folder as playlist",
+      "details": "Natural sort (house `NaturalOrder` pattern), ignore list (thumbs, `.nfo`, ...)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-01",
+      "area": "Formats: Metadata & artwork",
+      "name": "ID3v1/1.1, ID3v2.2/2.3/2.4",
+      "details": "Text frames, APIC, USLT lyrics, CHAP/CTOC chapters, TXXX ReplayGain, unsynchronisation, compression",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-02",
+      "area": "Formats: Metadata & artwork",
+      "name": "Vorbis comments / FLAC blocks / METADATA_BLOCK_PICTURE",
+      "details": "",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-03",
+      "area": "Formats: Metadata & artwork",
+      "name": "MP4 `ilst` atoms (incl. `covr`, `----` freeform)",
+      "details": "",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-04",
+      "area": "Formats: Metadata & artwork",
+      "name": "Matroska tags + attachments",
+      "details": "",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-05",
+      "area": "Formats: Metadata & artwork",
+      "name": "APEv2, ASF attributes, RIFF INFO, AIFF chunks",
+      "details": "",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-06",
+      "area": "Formats: Metadata & artwork",
+      "name": "Folder art discovery",
+      "details": "`cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-07",
+      "area": "Formats: Metadata & artwork",
+      "name": "Tag editing",
+      "details": "Write title/artist/album/genre/track/date/comment/artwork for ID3v2.4, Vorbis comments/FLAC and MP4 atoms, via a safe rewrite (atomic replace, padding reuse)",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-08",
+      "area": "Formats: Metadata & artwork",
+      "name": "Online metadata/art lookup",
+      "details": "Opt-in (privacy prompt); provider extension point; none hard-wired",
+      "milestone": "M14",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "META-09",
+      "area": "Formats: Metadata & artwork",
+      "name": "Lyrics display",
+      "details": "From USLT / sidecar `.lrc` (synced lines highlighted)",
+      "milestone": "M6",
+      "priority": "could",
+      "oracles": "",
+      "status": "planned"
+    },
+    {
+      "id": "AU-01",
+      "area": "Audio",
+      "name": "Default-device output",
+      "details": "WASAPI shared, event-driven; follows the Windows default device unless pinned",
+      "milestone": "M1",
+      "priority": "must",
+      "oracles": "PCM HW",
+      "status": "verified-hardware"
+    },
+    {
+      "id": "AU-02",
+      "area": "Audio",
+      "name": "Device picker",
+      "details": "Menu + cycle hotkey (Shift+A); remembers the pinned device by endpoint id; falls back to default with a notice if it disappears",
+      "milestone": "M11",
+      "priority": "must",
+      "oracles": "EVT UIA HW",
+      "status": "planned"
+    },
+    {
+      "id": "AU-03",
+      "area": "Audio",
+      "name": "Exclusive mode (bit-perfect)",
+      "details": "Opt-in; format negotiation ladder; volume becomes digital-in-graph or locked (setting)",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PCM HW",
+      "status": "planned"
+    },
+    {
+      "id": "AU-04",
+      "area": "Audio",
+      "name": "Bitstream passthrough",
+      "details": "AC-3, E-AC-3, DTS, DTS-HD, TrueHD as IEC 61937 over HDMI/S/PDIF; per-format toggles; DSP bypass indicated",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "FILE (framer goldens) HW",
+      "status": "planned"
+    },
+    {
+      "id": "AU-05",
+      "area": "Audio",
+      "name": "Volume",
+      "details": "0–200% (slider tops at 125% by default, configurable to 200%); 5% steps (configurable); wheel over the video; soft-clip above 100%; remembered across sessions (setting); OSD feedback",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "PCM",
+      "status": "verified"
+    },
+    {
+      "id": "AU-06",
+      "area": "Audio",
+      "name": "Mute",
+      "details": "Digital silence; unmute restores the level",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "PCM",
+      "status": "verified"
+    },
+    {
+      "id": "AU-07",
+      "area": "Audio",
+      "name": "10-band graphic equaliser",
+      "details": "ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-08",
+      "area": "Audio",
+      "name": "Dynamic range compressor",
+      "details": "RMS/peak blend, attack 1.5–400 ms (25), release 2–800 ms (100), threshold −30–0 dB (−11), ratio 1–20 (4), knee 1–10 dB (5), make-up 0–24 dB (7)",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-09",
+      "area": "Audio",
+      "name": "Room reverb / spatialiser",
+      "details": "Room size, width, wet, dry, damping",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-10",
+      "area": "Audio",
+      "name": "Stereo widener",
+      "details": "Delay 1–100 ms, feedback, cross-feed, dry mix",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-11",
+      "area": "Audio",
+      "name": "Stereo mode",
+      "details": "Stereo / mono / left only / right only / reverse; headphone cross-feed (S); matrix-surround decode (C)",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "PCM",
+      "status": "planned"
+    },
+    {
+      "id": "AU-12",
+      "area": "Audio",
+      "name": "Channel layouts & downmix",
+      "details": "Mono→7.1 input; standard-coefficient 5.1/7.1→stereo downmix, LFE policy, centre/surround levels; honours the Windows speaker configuration; upmix off by default",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "PCM (per-channel markers)",
+      "status": "verified"
+    },
+    {
+      "id": "AU-13",
+      "area": "Audio",
+      "name": "ReplayGain / R128",
+      "details": "Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags",
+      "milestone": "M5",
+      "priority": "should",
+      "oracles": "PCM",
+      "status": "planned"
+    },
+    {
+      "id": "AU-14",
+      "area": "Audio",
+      "name": "Loudness normaliser (real-time)",
+      "details": "Target level, window; off by default",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-15",
+      "area": "Audio",
+      "name": "Pitch-preserving speed",
+      "details": "WSOLA time-stretch across 0.25–4×; toggle to \"chipmunk\" mode",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-16",
+      "area": "Audio",
+      "name": "Pitch shift",
+      "details": "±12 semitones (fine cents) independent of speed",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-17",
+      "area": "Audio",
+      "name": "Vocal reduction (karaoke)",
+      "details": "Centre-channel cancellation with a band limit",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "AU-18",
+      "area": "Audio",
+      "name": "Visualisations",
+      "details": "Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able",
+      "milestone": "M5/M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "AU-19",
+      "area": "Audio",
+      "name": "Audio-only presentation",
+      "details": "Large cover art, metadata, lyrics (META-09), optional visualiser",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": "planned"
+    },
+    {
+      "id": "AU-20",
+      "area": "Audio",
+      "name": "Resampler quality",
+      "details": "Fast / normal (default) / high windowed-sinc polyphase",
+      "milestone": "M2",
+      "priority": "must",
+      "oracles": "SPEC (SNR floors)",
+      "status": "built"
+    },
+    {
+      "id": "AU-21",
+      "area": "Audio",
+      "name": "Language preferences",
+      "details": "Ordered list (e.g. `en, fr`), \"original language\" option, commentary tracks deprioritised",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "AU-22",
+      "area": "Audio",
+      "name": "Latency compensation",
+      "details": "Reads endpoint latency (e.g. Bluetooth) and offsets A/V sync automatically; manual override",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "SYNC HW",
+      "status": "planned"
+    },
+    {
+      "id": "AU-23",
+      "area": "Audio",
+      "name": "Device-change resilience",
+      "details": "Default device switch, unplug and replug, sleep and resume: playback continues, position kept",
+      "milestone": "M11",
+      "priority": "must",
+      "oracles": "EVT (fake sink) HW",
+      "status": "planned"
+    },
+    {
+      "id": "AU-24",
+      "area": "Audio",
+      "name": "Loopback / input recording",
+      "details": "Record from a capture endpoint or loopback (\"what you hear\") through Convert",
+      "milestone": "M12",
+      "priority": "could",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "VID-01",
+      "area": "Video & rendering",
+      "name": "Hardware decoding policy",
+      "details": "Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "EVT PERF HW",
+      "status": "planned"
+    },
+    {
+      "id": "VID-02",
+      "area": "Video & rendering",
+      "name": "Frame pacing",
+      "details": "Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen",
+      "milestone": "M3/M11",
+      "priority": "must",
+      "oracles": "PERF FRM",
+      "status": "planned"
+    },
+    {
+      "id": "VID-03",
+      "area": "Video & rendering",
+      "name": "Fullscreen",
+      "details": "F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-04",
+      "area": "Video & rendering",
+      "name": "Window sizing",
+      "details": "¼, ½, 1:1, 2× (Alt+1..4); fit to screen; \"resize window to video\" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA FRM",
+      "status": "planned"
+    },
+    {
+      "id": "VID-05",
+      "area": "Video & rendering",
+      "name": "Aspect ratio",
+      "details": "Default, 16:9, 4:3, 1:1, 16:10, 2.21:1, 2.35:1, 2.39:1, 5:4, custom W:H; cycle with A",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "PIX (geometry)",
+      "status": "planned"
+    },
+    {
+      "id": "VID-06",
+      "area": "Video & rendering",
+      "name": "Crop",
+      "details": "Presets 16:10, 16:9, 4:3, 1.85:1, 2.21:1, 2.35:1, 2.39:1, 5:3, 5:4, 1:1 (cycle C); per-edge pixel crop keys; automatic black-bar detection",
+      "milestone": "M4/M11",
+      "priority": "must",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-07",
+      "area": "Video & rendering",
+      "name": "Zoom & pan",
+      "details": "Zoom presets (Z cycles, Shift+Z resets); interactive magnifier (wheel zoom, drag pan)",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-08",
+      "area": "Video & rendering",
+      "name": "Deinterlacing",
+      "details": "Off / Auto (stream flags) / On; discard, blend, bob, linear, motion-adaptive, motion-adaptive double-rate, inverse telecine; cycle with Shift+D, toggle with D",
+      "milestone": "M3 (bob), M11",
+      "priority": "must",
+      "oracles": "FRM PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-09",
+      "area": "Video & rendering",
+      "name": "Colour adjustments",
+      "details": "Hue −180..180, brightness 0..2, contrast 0..2, saturation 0..3, gamma 0.01..10; reset",
+      "milestone": "M11",
+      "priority": "must",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-10",
+      "area": "Video & rendering",
+      "name": "Sharpen",
+      "details": "Strength 0..2",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-11",
+      "area": "Video & rendering",
+      "name": "Debanding",
+      "details": "Gradient smoothing",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-12",
+      "area": "Video & rendering",
+      "name": "Denoise",
+      "details": "Spatio-temporal; light/medium/strong",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-13",
+      "area": "Video & rendering",
+      "name": "Film grain",
+      "details": "Synthetic grain overlay",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-14",
+      "area": "Video & rendering",
+      "name": "Transform",
+      "details": "Rotate 90/180/270, flip H/V, transpose, anti-transpose; auto-rotate from container display matrices",
+      "milestone": "M3/M11",
+      "priority": "must",
+      "oracles": "FRM (grid position)",
+      "status": "planned"
+    },
+    {
+      "id": "VID-15",
+      "area": "Video & rendering",
+      "name": "Free rotation",
+      "details": "Arbitrary angle",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-16",
+      "area": "Video & rendering",
+      "name": "Image overlay (\"logo\")",
+      "details": "File, position or anchor, opacity, delay/repeat",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-17",
+      "area": "Video & rendering",
+      "name": "Text overlay (\"marquee\")",
+      "details": "Text with tokens (time, title, artist, position), anchor, size, colour, opacity, timeout",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-18",
+      "area": "Video & rendering",
+      "name": "Shader effects pack",
+      "details": "Sepia, posterise, invert, edge detect, cartoon, mirror, motion blur, wave, ripple, psychedelic, gradient, colour threshold/extract, puzzle",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-19",
+      "area": "Video & rendering",
+      "name": "Stereoscopic 3D",
+      "details": "SBS/TB → 2D (left eye) or red-cyan anaglyph",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-20",
+      "area": "Video & rendering",
+      "name": "360° video",
+      "details": "Equirectangular viewer: drag/arrow keys to look, Page Up/Down for field of view, reset; reads spherical metadata from MP4 and Matroska",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-21",
+      "area": "Video & rendering",
+      "name": "HDR → SDR",
+      "details": "PQ and HLG, BT.2020 → 709 gamut map, tone map to target nits (203 default), FP16 pipeline, 10-bit decode end to end",
+      "milestone": "M11",
+      "priority": "must",
+      "oracles": "PIX HW",
+      "status": "planned"
+    },
+    {
+      "id": "VID-22",
+      "area": "Video & rendering",
+      "name": "HDR passthrough",
+      "details": "HDR10 metadata to an HDR-enabled display (Advanced Color)",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "HW",
+      "status": "planned"
+    },
+    {
+      "id": "VID-23",
+      "area": "Video & rendering",
+      "name": "Colour pipeline correctness",
+      "details": "BT.601/709/2020 matrices, limited/full range, chroma siting, flagged-vs-guessed colorimetry",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "PIX (reference fields)",
+      "status": "planned"
+    },
+    {
+      "id": "VID-24",
+      "area": "Video & rendering",
+      "name": "Scaling quality",
+      "details": "Bilinear / Catmull-Rom / Lanczos3; chroma upsampling quality",
+      "milestone": "M11",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "VID-25",
+      "area": "Video & rendering",
+      "name": "Late-frame policy",
+      "details": "Drop late frames (default on), skip-to-keyframe when far behind, stats",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "FRM PERF",
+      "status": "planned"
+    },
+    {
+      "id": "VID-26",
+      "area": "Video & rendering",
+      "name": "Title on start",
+      "details": "OSD shows the title for 3 s (configurable, can be disabled), position setting",
+      "milestone": "M4",
+      "priority": "should",
+      "oracles": "PIX EVT",
+      "status": "planned"
+    },
+    {
+      "id": "VID-27",
+      "area": "Video & rendering",
+      "name": "Always on top",
+      "details": "Never / always / while playing",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "VID-28",
+      "area": "Video & rendering",
+      "name": "Picture-in-picture",
+      "details": "Compact always-on-top mini window with minimal controls",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "VID-29",
+      "area": "Video & rendering",
+      "name": "Power management",
+      "details": "Display stays awake while video plays; audio-only blocks system sleep but not the screen saver; released when paused or stopped",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "EVT HW",
+      "status": "planned"
+    },
+    {
+      "id": "VID-30",
+      "area": "Video & rendering",
+      "name": "Frame export",
+      "details": "Export the current frame, or every Nth frame of a range, to images",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "VID-31",
+      "area": "Video & rendering",
+      "name": "Stats overlay",
+      "details": "Decoder (own/MF/hardware), resolution, fps, dropped/late, A/V offset, bitrates, buffer, colour info",
+      "milestone": "M4",
+      "priority": "should",
+      "oracles": "PIX UIA",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-01",
+      "area": "Subtitle & OSD rendering",
+      "name": "Text subtitle style",
+      "details": "Font family with per-script fallback, relative size 50–400% (presets smaller/small/normal/large/larger), colour, opacity, bold, outline none/thin/normal/thick + colour, shadow colour/offset/opacity, background box colour/opacity",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-02",
+      "area": "Subtitle & OSD rendering",
+      "name": "Subtitle scaling keys",
+      "details": "Ctrl+wheel, Ctrl+0 reset; menu 50/75/100/125/150/200%",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "PIX UIA",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-03",
+      "area": "Subtitle & OSD rendering",
+      "name": "Placement",
+      "details": "Vertical margin; force position; subtitles in the letterbox bars",
+      "milestone": "M5",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-04",
+      "area": "Subtitle & OSD rendering",
+      "name": "Dual subtitles",
+      "details": "Secondary track shown at the same time (top or bottom)",
+      "milestone": "M5",
+      "priority": "should",
+      "oracles": "PIX EVT",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-05",
+      "area": "Subtitle & OSD rendering",
+      "name": "ASS style policy",
+      "details": "Respect / scale / override styles; embedded fonts honoured",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-06",
+      "area": "Subtitle & OSD rendering",
+      "name": "System caption settings",
+      "details": "Honours Windows Settings → Accessibility → Captions by default",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-07",
+      "area": "Subtitle & OSD rendering",
+      "name": "OSD messages",
+      "details": "Volume, position, speed, track names, delays, aspect/crop, A-B; duration and position settings; can be disabled",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "PIX EVT",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-08",
+      "area": "Subtitle & OSD rendering",
+      "name": "Forced-only mode",
+      "details": "Show only forced subtitles (DVD/BD/PGS/flagged tracks)",
+      "milestone": "M7",
+      "priority": "should",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-09",
+      "area": "Subtitle & OSD rendering",
+      "name": "Complex scripts & RTL",
+      "details": "DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi",
+      "milestone": "M5",
+      "priority": "must",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "OSD-10",
+      "area": "Subtitle & OSD rendering",
+      "name": "Bitmap subtitle scaling",
+      "details": "Scale or recolour PGS/VobSub",
+      "milestone": "M11",
+      "priority": "could",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "NET-01",
+      "area": "Network input, discovery & casting",
+      "name": "HTTP/HTTPS progressive",
+      "details": "Range requests, keep-alive, redirects (limit 10), gzip-agnostic, reconnect with resume, custom user-agent/referrer/cookies/headers per URL, system proxy + explicit proxy, TLS via OS (SChannel through `SslStream`), certificate errors shown with an explicit, remembered per-host override",
+      "milestone": "M8",
+      "priority": "must",
+      "oracles": "NET FRM",
+      "status": "planned"
+    },
+    {
+      "id": "NET-02",
+      "area": "Network input, discovery & casting",
+      "name": "Internet radio (ICY/SHOUTcast/Icecast)",
+      "details": "`Icy-MetaData` titles into now-playing, reconnect, chained Ogg",
+      "milestone": "M8",
+      "priority": "must",
+      "oracles": "NET EVT",
+      "status": "planned"
+    },
+    {
+      "id": "NET-03",
+      "area": "Network input, discovery & casting",
+      "name": "HLS",
+      "details": "VOD + live + event; TS and fMP4 segments; AES-128 and SAMPLE-AES (non-DRM); alternate audio/subtitle renditions; WebVTT segments; adaptive bitrate (throughput + buffer based) with a manual quality pin; live-edge seeking and DVR window; discontinuity handling",
+      "milestone": "M8",
+      "priority": "must",
+      "oracles": "NET FRM EVT",
+      "status": "planned"
+    },
+    {
+      "id": "NET-04",
+      "area": "Network input, discovery & casting",
+      "name": "MPEG-DASH",
+      "details": "Static + dynamic MPD, SegmentTemplate/Timeline/List/Base, multi-period (C), ABR; non-DRM",
+      "milestone": "M12",
+      "priority": "should",
+      "oracles": "NET FRM",
+      "status": "planned"
+    },
+    {
+      "id": "NET-05",
+      "area": "Network input, discovery & casting",
+      "name": "Smooth Streaming",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "NET",
+      "status": "post-1.0"
+    },
+    {
+      "id": "NET-06",
+      "area": "Network input, discovery & casting",
+      "name": "RTSP",
+      "details": "RTP over UDP with TCP-interleaved fallback (and a forced-TCP option); Basic/Digest auth; keep-alive; H.264/H.265/AAC/MPEG-audio/PCM/JPEG depacketisers; RTCP sender reports for sync",
+      "milestone": "M12",
+      "priority": "must",
+      "oracles": "NET FRM",
+      "status": "planned"
+    },
+    {
+      "id": "NET-07",
+      "area": "Network input, discovery & casting",
+      "name": "RTP / UDP",
+      "details": "Unicast + multicast (`udp://@239.x.x.x:port`), TTL and interface selection, MPEG-TS over UDP/RTP, jitter buffer, reorder, FEC Could",
+      "milestone": "M12",
+      "priority": "must",
+      "oracles": "NET FRM",
+      "status": "planned"
+    },
+    {
+      "id": "NET-08",
+      "area": "Network input, discovery & casting",
+      "name": "FTP / FTPS",
+      "details": "Passive mode, resume, explicit TLS",
+      "milestone": "M12",
+      "priority": "should",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "NET-09",
+      "area": "Network input, discovery & casting",
+      "name": "SMB / Windows shares",
+      "details": "`\\\\server\\share` and `smb://` mapped to UNC through the OS; browse in the sidebar; credentials through the Windows credential prompt",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "UIA (loopback share)",
+      "status": "planned"
+    },
+    {
+      "id": "NET-10",
+      "area": "Network input, discovery & casting",
+      "name": "WebDAV",
+      "details": "Over the HTTP stack",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "NET",
+      "status": "post-1.0"
+    },
+    {
+      "id": "NET-11",
+      "area": "Network input, discovery & casting",
+      "name": "SFTP / NFS / SRT / RIST",
+      "details": "Large protocol work for little desktop demand",
+      "milestone": "post",
+      "priority": "could/wont",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "NET-12",
+      "area": "Network input, discovery & casting",
+      "name": "Open Network Stream dialog",
+      "details": "URL box with history (per-user, clearable), paste-and-play (Ctrl+V anywhere), advanced options (caching ms, start time, user-agent)",
+      "milestone": "M8",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "NET-13",
+      "area": "Network input, discovery & casting",
+      "name": "Caching controls",
+      "details": "File 300 ms, network 1500 ms, live 1500 ms defaults; per-open override; buffer state shown",
+      "milestone": "M8",
+      "priority": "must",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "NET-14",
+      "area": "Network input, discovery & casting",
+      "name": "Link resolvers",
+      "details": "Extension point that turns a web-page URL into stream URLs; none bundled for third-party sites (terms-of-service risk); the API is documented for user extensions",
+      "milestone": "M14",
+      "priority": "should",
+      "oracles": "EVT (sample extension)",
+      "status": "planned"
+    },
+    {
+      "id": "NET-15",
+      "area": "Network input, discovery & casting",
+      "name": "Podcasts",
+      "details": "Subscribe by RSS/Atom URL, refresh, episode list, download for offline, resume per episode",
+      "milestone": "M8",
+      "priority": "should",
+      "oracles": "NET STORE",
+      "status": "planned"
+    },
+    {
+      "id": "NET-16",
+      "area": "Network input, discovery & casting",
+      "name": "Radio directory",
+      "details": "Opt-in browsing of a public station directory through a provider extension",
+      "milestone": "M14",
+      "priority": "could",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "DISCO-01",
+      "area": "Network input, discovery & casting",
+      "name": "UPnP/DLNA media server browsing",
+      "details": "SSDP discovery, ContentDirectory browse/search, thumbnails",
+      "milestone": "M10",
+      "priority": "should",
+      "oracles": "NET (fake server)",
+      "status": "planned"
+    },
+    {
+      "id": "DISCO-02",
+      "area": "Network input, discovery & casting",
+      "name": "mDNS/DNS-SD",
+      "details": "Finds cast targets and media services",
+      "milestone": "M10",
+      "priority": "must",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "DISCO-03",
+      "area": "Network input, discovery & casting",
+      "name": "SAP/SDP announcements",
+      "details": "Multicast session listings",
+      "milestone": "M12",
+      "priority": "could",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "CAST-01",
+      "area": "Network input, discovery & casting",
+      "name": "Renderer menu",
+      "details": "\"Play on…\" lists discovered DLNA renderers, cast devices and REX Flint receivers; local playback pauses and hands over position",
+      "milestone": "M10",
+      "priority": "must",
+      "oracles": "UIA NET",
+      "status": "planned"
+    },
+    {
+      "id": "CAST-02",
+      "area": "Network input, discovery & casting",
+      "name": "DLNA renderer push",
+      "details": "AVTransport SetURI/Play/Pause/Seek/Stop, RenderingControl volume, a local HTTP server serving the original file or a remux",
+      "milestone": "M10",
+      "priority": "must",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "CAST-03",
+      "area": "Network input, discovery & casting",
+      "name": "Cast-protocol receiver push",
+      "details": "TLS cast channel, LOAD/PLAY/PAUSE/SEEK/volume; direct play when the receiver supports the codecs, otherwise remux (stream copy) and only then transcode through MF H.264+AAC; burned-in subtitles when transcoding (C) (behind an experimental setting)",
+      "milestone": "M10",
+      "priority": "should",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "CAST-04",
+      "area": "Network input, discovery & casting",
+      "name": "REX Flint receiver",
+      "details": "Cast to Fire TV devices running the REX Flint receiver over the REX wire protocol (shared golden vectors with the Flint repo), a family integration no other player has",
+      "milestone": "M10",
+      "priority": "could",
+      "oracles": "NET (vectors)",
+      "status": "planned"
+    },
+    {
+      "id": "CAST-05",
+      "area": "Network input, discovery & casting",
+      "name": "Cast quality settings",
+      "details": "Max resolution/bitrate for transcode, \"prefer remux\", conversion speed vs quality",
+      "milestone": "M10",
+      "priority": "should",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-01",
+      "area": "Discs & capture",
+      "name": "Audio CD",
+      "details": "TOC, track list, gapless track transitions, CD-Text (S), paranoia-style re-read on errors (C), pre-emphasis flag de-emphasis (C)",
+      "milestone": "M13",
+      "priority": "must",
+      "oracles": "PCM (FakeDiscDevice) HW",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-02",
+      "area": "Discs & capture",
+      "name": "CD rip",
+      "details": "Through Convert: WAV/FLAC/MP3/AAC, filename pattern from track metadata",
+      "milestone": "M13",
+      "priority": "should",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-03",
+      "area": "Discs & capture",
+      "name": "CD metadata lookup",
+      "details": "Opt-in online lookup through a provider extension",
+      "milestone": "M14",
+      "priority": "could",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-04",
+      "area": "Discs & capture",
+      "name": "DVD-Video (unencrypted)",
+      "details": "Disc, `VIDEO_TS` folder, ISO; title/chapter navigation, audio/subtitle stream selection, angles (C), forced subtitles, LPCM/AC-3/DTS/MPEG audio",
+      "milestone": "M13",
+      "priority": "must",
+      "oracles": "FRM (image fixtures)",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-05",
+      "area": "Discs & capture",
+      "name": "DVD menus",
+      "details": "Navigation VM, highlights, buttons",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "FRM",
+      "status": "post-1.0"
+    },
+    {
+      "id": "DISC-06",
+      "area": "Discs & capture",
+      "name": "Blu-ray (unencrypted BDMV)",
+      "details": "Disc, `BDMV` folder, ISO; playlist (mpls) selection with main-feature heuristic, chapters, PGS, multi-clip seamless joins",
+      "milestone": "M13",
+      "priority": "should",
+      "oracles": "FRM",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-07",
+      "area": "Discs & capture",
+      "name": "Blu-ray menus (HDMV/BD-J)",
+      "details": "—",
+      "milestone": "post",
+      "priority": "wont",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "DISC-08",
+      "area": "Discs & capture",
+      "name": "VCD/SVCD",
+      "details": "MPEG-1/2 in Mode 2 sectors",
+      "milestone": "M13",
+      "priority": "could",
+      "oracles": "FRM",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-09",
+      "area": "Discs & capture",
+      "name": "Encrypted-disc message",
+      "details": "Detects CSS/AACS and says plainly it is unsupported (§5.5)",
+      "milestone": "M13",
+      "priority": "must",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "DISC-10",
+      "area": "Discs & capture",
+      "name": "Disc auto-detection",
+      "details": "Media arrival → \"Play disc\" prompt or AutoPlay handler",
+      "milestone": "M13/M15",
+      "priority": "should",
+      "oracles": "EVT HW",
+      "status": "planned"
+    },
+    {
+      "id": "CAP-01",
+      "area": "Discs & capture",
+      "name": "Webcam / capture card video + audio",
+      "details": "MF device sources (formats, resolution, fps pick), audio endpoint pairing; device config dialog where the device exposes properties",
+      "milestone": "M12",
+      "priority": "should",
+      "oracles": "FRM (virtual source) HW",
+      "status": "planned"
+    },
+    {
+      "id": "CAP-02",
+      "area": "Discs & capture",
+      "name": "Screen capture",
+      "details": "Monitor or window, fps, region, cursor draw, follow-mouse region; Windows.Graphics.Capture first, DXGI duplication fallback (house knowledge from Flint)",
+      "milestone": "M12",
+      "priority": "should",
+      "oracles": "FRM (captures a test pattern window)",
+      "status": "planned"
+    },
+    {
+      "id": "CAP-03",
+      "area": "Discs & capture",
+      "name": "Capture to file / stream",
+      "details": "Through Convert/Stream-out",
+      "milestone": "M12",
+      "priority": "should",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "CAP-04",
+      "area": "Discs & capture",
+      "name": "TV tuners (DVB via BDA) and analog TV",
+      "details": "—",
+      "milestone": "post",
+      "priority": "wont",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "OUT-01",
+      "area": "Convert, record, stream-out",
+      "name": "Convert dialog / wizard",
+      "details": "Sources (files, disc, network, capture), profile, destination (folder + name pattern, \"-converted\" suffix default, overwrite policy), batch queue with progress/ETA/cancel, \"convert and play\" option",
+      "milestone": "M9",
+      "priority": "must",
+      "oracles": "UIA FILE",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-02",
+      "area": "Convert, record, stream-out",
+      "name": "Built-in profiles",
+      "details": "Video H.264+AAC (MP4); Video H.265+AAC (MP4, when an encoder exists); Video H.264+AAC (MKV); Video for web H.264+AAC fragmented MP4; Audio MP3; Audio AAC (M4A); Audio FLAC; Audio WAV; Audio ALAC (M4A); Remux only (copy all streams into MP4/MKV/TS)",
+      "milestone": "M9",
+      "priority": "must",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-03",
+      "area": "Convert, record, stream-out",
+      "name": "Profile editor",
+      "details": "Container, video codec/bitrate or quality/resolution/fps/deinterlace/crop/rotate, audio codec/bitrate/channels/rate, subtitles copy or burn-in, metadata copy; import/export profiles (JSON)",
+      "milestone": "M9",
+      "priority": "should",
+      "oracles": "FILE UIA",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-04",
+      "area": "Convert, record, stream-out",
+      "name": "Stream copy (remux)",
+      "details": "Bit-identical elementary streams, timestamps preserved, chapters/metadata/attachments carried",
+      "milestone": "M9",
+      "priority": "must",
+      "oracles": "FILE (ES hash equality)",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-05",
+      "area": "Convert, record, stream-out",
+      "name": "Trim / clip",
+      "details": "Convert a range (A–B) with smart keyframe handling (stream copy where aligned)",
+      "milestone": "M9",
+      "priority": "should",
+      "oracles": "FILE FRM",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-06",
+      "area": "Convert, record, stream-out",
+      "name": "Record",
+      "details": "Record button / Shift+R: writes the incoming stream (copy) from now until stopped; for files records the played range; destination folder setting; default container chosen per input",
+      "milestone": "M9",
+      "priority": "must",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-07",
+      "area": "Convert, record, stream-out",
+      "name": "Stream-out: HTTP server",
+      "details": "Serve TS / fragmented MP4 / WebM over HTTP to the LAN (opt-in, bind address, port, password optional)",
+      "milestone": "M9",
+      "priority": "should",
+      "oracles": "NET (second engine plays it)",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-08",
+      "area": "Convert, record, stream-out",
+      "name": "Stream-out: RTP/UDP",
+      "details": "MPEG-TS over UDP or RTP unicast/multicast, TTL, SDP file generation, SAP announce (C)",
+      "milestone": "M9",
+      "priority": "should",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-09",
+      "area": "Convert, record, stream-out",
+      "name": "Stream-out: Icecast source",
+      "details": "Push audio to an Icecast/SHOUTcast server (MP3/AAC/Ogg)",
+      "milestone": "M12",
+      "priority": "could",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-10",
+      "area": "Convert, record, stream-out",
+      "name": "Stream-out: RTSP server",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "NET",
+      "status": "post-1.0"
+    },
+    {
+      "id": "OUT-11",
+      "area": "Convert, record, stream-out",
+      "name": "Transcode-while-streaming",
+      "details": "Same graph as Convert with real-time pacing; \"display locally while streaming\" toggle",
+      "milestone": "M9",
+      "priority": "should",
+      "oracles": "FILE NET",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-12",
+      "area": "Convert, record, stream-out",
+      "name": "Stream chain string",
+      "details": "A human-readable, versioned JSON \"output chain\" document equivalent (for CLI/automation): `{ \"transcode\": {...}, \"outputs\": [ {\"file\": ...}, {\"http\": ...} ] }`",
+      "milestone": "M9",
+      "priority": "should",
+      "oracles": "CLI",
+      "status": "planned"
+    },
+    {
+      "id": "OUT-13",
+      "area": "Convert, record, stream-out",
+      "name": "Scheduled broadcasts (multi-channel manager)",
+      "details": "— (CLI + Task Scheduler recipe documented instead)",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "OUT-14",
+      "area": "Convert, record, stream-out",
+      "name": "Own audio encoders",
+      "details": "PCM/WAV, FLAC (own); MP3/AAC/WMA via MF; Opus/Vorbis encoders own (C, post-1.0)",
+      "milestone": "M9",
+      "priority": "must",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-01",
+      "area": "Playlist, library & persistence",
+      "name": "Playlist pane",
+      "details": "Docked / undocked / hidden (Ctrl+L, Ctrl+U); columns: title, duration, artist, album, track, genre, year, file name, folder, type, size, date added, play count, last played (choose and reorder); click-to-sort, instant search filter, drag reorder, multi-select, remove, keep-only-selected, clear (Ctrl+W), jump to playing",
+      "milestone": "M4/M6",
+      "priority": "must",
+      "oracles": "UIA EVT",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-02",
+      "area": "Playlist, library & persistence",
+      "name": "Adding media",
+      "details": "Open file(s) Ctrl+O, folder Ctrl+F, disc Ctrl+D, network Ctrl+N, capture Ctrl+C, paste location Ctrl+V; drag-and-drop (drop plays, Ctrl+drop enqueues, drop on the list inserts at that position); recursive folder expansion with natural sort; playlist files expand in place",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA EVT",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-03",
+      "area": "Playlist, library & persistence",
+      "name": "Save / load playlists",
+      "details": "Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on)",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "FILE STORE",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-04",
+      "area": "Playlist, library & persistence",
+      "name": "Named playlists",
+      "details": "Create, rename, duplicate, delete; add to playlist from anywhere",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "STORE UIA",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-05",
+      "area": "Playlist, library & persistence",
+      "name": "Media library",
+      "details": "Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications plus a periodic rescan; low-priority background probing (duration, tags, thumbnails); views: Videos (thumbnail grid; series/season grouping C), Music (artists, albums, tracks, genres), Pictures (S), Recent, Playlists, Podcasts; library-wide search; play counts and last played; \"Continue watching\" row",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "STORE UIA",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-06",
+      "area": "Playlist, library & persistence",
+      "name": "Sidebar sources",
+      "details": "Playlist, Library, Discs, Local network (DLNA servers, Windows shares, SAP), Internet (podcasts, provider extensions)",
+      "milestone": "M6/M10",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-07",
+      "area": "Playlist, library & persistence",
+      "name": "Recent media",
+      "details": "Menu + jump list; clear; \"do not keep history\" privacy switch",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "STORE UIA",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-08",
+      "area": "Playlist, library & persistence",
+      "name": "Playlist quick slots",
+      "details": "Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position",
+      "milestone": "M6",
+      "priority": "could",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-09",
+      "area": "Playlist, library & persistence",
+      "name": "Missing files",
+      "details": "Greyed-out entries with \"Locate…\", and relink by folder",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "UIA STORE",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-10",
+      "area": "Playlist, library & persistence",
+      "name": "Library backup / export",
+      "details": "Export or import the library and playlists (JSON + M3U8)",
+      "milestone": "M6",
+      "priority": "should",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-11",
+      "area": "Playlist, library & persistence",
+      "name": "Crash-safe store",
+      "details": "RexStore (§7.7): torn writes never lose more than the last record",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "STORE (crash-point property tests)",
+      "status": "planned"
+    },
+    {
+      "id": "LIB-12",
+      "area": "Playlist, library & persistence",
+      "name": "Ratings, duplicates finder",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "STORE",
+      "status": "post-1.0"
+    },
+    {
+      "id": "UI-01",
+      "area": "UI surface",
+      "name": "Main window",
+      "details": "Video surface; seek bar (elapsed/remaining toggle on click, chapter ticks, buffered ranges, hover thumbnails); transport (play/pause, stop, previous, next, fullscreen, playlist, effects, loop, shuffle); volume + mute; status chips (hardware decode, cast target, recording, speed)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": "planned"
+    },
+    {
+      "id": "UI-02",
+      "area": "UI surface",
+      "name": "Menu system",
+      "details": "Classic menu bar (toggle) + command bar. Media: open file/multiple/folder/disc/network/capture, open location from clipboard, recent media, save playlist, convert/save, stream, quit at end of playlist, quit. Playback: title, chapter, program, bookmarks, play on (renderer), speed, jump forward/back, go to time, play/stop/previous/next, record, A-B loop, frame step, sleep timer. Audio: track, device, stereo mode, visualisation, volume up/down, mute. Video: track, fullscreen, fit window, zoom, aspect, crop, deinterlace + mode, snapshot, always on top, transform, 360°, stats overlay. Subtitle: add file, track, secondary track, text scale, delay and sync. Tools: effects and filters, track synchronisation, media information, codec information, program guide, log console, extensions, customise interface, preferences, keyboard shortcuts. View: playlist, dock playlist, library, minimal interface, fullscreen interface, picture-in-picture, always on top, status strip. Help: help, shortcuts, what's new, check for updates, report a problem, about",
+      "milestone": "M4–M15",
+      "priority": "must",
+      "oracles": "UIA (menu walk)",
+      "status": "planned"
+    },
+    {
+      "id": "UI-03",
+      "area": "UI surface",
+      "name": "Video context menu",
+      "details": "The same tree in context form (play/pause, stop, previous/next, record, jumps, speed, audio, video, subtitle, playback, tools, view, open media, play on, quit), reachable in minimal and fullscreen modes",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-04",
+      "area": "UI surface",
+      "name": "Fullscreen controller",
+      "details": "Seek bar, transport, volume, tracks, effects, leave fullscreen; auto-hide (1.5 s), opacity, keyboard-focusable, touch-friendly",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": "planned"
+    },
+    {
+      "id": "UI-05",
+      "area": "UI surface",
+      "name": "Minimal interface",
+      "details": "Ctrl+H hides chrome; right-click keeps every menu reachable",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-06",
+      "area": "UI surface",
+      "name": "Mini player & PiP",
+      "details": "Compact audio player and the video PiP window (VID-28)",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-07",
+      "area": "UI surface",
+      "name": "Effects & filters panel (Ctrl+E)",
+      "details": "Audio tab (equaliser, compressor, reverb, widener, pitch & speed, advanced); Video tab (essential, crop, colours, geometry, overlays, advanced); Synchronisation tab (audio delay, subtitle delay/speed, sync marks); presets save/load; per-file \"remember these settings\" option",
+      "milestone": "M5/M11",
+      "priority": "must",
+      "oracles": "UIA PIX SPEC",
+      "status": "planned"
+    },
+    {
+      "id": "UI-08",
+      "area": "UI surface",
+      "name": "Media information (Ctrl+I)",
+      "details": "General (editable tags + artwork), Metadata (all raw tags), Codec (per stream: codec + decoder used, language, channels, sample rate, bit depth, resolution, fps, pixel format, colour primaries/transfer/matrix/range, rotation, HDR metadata), Statistics (input and demux bitrate, discontinuities, decoded/displayed/late/dropped frames, audio decoded/played/lost buffers, buffer level, network throughput), Location; Ctrl+J opens the Codec tab",
+      "milestone": "M4/M6",
+      "priority": "must",
+      "oracles": "UIA EVT",
+      "status": "planned"
+    },
+    {
+      "id": "UI-09",
+      "area": "UI surface",
+      "name": "Log console (Ctrl+M)",
+      "details": "Verbosity (error/warning/info/debug), source filter, search, copy, save, clear; \"Copy diagnostics bundle\"",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-10",
+      "area": "UI surface",
+      "name": "Preferences",
+      "details": "Simple pages (Interface, Playback, Audio, Video, Subtitles & OSD, Input & codecs incl. a decode-ladder view, Network & privacy, Library, Hotkeys, Extensions, Advanced) + All settings: searchable, generated from the typed schema, \"modified only\" filter, per-setting reset; reset all; import/export",
+      "milestone": "M4/M6",
+      "priority": "must",
+      "oracles": "UIA STORE",
+      "status": "planned"
+    },
+    {
+      "id": "UI-11",
+      "area": "UI surface",
+      "name": "Hotkey editor",
+      "details": "Rebind any command; conflict detection; per-binding global toggle; mouse settings (wheel = volume / seek / none, horizontal wheel, middle-click and back/forward buttons); reset; export",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "UIA STORE",
+      "status": "planned"
+    },
+    {
+      "id": "UI-12",
+      "area": "UI surface",
+      "name": "Customise interface",
+      "details": "Toolbar editor: palette of every transport button (frame step, A-B, record, snapshot, loop, shuffle, speed, playlist, fullscreen, effects, stop, chapter nav, cast), drag to order, save/restore layouts",
+      "milestone": "M14",
+      "priority": "should",
+      "oracles": "UIA STORE",
+      "status": "planned"
+    },
+    {
+      "id": "UI-13",
+      "area": "UI surface",
+      "name": "Themes",
+      "details": "System / light / dark; accent from the system or the REX signal colour; high contrast; Mica backdrop; theme packages (C)",
+      "milestone": "M4/M15",
+      "priority": "must",
+      "oracles": "PIX UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-14",
+      "area": "UI surface",
+      "name": "First run",
+      "details": "Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern)",
+      "milestone": "M4/M15",
+      "priority": "must",
+      "oracles": "UIA STORE",
+      "status": "planned"
+    },
+    {
+      "id": "UI-15",
+      "area": "UI surface",
+      "name": "What's new",
+      "details": "Shown once after an update (house pattern)",
+      "milestone": "M4",
+      "priority": "should",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-16",
+      "area": "UI surface",
+      "name": "Window title",
+      "details": "`<title> — rexplayer`; token format configurable",
+      "milestone": "M4",
+      "priority": "should",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-17",
+      "area": "UI surface",
+      "name": "In-window confirmations",
+      "details": "No modal pop-ups during playback; system dialogs only before a window exists (house rule)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "UI-18",
+      "area": "UI surface",
+      "name": "Mouse & touch",
+      "details": "Wheel volume (default) or seek; double-click fullscreen; middle-click pause; back/forward buttons = previous/next; touch: tap shows controls, double-tap left/right edge seeks ∓10 s, pinch zoom in zoom/360° modes",
+      "milestone": "M4/M15",
+      "priority": "must/should",
+      "oracles": "UIA EVT",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-01",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "`rexplay` CLI (human mode)",
+      "details": "Verbs: play, enqueue, pause, resume, stop, seek, status, next, previous, volume, tracks, snapshot, convert, probe, devices, settings get/set, keys, extensions, version, help. Flags: `--start/--stop/--run-time`, `--fullscreen`, `--no-video/--no-audio`, `--audio-device`, `--sub-file`, `--audio-delay/--sub-delay`, `--rate`, `--volume`, `--loop/--repeat/--shuffle`, `--play-and-exit`, `--new-instance`, `--enqueue`, `--log-file`, `--verbose`, `--output <chain.json>`, headless test sinks `--vout capture --aout wav:<dir>`",
+      "milestone": "M1–M14",
+      "priority": "must",
+      "oracles": "CLI",
+      "status": "built"
+    },
+    {
+      "id": "TOOL-02",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Machine mode",
+      "details": "`rexplay agent <cmd>` / `--json`: exactly one JSON document, `protocolVersion`, `capabilities` self-description, exit 0/1, no prompts (house contract)",
+      "milestone": "M0+",
+      "priority": "must",
+      "oracles": "CLI",
+      "status": "verified"
+    },
+    {
+      "id": "TOOL-03",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Local automation / remote-control interface",
+      "details": "Named-pipe JSON-RPC + event subscription (§9.2), current-user only, size-bounded, deadline-controlled (house IPC invariants); optional localhost text console (C)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "CLI EVT",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-04",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "HTTP web remote",
+      "details": "Off by default; password required; LAN bind with an explicit choice; mobile-friendly page (transport, seek, volume, playlist, library browse); JSON API over the same command bus; CSRF tokens; rate-limited login",
+      "milestone": "M14",
+      "priority": "should",
+      "oracles": "NET UIA (Playwright against the page)",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-05",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Global hotkeys",
+      "details": "Opt-in per binding (RegisterHotKey); conflicts reported",
+      "milestone": "M14",
+      "priority": "should",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-06",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Single instance",
+      "details": "\"Use only one instance\" (default on), \"enqueue instead of play\" (default off), explicit `--new-instance`",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "EVT CLI",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-07",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Extensions",
+      "details": "§7.8 model; extension points: commands/menus, playback observers, metadata/art/lyrics providers, link resolvers, subtitle providers, service-discovery providers, visualisers (C); manager UI (enable/disable/remove, declared capabilities shown at install); install from local `.rexext` packages; sample extensions + SDK docs + template in the repo",
+      "milestone": "M14",
+      "priority": "must",
+      "oracles": "EVT UIA",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-08",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Program guide",
+      "details": "EPG from transport-stream EIT tables",
+      "milestone": "M12",
+      "priority": "could",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-09",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Updater",
+      "details": "Weekly check (off / daily / weekly), in-window notice, download + sha256 verify, install on consent at exit, release notes shown",
+      "milestone": "M4",
+      "priority": "should",
+      "oracles": "NET (FakeOrigin)",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-10",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Diagnostics bundle",
+      "details": "Logs + redacted settings + system/codec report → zip for issue reports",
+      "milestone": "M4",
+      "priority": "should",
+      "oracles": "FILE",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-11",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "System probe",
+      "details": "`rexplay probe --system`: MF decoders/encoders present, hardware decode caps per codec/resolution, audio endpoints, displays/HDR state",
+      "milestone": "M3",
+      "priority": "must",
+      "oracles": "CLI",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-12",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Portable mode",
+      "details": "Settings and library beside the exe when `rexplayer.portable` exists",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "STORE",
+      "status": "planned"
+    },
+    {
+      "id": "TOOL-13",
+      "area": "Tools, interfaces, extensions & CLI",
+      "name": "Broadcast manager (scheduled multi-channel outputs)",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "WIN-01",
+      "area": "Windows platform integration",
+      "name": "Distribution",
+      "details": "Per-user Inno installer (no admin), portable zip, winget manifest at 1.0",
+      "milestone": "M0/M15",
+      "priority": "must",
+      "oracles": "CLI (smoke)",
+      "status": "built"
+    },
+    {
+      "id": "WIN-02",
+      "area": "Windows platform integration",
+      "name": "File associations",
+      "details": "Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "STORE (registry golden) HW",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-03",
+      "area": "Windows platform integration",
+      "name": "Explorer verbs",
+      "details": "\"Play with rexplayer\", \"Add to rexplayer playlist\" (classic menu, HKCU); modern top-level Windows 11 menu through a sparse package (C, post-1.0)",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "STORE",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-04",
+      "area": "Windows platform integration",
+      "name": "AutoPlay handlers",
+      "details": "Audio CD, DVD movie, Blu-ray movie, removable-media folders",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "STORE HW",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-05",
+      "area": "Windows platform integration",
+      "name": "System Media Transport Controls",
+      "details": "Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "EVT HW",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-06",
+      "area": "Windows platform integration",
+      "name": "Taskbar",
+      "details": "Thumbnail toolbar (previous, play/pause, next), progress state (normal/paused/error), live thumbnail",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "UIA HW",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-07",
+      "area": "Windows platform integration",
+      "name": "Jump list",
+      "details": "Recent media, pinned items, tasks (open file, resume last, open network stream); classic `ICustomDestinationList` (works unpackaged)",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "STORE",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-08",
+      "area": "Windows platform integration",
+      "name": "Toasts on track change",
+      "details": "Opt-in (Windows App SDK app notifications, unpackaged registration)",
+      "milestone": "M15",
+      "priority": "could",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-09",
+      "area": "Windows platform integration",
+      "name": "High DPI",
+      "details": "PerMonitorV2 everywhere incl. the OSD and subtitles; crisp on monitor moves",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "PIX (scale matrix)",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-10",
+      "area": "Windows platform integration",
+      "name": "Theme & materials",
+      "details": "Follows system light/dark live; Mica",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-11",
+      "area": "Windows platform integration",
+      "name": "Power awareness",
+      "details": "VID-29 power requests; pause on sleep, re-open devices on resume",
+      "milestone": "M4/M11",
+      "priority": "must",
+      "oracles": "EVT HW",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-12",
+      "area": "Windows platform integration",
+      "name": "Architectures",
+      "details": "x64 (M); ARM64 native (S) through cross-platform `Vector128` SIMD paths",
+      "milestone": "M0/M15",
+      "priority": "must/should",
+      "oracles": "CLI (ARM64 build smoke)",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-13",
+      "area": "Windows platform integration",
+      "name": "Minimum OS",
+      "details": "Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target",
+      "milestone": "M0",
+      "priority": "must",
+      "oracles": "—",
+      "status": "built"
+    },
+    {
+      "id": "WIN-14",
+      "area": "Windows platform integration",
+      "name": "Crash recovery",
+      "details": "Global handlers (house), \"rexplayer closed unexpectedly — resume where you were?\" on next start, opt-in local minidumps, nothing uploaded",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "EVT STORE",
+      "status": "planned"
+    },
+    {
+      "id": "WIN-15",
+      "area": "Windows platform integration",
+      "name": "Share / \"Open with\" from apps",
+      "details": "—",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "WIN-16",
+      "area": "Windows platform integration",
+      "name": "URL protocol handler",
+      "details": "Deliberately not registered (attack surface without user value)",
+      "milestone": "—",
+      "priority": "wont",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "A11Y-01",
+      "area": "Accessibility & internationalisation",
+      "name": "Named, automatable controls",
+      "details": "Every reachable control has an AutomationId + Name/HelpText; a RepositoryTest + UIA tree audit enforce it (house invariant)",
+      "milestone": "M4+",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "A11Y-02",
+      "area": "Accessibility & internationalisation",
+      "name": "Keyboard completeness",
+      "details": "Every journey works keyboard-only; visible focus; logical tab order; F6 cycles regions",
+      "milestone": "M4+",
+      "priority": "must",
+      "oracles": "UIA (keyboard-journey suite)",
+      "status": "planned"
+    },
+    {
+      "id": "A11Y-03",
+      "area": "Accessibility & internationalisation",
+      "name": "Screen-reader announcements",
+      "details": "UIA notification events for play/pause, volume, seek results, track changes, errors; T announces the position",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "A11Y-04",
+      "area": "Accessibility & internationalisation",
+      "name": "High contrast",
+      "details": "Every brush key has a high-contrast answer (house parity test)",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "A11Y-05",
+      "area": "Accessibility & internationalisation",
+      "name": "Text scaling & reduced motion",
+      "details": "Honours Windows text size and animation settings",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "A11Y-06",
+      "area": "Accessibility & internationalisation",
+      "name": "Audio description preference",
+      "details": "Prefer audio-description tracks when enabled",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "I18N-01",
+      "area": "Accessibility & internationalisation",
+      "name": "Localisable resources",
+      "details": "`.resw` pipeline, no concatenated sentences, plural categories from a small CLDR rules table, pseudo-localisation build in CI",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "UIA (pseudo-loc audit)",
+      "status": "planned"
+    },
+    {
+      "id": "I18N-02",
+      "area": "Accessibility & internationalisation",
+      "name": "Right-to-left UI",
+      "details": "FlowDirection mirroring",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "planned"
+    },
+    {
+      "id": "I18N-03",
+      "area": "Accessibility & internationalisation",
+      "name": "Language picker",
+      "details": "System default + override",
+      "milestone": "M15",
+      "priority": "should",
+      "oracles": "UIA",
+      "status": "planned"
+    },
+    {
+      "id": "I18N-04",
+      "area": "Accessibility & internationalisation",
+      "name": "Shipped languages",
+      "details": "1.0 ships English (house British spelling); translations accepted post-1.0",
+      "milestone": "M15",
+      "priority": "must",
+      "oracles": "—",
+      "status": "planned"
+    },
+    {
+      "id": "I18N-05",
+      "area": "Accessibility & internationalisation",
+      "name": "Culture handling",
+      "details": "Locale-aware display; invariant culture for files, protocols and logs",
+      "milestone": "M1+",
+      "priority": "must",
+      "oracles": "CLI",
+      "status": "built"
+    },
+    {
+      "id": "PRIV-01",
+      "area": "Privacy, security & diagnostics",
+      "name": "No telemetry",
+      "details": "No analytics, no account, no crash upload, ever",
+      "milestone": "M0",
+      "priority": "must",
+      "oracles": "NET (no-egress E2E: FakeOrigin as proxy sees zero unexpected requests)",
+      "status": "built"
+    },
+    {
+      "id": "PRIV-02",
+      "area": "Privacy, security & diagnostics",
+      "name": "Network policy",
+      "details": "Network only for user-opened URLs, update checks (opt-out), opt-in metadata, and discovery while the cast/network panels are in use",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "PRIV-03",
+      "area": "Privacy, security & diagnostics",
+      "name": "History controls",
+      "details": "Turn off recent/resume history; clear everything",
+      "milestone": "M6",
+      "priority": "must",
+      "oracles": "STORE",
+      "status": "planned"
+    },
+    {
+      "id": "PRIV-04",
+      "area": "Privacy, security & diagnostics",
+      "name": "Credentials",
+      "details": "Windows Credential Manager only, never plain text",
+      "milestone": "M8",
+      "priority": "must",
+      "oracles": "STORE",
+      "status": "planned"
+    },
+    {
+      "id": "SEC-01",
+      "area": "Privacy, security & diagnostics",
+      "name": "Hostile-input hardening",
+      "details": "Fuzzing (§9.10); bounds-checked spans; configurable allocation caps (box/element size, track count ≤ 128, frame size ≤ 16384², subtitle events, playlist entries); per-parse time budgets; `unsafe` only in Interop and audited SIMD kernels (RepositoryTest)",
+      "milestone": "M1+",
+      "priority": "must",
+      "oracles": "FUZZ",
+      "status": "built"
+    },
+    {
+      "id": "SEC-02",
+      "area": "Privacy, security & diagnostics",
+      "name": "Decoder isolation",
+      "details": "MF transforms run in-process at 1.0; out-of-process decode host is a post-1.0 hardening option",
+      "milestone": "post",
+      "priority": "could",
+      "oracles": "—",
+      "status": "post-1.0"
+    },
+    {
+      "id": "SEC-03",
+      "area": "Privacy, security & diagnostics",
+      "name": "Extension trust",
+      "details": "Capability manifest shown at install; quarantine on faults; documented \"trusted code\" stance",
+      "milestone": "M14",
+      "priority": "must",
+      "oracles": "EVT",
+      "status": "planned"
+    },
+    {
+      "id": "SEC-04",
+      "area": "Privacy, security & diagnostics",
+      "name": "Network services off by default",
+      "details": "Web remote and stream-out need explicit enabling and show a firewall explanation",
+      "milestone": "M9/M14",
+      "priority": "must",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "SEC-05",
+      "area": "Privacy, security & diagnostics",
+      "name": "Update integrity",
+      "details": "HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "NET",
+      "status": "planned"
+    },
+    {
+      "id": "SYS-01",
+      "area": "Privacy, security & diagnostics",
+      "name": "Logging",
+      "details": "House rotating logger (never throws, critical always written) + ETW EventSource",
+      "milestone": "M1",
+      "priority": "must",
+      "oracles": "FILE",
+      "status": "built"
+    },
+    {
+      "id": "SYS-02",
+      "area": "Privacy, security & diagnostics",
+      "name": "Settings safety",
+      "details": "Atomic writes, cross-process lock, `.rex-backup`, schema version + migrations, Normalize() clamps (house patterns)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "STORE",
+      "status": "planned"
+    }
+  ]
+}

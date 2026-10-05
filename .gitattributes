@@ -1,0 +1,58 @@
+# Line endings in the repository are LF, always. A checkout mirrors .editorconfig: CRLF for the
+# Windows project file types, LF for everything else, so the same commit checks out the same way on
+# every machine whatever its core.autocrlf says.
+* text=auto eol=lf
+
+*.cs text eol=crlf
+*.csproj text eol=crlf
+*.props text eol=crlf
+*.targets text eol=crlf
+*.xaml text eol=crlf
+*.ps1 text eol=crlf
+*.slnx text eol=crlf
+*.iss text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.hlsl text eol=crlf
+
+# Declared rather than detected. Git guesses "binary" from a NUL byte, and a media fixture that
+# happens to contain none would have its "line endings" converted, silently changing the bytes every
+# conformance test asserts against.
+*.wav binary
+*.aif binary
+*.aiff binary
+*.mp3 binary
+*.mp4 binary
+*.m4a binary
+*.mkv binary
+*.webm binary
+*.flac binary
+*.ogg binary
+*.opus binary
+*.ts binary
+*.m2ts binary
+*.mpg binary
+*.avi binary
+*.wma binary
+*.wmv binary
+*.ac3 binary
+*.iso binary
+*.sup binary
+*.sub binary
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.nupkg binary
+*.dll binary
+*.exe binary
+
+package-lock.json linguist-generated=true

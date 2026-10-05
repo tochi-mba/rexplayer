@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Rex.Media.Primitives/Rex.Media.Primitives.csproj" />
+    <Project Path="src/Rex.Media.Diagnostics/Rex.Media.Diagnostics.csproj" />
+    <Project Path="src/Rex.Media.IO/Rex.Media.IO.csproj" />
+    <Project Path="src/Rex.Media.Containers/Rex.Media.Containers.csproj" />
+    <Project Path="src/Rex.Media.Codecs/Rex.Media.Codecs.csproj" />
+    <Project Path="src/Rex.Media.Codecs.Software/Rex.Media.Codecs.Software.csproj" />
+    <Project Path="src/Rex.Media.Audio/Rex.Media.Audio.csproj" />
+    <Project Path="src/Rex.Media.Audio.Wasapi/Rex.Media.Audio.Wasapi.csproj" />
+    <Project Path="src/Rex.Media.Engine/Rex.Media.Engine.csproj" />
+    <Project Path="src/Rex.Media.AppCore/Rex.Media.AppCore.csproj" />
+    <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />
+    <Project Path="src/Rex.Media.Cli/Rex.Media.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Rex.Media.TestKit/Rex.Media.TestKit.csproj" />
+    <Project Path="tests/Rex.Media.Tests/Rex.Media.Tests.csproj" />
+  </Folder>
+</Solution>
