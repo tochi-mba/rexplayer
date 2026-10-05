@@ -363,12 +363,20 @@ public sealed partial class MediaSession
             return true;
         }
 
+        /// <summary>
+        /// Plays the decoded frames and empties the list. Every frame is disposed exactly once, even
+        /// when the sink fails part-way: a pooled frame disposed twice could be taken back from
+        /// whoever the pool gave it to next.
+        /// </summary>
         private void WriteFrames(AudioState state)
         {
-            foreach (var frame in state.Decoded)
+            var frames = state.Decoded;
+            var next = 0;
+            try
             {
-                using (frame)
+                while (next < frames.Count)
                 {
+                    using var frame = frames[next++];
                     Interlocked.Increment(ref _framesDecoded);
                     if (Trim(frame) && _pipeline.Process(frame) is { } processed)
                     {
@@ -376,8 +384,15 @@ public sealed partial class MediaSession
                     }
                 }
             }
+            finally
+            {
+                for (; next < frames.Count; next++)
+                {
+                    frames[next].Dispose();
+                }
 
-            state.Decoded.Clear();
+                frames.Clear();
+            }
         }
 
         /// <summary>For a precise seek, drops audio before the target. False when the whole frame goes.</summary>

@@ -221,3 +221,64 @@ internal sealed class UnpluggedSink : IAudioSink
 
     public void Dispose() => Disposed = true;
 }
+
+/// <summary>
+/// A PCM decoder that hands each packet back as two frames, made outside the pool so a test can see
+/// that every one was disposed when the output failed between them.
+/// </summary>
+internal sealed class SplittingDecoderFactory : IDecoderFactory
+{
+    public List<AudioFrame> Frames { get; } = [];
+
+    public string Name => "splitting";
+
+    public DecoderSource Source => DecoderSource.Own;
+
+    public int Rank => 1000;
+
+    public bool CanDecode(TrackInfo track) => true;
+
+    public IAudioDecoder CreateAudio(TrackInfo track) => new Decoder(new PcmDecoder(track), Frames);
+
+    private sealed class Decoder(PcmDecoder inner, List<AudioFrame> frames) : IAudioDecoder
+    {
+        public string Name => "splitting";
+
+        public DecoderSource Source => DecoderSource.Own;
+
+        public void Decode(Packet packet, ICollection<AudioFrame> output)
+        {
+            var decoded = new List<AudioFrame>();
+            inner.Decode(packet, decoded);
+            foreach (var whole in decoded)
+            {
+                var half = whole.SampleCount / 2;
+                foreach (var (start, count) in new[] { (0, half), (half, whole.SampleCount - half) })
+                {
+                    var part = AudioFrame.Rent(pool: null, whole.SampleRate, whole.Channels, count, whole.Layout);
+                    part.Pts = whole.Pts;
+                    part.Generation = whole.Generation;
+                    for (var c = 0; c < whole.Channels; c++)
+                    {
+                        whole.Channel(c).Slice(start, count).CopyTo(part.Channel(c));
+                    }
+
+                    lock (frames)
+                    {
+                        frames.Add(part);
+                    }
+
+                    output.Add(part);
+                }
+
+                whole.Dispose();
+            }
+        }
+
+        public void Drain(ICollection<AudioFrame> output) => inner.Drain(output);
+
+        public void Flush() => inner.Flush();
+
+        public void Dispose() => inner.Dispose();
+    }
+}

@@ -93,6 +93,25 @@ public sealed class SessionShutdownTests
     }
 
     [Fact]
+    public async Task FramesStillWaitingWhenTheOutputFailsAreAllReleased()
+    {
+        var sink = new RecordingAudioSink(channels: 1);
+        sink.Writing += _ => throw new IOException("the device was unplugged");
+        var decoder = new SplittingDecoderFactory();
+        using var harness = new SessionHarness(sink: sink, decoder: decoder);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Pcm.RampWav(8000, 800)));
+        await harness.FinishAsync();
+
+        Assert.Equal(Rex.Media.Engine.SessionState.Faulted, harness.Session.State);
+        lock (decoder.Frames)
+        {
+            Assert.True(decoder.Frames.Count >= 2);
+            Assert.All(decoder.Frames, frame => Assert.True(frame.IsDisposed));
+        }
+    }
+
+    [Fact]
     public async Task AnEndReportedAfterANewerSeekIsIgnored()
     {
         var sink = new GatedDrainSink();
