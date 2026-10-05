@@ -1,0 +1,12 @@
+CoCreateInstance
+CoTaskMemFree
+MMDeviceEnumerator
+IMMDeviceEnumerator
+IMMDevice
+IMMNotificationClient
+IAudioClient
+IAudioRenderClient
+IAudioClock
+WAVEFORMATEXTENSIBLE
+AUDCLNT_STREAMFLAGS_EVENTCALLBACK
+CreateEvent

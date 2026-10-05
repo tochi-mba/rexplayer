@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Rex.Media.Audio.Wasapi</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Interop\Rex.Media.Interop.csproj" />
+  </ItemGroup>
+
+</Project>

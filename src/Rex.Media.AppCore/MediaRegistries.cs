@@ -1,0 +1,30 @@
+using Rex.Media.Codecs;
+using Rex.Media.Codecs.Software.Pcm;
+using Rex.Media.Containers;
+using Rex.Media.Containers.Riff;
+
+namespace Rex.Media.AppCore;
+
+/// <summary>
+/// The demuxers and decoders rexplayer ships, assembled in one place so the app, the command line
+/// and the tests all play media the same way. A host adds the Windows-only decoders (Media
+/// Foundation) through the extra decoders argument.
+/// </summary>
+public static class MediaRegistries
+{
+    public static DemuxerRegistry Demuxers() => new DemuxerRegistry()
+        .Add(new WavDemuxerFactory())
+        .Add(new AiffDemuxerFactory());
+
+    public static DecoderRegistry Decoders(params IDecoderFactory[] extraDecoders)
+    {
+        ArgumentNullException.ThrowIfNull(extraDecoders);
+        var registry = new DecoderRegistry().Add(new PcmDecoderFactory());
+        foreach (var factory in extraDecoders)
+        {
+            registry.Add(factory);
+        }
+
+        return registry;
+    }
+}

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Rex.Media.Cli</RootNamespace>
+    <AssemblyName>rexplay</AssemblyName>
+    <AssemblyTitle>rexplayer command line</AssemblyTitle>
+    <ApplicationIcon>..\..\assets\rexplayer.ico</ApplicationIcon>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio.Wasapi\Rex.Media.Audio.Wasapi.csproj" />
+    <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+  </ItemGroup>
+
+</Project>

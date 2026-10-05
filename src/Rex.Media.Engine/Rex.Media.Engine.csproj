@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Rex.Media.Engine</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Rex.Media.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
+    <ProjectReference Include="..\Rex.Media.IO\Rex.Media.IO.csproj" />
+    <ProjectReference Include="..\Rex.Media.Containers\Rex.Media.Containers.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,4 @@
+# Portable source files with nothing to cover, one per line, each followed by the reason.
+IAudioSink.cs Interface only: no executable code.
+IByteSource.cs Interface only: no executable code.
+IDemuxer.cs Interfaces only: no executable code.

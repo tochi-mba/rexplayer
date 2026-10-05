@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <RootNamespace>Rex.Media.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.TestKit\Rex.Media.TestKit.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.IO\Rex.Media.IO.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Containers\Rex.Media.Containers.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs.Software\Rex.Media.Codecs.Software.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Engine\Rex.Media.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+  </ItemGroup>
+
+</Project>

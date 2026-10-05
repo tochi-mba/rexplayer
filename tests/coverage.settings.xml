@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Coverage is measured on the portable engine and app-core assemblies, the code that holds every
+     decision. Windows adapters and the app shell are proved by integration and UI automation suites. -->
+<Configuration>
+  <CodeCoverage>
+    <ModulePaths>
+      <Include>
+        <ModulePath>.*[\\/]Rex\.Media\.Primitives\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Diagnostics\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.IO\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Containers\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Codecs\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Codecs\.Software\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Audio\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Video\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Subtitles\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Engine\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Net\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Library\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Settings\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.AppCore\.dll$</ModulePath>
+      </Include>
+    </ModulePaths>
+    <EnableStaticNativeInstrumentation>False</EnableStaticNativeInstrumentation>
+    <EnableDynamicNativeInstrumentation>False</EnableDynamicNativeInstrumentation>
+  </CodeCoverage>
+</Configuration>

@@ -1,0 +1,2 @@
+# Source files outside Rex.Media.Interop that may use the unsafe keyword, one per line, each followed
+# by the argument for why every pointer access in it stays in bounds. Interop needs no entry.
