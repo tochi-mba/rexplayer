@@ -142,6 +142,30 @@ public sealed class CliApplicationTests : IDisposable
     }
 
     [Fact]
+    [Capability("FMT-A04")]
+    public void PlayingAFlacFileFromAnotherEncoderCapturesExactlyItsSourceSamples()
+    {
+        var input = RepoPaths.Combine("tests/fixtures/flac/stereo-16bit-44k-lpc.flac");
+        var capture = Path.Combine(_directory, "flac.wav");
+
+        var data = Single(Run(null, "play", input, "--aout", "wav:" + capture, "--json").Out).GetProperty("data");
+
+        Assert.True(data.GetProperty("finished").GetBoolean());
+        var wav = File.ReadAllBytes(capture);
+        var start = wav.AsSpan().IndexOf("data"u8) + 8;
+        var floats = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>(wav.AsSpan(start)).ToArray();
+        var planes = new[] { new int[floats.Length / 2], new int[floats.Length / 2] };
+        for (var i = 0; i < floats.Length; i++)
+        {
+            planes[i % 2][i / 2] = (int)Math.Round(floats[i] * 32768.0);
+        }
+
+        var file = File.ReadAllBytes(input);
+        var streamInfoMd5 = file.AsSpan(8 + 18, 16).ToArray();
+        Assert.Equal(Convert.ToHexString(streamInfoMd5), Convert.ToHexString(FlacBuilder.Md5(planes, 16)));
+    }
+
+    [Fact]
     public void PlayHonoursStartVolumeAndHumanOutput()
     {
         var input = Fixture("tone.wav", Pcm.SineWav(440, 8000, 1, 1.0));
@@ -251,8 +275,8 @@ public sealed class CliApplicationTests : IDisposable
     [Fact]
     public void TheRegistriesHoldTheShippedFormats()
     {
-        Assert.Equal(["wav", "aiff"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
-        Assert.Single(MediaRegistries.Decoders().Factories);
+        Assert.Equal(["wav", "aiff", "flac"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
+        Assert.Equal(["rexplayer PCM", "rexplayer FLAC"], MediaRegistries.Decoders().Factories.Select(f => f.Name));
         Assert.Throws<ArgumentNullException>(() => MediaRegistries.Decoders(null!));
     }
 }

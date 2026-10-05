@@ -13,3 +13,7 @@ The product is a family of `Rex.Media.*` projects. Each project may reference on
 ## Consequences
 
 Adding a dependency edge is a reviewed change to the test, never an accident. Projects are added when they get code, not as empty stubs.
+
+## Amendments
+
+- 2026-10-05: `Containers` may reference `Codecs`. A demuxer for a raw stream (native FLAC, MP3, and later ADTS, AC-3 and Annex B video) has no container framing of its own; it finds frames by parsing the codec's own headers. Those parsers live once, in `Codecs`, and both the demuxer and the decoder use them. `Codecs` references nothing above `Primitives` and `Diagnostics`, so the graph stays acyclic.

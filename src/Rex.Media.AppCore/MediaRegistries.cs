@@ -1,6 +1,8 @@
 using Rex.Media.Codecs;
+using Rex.Media.Codecs.Software.Flac;
 using Rex.Media.Codecs.Software.Pcm;
 using Rex.Media.Containers;
+using Rex.Media.Containers.Flac;
 using Rex.Media.Containers.Riff;
 
 namespace Rex.Media.AppCore;
@@ -14,12 +16,13 @@ public static class MediaRegistries
 {
     public static DemuxerRegistry Demuxers() => new DemuxerRegistry()
         .Add(new WavDemuxerFactory())
-        .Add(new AiffDemuxerFactory());
+        .Add(new AiffDemuxerFactory())
+        .Add(new FlacDemuxerFactory());
 
     public static DecoderRegistry Decoders(params IDecoderFactory[] extraDecoders)
     {
         ArgumentNullException.ThrowIfNull(extraDecoders);
-        var registry = new DecoderRegistry().Add(new PcmDecoderFactory());
+        var registry = new DecoderRegistry().Add(new PcmDecoderFactory()).Add(new FlacDecoderFactory());
         foreach (var factory in extraDecoders)
         {
             registry.Add(factory);

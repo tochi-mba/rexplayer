@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 269 planned, 10 built, 10 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 265 planned, 11 built, 13 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -44,7 +44,7 @@ Totals: 269 planned, 10 built, 10 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-C01 | WAV / RF64 / BW64 / Wave64 | WAVE_FORMAT_EXTENSIBLE, channel masks, `LIST/INFO`, `bext`, cue chunks | M1 | must | verified |
 | FMT-C02 | AIFF / AIFF-C | Big-endian PCM, `sowt`, float, markers | M1 | must | verified |
 | FMT-C03 | MPEG audio elementary (MP1/2/3) | Xing/Info/VBRI headers for duration and seek, LAME gapless delay/padding, ID3v1/v2, APEv2 at the tail | M2 | must | planned |
-| FMT-C04 | FLAC native | STREAMINFO, SEEKTABLE, PICTURE, VORBIS_COMMENT, CUESHEET; frame-scan seek when there is no seektable | M2 | must | planned |
+| FMT-C04 | FLAC native | STREAMINFO, SEEKTABLE, PICTURE, VORBIS_COMMENT, CUESHEET; frame-scan seek when there is no seektable | M2 | must | verified |
 | FMT-C05 | MP4 / MOV / 3GP / M4A / M4V / F4V | Progressive + fragmented (moof/mfra/sidx), edit lists (gapless offset), `chap` chapters, `tx3g` text, multiple tracks, `ctts` B-frames, 64-bit boxes, fast-start and non-fast-start | M3 | must | planned |
 | FMT-C06 | Matroska / WebM | EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters | M3 | must | planned |
 | FMT-C07 | MPEG-TS / M2TS (BDAV) | PAT/PMT/SDT/EIT, PCR clock recovery, multi-program, discontinuity handling, 188/192/204-byte packets, PES reassembly | M7 | must | planned |
@@ -90,7 +90,7 @@ Totals: 269 planned, 10 built, 10 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-A01 | PCM (u8/s16/s24/s32/f32/f64, LE/BE, A-law/µ-law) | Own | M1 | must | verified |
 | FMT-A02 | MP3 (incl. MPEG-2.5, free-format) | Own | M2 | must | planned |
 | FMT-A03 | MP1 / MP2 | Own | M7 | must | planned |
-| FMT-A04 | FLAC (incl. 24/32-bit, up to 8 ch) | Own | M2 | must | planned |
+| FMT-A04 | FLAC (incl. 24/32-bit, up to 8 ch) | Own | M2 | must | verified |
 | FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | MF | M3 | must | planned |
 | FMT-A06 | AC-3 | Own (dialnorm, DRC modes, downmix coefficients) | M7 | must | planned |
 | FMT-A07 | E-AC-3 | MF ext → own after legal checkpoint | M11/M12 | should | planned |
@@ -149,8 +149,8 @@ Totals: 269 planned, 10 built, 10 verified, 1 verified-hardware, 27 post-1.0.
 
 | ID | Capability | Details | Milestone | Priority | Status |
 |---|---|---|---|---|---|
-| META-01 | ID3v1/1.1, ID3v2.2/2.3/2.4 | Text frames, APIC, USLT lyrics, CHAP/CTOC chapters, TXXX ReplayGain, unsynchronisation, compression | M2 | must | planned |
-| META-02 | Vorbis comments / FLAC blocks / METADATA_BLOCK_PICTURE |  | M2 | must | planned |
+| META-01 | ID3v1/1.1, ID3v2.2/2.3/2.4 | Text frames, APIC, USLT lyrics, CHAP/CTOC chapters, TXXX ReplayGain, unsynchronisation, compression | M2 | must | built |
+| META-02 | Vorbis comments / FLAC blocks / METADATA_BLOCK_PICTURE |  | M2 | must | verified |
 | META-03 | MP4 `ilst` atoms (incl. `covr`, `----` freeform) |  | M3 | must | planned |
 | META-04 | Matroska tags + attachments |  | M3 | must | planned |
 | META-05 | APEv2, ASF attributes, RIFF INFO, AIFF chunks |  | M7 | should | planned |

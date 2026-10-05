@@ -27,7 +27,7 @@ public sealed class ArchitectureTests
         ["Primitives"] = (Portable, []),
         ["Diagnostics"] = (Portable, ["Primitives"]),
         ["IO"] = (Portable, ["Primitives", "Diagnostics"]),
-        ["Containers"] = (Portable, ["Primitives", "Diagnostics", "IO"]),
+        ["Containers"] = (Portable, ["Primitives", "Diagnostics", "IO", "Codecs"]),
         ["Codecs"] = (Portable, ["Primitives", "Diagnostics"]),
         ["Codecs.Software"] = (Portable, ["Primitives", "Diagnostics", "Codecs"]),
         ["Codecs.MediaFoundation"] = (Windows, ["Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Video", "Interop"]),

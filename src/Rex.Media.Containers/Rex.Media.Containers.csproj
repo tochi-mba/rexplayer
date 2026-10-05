@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
     <ProjectReference Include="..\Rex.Media.IO\Rex.Media.IO.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
   </ItemGroup>
 
 </Project>

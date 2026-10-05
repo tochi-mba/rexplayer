@@ -98,16 +98,32 @@ public ref struct BitReader
 
     public void AlignToByte() => _position = (_position + 7) & ~7L;
 
-    /// <summary>Counts zero bits up to and including the terminating one bit (FLAC's unary code).</summary>
+    /// <summary>
+    /// Counts zero bits up to and including the terminating one bit (FLAC's unary code). It looks at
+    /// up to 32 bits at a time, because Rice-coded residuals make this the hottest read in a decoder.
+    /// </summary>
     public uint ReadUnary()
     {
         uint zeros = 0;
-        while (!ReadBit())
+        while (true)
         {
-            zeros++;
-        }
+            var available = (int)Math.Min(32, BitsRemaining);
+            if (available == 0)
+            {
+                throw new MediaFormatException("The bitstream ended inside a unary code.");
+            }
 
-        return zeros;
+            var window = PeekBits(available) << (32 - available);
+            if (window != 0)
+            {
+                var leading = System.Numerics.BitOperations.LeadingZeroCount(window);
+                _position += leading + 1;
+                return zeros + (uint)leading;
+            }
+
+            zeros += (uint)available;
+            _position += available;
+        }
     }
 
     /// <summary>An unsigned Exp-Golomb code, ue(v) in the H.264 and HEVC specifications.</summary>

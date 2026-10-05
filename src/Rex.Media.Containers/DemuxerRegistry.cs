@@ -8,7 +8,8 @@ namespace Rex.Media.Containers;
 
 /// <summary>
 /// Picks a demuxer by looking at the bytes, never trusting the file extension alone. Every factory
-/// scores the first <see cref="ProbeSize"/> bytes; the highest score wins, and the extension only
+/// scores the first <see cref="ProbeSize"/> bytes after any ID3v2 tags (which can hold megabytes of
+/// cover art in front of MP3 and FLAC streams); the highest score wins, and the extension only
 /// separates equal scores.
 /// </summary>
 public sealed class DemuxerRegistry
@@ -31,7 +32,7 @@ public sealed class DemuxerRegistry
     {
         ArgumentNullException.ThrowIfNull(source);
         var head = new byte[ProbeSize];
-        var length = source.Read(0, head, cancellationToken);
+        var length = source.Read(Tags.Id3v2.LeadingTagsLength(source, cancellationToken), head, cancellationToken);
         var extension = Path.GetExtension(source.Name);
         return Probe(head.AsSpan(0, length), extension);
     }
