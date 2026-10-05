@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Build, test, gate and package (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    outputs:
+      release_version: ${{ steps.version.outputs.release_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - id: version
+        name: Resolve the package version
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          [xml]$props = Get-Content Directory.Build.props -Raw
+          $version = [string]($props.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Directory.Build.props contains an invalid version '$version'." }
+          $package = if ($env:EVENT_NAME -eq 'push' -and $env:REF_NAME -eq 'refs/heads/main') { $version } else { "0.0.$env:RUN_NUMBER" }
+          "release_version=$version" >> $env:GITHUB_OUTPUT
+          "package_version=$package" >> $env:GITHUB_OUTPUT
+          Write-Host "Building version $package"
+
+      - name: Check commit text for words this repository never uses
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          $messages = if ($env:BASE_SHA -and $env:BASE_SHA -notmatch '^0+$') { git log --format=%B "$($env:BASE_SHA)..HEAD" } else { git log -1 --format=%B }
+          ($env:PR_TITLE, $env:PR_BODY, ($messages -join "`n")) -join "`n" | Set-Content commit-text.txt
+          ./dev.ps1 lexicon commit-text.txt
+
+      - name: Build (warnings are errors)
+        run: ./dev.ps1 build
+
+      - name: Formatting
+        run: dotnet format rexplayer.slnx --verify-no-changes --no-restore
+
+      - name: Tests with coverage
+        run: ./dev.ps1 test
+
+      - name: Every required line is covered
+        run: ./dev.ps1 gate
+
+      - name: Build the installer and the portable zip
+        shell: pwsh
+        run: ./dev.ps1 package -Version "${{ steps.version.outputs.package_version }}"
+
+      - name: Smoke test the published command line
+        run: ./dev.ps1 smoke
+
+      - name: Upload the packages
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packages
+          path: |
+            dist/*.exe
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: ignore
+          retention-days: 14
+
+  linux-pure:
+    name: Portable engine tests (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build the portable engine and its tests
+        run: dotnet build tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -nologo
+
+      - name: Run them
+        run: dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release --no-build
+
+  site:
+    name: Website
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Check the site and its checker
+        run: |
+          python3 scripts/check_site.py
+          python3 -m unittest discover -s tests/site -p "test_*.py"
+
+      - name: Test the page script
+        run: node --test tests/site/app.test.mjs
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  release:
+    name: Publish a new version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [windows, linux-pure, site]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: packages
+          path: dist
+
+      - name: Verify and publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.windows.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          tag="v${RELEASE_VERSION}"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $tag already exists; published releases are immutable."
+            exit 0
+          fi
+          cd dist
+          sha256sum --check rexplayer-Setup-*.exe.sha256
+          sha256sum --check rexplayer-*-win-x64.zip.sha256
+          gh release create "$tag" rexplayer-Setup-*.exe rexplayer-Setup-*.exe.sha256 rexplayer-*-win-x64.zip rexplayer-*-win-x64.zip.sha256 \
+            --repo "${{ github.repository }}" \
+            --target "$GITHUB_SHA" \
+            --title "rexplayer ${RELEASE_VERSION}" \
+            --generate-notes \
+            --latest

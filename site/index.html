@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="rexplayer is a Windows media player built from scratch: its own engine, its own audio pipeline and a command line made for scripts. A REX Technologies product.">
+  <meta name="robots" content="index,follow">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#080A09">
+  <meta property="og:title" content="rexplayer — every file, stream and disc — REX Technologies">
+  <meta property="og:description" content="A Windows media player built from scratch by REX Technologies.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://tochi-mba.github.io/rexplayer/">
+  <meta name="twitter:card" content="summary">
+  <link rel="canonical" href="https://tochi-mba.github.io/rexplayer/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.replace("no-js","js");</script>
+  <noscript><style>@media(max-width:760px){.site-nav{display:flex!important;position:static!important;flex-direction:column}.menu-button{display:none!important}}</style></noscript>
+  <title>rexplayer — every file, stream and disc — REX Technologies</title>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"rexplayer","applicationCategory":"MultimediaApplication","operatingSystem":"Windows 10, Windows 11","description":"A Windows media player built from scratch.","url":"https://tochi-mba.github.io/rexplayer/","downloadUrl":"https://github.com/tochi-mba/rexplayer/releases/latest","author":{"@type":"Organization","name":"REX Technologies"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="brand" href="#top" aria-label="rexplayer, by REX Technologies">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="5" y="7" width="22" height="18" rx="4"/><path d="M13.5 11.5v9l7.5-4.5z"/></svg></span>
+        <span class="brand-lockup"><span class="brand-company">REX Technologies</span><span class="brand-name">rexplayer</span></span>
+      </a>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span class="sr-only">Toggle navigation</span><span></span><span></span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+        <a href="#how">How it works</a>
+        <a href="#inside">What is inside</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#install">Get it</a>
+        <a href="#faq">Questions</a>
+        <a class="nav-github" href="https://github.com/tochi-mba/rexplayer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero container" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow signal">Media player · Windows</p>
+        <h1>Every file, stream and disc. <span>Built from scratch.</span></h1>
+        <p class="hero-lede">rexplayer is a Windows media player whose engine is its own: the container parsing, the audio pipeline, the clock and the command line are all written by REX Technologies, and every line of the engine is covered by tests.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" id="download" href="https://github.com/tochi-mba/rexplayer/releases/latest" data-latest-installer>Download for Windows</a>
+          <a class="button button-secondary" href="https://github.com/tochi-mba/rexplayer">Source on GitHub</a>
+        </div>
+        <p class="hero-meta" id="download-meta"><span>Windows 10 and 11, 64-bit</span><span>No telemetry</span><span>No account</span><span>MIT licensed</span></p>
+      </div>
+      <pre class="console" aria-label="A terminal playing a file with rexplay"><span class="you">&gt;</span> <span class="k">rexplay</span> probe Sungba.wav
+Sungba.wav: WAVE, 3:14
+  #0 audio: PCM, 44100 Hz, Stereo, 16-bit
+<span class="you">&gt;</span> <span class="k">rexplay</span> play Sungba.wav --start 1:30
+<span class="s">Played Sungba.wav: 3:14 of 3:14.</span>
+<span class="you">&gt;</span> <span class="k">rexplay</span> agent capabilities
+{"ok":true,"protocolVersion":1,...}</pre>
+    </section>
+
+    <section class="trust-strip" aria-label="At a glance">
+      <div class="container trust-grid">
+        <div><strong>Its own engine</strong><span>No third-party media libraries</span></div>
+        <div><strong>Every engine line tested</strong><span>Enforced on every change</span></div>
+        <div><strong>Private by default</strong><span>No telemetry, no account</span></div>
+        <div><strong>Made for scripts</strong><span>One JSON line per command</span></div>
+      </div>
+    </section>
+
+    <section class="section container" id="how">
+      <div class="section-heading">
+        <p class="eyebrow signal">How it works</p>
+        <h2>One pipeline, every source.</h2>
+        <p>Bytes come in from a file, a stream or a disc; rexplayer works out what they are from the bytes themselves, never the file name, and plays them in time.</p>
+      </div>
+      <div class="steps">
+        <div class="step"><span class="step-number">01</span><h3>Recognise</h3><p>Every format reader scores the first bytes of the file. The best match opens it, so a renamed file still plays.</p></div>
+        <div class="step"><span class="step-number">02</span><h3>Decode</h3><p>rexplayer's own decoders handle the open formats. Patented ones go to the decoders Windows already licenses, so nothing is reinvented that should not be.</p></div>
+        <div class="step"><span class="step-number">03</span><h3>Play in time</h3><p>The audio device's own clock leads. Seeks land on the exact sample, and a new seek interrupts the old one immediately.</p></div>
+      </div>
+    </section>
+
+    <section class="section container" id="inside">
+      <div class="section-heading">
+        <p class="eyebrow signal">What is inside</p>
+        <h2>Small parts, each proved.</h2>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card"><h3>Format readers</h3><p>WAV, RF64 and AIFF today, with every PCM storage format in both byte orders and G.711 telephony audio.</p></div>
+        <div class="feature-card"><h3>Its own resampler</h3><p>A windowed-sinc resampler converts to whatever rate your audio device mixes at, without drifting over hours.</p></div>
+        <div class="feature-card"><h3>Proper downmixing</h3><p>Surround audio folds into stereo with the standard coefficients and without clipping.</p></div>
+        <div class="feature-card"><h3>Windows audio</h3><p>Plays to the default device through WASAPI, with volume up to 200 % and a soft clipper above 100 %.</p></div>
+        <div class="feature-card"><h3>A command line for scripts</h3><p>rexplay prints exactly one JSON document per command when asked, so tools and agents can drive it reliably.</p></div>
+        <div class="feature-card"><h3>Tested to the line</h3><p>Every line of the engine runs in tests on each change, including exact-sample checks of what was played.</p></div>
+      </div>
+    </section>
+
+    <section class="section container" id="roadmap">
+      <div class="section-heading">
+        <p class="eyebrow signal">Roadmap</p>
+        <h2>Released in steps.</h2>
+        <p>Each step is a release you can use. Version 0.1 plays WAV and AIFF from the command line; the window, video and the rest of the formats follow release by release.</p>
+      </div>
+      <ol class="install-steps">
+        <li><strong>The engine and the command line.</strong> Released in 0.1.</li>
+        <li><strong>MP3 and FLAC with gapless playback.</strong> Next.</li>
+        <li><strong>MP4 and MKV video with hardware decoding.</strong></li>
+        <li><strong>The player window, playlists and subtitles.</strong></li>
+        <li><strong>Streams, casting, discs, conversion and recording.</strong></li>
+      </ol>
+    </section>
+
+    <section class="section container" id="install">
+      <div class="section-heading">
+        <p class="eyebrow signal">Get it</p>
+        <h2>Install it for yourself.</h2>
+      </div>
+      <ol class="install-steps">
+        <li>Download the installer from the <a href="https://github.com/tochi-mba/rexplayer/releases/latest">latest release</a>. It installs for you only, with no administrator prompt.</li>
+        <li>The installer is not signed yet, so Windows may say "Windows protected your PC". Choose More info, then Run anyway.</li>
+        <li>Open a terminal and play something:
+          <div class="command-row"><code>rexplay play song.wav</code><button class="copy-button" type="button" data-copy="rexplay play song.wav">Copy</button></div>
+        </li>
+      </ol>
+      <p class="install-note">Prefer no installer? Each release also has a portable zip with a SHA-256 file to check it against.</p>
+      <p id="copy-status" class="sr-only" aria-live="polite"></p>
+    </section>
+
+    <section class="section container" id="faq">
+      <div class="section-heading">
+        <p class="eyebrow signal">Questions</p>
+        <h2>Fair questions.</h2>
+      </div>
+      <div class="faq">
+        <details open><summary>Why build a media player from scratch?</summary><p>Because the parts that matter, timing, seeking, the audio path and what happens with a damaged file, should be understood and tested end to end by the people who ship them.</p></details>
+        <details><summary>Does it send anything anywhere?</summary><p>No telemetry, no account, no analytics. It touches the network only when you open something on the network.</p></details>
+        <details><summary>Will it play my videos?</summary><p>Not yet. Video arrives with the MP4 and MKV release; until then rexplayer plays WAV and AIFF audio.</p></details>
+        <details><summary>Can scripts and agents use it?</summary><p>Yes. Add --json to any command, or run rexplay agent capabilities, and it prints exactly one JSON document.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <span>© <span id="year">2026</span> REX Technologies · rexplayer</span>
+      <span>MIT licensed</span>
+      <span class="footer-links"><a href="https://github.com/tochi-mba/rexplayer/blob/main/CHANGELOG.md">What's new <span aria-hidden="true">↗</span></a><a href="#top">Back to top <span aria-hidden="true">↑</span></a></span>
+    </div>
+  </footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

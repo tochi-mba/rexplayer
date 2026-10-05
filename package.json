@@ -1,0 +1,12 @@
+{
+  "name": "rexplayer-site",
+  "private": true,
+  "description": "Browser tests for the rexplayer website.",
+  "scripts": {
+    "test:pages": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "@playwright/test": "1.55.1"
+  }
+}
