@@ -180,18 +180,12 @@ public static class CliApplication
             Time = host.Time,
         };
 
-        string? failure = null;
         using var stopRequested = new ManualResetEventSlim(false);
         using (var session = new MediaSession(options, sessionEvent =>
         {
-            switch (sessionEvent)
+            if (sessionEvent is PositionEvent position && stop is { } limit && position.Position >= limit)
             {
-                case ErrorEvent error:
-                    failure = error.Message;
-                    break;
-                case PositionEvent position when stop is { } limit && position.Position >= limit:
-                    stopRequested.Set();
-                    break;
+                stopRequested.Set();
             }
         }))
         {
@@ -204,7 +198,7 @@ public static class CliApplication
             }
             catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or InvalidOperationException)
             {
-                throw new CliException(failure ?? ex.Message);
+                throw new CliException(session.FailureReason ?? ex.Message);
             }
 
             var finished = session.WaitForFinishAsync();
@@ -217,7 +211,7 @@ public static class CliApplication
             session.StopAsync().GetAwaiter().GetResult();
             if (state == SessionState.Faulted)
             {
-                throw new CliException(failure ?? "Playback failed.");
+                throw new CliException(session.FailureReason ?? "Playback failed.");
             }
 
             if (machine)

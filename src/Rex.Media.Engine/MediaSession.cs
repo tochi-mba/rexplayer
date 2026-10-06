@@ -23,6 +23,7 @@ public sealed partial class MediaSession : IDisposable
     private readonly RexLog _log;
     private TaskCompletionSource _finished = NewCompletion();
     private volatile SessionState _state = SessionState.Idle;
+    private volatile string? _failureReason;
     private Playback? _playback;
     private bool _disposed;
 
@@ -37,6 +38,12 @@ public sealed partial class MediaSession : IDisposable
     }
 
     public SessionState State => _state;
+
+    /// <summary>
+    /// Why the session failed, set before its state becomes <see cref="SessionState.Faulted"/> so
+    /// whoever sees that state can read the reason at once; null until something fails.
+    /// </summary>
+    public string? FailureReason => _failureReason;
 
     /// <summary>What the open media contains, or null when nothing is open.</summary>
     public MediaInfo? Info => _playback?.Info;
@@ -193,6 +200,7 @@ public sealed partial class MediaSession : IDisposable
     private void Fail(string message)
     {
         _log.Error(LogSource, message);
+        _failureReason = message;
         _events.Post(new ErrorEvent(message));
         if (SessionStateMachine.CanMove(_state, SessionState.Faulted))
         {

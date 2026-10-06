@@ -16,6 +16,7 @@ public sealed partial class MediaSession
         }
 
         Volatile.Write(ref _finished, NewCompletion());
+        _failureReason = null;
         MoveTo(SessionState.Opening);
         MediaItem? item = null;
         IAudioSink? sink = null;

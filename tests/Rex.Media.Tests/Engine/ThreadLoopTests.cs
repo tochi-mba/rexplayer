@@ -82,14 +82,28 @@ public sealed class SessionShutdownTests
     public async Task AnAudioOutputThatFailsFaultsTheSession()
     {
         var sink = new RecordingAudioSink(channels: 1);
-        sink.Writing += _ => throw new IOException("the device was unplugged");
+        var unplugged = true;
+        sink.Writing += _ =>
+        {
+            if (Volatile.Read(ref unplugged))
+            {
+                throw new IOException("the device was unplugged");
+            }
+        };
         using var harness = new SessionHarness(sink: sink);
+        Assert.Null(harness.Session.FailureReason);
 
         await harness.Session.OpenAsync(SessionHarness.Source(Pcm.RampWav(8000, 8000)));
         await harness.FinishAsync();
 
+        // The reason is readable the moment the state says Faulted, before any event is delivered.
         Assert.Equal(Rex.Media.Engine.SessionState.Faulted, harness.Session.State);
+        Assert.Equal("The audio output failed: IOException: the device was unplugged", harness.Session.FailureReason);
         Assert.Equal("The audio output failed: IOException: the device was unplugged", harness.WaitFor<ErrorEvent>().Message);
+        Volatile.Write(ref unplugged, false);
+        await harness.Session.OpenAsync(SessionHarness.Source(Pcm.RampWav(8000, 10)));
+        await harness.FinishAsync();
+        Assert.Null(harness.Session.FailureReason);
     }
 
     [Fact]
