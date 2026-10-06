@@ -1,3 +1,4 @@
+using Rex.Media.Audio;
 using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
@@ -147,17 +148,57 @@ public sealed class GaplessTests
     [Fact]
     public async Task MediaStillQueuedWhenTheSessionStopsIsReleased()
     {
-        // Paused, the demuxer fills the audio queue and stops long before the end of a minute of
-        // audio, so the queued media is still waiting to be opened when the session closes.
+        // The output takes nothing until the session closes, so the demuxer fills the audio queue and
+        // stops long before the end of a minute of audio: the queued media is still waiting to be opened.
         var queued = new TrackedSource(Count(0, 400));
         var minute = WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[480_000])).Build();
-        using (var harness = new SessionHarness(autoPlay: false))
+        using (var harness = new SessionHarness(sink: new ClosedSink()))
         {
             await harness.Session.OpenAsync(SessionHarness.Source(minute), [queued]);
             await harness.Session.QueueNextAsync(new TrackedSource(Count(0, 400)));
         }
 
         Assert.True(queued.Disposed);
+    }
+
+    /// <summary>An output whose writes wait until the session closes.</summary>
+    private sealed class ClosedSink : IAudioSink
+    {
+        public string Name => "closed";
+
+        public long PlayedSamples => 0;
+
+        public long QueuedSamples => 0;
+
+        public bool IsRealTime => true;
+
+        public AudioFormat Open(AudioFormat preferred) => preferred;
+
+        public void Write(AudioFrame frame, CancellationToken cancellationToken)
+        {
+            cancellationToken.WaitHandle.WaitOne();
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        public void Pause()
+        {
+        }
+
+        public void Resume()
+        {
+        }
+
+        public void Flush()
+        {
+        }
+
+        public void Drain(CancellationToken cancellationToken)
+        {
+        }
+
+        public void Dispose()
+        {
+        }
     }
 
     [Fact]
