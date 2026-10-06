@@ -333,7 +333,7 @@ public sealed class CliApplicationTests : IDisposable
     [Fact]
     public void TheRegistriesHoldTheShippedFormats()
     {
-        Assert.Equal(["wav", "aiff", "flac", "mpeg-audio", "mp4"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
+        Assert.Equal(["wav", "aiff", "flac", "mpeg-audio", "mp4", "matroska"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
         Assert.Equal(["rexplayer PCM", "rexplayer FLAC", "rexplayer MP3"], MediaRegistries.Decoders().Factories.Select(f => f.Name));
         Assert.Throws<ArgumentNullException>(() => MediaRegistries.Decoders(null!));
     }

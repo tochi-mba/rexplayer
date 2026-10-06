@@ -21,6 +21,7 @@ Crc.cs
 Decoders.cs
 DemuxerRegistry.cs
 DeviceFormatPolicy.cs
+Ebml.cs
 EngineOptions.cs
 ExceptionDiagnostics.cs
 FileByteSource.cs
@@ -35,6 +36,8 @@ Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
 MachineEnvelope.cs
+MatroskaDemuxer.cs
+MatroskaHeaders.cs
 MediaBuffer.cs
 MediaClock.cs
 MediaFormatException.cs

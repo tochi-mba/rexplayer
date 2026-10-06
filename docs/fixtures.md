@@ -14,6 +14,7 @@ description of how it was made. No downloaded media is used.
 | `FlacBuilder` | FLAC streams coded exactly as a test asks: every subframe type and predictor, Rice and escaped residuals, wasted bits, every stereo mode, 4 to 32 bits, 1 to 8 channels, fixed or variable blocks, and every metadata block |
 | `Layer3FrameWriter` (in the tests) | Layer III frames written field by field: intensity stereo at every position and table, mixed blocks, reused scalefactors, CRC-protected frames, and each malformed field |
 | `Mp4Writer` | ISO base media files box by box: every sample table form (stsz, stz2, co64, signed ctts, stss), version 1 headers, edit lists with pauses, QuickTime sound versions 1 and 2, ipcm, every codec's sample entry, iTunes tags and chapter text tracks, and movie fragments with every header and run flag |
+| `EbmlWriter` | Matroska and WebM element by element: every lacing form, block groups with durations, references and discard padding, content encodings, unknown-size segments and clusters, seek heads, cues with block positions, chapters, tags and attachments |
 | `Id3Builder` | ID3v2.2, 2.3 and 2.4 tags with every text encoding, unsynchronisation, compressed, encrypted and grouped frames, pictures and chapters |
 
 ## Committed
@@ -49,6 +50,11 @@ long, which also proves the gapless trim.
 | `tests/fixtures/mp4/h264-aac.mp4` | 0.4 s test pattern, 128x72 at 25 fps, H.264 with B-frames and AAC, tags and two chapters | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
 | `tests/fixtures/mp4/h264-aac-fragmented.mp4` | The same as a fragmented MP4 | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mp4/h264-rotated.mov` | 0.2 s of the pattern with a display matrix turning it 90 degrees anticlockwise | `scripts/make-fixtures.ps1` |
+| `tests/fixtures/mkv/flac-mp3-pcm.mkv` | The two tones three times over, as FLAC, MP3 (with codec delay and end padding) and 16-bit PCM tracks | `scripts/make-fixtures.ps1` (FFmpeg with LAME) |
+| `tests/fixtures/mkv/flac-mp3-pcm.audio0.reference.wav` to `audio2` | Each of those tracks decoded by FFmpeg to 24-bit PCM | `scripts/make-fixtures.ps1` |
+| `tests/fixtures/mkv/h264-aac-subtitles.mkv` | 0.4 s of the pattern as H.264 with B-frames, AAC tagged Yoruba, two SubRip cues, two chapters, title and artist tags and an attached PNG cover | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
+| `tests/fixtures/mkv/vp9-opus.webm` | 0.4 s of the pattern as VP9 with Opus audio | `scripts/make-fixtures.ps1` (FFmpeg with libvpx and libopus) |
+| `tests/fixtures/mkv/live-opus.webm` | 0.4 s of Opus written as a live stream: a segment of unknown size, no cues, a cluster every 100 ms | `scripts/make-fixtures.ps1` (FFmpeg with libopus) |
 
 The H.264 fixtures have their SEI units removed, because the encoder writes its name and web
 address into one; `RepositoryTests` reads binary fixtures for banned names too.

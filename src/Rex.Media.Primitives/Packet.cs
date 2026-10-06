@@ -33,6 +33,12 @@ public sealed class Packet : IDisposable
 
     public long Generation { get; set; }
 
+    /// <summary>
+    /// Samples at the end of this packet's decoded audio that are encoder padding the container
+    /// asked to drop (Matroska's DiscardPadding); zero when it said nothing.
+    /// </summary>
+    public int DiscardSamples { get; set; }
+
     public MediaBuffer Data => _data ?? throw new ObjectDisposedException(nameof(Packet));
 
     public bool IsDisposed => _data is null;
@@ -58,6 +64,7 @@ public sealed class Packet : IDisposable
         packet.IsKeyframe = isKeyframe;
         packet.IsDiscontinuity = false;
         packet.Generation = 0;
+        packet.DiscardSamples = 0;
         return packet;
     }
 

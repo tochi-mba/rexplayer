@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 260 planned, 10 built, 19 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 258 planned, 10 built, 21 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -46,7 +46,7 @@ Totals: 260 planned, 10 built, 19 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-C03 | MPEG audio elementary (MP1/2/3) | Xing/Info/VBRI headers for duration and seek, LAME gapless delay/padding, ID3v1/v2, APEv2 at the tail | M2 | must | verified |
 | FMT-C04 | FLAC native | STREAMINFO, SEEKTABLE, PICTURE, VORBIS_COMMENT, CUESHEET; frame-scan seek when there is no seektable | M2 | must | verified |
 | FMT-C05 | MP4 / MOV / 3GP / M4A / M4V / F4V | Progressive + fragmented (moof/mfra/sidx), edit lists (gapless offset), `chap` chapters, `tx3g` text, multiple tracks, `ctts` B-frames, 64-bit boxes, fast-start and non-fast-start | M3 | must | verified |
-| FMT-C06 | Matroska / WebM | EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters | M3 | must | planned |
+| FMT-C06 | Matroska / WebM | EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters | M3 | must | verified |
 | FMT-C07 | MPEG-TS / M2TS (BDAV) | PAT/PMT/SDT/EIT, PCR clock recovery, multi-program, discontinuity handling, 188/192/204-byte packets, PES reassembly | M7 | must | planned |
 | FMT-C08 | MPEG-PS / VOB / MPG | Pack/system headers, private streams (AC-3/DTS/LPCM/SPU), SCR | M7 | must | planned |
 | FMT-C09 | Ogg (+OGM Could) | Vorbis, Opus, FLAC-in-Ogg, Theora, Speex; chained streams (internet radio); granule-position seek bisection | M7 | must | planned |
@@ -152,7 +152,7 @@ Totals: 260 planned, 10 built, 19 verified, 1 verified-hardware, 27 post-1.0.
 | META-01 | ID3v1/1.1, ID3v2.2/2.3/2.4 | Text frames, APIC, USLT lyrics, CHAP/CTOC chapters, TXXX ReplayGain, unsynchronisation, compression | M2 | must | verified |
 | META-02 | Vorbis comments / FLAC blocks / METADATA_BLOCK_PICTURE |  | M2 | must | verified |
 | META-03 | MP4 `ilst` atoms (incl. `covr`, `----` freeform) |  | M3 | must | verified |
-| META-04 | Matroska tags + attachments |  | M3 | must | planned |
+| META-04 | Matroska tags + attachments |  | M3 | must | verified |
 | META-05 | APEv2, ASF attributes, RIFF INFO, AIFF chunks |  | M7 | should | planned |
 | META-06 | Folder art discovery | `cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred | M6 | must | planned |
 | META-07 | Tag editing | Write title/artist/album/genre/track/date/comment/artwork for ID3v2.4, Vorbis comments/FLAC and MP4 atoms, via a safe rewrite (atomic replace, padding reuse) | M6 | should | planned |

@@ -440,6 +440,7 @@ public sealed partial class MediaSession
             {
                 _audioItem.Decoder.Decode(packet, state.Decoded);
                 state.ConsecutiveFailures = 0;
+                DropPadding(state.Decoded, packet.DiscardSamples);
             }
             catch (MediaFormatException ex)
             {
@@ -574,6 +575,18 @@ public sealed partial class MediaSession
             }
 
             frames.Clear();
+        }
+
+        /// <summary>Takes the padding a container flagged off the end of what one packet decoded to.</summary>
+        private static void DropPadding(List<AudioFrame> frames, int samples)
+        {
+            for (var i = frames.Count - 1; i >= 0 && samples > 0; i--)
+            {
+                var frame = frames[i];
+                var cut = Math.Min(samples, frame.SampleCount);
+                frame.SetSampleCount(frame.SampleCount - cut);
+                samples -= cut;
+            }
         }
 
         private sealed record SeekRequest(long Generation, MediaTime Target, SeekMode Mode);

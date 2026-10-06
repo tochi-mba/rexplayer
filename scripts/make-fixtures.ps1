@@ -149,4 +149,48 @@ $common = @('-map', '0:v', '-map', '1:a', '-map_metadata', '2', '-map_chapters',
 Invoke-Mp4 -Name 'h264-aac.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0.4' -Inputs $video -Options ($common + @('-movflags', '+faststart'))
 Invoke-Mp4 -Name 'h264-aac-fragmented.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0.4' -Inputs $video -Options ($common + @('-movflags', '+frag_keyframe+empty_moov+default_base_moof'))
 Invoke-Mp4 -Name 'h264-rotated.mov' -Source 'testsrc2=size=128x72:rate=25:duration=0.2' -Before @('-display_rotation', '90', '-noautorotate') -Options @('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-map_metadata', '-1')
-Remove-Item $chapters
+
+# Matroska and WebM, from FFmpeg's muxers.
+$mkv = Join-Path $root 'tests/fixtures/mkv'
+New-Item -ItemType Directory -Force $mkv | Out-Null
+$temp = [System.IO.Path]::GetTempPath()
+$subtitles = Join-Path $temp 'rexplayer-subtitles.srt'
+Set-Content -Path $subtitles -Encoding utf8 -Value @('1', '00:00:00,000 --> 00:00:00,200', 'Hello', '', '2', '00:00:00,200 --> 00:00:00,400', 'World')
+$cover = Join-Path $temp 'rexplayer-cover.png'
+& $Ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'color=c=0xD7FF3F:s=8x8:d=0.04' -frames:v 1 -fflags +bitexact $cover
+Set-Content -Path $chapters -Encoding utf8 -Value @(
+    ';FFMETADATA1', 'title=Terminator', 'artist=Asake',
+    '[CHAPTER]', 'TIMEBASE=1/1000', 'START=0', 'END=200', 'title=Intro',
+    '[CHAPTER]', 'TIMEBASE=1/1000', 'START=200', 'END=400', 'title=Verse')
+
+function Invoke-Mkv {
+    param([string]$Name, [string[]]$Arguments, [switch]$Reference)
+    $output = Join-Path $mkv $Name
+    & $Ffmpeg -hide_banner -loglevel error -y @Arguments -fflags +bitexact -flags:a +bitexact -flags:v +bitexact $output
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to write $output."
+    }
+
+    Write-Host "Wrote $output ($((Get-Item $output).Length) bytes)."
+    if ($Reference) {
+        $index = 0
+        foreach ($stream in @(& $Ffmpeg -hide_banner -i $output 2>&1 | Select-String 'Audio:')) {
+            $wav = Join-Path $mkv "$([System.IO.Path]::GetFileNameWithoutExtension($Name)).audio$index.reference.wav"
+            & $Ffmpeg -hide_banner -loglevel error -y -i $output -map "0:a:$index" -c:a pcm_s24le -map_metadata -1 -fflags +bitexact -flags:a +bitexact $wav
+            Write-Host "Wrote $wav ($((Get-Item $wav).Length) bytes)."
+            $index++
+        }
+    }
+}
+
+$pattern = @('-f', 'lavfi', '-i', 'testsrc2=size=128x72:rate=25:duration=0.4')
+$tone48 = @('-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(2*PI*440*t):s=48000:d=0.4')
+Invoke-Mkv -Name 'h264-aac-subtitles.mkv' -Arguments ($pattern + $tone48 + @('-i', $subtitles, '-f', 'ffmetadata', '-i', $chapters,
+    '-map', '0:v', '-map', '1:a', '-map', '2:s', '-map_metadata', '3', '-map_chapters', '3', '-attach', $cover, '-metadata:s:t', 'mimetype=image/png', '-metadata:s:t', 'filename=cover.png',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-g', '5', '-bf', '2', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6',
+    '-c:a', 'aac', '-b:a', '64k', '-c:s', 'srt', '-metadata:s:a', 'language=yor', '-metadata:s:s', 'language=eng'))
+Invoke-Mkv -Name 'flac-mp3-pcm.mkv' -Reference -Arguments (@('-f', 'lavfi', '-i', $tones, '-f', 'lavfi', '-i', $tones, '-f', 'lavfi', '-i', $tones,
+    '-map', '0:a', '-map', '1:a', '-map', '2:a', '-c:a:0', 'flac', '-c:a:1', 'libmp3lame', '-b:a:1', '128k', '-c:a:2', 'pcm_s16le', '-map_metadata', '-1'))
+Invoke-Mkv -Name 'vp9-opus.webm' -Arguments (@('-f', 'lavfi', '-i', 'testsrc2=size=128x72:rate=25:duration=0.4') + $tone48 + @('-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-b:v', '200k', '-c:a', 'libopus', '-b:a', '48k', '-map_metadata', '-1'))
+Invoke-Mkv -Name 'live-opus.webm' -Arguments ($tone48 + @('-c:a', 'libopus', '-b:a', '48k', '-live', '1', '-cluster_time_limit', '100', '-map_metadata', '-1'))
+Remove-Item $subtitles, $cover, $chapters

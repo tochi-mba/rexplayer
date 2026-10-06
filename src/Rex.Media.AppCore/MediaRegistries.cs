@@ -4,6 +4,7 @@ using Rex.Media.Codecs.Software.Mpeg;
 using Rex.Media.Codecs.Software.Pcm;
 using Rex.Media.Containers;
 using Rex.Media.Containers.Flac;
+using Rex.Media.Containers.Matroska;
 using Rex.Media.Containers.Mp4;
 using Rex.Media.Containers.Mpeg;
 using Rex.Media.Containers.Riff;
@@ -22,7 +23,8 @@ public static class MediaRegistries
         .Add(new AiffDemuxerFactory())
         .Add(new FlacDemuxerFactory())
         .Add(new MpegAudioDemuxerFactory())
-        .Add(new Mp4DemuxerFactory());
+        .Add(new Mp4DemuxerFactory())
+        .Add(new MatroskaDemuxerFactory());
 
     public static DecoderRegistry Decoders(params IDecoderFactory[] extraDecoders)
     {
