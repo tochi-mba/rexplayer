@@ -102,3 +102,51 @@ Invoke-Mp3 -Name 'stereo-22k-64k-mpeg2' `
 Invoke-Mp3 -Name 'mono-8k-16k-mpeg25' `
     -Source 'aevalsrc=0.5*sin(2*PI*400*t)+0.3*sin(2*PI*1100*t):s=8000:d=0.5' `
     -Options @('-b:a', '16k')
+
+# MP4 and QuickTime, from FFmpeg's muxer. Audio rexplayer decodes itself gets a reference decode by
+# FFmpeg (edit lists applied); video and AAC are for the Windows decoders.
+$mp4 = Join-Path $root 'tests/fixtures/mp4'
+New-Item -ItemType Directory -Force $mp4 | Out-Null
+
+function Invoke-Mp4 {
+    param([string]$Source, [string[]]$Options, [string]$Name, [switch]$Reference, [string[]]$Inputs = @(), [string[]]$Before = @())
+    $output = Join-Path $mp4 $Name
+    & $Ffmpeg -hide_banner -loglevel error -y @Before -f lavfi -i $Source @Inputs @Options -fflags +bitexact -flags:a +bitexact -flags:v +bitexact $output
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to write $output."
+    }
+
+    Write-Host "Wrote $output ($((Get-Item $output).Length) bytes)."
+    if ($Reference) {
+        $wav = Join-Path $mp4 "$([System.IO.Path]::GetFileNameWithoutExtension($Name)).reference.wav"
+        & $Ffmpeg -hide_banner -loglevel error -y -i $output -map 0:a -c:a pcm_s24le -map_metadata -1 -fflags +bitexact -flags:a +bitexact $wav
+        if ($LASTEXITCODE -ne 0) {
+            throw "ffmpeg failed to decode $output."
+        }
+
+        Write-Host "Wrote $wav ($((Get-Item $wav).Length) bytes)."
+    }
+}
+
+$tones = 'aevalsrc=0.5*sin(2*PI*440*t)|0.4*sin(2*PI*660*t):s=44100:d=0.2'
+Invoke-Mp4 -Name 'mp3-in-mp4.mp4' -Source $tones -Options @('-c:a', 'libmp3lame', '-b:a', '128k', '-map_metadata', '-1') -Reference
+Invoke-Mp4 -Name 'flac-in-mp4.mp4' -Source $tones -Options @('-c:a', 'flac', '-strict', 'experimental', '-map_metadata', '-1') -Reference
+Invoke-Mp4 -Name 'pcm-s16le.mov' -Source $tones -Options @('-c:a', 'pcm_s16le', '-map_metadata', '-1') -Reference
+Invoke-Mp4 -Name 'pcm-s24be.mov' -Source $tones -Options @('-c:a', 'pcm_s24be', '-map_metadata', '-1') -Reference
+Invoke-Mp4 -Name 'pcm-f32le.mov' -Source 'aevalsrc=0.5*sin(2*PI*440*t):s=22050:d=0.2' -Options @('-c:a', 'pcm_f32le', '-map_metadata', '-1') -Reference
+Invoke-Mp4 -Name 'alac.m4a' -Source $tones -Options @('-c:a', 'alac', '-map_metadata', '-1')
+
+# Video with sound: a test pattern and tones, H.264 with B-frames and AAC, tagged and chaptered.
+# SEI units are stripped: the encoder writes its name and web address into one, and fixtures carry
+# no third-party names.
+$chapters = Join-Path ([System.IO.Path]::GetTempPath()) 'rexplayer-chapters.txt'
+Set-Content -Path $chapters -Encoding utf8 -Value @(
+    ';FFMETADATA1', 'title=Basquiat', 'artist=Asake', 'album=Lungu Boy', 'date=2024',
+    '[CHAPTER]', 'TIMEBASE=1/1000', 'START=0', 'END=200', 'title=Intro',
+    '[CHAPTER]', 'TIMEBASE=1/1000', 'START=200', 'END=400', 'title=Verse')
+$video = @('-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(2*PI*440*t):s=48000:d=0.4', '-f', 'ffmetadata', '-i', $chapters)
+$common = @('-map', '0:v', '-map', '1:a', '-map_metadata', '2', '-map_chapters', '2', '-c:v', 'libx264', '-preset', 'veryfast', '-g', '5', '-bf', '2', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-c:a', 'aac', '-b:a', '64k')
+Invoke-Mp4 -Name 'h264-aac.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0.4' -Inputs $video -Options ($common + @('-movflags', '+faststart'))
+Invoke-Mp4 -Name 'h264-aac-fragmented.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0.4' -Inputs $video -Options ($common + @('-movflags', '+frag_keyframe+empty_moov+default_base_moof'))
+Invoke-Mp4 -Name 'h264-rotated.mov' -Source 'testsrc2=size=128x72:rate=25:duration=0.2' -Before @('-display_rotation', '90', '-noautorotate') -Options @('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-map_metadata', '-1')
+Remove-Item $chapters

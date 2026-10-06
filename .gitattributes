@@ -24,6 +24,8 @@
 *.mp3 binary
 *.mp4 binary
 *.m4a binary
+*.m4v binary
+*.mov binary
 *.mkv binary
 *.webm binary
 *.flac binary

@@ -319,7 +319,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "FMT-C06",
@@ -1129,7 +1129,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "META-04",

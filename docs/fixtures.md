@@ -13,6 +13,7 @@ description of how it was made. No downloaded media is used.
 | `Pcm.RampWav` | A WAV whose samples count up, so any sample's position can be checked exactly |
 | `FlacBuilder` | FLAC streams coded exactly as a test asks: every subframe type and predictor, Rice and escaped residuals, wasted bits, every stereo mode, 4 to 32 bits, 1 to 8 channels, fixed or variable blocks, and every metadata block |
 | `Layer3FrameWriter` (in the tests) | Layer III frames written field by field: intensity stereo at every position and table, mixed blocks, reused scalefactors, CRC-protected frames, and each malformed field |
+| `Mp4Writer` | ISO base media files box by box: every sample table form (stsz, stz2, co64, signed ctts, stss), version 1 headers, edit lists with pauses, QuickTime sound versions 1 and 2, ipcm, every codec's sample entry, iTunes tags and chapter text tracks, and movie fragments with every header and run flag |
 | `Id3Builder` | ID3v2.2, 2.3 and 2.4 tags with every text encoding, unsynchronisation, compressed, encrypted and grouped frames, pictures and chapters |
 
 ## Committed
@@ -39,3 +40,15 @@ The MP3 fixtures come from an encoder rexplayer did not write, and their referen
 it did not write. rexplayer's decode must match each reference to the conformance standard's "full
 accuracy" (RMS difference under 2^-15/sqrt(12), no sample more than 2^-14 apart) and be exactly as
 long, which also proves the gapless trim.
+
+| `tests/fixtures/mp4/mp3-in-mp4.mp4` | 0.2 s, two tones, MP3 in MP4 with a gapless edit list | `scripts/make-fixtures.ps1` (FFmpeg with LAME) |
+| `tests/fixtures/mp4/flac-in-mp4.mp4` | The same tones, FLAC in MP4 | `scripts/make-fixtures.ps1` (FFmpeg) |
+| `tests/fixtures/mp4/pcm-s16le.mov`, `pcm-s24be.mov`, `pcm-f32le.mov` | The same tones as QuickTime PCM in three storage forms | `scripts/make-fixtures.ps1` (FFmpeg) |
+| `tests/fixtures/mp4/*.reference.wav` | Each audio file above decoded by FFmpeg to 24-bit PCM, edit lists applied | `scripts/make-fixtures.ps1` |
+| `tests/fixtures/mp4/alac.m4a` | The same tones as Apple Lossless, to check a codec rexplayer names but does not yet decode | `scripts/make-fixtures.ps1` (FFmpeg) |
+| `tests/fixtures/mp4/h264-aac.mp4` | 0.4 s test pattern, 128x72 at 25 fps, H.264 with B-frames and AAC, tags and two chapters | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
+| `tests/fixtures/mp4/h264-aac-fragmented.mp4` | The same as a fragmented MP4 | `scripts/make-fixtures.ps1` |
+| `tests/fixtures/mp4/h264-rotated.mov` | 0.2 s of the pattern with a display matrix turning it 90 degrees anticlockwise | `scripts/make-fixtures.ps1` |
+
+The H.264 fixtures have their SEI units removed, because the encoder writes its name and web
+address into one; `RepositoryTests` reads binary fixtures for banned names too.

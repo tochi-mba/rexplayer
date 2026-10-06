@@ -46,6 +46,10 @@ MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
 Mp3Decoder.cs
+Mp4Boxes.cs
+Mp4Demuxer.cs
+Mp4Metadata.cs
+Mp4Track.cs
 MpegAudioDemuxer.cs
 MpegAudioHeader.cs
 MpegInfoTag.cs

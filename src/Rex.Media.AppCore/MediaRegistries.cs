@@ -4,6 +4,7 @@ using Rex.Media.Codecs.Software.Mpeg;
 using Rex.Media.Codecs.Software.Pcm;
 using Rex.Media.Containers;
 using Rex.Media.Containers.Flac;
+using Rex.Media.Containers.Mp4;
 using Rex.Media.Containers.Mpeg;
 using Rex.Media.Containers.Riff;
 
@@ -20,7 +21,8 @@ public static class MediaRegistries
         .Add(new WavDemuxerFactory())
         .Add(new AiffDemuxerFactory())
         .Add(new FlacDemuxerFactory())
-        .Add(new MpegAudioDemuxerFactory());
+        .Add(new MpegAudioDemuxerFactory())
+        .Add(new Mp4DemuxerFactory());
 
     public static DecoderRegistry Decoders(params IDecoderFactory[] extraDecoders)
     {

@@ -56,6 +56,16 @@ public sealed partial class RepositoryTests
                 problems.Add($"{path}: the path contains a banned word ({word.Length} letters)");
             }
 
+            if (Lexicon.IsBinary(path))
+            {
+                foreach (var word in Lexicon.FindInBinary(File.ReadAllBytes(RepoPaths.Combine(path))))
+                {
+                    problems.Add($"{path}: the bytes contain a banned word ({word.Length} letters)");
+                }
+
+                continue;
+            }
+
             if (!Lexicon.IsCheckedText(path))
             {
                 continue;
@@ -69,6 +79,18 @@ public sealed partial class RepositoryTests
         }
 
         Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
+    }
+
+    [Fact]
+    public void BinaryMediaIsSearchedForTheLongWordOnly()
+    {
+        var org = Lexicon.Banned.Single(w => w.Length == 8);
+        var product = Lexicon.Banned.Single(w => w.Length == 3);
+
+        Assert.Single(Lexicon.FindInBinary(System.Text.Encoding.Latin1.GetBytes("\u0001http://www." + org.ToUpperInvariant() + ".org\u00FF")));
+        Assert.Empty(Lexicon.FindInBinary(System.Text.Encoding.Latin1.GetBytes("\u0001" + product + "\u00FF")));
+        Assert.True(Lexicon.IsBinary("tests/fixtures/mp4/clip.mov"));
+        Assert.False(Lexicon.IsCheckedText("tests/fixtures/mp4/clip.mov"));
     }
 
     [Theory]
