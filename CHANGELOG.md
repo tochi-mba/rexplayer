@@ -3,6 +3,15 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.3.1 - 2026-10-07
+
+### Fixed
+
+- **Damaged video headers.** An H.264 or HEVC stream whose header declares counts or sizes beyond
+  what the format allows is now refused as damaged, with a message naming the field, instead of
+  failing with an internal error.
+- **Matroska playback** no longer creates work for the garbage collector on every block it reads.
+
 ## 0.3.0 - 2026-10-06
 
 ### Added
