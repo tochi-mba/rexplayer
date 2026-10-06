@@ -1,9 +1,12 @@
 # Source files that must keep 100 % line coverage in the pure suite (tests/Rex.Media.Tests).
 # Every .cs file in a portable project is listed; RepositoryTests fail if one is missing.
+AacConfig.cs
+AdtsHeader.cs
 AiffDemuxer.cs
 AudioFormat.cs
 AudioFrame.cs
 AudioPipeline.cs
+AvcConfig.cs
 BitReader.cs
 BitWriter.cs
 BlockPacketizer.cs
@@ -30,6 +33,9 @@ FlacDemuxer.cs
 FlacFrameHeader.cs
 FlacStreamInfo.cs
 FourCC.cs
+H264Sps.cs
+HevcConfig.cs
+HevcSps.cs
 Id3v2.cs
 Layer3Huffman.cs
 Layer3SideInfo.cs
@@ -56,6 +62,7 @@ Mp4Track.cs
 MpegAudioDemuxer.cs
 MpegAudioHeader.cs
 MpegInfoTag.cs
+NalUnits.cs
 NullAudioSink.cs
 Packet.cs
 PcmDecoder.cs
@@ -66,6 +73,7 @@ Resampler.cs
 RexLog.cs
 SampleConverter.cs
 ScanWindow.cs
+SequenceInfo.cs
 SessionEvents.cs
 SessionState.cs
 SlotPool.cs

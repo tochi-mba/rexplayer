@@ -1,0 +1,20 @@
+{
+    "programs": [
+
+    ],
+    "stream_groups": [
+
+    ],
+    "streams": [
+        {
+            "profile": "High",
+            "width": 64,
+            "height": 48,
+            "sample_aspect_ratio": "1:1",
+            "pix_fmt": "yuvj420p",
+            "level": 10,
+            "color_range": "pc",
+            "field_order": "progressive"
+        }
+    ]
+}

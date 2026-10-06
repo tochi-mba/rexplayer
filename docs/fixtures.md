@@ -54,6 +54,10 @@ long, which also proves the gapless trim.
 | `tests/fixtures/mkv/flac-mp3-pcm.audio0.reference.wav` to `audio2` | Each of those tracks decoded by FFmpeg to 24-bit PCM | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mkv/h264-aac-subtitles.mkv` | 0.4 s of the pattern as H.264 with B-frames, AAC tagged Yoruba, two SubRip cues, two chapters, title and artist tags and an attached PNG cover | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
 | `tests/fixtures/mkv/vp9-opus.webm` | 0.4 s of the pattern as VP9 with Opus audio | `scripts/make-fixtures.ps1` (FFmpeg with libvpx and libopus) |
+| `tests/fixtures/video/h264-*.h264` | Two frames of the pattern as raw H.264: High 4:2:0 with a 4:3 pixel aspect and BT.709 colour, High 4:2:2 10-bit interlaced full range, High 4:4:4 with scaling matrices at 30000/1001 fps, Constrained Baseline, and monochrome | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
+| `tests/fixtures/video/hevc-*.hevc` | The same as raw HEVC: Main with a conformance window and a 16:11 pixel aspect, Main 10 with HDR10 colour, 4:4:4 with temporal layers and scaling lists, and a 4:2:2 field sequence | `scripts/make-fixtures.ps1` (FFmpeg with x265, SEI removed) |
+| `tests/fixtures/video/hevc-in-mp4.mp4` | The Main stream in MP4, for its hvcC record | `scripts/make-fixtures.ps1` (FFmpeg with x265) |
+| `tests/fixtures/video/*.probe.json` | What FFmpeg's own parser reads from each stream: profile, level, size, pixel aspect, pixel format and colour | `scripts/make-fixtures.ps1` (ffprobe) |
 | `tests/fixtures/mkv/live-opus.webm` | 0.4 s of Opus written as a live stream: a segment of unknown size, no cues, a cluster every 100 ms | `scripts/make-fixtures.ps1` (FFmpeg with libopus) |
 
 The H.264 fixtures have their SEI units removed, because the encoder writes its name and web

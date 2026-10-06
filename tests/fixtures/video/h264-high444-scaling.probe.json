@@ -1,0 +1,19 @@
+{
+    "programs": [
+
+    ],
+    "stream_groups": [
+
+    ],
+    "streams": [
+        {
+            "profile": "High 4:4:4 Predictive",
+            "width": 64,
+            "height": 48,
+            "sample_aspect_ratio": "40:33",
+            "pix_fmt": "yuv444p",
+            "level": 10,
+            "field_order": "progressive"
+        }
+    ]
+}

@@ -194,3 +194,38 @@ Invoke-Mkv -Name 'flac-mp3-pcm.mkv' -Reference -Arguments (@('-f', 'lavfi', '-i'
 Invoke-Mkv -Name 'vp9-opus.webm' -Arguments (@('-f', 'lavfi', '-i', 'testsrc2=size=128x72:rate=25:duration=0.4') + $tone48 + @('-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-b:v', '200k', '-c:a', 'libopus', '-b:a', '48k', '-map_metadata', '-1'))
 Invoke-Mkv -Name 'live-opus.webm' -Arguments ($tone48 + @('-c:a', 'libopus', '-b:a', '48k', '-live', '1', '-cluster_time_limit', '100', '-map_metadata', '-1'))
 Remove-Item $subtitles, $cover, $chapters
+
+# Raw H.264 and HEVC streams, each beside what FFmpeg's own parser reads from it, so rexplayer's
+# parameter-set parsers are checked against an independent reader. SEI units are removed: the
+# encoders write their names and options into them.
+$video = Join-Path $root 'tests/fixtures/video'
+New-Item -ItemType Directory -Force $video | Out-Null
+function Invoke-Video {
+    param([string]$Name, [string]$Size, [string]$Rate, [string[]]$Options)
+    $output = Join-Path $video $Name
+    $codec = if ($Options -contains 'libx264') { 'h264' } else { 'hevc' }
+    $format = if ($Name.EndsWith('.mp4')) { 'mp4' } else { $codec }
+    $sei = if ($codec -eq 'h264') { 'filter_units=remove_types=6' } else { 'filter_units=remove_types=39|40' }
+    & $Ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=$($Size):rate=$($Rate):duration=0.1" @Options -frames:v 2 -bsf:v $sei -map_metadata -1 -fflags +bitexact -flags:v +bitexact -f $format $output
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to write $output."
+    }
+
+    $probe = Join-Path $video "$([System.IO.Path]::GetFileNameWithoutExtension($Name)).probe.json"
+    $fields = 'stream=profile,level,width,height,sample_aspect_ratio,pix_fmt,color_range,color_space,color_transfer,color_primaries,field_order'
+    & ($Ffmpeg -replace 'ffmpeg(\.exe)?$', 'ffprobe$1') -v error -select_streams v:0 -show_entries $fields -of json $output | Set-Content -Encoding utf8 $probe
+    Write-Host "Wrote $output ($((Get-Item $output).Length) bytes) and $probe."
+}
+
+$x264 = @('-c:v', 'libx264', '-preset', 'veryfast')
+Invoke-Video -Name 'h264-high-420.h264' -Size '128x72' -Rate '25' -Options ($x264 + @('-pix_fmt', 'yuv420p', '-vf', 'setsar=4/3', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv'))
+Invoke-Video -Name 'h264-high422-10bit-interlaced.h264' -Size '96x64' -Rate '25' -Options ($x264 + @('-pix_fmt', 'yuv422p10le', '-flags', '+ilme+ildct', '-x264-params', 'tff=1', '-color_range', 'pc'))
+Invoke-Video -Name 'h264-high444-scaling.h264' -Size '64x48' -Rate '30000/1001' -Options ($x264 + @('-pix_fmt', 'yuv444p', '-x264-params', 'cqm=jvt', '-vf', 'setsar=40/33'))
+Invoke-Video -Name 'h264-baseline.h264' -Size '64x48' -Rate '24' -Options ($x264 + @('-pix_fmt', 'yuv420p', '-profile:v', 'baseline'))
+Invoke-Video -Name 'h264-gray.h264' -Size '64x48' -Rate '25' -Options ($x264 + @('-pix_fmt', 'gray'))
+$x265 = @('-c:v', 'libx265', '-preset', 'veryfast', '-x265-params')
+Invoke-Video -Name 'hevc-main.hevc' -Size '130x74' -Rate '25' -Options ($x265 + @('log-level=error', '-pix_fmt', 'yuv420p', '-vf', 'setsar=16/11'))
+Invoke-Video -Name 'hevc-main10-hdr.hevc' -Size '128x72' -Rate '50' -Options ($x265 + @('log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:range=full', '-pix_fmt', 'yuv420p10le'))
+Invoke-Video -Name 'hevc-444-layers.hevc' -Size '64x48' -Rate '30' -Options ($x265 + @('log-level=error:temporal-layers=3:scaling-list=default:ref=3:bframes=3', '-pix_fmt', 'yuv444p'))
+Invoke-Video -Name 'hevc-field.hevc' -Size '64x48' -Rate '25' -Options ($x265 + @('log-level=error:interlace=tff', '-pix_fmt', 'yuv422p'))
+Invoke-Video -Name 'hevc-in-mp4.mp4' -Size '130x74' -Rate '25' -Options ($x265 + @('log-level=error', '-pix_fmt', 'yuv420p', '-vf', 'setsar=16/11', '-tag:v', 'hvc1'))

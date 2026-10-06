@@ -27,6 +27,12 @@
 *.m4v binary
 *.mov binary
 *.mkv binary
+*.h264 binary
+*.264 binary
+*.hevc binary
+*.265 binary
+*.aac binary
+*.adts binary
 *.webm binary
 *.flac binary
 *.ogg binary

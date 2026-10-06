@@ -1,0 +1,22 @@
+{
+    "programs": [
+
+    ],
+    "stream_groups": [
+
+    ],
+    "streams": [
+        {
+            "profile": "Main 10",
+            "width": 128,
+            "height": 72,
+            "sample_aspect_ratio": "1:1",
+            "pix_fmt": "yuv420p10le",
+            "level": 30,
+            "color_range": "pc",
+            "color_space": "bt2020nc",
+            "color_transfer": "smpte2084",
+            "color_primaries": "bt2020"
+        }
+    ]
+}
