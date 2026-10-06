@@ -3,6 +3,30 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.3.0 - 2026-10-06
+
+### Added
+
+- **Video.** `rexplay play film.mkv --window` shows the pictures in a window, drawn with Direct3D
+  11 and kept in step with the sound; pictures that would arrive too late are dropped and counted.
+- **H.264, HEVC and AAC through Windows.** Windows' own decoders handle the codecs rexplayer
+  leaves to them; every H.264 and HEVC picture they give matches an independent decoder exactly.
+- **MP4 and QuickTime.** Progressive and fragmented files, edit lists for gapless audio, B-frame
+  timestamps, iTunes tags and cover art, chapter tracks, display rotation and colour information.
+- **Matroska and WebM.** Every lacing form, cues (down to the block a cue names), seek heads,
+  live streams with clusters of unknown size, chapters, tags, attached cover art, header
+  stripping, and the padding an encoder adds at the end of a stream, which is cut to the sample.
+- **Snapshots.** `rexplay snapshot film.mkv --at 1:30` saves the exact picture shown at a moment
+  as a PNG.
+- **System report.** `rexplay probe --system` lists which codecs rexplayer and Windows can decode
+  on this PC, the graphics adapter and the audio output.
+
+### Fixed
+
+- Sound with timestamps a container rounded (Matroska stores milliseconds) no longer loses or
+  repeats samples where frames meet.
+- With no audio device, the first pictures of a video were dropped while a window opened.
+
 ## 0.2.0 - 2026-10-06
 
 ### Added

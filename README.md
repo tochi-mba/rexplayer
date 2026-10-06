@@ -8,9 +8,10 @@ audio pipeline, and a command line made for scripts.
 [Capability matrix](docs/capability-matrix.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.2.** The engine and the `rexplay` command line play MP3, FLAC, WAV, RF64 and AIFF
-> through Windows audio, with rexplayer's own decoders and no gap from one file to the next. Video,
-> the player window and the rest of the
+> **Status: 0.3.** The engine and the `rexplay` command line play MP4, MOV, MKV and WebM video in
+> a window, and MP3, FLAC, WAV, RF64 and AIFF without a gap from one file to the next. rexplayer
+> decodes MP3, FLAC and PCM itself and hands H.264, HEVC and AAC to Windows' own decoders. The
+> player app, hardware decoding and the rest of the
 > [capability matrix](docs/capability-matrix.md) arrive release by release.
 
 ## Install
