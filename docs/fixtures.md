@@ -58,6 +58,7 @@ long, which also proves the gapless trim.
 | `tests/fixtures/video/h264-*.h264` | Two frames of the pattern as raw H.264: High 4:2:0 with a 4:3 pixel aspect and BT.709 colour, High 4:2:2 10-bit interlaced full range, High 4:4:4 with scaling matrices at 30000/1001 fps, Constrained Baseline, and monochrome | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
 | `tests/fixtures/video/hevc-*.hevc` | The same as raw HEVC: Main with a conformance window and a 16:11 pixel aspect, Main 10 with HDR10 colour, 4:4:4 with temporal layers and scaling lists, and a 4:2:2 field sequence | `scripts/make-fixtures.ps1` (FFmpeg with x265, SEI removed) |
 | `tests/fixtures/video/hevc-in-mp4.mp4` | The Main stream in MP4, for its hvcC record | `scripts/make-fixtures.ps1` (FFmpeg with x265) |
+| `tests/fixtures/*/*.nv12.framemd5` | FFmpeg's MD5 of every picture in `h264-aac.mp4`, `h264-aac-subtitles.mkv` and `hevc-in-mp4.mp4`, decoded to NV12 in presentation order; H.264 and HEVC decoding is exact, so Windows' decoders must match them | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/video/*.probe.json` | What FFmpeg's own parser reads from each stream: profile, level, size, pixel aspect, pixel format and colour | `scripts/make-fixtures.ps1` (ffprobe) |
 | `tests/fixtures/mkv/live-opus.webm` | 0.4 s of Opus written as a live stream: a segment of unknown size, no cues, a cluster every 100 ms | `scripts/make-fixtures.ps1` (FFmpeg with libopus) |
 

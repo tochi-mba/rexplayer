@@ -6,53 +6,6 @@ using Windows.Win32;
 
 namespace Rex.Media.Codecs.MediaFoundation;
 
-/// <summary>
-/// Decodes the audio codecs rexplayer leaves to Windows (AAC, AC-3 and E-AC-3) through the Media
-/// Foundation decoder transforms. It ranks below rexplayer's own decoders so it is only reached for
-/// codecs they do not cover (ADR-009).
-/// </summary>
-public sealed class MfAudioDecoderFactory : IDecoderFactory
-{
-    private readonly Dictionary<Guid, bool> _available = [];
-
-    public string Name => "Windows Media Foundation";
-
-    public DecoderSource Source => DecoderSource.OsSoftware;
-
-    public int Rank => 50;
-
-    /// <summary>The Media Foundation subtype for a codec, or null when Windows is not asked to decode it.</summary>
-    internal static Guid? SubtypeOf(CodecId codec) => codec switch
-    {
-        CodecId.Aac => PInvoke.MFAudioFormat_AAC,
-        CodecId.Ac3 => PInvoke.MFAudioFormat_Dolby_AC3,
-        CodecId.Eac3 => PInvoke.MFAudioFormat_Dolby_DDPlus,
-        _ => null,
-    };
-
-    public bool CanDecode(TrackInfo track)
-    {
-        ArgumentNullException.ThrowIfNull(track);
-        if (track.Audio is null || SubtypeOf(track.Codec) is not { } subtype)
-        {
-            return false;
-        }
-
-        lock (_available)
-        {
-            if (!_available.TryGetValue(subtype, out var found))
-            {
-                found = MfTransform.Names(PInvoke.MFT_CATEGORY_AUDIO_DECODER, PInvoke.MFMediaType_Audio, subtype).Count > 0;
-                _available[subtype] = found;
-            }
-
-            return found;
-        }
-    }
-
-    public IAudioDecoder CreateAudio(TrackInfo track) => new MfAudioDecoder(track);
-}
-
 /// <summary>One Media Foundation audio decoder transform, producing float frames.</summary>
 public sealed class MfAudioDecoder : IAudioDecoder
 {
@@ -65,7 +18,7 @@ public sealed class MfAudioDecoder : IAudioDecoder
     {
         ArgumentNullException.ThrowIfNull(track);
         var audio = track.Audio ?? throw new MediaFormatException("The track is not audio.");
-        var subtype = MfAudioDecoderFactory.SubtypeOf(track.Codec) ?? throw new MediaFormatException($"Windows is not asked to decode {track.Codec}.");
+        var subtype = MfDecoderFactory.AudioSubtype(track.Codec) ?? throw new MediaFormatException($"Windows is not asked to decode {track.Codec}.");
         _transform = MfTransform.Create(PInvoke.MFT_CATEGORY_AUDIO_DECODER, PInvoke.MFMediaType_Audio, subtype)
             ?? throw new MediaFormatException($"Windows has no decoder for {track.Codec}.");
         try

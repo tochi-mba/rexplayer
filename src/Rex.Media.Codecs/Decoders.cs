@@ -34,6 +34,25 @@ public interface IAudioDecoder : IDisposable
     void Flush();
 }
 
+/// <summary>
+/// Turns packets of one video track into pictures. Decoders hold pictures back to reorder them
+/// (B-frames), so <see cref="Drain"/> collects the rest at the end and <see cref="Flush"/> forgets
+/// them after a seek. Pictures come out in presentation order.
+/// </summary>
+public interface IVideoDecoder : IDisposable
+{
+    string Name { get; }
+
+    DecoderSource Source { get; }
+
+    /// <summary>Decodes one packet, adding zero or more pictures. The caller keeps ownership of the packet.</summary>
+    void Decode(Packet packet, ICollection<VideoFrame> output);
+
+    void Drain(ICollection<VideoFrame> output);
+
+    void Flush();
+}
+
 /// <summary>Creates decoders for the codecs it knows.</summary>
 public interface IDecoderFactory
 {
@@ -47,6 +66,9 @@ public interface IDecoderFactory
     bool CanDecode(TrackInfo track);
 
     IAudioDecoder CreateAudio(TrackInfo track);
+
+    /// <summary>A video decoder; factories that decode only audio keep this default.</summary>
+    IVideoDecoder CreateVideo(TrackInfo track) => throw new NotSupportedException($"{Name} decodes audio only.");
 }
 
 /// <summary>
@@ -74,8 +96,14 @@ public sealed class DecoderRegistry
         return _factories.Where(factory => factory.CanDecode(track)).OrderByDescending(factory => factory.Rank).ToList();
     }
 
-    /// <summary>The first decoder on the ladder that opens, or a reason none did.</summary>
-    public DecoderResult<IAudioDecoder> CreateAudio(TrackInfo track)
+    /// <summary>The first audio decoder on the ladder that opens, or a reason none did.</summary>
+    public DecoderResult<IAudioDecoder> CreateAudio(TrackInfo track) => Create(track, factory => factory.CreateAudio(track));
+
+    /// <summary>The first video decoder on the ladder that opens, or a reason none did.</summary>
+    public DecoderResult<IVideoDecoder> CreateVideo(TrackInfo track) => Create(track, factory => factory.CreateVideo(track));
+
+    private DecoderResult<T> Create<T>(TrackInfo track, Func<IDecoderFactory, T> create)
+        where T : class
     {
         ArgumentNullException.ThrowIfNull(track);
         var failures = new List<string>();
@@ -83,7 +111,7 @@ public sealed class DecoderRegistry
         {
             try
             {
-                return DecoderResult.Opened(factory.CreateAudio(track));
+                return DecoderResult.Opened(create(factory));
             }
             catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or InvalidOperationException)
             {
@@ -91,7 +119,7 @@ public sealed class DecoderRegistry
             }
         }
 
-        return DecoderResult.Failed<IAudioDecoder>(failures.Count == 0
+        return DecoderResult.Failed<T>(failures.Count == 0
             ? $"No decoder for {track.Codec.DisplayName()} is available."
             : $"No decoder for {track.Codec.DisplayName()} could open the track. " + string.Join(" ", failures));
     }

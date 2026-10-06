@@ -20,7 +20,7 @@ var host = new CliHost
     Error = Console.Error,
     Version = version,
     DefaultAudioSink = () => new WasapiAudioSink(),
-    ExtraDecoders = [new MfAudioDecoderFactory()],
+    ExtraDecoders = [new MfDecoderFactory()],
     Cancellation = cancellation.Token,
 };
 

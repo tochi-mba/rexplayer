@@ -12,7 +12,7 @@ namespace Rex.Media.Windows.Tests;
 /// <summary>Windows' own AAC decoder, reached through Media Foundation, against an independent decoder.</summary>
 public sealed class MfAudioDecoderTests
 {
-    private static readonly MfAudioDecoderFactory Factory = new();
+    private static readonly MfDecoderFactory Factory = new();
 
     private static IDemuxer Open(string fixture)
     {

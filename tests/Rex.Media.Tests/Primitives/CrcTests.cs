@@ -16,6 +16,7 @@ public sealed class CrcTests
         Assert.Equal(0x0376E6E7u, Crc.Crc32Mpeg2.Compute(Check));
         Assert.Equal(0x89A1897Fu, Crc.Crc32Ogg.Compute(Check));
         Assert.Equal(0xE3069283u, Crc.Crc32C.Compute(Check));
+        Assert.Equal(0xCBF43926u, Crc.Crc32.Compute(Check));
     }
 
     [Fact]

@@ -9,6 +9,7 @@
     <Project Path="src/Rex.Media.Codecs.MediaFoundation/Rex.Media.Codecs.MediaFoundation.csproj" />
     <Project Path="src/Rex.Media.Audio/Rex.Media.Audio.csproj" />
     <Project Path="src/Rex.Media.Audio.Wasapi/Rex.Media.Audio.Wasapi.csproj" />
+    <Project Path="src/Rex.Media.Video/Rex.Media.Video.csproj" />
     <Project Path="src/Rex.Media.Engine/Rex.Media.Engine.csproj" />
     <Project Path="src/Rex.Media.AppCore/Rex.Media.AppCore.csproj" />
     <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />

@@ -62,6 +62,18 @@ public sealed class DecoderRegistryTests
     }
 
     [Fact]
+    public void AnAudioOnlyFactoryOnTheVideoLadderSaysWhyItCannotOpen()
+    {
+        var h264 = new TrackInfo { Id = 1, Codec = CodecId.H264, Video = new VideoTrackInfo { Width = 16, Height = 16 } };
+        var registry = new DecoderRegistry().Add(new FakeFactory("audio", 100, CodecId.H264));
+
+        var result = registry.CreateVideo(h264);
+
+        Assert.Null(result.Decoder);
+        Assert.Equal("No decoder for H.264 / AVC could open the track. audio: audio decodes audio only.", result.Reason);
+    }
+
+    [Fact]
     public void ArgumentsAreChecked()
     {
         var registry = new DecoderRegistry();

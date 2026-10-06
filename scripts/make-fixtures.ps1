@@ -241,3 +241,16 @@ foreach ($pair in @(@('mp4', 'h264-aac.mp4'), @('mkv', 'h264-aac-subtitles.mkv')
 
     Write-Host "Wrote $wav ($((Get-Item $wav).Length) bytes)."
 }
+
+# FFmpeg's MD5 of every decoded picture (as NV12, in presentation order). H.264 and HEVC decoding is
+# exact, so the pictures Windows' decoders give must hash the same.
+foreach ($fixture in @('mp4/h264-aac.mp4', 'mkv/h264-aac-subtitles.mkv', 'video/hevc-in-mp4.mp4')) {
+    $source = Join-Path $root "tests/fixtures/$fixture"
+    $hashes = Join-Path $root "tests/fixtures/$([System.IO.Path]::ChangeExtension($fixture, '.nv12.framemd5'))"
+    & $Ffmpeg -hide_banner -loglevel error -y -i $source -map 0:v:0 -pix_fmt nv12 -fflags +bitexact -f framemd5 $hashes
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to write $hashes."
+    }
+
+    Write-Host "Wrote $hashes."
+}

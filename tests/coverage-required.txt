@@ -19,6 +19,7 @@ CliArguments.cs
 CliHost.cs
 CliReference.cs
 CodecId.cs
+ColorConverter.cs
 ColorInfo.cs
 Crc.cs
 Decoders.cs
@@ -67,7 +68,9 @@ NullAudioSink.cs
 Packet.cs
 PcmDecoder.cs
 PictureBlock.cs
+PixelFormat.cs
 Playback.cs
+PngWriter.cs
 Rational.cs
 Resampler.cs
 RexLog.cs
@@ -79,6 +82,7 @@ SessionState.cs
 SlotPool.cs
 ThreadLoop.cs
 TrackInfo.cs
+VideoFrame.cs
 Volume.cs
 VorbisComments.cs
 WavDemuxer.cs

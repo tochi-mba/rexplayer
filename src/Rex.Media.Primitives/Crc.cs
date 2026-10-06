@@ -41,6 +41,9 @@ public sealed class Crc
     /// <summary>Ogg pages (polynomial 0x04C11DB7, initial 0, no reflection).</summary>
     public static Crc Crc32Ogg { get; } = new(32, 0x04C11DB7, 0, reflected: false, 0);
 
+    /// <summary>CRC-32 as zip and PNG use it (ISO-HDLC: reflected, initial and final XOR all ones).</summary>
+    public static Crc Crc32 { get; } = new(32, 0x04C11DB7, 0xFFFFFFFF, reflected: true, 0xFFFFFFFF);
+
     /// <summary>CRC-32C (Castagnoli), used by the library store's record framing.</summary>
     public static Crc Crc32C { get; } = new(32, 0x1EDC6F41, 0xFFFFFFFF, reflected: true, 0xFFFFFFFF);
 
