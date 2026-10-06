@@ -19,6 +19,7 @@ A test here proves a feature from what came out, not from the absence of an exce
 | `Rex.Media.Tests` | Every push, Windows and Linux | `./dev.ps1 test` |
 | Coverage gate | Every push | `./dev.ps1 gate` |
 | `Rex.Media.Windows.Tests` | Every push, Windows | `./dev.ps1 adapters` |
+| Performance (the `Perf` trait in `Rex.Media.Windows.Tests`) | Every push, Windows, as its own job | `./dev.ps1 perf` |
 | Fuzzing (`tests/Rex.Fuzz`) | Nightly, Linux (`fuzz.yml`); the corpus it keeps is replayed by `Rex.Media.Tests` on every push | Actions, "Fuzz", run workflow |
 | Command-line smoke | Every push, against the packaged build | `./dev.ps1 smoke` |
 | Site | Every push | `./dev.ps1 site`, `node --test tests/site/app.test.mjs`, `npx playwright test` |
@@ -28,6 +29,20 @@ A test here proves a feature from what came out, not from the absence of an exce
 Every file in `tests/coverage-required.txt` keeps 100 % line coverage; the gate fails otherwise.
 Branch coverage is reported by the gate but not enforced, because switch expressions compile to
 branches no input can reach ([ADR-0018](adr/0018-test-projects-and-the-coverage-gate.md)).
+
+## Performance
+
+`./dev.ps1 perf` measures our own decoders and the resampler (× real time) and the demuxers (MB/s),
+each as its fastest pass after a warm-up, because noise only ever slows a pass down. A measure may
+fall to 0.7 of its baseline in `tests/perf-baselines.json` before the run fails. Baselines are kept
+per lane: CI's runners are `ci-windows`, and a developer's machine is `local-<name>`. A lane with no
+baseline reports and passes, because a working machine is too noisy to gate on. Every run writes its
+measurements to `artifacts/perf/<lane>.json` (CI keeps them as the `perf-measurements` artefact).
+`REXPLAYER_WRITE_PERF=1` makes a run's measurements the lane's new baselines; commit them with the
+reason they moved.
+
+Allocations are exact rather than relative: once warm, demuxing and decoding with our own code
+allocate nothing at all, on every machine.
 
 ## Rules
 

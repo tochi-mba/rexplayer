@@ -138,10 +138,38 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  perf:
+    name: Performance against the committed baselines (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      REXPLAYER_PERF_LANE: ci-windows
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: ./dev.ps1 build
+
+      - name: Measure
+        run: ./dev.ps1 perf
+
+      - name: Keep the measurements
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: perf-measurements
+          path: artifacts/perf/
+          if-no-files-found: ignore
+          retention-days: 30
+
   release:
     name: Publish a new version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [windows, linux-pure, site]
+    needs: [windows, linux-pure, site, perf]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

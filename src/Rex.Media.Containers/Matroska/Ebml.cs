@@ -124,14 +124,19 @@ internal static class Ebml
         return elements;
     }
 
+    /// <summary>The first child with <paramref name="id"/>, walked like <see cref="Children"/> but without a list (it runs per block).</summary>
     public static EbmlElement? Find(ReadOnlySpan<byte> data, uint id)
     {
-        foreach (var element in Children(data))
+        var offset = 0;
+        while (TryReadId(data, ref offset, out var found) && TryReadSize(data, ref offset, out var size))
         {
-            if (element.Id == id)
+            var end = size == UnknownSize || size > data.Length - offset ? data.Length : offset + (int)size;
+            if (found == id)
             {
-                return element;
+                return new EbmlElement(found, offset, end);
             }
+
+            offset = end;
         }
 
         return null;

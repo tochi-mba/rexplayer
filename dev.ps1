@@ -6,6 +6,7 @@
 #   ./dev.ps1 test                  the pure suite with coverage (fast; run long suites in CI)
 #   ./dev.ps1 gate                  fail unless every file in tests/coverage-required.txt is fully covered
 #   ./dev.ps1 adapters              the Windows adapter tests (Media Foundation, WASAPI, Direct3D)
+#   ./dev.ps1 perf                  the performance suite against tests/perf-baselines.json
 #   ./dev.ps1 check                 build, format check, test, gate and adapters: the pre-push check
 #   ./dev.ps1 format                fix formatting
 #   ./dev.ps1 smoke                 run the published command line the way CI does
@@ -132,7 +133,13 @@ function Invoke-Lexicon([string]$Path) {
 # Adapters to Windows are proved by integration tests against the real system components; their
 # coverage is reported by the pure suite's boundary, not gated (ADR-008).
 function Invoke-Adapters {
-    Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj", "-c", $Configuration, "--no-build")
+    Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj", "-c", $Configuration, "--no-build", "--filter-not-trait", "Category=Perf")
+}
+
+# Measurements are noisy, so they run on their own, never in the adapters run. The lane is
+# REXPLAYER_PERF_LANE (CI sets it) or this machine; REXPLAYER_WRITE_PERF=1 records new baselines.
+function Invoke-Perf {
+    Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj", "-c", $Configuration, "--no-build", "--filter-trait", "Category=Perf")
 }
 
 function Invoke-Package {
@@ -141,11 +148,12 @@ function Invoke-Package {
 }
 
 switch ($Task) {
-    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 12 | ForEach-Object { $_ -replace '^# ?', '' } }
+    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 13 | ForEach-Object { $_ -replace '^# ?', '' } }
     "build" { Invoke-Build }
     "test" { Invoke-Test }
     "gate" { Invoke-Gate }
     "adapters" { Invoke-Adapters }
+    "perf" { Invoke-Perf }
     "format" { Invoke-Checked dotnet @("format", "rexplayer.slnx", "--no-restore") }
     "check" {
         Invoke-Build

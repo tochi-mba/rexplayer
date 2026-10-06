@@ -92,6 +92,7 @@ Data lives in `%LocalAppData%\REX\rexplayer`; the installer puts the programs in
 |---|---|---|
 | Pure | `./dev.ps1 test` then `./dev.ps1 gate` | Every engine decision, exact samples, the repository rules |
 | Adapters | `./dev.ps1 adapters` | Windows' own components (Media Foundation decoders) give what an independent decoder gives |
+| Performance | `./dev.ps1 perf` | Throughput holds against `tests/perf-baselines.json`; steady-state playback allocates nothing |
 | Command line | `./dev.ps1 smoke` | The published `rexplay.exe` keeps its JSON contract and plays a fixture exactly |
 | Site | `./dev.ps1 site`, `node --test tests/site/app.test.mjs`, `npx playwright test` | The site's links, assets, accessibility and behaviour |
 

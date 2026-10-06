@@ -32,6 +32,8 @@ public sealed class MatroskaDemuxer : IDemuxer
     private readonly Dictionary<int, MatroskaTrack> _tracks = [];
     private readonly List<(long Time, int Track, long Position, long Relative)> _cues = [];
     private readonly Queue<Packet> _pending = new();
+    private readonly List<(int Start, int Length)> _frames = [];
+    private byte[] _scratch = new byte[4096];
     private List<(long Position, long Time)>? _clusterIndex;
     private long _position;
     private bool _inCluster;
@@ -256,8 +258,8 @@ public sealed class MatroskaDemuxer : IDemuxer
                     if (Ebml.Find(group, MatroskaId.Block) is { } block)
                     {
                         var referenced = Ebml.Find(group, MatroskaId.ReferenceBlock) is not null;
-                        long? blockDuration = Ebml.Find(group, MatroskaId.BlockDuration) is { } d ? (long)Ebml.UInt(group.AsSpan(d.Start, d.End - d.Start)) : null;
-                        var discardNs = Ebml.Find(group, MatroskaId.DiscardPadding) is { } p ? Ebml.Int(group.AsSpan(p.Start, p.End - p.Start)) : 0;
+                        long? blockDuration = Ebml.Find(group, MatroskaId.BlockDuration) is { } d ? (long)Ebml.UInt(group[d.Start..d.End]) : null;
+                        var discardNs = Ebml.Find(group, MatroskaId.DiscardPadding) is { } p ? Ebml.Int(group[p.Start..p.End]) : 0;
                         QueueBlock(group[block.Start..block.End], !referenced, blockDuration, discardNs);
                     }
 
@@ -357,7 +359,7 @@ public sealed class MatroskaDemuxer : IDemuxer
     }
 
     /// <summary>Splits a block into its frames and queues one packet per frame.</summary>
-    private void QueueBlock(byte[] block, bool? keyframe, long? durationUnits, long discardNs)
+    private void QueueBlock(ReadOnlySpan<byte> block, bool? keyframe, long? durationUnits, long discardNs)
     {
         var offset = 0;
         if (!Ebml.TryReadSize(block, ref offset, out var number) || offset + 3 > block.Length || !_tracks.TryGetValue((int)Math.Min(number, int.MaxValue), out var track) || track.Unreadable)
@@ -365,7 +367,7 @@ public sealed class MatroskaDemuxer : IDemuxer
             return;
         }
 
-        var relative = MatroskaMetadata.Int16(block.AsSpan(offset));
+        var relative = MatroskaMetadata.Int16(block[offset..]);
         var flags = block[offset + 2];
         offset += 3;
         var isKey = keyframe ?? (flags & 0x80) != 0;
@@ -379,7 +381,8 @@ public sealed class MatroskaDemuxer : IDemuxer
             _awaitKeyframe = null;
         }
 
-        var frames = Lace(block, offset, (flags >> 1) & 3);
+        var frames = _frames;
+        Lace(block, offset, (flags >> 1) & 3, frames);
         var nanoseconds = ((_clusterTime + relative) * _timestampScale) - track.CodecDelayNs;
         var frameNs = track.DefaultDurationNs > 0
             ? track.DefaultDurationNs
@@ -391,7 +394,7 @@ public sealed class MatroskaDemuxer : IDemuxer
             var (start, length) = frames[i];
             var buffer = MediaBuffer.Rent(track.StrippedHeader.Length + length);
             track.StrippedHeader.CopyTo(buffer.Span);
-            block.AsSpan(start, length).CopyTo(buffer.Span[track.StrippedHeader.Length..]);
+            block.Slice(start, length).CopyTo(buffer.Span[track.StrippedHeader.Length..]);
             var pts = i == 0 || frameNs > 0 ? new MediaTime((nanoseconds + (i * frameNs)) / 100) : MediaTime.Unknown;
             var packet = Packet.Create(track.Number, buffer, pts, pts, new MediaTime(frameNs / 100), isKey);
             packet.DiscardSamples = i == frames.Count - 1 ? discard : 0;
@@ -399,12 +402,14 @@ public sealed class MatroskaDemuxer : IDemuxer
         }
     }
 
-    /// <summary>The frames of a block as (start, length): one unlaced, or Xiph-, fixed- or EBML-laced.</summary>
-    private static List<(int Start, int Length)> Lace(byte[] block, int offset, int lacing)
+    /// <summary>Fills <paramref name="frames"/> with a block's frames as (start, length): one unlaced, or Xiph-, fixed- or EBML-laced.</summary>
+    private static void Lace(ReadOnlySpan<byte> block, int offset, int lacing, List<(int Start, int Length)> frames)
     {
+        frames.Clear();
         if (lacing == 0)
         {
-            return [(offset, block.Length - offset)];
+            frames.Add((offset, block.Length - offset));
+            return;
         }
 
         if (offset >= block.Length)
@@ -413,7 +418,8 @@ public sealed class MatroskaDemuxer : IDemuxer
         }
 
         var count = block[offset++] + 1;
-        var sizes = new long[count];
+        Span<long> sizes = stackalloc long[256];
+        sizes = sizes[..count];
         switch (lacing)
         {
             case 1:
@@ -461,14 +467,19 @@ public sealed class MatroskaDemuxer : IDemuxer
         var remaining = (long)block.Length - offset;
         if (lacing == 2)
         {
-            Array.Fill(sizes, remaining / count);
+            sizes.Fill(remaining / count);
         }
         else
         {
-            sizes[count - 1] = remaining - sizes.Take(count - 1).Sum();
+            var known = 0L;
+            foreach (var size in sizes[..^1])
+            {
+                known += size;
+            }
+
+            sizes[count - 1] = remaining - known;
         }
 
-        var frames = new List<(int, int)>(count);
         foreach (var size in sizes)
         {
             if (size < 0 || size > block.Length - offset)
@@ -479,8 +490,6 @@ public sealed class MatroskaDemuxer : IDemuxer
             frames.Add((offset, (int)size));
             offset += (int)size;
         }
-
-        return frames;
     }
 
     private bool TryReadHeader(long position, out uint id, out long size, out long dataStart)
@@ -501,10 +510,16 @@ public sealed class MatroskaDemuxer : IDemuxer
         return true;
     }
 
-    private byte[] ReadAt(long start, long size)
+    /// <summary>An element's body, read into a buffer the demuxer reuses: valid until the next read.</summary>
+    private ReadOnlySpan<byte> ReadAt(long start, long size)
     {
         _stream.Seek(start);
-        var body = new byte[size];
+        if (_scratch.Length < size)
+        {
+            _scratch = new byte[Math.Max(size, _scratch.Length * 2L)];
+        }
+
+        var body = _scratch.AsSpan(0, (int)size);
         if (_stream.Read(body) < size)
         {
             throw new MediaFormatException("A Matroska element runs past the end of the file.");
