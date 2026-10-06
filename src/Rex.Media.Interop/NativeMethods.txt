@@ -129,3 +129,13 @@ WM_KEYDOWN
 WM_APP
 IDC_ARROW
 CW_USEDEFAULT
+MFVideoFormat_VP90
+MFVideoFormat_AV1
+MFVideoFormat_MPEG2
+MFVideoFormat_WVC1
+MFAudioFormat_WMAudioV8
+MFAudioFormat_ALAC
+MFAudioFormat_Opus
+MFAudioFormat_FLAC
+MFAudioFormat_MP3
+DXGI_ADAPTER_DESC

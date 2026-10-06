@@ -22,11 +22,64 @@ public sealed partial class MediaSession
         /// <summary>How late a picture with no duration of its own may be and still be shown.</summary>
         private static readonly MediaTime DefaultLateness = MediaTime.FromMilliseconds(40);
 
+        private readonly object _endGate = new();
+        private long _audioEndedGeneration = -1;
+        private long _videoEndedGeneration = -1;
+        private MediaTime _audioEndedAt;
+        private long _audioEndedTimestamp;
         private long _videoFramesDecoded;
         private long _videoFramesPresented;
         private long _videoFramesDropped;
 
         private int VideoHardCapacity => _session._options.VideoQueueCapacity * 4;
+
+        /// <summary>
+        /// The time pictures are shown against: the audio clock while audio plays, then, once the
+        /// audio has ended, real time from where it stopped, so pictures that outlast the sound play on.
+        /// </summary>
+        private MediaTime VideoNow
+        {
+            get
+            {
+                lock (_endGate)
+                {
+                    if (_audioEndedGeneration < 0 || _audioEndedGeneration != Generation)
+                    {
+                        return _clock.Now;
+                    }
+
+                    return _audioEndedAt + new MediaTime(_session._options.Time.GetElapsedTime(_audioEndedTimestamp).Ticks);
+                }
+            }
+        }
+
+        /// <summary>
+        /// One side reached the end of the stream. The playback has ended once the audio has, and the
+        /// pictures too when there are any, so the last pictures are shown before the end is reported.
+        /// </summary>
+        private void StreamEnded(bool video, long generation)
+        {
+            lock (_endGate)
+            {
+                if (video)
+                {
+                    _videoEndedGeneration = generation;
+                }
+                else
+                {
+                    _audioEndedGeneration = generation;
+                    _audioEndedAt = _clock.Now;
+                    _audioEndedTimestamp = _session._options.Time.GetTimestamp();
+                }
+
+                if (_audioEndedGeneration != generation || (_videoQueue is not null && _videoEndedGeneration != generation))
+                {
+                    return;
+                }
+            }
+
+            _session.OnEnded(this, generation);
+        }
 
         /// <summary>
         /// Audio about to run dry: the video queue may then hold more than its share, because a demuxer
@@ -84,6 +137,7 @@ public sealed partial class MediaSession
                 {
                     decoder?.Drain(state.Decoded);
                     Show(state);
+                    StreamEnded(video: true, state.Generation);
                     continue;
                 }
 
@@ -130,7 +184,7 @@ public sealed partial class MediaSession
                             continue;
                         }
 
-                        if (_clock.Now > frame.Pts + length)
+                        if (VideoNow > frame.Pts + length)
                         {
                             Interlocked.Increment(ref _videoFramesDropped);
                             continue;
@@ -156,9 +210,9 @@ public sealed partial class MediaSession
         private bool WaitUntilDue(MediaTime due, long generation)
         {
             var token = GenerationToken(generation);
-            while (_clock.Now < due)
+            while (VideoNow < due)
             {
-                var wait = due - _clock.Now;
+                var wait = due - VideoNow;
                 if (token.WaitHandle.WaitOne(wait.Ticks < ClockPoll.Ticks ? new TimeSpan(Math.Max(wait.Ticks, 0)) : ClockPoll))
                 {
                     return false;

@@ -114,6 +114,23 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// <summary>True when drawing in software (WARP): asked for, or no graphics card would start.</summary>
     public bool IsSoftware { get; }
 
+    /// <summary>The graphics adapter's name, as its driver gives it.</summary>
+    public string AdapterName
+    {
+        get
+        {
+            ((IDXGIDevice)_device).GetAdapter(out var adapter);
+            try
+            {
+                return adapter.GetDesc().Description.ToString();
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(adapter);
+            }
+        }
+    }
+
     /// <summary>A renderer on the graphics card, or in software when asked or when the card fails.</summary>
     public static D3D11VideoRenderer Create(bool software)
     {

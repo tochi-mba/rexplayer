@@ -140,6 +140,11 @@ public static partial class CliApplication
 
     private static int Probe(CliArguments arguments, bool machine, CliHost host)
     {
+        if (arguments.Option("--system") is not null)
+        {
+            return ProbeSystem(machine, host);
+        }
+
         var path = RequireFile(arguments);
         using var source = new FileByteSource(path);
         using var demuxer = MediaRegistries.Demuxers().Open(source, host.Cancellation);

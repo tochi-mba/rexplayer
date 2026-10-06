@@ -159,7 +159,7 @@
       "milestone": "M3/M11",
       "priority": "must",
       "oracles": "FILE FRM",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PB-17",
@@ -479,7 +479,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "FMT-V02",
@@ -489,7 +489,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "FMT-V03",
@@ -1449,7 +1449,7 @@
       "milestone": "M3/M11",
       "priority": "must",
       "oracles": "PERF FRM",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "VID-03",
@@ -1659,7 +1659,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "PIX (reference fields)",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "VID-24",
@@ -1679,7 +1679,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "FRM PERF",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "VID-26",
@@ -2769,7 +2769,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "CLI",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "TOOL-12",

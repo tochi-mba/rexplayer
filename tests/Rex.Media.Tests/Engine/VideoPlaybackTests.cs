@@ -153,6 +153,39 @@ public sealed class VideoPlaybackTests
     }
 
     [Fact]
+    public async Task PicturesThatOutlastTheSoundPlayOnAndTheEndWaitsForThem()
+    {
+        // Sound for the first two pictures only.
+        var video = Element(
+            Id.TrackEntry,
+            UInt(Id.TrackNumber, Video),
+            UInt(Id.TrackType, 1),
+            Text(Id.CodecId, "V_MPEG4/ISO/AVC"),
+            UInt(Id.DefaultDuration, 40_000_000),
+            Element(Id.Video, UInt(Id.PixelWidth, 16), UInt(Id.PixelHeight, 8)));
+        var blocks = Enumerable.Range(0, 6).SelectMany(i => i < 2
+            ? new[] { MatroskaCraftedTests.Simple(Audio, (short)(i * 40), true, Pcm.Int16(new float[320])), MatroskaCraftedTests.Simple(Video, (short)(i * 40), true, (byte)i) }
+            : [MatroskaCraftedTests.Simple(Video, (short)(i * 40), true, (byte)i)]);
+        var clip = MatroskaCraftedTests.Mkv(MatroskaCraftedTests.Tracks(MatroskaCraftedTests.PcmTrack(Audio), video), MatroskaCraftedTests.Cluster(0, [.. blocks]));
+        var presenter = new RecordingVideoPresenter();
+        var sink = new ManualClockSink();
+        using var harness = Harness(presenter, sink: sink);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(clip, "clip.mkv"));
+        WaitUntil(() => presenter.Shown.Count == 1);
+        sink.PlayedSamples = 320;
+        WaitUntil(() => presenter.Shown.Count == 2);
+        sink.PlayedSamples = 640;
+        await harness.FinishAsync();
+
+        // After the sound, pictures follow real time: each is shown, or counted if a busy machine made it late.
+        var stats = await harness.Session.GetStatsAsync();
+        Assert.Equal([0, 1], presenter.Shown.Take(2).Select(s => (int)s.First));
+        Assert.Equal(5, presenter.Shown[^1].First);
+        Assert.Equal(6, presenter.Shown.Count + stats.VideoFramesDropped);
+    }
+
+    [Fact]
     public async Task ASeekCutsAWaitingPictureShort()
     {
         var presenter = new RecordingVideoPresenter();

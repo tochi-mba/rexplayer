@@ -77,6 +77,7 @@ public sealed class MfVideoDecoderTests
     [InlineData("mkv/h264-aac-subtitles.mkv")]
     [InlineData("video/hevc-in-mp4.mp4")]
     [Capability("FMT-V01")]
+    [Capability("FMT-V02")]
     public void EveryPictureMatchesAnIndependentDecoderExactly(string fixture)
     {
         var (hashes, times, _) = DecodeAll(fixture);

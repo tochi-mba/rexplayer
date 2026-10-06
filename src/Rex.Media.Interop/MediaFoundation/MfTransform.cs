@@ -52,11 +52,14 @@ public sealed unsafe class MfTransform : IDisposable
     /// <summary>Starts Media Foundation for the process; false when it is not installed (Windows N without the Media Feature Pack).</summary>
     public static bool IsAvailable => Started.Value;
 
-    /// <summary>The friendly names of every synchronous software transform in a category that takes the input subtype.</summary>
-    public static IReadOnlyList<string> Names(Guid category, Guid majorType, Guid inputSubtype)
+    /// <summary>
+    /// The friendly names of every transform in a category that takes the input subtype: the
+    /// synchronous software ones, or with <paramref name="hardware"/> those on the graphics card.
+    /// </summary>
+    public static IReadOnlyList<string> Names(Guid category, Guid majorType, Guid inputSubtype, bool hardware = false)
     {
         var names = new List<string>();
-        foreach (var activate in Enumerate(category, majorType, inputSubtype))
+        foreach (var activate in Enumerate(category, majorType, inputSubtype, hardware))
         {
             names.Add(FriendlyName(activate));
             Marshal.ReleaseComObject(activate);
@@ -69,7 +72,7 @@ public sealed unsafe class MfTransform : IDisposable
     public static MfTransform? Create(Guid category, Guid majorType, Guid inputSubtype)
     {
         MfTransform? created = null;
-        foreach (var activate in Enumerate(category, majorType, inputSubtype))
+        foreach (var activate in Enumerate(category, majorType, inputSubtype, hardware: false))
         {
             if (created is null)
             {
@@ -336,7 +339,7 @@ public sealed unsafe class MfTransform : IDisposable
         Marshal.ReleaseComObject(_activate);
     }
 
-    private static IEnumerable<IMFActivate> Enumerate(Guid category, Guid majorType, Guid inputSubtype)
+    private static IEnumerable<IMFActivate> Enumerate(Guid category, Guid majorType, Guid inputSubtype, bool hardware)
     {
         if (!IsAvailable)
         {
@@ -344,7 +347,9 @@ public sealed unsafe class MfTransform : IDisposable
         }
 
         var input = new MFT_REGISTER_TYPE_INFO { guidMajorType = majorType, guidSubtype = inputSubtype };
-        var flags = MFT_ENUM_FLAG.MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG.MFT_ENUM_FLAG_LOCALMFT | MFT_ENUM_FLAG.MFT_ENUM_FLAG_SORTANDFILTER;
+        var flags = hardware
+            ? MFT_ENUM_FLAG.MFT_ENUM_FLAG_HARDWARE | MFT_ENUM_FLAG.MFT_ENUM_FLAG_SORTANDFILTER
+            : MFT_ENUM_FLAG.MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG.MFT_ENUM_FLAG_LOCALMFT | MFT_ENUM_FLAG.MFT_ENUM_FLAG_SORTANDFILTER;
         PInvoke.MFTEnumEx(category, flags, input, null, out var array, out var count).ThrowOnFailure();
         var activates = new List<IMFActivate>((int)count);
         try

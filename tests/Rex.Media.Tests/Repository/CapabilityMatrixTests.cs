@@ -40,8 +40,8 @@ public sealed partial class CapabilityMatrixTests
             .Select(match => ($"{Path.GetFileNameWithoutExtension(path)}.{match.Groups["test"].Value}", match.Groups["id"].Value)))
         .ToList();
 
-    /// <summary>A [Capability("ID")] attribute and the test method it sits on.</summary>
-    [GeneratedRegex(@"^[ \t]*\[Capability\(""(?<id>[A-Z0-9-]+)""\)].*?public\s+(?:async\s+Task|void)\s+(?<test>\w+)\s*\(", RegexOptions.Singleline | RegexOptions.Multiline)]
+    /// <summary>A [Capability("ID")] attribute and, looking ahead so stacked attributes each match, the test method it sits on.</summary>
+    [GeneratedRegex(@"^[ \t]*\[Capability\(""(?<id>[A-Z0-9-]+)""\)](?=.*?public\s+(?:async\s+Task|void)\s+(?<test>\w+)\s*\()", RegexOptions.Singleline | RegexOptions.Multiline)]
     private static partial Regex ClaimPattern();
 
     [Fact]

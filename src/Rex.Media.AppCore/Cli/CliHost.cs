@@ -27,6 +27,9 @@ public sealed class CliHost
     /// <summary>Decoders only this machine has, added below rexplayer's own on the decode ladder.</summary>
     public IReadOnlyList<IDecoderFactory> ExtraDecoders { get; init; } = [];
 
+    /// <summary>Describes the machine for probe --system, or gives null when this host cannot.</summary>
+    public Func<SystemReport?> SystemReport { get; init; } = () => null;
+
     /// <summary>Opens a window with this title for pictures, or gives null when this host has no windows.</summary>
     public Func<string, IVideoPresenter?> VideoWindow { get; init; } = _ => null;
 

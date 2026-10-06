@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 257 planned, 10 built, 22 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 250 planned, 11 built, 28 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -24,7 +24,7 @@ Totals: 257 planned, 10 built, 22 verified, 1 verified-hardware, 27 post-1.0.
 | PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | planned |
 | PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified |
 | PB-15 | Crossfade between tracks | 0–12 s setting (default off) | M6 | could | planned |
-| PB-16 | Snapshot | Current frame at source resolution, without the OSD; PNG/JPEG/BMP; folder, filename pattern and sequential numbering configurable | M3/M11 | must | planned |
+| PB-16 | Snapshot | Current frame at source resolution, without the OSD; PNG/JPEG/BMP; folder, filename pattern and sequential numbering configurable | M3/M11 | must | verified |
 | PB-17 | Track selection | Video / audio / subtitle / secondary subtitle; preferred-language lists; "off" for each | M3–M5 | must | planned |
 | PB-18 | Program selection (TS) | Next/previous program (service id) for multi-program transport streams | M7 | should | planned |
 | PB-19 | Audio delay | ±50 ms steps (J/K), reset, exact entry; range ±10 s; optionally remembered per file | M5 | must | planned |
@@ -66,8 +66,8 @@ Totals: 257 planned, 10 built, 22 verified, 1 verified-hardware, 27 post-1.0.
 
 | ID | Capability | Details | Milestone | Priority | Status |
 |---|---|---|---|---|---|
-| FMT-V01 | H.264/AVC (all common profiles incl. High 10 where MF supports it) | MF (D3D11VA → SW MFT) | M3 | must | planned |
-| FMT-V02 | HEVC/H.265 (Main, Main 10) | MF + Store extension | M3 | must | planned |
+| FMT-V01 | H.264/AVC (all common profiles incl. High 10 where MF supports it) | MF (D3D11VA → SW MFT) | M3 | must | verified |
+| FMT-V02 | HEVC/H.265 (Main, Main 10) | MF + Store extension | M3 | must | verified |
 | FMT-V03 | AV1 | MF + AV1 extension; own post-1.0 | M3 | must | planned |
 | FMT-V04 | VP9 (profiles 0/2) | MF extension; own M12 | M3/M12 | must | planned |
 | FMT-V05 | VP8 | Own (MF if present) | M12 | should | planned |
@@ -193,7 +193,7 @@ Totals: 257 planned, 10 built, 22 verified, 1 verified-hardware, 27 post-1.0.
 | ID | Capability | Details | Milestone | Priority | Status |
 |---|---|---|---|---|---|
 | VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | planned |
-| VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | planned |
+| VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | built |
 | VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | planned |
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | planned |
 | VID-05 | Aspect ratio | Default, 16:9, 4:3, 1:1, 16:10, 2.21:1, 2.35:1, 2.39:1, 5:4, custom W:H; cycle with A | M4 | must | planned |
@@ -214,9 +214,9 @@ Totals: 257 planned, 10 built, 22 verified, 1 verified-hardware, 27 post-1.0.
 | VID-20 | 360° video | Equirectangular viewer: drag/arrow keys to look, Page Up/Down for field of view, reset; reads spherical metadata from MP4 and Matroska | M11 | should | planned |
 | VID-21 | HDR → SDR | PQ and HLG, BT.2020 → 709 gamut map, tone map to target nits (203 default), FP16 pipeline, 10-bit decode end to end | M11 | must | planned |
 | VID-22 | HDR passthrough | HDR10 metadata to an HDR-enabled display (Advanced Color) | M15 | should | planned |
-| VID-23 | Colour pipeline correctness | BT.601/709/2020 matrices, limited/full range, chroma siting, flagged-vs-guessed colorimetry | M3 | must | planned |
+| VID-23 | Colour pipeline correctness | BT.601/709/2020 matrices, limited/full range, chroma siting, flagged-vs-guessed colorimetry | M3 | must | verified |
 | VID-24 | Scaling quality | Bilinear / Catmull-Rom / Lanczos3; chroma upsampling quality | M11 | should | planned |
-| VID-25 | Late-frame policy | Drop late frames (default on), skip-to-keyframe when far behind, stats | M3 | must | planned |
+| VID-25 | Late-frame policy | Drop late frames (default on), skip-to-keyframe when far behind, stats | M3 | must | verified |
 | VID-26 | Title on start | OSD shows the title for 3 s (configurable, can be disabled), position setting | M4 | should | planned |
 | VID-27 | Always on top | Never / always / while playing | M4 | must | planned |
 | VID-28 | Picture-in-picture | Compact always-on-top mini window with minimal controls | M15 | should | planned |
@@ -360,7 +360,7 @@ Totals: 257 planned, 10 built, 22 verified, 1 verified-hardware, 27 post-1.0.
 | TOOL-08 | Program guide | EPG from transport-stream EIT tables | M12 | could | planned |
 | TOOL-09 | Updater | Weekly check (off / daily / weekly), in-window notice, download + sha256 verify, install on consent at exit, release notes shown | M4 | should | planned |
 | TOOL-10 | Diagnostics bundle | Logs + redacted settings + system/codec report → zip for issue reports | M4 | should | planned |
-| TOOL-11 | System probe | `rexplay probe --system`: MF decoders/encoders present, hardware decode caps per codec/resolution, audio endpoints, displays/HDR state | M3 | must | planned |
+| TOOL-11 | System probe | `rexplay probe --system`: MF decoders/encoders present, hardware decode caps per codec/resolution, audio endpoints, displays/HDR state | M3 | must | verified |
 | TOOL-12 | Portable mode | Settings and library beside the exe when `rexplayer.portable` exists | M15 | should | planned |
 | TOOL-13 | Broadcast manager (scheduled multi-channel outputs) | — | post | could | post-1.0 |
 

@@ -36,6 +36,37 @@ public sealed class MfDecoderFactory : IDecoderFactory
         _ => null,
     };
 
+    /// <summary>The codecs Windows is asked about for a system report, with the transform category and major type each needs.</summary>
+    private static readonly (CodecId Codec, bool Video, Guid Subtype)[] Surveyed =
+    [
+        (CodecId.Aac, false, PInvoke.MFAudioFormat_AAC),
+        (CodecId.Ac3, false, PInvoke.MFAudioFormat_Dolby_AC3),
+        (CodecId.Eac3, false, PInvoke.MFAudioFormat_Dolby_DDPlus),
+        (CodecId.Mp3, false, PInvoke.MFAudioFormat_MP3),
+        (CodecId.Flac, false, PInvoke.MFAudioFormat_FLAC),
+        (CodecId.Alac, false, PInvoke.MFAudioFormat_ALAC),
+        (CodecId.Opus, false, PInvoke.MFAudioFormat_Opus),
+        (CodecId.Wma, false, PInvoke.MFAudioFormat_WMAudioV8),
+        (CodecId.H264, true, PInvoke.MFVideoFormat_H264),
+        (CodecId.Hevc, true, PInvoke.MFVideoFormat_HEVC),
+        (CodecId.Vp9, true, PInvoke.MFVideoFormat_VP90),
+        (CodecId.Av1, true, PInvoke.MFVideoFormat_AV1),
+        (CodecId.Mpeg2Video, true, PInvoke.MFVideoFormat_MPEG2),
+        (CodecId.Vc1, true, PInvoke.MFVideoFormat_WVC1),
+    ];
+
+    /// <summary>For each codec a system report covers, the names of Windows' software and graphics-card decoders.</summary>
+    public static IReadOnlyList<(CodecId Codec, IReadOnlyList<string> Software, IReadOnlyList<string> Hardware)> Survey() =>
+    [
+        .. Surveyed.Select(entry =>
+        {
+            var (category, major) = entry.Video
+                ? (PInvoke.MFT_CATEGORY_VIDEO_DECODER, PInvoke.MFMediaType_Video)
+                : (PInvoke.MFT_CATEGORY_AUDIO_DECODER, PInvoke.MFMediaType_Audio);
+            return (entry.Codec, MfTransform.Names(category, major, entry.Subtype), MfTransform.Names(category, major, entry.Subtype, hardware: true));
+        }),
+    ];
+
     public bool CanDecode(TrackInfo track)
     {
         ArgumentNullException.ThrowIfNull(track);

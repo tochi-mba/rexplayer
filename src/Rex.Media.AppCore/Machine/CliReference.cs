@@ -17,7 +17,7 @@ public static class CliReference
     [
         new("play", "rexplay play <file> [more files] [options]", "Plays the files one after another without gaps, then exits.", MachineReadable: true),
         new("snapshot", "rexplay snapshot <file> [--at <time>] [--out <png>]", "Saves the picture a video shows at a moment as a PNG.", MachineReadable: true),
-        new("probe", "rexplay probe <file>", "Describes a file's format, tracks and tags without playing it.", MachineReadable: true),
+        new("probe", "rexplay probe <file> | --system", "Describes a file's format, tracks and tags without playing it, or with --system what this PC can decode and show.", MachineReadable: true),
         new("version", "rexplay version", "Prints the version.", MachineReadable: true),
         new("help", "rexplay help [command]", "Explains the commands.", MachineReadable: false),
         new("agent capabilities", "rexplay agent capabilities", "Describes this build for scripts and agents as one JSON line.", MachineReadable: true),
@@ -30,6 +30,7 @@ public static class CliReference
         new("--start", "<time>", "Starts playing at a time such as 90, 1:30 or 1:02:03.5."),
         new("--stop", "<time>", "Stops playing at a time."),
         new("--volume", "<percent>", "Sets the volume, from 0 to 200."),
+        new("--system", string.Empty, "With probe: describes this PC's decoders, graphics and audio output instead of a file."),
         new("--window", string.Empty, "Shows the pictures in a window while playing; closing it stops playback."),
         new("--at", "<time>", "The moment a snapshot shows (default 0)."),
         new("--out", "<path>", "Where a snapshot is saved (default: beside the video, with its name and .png).")

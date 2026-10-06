@@ -16,6 +16,7 @@ ChannelLayout.cs
 ChannelMixer.cs
 CliApplication.cs
 CliApplication.Snapshot.cs
+CliApplication.System.cs
 CliArguments.cs
 CliHost.cs
 CliReference.cs
@@ -83,6 +84,7 @@ SessionEvents.cs
 SessionState.cs
 SlotPool.cs
 Snapshot.cs
+SystemReport.cs
 ThreadLoop.cs
 TrackInfo.cs
 VideoFrame.cs

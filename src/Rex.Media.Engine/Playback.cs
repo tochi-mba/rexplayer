@@ -461,7 +461,7 @@ public sealed partial class MediaSession
             }
 
             PostPosition(force: true);
-            _session.OnEnded(this, state.Generation);
+            StreamEnded(video: false, state.Generation);
         }
 
         /// <summary>Decodes and plays one packet. False when the track has failed for good.</summary>
