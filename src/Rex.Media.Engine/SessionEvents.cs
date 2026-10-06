@@ -21,6 +21,9 @@ public sealed record TrackFailedEvent(int TrackId, string Reason) : SessionEvent
 /// <summary>The session cannot continue.</summary>
 public sealed record ErrorEvent(string Message) : SessionEvent;
 
+/// <summary>A queued item could not be played and was passed over; playback continues with the next.</summary>
+public sealed record ItemSkippedEvent(string Name, string Reason) : SessionEvent;
+
 /// <summary>Coalesced: only the latest value matters, so a slow listener never falls behind.</summary>
 public sealed record PositionEvent(MediaTime Position, MediaTime Duration) : SessionEvent;
 
@@ -41,6 +44,12 @@ public sealed record SessionStats
     public long CorruptPackets { get; init; }
 
     public string? AudioDecoder { get; init; }
+
+    /// <summary>Items of a gapless run that have started playing, the current one included.</summary>
+    public int ItemsStarted { get; init; }
+
+    /// <summary>The combined length of the items that played before the current one.</summary>
+    public MediaTime EarlierItemsDuration { get; init; } = MediaTime.Zero;
 }
 
 /// <summary>

@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 263 planned, 10 built, 16 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 262 planned, 10 built, 17 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -22,7 +22,7 @@ Totals: 263 planned, 10 built, 16 verified, 1 verified-hardware, 27 post-1.0.
 | PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | planned |
 | PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | planned |
 | PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | planned |
-| PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | planned |
+| PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified |
 | PB-15 | Crossfade between tracks | 0–12 s setting (default off) | M6 | could | planned |
 | PB-16 | Snapshot | Current frame at source resolution, without the OSD; PNG/JPEG/BMP; folder, filename pattern and sequential numbering configurable | M3/M11 | must | planned |
 | PB-17 | Track selection | Video / audio / subtitle / secondary subtitle; preferred-language lists; "off" for each | M3–M5 | must | planned |

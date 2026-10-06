@@ -1,7 +1,10 @@
 namespace Rex.Media.Engine;
 
-/// <summary>An item in a pipeline queue: a payload, or the end-of-stream marker, tagged with the seek generation.</summary>
-internal readonly record struct QueueItem<T>(T? Payload, bool EndOfStream, long Generation)
+/// <summary>
+/// An item in a pipeline queue: a payload, or the end-of-stream marker, tagged with the seek generation
+/// and with what it belongs to (one item of a gapless run of media), so the consumer sees the hand-over.
+/// </summary>
+internal readonly record struct QueueItem<T>(T? Payload, bool EndOfStream, long Generation, object? Owner = null)
     where T : class, IDisposable;
 
 /// <summary>

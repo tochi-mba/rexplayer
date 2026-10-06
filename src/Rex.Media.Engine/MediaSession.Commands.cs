@@ -1,6 +1,4 @@
 using Rex.Media.Audio;
-using Rex.Media.Codecs;
-using Rex.Media.Containers;
 using Rex.Media.Diagnostics;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
@@ -10,7 +8,7 @@ namespace Rex.Media.Engine;
 /// <summary>The commands, each run on the mailbox thread.</summary>
 public sealed partial class MediaSession
 {
-    private void Open(IByteSource source, MediaTime startAt)
+    private void Open(IByteSource source, MediaTime startAt, IReadOnlyList<IByteSource> following)
     {
         if (_state != SessionState.Idle)
         {
@@ -19,38 +17,25 @@ public sealed partial class MediaSession
 
         Volatile.Write(ref _finished, NewCompletion());
         MoveTo(SessionState.Opening);
-        IDemuxer? demuxer = null;
-        IAudioDecoder? decoder = null;
+        MediaItem? item = null;
         IAudioSink? sink = null;
         try
         {
-            demuxer = _options.Demuxers.Open(source, CancellationToken.None);
-            var info = demuxer.Info;
-            _log.Info(LogSource, $"Opened {source.Name} as {info.FormatName} with {info.Tracks.Count} track(s).");
-            _events.Post(new MediaOpenedEvent(info));
-
-            var audioTrack = ChooseAudioTrack(info);
-            if (audioTrack is null)
-            {
-                throw new NotSupportedException($"{source.Name} has no audio rexplayer can play yet.");
-            }
-
-            var decoded = _options.Decoders.CreateAudio(audioTrack);
-            if (decoded.Decoder is null)
-            {
-                _events.Post(new TrackFailedEvent(audioTrack.Id, decoded.Reason!));
-                throw new NotSupportedException(decoded.Reason);
-            }
-
-            decoder = decoded.Decoder;
+            item = OpenItem(source);
+            _events.Post(new MediaOpenedEvent(item.Info));
             sink = _options.AudioSinkFactory();
-            var audio = audioTrack.Audio!;
+            var audio = item.AudioTrack.Audio!;
             var sinkFormat = sink.Open(new AudioFormat(audio.SampleRate, audio.Channels, SampleFormat.F32, audio.Layout));
-            _log.Info(LogSource, $"Audio: {audioTrack.Codec.DisplayName()} via {decoder.Name} into {sink.Name} at {sinkFormat}.");
+            _log.Info(LogSource, $"Audio: {item.AudioTrack.Codec.DisplayName()} via {item.Decoder.Name} into {sink.Name} at {sinkFormat}.");
 
-            _playback = new Playback(this, source, demuxer, info, audioTrack, decoder, sink, sinkFormat);
+            _playback = new Playback(this, item, sink, sinkFormat);
+            foreach (var next in following)
+            {
+                _playback.QueueNext(next);
+            }
+
             _playback.ApplyVolume(_volume, _muted);
-            _events.Post(new TracksChangedEvent(audioTrack.Id, null, null));
+            _events.Post(new TracksChangedEvent(item.AudioTrack.Id, null, null));
             if (startAt > MediaTime.Zero)
             {
                 _playback.RequestSeek(startAt, SeekMode.Precise);
@@ -62,21 +47,17 @@ public sealed partial class MediaSession
         catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             sink?.Dispose();
-            decoder?.Dispose();
-            demuxer?.Dispose();
-            source.Dispose();
+            item?.Dispose();
+            foreach (var next in following)
+            {
+                next.Dispose();
+            }
+
             _playback = null;
             Fail(ex is MediaFormatException or NotSupportedException ? ex.Message : ExceptionDiagnostics.Summary(ex));
             throw;
         }
     }
-
-    private static TrackInfo? ChooseAudioTrack(MediaInfo info)
-    {
-        var audio = info.Tracks.Where(track => track.Kind == MediaKind.Audio && track.Audio is not null).ToList();
-        return audio.FirstOrDefault(track => track.IsDefault) ?? audio.FirstOrDefault();
-    }
-
     private void Play()
     {
         var playback = RequirePlayback();

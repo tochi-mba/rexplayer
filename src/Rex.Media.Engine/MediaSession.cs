@@ -71,10 +71,24 @@ public sealed partial class MediaSession : IDisposable
     private bool _muted;
 
     /// <summary>Opens media and, unless <see cref="EngineOptions.AutoPlay"/> is off, starts playing it.</summary>
-    public Task OpenAsync(IByteSource source, MediaTime? startAt = null)
+    public Task OpenAsync(IByteSource source, MediaTime? startAt = null) => OpenAsync(source, [], startAt);
+
+    /// <summary>
+    /// Opens media with more to follow it gaplessly: each next item is opened before the one before
+    /// runs out, and its first sample follows the last of its predecessor into the same output.
+    /// </summary>
+    public Task OpenAsync(IByteSource source, IReadOnlyList<IByteSource> following, MediaTime? startAt = null)
     {
         ArgumentNullException.ThrowIfNull(source);
-        return Post(() => Open(source, startAt ?? MediaTime.Zero));
+        ArgumentNullException.ThrowIfNull(following);
+        return Post(() => Open(source, startAt ?? MediaTime.Zero, following));
+    }
+
+    /// <summary>Adds media to follow what is playing, gaplessly when it arrives before the current item ends.</summary>
+    public Task QueueNextAsync(IByteSource source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return Post(() => QueueNext(source));
     }
 
     public Task PlayAsync() => Post(Play);

@@ -42,6 +42,7 @@ MediaInfo.cs
 MediaRegistries.cs
 MediaSession.Commands.cs
 MediaSession.cs
+MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
 Mp3Decoder.cs

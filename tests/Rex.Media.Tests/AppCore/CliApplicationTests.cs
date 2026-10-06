@@ -188,6 +188,42 @@ public sealed class CliApplicationTests : IDisposable
     }
 
     [Fact]
+    [Capability("PB-14")]
+    public void PlayingTwoMp3sJoinsThemWithoutAGapOrAnOverlap()
+    {
+        var input = RepoPaths.Combine("tests/fixtures/mp3/stereo-44k-128k-cbr.mp3");
+        var reference = Mp3FixtureTests.ReadReference(RepoPaths.Combine("tests/fixtures/mp3/stereo-44k-128k-cbr.reference.wav"));
+        var capture = Path.Combine(_directory, "two.wav");
+
+        var data = Single(Run(null, "play", input, input, "--aout", "wav:" + capture, "--json").Out).GetProperty("data");
+        var (_, text, _) = Run(null, "play", input, input, "--aout", "null");
+
+        Assert.Equal(2, data.GetProperty("items").GetInt32());
+        Assert.Equal(0.8, data.GetProperty("played").GetDouble(), 3);
+        Assert.Equal("Played 2 of 2 files: 0:00.", text.Trim());
+        var wav = File.ReadAllBytes(capture);
+        var floats = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>(wav.AsSpan(wav.AsSpan().IndexOf("data"u8) + 8)).ToArray();
+        Assert.Equal(reference[0].Length * 4, floats.Length);
+        for (var c = 0; c < 2; c++)
+        {
+            var plane = floats.Where((_, i) => i % 2 == c).ToArray();
+            var twice = reference[c].Concat(reference[c]).ToArray();
+            Assert.True(Mp3FixtureTests.Difference(plane, twice).Peak <= Math.Pow(2, -14));
+        }
+    }
+
+    [Fact]
+    public void PlayRefusesWhenAnyNamedFileIsMissing()
+    {
+        var input = Fixture("tone.wav", Pcm.SineWav(440, 8000, 1, 0.1));
+
+        var (exit, _, error) = Run(null, "play", input, Path.Combine(_directory, "gone.wav"));
+
+        Assert.Equal(1, exit);
+        Assert.StartsWith("There is no file at", error.Trim(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PlayHonoursStartVolumeAndHumanOutput()
     {
         var input = Fixture("tone.wav", Pcm.SineWav(440, 8000, 1, 1.0));

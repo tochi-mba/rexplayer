@@ -165,7 +165,8 @@ public static class CliApplication
 
     private static int Play(CliArguments arguments, bool machine, CliHost host)
     {
-        var path = RequireFile(arguments);
+        var paths = RequireFiles(arguments);
+        var path = paths[0];
         var start = ParseTime(arguments.Option("--start"), "--start");
         var stop = ParseTime(arguments.Option("--stop"), "--stop");
         var volume = ParseVolume(arguments.Option("--volume"));
@@ -197,7 +198,9 @@ public static class CliApplication
             session.Volume = volume;
             try
             {
-                session.OpenAsync(new FileByteSource(path), start).GetAwaiter().GetResult();
+                // Every file is queued at once, so each follows the one before without a gap.
+                IByteSource[] following = [.. paths.Skip(1).Select(next => new FileByteSource(next))];
+                session.OpenAsync(new FileByteSource(path), following, start).GetAwaiter().GetResult();
             }
             catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or InvalidOperationException)
             {
@@ -206,8 +209,9 @@ public static class CliApplication
 
             var finished = session.WaitForFinishAsync();
             WaitHandle.WaitAny([((IAsyncResult)finished).AsyncWaitHandle, stopRequested.WaitHandle, host.Cancellation.WaitHandle]);
-            var position = session.Position;
+            var current = session.Position;
             var stats = session.GetStatsAsync().GetAwaiter().GetResult();
+            var position = stats.EarlierItemsDuration + current;
             var state = session.State;
             var info = session.Info!;
             session.StopAsync().GetAwaiter().GetResult();
@@ -220,6 +224,7 @@ public static class CliApplication
             {
                 var data = Describe(path, info);
                 data["played"] = position.TotalSeconds;
+                data["items"] = stats.ItemsStarted;
                 data["finished"] = state == SessionState.Ended;
                 data["stats"] = new JsonObject
                 {
@@ -234,7 +239,9 @@ public static class CliApplication
             }
             else
             {
-                host.Out.WriteLine($"Played {Path.GetFileName(path)}: {position.ToClock()} of {info.Duration.ToClock()}.");
+                host.Out.WriteLine(paths.Count == 1
+                    ? $"Played {Path.GetFileName(path)}: {position.ToClock()} of {info.Duration.ToClock()}."
+                    : $"Played {stats.ItemsStarted} of {paths.Count} files: {position.ToClock()}.");
             }
         }
 
@@ -260,6 +267,21 @@ public static class CliApplication
         }
 
         throw new CliException($"'{value}' is not an audio output. Use default, null or wav:<path>.");
+    }
+
+    /// <summary>Every named file, each of which must exist.</summary>
+    private static IReadOnlyList<string> RequireFiles(CliArguments arguments)
+    {
+        RequireFile(arguments);
+        foreach (var path in arguments.Positional)
+        {
+            if (!File.Exists(path))
+            {
+                throw new CliException($"There is no file at {path}.");
+            }
+        }
+
+        return arguments.Positional;
     }
 
     private static string RequireFile(CliArguments arguments)

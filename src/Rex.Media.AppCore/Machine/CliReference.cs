@@ -15,7 +15,7 @@ public static class CliReference
 {
     public static IReadOnlyList<CliCommand> Commands { get; } =
     [
-        new("play", "rexplay play <file> [options]", "Plays a file to the end, then exits.", MachineReadable: true),
+        new("play", "rexplay play <file> [more files] [options]", "Plays the files one after another without gaps, then exits.", MachineReadable: true),
         new("probe", "rexplay probe <file>", "Describes a file's format, tracks and tags without playing it.", MachineReadable: true),
         new("version", "rexplay version", "Prints the version.", MachineReadable: true),
         new("help", "rexplay help [command]", "Explains the commands.", MachineReadable: false),

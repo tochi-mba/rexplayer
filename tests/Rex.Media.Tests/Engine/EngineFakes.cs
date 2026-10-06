@@ -223,6 +223,59 @@ internal sealed class UnpluggedSink : IAudioSink
 }
 
 /// <summary>
+/// A PCM decoder whose first drain (the hand-over to the next item of a gapless run) waits at a gate,
+/// so a test can act while the audio thread stands exactly at the join.
+/// </summary>
+internal sealed class JoinGateDecoderFactory : IDecoderFactory, IDisposable
+{
+    private int _drains;
+
+    public ManualResetEventSlim AtJoin { get; } = new(false);
+
+    public ManualResetEventSlim Release { get; } = new(false);
+
+    public string Name => "join gate";
+
+    public DecoderSource Source => DecoderSource.Own;
+
+    public int Rank => 1000;
+
+    public bool CanDecode(TrackInfo track) => true;
+
+    public IAudioDecoder CreateAudio(TrackInfo track) => new Decoder(new PcmDecoder(track), this);
+
+    public void Dispose()
+    {
+        AtJoin.Dispose();
+        Release.Dispose();
+    }
+
+    private sealed class Decoder(PcmDecoder inner, JoinGateDecoderFactory owner) : IAudioDecoder
+    {
+        public string Name => "join gate";
+
+        public DecoderSource Source => DecoderSource.Own;
+
+        public void Decode(Packet packet, ICollection<AudioFrame> output) => inner.Decode(packet, output);
+
+        public void Drain(ICollection<AudioFrame> output)
+        {
+            if (Interlocked.Increment(ref owner._drains) == 1)
+            {
+                owner.AtJoin.Set();
+                owner.Release.Wait(TimeSpan.FromSeconds(10));
+            }
+
+            inner.Drain(output);
+        }
+
+        public void Flush() => inner.Flush();
+
+        public void Dispose() => inner.Dispose();
+    }
+}
+
+/// <summary>
 /// A PCM decoder that hands each packet back as two frames, made outside the pool so a test can see
 /// that every one was disposed when the output failed between them.
 /// </summary>
