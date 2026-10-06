@@ -97,9 +97,9 @@ Sungba.wav: WAVE, 3:14
         <h2>Small parts, each proved.</h2>
       </div>
       <div class="feature-grid">
-        <div class="feature-card"><h3>Format readers</h3><p>WAV, RF64 and AIFF today, with every PCM storage format in both byte orders and G.711 telephony audio.</p></div>
+        <div class="feature-card"><h3>Its own decoders</h3><p>MP3, FLAC, WAV and AIFF, decoded by rexplayer itself and checked against independent decoders, with tags and cover art read from ID3 and Vorbis comments.</p></div>
         <div class="feature-card"><h3>Its own resampler</h3><p>A windowed-sinc resampler converts to whatever rate your audio device mixes at, without drifting over hours.</p></div>
-        <div class="feature-card"><h3>Proper downmixing</h3><p>Surround audio folds into stereo with the standard coefficients and without clipping.</p></div>
+        <div class="feature-card"><h3>Gapless</h3><p>Albums play from one track to the next without a gap, and MP3 encoder padding is cut to the sample.</p></div>
         <div class="feature-card"><h3>Windows audio</h3><p>Plays to the default device through WASAPI, with volume up to 200 % and a soft clipper above 100 %.</p></div>
         <div class="feature-card"><h3>A command line for scripts</h3><p>rexplay prints exactly one JSON document per command when asked, so tools and agents can drive it reliably.</p></div>
         <div class="feature-card"><h3>Tested to the line</h3><p>Every line of the engine runs in tests on each change, including exact-sample checks of what was played.</p></div>
@@ -110,12 +110,12 @@ Sungba.wav: WAVE, 3:14
       <div class="section-heading">
         <p class="eyebrow signal">Roadmap</p>
         <h2>Released in steps.</h2>
-        <p>Each step is a release you can use. Version 0.1 plays WAV and AIFF from the command line; the window, video and the rest of the formats follow release by release.</p>
+        <p>Each step is a release you can use. Version 0.2 plays MP3, FLAC, WAV and AIFF from the command line without gaps; the window, video and the rest of the formats follow release by release.</p>
       </div>
       <ol class="install-steps">
         <li><strong>The engine and the command line.</strong> Released in 0.1.</li>
-        <li><strong>MP3 and FLAC with gapless playback.</strong> Next.</li>
-        <li><strong>MP4 and MKV video with hardware decoding.</strong></li>
+        <li><strong>MP3 and FLAC with gapless playback.</strong> Released in 0.2.</li>
+        <li><strong>MP4 and MKV video with hardware decoding.</strong> Next.</li>
         <li><strong>The player window, playlists and subtitles.</strong></li>
         <li><strong>Streams, casting, discs, conversion and recording.</strong></li>
       </ol>
@@ -145,7 +145,7 @@ Sungba.wav: WAVE, 3:14
       <div class="faq">
         <details open><summary>Why build a media player from scratch?</summary><p>Because the parts that matter, timing, seeking, the audio path and what happens with a damaged file, should be understood and tested end to end by the people who ship them.</p></details>
         <details><summary>Does it send anything anywhere?</summary><p>No telemetry, no account, no analytics. It touches the network only when you open something on the network.</p></details>
-        <details><summary>Will it play my videos?</summary><p>Not yet. Video arrives with the MP4 and MKV release; until then rexplayer plays WAV and AIFF audio.</p></details>
+        <details><summary>Will it play my videos?</summary><p>Not yet. Video arrives with the MP4 and MKV release; until then rexplayer plays MP3, FLAC, WAV and AIFF audio.</p></details>
         <details><summary>Can scripts and agents use it?</summary><p>Yes. Add --json to any command, or run rexplay agent capabilities, and it prints exactly one JSON document.</p></details>
       </div>
     </section>

@@ -8,8 +8,9 @@ audio pipeline, and a command line made for scripts.
 [Capability matrix](docs/capability-matrix.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.1.** The engine and the `rexplay` command line play WAV, RF64 and AIFF through
-> Windows audio. MP3, FLAC, video, the player window and the rest of the
+> **Status: 0.2.** The engine and the `rexplay` command line play MP3, FLAC, WAV, RF64 and AIFF
+> through Windows audio, with rexplayer's own decoders and no gap from one file to the next. Video,
+> the player window and the rest of the
 > [capability matrix](docs/capability-matrix.md) arrive release by release.
 
 ## Install
@@ -25,7 +26,8 @@ audio pipeline, and a command line made for scripts.
 
 | Want to… | Do this |
 |---|---|
-| Play a file | `rexplay play song.wav` |
+| Play a file | `rexplay play song.mp3` |
+| Play an album without gaps | `rexplay play 01.flac 02.flac 03.flac` |
 | Start part-way through | `rexplay play song.wav --start 1:30` |
 | Play quietly | `rexplay play song.wav --volume 40` |
 | See what a file contains | `rexplay probe song.wav` |

@@ -3,7 +3,7 @@
   "slug": "rexplayer",
   "name": "rexplayer",
   "tagline": "Every file, stream and disc. A Windows media player built from scratch.",
-  "description": "A Windows media player whose engine is REX code: format readers that recognise media by its bytes, a media session with a single-threaded command mailbox and sample-accurate seeking, its own resampler and channel mixer, and Windows audio through WASAPI. Patented codecs decode through Windows; everything else is written here.\n\nEvery line of the engine is covered by tests on each change, including exact-sample checks of what was played, and the command line prints one JSON document per command for scripts and agents.",
+  "description": "A Windows media player whose engine is REX code: format readers that recognise media by its bytes, a media session with a single-threaded command mailbox and sample-accurate seeking, its own MP3 and FLAC decoders, gapless playback, its own resampler and channel mixer, and Windows audio through WASAPI. Patented codecs decode through Windows; everything else is written here.\n\nEvery line of the engine is covered by tests on each change, including exact-sample checks of what was played, and the command line prints one JSON document per command for scripts and agents.",
   "highlights": [
     "Its own engine: format readers, media session, resampler and mixer",
     "Sample-accurate seeking that interrupts whatever the pipeline was doing",

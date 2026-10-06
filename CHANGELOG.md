@@ -3,6 +3,24 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.2.0 - 2026-10-06
+
+### Added
+
+- **MP3.** rexplayer's own Layer III decoder for MPEG-1, MPEG-2 and MPEG 2.5 at every rate, matching
+  an independent decoder to the conformance standard's full accuracy. Joint, intensity and
+  mixed-block streams, free format, and Xing, LAME and VBRI tags for exact durations.
+- **FLAC.** rexplayer's own decoder for all of RFC 9639, from 4 to 32 bits and one to eight
+  channels, with seek tables, cue-sheet chapters and embedded pictures.
+- **Gapless playback.** `rexplay play` takes several files and plays them into one output with
+  nothing between them, and MP3 encoder delay and padding are cut to the sample.
+- **Tags.** ID3v2.2 to 2.4, ID3v1, Vorbis comments and cover art, read wherever they appear.
+
+### Fixed
+
+- A sound card that failed part-way through a packet could make the engine release an audio
+  buffer twice, which could corrupt another stream's audio.
+
 ## 0.1.0 - 2026-10-05
 
 ### Added
