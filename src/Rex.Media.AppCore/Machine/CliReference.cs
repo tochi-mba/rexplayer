@@ -30,6 +30,7 @@ public static class CliReference
         new("--start", "<time>", "Starts playing at a time such as 90, 1:30 or 1:02:03.5."),
         new("--stop", "<time>", "Stops playing at a time."),
         new("--volume", "<percent>", "Sets the volume, from 0 to 200."),
+        new("--window", string.Empty, "Shows the pictures in a window while playing; closing it stops playback."),
         new("--at", "<time>", "The moment a snapshot shows (default 0)."),
         new("--out", "<path>", "Where a snapshot is saved (default: beside the video, with its name and .png).")
     ];

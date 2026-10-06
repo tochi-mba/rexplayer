@@ -86,8 +86,10 @@ Snapshot.cs
 ThreadLoop.cs
 TrackInfo.cs
 VideoFrame.cs
+VideoLayout.cs
 Volume.cs
 VorbisComments.cs
 WavDemuxer.cs
 WaveFormat.cs
 WavFileSink.cs
+YuvTransform.cs

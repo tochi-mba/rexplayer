@@ -18,7 +18,7 @@ public sealed class VideoPlaybackTests
     private const int Video = 2;
 
     /// <summary><paramref name="pictures"/> pictures of 40 ms with 40 ms of silence beside each, interleaved.</summary>
-    private static byte[] Clip(int pictures)
+    internal static byte[] Clip(int pictures)
     {
         var video = Element(
             Id.TrackEntry,

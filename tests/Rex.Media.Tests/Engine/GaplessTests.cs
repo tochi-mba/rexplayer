@@ -147,10 +147,13 @@ public sealed class GaplessTests
     [Fact]
     public async Task MediaStillQueuedWhenTheSessionStopsIsReleased()
     {
+        // Paused, the demuxer fills the audio queue and stops long before the end of a minute of
+        // audio, so the queued media is still waiting to be opened when the session closes.
         var queued = new TrackedSource(Count(0, 400));
+        var minute = WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[480_000])).Build();
         using (var harness = new SessionHarness(autoPlay: false))
         {
-            await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 80_000)), [queued]);
+            await harness.Session.OpenAsync(SessionHarness.Source(minute), [queued]);
             await harness.Session.QueueNextAsync(new TrackedSource(Count(0, 400)));
         }
 

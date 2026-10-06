@@ -16,6 +16,9 @@
     <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
     <ProjectReference Include="..\Rex.Media.Audio.Wasapi\Rex.Media.Audio.Wasapi.csproj" />
     <ProjectReference Include="..\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
+    <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
+    <ProjectReference Include="..\Rex.Media.Video.D3D11\Rex.Media.Video.D3D11.csproj" />
+    <ProjectReference Include="..\Rex.Media.Interop\Rex.Media.Interop.csproj" />
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
   </ItemGroup>
 

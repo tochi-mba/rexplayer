@@ -16,6 +16,7 @@ public sealed class NullAudioSink : IAudioSink
     private long _startTimestamp;
     private long _pausedAt = -1;
     private long _pausedTicks;
+    private bool _started;
 
     /// <param name="clock">The time source; tests pass a manual one.</param>
     /// <param name="wait">How to wait for the clock; tests advance their manual clock instead of sleeping.</param>
@@ -57,6 +58,15 @@ public sealed class NullAudioSink : IAudioSink
             _wait(TimeSpan.FromMilliseconds(5), cancellationToken);
         }
 
+        if (!_started)
+        {
+            // Like a device, the clock runs from the first audio, not from opening: whatever the
+            // host does between the two (opening a window, say) is not time anyone heard.
+            _started = true;
+            _startTimestamp = _pausedAt >= 0 ? _pausedAt : _clock.GetTimestamp();
+            _pausedTicks = 0;
+        }
+
         _written += frame.SampleCount;
     }
 
@@ -95,17 +105,13 @@ public sealed class NullAudioSink : IAudioSink
     private void Restart()
     {
         _written = 0;
-        _startTimestamp = _clock.GetTimestamp();
+        _started = false;
         _pausedTicks = 0;
-        if (_pausedAt >= 0)
-        {
-            _pausedAt = _startTimestamp;
-        }
     }
 
     private long ElapsedSamples()
     {
-        if (_format is null)
+        if (_format is null || !_started)
         {
             return 0;
         }

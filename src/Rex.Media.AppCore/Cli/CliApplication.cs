@@ -179,6 +179,9 @@ public static partial class CliApplication
             AudioSinkFactory = sinkFactory,
             Log = host.Log,
             Time = host.Time,
+            VideoPresenterFactory = arguments.Option("--window") is null
+                ? null
+                : () => host.VideoWindow($"{Path.GetFileName(path)} - rexplayer") ?? throw new NotSupportedException("This build of rexplay cannot open a window."),
         };
 
         using var stopRequested = new ManualResetEventSlim(false);
@@ -229,6 +232,10 @@ public static partial class CliApplication
                     ["audioSamplesPlayed"] = stats.AudioSamplesPlayed,
                     ["corruptPackets"] = stats.CorruptPackets,
                     ["audioDecoder"] = stats.AudioDecoder,
+                    ["videoFramesDecoded"] = stats.VideoFramesDecoded,
+                    ["videoFramesPresented"] = stats.VideoFramesPresented,
+                    ["videoFramesDropped"] = stats.VideoFramesDropped,
+                    ["videoDecoder"] = stats.VideoDecoder,
                 };
                 host.Out.WriteLine(MachineEnvelope.Success("play", data));
             }

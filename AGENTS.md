@@ -53,6 +53,8 @@ The protocol version changes only when a field's meaning changes or a field disa
 | `src/Rex.Media.Containers` | Format probing and demuxers |
 | `src/Rex.Media.Codecs` | Decoder contracts and the decode ladder |
 | `src/Rex.Media.Codecs.Software` | rexplayer's own decoders |
+| `src/Rex.Media.Video` | Picture formats' colour maths (H.273), letterboxing, the PNG writer, the presenter contract |
+| `src/Rex.Media.Video.D3D11` | The Direct3D 11 presenter: GPU colour conversion into a window or offscreen |
 | `src/Rex.Media.Codecs.MediaFoundation` | The adapter to Windows' decoders (AAC, AC-3, E-AC-3; video next) |
 | `src/Rex.Media.Audio` | Resampler, mixer, volume, sinks, device-format policy |
 | `src/Rex.Media.Audio.Wasapi` | The Windows audio adapter |

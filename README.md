@@ -27,6 +27,7 @@ audio pipeline, and a command line made for scripts.
 | Want to… | Do this |
 |---|---|
 | Play a file | `rexplay play song.mp3` |
+| Watch a video | `rexplay play film.mkv --window` (Escape or closing the window stops it) |
 | Play an album without gaps | `rexplay play 01.flac 02.flac 03.flac` |
 | Start part-way through | `rexplay play song.wav --start 1:30` |
 | Play quietly | `rexplay play song.wav --volume 40` |

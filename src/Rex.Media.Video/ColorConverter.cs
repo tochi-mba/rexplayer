@@ -4,9 +4,9 @@ namespace Rex.Media.Video;
 
 /// <summary>
 /// Converts decoded pictures to 8-bit BGRA on the CPU, for snapshots and for tests that compare
-/// pictures. Playback converts on the GPU with the same equations. The matrices are ITU-T H.273's
-/// (from Kr and Kb), with limited or full range; chroma is taken from the nearest sample, which is
-/// what a still image of the coded picture needs, without the smoothing a display scaler adds.
+/// pictures. Playback converts on the GPU with the same <see cref="YuvTransform"/>: ITU-T
+/// H.273's matrices (from Kr and Kb), with limited or full range. Chroma is taken from the nearest
+/// sample, which is what a still image of the coded picture needs, without a display scaler's smoothing.
 /// </summary>
 public static class ColorConverter
 {
@@ -38,36 +38,15 @@ public static class ColorConverter
             return output;
         }
 
-        var color = source.Color.Resolve(source.Width, source.Height);
         var bits = source.Format is PixelFormat.P010 or PixelFormat.I420P10 ? 10 : 8;
-        var scale = 1 << (bits - 8);
-        double lumaOffset = color.FullRange ? 0 : 16 * scale;
-        double lumaRange = color.FullRange ? (1 << bits) - 1 : 219 * scale;
-        double chromaOffset = 1 << (bits - 1);
-        double chromaRange = color.FullRange ? (1 << bits) - 1 : 224 * scale;
-        var weights = Weights(color.Matrix);
         var reader = new SampleReader(source);
+        var transform = YuvTransform.For(source.Color.Resolve(source.Width, source.Height), bits, reader.HasChroma);
         for (var y = 0; y < source.Height; y++)
         {
             var row = output.Row(0, y);
             for (var x = 0; x < source.Width; x++)
             {
-                var luma = (reader.Luma(x, y) - lumaOffset) / lumaRange;
-                double r, g, b;
-                if (weights is not { } k)
-                {
-                    // H.273 matrix 0: the planes hold G, B and R, each with luma's range.
-                    (g, b, r) = (luma, (reader.Cb(x, y) - lumaOffset) / lumaRange, (reader.Cr(x, y) - lumaOffset) / lumaRange);
-                }
-                else
-                {
-                    var cb = reader.HasChroma ? (reader.Cb(x, y) - chromaOffset) / chromaRange : 0;
-                    var cr = reader.HasChroma ? (reader.Cr(x, y) - chromaOffset) / chromaRange : 0;
-                    r = luma + (2 * (1 - k.Kr) * cr);
-                    b = luma + (2 * (1 - k.Kb) * cb);
-                    g = (luma - (k.Kr * r) - (k.Kb * b)) / (1 - k.Kr - k.Kb);
-                }
-
+                var (r, g, b) = reader.HasChroma ? transform.Apply(reader.Luma(x, y), reader.Cb(x, y), reader.Cr(x, y)) : transform.Apply(reader.Luma(x, y), 0, 0);
                 row[(x * 4) + 0] = ToByte(b);
                 row[(x * 4) + 1] = ToByte(g);
                 row[(x * 4) + 2] = ToByte(r);

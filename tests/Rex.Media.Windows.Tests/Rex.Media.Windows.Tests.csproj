@@ -25,6 +25,8 @@
     <ProjectReference Include="..\..\src\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.Engine\Rex.Media.Engine.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Video\Rex.Media.Video.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Video.D3D11\Rex.Media.Video.D3D11.csproj" />
   </ItemGroup>
 
 </Project>

@@ -241,6 +241,41 @@ public sealed class SinkTests : IDisposable
     }
 
     [Fact]
+    public void TheNullSinksClockRunsFromTheFirstAudioNotFromOpening()
+    {
+        var clock = new ManualTimeProvider();
+        using var sink = new NullAudioSink(clock);
+        sink.Open(new AudioFormat(48_000, 1, SampleFormat.F32));
+        using var frame = AudioFrame.Rent(48_000, 1, 4800);
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(0, sink.PlayedSamples);
+        sink.Write(frame, CancellationToken.None);
+        clock.Advance(TimeSpan.FromMilliseconds(10));
+
+        Assert.Equal(480, sink.PlayedSamples);
+    }
+
+    [Fact]
+    public void ANullSinkPausedBeforeItsFirstAudioStartsCountingOnResume()
+    {
+        var clock = new ManualTimeProvider();
+        using var sink = new NullAudioSink(clock);
+        sink.Open(new AudioFormat(48_000, 1, SampleFormat.F32));
+        using var frame = AudioFrame.Rent(48_000, 1, 4800);
+        sink.Pause();
+        clock.Advance(TimeSpan.FromSeconds(1));
+
+        sink.Write(frame, CancellationToken.None);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(0, sink.PlayedSamples);
+        sink.Resume();
+        clock.Advance(TimeSpan.FromMilliseconds(10));
+
+        Assert.Equal(480, sink.PlayedSamples);
+    }
+
+    [Fact]
     public void TheNullSinkHonoursCancellationAndChecksItsState()
     {
         var clock = new ManualTimeProvider();
