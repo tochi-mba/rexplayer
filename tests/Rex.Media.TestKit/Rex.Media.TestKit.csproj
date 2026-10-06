@@ -7,6 +7,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Video\Rex.Media.Video.csproj" />
   </ItemGroup>
 
 </Project>

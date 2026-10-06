@@ -3,6 +3,7 @@ using Rex.Media.Audio;
 using Rex.Media.Diagnostics;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 
 namespace Rex.Media.Engine;
 
@@ -21,7 +22,7 @@ public sealed partial class MediaSession
     /// interrupts it immediately instead of waiting for the old audio to finish.
     /// </para>
     /// </summary>
-    private sealed class Playback : IDisposable
+    private sealed partial class Playback : IDisposable
     {
         /// <summary>How far a frame may start from where the last ended and still be taken to follow it.</summary>
         private static readonly MediaTime TimestampJitter = MediaTime.FromMilliseconds(2);
@@ -38,10 +39,14 @@ public sealed partial class MediaSession
         private readonly object _seekGate = new();
         private readonly Thread _demuxThread;
         private readonly Thread _audioThread;
+        private readonly IVideoPresenter? _presenter;
+        private readonly BoundedQueue<Packet>? _videoQueue;
+        private readonly Thread? _videoThread;
         private readonly ConcurrentQueue<IByteSource> _upcoming = new();
         private readonly List<MediaItem> _items = [];
         private MediaItem _demuxItem;
         private MediaItem _audioItem;
+        private MediaItem _videoItem;
         private MediaInfo _info;
         private long _generation;
         private SeekRequest? _pendingSeek;
@@ -57,12 +62,13 @@ public sealed partial class MediaSession
         private int _itemsStarted = 1;
         private long _earlierTicks;
 
-        public Playback(MediaSession session, MediaItem first, IAudioSink sink, AudioFormat sinkFormat)
+        public Playback(MediaSession session, MediaItem first, IAudioSink sink, AudioFormat sinkFormat, IVideoPresenter? presenter)
         {
             _session = session;
             _items.Add(first);
             _demuxItem = first;
             _audioItem = first;
+            _videoItem = first;
             _info = first.Info;
             _sink = sink;
             _sinkFormat = sinkFormat;
@@ -72,6 +78,12 @@ public sealed partial class MediaSession
             _audioQueue = new BoundedQueue<Packet>(session._options.AudioQueueCapacity);
             _demuxThread = new Thread(RunDemux) { IsBackground = true, Name = "rexplayer demux" };
             _audioThread = new Thread(RunAudio) { IsBackground = true, Name = "rexplayer audio" };
+            if (presenter is not null)
+            {
+                _presenter = presenter;
+                _videoQueue = new BoundedQueue<Packet>(session._options.VideoQueueCapacity);
+                _videoThread = new Thread(RunVideo) { IsBackground = true, Name = "rexplayer video" };
+            }
         }
 
         /// <summary>What the item being heard contains.</summary>
@@ -103,6 +115,7 @@ public sealed partial class MediaSession
 
             _demuxThread.Start();
             _audioThread.Start();
+            _videoThread?.Start();
         }
 
         public void Pause()
@@ -146,6 +159,7 @@ public sealed partial class MediaSession
             previous.Cancel();
             _clock.Rebase(target, _sinkFormat.SampleRate);
             _audioQueue.Flush(Generation);
+            _videoQueue?.Flush(Generation);
             _demuxWake.Set();
         }
 
@@ -159,6 +173,10 @@ public sealed partial class MediaSession
             AudioDecoder = Volatile.Read(ref _audioItem).Decoder.Name,
             ItemsStarted = Volatile.Read(ref _itemsStarted),
             EarlierItemsDuration = new MediaTime(Interlocked.Read(ref _earlierTicks)),
+            VideoFramesDecoded = Interlocked.Read(ref _videoFramesDecoded),
+            VideoFramesPresented = Interlocked.Read(ref _videoFramesPresented),
+            VideoFramesDropped = Interlocked.Read(ref _videoFramesDropped),
+            VideoDecoder = Volatile.Read(ref _videoItem).VideoDecoder?.Name,
         };
 
         public void Dispose()
@@ -172,11 +190,20 @@ public sealed partial class MediaSession
 
             _audioQueue.Flush(long.MaxValue);
             _audioQueue.Close();
+            _videoQueue?.Flush(long.MaxValue);
+            _videoQueue?.Close();
             _lifetime.Cancel();
             _demuxWake.Set();
             JoinIfStarted(_demuxThread);
             JoinIfStarted(_audioThread);
+            if (_videoThread is not null)
+            {
+                JoinIfStarted(_videoThread);
+            }
+
             _audioQueue.Dispose();
+            _videoQueue?.Dispose();
+            _presenter?.Dispose();
             _sink.Dispose();
             foreach (var item in _items)
             {
@@ -268,20 +295,26 @@ public sealed partial class MediaSession
                     }
 
                     ended = true;
+                    _videoQueue?.Add(new QueueItem<Packet>(null, EndOfStream: true, generation, _demuxItem), AudioStarving, VideoHardCapacity, token);
                     _audioQueue.Add(new QueueItem<Packet>(null, EndOfStream: true, generation, _demuxItem), token);
                     continue;
                 }
 
                 Interlocked.Increment(ref _packetsRead);
                 Interlocked.Add(ref _bytesRead, packet.Data.Length);
-                if (packet.TrackId != _demuxItem.AudioTrack.Id)
+                packet.Generation = generation;
+                if (packet.TrackId == _demuxItem.AudioTrack.Id)
+                {
+                    _audioQueue.Add(new QueueItem<Packet>(packet, EndOfStream: false, generation, _demuxItem), token);
+                }
+                else if (_videoQueue is not null && packet.TrackId == _demuxItem.VideoTrack?.Id)
+                {
+                    _videoQueue.Add(new QueueItem<Packet>(packet, EndOfStream: false, generation, _demuxItem), AudioStarving, VideoHardCapacity, token);
+                }
+                else
                 {
                     packet.Dispose();
-                    continue;
                 }
-
-                packet.Generation = generation;
-                _audioQueue.Add(new QueueItem<Packet>(packet, EndOfStream: false, generation, _demuxItem), token);
             }
         }
 
@@ -397,16 +430,7 @@ public sealed partial class MediaSession
             Interlocked.Increment(ref _itemsStarted);
             Volatile.Write(ref _audioItem, next);
             Volatile.Write(ref _info, next.Info);
-            lock (_items)
-            {
-                var index = _items.IndexOf(next);
-                foreach (var finished in _items.Take(index))
-                {
-                    finished.Dispose();
-                }
-
-                _items.RemoveRange(0, index);
-            }
+            ReleaseFinishedItems();
 
             _session.OnItemStarted(this, next.Info, next.AudioTrack.Id);
         }
@@ -580,7 +604,8 @@ public sealed partial class MediaSession
             _session.OnPosition(Position, Info.Duration);
         }
 
-        private static void DisposeAll(List<AudioFrame> frames)
+        private static void DisposeAll<T>(List<T> frames)
+            where T : IDisposable
         {
             foreach (var frame in frames)
             {

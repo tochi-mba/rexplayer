@@ -71,6 +71,7 @@ PcmDecoder.cs
 PictureBlock.cs
 PixelFormat.cs
 Playback.cs
+Playback.Video.cs
 PngWriter.cs
 Rational.cs
 Resampler.cs

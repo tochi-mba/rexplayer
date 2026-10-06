@@ -29,7 +29,7 @@ public sealed class SnapshotTests : IDisposable
 
     private static IDemuxer Open(byte[] file) => MatroskaDemuxerTests.Open(file);
 
-    private static DecoderRegistry Decoders(GreyDecoderFactory factory) => new DecoderRegistry().Add(factory);
+    private static DecoderRegistry Decoders(FakeVideoDecoderFactory factory) => new DecoderRegistry().Add(factory);
 
     [Theory]
     [InlineData(0.05, 1, 3)]
@@ -38,7 +38,7 @@ public sealed class SnapshotTests : IDisposable
     [InlineData(9.0, 3, 4)]
     public void TheSnapshotIsTheLastPictureShownAtOrBeforeTheMoment(double at, int picture, int decoded)
     {
-        var factory = new GreyDecoderFactory();
+        var factory = new FakeVideoDecoderFactory();
         using var demuxer = Open(Video(0, 40, 80, 120));
 
         var (frame, decoder) = Snapshot.Take(demuxer, Decoders(factory), MediaTime.FromSeconds(at), CancellationToken.None);
@@ -56,7 +56,7 @@ public sealed class SnapshotTests : IDisposable
     {
         using var demuxer = Open(Video(100, 140));
 
-        var (frame, _) = Snapshot.Take(demuxer, Decoders(new GreyDecoderFactory()), MediaTime.Zero, CancellationToken.None);
+        var (frame, _) = Snapshot.Take(demuxer, Decoders(new FakeVideoDecoderFactory()), MediaTime.Zero, CancellationToken.None);
 
         using (frame)
         {
@@ -67,7 +67,7 @@ public sealed class SnapshotTests : IDisposable
     [Fact]
     public void PicturesWithoutTimesAndHeldPicturesAreConsidered()
     {
-        var factory = new GreyDecoderFactory { Untimed = true, Hold = true };
+        var factory = new FakeVideoDecoderFactory { Untimed = true, Hold = true };
         using var demuxer = Open(Video(0, 40));
 
         var (frame, _) = Snapshot.Take(demuxer, Decoders(factory), MediaTime.FromSeconds(1), CancellationToken.None);
@@ -87,13 +87,13 @@ public sealed class SnapshotTests : IDisposable
         using var empty = Open(Video(0));
         using var broken = Open(Video(0, 40));
 
-        Assert.Throws<NotSupportedException>(() => Snapshot.Take(silent, Decoders(new GreyDecoderFactory()), MediaTime.Zero, CancellationToken.None));
+        Assert.Throws<NotSupportedException>(() => Snapshot.Take(silent, Decoders(new FakeVideoDecoderFactory()), MediaTime.Zero, CancellationToken.None));
         var none = Assert.Throws<NotSupportedException>(() => Snapshot.Take(empty, new DecoderRegistry(), MediaTime.Zero, CancellationToken.None));
         Assert.Contains("No decoder", none.Message, StringComparison.Ordinal);
-        Assert.Throws<MediaFormatException>(() => Snapshot.Take(empty, Decoders(new GreyDecoderFactory { Silent = true }), MediaTime.Zero, CancellationToken.None));
-        Assert.Throws<MediaFormatException>(() => Snapshot.Take(broken, Decoders(new GreyDecoderFactory { FailAfter = 1, Hold = true }), MediaTime.FromSeconds(1), CancellationToken.None));
+        Assert.Throws<MediaFormatException>(() => Snapshot.Take(empty, Decoders(new FakeVideoDecoderFactory { Silent = true }), MediaTime.Zero, CancellationToken.None));
+        Assert.Throws<MediaFormatException>(() => Snapshot.Take(broken, Decoders(new FakeVideoDecoderFactory { FailAfter = 1, Hold = true }), MediaTime.FromSeconds(1), CancellationToken.None));
         using var partWay = Open(Video(0, 40));
-        Assert.Throws<MediaFormatException>(() => Snapshot.Take(partWay, Decoders(new GreyDecoderFactory { FailAfter = 1, FailAfterGiving = true }), MediaTime.FromSeconds(1), CancellationToken.None));
+        Assert.Throws<MediaFormatException>(() => Snapshot.Take(partWay, Decoders(new FakeVideoDecoderFactory { FailAfter = 1, FailAfterGiving = true }), MediaTime.FromSeconds(1), CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() => Snapshot.Take(null!, new DecoderRegistry(), MediaTime.Zero, CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() => Snapshot.Take(empty, null!, MediaTime.Zero, CancellationToken.None));
     }
@@ -101,7 +101,7 @@ public sealed class SnapshotTests : IDisposable
     private static (int Exit, string Out) Run(params string[] args)
     {
         using var output = new StringWriter();
-        var host = new CliHost { Out = output, Error = output, Version = "9.9.9", ExtraDecoders = [new GreyDecoderFactory()] };
+        var host = new CliHost { Out = output, Error = output, Version = "9.9.9", ExtraDecoders = [new FakeVideoDecoderFactory()] };
         return (CliApplication.Run(args, host), output.ToString());
     }
 
@@ -132,7 +132,7 @@ public sealed class SnapshotTests : IDisposable
         var video = Path.Combine(_directory, "untimed.mkv");
         System.IO.File.WriteAllBytes(video, Video(0));
         using var output = new StringWriter();
-        var host = new CliHost { Out = output, Error = output, Version = "9.9.9", ExtraDecoders = [new GreyDecoderFactory { Untimed = true }] };
+        var host = new CliHost { Out = output, Error = output, Version = "9.9.9", ExtraDecoders = [new FakeVideoDecoderFactory { Untimed = true }] };
 
         Assert.Equal(0, CliApplication.Run(["snapshot", video], host));
         Assert.Contains("at an unknown time", output.ToString(), StringComparison.Ordinal);
@@ -140,82 +140,5 @@ public sealed class SnapshotTests : IDisposable
         Assert.Equal(0, CliApplication.Run(["snapshot", video, "--json"], host));
         using var document = JsonDocument.Parse(output.ToString());
         Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("data").GetProperty("at").ValueKind);
-    }
-
-    /// <summary>Decodes H.264 tracks into grey pictures whose first byte is the packet's first byte.</summary>
-    private sealed class GreyDecoderFactory : IDecoderFactory
-    {
-        public int Decoded { get; private set; }
-
-        /// <summary>Pictures carry no time.</summary>
-        public bool Untimed { get; init; }
-
-        /// <summary>Pictures are only given at the drain, as a reordering decoder may.</summary>
-        public bool Hold { get; init; }
-
-        /// <summary>No pictures at all.</summary>
-        public bool Silent { get; init; }
-
-        /// <summary>Throws on the packet after this many.</summary>
-        public int FailAfter { get; init; } = int.MaxValue;
-
-        /// <summary>Gives the failing packet's picture before throwing, as a decoder failing part-way may.</summary>
-        public bool FailAfterGiving { get; init; }
-
-        public string Name => "grey";
-
-        public DecoderSource Source => DecoderSource.Own;
-
-        public int Rank => 100;
-
-        public bool CanDecode(TrackInfo track) => track.Codec == CodecId.H264;
-
-        public IAudioDecoder CreateAudio(TrackInfo track) => throw new NotSupportedException();
-
-        public IVideoDecoder CreateVideo(TrackInfo track) => new Decoder(this);
-
-        private sealed class Decoder(GreyDecoderFactory factory) : IVideoDecoder
-        {
-            private readonly List<VideoFrame> _held = [];
-
-            public string Name => "grey";
-
-            public DecoderSource Source => DecoderSource.Own;
-
-            public void Decode(Packet packet, ICollection<VideoFrame> output)
-            {
-                if (factory.Decoded >= factory.FailAfter && !factory.FailAfterGiving)
-                {
-                    throw new MediaFormatException("broken");
-                }
-
-                factory.Decoded++;
-                if (factory.Silent)
-                {
-                    return;
-                }
-
-                var frame = VideoFrame.Rent(PixelFormat.Gray8, 16, 8);
-                frame.Plane(0).Fill(packet.Data.Span[0]);
-                frame.Pts = factory.Untimed ? MediaTime.Unknown : packet.Pts;
-                (factory.Hold ? _held : output).Add(frame);
-                if (factory.Decoded > factory.FailAfter)
-                {
-                    throw new MediaFormatException("broken part-way");
-                }
-            }
-
-            public void Drain(ICollection<VideoFrame> output)
-            {
-                _held.ForEach(output.Add);
-                _held.Clear();
-            }
-
-            public void Flush()
-            {
-            }
-
-            public void Dispose() => _held.ForEach(frame => frame.Dispose());
-        }
     }
 }

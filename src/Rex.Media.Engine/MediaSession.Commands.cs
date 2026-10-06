@@ -2,6 +2,7 @@ using Rex.Media.Audio;
 using Rex.Media.Diagnostics;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 
 namespace Rex.Media.Engine;
 
@@ -20,6 +21,7 @@ public sealed partial class MediaSession
         MoveTo(SessionState.Opening);
         MediaItem? item = null;
         IAudioSink? sink = null;
+        IVideoPresenter? presenter = null;
         try
         {
             item = OpenItem(source);
@@ -29,14 +31,20 @@ public sealed partial class MediaSession
             var sinkFormat = sink.Open(new AudioFormat(audio.SampleRate, audio.Channels, SampleFormat.F32, audio.Layout));
             _log.Info(LogSource, $"Audio: {item.AudioTrack.Codec.DisplayName()} via {item.Decoder.Name} into {sink.Name} at {sinkFormat}.");
 
-            _playback = new Playback(this, item, sink, sinkFormat);
+            if (item.VideoDecoder is not null)
+            {
+                presenter = _options.VideoPresenterFactory!();
+                _log.Info(LogSource, $"Video: {item.VideoTrack!.Codec.DisplayName()} via {item.VideoDecoder.Name} into {presenter.Name}.");
+            }
+
+            _playback = new Playback(this, item, sink, sinkFormat, presenter);
             foreach (var next in following)
             {
                 _playback.QueueNext(next);
             }
 
             _playback.ApplyVolume(_volume, _muted);
-            _events.Post(new TracksChangedEvent(item.AudioTrack.Id, null, null));
+            _events.Post(new TracksChangedEvent(item.AudioTrack.Id, item.VideoTrack?.Id, null));
             if (startAt > MediaTime.Zero)
             {
                 _playback.RequestSeek(startAt, SeekMode.Precise);
@@ -47,6 +55,7 @@ public sealed partial class MediaSession
         }
         catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
+            presenter?.Dispose();
             sink?.Dispose();
             item?.Dispose();
             foreach (var next in following)

@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Rex.Media.Containers\Rex.Media.Containers.csproj" />
     <ProjectReference Include="..\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
     <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
   </ItemGroup>
 
 </Project>

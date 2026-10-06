@@ -18,6 +18,8 @@ internal sealed class BoundedQueue<T> : IDisposable
 {
     private readonly Queue<QueueItem<T>> _items = new();
     private readonly object _gate = new();
+    private static readonly TimeSpan OverfillCheckInterval = TimeSpan.FromMilliseconds(10);
+
     private readonly int _capacity;
     private long _generation;
     private bool _closed;
@@ -51,15 +53,29 @@ internal sealed class BoundedQueue<T> : IDisposable
     }
 
     /// <summary>Adds an item, waiting while the queue is full. Returns false once the queue is closed.</summary>
-    public bool Add(QueueItem<T> item, CancellationToken cancellationToken)
+    public bool Add(QueueItem<T> item, CancellationToken cancellationToken) => Add(item, null, 0, cancellationToken);
+
+    /// <summary>
+    /// Adds an item, waiting while the queue is full unless <paramref name="mayOverfill"/> says another
+    /// stream is starving, in which case up to <paramref name="hardCapacity"/> items are accepted. The
+    /// condition belongs to another queue, so it is checked again every few milliseconds while waiting.
+    /// </summary>
+    public bool Add(QueueItem<T> item, Func<bool>? mayOverfill, int hardCapacity, CancellationToken cancellationToken)
     {
         using var registration = cancellationToken.Register(Wake);
         lock (_gate)
         {
-            while (_items.Count >= _capacity && !_closed && item.Generation >= _generation)
+            while (_items.Count >= _capacity && !_closed && item.Generation >= _generation && !(mayOverfill is not null && _items.Count < hardCapacity && mayOverfill()))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Monitor.Wait(_gate);
+                if (mayOverfill is null)
+                {
+                    Monitor.Wait(_gate);
+                }
+                else
+                {
+                    Monitor.Wait(_gate, OverfillCheckInterval);
+                }
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -77,7 +93,7 @@ internal sealed class BoundedQueue<T> : IDisposable
 
     /// <summary>
     /// Takes the next item, waiting while there is none. Returns false once closed and empty. Every
-    /// queued item is current: <see cref="Flush"/> empties the queue and <see cref="Add"/> refuses
+    /// queued item is current: <see cref="Flush"/> empties the queue and adding refuses
     /// older generations, so nothing stale can be waiting here.
     /// </summary>
     public bool TryTake(out QueueItem<T> item, CancellationToken cancellationToken)

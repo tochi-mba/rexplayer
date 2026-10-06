@@ -69,6 +69,27 @@ public sealed class PipelinePartsTests
     }
 
     [Fact]
+    public async Task AQueueOverfillsUpToItsHardCapacityWhileAnotherStreamStarves()
+    {
+        using var queue = new BoundedQueue<Item>(1);
+        var starving = true;
+
+        Assert.True(queue.Add(new QueueItem<Item>(new Item(), false, 0), () => starving, 3, CancellationToken.None));
+        Assert.True(queue.Add(new QueueItem<Item>(new Item(), false, 0), () => starving, 3, CancellationToken.None));
+        Assert.True(queue.Add(new QueueItem<Item>(new Item(), false, 0), () => starving, 3, CancellationToken.None));
+        var beyondTheCap = Task.Run(() => queue.Add(new QueueItem<Item>(new Item(), false, 0), () => starving, 3, CancellationToken.None), TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        Assert.False(beyondTheCap.IsCompleted);
+
+        starving = false;
+        Assert.True(queue.TryTake(out _, CancellationToken.None));
+        Assert.True(queue.TryTake(out _, CancellationToken.None));
+        Assert.True(queue.TryTake(out _, CancellationToken.None));
+        Assert.True(await beyondTheCap.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+        Assert.Equal(1, queue.Count);
+    }
+
+    [Fact]
     public async Task AWaitingTakerReceivesTheNextItem()
     {
         using var queue = new BoundedQueue<Item>(4);

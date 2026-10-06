@@ -2,6 +2,7 @@ using Rex.Media.Audio;
 using Rex.Media.Codecs;
 using Rex.Media.Containers;
 using Rex.Media.Diagnostics;
+using Rex.Media.Video;
 
 namespace Rex.Media.Engine;
 
@@ -23,6 +24,15 @@ public sealed class EngineOptions
 
     /// <summary>Packets queued between the demuxer and the audio decoder; roughly three seconds of PCM.</summary>
     public int AudioQueueCapacity { get; init; } = 64;
+
+    /// <summary>
+    /// Makes the window or recorder pictures are shown in, or null to play sound only. Video packets
+    /// are only decoded when this is set.
+    /// </summary>
+    public Func<IVideoPresenter>? VideoPresenterFactory { get; init; }
+
+    /// <summary>Packets waiting for the video decoder. The queue may hold up to four times this while audio is starving.</summary>
+    public int VideoQueueCapacity { get; init; } = 32;
 
     /// <summary>Start playing as soon as the media opens.</summary>
     public bool AutoPlay { get; init; } = true;

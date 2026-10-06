@@ -50,6 +50,15 @@ public sealed record SessionStats
 
     /// <summary>The combined length of the items that played before the current one.</summary>
     public MediaTime EarlierItemsDuration { get; init; } = MediaTime.Zero;
+
+    public long VideoFramesDecoded { get; init; }
+
+    public long VideoFramesPresented { get; init; }
+
+    /// <summary>Pictures that were due later than their own length had passed, and were not shown.</summary>
+    public long VideoFramesDropped { get; init; }
+
+    public string? VideoDecoder { get; init; }
 }
 
 /// <summary>

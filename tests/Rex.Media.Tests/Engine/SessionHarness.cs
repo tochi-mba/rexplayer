@@ -7,6 +7,7 @@ using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
+using Rex.Media.Video;
 
 namespace Rex.Media.Tests.Engine;
 
@@ -16,7 +17,7 @@ internal sealed class SessionHarness : IDisposable
     private readonly List<SessionEvent> _events = [];
     private readonly object _gate = new();
 
-    public SessionHarness(bool autoPlay = true, IAudioSink? sink = null, IDecoderFactory? decoder = null, IDemuxerFactory? demuxer = null, int maxCorrupt = 30)
+    public SessionHarness(bool autoPlay = true, IAudioSink? sink = null, IDecoderFactory? decoder = null, IDemuxerFactory? demuxer = null, int maxCorrupt = 30, IDecoderFactory? videoDecoder = null, IVideoPresenter? presenter = null, int videoQueueCapacity = 32)
     {
         Sink = sink ?? new RecordingAudioSink(channels: 1);
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory());
@@ -26,6 +27,11 @@ internal sealed class SessionHarness : IDisposable
         }
 
         var decoders = new DecoderRegistry().Add(decoder ?? new PcmDecoderFactory());
+        if (videoDecoder is not null)
+        {
+            decoders.Add(videoDecoder);
+        }
+
         Session = new MediaSession(
             new EngineOptions
             {
@@ -35,6 +41,8 @@ internal sealed class SessionHarness : IDisposable
                 AutoPlay = autoPlay,
                 MaxConsecutiveCorruptPackets = maxCorrupt,
                 PositionInterval = TimeSpan.Zero,
+                VideoPresenterFactory = presenter is null ? null : () => presenter,
+                VideoQueueCapacity = videoQueueCapacity,
             },
             Record);
     }

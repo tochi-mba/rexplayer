@@ -25,8 +25,14 @@ public sealed partial class MediaSession
 
         public required IAudioDecoder Decoder { get; init; }
 
+        /// <summary>The picture track and its decoder, when pictures are wanted and one opened.</summary>
+        public TrackInfo? VideoTrack { get; init; }
+
+        public IVideoDecoder? VideoDecoder { get; init; }
+
         public void Dispose()
         {
+            VideoDecoder?.Dispose();
             Decoder.Dispose();
             Demuxer.Dispose();
             Source.Dispose();
@@ -53,7 +59,8 @@ public sealed partial class MediaSession
                 throw new NotSupportedException(decoded.Reason);
             }
 
-            return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = audioTrack, Decoder = decoded.Decoder };
+            var (videoTrack, videoDecoder) = OpenVideo(info);
+            return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = audioTrack, Decoder = decoded.Decoder, VideoTrack = videoTrack, VideoDecoder = videoDecoder };
         }
         catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -61,6 +68,29 @@ public sealed partial class MediaSession
             source.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// The picture track and a decoder for it, when pictures are wanted. A picture track that cannot
+    /// be decoded is reported and left out: the sound still plays.
+    /// </summary>
+    private (TrackInfo? Track, IVideoDecoder? Decoder) OpenVideo(MediaInfo info)
+    {
+        var video = info.Tracks.Where(track => track.Kind == MediaKind.Video && track.Video is not null).ToList();
+        if (_options.VideoPresenterFactory is null || (video.FirstOrDefault(track => track.IsDefault) ?? video.FirstOrDefault()) is not { } track)
+        {
+            return (null, null);
+        }
+
+        var decoded = _options.Decoders.CreateVideo(track);
+        if (decoded.Decoder is null)
+        {
+            _log.Warning(LogSource, "The pictures cannot be shown: " + decoded.Reason);
+            _events.Post(new TrackFailedEvent(track.Id, decoded.Reason!));
+            return (null, null);
+        }
+
+        return (track, decoded.Decoder);
     }
 
     private static TrackInfo? ChooseAudioTrack(MediaInfo info)
