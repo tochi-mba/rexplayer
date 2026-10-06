@@ -31,6 +31,7 @@ audio pipeline, and a command line made for scripts.
 | Start part-way through | `rexplay play song.wav --start 1:30` |
 | Play quietly | `rexplay play song.wav --volume 40` |
 | See what a file contains | `rexplay probe song.wav` |
+| Save a picture from a video | `rexplay snapshot film.mkv --at 1:30` (beside the video, as `film.png`) |
 | Capture exactly what would be heard | `rexplay play song.wav --aout wav:capture.wav` |
 | Drive it from a script or an agent | add `--json`, or run `rexplay agent capabilities` |
 

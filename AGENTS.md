@@ -38,6 +38,8 @@ tests where a test can enforce them; the rest are enforced in review.
 - Exit codes: 0 success, 1 failure.
 - `rexplay play <file> --aout wav:<path>` plays headless as fast as possible into a capture file,
   which is how CI proves the engine on machines with no audio device.
+- `rexplay snapshot <file> --at <time> --out <png> --json` saves the exact picture shown at a
+  moment, decoded by Windows for H.264 and HEVC: the quickest way to see what a video holds.
 
 The protocol version changes only when a field's meaning changes or a field disappears.
 

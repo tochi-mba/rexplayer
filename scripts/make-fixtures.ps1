@@ -254,3 +254,12 @@ foreach ($fixture in @('mp4/h264-aac.mp4', 'mkv/h264-aac-subtitles.mkv', 'video/
 
     Write-Host "Wrote $hashes."
 }
+
+# FFmpeg's picture of h264-aac.mp4 at 0.24 s, for comparing rexplayer's snapshot with.
+$snapshot = Join-Path $root 'tests/fixtures/mp4/h264-aac.snapshot-0.24.png'
+& $Ffmpeg -hide_banner -loglevel error -y -ss 0.24 -i (Join-Path $root 'tests/fixtures/mp4/h264-aac.mp4') -frames:v 1 -pix_fmt rgb24 -fflags +bitexact -flags:v +bitexact $snapshot
+if ($LASTEXITCODE -ne 0) {
+    throw "ffmpeg failed to write $snapshot."
+}
+
+Write-Host "Wrote $snapshot."

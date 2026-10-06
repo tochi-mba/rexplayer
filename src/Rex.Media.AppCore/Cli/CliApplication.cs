@@ -14,7 +14,7 @@ namespace Rex.Media.AppCore.Cli;
 /// failure; in human mode it prints plain sentences. Everything here is plain .NET, so the whole
 /// command line runs in-process in tests.
 /// </summary>
-public static class CliApplication
+public static partial class CliApplication
 {
     public static int Run(IReadOnlyList<string> args, CliHost host)
     {
@@ -32,6 +32,7 @@ public static class CliApplication
                 "agent capabilities" => Capabilities(host),
                 "probe" => Probe(arguments, machine, host),
                 "play" => Play(arguments, machine, host),
+                "snapshot" => TakeSnapshot(arguments, machine, host),
                 _ => throw new CliException($"'{command}' is not a rexplay command. Run 'rexplay help' to see them."),
             };
         }

@@ -16,6 +16,7 @@ public static class CliReference
     public static IReadOnlyList<CliCommand> Commands { get; } =
     [
         new("play", "rexplay play <file> [more files] [options]", "Plays the files one after another without gaps, then exits.", MachineReadable: true),
+        new("snapshot", "rexplay snapshot <file> [--at <time>] [--out <png>]", "Saves the picture a video shows at a moment as a PNG.", MachineReadable: true),
         new("probe", "rexplay probe <file>", "Describes a file's format, tracks and tags without playing it.", MachineReadable: true),
         new("version", "rexplay version", "Prints the version.", MachineReadable: true),
         new("help", "rexplay help [command]", "Explains the commands.", MachineReadable: false),
@@ -29,6 +30,8 @@ public static class CliReference
         new("--start", "<time>", "Starts playing at a time such as 90, 1:30 or 1:02:03.5."),
         new("--stop", "<time>", "Stops playing at a time."),
         new("--volume", "<percent>", "Sets the volume, from 0 to 200."),
+        new("--at", "<time>", "The moment a snapshot shows (default 0)."),
+        new("--out", "<path>", "Where a snapshot is saved (default: beside the video, with its name and .png).")
     ];
 
     public static CliCommand? Find(string name) =>
