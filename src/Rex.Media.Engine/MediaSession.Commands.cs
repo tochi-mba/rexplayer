@@ -24,17 +24,22 @@ public sealed partial class MediaSession
         IVideoPresenter? presenter = null;
         try
         {
-            item = OpenItem(source);
+            item = OpenItem(source, () => presenter ??= _options.VideoPresenterFactory!());
             _events.Post(new MediaOpenedEvent(item.Info));
             sink = _options.AudioSinkFactory();
             var audio = item.AudioTrack.Audio!;
             var sinkFormat = sink.Open(new AudioFormat(audio.SampleRate, audio.Channels, SampleFormat.F32, audio.Layout));
             _log.Info(LogSource, $"Audio: {item.AudioTrack.Codec.DisplayName()} via {item.Decoder.Name} into {sink.Name} at {sinkFormat}.");
 
-            if (item.VideoDecoder is not null)
+            if (item.VideoDecoder is null)
             {
-                presenter = _options.VideoPresenterFactory!();
-                _log.Info(LogSource, $"Video: {item.VideoTrack!.Codec.DisplayName()} via {item.VideoDecoder.Name} into {presenter.Name}.");
+                // A presenter opened for pictures that could not be decoded is not wanted.
+                presenter?.Dispose();
+                presenter = null;
+            }
+            else
+            {
+                _log.Info(LogSource, $"Video: {item.VideoTrack!.Codec.DisplayName()} via {item.VideoDecoder.Name} into {presenter!.Name}.");
             }
 
             _playback = new Playback(this, item, sink, sinkFormat, presenter);

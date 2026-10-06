@@ -1439,7 +1439,7 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "EVT PERF HW",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "VID-02",

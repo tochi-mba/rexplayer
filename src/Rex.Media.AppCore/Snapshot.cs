@@ -42,10 +42,10 @@ public static class Snapshot
                 done = Choose(frames, at, ref chosen);
             }
 
-            if (!done)
+            while (!done)
             {
-                decoder.Drain(frames);
-                Choose(frames, at, ref chosen);
+                var finished = decoder.Drain(frames);
+                done = Choose(frames, at, ref chosen) || finished;
             }
         }
         catch

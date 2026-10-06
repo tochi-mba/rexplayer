@@ -29,6 +29,9 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
     /// <summary>Gives the failing packet's picture before throwing, as a decoder failing part-way may.</summary>
     public bool FailAfterGiving { get; init; }
 
+    /// <summary>The drain gives held pictures one per call, asking to be called again.</summary>
+    public bool DrainOneAtATime { get; init; }
+
     /// <summary>Packets whose first byte is this fail to decode.</summary>
     public int? BrokenByte { get; init; }
 
@@ -85,10 +88,19 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
             }
         }
 
-        public void Drain(ICollection<VideoFrame> output)
+        /// <summary>Gives held pictures one at a time when asked to, as a decoder short of surfaces does.</summary>
+        public bool Drain(ICollection<VideoFrame> output)
         {
+            if (factory.DrainOneAtATime && _held.Count > 1)
+            {
+                output.Add(_held[0]);
+                _held.RemoveAt(0);
+                return false;
+            }
+
             _held.ForEach(output.Add);
             _held.Clear();
+            return true;
         }
 
         public void Flush()

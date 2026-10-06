@@ -2,6 +2,7 @@ using Rex.Media.Codecs;
 using Rex.Media.Containers;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 
 namespace Rex.Media.Engine;
 
@@ -40,10 +41,12 @@ public sealed partial class MediaSession
     }
 
     /// <summary>
-    /// Opens <paramref name="source"/> as an item: picks its demuxer, its audio track and a decoder.
-    /// On failure everything opened so far (and the source) is released and the reason thrown.
+    /// Opens <paramref name="source"/> as an item: picks its demuxer, its audio track and a decoder,
+    /// and a picture decoder when <paramref name="presenter"/> gives somewhere to show pictures (asked
+    /// only when the media has a picture track, so the decoder can share the presenter's graphics
+    /// device). On failure everything opened so far (and the source) is released and the reason thrown.
     /// </summary>
-    private MediaItem OpenItem(IByteSource source)
+    private MediaItem OpenItem(IByteSource source, Func<IVideoPresenter?> presenter)
     {
         IDemuxer? demuxer = null;
         try
@@ -59,7 +62,7 @@ public sealed partial class MediaSession
                 throw new NotSupportedException(decoded.Reason);
             }
 
-            var (videoTrack, videoDecoder) = OpenVideo(info);
+            var (videoTrack, videoDecoder) = OpenVideo(info, presenter);
             return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = audioTrack, Decoder = decoded.Decoder, VideoTrack = videoTrack, VideoDecoder = videoDecoder };
         }
         catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -74,15 +77,15 @@ public sealed partial class MediaSession
     /// The picture track and a decoder for it, when pictures are wanted. A picture track that cannot
     /// be decoded is reported and left out: the sound still plays.
     /// </summary>
-    private (TrackInfo? Track, IVideoDecoder? Decoder) OpenVideo(MediaInfo info)
+    private (TrackInfo? Track, IVideoDecoder? Decoder) OpenVideo(MediaInfo info, Func<IVideoPresenter?> presenter)
     {
         var video = info.Tracks.Where(track => track.Kind == MediaKind.Video && track.Video is not null).ToList();
-        if (_options.VideoPresenterFactory is null || (video.FirstOrDefault(track => track.IsDefault) ?? video.FirstOrDefault()) is not { } track)
+        if (_options.VideoPresenterFactory is null || (video.FirstOrDefault(track => track.IsDefault) ?? video.FirstOrDefault()) is not { } track || presenter() is not { } shown)
         {
             return (null, null);
         }
 
-        var decoded = _options.Decoders.CreateVideo(track);
+        var decoded = _options.Decoders.CreateVideo(track, shown.Gpu);
         if (decoded.Decoder is null)
         {
             _log.Warning(LogSource, "The pictures cannot be shown: " + decoded.Reason);

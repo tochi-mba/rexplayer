@@ -96,4 +96,6 @@ public sealed class MfDecoderFactory : IDecoderFactory
     public IAudioDecoder CreateAudio(TrackInfo track) => new MfAudioDecoder(track);
 
     public IVideoDecoder CreateVideo(TrackInfo track) => new MfVideoDecoder(track);
+
+    public IVideoDecoder CreateVideo(TrackInfo track, object? gpu) => new MfVideoDecoder(track, gpu);
 }

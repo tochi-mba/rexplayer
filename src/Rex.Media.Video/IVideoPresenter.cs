@@ -12,5 +12,11 @@ public interface IVideoPresenter : IDisposable
 {
     string Name { get; }
 
+    /// <summary>
+    /// The graphics device the presenter draws with, for decoders that can leave their pictures on it
+    /// (opaque to the engine), or null.
+    /// </summary>
+    object? Gpu => null;
+
     void Present(VideoFrame frame);
 }

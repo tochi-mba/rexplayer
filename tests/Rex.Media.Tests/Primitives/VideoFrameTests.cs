@@ -63,6 +63,31 @@ public sealed class VideoFrameTests
     }
 
     [Fact]
+    public void APictureOnTheGraphicsCardHasNoPlanesAndReleasesItsSurfaceOnce()
+    {
+        var surface = new CountingSurface();
+        var frame = VideoFrame.OnGraphicsCard(PixelFormat.Nv12, 64, 32, surface);
+
+        Assert.Same(surface, frame.Surface);
+        Assert.Equal((PixelFormat.Nv12, 64, 32), (frame.Format, frame.Width, frame.Height));
+        Assert.Throws<InvalidOperationException>(() => frame.Plane(0));
+        frame.Dispose();
+        frame.Dispose();
+        Assert.True(frame.IsDisposed);
+        Assert.Equal(1, surface.Disposals);
+        Assert.Throws<ArgumentNullException>(() => VideoFrame.OnGraphicsCard(PixelFormat.Nv12, 64, 32, null!));
+        using var inMemory = VideoFrame.Rent(PixelFormat.Nv12, 64, 32);
+        Assert.Null(inMemory.Surface);
+    }
+
+    private sealed class CountingSurface : IDisposable
+    {
+        public int Disposals { get; private set; }
+
+        public void Dispose() => Disposals++;
+    }
+
+    [Fact]
     public void ADisposedFrameRefusesItsPlanesAndAPooledOneIsReset()
     {
         var unpooled = VideoFrame.Rent(null, PixelFormat.Gray8, 4, 4);

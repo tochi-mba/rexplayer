@@ -37,7 +37,9 @@ public interface IAudioDecoder : IDisposable
 /// <summary>
 /// Turns packets of one video track into pictures. Decoders hold pictures back to reorder them
 /// (B-frames), so <see cref="Drain"/> collects the rest at the end and <see cref="Flush"/> forgets
-/// them after a seek. Pictures come out in presentation order.
+/// them after a seek. Pictures come out in presentation order. A decoder on the graphics card has a
+/// fixed pool of surfaces, and a picture's surface returns to it only when the picture is disposed,
+/// so callers show and dispose the pictures each call gives before the next call.
 /// </summary>
 public interface IVideoDecoder : IDisposable
 {
@@ -48,7 +50,11 @@ public interface IVideoDecoder : IDisposable
     /// <summary>Decodes one packet, adding zero or more pictures. The caller keeps ownership of the packet.</summary>
     void Decode(Packet packet, ICollection<VideoFrame> output);
 
-    void Drain(ICollection<VideoFrame> output);
+    /// <summary>
+    /// Adds the pictures still held at the end of the stream. False means more remain: show and
+    /// dispose the pictures given, then call again; true means the decoder is empty.
+    /// </summary>
+    bool Drain(ICollection<VideoFrame> output);
 
     void Flush();
 }
@@ -69,6 +75,12 @@ public interface IDecoderFactory
 
     /// <summary>A video decoder; factories that decode only audio keep this default.</summary>
     IVideoDecoder CreateVideo(TrackInfo track) => throw new NotSupportedException($"{Name} decodes audio only.");
+
+    /// <summary>
+    /// A video decoder that may put its pictures straight onto <paramref name="gpu"/>, the graphics
+    /// device the presenter draws with (opaque here); factories that cannot keep this default.
+    /// </summary>
+    IVideoDecoder CreateVideo(TrackInfo track, object? gpu) => CreateVideo(track);
 }
 
 /// <summary>
@@ -99,8 +111,8 @@ public sealed class DecoderRegistry
     /// <summary>The first audio decoder on the ladder that opens, or a reason none did.</summary>
     public DecoderResult<IAudioDecoder> CreateAudio(TrackInfo track) => Create(track, factory => factory.CreateAudio(track));
 
-    /// <summary>The first video decoder on the ladder that opens, or a reason none did.</summary>
-    public DecoderResult<IVideoDecoder> CreateVideo(TrackInfo track) => Create(track, factory => factory.CreateVideo(track));
+    /// <summary>The first video decoder on the ladder that opens, or a reason none did; <paramref name="gpu"/> is the presenter's graphics device, if any.</summary>
+    public DecoderResult<IVideoDecoder> CreateVideo(TrackInfo track, object? gpu = null) => Create(track, factory => factory.CreateVideo(track, gpu));
 
     private DecoderResult<T> Create<T>(TrackInfo track, Func<IDecoderFactory, T> create)
         where T : class

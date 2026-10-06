@@ -39,7 +39,7 @@ public sealed class CliWindowTests : IDisposable
         Assert.True(presenter.Disposed);
         using var document = JsonDocument.Parse(output);
         var stats = document.RootElement.GetProperty("data").GetProperty("stats");
-        Assert.Equal((5, 5, 0, "grey"), (stats.GetProperty("videoFramesDecoded").GetInt32(), stats.GetProperty("videoFramesPresented").GetInt32(), stats.GetProperty("videoFramesDropped").GetInt32(), stats.GetProperty("videoDecoder").GetString()));
+        Assert.Equal((5, 5, 0, "grey", "Own"), (stats.GetProperty("videoFramesDecoded").GetInt32(), stats.GetProperty("videoFramesPresented").GetInt32(), stats.GetProperty("videoFramesDropped").GetInt32(), stats.GetProperty("videoDecoder").GetString(), stats.GetProperty("videoDecoderSource").GetString()));
     }
 
     [Fact]

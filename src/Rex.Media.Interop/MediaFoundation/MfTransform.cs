@@ -1,7 +1,9 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Rex.Media.Interop.Graphics;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Direct3D11;
 using Windows.Win32.Media.MediaFoundation;
 
 namespace Rex.Media.Interop.MediaFoundation;
@@ -19,8 +21,11 @@ public enum MfOutputStatus
     FormatChanged,
 }
 
-/// <summary>A decoded sample's bytes and timing, in 100-nanosecond units as Media Foundation keeps them.</summary>
-public readonly record struct MfSample(byte[] Data, long Time, long Duration, bool HasTime);
+/// <summary>
+/// A decoded sample's bytes, or for a decoder working on the graphics card its surface (the bytes are
+/// then empty), and its timing in 100-nanosecond units as Media Foundation keeps them.
+/// </summary>
+public readonly record struct MfSample(byte[] Data, long Time, long Duration, bool HasTime, D3D11Surface? Surface = null);
 
 /// <summary>
 /// A synchronous Media Foundation transform, used as a decoder. Call sequencing and COM plumbing only
@@ -31,12 +36,16 @@ public readonly record struct MfSample(byte[] Data, long Time, long Duration, bo
 public sealed unsafe class MfTransform : IDisposable
 {
     private const uint ProvidesSamples = 0x100;
+
+    /// <summary>IMFTransform::ProcessOutput's place in the vtable: IUnknown's three methods, then the transform's 23rd.</summary>
+    private const int ProcessOutputSlot = 25;
     private const uint CanProvideSamples = 0x200;
 
     private static readonly Lazy<bool> Started = new(() => PInvoke.MFStartup(PInvoke.MF_VERSION, PInvoke.MFSTARTUP_LITE).Succeeded);
 
     private readonly IMFActivate _activate;
     private readonly IMFTransform _transform;
+    private IMFDXGIDeviceManager? _deviceManager;
     private bool _disposed;
 
     private MfTransform(IMFActivate activate, IMFTransform transform, string name)
@@ -184,6 +193,60 @@ public sealed unsafe class MfTransform : IDisposable
         }
     }
 
+    /// <summary>True once a graphics device is attached: the transform decodes on the card and outputs surfaces.</summary>
+    public bool OnGraphicsCard => _deviceManager is not null;
+
+    /// <summary>
+    /// Lets the transform decode on the graphics card behind <paramref name="gpu"/>, its pictures then
+    /// staying there as surfaces. False when the transform does not work with Direct3D 11 (it then
+    /// decodes in software as before). Call before setting the output type.
+    /// </summary>
+    [SupportedOSPlatform("windows8.0")]
+    public bool AttachGpu(D3D11Gpu gpu)
+    {
+        ArgumentNullException.ThrowIfNull(gpu);
+        _transform.GetAttributes(out var attributes);
+        try
+        {
+            var aware = PInvoke.MF_SA_D3D11_AWARE;
+            attributes.GetUINT32(&aware, out var value);
+            if (value == 0)
+            {
+                return false;
+            }
+        }
+        catch (COMException)
+        {
+            // The attribute is absent: the transform knows nothing of Direct3D 11.
+            return false;
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(attributes);
+        }
+
+        PInvoke.MFCreateDXGIDeviceManager(out var token, out var manager).ThrowOnFailure();
+        manager.ResetDevice(gpu.Device, token);
+        var pointer = Marshal.GetIUnknownForObject(manager);
+        try
+        {
+            _transform.ProcessMessage(MFT_MESSAGE_TYPE.MFT_MESSAGE_SET_D3D_MANAGER, (nuint)pointer);
+        }
+        catch (COMException)
+        {
+            // The transform refused this device (a software device it cannot decode on, say).
+            Marshal.ReleaseComObject(manager);
+            return false;
+        }
+        finally
+        {
+            Marshal.Release(pointer);
+        }
+
+        _deviceManager = manager;
+        return true;
+    }
+
     /// <summary>Tells the transform a stream is starting, as a pipeline does before the first sample.</summary>
     public void Begin()
     {
@@ -234,69 +297,84 @@ public sealed unsafe class MfTransform : IDisposable
     }
 
     /// <summary>Asks for one output sample.</summary>
+    /// <remarks>
+    /// The call goes straight through the COM vtable with a blittable buffer, so exactly one reference
+    /// to the sample comes back and is handed to its owner. The marshalled form kept extra references,
+    /// and a decoder on the graphics card, whose surfaces return to its pool only when every reference
+    /// is gone, stalled once its pool ran dry.
+    /// </remarks>
     public MfOutputStatus ProcessOutput(out MfSample output)
     {
         output = default;
         MFT_OUTPUT_STREAM_INFO info;
         _transform.GetOutputStreamInfo(0, &info);
-        IMFSample? provided = null;
+        nint provided = 0;
         if ((info.dwFlags & (ProvidesSamples | CanProvideSamples)) == 0)
         {
             PInvoke.MFCreateMemoryBuffer(Math.Max(info.cbSize, 1u), out var buffer).ThrowOnFailure();
-            PInvoke.MFCreateSample(out provided).ThrowOnFailure();
-            provided.AddBuffer(buffer);
+            PInvoke.MFCreateSample(out var sample).ThrowOnFailure();
+            sample.AddBuffer(buffer);
             Marshal.ReleaseComObject(buffer);
+            provided = Marshal.GetIUnknownForObject(sample);
+            Marshal.ReleaseComObject(sample);
         }
 
-        var buffers = new MFT_OUTPUT_DATA_BUFFER[] { new() { dwStreamID = 0, pSample = provided! } };
+        var data = new RawOutputBuffer { Sample = provided };
+        uint status;
+        var transform = Marshal.GetComInterfaceForObject<IMFTransform, IMFTransform>(_transform);
+        int result;
         try
         {
-            _transform.ProcessOutput(0, 1, buffers, out _);
+            var vtable = *(nint**)transform;
+            result = ((delegate* unmanaged[Stdcall]<nint, uint, uint, RawOutputBuffer*, uint*, int>)vtable[ProcessOutputSlot])(transform, 0, 1, &data, &status);
         }
-        catch (COMException ex) when (ex.HResult == HRESULT.MF_E_TRANSFORM_NEED_MORE_INPUT.Value)
+        finally
         {
-            Release(provided, buffers[0]);
-            return MfOutputStatus.NeedMoreInput;
-        }
-        catch (COMException ex) when (ex.HResult == HRESULT.MF_E_TRANSFORM_STREAM_CHANGE.Value)
-        {
-            Release(provided, buffers[0]);
-            return MfOutputStatus.FormatChanged;
+            Marshal.Release(transform);
         }
 
-        var result = buffers[0].pSample;
+        if (data.Events != 0)
+        {
+            Marshal.Release(data.Events);
+        }
+
+        if (result < 0)
+        {
+            ReleaseRaw(provided, data.Sample);
+            if (result == HRESULT.MF_E_TRANSFORM_NEED_MORE_INPUT.Value)
+            {
+                return MfOutputStatus.NeedMoreInput;
+            }
+
+            if (result == HRESULT.MF_E_TRANSFORM_STREAM_CHANGE.Value)
+            {
+                return MfOutputStatus.FormatChanged;
+            }
+
+            Marshal.ThrowExceptionForHR(result);
+        }
+
+        // One managed wrapper now holds the one reference the call returned.
+        var owned = (IMFSample)Marshal.GetObjectForIUnknown(data.Sample);
+        ReleaseRaw(provided, data.Sample);
+        if (OnGraphicsCard && OperatingSystem.IsWindowsVersionAtLeast(8) && Surface(owned) is { } surface)
+        {
+            // The sample now belongs to the surface, which releases it once the picture is shown.
+            output = new MfSample([], Time(owned, out var timed), Duration(owned), timed, surface);
+            return MfOutputStatus.Sample;
+        }
+
         try
         {
-            result.ConvertToContiguousBuffer(out var contiguous);
+            owned.ConvertToContiguousBuffer(out var contiguous);
             try
             {
                 byte* bytes;
                 uint length;
                 contiguous.Lock(&bytes, null, &length);
-                var data = new ReadOnlySpan<byte>(bytes, (int)length).ToArray();
+                var copy = new ReadOnlySpan<byte>(bytes, (int)length).ToArray();
                 contiguous.Unlock();
-                long time = 0, duration = 0;
-                var hasTime = true;
-                try
-                {
-                    result.GetSampleTime(out time);
-                }
-                catch (COMException)
-                {
-                    // The transform left the time unset; the caller continues from the last one.
-                    hasTime = false;
-                }
-
-                try
-                {
-                    result.GetSampleDuration(out duration);
-                }
-                catch (COMException)
-                {
-                    // No duration: the caller derives it from the data.
-                }
-
-                output = new MfSample(data, time, duration, hasTime);
+                output = new MfSample(copy, Time(owned, out var timed), Duration(owned), timed);
                 return MfOutputStatus.Sample;
             }
             finally
@@ -306,7 +384,7 @@ public sealed unsafe class MfTransform : IDisposable
         }
         finally
         {
-            Release(provided, buffers[0]);
+            Marshal.ReleaseComObject(owned);
         }
     }
 
@@ -337,6 +415,66 @@ public sealed unsafe class MfTransform : IDisposable
 
         Marshal.ReleaseComObject(_transform);
         Marshal.ReleaseComObject(_activate);
+        if (_deviceManager is not null)
+        {
+            Marshal.ReleaseComObject(_deviceManager);
+        }
+    }
+
+    /// <summary>The texture slice a sample's first buffer lives in, or null for a buffer in memory.</summary>
+    [SupportedOSPlatform("windows8.0")]
+    private static D3D11Surface? Surface(IMFSample sample)
+    {
+        sample.GetBufferByIndex(0, out var buffer);
+        try
+        {
+            if (buffer is not IMFDXGIBuffer dxgi)
+            {
+                return null;
+            }
+
+            var textureId = typeof(ID3D11Texture2D).GUID;
+            void* texture;
+            dxgi.GetResource(&textureId, &texture);
+            dxgi.GetSubresourceIndex(out var index);
+            var wrapped = (ID3D11Texture2D)Marshal.GetObjectForIUnknown((nint)texture);
+            Marshal.Release((nint)texture);
+            return new D3D11Surface(wrapped, index, sample);
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(buffer);
+        }
+    }
+
+    private static long Time(IMFSample sample, out bool hasTime)
+    {
+        try
+        {
+            sample.GetSampleTime(out var time);
+            hasTime = true;
+            return time;
+        }
+        catch (COMException)
+        {
+            // The transform left the time unset.
+            hasTime = false;
+            return 0;
+        }
+    }
+
+    private static long Duration(IMFSample sample)
+    {
+        try
+        {
+            sample.GetSampleDuration(out var duration);
+            return duration;
+        }
+        catch (COMException)
+        {
+            // No duration: the caller derives it.
+            return 0;
+        }
     }
 
     private static IEnumerable<IMFActivate> Enumerate(Guid category, Guid majorType, Guid inputSubtype, bool hardware)
@@ -398,24 +536,31 @@ public sealed unsafe class MfTransform : IDisposable
         }
     }
 
-    private static void Release(IMFSample? provided, MFT_OUTPUT_DATA_BUFFER buffer)
+    /// <summary>Releases the raw references a ProcessOutput call left: the sample we provided and the one it returned.</summary>
+    private static void ReleaseRaw(nint provided, nint returned)
     {
-        if (buffer.pEvents is not null)
+        if (returned != 0)
         {
-            Marshal.ReleaseComObject(buffer.pEvents);
+            Marshal.Release(returned);
         }
 
-        if (buffer.pSample is not null)
+        if (provided != 0 && provided != returned)
         {
-            Marshal.ReleaseComObject(buffer.pSample);
-        }
-
-        if (provided is not null && !ReferenceEquals(provided, buffer.pSample))
-        {
-            Marshal.ReleaseComObject(provided);
+            Marshal.Release(provided);
         }
     }
+
+    /// <summary>MFT_OUTPUT_DATA_BUFFER with raw pointers, as the vtable call takes it.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RawOutputBuffer
+    {
+        public uint StreamId;
+        public nint Sample;
+        public uint Status;
+        public nint Events;
+    }
 }
+
 
 /// <summary>A media type a transform offered, read through its attributes.</summary>
 [SupportedOSPlatform("windows6.1")]

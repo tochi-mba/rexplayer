@@ -34,10 +34,11 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 {
     /// <summary>
     /// A full-window triangle from the vertex index, and two pixel shaders: YUV planes through the
-    /// colour matrix rows (each a dot product with the samples and 1), and BGRA as it is.
+    /// colour matrix rows (each a dot product with the samples and 1), and BGRA as it is. The crop
+    /// scales texture coordinates when a decoder's surface is larger than the picture it holds.
     /// </summary>
     private const string Shaders = """
-        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; };
+        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
         SamplerState linearClamp : register(s0);
@@ -53,12 +54,13 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
         float4 yuv(Vertex input) : SV_Target
         {
-            float4 samples = float4(luma.Sample(linearClamp, input.uv).r, chroma.Sample(chromaSampler, input.uv).rg, 1);
+            float2 uv = input.uv * crop.xy;
+            float4 samples = float4(luma.Sample(linearClamp, uv).r, chroma.Sample(chromaSampler, uv).rg, 1);
             return float4(saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples))), 1);
         }
         float4 bgra(Vertex input) : SV_Target
         {
-            return float4(luma.Sample(linearClamp, input.uv).rgb, 1);
+            return float4(luma.Sample(linearClamp, input.uv * crop.xy).rgb, 1);
         }
         """;
 
@@ -74,7 +76,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     private ID3D11Texture2D? _chroma;
     private ID3D11ShaderResourceView? _lumaView;
     private ID3D11ShaderResourceView? _chromaView;
-    private (VideoPlaneFormat Format, int Width, int Height) _planes;
+    private (VideoPlaneFormat Format, int Width, int Height, bool Surface) _planes;
+    private (float U, float V) _crop = (1, 1);
     private IDXGISwapChain1? _swapChain;
     private ID3D11Texture2D? _target;
     private ID3D11Texture2D? _staging;
@@ -86,6 +89,10 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _device = device;
         _context = context;
         IsSoftware = software;
+        Gpu = new D3D11Gpu(device, software);
+
+        // Decoders sharing the device call into it from their own thread.
+        ((Windows.Win32.Graphics.Direct3D10.ID3D10Multithread)context).SetMultithreadProtected(true);
         var vertex = Compile("vs", "vs_4_0");
         var yuv = Compile("yuv", "ps_4_0");
         var bgra = Compile("bgra", "ps_4_0");
@@ -102,7 +109,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
         {
-            ByteWidth = 48,
+            ByteWidth = 64,
             Usage = D3D11_USAGE.D3D11_USAGE_DEFAULT,
             BindFlags = D3D11_BIND_FLAG.D3D11_BIND_CONSTANT_BUFFER,
         };
@@ -113,6 +120,9 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 
     /// <summary>True when drawing in software (WARP): asked for, or no graphics card would start.</summary>
     public bool IsSoftware { get; }
+
+    /// <summary>The device, for decoders that can put their pictures straight onto it.</summary>
+    public D3D11Gpu Gpu { get; }
 
     /// <summary>The graphics adapter's name, as its driver gives it.</summary>
     public string AdapterName
@@ -209,7 +219,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// <summary>Copies a picture's planes onto the graphics card, making the textures again when its shape changed.</summary>
     public void Upload(VideoPlaneFormat format, int width, int height, ReadOnlySpan<byte> plane0, int stride0, ReadOnlySpan<byte> plane1, int stride1)
     {
-        if (_planes != (format, width, height))
+        if (_planes != (format, width, height, false))
         {
             ReleasePlanes();
             var (lumaFormat, chromaFormat) = format switch
@@ -226,9 +236,10 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 _chromaView = View(_chroma);
             }
 
-            _planes = (format, width, height);
+            _planes = (format, width, height, false);
         }
 
+        _crop = (1, 1);
         fixed (byte* luma = plane0)
         {
             _context.UpdateSubresource(_luma, 0, null, luma, (uint)stride0, 0);
@@ -241,6 +252,33 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 _context.UpdateSubresource(_chroma, 0, null, chroma, (uint)stride1, 0);
             }
         }
+    }
+
+    /// <summary>
+    /// Takes a picture a decoder left on this device: its slice is copied, on the graphics card, into a
+    /// texture whose planes the shader reads, and only the <paramref name="width"/> by
+    /// <paramref name="height"/> the picture shows is drawn.
+    /// </summary>
+    public void UploadSurface(D3D11Surface surface, VideoPlaneFormat format, int width, int height)
+    {
+        ArgumentNullException.ThrowIfNull(surface);
+        D3D11_TEXTURE2D_DESC source;
+        surface.Texture.GetDesc(&source);
+        var (codedWidth, codedHeight) = ((int)source.Width, (int)source.Height);
+        if (_planes != (format, codedWidth, codedHeight, true))
+        {
+            ReleasePlanes();
+            _luma = Texture(codedWidth, codedHeight, source.Format, D3D11_USAGE.D3D11_USAGE_DEFAULT, D3D11_BIND_FLAG.D3D11_BIND_SHADER_RESOURCE, 0);
+            var (lumaFormat, chromaFormat) = format == VideoPlaneFormat.P010
+                ? (DXGI_FORMAT.DXGI_FORMAT_R16_UNORM, DXGI_FORMAT.DXGI_FORMAT_R16G16_UNORM)
+                : (DXGI_FORMAT.DXGI_FORMAT_R8_UNORM, DXGI_FORMAT.DXGI_FORMAT_R8G8_UNORM);
+            _lumaView = PlaneView(_luma, lumaFormat);
+            _chromaView = PlaneView(_luma, chromaFormat);
+            _planes = (format, codedWidth, codedHeight, true);
+        }
+
+        _context.CopySubresourceRegion(_luma, 0, 0, 0, 0, surface.Texture, surface.Index, null);
+        _crop = ((float)width / codedWidth, (float)height / codedHeight);
     }
 
     /// <summary>
@@ -263,9 +301,12 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             return;
         }
 
-        fixed (float* matrix = colourMatrix)
+        Span<float> constants = stackalloc float[16];
+        colourMatrix.CopyTo(constants);
+        (constants[12], constants[13]) = (_crop.U, _crop.V);
+        fixed (float* values = constants)
         {
-            _context.UpdateSubresource(_colour, 0, null, matrix, 48, 0);
+            _context.UpdateSubresource(_colour, 0, null, values, 64, 0);
         }
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };
@@ -334,7 +375,13 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     {
         try
         {
-            PInvoke.D3D11CreateDevice(null, driver, default, D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_BGRA_SUPPORT, default, PInvoke.D3D11_SDK_VERSION, out device, out _, out context).ThrowOnFailure();
+            // Video support lets Windows' decoders use the card; a device without it still draws.
+            var flags = D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_VIDEO_SUPPORT;
+            if (PInvoke.D3D11CreateDevice(null, driver, default, flags, default, PInvoke.D3D11_SDK_VERSION, out device, out _, out context).Failed)
+            {
+                PInvoke.D3D11CreateDevice(null, driver, default, D3D11_CREATE_DEVICE_FLAG.D3D11_CREATE_DEVICE_BGRA_SUPPORT, default, PInvoke.D3D11_SDK_VERSION, out device, out _, out context).ThrowOnFailure();
+            }
+
             return true;
         }
         catch (COMException)
@@ -431,6 +478,20 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     {
         ID3D11ShaderResourceView_unmanaged* view;
         _device.CreateShaderResourceView(texture, null, &view);
+        return Wrap<ID3D11ShaderResourceView>(view);
+    }
+
+    /// <summary>A view of one plane of a planar texture (NV12, P010) in the format its samples read as.</summary>
+    private ID3D11ShaderResourceView PlaneView(ID3D11Texture2D texture, DXGI_FORMAT format)
+    {
+        var description = new D3D11_SHADER_RESOURCE_VIEW_DESC
+        {
+            Format = format,
+            ViewDimension = D3D_SRV_DIMENSION.D3D_SRV_DIMENSION_TEXTURE2D,
+        };
+        description.Anonymous.Texture2D.MipLevels = 1;
+        ID3D11ShaderResourceView_unmanaged* view;
+        _device.CreateShaderResourceView(texture, &description, &view);
         return Wrap<ID3D11ShaderResourceView>(view);
     }
 

@@ -241,6 +241,7 @@ public static partial class CliApplication
                     ["videoFramesPresented"] = stats.VideoFramesPresented,
                     ["videoFramesDropped"] = stats.VideoFramesDropped,
                     ["videoDecoder"] = stats.VideoDecoder,
+                    ["videoDecoderSource"] = stats.VideoDecoderSource?.ToString(),
                 };
                 host.Out.WriteLine(MachineEnvelope.Success("play", data));
             }

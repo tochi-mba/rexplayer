@@ -177,6 +177,7 @@ public sealed partial class MediaSession
             VideoFramesPresented = Interlocked.Read(ref _videoFramesPresented),
             VideoFramesDropped = Interlocked.Read(ref _videoFramesDropped),
             VideoDecoder = Volatile.Read(ref _videoItem).VideoDecoder?.Name,
+            VideoDecoderSource = Volatile.Read(ref _videoItem).VideoDecoder?.Source,
         };
 
         public void Dispose()
@@ -325,7 +326,7 @@ public sealed partial class MediaSession
             {
                 try
                 {
-                    var item = _session.OpenItem(source);
+                    var item = _session.OpenItem(source, () => _presenter);
                     lock (_items)
                     {
                         _items.Add(item);

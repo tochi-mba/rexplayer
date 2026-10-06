@@ -66,7 +66,9 @@ public sealed class MfVideoDecoderTests
             packet.Dispose();
         }
 
-        decoder.Drain(frames);
+        while (!decoder.Drain(frames))
+        {
+        }
         var result = (frames.Select(Hash).ToList(), frames.Select(f => f.Pts).ToList(), track);
         frames.ForEach(f => f.Dispose());
         return result;
@@ -131,7 +133,9 @@ public sealed class MfVideoDecoderTests
             packet.Dispose();
         }
 
-        decoder.Drain(frames);
+        while (!decoder.Drain(frames))
+        {
+        }
         var hashes = frames.Select(Hash).ToList();
         frames.ForEach(f => f.Dispose());
 

@@ -1,3 +1,4 @@
+using Rex.Media.Codecs;
 using Rex.Media.Primitives;
 
 namespace Rex.Media.Engine;
@@ -59,6 +60,9 @@ public sealed record SessionStats
     public long VideoFramesDropped { get; init; }
 
     public string? VideoDecoder { get; init; }
+
+    /// <summary>Where pictures are decoded: rexplayer's own code, Windows in software, or the graphics card.</summary>
+    public DecoderSource? VideoDecoderSource { get; init; }
 }
 
 /// <summary>

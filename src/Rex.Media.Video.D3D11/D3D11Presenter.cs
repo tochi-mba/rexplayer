@@ -28,6 +28,9 @@ public sealed class D3D11Presenter : IVideoPresenter
 
     public string Name => _renderer.IsSoftware ? "Direct3D 11 (software)" : "Direct3D 11";
 
+    /// <summary>The device, so a decoder on the graphics card can leave its pictures where they are drawn.</summary>
+    public object? Gpu => _renderer.Gpu;
+
     /// <summary>Draws into <paramref name="window"/>, which the presenter then owns.</summary>
     public static D3D11Presenter ForWindow(VideoWindow window, bool software = false)
     {
@@ -55,6 +58,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
 
         var color = frame.Color.Resolve(frame.Width, frame.Height);
+        if (frame.Surface is D3D11Surface surface)
+        {
+            var tenBit = frame.Format == PixelFormat.P010;
+            _renderer.UploadSurface(surface, tenBit ? VideoPlaneFormat.P010 : VideoPlaneFormat.Nv12, frame.Width, frame.Height);
+            Draw(frame, tenBit ? YuvTransform.For(color, 10).ForShader(65535.0 / 64) : YuvTransform.For(color, 8).ForShader(255));
+            _renderer.Present(waitForRefresh: _window is not null);
+            return;
+        }
+
         switch (frame.Format)
         {
             case PixelFormat.Nv12:

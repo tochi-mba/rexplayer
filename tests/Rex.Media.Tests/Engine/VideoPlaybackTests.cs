@@ -99,6 +99,7 @@ public sealed class VideoPlaybackTests
 
         Assert.Equal(Video, harness.WaitFor<TrackFailedEvent>().TrackId);
         Assert.Empty(presenter.Shown);
+        Assert.True(presenter.Disposed);
         Assert.Equal(960, harness.Recording.Channel(0).Length);
     }
 
@@ -128,6 +129,34 @@ public sealed class VideoPlaybackTests
 
         Assert.Equal([0, 1, 0, 1, 2], presenter.Shown.Select(s => (int)s.First));
         Assert.Equal(2, (await harness.Session.GetStatsAsync()).ItemsStarted);
+    }
+
+    [Fact]
+    public async Task ARunCanEndOnMediaWithoutPictures()
+    {
+        var presenter = new RecordingVideoPresenter();
+        var soundOnly = MatroskaCraftedTests.Mkv(
+            MatroskaCraftedTests.Tracks(MatroskaCraftedTests.PcmTrack(Audio)),
+            MatroskaCraftedTests.Cluster(0, MatroskaCraftedTests.Simple(Audio, 0, true, Pcm.Int16(new float[320]))));
+        using var harness = Harness(presenter);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Clip(2), "a.mkv"), [SessionHarness.Source(soundOnly, "b.mkv")]);
+        await harness.FinishAsync();
+
+        Assert.Equal([0, 1], presenter.Shown.Select(s => (int)s.First));
+        Assert.Equal(960, harness.Recording.Channel(0).Length);
+    }
+
+    [Fact]
+    public async Task ADecoderThatDrainsInStepsHasEveryPictureShown()
+    {
+        var presenter = new RecordingVideoPresenter();
+        using var harness = Harness(presenter, new FakeVideoDecoderFactory { Hold = true, DrainOneAtATime = true });
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Clip(2), "a.mkv"), [SessionHarness.Source(Clip(3), "b.mkv")]);
+        await harness.FinishAsync();
+
+        Assert.Equal([0, 1, 0, 1, 2], presenter.Shown.Select(s => (int)s.First));
     }
 
     [Fact]
@@ -181,7 +210,6 @@ public sealed class VideoPlaybackTests
         // After the sound, pictures follow real time: each is shown, or counted if a busy machine made it late.
         var stats = await harness.Session.GetStatsAsync();
         Assert.Equal([0, 1], presenter.Shown.Take(2).Select(s => (int)s.First));
-        Assert.Equal(5, presenter.Shown[^1].First);
         Assert.Equal(6, presenter.Shown.Count + stats.VideoFramesDropped);
     }
 

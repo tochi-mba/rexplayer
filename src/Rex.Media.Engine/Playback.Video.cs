@@ -1,3 +1,4 @@
+using Rex.Media.Codecs;
 using Rex.Media.Diagnostics;
 using Rex.Media.Primitives;
 
@@ -125,8 +126,7 @@ public sealed partial class MediaSession
                 if (item.Owner is MediaItem owner && !ReferenceEquals(owner, _videoItem))
                 {
                     // The run has moved to the next item: what the last one's decoder holds is shown first.
-                    _videoItem.VideoDecoder?.Drain(state.Decoded);
-                    Show(state);
+                    DrainAndShow(_videoItem.VideoDecoder, state);
                     Volatile.Write(ref _videoItem, owner);
                     state.Target = MediaTime.Zero;
                     ReleaseFinishedItems();
@@ -135,8 +135,7 @@ public sealed partial class MediaSession
                 var decoder = _videoItem.VideoDecoder;
                 if (item.EndOfStream)
                 {
-                    decoder?.Drain(state.Decoded);
-                    Show(state);
+                    DrainAndShow(decoder, state);
                     StreamEnded(video: true, state.Generation);
                     continue;
                 }
@@ -157,6 +156,22 @@ public sealed partial class MediaSession
 
                 Show(state);
             }
+        }
+
+        /// <summary>Shows everything a decoder still holds, batch by batch, releasing each batch before asking for the next.</summary>
+        private void DrainAndShow(IVideoDecoder? decoder, VideoState state)
+        {
+            if (decoder is null)
+            {
+                return;
+            }
+
+            while (!decoder.Drain(state.Decoded))
+            {
+                Show(state);
+            }
+
+            Show(state);
         }
 
         /// <summary>Presents the decoded pictures in turn, each when it is due, and empties the list.</summary>

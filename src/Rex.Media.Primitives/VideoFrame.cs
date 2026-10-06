@@ -3,9 +3,10 @@ using System.Buffers;
 namespace Rex.Media.Primitives;
 
 /// <summary>
-/// A decoded picture in system memory: its planes in one pooled array, each row padded to a
-/// 64-byte stride so converters can read whole vectors. The frame object is pooled like
-/// <see cref="AudioFrame"/>; disposing returns both.
+/// A decoded picture: in system memory, its planes in one pooled array with each row padded to a
+/// 64-byte stride so converters can read whole vectors; or on the graphics card, as a surface a
+/// hardware decoder left there (then it has no planes). The frame object is pooled like
+/// <see cref="AudioFrame"/>; disposing returns the planes or releases the surface.
 /// </summary>
 public sealed class VideoFrame : IDisposable
 {
@@ -15,6 +16,8 @@ public sealed class VideoFrame : IDisposable
     private readonly int[] _offsets = new int[3];
     private readonly int[] _strides = new int[3];
     private byte[]? _data;
+    private IDisposable? _surface;
+    private int _live;
     private SlotPool<VideoFrame>? _home;
 
     private VideoFrame()
@@ -38,12 +41,24 @@ public sealed class VideoFrame : IDisposable
 
     public long Generation { get; set; }
 
-    public bool IsDisposed => _data is null;
+    public bool IsDisposed => Volatile.Read(ref _live) == 0;
+
+    /// <summary>The surface on the graphics card holding the picture, or null for a picture in memory.</summary>
+    public IDisposable? Surface => _surface;
 
     public static VideoFrame Rent(PixelFormat format, int width, int height) => Rent(Pool, format, width, height);
 
+    /// <summary>A picture held on the graphics card by <paramref name="surface"/>, which the frame then owns.</summary>
+    public static VideoFrame OnGraphicsCard(PixelFormat format, int width, int height, IDisposable surface)
+    {
+        ArgumentNullException.ThrowIfNull(surface);
+        var frame = Rent(Pool, format, width, height, planes: false);
+        frame._surface = surface;
+        return frame;
+    }
+
     /// <summary>Rents from <paramref name="pool"/>; with no pool the frame is dropped when disposed.</summary>
-    internal static VideoFrame Rent(SlotPool<VideoFrame>? pool, PixelFormat format, int width, int height)
+    internal static VideoFrame Rent(SlotPool<VideoFrame>? pool, PixelFormat format, int width, int height, bool planes = true)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
@@ -60,7 +75,9 @@ public sealed class VideoFrame : IDisposable
         }
 
         frame._home = pool;
-        frame._data = ArrayPool<byte>.Shared.Rent(size);
+        frame._data = planes ? ArrayPool<byte>.Shared.Rent(size) : null;
+        frame._surface = null;
+        frame._live = 1;
         frame.Format = format;
         frame.Width = width;
         frame.Height = height;
@@ -97,15 +114,21 @@ public sealed class VideoFrame : IDisposable
 
     public void Dispose()
     {
-        var data = Interlocked.Exchange(ref _data, null);
-        if (data is null)
+        if (Interlocked.Exchange(ref _live, 0) == 0)
         {
             return;
         }
 
-        ArrayPool<byte>.Shared.Return(data);
+        if (Interlocked.Exchange(ref _data, null) is { } data)
+        {
+            ArrayPool<byte>.Shared.Return(data);
+        }
+
+        Interlocked.Exchange(ref _surface, null)?.Dispose();
         _home?.Return(this);
     }
 
-    private byte[] Data => _data ?? throw new ObjectDisposedException(nameof(VideoFrame));
+    private byte[] Data => _data ?? (IsDisposed
+        ? throw new ObjectDisposedException(nameof(VideoFrame))
+        : throw new InvalidOperationException("The picture is on the graphics card; it has no planes in memory."));
 }

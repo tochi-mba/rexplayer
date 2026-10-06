@@ -80,6 +80,19 @@ public sealed class SnapshotTests : IDisposable
     }
 
     [Fact]
+    public void ADecoderThatDrainsInStepsStillGivesThePicture()
+    {
+        using var demuxer = Open(Video(0, 40, 80));
+
+        var (frame, _) = Snapshot.Take(demuxer, Decoders(new FakeVideoDecoderFactory { Hold = true, DrainOneAtATime = true }), MediaTime.FromSeconds(0.05), CancellationToken.None);
+
+        using (frame)
+        {
+            Assert.Equal(1, frame.Row(0, 0)[0]);
+        }
+    }
+
+    [Fact]
     public void FilesWithoutAPictureToTakeAreRefused()
     {
         var audioOnly = MatroskaCraftedTests.Mkv(MatroskaCraftedTests.Tracks(MatroskaCraftedTests.PcmTrack()));
