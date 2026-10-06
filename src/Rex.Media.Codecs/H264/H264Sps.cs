@@ -45,13 +45,13 @@ public static class H264Sps
         var bitDepth = 8;
         if (HighProfiles.Contains(profile))
         {
-            chromaFormat = (int)reader.ReadUnsignedExpGolomb();
+            chromaFormat = reader.ReadUnsignedExpGolomb(3, "chroma_format_idc");
             if (chromaFormat == 3)
             {
                 separatePlanes = reader.ReadBit();
             }
 
-            bitDepth = 8 + (int)reader.ReadUnsignedExpGolomb();
+            bitDepth = 8 + reader.ReadUnsignedExpGolomb(6, "bit_depth_luma_minus8");
             reader.ReadUnsignedExpGolomb();
             reader.SkipBits(1);
             if (reader.ReadBit())
@@ -77,8 +77,8 @@ public static class H264Sps
             reader.SkipBits(1);
             reader.ReadSignedExpGolomb();
             reader.ReadSignedExpGolomb();
-            var cycle = reader.ReadUnsignedExpGolomb();
-            for (var i = 0u; i < cycle; i++)
+            var cycle = reader.ReadUnsignedExpGolomb(255, "num_ref_frames_in_pic_order_cnt_cycle");
+            for (var i = 0; i < cycle; i++)
             {
                 reader.ReadSignedExpGolomb();
             }

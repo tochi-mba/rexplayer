@@ -152,6 +152,21 @@ public ref struct BitReader
         return leadingZeros == 0 ? 0 : (uint)((1UL << (int)leadingZeros) - 1 + ReadBits((int)leadingZeros));
     }
 
+    /// <summary>
+    /// An unsigned Exp-Golomb code that the specification limits to <paramref name="maximum"/>; a larger
+    /// one means the stream is damaged or hostile, so it is refused before it can size anything.
+    /// </summary>
+    public int ReadUnsignedExpGolomb(int maximum, string element)
+    {
+        var value = ReadUnsignedExpGolomb();
+        if (value > maximum)
+        {
+            throw new MediaFormatException($"{element} is {value}, above the {maximum} the specification allows.");
+        }
+
+        return (int)value;
+    }
+
     /// <summary>A signed Exp-Golomb code, se(v): 1, -1, 2, -2, ... for codes 1, 2, 3, 4, ...</summary>
     public int ReadSignedExpGolomb()
     {

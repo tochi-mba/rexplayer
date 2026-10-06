@@ -41,7 +41,7 @@ public static class HevcSps
         reader.SkipBits(1);
         var (profile, level) = ProfileTierLevel(ref reader, subLayers);
         reader.ReadUnsignedExpGolomb();
-        var chromaFormat = (int)reader.ReadUnsignedExpGolomb();
+        var chromaFormat = reader.ReadUnsignedExpGolomb(3, "chroma_format_idc");
         if (chromaFormat == 3)
         {
             reader.SkipBits(1);
@@ -57,9 +57,9 @@ public static class HevcSps
             height -= unitY * ((long)reader.ReadUnsignedExpGolomb() + reader.ReadUnsignedExpGolomb());
         }
 
-        var bitDepth = 8 + (int)reader.ReadUnsignedExpGolomb();
+        var bitDepth = 8 + reader.ReadUnsignedExpGolomb(8, "bit_depth_luma_minus8");
         reader.ReadUnsignedExpGolomb();
-        var pocLsbBits = (int)reader.ReadUnsignedExpGolomb() + 4;
+        var pocLsbBits = reader.ReadUnsignedExpGolomb(12, "log2_max_pic_order_cnt_lsb_minus4") + 4;
         for (var i = reader.ReadBit() ? 0 : subLayers; i <= subLayers; i++)
         {
             reader.ReadUnsignedExpGolomb();
@@ -86,11 +86,11 @@ public static class HevcSps
             reader.SkipBits(1);
         }
 
-        SkipReferencePictureSets(ref reader, (int)reader.ReadUnsignedExpGolomb());
+        SkipReferencePictureSets(ref reader, reader.ReadUnsignedExpGolomb(64, "num_short_term_ref_pic_sets"));
         if (reader.ReadBit())
         {
-            var count = reader.ReadUnsignedExpGolomb();
-            for (var i = 0u; i < count; i++)
+            var count = reader.ReadUnsignedExpGolomb(32, "num_long_term_ref_pics_sps");
+            for (var i = 0; i < count; i++)
             {
                 reader.SkipBits(pocLsbBits + 1);
             }
@@ -192,11 +192,6 @@ public static class HevcSps
     /// </summary>
     private static void SkipReferencePictureSets(ref BitReader reader, int count)
     {
-        if (count > 64)
-        {
-            throw new MediaFormatException("An HEVC sequence parameter set declares more than 64 reference picture sets.");
-        }
-
         var pictures = new int[count];
         for (var set = 0; set < count; set++)
         {
@@ -217,20 +212,15 @@ public static class HevcSps
                 continue;
             }
 
-            var negative = reader.ReadUnsignedExpGolomb();
-            var positive = reader.ReadUnsignedExpGolomb();
-            if (negative > 16 || positive > 16)
-            {
-                throw new MediaFormatException("An HEVC reference picture set holds more than 16 pictures.");
-            }
-
-            for (var i = 0u; i < negative + positive; i++)
+            var negative = reader.ReadUnsignedExpGolomb(16, "num_negative_pics");
+            var positive = reader.ReadUnsignedExpGolomb(16, "num_positive_pics");
+            for (var i = 0; i < negative + positive; i++)
             {
                 reader.ReadUnsignedExpGolomb();
                 reader.SkipBits(1);
             }
 
-            pictures[set] = (int)(negative + positive);
+            pictures[set] = negative + positive;
         }
     }
 }

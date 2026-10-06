@@ -160,4 +160,19 @@ public sealed class BitReaderTests
 
         Assert.Throws<MediaFormatException>(() => new BitReader(data).ReadUnsignedExpGolomb());
     }
+
+    [Fact]
+    public void ABoundedExpGolombValueIsReadUpToItsLimitAndRefusedAbove()
+    {
+        var reader = new BitReader([0b0001_0110, 0b0000_0000]);
+        Assert.Equal(10, reader.ReadUnsignedExpGolomb(10, "count"));
+
+        // The largest code there is, 2^32 - 2, cast to an int would wrap negative and slip past a check.
+        var huge = new byte[9];
+        huge[3] = 0x01;
+        Array.Fill(huge, (byte)0xFF, 4, 5);
+        var error = Assert.Throws<MediaFormatException>(() => new BitReader(huge).ReadUnsignedExpGolomb(64, "num_short_term_ref_pic_sets"));
+        Assert.Equal("num_short_term_ref_pic_sets is 4294967294, above the 64 the specification allows.", error.Message);
+        Assert.Throws<MediaFormatException>(() => new BitReader([0b0001_0110]).ReadUnsignedExpGolomb(9, "count"));
+    }
 }
