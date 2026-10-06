@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 258 planned, 10 built, 21 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 257 planned, 10 built, 22 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -91,7 +91,7 @@ Totals: 258 planned, 10 built, 21 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-A02 | MP3 (incl. MPEG-2.5, free-format) | Own | M2 | must | verified |
 | FMT-A03 | MP1 / MP2 | Own | M7 | must | planned |
 | FMT-A04 | FLAC (incl. 24/32-bit, up to 8 ch) | Own | M2 | must | verified |
-| FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | MF | M3 | must | planned |
+| FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | MF | M3 | must | verified |
 | FMT-A06 | AC-3 | Own (dialnorm, DRC modes, downmix coefficients) | M7 | must | planned |
 | FMT-A07 | E-AC-3 | MF ext → own after legal checkpoint | M11/M12 | should | planned |
 | FMT-A08 | DTS core (+ core extraction from DTS-HD) | Own | M12 | should | planned |

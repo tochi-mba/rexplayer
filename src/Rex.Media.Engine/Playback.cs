@@ -23,6 +23,9 @@ public sealed partial class MediaSession
     /// </summary>
     private sealed class Playback : IDisposable
     {
+        /// <summary>How far a frame may start from where the last ended and still be taken to follow it.</summary>
+        private static readonly MediaTime TimestampJitter = MediaTime.FromMilliseconds(2);
+
         private readonly MediaSession _session;
         private readonly IAudioSink _sink;
         private readonly AudioFormat _sinkFormat;
@@ -368,6 +371,8 @@ public sealed partial class MediaSession
             _sink.Flush();
             _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate);
             state.AwaitingFirstFrame = true;
+            state.NextPts = MediaTime.Unknown;
+            state.PaddingSamples = 0;
         }
 
         /// <summary>
@@ -385,6 +390,8 @@ public sealed partial class MediaSession
                 state.AwaitingFirstFrame = true;
             }
 
+            state.NextPts = MediaTime.Unknown;
+            state.PaddingSamples = 0;
             var finishedDuration = _audioItem.Info.Duration;
             Interlocked.Add(ref _earlierTicks, finishedDuration.IsKnown ? finishedDuration.Ticks : 0);
             Interlocked.Increment(ref _itemsStarted);
@@ -436,11 +443,15 @@ public sealed partial class MediaSession
         /// <summary>Decodes and plays one packet. False when the track has failed for good.</summary>
         private bool DecodePacket(AudioState state, Packet packet)
         {
+            if (packet.DiscardSamples > 0 && packet.Pts.IsKnown)
+            {
+                (state.PaddingAt, state.PaddingSamples) = (packet.Pts, packet.DiscardSamples);
+            }
+
             try
             {
                 _audioItem.Decoder.Decode(packet, state.Decoded);
                 state.ConsecutiveFailures = 0;
-                DropPadding(state.Decoded, packet.DiscardSamples);
             }
             catch (MediaFormatException ex)
             {
@@ -476,6 +487,8 @@ public sealed partial class MediaSession
                 {
                     using var frame = frames[next++];
                     Interlocked.Increment(ref _framesDecoded);
+                    DropPadding(state, frame);
+                    Smooth(state, frame);
                     if (Trim(frame) && _pipeline.Process(frame) is { } processed)
                     {
                         WriteProcessed(state, processed);
@@ -577,15 +590,34 @@ public sealed partial class MediaSession
             frames.Clear();
         }
 
-        /// <summary>Takes the padding a container flagged off the end of what one packet decoded to.</summary>
-        private static void DropPadding(List<AudioFrame> frames, int samples)
+        /// <summary>
+        /// Containers round timestamps (Matroska to the millisecond), so a frame that starts within a
+        /// rounding error of where the last one ended is taken to follow it exactly, and a frame with
+        /// no timestamp continues from the last. Otherwise the frame straddling time zero could lose
+        /// samples to the trim, and seams could drop or repeat a few.
+        /// </summary>
+        private static void Smooth(AudioState state, AudioFrame frame)
         {
-            for (var i = frames.Count - 1; i >= 0 && samples > 0; i--)
+            if (state.NextPts.IsKnown && (!frame.Pts.IsKnown || Math.Abs((frame.Pts - state.NextPts).Ticks) <= TimestampJitter.Ticks))
             {
-                var frame = frames[i];
-                var cut = Math.Min(samples, frame.SampleCount);
-                frame.SetSampleCount(frame.SampleCount - cut);
-                samples -= cut;
+                frame.Pts = state.NextPts;
+            }
+
+            state.NextPts = frame.Pts.IsKnown ? frame.Pts + frame.Duration : MediaTime.Unknown;
+        }
+
+        /// <summary>
+        /// Takes the padding a container flagged off the end of the frame decoded from that packet.
+        /// Decoders stamp a frame with its packet's time (to within rounding), which is how the frame is found: a decoder
+        /// with latency (Windows' AAC decoder returns each packet's audio one packet later) hands it
+        /// over later than the packet arrived.
+        /// </summary>
+        private static void DropPadding(AudioState state, AudioFrame frame)
+        {
+            if (state.PaddingSamples > 0 && frame.Pts.IsKnown && Math.Abs((frame.Pts - state.PaddingAt).Ticks) <= TimestampJitter.Ticks)
+            {
+                frame.SetSampleCount(Math.Max(0, frame.SampleCount - state.PaddingSamples));
+                state.PaddingSamples = 0;
             }
         }
 
@@ -599,6 +631,14 @@ public sealed partial class MediaSession
             public bool AwaitingFirstFrame { get; set; }
 
             public int ConsecutiveFailures { get; set; }
+
+            /// <summary>Where the last frame ended, for smoothing the next one's timestamp.</summary>
+            public MediaTime NextPts { get; set; } = MediaTime.Unknown;
+
+            /// <summary>The time of a packet whose decoded end is padding, and how many samples of it.</summary>
+            public MediaTime PaddingAt { get; set; }
+
+            public int PaddingSamples { get; set; }
 
             public List<AudioFrame> Decoded { get; } = [];
         }

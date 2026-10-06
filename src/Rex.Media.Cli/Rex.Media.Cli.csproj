@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
     <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
     <ProjectReference Include="..\Rex.Media.Audio.Wasapi\Rex.Media.Audio.Wasapi.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
   </ItemGroup>
 

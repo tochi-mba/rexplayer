@@ -10,6 +10,7 @@ You need the .NET 10 SDK, Python 3, Node 22 and, to build the installer, Inno Se
 ./dev.ps1 build    # warnings are errors
 ./dev.ps1 test     # the pure suite, with coverage
 ./dev.ps1 gate     # every required line covered
+./dev.ps1 adapters # the Windows adapter suite
 ./dev.ps1 check    # all of the above plus the formatting check: run it before you push
 ```
 
@@ -20,6 +21,7 @@ You need the .NET 10 SDK, Python 3, Node 22 and, to build the installer, Inno Se
 | Unit and property | `tests/Rex.Media.Tests/<Area>` | One rule per test, with signals and fixtures built in code |
 | Engine | `tests/Rex.Media.Tests/Engine` | Whole sessions against a recording sink: exact samples, seeks, failures |
 | Command line | `tests/Rex.Media.Tests/AppCore` and `./dev.ps1 smoke` | The commands in-process, then the published executable |
+| Windows adapters | `tests/Rex.Media.Windows.Tests` | Media Foundation and other system components, driven for real and compared with independent decoders |
 | Repository | `tests/Rex.Media.Tests/Repository` | The rules in AGENTS.md that a test can check |
 | Website | `tests/site` | The checker, the page script and the real page in a browser |
 

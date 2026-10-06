@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using Rex.Media.Codecs.Software.Mpeg;
 using Rex.Media.Containers.Mpeg;
 using Rex.Media.IO;
@@ -28,33 +27,7 @@ public sealed class Mp3FixtureTests
     };
 
     /// <summary>Reads a 24-bit PCM WAV into float planes.</summary>
-    internal static float[][] ReadReference(string path)
-    {
-        var bytes = File.ReadAllBytes(path);
-        var span = bytes.AsSpan();
-        var fmt = span.IndexOf("fmt "u8);
-        var channels = BinaryPrimitives.ReadUInt16LittleEndian(span[(fmt + 10)..]);
-        var data = span.IndexOf("data"u8);
-        var length = (int)BinaryPrimitives.ReadUInt32LittleEndian(span[(data + 4)..]);
-        var samples = length / 3 / channels;
-        var planes = new float[channels][];
-        for (var c = 0; c < channels; c++)
-        {
-            planes[c] = new float[samples];
-        }
-
-        var at = data + 8;
-        for (var i = 0; i < samples; i++)
-        {
-            for (var c = 0; c < channels; c++, at += 3)
-            {
-                var value = (bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16)) << 8 >> 8;
-                planes[c][i] = value / 8_388_608f;
-            }
-        }
-
-        return planes;
-    }
+    internal static float[][] ReadReference(string path) => ReferenceAudio.Read(path);
 
     /// <summary>Decodes a file the way playback does: gapless delay and padding cut by timestamp and duration.</summary>
     internal static (float[][] Planes, Mp3Decoder Decoder, MediaInfo Info) Decode(byte[] file)
@@ -92,19 +65,7 @@ public sealed class Mp3FixtureTests
         return ([.. planes.Select(p => p.ToArray())], decoder, demuxer.Info);
     }
 
-    internal static (double Rms, double Peak) Difference(float[] actual, float[] expected)
-    {
-        double sum = 0;
-        double peak = 0;
-        for (var i = 0; i < expected.Length; i++)
-        {
-            var difference = Math.Abs((double)actual[i] - expected[i]);
-            sum += difference * difference;
-            peak = Math.Max(peak, difference);
-        }
-
-        return (Math.Sqrt(sum / expected.Length), peak);
-    }
+    internal static (double Rms, double Peak) Difference(float[] actual, float[] expected) => ReferenceAudio.Difference(actual, expected);
 
     [Theory]
     [MemberData(nameof(Fixtures))]

@@ -6,6 +6,7 @@
     <Project Path="src/Rex.Media.Containers/Rex.Media.Containers.csproj" />
     <Project Path="src/Rex.Media.Codecs/Rex.Media.Codecs.csproj" />
     <Project Path="src/Rex.Media.Codecs.Software/Rex.Media.Codecs.Software.csproj" />
+    <Project Path="src/Rex.Media.Codecs.MediaFoundation/Rex.Media.Codecs.MediaFoundation.csproj" />
     <Project Path="src/Rex.Media.Audio/Rex.Media.Audio.csproj" />
     <Project Path="src/Rex.Media.Audio.Wasapi/Rex.Media.Audio.Wasapi.csproj" />
     <Project Path="src/Rex.Media.Engine/Rex.Media.Engine.csproj" />
@@ -16,5 +17,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Rex.Media.TestKit/Rex.Media.TestKit.csproj" />
     <Project Path="tests/Rex.Media.Tests/Rex.Media.Tests.csproj" />
+    <Project Path="tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj" />
   </Folder>
 </Solution>

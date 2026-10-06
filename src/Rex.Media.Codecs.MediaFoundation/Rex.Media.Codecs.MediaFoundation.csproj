@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Rex.Media.Codecs.MediaFoundation</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\Rex.Media.Interop\Rex.Media.Interop.csproj" />
+  </ItemGroup>
+
+</Project>

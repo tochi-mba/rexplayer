@@ -68,6 +68,9 @@ jobs:
       - name: Every required line is covered
         run: ./dev.ps1 gate
 
+      - name: Windows adapter tests
+        run: ./dev.ps1 adapters
+
       - name: Build the installer and the portable zip
         shell: pwsh
         run: ./dev.ps1 package -Version "${{ steps.version.outputs.package_version }}"

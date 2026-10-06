@@ -229,3 +229,15 @@ Invoke-Video -Name 'hevc-main10-hdr.hevc' -Size '128x72' -Rate '50' -Options ($x
 Invoke-Video -Name 'hevc-444-layers.hevc' -Size '64x48' -Rate '30' -Options ($x265 + @('log-level=error:temporal-layers=3:scaling-list=default:ref=3:bframes=3', '-pix_fmt', 'yuv444p'))
 Invoke-Video -Name 'hevc-field.hevc' -Size '64x48' -Rate '25' -Options ($x265 + @('log-level=error:interlace=tff', '-pix_fmt', 'yuv422p'))
 Invoke-Video -Name 'hevc-in-mp4.mp4' -Size '130x74' -Rate '25' -Options ($x265 + @('log-level=error', '-pix_fmt', 'yuv420p', '-vf', 'setsar=16/11', '-tag:v', 'hvc1'))
+
+# FFmpeg's own decode of the AAC in the video fixtures, for checking the decoder Windows supplies.
+foreach ($pair in @(@('mp4', 'h264-aac.mp4'), @('mkv', 'h264-aac-subtitles.mkv'))) {
+    $source = Join-Path $root "tests/fixtures/$($pair[0])/$($pair[1])"
+    $wav = Join-Path $root "tests/fixtures/$($pair[0])/$([System.IO.Path]::GetFileNameWithoutExtension($pair[1])).aac.reference.wav"
+    & $Ffmpeg -hide_banner -loglevel error -y -i $source -map 0:a:0 -c:a pcm_s24le -map_metadata -1 -fflags +bitexact -flags:a +bitexact $wav
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to write $wav."
+    }
+
+    Write-Host "Wrote $wav ($((Get-Item $wav).Length) bytes)."
+}

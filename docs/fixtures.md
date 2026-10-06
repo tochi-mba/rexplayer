@@ -48,6 +48,7 @@ long, which also proves the gapless trim.
 | `tests/fixtures/mp4/*.reference.wav` | Each audio file above decoded by FFmpeg to 24-bit PCM, edit lists applied | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mp4/alac.m4a` | The same tones as Apple Lossless, to check a codec rexplayer names but does not yet decode | `scripts/make-fixtures.ps1` (FFmpeg) |
 | `tests/fixtures/mp4/h264-aac.mp4` | 0.4 s test pattern, 128x72 at 25 fps, H.264 with B-frames and AAC, tags and two chapters | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
+| `tests/fixtures/mp4/h264-aac.aac.reference.wav`, `tests/fixtures/mkv/h264-aac-subtitles.aac.reference.wav` | The AAC in those two files decoded by FFmpeg to 24-bit PCM, for checking the decoder Windows supplies | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mp4/h264-aac-fragmented.mp4` | The same as a fragmented MP4 | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mp4/h264-rotated.mov` | 0.2 s of the pattern with a display matrix turning it 90 degrees anticlockwise | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mkv/flac-mp3-pcm.mkv` | The two tones three times over, as FLAC, MP3 (with codec delay and end padding) and 16-bit PCM tracks | `scripts/make-fixtures.ps1` (FFmpeg with LAME) |

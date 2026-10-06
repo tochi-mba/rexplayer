@@ -51,6 +51,7 @@ The protocol version changes only when a field's meaning changes or a field disa
 | `src/Rex.Media.Containers` | Format probing and demuxers |
 | `src/Rex.Media.Codecs` | Decoder contracts and the decode ladder |
 | `src/Rex.Media.Codecs.Software` | rexplayer's own decoders |
+| `src/Rex.Media.Codecs.MediaFoundation` | The adapter to Windows' decoders (AAC, AC-3, E-AC-3; video next) |
 | `src/Rex.Media.Audio` | Resampler, mixer, volume, sinks, device-format policy |
 | `src/Rex.Media.Audio.Wasapi` | The Windows audio adapter |
 | `src/Rex.Media.Engine` | The media session: mailbox, state machine, clocks, pipeline threads |
@@ -58,6 +59,7 @@ The protocol version changes only when a field's meaning changes or a field disa
 | `src/Rex.Media.Interop` | CsWin32 bindings and the only `unsafe` code |
 | `src/Rex.Media.Cli` | `rexplay.exe`, the composition root of the command line |
 | `tests/Rex.Media.Tests` | The pure suite: unit, engine and repository tests |
+| `tests/Rex.Media.Windows.Tests` | The adapter suite: Windows components driven for real, checked against independent decoders |
 | `tests/Rex.Media.TestKit` | Builders, signals, fakes and the `[Capability]` attribute |
 | `site/` | The website, checked by `scripts/check_site.py` and `tests/site` |
 | `installer/` | The Inno Setup installer and its build script |
@@ -84,6 +86,7 @@ Data lives in `%LocalAppData%\REX\rexplayer`; the installer puts the programs in
 | Suite | Command | What it proves |
 |---|---|---|
 | Pure | `./dev.ps1 test` then `./dev.ps1 gate` | Every engine decision, exact samples, the repository rules |
+| Adapters | `./dev.ps1 adapters` | Windows' own components (Media Foundation decoders) give what an independent decoder gives |
 | Command line | `./dev.ps1 smoke` | The published `rexplay.exe` keeps its JSON contract and plays a fixture exactly |
 | Site | `./dev.ps1 site`, `node --test tests/site/app.test.mjs`, `npx playwright test` | The site's links, assets, accessibility and behaviour |
 

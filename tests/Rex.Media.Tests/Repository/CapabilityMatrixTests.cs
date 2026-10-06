@@ -1,6 +1,6 @@
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.Repository;
@@ -11,7 +11,7 @@ namespace Rex.Media.Tests.Repository;
 /// two agree in both directions. It also keeps the readable copy, docs/capability-matrix.md, in step;
 /// set REXPLAYER_WRITE_DOCS=1 to rewrite it.
 /// </summary>
-public sealed class CapabilityMatrixTests
+public sealed partial class CapabilityMatrixTests
 {
     private static readonly string[] Statuses = ["planned", "built", "verified", "verified-hardware", "post-1.0"];
     private static readonly string[] Priorities = ["must", "should", "could", "wont", "must/should", "could/wont"];
@@ -30,16 +30,19 @@ public sealed class CapabilityMatrixTests
             element.GetProperty("status").GetString()!)).ToList();
     }
 
-    /// <summary>Every [Capability] on a test method in the test assemblies built so far.</summary>
-    private static List<(string Test, string Id)> Claims()
-    {
-        var assemblies = new List<Assembly> { typeof(CapabilityMatrixTests).Assembly };
-        return assemblies
-            .SelectMany(assembly => assembly.GetTypes())
-            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-            .SelectMany(method => method.GetCustomAttributes<CapabilityAttribute>().Select(attribute => ($"{method.DeclaringType!.Name}.{method.Name}", attribute.Id)))
-            .ToList();
-    }
+    /// <summary>
+    /// Every [Capability] on a test method in every test project. They are read from the sources so
+    /// one portable test can see the Windows-only projects' claims too.
+    /// </summary>
+    private static List<(string Test, string Id)> Claims() => RepoPaths.SourceFiles()
+        .Where(path => path.StartsWith("tests/", StringComparison.Ordinal) && path.EndsWith(".cs", StringComparison.Ordinal))
+        .SelectMany(path => ClaimPattern().Matches(File.ReadAllText(RepoPaths.Combine(path)))
+            .Select(match => ($"{Path.GetFileNameWithoutExtension(path)}.{match.Groups["test"].Value}", match.Groups["id"].Value)))
+        .ToList();
+
+    /// <summary>A [Capability("ID")] attribute and the test method it sits on.</summary>
+    [GeneratedRegex(@"^[ \t]*\[Capability\(""(?<id>[A-Z0-9-]+)""\)].*?public\s+(?:async\s+Task|void)\s+(?<test>\w+)\s*\(", RegexOptions.Singleline | RegexOptions.Multiline)]
+    private static partial Regex ClaimPattern();
 
     [Fact]
     public void RowsAreUniqueAndUseKnownStatusesAndPriorities()

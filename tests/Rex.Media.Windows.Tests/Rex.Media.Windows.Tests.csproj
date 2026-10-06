@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <RootNamespace>Rex.Media.Windows.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.TestKit\Rex.Media.TestKit.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.IO\Rex.Media.IO.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Containers\Rex.Media.Containers.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Engine\Rex.Media.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+  </ItemGroup>
+
+</Project>

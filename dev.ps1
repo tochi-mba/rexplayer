@@ -5,7 +5,8 @@
 #   ./dev.ps1 build                 build everything (warnings are errors)
 #   ./dev.ps1 test                  the pure suite with coverage (fast; run long suites in CI)
 #   ./dev.ps1 gate                  fail unless every file in tests/coverage-required.txt is fully covered
-#   ./dev.ps1 check                 build, format check, test and gate: the pre-push check
+#   ./dev.ps1 adapters              the Windows adapter tests (Media Foundation, WASAPI, Direct3D)
+#   ./dev.ps1 check                 build, format check, test, gate and adapters: the pre-push check
 #   ./dev.ps1 format                fix formatting
 #   ./dev.ps1 smoke                 run the published command line the way CI does
 #   ./dev.ps1 lexicon <text-file>   check a file of commit messages for words this repository never uses
@@ -128,22 +129,30 @@ function Invoke-Lexicon([string]$Path) {
     Write-Host "The text passes the lexicon check."
 }
 
+# Adapters to Windows are proved by integration tests against the real system components; their
+# coverage is reported by the pure suite's boundary, not gated (ADR-008).
+function Invoke-Adapters {
+    Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj", "-c", $Configuration, "--no-build")
+}
+
 function Invoke-Package {
     $packageVersion = if ($Version) { $Version } else { ([xml](Get-Content (Join-Path $root "Directory.Build.props") -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1 }
     Invoke-Checked powershell.exe @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "installer/build.ps1"), "-Version", $packageVersion)
 }
 
 switch ($Task) {
-    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 13 | ForEach-Object { $_ -replace '^# ?', '' } }
+    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 12 | ForEach-Object { $_ -replace '^# ?', '' } }
     "build" { Invoke-Build }
     "test" { Invoke-Test }
     "gate" { Invoke-Gate }
+    "adapters" { Invoke-Adapters }
     "format" { Invoke-Checked dotnet @("format", "rexplayer.slnx", "--no-restore") }
     "check" {
         Invoke-Build
         Invoke-Checked dotnet @("format", "rexplayer.slnx", "--verify-no-changes", "--no-restore")
         Invoke-Test
         Invoke-Gate
+        Invoke-Adapters
     }
     "smoke" { Invoke-Smoke }
     "lexicon" { Invoke-Lexicon $Argument }
