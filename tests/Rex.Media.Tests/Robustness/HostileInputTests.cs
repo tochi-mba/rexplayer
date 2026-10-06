@@ -1,4 +1,7 @@
 using Rex.Media.AppCore;
+using Rex.Media.Codecs.Aac;
+using Rex.Media.Codecs.H264;
+using Rex.Media.Codecs.Hevc;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
@@ -26,6 +29,13 @@ public sealed class HostileInputTests
         "tests/fixtures/mp3/stereo-44k-vbr-bursts.mp3",
         "tests/fixtures/mp3/stereo-22k-64k-mpeg2.mp3",
         "tests/fixtures/mp3/mono-8k-16k-mpeg25.mp3",
+        "tests/fixtures/mp4/h264-aac.mp4",
+        "tests/fixtures/mp4/h264-aac-fragmented.mp4",
+        "tests/fixtures/mp4/flac-in-mp4.mp4",
+        "tests/fixtures/mkv/h264-aac-subtitles.mkv",
+        "tests/fixtures/mkv/flac-mp3-pcm.mkv",
+        "tests/fixtures/mkv/vp9-opus.webm",
+        "tests/fixtures/video/hevc-in-mp4.mp4",
     ];
 
     [Theory]
@@ -97,10 +107,39 @@ public sealed class HostileInputTests
         }
     }
 
+    /// <summary>Reads a track's codec configuration the way a decoder would; a damaged one may only be refused.</summary>
+    private static void ReadConfiguration(TrackInfo track)
+    {
+        try
+        {
+            switch (track.Codec)
+            {
+                case CodecId.Aac:
+                    _ = AacConfig.TryParse(track.CodecPrivate, out _);
+                    break;
+                case CodecId.H264 when track.CodecPrivate.Length > 0:
+                    AvcConfig.Parse(track.CodecPrivate).Sequence();
+                    break;
+                case CodecId.Hevc when track.CodecPrivate.Length > 0:
+                    HevcConfig.Parse(track.CodecPrivate).Sequence();
+                    break;
+            }
+        }
+        catch (MediaFormatException)
+        {
+            // A clean refusal is a correct answer for a damaged configuration.
+        }
+    }
+
     private static void Exercise(byte[] file, Random random)
     {
         var demuxers = MediaRegistries.Demuxers();
         using var demuxer = demuxers.Open(new MemoryByteSource(file, "mutated"), CancellationToken.None);
+        foreach (var described in demuxer.Info.Tracks)
+        {
+            ReadConfiguration(described);
+        }
+
         var track = demuxer.Info.Tracks.FirstOrDefault(t => t.Audio is not null);
         if (track is null)
         {

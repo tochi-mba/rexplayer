@@ -9,6 +9,9 @@
     <ProjectReference Include="..\..\src\Rex.Media.Audio\Rex.Media.Audio.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.Video\Rex.Media.Video.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.IO\Rex.Media.IO.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Containers\Rex.Media.Containers.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
   </ItemGroup>
 
 </Project>

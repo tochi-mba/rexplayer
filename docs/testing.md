@@ -19,6 +19,7 @@ A test here proves a feature from what came out, not from the absence of an exce
 | `Rex.Media.Tests` | Every push, Windows and Linux | `./dev.ps1 test` |
 | Coverage gate | Every push | `./dev.ps1 gate` |
 | `Rex.Media.Windows.Tests` | Every push, Windows | `./dev.ps1 adapters` |
+| Fuzzing (`tests/Rex.Fuzz`) | Nightly, Linux (`fuzz.yml`); the corpus it keeps is replayed by `Rex.Media.Tests` on every push | Actions, "Fuzz", run workflow |
 | Command-line smoke | Every push, against the packaged build | `./dev.ps1 smoke` |
 | Site | Every push | `./dev.ps1 site`, `node --test tests/site/app.test.mjs`, `npx playwright test` |
 

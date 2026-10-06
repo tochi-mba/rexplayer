@@ -20,5 +20,6 @@
     <Project Path="tests/Rex.Media.TestKit/Rex.Media.TestKit.csproj" />
     <Project Path="tests/Rex.Media.Tests/Rex.Media.Tests.csproj" />
     <Project Path="tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj" />
+    <Project Path="tests/Rex.Fuzz/Rex.Fuzz.csproj" />
   </Folder>
 </Solution>

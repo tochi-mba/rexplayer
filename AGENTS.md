@@ -63,6 +63,7 @@ The protocol version changes only when a field's meaning changes or a field disa
 | `src/Rex.Media.Interop` | CsWin32 bindings and the only `unsafe` code |
 | `src/Rex.Media.Cli` | `rexplay.exe`, the composition root of the command line |
 | `tests/Rex.Media.Tests` | The pure suite: unit, engine and repository tests |
+| `tests/Rex.Fuzz` | The libFuzzer entry point for the parsers in `tests/Rex.Media.TestKit/FuzzTargets.cs` (nightly `fuzz.yml`) |
 | `tests/Rex.Media.Windows.Tests` | The adapter suite: Windows components driven for real, checked against independent decoders |
 | `tests/Rex.Media.TestKit` | Builders, signals, fakes and the `[Capability]` attribute |
 | `site/` | The website, checked by `scripts/check_site.py` and `tests/site` |

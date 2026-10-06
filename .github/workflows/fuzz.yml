@@ -1,0 +1,85 @@
+name: Fuzz
+
+# Coverage-guided fuzzing of every parser that reads untrusted bytes, nightly. The targets are in
+# tests/Rex.Media.TestKit/FuzzTargets.cs; the pure suite replays tests/fixtures/corpus through them,
+# so a minimised crash found here is committed there with its fix.
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: Seconds to fuzz each target
+        default: "300"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz
+  cancel-in-progress: false
+
+jobs:
+  fuzz:
+    name: Fuzz the parsers (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SECONDS_PER_TARGET: ${{ github.event.inputs.seconds || '300' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build libFuzzer's .NET driver from a pinned commit
+        run: |
+          git clone --quiet https://github.com/Metalnem/libfuzzer-dotnet.git driver
+          git -C driver checkout --quiet bd39d4e88d715ab460a929943645be2a186cde52
+          clang -fsanitize=fuzzer driver/libfuzzer-dotnet.cc -o libfuzzer-dotnet
+
+      - name: Publish the fuzzing project and instrument rexplayer's assemblies
+        run: |
+          dotnet tool install --global SharpFuzz.CommandLine --version 2.3.0
+          dotnet publish tests/Rex.Fuzz/Rex.Fuzz.csproj -c Release -o fuzz
+          for assembly in fuzz/Rex.Media.Primitives.dll fuzz/Rex.Media.IO.dll fuzz/Rex.Media.Containers.dll fuzz/Rex.Media.Codecs.dll fuzz/Rex.Media.Codecs.Software.dll; do
+            sharpfuzz "$assembly"
+          done
+
+      - name: Fuzz each target, seeded from the fixtures and the committed corpus
+        shell: pwsh
+        run: |
+          $targets = @{
+            'demux' = @('smoke', 'flac', 'mp3', 'mp4', 'mkv', 'video')
+            'aac-config' = @(); 'adts' = @(); 'avc-config' = @(); 'hevc-config' = @()
+            'h264-sps' = @(); 'hevc-sps' = @(); 'annex-b' = @()
+          }
+          $failed = @()
+          foreach ($target in $targets.Keys) {
+            $corpus = "corpus/$target"
+            New-Item -ItemType Directory -Force $corpus | Out-Null
+            foreach ($folder in @($targets[$target]) + "corpus/$target") {
+              Get-ChildItem "tests/fixtures/$folder" -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -notin '.json', '.framemd5' } |
+                Copy-Item -Destination $corpus
+            }
+            New-Item -ItemType Directory -Force "crashes/$target" | Out-Null
+            $env:REXPLAYER_FUZZ_TARGET = $target
+            Write-Host "Fuzzing $target for $env:SECONDS_PER_TARGET seconds"
+            ./libfuzzer-dotnet --target_path=dotnet --target_arg=fuzz/Rex.Fuzz.dll -timeout=10 -rss_limit_mb=4096 "-max_total_time=$env:SECONDS_PER_TARGET" "-artifact_prefix=crashes/$target/" $corpus
+            if ($LASTEXITCODE -ne 0) { $failed += $target }
+          }
+          if ($failed.Count -gt 0) {
+            throw "These targets found crashes: $($failed -join ', '). Minimise them with -minimize_crash=1 and commit them under tests/fixtures/corpus/<target> with the fix."
+          }
+
+      - name: Keep what the fuzzer found
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-findings
+          path: |
+            crashes/
+            corpus/
+          retention-days: 14
