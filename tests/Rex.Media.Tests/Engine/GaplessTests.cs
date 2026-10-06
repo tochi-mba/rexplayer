@@ -48,6 +48,8 @@ public sealed class GaplessTests
         await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 800)), [SessionHarness.Source(Count(1000, 800)), SessionHarness.Source(Count(2000, 400))]);
         await harness.FinishAsync();
 
+        // Events arrive in order on the event thread, so once Ended has, every item's opening has too.
+        harness.WaitFor<EndedEvent>();
         Assert.Equal(Expected((0, 800), (1000, 800), (2000, 400)), harness.Recording.Channel(0));
         Assert.Equal(3, harness.Events.OfType<MediaOpenedEvent>().Count());
         Assert.Single(harness.Events.OfType<EndedEvent>());
