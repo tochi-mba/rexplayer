@@ -7,8 +7,8 @@ namespace Rex.Media.App.Tests;
 
 /// <summary>
 /// The window's own features, each driven through the menus or the automation pipe and checked
-/// on the real window: menus, full screen, always on top, the minimal interface, sizing to the
-/// video, preferences, media information, the log, and names for everything a screen reader meets.
+/// on the real window: menus, full screen, always on top, the minimal interface, subtitles, sizing
+/// to the video, preferences, media information, the log, and names for everything a screen reader meets.
 /// </summary>
 [Collection("desktop")]
 public sealed class AppWindowTests : IDisposable
@@ -36,7 +36,7 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start();
         var found = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var menu in new[] { "MediaMenu", "PlaybackMenu", "AudioMenu", "VideoMenu", "ViewMenu", "HelpMenu" })
+        foreach (var menu in new[] { "MediaMenu", "PlaybackMenu", "AudioMenu", "SubtitleMenu", "VideoMenu", "ViewMenu", "HelpMenu" })
         {
             var expander = (ExpandCollapsePattern)app.Find(menu).GetCurrentPattern(ExpandCollapsePattern.Pattern);
             expander.Expand();
@@ -47,7 +47,7 @@ public sealed class AppWindowTests : IDisposable
         }
 
         Assert.Superset(
-            new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
+            new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.AddSubtitles, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
             found);
         Assert.Equal(0, app.Close());
     }
@@ -80,6 +80,29 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => window.Current.IsTopmost, "the window to stay on top");
         app.Run(CommandCatalog.ToggleAlwaysOnTop);
         Wait.For(() => !window.Current.IsTopmost, "the window to stop staying on top");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("SUB-14")]
+    [Capability("OSD-01")]
+    public void SubtitlesBesideAFilmShowOverItsPicture()
+    {
+        var film = Path.Combine(_media, "Film.mp4");
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), film);
+        File.WriteAllText(Path.Combine(_media, "Film.en.srt"), """
+            1
+            00:00:00,000 --> 00:10:00,000
+            Hello from the subtitles
+            """);
+        using var app = AppProcess.Start([film]);
+
+        Wait.For(() => app.IsShown("SubtitleText") && app.Text("SubtitleText") == "Hello from the subtitles", "the subtitle to show");
+
+        app.Run(CommandCatalog.ToggleSubtitles);
+        Wait.For(() => !app.IsShown("SubtitleText"), "the subtitle to go");
+        app.Run(CommandCatalog.SubtitlesBigger);
+        Wait.For(() => app.SavedSettings.SubtitleSize == 125, "the bigger size to be kept");
         Assert.Equal(0, app.Close());
     }
 

@@ -3,6 +3,7 @@ using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
+using Rex.Media.Subtitles;
 
 namespace Rex.Media.AppCore.Player;
 
@@ -22,6 +23,8 @@ public sealed partial class PlayerController : IDisposable
     private readonly Func<Action<SessionEvent>, MediaSession> _newSession;
     private readonly Func<string, IByteSource> _openSource;
     private readonly Func<string, IReadOnlyList<string>> _expand;
+    private readonly Func<string, IReadOnlyList<SubtitleSidecar>> _sidecars;
+    private readonly Func<string, byte[]> _readFile;
     private readonly Action<Action> _dispatch;
     private MediaSession? _session;
     private bool _openedInSession;
@@ -35,14 +38,20 @@ public sealed partial class PlayerController : IDisposable
     /// <param name="settings">The jumps, volume steps and starting volume and modes; the defaults when null.</param>
     /// <param name="expand">Turns a location into the media it names: a folder into its files. By default folders on disk are expanded.</param>
     /// <param name="random">Chooses the shuffle order (tests pass a seeded one).</param>
+    /// <param name="sidecars">Finds the subtitle files beside a piece of media; by default on disk.</param>
+    /// <param name="readFile">Reads a subtitle file; by default from disk.</param>
     public PlayerController(
         Func<Action<SessionEvent>, MediaSession> newSession,
         Func<string, IByteSource> openSource,
         Action<Action> dispatch,
         PlayerSettings? settings = null,
         Func<string, IReadOnlyList<string>>? expand = null,
-        Random? random = null)
+        Random? random = null,
+        Func<string, IReadOnlyList<SubtitleSidecar>>? sidecars = null,
+        Func<string, byte[]>? readFile = null)
     {
+        _sidecars = sidecars ?? (media => SubtitleSidecars.Find(media));
+        _readFile = readFile ?? File.ReadAllBytes;
         _newSession = newSession ?? throw new ArgumentNullException(nameof(newSession));
         _openSource = openSource ?? throw new ArgumentNullException(nameof(openSource));
         _dispatch = dispatch ?? throw new ArgumentNullException(nameof(dispatch));
@@ -235,6 +244,7 @@ public sealed partial class PlayerController : IDisposable
         Item = item;
         Info = null;
         AudioTrack = null;
+        FindSubtitles(item);
         Failure = null;
         Position = startAt;
         Duration = TimeSpan.Zero;

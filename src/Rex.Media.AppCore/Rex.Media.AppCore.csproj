@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
     <ProjectReference Include="..\Rex.Media.Engine\Rex.Media.Engine.csproj" />
     <ProjectReference Include="..\Rex.Media.Settings\Rex.Media.Settings.csproj" />
+    <ProjectReference Include="..\Rex.Media.Subtitles\Rex.Media.Subtitles.csproj" />
   </ItemGroup>
 
 </Project>

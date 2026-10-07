@@ -1,13 +1,14 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.Settings;
+using Rex.Media.Subtitles;
 
 namespace Rex.Media.App;
 
 public sealed partial class MainWindow
 {
     /// <summary>
-    /// Preferences (UI-10): the settings people change most, in three groups. Nothing applies until
+    /// Preferences (UI-10): the settings people change most, in groups. Nothing applies until
     /// Save, and what is saved is normalized, so no value can leave the player in a state it cannot use.
     /// </summary>
     private async Task ShowPreferencesAsync()
@@ -27,10 +28,33 @@ public sealed partial class MainWindow
         var single = Check("Use one window: open files in the player already running", s.SingleInstance);
         var enqueue = Check("Files opened that way join the playlist instead of playing", s.EnqueueFromSecondLaunch);
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
+        var font = new ComboBox { Header = "Subtitle font", IsEditable = true, ItemsSource = SubtitleFonts, Text = s.SubtitleFont, MinWidth = 220 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(font, "Subtitle font");
+        var size = Number("Subtitle size (%)", s.SubtitleSize, 50, 400);
+        var color = ColorChoice("Subtitle colour", s.SubtitleColor);
+        var opacity = Number("Subtitle opacity (%)", s.SubtitleOpacity, 0, 100);
+        var bold = Check("Bold subtitles", s.SubtitleBold);
+        var outline = Choice("Outline", ["None", "Thin", "Normal", "Thick"], (int)s.SubtitleOutline);
+        var outlineColor = ColorChoice("Outline colour", s.SubtitleOutlineColor);
+        var shadow = Number("Shadow opacity (%, 0 for none)", s.SubtitleShadowOpacity, 0, 100);
+        var box = Number("Background box opacity (%, 0 for none)", s.SubtitleBoxOpacity, 0, 100);
+        var boxColor = ColorChoice("Background box colour", s.SubtitleBoxColor);
+        var margin = Number("Gap from the edge of the picture (% of its height)", s.SubtitleMargin, 0, 40);
+        var inBars = Check("Put subtitles in the black bars below a wide picture", s.SubtitlesInBars);
+        var atBottom = Check("Keep every subtitle at the bottom", s.SubtitlesAtBottom);
+        var styles = Choice("Styled subtitles", ["Use the file's colours and weights", "Always use mine"], (int)s.SubtitleStyles);
+        var codePages = SubtitleText.Fallbacks;
+        var codePage = Choice("Text of older subtitle files", [.. codePages.Select(entry => entry.Name)], Math.Max(0, codePages.ToList().FindIndex(entry => entry.CodePage == s.SubtitleCodePage)));
 
         var content = new StackPanel { Spacing = 8, MinWidth = 460 };
         content.Children.Add(Heading("Playback"));
         foreach (var control in new UIElement[] { veryShort, shortJump, medium, longJump, step, maxVolume })
+        {
+            content.Children.Add(control);
+        }
+
+        content.Children.Add(Heading("Subtitles"));
+        foreach (var control in new UIElement[] { font, size, color.Box, opacity, bold, outline, outlineColor.Box, shadow, box, boxColor.Box, margin, inBars, atBottom, styles, codePage })
         {
             content.Children.Add(control);
         }
@@ -68,12 +92,28 @@ public sealed partial class MainWindow
             SingleInstance = single.IsChecked == true,
             EnqueueFromSecondLaunch = enqueue.IsChecked == true,
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
+            SubtitleFont = font.Text,
+            SubtitleSize = (int)size.Value,
+            SubtitleColor = color.Value(),
+            SubtitleOpacity = (int)opacity.Value,
+            SubtitleBold = bold.IsChecked == true,
+            SubtitleOutline = (OutlineChoice)outline.SelectedIndex,
+            SubtitleOutlineColor = outlineColor.Value(),
+            SubtitleShadowOpacity = (int)shadow.Value,
+            SubtitleBoxOpacity = (int)box.Value,
+            SubtitleBoxColor = boxColor.Value(),
+            SubtitleMargin = (int)margin.Value,
+            SubtitlesInBars = inBars.IsChecked == true,
+            SubtitlesAtBottom = atBottom.IsChecked == true,
+            SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
+            SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
         }).Normalize();
         _player.Settings = _settings;
         _player.SetVolume(_player.Volume);
         _controlsTimer.Interval = TimeSpan.FromSeconds(_settings.ControlsHideSeconds);
         ApplyTheme();
         ApplyAlwaysOnTop();
+        LayOutSubtitles();
         ShowState();
         SaveSettings();
         Say("Preferences saved");
@@ -139,4 +179,25 @@ public sealed partial class MainWindow
     }
 
     private static CheckBox Check(string label, bool value) => new() { Content = label, IsChecked = value };
+
+    private static readonly string[] SubtitleFonts = ["Segoe UI", "Arial", "Calibri", "Verdana", "Tahoma", "Georgia", "Times New Roman", "Cascadia Mono"];
+
+    private static readonly (string Name, int Rgb)[] Colors =
+    [
+        ("White", 0xFFFFFF), ("Yellow", 0xFFFF00), ("Light grey", 0xC0C0C0), ("Grey", 0x808080), ("Black", 0x000000),
+        ("Red", 0xFF0000), ("Green", 0x00FF00), ("Cyan", 0x00FFFF), ("Blue", 0x0000FF), ("Magenta", 0xFF00FF),
+    ];
+
+    /// <summary>A choice of colours; one set by hand in the settings file stays on offer as it is.</summary>
+    private static (ComboBox Box, Func<int> Value) ColorChoice(string label, int rgb)
+    {
+        var options = Colors.ToList();
+        if (!options.Any(option => option.Rgb == rgb))
+        {
+            options.Insert(0, ($"#{rgb:X6}", rgb));
+        }
+
+        var box = Choice(label, [.. options.Select(option => option.Name)], options.FindIndex(option => option.Rgb == rgb));
+        return (box, () => options[Math.Max(0, box.SelectedIndex)].Rgb);
+    }
 }

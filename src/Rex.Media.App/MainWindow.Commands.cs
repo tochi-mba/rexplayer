@@ -31,6 +31,9 @@ public sealed partial class MainWindow
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition]),
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
             CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects]),
+        ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
+            CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
+            CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.Preferences]),
@@ -44,6 +47,7 @@ public sealed partial class MainWindow
     [
         ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
         ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute]),
+        ("Subtitles", [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles]),
         ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
         ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
@@ -96,7 +100,7 @@ public sealed partial class MainWindow
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
     private void Run(string command)
     {
-        if (_player.Execute(command))
+        if (_player.Execute(command) || RunSubtitleCommand(command))
         {
             return;
         }
@@ -337,6 +341,7 @@ public sealed partial class MainWindow
     private void ApplyShape()
     {
         var (aspect, crop, redraw) = (_aspect.Ratio, _crop.Ratio, !_player.IsPlaying);
+        LayOutSubtitles();
         OnPresenterThread(presenter =>
         {
             presenter.SetShape(aspect, crop);

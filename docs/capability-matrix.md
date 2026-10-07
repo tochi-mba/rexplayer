@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 199 planned, 29 built, 61 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 184 planned, 38 built, 67 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -28,7 +28,7 @@ Totals: 199 planned, 29 built, 61 verified, 1 verified-hardware, 27 post-1.0.
 | PB-17 | Track selection | Video / audio / subtitle / secondary subtitle; preferred-language lists; "off" for each | M3–M5 | must | built |
 | PB-18 | Program selection (TS) | Next/previous program (service id) for multi-program transport streams | M7 | should | planned |
 | PB-19 | Audio delay | ±50 ms steps (J/K), reset, exact entry; range ±10 s; optionally remembered per file | M5 | must | built |
-| PB-20 | Subtitle delay & sync | ±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset | M5 | must | planned |
+| PB-20 | Subtitle delay & sync | ±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset | M5 | must | built |
 | PB-21 | Sleep timer | Stop or pause after N minutes or at the end of the current item, with a fade-out | M6 | should | planned |
 | PB-22 | Play-and-exit / play-and-stop / play-and-pause | CLI and settings | M4 | must | verified |
 | PB-23 | Start/stop/run time per item | `--start`, `--stop`, `--run-time`; per-item options in the playlist | M4 | should | built |
@@ -113,11 +113,11 @@ Totals: 199 planned, 29 built, 61 verified, 1 verified-hardware, 27 post-1.0.
 
 | ID | Capability | Details | Milestone | Priority | Status |
 |---|---|---|---|---|---|
-| SUB-01 | SubRip (SRT) | Basic tags `<b><i><u><font color>`; tolerant timestamps | M5 | must | planned |
-| SUB-02 | WebVTT | Cue settings (line/position/align/size), regions basic, `::cue` styling basic, voice spans | M5 | must | planned |
-| SUB-03 | ASS / SSA | v1 subset (§7.6), embedded fonts from MKV attachments, collisions, PlayRes scaling | M5 | must | planned |
-| SUB-04 | MP4 timed text (tx3g / mov_text) | Styles, karaoke Could | M5 | must | planned |
-| SUB-05 | SAMI, MicroDVD (frame-based with fps), SubViewer 1/2, MPL2, VPlayer | Text formats | M5 | should | planned |
+| SUB-01 | SubRip (SRT) | Basic tags `<b><i><u><font color>`; tolerant timestamps | M5 | must | verified |
+| SUB-02 | WebVTT | Cue settings (line/position/align/size), regions basic, `::cue` styling basic, voice spans | M5 | must | built |
+| SUB-03 | ASS / SSA | v1 subset (§7.6), embedded fonts from MKV attachments, collisions, PlayRes scaling | M5 | must | built |
+| SUB-04 | MP4 timed text (tx3g / mov_text) | Styles, karaoke Could | M5 | must | built |
+| SUB-05 | SAMI, MicroDVD (frame-based with fps), SubViewer 1/2, MPL2, VPlayer | Text formats | M5 | should | built |
 | SUB-06 | VobSub (idx/sub) & DVD SPU in VOB | Palette, forced subtitles flag | M7/M13 | must | planned |
 | SUB-07 | PGS (HDMV .sup / in M2TS/MKV) | Composition, cropping, forced | M7 | must | planned |
 | SUB-08 | DVB subtitles | Region/CLUT/object segments | M7 | should | planned |
@@ -126,9 +126,9 @@ Totals: 199 planned, 29 built, 61 verified, 1 verified-hardware, 27 post-1.0.
 | SUB-11 | TTML / DFXP / SMPTE-TT (text) | — | M15 | could | planned |
 | SUB-12 | Teletext subtitles (DVB) | — | post | could | post-1.0 |
 | SUB-13 | JACOsub, PJS, MPSub, USF, SCC, RealText, Kate | — | post | could/wont | post-1.0 |
-| SUB-14 | Sidecar autoload | Same folder plus `Subs/`, `subs/`, `Subtitles/`, `subtitles/`; match levels exact / starts-with / contains / any; language codes in the filename (`movie.en.srt`, `movie.fr.forced.srt`) | M5 | must | planned |
-| SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | planned |
-| SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | planned |
+| SUB-14 | Sidecar autoload | Same folder plus `Subs/`, `subs/`, `Subtitles/`, `subtitles/`; match levels exact / starts-with / contains / any; language codes in the filename (`movie.en.srt`, `movie.fr.forced.srt`) | M5 | must | verified |
+| SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built |
+| SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified |
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned |
 
 ## Formats: Playlists
@@ -228,15 +228,15 @@ Totals: 199 planned, 29 built, 61 verified, 1 verified-hardware, 27 post-1.0.
 
 | ID | Capability | Details | Milestone | Priority | Status |
 |---|---|---|---|---|---|
-| OSD-01 | Text subtitle style | Font family with per-script fallback, relative size 50–400% (presets smaller/small/normal/large/larger), colour, opacity, bold, outline none/thin/normal/thick + colour, shadow colour/offset/opacity, background box colour/opacity | M5 | must | planned |
-| OSD-02 | Subtitle scaling keys | Ctrl+wheel, Ctrl+0 reset; menu 50/75/100/125/150/200% | M5 | must | planned |
-| OSD-03 | Placement | Vertical margin; force position; subtitles in the letterbox bars | M5 | should | planned |
-| OSD-04 | Dual subtitles | Secondary track shown at the same time (top or bottom) | M5 | should | planned |
-| OSD-05 | ASS style policy | Respect / scale / override styles; embedded fonts honoured | M5 | must | planned |
+| OSD-01 | Text subtitle style | Font family with per-script fallback, relative size 50–400% (presets smaller/small/normal/large/larger), colour, opacity, bold, outline none/thin/normal/thick + colour, shadow colour/offset/opacity, background box colour/opacity | M5 | must | verified |
+| OSD-02 | Subtitle scaling keys | Ctrl+wheel, Ctrl+0 reset; menu 50/75/100/125/150/200% | M5 | must | built |
+| OSD-03 | Placement | Vertical margin; force position; subtitles in the letterbox bars | M5 | should | verified |
+| OSD-04 | Dual subtitles | Secondary track shown at the same time (top or bottom) | M5 | should | verified |
+| OSD-05 | ASS style policy | Respect / scale / override styles; embedded fonts honoured | M5 | must | built |
 | OSD-06 | System caption settings | Honours Windows Settings → Accessibility → Captions by default | M15 | should | planned |
 | OSD-07 | OSD messages | Volume, position, speed, track names, delays, aspect/crop, A-B; duration and position settings; can be disabled | M4 | must | verified |
 | OSD-08 | Forced-only mode | Show only forced subtitles (DVD/BD/PGS/flagged tracks) | M7 | should | planned |
-| OSD-09 | Complex scripts & RTL | DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi | M5 | must | planned |
+| OSD-09 | Complex scripts & RTL | DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi | M5 | must | built |
 | OSD-10 | Bitmap subtitle scaling | Scale or recolour PGS/VobSub | M11 | could | planned |
 
 ## Network input, discovery & casting

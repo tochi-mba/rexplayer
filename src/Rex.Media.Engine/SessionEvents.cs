@@ -26,6 +26,13 @@ public sealed record ErrorEvent(string Message) : SessionEvent;
 public sealed record ItemSkippedEvent(string Name, string Reason) : SessionEvent;
 
 /// <summary>Coalesced: only the latest value matters, so a slow listener never falls behind.</summary>
+/// <summary>
+/// A subtitle cue read from <paramref name="Item"/>'s track <paramref name="TrackId"/>. Cues arrive as
+/// the media is read, ahead of when they show, and again after a seek; the item tells them apart
+/// across a gapless run.
+/// </summary>
+public sealed record SubtitleCueEvent(MediaInfo Item, int TrackId, Rex.Media.Subtitles.SubtitleCue Cue) : SessionEvent;
+
 public sealed record PositionEvent(MediaTime Position, MediaTime Duration) : SessionEvent;
 
 /// <summary>Coalesced: counters for the stats overlay and Media Information.</summary>

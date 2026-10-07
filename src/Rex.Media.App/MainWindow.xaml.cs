@@ -71,6 +71,7 @@ public sealed partial class MainWindow : Window
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.Message += (_, text) => Say(text);
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
+        WireSubtitles();
 
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
@@ -309,6 +310,7 @@ public sealed partial class MainWindow : Window
         }
 
         KeepAwake(playing && HasVideo, playing);
+        LayOutSubtitles();
         RememberLater();
     }
 

@@ -39,6 +39,16 @@ public static class CommandCatalog
     public const string VolumeDown = "volume-down";
     public const string Mute = "mute";
     public const string CycleAudioTrack = "cycle-audio-track";
+    public const string CycleSubtitles = "cycle-subtitles";
+    public const string ToggleSubtitles = "toggle-subtitles";
+    public const string SubtitlesEarlier = "subtitles-earlier";
+    public const string SubtitlesLater = "subtitles-later";
+    public const string ResetSubtitleDelay = "reset-subtitle-delay";
+    public const string AddSubtitles = "add-subtitles";
+    public const string CycleSecondarySubtitles = "cycle-secondary-subtitles";
+    public const string SubtitlesBigger = "subtitles-bigger";
+    public const string SubtitlesSmaller = "subtitles-smaller";
+    public const string ResetSubtitleSize = "reset-subtitle-size";
     public const string ToggleFullScreen = "toggle-full-screen";
     public const string LeaveFullScreen = "leave-full-screen";
     public const string CycleAspectRatio = "cycle-aspect-ratio";
@@ -69,6 +79,7 @@ public static class CommandCatalog
     private const string Playback = "Playback";
     private const string Audio = "Audio";
     private const string Video = "Video";
+    private const string Subtitle = "Subtitles";
     private const string Media = "Media";
     private const string View = "View";
     private const string Tools = "Tools";
@@ -103,6 +114,16 @@ public static class CommandCatalog
         New(VolumeDown, "Volume down", Audio, "Down", "Ctrl+Down"),
         New(Mute, "Mute", Audio, "M"),
         New(CycleAudioTrack, "Next audio track", Audio, "B"),
+        New(CycleSubtitles, "Next subtitle track", Subtitle, "V"),
+        New(ToggleSubtitles, "Subtitles on or off", Subtitle, "Shift+V"),
+        New(SubtitlesEarlier, "Subtitles 50 ms earlier", Subtitle, "G"),
+        New(SubtitlesLater, "Subtitles 50 ms later", Subtitle, "H"),
+        New(ResetSubtitleDelay, "Subtitles back in step", Subtitle),
+        New(AddSubtitles, "Add a subtitle file", Subtitle),
+        New(CycleSecondarySubtitles, "Next second subtitle track", Subtitle, "Alt+V"),
+        New(SubtitlesBigger, "Bigger subtitles", Subtitle, "Ctrl+Plus"),
+        New(SubtitlesSmaller, "Smaller subtitles", Subtitle, "Ctrl+Minus"),
+        New(ResetSubtitleSize, "Subtitles at their normal size", Subtitle, "Ctrl+0"),
         New(ToggleFullScreen, "Full screen", Video, "F", "F11"),
         New(LeaveFullScreen, "Leave full screen", Video, "Escape"),
         New(CycleAspectRatio, "Next aspect ratio", Video, "A"),

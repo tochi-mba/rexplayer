@@ -3,6 +3,7 @@
 AacConfig.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+Ass.cs
 AtomicFile.cs
 AudioEffects.cs
 AudioFormat.cs
@@ -68,6 +69,7 @@ MediaSession.cs
 MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
+MicroDvd.cs
 Mp3Decoder.cs
 Mp4Boxes.cs
 Mp4Demuxer.cs
@@ -76,6 +78,7 @@ Mp4Track.cs
 MpegAudioDemuxer.cs
 MpegAudioHeader.cs
 MpegInfoTag.cs
+Mpl2.cs
 NalUnits.cs
 NaturalOrder.cs
 NullAudioSink.cs
@@ -87,6 +90,7 @@ Playback.cs
 Playback.Video.cs
 PlayerController.cs
 PlayerController.Events.cs
+PlayerController.Subtitles.cs
 PlayerSettings.cs
 Playlist.cs
 PngWriter.cs
@@ -94,6 +98,7 @@ Rational.cs
 Resampler.cs
 ResumeMarker.cs
 RexLog.cs
+Sami.cs
 SampleConverter.cs
 ScanWindow.cs
 SequenceInfo.cs
@@ -105,6 +110,16 @@ SlotPool.cs
 Snapshot.cs
 SoundSettings.cs
 StatsText.cs
+SubRip.cs
+SubtitleCue.cs
+SubtitleFile.cs
+SubtitleLook.cs
+SubtitleMarkup.cs
+SubtitlePackets.cs
+SubtitleSidecars.cs
+SubtitleText.cs
+SubtitleTrack.cs
+SubViewer.cs
 SystemReport.cs
 ThreadLoop.cs
 TimeStretch.cs
@@ -120,4 +135,5 @@ VorbisComments.cs
 WavDemuxer.cs
 WaveFormat.cs
 WavFileSink.cs
+WebVtt.cs
 YuvTransform.cs

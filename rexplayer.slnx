@@ -13,6 +13,7 @@
     <Project Path="src/Rex.Media.Video.D3D11/Rex.Media.Video.D3D11.csproj" />
     <Project Path="src/Rex.Media.Engine/Rex.Media.Engine.csproj" />
     <Project Path="src/Rex.Media.Settings/Rex.Media.Settings.csproj" />
+    <Project Path="src/Rex.Media.Subtitles/Rex.Media.Subtitles.csproj" />
     <Project Path="src/Rex.Media.AppCore/Rex.Media.AppCore.csproj" />
     <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />
     <Project Path="src/Rex.Media.Cli/Rex.Media.Cli.csproj" />

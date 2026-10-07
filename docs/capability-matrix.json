@@ -199,7 +199,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "EVT PIX",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "PB-21",
@@ -849,7 +849,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "SUB-02",
@@ -859,7 +859,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "SUB-03",
@@ -869,7 +869,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "SUB-04",
@@ -879,7 +879,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "SUB-05",
@@ -889,7 +889,7 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "SUB-06",
@@ -979,7 +979,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "SUB-15",
@@ -989,7 +989,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "SUB-16",
@@ -999,7 +999,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "SUB-17",
@@ -1749,7 +1749,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "OSD-02",
@@ -1759,7 +1759,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX UIA",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "OSD-03",
@@ -1769,7 +1769,7 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "OSD-04",
@@ -1779,7 +1779,7 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "PIX EVT",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "OSD-05",
@@ -1789,7 +1789,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "OSD-06",
@@ -1829,7 +1829,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "OSD-10",

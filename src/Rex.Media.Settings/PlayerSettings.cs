@@ -56,6 +56,22 @@ public enum LoudnessChoice
     Album,
 }
 
+/// <summary>How thick the line drawn round subtitle letters is.</summary>
+public enum OutlineChoice
+{
+    None,
+    Thin,
+    Normal,
+    Thick,
+}
+
+/// <summary>Whose look subtitles take: the colours and weights the subtitle file asks for, or only the user's.</summary>
+public enum SubtitleStyleChoice
+{
+    Respect,
+    Override,
+}
+
 /// <summary>Where the window was, so it opens there again.</summary>
 public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool Maximized);
 
@@ -118,6 +134,53 @@ public sealed record PlayerSettings
     /// <summary>Extra gain on top of the loudness tags, in decibels from -20 to +20.</summary>
     public double LoudnessPreamp { get; init; }
 
+    // Subtitles
+
+    /// <summary>The font subtitles are drawn in; Windows picks a fallback for scripts it lacks.</summary>
+    public string SubtitleFont { get; init; } = "Segoe UI";
+
+    /// <summary>The size of subtitle text, in percent of the normal size (50 to 400).</summary>
+    public int SubtitleSize { get; init; } = 100;
+
+    /// <summary>The text colour as 0xRRGGBB.</summary>
+    public int SubtitleColor { get; init; } = 0xFFFFFF;
+
+    /// <summary>The text's opacity, in percent.</summary>
+    public int SubtitleOpacity { get; init; } = 100;
+
+    public bool SubtitleBold { get; init; }
+
+    public OutlineChoice SubtitleOutline { get; init; } = OutlineChoice.Normal;
+
+    public int SubtitleOutlineColor { get; init; }
+
+    public int SubtitleShadowColor { get; init; }
+
+    /// <summary>The shadow's opacity, in percent; 0 draws no shadow.</summary>
+    public int SubtitleShadowOpacity { get; init; } = 60;
+
+    /// <summary>How far the shadow falls below and right of the text, in pixels (0 to 10).</summary>
+    public int SubtitleShadowOffset { get; init; } = 2;
+
+    public int SubtitleBoxColor { get; init; }
+
+    /// <summary>The opacity of the box behind subtitle text, in percent; 0 draws no box.</summary>
+    public int SubtitleBoxOpacity { get; init; }
+
+    /// <summary>The gap below bottom subtitles and above top ones, in percent of the picture's height (0 to 40).</summary>
+    public int SubtitleMargin { get; init; } = 5;
+
+    /// <summary>Subtitles sit in the black bars below a wide picture rather than over it.</summary>
+    public bool SubtitlesInBars { get; init; }
+
+    /// <summary>Every cue at the bottom, wherever its file placed it.</summary>
+    public bool SubtitlesAtBottom { get; init; }
+
+    public SubtitleStyleChoice SubtitleStyles { get; init; } = SubtitleStyleChoice.Respect;
+
+    /// <summary>The code page subtitle files without a byte-order mark and not in UTF-8 are read in.</summary>
+    public int SubtitleCodePage { get; init; } = 1252;
+
     // Window
 
     public WindowPlacement? Window { get; init; }
@@ -168,6 +231,8 @@ public sealed record PlayerSettings
     /// </summary>
     public IReadOnlyDictionary<string, string> Shortcuts { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
+    private static int Rgb(int value) => value & 0xFFFFFF;
+
     private static double Decibels(double value) => double.IsFinite(value) ? Math.Clamp(value, -20, 20) : 0;
 
     /// <summary>A copy with every value in its allowed range; values from a damaged file are reset or clamped.</summary>
@@ -197,6 +262,19 @@ public sealed record PlayerSettings
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
+            SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),
+            SubtitleSize = Math.Clamp(SubtitleSize, 50, 400),
+            SubtitleColor = Rgb(SubtitleColor),
+            SubtitleOpacity = Math.Clamp(SubtitleOpacity, 0, 100),
+            SubtitleOutline = Enum.IsDefined(SubtitleOutline) ? SubtitleOutline : OutlineChoice.Normal,
+            SubtitleOutlineColor = Rgb(SubtitleOutlineColor),
+            SubtitleShadowColor = Rgb(SubtitleShadowColor),
+            SubtitleShadowOpacity = Math.Clamp(SubtitleShadowOpacity, 0, 100),
+            SubtitleShadowOffset = Math.Clamp(SubtitleShadowOffset, 0, 10),
+            SubtitleBoxColor = Rgb(SubtitleBoxColor),
+            SubtitleBoxOpacity = Math.Clamp(SubtitleBoxOpacity, 0, 100),
+            SubtitleMargin = Math.Clamp(SubtitleMargin, 0, 40),
+            SubtitleStyles = Enum.IsDefined(SubtitleStyles) ? SubtitleStyles : SubtitleStyleChoice.Respect,
         };
     }
 }

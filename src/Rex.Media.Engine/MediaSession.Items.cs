@@ -26,6 +26,9 @@ public sealed partial class MediaSession
 
         public required IAudioDecoder Decoder { get; init; }
 
+        /// <summary>Readers for the subtitle tracks rexplayer can read, by track id.</summary>
+        public IReadOnlyDictionary<int, Rex.Media.Subtitles.SubtitlePackets> Subtitles { get; init; } = new Dictionary<int, Rex.Media.Subtitles.SubtitlePackets>();
+
         /// <summary>The picture track and its decoder, when pictures are wanted and one opened.</summary>
         public TrackInfo? VideoTrack { get; init; }
 
@@ -67,7 +70,7 @@ public sealed partial class MediaSession
             }
 
             var (videoTrack, videoDecoder) = OpenVideo(info, presenter);
-            return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = audioTrack, Decoder = decoded.Decoder, VideoTrack = videoTrack, VideoDecoder = videoDecoder };
+            return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = audioTrack, Decoder = decoded.Decoder, VideoTrack = videoTrack, VideoDecoder = videoDecoder, Subtitles = SubtitleReaders(info) };
         }
         catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -95,7 +98,7 @@ public sealed partial class MediaSession
         }
 
         var duration = videoTrack!.Duration.IsKnown ? videoTrack.Duration : info.Duration;
-        return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = SilentAudio.Track(duration), Decoder = new SilenceDecoder(), VideoTrack = videoTrack, VideoDecoder = videoDecoder };
+        return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = SilentAudio.Track(duration), Decoder = new SilenceDecoder(), VideoTrack = videoTrack, VideoDecoder = videoDecoder, Subtitles = SubtitleReaders(info) };
     }
 
     /// <summary>
@@ -162,6 +165,12 @@ public sealed partial class MediaSession
             },
             null));
     }
+
+    private static Dictionary<int, Rex.Media.Subtitles.SubtitlePackets> SubtitleReaders(MediaInfo info) =>
+        info.Tracks.Where(track => track.Kind == MediaKind.Subtitle && Rex.Media.Subtitles.SubtitlePackets.CanRead(track.Codec))
+            .ToDictionary(track => track.Id, track => new Rex.Media.Subtitles.SubtitlePackets(track));
+
+    private void OnSubtitle(MediaInfo item, int trackId, Rex.Media.Subtitles.SubtitleCue cue) => _events.Post(new SubtitleCueEvent(item, trackId, cue));
 
     private void OnItemSkipped(string name, string reason)
     {

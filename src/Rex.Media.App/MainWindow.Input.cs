@@ -43,7 +43,7 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>A drop plays what was dropped; with Ctrl held it joins the playlist instead.</summary>
+    /// <summary>A drop plays what was dropped; with Ctrl held it joins the playlist instead. Subtitle files join what plays.</summary>
     private async void OnDrop(object sender, DragEventArgs e)
     {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -56,7 +56,7 @@ public sealed partial class MainWindow
         var paths = items.Select(item => item.Path).Where(path => !string.IsNullOrEmpty(path)).ToList();
         if (paths.Count > 0)
         {
-            _player.Open(paths, enqueue);
+            _player.Drop(paths, enqueue);
         }
     }
 
@@ -71,13 +71,15 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The wheel over the picture changes the volume.</summary>
+    /// <summary>The wheel over the picture changes the volume; with Ctrl held, the size of the subtitles (OSD-02).</summary>
     private void OnStageWheel(object sender, PointerRoutedEventArgs e)
     {
         var delta = e.GetCurrentPoint(Stage).Properties.MouseWheelDelta;
         if (delta != 0)
         {
-            _player.Execute(delta > 0 ? CommandCatalog.VolumeUp : CommandCatalog.VolumeDown);
+            Run(IsDown(VirtualKey.Control)
+                ? delta > 0 ? CommandCatalog.SubtitlesBigger : CommandCatalog.SubtitlesSmaller
+                : delta > 0 ? CommandCatalog.VolumeUp : CommandCatalog.VolumeDown);
             e.Handled = true;
         }
     }

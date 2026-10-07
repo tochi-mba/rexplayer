@@ -357,7 +357,13 @@ public sealed partial class MediaSession
                 }
                 else
                 {
-                    packet.Dispose();
+                    using (packet)
+                    {
+                        if (_demuxItem.Subtitles.TryGetValue(packet.TrackId, out var reader) && reader.Read(packet) is { } cue)
+                        {
+                            _session.OnSubtitle(_demuxItem.Info, packet.TrackId, cue);
+                        }
+                    }
                 }
             }
         }

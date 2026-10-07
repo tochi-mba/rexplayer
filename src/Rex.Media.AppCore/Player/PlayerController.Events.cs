@@ -18,6 +18,11 @@ public sealed partial class PlayerController
     /// </summary>
     public bool Execute(string commandId)
     {
+        if (ExecuteSubtitles(commandId))
+        {
+            return true;
+        }
+
         switch (commandId)
         {
             case CommandCatalog.PlayPause:
@@ -206,6 +211,7 @@ public sealed partial class PlayerController
                     // The queued item has begun, without a gap: the playlist moves on with it.
                     Item = Playlist.Next(automatic: true);
                     _queued = null;
+                    FindSubtitles(Item!);
                 }
 
                 _queueTried = false;
@@ -213,6 +219,7 @@ public sealed partial class PlayerController
                 _failuresInARow = 0;
                 Info = opened.Info;
                 Duration = opened.Info.Duration.IsKnown ? opened.Info.Duration.ToTimeSpan() : TimeSpan.Zero;
+                AddEmbeddedSubtitles(opened.Info);
                 Changed?.Invoke(this, EventArgs.Empty);
                 if (Settings.TitleSeconds > 0)
                 {
@@ -221,6 +228,9 @@ public sealed partial class PlayerController
 
                 // An item shorter than the queueing distance may end before its first position report.
                 QueueNextIfNearTheEnd(session);
+                break;
+            case SubtitleCueEvent subtitle:
+                Embedded(subtitle.Item, subtitle.TrackId).Add(subtitle.Cue);
                 break;
             case TracksChangedEvent tracks:
                 AudioTrack = tracks.AudioTrack;

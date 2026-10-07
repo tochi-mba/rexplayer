@@ -15,6 +15,7 @@
       <MenuBarItem x:Name="MediaMenu" Title="Media" AutomationProperties.AutomationId="MediaMenu" />
       <MenuBarItem x:Name="PlaybackMenu" Title="Playback" AutomationProperties.AutomationId="PlaybackMenu" />
       <MenuBarItem x:Name="AudioMenu" Title="Audio" AutomationProperties.AutomationId="AudioMenu" />
+      <MenuBarItem x:Name="SubtitleMenu" Title="Subtitles" AutomationProperties.AutomationId="SubtitleMenu" />
       <MenuBarItem x:Name="VideoMenu" Title="Video" AutomationProperties.AutomationId="VideoMenu" />
       <MenuBarItem x:Name="ViewMenu" Title="View" AutomationProperties.AutomationId="ViewMenu" />
       <MenuBarItem x:Name="HelpMenu" Title="Help" AutomationProperties.AutomationId="HelpMenu" />
@@ -29,6 +30,12 @@
       <Grid x:Name="Stage" Grid.Column="0" Background="Black" DoubleTapped="OnStageDoubleTapped" PointerMoved="OnStagePointerMoved" PointerWheelChanged="OnStageWheel"
             AutomationProperties.AutomationId="Stage" AutomationProperties.Name="Picture">
         <SwapChainPanel x:Name="Video" AutomationProperties.AutomationId="Video" />
+
+        <Grid x:Name="SubtitleLayer" IsHitTestVisible="False" AutomationProperties.AutomationId="Subtitles">
+          <StackPanel x:Name="SubtitlesTop" VerticalAlignment="Top" HorizontalAlignment="Center" Spacing="2" />
+          <StackPanel x:Name="SubtitlesMiddle" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2" />
+          <StackPanel x:Name="SubtitlesBottom" VerticalAlignment="Bottom" HorizontalAlignment="Center" Spacing="2" />
+        </Grid>
 
         <StackPanel x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" AutomationProperties.AutomationId="Idle">
           <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="28" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" />

@@ -302,6 +302,7 @@ public sealed class PlayerControllerTests
         {
             File.WriteAllBytes(Path.Combine(folder, "2.wav"), Count(500, 400));
             File.WriteAllBytes(Path.Combine(folder, "1.wav"), Count(0, 400));
+            File.WriteAllText(Path.Combine(folder, "2.srt"), "1\n00:00:00,000 --> 00:00:01,000\nTwo\n");
             using var harness = new ControllerHarness(openSource: path => new FileByteSource(path), diskFolders: true);
 
             harness.Controller.Open([folder]);
@@ -309,6 +310,7 @@ public sealed class PlayerControllerTests
 
             Assert.Equal(Expected((0, 400), (500, 400)), harness.Played());
             Assert.Equal(["1", "2"], harness.Messages);
+            Assert.Equal("Two", Assert.Single(harness.Controller.SubtitlesAt(TimeSpan.FromMilliseconds(500))).Text);
         }
         finally
         {
@@ -469,5 +471,190 @@ public sealed class PlayerControllerTests
         Assert.Equal(TimeSpan.FromSeconds(-10), controller.AudioDelay);
         Assert.True(controller.Execute(CommandCatalog.ResetAudioDelay));
         Assert.Equal(TimeSpan.Zero, controller.AudioDelay);
+    }
+
+    private static byte[] Srt(string text) => System.Text.Encoding.UTF8.GetBytes(text);
+
+    [Fact]
+    [Capability("SUB-16")]
+    [Capability("PB-20")]
+    public void SubtitlesBesideTheMediaShowAndTheirCommandsWork()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 }, sidecars: new() { ["a.wav"] = ["a.srt"] });
+        harness.Files["a.wav"] = Count(0, 8000 * 10);
+        harness.Files["a.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nHello\n\n2\n00:00:05,000 --> 00:00:06,000\nAgain\n");
+        harness.Files["extra.srt"] = Srt("1\n00:00:01,000 --> 00:00:02,000\nExtra\n");
+        harness.Files["junk.srt"] = [1, 2, 3];
+        var controller = harness.Controller;
+        var changes = 0;
+        controller.SubtitlesChanged += (_, _) => changes++;
+
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        Assert.Equal("a.srt", controller.Subtitles!.Name);
+        Assert.Equal(["Hello"], controller.SubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
+        Assert.Empty(controller.SubtitlesNow);
+
+        Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));
+        Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));
+        Assert.Equal(TimeSpan.FromMilliseconds(100), controller.SubtitleDelay);
+        Assert.Equal(["Hello"], controller.SubtitlesAt(TimeSpan.FromSeconds(3.05)).Select(cue => cue.Text));
+        Assert.True(controller.Execute(CommandCatalog.SubtitlesEarlier));
+        Assert.True(controller.Execute(CommandCatalog.ResetSubtitleDelay));
+        controller.SetSubtitleDelay(TimeSpan.FromMinutes(1));
+        Assert.Equal(TimeSpan.FromSeconds(10), controller.SubtitleDelay);
+        controller.SetSubtitleDelay(TimeSpan.FromMinutes(-1));
+        Assert.Equal(TimeSpan.FromSeconds(-10), controller.SubtitleDelay);
+
+        Assert.True(controller.Execute(CommandCatalog.CycleSubtitles));
+        Assert.Null(controller.Subtitles);
+        Assert.Empty(controller.SubtitlesAt(TimeSpan.FromSeconds(2)));
+        Assert.True(controller.Execute(CommandCatalog.CycleSubtitles));
+        Assert.Equal("a.srt", controller.Subtitles!.Name);
+        Assert.True(controller.Execute(CommandCatalog.ToggleSubtitles));
+        Assert.Null(controller.Subtitles);
+        Assert.True(controller.Execute(CommandCatalog.ToggleSubtitles));
+        Assert.Equal("a.srt", controller.Subtitles!.Name);
+
+        Assert.True(controller.AddSubtitles("extra.srt"));
+        Assert.Equal(["extra.srt", "a.srt"], controller.SubtitleTracks.Select(track => track.Name));
+        Assert.Equal("Subtitles: extra.srt", harness.Messages[^1]);
+        Assert.False(controller.AddSubtitles("junk.srt"));
+        Assert.False(controller.AddSubtitles("missing.srt"));
+        Assert.Equal("missing.srt is not a subtitle file rexplayer can read.", harness.Messages[^1]);
+        Assert.True(changes > 8);
+        Assert.Throws<ArgumentNullException>(() => controller.AddSubtitles(null!));
+    }
+
+    [Fact]
+    [Capability("SUB-16")]
+    public void SubtitlesDroppedWithAFilmPlayWithIt()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 }, sidecars: new() { ["a.wav"] = ["a.srt"] });
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["a.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nBeside\n");
+        harness.Files["Dropped.SRT"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nDropped\n");
+        var controller = harness.Controller;
+
+        controller.Drop(["Dropped.SRT"]);
+        Assert.Equal(PlayerController.NothingToSubtitle, harness.Messages[^1]);
+        Assert.Null(controller.Item);
+
+        controller.Drop(["a.wav", "Dropped.SRT"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        Assert.Equal(["Dropped.SRT", "a.srt"], controller.SubtitleTracks.Select(track => track.Name));
+        Assert.Equal(["Dropped"], controller.SubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
+
+        // A subtitle file on its own joins what is playing.
+        controller.ShowSubtitles(null);
+        controller.Drop(["a.srt"], enqueue: true);
+        Assert.Equal(["Beside"], controller.SubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
+        Assert.Equal(3, controller.SubtitleTracks.Count);
+        Assert.Throws<ArgumentNullException>(() => controller.Drop(null!));
+    }
+
+    [Fact]
+    [Capability("OSD-04")]
+    public void ASecondTrackShowsBesideTheFirst()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 }, sidecars: new() { ["a.wav"] = ["a.en.srt", "a.fr.srt"] });
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["a.en.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nHello\n");
+        harness.Files["a.fr.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nBonjour\n");
+        var controller = harness.Controller;
+        var changes = 0;
+        controller.SubtitlesChanged += (_, _) => changes++;
+
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        Assert.Null(controller.SecondarySubtitles);
+        Assert.Empty(controller.SecondarySubtitlesAt(TimeSpan.FromSeconds(2)));
+
+        // The main track is passed over: the only other one is French, then off.
+        Assert.True(controller.Execute(CommandCatalog.CycleSecondarySubtitles));
+        Assert.Equal("a.fr.srt", controller.SecondarySubtitles!.Name);
+        Assert.Equal("Second subtitles: a.fr.srt", harness.Messages[^1]);
+        Assert.Equal(["Bonjour"], controller.SecondarySubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
+        Assert.Equal(["Hello"], controller.SubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
+        Assert.True(controller.Execute(CommandCatalog.CycleSecondarySubtitles));
+        Assert.Null(controller.SecondarySubtitles);
+        Assert.Equal("Second subtitles off", harness.Messages[^1]);
+
+        // Making the second track the main one stops showing it twice.
+        controller.ShowSecondarySubtitles(controller.SubtitleTracks[1]);
+        controller.ShowSubtitles(controller.SubtitleTracks[1]);
+        Assert.Null(controller.SecondarySubtitles);
+        controller.ShowSecondarySubtitles(controller.SubtitleTracks[0]);
+        controller.ShowSubtitles(null);
+        Assert.Equal("a.en.srt", controller.SecondarySubtitles!.Name);
+        Assert.True(changes >= 6);
+    }
+
+    [Fact]
+    public void SubtitleFilesWithoutAMarkAreReadInTheChosenCodePage()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0, SubtitleCodePage = 1251 }, sidecars: new() { ["a.wav"] = ["a.srt"] });
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["a.srt"] = [.. System.Text.Encoding.ASCII.GetBytes("1\n00:00:01,000 --> 00:00:03,000\n"), 0xC4, 0xE0];
+
+        harness.Controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+
+        Assert.Equal("\u0414\u0430", Assert.Single(harness.Controller.SubtitlesAt(TimeSpan.FromSeconds(2))).Text);
+    }
+
+    [Fact]
+    public void ToggleWithNothingChosenBeforeShowsTheFirstTrack()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 }, sidecars: new() { ["a.wav"] = ["a.srt"] });
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["a.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nHello\n");
+        var controller = harness.Controller;
+
+        Assert.True(controller.Execute(CommandCatalog.ToggleSubtitles));
+        Assert.Null(controller.Subtitles);
+
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        controller.ShowSubtitles(null);
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        controller.ShowSubtitles(null);
+        Assert.True(controller.Execute(CommandCatalog.ToggleSubtitles));
+        Assert.Equal("a.srt", controller.Subtitles!.Name);
+    }
+
+    [Fact]
+    public void TheMediasOwnDefaultSubtitlesShowAsTheirCuesArrive()
+    {
+        using var harness = new ControllerHarness(settings: new PlayerSettings { TitleSeconds = 0 });
+        var track = EbmlWriter.Element(Rex.Media.Containers.Matroska.MatroskaId.TrackEntry, EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TrackNumber, 3), EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TrackType, 17), EbmlWriter.Text(Rex.Media.Containers.Matroska.MatroskaId.CodecId, "S_TEXT/UTF8"), EbmlWriter.Text(Rex.Media.Containers.Matroska.MatroskaId.Language, "eng"));
+        harness.Files["film.mkv"] = Rex.Media.Tests.Containers.MatroskaCraftedTests.Mkv(
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Tracks(Rex.Media.Tests.Containers.MatroskaCraftedTests.PcmTrack(1), track),
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Cluster(0, Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(1, 0, true, Pcm.Int16(new float[800])), Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(3, 10, true, Srt("Inside"))));
+
+        harness.Controller.Open(["film.mkv"]);
+        harness.PumpUntil(c => EndedOn(c, "film"));
+
+        Assert.Equal("eng", harness.Controller.Subtitles!.Name);
+        Assert.Equal(["Inside"], harness.Controller.SubtitlesAt(TimeSpan.FromSeconds(1)).Select(cue => cue.Text));
+    }
+
+    [Fact]
+    public void TheNextItemOfAGaplessRunBringsItsOwnSubtitles()
+    {
+        using var harness = new ControllerHarness(settings: new PlayerSettings { TitleSeconds = 0 }, sidecars: new() { ["b.wav"] = ["b.srt"] });
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["b.wav"] = Count(0, 400);
+        harness.Files["b.srt"] = Srt("1\n00:00:00,000 --> 00:00:01,000\nB\n");
+
+        var seen = new List<string>();
+        harness.Controller.SubtitlesChanged += (_, _) => seen.AddRange(harness.Controller.SubtitleTracks.Select(track => track.Name));
+
+        harness.Controller.Open(["a.wav", "b.wav", "https://example.com/c.mp3"]);
+        harness.PumpUntil(c => c.Item?.Title == "c");
+
+        Assert.Empty(harness.Controller.SubtitleTracks);
+        Assert.Contains("b.srt", seen);
     }
 }

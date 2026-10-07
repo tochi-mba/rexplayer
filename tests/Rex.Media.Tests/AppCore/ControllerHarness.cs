@@ -27,8 +27,9 @@ internal sealed class ControllerHarness : IDisposable
     /// <param name="autoPlay">Whether sessions start playing as soon as they open.</param>
     /// <param name="settings">The controller's settings.</param>
     /// <param name="openSource">Opens a location; by default from <see cref="Files"/>.</param>
-    /// <param name="diskFolders">Leave folder expansion to the controller's default, which reads the disk.</param>
-    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false)
+    /// <param name="diskFolders">Leave folder expansion and finding subtitle files to the controller's defaults, which read the disk.</param>
+    /// <param name="sidecars">Subtitle files beside each item, by the item's location.</param>
+    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null)
     {
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory()).Add(new Rex.Media.Containers.Matroska.MatroskaDemuxerFactory());
         var decoders = new DecoderRegistry().Add(new PcmDecoderFactory());
@@ -58,7 +59,9 @@ internal sealed class ControllerHarness : IDisposable
             Dispatch,
             settings,
             diskFolders ? null : location => [location],
-            new Random(1));
+            new Random(1),
+            diskFolders ? null : media => [.. (sidecars?.GetValueOrDefault(media) ?? []).Select(path => new Rex.Media.Subtitles.SubtitleSidecar(path, 3, null, false))],
+            diskFolders ? null : path => Files.TryGetValue(path, out var bytes) ? bytes : throw new FileNotFoundException(path));
         Controller.Message += (_, text) => Messages.Add(text);
 
         // The window always listens to both.

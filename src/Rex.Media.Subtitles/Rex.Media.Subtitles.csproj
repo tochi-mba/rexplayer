@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Rex.Media.Subtitles</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Rex.Media.Tests" />
+    <InternalsVisibleTo Include="Rex.Media.TestKit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+  </ItemGroup>
+
+</Project>
