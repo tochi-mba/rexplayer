@@ -232,9 +232,10 @@ public sealed unsafe class MfTransform : IDisposable
         {
             _transform.ProcessMessage(MFT_MESSAGE_TYPE.MFT_MESSAGE_SET_D3D_MANAGER, (nuint)pointer);
         }
-        catch (COMException)
+        catch (Exception ex) when (ex is COMException or InvalidCastException)
         {
-            // The transform refused this device (a software device it cannot decode on, say).
+            // The transform refused this device (a software device it cannot decode on, say). A
+            // refusal of the device's interface (E_NOINTERFACE) arrives as an invalid cast.
             Marshal.ReleaseComObject(manager);
             return false;
         }

@@ -11,9 +11,13 @@ public sealed class PlaylistItem(string location)
     /// <summary>What the playlist shows until the media's own title is known.</summary>
     public string Title { get; set; } = TitleOf(location);
 
+    /// <summary>
+    /// The file name without its extension. Both separators count, whatever system this is: a
+    /// playlist made on Windows still names its songs when it is played elsewhere.
+    /// </summary>
     public static string TitleOf(string location)
     {
-        var name = Uri.TryCreate(location, UriKind.Absolute, out var uri) && !uri.IsFile ? uri.Segments[^1] : Path.GetFileName(location);
+        var name = Uri.TryCreate(location, UriKind.Absolute, out var uri) && !uri.IsFile ? uri.Segments[^1] : location[(location.LastIndexOfAny(['/', '\\']) + 1)..];
         var title = Path.GetFileNameWithoutExtension(Uri.UnescapeDataString(name));
         return title.Length > 0 ? title : location;
     }

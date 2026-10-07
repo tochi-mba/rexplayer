@@ -5,8 +5,24 @@ pipeline the moment its number reaches `main`.
 
 ## 0.3.1 - 2026-10-07
 
+### Added
+
+- **The player window.** rexplayer now opens in a window of its own: video drawn by the graphics
+  card, a seek bar, play, pause, stop, previous and next, shuffle and repeat, a playlist, volume
+  and mute, full screen, always on top, and a menu with every command and its shortcut. Drop
+  files on it to play them (hold Ctrl to add them to the playlist). The window keeps your volume,
+  modes and size for next time.
+- **One window.** Opening a file while rexplayer is running plays it in the window you already
+  have.
+- **Snapshots and statistics.** Shift+S saves the picture on screen to Pictures\rexplayer, and
+  Ctrl+Shift+I shows what is decoding the media and how well it is keeping up.
+- **Video without sound** now plays.
+- **Audio tracks.** B switches to the next audio track of media that has several.
+
 ### Fixed
 
+- **Playlists made on Windows** show their songs' names on any system.
+- **A decoder that fails unexpectedly** no longer closes rexplayer; the next decoder is tried.
 - **Damaged video headers.** An H.264 or HEVC stream whose header declares counts or sizes beyond
   what the format allows is now refused as damaged, with a message naming the field, instead of
   failing with an internal error.
