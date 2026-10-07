@@ -38,10 +38,24 @@ internal sealed class AppProcess : IDisposable
     /// <summary>The built app; the suite needs it built first (./dev.ps1 build or the CI step that does).</summary>
     public static string Executable => RepoPaths.Combine("src", "Rex.Media.App", "bin", RepoPaths.Configuration, "net10.0-windows10.0.22621.0", "win-x64", "rexplayer.exe");
 
-    /// <summary>Starts the app with <paramref name="arguments"/>, reusing <paramref name="root"/> when given.</summary>
-    public static AppProcess Start(string[]? arguments = null, string? root = null)
+    /// <summary>The version the app reports, from Directory.Build.props.</summary>
+    public static string Version { get; } = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(RepoPaths.Combine("Directory.Build.props")), "<Version>(.+?)</Version>").Groups[1].Value;
+
+    /// <summary>
+    /// Starts the app with <paramref name="arguments"/>, reusing <paramref name="root"/> when given.
+    /// A new root starts as someone who has used rexplayer before (no welcome, nothing new to show)
+    /// unless <paramref name="firstRun"/> asks for the very first start.
+    /// </summary>
+    public static AppProcess Start(string[]? arguments = null, string? root = null, bool firstRun = false)
     {
         root ??= Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
+        var settings = Path.Combine(root, "settings.json");
+        if (!firstRun && !File.Exists(settings))
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off" }""");
+        }
+
         var process = Process.Start(StartInfo(arguments, root))!;
         var window = Wait.Until(() =>
         {
@@ -66,7 +80,14 @@ internal sealed class AppProcess : IDisposable
     public static int Launch(string[] arguments, string root)
     {
         using var process = Process.Start(StartInfo(arguments, root))!;
-        Assert.True(process.WaitForExit(Patience), "The second launch kept running instead of handing over.");
+        if (!process.WaitForExit(Patience))
+        {
+            // Never left running: a stray window would hold the build's files and confuse later tests.
+            process.Kill();
+            process.WaitForExit();
+            Assert.Fail("The second launch kept running instead of handing over.");
+        }
+
         return process.ExitCode;
     }
 

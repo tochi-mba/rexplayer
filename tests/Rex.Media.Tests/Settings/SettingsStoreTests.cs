@@ -87,6 +87,19 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SettingsAFileLeavesOutKeepTheirDefaults()
+    {
+        Directory.CreateDirectory(_folder);
+        System.IO.File.WriteAllText(File, """{ "firstRunDone": true, "volume": 0.5 }""");
+
+        var loaded = SettingsStore.Load(File);
+
+        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts }, loaded);
+        Assert.True(loaded.SingleInstance);
+        Assert.Equal(10, loaded.ShortJumpSeconds);
+    }
+
+    [Fact]
     public void ValuesOutOfRangeAreBroughtBackIntoIt()
     {
         var wild = new PlayerSettings

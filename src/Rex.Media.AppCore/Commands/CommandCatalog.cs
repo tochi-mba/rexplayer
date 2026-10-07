@@ -51,8 +51,10 @@ public static class CommandCatalog
     public const string MinimalInterface = "minimal-interface";
     public const string MediaInformation = "media-information";
     public const string ShowLog = "show-log";
+    public const string SaveDiagnostics = "save-diagnostics";
     public const string Preferences = "preferences";
     public const string Help = "help";
+    public const string CheckForUpdates = "check-for-updates";
     public const string ShortcutSheet = "shortcut-sheet";
 
     private const string Playback = "Playback";
@@ -105,8 +107,10 @@ public static class CommandCatalog
         New(MinimalInterface, "Minimal interface", View, "Ctrl+H"),
         New(MediaInformation, "Media information", Tools, "Ctrl+I"),
         New(ShowLog, "Log", Tools, "Ctrl+M"),
+        New(SaveDiagnostics, "Save diagnostics for a problem report", Tools),
         New(Preferences, "Preferences", Tools, "Ctrl+P"),
         New(Help, "Help", Tools, "F1"),
+        New(CheckForUpdates, "Check for updates", Tools),
         New(ShortcutSheet, "Keyboard shortcuts", Tools, "Ctrl+Slash"),
     ];
 

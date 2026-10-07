@@ -144,6 +144,11 @@ public sealed partial class PlayerController
             case StateChangedEvent changed:
                 State = changed.To;
                 Changed?.Invoke(this, EventArgs.Empty);
+                if (changed.To == SessionState.Faulted && Item is { } failed)
+                {
+                    OnFailed(failed, session.FailureReason ?? "It could not be played.");
+                }
+
                 break;
             case MediaOpenedEvent opened:
                 if (_openedInSession && _queued is not null)

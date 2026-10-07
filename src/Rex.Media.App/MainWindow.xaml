@@ -36,6 +36,9 @@
                      AutomationProperties.AutomationId="IdleHint" />
         </StackPanel>
 
+        <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
+                 AutomationProperties.AutomationId="Notice" />
+
         <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
                 Background="#C0080A09" Visibility="Collapsed" IsHitTestVisible="False">
           <TextBlock x:Name="Stats" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.AutomationId="Stats" />

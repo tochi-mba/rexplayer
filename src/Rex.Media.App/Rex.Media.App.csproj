@@ -24,6 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- "What's new" shows this version's section. -->
+    <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
     <ProjectReference Include="..\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
     <ProjectReference Include="..\Rex.Media.IO\Rex.Media.IO.csproj" />

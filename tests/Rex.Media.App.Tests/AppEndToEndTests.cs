@@ -88,6 +88,21 @@ public sealed class AppEndToEndTests : IDisposable
     }
 
     [Fact]
+    [Capability("UI-14")]
+    public void TheFirstStartWelcomesAndAsksAboutLookingForUpdates()
+    {
+        using var app = AppProcess.Start(firstRun: true);
+
+        app.Toggle("WelcomeUpdates");
+        app.Press("CloseButton");
+        Wait.For(() => File.Exists(app.SettingsPath) && SettingsStore.Load(app.SettingsPath).FirstRunDone, "the welcome to be remembered");
+
+        var saved = SettingsStore.Load(app.SettingsPath);
+        Assert.Equal((UpdateCadence.Off, AppProcess.Version), (saved.UpdateChecks, saved.LastSeenVersion));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("TOOL-06")]
     public void ASecondLaunchHandsItsFileToTheRunningPlayer()
     {

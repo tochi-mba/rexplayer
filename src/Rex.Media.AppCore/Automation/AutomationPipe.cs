@@ -67,11 +67,43 @@ public static class AutomationPipe
 
     /// <summary>
     /// Sends <paramref name="request"/> to the player listening on <paramref name="pipeName"/>; null
-    /// when no player answers within <paramref name="connectTimeout"/>.
+    /// when no player answers within <paramref name="connectTimeout"/>. A connection dropped before
+    /// any answer is tried again twice: on Linux a pipe is a socket, and connections still queued
+    /// when the player finishes with another are reset rather than kept.
     /// </summary>
     public static async Task<AutomationReply?> SendAsync(string pipeName, AutomationRequest request, TimeSpan connectTimeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var (connected, reply) = await SendOnceAsync(pipeName, request, connectTimeout, cancellationToken).ConfigureAwait(false);
+                if (!connected || reply is not null)
+                {
+                    return reply;
+                }
+            }
+            catch (IOException)
+            {
+                // Reset before an answer came: the request was not taken, so sending it again is safe.
+            }
+
+            if (attempt >= Attempts)
+            {
+                return null;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt), cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>How many times a request is sent before the sender gives up.</summary>
+    private const int Attempts = 3;
+
+    /// <summary>One try: whether a player was there, and its reply (null when it hung up without one).</summary>
+    private static async Task<(bool Connected, AutomationReply? Reply)> SendOnceAsync(string pipeName, AutomationRequest request, TimeSpan connectTimeout, CancellationToken cancellationToken)
+    {
         await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         try
         {
@@ -79,14 +111,14 @@ public static class AutomationPipe
         }
         catch (TimeoutException)
         {
-            return null;
+            return (false, null);
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(RequestTimeout);
         await WriteLineAsync(pipe, JsonSerializer.SerializeToUtf8Bytes(request, AutomationJson.Default.AutomationRequest), timeout.Token).ConfigureAwait(false);
         var line = await ReadLineAsync(pipe, timeout.Token).ConfigureAwait(false);
-        return line is null ? null : JsonSerializer.Deserialize(line, AutomationJson.Default.AutomationReply);
+        return (true, line is null ? null : JsonSerializer.Deserialize(line, AutomationJson.Default.AutomationReply));
     }
 
     /// <summary>
@@ -108,7 +140,7 @@ public static class AutomationPipe
                     ? AutomationReply.Failed("The request was not a request.")
                     : request.ProtocolVersion is not (0 or ProtocolVersion)
                         ? AutomationReply.Failed($"This player speaks protocol {ProtocolVersion}, not {request.ProtocolVersion}.")
-                        : await handle(request).ConfigureAwait(false);
+                        : await Handle(handle, request with { Paths = request.Paths ?? [] }).ConfigureAwait(false);
         }
         catch (JsonException ex)
         {
@@ -157,6 +189,19 @@ public static class AutomationPipe
                 }
             },
             CancellationToken.None);
+    }
+
+    /// <summary>The player's answer, or why it could not give one: a failure in the player must not silence the pipe.</summary>
+    private static async Task<AutomationReply> Handle(Func<AutomationRequest, Task<AutomationReply>> handle, AutomationRequest request)
+    {
+        try
+        {
+            return await handle(request).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return AutomationReply.Failed("The player could not do that: " + ex.Message);
+        }
     }
 
     private static NamedPipeServerStream NewServer(string pipeName) =>

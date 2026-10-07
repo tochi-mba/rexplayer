@@ -101,6 +101,79 @@ public sealed class AutomationPipeTests
     }
 
     [Fact]
+    public async Task ARequestDroppedBeforeItsAnswerIsSentAgain()
+    {
+        var pipe = NewPipe();
+        var server = Task.Run(
+            async () =>
+            {
+                // Hangs up on the first connection, as a busy player on Linux does; answers the second.
+                await using (var rude = Server(pipe))
+                {
+                    await rude.WaitForConnectionAsync(TestContext.Current.CancellationToken);
+                }
+
+                await using var polite = Server(pipe);
+                await polite.WaitForConnectionAsync(TestContext.Current.CancellationToken);
+                await AutomationPipe.AnswerAsync(polite, _ => Task.FromResult(new AutomationReply { Ok = true, State = "Playing" }), TestContext.Current.CancellationToken);
+            },
+            TestContext.Current.CancellationToken);
+
+        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "status" }, Connect, TestContext.Current.CancellationToken);
+        await server;
+
+        Assert.Equal("Playing", reply!.State);
+    }
+
+    [Fact]
+    public async Task APlayerThatNeverAnswersIsGivenUpOnAfterThreeTries()
+    {
+        var pipe = NewPipe();
+        var server = Task.Run(
+            async () =>
+            {
+                // Takes each request, then hangs up without a word.
+                for (var i = 0; i < 3; i++)
+                {
+                    await using var rude = Server(pipe);
+                    await rude.WaitForConnectionAsync(TestContext.Current.CancellationToken);
+                    await AutomationPipe.ReadLineAsync(rude, TestContext.Current.CancellationToken);
+                }
+            },
+            TestContext.Current.CancellationToken);
+
+        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "status" }, Connect, TestContext.Current.CancellationToken);
+        await server;
+
+        Assert.Null(reply);
+    }
+
+    private static System.IO.Pipes.NamedPipeServerStream Server(string pipe) =>
+        new(pipe, System.IO.Pipes.PipeDirection.InOut, 1, System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous | System.IO.Pipes.PipeOptions.CurrentUserOnly);
+
+    [Fact]
+    public async Task ARequestThatLeavesOutItsPathsHasNone()
+    {
+        IReadOnlyList<string>? paths = null;
+
+        await Answer("""{"command":"open"}"""u8.ToArray(), request =>
+        {
+            paths = request.Paths;
+            return new AutomationReply { Ok = true };
+        });
+
+        Assert.Empty(paths!);
+    }
+
+    [Fact]
+    public async Task APlayerThatFailsToAnswerSaysSoAndKeepsListening()
+    {
+        var reply = await Answer("{\"command\":\"status\"}\n"u8.ToArray(), _ => throw new InvalidOperationException("the window is closing"));
+
+        Assert.Equal("The player could not do that: the window is closing", reply.Error);
+    }
+
+    [Fact]
     public async Task ALastLineWithoutANewlineStillCounts()
     {
         var reply = await Answer("{\"command\":\"status\"}"u8.ToArray(), _ => new AutomationReply { Ok = true, State = "Idle" });

@@ -130,6 +130,14 @@ public sealed partial class PlayerController : IDisposable
         }
     }
 
+    /// <summary>Plays <paramref name="location"/> from <paramref name="at"/> on its own, as when resuming after a crash.</summary>
+    public void Resume(string location, TimeSpan at)
+    {
+        Playlist.Clear();
+        Playlist.Add([new PlaylistItem(location)]);
+        Start(Playlist.JumpTo(0), at);
+    }
+
     /// <summary>Plays the playlist entry at <paramref name="index"/>, as when the user picks it.</summary>
     public void PlayAt(int index) => Start(Playlist.JumpTo(index));
 
@@ -217,15 +225,12 @@ public sealed partial class PlayerController : IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            OnFailed(session, item, ex.Message);
+            OnFailed(item, ex.Message);
             return;
         }
 
-        session.OpenAsync(source, startAt > TimeSpan.Zero ? new MediaTime(startAt.Ticks) : null).ContinueWith(
-            opened => _dispatch(() => OnFailed(session, item, session.FailureReason ?? opened.Exception!.InnerException!.Message)),
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
+        // A failure to open arrives as the session's move to Faulted, in order with its other events.
+        _ = Observe(session.OpenAsync(source, startAt > TimeSpan.Zero ? new MediaTime(startAt.Ticks) : null));
     }
 
     private void EndSession()
@@ -242,13 +247,9 @@ public sealed partial class PlayerController : IDisposable
         }
     }
 
-    private void OnFailed(MediaSession session, PlaylistItem item, string reason)
+    /// <summary>The current item failed, opening or part-way: say why and move on.</summary>
+    private void OnFailed(PlaylistItem item, string reason)
     {
-        if (session != _session)
-        {
-            return;
-        }
-
         Failure = reason;
         State = SessionState.Faulted;
         Message?.Invoke(this, $"{item.Title} could not be played: {reason}");

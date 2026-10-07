@@ -31,8 +31,8 @@ public sealed partial class MainWindow
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation]),
-        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help]),
+        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.Preferences]),
+        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
     ];
 
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
@@ -147,6 +147,18 @@ public sealed partial class MainWindow
                 break;
             case CommandCatalog.MediaInformation:
                 _ = ShowMediaInformationAsync();
+                break;
+            case CommandCatalog.CheckForUpdates:
+                _ = CheckForUpdatesAsync(asked: true);
+                break;
+            case CommandCatalog.Preferences:
+                _ = ShowPreferencesAsync();
+                break;
+            case CommandCatalog.ShowLog:
+                _ = ShowLogAsync();
+                break;
+            case CommandCatalog.SaveDiagnostics:
+                _ = SaveDiagnosticsAsync();
                 break;
             case CommandCatalog.Help:
                 _ = Windows.System.Launcher.LaunchUriAsync(new Uri(HelpUrl));
@@ -497,14 +509,124 @@ public sealed partial class MainWindow
         await Ask("Media information", new ScrollViewer { Content = text, MaxHeight = 480 }, null);
     }
 
+    /// <summary>The log console (UI-09): the latest entries, to copy or to save with the rest of the diagnostics.</summary>
+    private async Task ShowLogAsync()
+    {
+        var text = string.Join(Environment.NewLine, App.Log.Tail(500).Select(entry => entry.Format()));
+        var box = new TextBox
+        {
+            Text = text,
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.NoWrap,
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"),
+            FontSize = 12,
+            Height = 420,
+            MinWidth = 720,
+        };
+        ScrollViewer.SetHorizontalScrollBarVisibility(box, ScrollBarVisibility.Auto);
+        ScrollViewer.SetVerticalScrollBarVisibility(box, ScrollBarVisibility.Auto);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "LogText");
+        var dialog = new ContentDialog
+        {
+            Title = "Log",
+            Content = box,
+            PrimaryButtonText = "Copy",
+            SecondaryButtonText = "Save diagnostics\u2026",
+            CloseButtonText = "Close",
+            XamlRoot = Content.XamlRoot,
+        };
+        switch (await dialog.ShowAsync())
+        {
+            case ContentDialogResult.Primary:
+                var package = new DataPackage();
+                package.SetText(text);
+                Clipboard.SetContent(package);
+                Say("The log is on the clipboard.");
+                break;
+            case ContentDialogResult.Secondary:
+                await SaveDiagnosticsAsync();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Saves the log, the settings and a description of this PC in one zip for a problem report
+    /// (TOOL-10). Nothing is sent anywhere; the user decides what to do with the file.
+    /// </summary>
+    private async Task SaveDiagnosticsAsync()
+    {
+        var picker = Prepared(new FileSavePicker { SuggestedStartLocation = PickerLocationId.Desktop, SuggestedFileName = DiagnosticsBundle.FileName(DateTimeOffset.Now) });
+        picker.FileTypeChoices.Add("Zip archive", [".zip"]);
+        if (await picker.PickSaveFileAsync() is not { } file)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var output = File.Create(file.Path);
+                DiagnosticsBundle.Write(
+                    output,
+                    [("rexplayer.log", ReadShared(App.Log.FilePath)), ("settings.json", ReadShared(App.SettingsPath)), ("system.txt", DescribeSystem())],
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            });
+            Say("Diagnostics saved: " + file.Name);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Say("The diagnostics could not be saved: " + ex.Message);
+        }
+    }
+
+    /// <summary>A file's text even while it is being written (the log is); null when there is none.</summary>
+    private static string? ReadShared(string? path)
+    {
+        if (path is null || !File.Exists(path))
+        {
+            return null;
+        }
+
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>The version, Windows, the decoders Windows offers and the graphics adapter, as text.</summary>
+    private static string DescribeSystem()
+    {
+        var lines = new List<string> { $"rexplayer {Version}", $"Windows {Environment.OSVersion.Version}", $".NET {Environment.Version}", $"Processors: {Environment.ProcessorCount}" };
+        foreach (var (codec, software, hardware) in MfDecoderFactory.Survey())
+        {
+            lines.Add($"{codec.DisplayName()}: software [{string.Join(", ", software)}], hardware [{string.Join(", ", hardware)}]");
+        }
+
+        if (OperatingSystem.IsWindowsVersionAtLeast(10))
+        {
+            try
+            {
+                using var renderer = Rex.Media.Interop.Graphics.D3D11VideoRenderer.Create(software: false);
+                lines.Add($"Graphics: {renderer.AdapterName}{(renderer.IsSoftware ? " (software)" : "")}");
+            }
+            catch (InvalidOperationException ex)
+            {
+                lines.Add("Graphics: none (" + ex.Message + ")");
+            }
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
     /// <summary>An in-window dialog; true when the user chose <paramref name="primary"/>.</summary>
-    private async Task<bool> Ask(string title, UIElement content, string? primary)
+    private async Task<bool> Ask(string title, UIElement content, string? primary, string? close = null)
     {
         var dialog = new ContentDialog
         {
             Title = title,
             Content = content,
-            CloseButtonText = primary is null ? "Close" : "Cancel",
+            CloseButtonText = close ?? (primary is null ? "Close" : "Cancel"),
             XamlRoot = Content.XamlRoot,
         };
         if (primary is not null)

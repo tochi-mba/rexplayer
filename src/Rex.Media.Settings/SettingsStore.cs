@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Rex.Media.IO;
 
@@ -25,14 +26,33 @@ public static class SettingsStore
         AtomicFile.Write(path, JsonSerializer.SerializeToUtf8Bytes(settings.Normalize(), SettingsJson.Default.PlayerSettings));
     }
 
-    /// <summary>The settings in <paramref name="bytes"/>, or null when they are not settings this version can read.</summary>
+    private static readonly JsonDocumentOptions Lenient = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+
+    /// <summary>
+    /// The settings in <paramref name="bytes"/>, or null when they are not settings this version can
+    /// read. A file that leaves settings out (one from an older version, or written by hand) keeps
+    /// the defaults for those: the file's values are laid over a complete set of defaults before
+    /// reading, because the serializer would otherwise set every missing setting to zero.
+    /// </summary>
     internal static PlayerSettings? TryParse(byte[] bytes)
     {
         try
         {
             // Editors such as Notepad may save with a byte-order mark, which the JSON reader refuses.
             ReadOnlySpan<byte> json = bytes;
-            return JsonSerializer.Deserialize(json.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) ? json[3..] : json, SettingsJson.Default.PlayerSettings);
+            json = json.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) ? json[3..] : json;
+            if (JsonNode.Parse(json, documentOptions: Lenient) is not JsonObject given)
+            {
+                return null;
+            }
+
+            var merged = JsonSerializer.SerializeToNode(new PlayerSettings(), SettingsJson.Default.PlayerSettings)!.AsObject();
+            foreach (var (name, value) in given)
+            {
+                merged[name] = value?.DeepClone();
+            }
+
+            return merged.Deserialize(SettingsJson.Default.PlayerSettings);
         }
         catch (JsonException)
         {

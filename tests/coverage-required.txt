@@ -15,6 +15,7 @@ BlockPacketizer.cs
 BorrowedPresenter.cs
 BoundedQueue.cs
 ByteCursor.cs
+Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
 CliApplication.cs
@@ -31,6 +32,7 @@ Crc.cs
 Decoders.cs
 DemuxerRegistry.cs
 DeviceFormatPolicy.cs
+DiagnosticsBundle.cs
 Ebml.cs
 EngineOptions.cs
 ExceptionDiagnostics.cs
@@ -88,6 +90,7 @@ Playlist.cs
 PngWriter.cs
 Rational.cs
 Resampler.cs
+ResumeMarker.cs
 RexLog.cs
 SampleConverter.cs
 ScanWindow.cs
@@ -103,6 +106,7 @@ SystemReport.cs
 ThreadLoop.cs
 TimeText.cs
 TrackInfo.cs
+UpdateCheck.cs
 VideoFrame.cs
 VideoGeometry.cs
 VideoLayout.cs

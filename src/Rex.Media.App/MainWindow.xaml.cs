@@ -37,6 +37,8 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherQueueTimer _saveTimer;
     private readonly DispatcherQueueTimer _controlsTimer;
     private readonly DispatcherQueueTimer _statsTimer;
+    private readonly DispatcherQueueTimer _resumeTimer;
+    private readonly ResumePoint? _crashed;
     private SessionStats? _lastStats;
     private ShapePreset _aspect = VideoGeometry.AspectRatios[0];
     private ShapePreset _crop = VideoGeometry.Crops[0];
@@ -54,6 +56,9 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         _settings = SettingsStore.Load(SettingsPath);
+
+        // Read before this run writes its own: a marker here is the last run's, which did not close cleanly.
+        _crashed = ResumeMarker.Read(ResumePath);
         _keymap = new Keymap(_settings.Shortcuts);
         Title = "rexplayer";
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
@@ -72,6 +77,9 @@ public sealed partial class MainWindow : Window
         _controlsTimer = Timer(TimeSpan.FromSeconds(_settings.ControlsHideSeconds), HideFullScreenControls);
         _statsTimer = Timer(TimeSpan.FromSeconds(1), () => _ = RefreshStatsAsync());
         _statsTimer.IsRepeating = true;
+        _resumeTimer = Timer(TimeSpan.FromSeconds(5), RememberWhereWeAre);
+        _resumeTimer.IsRepeating = true;
+        _resumeTimer.Start();
 
         BuildMenus();
         Root.AddHandler(UIElement.PreviewKeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(OnPreviewKeyDown), handledEventsToo: true);
@@ -142,7 +150,11 @@ public sealed partial class MainWindow : Window
             _player.Open(files);
         }
 
-        _startupFiles = null;
+        if (_startupFiles is { } started)
+        {
+            _startupFiles = null;
+            _ = GreetThenRecoverAsync(started.Count > 0);
+        }
     }
 
     [System.Runtime.Versioning.SupportedOSPlatform("windows10.0")]
@@ -181,6 +193,12 @@ public sealed partial class MainWindow : Window
             App.Log.Error(LogSource, "No pictures can be shown: " + ex.Message);
             Say("Pictures cannot be shown on this PC: " + ex.Message);
         }
+    }
+
+    private async Task GreetThenRecoverAsync(bool openedSomething)
+    {
+        await GreetAsync();
+        AfterGreeting(_crashed, openedSomething);
     }
 
     private (int Width, int Height) VideoPixels() =>
@@ -406,7 +424,9 @@ public sealed partial class MainWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _saveTimer.Stop();
+        _resumeTimer.Stop();
         SaveSettings();
+        TryClearResumeMarker();
         KeepAwake(false, false);
         _player.Dispose();
         OnPresenterThread(presenter => presenter.Dispose());
