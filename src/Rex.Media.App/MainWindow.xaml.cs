@@ -30,7 +30,7 @@ public sealed partial class MainWindow : Window
 {
     private const string LogSource = "window";
 
-    private static readonly string SettingsPath = Path.Combine(App.DataRoot, "settings.json");
+    private static readonly string SettingsPath = App.SettingsPath;
 
     private readonly PlayerController _player;
     private readonly DispatcherQueueTimer _osdTimer;

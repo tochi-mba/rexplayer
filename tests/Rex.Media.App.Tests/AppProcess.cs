@@ -41,18 +41,8 @@ internal sealed class AppProcess : IDisposable
     /// <summary>Starts the app with <paramref name="arguments"/>, reusing <paramref name="root"/> when given.</summary>
     public static AppProcess Start(string[]? arguments = null, string? root = null)
     {
-        Assert.True(File.Exists(Executable), $"Build the app first: {Executable} is missing.");
         root ??= Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        var start = new ProcessStartInfo(Executable) { UseShellExecute = false };
-        foreach (var argument in arguments ?? [])
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        start.Environment["REXPLAYER_ROOT"] = root;
-        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
-        var process = Process.Start(start)!;
+        var process = Process.Start(StartInfo(arguments, root))!;
         var window = Wait.Until(() =>
         {
             process.Refresh();
@@ -67,6 +57,37 @@ internal sealed class AppProcess : IDisposable
             return candidate.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "PlayPauseButton")) is null ? null : candidate;
         });
         return new AppProcess(process, root, window);
+    }
+
+    /// <summary>
+    /// Launches the app and waits for it to exit by itself, as a second launch that hands its files
+    /// to the running player does; returns its exit code.
+    /// </summary>
+    public static int Launch(string[] arguments, string root)
+    {
+        using var process = Process.Start(StartInfo(arguments, root))!;
+        Assert.True(process.WaitForExit(Patience), "The second launch kept running instead of handing over.");
+        return process.ExitCode;
+    }
+
+    /// <summary>
+    /// The app's start: its data in <paramref name="root"/>, no audible sound, and a pipe named for
+    /// the root, so a test's player can never take files from (or give them to) any other player.
+    /// </summary>
+    private static ProcessStartInfo StartInfo(string[]? arguments, string root)
+    {
+        Assert.True(File.Exists(Executable), $"Build the app first: {Executable} is missing.");
+        Directory.CreateDirectory(root);
+        var start = new ProcessStartInfo(Executable) { UseShellExecute = false };
+        foreach (var argument in arguments ?? [])
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = "rexplayer-test-" + Path.GetFileName(root);
+        return start;
     }
 
     /// <summary>The control with this automation id, waiting for it to appear.</summary>

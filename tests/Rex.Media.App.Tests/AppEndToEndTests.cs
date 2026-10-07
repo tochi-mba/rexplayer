@@ -88,6 +88,19 @@ public sealed class AppEndToEndTests : IDisposable
     }
 
     [Fact]
+    [Capability("TOOL-06")]
+    public void ASecondLaunchHandsItsFileToTheRunningPlayer()
+    {
+        using var app = AppProcess.Start([Song("Lonely At The Top", 30)]);
+        Wait.For(() => app.Text("NowPlaying") == "Lonely At The Top", "the first song");
+
+        Assert.Equal(0, AppProcess.Launch([Song("Terminator", 30)], app.Root));
+
+        Wait.For(() => app.Text("NowPlaying") == "Terminator", "the handed-over song to play");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void MediaThatWillNotPlaySaysWhyAndLeavesTheWindowWorking()
     {
         var broken = Path.Combine(_media, "broken.wav");

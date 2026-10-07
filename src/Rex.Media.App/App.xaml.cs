@@ -1,16 +1,20 @@
 using Microsoft.UI.Xaml;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Diagnostics;
+using Rex.Media.Interop.Windowing;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App;
 
 /// <summary>
-/// rexplayer's entry point: finds where its data lives, opens the log, and shows the main window with
-/// whatever the command line named. Everything the window does is in <see cref="MainWindow"/>; what it
-/// decides is in Rex.Media.AppCore, where the tests reach it.
+/// rexplayer's entry point: finds where its data lives, opens the log, and either hands the command
+/// line to a player that is already running (one window, TOOL-06) or shows its own window and
+/// listens on the automation pipe for later launches and scripts (TOOL-03). Everything the window
+/// does is in <see cref="MainWindow"/>; what it decides is in Rex.Media.AppCore.
 /// </summary>
 public partial class App : Application
 {
-    private MainWindow? _window;
+    private static readonly TimeSpan FindRunningPlayer = TimeSpan.FromMilliseconds(300);
 
     public App()
     {
@@ -29,12 +33,48 @@ public partial class App : Application
         ? root
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "REX", "rexplayer");
 
+    public static string SettingsPath { get; } = Path.Combine(DataRoot, "settings.json");
+
     public static RexLog Log { get; } = new(new RexLogOptions { Directory = Path.Combine(DataRoot, "logs"), FileName = "rexplayer.log" });
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         Log.Info("app", $"rexplayer {MainWindow.Version} starting.");
-        _window = new MainWindow([.. Environment.GetCommandLineArgs().Skip(1)]);
-        _window.Activate();
+        var files = Environment.GetCommandLineArgs().Skip(1).Select(Located).ToList();
+        var settings = SettingsStore.Load(SettingsPath);
+        var pipe = AutomationPipe.NameForCurrentUser;
+        if (settings.SingleInstance)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Foreground.AllowAnyProcess();
+            }
+
+            var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch }, FindRunningPlayer);
+            if (reply is { Ok: true })
+            {
+                Log.Info("app", "Handed over to the player that was already running.");
+                Exit();
+                return;
+            }
+        }
+
+        var window = new MainWindow(files);
+        var closing = new CancellationTokenSource();
+        window.Closed += (_, _) => closing.Cancel();
+        window.Activate();
+        try
+        {
+            _ = AutomationPipe.ServeAsync(pipe, window.AnswerAsync, closing.Token);
+        }
+        catch (IOException ex)
+        {
+            // Another player owns the pipe (one window was turned off): this one simply has no pipe.
+            Log.Info("app", "Another player answers the automation pipe: " + ex.Message);
+        }
     }
+
+    /// <summary>A path given relative to where the launch happened, made absolute so another process can open it.</summary>
+    private static string Located(string argument) =>
+        Uri.TryCreate(argument, UriKind.Absolute, out var uri) && !uri.IsFile ? argument : Path.GetFullPath(argument);
 }

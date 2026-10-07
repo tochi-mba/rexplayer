@@ -3,6 +3,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.IO;
@@ -294,6 +295,61 @@ public sealed partial class MainWindow
         var now = DateTime.UtcNow;
         Stats.Text = stats is null ? "Nothing is playing." : StatsText.Describe(stats, _player.Info, _player.AudioTrack, _lastStats, now - _lastStatsAt);
         (_lastStats, _lastStatsAt) = (stats, now);
+    }
+
+    /// <summary>
+    /// Answers the automation pipe (TOOL-03): a later launch's files, a command by id, or the state.
+    /// Called on the pipe's thread, so the work is done on the window's.
+    /// </summary>
+    public Task<AutomationReply> AnswerAsync(AutomationRequest request)
+    {
+        var answered = new TaskCompletionSource<AutomationReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var queued = DispatcherQueue.TryEnqueue(() =>
+        {
+            switch (request.Command)
+            {
+                case "open":
+                    if (request.Paths.Count > 0)
+                    {
+                        _player.Open(request.Paths, request.Enqueue);
+                    }
+
+                    ComeForward();
+                    break;
+                case "run" when request.Id is { } id && CommandCatalog.Find(id) is not null:
+                    Run(id);
+                    break;
+                case "run":
+                    answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
+                    return;
+                case "status":
+                    break;
+                default:
+                    answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run or status."));
+                    return;
+            }
+
+            answered.SetResult(new AutomationReply
+            {
+                Ok = true,
+                State = _player.State.ToString(),
+                Title = _player.Item is null ? null : _player.Title,
+                Position = _player.Position.TotalSeconds,
+                Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
+            });
+        });
+        return queued ? answered.Task : Task.FromResult(AutomationReply.Failed("The player is closing."));
+    }
+
+    /// <summary>Brings the window back from the taskbar and to the front.</summary>
+    private void ComeForward()
+    {
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } overlapped)
+        {
+            overlapped.Restore();
+        }
+
+        Activate();
     }
 
     private T Prepared<T>(T picker)

@@ -148,3 +148,4 @@ D3D11_BOX
 IDXGISwapChain2
 DXGI_MATRIX_3X2_F
 SetThreadExecutionState
+AllowSetForegroundWindow
