@@ -182,6 +182,31 @@ public sealed class VideoPlaybackTests
     }
 
     [Fact]
+    [Capability("PB-19")]
+    public async Task DelayingTheSoundShowsThePicturesThatMuchSooner()
+    {
+        var presenter = new RecordingVideoPresenter();
+        var sink = new ManualClockSink();
+        using var harness = Harness(presenter, sink: sink);
+        harness.Session.AudioDelay = TimeSpan.FromMilliseconds(40);
+
+        // The clock has not moved, yet the picture due at 40 ms is shown: the sound is 40 ms behind.
+        await harness.Session.OpenAsync(SessionHarness.Source(Clip(5), "clip.mkv"));
+        WaitUntil(() => presenter.Shown.Count == 2);
+        Thread.Sleep(50);
+        Assert.Equal(2, presenter.Shown.Count);
+
+        harness.Session.AudioDelay = TimeSpan.Zero;
+        sink.PlayedSamples = 360;
+        Thread.Sleep(50);
+        Assert.Equal(2, presenter.Shown.Count);
+        harness.Session.AudioDelay = TimeSpan.FromSeconds(99);
+        Assert.Equal(MediaSession.MaxAudioDelay, harness.Session.AudioDelay);
+        harness.Session.AudioDelay = TimeSpan.FromSeconds(-99);
+        Assert.Equal(-MediaSession.MaxAudioDelay, harness.Session.AudioDelay);
+    }
+
+    [Fact]
     public async Task PicturesThatOutlastTheSoundPlayOnAndTheEndWaitsForThem()
     {
         // Sound for the first two pictures only.

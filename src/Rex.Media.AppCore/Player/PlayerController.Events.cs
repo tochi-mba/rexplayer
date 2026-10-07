@@ -83,6 +83,12 @@ public sealed partial class PlayerController
             case CommandCatalog.SlightlyFaster or CommandCatalog.SlightlySlower:
                 SetSpeed(Speed + (commandId == CommandCatalog.SlightlyFaster ? 0.1 : -0.1));
                 break;
+            case CommandCatalog.AudioEarlier or CommandCatalog.AudioLater:
+                SetAudioDelay(AudioDelay + TimeSpan.FromMilliseconds(commandId == CommandCatalog.AudioLater ? 50 : -50));
+                break;
+            case CommandCatalog.ResetAudioDelay:
+                SetAudioDelay(TimeSpan.Zero);
+                break;
             case CommandCatalog.CycleAudioTrack:
                 CycleAudioTrack();
                 break;
@@ -131,6 +137,19 @@ public sealed partial class PlayerController
         }
 
         Say(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Speed {Speed:0.##}\u00D7"));
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Hears the sound <paramref name="delay"/> after the pictures (negative: before), within ten seconds either way.</summary>
+    public void SetAudioDelay(TimeSpan delay)
+    {
+        AudioDelay = delay < -MediaSession.MaxAudioDelay ? -MediaSession.MaxAudioDelay : delay > MediaSession.MaxAudioDelay ? MediaSession.MaxAudioDelay : delay;
+        if (_session is not null)
+        {
+            _session.AudioDelay = AudioDelay;
+        }
+
+        Say(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Audio delay {AudioDelay.TotalMilliseconds:0} ms"));
         Changed?.Invoke(this, EventArgs.Empty);
     }
 

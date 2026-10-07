@@ -32,6 +32,9 @@ public static class CommandCatalog
     public const string NormalSpeed = "normal-speed";
     public const string SlightlyFaster = "slightly-faster";
     public const string SlightlySlower = "slightly-slower";
+    public const string AudioEarlier = "audio-earlier";
+    public const string AudioLater = "audio-later";
+    public const string ResetAudioDelay = "reset-audio-delay";
     public const string VolumeUp = "volume-up";
     public const string VolumeDown = "volume-down";
     public const string Mute = "mute";
@@ -93,6 +96,9 @@ public static class CommandCatalog
         New(NormalSpeed, "Normal speed", Playback, "Equals"),
         New(SlightlyFaster, "A little faster", Playback, "RightBracket"),
         New(SlightlySlower, "A little slower", Playback, "LeftBracket"),
+        New(AudioEarlier, "Sound 50 ms earlier", Audio, "J"),
+        New(AudioLater, "Sound 50 ms later", Audio, "K"),
+        New(ResetAudioDelay, "Sound back in step", Audio),
         New(VolumeUp, "Volume up", Audio, "Up", "Ctrl+Up"),
         New(VolumeDown, "Volume down", Audio, "Down", "Ctrl+Down"),
         New(Mute, "Mute", Audio, "M"),

@@ -112,6 +112,9 @@ public sealed partial class PlayerController : IDisposable
 
     public double Volume { get; private set; }
 
+    /// <summary>How much later the sound is heard than the pictures are shown; it holds for every item.</summary>
+    public TimeSpan AudioDelay { get; private set; }
+
     /// <summary>The speed media plays at, 1 being normal.</summary>
     public double Speed { get; private set; } = 1;
 
@@ -242,6 +245,7 @@ public sealed partial class PlayerController : IDisposable
         session.Muted = Muted;
         session.PreferredAudioTrack = audioTrack;
         session.Sound = Sound;
+        session.AudioDelay = AudioDelay;
         if (Speed != 1)
         {
             _ = Observe(session.SetSpeedAsync(Speed));

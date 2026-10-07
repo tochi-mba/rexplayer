@@ -37,6 +37,7 @@ public sealed partial class MediaSession
         /// <summary>
         /// The time pictures are shown against: the audio clock while audio plays, then, once the
         /// audio has ended, real time from where it stopped, so pictures that outlast the sound play on.
+        /// The audio delay moves the pictures the other way: sound heard later means pictures shown sooner.
         /// </summary>
         private MediaTime VideoNow
         {
@@ -44,15 +45,18 @@ public sealed partial class MediaSession
             {
                 lock (_endGate)
                 {
-                    if (_audioEndedGeneration < 0 || _audioEndedGeneration != Generation)
-                    {
-                        return _clock.Now;
-                    }
-
-                    return _audioEndedAt + new MediaTime((long)(_session._options.Time.GetElapsedTime(_audioEndedTimestamp).Ticks * Speed));
+                    var now = _audioEndedGeneration < 0 || _audioEndedGeneration != Generation
+                        ? _clock.Now
+                        : _audioEndedAt + new MediaTime((long)(_session._options.Time.GetElapsedTime(_audioEndedTimestamp).Ticks * Speed));
+                    return now + new MediaTime(Interlocked.Read(ref _audioDelayTicks));
                 }
             }
         }
+
+        private long _audioDelayTicks;
+
+        /// <summary>How much later the sound is heard than the pictures are shown (PB-19); negative brings it earlier.</summary>
+        public void SetAudioDelay(TimeSpan delay) => Interlocked.Exchange(ref _audioDelayTicks, delay.Ticks);
 
         /// <summary>
         /// One side reached the end of the stream. The playback has ended once the audio has, and the

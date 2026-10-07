@@ -447,4 +447,27 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "b");
         Assert.Equal(2, controller.Speed);
     }
+
+    [Fact]
+    public void AudioDelayMovesInStepsHoldsForTheNextItemAndResets()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["a.wav"] = Count(0, 400);
+        var controller = harness.Controller;
+
+        Assert.True(controller.Execute(CommandCatalog.AudioLater));
+        Assert.True(controller.Execute(CommandCatalog.AudioLater));
+        Assert.True(controller.Execute(CommandCatalog.AudioEarlier));
+        Assert.Equal(TimeSpan.FromMilliseconds(50), controller.AudioDelay);
+        Assert.Equal("Audio delay 50 ms", harness.Messages[^1]);
+
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        controller.SetAudioDelay(TimeSpan.FromSeconds(30));
+        Assert.Equal(TimeSpan.FromSeconds(10), controller.AudioDelay);
+        controller.SetAudioDelay(TimeSpan.FromSeconds(-30));
+        Assert.Equal(TimeSpan.FromSeconds(-10), controller.AudioDelay);
+        Assert.True(controller.Execute(CommandCatalog.ResetAudioDelay));
+        Assert.Equal(TimeSpan.Zero, controller.AudioDelay);
+    }
 }

@@ -135,6 +135,27 @@ public sealed partial class MediaSession : IDisposable
 
     public Task SeekAsync(MediaTime target, SeekMode mode = SeekMode.Precise) => Post(() => Seek(target, mode));
 
+    /// <summary>
+    /// How much later the sound is heard than the pictures are shown (PB-19), from -10 to +10
+    /// seconds; negative brings the sound earlier. Applies at once and to media opened later.
+    /// </summary>
+    public TimeSpan AudioDelay
+    {
+        get => _audioDelay;
+        set
+        {
+            _audioDelay = value < -MaxAudioDelay ? -MaxAudioDelay : value > MaxAudioDelay ? MaxAudioDelay : value;
+            if (_playback is { } playback)
+            {
+                playback.SetAudioDelay(_audioDelay);
+            }
+        }
+    }
+
+    public static readonly TimeSpan MaxAudioDelay = TimeSpan.FromSeconds(10);
+
+    private TimeSpan _audioDelay;
+
     /// <summary>The speed media plays at, its pitch kept (PB-06): 0.25 to 4. It holds for media opened later too.</summary>
     public double Speed => _speed;
 
