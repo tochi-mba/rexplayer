@@ -29,6 +29,9 @@ public sealed partial class MediaSession
 
         private readonly MediaSession _session;
         private readonly IAudioSink _sink;
+
+        /// <summary>Samples the device holds but has not played yet.</summary>
+        public long QueuedSamples => _sink.QueuedSamples;
         private readonly AudioFormat _sinkFormat;
         private readonly AudioPipeline _pipeline;
         private readonly AudioClock _clock;
@@ -466,6 +469,7 @@ public sealed partial class MediaSession
             _audioItem.Decoder.Flush();
             _pipeline.Reset(_currentSeek.Target);
             _sink.Flush();
+            _session.Scope.Clear();
             _pipeline.Speed = Volatile.Read(ref _speed);
             _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate, _pipeline.Speed);
             state.AwaitingFirstFrame = true;
@@ -644,6 +648,7 @@ public sealed partial class MediaSession
                 {
                     _playGate.Wait(generationToken);
                     _sink.Write(processed, generationToken);
+                    _session.Scope.Write(processed);
                 }
                 catch (OperationCanceledException)
                 {

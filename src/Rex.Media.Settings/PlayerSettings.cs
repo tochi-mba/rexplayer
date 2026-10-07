@@ -72,6 +72,16 @@ public enum SubtitleStyleChoice
     Override,
 }
 
+/// <summary>What the picture area shows while sound without pictures plays (AU-18).</summary>
+public enum VisualizerChoice
+{
+    Off,
+    Spectrum,
+    Oscilloscope,
+    Meters,
+    Spectrogram,
+}
+
 /// <summary>Where the window was, so it opens there again.</summary>
 public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool Maximized);
 
@@ -133,6 +143,8 @@ public sealed record PlayerSettings
 
     /// <summary>Extra gain on top of the loudness tags, in decibels from -20 to +20.</summary>
     public double LoudnessPreamp { get; init; }
+
+    public VisualizerChoice Visualizer { get; init; } = VisualizerChoice.Spectrum;
 
     /// <summary>The languages to play audio in, best first, such as "ja, original"; empty for the media's own choice.</summary>
     public string AudioLanguages { get; init; } = "";
@@ -268,6 +280,7 @@ public sealed record PlayerSettings
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
+            Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),

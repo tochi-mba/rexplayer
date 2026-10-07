@@ -107,6 +107,23 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("AU-18")]
+    public void ASongShowsAVisualisationThatCanBeChanged()
+    {
+        using var app = AppProcess.Start([Song(30)]);
+
+        Wait.For(() => app.IsShown("Visualizer"), "the visualisation");
+        app.Run(CommandCatalog.CycleVisualizer);
+        Wait.For(() => app.SavedSettings.Visualizer == Rex.Media.Settings.VisualizerChoice.Oscilloscope, "the next visualisation to be kept");
+        Assert.True(app.IsShown("Visualizer"));
+        app.Run(CommandCatalog.CycleVisualizer);
+        app.Run(CommandCatalog.CycleVisualizer);
+        app.Run(CommandCatalog.CycleVisualizer);
+        Wait.For(() => !app.IsShown("Visualizer"), "the visualisation to go");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("UI-05")]
     public void TheMinimalInterfaceLeavesOnlyThePicture()
     {

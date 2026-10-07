@@ -9,6 +9,7 @@ AudioEffects.cs
 AudioFormat.cs
 AudioFrame.cs
 AudioPipeline.cs
+AudioScope.cs
 AutomationPipe.cs
 AvcConfig.cs
 BitReader.cs
@@ -39,6 +40,7 @@ Ebml.cs
 EngineOptions.cs
 Equalizer.cs
 ExceptionDiagnostics.cs
+Fft.cs
 FileByteSource.cs
 FlacDecoder.cs
 FlacDemuxer.cs
@@ -56,6 +58,7 @@ Layer3Huffman.cs
 Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
+LevelMeter.cs
 MachineEnvelope.cs
 MatroskaDemuxer.cs
 MatroskaHeaders.cs
@@ -110,6 +113,7 @@ SilentAudio.cs
 SlotPool.cs
 Snapshot.cs
 SoundSettings.cs
+SpectrumAnalyzer.cs
 StatsText.cs
 SubRip.cs
 SubtitleCue.cs
@@ -131,6 +135,7 @@ VideoFrame.cs
 VideoGeometry.cs
 VideoLayout.cs
 VirtualKeys.cs
+Visualizers.cs
 Volume.cs
 VorbisComments.cs
 WavDemuxer.cs

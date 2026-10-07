@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 183 planned, 38 built, 68 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 182 planned, 39 built, 68 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -180,7 +180,7 @@ Totals: 183 planned, 38 built, 68 verified, 1 verified-hardware, 27 post-1.0.
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned |
 | AU-17 | Vocal reduction (karaoke) | Centre-channel cancellation with a band limit | M11 | could | planned |
-| AU-18 | Visualisations | Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able | M5/M11 | should | planned |
+| AU-18 | Visualisations | Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able | M5/M11 | should | built |
 | AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | planned |
 | AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built |
 | AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified |

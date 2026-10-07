@@ -387,6 +387,24 @@ public sealed class PlayerControllerTests
         Assert.Equal("There is only one audio track.", harness.Messages[^1]);
     }
 
+    [Fact]
+    [Capability("AU-18")]
+    public void TheSoundBeingHeardCanBeReadForAVisualisation()
+    {
+        using var harness = new ControllerHarness(settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["a.wav"] = Count(0, 400);
+        var (left, right) = (new float[64], new float[64]);
+        Assert.False(harness.Controller.ReadSound(left, right));
+        Assert.Equal(0, harness.Controller.SoundSampleRate);
+
+        harness.Controller.Open(["a.wav"]);
+        harness.PumpUntil(c => EndedOn(c, "a"));
+
+        Assert.True(harness.Controller.ReadSound(left, right));
+        Assert.True(harness.Controller.SoundSampleRate > 0);
+        Assert.Contains(left, sample => sample != 0);
+    }
+
     /// <summary>English, a French commentary and French sound, with English and French subtitles.</summary>
     private static byte[] ManyLanguages()
     {

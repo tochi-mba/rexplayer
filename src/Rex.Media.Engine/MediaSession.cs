@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Rex.Media.Audio;
 using Rex.Media.Diagnostics;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
@@ -64,6 +65,15 @@ public sealed partial class MediaSession : IDisposable
     /// or the media lacks it. Read as each item opens.
     /// </summary>
     public IReadOnlyList<string> AudioLanguages { get; set; } = [];
+
+    /// <summary>The sound most recently sent to the device, for visualisations (AU-18).</summary>
+    public AudioScope Scope { get; } = new();
+
+    /// <summary>
+    /// Copies the sound being heard now, its newest samples last, into <paramref name="left"/> and
+    /// <paramref name="right"/>; false when nothing has played yet.
+    /// </summary>
+    public bool ReadSound(Span<float> left, Span<float> right) => Scope.Read(left, right, _playback?.QueuedSamples ?? 0);
 
     /// <summary>The equaliser, stereo mode and loudness evening (M5). Applies immediately, and to every item that follows.</summary>
     public SoundSettings Sound

@@ -135,6 +135,12 @@ public sealed partial class PlayerController : IDisposable
     /// <summary>The media's audio tracks, in the order they are cycled through.</summary>
     public IReadOnlyList<TrackInfo> AudioTracks => Info?.Tracks.Where(track => track.Kind == MediaKind.Audio && track.Audio is not null).ToList() ?? [];
 
+    /// <summary>The sample rate of the sound <see cref="ReadSound"/> gives, or 0 before any has played.</summary>
+    public int SoundSampleRate => _session?.Scope.SampleRate ?? 0;
+
+    /// <summary>The sound being heard now, newest samples last, for visualisations; false when there is none.</summary>
+    public bool ReadSound(Span<float> left, Span<float> right) => _session?.ReadSound(left, right) ?? false;
+
     /// <summary>The engine's counters for what is playing, or null when nothing is.</summary>
     public Task<SessionStats?> StatsAsync() =>
         _session is { } session ? session.GetStatsAsync().ContinueWith(stats => stats.IsCompletedSuccessfully ? stats.Result : null, TaskScheduler.Default) : Task.FromResult<SessionStats?>(null);

@@ -31,6 +31,12 @@
             AutomationProperties.AutomationId="Stage" AutomationProperties.Name="Picture">
         <SwapChainPanel x:Name="Video" AutomationProperties.AutomationId="Video" />
 
+        <Grid x:Name="Visualizer" Visibility="Collapsed" IsHitTestVisible="False" Margin="48,120,48,48"
+              AutomationProperties.AutomationId="Visualizer" AutomationProperties.Name="Visualisation">
+          <Image x:Name="SpectrogramImage" Stretch="Fill" />
+          <Canvas x:Name="VisualCanvas" />
+        </Grid>
+
         <Grid x:Name="SubtitleLayer" IsHitTestVisible="False" AutomationProperties.AutomationId="Subtitles">
           <StackPanel x:Name="SubtitlesTop" VerticalAlignment="Top" HorizontalAlignment="Center" Spacing="2" />
           <StackPanel x:Name="SubtitlesMiddle" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2" />

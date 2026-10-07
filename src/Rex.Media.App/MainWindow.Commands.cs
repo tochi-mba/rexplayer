@@ -30,7 +30,7 @@ public sealed partial class MainWindow
             CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition]),
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
-            CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects]),
+            CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer]),
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
             CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
             CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
@@ -46,7 +46,7 @@ public sealed partial class MainWindow
     private static readonly (string Title, string?[] Commands)[] ContextLayout =
     [
         ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute]),
+        ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.CycleVisualizer]),
         ("Subtitles", [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles]),
         ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
@@ -100,7 +100,7 @@ public sealed partial class MainWindow
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
     private void Run(string command)
     {
-        if (_player.Execute(command) || RunSubtitleCommand(command))
+        if (_player.Execute(command) || RunSubtitleCommand(command) || RunVisualizerCommand(command))
         {
             return;
         }

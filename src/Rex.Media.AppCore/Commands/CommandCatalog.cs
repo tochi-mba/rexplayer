@@ -46,6 +46,7 @@ public static class CommandCatalog
     public const string ResetSubtitleDelay = "reset-subtitle-delay";
     public const string AddSubtitles = "add-subtitles";
     public const string CycleSecondarySubtitles = "cycle-secondary-subtitles";
+    public const string CycleVisualizer = "cycle-visualizer";
     public const string SubtitlesBigger = "subtitles-bigger";
     public const string SubtitlesSmaller = "subtitles-smaller";
     public const string ResetSubtitleSize = "reset-subtitle-size";
@@ -114,6 +115,7 @@ public static class CommandCatalog
         New(VolumeDown, "Volume down", Audio, "Down", "Ctrl+Down"),
         New(Mute, "Mute", Audio, "M"),
         New(CycleAudioTrack, "Next audio track", Audio, "B"),
+        New(CycleVisualizer, "Next visualisation", Audio, "Z"),
         New(CycleSubtitles, "Next subtitle track", Subtitle, "V"),
         New(ToggleSubtitles, "Subtitles on or off", Subtitle, "Shift+V"),
         New(SubtitlesEarlier, "Subtitles 50 ms earlier", Subtitle, "G"),
