@@ -3,6 +3,7 @@
 AacConfig.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+AtomicFile.cs
 AudioFormat.cs
 AudioFrame.cs
 AudioPipeline.cs
@@ -23,6 +24,7 @@ CliReference.cs
 CodecId.cs
 ColorConverter.cs
 ColorInfo.cs
+CommandCatalog.cs
 Crc.cs
 Decoders.cs
 DemuxerRegistry.cs
@@ -40,6 +42,8 @@ H264Sps.cs
 HevcConfig.cs
 HevcSps.cs
 Id3v2.cs
+KeyChord.cs
+Keymap.cs
 Layer3Huffman.cs
 Layer3SideInfo.cs
 Layer3Synthesis.cs
@@ -49,6 +53,7 @@ MatroskaDemuxer.cs
 MatroskaHeaders.cs
 MediaBuffer.cs
 MediaClock.cs
+MediaFiles.cs
 MediaFormatException.cs
 MediaInfo.cs
 MediaRegistries.cs
@@ -66,6 +71,7 @@ MpegAudioDemuxer.cs
 MpegAudioHeader.cs
 MpegInfoTag.cs
 NalUnits.cs
+NaturalOrder.cs
 NullAudioSink.cs
 Packet.cs
 PcmDecoder.cs
@@ -73,6 +79,10 @@ PictureBlock.cs
 PixelFormat.cs
 Playback.cs
 Playback.Video.cs
+PlayerController.cs
+PlayerController.Events.cs
+PlayerSettings.cs
+Playlist.cs
 PngWriter.cs
 Rational.cs
 Resampler.cs
@@ -82,10 +92,12 @@ ScanWindow.cs
 SequenceInfo.cs
 SessionEvents.cs
 SessionState.cs
+SettingsStore.cs
 SlotPool.cs
 Snapshot.cs
 SystemReport.cs
 ThreadLoop.cs
+TimeText.cs
 TrackInfo.cs
 VideoFrame.cs
 VideoLayout.cs

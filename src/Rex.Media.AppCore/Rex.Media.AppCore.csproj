@@ -18,6 +18,7 @@
     <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
     <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
     <ProjectReference Include="..\Rex.Media.Engine\Rex.Media.Engine.csproj" />
+    <ProjectReference Include="..\Rex.Media.Settings\Rex.Media.Settings.csproj" />
   </ItemGroup>
 
 </Project>
