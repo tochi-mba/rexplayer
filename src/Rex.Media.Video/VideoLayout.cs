@@ -18,7 +18,20 @@ public static class VideoLayout
 
         // The display aspect is (width x numerator) : (height x denominator); exact integers, rounded half up.
         var (numerator, denominator) = pixelAspect.Numerator > 0 ? (pixelAspect.Numerator, pixelAspect.Denominator) : (1L, 1L);
-        long across = width * numerator, down = height * denominator;
+        return FitAspect(width * numerator, height * denominator, targetWidth, targetHeight);
+    }
+
+    /// <summary>
+    /// The rectangle a picture shaped <paramref name="across"/> : <paramref name="down"/> fills in a
+    /// target of the given size, in whole pixels, centred.
+    /// </summary>
+    public static (int X, int Y, int Width, int Height) FitAspect(long across, long down, int targetWidth, int targetHeight)
+    {
+        if (across <= 0 || down <= 0 || targetWidth <= 0 || targetHeight <= 0)
+        {
+            return (0, 0, Math.Max(targetWidth, 0), Math.Max(targetHeight, 0));
+        }
+
         var fitWidth = targetWidth;
         var fitHeight = (int)(((2 * targetWidth * down) + across) / (2 * across));
         if (fitHeight > targetHeight)

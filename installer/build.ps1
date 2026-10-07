@@ -25,6 +25,13 @@ foreach ($project in $projects) {
     if ($LASTEXITCODE -ne 0) { throw "Publishing $project failed." }
 }
 
+# The window cannot start without its resource index and compiled XAML; never ship it without them.
+if (Test-Path $app) {
+    foreach ($needed in @("rexplayer.exe", "rexplayer.pri", "App.xbf", "MainWindow.xbf")) {
+        if (-not (Test-Path (Join-Path $payload $needed))) { throw "The app was published without $needed, so it would not start." }
+    }
+}
+
 $iscc = @(
     (Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"),
     (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe"),

@@ -11,6 +11,7 @@ using Rex.Media.AppCore.Player;
 using Rex.Media.Interop.Power;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
+using Rex.Media.Video;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 
@@ -28,7 +29,7 @@ public sealed partial class MainWindow
             CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition]),
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute]),
-        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
+        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help]),
@@ -107,6 +108,16 @@ public sealed partial class MainWindow
                 break;
             case CommandCatalog.ScaleDouble:
                 ScaleToVideo(2);
+                break;
+            case CommandCatalog.CycleAspectRatio:
+                _aspect = VideoGeometry.Next(VideoGeometry.AspectRatios, _aspect);
+                ApplyShape();
+                Say("Aspect ratio: " + _aspect.Name);
+                break;
+            case CommandCatalog.CycleCrop:
+                _crop = VideoGeometry.Next(VideoGeometry.Crops, _crop);
+                ApplyShape();
+                Say("Crop: " + _crop.Name);
                 break;
             case CommandCatalog.Snapshot:
                 _ = SnapshotAsync();
@@ -272,6 +283,20 @@ public sealed partial class MainWindow
         {
             Say("The snapshot could not be taken: " + ex.Message);
         }
+    }
+
+    /// <summary>Hands the chosen aspect ratio and crop to the presenter, redrawing at once when paused.</summary>
+    private void ApplyShape()
+    {
+        var (aspect, crop, redraw) = (_aspect.Ratio, _crop.Ratio, !_player.IsPlaying);
+        OnPresenterThread(presenter =>
+        {
+            presenter.SetShape(aspect, crop);
+            if (redraw)
+            {
+                presenter.Redraw();
+            }
+        });
     }
 
     /// <summary>Shows or hides the statistics, refreshed every second while shown.</summary>

@@ -38,6 +38,9 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherQueueTimer _controlsTimer;
     private readonly DispatcherQueueTimer _statsTimer;
     private SessionStats? _lastStats;
+    private ShapePreset _aspect = VideoGeometry.AspectRatios[0];
+    private ShapePreset _crop = VideoGeometry.Crops[0];
+    private PlaylistItem? _shownItem;
     private DateTime _lastStatsAt;
     private PlayerSettings _settings;
     private Keymap _keymap;
@@ -270,6 +273,17 @@ public sealed partial class MainWindow : Window
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(MuteButton, _player.Muted ? "Unmute" : "Mute");
         SeekBar.IsEnabled = _player.CanSeek;
         _updatingControls = false;
+
+        if (!ReferenceEquals(_player.Item, _shownItem))
+        {
+            // Each item starts at its own shape; a crop chosen for one film rarely suits the next.
+            _shownItem = _player.Item;
+            if (_aspect.Ratio is not null || _crop.Ratio is not null)
+            {
+                (_aspect, _crop) = (VideoGeometry.AspectRatios[0], VideoGeometry.Crops[0]);
+                ApplyShape();
+            }
+        }
 
         if (_player.Item is not null && !HasVideo)
         {

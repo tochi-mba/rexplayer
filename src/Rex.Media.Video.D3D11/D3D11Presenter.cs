@@ -22,6 +22,8 @@ public sealed class D3D11Presenter : IVideoPresenter
     private readonly object _gate = new();
     private (int Width, int Height)? _pendingSize;
     private (float[] Matrix, int Width, int Height, Rational PixelAspect)? _last;
+    private Rational? _aspect;
+    private Rational? _crop;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
     {
@@ -68,6 +70,18 @@ public sealed class D3D11Presenter : IVideoPresenter
         return new D3D11Presenter(renderer, null, onScreen: false);
     }
 
+    /// <summary>
+    /// Shows pictures stretched to <paramref name="aspect"/> and cut to <paramref name="crop"/> (null
+    /// for the picture's own shape and all of it), from the next picture drawn (VID-05, VID-06).
+    /// </summary>
+    public void SetShape(Rational? aspect, Rational? crop)
+    {
+        lock (_gate)
+        {
+            (_aspect, _crop) = (aspect, crop);
+        }
+    }
+
     /// <summary>The panel's new size in physical pixels, applied before the next picture is drawn.</summary>
     public void Resize(int width, int height)
     {
@@ -98,8 +112,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             var (width, height) = _renderer.TargetSize;
             if (_last is { } last)
             {
-                var (x, y, fitWidth, fitHeight) = VideoLayout.Fit(last.Width, last.Height, last.PixelAspect, width, height);
-                _renderer.Draw(last.Matrix, x, y, fitWidth, fitHeight, SmoothChroma);
+                DrawShaped(last.Matrix, last.Width, last.Height, last.PixelAspect);
             }
             else
             {
@@ -209,8 +222,15 @@ public sealed class D3D11Presenter : IVideoPresenter
     private void Draw(VideoFrame frame, float[] matrix)
     {
         _last = (matrix, frame.Width, frame.Height, frame.PixelAspect);
+        DrawShaped(matrix, frame.Width, frame.Height, frame.PixelAspect);
+    }
+
+    /// <summary>Draws the part of the picture the crop keeps, at the shape the aspect ratio and crop give it.</summary>
+    private void DrawShaped(float[] matrix, int pictureWidth, int pictureHeight, Rational pixelAspect)
+    {
         var (width, height) = _renderer.TargetSize;
-        var (x, y, fitWidth, fitHeight) = VideoLayout.Fit(frame.Width, frame.Height, frame.PixelAspect, width, height);
-        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, SmoothChroma);
+        var (source, across, down) = VideoGeometry.Shape(pictureWidth, pictureHeight, pixelAspect, _aspect, _crop);
+        var (x, y, fitWidth, fitHeight) = VideoLayout.FitAspect(across, down, width, height);
+        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma);
     }
 }

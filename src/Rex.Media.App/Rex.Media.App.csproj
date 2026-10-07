@@ -37,5 +37,13 @@
     <ProjectReference Include="..\Rex.Media.Interop\Rex.Media.Interop.csproj" />
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
   </ItemGroup>
+  <!-- Publishing an unpackaged WinUI app leaves out the app's resource index and compiled XAML,
+       without which the window cannot start (0xC000027B). Copy them from the build output. -->
+  <Target Name="PublishXamlResources" AfterTargets="Publish">
+    <ItemGroup>
+      <XamlResource Include="$(OutDir)$(AssemblyName).pri;$(OutDir)*.xbf" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XamlResource)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

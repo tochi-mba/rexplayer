@@ -104,6 +104,7 @@ ThreadLoop.cs
 TimeText.cs
 TrackInfo.cs
 VideoFrame.cs
+VideoGeometry.cs
 VideoLayout.cs
 VirtualKeys.cs
 Volume.cs
