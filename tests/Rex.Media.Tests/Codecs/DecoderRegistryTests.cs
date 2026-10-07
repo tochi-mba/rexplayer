@@ -45,12 +45,21 @@ public sealed class DecoderRegistryTests
     {
         var registry = new DecoderRegistry()
             .Add(new FakeFactory("a", 100, CodecId.Mp3) { Failure = new MediaFormatException("bad header") })
-            .Add(new FakeFactory("b", 50, CodecId.Mp3) { Failure = new InvalidOperationException("device lost") });
+            .Add(new FakeFactory("b", 50, CodecId.Mp3) { Failure = new InvalidOperationException("device lost") })
+            .Add(new FakeFactory("c", 10, CodecId.Mp3) { Failure = new InvalidCastException("wrong apartment") });
 
         var result = registry.CreateAudio(Mp3);
 
         Assert.Null(result.Decoder);
-        Assert.Equal("No decoder for MP3 could open the track. a: bad header b: device lost", result.Reason);
+        Assert.Equal("No decoder for MP3 could open the track. a: bad header b: device lost c: wrong apartment", result.Reason);
+    }
+
+    [Fact]
+    public void RunningOutOfMemoryIsNotTakenForADecoderFailure()
+    {
+        var registry = new DecoderRegistry().Add(new FakeFactory("a", 100, CodecId.Mp3) { Failure = new InsufficientMemoryException("out of memory") });
+
+        Assert.Throws<InsufficientMemoryException>(() => registry.CreateAudio(Mp3));
     }
 
     [Fact]

@@ -53,6 +53,12 @@ public sealed partial class MediaSession : IDisposable
     /// <summary>The position being heard right now; the full duration once the media has ended.</summary>
     public MediaTime Position => _state == SessionState.Ended && Duration.IsKnown ? Duration : _playback?.Position ?? MediaTime.Zero;
 
+    /// <summary>
+    /// The audio track to play when media has several, by track id; media without it plays its
+    /// default track. Read as each item opens, so set it before opening.
+    /// </summary>
+    public int? PreferredAudioTrack { get; set; }
+
     /// <summary>The volume slider: 0 silent, 1 unity, 2 maximum boost. Applies immediately.</summary>
     public double Volume
     {

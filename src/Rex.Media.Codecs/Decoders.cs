@@ -125,8 +125,10 @@ public sealed class DecoderRegistry
             {
                 return DecoderResult.Opened(create(factory));
             }
-            catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or InvalidOperationException)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                // Decoders are often the operating system's, which can fail in any way it likes (COM
+                // errors, refused casts): any failure moves down the ladder rather than ending playback.
                 failures.Add($"{factory.Name}: {ex.Message}");
             }
         }

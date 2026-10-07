@@ -268,13 +268,13 @@ public sealed class MediaSessionTests
     }
 
     [Fact]
-    public async Task MediaWithoutAudioIsNotPlayableYet()
+    public async Task MediaWithoutAudioAndNowhereToShowItsPicturesIsNotPlayable()
     {
         using var harness = new SessionHarness(demuxer: new SilentDemuxerFactory());
 
         var error = await Assert.ThrowsAsync<NotSupportedException>(() => harness.Session.OpenAsync(SessionHarness.Source(Ramp, "clip.silent")));
 
-        Assert.Equal("clip.silent has no audio rexplayer can play yet.", error.Message);
+        Assert.Equal("clip.silent has no sound, and its pictures cannot be shown here.", error.Message);
     }
 
     [Fact]

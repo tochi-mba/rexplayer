@@ -54,7 +54,11 @@ public sealed partial class MediaSession
             demuxer = _options.Demuxers.Open(source, CancellationToken.None);
             var info = demuxer.Info;
             _log.Info(LogSource, $"Opened {source.Name} as {info.FormatName} with {info.Tracks.Count} track(s).");
-            var audioTrack = ChooseAudioTrack(info) ?? throw new NotSupportedException($"{source.Name} has no audio rexplayer can play yet.");
+            if (ChooseAudioTrack(info, PreferredAudioTrack) is not { } audioTrack)
+            {
+                return OpenSilent(source, demuxer, info, presenter);
+            }
+
             var decoded = _options.Decoders.CreateAudio(audioTrack);
             if (decoded.Decoder is null)
             {
@@ -71,6 +75,27 @@ public sealed partial class MediaSession
             source.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// Media with pictures but no sound plays against silence (<see cref="SilentAudio"/>); media with
+    /// neither, or whose pictures cannot be shown here, has nothing to play.
+    /// </summary>
+    private MediaItem OpenSilent(IByteSource source, IDemuxer demuxer, MediaInfo info, Func<IVideoPresenter?> presenter)
+    {
+        if (info.Tracks.All(track => track.Kind != MediaKind.Video))
+        {
+            throw new NotSupportedException($"{source.Name} has no audio rexplayer can play yet.");
+        }
+
+        var (videoTrack, videoDecoder) = OpenVideo(info, presenter);
+        if (videoDecoder is null)
+        {
+            throw new NotSupportedException($"{source.Name} has no sound, and its pictures cannot be shown here.");
+        }
+
+        var duration = videoTrack!.Duration.IsKnown ? videoTrack.Duration : info.Duration;
+        return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = SilentAudio.Track(duration), Decoder = new SilenceDecoder(), VideoTrack = videoTrack, VideoDecoder = videoDecoder };
     }
 
     /// <summary>
@@ -96,10 +121,11 @@ public sealed partial class MediaSession
         return (track, decoded.Decoder);
     }
 
-    private static TrackInfo? ChooseAudioTrack(MediaInfo info)
+    /// <summary>The preferred audio track when the media has it, else the default, else the first.</summary>
+    private static TrackInfo? ChooseAudioTrack(MediaInfo info, int? preferred)
     {
         var audio = info.Tracks.Where(track => track.Kind == MediaKind.Audio && track.Audio is not null).ToList();
-        return audio.FirstOrDefault(track => track.IsDefault) ?? audio.FirstOrDefault();
+        return audio.FirstOrDefault(track => track.Id == preferred) ?? audio.FirstOrDefault(track => track.IsDefault) ?? audio.FirstOrDefault();
     }
 
     /// <summary>Adds media to play straight after what is playing, or opens it if nothing is.</summary>
