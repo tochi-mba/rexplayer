@@ -15,6 +15,9 @@ public sealed class SubtitleTrack(string name)
     /// <summary>How the track is offered in menus: its language and title, or the file's name.</summary>
     public string Name { get; } = name;
 
+    /// <summary>The track's language as its file name or the media says, when either does.</summary>
+    public string? Language { get; init; }
+
     public int Count
     {
         get

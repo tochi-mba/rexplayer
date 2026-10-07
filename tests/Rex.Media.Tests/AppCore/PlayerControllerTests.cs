@@ -3,6 +3,7 @@ using Rex.Media.Audio;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
 using Rex.Media.IO;
+using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.TestKit;
 using static Rex.Media.Tests.AppCore.ControllerHarness;
@@ -384,6 +385,65 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "one");
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
         Assert.Equal("There is only one audio track.", harness.Messages[^1]);
+    }
+
+    /// <summary>English, a French commentary and French sound, with English and French subtitles.</summary>
+    private static byte[] ManyLanguages()
+    {
+        static byte[] Language(string code) => EbmlWriter.Text(Rex.Media.Containers.Matroska.MatroskaId.Language, code);
+        static byte[] Subtitles(int number, string code) => EbmlWriter.Element(
+            Rex.Media.Containers.Matroska.MatroskaId.TrackEntry,
+            EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TrackNumber, (ulong)number),
+            EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TrackType, 17),
+            EbmlWriter.Text(Rex.Media.Containers.Matroska.MatroskaId.CodecId, "S_TEXT/UTF8"),
+            Language(code));
+        var blocks = Enumerable.Range(1, 3).Select(track => Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(track, 0, true, Pcm.Int16(new float[320]))).ToArray();
+        return Rex.Media.Tests.Containers.MatroskaCraftedTests.Mkv(
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Tracks(
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.PcmTrack(1, Language("eng")),
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.PcmTrack(2, Language("fre"), EbmlWriter.Text(Rex.Media.Containers.Matroska.MatroskaId.Name, "Commentary")),
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.PcmTrack(3, Language("fre")),
+                Subtitles(4, "eng"),
+                Subtitles(5, "fre")),
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Cluster(0, blocks));
+    }
+
+    [Fact]
+    [Capability("AU-21")]
+    public void SoundAndSubtitlesFollowThePreferredLanguages()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0, AudioLanguages = "fr", SubtitleLanguages = "original" });
+        harness.Files["film.mkv"] = ManyLanguages();
+        var controller = harness.Controller;
+
+        // French sound, passing over the commentary; subtitles in the film's own language, English.
+        controller.Open(["film.mkv"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack is not null);
+        Assert.Equal(3, controller.AudioTrack);
+        Assert.True(Languages.Same("en", controller.Subtitles!.Language));
+
+        // No German sound, so the media's own choice; French subtitles before English.
+        controller.Settings = controller.Settings with { AudioLanguages = "de", SubtitleLanguages = "fr, en" };
+        controller.Open(["film.mkv"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack is not null);
+        Assert.Equal(1, controller.AudioTrack);
+        Assert.True(Languages.Same("fr", controller.Subtitles!.Language));
+    }
+
+    [Fact]
+    [Capability("AU-21")]
+    public void AFileBesideTheMediaInAPreferredLanguageIsChosen()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0, SubtitleLanguages = "fr" }, sidecars: new() { ["a.wav"] = ["a.en.srt", "a.fr.srt"] });
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["a.en.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nHello\n");
+        harness.Files["a.fr.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nBonjour\n");
+
+        harness.Controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+
+        Assert.Equal("a.fr.srt", harness.Controller.Subtitles!.Name);
+        Assert.Equal("fr", harness.Controller.Subtitles.Language);
     }
 
     [Fact]

@@ -254,6 +254,7 @@ public sealed partial class PlayerController : IDisposable
         session.Volume = Volume;
         session.Muted = Muted;
         session.PreferredAudioTrack = audioTrack;
+        session.AudioLanguages = Languages.ParseList(Settings.AudioLanguages);
         session.Sound = Sound;
         session.AudioDelay = AudioDelay;
         if (Speed != 1)

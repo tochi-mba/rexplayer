@@ -15,6 +15,9 @@ public sealed partial class PlayerController
     private readonly List<SubtitleTrack> _subtitleTracks = [];
     private SubtitleTrack? _lastSubtitles;
 
+    // Whether the user chose what shows for this item; until they do, it follows their languages.
+    private bool _subtitlesChosen;
+
     /// <summary>Raised when the subtitle tracks, the chosen one or the subtitle delay change.</summary>
     public event EventHandler? SubtitlesChanged;
 
@@ -83,6 +86,7 @@ public sealed partial class PlayerController
     public void ShowSubtitles(SubtitleTrack? track)
     {
         Subtitles = track;
+        _subtitlesChosen = true;
         if (track is not null)
         {
             _lastSubtitles = track;
@@ -149,6 +153,7 @@ public sealed partial class PlayerController
         _embedded.Clear();
         Subtitles = null;
         SecondarySubtitles = null;
+        _subtitlesChosen = false;
         if (Uri.TryCreate(item.Location, UriKind.Absolute, out var uri) && !uri.IsFile)
         {
             return;
@@ -156,35 +161,49 @@ public sealed partial class PlayerController
 
         foreach (var sidecar in _sidecars(item.Location))
         {
-            var name = Path.GetFileName(sidecar.Path) + (sidecar.Language is { } language ? $" ({language})" : "");
-            if (LoadSubtitles(sidecar.Path, name) is { } track)
+            if (LoadSubtitles(sidecar.Path, Path.GetFileName(sidecar.Path), sidecar.Language) is { } track)
             {
                 _subtitleTracks.Add(track);
             }
         }
 
-        Subtitles = _subtitleTracks.FirstOrDefault();
+        Subtitles = PreferredSubtitles(original: null) ?? _subtitleTracks.FirstOrDefault();
         SubtitlesChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>The media's own subtitle tracks, once its details are known; one marked default is shown when no file was.</summary>
+    /// <summary>
+    /// The media's own subtitle tracks, once its details are known. Unless the user chose, the
+    /// track in their best language shows; failing that, a file beside the media, or a track the
+    /// media marks default or forced.
+    /// </summary>
     private void AddEmbeddedSubtitles(MediaInfo info)
     {
+        SubtitleTrack? marked = null;
         foreach (var track in info.Tracks.Where(track => track.Kind == MediaKind.Subtitle && SubtitlePackets.CanRead(track.Codec)))
         {
             var subtitles = Embedded(info, track.Id);
             if (!_subtitleTracks.Contains(subtitles))
             {
                 _subtitleTracks.Add(subtitles);
-                if (Subtitles is null && (track.IsDefault || track.IsForced))
+                if (track.IsDefault || track.IsForced)
                 {
-                    Subtitles = subtitles;
+                    marked ??= subtitles;
                 }
             }
         }
 
+        if (!_subtitlesChosen)
+        {
+            var original = info.Tracks.FirstOrDefault(track => track.Kind == MediaKind.Audio && !Languages.IsCommentary(track.Title))?.Language;
+            Subtitles = PreferredSubtitles(original) ?? Subtitles ?? marked;
+        }
+
         SubtitlesChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>The track in the user's best subtitle language, if any is.</summary>
+    private SubtitleTrack? PreferredSubtitles(string? original) =>
+        Languages.Choose(_subtitleTracks, Languages.ParseList(Settings.SubtitleLanguages), track => track.Language, track => track.Name, _ => false, original);
 
     /// <summary>The store for a track of an item, made the first time a cue or the item's details mention it.</summary>
     private SubtitleTrack Embedded(MediaInfo item, int trackId)
@@ -193,19 +212,19 @@ public sealed partial class PlayerController
         {
             var track = item.Tracks.FirstOrDefault(t => t.Id == trackId);
             var label = string.Join(" ", new[] { track?.Title, track?.Language }.Where(part => !string.IsNullOrEmpty(part)));
-            subtitles = new SubtitleTrack(label.Length > 0 ? label : $"Track {trackId}");
+            subtitles = new SubtitleTrack(label.Length > 0 ? label : $"Track {trackId}") { Language = track?.Language };
             _embedded[(item, trackId)] = subtitles;
         }
 
         return subtitles;
     }
 
-    private SubtitleTrack? LoadSubtitles(string path, string name)
+    private SubtitleTrack? LoadSubtitles(string path, string name, string? language = null)
     {
         try
         {
             var (text, _) = SubtitleText.Decode(_readFile(path), Settings.SubtitleCodePage);
-            var track = new SubtitleTrack(name);
+            var track = new SubtitleTrack(name) { Language = language };
             track.AddRange(SubtitleFile.Parse(text).Cues);
             return track;
         }

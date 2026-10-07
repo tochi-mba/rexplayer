@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 184 planned, 38 built, 67 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 183 planned, 38 built, 68 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -183,7 +183,7 @@ Totals: 184 planned, 38 built, 67 verified, 1 verified-hardware, 27 post-1.0.
 | AU-18 | Visualisations | Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able | M5/M11 | should | planned |
 | AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | planned |
 | AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built |
-| AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | planned |
+| AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified |
 | AU-22 | Latency compensation | Reads endpoint latency (e.g. Bluetooth) and offsets A/V sync automatically; manual override | M11 | should | planned |
 | AU-23 | Device-change resilience | Default device switch, unplug and replug, sleep and resume: playback continues, position kept | M11 | must | planned |
 | AU-24 | Loopback / input recording | Record from a capture endpoint or loopback ("what you hear") through Convert | M12 | could | planned |

@@ -28,6 +28,8 @@ public sealed partial class MainWindow
         var single = Check("Use one window: open files in the player already running", s.SingleInstance);
         var enqueue = Check("Files opened that way join the playlist instead of playing", s.EnqueueFromSecondLaunch);
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
+        var audioLanguages = Words("Play sound in (languages, best first, such as \"ja, original\")", s.AudioLanguages);
+        var subtitleLanguages = Words("Show subtitles in (languages, best first, such as \"en, fr\")", s.SubtitleLanguages);
         var font = new ComboBox { Header = "Subtitle font", IsEditable = true, ItemsSource = SubtitleFonts, Text = s.SubtitleFont, MinWidth = 220 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(font, "Subtitle font");
         var size = Number("Subtitle size (%)", s.SubtitleSize, 50, 400);
@@ -52,6 +54,10 @@ public sealed partial class MainWindow
         {
             content.Children.Add(control);
         }
+
+        content.Children.Add(Heading("Languages"));
+        content.Children.Add(audioLanguages);
+        content.Children.Add(subtitleLanguages);
 
         content.Children.Add(Heading("Subtitles"));
         foreach (var control in new UIElement[] { font, size, color.Box, opacity, bold, outline, outlineColor.Box, shadow, box, boxColor.Box, margin, inBars, atBottom, styles, codePage })
@@ -92,6 +98,8 @@ public sealed partial class MainWindow
             SingleInstance = single.IsChecked == true,
             EnqueueFromSecondLaunch = enqueue.IsChecked == true,
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
+            AudioLanguages = audioLanguages.Text,
+            SubtitleLanguages = subtitleLanguages.Text,
             SubtitleFont = font.Text,
             SubtitleSize = (int)size.Value,
             SubtitleColor = color.Value(),
@@ -179,6 +187,13 @@ public sealed partial class MainWindow
     }
 
     private static CheckBox Check(string label, bool value) => new() { Content = label, IsChecked = value };
+
+    private static TextBox Words(string label, string value)
+    {
+        var box = new TextBox { Header = label, Text = value, MinWidth = 220 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, label);
+        return box;
+    }
 
     private static readonly string[] SubtitleFonts = ["Segoe UI", "Arial", "Calibri", "Verdana", "Tahoma", "Georgia", "Times New Roman", "Cascadia Mono"];
 

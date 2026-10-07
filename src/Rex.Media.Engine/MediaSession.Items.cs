@@ -57,7 +57,7 @@ public sealed partial class MediaSession
             demuxer = _options.Demuxers.Open(source, CancellationToken.None);
             var info = demuxer.Info;
             _log.Info(LogSource, $"Opened {source.Name} as {info.FormatName} with {info.Tracks.Count} track(s).");
-            if (ChooseAudioTrack(info, PreferredAudioTrack) is not { } audioTrack)
+            if (ChooseAudioTrack(info, PreferredAudioTrack, AudioLanguages) is not { } audioTrack)
             {
                 return OpenSilent(source, demuxer, info, presenter);
             }
@@ -124,11 +124,19 @@ public sealed partial class MediaSession
         return (track, decoded.Decoder);
     }
 
-    /// <summary>The preferred audio track when the media has it, else the default, else the first.</summary>
-    private static TrackInfo? ChooseAudioTrack(MediaInfo info, int? preferred)
+    /// <summary>
+    /// The preferred audio track when the media has it; else the best in a preferred language; else
+    /// the default; else the first that is not a commentary; else the first.
+    /// </summary>
+    private static TrackInfo? ChooseAudioTrack(MediaInfo info, int? preferred, IReadOnlyList<string> languages)
     {
         var audio = info.Tracks.Where(track => track.Kind == MediaKind.Audio && track.Audio is not null).ToList();
-        return audio.FirstOrDefault(track => track.Id == preferred) ?? audio.FirstOrDefault(track => track.IsDefault) ?? audio.FirstOrDefault();
+        var main = audio.FirstOrDefault(track => !Languages.IsCommentary(track.Title));
+        return audio.FirstOrDefault(track => track.Id == preferred)
+            ?? Languages.Choose(audio, languages, track => track.Language, track => track.Title, track => track.IsDefault, main?.Language)
+            ?? audio.FirstOrDefault(track => track.IsDefault)
+            ?? main
+            ?? audio.FirstOrDefault();
     }
 
     /// <summary>Adds media to play straight after what is playing, or opens it if nothing is.</summary>

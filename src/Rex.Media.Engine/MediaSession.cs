@@ -59,6 +59,12 @@ public sealed partial class MediaSession : IDisposable
     /// </summary>
     public int? PreferredAudioTrack { get; set; }
 
+    /// <summary>
+    /// The languages to choose an audio track by, best first (AU-21), when no track id is preferred
+    /// or the media lacks it. Read as each item opens.
+    /// </summary>
+    public IReadOnlyList<string> AudioLanguages { get; set; } = [];
+
     /// <summary>The equaliser, stereo mode and loudness evening (M5). Applies immediately, and to every item that follows.</summary>
     public SoundSettings Sound
     {

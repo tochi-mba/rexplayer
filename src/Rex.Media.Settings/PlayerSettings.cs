@@ -134,6 +134,9 @@ public sealed record PlayerSettings
     /// <summary>Extra gain on top of the loudness tags, in decibels from -20 to +20.</summary>
     public double LoudnessPreamp { get; init; }
 
+    /// <summary>The languages to play audio in, best first, such as "ja, original"; empty for the media's own choice.</summary>
+    public string AudioLanguages { get; init; } = "";
+
     // Subtitles
 
     /// <summary>The font subtitles are drawn in; Windows picks a fallback for scripts it lacks.</summary>
@@ -180,6 +183,9 @@ public sealed record PlayerSettings
 
     /// <summary>The code page subtitle files without a byte-order mark and not in UTF-8 are read in.</summary>
     public int SubtitleCodePage { get; init; } = 1252;
+
+    /// <summary>The languages to show subtitles in, best first, such as "en, fr"; empty to show files beside the media first.</summary>
+    public string SubtitleLanguages { get; init; } = "";
 
     // Window
 
@@ -262,6 +268,8 @@ public sealed record PlayerSettings
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
+            AudioLanguages = AudioLanguages?.Trim() ?? "",
+            SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),
             SubtitleSize = Math.Clamp(SubtitleSize, 50, 400),
             SubtitleColor = Rgb(SubtitleColor),

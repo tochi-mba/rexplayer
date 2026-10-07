@@ -51,6 +51,7 @@ HevcSps.cs
 Id3v2.cs
 KeyChord.cs
 Keymap.cs
+Languages.cs
 Layer3Huffman.cs
 Layer3SideInfo.cs
 Layer3Synthesis.cs

@@ -60,7 +60,7 @@ internal sealed class ControllerHarness : IDisposable
             settings,
             diskFolders ? null : location => [location],
             new Random(1),
-            diskFolders ? null : media => [.. (sidecars?.GetValueOrDefault(media) ?? []).Select(path => new Rex.Media.Subtitles.SubtitleSidecar(path, 3, null, false))],
+            diskFolders ? null : media => Rex.Media.Subtitles.SubtitleSidecars.Find(media, folder => folder == Path.GetDirectoryName(media) ? sidecars?.GetValueOrDefault(media) ?? [] : []),
             diskFolders ? null : path => Files.TryGetValue(path, out var bytes) ? bytes : throw new FileNotFoundException(path));
         Controller.Message += (_, text) => Messages.Add(text);
 
