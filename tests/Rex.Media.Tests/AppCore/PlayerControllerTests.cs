@@ -411,4 +411,40 @@ public sealed class PlayerControllerTests
         Assert.Equal(Enum.GetValues<StereoMode>().Select(value => (int)value), Enum.GetValues<StereoChoice>().Select(value => (int)value));
         Assert.Equal(Enum.GetValues<ReplayGainMode>().Select(value => (int)value), Enum.GetValues<LoudnessChoice>().Select(value => (int)value));
     }
+
+    [Fact]
+    public void SpeedCommandsStepThroughTheSpeedsAndHoldForTheNextItem()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["b.wav"] = Count(0, 400);
+        var controller = harness.Controller;
+
+        var seen = new List<double>();
+        foreach (var command in new[] { CommandCatalog.Faster, CommandCatalog.Faster, CommandCatalog.SlightlyFaster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, CommandCatalog.SlightlySlower })
+        {
+            Assert.True(controller.Execute(command));
+            seen.Add(controller.Speed);
+        }
+
+        Assert.Equal([1.25, 1.5, 1.6, 1.5, 1, 0.9], seen);
+        Assert.Equal("Speed 0.9×", harness.Messages[^1]);
+
+        controller.SetSpeed(99);
+        Assert.Equal(4, controller.Speed);
+        Assert.True(controller.Execute(CommandCatalog.Faster));
+        Assert.Equal(4, controller.Speed);
+        controller.SetSpeed(double.NaN);
+        Assert.Equal(1, controller.Speed);
+        controller.SetSpeed(0.1);
+        Assert.True(controller.Execute(CommandCatalog.Slower));
+        Assert.Equal(0.25, controller.Speed);
+
+        controller.Open(["a.wav", "b.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        controller.SetSpeed(2);
+        Assert.True(controller.Execute(CommandCatalog.Next));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "b");
+        Assert.Equal(2, controller.Speed);
+    }
 }

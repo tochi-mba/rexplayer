@@ -27,6 +27,11 @@ public static class CommandCatalog
     public const string JumpBackMedium = "jump-back-medium";
     public const string JumpForwardLong = "jump-forward-long";
     public const string JumpBackLong = "jump-back-long";
+    public const string Faster = "faster";
+    public const string Slower = "slower";
+    public const string NormalSpeed = "normal-speed";
+    public const string SlightlyFaster = "slightly-faster";
+    public const string SlightlySlower = "slightly-slower";
     public const string VolumeUp = "volume-up";
     public const string VolumeDown = "volume-down";
     public const string Mute = "mute";
@@ -83,6 +88,11 @@ public static class CommandCatalog
         New(JumpBackMedium, "Jump back a minute", Playback, "Ctrl+Left"),
         New(JumpForwardLong, "Jump forward five minutes", Playback, "Ctrl+Alt+Right"),
         New(JumpBackLong, "Jump back five minutes", Playback, "Ctrl+Alt+Left"),
+        New(Faster, "Faster", Playback, "Plus", "Shift+Equals"),
+        New(Slower, "Slower", Playback, "Minus"),
+        New(NormalSpeed, "Normal speed", Playback, "Equals"),
+        New(SlightlyFaster, "A little faster", Playback, "RightBracket"),
+        New(SlightlySlower, "A little slower", Playback, "LeftBracket"),
         New(VolumeUp, "Volume up", Audio, "Up", "Ctrl+Up"),
         New(VolumeDown, "Volume down", Audio, "Down", "Ctrl+Down"),
         New(Mute, "Mute", Audio, "M"),

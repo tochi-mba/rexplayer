@@ -107,6 +107,7 @@ SoundSettings.cs
 StatsText.cs
 SystemReport.cs
 ThreadLoop.cs
+TimeStretch.cs
 TimeText.cs
 TrackInfo.cs
 UpdateCheck.cs

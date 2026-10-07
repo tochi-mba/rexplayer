@@ -31,6 +31,25 @@ internal sealed class AppProcess : IDisposable
 
     public string SettingsPath => Path.Combine(Root, "settings.json");
 
+    /// <summary>The settings as saved now, read again if the app is just replacing the file.</summary>
+    public Rex.Media.Settings.PlayerSettings SavedSettings
+    {
+        get
+        {
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    return Rex.Media.Settings.SettingsStore.Load(SettingsPath);
+                }
+                catch (IOException) when (attempt < 20)
+                {
+                    Thread.Sleep(50);
+                }
+            }
+        }
+    }
+
     public string LogText => File.Exists(Path.Combine(Root, "logs", "rexplayer.log"))
         ? File.ReadAllText(Path.Combine(Root, "logs", "rexplayer.log"))
         : "";
@@ -150,7 +169,14 @@ internal sealed class AppProcess : IDisposable
     /// <summary>Closes the window as its close button does (WM_CLOSE) and waits for the process to end.</summary>
     public int Close()
     {
+        // A window busy at that moment (finishing a dialog, say) can miss the first request.
         _process.CloseMainWindow();
+        if (!_process.WaitForExit(TimeSpan.FromSeconds(5)))
+        {
+            _process.Refresh();
+            _process.CloseMainWindow();
+        }
+
         Assert.True(_process.WaitForExit(Patience), "rexplayer did not close. Its log ends:" + Environment.NewLine + string.Join(Environment.NewLine, LogText.Split(Environment.NewLine).TakeLast(15)));
         return _process.ExitCode;
     }

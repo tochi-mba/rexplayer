@@ -1,7 +1,6 @@
 using System.IO;
 using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
-using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
@@ -135,7 +134,7 @@ public sealed class AppWindowTests : IDisposable
         ((RangeValuePattern)jump.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(25);
         app.Press("PrimaryButton");
 
-        Wait.For(() => SettingsStore.Load(app.SettingsPath).ShortJumpSeconds == 25, "the new jump to be saved");
+        Wait.For(() => app.SavedSettings.ShortJumpSeconds == 25, "the new jump to be saved");
         Assert.Equal(0, app.Close());
     }
 
@@ -154,8 +153,8 @@ public sealed class AppWindowTests : IDisposable
         ((SelectionItemPattern)rock.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         app.Press("CloseButton");
 
-        Wait.For(() => SettingsStore.Load(app.SettingsPath) is { EqualizerEnabled: true, EqualizerPreset: "Rock" }, "the preset to be kept");
-        Assert.Equal(5, SettingsStore.Load(app.SettingsPath).EqualizerGains[0]);
+        Wait.For(() => app.SavedSettings is { EqualizerEnabled: true, EqualizerPreset: "Rock" }, "the preset to be kept");
+        Assert.Equal(5, app.SavedSettings.EqualizerGains[0]);
         Assert.Equal(0, app.Close());
     }
 

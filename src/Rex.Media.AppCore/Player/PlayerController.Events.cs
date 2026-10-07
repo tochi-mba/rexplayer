@@ -71,6 +71,18 @@ public sealed partial class PlayerController
                 Say(Playlist.Shuffle ? "Shuffle on" : "Shuffle off");
                 Changed?.Invoke(this, EventArgs.Empty);
                 break;
+            case CommandCatalog.Faster:
+                SetSpeed(SpeedSteps.FirstOrDefault(step => step > Speed + 0.001, SpeedSteps[^1]));
+                break;
+            case CommandCatalog.Slower:
+                SetSpeed(SpeedSteps.LastOrDefault(step => step < Speed - 0.001, SpeedSteps[0]));
+                break;
+            case CommandCatalog.NormalSpeed:
+                SetSpeed(1);
+                break;
+            case CommandCatalog.SlightlyFaster or CommandCatalog.SlightlySlower:
+                SetSpeed(Speed + (commandId == CommandCatalog.SlightlyFaster ? 0.1 : -0.1));
+                break;
             case CommandCatalog.CycleAudioTrack:
                 CycleAudioTrack();
                 break;
@@ -101,6 +113,25 @@ public sealed partial class PlayerController
         {
             Start(Playlist.JumpTo(0));
         }
+    }
+
+    /// <summary>The speeds Faster and Slower step through.</summary>
+    public static IReadOnlyList<double> SpeedSteps { get; } = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+
+    /// <summary>
+    /// Plays at <paramref name="speed"/> (kept between 0.25 and 4, to two places), pitch unchanged,
+    /// for this item and the ones after it.
+    /// </summary>
+    public void SetSpeed(double speed)
+    {
+        Speed = Math.Round(Math.Clamp(double.IsFinite(speed) ? speed : 1, SpeedSteps[0], SpeedSteps[^1]), 2);
+        if (_session is not null)
+        {
+            _ = Observe(_session.SetSpeedAsync(Speed));
+        }
+
+        Say(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Speed {Speed:0.##}\u00D7"));
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>Moves to the next audio track, carrying on from the same moment.</summary>

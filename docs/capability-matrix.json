@@ -59,7 +59,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "FRM SPEC",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PB-07",
@@ -1339,7 +1339,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "AU-16",

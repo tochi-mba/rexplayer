@@ -49,7 +49,7 @@ public sealed partial class MediaSession
                         return _clock.Now;
                     }
 
-                    return _audioEndedAt + new MediaTime(_session._options.Time.GetElapsedTime(_audioEndedTimestamp).Ticks);
+                    return _audioEndedAt + new MediaTime((long)(_session._options.Time.GetElapsedTime(_audioEndedTimestamp).Ticks * Speed));
                 }
             }
         }

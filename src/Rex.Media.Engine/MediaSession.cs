@@ -135,6 +135,26 @@ public sealed partial class MediaSession : IDisposable
 
     public Task SeekAsync(MediaTime target, SeekMode mode = SeekMode.Precise) => Post(() => Seek(target, mode));
 
+    /// <summary>The speed media plays at, its pitch kept (PB-06): 0.25 to 4. It holds for media opened later too.</summary>
+    public double Speed => _speed;
+
+    private double _speed = 1;
+
+    /// <summary>Plays at <paramref name="speed"/> from the current position, or from the start of the next media opened.</summary>
+    public Task SetSpeedAsync(double speed)
+    {
+        if (!double.IsFinite(speed) || speed < Audio.TimeStretch.MinimumRate || speed > Audio.TimeStretch.MaximumRate)
+        {
+            throw new ArgumentOutOfRangeException(nameof(speed), speed, $"The speed must be from {Audio.TimeStretch.MinimumRate} to {Audio.TimeStretch.MaximumRate}.");
+        }
+
+        return Post(() =>
+        {
+            _speed = speed;
+            _playback?.SetSpeed(speed);
+        });
+    }
+
     /// <summary>Stops playback and releases the media; the session can open something else afterwards.</summary>
     public Task StopAsync() => Post(Stop);
 

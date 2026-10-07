@@ -96,9 +96,9 @@ public sealed class AppEndToEndTests : IDisposable
 
         app.Toggle("WelcomeUpdates");
         app.Press("CloseButton");
-        Wait.For(() => File.Exists(app.SettingsPath) && SettingsStore.Load(app.SettingsPath).FirstRunDone, "the welcome to be remembered");
+        Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone, "the welcome to be remembered");
 
-        var saved = SettingsStore.Load(app.SettingsPath);
+        var saved = app.SavedSettings;
         Assert.Equal((UpdateCadence.Off, AppProcess.Version), (saved.UpdateChecks, saved.LastSeenVersion));
         Assert.Equal(0, app.Close());
     }

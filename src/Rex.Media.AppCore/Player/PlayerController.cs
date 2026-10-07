@@ -112,6 +112,9 @@ public sealed partial class PlayerController : IDisposable
 
     public double Volume { get; private set; }
 
+    /// <summary>The speed media plays at, 1 being normal.</summary>
+    public double Speed { get; private set; } = 1;
+
     public bool Muted { get; private set; }
 
     /// <summary>The id of the audio track playing, once the engine has chosen one.</summary>
@@ -239,6 +242,10 @@ public sealed partial class PlayerController : IDisposable
         session.Muted = Muted;
         session.PreferredAudioTrack = audioTrack;
         session.Sound = Sound;
+        if (Speed != 1)
+        {
+            _ = Observe(session.SetSpeedAsync(Speed));
+        }
         _session = session;
         Changed?.Invoke(this, EventArgs.Empty);
         PositionChanged?.Invoke(this, EventArgs.Empty);

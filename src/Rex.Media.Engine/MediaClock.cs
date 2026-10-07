@@ -11,7 +11,8 @@ public interface IMediaClock
 
 /// <summary>
 /// The master clock while audio plays: the position of the sample being heard right now, from the
-/// sink's played-sample count, relative to the timestamp the current run of audio started at.
+/// sink's played-sample count, relative to the timestamp the current run of audio started at. At a
+/// speed other than 1 each sample heard stands for that many samples of the media.
 /// </summary>
 public sealed class AudioClock : IMediaClock
 {
@@ -19,6 +20,7 @@ public sealed class AudioClock : IMediaClock
     private readonly object _gate = new();
     private MediaTime _anchor = MediaTime.Zero;
     private int _sampleRate = 48_000;
+    private double _speed = 1;
 
     public AudioClock(IAudioSink sink)
     {
@@ -32,19 +34,25 @@ public sealed class AudioClock : IMediaClock
         {
             lock (_gate)
             {
-                return _anchor + MediaTime.FromSamples(_sink.PlayedSamples, _sampleRate);
+                var heard = MediaTime.FromSamples(_sink.PlayedSamples, _sampleRate);
+                return _anchor + (_speed == 1 ? heard : new MediaTime((long)(heard.Ticks * _speed)));
             }
         }
     }
 
-    /// <summary>Called after the sink is flushed or opened: the next sample heard is at <paramref name="anchor"/>.</summary>
-    public void Rebase(MediaTime anchor, int sampleRate)
+    /// <summary>
+    /// Called after the sink is flushed or opened: the next sample heard is at <paramref name="anchor"/>,
+    /// and from there the media moves <paramref name="speed"/> times as fast as the sound is heard.
+    /// </summary>
+    public void Rebase(MediaTime anchor, int sampleRate, double speed = 1)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sampleRate);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(speed);
         lock (_gate)
         {
             _anchor = anchor;
             _sampleRate = sampleRate;
+            _speed = speed;
         }
     }
 }

@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 202 planned, 28 built, 59 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 200 planned, 28 built, 61 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -14,7 +14,7 @@ Totals: 202 planned, 28 built, 59 verified, 1 verified-hardware, 27 post-1.0.
 | PB-03 | Precise seek (time) | Sample-accurate audio, frame-accurate video; seek bar click, drag (keyframe while dragging, precise on release) | M2/M3 | must | verified |
 | PB-04 | Relative jumps | Very short 3 s, short 10 s, medium 60 s, long 300 s; every size configurable | M4 | must | verified |
 | PB-05 | Go to time | Dialog (Ctrl+T) accepting `h:mm:ss`, `mm:ss` or seconds; also `rexplay seek` | M4 | must | verified |
-| PB-06 | Playback rate | 0.25×–4×; coarse steps (0.25/0.5/0.75/1/1.25/1.5/2/3/4) and fine steps of ±0.1; reset to 1.0; pitch preserved by default | M5 | must | planned |
+| PB-06 | Playback rate | 0.25×–4×; coarse steps (0.25/0.5/0.75/1/1.25/1.5/2/3/4) and fine steps of ±0.1; reset to 1.0; pitch preserved by default | M5 | must | verified |
 | PB-07 | Frame step | Forward E; backward Shift+E (decode-from-keyframe cache) | M11 | must/should | planned |
 | PB-08 | A-B loop | Set A, set B, clear; loop survives a pause; snaps to frames | M11 | must | planned |
 | PB-09 | Titles & chapters | Next/previous chapter and title; chapter menu; chapter marks on the seek bar | M3/M11 | must | planned |
@@ -177,7 +177,7 @@ Totals: 202 planned, 28 built, 59 verified, 1 verified-hardware, 27 post-1.0.
 | AU-12 | Channel layouts & downmix | Mono→7.1 input; standard-coefficient 5.1/7.1→stereo downmix, LFE policy, centre/surround levels; honours the Windows speaker configuration; upmix off by default | M5 | must | verified |
 | AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | verified |
 | AU-14 | Loudness normaliser (real-time) | Target level, window; off by default | M11 | should | planned |
-| AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | planned |
+| AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned |
 | AU-17 | Vocal reduction (karaoke) | Centre-channel cancellation with a band limit | M11 | could | planned |
 | AU-18 | Visualisations | Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able | M5/M11 | should | planned |

@@ -77,7 +77,7 @@ public sealed partial class MediaSession
             _sinkFormat = sinkFormat;
             _pipeline = new AudioPipeline(sinkFormat, session._options.ResamplerQuality);
             _clock = new AudioClock(sink);
-            _clock.Rebase(MediaTime.Zero, sinkFormat.SampleRate);
+            _clock.Rebase(MediaTime.Zero, sinkFormat.SampleRate, _speed);
             _audioQueue = new BoundedQueue<Packet>(session._options.AudioQueueCapacity);
             _demuxThread = new Thread(RunDemux) { IsBackground = true, Name = "rexplayer demux" };
             _audioThread = new Thread(RunAudio) { IsBackground = true, Name = "rexplayer audio" };
@@ -158,6 +158,21 @@ public sealed partial class MediaSession
             _demuxWake.Set();
         }
 
+        /// <summary>
+        /// Plays at <paramref name="speed"/> from now: the pipeline restarts at the current position
+        /// (as for a seek), so the clock and the sound change speed together.
+        /// </summary>
+        public void SetSpeed(double speed)
+        {
+            Volatile.Write(ref _speed, speed);
+            RequestSeek(Position, SeekMode.Precise);
+        }
+
+        private double _speed = 1;
+
+        /// <summary>The speed the media plays at; the wall clock after the sound ends follows it too.</summary>
+        public double Speed => Volatile.Read(ref _speed);
+
         /// <summary>Starts a new generation positioned at <paramref name="target"/>.</summary>
         public void RequestSeek(MediaTime target, SeekMode mode)
         {
@@ -172,7 +187,7 @@ public sealed partial class MediaSession
             }
 
             previous.Cancel();
-            _clock.Rebase(target, _sinkFormat.SampleRate);
+            _clock.Rebase(target, _sinkFormat.SampleRate, Volatile.Read(ref _speed));
             _audioQueue.Flush(Generation);
             _videoQueue?.Flush(Generation);
             _demuxWake.Set();
@@ -445,7 +460,8 @@ public sealed partial class MediaSession
             _audioItem.Decoder.Flush();
             _pipeline.Reset(_currentSeek.Target);
             _sink.Flush();
-            _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate);
+            _pipeline.Speed = Volatile.Read(ref _speed);
+            _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate, _pipeline.Speed);
             state.AwaitingFirstFrame = true;
             state.NextPts = MediaTime.Unknown;
             state.PaddingSamples = 0;
@@ -611,7 +627,7 @@ public sealed partial class MediaSession
                     state.AwaitingFirstFrame = false;
                     if (processed.Pts.IsKnown)
                     {
-                        _clock.Rebase(processed.Pts, _sinkFormat.SampleRate);
+                        _clock.Rebase(processed.Pts, _sinkFormat.SampleRate, _pipeline.Speed);
                     }
 
                     _session.OnSeekCompleted(this, state.Generation, processed.Pts.IsKnown ? processed.Pts : _currentSeek.Target);

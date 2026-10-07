@@ -36,6 +36,13 @@ public sealed class AudioPipeline
     }
 
     private AudioEffects _effects = AudioEffects.None;
+    private TimeStretch? _stretch;
+
+    /// <summary>
+    /// The speed sound plays at, with its pitch kept (AU-15); set by the audio thread when a run of
+    /// audio starts, before the first frame of it.
+    /// </summary>
+    public double Speed { get; set; } = 1;
     private Equalizer? _equalizer;
     private EqualizerSettings? _equalizerSource;
 
@@ -45,6 +52,34 @@ public sealed class AudioPipeline
     public AudioFrame? Process(AudioFrame input)
     {
         ArgumentNullException.ThrowIfNull(input);
+        if (Speed == 1)
+        {
+            return Convert(input);
+        }
+
+        // Stretched first, at the media's own rate and layout, before anything else is done to it.
+        if (_stretch is null || _stretch.Rate != Speed || !_stretch.Fits(input.SampleRate, input.Channels))
+        {
+            _stretch = new TimeStretch(input.SampleRate, input.Channels, Speed);
+        }
+
+        if (_stretch.Process(input) is not { } stretched)
+        {
+            return null;
+        }
+
+        var converted = Convert(stretched);
+        if (!ReferenceEquals(converted, stretched))
+        {
+            stretched.Dispose();
+        }
+
+        return converted;
+    }
+
+    /// <summary>Rate, layout, effects and volume, for audio already at its speed.</summary>
+    private AudioFrame? Convert(AudioFrame input)
+    {
         Configure(input);
         AudioFrame? frame;
         if (_mixFirst)
@@ -108,6 +143,7 @@ public sealed class AudioPipeline
     public void Reset(MediaTime pts)
     {
         _resampler?.Reset(pts);
+        _stretch?.Reset(pts);
         _equalizer?.Reset();
     }
 
