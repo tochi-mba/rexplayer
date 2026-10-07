@@ -30,7 +30,7 @@ internal sealed class ControllerHarness : IDisposable
     /// <param name="diskFolders">Leave folder expansion to the controller's default, which reads the disk.</param>
     public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false)
     {
-        var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory());
+        var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory()).Add(new Rex.Media.Containers.Matroska.MatroskaDemuxerFactory());
         var decoders = new DecoderRegistry().Add(new PcmDecoderFactory());
         Controller = new PlayerController(
             listener =>

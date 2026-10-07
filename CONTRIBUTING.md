@@ -12,6 +12,7 @@ You need the .NET 10 SDK, Python 3, Node 22 and, to build the installer, Inno Se
 ./dev.ps1 gate     # every required line covered
 ./dev.ps1 adapters # the Windows adapter suite
 ./dev.ps1 perf     # throughput against the committed baselines, and zero steady-state allocation
+./dev.ps1 ui       # the real window through UI Automation (it opens windows)
 ./dev.ps1 check    # all of the above plus the formatting check: run it before you push
 ```
 

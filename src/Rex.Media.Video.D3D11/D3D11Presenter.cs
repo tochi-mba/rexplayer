@@ -8,19 +8,26 @@ namespace Rex.Media.Video.D3D11;
 /// <summary>
 /// Shows pictures with Direct3D 11: NV12 and P010 go to the graphics card as they are and are
 /// converted there with the same <see cref="YuvTransform"/> snapshots use; other formats are
-/// converted on the CPU first. Each picture is letterboxed to its display aspect. With a window it
-/// presents to the screen; without one it draws offscreen, where <see cref="ReadBack"/> sees it.
+/// converted on the CPU first. Each picture is letterboxed to its display aspect. With a window or a
+/// composition panel it presents to the screen; without either it draws offscreen, where
+/// <see cref="ReadBack"/> sees it. The video thread presents while the window's thread resizes and
+/// redraws, so every use of the device is under one lock.
 /// </summary>
 [SupportedOSPlatform("windows8.0")]
 public sealed class D3D11Presenter : IVideoPresenter
 {
     private readonly D3D11VideoRenderer _renderer;
     private readonly VideoWindow? _window;
+    private readonly bool _onScreen;
+    private readonly object _gate = new();
+    private (int Width, int Height)? _pendingSize;
+    private (float[] Matrix, int Width, int Height, Rational PixelAspect)? _last;
 
-    private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window)
+    private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
     {
         _renderer = renderer;
         _window = window;
+        _onScreen = onScreen;
     }
 
     /// <summary>Interpolate chroma between samples (smoother on screen), or take the nearest (a still of the coded picture).</summary>
@@ -38,7 +45,19 @@ public sealed class D3D11Presenter : IVideoPresenter
         var renderer = D3D11VideoRenderer.Create(software);
         var (width, height) = window.ClientSize;
         renderer.AttachWindow(window.Handle, width, height);
-        return new D3D11Presenter(renderer, window);
+        return new D3D11Presenter(renderer, window, onScreen: true);
+    }
+
+    /// <summary>
+    /// Draws into a swap chain for a XAML swap-chain panel, <paramref name="width"/> by
+    /// <paramref name="height"/> physical pixels. <paramref name="swapChain"/> is the swap chain's
+    /// IUnknown with a reference the caller hands to the panel and then releases.
+    /// </summary>
+    public static D3D11Presenter ForComposition(int width, int height, out nint swapChain, bool software = false)
+    {
+        var renderer = D3D11VideoRenderer.Create(software);
+        swapChain = renderer.AttachComposition(width, height);
+        return new D3D11Presenter(renderer, null, onScreen: true);
     }
 
     /// <summary>Draws offscreen at this size, for tests and captures.</summary>
@@ -46,24 +65,96 @@ public sealed class D3D11Presenter : IVideoPresenter
     {
         var renderer = D3D11VideoRenderer.Create(software);
         renderer.UseOffscreen(width, height);
-        return new D3D11Presenter(renderer, null);
+        return new D3D11Presenter(renderer, null, onScreen: false);
+    }
+
+    /// <summary>The panel's new size in physical pixels, applied before the next picture is drawn.</summary>
+    public void Resize(int width, int height)
+    {
+        lock (_gate)
+        {
+            _pendingSize = (Math.Max(1, width), Math.Max(1, height));
+        }
+    }
+
+    /// <summary>The display's scale (1.5 at 150 %), so a composition swap chain maps one buffer pixel to one screen pixel.</summary>
+    public void SetScale(float scaleX, float scaleY)
+    {
+        lock (_gate)
+        {
+            _renderer.SetCompositionScale(scaleX, scaleY);
+        }
+    }
+
+    /// <summary>
+    /// Draws the last picture again at the current size (or black, before the first), for a window
+    /// resized while paused, when no new picture is on its way.
+    /// </summary>
+    public void Redraw()
+    {
+        lock (_gate)
+        {
+            ApplySize();
+            var (width, height) = _renderer.TargetSize;
+            if (_last is { } last)
+            {
+                var (x, y, fitWidth, fitHeight) = VideoLayout.Fit(last.Width, last.Height, last.PixelAspect, width, height);
+                _renderer.Draw(last.Matrix, x, y, fitWidth, fitHeight, SmoothChroma);
+            }
+            else
+            {
+                _renderer.Draw(new float[12], 0, 0, width, height, SmoothChroma);
+            }
+
+            _renderer.Present(waitForRefresh: false);
+        }
+    }
+
+    /// <summary>Forgets the last picture and shows black, for media without pictures.</summary>
+    public void Clear()
+    {
+        lock (_gate)
+        {
+            _last = null;
+        }
+
+        Redraw();
     }
 
     public void Present(VideoFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        if (_window is { IsClosed: false } && _window.ClientSize is var size && size != _renderer.TargetSize && size.Width > 0 && size.Height > 0)
+        lock (_gate)
         {
-            _renderer.Resize(size.Width, size.Height);
+            ApplySize();
+            Show(frame);
+        }
+    }
+
+    private void ApplySize()
+    {
+        if (_window is { IsClosed: false } && _window.ClientSize is var size && size.Width > 0 && size.Height > 0)
+        {
+            _pendingSize = size;
         }
 
+        if (_pendingSize is { } pending && pending != _renderer.TargetSize)
+        {
+            _renderer.Resize(pending.Width, pending.Height);
+        }
+
+        _pendingSize = null;
+    }
+
+    private void Show(VideoFrame frame)
+    {
         var color = frame.Color.Resolve(frame.Width, frame.Height);
         if (frame.Surface is D3D11Surface surface)
         {
             var tenBit = frame.Format == PixelFormat.P010;
             _renderer.UploadSurface(surface, tenBit ? VideoPlaneFormat.P010 : VideoPlaneFormat.Nv12, frame.Width, frame.Height);
             Draw(frame, tenBit ? YuvTransform.For(color, 10).ForShader(65535.0 / 64) : YuvTransform.For(color, 8).ForShader(255));
-            _renderer.Present(waitForRefresh: _window is not null);
+            _renderer.Present(waitForRefresh: _onScreen);
             return;
         }
 
@@ -91,26 +182,33 @@ public sealed class D3D11Presenter : IVideoPresenter
                 break;
         }
 
-        _renderer.Present(waitForRefresh: _window is not null);
+        _renderer.Present(waitForRefresh: _onScreen);
     }
 
     /// <summary>The offscreen picture as drawn, as a BGRA frame the caller disposes.</summary>
     public VideoFrame ReadBack()
     {
-        var (width, height) = _renderer.TargetSize;
-        var frame = VideoFrame.Rent(PixelFormat.Bgra32, width, height);
-        _renderer.ReadBack(frame.Plane(0), frame.Stride(0));
-        return frame;
+        lock (_gate)
+        {
+            var (width, height) = _renderer.TargetSize;
+            var frame = VideoFrame.Rent(PixelFormat.Bgra32, width, height);
+            _renderer.ReadBack(frame.Plane(0), frame.Stride(0));
+            return frame;
+        }
     }
 
     public void Dispose()
     {
-        _renderer.Dispose();
-        _window?.Dispose();
+        lock (_gate)
+        {
+            _renderer.Dispose();
+            _window?.Dispose();
+        }
     }
 
     private void Draw(VideoFrame frame, float[] matrix)
     {
+        _last = (matrix, frame.Width, frame.Height, frame.PixelAspect);
         var (width, height) = _renderer.TargetSize;
         var (x, y, fitWidth, fitHeight) = VideoLayout.Fit(frame.Width, frame.Height, frame.PixelAspect, width, height);
         _renderer.Draw(matrix, x, y, fitWidth, fitHeight, SmoothChroma);

@@ -1,6 +1,9 @@
+using System.Globalization;
 using Rex.Media.Codecs;
 using Rex.Media.Containers;
+using Rex.Media.IO;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 
 namespace Rex.Media.AppCore;
 
@@ -11,6 +14,44 @@ namespace Rex.Media.AppCore;
 /// </summary>
 public static class Snapshot
 {
+    /// <summary>
+    /// Saves the picture <paramref name="source"/> shows at <paramref name="at"/> as a PNG at
+    /// <paramref name="output"/>, making its folder if needed.
+    /// </summary>
+    public static SavedSnapshot SaveAsPng(IByteSource source, DecoderRegistry decoders, MediaTime at, string output, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        using var demuxer = MediaRegistries.Demuxers().Open(source, cancellationToken);
+        var (picture, decoder) = Take(demuxer, decoders, at, cancellationToken);
+        using (picture)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+            using var file = File.Create(output);
+            PngWriter.Write(file, picture);
+            return new SavedSnapshot(output, picture.Width, picture.Height, picture.Pts, decoder);
+        }
+    }
+
+    /// <summary>
+    /// A file name for a snapshot of <paramref name="title"/> at <paramref name="at"/> in
+    /// <paramref name="folder"/>, such as "Sungba 0-01-23.png", numbered when that name is taken.
+    /// Characters Windows does not allow in file names become underscores.
+    /// </summary>
+    public static string FileFor(string folder, string title, TimeSpan at, Func<string, bool>? exists = null)
+    {
+        exists ??= File.Exists;
+        var invalid = Path.GetInvalidFileNameChars().Concat(['<', '>', ':', '"', '/', '\\', '|', '?', '*']).ToHashSet();
+        var safe = new string([.. title.Select(c => invalid.Contains(c) || char.IsControl(c) ? '_' : c)]).Trim().TrimEnd('.');
+        var stem = string.Create(CultureInfo.InvariantCulture, $"{(safe.Length > 0 ? safe : "snapshot")} {(int)at.TotalHours}-{at.Minutes:00}-{at.Seconds:00}");
+        var path = Path.Combine(folder, stem + ".png");
+        for (var n = 2; exists(path); n++)
+        {
+            path = Path.Combine(folder, string.Create(CultureInfo.InvariantCulture, $"{stem} ({n}).png"));
+        }
+
+        return path;
+    }
+
     /// <summary>The picture at <paramref name="at"/>, and the decoder that made it. The caller disposes the picture.</summary>
     public static (VideoFrame Picture, string Decoder) Take(IDemuxer demuxer, DecoderRegistry decoders, MediaTime at, CancellationToken cancellationToken)
     {
@@ -80,3 +121,6 @@ public static class Snapshot
         return done;
     }
 }
+
+/// <summary>Where a snapshot went, its size, the moment of the picture and the decoder that made it.</summary>
+public sealed record SavedSnapshot(string Path, int Width, int Height, MediaTime At, string Decoder);

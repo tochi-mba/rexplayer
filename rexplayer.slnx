@@ -16,11 +16,13 @@
     <Project Path="src/Rex.Media.AppCore/Rex.Media.AppCore.csproj" />
     <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />
     <Project Path="src/Rex.Media.Cli/Rex.Media.Cli.csproj" />
+    <Project Path="src/Rex.Media.App/Rex.Media.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Rex.Media.TestKit/Rex.Media.TestKit.csproj" />
     <Project Path="tests/Rex.Media.Tests/Rex.Media.Tests.csproj" />
     <Project Path="tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj" />
+    <Project Path="tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj" />
     <Project Path="tests/Rex.Fuzz/Rex.Fuzz.csproj" />
   </Folder>
 </Solution>

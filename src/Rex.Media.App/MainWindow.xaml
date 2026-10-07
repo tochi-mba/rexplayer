@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Rex.Media.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Grid x:Name="Root" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <MenuBar x:Name="Menu" Grid.Row="0" AutomationProperties.AutomationId="Menu" AutomationProperties.Name="Menu">
+      <MenuBarItem x:Name="MediaMenu" Title="Media" AutomationProperties.AutomationId="MediaMenu" />
+      <MenuBarItem x:Name="PlaybackMenu" Title="Playback" AutomationProperties.AutomationId="PlaybackMenu" />
+      <MenuBarItem x:Name="AudioMenu" Title="Audio" AutomationProperties.AutomationId="AudioMenu" />
+      <MenuBarItem x:Name="VideoMenu" Title="Video" AutomationProperties.AutomationId="VideoMenu" />
+      <MenuBarItem x:Name="ViewMenu" Title="View" AutomationProperties.AutomationId="ViewMenu" />
+      <MenuBarItem x:Name="HelpMenu" Title="Help" AutomationProperties.AutomationId="HelpMenu" />
+    </MenuBar>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <Grid x:Name="Stage" Grid.Column="0" Background="Black" DoubleTapped="OnStageDoubleTapped" PointerMoved="OnStagePointerMoved" PointerWheelChanged="OnStageWheel"
+            AutomationProperties.AutomationId="Stage" AutomationProperties.Name="Picture">
+        <SwapChainPanel x:Name="Video" AutomationProperties.AutomationId="Video" />
+
+        <StackPanel x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" AutomationProperties.AutomationId="Idle">
+          <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="28" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" />
+          <TextBlock x:Name="IdleHint" Text="Drop media here, or press Ctrl+O to open a file." Foreground="#B0B8AE" HorizontalAlignment="Center"
+                     AutomationProperties.AutomationId="IdleHint" />
+        </StackPanel>
+
+        <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
+                Background="#C0080A09" Visibility="Collapsed" IsHitTestVisible="False">
+          <TextBlock x:Name="Stats" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.AutomationId="Stats" />
+        </Border>
+
+        <Border x:Name="OsdBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,6" CornerRadius="8"
+                Background="#B0080A09" Visibility="Collapsed" IsHitTestVisible="False">
+          <TextBlock x:Name="Osd" Foreground="White" FontSize="18" AutomationProperties.AutomationId="Osd"
+                     AutomationProperties.LiveSetting="Polite" />
+        </Border>
+      </Grid>
+
+      <Grid x:Name="PlaylistPane" Grid.Column="1" Width="320" Visibility="Collapsed" Padding="8"
+            Background="{ThemeResource LayerFillColorDefaultBrush}" AutomationProperties.AutomationId="PlaylistPane">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="4,0,0,8" />
+        <ListView x:Name="PlaylistView" Grid.Row="1" SelectionMode="Extended" IsItemClickEnabled="False" CanReorderItems="False"
+                  DoubleTapped="OnPlaylistDoubleTapped" KeyDown="OnPlaylistKeyDown"
+                  AutomationProperties.AutomationId="PlaylistView" AutomationProperties.Name="Playlist" />
+      </Grid>
+    </Grid>
+
+    <Grid x:Name="Controls" Grid.Row="2" Padding="12,4,12,8" ColumnSpacing="8" VerticalAlignment="Bottom">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <TextBlock x:Name="Elapsed" Grid.Row="0" Grid.Column="0" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
+                 AutomationProperties.AutomationId="Elapsed" />
+      <Slider x:Name="SeekBar" Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False"
+              ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
+      <TextBlock x:Name="Remaining" Grid.Row="0" Grid.Column="2" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
+                 Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
+
+      <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4">
+        <Button x:Name="PreviousButton" Click="OnPrevious" AutomationProperties.AutomationId="PreviousButton" AutomationProperties.Name="Previous" ToolTipService.ToolTip="Previous (P)">
+          <FontIcon Glyph="&#xE892;" />
+        </Button>
+        <Button x:Name="PlayPauseButton" Click="OnPlayPause" AutomationProperties.AutomationId="PlayPauseButton" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play or pause (Space)">
+          <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" />
+        </Button>
+        <Button x:Name="StopButton" Click="OnStop" AutomationProperties.AutomationId="StopButton" AutomationProperties.Name="Stop" ToolTipService.ToolTip="Stop (S)">
+          <FontIcon Glyph="&#xE71A;" />
+        </Button>
+        <Button x:Name="NextButton" Click="OnNext" AutomationProperties.AutomationId="NextButton" AutomationProperties.Name="Next" ToolTipService.ToolTip="Next (N)">
+          <FontIcon Glyph="&#xE893;" />
+        </Button>
+        <AppBarSeparator />
+        <ToggleButton x:Name="ShuffleButton" Click="OnShuffle" AutomationProperties.AutomationId="ShuffleButton" AutomationProperties.Name="Shuffle" ToolTipService.ToolTip="Shuffle (R)">
+          <FontIcon Glyph="&#xE8B1;" />
+        </ToggleButton>
+        <ToggleButton x:Name="RepeatButton" Click="OnRepeat" AutomationProperties.AutomationId="RepeatButton" AutomationProperties.Name="Repeat off" ToolTipService.ToolTip="Repeat (L)">
+          <FontIcon x:Name="RepeatIcon" Glyph="&#xE8EE;" />
+        </ToggleButton>
+        <ToggleButton x:Name="PlaylistButton" Click="OnTogglePlaylist" AutomationProperties.AutomationId="PlaylistButton" AutomationProperties.Name="Playlist" ToolTipService.ToolTip="Playlist (Ctrl+L)">
+          <FontIcon Glyph="&#xE8FD;" />
+        </ToggleButton>
+        <Button x:Name="FullScreenButton" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen" ToolTipService.ToolTip="Full screen (F)">
+          <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
+        </Button>
+        <TextBlock x:Name="NowPlaying" Margin="12,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="480"
+                   AutomationProperties.AutomationId="NowPlaying" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
+        <Button x:Name="MuteButton" Click="OnMute" AutomationProperties.AutomationId="MuteButton" AutomationProperties.Name="Mute" ToolTipService.ToolTip="Mute (M)">
+          <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" />
+        </Button>
+        <Slider x:Name="VolumeBar" Width="120" Minimum="0" Maximum="125" StepFrequency="1" VerticalAlignment="Center" ValueChanged="OnVolumeChanged"
+                AutomationProperties.AutomationId="VolumeBar" AutomationProperties.Name="Volume" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

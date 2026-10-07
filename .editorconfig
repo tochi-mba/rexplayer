@@ -62,3 +62,10 @@ dotnet_diagnostic.CA1823.severity = warning
 
 [**/obj/**.cs]
 generated_code = true
+
+# The window's event handlers are named in XAML, and dotnet format analyses the code without the
+# wiring the XAML compiler generates, so it would call every one unused. The compiler, which sees
+# the wiring, still reports anything truly unused in these files.
+[src/Rex.Media.App/**.cs]
+dotnet_diagnostic.IDE0051.severity = none
+dotnet_diagnostic.IDE0060.severity = none

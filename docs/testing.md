@@ -20,6 +20,7 @@ A test here proves a feature from what came out, not from the absence of an exce
 | Coverage gate | Every push | `./dev.ps1 gate` |
 | `Rex.Media.Windows.Tests` | Every push, Windows | `./dev.ps1 adapters` |
 | Performance (the `Perf` trait in `Rex.Media.Windows.Tests`) | Every push, Windows, as its own job | `./dev.ps1 perf` |
+| `Rex.Media.App.Tests`: the real window through UI Automation | Every push, Windows, as its own job | `./dev.ps1 build` then `./dev.ps1 ui` |
 | Fuzzing (`tests/Rex.Fuzz`) | Nightly, Linux (`fuzz.yml`); the corpus it keeps is replayed by `Rex.Media.Tests` on every push | Actions, "Fuzz", run workflow |
 | Command-line smoke | Every push, against the packaged build | `./dev.ps1 smoke` |
 | Site | Every push | `./dev.ps1 site`, `node --test tests/site/app.test.mjs`, `npx playwright test` |

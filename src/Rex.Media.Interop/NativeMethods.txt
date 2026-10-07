@@ -145,3 +145,6 @@ IMFDXGIBuffer
 MF_SA_D3D11_AWARE
 ID3D10Multithread
 D3D11_BOX
+IDXGISwapChain2
+DXGI_MATRIX_3X2_F
+SetThreadExecutionState

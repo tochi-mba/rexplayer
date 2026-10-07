@@ -328,4 +328,54 @@ public sealed class PlayerControllerTests
         Assert.Throws<ArgumentNullException>(() => new PlayerController(_ => null!, _ => null!, null!));
         Assert.Throws<ArgumentNullException>(() => new PlayerController(_ => null!, _ => null!, _ => { }).Open(null!));
     }
+
+    /// <summary>A Matroska file with two 8 kHz PCM tracks, the second named "Commentary".</summary>
+    private static byte[] TwoAudioTracks()
+    {
+        var blocks = Enumerable.Range(0, 5).SelectMany(i => new[]
+        {
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(1, (short)(i * 40), true, Pcm.Int16(new float[320])),
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(2, (short)(i * 40), true, Pcm.Int16(new float[320])),
+        }).ToArray();
+        return Rex.Media.Tests.Containers.MatroskaCraftedTests.Mkv(
+            EbmlWriter.Element(Rex.Media.Containers.Matroska.MatroskaId.Info, EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TimestampScale, 1_000_000), EbmlWriter.Float(Rex.Media.Containers.Matroska.MatroskaId.Duration, 200)),
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Tracks(
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.PcmTrack(1),
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.PcmTrack(2, EbmlWriter.Text(Rex.Media.Containers.Matroska.MatroskaId.Name, "Commentary"))),
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Cluster(0, blocks));
+    }
+
+    [Fact]
+    [Capability("PB-17")]
+    public async Task TheNextAudioTrackCarriesOnFromTheSameMoment()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["two.mkv"] = TwoAudioTracks();
+        harness.Files["one.wav"] = Count(0, 400);
+        var controller = harness.Controller;
+
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.Equal("There are no audio tracks to choose from.", harness.Messages[^1]);
+        Assert.Null(await controller.StatsAsync());
+
+        controller.Open(["two.mkv"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
+        Assert.Equal(2, controller.AudioTracks.Count);
+        Assert.NotNull(await controller.StatsAsync());
+
+        controller.Seek(TimeSpan.FromMilliseconds(100));
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.Equal("Audio track 2 of 2: Commentary", harness.Messages[^1]);
+        Assert.Equal(TimeSpan.FromMilliseconds(100), controller.Position);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 2);
+
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.StartsWith("Audio track 1 of 2: ", harness.Messages[^1], StringComparison.Ordinal);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
+
+        controller.Open(["one.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "one");
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.Equal("There is only one audio track.", harness.Messages[^1]);
+    }
 }

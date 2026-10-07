@@ -100,4 +100,34 @@ public sealed class CommandTests
         Assert.Equal((KeyChord.Parse("Space"), CommandCatalog.PlayPause, CommandCatalog.Snapshot), conflict);
         Assert.Equal(CommandCatalog.PlayPause, keymap.CommandFor(KeyChord.Parse("Space")));
     }
+
+    [Theory]
+    [InlineData(0x41, "A")]
+    [InlineData(0x5A, "Z")]
+    [InlineData(0x30, "0")]
+    [InlineData(0x39, "9")]
+    [InlineData(0x60, "0")]
+    [InlineData(0x69, "9")]
+    [InlineData(0x70, "F1")]
+    [InlineData(0x87, "F24")]
+    [InlineData(0x20, "Space")]
+    [InlineData(0x25, "Left")]
+    [InlineData(0xBF, "Slash")]
+    [InlineData(0xB3, "MediaPlayPause")]
+    [InlineData(0x6B, "Plus")]
+    [InlineData(0xBD, "Minus")]
+    public void WindowsKeyCodesHaveTheirKeyNames(int virtualKey, string name)
+    {
+        Assert.Equal(name, VirtualKeys.Name(virtualKey));
+        Assert.True(KeyChord.IsKey(name));
+    }
+
+    [Fact]
+    public void KeysWithoutANameMakeNoChord()
+    {
+        Assert.Null(VirtualKeys.Name(0x10));
+        Assert.Null(VirtualKeys.Chord(0x10, ctrl: false, alt: false, shift: true));
+        Assert.Equal(KeyChord.Parse("Ctrl+Alt+Shift+O"), VirtualKeys.Chord(0x4F, ctrl: true, alt: true, shift: true));
+        Assert.Equal(KeyChord.Parse("Space"), VirtualKeys.Chord(0x20, ctrl: false, alt: false, shift: false));
+    }
 }

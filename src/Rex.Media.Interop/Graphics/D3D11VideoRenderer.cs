@@ -34,11 +34,12 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 {
     /// <summary>
     /// A full-window triangle from the vertex index, and two pixel shaders: YUV planes through the
-    /// colour matrix rows (each a dot product with the samples and 1), and BGRA as it is. The crop
-    /// scales texture coordinates when a decoder's surface is larger than the picture it holds.
+    /// colour matrix rows (each a dot product with the samples and 1), and BGRA as it is. The source
+    /// rectangle picks the part of the picture shown (a crop preset), and the crop scales texture
+    /// coordinates when a decoder's surface is larger than the picture it holds.
     /// </summary>
     private const string Shaders = """
-        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; };
+        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
         SamplerState linearClamp : register(s0);
@@ -54,13 +55,13 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
         float4 yuv(Vertex input) : SV_Target
         {
-            float2 uv = input.uv * crop.xy;
+            float2 uv = (source.xy + input.uv * (source.zw - source.xy)) * crop.xy;
             float4 samples = float4(luma.Sample(linearClamp, uv).r, chroma.Sample(chromaSampler, uv).rg, 1);
             return float4(saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples))), 1);
         }
         float4 bgra(Vertex input) : SV_Target
         {
-            return float4(luma.Sample(linearClamp, input.uv * crop.xy).rgb, 1);
+            return float4(luma.Sample(linearClamp, (source.xy + input.uv * (source.zw - source.xy)) * crop.xy).rgb, 1);
         }
         """;
 
@@ -109,7 +110,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
         {
-            ByteWidth = 64,
+            ByteWidth = 80,
             Usage = D3D11_USAGE.D3D11_USAGE_DEFAULT,
             BindFlags = D3D11_BIND_FLAG.D3D11_BIND_CONSTANT_BUFFER,
         };
@@ -161,29 +162,89 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     public void AttachWindow(nint window, int width, int height)
     {
         ReleaseTarget();
+        var factory = Factory();
+        var description = SwapChainDescription(width, height);
+        try
+        {
+            factory.CreateSwapChainForHwnd(_device, new HWND(window), &description, null, null, out var swapChain);
+            _swapChain = swapChain;
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(factory);
+        }
+
+        BindBackBuffer();
+    }
+
+    /// <summary>
+    /// Draws into a swap chain made for composition (a XAML swap-chain panel) from now on. Returns
+    /// the swap chain's IUnknown with a reference of its own, which the caller hands to the panel
+    /// and then releases.
+    /// </summary>
+    public nint AttachComposition(int width, int height)
+    {
+        ReleaseTarget();
+        var factory = Factory();
+        var description = SwapChainDescription(width, height);
+        try
+        {
+            factory.CreateSwapChainForComposition(_device, &description, null, out var swapChain);
+            _swapChain = swapChain;
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(factory);
+        }
+
+        BindBackBuffer();
+        return Marshal.GetIUnknownForObject(_swapChain);
+    }
+
+    /// <summary>
+    /// A composition swap chain's buffers are in physical pixels; the panel lays it out in
+    /// device-independent ones. Scaling it by the inverse of the display's scale makes one buffer
+    /// pixel one screen pixel, so the picture stays sharp at 150 % or 200 %.
+    /// </summary>
+    public void SetCompositionScale(float scaleX, float scaleY)
+    {
+        if (_swapChain is IDXGISwapChain2 scaled && scaleX > 0 && scaleY > 0 && OperatingSystem.IsWindowsVersionAtLeast(10))
+        {
+            var matrix = new DXGI_MATRIX_3X2_F { _11 = 1 / scaleX, _22 = 1 / scaleY };
+            scaled.SetMatrixTransform(&matrix);
+        }
+    }
+
+    private static DXGI_SWAP_CHAIN_DESC1 SwapChainDescription(int width, int height) => new()
+    {
+        Width = (uint)Math.Max(1, width),
+        Height = (uint)Math.Max(1, height),
+        Format = DXGI_FORMAT.DXGI_FORMAT_B8G8R8A8_UNORM,
+        SampleDesc = new DXGI_SAMPLE_DESC { Count = 1 },
+        BufferUsage = DXGI_USAGE.DXGI_USAGE_RENDER_TARGET_OUTPUT,
+        BufferCount = 2,
+        Scaling = DXGI_SCALING.DXGI_SCALING_STRETCH,
+        SwapEffect = DXGI_SWAP_EFFECT.DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        AlphaMode = DXGI_ALPHA_MODE.DXGI_ALPHA_MODE_IGNORE,
+    };
+
+    /// <summary>The DXGI factory that made the device's adapter, so swap chains are made on the same card.</summary>
+    private IDXGIFactory2 Factory()
+    {
         var dxgiDevice = (IDXGIDevice)_device;
         dxgiDevice.GetAdapter(out var adapter);
-        var factoryId = typeof(IDXGIFactory2).GUID;
-        adapter.GetParent(&factoryId, out var factoryPointer);
-        var factory = (IDXGIFactory2)Marshal.GetObjectForIUnknown((nint)factoryPointer);
-        Marshal.Release((nint)factoryPointer);
-        var description = new DXGI_SWAP_CHAIN_DESC1
+        try
         {
-            Width = (uint)Math.Max(1, width),
-            Height = (uint)Math.Max(1, height),
-            Format = DXGI_FORMAT.DXGI_FORMAT_B8G8R8A8_UNORM,
-            SampleDesc = new DXGI_SAMPLE_DESC { Count = 1 },
-            BufferUsage = DXGI_USAGE.DXGI_USAGE_RENDER_TARGET_OUTPUT,
-            BufferCount = 2,
-            Scaling = DXGI_SCALING.DXGI_SCALING_STRETCH,
-            SwapEffect = DXGI_SWAP_EFFECT.DXGI_SWAP_EFFECT_FLIP_DISCARD,
-            AlphaMode = DXGI_ALPHA_MODE.DXGI_ALPHA_MODE_IGNORE,
-        };
-        factory.CreateSwapChainForHwnd(_device, new HWND(window), &description, null, null, out var swapChain);
-        Marshal.ReleaseComObject(factory);
-        Marshal.ReleaseComObject(adapter);
-        _swapChain = swapChain;
-        BindBackBuffer();
+            var factoryId = typeof(IDXGIFactory2).GUID;
+            adapter.GetParent(&factoryId, out var factoryPointer);
+            var factory = (IDXGIFactory2)Marshal.GetObjectForIUnknown((nint)factoryPointer);
+            Marshal.Release((nint)factoryPointer);
+            return factory;
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(adapter);
+        }
     }
 
     /// <summary>Draws into an offscreen picture of this size from now on, which <see cref="ReadBack"/> copies out.</summary>
@@ -287,7 +348,14 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// 1. Chroma is interpolated between samples when <paramref name="smoothChroma"/>, else taken from
     /// the nearest, as a still of the coded picture would be.
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, bool smoothChroma = true)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, bool smoothChroma = true) =>
+        Draw(colourMatrix, x, y, width, height, (0, 0, 1, 1), smoothChroma);
+
+    /// <summary>
+    /// Draws the part of the picture inside <paramref name="source"/> (left, top, right, bottom, each
+    /// from 0 to 1 of the picture) into the rectangle given.
+    /// </summary>
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma)
     {
         if (colourMatrix.Length != 12)
         {
@@ -301,12 +369,13 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             return;
         }
 
-        Span<float> constants = stackalloc float[16];
+        Span<float> constants = stackalloc float[20];
         colourMatrix.CopyTo(constants);
         (constants[12], constants[13]) = (_crop.U, _crop.V);
+        (constants[16], constants[17], constants[18], constants[19]) = source;
         fixed (float* values = constants)
         {
-            _context.UpdateSubresource(_colour, 0, null, values, 64, 0);
+            _context.UpdateSubresource(_colour, 0, null, values, 80, 0);
         }
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };

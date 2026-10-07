@@ -2,6 +2,7 @@ using System.Globalization;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Engine;
 using Rex.Media.IO;
+using Rex.Media.Primitives;
 using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Player;
@@ -70,6 +71,9 @@ public sealed partial class PlayerController
                 Say(Playlist.Shuffle ? "Shuffle on" : "Shuffle off");
                 Changed?.Invoke(this, EventArgs.Empty);
                 break;
+            case CommandCatalog.CycleAudioTrack:
+                CycleAudioTrack();
+                break;
             case CommandCatalog.ShowPosition:
                 Say(Duration > TimeSpan.Zero ? $"{TimeText.Format(Position, Duration)} / {TimeText.Format(Duration)}" : TimeText.Format(Position));
                 break;
@@ -97,6 +101,24 @@ public sealed partial class PlayerController
         {
             Start(Playlist.JumpTo(0));
         }
+    }
+
+    /// <summary>Moves to the next audio track, carrying on from the same moment.</summary>
+    private void CycleAudioTrack()
+    {
+        var tracks = AudioTracks;
+        if (tracks.Count < 2 || Item is null)
+        {
+            Say(tracks.Count == 1 ? "There is only one audio track." : "There are no audio tracks to choose from.");
+            return;
+        }
+
+        var current = tracks.ToList().FindIndex(track => track.Id == AudioTrack);
+        var next = tracks[(current + 1) % tracks.Count];
+        var position = Position;
+        Start(Item, position, next.Id);
+        var name = next.Title ?? next.Language ?? next.Codec.DisplayName();
+        Say($"Audio track {tracks.ToList().IndexOf(next) + 1} of {tracks.Count}: {name}");
     }
 
     private void Jump(int seconds, bool forward)
@@ -144,6 +166,9 @@ public sealed partial class PlayerController
 
                 // An item shorter than the queueing distance may end before its first position report.
                 QueueNextIfNearTheEnd(session);
+                break;
+            case TracksChangedEvent tracks:
+                AudioTrack = tracks.AudioTrack;
                 break;
             case PositionEvent position:
                 Position = position.Position.ToTimeSpan();

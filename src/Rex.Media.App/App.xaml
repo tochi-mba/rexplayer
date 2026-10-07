@@ -1,0 +1,15 @@
+<Application
+    x:Class="Rex.Media.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+      </ResourceDictionary.MergedDictionaries>
+      <!-- The REX signal colour, for the playing entry and the seek bar's progress. -->
+      <Color x:Key="SignalColor">#D7FF3F</Color>
+      <SolidColorBrush x:Key="SignalBrush" Color="{StaticResource SignalColor}" />
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

@@ -7,6 +7,7 @@
 #   ./dev.ps1 gate                  fail unless every file in tests/coverage-required.txt is fully covered
 #   ./dev.ps1 adapters              the Windows adapter tests (Media Foundation, WASAPI, Direct3D)
 #   ./dev.ps1 perf                  the performance suite against tests/perf-baselines.json
+#   ./dev.ps1 ui                    the real window, driven through UI Automation (opens windows)
 #   ./dev.ps1 check                 build, format check, test, gate and adapters: the pre-push check
 #   ./dev.ps1 format                fix formatting
 #   ./dev.ps1 smoke                 run the published command line the way CI does
@@ -142,18 +143,24 @@ function Invoke-Perf {
     Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj", "-c", $Configuration, "--no-build", "--filter-trait", "Category=Perf")
 }
 
+# The window tests open real windows one after another, so they are a task of their own.
+function Invoke-Ui {
+    Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj", "-c", $Configuration, "--no-build")
+}
+
 function Invoke-Package {
     $packageVersion = if ($Version) { $Version } else { ([xml](Get-Content (Join-Path $root "Directory.Build.props") -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1 }
     Invoke-Checked powershell.exe @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "installer/build.ps1"), "-Version", $packageVersion)
 }
 
 switch ($Task) {
-    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 13 | ForEach-Object { $_ -replace '^# ?', '' } }
+    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 14 | ForEach-Object { $_ -replace '^# ?', '' } }
     "build" { Invoke-Build }
     "test" { Invoke-Test }
     "gate" { Invoke-Gate }
     "adapters" { Invoke-Adapters }
     "perf" { Invoke-Perf }
+    "ui" { Invoke-Ui }
     "format" { Invoke-Checked dotnet @("format", "rexplayer.slnx", "--no-restore") }
     "check" {
         Invoke-Build

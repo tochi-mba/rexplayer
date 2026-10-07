@@ -11,6 +11,7 @@ AvcConfig.cs
 BitReader.cs
 BitWriter.cs
 BlockPacketizer.cs
+BorrowedPresenter.cs
 BoundedQueue.cs
 ByteCursor.cs
 ChannelLayout.cs
@@ -93,14 +94,17 @@ SequenceInfo.cs
 SessionEvents.cs
 SessionState.cs
 SettingsStore.cs
+SilentAudio.cs
 SlotPool.cs
 Snapshot.cs
+StatsText.cs
 SystemReport.cs
 ThreadLoop.cs
 TimeText.cs
 TrackInfo.cs
 VideoFrame.cs
 VideoLayout.cs
+VirtualKeys.cs
 Volume.cs
 VorbisComments.cs
 WavDemuxer.cs

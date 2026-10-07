@@ -90,6 +90,16 @@ public sealed partial class PlayerController : IDisposable
 
     public bool Muted { get; private set; }
 
+    /// <summary>The id of the audio track playing, once the engine has chosen one.</summary>
+    public int? AudioTrack { get; private set; }
+
+    /// <summary>The media's audio tracks, in the order they are cycled through.</summary>
+    public IReadOnlyList<TrackInfo> AudioTracks => Info?.Tracks.Where(track => track.Kind == MediaKind.Audio && track.Audio is not null).ToList() ?? [];
+
+    /// <summary>The engine's counters for what is playing, or null when nothing is.</summary>
+    public Task<SessionStats?> StatsAsync() =>
+        _session is { } session ? session.GetStatsAsync().ContinueWith(stats => stats.IsCompletedSuccessfully ? stats.Result : null, TaskScheduler.Default) : Task.FromResult<SessionStats?>(null);
+
     /// <summary>Why the last item failed, until another starts.</summary>
     public string? Failure { get; private set; }
 
@@ -171,8 +181,11 @@ public sealed partial class PlayerController : IDisposable
 
     public void Dispose() => EndSession();
 
-    /// <summary>Starts <paramref name="item"/> in a session of its own, or stops when there is nothing to start.</summary>
-    private void Start(PlaylistItem? item)
+    /// <summary>
+    /// Starts <paramref name="item"/> in a session of its own, or stops when there is nothing to
+    /// start; part-way and on a chosen audio track when asked (switching tracks restarts the item).
+    /// </summary>
+    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null)
     {
         if (item is null)
         {
@@ -183,14 +196,16 @@ public sealed partial class PlayerController : IDisposable
         EndSession();
         Item = item;
         Info = null;
+        AudioTrack = null;
         Failure = null;
-        Position = TimeSpan.Zero;
+        Position = startAt;
         Duration = TimeSpan.Zero;
         State = SessionState.Opening;
         MediaSession? session = null;
         session = _newSession(sessionEvent => _dispatch(() => OnEvent(session!, sessionEvent)));
         session.Volume = Volume;
         session.Muted = Muted;
+        session.PreferredAudioTrack = audioTrack;
         _session = session;
         Changed?.Invoke(this, EventArgs.Empty);
         PositionChanged?.Invoke(this, EventArgs.Empty);
@@ -206,7 +221,7 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
-        session.OpenAsync(source).ContinueWith(
+        session.OpenAsync(source, startAt > TimeSpan.Zero ? new MediaTime(startAt.Ticks) : null).ContinueWith(
             opened => _dispatch(() => OnFailed(session, item, session.FailureReason ?? opened.Exception!.InnerException!.Message)),
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
