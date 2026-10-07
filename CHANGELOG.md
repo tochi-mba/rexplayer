@@ -3,6 +3,32 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.5.0 - 2026-10-07
+
+### Added
+
+- **Subtitles.** Subtitle files beside a film show with it: SubRip (.srt), WebVTT, ASS and SSA,
+  MicroDVD, MPL2, SubViewer and SAMI, found by name in the film's folder or a Subs folder, with
+  the language read from names such as `film.en.srt`. Subtitles inside MKV and MP4 files show as
+  well. Drop a subtitle file on the window, or use Subtitles, Add a subtitle file, to add one.
+- **Subtitle controls.** V picks the next subtitle track and Shift+V turns them on or off; G and
+  H move them 50 ms earlier or later; Alt+V shows a second track at the top at the same time.
+  Ctrl+Plus, Ctrl+Minus and Ctrl with the mouse wheel change their size, and Ctrl+0 puts it back.
+- **How subtitles look.** Preferences sets their font, size, colour, opacity, outline, shadow
+  and background box, the gap from the edge of the picture, whether they sit in the black bars
+  below a wide film, and whether a subtitle file's own colours are used. Older subtitle files
+  that are not in Unicode are read in the code page you choose.
+- **Languages.** Tell rexplayer which languages you prefer, such as "ja, original" for sound and
+  "en, fr" for subtitles, and it picks those tracks; "original" is the language the film was
+  made in, and a commentary only plays when you ask for it.
+- **The equaliser and effects** (Ctrl+E): ten bands with presets, a preamp, mono, left, right or
+  swapped channels, and loudness evening from ReplayGain tags.
+- **Playback speed.** Plus and Minus play faster or slower, from a quarter to four times, without
+  changing the pitch; ] and [ change it a little; Equals returns to normal.
+- **Sound in step.** J and K move the sound 50 ms earlier or later than the pictures.
+- **Visualisations.** Music without pictures shows a spectrum, an oscilloscope, level meters or
+  a spectrogram; Z changes which.
+
 ## 0.4.0 - 2026-10-07
 
 ### Added
