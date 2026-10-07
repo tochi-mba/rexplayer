@@ -140,6 +140,26 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("AU-07")]
+    public void AnEqualiserPresetChosenInTheEffectsPanelIsKept()
+    {
+        using var app = AppProcess.Start();
+
+        app.Run(CommandCatalog.Effects);
+        var presets = app.Find("EqualizerPresets");
+        ((ExpandCollapsePattern)presets.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        var rock = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+            new PropertyCondition(AutomationElement.NameProperty, "Rock"))));
+        ((SelectionItemPattern)rock.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        app.Press("CloseButton");
+
+        Wait.For(() => SettingsStore.Load(app.SettingsPath) is { EqualizerEnabled: true, EqualizerPreset: "Rock" }, "the preset to be kept");
+        Assert.Equal(5, SettingsStore.Load(app.SettingsPath).EqualizerGains[0]);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("UI-08")]
     public void MediaInformationDescribesWhatIsPlaying()
     {

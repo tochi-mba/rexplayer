@@ -49,6 +49,7 @@ public sealed partial class MediaSession
             }
 
             _playback.ApplyVolume(_volume, _muted);
+            _playback.ApplySound(_sound);
             _events.Post(new TracksChangedEvent(item.AudioTrack.Id, item.VideoTrack?.Id, null));
             if (startAt > MediaTime.Zero)
             {

@@ -4,6 +4,7 @@ AacConfig.cs
 AdtsHeader.cs
 AiffDemuxer.cs
 AtomicFile.cs
+AudioEffects.cs
 AudioFormat.cs
 AudioFrame.cs
 AudioPipeline.cs
@@ -35,6 +36,7 @@ DeviceFormatPolicy.cs
 DiagnosticsBundle.cs
 Ebml.cs
 EngineOptions.cs
+Equalizer.cs
 ExceptionDiagnostics.cs
 FileByteSource.cs
 FlacDecoder.cs
@@ -101,6 +103,7 @@ SettingsStore.cs
 SilentAudio.cs
 SlotPool.cs
 Snapshot.cs
+SoundSettings.cs
 StatsText.cs
 SystemReport.cs
 ThreadLoop.cs

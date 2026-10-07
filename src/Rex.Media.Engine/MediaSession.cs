@@ -59,6 +59,19 @@ public sealed partial class MediaSession : IDisposable
     /// </summary>
     public int? PreferredAudioTrack { get; set; }
 
+    /// <summary>The equaliser, stereo mode and loudness evening (M5). Applies immediately, and to every item that follows.</summary>
+    public SoundSettings Sound
+    {
+        get => _sound;
+        set
+        {
+            _sound = value ?? SoundSettings.Plain;
+            _playback?.ApplySound(_sound);
+        }
+    }
+
+    private SoundSettings _sound = SoundSettings.Plain;
+
     /// <summary>The volume slider: 0 silent, 1 unity, 2 maximum boost. Applies immediately.</summary>
     public double Volume
     {

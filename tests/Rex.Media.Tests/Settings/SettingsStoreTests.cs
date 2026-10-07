@@ -51,8 +51,10 @@ public sealed class SettingsStoreTests : IDisposable
         SettingsStore.Save(File, saved);
         var loaded = SettingsStore.Load(File);
 
-        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts }, loaded);
+        // Lists compare by reference in a record, so they are compared by content apart.
+        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains }, loaded);
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
+        Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
     }
 
     [Fact]
@@ -96,7 +98,8 @@ public sealed class SettingsStoreTests : IDisposable
 
         var loaded = SettingsStore.Load(File);
 
-        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts }, loaded);
+        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains }, loaded);
+        Assert.Equal(new double[10], loaded.EqualizerGains);
         Assert.True(loaded.SingleInstance);
         Assert.Equal(10, loaded.ShortJumpSeconds);
     }
@@ -141,5 +144,16 @@ public sealed class SettingsStoreTests : IDisposable
         var tame = new PlayerSettings { Volume = double.PositiveInfinity, MaxVolumePercent = 10, TitleSeconds = double.NaN, ControlsHideSeconds = 99 }.Normalize();
         Assert.Equal((1.0, 100, 3.0, 10.0), (tame.Volume, tame.MaxVolumePercent, tame.TitleSeconds, tame.ControlsHideSeconds));
         Assert.Equal(1.25, new PlayerSettings { Volume = 1.6 }.Normalize().Volume);
+    }
+
+    [Fact]
+    public void SoundSettingsAreKeptInRange()
+    {
+        var wild = new PlayerSettings { EqualizerPreamp = 99, EqualizerGains = [50, double.NaN], Stereo = (StereoChoice)9, Loudness = (LoudnessChoice)9, LoudnessPreamp = -99 }.Normalize();
+
+        Assert.Equal(20, wild.EqualizerPreamp);
+        Assert.Equal([20, 0, 0, 0, 0, 0, 0, 0, 0, 0], wild.EqualizerGains);
+        Assert.Equal((StereoChoice.Stereo, LoudnessChoice.Off, -20.0), (wild.Stereo, wild.Loudness, wild.LoudnessPreamp));
+        Assert.Equal(10, new PlayerSettings { EqualizerGains = null! }.Normalize().EqualizerGains.Count);
     }
 }

@@ -1,3 +1,4 @@
+using Rex.Media.Audio;
 using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
@@ -46,7 +47,7 @@ public sealed partial class PlayerController : IDisposable
         _openSource = openSource ?? throw new ArgumentNullException(nameof(openSource));
         _dispatch = dispatch ?? throw new ArgumentNullException(nameof(dispatch));
         _expand = expand ?? (location => Directory.Exists(location) ? MediaFiles.ExpandFolder(location) : [location]);
-        Settings = (settings ?? new PlayerSettings()).Normalize();
+        Settings = settings ?? new PlayerSettings();
         Playlist = new Playlist(random) { Repeat = Settings.Repeat, Shuffle = Settings.Shuffle };
         Volume = Settings.Volume;
         Muted = Settings.Muted;
@@ -63,8 +64,31 @@ public sealed partial class PlayerController : IDisposable
 
     public Playlist Playlist { get; }
 
-    /// <summary>The settings the jumps, volume steps and limits come from; the window replaces them when they change.</summary>
-    public PlayerSettings Settings { get; set; }
+    /// <summary>
+    /// The settings the jumps, volume steps, limits and sound come from; the window replaces them
+    /// when they change, and the sound settings reach what is playing at once.
+    /// </summary>
+    public PlayerSettings Settings
+    {
+        get;
+        set
+        {
+            field = (value ?? throw new ArgumentNullException(nameof(value))).Normalize();
+            Sound = SoundFor(field);
+            if (_session is not null)
+            {
+                _session.Sound = Sound;
+            }
+        }
+    }
+
+    /// <summary>The sound settings in the engine's terms, made once per change so the equaliser is not rebuilt needlessly.</summary>
+    public SoundSettings Sound { get; private set; } = SoundSettings.Plain;
+
+    private static SoundSettings SoundFor(PlayerSettings settings) => new(
+        new EqualizerSettings(settings.EqualizerEnabled, settings.EqualizerPreamp, settings.EqualizerGains),
+        (StereoMode)settings.Stereo,
+        new ReplayGainSettings((ReplayGainMode)settings.Loudness, settings.LoudnessPreamp));
 
     /// <summary>Idle before anything plays and after Stop; otherwise the current session's state.</summary>
     public SessionState State { get; private set; } = SessionState.Idle;
@@ -214,6 +238,7 @@ public sealed partial class PlayerController : IDisposable
         session.Volume = Volume;
         session.Muted = Muted;
         session.PreferredAudioTrack = audioTrack;
+        session.Sound = Sound;
         _session = session;
         Changed?.Invoke(this, EventArgs.Empty);
         PositionChanged?.Invoke(this, EventArgs.Empty);

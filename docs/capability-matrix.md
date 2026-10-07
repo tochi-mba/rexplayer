@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 206 planned, 27 built, 56 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 202 planned, 28 built, 59 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -169,13 +169,13 @@ Totals: 206 planned, 27 built, 56 verified, 1 verified-hardware, 27 post-1.0.
 | AU-04 | Bitstream passthrough | AC-3, E-AC-3, DTS, DTS-HD, TrueHD as IEC 61937 over HDMI/S/PDIF; per-format toggles; DSP bypass indicated | M11 | should | planned |
 | AU-05 | Volume | 0–200% (slider tops at 125% by default, configurable to 200%); 5% steps (configurable); wheel over the video; soft-clip above 100%; remembered across sessions (setting); OSD feedback | M4 | must | verified |
 | AU-06 | Mute | Digital silence; unmute restores the level | M4 | must | verified |
-| AU-07 | 10-band graphic equaliser | ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered | M5 | must | planned |
+| AU-07 | 10-band graphic equaliser | ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered | M5 | must | verified |
 | AU-08 | Dynamic range compressor | RMS/peak blend, attack 1.5–400 ms (25), release 2–800 ms (100), threshold −30–0 dB (−11), ratio 1–20 (4), knee 1–10 dB (5), make-up 0–24 dB (7) | M11 | should | planned |
 | AU-09 | Room reverb / spatialiser | Room size, width, wet, dry, damping | M11 | could | planned |
 | AU-10 | Stereo widener | Delay 1–100 ms, feedback, cross-feed, dry mix | M11 | could | planned |
-| AU-11 | Stereo mode | Stereo / mono / left only / right only / reverse; headphone cross-feed (S); matrix-surround decode (C) | M5 | must | planned |
+| AU-11 | Stereo mode | Stereo / mono / left only / right only / reverse; headphone cross-feed (S); matrix-surround decode (C) | M5 | must | verified |
 | AU-12 | Channel layouts & downmix | Mono→7.1 input; standard-coefficient 5.1/7.1→stereo downmix, LFE policy, centre/surround levels; honours the Windows speaker configuration; upmix off by default | M5 | must | verified |
-| AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | planned |
+| AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | verified |
 | AU-14 | Loudness normaliser (real-time) | Target level, window; off by default | M11 | should | planned |
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | planned |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned |
@@ -333,7 +333,7 @@ Totals: 206 planned, 27 built, 56 verified, 1 verified-hardware, 27 post-1.0.
 | UI-04 | Fullscreen controller | Seek bar, transport, volume, tracks, effects, leave fullscreen; auto-hide (1.5 s), opacity, keyboard-focusable, touch-friendly | M4 | must | verified |
 | UI-05 | Minimal interface | Ctrl+H hides chrome; right-click keeps every menu reachable | M4 | must | verified |
 | UI-06 | Mini player & PiP | Compact audio player and the video PiP window (VID-28) | M15 | should | planned |
-| UI-07 | Effects & filters panel (Ctrl+E) | Audio tab (equaliser, compressor, reverb, widener, pitch & speed, advanced); Video tab (essential, crop, colours, geometry, overlays, advanced); Synchronisation tab (audio delay, subtitle delay/speed, sync marks); presets save/load; per-file "remember these settings" option | M5/M11 | must | planned |
+| UI-07 | Effects & filters panel (Ctrl+E) | Audio tab (equaliser, compressor, reverb, widener, pitch & speed, advanced); Video tab (essential, crop, colours, geometry, overlays, advanced); Synchronisation tab (audio delay, subtitle delay/speed, sync marks); presets save/load; per-file "remember these settings" option | M5/M11 | must | built |
 | UI-08 | Media information (Ctrl+I) | General (editable tags + artwork), Metadata (all raw tags), Codec (per stream: codec + decoder used, language, channels, sample rate, bit depth, resolution, fps, pixel format, colour primaries/transfer/matrix/range, rotation, HDR metadata), Statistics (input and demux bitrate, discontinuities, decoded/displayed/late/dropped frames, audio decoded/played/lost buffers, buffer level, network throughput), Location; Ctrl+J opens the Codec tab | M4/M6 | must | built |
 | UI-09 | Log console (Ctrl+M) | Verbosity (error/warning/info/debug), source filter, search, copy, save, clear; "Copy diagnostics bundle" | M4 | must | verified |
 | UI-10 | Preferences | Simple pages (Interface, Playback, Audio, Video, Subtitles & OSD, Input & codecs incl. a decode-ladder view, Network & privacy, Library, Hotkeys, Extensions, Advanced) + All settings: searchable, generated from the typed schema, "modified only" filter, per-setting reset; reset all; import/export | M4/M6 | must | built |

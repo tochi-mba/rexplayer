@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Commands;
+using Rex.Media.Audio;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
 using Rex.Media.IO;
@@ -381,5 +382,33 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "one");
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
         Assert.Equal("There is only one audio track.", harness.Messages[^1]);
+    }
+
+    [Fact]
+    [Capability("UI-07")]
+    public void SoundSettingsReachWhatIsPlayingAtOnce()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["a.wav"] = Count(0, 400);
+        var controller = harness.Controller;
+        Assert.Same(SoundSettings.Plain.ReplayGain, ReplayGainSettings.Off);
+        Assert.False(controller.Sound.Equalizer.IsAudible);
+
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        controller.Settings = controller.Settings with { EqualizerEnabled = true, EqualizerGains = [6, 0, 0, 0, 0, 0, 0, 0, 0, 0], Stereo = StereoChoice.Mono, Loudness = LoudnessChoice.Album, LoudnessPreamp = 3 };
+
+        Assert.True(controller.Sound.Equalizer.IsAudible);
+        Assert.Equal((StereoMode.Mono, ReplayGainMode.Album, 3.0), (controller.Sound.StereoMode, controller.Sound.ReplayGain.Mode, controller.Sound.ReplayGain.Preamp));
+        Assert.Throws<ArgumentNullException>(() => controller.Settings = null!);
+    }
+
+    [Fact]
+    public void TheSettingsChoicesNameTheEnginesOwnInTheSameOrder()
+    {
+        Assert.Equal(Enum.GetNames<StereoMode>(), Enum.GetNames<StereoChoice>());
+        Assert.Equal(Enum.GetNames<ReplayGainMode>(), Enum.GetNames<LoudnessChoice>());
+        Assert.Equal(Enum.GetValues<StereoMode>().Select(value => (int)value), Enum.GetValues<StereoChoice>().Select(value => (int)value));
+        Assert.Equal(Enum.GetValues<ReplayGainMode>().Select(value => (int)value), Enum.GetValues<LoudnessChoice>().Select(value => (int)value));
     }
 }

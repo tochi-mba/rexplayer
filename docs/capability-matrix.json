@@ -1259,7 +1259,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "AU-08",
@@ -1299,7 +1299,7 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PCM",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "AU-12",
@@ -1319,7 +1319,7 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "PCM",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "AU-14",
@@ -2549,7 +2549,7 @@
       "milestone": "M5/M11",
       "priority": "must",
       "oracles": "UIA PIX SPEC",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "UI-08",

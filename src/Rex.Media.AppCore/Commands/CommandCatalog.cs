@@ -53,6 +53,7 @@ public static class CommandCatalog
     public const string ShowLog = "show-log";
     public const string SaveDiagnostics = "save-diagnostics";
     public const string Preferences = "preferences";
+    public const string Effects = "effects";
     public const string Help = "help";
     public const string CheckForUpdates = "check-for-updates";
     public const string ShortcutSheet = "shortcut-sheet";
@@ -109,6 +110,7 @@ public static class CommandCatalog
         New(ShowLog, "Log", Tools, "Ctrl+M"),
         New(SaveDiagnostics, "Save diagnostics for a problem report", Tools),
         New(Preferences, "Preferences", Tools, "Ctrl+P"),
+        New(Effects, "Effects and equaliser", Tools, "Ctrl+E"),
         New(Help, "Help", Tools, "F1"),
         New(CheckForUpdates, "Check for updates", Tools),
         New(ShortcutSheet, "Keyboard shortcuts", Tools, "Ctrl+Slash"),

@@ -213,4 +213,29 @@ public sealed class GaplessTests
         Assert.Throws<ArgumentNullException>(() => { _ = harness.Session.OpenAsync(SessionHarness.Source(Count(0, 1)), (IReadOnlyList<IByteSource>)null!); });
         Assert.Throws<ArgumentNullException>(() => { _ = harness.Session.QueueNextAsync(null!); });
     }
+
+    [Fact]
+    public async Task SoundSettingsApplyToEveryItemOfARunAndCanChangeWhilePlaying()
+    {
+        using var harness = new SessionHarness();
+        var halved = new SoundSettings(Rex.Media.Audio.EqualizerSettings.Off, Rex.Media.Audio.StereoMode.Stereo, new Rex.Media.Audio.ReplayGainSettings(Rex.Media.Audio.ReplayGainMode.Track, UntaggedGain: 20 * Math.Log10(0.5)));
+        harness.Session.Sound = halved;
+        Assert.Same(halved, harness.Session.Sound);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 800)), [SessionHarness.Source(Count(1000, 800))]);
+        harness.Session.Sound = halved with { };
+        await harness.FinishAsync();
+        harness.Session.Sound = null!;
+
+        Assert.Equal(Expected((0, 800), (1000, 800)).Select(v => v * 0.5f), harness.Recording.Channel(0), new ToleranceComparer(1e-6f));
+        Assert.Same(SoundSettings.Plain, harness.Session.Sound);
+        Assert.Throws<ArgumentNullException>(() => SoundSettings.Plain.EffectsFor(null!));
+    }
+
+    private sealed class ToleranceComparer(float tolerance) : IEqualityComparer<float>
+    {
+        public bool Equals(float x, float y) => Math.Abs(x - y) <= tolerance;
+
+        public int GetHashCode(float obj) => 0;
+    }
 }

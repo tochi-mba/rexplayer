@@ -133,6 +133,18 @@ public sealed partial class MediaSession
             _playGate.Set();
         }
 
+        /// <summary>
+        /// Takes up new sound settings now; the loudness gain is worked out from the item playing,
+        /// and again from each item that follows it.
+        /// </summary>
+        public void ApplySound(SoundSettings sound)
+        {
+            Volatile.Write(ref _sound, sound);
+            _pipeline.Effects = sound.EffectsFor(Volatile.Read(ref _audioItem).Info);
+        }
+
+        private SoundSettings _sound = SoundSettings.Plain;
+
         public void ApplyVolume(double volume, bool muted)
         {
             _pipeline.Volume.Volume = volume;
@@ -461,6 +473,7 @@ public sealed partial class MediaSession
             Interlocked.Increment(ref _itemsStarted);
             Volatile.Write(ref _audioItem, next);
             Volatile.Write(ref _info, next.Info);
+            _pipeline.Effects = Volatile.Read(ref _sound).EffectsFor(next.Info);
             ReleaseFinishedItems();
 
             _session.OnItemStarted(this, next.Info, next.AudioTrack.Id);

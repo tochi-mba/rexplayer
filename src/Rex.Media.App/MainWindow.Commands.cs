@@ -28,7 +28,7 @@ public sealed partial class MainWindow
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
             CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute]),
+        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null, CommandCatalog.Effects]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.Preferences]),
@@ -181,6 +181,9 @@ public sealed partial class MainWindow
                 break;
             case CommandCatalog.CheckForUpdates:
                 _ = CheckForUpdatesAsync(asked: true);
+                break;
+            case CommandCatalog.Effects:
+                _ = ShowEffectsAsync();
                 break;
             case CommandCatalog.Preferences:
                 _ = ShowPreferencesAsync();

@@ -38,6 +38,24 @@ public enum UpdateCadence
     Weekly,
 }
 
+/// <summary>How the two front channels are heard.</summary>
+public enum StereoChoice
+{
+    Stereo,
+    Mono,
+    Left,
+    Right,
+    Reverse,
+}
+
+/// <summary>Which loudness tags even out loudness.</summary>
+public enum LoudnessChoice
+{
+    Off,
+    Track,
+    Album,
+}
+
 /// <summary>Where the window was, so it opens there again.</summary>
 public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool Maximized);
 
@@ -79,6 +97,26 @@ public sealed record PlayerSettings
     public int MediumJumpSeconds { get; init; } = 60;
 
     public int LongJumpSeconds { get; init; } = 300;
+
+    // Sound
+
+    public bool EqualizerEnabled { get; init; }
+
+    /// <summary>The equaliser's preamp, in decibels from -20 to +20.</summary>
+    public double EqualizerPreamp { get; init; }
+
+    /// <summary>The ten bands' gains, in decibels from -20 to +20, lowest band first.</summary>
+    public IReadOnlyList<double> EqualizerGains { get; init; } = new double[10];
+
+    /// <summary>The name of the preset the gains came from, or null once they were changed by hand.</summary>
+    public string? EqualizerPreset { get; init; }
+
+    public StereoChoice Stereo { get; init; } = StereoChoice.Stereo;
+
+    public LoudnessChoice Loudness { get; init; } = LoudnessChoice.Off;
+
+    /// <summary>Extra gain on top of the loudness tags, in decibels from -20 to +20.</summary>
+    public double LoudnessPreamp { get; init; }
 
     // Window
 
@@ -130,6 +168,8 @@ public sealed record PlayerSettings
     /// </summary>
     public IReadOnlyDictionary<string, string> Shortcuts { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
+    private static double Decibels(double value) => double.IsFinite(value) ? Math.Clamp(value, -20, 20) : 0;
+
     /// <summary>A copy with every value in its allowed range; values from a damaged file are reset or clamped.</summary>
     public PlayerSettings Normalize()
     {
@@ -152,6 +192,11 @@ public sealed record PlayerSettings
             Theme = Enum.IsDefined(Theme) ? Theme : ThemeChoice.System,
             UpdateChecks = Enum.IsDefined(UpdateChecks) ? UpdateChecks : UpdateCadence.Weekly,
             Shortcuts = Shortcuts ?? new Dictionary<string, string>(StringComparer.Ordinal),
+            EqualizerPreamp = Decibels(EqualizerPreamp),
+            EqualizerGains = [.. Enumerable.Range(0, 10).Select(i => Decibels(EqualizerGains is { } gains && i < gains.Count ? gains[i] : 0))],
+            Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
+            Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
+            LoudnessPreamp = Decibels(LoudnessPreamp),
         };
     }
 }

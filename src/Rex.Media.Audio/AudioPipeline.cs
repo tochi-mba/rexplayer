@@ -4,7 +4,8 @@ namespace Rex.Media.Audio;
 
 /// <summary>
 /// Everything between a decoder and a sink, in a fixed order: change rate and speaker layout to what
-/// the sink takes, apply the user's volume, then soft-clip. Rate and layout changes are linear, so
+/// the sink takes, apply the effects (loudness gain, stereo mode, equaliser), then the user's
+/// volume, then soft-clip. Rate and layout changes are linear, so
 /// they commute; the pipeline remixes first when that leaves fewer channels to resample. A stream
 /// whose format changes mid-way (a chained internet radio stream) rebuilds the stages on the fly.
 /// </summary>
@@ -26,6 +27,17 @@ public sealed class AudioPipeline
     }
 
     public VolumeProcessor Volume { get; } = new();
+
+    /// <summary>The effects in use; the window may replace them at any moment, and the next frame takes them up.</summary>
+    public AudioEffects Effects
+    {
+        get => Volatile.Read(ref _effects);
+        set => Volatile.Write(ref _effects, value ?? AudioEffects.None);
+    }
+
+    private AudioEffects _effects = AudioEffects.None;
+    private Equalizer? _equalizer;
+    private EqualizerSettings? _equalizerSource;
 
     public AudioFormat Target => _target;
 
@@ -93,10 +105,35 @@ public sealed class AudioPipeline
     }
 
     /// <summary>Forgets buffered audio after a seek; output resumes at <paramref name="pts"/>.</summary>
-    public void Reset(MediaTime pts) => _resampler?.Reset(pts);
+    public void Reset(MediaTime pts)
+    {
+        _resampler?.Reset(pts);
+        _equalizer?.Reset();
+    }
 
     private AudioFrame Finish(AudioFrame frame)
     {
+        var effects = Effects;
+        if (effects.Gain != 1)
+        {
+            for (var channel = 0; channel < frame.Channels; channel++)
+            {
+                foreach (ref var sample in frame.Channel(channel)[..frame.SampleCount])
+                {
+                    sample *= effects.Gain;
+                }
+            }
+        }
+
+        StereoModes.Apply(frame, effects.StereoMode);
+        // Rebuilt only when the settings or the format change: rebuilding loses the filters' memory.
+        if (_equalizer is null || !ReferenceEquals(_equalizerSource, effects.Equalizer) || !_equalizer.Fits(frame.SampleRate, frame.Channels))
+        {
+            _equalizer = new Equalizer(effects.Equalizer, frame.SampleRate, frame.Channels);
+            _equalizerSource = effects.Equalizer;
+        }
+
+        _equalizer.Process(frame);
         Volume.Process(frame);
         SoftClipper.Process(frame);
         return frame;
