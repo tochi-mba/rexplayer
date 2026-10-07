@@ -1,3 +1,11 @@
 {
-  "lanes": {}
+  "lanes": {
+    "ci-windows": {
+      "flac-decode-x-realtime": 328.3,
+      "matroska-demux-mb-per-second": 341.8,
+      "mp3-decode-x-realtime": 89.8,
+      "mp4-demux-mb-per-second": 213.3,
+      "resampler-x-realtime": 152.2
+    }
+  }
 }
