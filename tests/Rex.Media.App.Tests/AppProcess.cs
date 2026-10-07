@@ -130,6 +130,17 @@ internal sealed class AppProcess : IDisposable
         }
     }
 
+    /// <summary>Runs a command through the player's automation pipe, as a script would (TOOL-03).</summary>
+    public Rex.Media.AppCore.Automation.AutomationReply Run(string command)
+    {
+        var reply = Rex.Media.AppCore.Automation.AutomationPipe.SendAsync(
+            "rexplayer-test-" + Path.GetFileName(Root),
+            new Rex.Media.AppCore.Automation.AutomationRequest { Command = "run", Id = command },
+            Patience).GetAwaiter().GetResult();
+        Assert.True(reply is { Ok: true }, $"The player did not run {command}: {reply?.Error ?? "no answer"}");
+        return reply!;
+    }
+
     public void Press(string automationId) => ((InvokePattern)Find(automationId).GetCurrentPattern(InvokePattern.Pattern)).Invoke();
 
     public void Toggle(string automationId) => ((TogglePattern)Find(automationId).GetCurrentPattern(TogglePattern.Pattern)).Toggle();

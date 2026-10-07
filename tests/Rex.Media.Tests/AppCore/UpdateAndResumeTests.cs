@@ -90,6 +90,7 @@ public sealed class UpdateAndResumeTests : IDisposable
     }
 
     [Fact]
+    [Capability("SEC-05")]
     public void OnlyAnInstallerMatchingItsPublishedChecksumIsRun()
     {
         var bytes = new byte[] { 1, 2, 3, 4 };

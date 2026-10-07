@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Rex.Media.TestKit\Rex.Media.TestKit.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.Settings\Rex.Media.Settings.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
   </ItemGroup>
 
 </Project>

@@ -53,6 +53,7 @@ public sealed class AppEndToEndTests : IDisposable
 
     [Fact]
     [Capability("PB-12")]
+    [Capability("LIB-01")]
     public void APlaylistPlaysThroughAndThePaneShowsWhatIsPlaying()
     {
         using var app = AppProcess.Start([Song("Terminator", 1), Song("Sungba", 1)]);

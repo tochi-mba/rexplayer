@@ -1,6 +1,7 @@
 using System.Text;
 using Rex.Media.IO;
 using Rex.Media.Settings;
+using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.Settings;
 
@@ -65,6 +66,7 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    [Capability("SYS-02")]
     public void ADamagedFileFallsBackToTheBackupThenToTheDefaults()
     {
         SettingsStore.Save(File, new PlayerSettings { Volume = 0.25 });

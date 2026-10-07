@@ -1,24 +1,26 @@
 # rexplayer
 
-**A REX Technologies product.** A Windows media player built from scratch: its own engine, its own
-audio pipeline, and a command line made for scripts.
+**A REX Technologies product.** A Windows media player built from scratch: its own engine, a
+window to watch and listen in, and a command line made for scripts.
 
 [Download](https://github.com/tochi-mba/rexplayer/releases/latest) ·
 [Website](https://tochi-mba.github.io/rexplayer/) ·
 [Capability matrix](docs/capability-matrix.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.3.** The engine and the `rexplay` command line play MP4, MOV, MKV and WebM video in
-> a window, and MP3, FLAC, WAV, RF64 and AIFF without a gap from one file to the next. rexplayer
-> decodes MP3, FLAC and PCM itself and hands H.264, HEVC and AAC to Windows' own decoders. The
-> player app, hardware decoding and the rest of the
+> **Status: 0.4.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
+> the graphics card, and MP3, FLAC, WAV, RF64 and AIFF without a gap from one file to the next,
+> with a playlist, full screen, snapshots, preferences and one window for everything you open.
+> rexplayer decodes MP3, FLAC and PCM itself and hands H.264, HEVC and AAC to Windows' own
+> decoders. Subtitles, more formats, streaming and the rest of the
 > [capability matrix](docs/capability-matrix.md) arrive release by release.
 
 ## Install
 
 1. Download `rexplayer-Setup-<version>.exe` from the
    [latest release](https://github.com/tochi-mba/rexplayer/releases/latest). It installs for you
-   only, with no administrator prompt, and puts `rexplay` on your PATH.
+   only, with no administrator prompt, adds rexplayer to the Start menu and puts `rexplay` on
+   your PATH.
 2. The installer is not signed yet, so Windows may say "Windows protected your PC". Choose
    **More info**, then **Run anyway**.
 3. Prefer no installer? Each release has a portable zip and a `.sha256` file to check it against.
@@ -27,7 +29,15 @@ audio pipeline, and a command line made for scripts.
 
 | Want to… | Do this |
 |---|---|
-| Play a file | `rexplay play song.mp3` |
+| Play something | Drop it on the window, or press Ctrl+O (a folder: Ctrl+F) |
+| Add to what is playing | Hold Ctrl while you drop, or open it while rexplayer is running |
+| Pause, jump, change the volume | Space; Left and Right jump 10 seconds; Up and Down change the volume |
+| Full screen | Double-click the picture, or press F; Escape leaves |
+| Keep a picture | Shift+S saves it to Pictures\rexplayer |
+| See every shortcut | Help, Keyboard shortcuts (Ctrl+/) |
+| Change how it behaves | View, Preferences (Ctrl+P) |
+| Report a problem | Help, Save diagnostics, and attach the zip |
+| Play a file from a terminal | `rexplay play song.mp3` |
 | Watch a video | `rexplay play film.mkv --window` (Escape or closing the window stops it) |
 | Play an album without gaps | `rexplay play 01.flac 02.flac 03.flac` |
 | Start part-way through | `rexplay play song.wav --start 1:30` |

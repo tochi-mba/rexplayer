@@ -19,6 +19,7 @@ public sealed class PlayerControllerTests
 
     [Fact]
     [Capability("PB-14")]
+    [Capability("VID-26")]
     public void APlaylistPlaysItsItemsOneAfterAnotherSampleForSample()
     {
         using var harness = new ControllerHarness();
@@ -195,6 +196,7 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    [Capability("PB-04")]
     public void JumpsMoveWithinTheMediaAndSayWhereTheyLanded()
     {
         using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
@@ -227,6 +229,7 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    [Capability("OSD-07")]
     public void VolumeMuteRepeatAndShuffleChangeAndSaySo()
     {
         using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { Volume = 1.2, Muted = true, Shuffle = true });
@@ -269,6 +272,7 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    [Capability("LIB-02")]
     public void EnqueuedMediaWaitsItsTurnOrStartsWhenNothingPlays()
     {
         using var harness = new ControllerHarness(autoPlay: false);

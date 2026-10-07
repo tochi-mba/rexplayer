@@ -37,26 +37,57 @@ public sealed partial class MainWindow
 
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
 
+    /// <summary>The picture's right-click menu (UI-03): the same commands, reachable even in full screen and the minimal interface.</summary>
+    private static readonly (string Title, string?[] Commands)[] ContextLayout =
+    [
+        ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
+        ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute]),
+        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
+        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
+        ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
+    ];
+
     private void BuildMenus()
     {
         foreach (var (title, commands) in MenuLayout)
         {
             var menu = Menu.Items.First(item => item.Title == title);
             menu.Items.Clear();
-            foreach (var id in commands)
-            {
-                if (id is null)
-                {
-                    menu.Items.Add(new MenuFlyoutSeparator());
-                    continue;
-                }
+            Fill(menu.Items, commands, "Command-");
+        }
 
-                var command = CommandCatalog.Find(id)!;
-                var item = new MenuFlyoutItem { Text = command.Title, KeyboardAcceleratorTextOverride = _keymap.Label(id) };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, "Command-" + id);
-                item.Click += (_, _) => Run(id);
-                menu.Items.Add(item);
+        var context = new MenuFlyout();
+        foreach (var (title, commands) in ContextLayout)
+        {
+            if (title.Length == 0)
+            {
+                Fill(context.Items, commands, "Context-");
+                continue;
             }
+
+            var sub = new MenuFlyoutSubItem { Text = title };
+            Fill(sub.Items, commands, "Context-");
+            context.Items.Add(sub);
+        }
+
+        Stage.ContextFlyout = context;
+    }
+
+    private void Fill(IList<MenuFlyoutItemBase> items, string?[] commands, string prefix)
+    {
+        foreach (var id in commands)
+        {
+            if (id is null)
+            {
+                items.Add(new MenuFlyoutSeparator());
+                continue;
+            }
+
+            var command = CommandCatalog.Find(id)!;
+            var item = new MenuFlyoutItem { Text = command.Title, KeyboardAcceleratorTextOverride = _keymap.Label(id) };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + id);
+            item.Click += (_, _) => Run(id);
+            items.Add(item);
         }
     }
 

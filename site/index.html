@@ -98,7 +98,8 @@ Sungba.wav: WAVE, 3:14
       </div>
       <div class="feature-grid">
         <div class="feature-card"><h3>Its own decoders</h3><p>MP3, FLAC, WAV and AIFF, decoded by rexplayer itself and checked against independent decoders, with tags and cover art read from ID3 and Vorbis comments.</p></div>
-        <div class="feature-card"><h3>Video in a window</h3><p>MP4, MOV, MKV and WebM, with H.264, HEVC and AAC decoded by Windows, drawn with Direct3D and kept in step with the sound.</p></div>
+        <div class="feature-card"><h3>The player window</h3><p>A playlist, full screen, snapshots, preferences and every shortcut in the menus, with one window for everything you open.</p></div>
+        <div class="feature-card"><h3>Video on the graphics card</h3><p>MP4, MOV, MKV and WebM, with H.264, HEVC and AAC decoded by Windows on the graphics card when it can, drawn with Direct3D and kept in step with the sound.</p></div>
         <div class="feature-card"><h3>Its own resampler</h3><p>A windowed-sinc resampler converts to whatever rate your audio device mixes at, without drifting over hours.</p></div>
         <div class="feature-card"><h3>Gapless</h3><p>Albums play from one track to the next without a gap, and MP3 encoder padding is cut to the sample.</p></div>
         <div class="feature-card"><h3>Windows audio</h3><p>Plays to the default device through WASAPI, with volume up to 200 % and a soft clipper above 100 %.</p></div>
@@ -111,13 +112,14 @@ Sungba.wav: WAVE, 3:14
       <div class="section-heading">
         <p class="eyebrow signal">Roadmap</p>
         <h2>Released in steps.</h2>
-        <p>Each step is a release you can use. Version 0.3 plays MP4 and MKV video in a window and MP3, FLAC, WAV and AIFF without gaps, from the command line; the player app and the rest of the formats follow release by release.</p>
+        <p>Each step is a release you can use. Version 0.4 is the player app: video decoded on the graphics card, gapless music, a playlist, full screen, snapshots and preferences. Subtitles and the rest of the formats follow release by release.</p>
       </div>
       <ol class="install-steps">
         <li><strong>The engine and the command line.</strong> Released in 0.1.</li>
         <li><strong>MP3 and FLAC with gapless playback.</strong> Released in 0.2.</li>
         <li><strong>MP4 and MKV video in a window.</strong> Released in 0.3.</li>
-        <li><strong>Hardware decoding, the player app, playlists and subtitles.</strong> Next.</li>
+        <li><strong>The player app, with hardware decoding and a playlist.</strong> Released in 0.4.</li>
+        <li><strong>Subtitles, the equaliser and playback speed.</strong> Next.</li>
         <li><strong>Streams, casting, discs, conversion and recording.</strong></li>
       </ol>
     </section>
@@ -146,7 +148,7 @@ Sungba.wav: WAVE, 3:14
       <div class="faq">
         <details open><summary>Why build a media player from scratch?</summary><p>Because the parts that matter, timing, seeking, the audio path and what happens with a damaged file, should be understood and tested end to end by the people who ship them.</p></details>
         <details><summary>Does it send anything anywhere?</summary><p>No telemetry, no account, no analytics. It touches the network only when you open something on the network.</p></details>
-        <details><summary>Will it play my videos?</summary><p>MP4, MOV, MKV and WebM files with H.264 or HEVC video play in a window from the command line: rexplay play film.mkv --window. The full player app comes in a later release.</p></details>
+        <details><summary>Will it play my videos?</summary><p>MP4, MOV, MKV and WebM files with H.264 or HEVC video play in the rexplayer window, decoded on your graphics card when it can. Drop a file on the window, or open it from Explorer.</p></details>
         <details><summary>Can scripts and agents use it?</summary><p>Yes. Add --json to any command, or run rexplay agent capabilities, and it prints exactly one JSON document.</p></details>
       </div>
     </section>

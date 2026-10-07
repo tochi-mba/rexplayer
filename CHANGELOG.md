@@ -3,7 +3,7 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
-## 0.3.1 - 2026-10-07
+## 0.4.0 - 2026-10-07
 
 ### Added
 
@@ -18,11 +18,28 @@ pipeline the moment its number reaches `main`.
   Ctrl+Shift+I shows what is decoding the media and how well it is keeping up.
 - **Video without sound** now plays.
 - **Audio tracks.** B switches to the next audio track of media that has several.
+- **Aspect ratio and crop.** A and C step through the common shapes, for media recorded with
+  the wrong shape or with black bars in the picture itself.
+- **Right-click the picture** for the commands you reach for most, even in full screen.
+- **Preferences** (Ctrl+P): jump sizes, volume steps and the loudest volume, theme, always on
+  top, the full-screen controls, messages over the picture, and one window.
+- **A welcome** on the first start, with rexplayer's one privacy question: whether to look for
+  new versions. After an update, "What's new" shows what changed.
+- **Updates.** rexplayer can look for a new version weekly, daily or only when asked. It installs
+  one only when you agree, and only if the download matches its published checksum.
+- **Crash recovery.** If rexplayer did not close properly, it offers to carry on where you were.
+- **The log and diagnostics.** Ctrl+M shows the log; Help, Save diagnostics makes a zip to
+  attach to a problem report, with your home folder hidden. Nothing is sent anywhere.
+- **Scripting.** The running window takes commands through a pipe of its own, one JSON line at
+  a time, for scripts and agents.
 
 ### Fixed
 
 - **Playlists made on Windows** show their songs' names on any system.
 - **A decoder that fails unexpectedly** no longer closes rexplayer; the next decoder is tried.
+- **Settings files missing some settings** (from an older version, or edited by hand) keep the
+  defaults for those instead of turning them to zero.
+- **Media that fails part-way** now moves on to the next item.
 - **Damaged video headers.** An H.264 or HEVC stream whose header declares counts or sizes beyond
   what the format allows is now refused as damaged, with a message naming the field, instead of
   failing with an internal error.

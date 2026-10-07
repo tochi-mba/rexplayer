@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Player;
+using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
 
@@ -40,6 +41,7 @@ public sealed class MediaFilesTests
     }
 
     [Fact]
+    [Capability("PLF-09")]
     public void AFolderExpandsToItsMediaInNaturalOrderFilesBeforeSubfolders()
     {
         var files = new Dictionary<string, string[]>
@@ -116,6 +118,7 @@ public sealed class MediaFilesTests
     [InlineData("3723", 3723)]
     [InlineData("12.5", 12.5)]
     [InlineData("0:59.5", 59.5)]
+    [Capability("PB-05")]
     public void TypedTimesAreRead(string text, double seconds)
     {
         Assert.Equal(TimeSpan.FromSeconds(seconds), TimeText.TryParse(text));
