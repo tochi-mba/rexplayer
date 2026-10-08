@@ -103,6 +103,7 @@ Playback.Video.cs
 PlayerController.cs
 PlayerController.Events.cs
 PlayerController.Memory.cs
+PlayerController.NamedPlaylists.cs
 PlayerController.Playlists.cs
 PlayerController.Presentation.cs
 PlayerController.Subtitles.cs

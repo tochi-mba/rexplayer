@@ -19,10 +19,13 @@ public sealed record QueuedItem(string Location, string? Title, string? Artist, 
 /// <summary>The queue as it was when the player closed (LIB-03): its items, the one playing, and where.</summary>
 public sealed record QueueSnapshot(IReadOnlyList<QueuedItem> Items, int Current, TimeSpan At);
 
+/// <summary>A playlist the user named and keeps (LIB-04), known by an id that stays when it is renamed.</summary>
+public sealed record NamedPlaylist(string Id, string Name, IReadOnlyList<QueuedItem> Items);
+
 /// <summary>
 /// What the player remembers between runs, kept in a <see cref="RexStore"/>: where each file was
-/// left (PB-11), bookmarks (PB-10), recent media (LIB-07), quick slots (LIB-08) and the queue
-/// (LIB-03). Resume points and recent media are history, which the user can turn off and clear
+/// left (PB-11), bookmarks (PB-10), recent media (LIB-07), quick slots (LIB-08), the queue
+/// (LIB-03) and named playlists (LIB-04). Resume points and recent media are history, which the user can turn off and clear
 /// (PRIV-03); bookmarks and slots are the user's own and stay. Files are known by a hash of their
 /// location, so the store does not list what was watched.
 /// </summary>
@@ -41,6 +44,7 @@ public sealed class PlayerMemory(RexStore store)
     private const string BookmarkPrefix = "bookmarks/";
     private const string RecentKey = "recent";
     private const string QueueKey = "queue";
+    private const string PlaylistPrefix = "playlist/";
 
     public RexStore Store { get; } = store ?? throw new ArgumentNullException(nameof(store));
 
@@ -138,6 +142,31 @@ public sealed class PlayerMemory(RexStore store)
         }
     }
 
+    /// <summary>The named playlists, by name; one that no longer reads is left out.</summary>
+    public IReadOnlyList<NamedPlaylist> Playlists =>
+        [.. Store.WithPrefix(PlaylistPrefix)
+            .Select(pair => Parse(pair.Value, MemoryJson.Default.NamedPlaylist))
+            .OfType<NamedPlaylist>()
+            .OrderBy(playlist => playlist.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(playlist => playlist.Id, StringComparer.Ordinal)];
+
+    public NamedPlaylist? Playlist(string id) => Read(PlaylistKey(id), MemoryJson.Default.NamedPlaylist);
+
+    /// <summary>Keeps <paramref name="playlist"/> in place of the one with its id.</summary>
+    public void SetPlaylist(NamedPlaylist playlist)
+    {
+        ArgumentNullException.ThrowIfNull(playlist);
+        Write(PlaylistKey(playlist.Id), playlist, MemoryJson.Default.NamedPlaylist);
+    }
+
+    public bool RemovePlaylist(string id) => Store.Remove(PlaylistKey(id));
+
+    private static string PlaylistKey(string id)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        return PlaylistPrefix + id;
+    }
+
     private static string SlotKey(int number)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(number, 1);
@@ -147,13 +176,11 @@ public sealed class PlayerMemory(RexStore store)
 
     /// <summary>A kept value, or null when there is none or it no longer reads (from an older version, say).</summary>
     private T? Read<T>(string key, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> type)
+        where T : class => Store.Get(key) is { } json ? Parse(json, type) : null;
+
+    private static T? Parse<T>(string json, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> type)
         where T : class
     {
-        if (Store.Get(key) is not { } json)
-        {
-            return null;
-        }
-
         try
         {
             return JsonSerializer.Deserialize(json, type);
@@ -171,4 +198,5 @@ public sealed class PlayerMemory(RexStore store)
 [JsonSerializable(typeof(List<Bookmark>), TypeInfoPropertyName = "ListBookmark")]
 [JsonSerializable(typeof(QuickSlot))]
 [JsonSerializable(typeof(QueueSnapshot))]
+[JsonSerializable(typeof(NamedPlaylist))]
 internal sealed partial class MemoryJson : JsonSerializerContext;

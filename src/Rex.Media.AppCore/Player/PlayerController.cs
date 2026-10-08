@@ -191,7 +191,12 @@ public sealed partial class PlayerController : IDisposable
     public void Open(IEnumerable<string> locations, bool enqueue = false)
     {
         ArgumentNullException.ThrowIfNull(locations);
-        var items = locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0)).ToList();
+        OpenItems([.. locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0))], enqueue);
+    }
+
+    /// <summary>Plays <paramref name="items"/> as <see cref="Open"/> plays what locations stand for.</summary>
+    private void OpenItems(List<PlaylistItem> items, bool enqueue)
+    {
         _log.Info(LogSource, $"Opening {items.Count} item(s){(enqueue ? " at the end of the playlist" : "")}: {string.Join(", ", items.Take(5).Select(item => item.Location))}{(items.Count > 5 ? ", ..." : "")}");
         if (items.Count == 0)
         {

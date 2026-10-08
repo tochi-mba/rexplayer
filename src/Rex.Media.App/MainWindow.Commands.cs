@@ -82,6 +82,7 @@ public sealed partial class MainWindow
 
         Stage.ContextFlyout = context;
         BuildMemoryMenus();
+        BuildNamedPlaylistMenus();
     }
 
     private void Fill(IList<MenuFlyoutItemBase> items, string?[] commands, string prefix)

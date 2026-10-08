@@ -137,7 +137,7 @@ public sealed partial class PlayerController
     {
         RememberPosition();
         Memory.Queue = Settings.RestoreQueue && Playlist.Items.Count > 0
-            ? new QueueSnapshot([.. Playlist.Items.Select(item => new QueuedItem(item.Location, item.Title, item.Artist, item.Start, item.End))], Playlist.CurrentIndex, Position)
+            ? new QueueSnapshot([.. Playlist.Items.Select(Kept)], Playlist.CurrentIndex, Position)
             : null;
     }
 
@@ -150,7 +150,7 @@ public sealed partial class PlayerController
         }
 
         Playlist.Clear();
-        Playlist.Add(queue.Items.Select(saved => new PlaylistItem(saved.Location) { Title = saved.Title ?? PlaylistItem.TitleOf(saved.Location), Artist = saved.Artist, Start = saved.Start, End = saved.End }));
+        Playlist.Add(queue.Items.Select(Restored));
         if (queue.Current >= 0 && queue.Current < Playlist.Items.Count)
         {
             Playlist.JumpTo(queue.Current);
