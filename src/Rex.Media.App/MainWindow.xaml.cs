@@ -66,13 +66,14 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "rexplayer.ico"));
         ExtendsContentIntoTitleBar = false;
 
-        _player = new PlayerController(NewSession, OpenSource, action => DispatcherQueue.TryEnqueue(() => action()), _settings);
+        _player = new PlayerController(NewSession, OpenSource, action => DispatcherQueue.TryEnqueue(() => action()), _settings, store: OpenStore());
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.Message += (_, text) => Say(text);
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
         WireVisualizer();
+        WireMemory();
 
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
@@ -150,6 +151,10 @@ public sealed partial class MainWindow : Window
         if (_startupFiles is { Count: > 0 } files)
         {
             _player.Open(files);
+        }
+        else if (_startupFiles is not null)
+        {
+            _player.RestoreQueue();
         }
 
         if (_startupFiles is { } started)
@@ -313,6 +318,7 @@ public sealed partial class MainWindow : Window
         KeepAwake(playing && HasVideo, playing);
         LayOutSubtitles();
         ApplyVisualizer();
+        ShowMemory();
         RememberLater();
     }
 
@@ -430,6 +436,7 @@ public sealed partial class MainWindow : Window
         _saveTimer.Stop();
         _resumeTimer.Stop();
         SaveSettings();
+        _player.SaveQueue();
         TryClearResumeMarker();
         KeepAwake(false, false);
         _player.Dispose();

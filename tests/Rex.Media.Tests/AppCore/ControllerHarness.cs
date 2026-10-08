@@ -29,7 +29,8 @@ internal sealed class ControllerHarness : IDisposable
     /// <param name="openSource">Opens a location; by default from <see cref="Files"/>.</param>
     /// <param name="diskFolders">Leave folder expansion and finding subtitle files to the controller's defaults, which read the disk.</param>
     /// <param name="sidecars">Subtitle files beside each item, by the item's location.</param>
-    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null)
+    /// <param name="store">Where the controller remembers things; its own memory-only store when null.</param>
+    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null)
     {
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory()).Add(new Rex.Media.Containers.Matroska.MatroskaDemuxerFactory());
         var decoders = new DecoderRegistry().Add(new PcmDecoderFactory());
@@ -62,7 +63,8 @@ internal sealed class ControllerHarness : IDisposable
             new Random(1),
             diskFolders ? null : media => Rex.Media.Subtitles.SubtitleSidecars.Find(media, folder => folder == Path.GetDirectoryName(media) ? sidecars?.GetValueOrDefault(media) ?? [] : []),
             diskFolders ? null : path => Files.TryGetValue(path, out var bytes) ? bytes : throw new FileNotFoundException(path),
-            diskFolders ? null : (path, bytes) => Files[path] = path.Contains("readonly", StringComparison.Ordinal) ? throw new UnauthorizedAccessException(path + " is read-only.") : bytes);
+            diskFolders ? null : (path, bytes) => Files[path] = path.Contains("readonly", StringComparison.Ordinal) ? throw new UnauthorizedAccessException(path + " is read-only.") : bytes,
+            store);
         Controller.Message += (_, text) => Messages.Add(text);
 
         // The window always listens to both.

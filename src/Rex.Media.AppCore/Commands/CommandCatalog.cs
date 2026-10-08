@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Rex.Media.AppCore.Commands;
 
 /// <summary>One thing a user can do, with the shortcuts it has until the user changes them.</summary>
@@ -48,6 +50,11 @@ public static class CommandCatalog
     public const string CycleSecondarySubtitles = "cycle-secondary-subtitles";
     public const string CycleVisualizer = "cycle-visualizer";
     public const string SavePlaylist = "save-playlist";
+    public const string AddBookmark = "add-bookmark";
+    public const string ClearHistory = "clear-history";
+    public const string Resume = "resume";
+    public const string SetSlotPrefix = "set-slot-";
+    public const string PlaySlotPrefix = "play-slot-";
     public const string OpenPlaylist = "open-playlist";
     public const string SubtitlesBigger = "subtitles-bigger";
     public const string SubtitlesSmaller = "subtitles-smaller";
@@ -147,6 +154,11 @@ public static class CommandCatalog
         New(TogglePlaylist, "Playlist", View, "Ctrl+L"),
         New(SavePlaylist, "Save the playlist", View, "Ctrl+Y"),
         New(OpenPlaylist, "Open a playlist", View, "Ctrl+X"),
+        New(AddBookmark, "Add a bookmark here", Playback, "Ctrl+B"),
+        New(Resume, "Go back to where I left off", Playback),
+        New(ClearHistory, "Clear the history", View),
+        .. Enumerable.Range(1, 9).Select(n => New(SetSlotPrefix + n.ToString(CultureInfo.InvariantCulture), $"Keep this in quick slot {n}", Playback, $"Ctrl+Shift+{n}")),
+        .. Enumerable.Range(1, 9).Select(n => New(PlaySlotPrefix + n.ToString(CultureInfo.InvariantCulture), $"Play quick slot {n}", Playback, $"Ctrl+{n}")),
         New(ClearPlaylist, "Clear the playlist", View, "Ctrl+W"),
         New(MinimalInterface, "Minimal interface", View, "Ctrl+H"),
         New(MediaInformation, "Media information", Tools, "Ctrl+I"),
@@ -161,6 +173,16 @@ public static class CommandCatalog
 
     /// <summary>The command with this id, or null.</summary>
     public static Command? Find(string id) => All.FirstOrDefault(command => command.Id == id);
+
+    /// <summary>The quick slot a slot command is for, or null for any other command.</summary>
+    public static int? SlotNumber(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        var number = id.StartsWith(SetSlotPrefix, StringComparison.Ordinal) ? id[SetSlotPrefix.Length..]
+            : id.StartsWith(PlaySlotPrefix, StringComparison.Ordinal) ? id[PlaySlotPrefix.Length..]
+            : null;
+        return int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out var slot) && slot is >= 1 and <= 9 ? slot : null;
+    }
 
     private static Command New(string id, string title, string group, params string[] shortcuts) =>
         new(id, title, group, [.. shortcuts.Select(KeyChord.Parse)]);

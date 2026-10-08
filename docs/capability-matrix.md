@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 175 planned, 40 built, 74 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 169 planned, 40 built, 80 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -18,8 +18,8 @@ Totals: 175 planned, 40 built, 74 verified, 1 verified-hardware, 27 post-1.0.
 | PB-07 | Frame step | Forward E; backward Shift+E (decode-from-keyframe cache) | M11 | must/should | planned |
 | PB-08 | A-B loop | Set A, set B, clear; loop survives a pause; snaps to frames | M11 | must | planned |
 | PB-09 | Titles & chapters | Next/previous chapter and title; chapter menu; chapter marks on the seek bar | M3/M11 | must | planned |
-| PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | planned |
-| PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | planned |
+| PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | verified |
+| PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | verified |
 | PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified |
 | PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | planned |
 | PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified |
@@ -312,15 +312,15 @@ Totals: 175 planned, 40 built, 74 verified, 1 verified-hardware, 27 post-1.0.
 |---|---|---|---|---|---|
 | LIB-01 | Playlist pane | Docked / undocked / hidden (Ctrl+L, Ctrl+U); columns: title, duration, artist, album, track, genre, year, file name, folder, type, size, date added, play count, last played (choose and reorder); click-to-sort, instant search filter, drag reorder, multi-select, remove, keep-only-selected, clear (Ctrl+W), jump to playing | M4/M6 | must | built |
 | LIB-02 | Adding media | Open file(s) Ctrl+O, folder Ctrl+F, disc Ctrl+D, network Ctrl+N, capture Ctrl+C, paste location Ctrl+V; drag-and-drop (drop plays, Ctrl+drop enqueues, drop on the list inserts at that position); recursive folder expansion with natural sort; playlist files expand in place | M4 | must | verified |
-| LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | built |
+| LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | verified |
 | LIB-04 | Named playlists | Create, rename, duplicate, delete; add to playlist from anywhere | M6 | must | planned |
 | LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications plus a periodic rescan; low-priority background probing (duration, tags, thumbnails); views: Videos (thumbnail grid; series/season grouping C), Music (artists, albums, tracks, genres), Pictures (S), Recent, Playlists, Podcasts; library-wide search; play counts and last played; "Continue watching" row | M6 | must | planned |
 | LIB-06 | Sidebar sources | Playlist, Library, Discs, Local network (DLNA servers, Windows shares, SAP), Internet (podcasts, provider extensions) | M6/M10 | must | planned |
-| LIB-07 | Recent media | Menu + jump list; clear; "do not keep history" privacy switch | M6 | must | planned |
-| LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | planned |
+| LIB-07 | Recent media | Menu + jump list; clear; "do not keep history" privacy switch | M6 | must | built |
+| LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified |
 | LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | planned |
 | LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | planned |
-| LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | planned |
+| LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified |
 | LIB-12 | Ratings, duplicates finder | — | post | could | post-1.0 |
 
 ## UI surface
@@ -407,7 +407,7 @@ Totals: 175 planned, 40 built, 74 verified, 1 verified-hardware, 27 post-1.0.
 |---|---|---|---|---|---|
 | PRIV-01 | No telemetry | No analytics, no account, no crash upload, ever | M0 | must | built |
 | PRIV-02 | Network policy | Network only for user-opened URLs, update checks (opt-out), opt-in metadata, and discovery while the cast/network panels are in use | M4 | must | built |
-| PRIV-03 | History controls | Turn off recent/resume history; clear everything | M6 | must | planned |
+| PRIV-03 | History controls | Turn off recent/resume history; clear everything | M6 | must | verified |
 | PRIV-04 | Credentials | Windows Credential Manager only, never plain text | M8 | must | planned |
 | SEC-01 | Hostile-input hardening | Fuzzing (§9.10); bounds-checked spans; configurable allocation caps (box/element size, track count ≤ 128, frame size ≤ 16384², subtitle events, playlist entries); per-parse time budgets; `unsafe` only in Interop and audited SIMD kernels (RepositoryTest) | M1+ | must | built |
 | SEC-02 | Decoder isolation | MF transforms run in-process at 1.0; out-of-process decode host is a post-1.0 hardening option | post | could | post-1.0 |

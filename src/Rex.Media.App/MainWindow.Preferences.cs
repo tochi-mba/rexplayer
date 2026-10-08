@@ -28,6 +28,9 @@ public sealed partial class MainWindow
         var single = Check("Use one window: open files in the player already running", s.SingleInstance);
         var enqueue = Check("Files opened that way join the playlist instead of playing", s.EnqueueFromSecondLaunch);
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
+        var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
+        var history = Check("Remember where things were left and what played recently", s.KeepHistory);
+        var queue = Check("Put the playlist back when rexplayer starts", s.RestoreQueue);
         var audioLanguages = Words("Play sound in (languages, best first, such as \"ja, original\")", s.AudioLanguages);
         var subtitleLanguages = Words("Show subtitles in (languages, best first, such as \"en, fr\")", s.SubtitleLanguages);
         var font = new ComboBox { Header = "Subtitle font", IsEditable = true, ItemsSource = SubtitleFonts, Text = s.SubtitleFont, MinWidth = 220 };
@@ -71,6 +74,12 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        content.Children.Add(Heading("Memory"));
+        foreach (var control in new UIElement[] { resume, history, queue })
+        {
+            content.Children.Add(control);
+        }
+
         content.Children.Add(Heading("rexplayer"));
         foreach (var control in new UIElement[] { single, enqueue, updates })
         {
@@ -98,6 +107,9 @@ public sealed partial class MainWindow
             SingleInstance = single.IsChecked == true,
             EnqueueFromSecondLaunch = enqueue.IsChecked == true,
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
+            ResumePlayback = (ResumeChoice)resume.SelectedIndex,
+            KeepHistory = history.IsChecked == true,
+            RestoreQueue = queue.IsChecked == true,
             AudioLanguages = audioLanguages.Text,
             SubtitleLanguages = subtitleLanguages.Text,
             SubtitleFont = font.Text,

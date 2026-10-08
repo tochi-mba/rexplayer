@@ -124,6 +124,30 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("PB-11")]
+    public void ASongLeftPartWayOffersToCarryOnFromThere()
+    {
+        var song = Song(60);
+        string root;
+        using (var first = AppProcess.Start([song]))
+        {
+            root = first.Root;
+            Wait.For(() => first.Text("NowPlaying") == "Sungba", "the song to start");
+            first.Run(CommandCatalog.JumpForwardShort);
+            first.Run(CommandCatalog.JumpForwardShort);
+            Wait.For(() => first.Text("Elapsed").StartsWith("0:2", StringComparison.Ordinal), "the jump");
+            Assert.Equal(0, first.Close());
+        }
+
+        using var second = AppProcess.Start([song], root);
+        Wait.For(() => second.IsShown("ResumeBar"), "the offer to carry on");
+        second.Press("ResumeButton");
+        Wait.For(() => !second.IsShown("ResumeBar"), "the offer to go");
+        Wait.For(() => second.Text("Elapsed") is { } elapsed && (elapsed.StartsWith("0:2", StringComparison.Ordinal) || elapsed.StartsWith("0:3", StringComparison.Ordinal)), "the song to carry on from where it was");
+        Assert.Equal(0, second.Close());
+    }
+
+    [Fact]
     [Capability("UI-05")]
     public void TheMinimalInterfaceLeavesOnlyThePicture()
     {

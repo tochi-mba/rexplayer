@@ -82,6 +82,15 @@ public enum VisualizerChoice
     Spectrogram,
 }
 
+/// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>
+public enum ResumeChoice
+{
+    /// <summary>Offer to go back there, in a bar over the picture.</summary>
+    Ask,
+    Always,
+    Never,
+}
+
 /// <summary>Where the window was, so it opens there again.</summary>
 public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool Maximized);
 
@@ -223,6 +232,16 @@ public sealed record PlayerSettings
 
     public ThemeChoice Theme { get; init; } = ThemeChoice.System;
 
+    // Memory
+
+    public ResumeChoice ResumePlayback { get; init; } = ResumeChoice.Ask;
+
+    /// <summary>Remember where things were left and what played recently (PRIV-03).</summary>
+    public bool KeepHistory { get; init; } = true;
+
+    /// <summary>Put the queue back as it was when rexplayer starts without files to open (LIB-03).</summary>
+    public bool RestoreQueue { get; init; } = true;
+
     // The application
 
     /// <summary>A second launch hands its files to the running player instead of opening another window.</summary>
@@ -280,6 +299,7 @@ public sealed record PlayerSettings
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
+            ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",

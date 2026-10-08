@@ -42,6 +42,7 @@ public sealed partial class PlayerController : IDisposable
     /// <param name="sidecars">Finds the subtitle files beside a piece of media; by default on disk.</param>
     /// <param name="readFile">Reads a subtitle or playlist file; by default from disk.</param>
     /// <param name="writeFile">Writes a playlist file; by default to disk, replacing it in one step.</param>
+    /// <param name="store">Where the player remembers things between runs; by default only in memory.</param>
     public PlayerController(
         Func<Action<SessionEvent>, MediaSession> newSession,
         Func<string, IByteSource> openSource,
@@ -51,8 +52,10 @@ public sealed partial class PlayerController : IDisposable
         Random? random = null,
         Func<string, IReadOnlyList<SubtitleSidecar>>? sidecars = null,
         Func<string, byte[]>? readFile = null,
-        Action<string, byte[]>? writeFile = null)
+        Action<string, byte[]>? writeFile = null,
+        Rex.Media.Library.RexStore? store = null)
     {
+        Memory = new PlayerMemory(store ?? Rex.Media.Library.RexStore.InMemory());
         _writeFile = writeFile ?? ((path, bytes) => AtomicFile.Write(path, bytes));
         _sidecars = sidecars ?? (media => SubtitleSidecars.Find(media));
         _readFile = readFile ?? File.ReadAllBytes;
@@ -87,6 +90,7 @@ public sealed partial class PlayerController : IDisposable
         set
         {
             field = (value ?? throw new ArgumentNullException(nameof(value))).Normalize();
+            Memory.KeepsHistory = field.KeepHistory;
             Sound = SoundFor(field);
             if (_session is not null)
             {
@@ -234,6 +238,8 @@ public sealed partial class PlayerController : IDisposable
     /// <summary>Stops playing and releases the media and the audio device.</summary>
     public void Stop()
     {
+        RememberPosition();
+        ResumeOffer = null;
         EndSession();
         State = SessionState.Idle;
         Position = TimeSpan.Zero;
@@ -241,7 +247,11 @@ public sealed partial class PlayerController : IDisposable
         PositionChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Dispose() => EndSession();
+    public void Dispose()
+    {
+        RememberPosition();
+        EndSession();
+    }
 
     /// <summary>
     /// Starts <paramref name="item"/> in a session of its own, or stops when there is nothing to
@@ -255,6 +265,7 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
+        startAt = BeforeStart(item, startAt, audioTrack);
         EndSession();
         Item = item;
         Info = null;

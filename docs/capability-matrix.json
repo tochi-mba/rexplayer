@@ -99,7 +99,7 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "STORE FRM",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PB-11",
@@ -109,7 +109,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE EVT UIA",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PB-12",
@@ -2389,7 +2389,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "FILE STORE",
-      "status": "built"
+      "status": "verified"
     },
     {
       "id": "LIB-04",
@@ -2429,7 +2429,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE UIA",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "LIB-08",
@@ -2439,7 +2439,7 @@
       "milestone": "M6",
       "priority": "could",
       "oracles": "EVT",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "LIB-09",
@@ -2469,7 +2469,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE (crash-point property tests)",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "LIB-12",
@@ -3089,7 +3089,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PRIV-04",

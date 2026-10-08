@@ -29,6 +29,7 @@ public sealed partial class MainWindow
     /// <summary>Notes what is playing and where, for <see cref="OfferResume"/> after a crash.</summary>
     private void RememberWhereWeAre()
     {
+        _player.RememberPosition();
         try
         {
             if (_player.IsPlaying && _player.Item is { } item)

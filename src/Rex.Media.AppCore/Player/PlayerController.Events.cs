@@ -18,7 +18,7 @@ public sealed partial class PlayerController
     /// </summary>
     public bool Execute(string commandId)
     {
-        if (ExecuteSubtitles(commandId))
+        if (ExecuteSubtitles(commandId) || ExecuteMemory(commandId))
         {
             return true;
         }
@@ -219,6 +219,7 @@ public sealed partial class PlayerController
                 _failuresInARow = 0;
                 Info = opened.Info;
                 Duration = PartDuration(opened.Info.Duration);
+                Memory.Played(Item!.Location);
                 AddEmbeddedSubtitles(opened.Info);
                 Changed?.Invoke(this, EventArgs.Empty);
                 if (Settings.TitleSeconds > 0)
@@ -266,6 +267,7 @@ public sealed partial class PlayerController
                 break;
             case EndedEvent:
                 Position = Duration;
+                RememberPosition();
                 PositionChanged?.Invoke(this, EventArgs.Empty);
 
                 // With an item still queued the engine starts it (or reports it skipped) by itself.
@@ -302,6 +304,8 @@ public sealed partial class PlayerController
     private void ReachedEndOfPart(TimeSpan heard)
     {
         var current = Item!;
+        Position = Duration;
+        RememberPosition();
         if (Playlist.PeekNext(automatic: true) is { } next && next != current && next.Location == current.Location && next.Start == current.End)
         {
             Item = Playlist.Next(automatic: true)!;
@@ -317,7 +321,6 @@ public sealed partial class PlayerController
             return;
         }
 
-        Position = Duration;
         PositionChanged?.Invoke(this, EventArgs.Empty);
         if (Playlist.Next(automatic: true) is { } following)
         {

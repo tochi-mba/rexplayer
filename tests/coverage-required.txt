@@ -97,8 +97,10 @@ Playback.cs
 Playback.Video.cs
 PlayerController.cs
 PlayerController.Events.cs
+PlayerController.Memory.cs
 PlayerController.Playlists.cs
 PlayerController.Subtitles.cs
+PlayerMemory.cs
 PlayerSettings.cs
 Playlist.cs
 PlaylistEntry.cs
@@ -111,6 +113,7 @@ Rational.cs
 Resampler.cs
 ResumeMarker.cs
 RexLog.cs
+RexStore.cs
 Sami.cs
 SampleConverter.cs
 ScanWindow.cs

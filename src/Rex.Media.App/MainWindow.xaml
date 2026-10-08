@@ -49,6 +49,9 @@
                      AutomationProperties.AutomationId="IdleHint" />
         </StackPanel>
 
+        <InfoBar x:Name="ResumeBar" VerticalAlignment="Top" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="560"
+                 Title="Carry on where you left off?" AutomationProperties.AutomationId="ResumeBar" />
+
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
                  AutomationProperties.AutomationId="Notice" />
 
