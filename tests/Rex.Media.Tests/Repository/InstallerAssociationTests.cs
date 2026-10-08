@@ -53,7 +53,7 @@ public sealed class InstallerAssociationTests
             foreach (var extension in extensions)
             {
                 Line($"Root: HKA; Subkey: \"Software\\Classes\\Applications\\{{#AppExe}}\\SupportedTypes\"; ValueType: string; ValueName: \"{extension}\"; ValueData: \"\"");
-                Line($"Root: HKA; Subkey: \"Software\\Classes\\{extension}\\OpenWithProgids\"; ValueType: none; ValueName: \"{progId}\"; Flags: uninsdeletevalue");
+                Line($"Root: HKA; Subkey: \"Software\\Classes\\{extension}\\OpenWithProgids\"; ValueType: string; ValueName: \"{progId}\"; ValueData: \"\"; Flags: uninsdeletevalue");
                 Line($"Root: HKA; Subkey: \"{Capabilities}\\FileAssociations\"; ValueType: string; ValueName: \"{extension}\"; ValueData: \"{progId}\"");
             }
         }

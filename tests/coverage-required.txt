@@ -150,7 +150,12 @@ VideoLayout.cs
 VirtualKeys.cs
 Visualizers.cs
 Volume.cs
+VorbisBits.cs
+VorbisCodebook.cs
 VorbisComments.cs
+VorbisDecoder.cs
+VorbisMdct.cs
+VorbisSetup.cs
 WavDemuxer.cs
 WaveFormat.cs
 WavFileSink.cs

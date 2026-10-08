@@ -193,6 +193,11 @@ Invoke-Mkv -Name 'flac-mp3-pcm.mkv' -Reference -Arguments (@('-f', 'lavfi', '-i'
     '-map', '0:a', '-map', '1:a', '-map', '2:a', '-c:a:0', 'flac', '-c:a:1', 'libmp3lame', '-b:a:1', '128k', '-c:a:2', 'pcm_s16le', '-map_metadata', '-1'))
 Invoke-Mkv -Name 'vp9-opus.webm' -Arguments (@('-f', 'lavfi', '-i', 'testsrc2=size=128x72:rate=25:duration=0.4') + $tone48 + @('-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-b:v', '200k', '-c:a', 'libopus', '-b:a', '48k', '-map_metadata', '-1'))
 Invoke-Mkv -Name 'live-opus.webm' -Arguments ($tone48 + @('-c:a', 'libopus', '-b:a', '48k', '-live', '1', '-cluster_time_limit', '100', '-map_metadata', '-1'))
+# Vorbis: stereo with a different tone each side; mono with clicks, so the encoder switches to short
+# blocks; and six channels, each its own tone, to check the channel order against FFmpeg's.
+Invoke-Mkv -Name 'vorbis-stereo.webm' -Reference -Arguments @('-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(2*PI*440*t)|0.2*sin(2*PI*660*t):s=44100:d=1', '-c:a', 'libvorbis', '-q:a', '4', '-map_metadata', '-1')
+Invoke-Mkv -Name 'vorbis-clicks.webm' -Reference -Arguments @('-f', 'lavfi', '-i', 'aevalsrc=if(lt(mod(t\,0.25)\,0.01)\,0.8*sin(2*PI*2000*t)\,0.1*sin(2*PI*300*t)):s=22050:d=1', '-c:a', 'libvorbis', '-q:a', '0', '-map_metadata', '-1')
+Invoke-Mkv -Name 'vorbis-51.mkv' -Reference -Arguments @('-f', 'lavfi', '-i', 'aevalsrc=0.2*sin(2*PI*300*t)|0.2*sin(2*PI*400*t)|0.2*sin(2*PI*500*t)|0.2*sin(2*PI*60*t)|0.2*sin(2*PI*700*t)|0.2*sin(2*PI*800*t):s=48000:d=0.5:channel_layout=5.1', '-c:a', 'libvorbis', '-q:a', '3', '-map_metadata', '-1')
 Remove-Item $subtitles, $cover, $chapters
 
 # Raw H.264 and HEVC streams, each beside what FFmpeg's own parser reads from it, so rexplayer's

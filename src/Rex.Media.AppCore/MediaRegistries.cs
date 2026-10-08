@@ -29,7 +29,7 @@ public static class MediaRegistries
     public static DecoderRegistry Decoders(params IDecoderFactory[] extraDecoders)
     {
         ArgumentNullException.ThrowIfNull(extraDecoders);
-        var registry = new DecoderRegistry().Add(new PcmDecoderFactory()).Add(new FlacDecoderFactory()).Add(new Mp3DecoderFactory());
+        var registry = new DecoderRegistry().Add(new PcmDecoderFactory()).Add(new FlacDecoderFactory()).Add(new Mp3DecoderFactory()).Add(new Rex.Media.Codecs.Software.Vorbis.VorbisDecoderFactory());
         foreach (var factory in extraDecoders)
         {
             registry.Add(factory);

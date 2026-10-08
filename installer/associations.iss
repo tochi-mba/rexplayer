@@ -21,161 +21,161 @@ Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities"; ValueType
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "A media player for every file, by REX Technologies."
 Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "rexplayer"; ValueData: "Software\REX Technologies\rexplayer\Capabilities"; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mp4"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mp4\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mp4\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp4"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".m4v"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.m4v\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.m4v\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4v"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mkv"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mkv\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mkv\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mkv"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".webm"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.webm\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.webm\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".webm"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".avi"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.avi\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.avi\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".avi"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mov"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mov\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mov\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mov"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".wmv"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.wmv\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.wmv\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wmv"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".asf"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.asf\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.asf\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".asf"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".ts"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.ts\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.ts\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ts"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".m2ts"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.m2ts\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.m2ts\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m2ts"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mts"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mts\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mts\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mts"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mpg"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mpg\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mpg\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mpg"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mpeg"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mpeg\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mpeg\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mpeg"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".vob"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.vob\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.vob\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".vob"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".flv"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.flv\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.flv\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".flv"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".3gp"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.3gp\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.3gp\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".3gp"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".ogv"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.ogv\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.ogv\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ogv"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".y4m"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.y4m\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.y4m\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".y4m"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".264"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.264\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.264\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".264"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".h264"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.h264\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.h264\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".h264"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".265"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.265\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.265\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".265"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".hevc"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.hevc\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.video"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.hevc\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.video"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".hevc"; ValueData: "rexplayer.video"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mp3"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mp3\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mp3\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp3"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".flac"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.flac\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.flac\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".flac"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".m4a"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.m4a\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.m4a\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4a"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".aac"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.aac\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.aac\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aac"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".adts"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.adts\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.adts\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".adts"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".wav"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.wav\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.wav\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wav"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".ogg"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.ogg\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.ogg\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ogg"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".oga"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.oga\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.oga\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".oga"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".opus"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.opus\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.opus\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".opus"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".wma"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.wma\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.wma\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wma"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".aif"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.aif\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.aif\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aif"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".aiff"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.aiff\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.aiff\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aiff"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".aifc"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.aifc\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.aifc\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aifc"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".caf"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.caf\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.caf\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".caf"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".ac3"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.ac3\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.ac3\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ac3"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".eac3"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.eac3\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.eac3\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".eac3"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".dts"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.dts\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.dts\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".dts"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mka"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mka\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mka\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mka"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".mp2"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.mp2\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.mp2\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp2"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".rf64"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.rf64\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.rf64\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".rf64"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".w64"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.w64\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.audio"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.w64\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".w64"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".m3u"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.m3u\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.m3u\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m3u"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".m3u8"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.m3u8\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.m3u8\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m3u8"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".pls"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.pls\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.pls\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pls"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".xspf"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.xspf\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.xspf\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xspf"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".cue"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.cue\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.cue\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".cue"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".asx"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.asx\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.asx\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".asx"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".wax"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.wax\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.wax\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wax"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".wvx"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.wvx\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.wvx\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wvx"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".wpl"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.wpl\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.wpl\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wpl"; ValueData: "rexplayer.playlist"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".zpl"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\.zpl\OpenWithProgids"; ValueType: none; ValueName: "rexplayer.playlist"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.zpl\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.playlist"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".zpl"; ValueData: "rexplayer.playlist"

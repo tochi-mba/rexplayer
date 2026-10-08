@@ -95,6 +95,6 @@ public sealed class CliSystemTests
     [Fact]
     public void RexplayersOwnCodecsAreTheShippedDecoders()
     {
-        Assert.Equal([CodecId.Pcm, CodecId.Alaw, CodecId.Mulaw, CodecId.Mp3, CodecId.Flac], SystemReport.OwnCodecs());
+        Assert.Equal([CodecId.Pcm, CodecId.Alaw, CodecId.Mulaw, CodecId.Mp3, CodecId.Flac, CodecId.Vorbis], SystemReport.OwnCodecs());
     }
 }

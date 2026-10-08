@@ -34,7 +34,7 @@ public sealed class MatroskaDemuxerTests
     }
 
     /// <summary>Decodes one track the way playback does: before time zero and past the duration cut.</summary>
-    private static float[][] DecodeTrack(IDemuxer demuxer, TrackInfo track)
+    internal static float[][] DecodeTrack(IDemuxer demuxer, TrackInfo track)
     {
         using var decoder = MediaRegistries.Decoders().CreateAudio(track).Decoder!;
         var rate = track.Audio!.SampleRate;

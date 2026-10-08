@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 166 planned, 41 built, 82 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 165 planned, 41 built, 83 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -95,7 +95,7 @@ Totals: 166 planned, 41 built, 82 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-A06 | AC-3 | Own (dialnorm, DRC modes, downmix coefficients) | M7 | must | planned |
 | FMT-A07 | E-AC-3 | MF ext → own after legal checkpoint | M11/M12 | should | planned |
 | FMT-A08 | DTS core (+ core extraction from DTS-HD) | Own | M12 | should | planned |
-| FMT-A09 | Vorbis | Own | M7 | must | planned |
+| FMT-A09 | Vorbis | Own | M7 | must | verified |
 | FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | Own | M7 | must | planned |
 | FMT-A11 | ALAC | Own | M7 | should | planned |
 | FMT-A12 | WMA 1/2/Pro/Lossless | MF | M3 | should | planned |
