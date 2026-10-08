@@ -47,6 +47,8 @@ public static class CommandCatalog
     public const string AddSubtitles = "add-subtitles";
     public const string CycleSecondarySubtitles = "cycle-secondary-subtitles";
     public const string CycleVisualizer = "cycle-visualizer";
+    public const string SavePlaylist = "save-playlist";
+    public const string OpenPlaylist = "open-playlist";
     public const string SubtitlesBigger = "subtitles-bigger";
     public const string SubtitlesSmaller = "subtitles-smaller";
     public const string ResetSubtitleSize = "reset-subtitle-size";
@@ -143,6 +145,8 @@ public static class CommandCatalog
         New(PasteLocation, "Play what is on the clipboard", Media, "Ctrl+V"),
         New(Quit, "Quit", Media, "Ctrl+Q"),
         New(TogglePlaylist, "Playlist", View, "Ctrl+L"),
+        New(SavePlaylist, "Save the playlist", View, "Ctrl+Y"),
+        New(OpenPlaylist, "Open a playlist", View, "Ctrl+X"),
         New(ClearPlaylist, "Clear the playlist", View, "Ctrl+W"),
         New(MinimalInterface, "Minimal interface", View, "Ctrl+H"),
         New(MediaInformation, "Media information", Tools, "Ctrl+I"),

@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 182 planned, 39 built, 68 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 175 planned, 40 built, 74 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -135,12 +135,12 @@ Totals: 182 planned, 39 built, 68 verified, 1 verified-hardware, 27 post-1.0.
 
 | ID | Capability | Details | Milestone | Priority | Status |
 |---|---|---|---|---|---|
-| PLF-01 | M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI) | R/W | M6 | must | planned |
-| PLF-02 | PLS | R/W | M6 | must | planned |
-| PLF-03 | XSPF (incl. per-track extension data) | R/W | M6 | must | planned |
-| PLF-04 | CUE sheets (single-file albums as virtual tracks, multi-file cues) | R | M6 | must | planned |
-| PLF-05 | ASX / WAX / WVX | R | M6 | should | planned |
-| PLF-06 | WPL / ZPL | R | M6 | could | planned |
+| PLF-01 | M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI) | R/W | M6 | must | verified |
+| PLF-02 | PLS | R/W | M6 | must | verified |
+| PLF-03 | XSPF (incl. per-track extension data) | R/W | M6 | must | verified |
+| PLF-04 | CUE sheets (single-file albums as virtual tracks, multi-file cues) | R | M6 | must | verified |
+| PLF-05 | ASX / WAX / WVX | R | M6 | should | verified |
+| PLF-06 | WPL / ZPL | R | M6 | could | verified |
 | PLF-07 | B4S, QTL, iTunes XML, SMIL | R | post | could/wont | post-1.0 |
 | PLF-08 | Podcast RSS/Atom feeds | R | M8 | should | planned |
 | PLF-09 | Directory / recursive folder as playlist | Natural sort (house `NaturalOrder` pattern), ignore list (thumbs, `.nfo`, ...) | M4 | must | verified |
@@ -312,7 +312,7 @@ Totals: 182 planned, 39 built, 68 verified, 1 verified-hardware, 27 post-1.0.
 |---|---|---|---|---|---|
 | LIB-01 | Playlist pane | Docked / undocked / hidden (Ctrl+L, Ctrl+U); columns: title, duration, artist, album, track, genre, year, file name, folder, type, size, date added, play count, last played (choose and reorder); click-to-sort, instant search filter, drag reorder, multi-select, remove, keep-only-selected, clear (Ctrl+W), jump to playing | M4/M6 | must | built |
 | LIB-02 | Adding media | Open file(s) Ctrl+O, folder Ctrl+F, disc Ctrl+D, network Ctrl+N, capture Ctrl+C, paste location Ctrl+V; drag-and-drop (drop plays, Ctrl+drop enqueues, drop on the list inserts at that position); recursive folder expansion with natural sort; playlist files expand in place | M4 | must | verified |
-| LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | planned |
+| LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | built |
 | LIB-04 | Named playlists | Create, rename, duplicate, delete; add to playlist from anywhere | M6 | must | planned |
 | LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications plus a periodic rescan; low-priority background probing (duration, tags, thumbnails); views: Videos (thumbnail grid; series/season grouping C), Music (artists, albums, tracks, genres), Pictures (S), Recent, Playlists, Podcasts; library-wide search; play counts and last played; "Continue watching" row | M6 | must | planned |
 | LIB-06 | Sidebar sources | Playlist, Library, Discs, Local network (DLNA servers, Windows shares, SAP), Internet (podcasts, provider extensions) | M6/M10 | must | planned |

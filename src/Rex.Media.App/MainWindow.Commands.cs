@@ -24,7 +24,7 @@ public sealed partial class MainWindow
     /// <summary>The menus, by menu, in order; each entry is a command id, or null for a separator.</summary>
     private static readonly (string Menu, string?[] Commands)[] MenuLayout =
     [
-        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.Quit]),
+        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
             CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
             CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
@@ -100,7 +100,7 @@ public sealed partial class MainWindow
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
     private void Run(string command)
     {
-        if (_player.Execute(command) || RunSubtitleCommand(command) || RunVisualizerCommand(command))
+        if (_player.Execute(command) || RunSubtitleCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command))
         {
             return;
         }

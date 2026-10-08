@@ -218,7 +218,7 @@ public sealed partial class PlayerController
                 _openedInSession = true;
                 _failuresInARow = 0;
                 Info = opened.Info;
-                Duration = opened.Info.Duration.IsKnown ? opened.Info.Duration.ToTimeSpan() : TimeSpan.Zero;
+                Duration = PartDuration(opened.Info.Duration);
                 AddEmbeddedSubtitles(opened.Info);
                 Changed?.Invoke(this, EventArgs.Empty);
                 if (Settings.TitleSeconds > 0)
@@ -236,10 +236,17 @@ public sealed partial class PlayerController
                 AudioTrack = tracks.AudioTrack;
                 break;
             case PositionEvent position:
-                Position = position.Position.ToTimeSpan();
+                var heard = position.Position.ToTimeSpan();
+                if (Item?.End is { } end && heard >= end)
+                {
+                    ReachedEndOfPart(heard);
+                    break;
+                }
+
+                Position = heard > Item!.Start ? heard - Item.Start : TimeSpan.Zero;
                 if (position.Duration.IsKnown)
                 {
-                    Duration = position.Duration.ToTimeSpan();
+                    Duration = PartDuration(position.Duration);
                 }
 
                 PositionChanged?.Invoke(this, EventArgs.Empty);
@@ -279,9 +286,55 @@ public sealed partial class PlayerController
         }
     }
 
+    /// <summary>How long the current item lasts: all of a file of <paramref name="whole"/>, or its part of it.</summary>
+    private TimeSpan PartDuration(MediaTime whole)
+    {
+        var start = Item?.Start ?? TimeSpan.Zero;
+        var end = Item?.End ?? (whole.IsKnown ? whole.ToTimeSpan() : null);
+        return end is { } last && last > start ? last - start : TimeSpan.Zero;
+    }
+
+    /// <summary>
+    /// A part of a file has played to its end. When the next item carries on in the same file from
+    /// there, as a cue sheet's tracks do, it simply becomes the item, without a gap; otherwise this
+    /// item is over, as if its file had ended.
+    /// </summary>
+    private void ReachedEndOfPart(TimeSpan heard)
+    {
+        var current = Item!;
+        if (Playlist.PeekNext(automatic: true) is { } next && next != current && next.Location == current.Location && next.Start == current.End)
+        {
+            Item = Playlist.Next(automatic: true)!;
+            Position = heard - Item.Start;
+            Duration = PartDuration(Info?.Duration ?? MediaTime.Unknown);
+            Changed?.Invoke(this, EventArgs.Empty);
+            PositionChanged?.Invoke(this, EventArgs.Empty);
+            if (Settings.TitleSeconds > 0)
+            {
+                Say(Title);
+            }
+
+            return;
+        }
+
+        Position = Duration;
+        PositionChanged?.Invoke(this, EventArgs.Empty);
+        if (Playlist.Next(automatic: true) is { } following)
+        {
+            Start(following);
+            return;
+        }
+
+        EndSession();
+        State = SessionState.Ended;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     private void QueueNextIfNearTheEnd(MediaSession session)
     {
-        if (_queued is not null || _queueTried || Duration <= TimeSpan.Zero || Duration - Position > QueueAhead || Playlist.PeekNext(automatic: true) is not { } next)
+        // A part that ends inside its file hands over by itself; an item that starts inside one cannot be queued.
+        if (_queued is not null || _queueTried || Duration <= TimeSpan.Zero || Duration - Position > QueueAhead || Item?.End is not null
+            || Playlist.PeekNext(automatic: true) is not { } next || next.Start > TimeSpan.Zero)
         {
             return;
         }

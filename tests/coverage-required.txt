@@ -4,6 +4,7 @@ AacConfig.cs
 AdtsHeader.cs
 AiffDemuxer.cs
 Ass.cs
+Asx.cs
 AtomicFile.cs
 AudioEffects.cs
 AudioFormat.cs
@@ -32,6 +33,7 @@ ColorConverter.cs
 ColorInfo.cs
 CommandCatalog.cs
 Crc.cs
+Cue.cs
 Decoders.cs
 DemuxerRegistry.cs
 DeviceFormatPolicy.cs
@@ -59,6 +61,7 @@ Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
 LevelMeter.cs
+M3u.cs
 MachineEnvelope.cs
 MatroskaDemuxer.cs
 MatroskaHeaders.cs
@@ -94,9 +97,15 @@ Playback.cs
 Playback.Video.cs
 PlayerController.cs
 PlayerController.Events.cs
+PlayerController.Playlists.cs
 PlayerController.Subtitles.cs
 PlayerSettings.cs
 Playlist.cs
+PlaylistEntry.cs
+PlaylistFiles.cs
+PlaylistPaths.cs
+PlaylistText.cs
+Pls.cs
 PngWriter.cs
 Rational.cs
 Resampler.cs
@@ -142,4 +151,6 @@ WavDemuxer.cs
 WaveFormat.cs
 WavFileSink.cs
 WebVtt.cs
+Wpl.cs
+Xspf.cs
 YuvTransform.cs

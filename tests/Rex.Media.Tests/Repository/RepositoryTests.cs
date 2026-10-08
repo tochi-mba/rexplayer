@@ -40,6 +40,7 @@ public sealed partial class RepositoryTests
         "src/Rex.Media.Containers/",
         "src/Rex.Media.Codecs.Software/",
         "src/Rex.Media.Subtitles/",
+        "src/Rex.Media.Library/Playlists/",
         "src/Rex.Media.Net/",
         "src/Rex.Media.Cast/",
         "src/Rex.Media.Discs/",

@@ -61,7 +61,8 @@ internal sealed class ControllerHarness : IDisposable
             diskFolders ? null : location => [location],
             new Random(1),
             diskFolders ? null : media => Rex.Media.Subtitles.SubtitleSidecars.Find(media, folder => folder == Path.GetDirectoryName(media) ? sidecars?.GetValueOrDefault(media) ?? [] : []),
-            diskFolders ? null : path => Files.TryGetValue(path, out var bytes) ? bytes : throw new FileNotFoundException(path));
+            diskFolders ? null : path => Files.TryGetValue(path, out var bytes) ? bytes : throw new FileNotFoundException(path),
+            diskFolders ? null : (path, bytes) => Files[path] = path.Contains("readonly", StringComparison.Ordinal) ? throw new UnauthorizedAccessException(path + " is read-only.") : bytes);
         Controller.Message += (_, text) => Messages.Add(text);
 
         // The window always listens to both.

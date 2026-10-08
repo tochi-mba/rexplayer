@@ -25,6 +25,7 @@ public sealed partial class PlayerController : IDisposable
     private readonly Func<string, IReadOnlyList<string>> _expand;
     private readonly Func<string, IReadOnlyList<SubtitleSidecar>> _sidecars;
     private readonly Func<string, byte[]> _readFile;
+    private readonly Action<string, byte[]> _writeFile;
     private readonly Action<Action> _dispatch;
     private MediaSession? _session;
     private bool _openedInSession;
@@ -39,7 +40,8 @@ public sealed partial class PlayerController : IDisposable
     /// <param name="expand">Turns a location into the media it names: a folder into its files. By default folders on disk are expanded.</param>
     /// <param name="random">Chooses the shuffle order (tests pass a seeded one).</param>
     /// <param name="sidecars">Finds the subtitle files beside a piece of media; by default on disk.</param>
-    /// <param name="readFile">Reads a subtitle file; by default from disk.</param>
+    /// <param name="readFile">Reads a subtitle or playlist file; by default from disk.</param>
+    /// <param name="writeFile">Writes a playlist file; by default to disk, replacing it in one step.</param>
     public PlayerController(
         Func<Action<SessionEvent>, MediaSession> newSession,
         Func<string, IByteSource> openSource,
@@ -48,8 +50,10 @@ public sealed partial class PlayerController : IDisposable
         Func<string, IReadOnlyList<string>>? expand = null,
         Random? random = null,
         Func<string, IReadOnlyList<SubtitleSidecar>>? sidecars = null,
-        Func<string, byte[]>? readFile = null)
+        Func<string, byte[]>? readFile = null,
+        Action<string, byte[]>? writeFile = null)
     {
+        _writeFile = writeFile ?? ((path, bytes) => AtomicFile.Write(path, bytes));
         _sidecars = sidecars ?? (media => SubtitleSidecars.Find(media));
         _readFile = readFile ?? File.ReadAllBytes;
         _newSession = newSession ?? throw new ArgumentNullException(nameof(newSession));
@@ -110,7 +114,12 @@ public sealed partial class PlayerController : IDisposable
     public MediaInfo? Info { get; private set; }
 
     /// <summary>The title to show: the media's own, else the file name.</summary>
-    public string Title => Info?.Metadata.GetValueOrDefault(MetadataKeys.Title) is { Length: > 0 } title ? title : Item?.Title ?? "";
+    public string Title => Item is { IsPart: true } part ? part.Title
+        : Info?.Metadata.GetValueOrDefault(MetadataKeys.Title) is { Length: > 0 } title ? title : Item?.Title ?? "";
+
+    /// <summary>Who made what is playing: the media's own tag, or for a part of a file the playlist's word.</summary>
+    public string? Artist => Item is { IsPart: true, Artist: { } artist } ? artist
+        : Info?.Metadata.GetValueOrDefault(MetadataKeys.Artist) is { Length: > 0 } tagged ? tagged : Item?.Artist;
 
     public TimeSpan Position { get; private set; }
 
@@ -156,7 +165,7 @@ public sealed partial class PlayerController : IDisposable
     public void Open(IEnumerable<string> locations, bool enqueue = false)
     {
         ArgumentNullException.ThrowIfNull(locations);
-        var items = locations.SelectMany(_expand).Select(location => new PlaylistItem(location)).ToList();
+        var items = locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0)).ToList();
         if (items.Count == 0)
         {
             Message?.Invoke(this, "There is nothing there rexplayer can play.");
@@ -195,7 +204,7 @@ public sealed partial class PlayerController : IDisposable
         }
 
         Position = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
-        _ = Observe(_session.SeekAsync(new MediaTime(Position.Ticks)));
+        _ = Observe(_session.SeekAsync(new MediaTime((Item!.Start + Position).Ticks)));
         PositionChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -283,7 +292,8 @@ public sealed partial class PlayerController : IDisposable
         }
 
         // A failure to open arrives as the session's move to Faulted, in order with its other events.
-        _ = Observe(session.OpenAsync(source, startAt > TimeSpan.Zero ? new MediaTime(startAt.Ticks) : null));
+        var from = item.Start + startAt;
+        _ = Observe(session.OpenAsync(source, from > TimeSpan.Zero ? new MediaTime(from.Ticks) : null));
     }
 
     private void EndSession()

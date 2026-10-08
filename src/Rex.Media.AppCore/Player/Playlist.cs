@@ -11,6 +11,18 @@ public sealed class PlaylistItem(string location)
     /// <summary>What the playlist shows until the media's own title is known.</summary>
     public string Title { get; set; } = TitleOf(location);
 
+    /// <summary>Who made it, when a playlist says.</summary>
+    public string? Artist { get; init; }
+
+    /// <summary>Where in the file this item starts: zero, or a cue sheet's track in a whole-album file.</summary>
+    public TimeSpan Start { get; init; }
+
+    /// <summary>Where in the file this item ends, or null for the end of the file.</summary>
+    public TimeSpan? End { get; init; }
+
+    /// <summary>Whether this is a part of a file rather than all of it; its own title and artist then win over the file's.</summary>
+    public bool IsPart => Start > TimeSpan.Zero || End is not null;
+
     /// <summary>
     /// The file name without its extension. Both separators count, whatever system this is: a
     /// playlist made on Windows still names its songs when it is played elsewhere.

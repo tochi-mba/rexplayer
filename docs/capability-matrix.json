@@ -1019,7 +1019,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PLF-02",
@@ -1029,7 +1029,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PLF-03",
@@ -1039,7 +1039,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PLF-04",
@@ -1049,7 +1049,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PLF-05",
@@ -1059,7 +1059,7 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PLF-06",
@@ -1069,7 +1069,7 @@
       "milestone": "M6",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PLF-07",
@@ -2389,7 +2389,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "FILE STORE",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "LIB-04",

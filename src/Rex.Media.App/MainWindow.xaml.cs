@@ -275,7 +275,7 @@ public sealed partial class MainWindow : Window
         IdleTitle.Text = _player.Item is null ? "rexplayer" : title;
         IdleHint.Text = _player.Item is null
             ? "Drop media here, or press Ctrl+O to open a file."
-            : _player.Failure ?? _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.Artist) ?? "";
+            : _player.Failure ?? _player.Artist ?? "";
 
         _updatingControls = true;
         ShuffleButton.IsChecked = _player.Playlist.Shuffle;
