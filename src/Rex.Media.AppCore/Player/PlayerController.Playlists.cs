@@ -24,9 +24,11 @@ public sealed partial class PlayerController
         try
         {
             entries = PlaylistFiles.Read(location, _readFile(location));
+            _log.Info(LogSource, $"Read the playlist {location}: {entries.Count} entries.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
         {
+            _log.Warning(LogSource, $"The playlist {location} could not be read: {ex.Message}");
             Say($"{PlaylistItem.TitleOf(location)} could not be read: {ex.Message}");
             return [];
         }

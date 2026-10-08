@@ -23,6 +23,13 @@ public partial class App : Application
 
         // Off the window's thread too: the log is the only trace a crash on an engine thread leaves.
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Critical("app", e.ExceptionObject is Exception ex ? ex.ToString() : "An unknown failure.");
+
+        // A failed task nobody waited for would otherwise vanish without a trace.
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Log.Error("app", "A background task failed: " + e.Exception);
+            e.SetObserved();
+        };
     }
 
     /// <summary>
@@ -38,11 +45,19 @@ public partial class App : Application
 
     public static string SettingsPath { get; } = Path.Combine(DataRoot, "settings.json");
 
-    public static RexLog Log { get; } = new(new RexLogOptions { Directory = Path.Combine(DataRoot, "logs"), FileName = "rexplayer.log" });
+    /// <summary>The folder the log is written in, which Help, Open the log folder shows.</summary>
+    public static string LogFolder { get; } = Path.Combine(DataRoot, "logs");
+
+    /// <summary>
+    /// The log, in detail: every command, every item and its tracks, every decoder chosen or refused,
+    /// so a problem can be diagnosed from the file alone. Files roll over at 8 MB; the last five are kept.
+    /// </summary>
+    public static RexLog Log { get; } = new(new RexLogOptions { Directory = LogFolder, FileName = "rexplayer.log", Minimum = LogLevel.Debug, MaxBytes = 8 * 1024 * 1024, KeepFiles = 5 });
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
-        Log.Info("app", $"rexplayer {MainWindow.Version} starting.");
+        Log.Info("app", $"rexplayer {MainWindow.Version} starting on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}), .NET {Environment.Version}, data in {DataRoot}.");
+        Log.Debug("app", "Command line: " + string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(arg => "\"" + arg + "\"")));
         var files = Environment.GetCommandLineArgs().Skip(1).Select(Located).ToList();
         var settings = SettingsStore.Load(SettingsPath);
         var pipe = AutomationPipe.NameForCurrentUser;

@@ -12,12 +12,27 @@ public sealed partial class PlayerController
     /// <summary>Within this of the start, Previous goes to the previous item; later it restarts this one.</summary>
     public static readonly TimeSpan RestartThreshold = TimeSpan.FromSeconds(3);
 
+    private const string LogSource = "player";
+
+    /// <summary>What the log says about media as it opens: its container, length and every track.</summary>
+    internal static string Describe(MediaInfo info) =>
+        $"{info.FormatName}, {(info.Duration.IsKnown ? TimeText.Format(info.Duration.ToTimeSpan(), info.Duration.ToTimeSpan()) : "length unknown")}"
+        + (info.IsSeekable ? "" : ", not seekable") + ". Tracks: "
+        + string.Join("; ", info.Tracks.Select(track => $"#{track.Id} {track.Kind.ToString().ToLowerInvariant()} {track.Codec.DisplayName()}"
+            + (track.Audio is { } audio ? $" {audio.SampleRate} Hz {audio.Channels} ch" : "")
+            + (track.Video is { } video ? $" {video.Width}x{video.Height}" : "")
+            + (track.Language is { } language ? $" [{language}]" : "")
+            + (track.Title is { Length: > 0 } title ? $" \"{title}\"" : "")
+            + (track.IsDefault ? " default" : "")
+            + (track.IsForced ? " forced" : "")));
+
     /// <summary>
     /// Runs a command that belongs to playback; returns false for commands the window handles itself
     /// (full screen, dialogs and the rest).
     /// </summary>
     public bool Execute(string commandId)
     {
+        _log.Debug(LogSource, "Command " + commandId);
         if (ExecuteSubtitles(commandId) || ExecuteMemory(commandId) || ExecuteTimers(commandId))
         {
             return true;
@@ -197,6 +212,7 @@ public sealed partial class PlayerController
         switch (sessionEvent)
         {
             case StateChangedEvent changed:
+                _log.Debug(LogSource, $"{changed.From} -> {changed.To}");
                 State = changed.To;
                 Changed?.Invoke(this, EventArgs.Empty);
                 if (changed.To == SessionState.Faulted && Item is { } failed)
@@ -210,6 +226,7 @@ public sealed partial class PlayerController
                 {
                     // The queued item has begun, without a gap: the playlist moves on with it.
                     Item = Playlist.Next(automatic: true);
+                    _log.Info(LogSource, $"Carried on without a gap into {Item!.Location}.");
                     _queued = null;
                     FindSubtitles(Item!);
                     if (HoldsAtTheEnd)
@@ -229,6 +246,7 @@ public sealed partial class PlayerController
                 _openedInSession = true;
                 _failuresInARow = 0;
                 Info = opened.Info;
+                _log.Info(LogSource, "Opened " + Describe(opened.Info));
                 Duration = PartDuration(opened.Info.Duration);
                 Memory.Played(Item!.Location);
                 AddEmbeddedSubtitles(opened.Info);
@@ -238,8 +256,21 @@ public sealed partial class PlayerController
                     Say(Title);
                 }
 
+                // A track that could not be decoded (reported as the item opened): the rest plays, and the window says why.
+                foreach (var trackFailure in _trackFailures)
+                {
+                    var kind = opened.Info.Tracks.FirstOrDefault(track => track.Id == trackFailure.TrackId)?.Kind;
+                    Say((kind == MediaKind.Video ? "Playing without pictures: " : "Playing without sound: ") + trackFailure.Reason);
+                }
+
+                _trackFailures.Clear();
+
                 // An item shorter than the queueing distance may end before its first position report.
                 QueueNextIfNearTheEnd(session);
+                break;
+            case TrackFailedEvent trackFailed:
+                _log.Warning(LogSource, $"Track {trackFailed.TrackId} cannot be played: {trackFailed.Reason}");
+                _trackFailures.Add(trackFailed);
                 break;
             case SubtitleCueEvent subtitle:
                 Embedded(subtitle.Item, subtitle.TrackId).Add(subtitle.Cue);
@@ -269,6 +300,7 @@ public sealed partial class PlayerController
                 // already ended (it was queued too late to follow on) the item after it starts here.
                 Item = Playlist.Next(automatic: true);
                 _queued = null;
+                _log.Warning(LogSource, $"Skipped {skipped.Name}: {skipped.Reason}");
                 Say($"{skipped.Name} could not be played: {skipped.Reason}");
                 if (State == SessionState.Ended)
                 {
@@ -284,9 +316,15 @@ public sealed partial class PlayerController
                 {
                     Item = Playlist.Next(automatic: true)!;
                     Duration = PartDuration(Info?.Duration ?? MediaTime.Unknown);
+                    Changed?.Invoke(this, EventArgs.Empty);
+                    if (Settings.TitleSeconds > 0)
+                    {
+                        Say(Title);
+                    }
                 }
 
                 Position = Duration;
+                _log.Info(LogSource, $"Reached the end of {Item?.Location}.");
                 RememberPosition();
                 PositionChanged?.Invoke(this, EventArgs.Empty);
 

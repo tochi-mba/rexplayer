@@ -65,7 +65,15 @@ public sealed partial class MediaSession
             var decoded = _options.Decoders.CreateAudio(audioTrack);
             if (decoded.Decoder is null)
             {
+                _log.Warning(LogSource, $"Audio track {audioTrack.Id} ({audioTrack.Codec.DisplayName()}) cannot be decoded: {decoded.Reason}");
                 _events.Post(new TrackFailedEvent(audioTrack.Id, decoded.Reason!));
+
+                // The pictures can still be watched: they play in silence, and the window says why.
+                if (info.Tracks.Any(track => track.Kind == MediaKind.Video))
+                {
+                    return OpenSilent(source, demuxer, info, presenter);
+                }
+
                 throw new NotSupportedException(decoded.Reason);
             }
 
@@ -116,7 +124,7 @@ public sealed partial class MediaSession
         var decoded = _options.Decoders.CreateVideo(track, shown.Gpu);
         if (decoded.Decoder is null)
         {
-            _log.Warning(LogSource, "The pictures cannot be shown: " + decoded.Reason);
+            _log.Warning(LogSource, $"Video track {track.Id} ({track.Codec.DisplayName()}) cannot be shown: {decoded.Reason}");
             _events.Post(new TrackFailedEvent(track.Id, decoded.Reason!));
             return (null, null);
         }

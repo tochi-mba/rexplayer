@@ -1,4 +1,5 @@
 using Rex.Media.Audio;
+using Rex.Media.Diagnostics;
 using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
@@ -27,6 +28,8 @@ public sealed partial class PlayerController : IDisposable
     private readonly Func<string, byte[]> _readFile;
     private readonly Action<string, byte[]> _writeFile;
     private readonly TimeProvider _time;
+    private readonly RexLog _log;
+    private readonly List<TrackFailedEvent> _trackFailures = [];
     private double _fade = 1;
     private DateTimeOffset? _lastLaunch;
 
@@ -34,7 +37,7 @@ public sealed partial class PlayerController : IDisposable
     /// Launches started this close together hand over files that join one playlist: Explorer opens
     /// several selected files with one launch each, all at once.
     /// </summary>
-    public static readonly TimeSpan HandOverBurst = TimeSpan.FromSeconds(1.5);
+    public static readonly TimeSpan HandOverBurst = TimeSpan.FromMilliseconds(600);
     private readonly Action<Action> _dispatch;
     private MediaSession? _session;
     private bool _openedInSession;
@@ -53,6 +56,7 @@ public sealed partial class PlayerController : IDisposable
     /// <param name="writeFile">Writes a playlist file; by default to disk, replacing it in one step.</param>
     /// <param name="store">Where the player remembers things between runs; by default only in memory.</param>
     /// <param name="time">The clock the sleep timer keeps time by (tests pass their own).</param>
+    /// <param name="log">Where what the player does is written down, for diagnosing problems; by default only in memory.</param>
     public PlayerController(
         Func<Action<SessionEvent>, MediaSession> newSession,
         Func<string, IByteSource> openSource,
@@ -64,9 +68,11 @@ public sealed partial class PlayerController : IDisposable
         Func<string, byte[]>? readFile = null,
         Action<string, byte[]>? writeFile = null,
         Rex.Media.Library.RexStore? store = null,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        RexLog? log = null)
     {
         _time = time ?? TimeProvider.System;
+        _log = log ?? RexLog.InMemory();
         Memory = new PlayerMemory(store ?? Rex.Media.Library.RexStore.InMemory());
         _writeFile = writeFile ?? ((path, bytes) => AtomicFile.Write(path, bytes));
         _sidecars = sidecars ?? (media => SubtitleSidecars.Find(media));
@@ -182,6 +188,7 @@ public sealed partial class PlayerController : IDisposable
     {
         ArgumentNullException.ThrowIfNull(locations);
         var items = locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0)).ToList();
+        _log.Info(LogSource, $"Opening {items.Count} item(s){(enqueue ? " at the end of the playlist" : "")}: {string.Join(", ", items.Take(5).Select(item => item.Location))}{(items.Count > 5 ? ", ..." : "")}");
         if (items.Count == 0)
         {
             Message?.Invoke(this, "There is nothing there rexplayer can play.");
@@ -233,6 +240,7 @@ public sealed partial class PlayerController : IDisposable
         }
 
         Position = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
+        _log.Debug(LogSource, $"Seeking to {TimeText.Format(Position, Duration)}.");
         _ = Observe(_session.SeekAsync(new MediaTime((Item!.Start + Position).Ticks)));
         PositionChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -263,6 +271,7 @@ public sealed partial class PlayerController : IDisposable
     /// <summary>Stops playing and releases the media and the audio device.</summary>
     public void Stop()
     {
+        _log.Info(LogSource, "Stopped.");
         RememberPosition();
         ResumeOffer = null;
         EndSession();
@@ -291,6 +300,12 @@ public sealed partial class PlayerController : IDisposable
         }
 
         startAt = BeforeStart(item, startAt, audioTrack);
+        _log.Info(LogSource, $"Starting \"{item.Title}\" ({item.Location})"
+            + (item.IsPart ? $", the part from {TimeText.Format(item.Start, TimeSpan.Zero)}{(item.End is { } partEnd ? " to " + TimeText.Format(partEnd, TimeSpan.Zero) : "")}" : "")
+            + (startAt > TimeSpan.Zero ? $", at {TimeText.Format(startAt, TimeSpan.Zero)}" : "")
+            + (audioTrack is { } track ? $", audio track {track}" : "")
+            + (paused ? ", paused" : "") + ".");
+        _trackFailures.Clear();
         EndSession();
         Item = item;
         Info = null;
@@ -350,6 +365,7 @@ public sealed partial class PlayerController : IDisposable
     /// <summary>The current item failed, opening or part-way: say why and move on.</summary>
     private void OnFailed(PlaylistItem item, string reason)
     {
+        _log.Error(LogSource, $"{item.Location} could not be played: {reason}");
         Failure = reason;
         State = SessionState.Faulted;
         Message?.Invoke(this, $"{item.Title} could not be played: {reason}");

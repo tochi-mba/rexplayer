@@ -40,7 +40,7 @@ public sealed partial class MainWindow
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences]),
-        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
+        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
     ];
 
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
@@ -104,7 +104,13 @@ public sealed partial class MainWindow
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
     private void Run(string command)
     {
-        if (_player.Execute(command) || RunSubtitleCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command))
+        if (_player.Execute(command))
+        {
+            return;
+        }
+
+        App.Log.Debug(LogSource, "Command " + command);
+        if (RunSubtitleCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command))
         {
             return;
         }
@@ -200,6 +206,10 @@ public sealed partial class MainWindow
                 break;
             case CommandCatalog.ShowLog:
                 _ = ShowLogAsync();
+                break;
+            case CommandCatalog.OpenLogFolder:
+                Directory.CreateDirectory(App.LogFolder);
+                _ = Windows.System.Launcher.LaunchFolderPathAsync(App.LogFolder);
                 break;
             case CommandCatalog.SaveDiagnostics:
                 _ = SaveDiagnosticsAsync();

@@ -40,6 +40,36 @@ public sealed class SilentVideoTests
         Assert.True(SpinWait.SpinUntil(condition, TimeSpan.FromSeconds(10)), "The condition was not met in time.");
 
     [Fact]
+    public async Task PicturesWhoseSoundCannotBeDecodedStillPlay()
+    {
+        var presenter = new RecordingVideoPresenter();
+        using var harness = Harness(presenter);
+        var video = Element(
+            Id.TrackEntry,
+            UInt(Id.TrackNumber, Video),
+            UInt(Id.TrackType, 1),
+            Text(Id.CodecId, "V_MPEG4/ISO/AVC"),
+            UInt(Id.DefaultDuration, 40_000_000),
+            Element(Id.Video, UInt(Id.PixelWidth, 16), UInt(Id.PixelHeight, 8)));
+        var sound = Element(
+            Id.TrackEntry,
+            UInt(Id.TrackNumber, 1),
+            UInt(Id.TrackType, 2),
+            Text(Id.CodecId, "A_TRUEHD"),
+            Element(Id.Audio, Float(Id.SamplingFrequency, 48000), UInt(Id.Channels, 2)));
+        var blocks = Enumerable.Range(0, 3).Select(i => MatroskaCraftedTests.Simple(Video, (short)(i * 40), true, (byte)i)).ToArray();
+        var file = MatroskaCraftedTests.Mkv(MatroskaCraftedTests.Tracks(sound, video), MatroskaCraftedTests.Cluster(0, blocks));
+
+        await harness.Session.OpenAsync(SessionHarness.Source(file, "film.mkv"));
+        await harness.FinishAsync();
+        WaitUntil(() => presenter.Shown.Count == 3);
+
+        var failed = Assert.Single(harness.Events.OfType<TrackFailedEvent>());
+        Assert.Equal(1, failed.TrackId);
+        Assert.Single(harness.Events.OfType<EndedEvent>());
+    }
+
+    [Fact]
     [Capability("PB-01")]
     public async Task PicturesWithoutSoundPlayAgainstSilenceToTheEndOfTheLastPicture()
     {

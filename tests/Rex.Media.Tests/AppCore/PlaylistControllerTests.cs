@@ -207,7 +207,7 @@ public sealed class PlaylistControllerTests
     [Capability("PLF-04")]
     public void AFileThatEndsBeforeItsTrackDoesFinishesTheTracksAfterItInTheFile()
     {
-        using var harness = new ControllerHarness(settings: Quiet);
+        using var harness = new ControllerHarness(settings: new PlayerSettings());
         harness.Files["album.wav"] = Count(0, 8000);
         harness.Files["album.cue"] = Text("""
             FILE "album.wav" WAVE
@@ -224,6 +224,7 @@ public sealed class PlaylistControllerTests
 
         Assert.Single(harness.Sinks);
         Assert.Equal(Expected((0, 8000)), harness.Played());
+        Assert.Equal(["Track 01", "Track 02"], harness.Messages);
     }
 
     [Fact]

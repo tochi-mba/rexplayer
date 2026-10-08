@@ -50,6 +50,7 @@ public static class CommandCatalog
     public const string CycleSecondarySubtitles = "cycle-secondary-subtitles";
     public const string CycleVisualizer = "cycle-visualizer";
     public const string SavePlaylist = "save-playlist";
+    public const string OpenLogFolder = "open-log-folder";
     public const string AddBookmark = "add-bookmark";
     public const string ClearHistory = "clear-history";
     public const string Resume = "resume";
@@ -173,6 +174,7 @@ public static class CommandCatalog
         New(MinimalInterface, "Minimal interface", View, "Ctrl+H"),
         New(MediaInformation, "Media information", Tools, "Ctrl+I"),
         New(ShowLog, "Log", Tools, "Ctrl+M"),
+        New(OpenLogFolder, "Open the log folder", Tools),
         New(SaveDiagnostics, "Save diagnostics for a problem report", Tools),
         New(Preferences, "Preferences", Tools, "Ctrl+P"),
         New(Effects, "Effects and equaliser", Tools, "Ctrl+E"),

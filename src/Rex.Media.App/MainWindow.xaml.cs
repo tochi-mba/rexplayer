@@ -67,7 +67,7 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "rexplayer.ico"));
         ExtendsContentIntoTitleBar = false;
 
-        _player = new PlayerController(NewSession, OpenSource, action => DispatcherQueue.TryEnqueue(() => action()), _settings, store: OpenStore());
+        _player = new PlayerController(NewSession, OpenSource, action => DispatcherQueue.TryEnqueue(() => action()), _settings, store: OpenStore(), log: App.Log);
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.Message += (_, text) => Say(text);

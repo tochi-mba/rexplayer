@@ -223,13 +223,15 @@ public sealed partial class PlayerController
     {
         try
         {
-            var (text, _) = SubtitleText.Decode(_readFile(path), Settings.SubtitleCodePage);
+            var (text, encoding) = SubtitleText.Decode(_readFile(path), Settings.SubtitleCodePage);
             var track = new SubtitleTrack(name) { Language = language };
             track.AddRange(SubtitleFile.Parse(text).Cues);
+            _log.Info(LogSource, $"Read the subtitles {path}: {track.Count} cues, as {encoding.WebName}.");
             return track;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
         {
+            _log.Warning(LogSource, $"The subtitles {path} could not be read: {ex.Message}");
             return null;
         }
     }
