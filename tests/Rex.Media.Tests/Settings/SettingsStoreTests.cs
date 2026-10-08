@@ -64,7 +64,7 @@ public sealed class SettingsStoreTests : IDisposable
 
         var text = System.IO.File.ReadAllText(File);
         Assert.Contains("\"repeat\": \"One\"", text, StringComparison.Ordinal);
-        Assert.Contains("\"schema\": 1", text, StringComparison.Ordinal);
+        Assert.Contains($"\"schema\": {PlayerSettings.CurrentSchema}", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class SettingsStoreTests : IDisposable
 
         var tame = new PlayerSettings { Volume = double.PositiveInfinity, MaxVolumePercent = 10, TitleSeconds = double.NaN, ControlsHideSeconds = 99 }.Normalize();
         Assert.Equal((1.0, 100, 3.0, 10.0), (tame.Volume, tame.MaxVolumePercent, tame.TitleSeconds, tame.ControlsHideSeconds));
-        Assert.Equal(1.25, new PlayerSettings { Volume = 1.6 }.Normalize().Volume);
+        Assert.Equal(1.25, new PlayerSettings { Volume = 1.6, MaxVolumePercent = 125 }.Normalize().Volume);
     }
 
     [Fact]
