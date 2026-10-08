@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 164 planned, 41 built, 84 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 162 planned, 43 built, 84 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -49,7 +49,7 @@ Totals: 164 planned, 41 built, 84 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-C06 | Matroska / WebM | EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters | M3 | must | verified |
 | FMT-C07 | MPEG-TS / M2TS (BDAV) | PAT/PMT/SDT/EIT, PCR clock recovery, multi-program, discontinuity handling, 188/192/204-byte packets, PES reassembly | M7 | must | planned |
 | FMT-C08 | MPEG-PS / VOB / MPG | Pack/system headers, private streams (AC-3/DTS/LPCM/SPU), SCR | M7 | must | planned |
-| FMT-C09 | Ogg (+OGM Could) | Vorbis, Opus, FLAC-in-Ogg, Theora, Speex; chained streams (internet radio); granule-position seek bisection | M7 | must | planned |
+| FMT-C09 | Ogg (+OGM Could) | Vorbis, Opus, FLAC-in-Ogg, Theora, Speex; chained streams (internet radio); granule-position seek bisection | M7 | must | built |
 | FMT-C10 | AVI / OpenDML | idx1 + indx super-index, broken-index rebuild, VBR MP3, DV type-1/2 | M7 | must | planned |
 | FMT-C11 | ASF / WMV / WMA | Via MF's in-box ASF media source as a demux adapter (spec-licence checkpoint, §8.2); DRM-protected files refused with a message | M7 | should | planned |
 | FMT-C12 | FLV | AMF0 metadata, H.264/AAC/MP3 tags (VP6/Sorenson payloads: Won't) | M7 | should | planned |
@@ -96,7 +96,7 @@ Totals: 164 planned, 41 built, 84 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-A07 | E-AC-3 | MF ext → own after legal checkpoint | M11/M12 | should | planned |
 | FMT-A08 | DTS core (+ core extraction from DTS-HD) | Own | M12 | should | planned |
 | FMT-A09 | Vorbis | Own | M7 | must | verified |
-| FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | Own | M7 | must | planned |
+| FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | Own | M7 | must | built |
 | FMT-A11 | ALAC | Own | M7 | should | planned |
 | FMT-A12 | WMA 1/2/Pro/Lossless | MF | M3 | should | planned |
 | FMT-A13 | AMR-NB/WB | MF | M7 | could | planned |

@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Rex.Media.Tests" />
+    <InternalsVisibleTo Include="Rex.Media.Codecs.Software" />
+    <InternalsVisibleTo Include="Rex.Media.Containers" />
   </ItemGroup>
 
   <ItemGroup>

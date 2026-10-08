@@ -1,7 +1,7 @@
 // Spec: Vorbis I specification, sections 4.2.1-4.2.4 (common header, identification and setup headers), 6.2.1 (floor 1 header), 8.6.1 (residue header) and 4.2.4 (mappings, modes), and Matroska's A_VORBIS CodecPrivate (the three headers in Xiph lacing).
 using Rex.Media.Primitives;
 
-namespace Rex.Media.Codecs.Software.Vorbis;
+namespace Rex.Media.Codecs.Vorbis;
 
 /// <summary>A floor type 1 configuration: partitions of classes, and the X positions of its points.</summary>
 internal sealed class VorbisFloor1
@@ -102,10 +102,32 @@ internal sealed class VorbisSetup
             throw new MediaFormatException("Vorbis needs its three headers, and the track does not carry them.");
         }
 
+        return FromHeaders(headers[0], headers[2]);
+    }
+
+    /// <summary>The setup from the identification and setup headers, as an Ogg stream carries them.</summary>
+    public static VorbisSetup FromHeaders(byte[] identification, byte[] setupHeader)
+    {
         var setup = new VorbisSetup();
-        setup.ReadIdentification(headers[0]);
-        setup.ReadSetup(headers[2]);
+        setup.ReadIdentification(identification);
+        setup.ReadSetup(setupHeader);
         return setup;
+    }
+
+    /// <summary>
+    /// The block size an audio packet decodes at, from the mode its first bits name: the short or the
+    /// long one. Zero for an empty packet, a header, or a mode the stream does not have.
+    /// </summary>
+    public int BlockSizeOf(ReadOnlySpan<byte> packet)
+    {
+        if (packet.IsEmpty || (packet[0] & 1) != 0)
+        {
+            return 0;
+        }
+
+        var bits = (packet[0] >> 1) | (packet.Length > 1 ? packet[1] << 7 : 0);
+        var mode = bits & ((1 << VorbisCodebook.Ilog(Modes.Length - 1)) - 1);
+        return mode >= Modes.Length ? 0 : Modes[mode].LongBlock ? LongBlock : ShortBlock;
     }
 
     /// <summary>Packets in Xiph lacing: a count less one, the sizes of all but the last (in runs of 255), then the packets.</summary>

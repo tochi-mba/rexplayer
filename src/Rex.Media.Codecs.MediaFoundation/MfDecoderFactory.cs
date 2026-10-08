@@ -25,6 +25,7 @@ public sealed class MfDecoderFactory : IDecoderFactory
         CodecId.Aac => PInvoke.MFAudioFormat_AAC,
         CodecId.Ac3 => PInvoke.MFAudioFormat_Dolby_AC3,
         CodecId.Eac3 => PInvoke.MFAudioFormat_Dolby_DDPlus,
+        CodecId.Opus => PInvoke.MFAudioFormat_Opus,
         _ => null,
     };
 

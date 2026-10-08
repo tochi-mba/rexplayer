@@ -1,3 +1,4 @@
+using Rex.Media.Codecs.Vorbis;
 using Rex.Media.Codecs.Software.Vorbis;
 using Rex.Media.Primitives;
 using Rex.Media.Codecs;
@@ -45,7 +46,7 @@ public sealed class VorbisCraftedTests
     private static void Residue(VorbisWriter w, int type) =>
         w.Bits(type, 16).Bits(0, 24).Bits(ShortHalf * 2, 24).Bits(7, 24).Bits(1, 6).Bits(0, 8).Bits(1, 3).Flag(false).Bits(1, 3).Flag(false).Bits(1, 8).Bits(1, 8);
 
-    private static byte[] Setup(int channels = 1, int residueType = 1, bool coupled = false, int modes = 1, Action<VorbisWriter>? floor = null, Action<VorbisWriter>? alter = null, Action<VorbisWriter>? residue = null, Action<VorbisWriter>? mapping = null)
+    internal static byte[] Setup(int channels = 1, int residueType = 1, bool coupled = false, int modes = 1, Action<VorbisWriter>? floor = null, Action<VorbisWriter>? alter = null, Action<VorbisWriter>? residue = null, Action<VorbisWriter>? mapping = null)
     {
         var w = new VorbisWriter().Header(5);
         w.Bits(1, 8);

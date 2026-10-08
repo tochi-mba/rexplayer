@@ -1,5 +1,5 @@
 // Spec: Vorbis I specification, section 2.1 (bitpacking: bits are read from the least significant end of each byte, in order).
-namespace Rex.Media.Codecs.Software.Vorbis;
+namespace Rex.Media.Codecs.Vorbis;
 
 /// <summary>
 /// Reads a Vorbis packet's bits, least significant first. Reading past the end gives zeros and sets

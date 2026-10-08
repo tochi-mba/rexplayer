@@ -62,6 +62,20 @@ public sealed class MfAudioDecoder : IAudioDecoder
             attributes[PInvoke.MF_MT_AAC_PAYLOAD_TYPE] = 0u;
             attributes[PInvoke.MF_MT_USER_DATA] = (byte[])[0, 0, 0xFE, 0, 0, 0, 0, 0, 0, 0, 0, 0, .. track.CodecPrivate];
         }
+        else if (track.Codec == CodecId.Opus && track.CodecPrivate.Length > 0)
+        {
+            // The Opus identification header (OpusHead), as Ogg and Matroska carry it, decodes at 48 kHz.
+            // Its pre-skip is given as none: the packets' times already put those samples before zero,
+            // where playback leaves them out, and Windows would leave them out a second time.
+            rate = 48000;
+            var head = track.CodecPrivate.ToArray();
+            if (head.Length >= 12)
+            {
+                head[10] = head[11] = 0;
+            }
+
+            attributes[PInvoke.MF_MT_USER_DATA] = head;
+        }
 
         attributes[PInvoke.MF_MT_AUDIO_SAMPLES_PER_SECOND] = (uint)Math.Max(1, rate);
         attributes[PInvoke.MF_MT_AUDIO_NUM_CHANNELS] = (uint)Math.Max(1, channels);

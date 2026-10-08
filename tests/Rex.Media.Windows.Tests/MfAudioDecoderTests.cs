@@ -123,6 +123,38 @@ public sealed class MfAudioDecoderTests
         }
     }
 
+    [Theory]
+    [InlineData("ogg/opus.opus", "ogg/opus.reference.wav")]
+    [InlineData("mkv/vp9-opus.webm", "mkv/vp9-opus.audio0.reference.wav")]
+    [Capability("FMT-A10")]
+    public async Task OpusPlaysLikeAnIndependentDecoder(string fixture, string reference)
+    {
+        using (var probe = Open(fixture))
+        {
+            if (!Factory.CanDecode(probe.Info.FirstTrack(MediaKind.Audio)!))
+            {
+                Assert.Skip("This Windows has no Media Foundation Opus decoder.");
+            }
+        }
+
+        var expected = ReferenceAudio.Read(RepoPaths.Combine($"tests/fixtures/{reference}"));
+        var sink = new RecordingAudioSink(channels: expected.Length, sampleRate: 48_000);
+        var options = new EngineOptions { Demuxers = MediaRegistries.Demuxers(), Decoders = MediaRegistries.Decoders(Factory), AudioSinkFactory = () => sink, AutoPlay = true };
+        using var session = new MediaSession(options, _ => { });
+
+        await session.OpenAsync(new MemoryByteSource(File.ReadAllBytes(RepoPaths.Combine($"tests/fixtures/{fixture}")), fixture));
+        await session.WaitForFinishAsync().WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+
+        // The pre-skip is left out and the last page trims the end: the same samples as FFmpeg's decoder gives.
+        for (var c = 0; c < expected.Length; c++)
+        {
+            var played = sink.Channel(c).ToArray();
+            Assert.Equal(expected[c].Length, played.Length);
+            var difference = ReferenceAudio.Difference(played, expected[c]);
+            Assert.True(difference.Rms < ReferenceAudio.LimitedAccuracyRms, $"channel {c}: RMS difference {difference.Rms}, peak {difference.Peak}");
+        }
+    }
+
     [Fact]
     public void AFlushForgetsWhatTheDecoderHeld()
     {

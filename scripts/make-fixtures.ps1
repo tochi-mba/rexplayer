@@ -200,6 +200,29 @@ Invoke-Mkv -Name 'vorbis-clicks.webm' -Reference -Arguments @('-f', 'lavfi', '-i
 Invoke-Mkv -Name 'vorbis-51.mkv' -Reference -Arguments @('-f', 'lavfi', '-i', 'aevalsrc=0.2*sin(2*PI*300*t)|0.2*sin(2*PI*400*t)|0.2*sin(2*PI*500*t)|0.2*sin(2*PI*60*t)|0.2*sin(2*PI*700*t)|0.2*sin(2*PI*800*t):s=48000:d=0.5:channel_layout=5.1', '-c:a', 'libvorbis', '-q:a', '3', '-map_metadata', '-1')
 Remove-Item $subtitles, $cover, $chapters
 
+# The Opus in WebM, decoded by FFmpeg as the reference for Windows' Opus decoder.
+& $Ffmpeg -hide_banner -loglevel error -y -i (Join-Path $mkv 'vp9-opus.webm') -map 0:a:0 -c:a pcm_s24le -map_metadata -1 -fflags +bitexact -flags:a +bitexact (Join-Path $mkv 'vp9-opus.audio0.reference.wav')
+
+# Ogg: Vorbis with tags, FLAC and Opus, each beside FFmpeg's decode of it.
+$ogg = Join-Path $root 'tests/fixtures/ogg'
+New-Item -ItemType Directory -Force $ogg | Out-Null
+function Invoke-Ogg {
+    param([string]$Name, [string[]]$Arguments)
+    $output = Join-Path $ogg $Name
+    & $Ffmpeg -hide_banner -loglevel error -y @Arguments -fflags +bitexact -flags:a +bitexact $output
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to write $output."
+    }
+
+    $wav = Join-Path $ogg "$([System.IO.Path]::GetFileNameWithoutExtension($Name)).reference.wav"
+    & $Ffmpeg -hide_banner -loglevel error -y -i $output -c:a pcm_s24le -map_metadata -1 -fflags +bitexact -flags:a +bitexact $wav
+    Write-Host "Wrote $output and $wav."
+}
+
+Invoke-Ogg -Name 'vorbis.ogg' -Arguments @('-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(2*PI*440*t)|0.2*sin(2*PI*660*t):s=44100:d=2', '-c:a', 'libvorbis', '-q:a', '3', '-map_metadata', '-1', '-metadata', 'title=Sungba', '-metadata', 'artist=Asake')
+Invoke-Ogg -Name 'flac.oga' -Arguments @('-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(2*PI*330*t):s=48000:d=1', '-c:a', 'flac', '-map_metadata', '-1', '-metadata', 'title=Terminator')
+Invoke-Ogg -Name 'opus.opus' -Arguments @('-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(2*PI*440*t)|0.3*sin(2*PI*550*t):s=48000:d=1', '-c:a', 'libopus', '-b:a', '64k', '-map_metadata', '-1')
+
 # Raw H.264 and HEVC streams, each beside what FFmpeg's own parser reads from it, so rexplayer's
 # parameter-set parsers are checked against an independent reader. SEI units are removed: the
 # encoders write their names and options into them.

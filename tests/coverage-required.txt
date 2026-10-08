@@ -89,6 +89,8 @@ Mpl2.cs
 NalUnits.cs
 NaturalOrder.cs
 NullAudioSink.cs
+OggDemuxer.cs
+OpusHeaders.cs
 Packet.cs
 PcmDecoder.cs
 PictureBlock.cs

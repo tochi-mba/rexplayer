@@ -1,7 +1,7 @@
 // Spec: Vorbis I specification, section 3 (codebook format: entry lengths, codeword assignment, value lookup types 1 and 2, float32_unpack and lookup1_values) and 9.2.1-9.2.4 (ilog, float32_unpack, lookup1_values, low/high neighbor).
 using Rex.Media.Primitives;
 
-namespace Rex.Media.Codecs.Software.Vorbis;
+namespace Rex.Media.Codecs.Vorbis;
 
 /// <summary>
 /// One codebook of a Vorbis stream: a Huffman tree over its entries and, for vector quantisation,

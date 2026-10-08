@@ -24,7 +24,8 @@ public static class MediaRegistries
         .Add(new FlacDemuxerFactory())
         .Add(new MpegAudioDemuxerFactory())
         .Add(new Mp4DemuxerFactory())
-        .Add(new MatroskaDemuxerFactory());
+        .Add(new MatroskaDemuxerFactory())
+        .Add(new Rex.Media.Containers.Ogg.OggDemuxerFactory());
 
     public static DecoderRegistry Decoders(params IDecoderFactory[] extraDecoders)
     {

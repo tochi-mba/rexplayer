@@ -1,4 +1,5 @@
 // Spec: Vorbis I specification, section 4.3 (audio packet decode: mode, window shape, floor curves, nonzero propagation, residue decode, inverse coupling, dot product, inverse MDCT, overlap-add), 7.2.2-7.2.4 (floor 1 packet decode and curve), 8.6.2-8.6.7 (residue 0, 1 and 2) and 10.1 (floor1_inverse_dB_table), with the channel order of section 4.3.9.
+using Rex.Media.Codecs.Vorbis;
 using System.Runtime.InteropServices;
 using Rex.Media.Primitives;
 

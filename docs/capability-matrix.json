@@ -359,7 +359,7 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "FMT-C10",
@@ -729,7 +729,7 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "FMT-A11",
