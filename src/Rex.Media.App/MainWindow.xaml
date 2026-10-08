@@ -43,11 +43,30 @@
           <StackPanel x:Name="SubtitlesBottom" VerticalAlignment="Bottom" HorizontalAlignment="Center" Spacing="2" />
         </Grid>
 
-        <StackPanel x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" AutomationProperties.AutomationId="Idle">
-          <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="28" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" />
-          <TextBlock x:Name="IdleHint" Text="Drop media here, or press Ctrl+O to open a file." Foreground="#B0B8AE" HorizontalAlignment="Center"
-                     AutomationProperties.AutomationId="IdleHint" />
-        </StackPanel>
+        <!-- Before anything plays, a hint; while music plays, its picture and details (AU-19). -->
+        <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" ColumnSpacing="28" Margin="24" AutomationProperties.AutomationId="Idle">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Border x:Name="CoverBox" Grid.Column="0" Width="200" Height="200" CornerRadius="8" Visibility="Collapsed" Background="#20FFFFFF">
+            <Image x:Name="CoverImage" Stretch="UniformToFill" AutomationProperties.AutomationId="Cover" AutomationProperties.Name="Cover" />
+          </Border>
+          <StackPanel x:Name="IdleText" Grid.Column="1" VerticalAlignment="Center" Spacing="6" MaxWidth="560">
+            <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="28" FontWeight="SemiBold" Foreground="White"
+                       HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
+            <TextBlock x:Name="IdleHint" Text="Drop media here, or press Ctrl+O to open a file." Foreground="#D0D8CE" HorizontalAlignment="Center"
+                       TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.AutomationId="IdleHint" />
+            <TextBlock x:Name="IdleAlbum" Foreground="#A0A8A0" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                       Visibility="Collapsed" AutomationProperties.AutomationId="IdleAlbum" />
+          </StackPanel>
+        </Grid>
+
+        <!-- Lyrics, the line being sung marked and kept in the middle (META-09). -->
+        <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="48,0,48,24" MaxWidth="720"
+                      VerticalScrollBarVisibility="Hidden" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
+          <StackPanel x:Name="LyricsLines" Spacing="6" Padding="0,8" />
+        </ScrollViewer>
 
         <InfoBar x:Name="ResumeBar" VerticalAlignment="Top" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="560"
                  Title="Carry on where you left off?" AutomationProperties.AutomationId="ResumeBar" />

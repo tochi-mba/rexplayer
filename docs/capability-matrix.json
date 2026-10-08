@@ -1159,7 +1159,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "META-07",
@@ -1189,7 +1189,7 @@
       "milestone": "M6",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "AU-01",
@@ -1379,7 +1379,7 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "UIA PIX",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "AU-20",

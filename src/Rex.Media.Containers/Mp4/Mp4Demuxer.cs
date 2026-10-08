@@ -168,7 +168,8 @@ public sealed class Mp4Demuxer : IDemuxer
         ApplyGaplessTag(metadata);
         _next = new int[_tracks.Count];
         var tracks = _tracks.Select(Describe).ToList();
-        var duration = movieDuration > 0 ? MediaTime.FromSamples(movieDuration, (int)Math.Min(movieTimescale, int.MaxValue)) : MediaTime.Unknown;
+        // A movie length too long for any clock is damage; the tracks' own lengths stand in for it.
+        var duration = movieDuration > 0 ? TimeOrNull(movieDuration, movieTimescale) ?? MediaTime.Unknown : MediaTime.Unknown;
         if (tracks.Count > 0 && tracks.All(t => t.Duration.IsKnown) && (!duration.IsKnown || fragments.Count > 0 || _tracks.Any(t => t.EditDuration is not null)))
         {
             duration = tracks.Max(t => t.Duration);
@@ -267,7 +268,21 @@ public sealed class Mp4Demuxer : IDemuxer
     {
     }
 
-    private static MediaTime Time(Mp4Track track, long units) => MediaTime.FromSamples(units, (int)Math.Min(track.Timescale, int.MaxValue));
+    private static MediaTime Time(Mp4Track track, long units) =>
+        TimeOrNull(units, track.Timescale) ?? throw new MediaFormatException("An MP4 sample time is later than rexplayer can count to.");
+
+    /// <summary>A count of <paramref name="timescale"/> units as a time; null when it is beyond any time rexplayer can hold.</summary>
+    private static MediaTime? TimeOrNull(long units, long timescale)
+    {
+        try
+        {
+            return MediaTime.FromSamples(units, (int)Math.Min(timescale, int.MaxValue));
+        }
+        catch (OverflowException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>The sync sample at or before <paramref name="target"/>, moved back by the codec's preroll.</summary>
     private static int Locate(Mp4Track track, MediaTime target)

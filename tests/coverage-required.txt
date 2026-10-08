@@ -48,6 +48,7 @@ FlacDecoder.cs
 FlacDemuxer.cs
 FlacFrameHeader.cs
 FlacStreamInfo.cs
+FolderArt.cs
 FourCC.cs
 H264Sps.cs
 HevcConfig.cs
@@ -61,6 +62,7 @@ Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
 LevelMeter.cs
+Lyrics.cs
 M3u.cs
 MachineEnvelope.cs
 MatroskaDemuxer.cs
@@ -102,6 +104,7 @@ PlayerController.cs
 PlayerController.Events.cs
 PlayerController.Memory.cs
 PlayerController.Playlists.cs
+PlayerController.Presentation.cs
 PlayerController.Subtitles.cs
 PlayerController.Timers.cs
 PlayerMemory.cs

@@ -387,6 +387,34 @@ public sealed class Mp4CraftedTests
     }
 
     [Fact]
+    public void AMovieLengthBeyondAnyClockGivesWayToTheTracks()
+    {
+        var file = File([Audio(AudioEntry("sowt", 1, 16, 8000), Samples(4, 4))], movieHeaderV1: true, movieTimescale: 1);
+        using var normal = Open(file);
+        // The movie header's 64-bit duration, after its version, the creation and change times and the timescale.
+        U64(long.MaxValue / 2).CopyTo(file, Encoding.Latin1.GetString(file).IndexOf("mvhd", StringComparison.Ordinal) + 4 + 4 + 8 + 8 + 4);
+
+        using var demuxer = Open(file);
+
+        Assert.True(normal.Info.Duration > MediaTime.Zero);
+        Assert.Equal(normal.Info.Duration, demuxer.Info.Duration);
+    }
+
+    [Fact]
+    public void ASampleTimeBeyondAnyClockRefusesTheFile()
+    {
+        var track = new Mp4TrackSpec { SampleEntry = AudioEntry("Opus", 1, 16, 8000), Timescale = 1, Samples = [] };
+        var fragments = new[] { new Mp4Fragment(1, Samples(4)) { BaseMediaDecodeTime = long.MaxValue / 2, Version1DecodeTime = true } };
+
+        var error = Assert.Throws<MediaFormatException>(() =>
+        {
+            using var demuxer = Open(FragmentedFile([track], fragments));
+            ReadAll(demuxer);
+        });
+        Assert.Contains("later than rexplayer can count to", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FragmentsWithDefaultsBaseOffsetsAndSampleFlagsAreIndexed()
     {
         var trex = Full("trex", 0, 0, U32(1), U32(1), U32(160), U32(6), U32(0));

@@ -124,6 +124,23 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("AU-19")]
+    [Capability("META-06")]
+    [Capability("META-09")]
+    public void ASongShowsTheFoldersCoverAndItsLyricsInPlaceOfTheVisualisation()
+    {
+        var song = Song(30);
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png"), Path.Combine(_media, "cover.png"));
+        File.WriteAllText(Path.Combine(_media, "Sungba.lrc"), "[00:00.00]Sungba\n[00:20.00]Ọmọ ọlọ́run\n");
+        using var app = AppProcess.Start([song]);
+
+        Wait.For(() => app.IsShown("Cover"), "the folder's cover");
+        Wait.For(() => app.IsShown("Lyrics"), "the lyrics");
+        Assert.False(app.IsShown("Visualizer"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("PB-11")]
     public void ASongLeftPartWayOffersToCarryOnFromThere()
     {

@@ -46,11 +46,13 @@ public sealed partial class MainWindow
     /// <summary>Shows the chosen visualisation while sound without pictures plays, and stops drawing otherwise.</summary>
     private void ApplyVisualizer()
     {
-        var show = _settings.Visualizer != VisualizerChoice.Off && _player.Item is not null && _player.Info is not null && !HasVideo
-            && _player.State is not (SessionState.Idle or SessionState.Faulted);
+        // Lyrics, when the music has them, take the visualisation's place.
+        var music = _player.Item is not null && _player.Info is not null && !HasVideo && _player.State is not (SessionState.Idle or SessionState.Faulted);
+        var show = music && _settings.Visualizer != VisualizerChoice.Off && _player.Lyrics is null;
         Visualizer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        Idle.VerticalAlignment = show ? VerticalAlignment.Top : VerticalAlignment.Center;
-        Idle.Margin = show ? new Thickness(0, 24, 0, 0) : new Thickness(0);
+        var below = show || (music && _player.Lyrics is not null);
+        Idle.VerticalAlignment = below ? VerticalAlignment.Top : VerticalAlignment.Center;
+        Idle.Margin = below ? new Thickness(24, 24, 24, 0) : new Thickness(24);
         if (show && _builtFor != _settings.Visualizer)
         {
             BuildVisualizer();

@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window
         _player = new PlayerController(NewSession, OpenSource, action => DispatcherQueue.TryEnqueue(() => action()), _settings, store: OpenStore(), log: App.Log);
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
+        _player.PositionChanged += (_, _) => ShowLyricLine();
         _player.Message += (_, text) => Say(text);
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
@@ -349,6 +350,7 @@ public sealed partial class MainWindow : Window
 
         KeepAwake(playing && HasVideo, playing);
         LayOutSubtitles();
+        ShowPresentation();
         ApplyVisualizer();
         ShowMemory();
         RememberLater();

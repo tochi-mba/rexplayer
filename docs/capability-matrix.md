@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 162 planned, 43 built, 84 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 159 planned, 43 built, 87 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -154,10 +154,10 @@ Totals: 162 planned, 43 built, 84 verified, 1 verified-hardware, 27 post-1.0.
 | META-03 | MP4 `ilst` atoms (incl. `covr`, `----` freeform) |  | M3 | must | verified |
 | META-04 | Matroska tags + attachments |  | M3 | must | verified |
 | META-05 | APEv2, ASF attributes, RIFF INFO, AIFF chunks |  | M7 | should | planned |
-| META-06 | Folder art discovery | `cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred | M6 | must | planned |
+| META-06 | Folder art discovery | `cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred | M6 | must | verified |
 | META-07 | Tag editing | Write title/artist/album/genre/track/date/comment/artwork for ID3v2.4, Vorbis comments/FLAC and MP4 atoms, via a safe rewrite (atomic replace, padding reuse) | M6 | should | planned |
 | META-08 | Online metadata/art lookup | Opt-in (privacy prompt); provider extension point; none hard-wired | M14 | could | planned |
-| META-09 | Lyrics display | From USLT / sidecar `.lrc` (synced lines highlighted) | M6 | could | planned |
+| META-09 | Lyrics display | From USLT / sidecar `.lrc` (synced lines highlighted) | M6 | could | verified |
 
 ## Audio
 
@@ -181,7 +181,7 @@ Totals: 162 planned, 43 built, 84 verified, 1 verified-hardware, 27 post-1.0.
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned |
 | AU-17 | Vocal reduction (karaoke) | Centre-channel cancellation with a band limit | M11 | could | planned |
 | AU-18 | Visualisations | Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able | M5/M11 | should | built |
-| AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | planned |
+| AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | verified |
 | AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built |
 | AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified |
 | AU-22 | Latency compensation | Reads endpoint latency (e.g. Bluetooth) and offsets A/V sync automatically; manual override | M11 | should | planned |

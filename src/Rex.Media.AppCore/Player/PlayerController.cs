@@ -29,6 +29,7 @@ public sealed partial class PlayerController : IDisposable
     private readonly Action<string, byte[]> _writeFile;
     private readonly TimeProvider _time;
     private readonly RexLog _log;
+    private readonly Func<string, IEnumerable<string>>? _listFolder;
     private readonly List<TrackFailedEvent> _trackFailures = [];
     private double _fade = 1;
     private DateTimeOffset? _lastLaunch;
@@ -57,6 +58,7 @@ public sealed partial class PlayerController : IDisposable
     /// <param name="store">Where the player remembers things between runs; by default only in memory.</param>
     /// <param name="time">The clock the sleep timer keeps time by (tests pass their own).</param>
     /// <param name="log">Where what the player does is written down, for diagnosing problems; by default only in memory.</param>
+    /// <param name="listFolder">Lists a folder's files, for its cover picture; by default the disk's.</param>
     public PlayerController(
         Func<Action<SessionEvent>, MediaSession> newSession,
         Func<string, IByteSource> openSource,
@@ -69,8 +71,10 @@ public sealed partial class PlayerController : IDisposable
         Action<string, byte[]>? writeFile = null,
         Rex.Media.Library.RexStore? store = null,
         TimeProvider? time = null,
-        RexLog? log = null)
+        RexLog? log = null,
+        Func<string, IEnumerable<string>>? listFolder = null)
     {
+        _listFolder = listFolder;
         _time = time ?? TimeProvider.System;
         _log = log ?? RexLog.InMemory();
         Memory = new PlayerMemory(store ?? Rex.Media.Library.RexStore.InMemory());
@@ -306,6 +310,7 @@ public sealed partial class PlayerController : IDisposable
             + (audioTrack is { } track ? $", audio track {track}" : "")
             + (paused ? ", paused" : "") + ".");
         _trackFailures.Clear();
+        ForgetPresentation();
         EndSession();
         Item = item;
         Info = null;

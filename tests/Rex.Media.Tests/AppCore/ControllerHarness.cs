@@ -74,7 +74,8 @@ internal sealed class ControllerHarness : IDisposable
             diskFolders ? null : (path, bytes) => Files[path] = path.Contains("readonly", StringComparison.Ordinal) ? throw new UnauthorizedAccessException(path + " is read-only.") : bytes,
             store,
             time,
-            log);
+            log,
+            diskFolders ? null : folder => Files.Keys.Where(path => (Path.GetDirectoryName(path) ?? "") == folder));
         Controller.Message += (_, text) => Messages.Add(text);
 
         // The window always listens to both.
