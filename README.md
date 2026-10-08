@@ -8,10 +8,10 @@ window to watch and listen in, and a command line made for scripts.
 [Capability matrix](docs/capability-matrix.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.5.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
+> **Status: 0.6.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
 > the graphics card, and MP3, FLAC, WAV, RF64 and AIFF without a gap from one file to the next,
-> with subtitles, an equaliser, playback speed without a change of pitch, visualisations, a
-> playlist, full screen, snapshots and preferences. rexplayer decodes MP3, FLAC and PCM itself and
+> with subtitles, an equaliser, playback speed without a change of pitch, visualisations,
+> playlist files and cue sheets, bookmarks, resume, a sleep timer, full screen and snapshots. rexplayer decodes MP3, FLAC and PCM itself and
 > hands H.264, HEVC and AAC to Windows' own decoders. More formats, streaming and the rest of the
 > [capability matrix](docs/capability-matrix.md) arrive release by release.
 
@@ -37,7 +37,11 @@ window to watch and listen in, and a command line made for scripts.
 | Add to what is playing | Hold Ctrl while you drop, or open it while rexplayer is running |
 | Pause, jump, change the volume | Space; Left and Right jump 10 seconds; Up and Down change the volume |
 | Full screen | Double-click the picture, or press F; Escape leaves |
+| Look closer | Alt with the mouse wheel zooms in where the pointer is; drag to move about; Alt+0 shows it all |
 | Subtitles | Keep `film.srt` beside `film.mkv`, or drop the file on the window; V switches, G and H shift them |
+| Carry on later | Open it again: rexplayer offers to go back to where you stopped. Ctrl+B adds a bookmark |
+| Save the playlist | Ctrl+Y (M3U8, XSPF or PLS); Ctrl+X opens one |
+| Fall asleep to it | Playback, Sleep in 15, 30 or 60 minutes, or at the end of this item |
 | Faster or slower | Plus and Minus, without changing the pitch; Equals is normal speed |
 | Shape the sound | Audio, Effects and equaliser (Ctrl+E) |
 | Prefer a language | Preferences, Languages: such as `ja, original` for sound and `en` for subtitles |

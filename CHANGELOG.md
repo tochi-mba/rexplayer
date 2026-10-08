@@ -3,6 +3,49 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.6.0 - 2026-10-08
+
+### Added
+
+- **Open with rexplayer.** The installer adds rexplayer to Explorer's Open with for every video,
+  audio and playlist file it plays, and to Windows' Default apps; nothing that already opens your
+  files is changed. Its last box opens Default apps to make rexplayer your player if you want.
+  Opening several files at once from Explorer puts them in one playlist.
+- **Updates that carry on.** An update installed from inside rexplayer opens it again afterwards,
+  with your playlist back and an offer to carry on where you were.
+- **Playlists.** Open M3U, M3U8, PLS, XSPF, cue sheets, ASX and WPL playlists (Ctrl+X, or drop
+  them on the window), and save the playlist as M3U8, XSPF or PLS (Ctrl+Y). A cue sheet's tracks
+  play as tracks of the one album file, without a gap between them.
+- **Carry on where you left off.** Open something you stopped part-way through and rexplayer
+  offers to go back there (or always does, or never: Preferences, Memory). The playlist comes back
+  when rexplayer starts.
+- **Bookmarks** (Ctrl+B), listed under Playback, Bookmarks to go to, rename or delete.
+- **Quick slots.** Ctrl+Shift+1 to 9 keeps what is playing and where; Ctrl+1 to 9 goes back to it.
+- **Recent media** under Media, Recent media. History can be cleared (View, Clear the history) or
+  not kept at all (Preferences, Memory).
+- **Stop or pause after this item**, and a **sleep timer** (Playback menu) that fades the sound
+  out and pauses or stops after 15 minutes to 2 hours, or at the end of the item.
+
+- **Vorbis sound.** WebM and Matroska files with Vorbis sound now play with it: rexplayer has its
+  own Vorbis decoder. A video whose sound still cannot be decoded plays its pictures in silence,
+  and the window says why, instead of refusing the whole file.
+- **Zoom and pan.** Alt with the mouse wheel zooms into the picture at the pointer; drag to move
+  about, or use Alt with the arrow keys. Alt+Plus and Alt+Minus step the zoom, Alt+0 shows the
+  whole picture again. While zoomed, a navigator in the corner shows the whole picture with the
+  part in view marked: click or drag in it to look somewhere else (Alt+N turns it off).
+- **Detailed logs.** rexplayer writes down what it does, so a problem can be diagnosed from the
+  log alone: Help, Open the log folder.
+- **The mouse.** The middle button plays or pauses; the back and forward buttons go to the previous
+  and next item. In full screen the pointer hides along with the controls.
+
+### Fixed
+
+- **Space played or paused and also opened a menu** (or pressed a button a second time) when a menu
+  or button had the focus.
+- **Closing the window while a dialog was open could crash rexplayer.**
+- **Dragging the seek bar jumped about** as the playing position pulled the thumb back.
+- **The playlist scrolled back to the top and lost its selection** each time the playing item changed.
+
 ## 0.5.0 - 2026-10-07
 
 ### Added
