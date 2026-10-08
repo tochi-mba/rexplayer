@@ -24,6 +24,8 @@ public sealed class D3D11Presenter : IVideoPresenter
     private (float[] Matrix, int Width, int Height, Rational PixelAspect)? _last;
     private Rational? _aspect;
     private Rational? _crop;
+    private PictureView _view = PictureView.Whole;
+    private bool _navigator;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
     {
@@ -79,6 +81,18 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             (_aspect, _crop) = (aspect, crop);
+        }
+    }
+
+    /// <summary>
+    /// Shows <paramref name="view"/> of the picture (VID-07) and, when <paramref name="navigator"/>,
+    /// the whole picture small in a corner, from the next picture drawn.
+    /// </summary>
+    public void SetView(PictureView view, bool navigator)
+    {
+        lock (_gate)
+        {
+            (_view, _navigator) = (view, navigator);
         }
     }
 
@@ -231,6 +245,12 @@ public sealed class D3D11Presenter : IVideoPresenter
         var (width, height) = _renderer.TargetSize;
         var (source, across, down) = VideoGeometry.Shape(pictureWidth, pictureHeight, pixelAspect, _aspect, _crop);
         var (x, y, fitWidth, fitHeight) = VideoLayout.FitAspect(across, down, width, height);
-        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma);
+        var shown = _view.Within(source);
+        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (shown.Left, shown.Top, shown.Right, shown.Bottom), SmoothChroma);
+        if (_navigator && _view.IsZoomed)
+        {
+            var (navigatorX, navigatorY, navigatorWidth, navigatorHeight) = PictureView.Navigator(width, height, across, down);
+            _renderer.Draw(matrix, (int)navigatorX, (int)navigatorY, Math.Max(1, (int)navigatorWidth), Math.Max(1, (int)navigatorHeight), (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma, clear: false);
+        }
     }
 }

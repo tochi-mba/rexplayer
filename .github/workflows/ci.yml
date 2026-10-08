@@ -79,6 +79,7 @@ jobs:
         run: ./dev.ps1 smoke
 
       - name: Install, then update the way the app does
+        timeout-minutes: 10
         shell: pwsh
         run: ./installer/update-test.ps1 -Installer (Get-Item dist/rexplayer-Setup-*.exe).FullName
 

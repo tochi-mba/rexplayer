@@ -51,6 +51,14 @@ public static class CommandCatalog
     public const string CycleVisualizer = "cycle-visualizer";
     public const string SavePlaylist = "save-playlist";
     public const string OpenLogFolder = "open-log-folder";
+    public const string ZoomIn = "zoom-in";
+    public const string ZoomOut = "zoom-out";
+    public const string ResetZoom = "reset-zoom";
+    public const string PanLeft = "pan-left";
+    public const string PanRight = "pan-right";
+    public const string PanUp = "pan-up";
+    public const string PanDown = "pan-down";
+    public const string ToggleNavigator = "toggle-navigator";
     public const string AddBookmark = "add-bookmark";
     public const string ClearHistory = "clear-history";
     public const string Resume = "resume";
@@ -150,6 +158,14 @@ public static class CommandCatalog
         New(ScaleOriginal, "Window at the video's size", Video, "Alt+3"),
         New(ScaleDouble, "Window at double size", Video, "Alt+4"),
         New(ToggleAlwaysOnTop, "Always on top", Video),
+        New(ZoomIn, "Zoom in", Video, "Alt+Plus", "Alt+Equals"),
+        New(ZoomOut, "Zoom out", Video, "Alt+Minus"),
+        New(ResetZoom, "See the whole picture", Video, "Alt+0"),
+        New(PanLeft, "Look further left", Video, "Alt+Left"),
+        New(PanRight, "Look further right", Video, "Alt+Right"),
+        New(PanUp, "Look further up", Video, "Alt+Up"),
+        New(PanDown, "Look further down", Video, "Alt+Down"),
+        New(ToggleNavigator, "Navigator while zoomed", Video, "Alt+N"),
         New(Snapshot, "Take a snapshot", Video, "Shift+S"),
         New(ToggleStats, "Statistics over the picture", Video, "Ctrl+Shift+I"),
         New(OpenFile, "Open files", Media, "Ctrl+O"),

@@ -52,6 +52,12 @@ public sealed partial class MainWindow : Window
     private Task _presenterWork = Task.CompletedTask;
     private bool _updatingControls;
     private bool _showRemaining = true;
+    private Microsoft.UI.Xaml.Controls.ContentDialog? _dialog;
+    private bool _closed;
+
+    // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
+    private bool _scrubbing;
+    private readonly System.Collections.ObjectModel.ObservableCollection<string> _playlistRows = [];
 
     public MainWindow(IReadOnlyList<string> files)
     {
@@ -75,6 +81,8 @@ public sealed partial class MainWindow : Window
         WireSubtitles();
         WireVisualizer();
         WireMemory();
+        WireZoom();
+        WireSeekBar();
 
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
@@ -96,7 +104,19 @@ public sealed partial class MainWindow : Window
         Video.CompositionScaleChanged += (_, _) => ResizeVideo();
         Closed += OnClosed;
 
+        // A dialog still open when the window goes would be torn down with it, which WinUI does not survive.
+        AppWindow.Closing += (_, _) => _dialog?.Hide();
+
         RestorePlacement();
+
+        // Never so small that the controls cannot be used, nor so large that a small video cannot be shown at half size.
+        if (AppWindow.Presenter is OverlappedPresenter overlapped)
+        {
+            overlapped.PreferredMinimumWidth = 360;
+            overlapped.PreferredMinimumHeight = 150;
+        }
+
+        PlaylistView.ItemsSource = _playlistRows;
         ApplySettingsToControls();
         ShowState();
         ShowPosition();
@@ -284,8 +304,8 @@ public sealed partial class MainWindow : Window
         var idle = _player.State is SessionState.Idle || (_player.Item is not null && !HasVideo);
         Idle.Visibility = idle ? Visibility.Visible : Visibility.Collapsed;
         IdleTitle.Text = _player.Item is null ? "rexplayer" : title;
-        IdleHint.Text = _player.Item is null
-            ? "Drop media here, or press Ctrl+O to open a file."
+        IdleHint.Text = _player.Item is null ? "Drop media here, or press Ctrl+O to open a file."
+            : _player.State == SessionState.Opening ? "Opening" + "\u2026"
             : _player.Failure ?? _player.Artist ?? "";
 
         _updatingControls = true;
@@ -309,6 +329,11 @@ public sealed partial class MainWindow : Window
         {
             // Each item starts at its own shape; a crop chosen for one film rarely suits the next.
             _shownItem = _player.Item;
+            if (_view.IsZoomed)
+            {
+                SetView(PictureView.Whole);
+            }
+
             if (_aspect.Ratio is not null || _crop.Ratio is not null)
             {
                 (_aspect, _crop) = (VideoGeometry.AspectRatios[0], VideoGeometry.Crops[0]);
@@ -316,7 +341,8 @@ public sealed partial class MainWindow : Window
             }
         }
 
-        if (_player.Item is not null && !HasVideo)
+        // Sound without pictures leaves the picture black; until the item's details are known the last picture stays, so videos follow one another without a black flash.
+        if (_player.Info is not null && !HasVideo)
         {
             OnPresenterThread(presenter => presenter.Clear());
         }
@@ -337,14 +363,40 @@ public sealed partial class MainWindow : Window
             : TimeText.Format(duration);
         _updatingControls = true;
         SeekBar.Maximum = Math.Max(1, duration.TotalSeconds);
-        SeekBar.Value = Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
+        if (!_scrubbing)
+        {
+            SeekBar.Value = Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
+        }
+
         _updatingControls = false;
     }
 
+    /// <summary>Brings the playlist view in line, row by row, keeping its selection and scroll and the playing item in sight.</summary>
     private void ShowPlaylist()
     {
         var current = _player.Playlist.CurrentIndex;
-        PlaylistView.ItemsSource = _player.Playlist.Items.Select((item, i) => (i == current ? "\u25B6 " : "") + item.Title).ToList();
+        var rows = _player.Playlist.Items.Select((item, i) => (i == current ? "\u25B6 " : "") + item.Title).ToList();
+        for (var i = 0; i < rows.Count; i++)
+        {
+            if (i >= _playlistRows.Count)
+            {
+                _playlistRows.Add(rows[i]);
+            }
+            else if (_playlistRows[i] != rows[i])
+            {
+                _playlistRows[i] = rows[i];
+            }
+        }
+
+        while (_playlistRows.Count > rows.Count)
+        {
+            _playlistRows.RemoveAt(_playlistRows.Count - 1);
+        }
+
+        if (current >= 0 && PlaylistPane.Visibility == Visibility.Visible)
+        {
+            PlaylistView.ScrollIntoView(_playlistRows[current]);
+        }
     }
 
     /// <summary>A short message over the picture, which fades after a moment.</summary>
@@ -397,6 +449,12 @@ public sealed partial class MainWindow : Window
 
     private void SaveSettings()
     {
+        // A dialog dismissed as the window closed may finish after it: the window saved everything as it closed.
+        if (_closed)
+        {
+            return;
+        }
+
         var placement = AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized }
             ? _settings.Window is { } last ? last with { Maximized = true } : null
             : AppWindow.Presenter.Kind == AppWindowPresenterKind.Overlapped && AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Restored }
@@ -448,15 +506,44 @@ public sealed partial class MainWindow : Window
         KeepAwake(false, false);
         _player.Dispose();
         OnPresenterThread(presenter => presenter.Dispose());
+        _closed = true;
         App.Log.Info(LogSource, "rexplayer closed.");
     }
 
     private void OnSeekBarChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (!_updatingControls)
+        if (_updatingControls)
         {
-            _player.Seek(TimeSpan.FromSeconds(e.NewValue));
+            return;
         }
+
+        // Dragged: the time shows where the thumb is, and the picture follows; a click or a key seeks at once.
+        if (_scrubbing)
+        {
+            Elapsed.Text = TimeText.Format(TimeSpan.FromSeconds(e.NewValue), _player.Duration);
+        }
+
+        _player.Seek(TimeSpan.FromSeconds(e.NewValue));
+    }
+
+    private void WireSeekBar()
+    {
+        SeekBar.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => _scrubbing = true), handledEventsToo: true);
+        SeekBar.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EndScrub()), handledEventsToo: true);
+        SeekBar.AddHandler(UIElement.PointerCaptureLostEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EndScrub()), handledEventsToo: true);
+    }
+
+    /// <summary>The drag is over: the last place it reached is where playing carries on.</summary>
+    private void EndScrub()
+    {
+        if (!_scrubbing)
+        {
+            return;
+        }
+
+        _scrubbing = false;
+        _player.Seek(TimeSpan.FromSeconds(SeekBar.Value));
+        ShowPosition();
     }
 
     private void OnVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)

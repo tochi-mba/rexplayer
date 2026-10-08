@@ -26,7 +26,9 @@ function Test-OpenWith {
 }
 
 function Invoke-Installer([string[]]$Arguments) {
-    $process = Start-Process -FilePath $Installer -ArgumentList $Arguments -PassThru -Wait
+    # Waiting on the installer alone: Start-Process -Wait would also wait for the rexplayer an update reopens.
+    $process = Start-Process -FilePath $Installer -ArgumentList $Arguments -PassThru
+    $process.WaitForExit()
     if ($process.ExitCode -ne 0) { throw "The installer exited with $($process.ExitCode)." }
 }
 

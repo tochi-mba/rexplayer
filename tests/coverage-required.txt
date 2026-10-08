@@ -92,6 +92,7 @@ NullAudioSink.cs
 Packet.cs
 PcmDecoder.cs
 PictureBlock.cs
+PictureView.cs
 PixelFormat.cs
 Playback.cs
 Playback.Video.cs

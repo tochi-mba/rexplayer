@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 165 planned, 41 built, 83 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 164 planned, 41 built, 84 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -198,7 +198,7 @@ Totals: 165 planned, 41 built, 83 verified, 1 verified-hardware, 27 post-1.0.
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | verified |
 | VID-05 | Aspect ratio | Default, 16:9, 4:3, 1:1, 16:10, 2.21:1, 2.35:1, 2.39:1, 5:4, custom W:H; cycle with A | M4 | must | verified |
 | VID-06 | Crop | Presets 16:10, 16:9, 4:3, 1.85:1, 2.21:1, 2.35:1, 2.39:1, 5:3, 5:4, 1:1 (cycle C); per-edge pixel crop keys; automatic black-bar detection | M4/M11 | must | built |
-| VID-07 | Zoom & pan | Zoom presets (Z cycles, Shift+Z resets); interactive magnifier (wheel zoom, drag pan) | M11 | should | planned |
+| VID-07 | Zoom & pan | Zoom presets (Z cycles, Shift+Z resets); interactive magnifier (wheel zoom, drag pan) | M11 | should | verified |
 | VID-08 | Deinterlacing | Off / Auto (stream flags) / On; discard, blend, bob, linear, motion-adaptive, motion-adaptive double-rate, inverse telecine; cycle with Shift+D, toggle with D | M3 (bob), M11 | must | planned |
 | VID-09 | Colour adjustments | Hue −180..180, brightness 0..2, contrast 0..2, saturation 0..3, gamma 0.01..10; reset | M11 | must | planned |
 | VID-10 | Sharpen | Strength 0..2 | M11 | should | planned |

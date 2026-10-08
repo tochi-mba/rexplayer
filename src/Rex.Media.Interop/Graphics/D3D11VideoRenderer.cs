@@ -353,9 +353,10 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 
     /// <summary>
     /// Draws the part of the picture inside <paramref name="source"/> (left, top, right, bottom, each
-    /// from 0 to 1 of the picture) into the rectangle given.
+    /// from 0 to 1 of the picture) into the rectangle given; over what is there already, rather than on
+    /// black, when not <paramref name="clear"/> (a small copy drawn over the large one).
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true)
     {
         if (colourMatrix.Length != 12)
         {
@@ -363,7 +364,11 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
 
         var view = _targetView ?? throw new InvalidOperationException("There is nothing to draw into: attach a window or use an offscreen target first.");
-        _context.ClearRenderTargetView(view, [0, 0, 0, 1]);
+        if (clear)
+        {
+            _context.ClearRenderTargetView(view, [0, 0, 0, 1]);
+        }
+
         if (_lumaView is null)
         {
             return;

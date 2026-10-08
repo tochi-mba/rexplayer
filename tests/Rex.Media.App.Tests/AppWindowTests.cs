@@ -148,6 +148,25 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("VID-07")]
+    public void ZoomingInShowsTheNavigatorAndTheWholePictureHidesIt()
+    {
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video");
+
+        app.Run(CommandCatalog.ZoomIn);
+        Wait.For(() => app.IsShown("Navigator"), "the navigator");
+        app.Run(CommandCatalog.ResetZoom);
+        Wait.For(() => !app.IsShown("Navigator"), "the navigator to go");
+
+        app.Run(CommandCatalog.ToggleNavigator);
+        Wait.For(() => !app.SavedSettings.ShowNavigator, "the navigator to be turned off");
+        app.Run(CommandCatalog.ZoomIn);
+        Assert.False(app.IsShown("Navigator"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("UI-05")]
     public void TheMinimalInterfaceLeavesOnlyThePicture()
     {

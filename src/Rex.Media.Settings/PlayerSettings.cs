@@ -162,6 +162,9 @@ public sealed record PlayerSettings
 
     public VisualizerChoice Visualizer { get; init; } = VisualizerChoice.Spectrum;
 
+    /// <summary>While zoomed in, the whole picture shows small in a corner, with the view marked on it.</summary>
+    public bool ShowNavigator { get; init; } = true;
+
     /// <summary>The languages to play audio in, best first, such as "ja, original"; empty for the media's own choice.</summary>
     public string AudioLanguages { get; init; } = "";
 

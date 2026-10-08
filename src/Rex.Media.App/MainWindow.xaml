@@ -55,6 +55,14 @@
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
                  AutomationProperties.AutomationId="Notice" />
 
+        <!-- The navigator: the presenter draws the whole picture here while zoomed; this frames it, marks the view and takes the pointer. -->
+        <Grid x:Name="Navigator" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" Background="Transparent"
+              BorderBrush="#E0FFFFFF" BorderThickness="1" AutomationProperties.AutomationId="Navigator" AutomationProperties.Name="Navigator">
+          <Canvas>
+            <Rectangle x:Name="NavigatorView" Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2" Fill="#22FFFFFF" />
+          </Canvas>
+        </Grid>
+
         <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
                 Background="#C0080A09" Visibility="Collapsed" IsHitTestVisible="False">
           <TextBlock x:Name="Stats" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.AutomationId="Stats" />

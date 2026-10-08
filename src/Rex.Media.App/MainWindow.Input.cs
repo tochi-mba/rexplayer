@@ -87,10 +87,16 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The wheel over the picture changes the volume; with Ctrl held, the size of the subtitles (OSD-02).</summary>
+    /// <summary>The wheel over the picture changes the volume; with Ctrl held, the size of the subtitles (OSD-02); with Alt, the zoom (VID-07).</summary>
     private void OnStageWheel(object sender, PointerRoutedEventArgs e)
     {
         var delta = e.GetCurrentPoint(Stage).Properties.MouseWheelDelta;
+        if (delta != 0 && ZoomWithWheel(e, delta))
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (delta != 0)
         {
             Run(IsDown(VirtualKey.Control)

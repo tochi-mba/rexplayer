@@ -37,7 +37,8 @@ public sealed partial class MainWindow
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
             CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
             CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
-        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
+        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
+            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
@@ -51,7 +52,7 @@ public sealed partial class MainWindow
         ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
         ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.CycleVisualizer]),
         ("Subtitles", [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles]),
-        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
+        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ResetZoom, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
         ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
     ];
@@ -110,7 +111,7 @@ public sealed partial class MainWindow
         }
 
         App.Log.Debug(LogSource, "Command " + command);
-        if (RunSubtitleCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command))
+        if (RunSubtitleCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command) || RunZoomCommand(command))
         {
             return;
         }
@@ -245,6 +246,7 @@ public sealed partial class MainWindow
         else
         {
             _controlsTimer.Stop();
+            ShowPointer(true);
             ApplyMinimalInterface();
             ApplyAlwaysOnTop();
         }
@@ -252,6 +254,7 @@ public sealed partial class MainWindow
 
     private void ShowFullScreenControls()
     {
+        ShowPointer(true);
         Controls.Visibility = Visibility.Visible;
         _controlsTimer.Stop();
         _controlsTimer.Start();
@@ -262,6 +265,16 @@ public sealed partial class MainWindow
         if (IsFullScreen && !Controls.FocusState.HasFlag(FocusState.Keyboard))
         {
             Controls.Visibility = Visibility.Collapsed;
+            ShowPointer(false);
+        }
+    }
+
+    /// <summary>The pointer hides with the full-screen controls and comes back with them.</summary>
+    private static void ShowPointer(bool shown)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Rex.Media.Interop.Windowing.PointerVisibility.SetHidden(!shown);
         }
     }
 
@@ -354,6 +367,7 @@ public sealed partial class MainWindow
     /// <summary>Hands the chosen aspect ratio and crop to the presenter, redrawing at once when paused.</summary>
     private void ApplyShape()
     {
+        ShowNavigator();
         var (aspect, crop, redraw) = (_aspect.Ratio, _crop.Ratio, !_player.IsPlaying);
         LayOutSubtitles();
         OnPresenterThread(presenter =>
@@ -591,7 +605,7 @@ public sealed partial class MainWindow
             CloseButtonText = "Close",
             XamlRoot = Content.XamlRoot,
         };
-        switch (await dialog.ShowAsync())
+        switch (await ShowDialogAsync(dialog))
         {
             case ContentDialogResult.Primary:
                 var package = new DataPackage();
@@ -690,6 +704,29 @@ public sealed partial class MainWindow
             dialog.DefaultButton = ContentDialogButton.Primary;
         }
 
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        return await ShowDialogAsync(dialog) == ContentDialogResult.Primary;
+    }
+
+    /// <summary>
+    /// Shows a dialog, one at a time: WinUI allows only one, so one asked for while another is open
+    /// (a script's command, say) is not shown. The window hides an open dialog before it closes.
+    /// </summary>
+    private async Task<ContentDialogResult> ShowDialogAsync(ContentDialog dialog)
+    {
+        if (_dialog is not null)
+        {
+            App.Log.Debug(LogSource, $"\"{dialog.Title}\" was not shown: \"{_dialog.Title}\" is open.");
+            return ContentDialogResult.None;
+        }
+
+        _dialog = dialog;
+        try
+        {
+            return await dialog.ShowAsync();
+        }
+        finally
+        {
+            _dialog = null;
+        }
     }
 }
