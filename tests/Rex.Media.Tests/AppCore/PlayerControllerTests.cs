@@ -234,7 +234,7 @@ public sealed class PlayerControllerTests
     [Capability("OSD-07")]
     public void VolumeMuteRepeatAndShuffleChangeAndSaySo()
     {
-        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { Volume = 1.2, Muted = true, Shuffle = true });
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { Volume = 1.2, Muted = true, Shuffle = true, MaxVolumePercent = 125 });
         harness.Files["a.wav"] = Count(0, 400);
         var controller = harness.Controller;
         Assert.True(controller.Muted);

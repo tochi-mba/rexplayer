@@ -250,7 +250,7 @@
         <Button x:Name="MuteButton" Click="OnMute" AutomationProperties.AutomationId="MuteButton" AutomationProperties.Name="Mute" ToolTipService.ToolTip="Mute (M)">
           <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" />
         </Button>
-        <Slider x:Name="VolumeBar" Width="120" Minimum="0" Maximum="125" StepFrequency="1" VerticalAlignment="Center" ValueChanged="OnVolumeChanged"
+        <Slider x:Name="VolumeBar" Width="120" Minimum="0" Maximum="200" StepFrequency="1" VerticalAlignment="Center" ValueChanged="OnVolumeChanged"
                 AutomationProperties.AutomationId="VolumeBar" AutomationProperties.Name="Volume" />
       </StackPanel>
     </Grid>

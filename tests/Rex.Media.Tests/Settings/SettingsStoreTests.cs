@@ -105,6 +105,17 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void TheLoudestVolumeIs200PercentUnlessTheUserChoseAnother()
+    {
+        Assert.Equal(200, new PlayerSettings().MaxVolumePercent);
+
+        // The old default, saved before schema 2, becomes the new one; a choice stays a choice.
+        Assert.Equal(200, new PlayerSettings { Schema = 1, MaxVolumePercent = 125 }.Normalize().MaxVolumePercent);
+        Assert.Equal(150, new PlayerSettings { Schema = 1, MaxVolumePercent = 150 }.Normalize().MaxVolumePercent);
+        Assert.Equal(125, new PlayerSettings { Schema = 2, MaxVolumePercent = 125 }.Normalize().MaxVolumePercent);
+    }
+
+    [Fact]
     public void ValuesOutOfRangeAreBroughtBackIntoIt()
     {
         var wild = new PlayerSettings

@@ -110,7 +110,7 @@ public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool M
 public sealed record PlayerSettings
 {
     /// <summary>The version of this shape; older files are migrated when they are read.</summary>
-    public const int CurrentSchema = 1;
+    public const int CurrentSchema = 2;
 
     public int Schema { get; init; } = CurrentSchema;
 
@@ -122,7 +122,10 @@ public sealed record PlayerSettings
     public bool Muted { get; init; }
 
     /// <summary>The highest volume the slider offers, in percent (100 to 200).</summary>
-    public int MaxVolumePercent { get; init; } = 125;
+    public int MaxVolumePercent { get; init; } = 200;
+
+    /// <summary>What the loudest volume was before version 2 of the settings made it 200 %.</summary>
+    private const int OldMaxVolumeDefault = 125;
 
     /// <summary>How much one volume key press changes the volume, in percent.</summary>
     public int VolumeStepPercent { get; init; } = 5;
@@ -287,7 +290,9 @@ public sealed record PlayerSettings
     /// <summary>A copy with every value in its allowed range; values from a damaged file are reset or clamped.</summary>
     public PlayerSettings Normalize()
     {
-        var maxVolume = Math.Clamp(MaxVolumePercent, 100, 200);
+        // Settings from before schema 2 that kept the old default loudest volume get the new one; a
+        // loudest volume the user chose stays.
+        var maxVolume = Math.Clamp(Schema < 2 && MaxVolumePercent == OldMaxVolumeDefault ? 200 : MaxVolumePercent, 100, 200);
         return this with
         {
             Schema = CurrentSchema,
