@@ -150,8 +150,8 @@ public sealed partial class MainWindow : Window
     private MediaSession NewSession(Action<SessionEvent> listener) => new(
         new EngineOptions
         {
-            Demuxers = MediaRegistries.Demuxers(),
-            Decoders = MediaRegistries.Decoders(new MfDecoderFactory()),
+            Demuxers = MediaRegistries.Demuxers(TimeSpan.FromSeconds(_settings.PictureSeconds)),
+            Decoders = MediaRegistries.Decoders(new MfDecoderFactory(), new WicDecoderFactory()),
             AudioSinkFactory = NewAudioSink,
             VideoPresenterFactory = () => _presenter is { } presenter ? new BorrowedPresenter(presenter) : null!,
             Log = App.Log,

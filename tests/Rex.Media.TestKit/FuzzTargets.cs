@@ -21,7 +21,9 @@ public static class FuzzTargets
     /// <summary>Every target by name, with the fixture folders whose files seed its corpus.</summary>
     public static IReadOnlyDictionary<string, (Action<byte[]> Run, string[] Seeds)> All { get; } = new Dictionary<string, (Action<byte[]>, string[])>(StringComparer.Ordinal)
     {
-        ["demux"] = (Demux, ["smoke", "flac", "mp3", "mp4", "mkv", "video"]),
+        ["demux"] = (Demux, ["smoke", "flac", "mp3", "mp4", "mkv", "video", "ogg", "picture"]),
+        ["picture"] = (Picture, ["picture"]),
+        ["exif"] = (bytes => _ = Rex.Media.Codecs.Pictures.ExifOrientation.Of(bytes), ["picture"]),
         ["aac-config"] = (bytes => _ = AacConfig.TryParse(bytes, out _), []),
         ["adts"] = (bytes => _ = AdtsHeader.TryParse(bytes, out _), []),
         ["avc-config"] = (bytes => AvcConfig.Parse(bytes).Sequence(), []),
@@ -42,6 +44,43 @@ public static class FuzzTargets
         catch (MediaFormatException)
         {
             // A clean refusal is the right answer for bytes that are not media.
+        }
+    }
+
+    /// <summary>Reads a picture's format and size, and opens it: a GIF's every picture decoded, then again after a seek.</summary>
+    private static void Picture(byte[] input)
+    {
+        if (Rex.Media.Containers.Image.PictureFormats.Detect(input) is not { } format)
+        {
+            return;
+        }
+
+        _ = Rex.Media.Containers.Image.PictureFormats.SizeOf(format, input);
+        using var source = new MemoryByteSource(input, "fuzz");
+        using var demuxer = new Rex.Media.Containers.Image.PictureDemuxerFactory(TimeSpan.FromSeconds(1)).Open(source, CancellationToken.None);
+        var track = demuxer.Info.Tracks[0];
+        if (track.Codec != CodecId.Gif)
+        {
+            return;
+        }
+
+        using var decoder = new Rex.Media.Codecs.Software.Gif.GifDecoder(track);
+        var frames = new List<VideoFrame>();
+        for (var pass = 0; pass < 2; pass++)
+        {
+            for (var read = 0; read < PacketLimit && demuxer.ReadPacket(CancellationToken.None) is { } packet; read++)
+            {
+                using (packet)
+                {
+                    decoder.Decode(packet, frames);
+                }
+
+                frames.ForEach(frame => frame.Dispose());
+                frames.Clear();
+            }
+
+            demuxer.Seek(MediaTime.FromMilliseconds(500), CancellationToken.None);
+            decoder.Flush();
         }
     }
 

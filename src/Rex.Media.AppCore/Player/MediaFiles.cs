@@ -19,13 +19,22 @@ public static class MediaFiles
         ".caf", ".ac3", ".eac3", ".dts", ".mka", ".mp2", ".rf64", ".w64",
     ];
 
-    private static readonly HashSet<string> Known = new([.. Video, .. Audio], StringComparer.OrdinalIgnoreCase);
+    /// <summary>Pictures (FMT-C19): shown for a while each, so a folder of them plays as a slideshow.</summary>
+    public static IReadOnlyList<string> Pictures { get; } =
+    [
+        ".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".gif", ".webp", ".bmp", ".dib", ".tif", ".tiff", ".heic", ".heif", ".avif",
+    ];
+
+    private static readonly HashSet<string> Known = new([.. Video, .. Audio, .. Pictures], StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Whether a file with this name is one the player offers to play.</summary>
     public static bool IsMedia(string path) => Known.Contains(Path.GetExtension(path));
 
+    private static readonly HashSet<string> PictureSet = new(Pictures, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> VideoSet = new(Video, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> AudioSet = new(Audio, StringComparer.OrdinalIgnoreCase);
+
+    public static bool IsPicture(string path) => PictureSet.Contains(Path.GetExtension(path));
 
     /// <summary>What the library files a file as, by its name; null for a file that is not media.</summary>
     public static Rex.Media.Library.LibraryKind? LibraryKindOf(string path)
@@ -37,7 +46,9 @@ public static class MediaFiles
     /// <summary>
     /// The media in <paramref name="folder"/> in natural order, files before the folders inside it,
     /// each of those (when <paramref name="recursive"/>) expanded the same way. The listings are
-    /// passed in, so tests need no disk; a folder that cannot be listed contributes nothing.
+    /// passed in, so tests need no disk; a folder that cannot be listed contributes nothing. Its
+    /// pictures count only when it holds no sound or video: a folder of photos is a slideshow, and
+    /// an album's cover stays out of its playlist.
     /// </summary>
     public static IReadOnlyList<string> ExpandFolder(
         string folder,
@@ -49,7 +60,7 @@ public static class MediaFiles
         ArgumentNullException.ThrowIfNull(folders);
         var found = new List<string>();
         Expand(folder, files, folders, recursive, found, depth: 0);
-        return found;
+        return found.TrueForAll(IsPicture) ? found : found.FindAll(path => !IsPicture(path));
     }
 
     /// <summary>Folders on disk, through <see cref="ExpandFolder(string, Func{string, IEnumerable{string}}, Func{string, IEnumerable{string}}, bool)"/>.</summary>

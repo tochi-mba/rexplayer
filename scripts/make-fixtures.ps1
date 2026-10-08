@@ -291,3 +291,34 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Wrote $snapshot."
+
+# Pictures: one test pattern in each still format Windows decodes, beside its BGRA pixels as FFmpeg
+# reads the PNG; a one-picture GIF; and an animated GIF made with FFmpeg's picture-to-picture
+# optimisations (each later picture only the part that changed, the rest transparent), beside every
+# picture of it as FFmpeg composes them.
+$picture = Join-Path $root 'tests/fixtures/picture'
+New-Item -ItemType Directory -Force $picture | Out-Null
+function Invoke-Picture {
+    param([string]$Name, [string[]]$Arguments)
+    $output = Join-Path $picture $Name
+    & $Ffmpeg -hide_banner -loglevel error -y @Arguments -fflags +bitexact -map_metadata -1 $output
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg failed to write $output."
+    }
+
+    Write-Host "Wrote $output ($((Get-Item $output).Length) bytes)."
+}
+
+$pattern = @('-f', 'lavfi', '-i', 'testsrc2=size=64x48:rate=1:duration=1', '-frames:v', '1')
+Invoke-Picture -Name 'still.png' -Arguments $pattern
+# The rest are made from the PNG, so all hold the same RGB pixels: a TIFF straight from the pattern
+# would be subsampled YCbCr, which Windows does not read, and a JPEG would hold video-range YCbCr.
+$png = @('-i', (Join-Path $picture 'still.png'))
+Invoke-Picture -Name 'still.jpg' -Arguments ($png + @('-q:v', '2', '-pix_fmt', 'yuvj444p'))
+Invoke-Picture -Name 'still.bmp' -Arguments $png
+Invoke-Picture -Name 'still.tiff' -Arguments ($png + @('-compression_algo', 'lzw'))
+Invoke-Picture -Name 'still.webp' -Arguments ($png + @('-c:v', 'libwebp', '-lossless', '1'))
+Invoke-Picture -Name 'still.reference.bgra' -Arguments ($png + @('-f', 'rawvideo', '-pix_fmt', 'bgra'))
+Invoke-Picture -Name 'still.gif' -Arguments ($pattern + @('-vf', 'split[a][b];[a]palettegen[p];[b][p]paletteuse'))
+Invoke-Picture -Name 'anim.gif' -Arguments @('-f', 'lavfi', '-i', 'testsrc2=size=64x48:rate=4:duration=1', '-vf', 'split[a][b];[a]palettegen[p];[b][p]paletteuse', '-loop', '0')
+Invoke-Picture -Name 'anim.reference.bgra' -Arguments @('-i', (Join-Path $picture 'anim.gif'), '-f', 'rawvideo', '-pix_fmt', 'bgra')

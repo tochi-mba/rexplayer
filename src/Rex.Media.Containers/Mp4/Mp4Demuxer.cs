@@ -20,7 +20,8 @@ public sealed class Mp4DemuxerFactory : IDemuxerFactory
         var type = FourCC.ToString(head.Slice(4, 4));
         return type switch
         {
-            "ftyp" => 100,
+            // HEIF and AVIF pictures are ISO base media files too, but pictures, not movies.
+            "ftyp" => Image.PictureFormats.IsHeif(head) ? 0 : 100,
             "moov" or "mdat" or "free" or "skip" or "wide" or "pnot" => 60,
             _ => 0,
         };

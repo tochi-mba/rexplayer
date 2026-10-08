@@ -29,7 +29,7 @@ var host = new CliHost
     Error = Console.Error,
     Version = version,
     DefaultAudioSink = () => new WasapiAudioSink(),
-    ExtraDecoders = [new MfDecoderFactory()],
+    ExtraDecoders = [new MfDecoderFactory(), new WicDecoderFactory()],
     VideoWindow = OpenWindow,
     SystemReport = Describe,
     Cancellation = cancellation.Token,

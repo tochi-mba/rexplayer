@@ -42,6 +42,7 @@ Ebml.cs
 EngineOptions.cs
 Equalizer.cs
 ExceptionDiagnostics.cs
+ExifOrientation.cs
 Fft.cs
 FileByteSource.cs
 FlacDecoder.cs
@@ -50,6 +51,8 @@ FlacFrameHeader.cs
 FlacStreamInfo.cs
 FolderArt.cs
 FourCC.cs
+GifDecoder.cs
+GifDemuxer.cs
 H264Sps.cs
 HevcConfig.cs
 HevcSps.cs
@@ -99,6 +102,8 @@ OpusHeaders.cs
 Packet.cs
 PcmDecoder.cs
 PictureBlock.cs
+PictureDemuxer.cs
+PictureFormats.cs
 PictureView.cs
 PixelFormat.cs
 Playback.cs

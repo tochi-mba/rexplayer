@@ -32,7 +32,8 @@ public sealed class MediaFilesTests
     [InlineData("film.MKV", true)]
     [InlineData("song.flac", true)]
     [InlineData("C:\\a\\b.Opus", true)]
-    [InlineData("cover.jpg", false)]
+    [InlineData("cover.jpg", true)]
+    [InlineData("photo.HEIC", true)]
     [InlineData("notes", false)]
     [InlineData("album.nfo", false)]
     public void MediaIsRecognisedByExtension(string path, bool media)
@@ -56,6 +57,35 @@ public sealed class MediaFilesTests
 
         Assert.Equal(["Album/1 Intro.mp3", "Album/2 Song.mp3", "Album/10 Outro.mp3", "Album/Disc 2/b.flac", "Album/Disc 10/a.flac"], found);
         Assert.Equal(3, MediaFiles.ExpandFolder("Album", f => files.GetValueOrDefault(f, []), f => folders.GetValueOrDefault(f, []), recursive: false).Count);
+    }
+
+    [Fact]
+    [Capability("FMT-C19")]
+    public void AFolderOfPicturesIsASlideshowAndAnAlbumKeepsItsCoverOut()
+    {
+        var files = new Dictionary<string, string[]>
+        {
+            ["Photos"] = ["Photos/b.png", "Photos/a.JPEG", "Photos/notes.txt", "Photos/c.gif"],
+            ["Album"] = ["Album/cover.jpg", "Album/1 Sungba.mp3"],
+        };
+
+        Assert.Equal(["Photos/a.JPEG", "Photos/b.png", "Photos/c.gif"], MediaFiles.ExpandFolder("Photos", f => files.GetValueOrDefault(f, []), _ => []));
+        Assert.Equal(["Album/1 Sungba.mp3"], MediaFiles.ExpandFolder("Album", f => files.GetValueOrDefault(f, []), _ => []));
+        var disk = Directory.CreateTempSubdirectory("rexplayer-pictures-").FullName;
+        try
+        {
+            File.WriteAllBytes(Path.Combine(disk, "b.png"), [1]);
+            File.WriteAllBytes(Path.Combine(disk, "a.gif"), [1]);
+            Assert.Equal([Path.Combine(disk, "a.gif"), Path.Combine(disk, "b.png")], MediaFiles.ExpandFolder(disk));
+        }
+        finally
+        {
+            Directory.Delete(disk, recursive: true);
+        }
+
+        Assert.True(MediaFiles.IsPicture("x.webp"));
+        Assert.False(MediaFiles.IsPicture("x.mp4"));
+        Assert.Null(MediaFiles.LibraryKindOf("x.png"));
     }
 
     [Fact]

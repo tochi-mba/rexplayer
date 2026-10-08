@@ -20,6 +20,7 @@ public sealed partial class MainWindow
         var longJump = Number("Long jump (seconds)", s.LongJumpSeconds, 1, 3600);
         var step = Number("Volume step (%)", s.VolumeStepPercent, 1, 25);
         var maxVolume = Number("Loudest volume (%)", s.MaxVolumePercent, 100, 200);
+        var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var theme = Choice("Theme", ["Windows' choice", "Light", "Dark"], (int)s.Theme);
         var onTop = Choice("Always on top", ["Never", "Always", "While playing"], (int)s.AlwaysOnTop);
         var hide = Number("Hide the full-screen controls after (seconds)", s.ControlsHideSeconds, 0.5, 10);
@@ -54,7 +55,7 @@ public sealed partial class MainWindow
 
         var content = new StackPanel { Spacing = 8, MinWidth = 460 };
         content.Children.Add(Heading("Playback"));
-        foreach (var control in new UIElement[] { veryShort, shortJump, medium, longJump, step, maxVolume })
+        foreach (var control in new UIElement[] { veryShort, shortJump, medium, longJump, step, maxVolume, pictures })
         {
             content.Children.Add(control);
         }
@@ -100,6 +101,7 @@ public sealed partial class MainWindow
             LongJumpSeconds = (int)longJump.Value,
             VolumeStepPercent = (int)step.Value,
             MaxVolumePercent = (int)maxVolume.Value,
+            PictureSeconds = (int)pictures.Value,
             Theme = (ThemeChoice)theme.SelectedIndex,
             AlwaysOnTop = (AlwaysOnTop)onTop.SelectedIndex,
             ControlsHideSeconds = hide.Value,

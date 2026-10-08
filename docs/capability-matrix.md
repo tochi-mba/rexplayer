@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 157 planned, 43 built, 89 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 156 planned, 43 built, 90 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -59,7 +59,7 @@ Totals: 157 planned, 43 built, 89 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-C16 | WavPack, TTA, Musepack, APE native | With their codecs (§6.2.3) | post | could/wont | post-1.0 |
 | FMT-C17 | MXF (OP1a) | Broadcast exchange | post | could | post-1.0 |
 | FMT-C18 | DV raw | DIF stream | post | could | post-1.0 |
-| FMT-C19 | Image files as media | JPEG/PNG/BMP/GIF/TIFF/WebP/HEIC (via WIC, so OS codecs); a display duration for slideshows in playlists | M6 | should | planned |
+| FMT-C19 | Image files as media | JPEG/PNG/BMP/GIF/TIFF/WebP/HEIC (via WIC, so OS codecs); a display duration for slideshows in playlists | M6 | should | verified |
 | FMT-C20 | Real/NSV/NUT/PVA/SMF-as-container | Legacy | — | wont | post-1.0 |
 
 ## Formats: Video decoders

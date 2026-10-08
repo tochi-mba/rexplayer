@@ -150,3 +150,13 @@ DXGI_MATRIX_3X2_F
 SetThreadExecutionState
 AllowSetForegroundWindow
 ShowCursor
+CLSID_WICImagingFactory
+IWICImagingFactory
+IWICBitmapDecoder
+IWICBitmapFrameDecode
+IWICBitmapSource
+IWICFormatConverter
+IWICBitmapScaler
+IWICBitmapFlipRotator
+GUID_WICPixelFormat32bppBGRA
+SHCreateMemStream

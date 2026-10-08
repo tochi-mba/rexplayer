@@ -50,6 +50,12 @@ public enum CodecId
     Theora,
     Dv,
 
+    /// <summary>A still picture in a format Windows' imaging reads (JPEG, PNG, BMP, TIFF, WebP, HEIF), told apart by its bytes.</summary>
+    Picture,
+
+    /// <summary>GIF pictures, still or animated.</summary>
+    Gif,
+
     // Subtitles
     SubRip,
     WebVtt,
@@ -78,7 +84,7 @@ public static class CodecIdExtensions
     public static MediaKind Kind(this CodecId codec) => codec switch
     {
         >= CodecId.Pcm and <= CodecId.Speex => MediaKind.Audio,
-        >= CodecId.H264 and <= CodecId.Dv => MediaKind.Video,
+        >= CodecId.H264 and <= CodecId.Gif => MediaKind.Video,
         >= CodecId.SubRip and <= CodecId.PlainText => MediaKind.Subtitle,
         _ => MediaKind.Unknown,
     };
@@ -127,6 +133,8 @@ public static class CodecIdExtensions
         CodecId.RawVideo => "Uncompressed video",
         CodecId.Theora => "Theora",
         CodecId.Dv => "DV",
+        CodecId.Picture => "Picture",
+        CodecId.Gif => "GIF",
         CodecId.SubRip => "SubRip",
         CodecId.WebVtt => "WebVTT",
         CodecId.Ass => "Advanced SubStation Alpha",

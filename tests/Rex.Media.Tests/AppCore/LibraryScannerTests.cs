@@ -139,6 +139,7 @@ public sealed class LibraryScannerTests
         scanner.Request();
         Assert.True(started.Wait(TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken));
         scanner.Dispose();
+        SpinWait.SpinUntil(() => !scanner.IsBusy, TimeSpan.FromMinutes(1));
         Assert.False(scanner.IsBusy);
         Assert.NotEmpty(library.Unprobed);
         scanner.Request();

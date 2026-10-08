@@ -19,6 +19,7 @@ public sealed class InstallerAssociationTests
     [
         ("rexplayer.video", "Video", MediaFiles.Video),
         ("rexplayer.audio", "Audio", MediaFiles.Audio),
+        ("rexplayer.picture", "Picture", MediaFiles.Pictures),
         ("rexplayer.playlist", "Playlist", PlaylistFiles.Extensions),
     ];
 

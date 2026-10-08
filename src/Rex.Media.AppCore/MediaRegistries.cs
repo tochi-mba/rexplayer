@@ -18,19 +18,21 @@ namespace Rex.Media.AppCore;
 /// </summary>
 public static class MediaRegistries
 {
-    public static DemuxerRegistry Demuxers() => new DemuxerRegistry()
+    /// <summary>Every demuxer; pictures show for <paramref name="showPicturesFor"/> (5 seconds when not given).</summary>
+    public static DemuxerRegistry Demuxers(TimeSpan? showPicturesFor = null) => new DemuxerRegistry()
         .Add(new WavDemuxerFactory())
         .Add(new AiffDemuxerFactory())
         .Add(new FlacDemuxerFactory())
         .Add(new MpegAudioDemuxerFactory())
         .Add(new Mp4DemuxerFactory())
         .Add(new MatroskaDemuxerFactory())
-        .Add(new Rex.Media.Containers.Ogg.OggDemuxerFactory());
+        .Add(new Rex.Media.Containers.Ogg.OggDemuxerFactory())
+        .Add(new Rex.Media.Containers.Image.PictureDemuxerFactory(showPicturesFor));
 
     public static DecoderRegistry Decoders(params IDecoderFactory[] extraDecoders)
     {
         ArgumentNullException.ThrowIfNull(extraDecoders);
-        var registry = new DecoderRegistry().Add(new PcmDecoderFactory()).Add(new FlacDecoderFactory()).Add(new Mp3DecoderFactory()).Add(new Rex.Media.Codecs.Software.Vorbis.VorbisDecoderFactory());
+        var registry = new DecoderRegistry().Add(new PcmDecoderFactory()).Add(new FlacDecoderFactory()).Add(new Mp3DecoderFactory()).Add(new Rex.Media.Codecs.Software.Vorbis.VorbisDecoderFactory()).Add(new Rex.Media.Codecs.Software.Gif.GifDecoderFactory());
         foreach (var factory in extraDecoders)
         {
             registry.Add(factory);

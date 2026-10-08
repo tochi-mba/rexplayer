@@ -358,7 +358,7 @@ public sealed partial class MainWindow
             var saved = await Task.Run(() =>
             {
                 using var source = new FileByteSource(item.Location);
-                return Snapshot.SaveAsPng(source, MediaRegistries.Decoders(new MfDecoderFactory()), new MediaTime(at.Ticks), output, CancellationToken.None);
+                return Snapshot.SaveAsPng(source, MediaRegistries.Decoders(new MfDecoderFactory(), new WicDecoderFactory()), new MediaTime(at.Ticks), output, CancellationToken.None);
             });
             Say("Snapshot saved: " + Path.GetFileName(saved.Path));
         }

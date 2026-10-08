@@ -141,6 +141,29 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("FMT-C19")]
+    public void PicturesShowInTurnAsASlideshow()
+    {
+        foreach (var name in new[] { "still.png", "anim.gif", "still.jpg" })
+        {
+            File.Copy(RepoPaths.Combine("tests", "fixtures", "picture", name), Path.Combine(_media, name.Replace("still.", "photo.", StringComparison.Ordinal)));
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "settings.json"), $$"""{ "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off", "pictureSeconds": 1 }""");
+        using var app = AppProcess.Start([_media], root);
+
+        // The folder is a slideshow: each picture in turn, a second each, the GIF moving.
+        Wait.For(() => app.Text("NowPlaying") == "anim", "the GIF");
+        Wait.For(() => app.Text("NowPlaying") == "photo", "the next picture");
+        Wait.For(() => app.LogText.Contains("Opened photo.png as PNG", StringComparison.Ordinal), "the last picture");
+        Assert.Contains("Video: GIF via rexplayer GIF into Direct3D 11", app.LogText, StringComparison.Ordinal);
+        Assert.DoesNotContain("could not be played", app.LogText, StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-05")]
     public void TheLibraryFindsTheSongsInItsFoldersAndPlaysThem()
     {

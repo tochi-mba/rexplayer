@@ -127,6 +127,9 @@ public sealed record PlayerSettings
     /// <summary>What the loudest volume was before version 2 of the settings made it 200 %.</summary>
     private const int OldMaxVolumeDefault = 125;
 
+    /// <summary>How long each picture shows before the next item plays, in seconds (FMT-C19).</summary>
+    public int PictureSeconds { get; init; } = 5;
+
     /// <summary>How much one volume key press changes the volume, in percent.</summary>
     public int VolumeStepPercent { get; init; } = 5;
 
@@ -299,6 +302,7 @@ public sealed record PlayerSettings
             Volume = double.IsFinite(Volume) ? Math.Clamp(Volume, 0, maxVolume / 100.0) : 1,
             MaxVolumePercent = maxVolume,
             VolumeStepPercent = Math.Clamp(VolumeStepPercent, 1, 25),
+            PictureSeconds = Math.Clamp(PictureSeconds, 1, 3600),
             Repeat = Enum.IsDefined(Repeat) ? Repeat : RepeatMode.Off,
             VeryShortJumpSeconds = Math.Clamp(VeryShortJumpSeconds, 1, 3600),
             ShortJumpSeconds = Math.Clamp(ShortJumpSeconds, 1, 3600),
