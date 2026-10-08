@@ -78,6 +78,10 @@ jobs:
       - name: Smoke test the published command line
         run: ./dev.ps1 smoke
 
+      - name: Install, then update the way the app does
+        shell: pwsh
+        run: ./installer/update-test.ps1 -Installer (Get-Item dist/rexplayer-Setup-*.exe).FullName
+
       - name: Upload the packages
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -212,7 +216,10 @@ jobs:
           cd dist
           sha256sum --check rexplayer-Setup-*.exe.sha256
           sha256sum --check rexplayer-*-win-x64.zip.sha256
-          gh release create "$tag" rexplayer-Setup-*.exe rexplayer-Setup-*.exe.sha256 rexplayer-*-win-x64.zip rexplayer-*-win-x64.zip.sha256 \
+          # The same installer under a name that never changes, so .../releases/latest/download/rexplayer-Setup.exe
+          # (the site's download button) is always the newest.
+          cp "rexplayer-Setup-${RELEASE_VERSION}.exe" rexplayer-Setup.exe
+          gh release create "$tag" rexplayer-Setup-*.exe rexplayer-Setup-*.exe.sha256 rexplayer-Setup.exe rexplayer-*-win-x64.zip rexplayer-*-win-x64.zip.sha256 \
             --repo "${{ github.repository }}" \
             --target "$GITHUB_SHA" \
             --title "rexplayer ${RELEASE_VERSION}" \

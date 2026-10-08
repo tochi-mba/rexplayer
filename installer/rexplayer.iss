@@ -55,6 +55,7 @@ MinVersion=10.0.17763
 CloseApplications=yes
 RestartApplications=no
 ChangesEnvironment=yes
+ChangesAssociations=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -83,11 +84,24 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Open {#AppName}"; Flags: nowait postinstall skipifsilent
+; Windows' own page for choosing defaults, opened on rexplayer: offered, never imposed.
+Filename: "ms-settings:defaultapps?registeredAppUser={#AppName}"; Description: "Choose rexplayer as the default player (opens Windows Settings)"; Flags: shellexec nowait postinstall skipifsilent unchecked
+; An update started from inside rexplayer installs silently, then opens it again where it left off.
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: RelaunchAfterUpdate
+
+; rexplayer in Explorer's "Open with" for every file it plays, and in Windows' Default apps.
+#include "associations.iss"
 #endif
 
 [Code]
 const
   EnvironmentKey = 'Environment';
+
+// rexplayer passes /relaunch=1 when it installs an update of itself.
+function RelaunchAfterUpdate: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:relaunch|0}') = '1');
+end;
 
 // Stop the installed copy before its files are replaced.
 function PrepareToInstall(var NeedsRestart: Boolean): String;

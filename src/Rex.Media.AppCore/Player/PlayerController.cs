@@ -26,6 +26,15 @@ public sealed partial class PlayerController : IDisposable
     private readonly Func<string, IReadOnlyList<SubtitleSidecar>> _sidecars;
     private readonly Func<string, byte[]> _readFile;
     private readonly Action<string, byte[]> _writeFile;
+    private readonly TimeProvider _time;
+    private double _fade = 1;
+    private DateTimeOffset? _lastOpened;
+
+    /// <summary>
+    /// Files handed over by other launches this soon after the last open join it: Explorer opens
+    /// several selected files with one launch each, and they belong in one playlist.
+    /// </summary>
+    public static readonly TimeSpan HandOverBurst = TimeSpan.FromSeconds(2);
     private readonly Action<Action> _dispatch;
     private MediaSession? _session;
     private bool _openedInSession;
@@ -43,6 +52,7 @@ public sealed partial class PlayerController : IDisposable
     /// <param name="readFile">Reads a subtitle or playlist file; by default from disk.</param>
     /// <param name="writeFile">Writes a playlist file; by default to disk, replacing it in one step.</param>
     /// <param name="store">Where the player remembers things between runs; by default only in memory.</param>
+    /// <param name="time">The clock the sleep timer keeps time by (tests pass their own).</param>
     public PlayerController(
         Func<Action<SessionEvent>, MediaSession> newSession,
         Func<string, IByteSource> openSource,
@@ -53,8 +63,10 @@ public sealed partial class PlayerController : IDisposable
         Func<string, IReadOnlyList<SubtitleSidecar>>? sidecars = null,
         Func<string, byte[]>? readFile = null,
         Action<string, byte[]>? writeFile = null,
-        Rex.Media.Library.RexStore? store = null)
+        Rex.Media.Library.RexStore? store = null,
+        TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         Memory = new PlayerMemory(store ?? Rex.Media.Library.RexStore.InMemory());
         _writeFile = writeFile ?? ((path, bytes) => AtomicFile.Write(path, bytes));
         _sidecars = sidecars ?? (media => SubtitleSidecars.Find(media));
@@ -169,6 +181,7 @@ public sealed partial class PlayerController : IDisposable
     public void Open(IEnumerable<string> locations, bool enqueue = false)
     {
         ArgumentNullException.ThrowIfNull(locations);
+        _lastOpened = _time.GetUtcNow();
         var items = locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0)).ToList();
         if (items.Count == 0)
         {
@@ -186,6 +199,17 @@ public sealed partial class PlayerController : IDisposable
         {
             Start(enqueue ? Playlist.JumpTo(Playlist.Items.Count - items.Count) : Playlist.Next(automatic: false));
         }
+    }
+
+    /// <summary>
+    /// Opens files another launch of rexplayer handed over: as <see cref="Open"/> does, except that
+    /// arriving within <see cref="HandOverBurst"/> of the last open they join the playlist.
+    /// </summary>
+    public void OpenHandedOver(IReadOnlyList<string> locations, bool enqueue)
+    {
+        ArgumentNullException.ThrowIfNull(locations);
+        var burst = _lastOpened is { } last && _time.GetUtcNow() - last < HandOverBurst;
+        Open(locations, enqueue || burst);
     }
 
     /// <summary>Plays <paramref name="location"/> from <paramref name="at"/> on its own, as when resuming after a crash.</summary>
@@ -218,7 +242,7 @@ public sealed partial class PlayerController : IDisposable
         Volume = Math.Clamp(double.IsFinite(volume) ? volume : 1, 0, Settings.MaxVolumePercent / 100.0);
         if (_session is not null)
         {
-            _session.Volume = Volume;
+            _session.Volume = Volume * _fade;
         }
 
         Changed?.Invoke(this, EventArgs.Empty);
@@ -257,7 +281,7 @@ public sealed partial class PlayerController : IDisposable
     /// Starts <paramref name="item"/> in a session of its own, or stops when there is nothing to
     /// start; part-way and on a chosen audio track when asked (switching tracks restarts the item).
     /// </summary>
-    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null)
+    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null, bool paused = false)
     {
         if (item is null)
         {
@@ -277,8 +301,9 @@ public sealed partial class PlayerController : IDisposable
         State = SessionState.Opening;
         MediaSession? session = null;
         session = _newSession(sessionEvent => _dispatch(() => OnEvent(session!, sessionEvent)));
-        session.Volume = Volume;
+        session.Volume = Volume * _fade;
         session.Muted = Muted;
+        session.StartPaused = paused;
         session.PreferredAudioTrack = audioTrack;
         session.AudioLanguages = Languages.ParseList(Settings.AudioLanguages);
         session.Sound = Sound;

@@ -38,6 +38,7 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherQueueTimer _controlsTimer;
     private readonly DispatcherQueueTimer _statsTimer;
     private readonly DispatcherQueueTimer _resumeTimer;
+    private readonly DispatcherQueueTimer _sleepTimer;
     private readonly ResumePoint? _crashed;
     private SessionStats? _lastStats;
     private ShapePreset _aspect = VideoGeometry.AspectRatios[0];
@@ -83,6 +84,9 @@ public sealed partial class MainWindow : Window
         _resumeTimer = Timer(TimeSpan.FromSeconds(5), RememberWhereWeAre);
         _resumeTimer.IsRepeating = true;
         _resumeTimer.Start();
+        _sleepTimer = Timer(TimeSpan.FromSeconds(1), _player.SleepTick);
+        _sleepTimer.IsRepeating = true;
+        _sleepTimer.Start();
 
         BuildMenus();
         Root.AddHandler(UIElement.PreviewKeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(OnPreviewKeyDown), handledEventsToo: true);
@@ -150,7 +154,8 @@ public sealed partial class MainWindow : Window
 
         if (_startupFiles is { Count: > 0 } files)
         {
-            _player.Open(files);
+            // Files handed over by other launches just before this one is ready join these.
+            _player.OpenHandedOver(files, enqueue: false);
         }
         else if (_startupFiles is not null)
         {
@@ -435,6 +440,7 @@ public sealed partial class MainWindow : Window
     {
         _saveTimer.Stop();
         _resumeTimer.Stop();
+        _sleepTimer.Stop();
         SaveSettings();
         _player.SaveQueue();
         TryClearResumeMarker();

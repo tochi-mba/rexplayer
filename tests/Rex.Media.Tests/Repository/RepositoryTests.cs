@@ -23,6 +23,7 @@ public sealed partial class RepositoryTests
         "dev.ps1",
         "installer/build.ps1",
         "installer/prepare-upgrade.ps1",
+        "installer/update-test.ps1",
         "scripts/check_site.py",
         "scripts/make-fixtures.ps1",
         "scripts/make-icon.ps1",

@@ -60,6 +60,9 @@ public sealed partial class MediaSession : IDisposable
     /// </summary>
     public int? PreferredAudioTrack { get; set; }
 
+    /// <summary>Opens the next media paused at its start even when <see cref="EngineOptions.AutoPlay"/> is on. Set before opening.</summary>
+    public bool StartPaused { get; set; }
+
     /// <summary>
     /// The languages to choose an audio track by, best first (AU-21), when no track id is preferred
     /// or the media lacks it. Read as each item opens.

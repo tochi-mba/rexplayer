@@ -59,7 +59,7 @@ test('nothing scrolls sideways at phone, tablet or desktop widths', async ({ pag
 
 test('the download button works without the release API and is decorated with it', async ({ page }) => {
   await page.goto('./');
-  await expect(page.locator('#download')).toHaveAttribute('href', 'https://github.com/tochi-mba/rexplayer/releases/latest');
+  await expect(page.locator('#download')).toHaveAttribute('href', 'https://github.com/tochi-mba/rexplayer/releases/latest/download/rexplayer-Setup.exe');
 
   await page.unroute('https://api.github.com/**');
   await page.route('https://api.github.com/**', route => route.fulfill({

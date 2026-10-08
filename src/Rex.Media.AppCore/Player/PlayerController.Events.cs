@@ -18,7 +18,7 @@ public sealed partial class PlayerController
     /// </summary>
     public bool Execute(string commandId)
     {
-        if (ExecuteSubtitles(commandId) || ExecuteMemory(commandId))
+        if (ExecuteSubtitles(commandId) || ExecuteMemory(commandId) || ExecuteTimers(commandId))
         {
             return true;
         }
@@ -212,6 +212,17 @@ public sealed partial class PlayerController
                     Item = Playlist.Next(automatic: true);
                     _queued = null;
                     FindSubtitles(Item!);
+                    if (HoldsAtTheEnd)
+                    {
+                        // Asked for after it was queued: the next item has begun, so it stops or pauses at once.
+                        if (TakeAfter() == AfterItem.Stop)
+                        {
+                            Stop();
+                            return;
+                        }
+
+                        _ = Observe(session.PauseAsync());
+                    }
                 }
 
                 _queueTried = false;
@@ -273,7 +284,7 @@ public sealed partial class PlayerController
                 // With an item still queued the engine starts it (or reports it skipped) by itself.
                 if (_queued is null)
                 {
-                    StartNext();
+                    FinishItem(StartNext);
                 }
 
                 break;
@@ -306,7 +317,7 @@ public sealed partial class PlayerController
         var current = Item!;
         Position = Duration;
         RememberPosition();
-        if (Playlist.PeekNext(automatic: true) is { } next && next != current && next.Location == current.Location && next.Start == current.End)
+        if (!HoldsAtTheEnd && Playlist.PeekNext(automatic: true) is { } next && next != current && next.Location == current.Location && next.Start == current.End)
         {
             Item = Playlist.Next(automatic: true)!;
             Position = heard - Item.Start;
@@ -322,21 +333,24 @@ public sealed partial class PlayerController
         }
 
         PositionChanged?.Invoke(this, EventArgs.Empty);
-        if (Playlist.Next(automatic: true) is { } following)
+        FinishItem(() =>
         {
-            Start(following);
-            return;
-        }
+            if (Playlist.Next(automatic: true) is { } following)
+            {
+                Start(following);
+                return;
+            }
 
-        EndSession();
-        State = SessionState.Ended;
-        Changed?.Invoke(this, EventArgs.Empty);
+            EndSession();
+            State = SessionState.Ended;
+            Changed?.Invoke(this, EventArgs.Empty);
+        });
     }
 
     private void QueueNextIfNearTheEnd(MediaSession session)
     {
         // A part that ends inside its file hands over by itself; an item that starts inside one cannot be queued.
-        if (_queued is not null || _queueTried || Duration <= TimeSpan.Zero || Duration - Position > QueueAhead || Item?.End is not null
+        if (_queued is not null || _queueTried || HoldsAtTheEnd || Duration <= TimeSpan.Zero || Duration - Position > QueueAhead || Item?.End is not null
             || Playlist.PeekNext(automatic: true) is not { } next || next.Start > TimeSpan.Zero)
         {
             return;

@@ -100,6 +100,7 @@ PlayerController.Events.cs
 PlayerController.Memory.cs
 PlayerController.Playlists.cs
 PlayerController.Subtitles.cs
+PlayerController.Timers.cs
 PlayerMemory.cs
 PlayerSettings.cs
 Playlist.cs

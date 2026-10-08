@@ -139,7 +139,7 @@ public sealed partial class MainWindow
         }
 
         App.Log.Info(LogSource, $"Installing rexplayer {offer.Version}.");
-        Process.Start(new ProcessStartInfo(installer) { UseShellExecute = true, ArgumentList = { "/SILENT", "/CLOSEAPPLICATIONS" } });
+        Process.Start(new ProcessStartInfo(installer) { UseShellExecute = true, ArgumentList = { "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/relaunch=1" } });
         Close();
     }
 

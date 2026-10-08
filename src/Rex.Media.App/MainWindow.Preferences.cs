@@ -31,6 +31,7 @@ public sealed partial class MainWindow
         var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
         var queue = Check("Put the playlist back when rexplayer starts", s.RestoreQueue);
+        var sleep = Choice("When the sleep timer's time comes", ["Pause", "Stop"], (int)s.SleepAction);
         var audioLanguages = Words("Play sound in (languages, best first, such as \"ja, original\")", s.AudioLanguages);
         var subtitleLanguages = Words("Show subtitles in (languages, best first, such as \"en, fr\")", s.SubtitleLanguages);
         var font = new ComboBox { Header = "Subtitle font", IsEditable = true, ItemsSource = SubtitleFonts, Text = s.SubtitleFont, MinWidth = 220 };
@@ -75,7 +76,7 @@ public sealed partial class MainWindow
         }
 
         content.Children.Add(Heading("Memory"));
-        foreach (var control in new UIElement[] { resume, history, queue })
+        foreach (var control in new UIElement[] { resume, history, queue, sleep })
         {
             content.Children.Add(control);
         }
@@ -110,6 +111,7 @@ public sealed partial class MainWindow
             ResumePlayback = (ResumeChoice)resume.SelectedIndex,
             KeepHistory = history.IsChecked == true,
             RestoreQueue = queue.IsChecked == true,
+            SleepAction = (SleepChoice)sleep.SelectedIndex,
             AudioLanguages = audioLanguages.Text,
             SubtitleLanguages = subtitleLanguages.Text,
             SubtitleFont = font.Text,

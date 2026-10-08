@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 169 planned, 40 built, 80 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 166 planned, 41 built, 82 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -21,7 +21,7 @@ Totals: 169 planned, 40 built, 80 verified, 1 verified-hardware, 27 post-1.0.
 | PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | verified |
 | PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | verified |
 | PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified |
-| PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | planned |
+| PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | verified |
 | PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified |
 | PB-15 | Crossfade between tracks | 0–12 s setting (default off) | M6 | could | planned |
 | PB-16 | Snapshot | Current frame at source resolution, without the OSD; PNG/JPEG/BMP; folder, filename pattern and sequential numbering configurable | M3/M11 | must | verified |
@@ -29,7 +29,7 @@ Totals: 169 planned, 40 built, 80 verified, 1 verified-hardware, 27 post-1.0.
 | PB-18 | Program selection (TS) | Next/previous program (service id) for multi-program transport streams | M7 | should | planned |
 | PB-19 | Audio delay | ±50 ms steps (J/K), reset, exact entry; range ±10 s; optionally remembered per file | M5 | must | built |
 | PB-20 | Subtitle delay & sync | ±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset | M5 | must | built |
-| PB-21 | Sleep timer | Stop or pause after N minutes or at the end of the current item, with a fade-out | M6 | should | planned |
+| PB-21 | Sleep timer | Stop or pause after N minutes or at the end of the current item, with a fade-out | M6 | should | verified |
 | PB-22 | Play-and-exit / play-and-stop / play-and-pause | CLI and settings | M4 | must | verified |
 | PB-23 | Start/stop/run time per item | `--start`, `--stop`, `--run-time`; per-item options in the playlist | M4 | should | built |
 | PB-24 | Corrupt-file resilience | Skip bad access units, keep playing other streams, rebuild a missing MP4/AVI index by scanning (with progress) | M3/M7 | must | planned |
@@ -369,7 +369,7 @@ Totals: 169 planned, 40 built, 80 verified, 1 verified-hardware, 27 post-1.0.
 | ID | Capability | Details | Milestone | Priority | Status |
 |---|---|---|---|---|---|
 | WIN-01 | Distribution | Per-user Inno installer (no admin), portable zip, winget manifest at 1.0 | M0/M15 | must | built |
-| WIN-02 | File associations | Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps | M15 | must | planned |
+| WIN-02 | File associations | Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps | M15 | must | built |
 | WIN-03 | Explorer verbs | "Play with rexplayer", "Add to rexplayer playlist" (classic menu, HKCU); modern top-level Windows 11 menu through a sparse package (C, post-1.0) | M15 | must | planned |
 | WIN-04 | AutoPlay handlers | Audio CD, DVD movie, Blu-ray movie, removable-media folders | M15 | should | planned |
 | WIN-05 | System Media Transport Controls | Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget | M15 | must | planned |

@@ -29,7 +29,9 @@ public sealed partial class MainWindow
             CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
             CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
-            CommandCatalog.AddBookmark, CommandCatalog.Resume]),
+            CommandCatalog.AddBookmark, CommandCatalog.Resume, null,
+            CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
+            CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
             CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer]),
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
@@ -391,7 +393,7 @@ public sealed partial class MainWindow
                 case "open":
                     if (request.Paths.Count > 0)
                     {
-                        _player.Open(request.Paths, request.Enqueue);
+                        _player.OpenHandedOver(request.Paths, request.Enqueue);
                     }
 
                     ComeForward();

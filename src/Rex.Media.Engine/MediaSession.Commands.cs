@@ -61,8 +61,9 @@ public sealed partial class MediaSession
                 _playback.RequestSeek(startAt, SeekMode.Precise);
             }
 
-            _playback.Start(_options.AutoPlay);
-            MoveTo(_options.AutoPlay ? SessionState.Playing : SessionState.Ready);
+            var play = _options.AutoPlay && !StartPaused;
+            _playback.Start(play);
+            MoveTo(play ? SessionState.Playing : SessionState.Ready);
         }
         catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {

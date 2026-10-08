@@ -91,6 +91,13 @@ public enum ResumeChoice
     Never,
 }
 
+/// <summary>What the sleep timer does when its time comes (PB-21).</summary>
+public enum SleepChoice
+{
+    Pause,
+    Stop,
+}
+
 /// <summary>Where the window was, so it opens there again.</summary>
 public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool Maximized);
 
@@ -242,6 +249,8 @@ public sealed record PlayerSettings
     /// <summary>Put the queue back as it was when rexplayer starts without files to open (LIB-03).</summary>
     public bool RestoreQueue { get; init; } = true;
 
+    public SleepChoice SleepAction { get; init; } = SleepChoice.Pause;
+
     // The application
 
     /// <summary>A second launch hands its files to the running player instead of opening another window.</summary>
@@ -299,6 +308,7 @@ public sealed record PlayerSettings
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
+            SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
             ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
             AudioLanguages = AudioLanguages?.Trim() ?? "",

@@ -129,7 +129,7 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "EVT",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PB-14",
@@ -209,7 +209,7 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "EVT PCM",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "PB-22",
@@ -2809,7 +2809,7 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "STORE (registry golden) HW",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "WIN-03",

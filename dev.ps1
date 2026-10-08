@@ -149,7 +149,7 @@ function Invoke-Ui {
 }
 
 function Invoke-Package {
-    $packageVersion = if ($Version) { $Version } else { ([xml](Get-Content (Join-Path $root "Directory.Build.props") -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1 }
+    $packageVersion = if ($Version) { $Version } else { [regex]::Match((Get-Content (Join-Path $root "Directory.Build.props") -Raw), '<Version>(.+?)</Version>').Groups[1].Value }
     Invoke-Checked powershell.exe @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "installer/build.ps1"), "-Version", $packageVersion)
 }
 

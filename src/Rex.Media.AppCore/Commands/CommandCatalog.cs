@@ -54,6 +54,11 @@ public static class CommandCatalog
     public const string ClearHistory = "clear-history";
     public const string Resume = "resume";
     public const string SetSlotPrefix = "set-slot-";
+    public const string StopAfterCurrent = "stop-after-current";
+    public const string PauseAfterCurrent = "pause-after-current";
+    public const string SleepOff = "sleep-off";
+    public const string SleepAtEndOfItem = "sleep-end-of-item";
+    public const string SleepPrefix = "sleep-";
     public const string PlaySlotPrefix = "play-slot-";
     public const string OpenPlaylist = "open-playlist";
     public const string SubtitlesBigger = "subtitles-bigger";
@@ -157,6 +162,11 @@ public static class CommandCatalog
         New(AddBookmark, "Add a bookmark here", Playback, "Ctrl+B"),
         New(Resume, "Go back to where I left off", Playback),
         New(ClearHistory, "Clear the history", View),
+        New(StopAfterCurrent, "Stop after this item", Playback),
+        New(PauseAfterCurrent, "Pause after this item", Playback),
+        New(SleepOff, "Sleep timer off", Playback),
+        New(SleepAtEndOfItem, "Sleep at the end of this item", Playback),
+        .. new[] { 15, 30, 45, 60, 90, 120 }.Select(minutes => New(SleepPrefix + minutes.ToString(CultureInfo.InvariantCulture), $"Sleep in {minutes} minutes", Playback)),
         .. Enumerable.Range(1, 9).Select(n => New(SetSlotPrefix + n.ToString(CultureInfo.InvariantCulture), $"Keep this in quick slot {n}", Playback, $"Ctrl+Shift+{n}")),
         .. Enumerable.Range(1, 9).Select(n => New(PlaySlotPrefix + n.ToString(CultureInfo.InvariantCulture), $"Play quick slot {n}", Playback, $"Ctrl+{n}")),
         New(ClearPlaylist, "Clear the playlist", View, "Ctrl+W"),
@@ -173,6 +183,13 @@ public static class CommandCatalog
 
     /// <summary>The command with this id, or null.</summary>
     public static Command? Find(string id) => All.FirstOrDefault(command => command.Id == id);
+
+    /// <summary>The minutes a sleep timer command is for, or null for any other command.</summary>
+    public static int? SleepMinutesOf(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        return id.StartsWith(SleepPrefix, StringComparison.Ordinal) && int.TryParse(id.AsSpan(SleepPrefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var minutes) && minutes > 0 ? minutes : null;
+    }
 
     /// <summary>The quick slot a slot command is for, or null for any other command.</summary>
     public static int? SlotNumber(string id)
