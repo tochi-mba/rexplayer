@@ -17,6 +17,9 @@ public static unsafe class WicPicture
     /// <summary>Windows has no decoder for the picture's format (a HEIF extension not installed, say).</summary>
     public const int NoDecoder = unchecked((int)0x88982F50);
 
+    /// <summary>The decoder is listed but cannot start: a Store extension (WebP's, say) that is not installed.</summary>
+    public const int DecoderUnavailable = unchecked((int)0x88982F8B);
+
     /// <summary>
     /// Decodes <paramref name="data"/>, turned by the Exif <paramref name="orientation"/> (1 to 8),
     /// shrunk to fit within <paramref name="maxSide"/> pixels a side if it is bigger.

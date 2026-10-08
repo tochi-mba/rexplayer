@@ -34,6 +34,9 @@ public sealed class WicPictureDecoder : IVideoDecoder
     /// <summary>The longest side a picture is shown at; bigger ones are shrunk to it.</summary>
     public const int MaxSide = 8192;
 
+    /// <summary>What is said when Windows cannot decode a picture's format at all.</summary>
+    public const string NoDecoderMessage = "Windows has no decoder for this kind of picture. WebP, HEIC and AVIF pictures need the WebP Image Extension, HEIF Image Extensions or AV1 Video Extension from the Microsoft Store.";
+
     public string Name => "Windows Imaging";
 
     public DecoderSource Source => DecoderSource.OsSoftware;
@@ -48,9 +51,9 @@ public sealed class WicPictureDecoder : IVideoDecoder
         {
             bitmap = WicPicture.Decode(data, ExifOrientation.Of(data), MaxSide);
         }
-        catch (COMException ex) when (ex.HResult == WicPicture.NoDecoder)
+        catch (COMException ex) when (ex.HResult is WicPicture.NoDecoder or WicPicture.DecoderUnavailable)
         {
-            throw new MediaFormatException("Windows has no decoder for this kind of picture. HEIC and AVIF pictures need the HEIF Image Extensions or AV1 Video Extension from the Microsoft Store.");
+            throw new MediaFormatException(NoDecoderMessage);
         }
         catch (COMException ex)
         {

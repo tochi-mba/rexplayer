@@ -47,7 +47,18 @@ public sealed class WicPictureDecoderTests
     [InlineData("still.webp")]
     public void LosslessPicturesMatchFfmpegExactly(string name)
     {
-        var (width, height, pixels) = Decode(Fixture(name));
+        int width, height;
+        byte[] pixels;
+        try
+        {
+            (width, height, pixels) = Decode(Fixture(name));
+        }
+        catch (MediaFormatException ex) when (ex.Message == WicPictureDecoder.NoDecoderMessage)
+        {
+            Assert.Skip($"This Windows cannot decode {name} (Windows Server has no WebP Image Extension).");
+            return;
+        }
+
 
         Assert.Equal((Width, Height), (width, height));
         Assert.True(Fixture("still.reference.bgra").AsSpan().SequenceEqual(pixels), $"{name} differs from FFmpeg's pixels");

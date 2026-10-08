@@ -96,7 +96,29 @@ internal sealed class SessionHarness : IDisposable
 
     public void WaitForState(SessionState state) => WaitFor<StateChangedEvent>(e => e.To == state);
 
-    public Task FinishAsync() => Session.WaitForFinishAsync().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+    /// <summary>
+    /// Waits for the session to finish and for its events to arrive: they are delivered on a thread
+    /// of their own, after the session has moved on, so the last state change seen is the finish.
+    /// </summary>
+    public async Task FinishAsync()
+    {
+        await Session.WaitForFinishAsync().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var finished = Session.State;
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        lock (_gate)
+        {
+            while (_events.OfType<StateChangedEvent>().LastOrDefault()?.To != finished)
+            {
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    throw new TimeoutException($"The move to {finished} never arrived.");
+                }
+
+                Monitor.Wait(_gate, remaining);
+            }
+        }
+    }
 
     public void Dispose() => Session.Dispose();
 
