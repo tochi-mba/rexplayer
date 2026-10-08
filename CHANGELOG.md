@@ -3,6 +3,35 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.7.0 - 2026-10-08
+
+### Added
+
+- **Pictures.** JPEG, PNG, GIF, WebP, BMP and TIFF open like any other media, and HEIC and AVIF
+  too where Windows has their extensions. Each shows for 5 seconds (Preferences, Playback) before
+  the next item, so a folder of pictures plays as a slideshow; an album's cover stays out of its
+  playlist. Animated GIFs move, with rexplayer's own GIF decoder; photos stand the right way up,
+  as their cameras recorded. Zoom, pan, full screen and snapshots work on pictures as on video.
+  The installer adds rexplayer to Open with for pictures too.
+- **The media library** (View, Library, or Ctrl+Shift+L). Choose folders and rexplayer keeps up
+  with the music and videos in them as files come and go: songs, albums, artists and genres;
+  videos with their pictures; what you played or added lately; videos you left part-way; and a
+  search across everything. It fills in quietly in the background.
+- **Named playlists.** Keep the playlist, or the entries you choose, under a name (Media,
+  Playlists), add what is playing to any of them (Playback, Add to a playlist), and play, rename,
+  copy or delete them.
+- **Cover and lyrics.** Music shows its cover (its own, or a cover.jpg or folder.jpg beside it)
+  with its title, artist and album; lyrics from an .lrc file beside the song, or its own tag,
+  follow along with the line being sung marked.
+- **Ogg and Opus.** .ogg, .oga and .opus files play: Vorbis and FLAC with rexplayer's own
+  decoders, Opus with the decoder Windows provides, also inside WebM.
+- **Louder.** The volume goes to 200 % out of the box, bending smoothly at the top instead of
+  clipping.
+
+### Fixed
+
+- An MP4 whose header gives an impossible length no longer fails to open.
+
 ## 0.6.0 - 2026-10-08
 
 ### Added

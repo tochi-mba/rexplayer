@@ -8,11 +8,13 @@ window to watch and listen in, and a command line made for scripts.
 [Capability matrix](docs/capability-matrix.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.6.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
-> the graphics card, and MP3, FLAC, WAV, RF64 and AIFF without a gap from one file to the next,
-> with subtitles, an equaliser, playback speed without a change of pitch, visualisations,
-> playlist files and cue sheets, bookmarks, resume, a sleep timer, full screen and snapshots. rexplayer decodes MP3, FLAC and PCM itself and
-> hands H.264, HEVC and AAC to Windows' own decoders. More formats, streaming and the rest of the
+> **Status: 0.7.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
+> the graphics card; MP3, FLAC, Ogg, Opus, WAV, RF64 and AIFF without a gap from one file to the
+> next; and pictures (JPEG, PNG, animated GIF, WebP, BMP, TIFF), a folder of them as a slideshow.
+> A media library keeps up with the folders you choose, with named playlists, covers and lyrics,
+> subtitles, an equaliser, playback speed without a change of pitch, visualisations, bookmarks,
+> resume, a sleep timer, full screen and snapshots. rexplayer decodes MP3, FLAC, Vorbis, GIF and PCM
+> itself and hands H.264, HEVC, AAC, Opus and the other picture formats to Windows' own decoders. More formats, streaming and the rest of the
 > [capability matrix](docs/capability-matrix.md) arrive release by release.
 
 ## Install
@@ -38,6 +40,9 @@ window to watch and listen in, and a command line made for scripts.
 | Pause, jump, change the volume | Space; Left and Right jump 10 seconds; Up and Down change the volume |
 | Full screen | Double-click the picture, or press F; Escape leaves |
 | Look closer | Alt with the mouse wheel zooms in where the pointer is; drag to move about; Alt+0 shows it all |
+| Look through pictures | Open a folder of them: each shows for 5 seconds (Preferences, Playback), GIFs move |
+| Browse your music and videos | View, Library (Ctrl+Shift+L): add your folders, then search, or go by album, artist or genre |
+| Keep a playlist | Media, Playlists, New playlist; Playback, Add to a playlist adds what is playing |
 | Subtitles | Keep `film.srt` beside `film.mkv`, or drop the file on the window; V switches, G and H shift them |
 | Carry on later | Open it again: rexplayer offers to go back to where you stopped. Ctrl+B adds a bookmark |
 | Save the playlist | Ctrl+Y (M3U8, XSPF or PLS); Ctrl+X opens one |
