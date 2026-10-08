@@ -33,6 +33,9 @@ public partial class App : Application
         ? root
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "REX", "rexplayer");
 
+    /// <summary>When this launch started, which says whether its files belong with another launch's.</summary>
+    public static DateTimeOffset LaunchedAt { get; } = new(System.Diagnostics.Process.GetCurrentProcess().StartTime);
+
     public static string SettingsPath { get; } = Path.Combine(DataRoot, "settings.json");
 
     public static RexLog Log { get; } = new(new RexLogOptions { Directory = Path.Combine(DataRoot, "logs"), FileName = "rexplayer.log" });
@@ -50,7 +53,7 @@ public partial class App : Application
                 Foreground.AllowAnyProcess();
             }
 
-            var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch }, FindRunningPlayer);
+            var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }, FindRunningPlayer);
             if (reply is { Ok: true })
             {
                 Log.Info("app", "Handed over to the player that was already running.");

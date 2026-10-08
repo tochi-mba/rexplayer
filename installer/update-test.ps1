@@ -34,13 +34,13 @@ try {
     Invoke-Installer @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$installDir`"")
     if (-not (Test-Path (Join-Path $installDir 'rexplayer.exe'))) { throw 'rexplayer.exe was not installed.' }
     Start-Sleep -Seconds 3
-    if ((Get-Installed).Count -gt 0) { throw 'A silent install opened rexplayer; only an update should.' }
+    if (@(Get-Installed).Count -gt 0) { throw 'A silent install opened rexplayer; only an update should.' }
     if (-not (Test-OpenWith)) { throw 'rexplayer is not offered in "Open with" for .mp4 files.' }
 
     Invoke-Installer @('/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/relaunch=1', "/DIR=`"$installDir`"")
     $deadline = (Get-Date).AddSeconds(30)
-    while ((Get-Installed).Count -eq 0 -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
-    if ((Get-Installed).Count -eq 0) { throw 'The update did not open rexplayer again.' }
+    while (@(Get-Installed).Count -eq 0 -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+    if (@(Get-Installed).Count -eq 0) { throw 'The update did not open rexplayer again.' }
     Write-Host 'The update installed and opened rexplayer again.'
 
     Get-Installed | ForEach-Object { $_.Kill(); $_.WaitForExit(10000) | Out-Null }

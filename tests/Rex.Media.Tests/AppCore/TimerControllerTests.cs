@@ -168,28 +168,24 @@ public sealed class TimerControllerTests
     }
 
     [Fact]
-    public void FilesHandedOverInABurstJoinOnePlaylist()
+    public void FilesFromLaunchesStartedTogetherJoinOnePlaylist()
     {
-        var time = new ManualTime();
-        using var harness = Harness(autoPlay: false, time: time);
+        using var harness = Harness(autoPlay: false);
         var controller = harness.Controller;
+        var start = new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero);
 
-        // Explorer opening three selected files: one launch each, moments apart.
-        controller.Open(["a.wav"]);
-        time.Now += TimeSpan.FromMilliseconds(300);
-        controller.OpenHandedOver(["b.wav"], enqueue: false);
-        time.Now += TimeSpan.FromMilliseconds(300);
-        controller.OpenHandedOver(["long.wav"], enqueue: false);
-        Assert.Equal(["a.wav", "b.wav", "long.wav"], controller.Playlist.Items.Select(item => item.Location));
+        // Explorer opening three selected files: one launch each, started together, arriving in any order.
+        controller.OpenHandedOver(["b.wav"], enqueue: false, start + TimeSpan.FromMilliseconds(40));
+        controller.OpenHandedOver(["a.wav"], enqueue: false, start);
+        controller.OpenHandedOver(["long.wav"], enqueue: false, start + TimeSpan.FromMilliseconds(90));
+        Assert.Equal(["b.wav", "a.wav", "long.wav"], controller.Playlist.Items.Select(item => item.Location));
 
-        // Later, a file opened from Explorer plays on its own, unless the user asked for it to join.
-        time.Now += PlayerController.HandOverBurst + TimeSpan.FromSeconds(5);
-        controller.OpenHandedOver(["b.wav"], enqueue: false);
+        // A launch started later plays on its own, unless the user asked for it to join.
+        controller.OpenHandedOver(["b.wav"], enqueue: false, start + TimeSpan.FromSeconds(8));
         Assert.Equal(["b.wav"], controller.Playlist.Items.Select(item => item.Location));
-        time.Now += TimeSpan.FromMinutes(1);
-        controller.OpenHandedOver(["a.wav"], enqueue: true);
+        controller.OpenHandedOver(["a.wav"], enqueue: true, start + TimeSpan.FromMinutes(1));
         Assert.Equal(2, controller.Playlist.Items.Count);
-        Assert.Throws<ArgumentNullException>(() => controller.OpenHandedOver(null!, false));
+        Assert.Throws<ArgumentNullException>(() => controller.OpenHandedOver(null!, false, start));
     }
 
     [Fact]

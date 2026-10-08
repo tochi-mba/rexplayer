@@ -23,6 +23,9 @@ public sealed record AutomationRequest
     public bool Enqueue { get; init; }
 
     public string? Id { get; init; }
+
+    /// <summary>When the launch sending files started; launches moments apart are one choice in Explorer.</summary>
+    public DateTimeOffset? LaunchedAt { get; init; }
 }
 
 /// <summary>The player's answer: whether it did it, or why not, and what it is playing.</summary>

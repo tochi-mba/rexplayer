@@ -393,7 +393,7 @@ public sealed partial class MainWindow
                 case "open":
                     if (request.Paths.Count > 0)
                     {
-                        _player.OpenHandedOver(request.Paths, request.Enqueue);
+                        _player.OpenHandedOver(request.Paths, request.Enqueue, request.LaunchedAt ?? DateTimeOffset.Now);
                     }
 
                     ComeForward();

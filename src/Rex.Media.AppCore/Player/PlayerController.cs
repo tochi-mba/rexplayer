@@ -28,13 +28,13 @@ public sealed partial class PlayerController : IDisposable
     private readonly Action<string, byte[]> _writeFile;
     private readonly TimeProvider _time;
     private double _fade = 1;
-    private DateTimeOffset? _lastOpened;
+    private DateTimeOffset? _lastLaunch;
 
     /// <summary>
-    /// Files handed over by other launches this soon after the last open join it: Explorer opens
-    /// several selected files with one launch each, and they belong in one playlist.
+    /// Launches started this close together hand over files that join one playlist: Explorer opens
+    /// several selected files with one launch each, all at once.
     /// </summary>
-    public static readonly TimeSpan HandOverBurst = TimeSpan.FromSeconds(2);
+    public static readonly TimeSpan HandOverBurst = TimeSpan.FromSeconds(1.5);
     private readonly Action<Action> _dispatch;
     private MediaSession? _session;
     private bool _openedInSession;
@@ -181,7 +181,6 @@ public sealed partial class PlayerController : IDisposable
     public void Open(IEnumerable<string> locations, bool enqueue = false)
     {
         ArgumentNullException.ThrowIfNull(locations);
-        _lastOpened = _time.GetUtcNow();
         var items = locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0)).ToList();
         if (items.Count == 0)
         {
@@ -202,13 +201,15 @@ public sealed partial class PlayerController : IDisposable
     }
 
     /// <summary>
-    /// Opens files another launch of rexplayer handed over: as <see cref="Open"/> does, except that
-    /// arriving within <see cref="HandOverBurst"/> of the last open they join the playlist.
+    /// Opens files a launch of rexplayer (this one, or another that handed them over) started at
+    /// <paramref name="launchedAt"/> asked for: as <see cref="Open"/> does, except that files from
+    /// launches started within <see cref="HandOverBurst"/> of each other join one playlist.
     /// </summary>
-    public void OpenHandedOver(IReadOnlyList<string> locations, bool enqueue)
+    public void OpenHandedOver(IReadOnlyList<string> locations, bool enqueue, DateTimeOffset launchedAt)
     {
         ArgumentNullException.ThrowIfNull(locations);
-        var burst = _lastOpened is { } last && _time.GetUtcNow() - last < HandOverBurst;
+        var burst = _lastLaunch is { } last && (launchedAt - last).Duration() < HandOverBurst;
+        _lastLaunch = launchedAt;
         Open(locations, enqueue || burst);
     }
 

@@ -12,6 +12,9 @@ namespace Rex.Media.App;
 
 public sealed partial class MainWindow
 {
+    // Keys whose press ran a shortcut: their release is the shortcut's too.
+    private readonly HashSet<VirtualKey> _shortcutKeys = [];
+
     private static bool IsDown(VirtualKey key) =>
         InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
 
@@ -30,7 +33,20 @@ public sealed partial class MainWindow
             && _keymap.CommandFor(chord) is { } command)
         {
             e.Handled = true;
+            _shortcutKeys.Add(e.Key);
             Run(command);
+        }
+    }
+
+    /// <summary>
+    /// The release of a key that ran a shortcut goes no further: buttons and menus act on Space and
+    /// Enter when they are released, so a focused menu would open, or a focused button click, as well.
+    /// </summary>
+    private void OnPreviewKeyUp(object sender, KeyRoutedEventArgs e)
+    {
+        if (_shortcutKeys.Remove(e.Key))
+        {
+            e.Handled = true;
         }
     }
 

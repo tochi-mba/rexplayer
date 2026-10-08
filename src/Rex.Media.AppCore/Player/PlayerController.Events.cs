@@ -277,6 +277,15 @@ public sealed partial class PlayerController
 
                 break;
             case EndedEvent:
+                // The file ended: parts of it that ran on from this one (a cue sheet's later tracks)
+                // have played too, even when their last position report was merged away.
+                while (Item?.End is { } partEnd && Playlist.PeekNext(automatic: true) is { } carriedOn && carriedOn != Item
+                    && carriedOn.Location == Item.Location && carriedOn.Start == partEnd)
+                {
+                    Item = Playlist.Next(automatic: true)!;
+                    Duration = PartDuration(Info?.Duration ?? MediaTime.Unknown);
+                }
+
                 Position = Duration;
                 RememberPosition();
                 PositionChanged?.Invoke(this, EventArgs.Empty);

@@ -90,6 +90,7 @@ public sealed partial class MainWindow : Window
 
         BuildMenus();
         Root.AddHandler(UIElement.PreviewKeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(OnPreviewKeyDown), handledEventsToo: true);
+        Root.AddHandler(UIElement.PreviewKeyUpEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(OnPreviewKeyUp), handledEventsToo: true);
         Video.Loaded += (_, _) => AttachVideo();
         Video.SizeChanged += (_, _) => ResizeVideo();
         Video.CompositionScaleChanged += (_, _) => ResizeVideo();
@@ -155,7 +156,7 @@ public sealed partial class MainWindow : Window
         if (_startupFiles is { Count: > 0 } files)
         {
             // Files handed over by other launches just before this one is ready join these.
-            _player.OpenHandedOver(files, enqueue: false);
+            _player.OpenHandedOver(files, enqueue: false, App.LaunchedAt);
         }
         else if (_startupFiles is not null)
         {

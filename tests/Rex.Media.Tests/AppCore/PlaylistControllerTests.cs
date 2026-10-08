@@ -204,6 +204,29 @@ public sealed class PlaylistControllerTests
     }
 
     [Fact]
+    [Capability("PLF-04")]
+    public void AFileThatEndsBeforeItsTrackDoesFinishesTheTracksAfterItInTheFile()
+    {
+        using var harness = new ControllerHarness(settings: Quiet);
+        harness.Files["album.wav"] = Count(0, 8000);
+        harness.Files["album.cue"] = Text("""
+            FILE "album.wav" WAVE
+              TRACK 01 AUDIO
+                INDEX 01 00:00:00
+              TRACK 02 AUDIO
+                INDEX 01 00:02:00
+            """);
+
+        // The sheet says track 1 runs to 2 s, but the file is 1 s long: it ends inside track 1,
+        // and track 2 (which would start after the end) must not start again from the top.
+        harness.Controller.Open(["album.cue"]);
+        harness.PumpUntil(c => EndedOn(c, "Track 02"));
+
+        Assert.Single(harness.Sinks);
+        Assert.Equal(Expected((0, 8000)), harness.Played());
+    }
+
+    [Fact]
     public void APartAtTheEndOfThePlaylistEndsThePlaying()
     {
         using var harness = new ControllerHarness(settings: Quiet);
