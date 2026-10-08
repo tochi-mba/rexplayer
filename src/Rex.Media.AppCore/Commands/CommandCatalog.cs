@@ -89,6 +89,7 @@ public static class CommandCatalog
     public const string OpenLocation = "open-location";
     public const string PasteLocation = "paste-location";
     public const string TogglePlaylist = "toggle-playlist";
+    public const string ToggleLibrary = "toggle-library";
     public const string ClearPlaylist = "clear-playlist";
     public const string MinimalInterface = "minimal-interface";
     public const string MediaInformation = "media-information";
@@ -174,6 +175,7 @@ public static class CommandCatalog
         New(PasteLocation, "Play what is on the clipboard", Media, "Ctrl+V"),
         New(Quit, "Quit", Media, "Ctrl+Q"),
         New(TogglePlaylist, "Playlist", View, "Ctrl+L"),
+        New(ToggleLibrary, "Library", View, "Ctrl+Shift+L"),
         New(SavePlaylist, "Save the playlist", View, "Ctrl+Y"),
         New(OpenPlaylist, "Open a playlist", View, "Ctrl+X"),
         New(AddBookmark, "Add a bookmark here", Playback, "Ctrl+B"),

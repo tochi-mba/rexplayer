@@ -82,6 +82,7 @@ public sealed partial class MainWindow : Window
         WireSubtitles();
         WireVisualizer();
         WireMemory();
+        WireLibrary();
         WireZoom();
         WireSeekBar();
 
@@ -505,6 +506,7 @@ public sealed partial class MainWindow : Window
         _sleepTimer.Stop();
         SaveSettings();
         _player.SaveQueue();
+        CloseLibrary();
         TryClearResumeMarker();
         KeepAwake(false, false);
         _player.Dispose();

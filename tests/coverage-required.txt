@@ -62,6 +62,8 @@ Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
 LevelMeter.cs
+LibraryScanner.cs
+LibraryViews.cs
 Lyrics.cs
 M3u.cs
 MachineEnvelope.cs
@@ -72,6 +74,7 @@ MediaClock.cs
 MediaFiles.cs
 MediaFormatException.cs
 MediaInfo.cs
+MediaLibrary.cs
 MediaRegistries.cs
 MediaSession.Commands.cs
 MediaSession.cs
@@ -102,6 +105,7 @@ Playback.cs
 Playback.Video.cs
 PlayerController.cs
 PlayerController.Events.cs
+PlayerController.Library.cs
 PlayerController.Memory.cs
 PlayerController.NamedPlaylists.cs
 PlayerController.Playlists.cs

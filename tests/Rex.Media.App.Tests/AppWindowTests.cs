@@ -141,6 +141,30 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void TheLibraryFindsTheSongsInItsFoldersAndPlaysThem()
+    {
+        Song(30);
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log"))).AddFolder(_media);
+        using var app = AppProcess.Start(root: root);
+
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => app.IsShown("LibraryPane"), "the library");
+        var song = Wait.Until(() => app.Find("LibraryList").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Sungba")));
+        ((SelectionItemPattern)song!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song to play");
+
+        ((ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern)).SetValue("no such song");
+        Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText") == "Nothing in the library matches that.", "no results");
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => !app.IsShown("LibraryPane"), "the library to close");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-04")]
     public void APlaylistIsNamedFromTheMenuAndDeletedAgain()
     {

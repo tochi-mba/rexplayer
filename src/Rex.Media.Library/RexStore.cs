@@ -110,7 +110,36 @@ public sealed class RexStore
             }
 
             _values[key] = value;
-            Append(key, value);
+            Append([(key, value)]);
+        }
+    }
+
+    /// <summary>
+    /// Makes several changes in one write to the disk (a value of null forgets its key), for the
+    /// library's thousands of files. Each change is still its own checked line, so a crash part-way
+    /// keeps every change before the one it cut.
+    /// </summary>
+    public void SetMany(IReadOnlyCollection<KeyValuePair<string, string?>> changes)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        lock (_gate)
+        {
+            var lines = new List<(string Key, string? Value)>();
+            foreach (var (key, value) in changes)
+            {
+                ArgumentNullException.ThrowIfNull(key);
+                if (value is null ? _values.Remove(key) : !(_values.TryGetValue(key, out var old) && old == value))
+                {
+                    if (value is not null)
+                    {
+                        _values[key] = value;
+                    }
+
+                    lines.Add((key, value));
+                }
+            }
+
+            Append(lines);
         }
     }
 
@@ -125,7 +154,7 @@ public sealed class RexStore
                 return false;
             }
 
-            Append(key, null);
+            Append([(key, null)]);
             return true;
         }
     }
@@ -174,9 +203,9 @@ public sealed class RexStore
         }
     }
 
-    private void Append(string key, string? value)
+    private void Append(IReadOnlyList<(string Key, string? Value)> changes)
     {
-        if (Path is null)
+        if (Path is null || changes.Count == 0)
         {
             return;
         }
@@ -190,10 +219,15 @@ public sealed class RexStore
 
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
         using var stream = new FileStream(Path, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
-        var bytes = Encoding.UTF8.GetBytes(Line(key, value) + "\n");
-        stream.Write(bytes);
+        var text = new StringBuilder();
+        foreach (var (key, value) in changes)
+        {
+            text.Append(Line(key, value)).Append('\n');
+        }
+
+        stream.Write(Encoding.UTF8.GetBytes(text.ToString()));
         stream.Flush(flushToDisk: true);
-        _lines++;
+        _lines += changes.Count;
     }
 
     /// <summary>"checksum json": the CRC-32 of the JSON in hexadecimal, a space, then the record.</summary>

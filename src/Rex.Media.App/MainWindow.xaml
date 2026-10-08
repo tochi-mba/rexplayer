@@ -2,7 +2,8 @@
 <Window
     x:Class="Rex.Media.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Rex.Media.App">
 
   <Grid x:Name="Root" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
     <Grid.RowDefinitions>
@@ -94,6 +95,93 @@
         </Border>
       </Grid>
 
+      <!-- The media library (LIB-05), over the picture while it is open; what plays keeps playing. -->
+      <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+            AutomationProperties.AutomationId="LibraryPane" AutomationProperties.Name="Library">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="200" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <ListView x:Name="LibrarySources" Grid.Column="0" SelectionMode="Single" Padding="0,8" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                  SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
+
+        <Grid Grid.Column="1" Padding="16,12,16,8" RowSpacing="8">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="LibraryBack" Visibility="Collapsed" Click="OnLibraryBack" AutomationProperties.AutomationId="LibraryBack" AutomationProperties.Name="Back"
+                    ToolTipService.ToolTip="Back">
+              <FontIcon Glyph="&#xE72B;" />
+            </Button>
+            <TextBlock x:Name="LibraryTitle" Grid.Column="1" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       AutomationProperties.AutomationId="LibraryTitle" />
+            <TextBox x:Name="LibrarySearch" Grid.Column="2" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
+                     AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
+          </Grid>
+
+          <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="LibraryPlay" Click="OnLibraryPlay" AutomationProperties.AutomationId="LibraryPlay" ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
+              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock Text="Play" /></StackPanel>
+            </Button>
+            <Button x:Name="LibraryEnqueue" Grid.Column="1" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
+              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to the playlist" /></StackPanel>
+            </Button>
+            <StackPanel x:Name="LibraryFolderActions" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+              <Button x:Name="LibraryAddFolder" Content="Add a folder..." Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryAddFolder" />
+              <Button x:Name="LibraryRemoveFolder" Content="Stop watching" Click="OnLibraryRemoveFolder" AutomationProperties.AutomationId="LibraryRemoveFolder"
+                      ToolTipService.ToolTip="The library forgets the chosen folders; the files stay where they are" />
+              <Button x:Name="LibraryRescan" Content="Look again" Click="OnLibraryRescan" AutomationProperties.AutomationId="LibraryRescan"
+                      ToolTipService.ToolTip="Look through every folder for files added, changed or removed" />
+            </StackPanel>
+            <TextBlock x:Name="LibraryStatus" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextTrimming="CharacterEllipsis" AutomationProperties.AutomationId="LibraryStatus" />
+          </Grid>
+
+          <ListView x:Name="LibraryList" Grid.Row="2" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="OnLibraryDoubleTapped" KeyDown="OnLibraryKeyDown"
+                    AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Library items">
+            <ListView.ItemTemplate>
+              <DataTemplate x:DataType="local:LibraryRow">
+                <Grid ColumnSpacing="12" Padding="0,4" AutomationProperties.Name="{x:Bind Name}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <Border Width="96" Height="54" CornerRadius="4" Background="{ThemeResource LayerFillColorDefaultBrush}" Visibility="{x:Bind PictureVisibility}">
+                    <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+                  </Border>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" Text="{x:Bind Extra}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Grid>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+
+          <StackPanel x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12" MaxWidth="440">
+            <TextBlock x:Name="LibraryEmptyText" TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.AutomationId="LibraryEmptyText" />
+            <StackPanel x:Name="LibraryFolderButtons" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+
       <Grid x:Name="PlaylistPane" Grid.Column="1" Width="320" Visibility="Collapsed" Padding="8"
             Background="{ThemeResource LayerFillColorDefaultBrush}" AutomationProperties.AutomationId="PlaylistPane">
         <Grid.RowDefinitions>
@@ -147,6 +235,9 @@
         </ToggleButton>
         <ToggleButton x:Name="PlaylistButton" Click="OnTogglePlaylist" AutomationProperties.AutomationId="PlaylistButton" AutomationProperties.Name="Playlist" ToolTipService.ToolTip="Playlist (Ctrl+L)">
           <FontIcon Glyph="&#xE8FD;" />
+        </ToggleButton>
+        <ToggleButton x:Name="LibraryButton" Click="OnToggleLibrary" AutomationProperties.AutomationId="LibraryButton" AutomationProperties.Name="Library" ToolTipService.ToolTip="Library (Ctrl+Shift+L)">
+          <FontIcon Glyph="&#xE8F1;" />
         </ToggleButton>
         <Button x:Name="FullScreenButton" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen" ToolTipService.ToolTip="Full screen (F)">
           <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />

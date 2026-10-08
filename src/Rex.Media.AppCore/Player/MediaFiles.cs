@@ -24,6 +24,16 @@ public static class MediaFiles
     /// <summary>Whether a file with this name is one the player offers to play.</summary>
     public static bool IsMedia(string path) => Known.Contains(Path.GetExtension(path));
 
+    private static readonly HashSet<string> VideoSet = new(Video, StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> AudioSet = new(Audio, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>What the library files a file as, by its name; null for a file that is not media.</summary>
+    public static Rex.Media.Library.LibraryKind? LibraryKindOf(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return VideoSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Video : AudioSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Music : null;
+    }
+
     /// <summary>
     /// The media in <paramref name="folder"/> in natural order, files before the folders inside it,
     /// each of those (when <paramref name="recursive"/>) expanded the same way. The listings are

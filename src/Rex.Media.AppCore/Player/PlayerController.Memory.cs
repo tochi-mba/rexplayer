@@ -128,6 +128,7 @@ public sealed partial class PlayerController
     public void ClearHistory()
     {
         Memory.ClearHistory();
+        Library?.ClearPlays();
         Say("History cleared");
         Changed?.Invoke(this, EventArgs.Empty);
     }

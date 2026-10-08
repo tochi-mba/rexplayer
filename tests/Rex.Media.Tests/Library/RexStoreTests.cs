@@ -52,6 +52,29 @@ public sealed class RexStoreTests : IDisposable
 
     [Fact]
     [Capability("LIB-11")]
+    public void ManyChangesAreOneWriteOfCheckedLines()
+    {
+        var store = RexStore.Open(StorePath);
+        store.Set("gone", "x");
+        store.SetMany([new("a", "1"), new("b", "2"), new("gone", null), new("missing", null)]);
+        store.SetMany([new("a", "1")]);
+        store.SetMany([]);
+
+        var again = RexStore.Open(StorePath);
+        Assert.Equal(("1", "2", (string?)null), (again.Get("a"), again.Get("b"), again.Get("gone")));
+        Assert.Equal(4, File.ReadAllLines(StorePath).Length);
+
+        // Cut part-way through the batch, the changes before the cut are kept.
+        File.WriteAllBytes(StorePath, File.ReadAllBytes(StorePath)[..^30]);
+        var torn = RexStore.Open(StorePath);
+        Assert.Equal(("1", (string?)null), (torn.Get("a"), torn.Get("b")));
+        Assert.Throws<ArgumentNullException>(() => store.SetMany(null!));
+        Assert.Throws<ArgumentNullException>(() => store.SetMany([new(null!, "x")]));
+        RexStore.InMemory().SetMany([new("a", "1")]);
+    }
+
+    [Fact]
+    [Capability("LIB-11")]
     public void ATornLastWriteLosesOnlyThatChange()
     {
         var store = RexStore.Open(StorePath);

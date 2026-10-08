@@ -249,6 +249,7 @@ public sealed partial class PlayerController
                 _log.Info(LogSource, "Opened " + Describe(opened.Info));
                 Duration = PartDuration(opened.Info.Duration);
                 Memory.Played(Item!.Location);
+                CountPlay(Item);
                 FindPresentation(Item, opened.Info);
                 AddEmbeddedSubtitles(opened.Info);
                 Changed?.Invoke(this, EventArgs.Empty);

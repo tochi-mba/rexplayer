@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 158 planned, 43 built, 88 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 157 planned, 43 built, 89 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -314,7 +314,7 @@ Totals: 158 planned, 43 built, 88 verified, 1 verified-hardware, 27 post-1.0.
 | LIB-02 | Adding media | Open file(s) Ctrl+O, folder Ctrl+F, disc Ctrl+D, network Ctrl+N, capture Ctrl+C, paste location Ctrl+V; drag-and-drop (drop plays, Ctrl+drop enqueues, drop on the list inserts at that position); recursive folder expansion with natural sort; playlist files expand in place | M4 | must | verified |
 | LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | verified |
 | LIB-04 | Named playlists | Create, rename, duplicate, delete; add to playlist from anywhere | M6 | must | verified |
-| LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications plus a periodic rescan; low-priority background probing (duration, tags, thumbnails); views: Videos (thumbnail grid; series/season grouping C), Music (artists, albums, tracks, genres), Pictures (S), Recent, Playlists, Podcasts; library-wide search; play counts and last played; "Continue watching" row | M6 | must | planned |
+| LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications plus a periodic rescan; low-priority background probing (duration, tags, thumbnails); views: Videos (thumbnail grid; series/season grouping C), Music (artists, albums, tracks, genres), Pictures (S), Recent, Playlists, Podcasts; library-wide search; play counts and last played; "Continue watching" row | M6 | must | verified |
 | LIB-06 | Sidebar sources | Playlist, Library, Discs, Local network (DLNA servers, Windows shares, SAP), Internet (podcasts, provider extensions) | M6/M10 | must | planned |
 | LIB-07 | Recent media | Menu + jump list; clear; "do not keep history" privacy switch | M6 | must | built |
 | LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified |

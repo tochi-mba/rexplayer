@@ -156,6 +156,8 @@ public sealed partial class MainWindow
 
     private void OnTogglePlaylist(object sender, RoutedEventArgs e) => Run(CommandCatalog.TogglePlaylist);
 
+    private void OnToggleLibrary(object sender, RoutedEventArgs e) => Run(CommandCatalog.ToggleLibrary);
+
     private void OnFullScreen(object sender, RoutedEventArgs e) => Run(CommandCatalog.ToggleFullScreen);
 
     private void OnMute(object sender, RoutedEventArgs e) => Run(CommandCatalog.Mute);
