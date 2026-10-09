@@ -164,10 +164,7 @@ public sealed partial class MainWindow
     private void OnStagePressed(object sender, PointerRoutedEventArgs e)
     {
         var point = e.GetCurrentPoint(Stage);
-        var button = point.Properties.IsMiddleButtonPressed ? CommandCatalog.PlayPause
-            : point.Properties.IsXButton1Pressed ? CommandCatalog.Previous
-            : point.Properties.IsXButton2Pressed ? CommandCatalog.Next
-            : null;
+        var button = ButtonCommand(point);
         if (button is not null)
         {
             Run(button);

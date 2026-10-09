@@ -89,6 +89,7 @@ public static class CommandCatalog
     public const string OpenLocation = "open-location";
     public const string PasteLocation = "paste-location";
     public const string TogglePlaylist = "toggle-playlist";
+    public const string KeyboardAndMouse = "keyboard-and-mouse";
     public const string ToggleLibrary = "toggle-library";
     public const string ClearPlaylist = "clear-playlist";
     public const string MinimalInterface = "minimal-interface";
@@ -195,6 +196,7 @@ public static class CommandCatalog
         New(OpenLogFolder, "Open the log folder", Tools),
         New(SaveDiagnostics, "Save diagnostics for a problem report", Tools),
         New(Preferences, "Preferences", Tools, "Ctrl+P"),
+        New(KeyboardAndMouse, "Keyboard and mouse", Tools, "Ctrl+K"),
         New(Effects, "Effects and equaliser", Tools, "Ctrl+E"),
         New(Help, "Help", Tools, "F1"),
         New(CheckForUpdates, "Check for updates", Tools),

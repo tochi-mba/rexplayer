@@ -138,6 +138,7 @@ SequenceInfo.cs
 SessionEvents.cs
 SessionState.cs
 SettingsStore.cs
+ShortcutEditing.cs
 SilentAudio.cs
 SlotPool.cs
 Snapshot.cs

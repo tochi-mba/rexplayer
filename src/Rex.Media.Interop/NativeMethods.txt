@@ -160,3 +160,9 @@ IWICBitmapScaler
 IWICBitmapFlipRotator
 GUID_WICPixelFormat32bppBGRA
 SHCreateMemStream
+RegisterHotKey
+UnregisterHotKey
+SetWindowSubclass
+RemoveWindowSubclass
+DefSubclassProc
+WM_HOTKEY

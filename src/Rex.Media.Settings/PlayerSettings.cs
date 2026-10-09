@@ -98,6 +98,35 @@ public enum SleepChoice
     Stop,
 }
 
+/// <summary>What turning the mouse wheel over the picture does (UI-11).</summary>
+public enum WheelChoice
+{
+    Volume,
+
+    /// <summary>Jumps forwards and backwards by the very short jump.</summary>
+    Seek,
+    None,
+}
+
+/// <summary>What the middle mouse button does over the picture (UI-11).</summary>
+public enum MiddleButtonChoice
+{
+    PlayPause,
+    FullScreen,
+    Mute,
+    None,
+}
+
+/// <summary>What the mouse's back and forward buttons do over the picture (UI-11).</summary>
+public enum SideButtonChoice
+{
+    PreviousNext,
+
+    /// <summary>Jumps back and forward by the short jump.</summary>
+    JumpBackForward,
+    None,
+}
+
 /// <summary>Where the window was, so it opens there again.</summary>
 public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool Maximized);
 
@@ -286,6 +315,18 @@ public sealed record PlayerSettings
     /// </summary>
     public IReadOnlyDictionary<string, string> Shortcuts { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
+    /// <summary>Commands whose shortcut works even while another program is in front (UI-11).</summary>
+    public IReadOnlyList<string> GlobalShortcuts { get; init; } = [];
+
+    public WheelChoice Wheel { get; init; } = WheelChoice.Volume;
+
+    /// <summary>What a sideways wheel (or tilting the wheel) does.</summary>
+    public WheelChoice SidewaysWheel { get; init; } = WheelChoice.Seek;
+
+    public MiddleButtonChoice MiddleButton { get; init; } = MiddleButtonChoice.PlayPause;
+
+    public SideButtonChoice SideButtons { get; init; } = SideButtonChoice.PreviousNext;
+
     private static int Rgb(int value) => value & 0xFFFFFF;
 
     private static double Decibels(double value) => double.IsFinite(value) ? Math.Clamp(value, -20, 20) : 0;
@@ -315,6 +356,11 @@ public sealed record PlayerSettings
             Theme = Enum.IsDefined(Theme) ? Theme : ThemeChoice.System,
             UpdateChecks = Enum.IsDefined(UpdateChecks) ? UpdateChecks : UpdateCadence.Weekly,
             Shortcuts = Shortcuts ?? new Dictionary<string, string>(StringComparer.Ordinal),
+            GlobalShortcuts = [.. (GlobalShortcuts ?? []).Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.Ordinal)],
+            Wheel = Enum.IsDefined(Wheel) ? Wheel : WheelChoice.Volume,
+            SidewaysWheel = Enum.IsDefined(SidewaysWheel) ? SidewaysWheel : WheelChoice.Seek,
+            MiddleButton = Enum.IsDefined(MiddleButton) ? MiddleButton : MiddleButtonChoice.PlayPause,
+            SideButtons = Enum.IsDefined(SideButtons) ? SideButtons : SideButtonChoice.PreviousNext,
             EqualizerPreamp = Decibels(EqualizerPreamp),
             EqualizerGains = [.. Enumerable.Range(0, 10).Select(i => Decibels(EqualizerGains is { } gains && i < gains.Count ? gains[i] : 0))],
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,

@@ -214,32 +214,32 @@
                  Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
 
       <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4">
-        <Button x:Name="PreviousButton" Click="OnPrevious" AutomationProperties.AutomationId="PreviousButton" AutomationProperties.Name="Previous" ToolTipService.ToolTip="Previous (P)">
+        <Button x:Name="PreviousButton" Click="OnPrevious" AutomationProperties.AutomationId="PreviousButton" AutomationProperties.Name="Previous">
           <FontIcon Glyph="&#xE892;" />
         </Button>
-        <Button x:Name="PlayPauseButton" Click="OnPlayPause" AutomationProperties.AutomationId="PlayPauseButton" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play or pause (Space)">
+        <Button x:Name="PlayPauseButton" Click="OnPlayPause" AutomationProperties.AutomationId="PlayPauseButton" AutomationProperties.Name="Play">
           <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" />
         </Button>
-        <Button x:Name="StopButton" Click="OnStop" AutomationProperties.AutomationId="StopButton" AutomationProperties.Name="Stop" ToolTipService.ToolTip="Stop (S)">
+        <Button x:Name="StopButton" Click="OnStop" AutomationProperties.AutomationId="StopButton" AutomationProperties.Name="Stop">
           <FontIcon Glyph="&#xE71A;" />
         </Button>
-        <Button x:Name="NextButton" Click="OnNext" AutomationProperties.AutomationId="NextButton" AutomationProperties.Name="Next" ToolTipService.ToolTip="Next (N)">
+        <Button x:Name="NextButton" Click="OnNext" AutomationProperties.AutomationId="NextButton" AutomationProperties.Name="Next">
           <FontIcon Glyph="&#xE893;" />
         </Button>
         <AppBarSeparator />
-        <ToggleButton x:Name="ShuffleButton" Click="OnShuffle" AutomationProperties.AutomationId="ShuffleButton" AutomationProperties.Name="Shuffle" ToolTipService.ToolTip="Shuffle (R)">
+        <ToggleButton x:Name="ShuffleButton" Click="OnShuffle" AutomationProperties.AutomationId="ShuffleButton" AutomationProperties.Name="Shuffle">
           <FontIcon Glyph="&#xE8B1;" />
         </ToggleButton>
-        <ToggleButton x:Name="RepeatButton" Click="OnRepeat" AutomationProperties.AutomationId="RepeatButton" AutomationProperties.Name="Repeat off" ToolTipService.ToolTip="Repeat (L)">
+        <ToggleButton x:Name="RepeatButton" Click="OnRepeat" AutomationProperties.AutomationId="RepeatButton" AutomationProperties.Name="Repeat off">
           <FontIcon x:Name="RepeatIcon" Glyph="&#xE8EE;" />
         </ToggleButton>
-        <ToggleButton x:Name="PlaylistButton" Click="OnTogglePlaylist" AutomationProperties.AutomationId="PlaylistButton" AutomationProperties.Name="Playlist" ToolTipService.ToolTip="Playlist (Ctrl+L)">
+        <ToggleButton x:Name="PlaylistButton" Click="OnTogglePlaylist" AutomationProperties.AutomationId="PlaylistButton" AutomationProperties.Name="Playlist">
           <FontIcon Glyph="&#xE8FD;" />
         </ToggleButton>
-        <ToggleButton x:Name="LibraryButton" Click="OnToggleLibrary" AutomationProperties.AutomationId="LibraryButton" AutomationProperties.Name="Library" ToolTipService.ToolTip="Library (Ctrl+Shift+L)">
+        <ToggleButton x:Name="LibraryButton" Click="OnToggleLibrary" AutomationProperties.AutomationId="LibraryButton" AutomationProperties.Name="Library">
           <FontIcon Glyph="&#xE8F1;" />
         </ToggleButton>
-        <Button x:Name="FullScreenButton" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen" ToolTipService.ToolTip="Full screen (F)">
+        <Button x:Name="FullScreenButton" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen">
           <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
         </Button>
         <TextBlock x:Name="NowPlaying" Margin="12,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="480"
@@ -247,7 +247,7 @@
       </StackPanel>
 
       <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
-        <Button x:Name="MuteButton" Click="OnMute" AutomationProperties.AutomationId="MuteButton" AutomationProperties.Name="Mute" ToolTipService.ToolTip="Mute (M)">
+        <Button x:Name="MuteButton" Click="OnMute" AutomationProperties.AutomationId="MuteButton" AutomationProperties.Name="Mute">
           <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" />
         </Button>
         <Slider x:Name="VolumeBar" Width="120" Minimum="0" Maximum="200" StepFrequency="1" VerticalAlignment="Center" ValueChanged="OnVolumeChanged"

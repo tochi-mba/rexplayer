@@ -83,6 +83,8 @@ public sealed partial class MainWindow : Window
         WireVisualizer();
         WireMemory();
         WireLibrary();
+        ApplyTooltips();
+        ApplyGlobalShortcuts();
         WireZoom();
         WireSeekBar();
 
@@ -507,6 +509,7 @@ public sealed partial class MainWindow : Window
         SaveSettings();
         _player.SaveQueue();
         CloseLibrary();
+        _globalHotkeys?.Dispose();
         TryClearResumeMarker();
         KeepAwake(false, false);
         _player.Dispose();

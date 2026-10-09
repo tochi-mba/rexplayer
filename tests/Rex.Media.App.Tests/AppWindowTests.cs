@@ -141,6 +141,31 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("UI-11")]
+    public void AShortcutIsChangedInTheEditorAndKept()
+    {
+        using var app = AppProcess.Start();
+
+        AutomationElement Wanted(string automationId) =>
+            Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, automationId)))!;
+
+        app.Run(CommandCatalog.KeyboardAndMouse);
+        ((InvokePattern)Wanted("Shortcut-" + CommandCatalog.Mute).GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        ((ValuePattern)Wanted("ShortcutKeys").GetCurrentPattern(ValuePattern.Pattern)).SetValue("Ctrl+O");
+        app.Press("ShortcutApply");
+
+        // Ctrl+O was opening a file's: the editor says so.
+        Wait.For(() => app.IsShown("ShortcutNote") && Wanted("ShortcutNote").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Ctrl+O was the shortcut for Open files; it has none now.")) is not null, "the note about the move");
+        ((TogglePattern)Wanted("ShortcutGlobal-" + CommandCatalog.PlayPause).GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+        app.Press("PrimaryButton");
+
+        Wait.For(() => app.SavedSettings.Shortcuts.GetValueOrDefault(CommandCatalog.Mute) == "Ctrl+O", "the new shortcut to be kept");
+        Assert.Equal("", app.SavedSettings.Shortcuts[CommandCatalog.OpenFile]);
+        Assert.Equal([CommandCatalog.PlayPause], app.SavedSettings.GlobalShortcuts);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("FMT-C19")]
     public void PicturesShowInTurnAsASlideshow()
     {

@@ -87,7 +87,10 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The wheel over the picture changes the volume; with Ctrl held, the size of the subtitles (OSD-02); with Alt, the zoom (VID-07).</summary>
+    /// <summary>
+    /// The wheel over the picture does what the settings say (the volume, at first); with Ctrl held
+    /// it sizes the subtitles (OSD-02), with Alt it zooms (VID-07).
+    /// </summary>
     private void OnStageWheel(object sender, PointerRoutedEventArgs e)
     {
         var delta = e.GetCurrentPoint(Stage).Properties.MouseWheelDelta;
@@ -97,13 +100,14 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (delta != 0)
+        if (delta != 0 && IsDown(VirtualKey.Control))
         {
-            Run(IsDown(VirtualKey.Control)
-                ? delta > 0 ? CommandCatalog.SubtitlesBigger : CommandCatalog.SubtitlesSmaller
-                : delta > 0 ? CommandCatalog.VolumeUp : CommandCatalog.VolumeDown);
+            Run(delta > 0 ? CommandCatalog.SubtitlesBigger : CommandCatalog.SubtitlesSmaller);
             e.Handled = true;
+            return;
         }
+
+        e.Handled = RunWheel(e.GetCurrentPoint(Stage));
     }
 
     private void OnPlaylistDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

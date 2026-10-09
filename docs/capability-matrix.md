@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 156 planned, 43 built, 90 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 155 planned, 43 built, 91 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -337,7 +337,7 @@ Totals: 156 planned, 43 built, 90 verified, 1 verified-hardware, 27 post-1.0.
 | UI-08 | Media information (Ctrl+I) | General (editable tags + artwork), Metadata (all raw tags), Codec (per stream: codec + decoder used, language, channels, sample rate, bit depth, resolution, fps, pixel format, colour primaries/transfer/matrix/range, rotation, HDR metadata), Statistics (input and demux bitrate, discontinuities, decoded/displayed/late/dropped frames, audio decoded/played/lost buffers, buffer level, network throughput), Location; Ctrl+J opens the Codec tab | M4/M6 | must | built |
 | UI-09 | Log console (Ctrl+M) | Verbosity (error/warning/info/debug), source filter, search, copy, save, clear; "Copy diagnostics bundle" | M4 | must | verified |
 | UI-10 | Preferences | Simple pages (Interface, Playback, Audio, Video, Subtitles & OSD, Input & codecs incl. a decode-ladder view, Network & privacy, Library, Hotkeys, Extensions, Advanced) + All settings: searchable, generated from the typed schema, "modified only" filter, per-setting reset; reset all; import/export | M4/M6 | must | built |
-| UI-11 | Hotkey editor | Rebind any command; conflict detection; per-binding global toggle; mouse settings (wheel = volume / seek / none, horizontal wheel, middle-click and back/forward buttons); reset; export | M6 | must | planned |
+| UI-11 | Hotkey editor | Rebind any command; conflict detection; per-binding global toggle; mouse settings (wheel = volume / seek / none, horizontal wheel, middle-click and back/forward buttons); reset; export | M6 | must | verified |
 | UI-12 | Customise interface | Toolbar editor: palette of every transport button (frame step, A-B, record, snapshot, loop, shuffle, speed, playlist, fullscreen, effects, stop, chapter nav, cast), drag to order, save/restore layouts | M14 | should | planned |
 | UI-13 | Themes | System / light / dark; accent from the system or the REX signal colour; high contrast; Mica backdrop; theme packages (C) | M4/M15 | must | built |
 | UI-14 | First run | Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern) | M4/M15 | must | verified |

@@ -40,7 +40,7 @@ public sealed partial class MainWindow
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
             CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences]),
+        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
     ];
 
@@ -208,6 +208,9 @@ public sealed partial class MainWindow
                 break;
             case CommandCatalog.Preferences:
                 _ = ShowPreferencesAsync();
+                break;
+            case CommandCatalog.KeyboardAndMouse:
+                _ = ShowKeyboardAndMouseAsync();
                 break;
             case CommandCatalog.ShowLog:
                 _ = ShowLogAsync();

@@ -49,6 +49,26 @@ public static class VirtualKeys
         _ => Named.GetValueOrDefault(virtualKey),
     };
 
+    /// <summary>
+    /// The code Windows knows <paramref name="name"/> by, or null when the name is no key; where two
+    /// keys share a name (the two Minus keys) the main keyboard's.
+    /// </summary>
+    public static int? Code(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        if (name.Length == 1 && (char.IsAsciiDigit(name[0]) || char.IsAsciiLetterUpper(name[0])))
+        {
+            return name[0];
+        }
+
+        if (name.Length > 1 && name[0] == 'F' && int.TryParse(name.AsSpan(1), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var function) && function is >= 1 and <= 24)
+        {
+            return 0x6F + function;
+        }
+
+        return Named.Where(pair => pair.Value == name).Select(pair => (int?)pair.Key).Max();
+    }
+
     /// <summary>The chord for a key and its modifiers, or null when the key has no name.</summary>
     public static KeyChord? Chord(int virtualKey, bool ctrl, bool alt, bool shift) =>
         Name(virtualKey) is { } name

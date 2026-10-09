@@ -52,6 +52,7 @@ window to watch and listen in, and a command line made for scripts.
 | Prefer a language | Preferences, Languages: such as `ja, original` for sound and `en` for subtitles |
 | Keep a picture | Shift+S saves it to Pictures\rexplayer |
 | See every shortcut | Help, Keyboard shortcuts (Ctrl+/) |
+| Change a shortcut or the mouse | View, Keyboard and mouse (Ctrl+K): press the new keys; tick Everywhere to use one while another program is in front |
 | Change how it behaves | View, Preferences (Ctrl+P) |
 | Report a problem | Help, Save diagnostics, and attach the zip |
 | Play a file from a terminal | `rexplay play song.mp3` |

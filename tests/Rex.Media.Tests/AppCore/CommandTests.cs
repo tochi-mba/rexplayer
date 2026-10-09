@@ -81,14 +81,14 @@ public sealed class CommandTests
             [CommandCatalog.ToggleFullScreen] = "Ctrl+Enter",
             [CommandCatalog.Mute] = "",
             [CommandCatalog.Stop] = "not a chord",
-            ["no-such-command"] = "Ctrl+K",
+            ["no-such-command"] = "Ctrl+Alt+Shift+J",
         });
 
         Assert.Equal([KeyChord.Parse("Ctrl+Enter")], keymap.ShortcutsFor(CommandCatalog.ToggleFullScreen));
         Assert.Null(keymap.CommandFor(KeyChord.Parse("F11")));
         Assert.Null(keymap.CommandFor(KeyChord.Parse("M")));
         Assert.Equal(CommandCatalog.Stop, keymap.CommandFor(KeyChord.Parse("S")));
-        Assert.Null(keymap.CommandFor(KeyChord.Parse("Ctrl+K")));
+        Assert.Null(keymap.CommandFor(KeyChord.Parse("Ctrl+Alt+Shift+J")));
     }
 
     [Fact]
