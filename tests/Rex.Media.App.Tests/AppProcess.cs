@@ -160,7 +160,24 @@ internal sealed class AppProcess : IDisposable
         return reply!;
     }
 
-    public void Press(string automationId) => ((InvokePattern)Find(automationId).GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+    /// <summary>Presses a button or menu item; one of a set of choices (a radio item) is chosen or ticked instead.</summary>
+    public void Press(string automationId)
+    {
+        var element = Find(automationId);
+        if (element.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
+        {
+            ((InvokePattern)invoke).Invoke();
+            return;
+        }
+
+        if (element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var select))
+        {
+            ((SelectionItemPattern)select).Select();
+            return;
+        }
+
+        ((TogglePattern)element.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+    }
 
     public void Toggle(string automationId) => ((TogglePattern)Find(automationId).GetCurrentPattern(TogglePattern.Pattern)).Toggle();
 

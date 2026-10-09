@@ -20,7 +20,7 @@ public sealed partial class MainWindow
 
     private void OnSeekAreaPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (!_settings.SeekPreview || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
+        if (_closed || !_settings.SeekPreview || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
         {
             HideSeekPreview();
             return;
@@ -101,7 +101,24 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Shows a picture already made; one asked for after this one wins, and a bad one is skipped.</summary>
     private async Task SetSeekPreviewImageAsync(byte[] png, CancellationToken token)
+    {
+        try
+        {
+            await ShowSeekPreviewImageAsync(png, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // A newer position has its own picture on the way.
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            App.Log.Debug(LogSource, "The timeline preview could not be shown: " + ex.Message);
+        }
+    }
+
+    private async Task ShowSeekPreviewImageAsync(byte[] png, CancellationToken token)
     {
         using var stream = new InMemoryRandomAccessStream();
         using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))

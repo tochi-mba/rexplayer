@@ -515,8 +515,10 @@ public sealed partial class MainWindow : Window
         _saveTimer.Stop();
         _resumeTimer.Stop();
         _sleepTimer.Stop();
-        _seekPreviewWork.Cancel();
-        _seekPreviewWork.Dispose();
+        // The seek area can still see the pointer leave while the window goes, so its work is
+        // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
+        HideSeekPreview();
+        StopVisualizing();
         SaveSettings();
         _player.SaveQueue();
         CloseLibrary();

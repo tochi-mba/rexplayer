@@ -115,14 +115,24 @@ public sealed partial class MainWindow
             }
             else
             {
-                CompositionTarget.Rendering -= OnRendering;
-                _bands.Reset();
-                _spectrogramBands.Reset();
-                _meterLeft.Reset();
-                _meterRight.Reset();
-                StopCamera();
+                StopVisualizing();
             }
         }
+    }
+
+    /// <summary>
+    /// Stops drawing and lets the camera go. The drawing hangs off the whole app's rendering, not
+    /// this window, so it must be taken off before the window closes.
+    /// </summary>
+    private void StopVisualizing()
+    {
+        CompositionTarget.Rendering -= OnRendering;
+        _visualizing = false;
+        _bands.Reset();
+        _spectrogramBands.Reset();
+        _meterLeft.Reset();
+        _meterRight.Reset();
+        StopCamera();
     }
 
     private bool RunVisualizerCommand(string command)
@@ -439,6 +449,11 @@ public sealed partial class MainWindow
 
     private void OnRendering(object? sender, object e)
     {
+        if (_closed)
+        {
+            return;
+        }
+
         // About thirty pictures a second is smooth for this, and spares the processor.
         var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
         var elapsed = now - _lastDrawn;

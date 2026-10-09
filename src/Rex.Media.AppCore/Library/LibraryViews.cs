@@ -19,7 +19,7 @@ public sealed record VideoEpisode(string Series, int Season, int Episode)
 /// videos and pictures; what was played or added lately; videos left part-way; and a search across it all.
 /// Each is a plain query over the entries, in the order the window shows it.
 /// </summary>
-public static class LibraryViews
+public static partial class LibraryViews
 {
     public const string UnknownArtist = "Unknown artist";
     public const string UnknownAlbum = "Unknown album";
@@ -30,7 +30,6 @@ public static class LibraryViews
 
     private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
-    private static readonly Regex EpisodePattern = new(@"^(?<series>.+?)[ ._-]+S(?<season>\d{1,3})E(?<episode>\d{1,4})(?=[ ._-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     /// <summary>The music, by artist, album, disc and track, then title; songs without an artist or album after those with.</summary>
     public static IReadOnlyList<LibraryEntry> Songs(IEnumerable<LibraryEntry> entries) =>
@@ -89,13 +88,15 @@ public static class LibraryViews
     {
         ArgumentNullException.ThrowIfNull(entry);
         var name = Path.GetFileNameWithoutExtension(entry.Path);
-        var match = EpisodePattern.Match(name);
-        if (!match.Success || !int.TryParse(match.Groups["season"].Value, out var season) || !int.TryParse(match.Groups["episode"].Value, out var episode))
+        var match = EpisodePattern().Match(name);
+        if (!match.Success
+            || !int.TryParse(match.Groups["season"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var season)
+            || !int.TryParse(match.Groups["episode"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var episode))
         {
             return null;
         }
 
-        var series = Regex.Replace(match.Groups["series"].Value, @"[._]+", " ").Trim();
+        var series = Separators().Replace(match.Groups["series"].Value, " ").Trim();
         return series.Length > 0 ? new VideoEpisode(series, season, episode) : null;
     }
 
@@ -169,6 +170,13 @@ public static class LibraryViews
             .Select(group => new LibraryGroup(MostSpelled(group.Select(entry => key(entry) ?? unknown)), null, [.. group]))
             .OrderBy(group => group.Name == unknown)
             .ThenBy(group => group.Name, ByName)];
+
+    /// <summary>"Show.Name.S01E02.mkv", "Show - s1e2", "Show_S01E002": the show, then the season and episode.</summary>
+    [GeneratedRegex(@"^(?<series>.+?)[ ._-]+S(?<season>\d{1,3})E(?<episode>\d{1,4})(?=[ ._-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EpisodePattern();
+
+    [GeneratedRegex("[._]+")]
+    private static partial Regex Separators();
 
     private static IEnumerable<string> ArtistNames(string? credit)
     {

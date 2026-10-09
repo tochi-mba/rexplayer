@@ -161,7 +161,8 @@ public sealed class LibraryScannerTests
 
             Assert.Equal(new[] { song, Path.Combine(folder, "notes.txt") }.Order(StringComparer.Ordinal), files.Select(file => file.Path).Order(StringComparer.Ordinal));
             Assert.Equal(new FileInfo(song).Length, files.Single(file => file.Path == song).Size);
-            Assert.Equal("WAVE", LibraryScanner.ProbeFile(song, TestContext.Current.CancellationToken).FormatName);
+            Assert.Equal("WAVE", LibraryScanner.ProbeFile(song, TestContext.Current.CancellationToken)!.FormatName);
+            Assert.Null(LibraryScanner.ProbeFile(Path.Combine(folder, "photo.jpg"), TestContext.Current.CancellationToken));
             Assert.Throws<ArgumentNullException>(() => new LibraryScanner(null!, _ => [], (_, _) => null, RexLog.InMemory()));
             Assert.Throws<ArgumentNullException>(() => new LibraryScanner(new MediaLibrary(RexStore.InMemory()), null!, (_, _) => null, RexLog.InMemory()));
             Assert.Throws<ArgumentNullException>(() => new LibraryScanner(new MediaLibrary(RexStore.InMemory()), _ => [], null!, RexLog.InMemory()));

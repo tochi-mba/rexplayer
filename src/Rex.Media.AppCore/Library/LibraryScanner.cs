@@ -262,9 +262,17 @@ public sealed class LibraryScanner : IDisposable
         StatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>The details of a file on disk, as the demuxer that opens it reads them; for the window's scanner.</summary>
-    public static MediaInfo ProbeFile(string path, CancellationToken cancellationToken)
+    /// <summary>
+    /// The details of a file on disk, as the demuxer that opens it reads them; for the window's
+    /// scanner. A picture has none worth reading (its name is its title), so it is not opened.
+    /// </summary>
+    public static MediaInfo? ProbeFile(string path, CancellationToken cancellationToken)
     {
+        if (MediaFiles.IsPicture(path))
+        {
+            return null;
+        }
+
         using var source = new FileByteSource(path);
         using var demuxer = MediaRegistries.Demuxers().Open(source, cancellationToken);
         return demuxer.Info;

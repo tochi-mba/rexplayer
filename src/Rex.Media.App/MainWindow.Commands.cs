@@ -64,7 +64,8 @@ public sealed partial class MainWindow
         var label = SpeedLabel(_player.Speed);
         SpeedButton.Content = label;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SpeedButton, "Playback speed, " + label);
-        ToolTipService.SetToolTip(SpeedButton, "Playback speed: " + label + ". Choose a rate, or use + and - to change it.");
+        var keys = string.Join(" and ", new[] { _keymap.Label(CommandCatalog.Faster), _keymap.Label(CommandCatalog.Slower) }.Where(key => key.Length > 0));
+        ToolTipService.SetToolTip(SpeedButton, "Playback speed: " + label + ". Choose a rate" + (keys.Length > 0 ? ", or use " + keys + " to change it." : "."));
     }
 
     private static string SpeedLabel(double speed) => speed.ToString("0.##", CultureInfo.InvariantCulture) + "\u00D7";
@@ -91,7 +92,7 @@ public sealed partial class MainWindow
         {
             var label = SpeedLabel(rate);
             var chosen = Math.Abs(rate - _player.Speed) < 0.005;
-            var item = new MenuFlyoutItem { Text = (chosen ? "\u2713  " : "     ") + label };
+            var item = new RadioMenuFlyoutItem { Text = label, GroupName = "SpeedRates", IsChecked = chosen };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, "SpeedRate-" + rate.ToString("0.##", CultureInfo.InvariantCulture));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, chosen ? label + ", current speed" : label);
             item.Click += (_, _) => _player.SetSpeed(rate);
