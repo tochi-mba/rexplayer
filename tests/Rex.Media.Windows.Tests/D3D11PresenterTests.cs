@@ -106,6 +106,19 @@ public sealed class D3D11PresenterTests
         Assert.Contains(drawn.Row(0, 128).ToArray(), value => value > 32);
     }
 
+    [Fact]
+    public void ClearingForSoundForgetsTheLastPictureAndDrawsBlack()
+    {
+        using var picture = DecodedPicture();
+        using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
+
+        presenter.Present(picture);
+        presenter.Clear();
+        using var cleared = presenter.ReadBack();
+
+        Assert.All(cleared.Plane(0).ToArray().Where((_, i) => i % 4 != 3), value => Assert.Equal(0, value));
+    }
+
     [Theory]
     [InlineData(PixelFormat.Bgra32)]
     [InlineData(PixelFormat.I420)]

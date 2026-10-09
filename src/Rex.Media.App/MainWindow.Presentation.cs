@@ -20,6 +20,7 @@ public sealed partial class MainWindow
     private byte[]? _shownCover;
     private Lyrics? _shownLyrics;
     private int _shownLine = -1;
+    private readonly List<TextBlock> _lyricTexts = [];
 
     /// <summary>Brings the picture, the album and the lyrics on screen in line with what plays.</summary>
     private void ShowPresentation()
@@ -42,9 +43,10 @@ public sealed partial class MainWindow
             _shownLyrics = lyrics;
             _shownLine = -1;
             LyricsLines.Children.Clear();
-            foreach (var line in lyrics?.Lines ?? [])
+            _lyricTexts.Clear();
+            foreach (var (index, line) in (lyrics?.Lines ?? []).Index())
             {
-                LyricsLines.Children.Add(new TextBlock
+                var text = new TextBlock
                 {
                     Text = line.Text.Length == 0 ? " " : line.Text,
                     FontSize = 20,
@@ -52,7 +54,34 @@ public sealed partial class MainWindow
                     TextWrapping = TextWrapping.Wrap,
                     TextAlignment = TextAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                });
+                };
+                _lyricTexts.Add(text);
+                if (line.At is not { } at)
+                {
+                    LyricsLines.Children.Add(text);
+                    continue;
+                }
+
+                var when = TimeText.Format(at < TimeSpan.Zero ? TimeSpan.Zero : at, _player.Duration);
+                var button = new Button
+                {
+                    Content = text,
+                    Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                    BorderThickness = new Thickness(0),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(12, 7, 12, 7),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, $"LyricLine-{index}");
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"Go to {when}: {line.Text}");
+                ToolTipService.SetToolTip(button, $"Go to {when}");
+                button.Click += (_, _) =>
+                {
+                    _player.Seek(at);
+                    Say(when);
+                };
+                LyricsLines.Children.Add(button);
             }
 
             LyricsBox.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
@@ -118,18 +147,20 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_shownLine >= 0 && _shownLine < LyricsLines.Children.Count && LyricsLines.Children[_shownLine] is TextBlock previous)
+        if (_shownLine >= 0 && _shownLine < _lyricTexts.Count)
         {
+            var previous = _lyricTexts[_shownLine];
             previous.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
             previous.FontWeight = FontWeights.Normal;
         }
 
         _shownLine = line;
-        if (line >= 0 && line < LyricsLines.Children.Count && LyricsLines.Children[line] is TextBlock current)
+        if (line >= 0 && line < _lyricTexts.Count)
         {
+            var current = _lyricTexts[line];
             current.Foreground = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
             current.FontWeight = FontWeights.SemiBold;
-            current.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5, AnimationDesired = true });
+            LyricsLines.Children[line].StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5, AnimationDesired = true });
         }
     }
 }

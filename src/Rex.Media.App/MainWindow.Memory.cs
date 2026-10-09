@@ -1,4 +1,7 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
 using Rex.Media.Library;
@@ -14,6 +17,8 @@ public sealed partial class MainWindow
     private MenuFlyoutSubItem? _recentMenu;
     private MenuFlyoutSubItem? _bookmarksMenu;
     private string _shownMemory = "";
+    private string _shownBookmarkMarkers = "";
+    private readonly List<(Button Button, Bookmark Bookmark)> _bookmarkMarkerButtons = [];
 
     /// <summary>The store beside the settings; when it cannot be read, one in memory, so playing still works.</summary>
     private static RexStore OpenStore()
@@ -74,6 +79,7 @@ public sealed partial class MainWindow
         // The menus are made again only when what they list has changed.
         var recent = _player.Recent;
         var bookmarks = _player.Bookmarks;
+        ShowBookmarkMarkers(bookmarks);
         var shown = string.Join("\n", recent) + "\n--\n" + string.Join("\n", bookmarks.Select(b => b.Name + "@" + b.At.Ticks));
         if (shown == _shownMemory || _recentMenu is null || _bookmarksMenu is null)
         {
@@ -109,6 +115,70 @@ public sealed partial class MainWindow
         }
 
         _bookmarksMenu.IsEnabled = bookmarks.Count > 0;
+    }
+
+    /// <summary>Draws each bookmark over its exact place on the seek rail as an accessible seek button.</summary>
+    private void ShowBookmarkMarkers(IReadOnlyList<Bookmark> bookmarks)
+    {
+        var shown = _player.Duration.Ticks + "\n" + string.Join("\n", bookmarks.Select(bookmark => bookmark.Name + "@" + bookmark.At.Ticks));
+        if (shown == _shownBookmarkMarkers)
+        {
+            return;
+        }
+
+        _shownBookmarkMarkers = shown;
+        BookmarkMarkers.Children.Clear();
+        _bookmarkMarkerButtons.Clear();
+        for (var i = 0; i < bookmarks.Count; i++)
+        {
+            var index = i;
+            var bookmark = bookmarks[i];
+            var time = TimeText.Format(bookmark.At, _player.Duration);
+            var mark = new Border
+            {
+                Width = 3,
+                Height = 16,
+                CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 124, 96)),
+                IsHitTestVisible = false,
+            };
+            var button = new Button
+            {
+                Width = 16,
+                Height = 28,
+                Padding = new Thickness(0),
+                BorderThickness = new Thickness(0),
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                Content = mark,
+            };
+            AutomationProperties.SetAutomationId(button, $"BookmarkMarker-{i}");
+            AutomationProperties.SetName(button, $"{bookmark.Name}, bookmark at {time}. Go there");
+            ToolTipService.SetToolTip(button, $"{bookmark.Name} · {time}");
+            button.Click += (_, _) => _player.GoToBookmark(index);
+            BookmarkMarkers.Children.Add(button);
+            _bookmarkMarkerButtons.Add((button, bookmark));
+        }
+
+        PositionBookmarkMarkers();
+    }
+
+    private void OnSeekAreaSizeChanged(object sender, SizeChangedEventArgs e) => PositionBookmarkMarkers();
+
+    private void PositionBookmarkMarkers()
+    {
+        var duration = _player.Duration.TotalSeconds;
+        var width = BookmarkMarkers.ActualWidth;
+        if (duration <= 0 || width <= 0)
+        {
+            return;
+        }
+
+        foreach (var (button, bookmark) in _bookmarkMarkerButtons)
+        {
+            var fraction = Math.Clamp(bookmark.At.TotalSeconds / duration, 0, 1);
+            Canvas.SetLeft(button, fraction * Math.Max(0, width - button.Width));
+            Canvas.SetTop(button, 0);
+        }
     }
 
     private async Task RenameBookmarkAsync(int index)

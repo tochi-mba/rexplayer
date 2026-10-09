@@ -30,6 +30,7 @@ public sealed partial class PlayerController : IDisposable
     private readonly TimeProvider _time;
     private readonly RexLog _log;
     private readonly Func<string, IEnumerable<string>>? _listFolder;
+    private readonly Func<string, bool> _exists;
     private readonly List<TrackFailedEvent> _trackFailures = [];
     private double _fade = 1;
     private DateTimeOffset? _lastLaunch;
@@ -59,6 +60,7 @@ public sealed partial class PlayerController : IDisposable
     /// <param name="time">The clock the sleep timer keeps time by (tests pass their own).</param>
     /// <param name="log">Where what the player does is written down, for diagnosing problems; by default only in memory.</param>
     /// <param name="listFolder">Lists a folder's files, for its cover picture; by default the disk's.</param>
+    /// <param name="exists">Whether a file is there, for missing playlist entries; by default the disk's.</param>
     public PlayerController(
         Func<Action<SessionEvent>, MediaSession> newSession,
         Func<string, IByteSource> openSource,
@@ -72,9 +74,11 @@ public sealed partial class PlayerController : IDisposable
         Rex.Media.Library.RexStore? store = null,
         TimeProvider? time = null,
         RexLog? log = null,
-        Func<string, IEnumerable<string>>? listFolder = null)
+        Func<string, IEnumerable<string>>? listFolder = null,
+        Func<string, bool>? exists = null)
     {
         _listFolder = listFolder;
+        _exists = exists ?? File.Exists;
         _time = time ?? TimeProvider.System;
         _log = log ?? RexLog.InMemory();
         Memory = new PlayerMemory(store ?? Rex.Media.Library.RexStore.InMemory());

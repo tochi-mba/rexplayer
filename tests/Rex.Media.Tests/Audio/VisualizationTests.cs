@@ -174,13 +174,29 @@ public sealed class VisualizationTests
     public void TheVisualisationsComeInTurnAndTheSpectrogramWarmsWithLoudness()
     {
         Assert.Equal(VisualizerChoice.Oscilloscope, Visualizers.Next(VisualizerChoice.Spectrum));
-        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Spectrogram));
+        Assert.Equal(VisualizerChoice.Vinyl, Visualizers.Next(VisualizerChoice.Spectrogram));
+        Assert.Equal(VisualizerChoice.Halo, Visualizers.Next(VisualizerChoice.Vinyl));
+        Assert.Equal(VisualizerChoice.Strobe, Visualizers.Next(VisualizerChoice.Ripples));
+        Assert.Equal(VisualizerChoice.Silhouette, Visualizers.Next(VisualizerChoice.Strobe));
+        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Silhouette));
         Assert.Equal(VisualizerChoice.Spectrum, Visualizers.Next(VisualizerChoice.Off));
         Assert.Equal(VisualizerChoice.Off, Visualizers.Next((VisualizerChoice)42));
         Assert.Equal(
-            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram"],
+            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette"],
             Enum.GetValues<VisualizerChoice>().Select(Visualizers.Name));
-        Assert.Equal(VisualizerChoice.Spectrum, new PlayerSettings { Visualizer = (VisualizerChoice)9 }.Normalize().Visualizer);
+        Assert.Equal(VisualizerChoice.Spectrum, new PlayerSettings { Visualizer = (VisualizerChoice)99 }.Normalize().Visualizer);
+
+        Assert.Equal(new Argb(255, 255, 0, 0), Visualizers.Hsv(0, 1, 1));
+        Assert.Equal(new Argb(255, 0, 255, 0), Visualizers.Hsv(480, 1, 1));
+        Assert.Equal(new Argb(255, 0, 0, 255), Visualizers.Hsv(-120, 1, 1));
+        Assert.Equal(new Argb(255, 255, 255, 0), Visualizers.Hsv(60, 1, 1));
+        Assert.Equal(new Argb(255, 0, 255, 255), Visualizers.Hsv(180, 1, 1));
+        Assert.Equal(new Argb(255, 255, 0, 255), Visualizers.Hsv(300, 1, 1));
+        Assert.Equal(new Argb(255, 128, 128, 128), Visualizers.Hsv(90, 0, 0.5));
+        Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Hsv(double.NaN, double.PositiveInfinity, double.NaN));
+        Assert.Equal(2, Visualizers.DominantBand([0.1f, 0.3f, 0.9f, 0.2f]));
+        Assert.Equal(0, Visualizers.DominantBand(Array.Empty<float>()));
+        Assert.Throws<ArgumentNullException>(() => Visualizers.DominantBand(null!));
 
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Heat(0));
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Heat(float.NaN));

@@ -7,11 +7,12 @@ using Rex.Media.Primitives;
 
 namespace Rex.Media.Library;
 
-/// <summary>Whether a library file is music or a video.</summary>
+/// <summary>What kind of media a library file holds.</summary>
 public enum LibraryKind
 {
     Music,
     Video,
+    Picture,
 }
 
 /// <summary>A file as the disk describes it: its size and when it last changed.</summary>

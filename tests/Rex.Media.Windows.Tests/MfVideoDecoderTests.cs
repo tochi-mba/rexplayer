@@ -10,8 +10,8 @@ using Rex.Media.TestKit;
 namespace Rex.Media.Windows.Tests;
 
 /// <summary>
-/// Windows' H.264 and HEVC decoders, reached through Media Foundation. Decoding these codecs is
-/// exact, so every picture must hash as FFmpeg's decode of the same file hashes.
+/// Windows' H.264, HEVC and VP9 decoders, reached through Media Foundation. Decoding these codecs
+/// is exact, so every picture must hash as the independent decode of the same file hashes.
 /// </summary>
 public sealed class MfVideoDecoderTests
 {
@@ -24,7 +24,8 @@ public sealed class MfVideoDecoderTests
     }
 
     /// <summary>The MD5 of each picture FFmpeg decoded, in presentation order.</summary>
-    private static List<string> ReferenceHashes(string fixture) => File.ReadAllLines(RepoPaths.Combine($"tests/fixtures/{Path.ChangeExtension(fixture, ".nv12.framemd5")}"))
+    private static List<string> ReferenceHashes(string fixture, PixelFormat format = PixelFormat.Nv12)
+        => File.ReadAllLines(RepoPaths.Combine($"tests/fixtures/{Path.ChangeExtension(fixture, format == PixelFormat.P010 ? ".p010.framemd5" : ".nv12.framemd5")}"))
         .Where(line => !line.StartsWith('#'))
         .Select(line => line.Split(',')[^1].Trim())
         .ToList();
@@ -45,7 +46,7 @@ public sealed class MfVideoDecoderTests
         return Convert.ToHexStringLower(md5.GetHashAndReset());
     }
 
-    private static (List<string> Hashes, List<MediaTime> Times, TrackInfo Track) DecodeAll(string fixture)
+    private static (List<string> Hashes, List<MediaTime> Times, TrackInfo Track, PixelFormat Format) DecodeAll(string fixture)
     {
         using var demuxer = Open(fixture);
         var track = demuxer.Info.FirstTrack(MediaKind.Video)!;
@@ -69,7 +70,8 @@ public sealed class MfVideoDecoderTests
         while (!decoder.Drain(frames))
         {
         }
-        var result = (frames.Select(Hash).ToList(), frames.Select(f => f.Pts).ToList(), track);
+        Assert.NotEmpty(frames);
+        var result = (frames.Select(Hash).ToList(), frames.Select(f => f.Pts).ToList(), track, frames[0].Format);
         frames.ForEach(f => f.Dispose());
         return result;
     }
@@ -78,20 +80,34 @@ public sealed class MfVideoDecoderTests
     [InlineData("mp4/h264-aac.mp4")]
     [InlineData("mkv/h264-aac-subtitles.mkv")]
     [InlineData("video/hevc-in-mp4.mp4")]
+    [InlineData("mkv/vp9-opus.webm")]
     [Capability("FMT-V01")]
     [Capability("FMT-V02")]
+    [Capability("FMT-V04")]
     public void EveryPictureMatchesAnIndependentDecoderExactly(string fixture)
     {
-        var (hashes, times, _) = DecodeAll(fixture);
+        var (hashes, times, _, format) = DecodeAll(fixture);
 
-        Assert.Equal(ReferenceHashes(fixture), hashes);
+        Assert.Equal(ReferenceHashes(fixture, format), hashes);
         Assert.Equal(times.Order(), times);
+    }
+
+    [Fact]
+    [Capability("FMT-V02")]
+    public void Main10HevcComesOutAsP010()
+    {
+        var (hashes, times, track, format) = DecodeAll("video/hevc-main10-hdr.mp4");
+
+        Assert.Equal(PixelFormat.P010, format);
+        Assert.Equal(ReferenceHashes("video/hevc-main10-hdr.mp4", PixelFormat.P010), hashes);
+        Assert.Equal(times.Order(), times);
+        Assert.Equal(CodecId.Hevc, track.Codec);
     }
 
     [Fact]
     public void PicturesComeOutInPresentationOrderAtTheirTimes()
     {
-        var (_, times, track) = DecodeAll("mp4/h264-aac.mp4");
+        var (_, times, track, _) = DecodeAll("mp4/h264-aac.mp4");
 
         Assert.Equal(Enumerable.Range(0, 10).Select(i => MediaTime.FromSeconds(i * 0.04)), times);
         Assert.Equal(CodecId.H264, track.Codec);

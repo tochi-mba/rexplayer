@@ -85,7 +85,8 @@ public sealed class MediaFilesTests
 
         Assert.True(MediaFiles.IsPicture("x.webp"));
         Assert.False(MediaFiles.IsPicture("x.mp4"));
-        Assert.Null(MediaFiles.LibraryKindOf("x.png"));
+        Assert.Equal(Rex.Media.Library.LibraryKind.Picture, MediaFiles.LibraryKindOf("x.png"));
+        Assert.Null(MediaFiles.LibraryKindOf("x.txt"));
     }
 
     [Fact]

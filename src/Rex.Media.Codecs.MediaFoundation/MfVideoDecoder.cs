@@ -10,11 +10,11 @@ using Windows.Win32;
 namespace Rex.Media.Codecs.MediaFoundation;
 
 /// <summary>
-/// One Media Foundation video decoder transform (H.264 or HEVC), producing NV12 pictures, or P010
-/// for streams deeper than 8 bits. Given the presenter's Direct3D 11 device, the transform decodes
-/// on the graphics card and its pictures stay there (VID-01); otherwise it decodes in software into
-/// memory. Windows' decoders take Annex B, so samples stored with length prefixes (MP4, Matroska)
-/// are rewritten, with the parameter sets put in front of each keyframe.
+/// One Media Foundation video decoder transform (H.264, HEVC or VP9), producing NV12 pictures, or
+/// P010 for streams deeper than 8 bits. Given the presenter's Direct3D 11 device, the transform
+/// decodes on the graphics card and its pictures stay there (VID-01); otherwise it decodes in
+/// software into memory. Windows' H.264 and HEVC decoders take Annex B, so their samples stored
+/// with length prefixes are rewritten, with the parameter sets put in front of each keyframe.
 /// </summary>
 public sealed class MfVideoDecoder : IVideoDecoder
 {
@@ -56,10 +56,14 @@ public sealed class MfVideoDecoder : IVideoDecoder
                 var config = AvcConfig.Parse(track.CodecPrivate);
                 (_lengthSize, _parameterSets, sequence) = (config.LengthSize, config.ParameterSetsAnnexB(), config.Sequence());
             }
-            else
+            else if (track.Codec == CodecId.Hevc)
             {
                 var config = HevcConfig.Parse(track.CodecPrivate);
                 (_lengthSize, _parameterSets, sequence) = (config.LengthSize, config.ParameterSetsAnnexB(), config.Sequence());
+            }
+            else
+            {
+                _parameterSets = [];
             }
         }
         else
@@ -76,12 +80,20 @@ public sealed class MfVideoDecoder : IVideoDecoder
             ?? throw new MediaFormatException($"Windows has no decoder for {track.Codec}.");
         try
         {
-            _transform.SetInputType(new Dictionary<Guid, object>
+            var inputType = new Dictionary<Guid, object>
             {
                 [PInvoke.MF_MT_MAJOR_TYPE] = PInvoke.MFMediaType_Video,
                 [PInvoke.MF_MT_SUBTYPE] = subtype,
                 [PInvoke.MF_MT_FRAME_SIZE] = ((ulong)(uint)video.Width << 32) | (uint)video.Height,
-            });
+            };
+            if (track.Codec == CodecId.Hevc && sequence is { Profile: > 0 })
+            {
+                // The Windows HEVC decoder requires Main10 to be declared before it will offer
+                // P010. The profile_idc values carried by HEVC are the values this attribute uses.
+                inputType[PInvoke.MF_MT_VIDEO_PROFILE] = (uint)sequence.Profile;
+            }
+
+            _transform.SetInputType(inputType);
             if (OperatingSystem.IsWindowsVersionAtLeast(8) && gpu is D3D11Gpu { IsSoftware: false } device)
             {
                 _transform.AttachGpu(device);

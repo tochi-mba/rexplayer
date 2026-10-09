@@ -158,6 +158,22 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>Puts <paramref name="item"/> in place of the one at <paramref name="index"/>, in its place in the play order too.</summary>
+    public void Replace(int index, PlaylistItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var old = _items[index];
+        _items[index] = item;
+        _order[_order.IndexOf(old)] = item;
+        _nextCycle = null;
+        if (old == Current)
+        {
+            Current = item;
+        }
+
+        Raise();
+    }
+
     /// <summary>Moves an item within the list (the play order follows unless shuffle is on).</summary>
     public void Move(int from, int to)
     {

@@ -20,7 +20,10 @@ public sealed partial class MainWindow
         var longJump = Number("Long jump (seconds)", s.LongJumpSeconds, 1, 3600);
         var step = Number("Volume step (%)", s.VolumeStepPercent, 1, 25);
         var maxVolume = Number("Loudest volume (%)", s.MaxVolumePercent, 100, 200);
+        var seekPreview = Check("Show the video frame under the pointer on the timeline", s.SeekPreview);
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
+        var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
+        var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera"], (int)s.Visualizer);
         var theme = Choice("Theme", ["Windows' choice", "Light", "Dark"], (int)s.Theme);
         var onTop = Choice("Always on top", ["Never", "Always", "While playing"], (int)s.AlwaysOnTop);
         var hide = Number("Hide the full-screen controls after (seconds)", s.ControlsHideSeconds, 0.5, 10);
@@ -55,7 +58,13 @@ public sealed partial class MainWindow
 
         var content = new StackPanel { Spacing = 8, MinWidth = 460 };
         content.Children.Add(Heading("Playback"));
-        foreach (var control in new UIElement[] { veryShort, shortJump, medium, longJump, step, maxVolume, pictures })
+        foreach (var control in new UIElement[] { veryShort, shortJump, medium, longJump, step, maxVolume, seekPreview })
+        {
+            content.Children.Add(control);
+        }
+
+        content.Children.Add(Heading("Pictures and music"));
+        foreach (var control in new UIElement[] { pictures, navigator, visualizer })
         {
             content.Children.Add(control);
         }
@@ -82,6 +91,17 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        content.Children.Add(Heading("Keyboard and mouse"));
+        var keys = new Button { Content = "Change shortcuts and what the mouse does..." };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(keys, "PreferencesKeyboard");
+        keys.Click += (_, _) =>
+        {
+            // One dialog at a time: this one closes, unsaved, and the editor opens.
+            _dialog?.Hide();
+            DispatcherQueue.TryEnqueue(() => _ = ShowKeyboardAndMouseAsync());
+        };
+        content.Children.Add(keys);
+
         content.Children.Add(Heading("rexplayer"));
         foreach (var control in new UIElement[] { single, enqueue, updates })
         {
@@ -101,7 +121,10 @@ public sealed partial class MainWindow
             LongJumpSeconds = (int)longJump.Value,
             VolumeStepPercent = (int)step.Value,
             MaxVolumePercent = (int)maxVolume.Value,
+            SeekPreview = seekPreview.IsChecked == true,
             PictureSeconds = (int)pictures.Value,
+            ShowNavigator = navigator.IsChecked == true,
+            Visualizer = (VisualizerChoice)visualizer.SelectedIndex,
             Theme = (ThemeChoice)theme.SelectedIndex,
             AlwaysOnTop = (AlwaysOnTop)onTop.SelectedIndex,
             ControlsHideSeconds = hide.Value,
@@ -138,9 +161,17 @@ public sealed partial class MainWindow
         ApplyTheme();
         ApplyAlwaysOnTop();
         LayOutSubtitles();
+        SetView(_view);
         ShowState();
         SaveSettings();
         Say("Preferences saved");
+
+        // The camera is used only once it has been agreed to.
+        if (_settings.Visualizer == VisualizerChoice.Silhouette && !_settings.CameraAllowed)
+        {
+            _settings = _settings with { Visualizer = s.Visualizer };
+            await ChooseVisualizerAsync(VisualizerChoice.Silhouette);
+        }
     }
 
     /// <summary>

@@ -96,22 +96,6 @@ public sealed partial class MainWindow
         ApplyGlobalShortcuts();
     }
 
-    /// <summary>The wheel over the picture, as the settings say; true when it did something.</summary>
-    private bool RunWheel(PointerPoint point)
-    {
-        var delta = point.Properties.MouseWheelDelta;
-        var command = point.Properties.IsHorizontalMouseWheel
-            ? ShortcutEditing.WheelCommand(_settings.SidewaysWheel, forward: delta > 0)
-            : ShortcutEditing.WheelCommand(_settings.Wheel, forward: delta > 0);
-        if (delta == 0 || command is null)
-        {
-            return false;
-        }
-
-        Run(command);
-        return true;
-    }
-
     /// <summary>The middle, back and forward buttons, as the settings say; null for any other button.</summary>
     private string? ButtonCommand(PointerPoint point) =>
         point.Properties.IsMiddleButtonPressed ? ShortcutEditing.MiddleButtonCommand(_settings.MiddleButton)
@@ -146,6 +130,8 @@ public sealed partial class MainWindow
         var sideways = Choice("Tilting the wheel", ["Changes the volume", "Jumps a little", "Does nothing"], (int)_settings.SidewaysWheel);
         var middle = Choice("The middle button", ["Plays or pauses", "Goes full screen", "Mutes", "Does nothing"], (int)_settings.MiddleButton);
         var side = Choice("The back and forward buttons", ["Go to the previous and next item", "Jump back and forward", "Do nothing"], (int)_settings.SideButtons);
+        var ctrlWheel = Choice("Ctrl with the wheel, and pinching a touchpad", ["Zooms the picture", "Sizes the subtitles"], (int)_settings.CtrlWheel);
+        var pans = Check("Zoomed in, the wheel and two-finger scrolling move about the picture", _settings.WheelPansWhenZoomed);
 
         void Say(string text)
         {
@@ -313,7 +299,8 @@ public sealed partial class MainWindow
         {
             changes.Clear();
             global.Clear();
-            (wheel.SelectedIndex, sideways.SelectedIndex, middle.SelectedIndex, side.SelectedIndex) = (0, 1, 0, 0);
+            (wheel.SelectedIndex, sideways.SelectedIndex, middle.SelectedIndex, side.SelectedIndex, ctrlWheel.SelectedIndex) = (0, 1, 0, 0, 0);
+            pans.IsChecked = true;
             Show();
         };
         var export = new Button { Content = "Save to a file..." };
@@ -345,7 +332,8 @@ public sealed partial class MainWindow
                 changes = new Dictionary<string, string>(loaded.Shortcuts, StringComparer.Ordinal);
                 global.Clear();
                 global.UnionWith(loaded.GlobalShortcuts);
-                (wheel.SelectedIndex, sideways.SelectedIndex, middle.SelectedIndex, side.SelectedIndex) = ((int)loaded.Wheel, (int)loaded.SidewaysWheel, (int)loaded.MiddleButton, (int)loaded.SideButtons);
+                (wheel.SelectedIndex, sideways.SelectedIndex, middle.SelectedIndex, side.SelectedIndex, ctrlWheel.SelectedIndex) = ((int)loaded.Wheel, (int)loaded.SidewaysWheel, (int)loaded.MiddleButton, (int)loaded.SideButtons, (int)loaded.CtrlWheel);
+                pans.IsChecked = loaded.WheelPansWhenZoomed;
                 Show();
                 Say("Loaded " + file.Name + ". Save to keep it.");
             }
@@ -363,6 +351,8 @@ public sealed partial class MainWindow
             SidewaysWheel = (WheelChoice)sideways.SelectedIndex,
             MiddleButton = (MiddleButtonChoice)middle.SelectedIndex,
             SideButtons = (SideButtonChoice)side.SelectedIndex,
+            CtrlWheel = (CtrlWheelChoice)ctrlWheel.SelectedIndex,
+            WheelPansWhenZoomed = pans.IsChecked == true,
         };
 
         Show();
@@ -372,7 +362,7 @@ public sealed partial class MainWindow
         content.Children.Add(capturePanel);
         content.Children.Add(new ScrollViewer { Content = rows, MaxHeight = 360, Padding = new Thickness(0, 0, 16, 0) });
         content.Children.Add(Heading("Mouse"));
-        foreach (var control in new UIElement[] { wheel, sideways, middle, side })
+        foreach (var control in new UIElement[] { wheel, sideways, ctrlWheel, pans, middle, side })
         {
             content.Children.Add(control);
         }

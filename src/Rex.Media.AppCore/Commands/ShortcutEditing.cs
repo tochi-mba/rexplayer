@@ -18,6 +18,10 @@ public sealed record InputProfile
     public MiddleButtonChoice MiddleButton { get; init; } = MiddleButtonChoice.PlayPause;
 
     public SideButtonChoice SideButtons { get; init; } = SideButtonChoice.PreviousNext;
+
+    public CtrlWheelChoice CtrlWheel { get; init; } = CtrlWheelChoice.Zoom;
+
+    public bool WheelPansWhenZoomed { get; init; } = true;
 }
 
 /// <summary>A binding made: the changes after it, and the command whose shortcut it took, if any.</summary>
@@ -86,6 +90,8 @@ public static class ShortcutEditing
             SidewaysWheel = settings.SidewaysWheel,
             MiddleButton = settings.MiddleButton,
             SideButtons = settings.SideButtons,
+            CtrlWheel = settings.CtrlWheel,
+            WheelPansWhenZoomed = settings.WheelPansWhenZoomed,
         };
         return JsonSerializer.Serialize(profile, ShortcutJson.Default.InputProfile);
     }
@@ -120,6 +126,8 @@ public static class ShortcutEditing
             SidewaysWheel = profile.SidewaysWheel,
             MiddleButton = profile.MiddleButton,
             SideButtons = profile.SideButtons,
+            CtrlWheel = profile.CtrlWheel,
+            WheelPansWhenZoomed = profile.WheelPansWhenZoomed,
         }).Normalize();
     }
 

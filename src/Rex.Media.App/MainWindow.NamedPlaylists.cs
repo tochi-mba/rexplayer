@@ -109,7 +109,40 @@ public sealed partial class MainWindow
         addTo.Items.Add(MenuItem("New playlist...", "EntryAddToNew", () => _ = NewPlaylistAsync(chosen)));
         menu.Items.Add(addTo);
         menu.Items.Add(new MenuFlyoutSeparator());
+        if (chosen is [var lone] && _player.IsMissing(lone))
+        {
+            var index = _player.Playlist.Items.ToList().IndexOf(lone);
+            menu.Items.Add(MenuItem("Find it...", "EntryLocate", () => _ = LocateAsync(index)));
+        }
+
+        if (_player.Playlist.Items.Any(_player.IsMissing))
+        {
+            menu.Items.Add(MenuItem("Look for the missing files in a folder...", "EntryRelink", () => _ = RelinkAsync()));
+        }
+
         menu.Items.Add(MenuItem("Remove", "EntryRemove", RemoveSelected));
+    }
+
+    /// <summary>Asks where a missing entry's file is now (LIB-09).</summary>
+    private async Task LocateAsync(int index)
+    {
+        var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker { ViewMode = Windows.Storage.Pickers.PickerViewMode.List });
+        picker.FileTypeFilter.Add("*");
+        if (await picker.PickSingleFileAsync() is { } file && index < _player.Playlist.Items.Count)
+        {
+            _player.Relocate(index, file.Path);
+        }
+    }
+
+    /// <summary>Asks for a folder to look through for every missing entry's file (LIB-09).</summary>
+    private async Task RelinkAsync()
+    {
+        var picker = Prepared(new Windows.Storage.Pickers.FolderPicker());
+        picker.FileTypeFilter.Add("*");
+        if (await picker.PickSingleFolderAsync() is { } folder)
+        {
+            _player.RelinkMissing(folder.Path);
+        }
     }
 
     /// <summary>The playlist entries chosen in the playlist, in order.</summary>

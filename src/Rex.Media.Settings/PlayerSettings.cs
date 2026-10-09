@@ -80,6 +80,30 @@ public enum VisualizerChoice
     Oscilloscope,
     Meters,
     Spectrogram,
+
+    /// <summary>A spinning record whose groove is the sound itself, the cover as its label.</summary>
+    Vinyl,
+
+    /// <summary>The spectrum radiating from a circle that swells with the bass.</summary>
+    Halo,
+
+    /// <summary>The waveform mirrored about the middle, as sound is often pictured.</summary>
+    Mirror,
+
+    /// <summary>The spectrum as a ridge of light under a soft glow.</summary>
+    Aurora,
+
+    /// <summary>Sparks the music throws up, rising and fading.</summary>
+    Embers,
+
+    /// <summary>Rings that burst outward on every beat.</summary>
+    Ripples,
+
+    /// <summary>The whole stage flashing colour with the music.</summary>
+    Strobe,
+
+    /// <summary>The listener, seen by the camera, drawn in light that moves with the music.</summary>
+    Silhouette,
 }
 
 /// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>
@@ -106,6 +130,13 @@ public enum WheelChoice
     /// <summary>Jumps forwards and backwards by the very short jump.</summary>
     Seek,
     None,
+}
+
+/// <summary>What Ctrl with the wheel does over the picture, which is also a touchpad's pinch (UI-11).</summary>
+public enum CtrlWheelChoice
+{
+    Zoom,
+    SubtitleSize,
 }
 
 /// <summary>What the middle mouse button does over the picture (UI-11).</summary>
@@ -175,6 +206,9 @@ public sealed record PlayerSettings
 
     public int LongJumpSeconds { get; init; } = 300;
 
+    /// <summary>Whether pointing at the timeline decodes and shows the exact video frame there.</summary>
+    public bool SeekPreview { get; init; }
+
     // Sound
 
     public bool EqualizerEnabled { get; init; }
@@ -199,6 +233,15 @@ public sealed record PlayerSettings
 
     /// <summary>While zoomed in, the whole picture shows small in a corner, with the view marked on it.</summary>
     public bool ShowNavigator { get; init; } = true;
+
+    /// <summary>
+    /// Each visualisation's own settings, by "visualisation.setting" (AppCore's VisualizerOptions
+    /// reads them, with their defaults and ranges).
+    /// </summary>
+    public IReadOnlyDictionary<string, string> VisualOptions { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>Whether the user has agreed to the silhouette visualisation using the camera.</summary>
+    public bool CameraAllowed { get; init; }
 
     /// <summary>The languages to play audio in, best first, such as "ja, original"; empty for the media's own choice.</summary>
     public string AudioLanguages { get; init; } = "";
@@ -325,6 +368,12 @@ public sealed record PlayerSettings
 
     public MiddleButtonChoice MiddleButton { get; init; } = MiddleButtonChoice.PlayPause;
 
+    /// <summary>What Ctrl with the wheel, and pinching a touchpad, does: zoom the picture or size the subtitles.</summary>
+    public CtrlWheelChoice CtrlWheel { get; init; } = CtrlWheelChoice.Zoom;
+
+    /// <summary>Whether, zoomed in, the wheel and a touchpad's two-finger scroll move about the picture.</summary>
+    public bool WheelPansWhenZoomed { get; init; } = true;
+
     public SideButtonChoice SideButtons { get; init; } = SideButtonChoice.PreviousNext;
 
     private static int Rgb(int value) => value & 0xFFFFFF;
@@ -360,6 +409,7 @@ public sealed record PlayerSettings
             Wheel = Enum.IsDefined(Wheel) ? Wheel : WheelChoice.Volume,
             SidewaysWheel = Enum.IsDefined(SidewaysWheel) ? SidewaysWheel : WheelChoice.Seek,
             MiddleButton = Enum.IsDefined(MiddleButton) ? MiddleButton : MiddleButtonChoice.PlayPause,
+            CtrlWheel = Enum.IsDefined(CtrlWheel) ? CtrlWheel : CtrlWheelChoice.Zoom,
             SideButtons = Enum.IsDefined(SideButtons) ? SideButtons : SideButtonChoice.PreviousNext,
             EqualizerPreamp = Decibels(EqualizerPreamp),
             EqualizerGains = [.. Enumerable.Range(0, 10).Select(i => Decibels(EqualizerGains is { } gains && i < gains.Count ? gains[i] : 0))],
@@ -369,6 +419,7 @@ public sealed record PlayerSettings
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
             ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
+            VisualOptions = VisualOptions ?? new Dictionary<string, string>(StringComparer.Ordinal),
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),

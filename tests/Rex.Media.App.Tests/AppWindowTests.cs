@@ -116,10 +116,27 @@ public sealed class AppWindowTests : IDisposable
         app.Run(CommandCatalog.CycleVisualizer);
         Wait.For(() => app.SavedSettings.Visualizer == Rex.Media.Settings.VisualizerChoice.Oscilloscope, "the next visualisation to be kept");
         Assert.True(app.IsShown("Visualizer"));
-        app.Run(CommandCatalog.CycleVisualizer);
-        app.Run(CommandCatalog.CycleVisualizer);
-        app.Run(CommandCatalog.CycleVisualizer);
+        for (var i = Enum.GetValues<Rex.Media.Settings.VisualizerChoice>().Length - 2; i > 0; i--)
+        {
+            app.Run(CommandCatalog.CycleVisualizer);
+        }
+
         Wait.For(() => !app.IsShown("Visualizer"), "the visualisation to go");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    public void MusicCoversThePictureThatPlayedBeforeIt()
+    {
+        var picture = Path.Combine(_media, "photo.png");
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png"), picture);
+        using var app = AppProcess.Start([picture]);
+        Wait.For(() => app.LogText.Contains("Opened photo.png as PNG", StringComparison.Ordinal), "the picture");
+        Assert.False(app.IsShown("VideoBlank"));
+
+        Assert.Equal(0, AppProcess.Launch([Song(30)], app.Root));
+        Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song");
+        Assert.True(app.IsShown("Visualizer"));
         Assert.Equal(0, app.Close());
     }
 
@@ -137,6 +154,23 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => app.IsShown("Cover"), "the folder's cover");
         Wait.For(() => app.IsShown("Lyrics"), "the lyrics");
         Assert.False(app.IsShown("Visualizer"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void AClickOnATimedLyricGoesToThatPartOfTheSong()
+    {
+        var song = Song(30);
+        File.WriteAllText(Path.ChangeExtension(song, ".lrc"), "[00:00.00]First line\n[00:20.00]The part I want\n");
+        using var app = AppProcess.Start([song]);
+
+        Assert.True(app.IsShown("Lyrics"));
+        var lyric = app.Find("LyricLine-1");
+        Assert.Contains("Go to 0:20", lyric.Current.Name, StringComparison.Ordinal);
+        ((InvokePattern)lyric.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        var position = (RangeValuePattern)app.Find("SeekBar").GetCurrentPattern(RangeValuePattern.Pattern);
+        Wait.For(() => position.Current.Value >= 19.5, "the song to seek to the lyric");
         Assert.Equal(0, app.Close());
     }
 

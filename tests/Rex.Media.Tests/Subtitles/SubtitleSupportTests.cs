@@ -118,6 +118,24 @@ public sealed class SubtitleSupportTests
     }
 
     [Fact]
+    [Capability("SUB-14")]
+    public void AFolderNamedAfterAnEpisodeSuppliesItsNumberedLanguages()
+    {
+        var episode = "The.Rehearsal.S01E01.1080p.WEBRip.x265-RARBG";
+        var nested = Path.Combine("Series", "Subs", episode);
+        var english = Path.Combine(nested, "2_English.srt");
+        var bulgarian = Path.Combine(nested, "4_Bulgarian.srt");
+        var serbian = Path.Combine(nested, "18_srp.srt");
+        var files = new Dictionary<string, string[]> { [nested] = [english, bulgarian, serbian] };
+
+        var found = SubtitleSidecars.Find(Path.Combine("Series", episode + ".mkv"), folder => files.GetValueOrDefault(folder) ?? []);
+
+        Assert.Equal(
+            [(english, 3, "eng"), (bulgarian, 3, "bul"), (serbian, 3, "srp")],
+            found.Select(sidecar => (sidecar.Path, sidecar.Match, sidecar.Language)));
+    }
+
+    [Fact]
     public void ACueSeenAgainAfterASeekIsKeptOnceAndTheDelayShiftsWhenCuesShow()
     {
         var track = new SubtitleTrack("English");

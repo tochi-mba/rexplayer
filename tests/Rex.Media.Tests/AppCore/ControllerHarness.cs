@@ -75,7 +75,8 @@ internal sealed class ControllerHarness : IDisposable
             store,
             time,
             log,
-            diskFolders ? null : folder => Files.Keys.Where(path => (Path.GetDirectoryName(path) ?? "") == folder));
+            diskFolders ? null : folder => Files.Keys.Where(path => (Path.GetDirectoryName(path) ?? "") == folder),
+            diskFolders ? null : Files.ContainsKey);
         Controller.Message += (_, text) => Messages.Add(text);
 
         // The window always listens to both.

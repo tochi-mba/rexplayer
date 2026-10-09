@@ -34,6 +34,7 @@ public sealed class MfDecoderFactory : IDecoderFactory
     {
         CodecId.H264 => PInvoke.MFVideoFormat_H264,
         CodecId.Hevc => PInvoke.MFVideoFormat_HEVC,
+        CodecId.Vp9 => PInvoke.MFVideoFormat_VP90,
         _ => null,
     };
 

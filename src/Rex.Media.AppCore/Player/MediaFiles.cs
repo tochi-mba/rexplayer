@@ -40,7 +40,10 @@ public static class MediaFiles
     public static Rex.Media.Library.LibraryKind? LibraryKindOf(string path)
     {
         var extension = Path.GetExtension(path);
-        return VideoSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Video : AudioSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Music : null;
+        return VideoSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Video
+            : AudioSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Music
+            : PictureSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Picture
+            : null;
     }
 
     /// <summary>

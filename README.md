@@ -39,7 +39,7 @@ window to watch and listen in, and a command line made for scripts.
 | Add to what is playing | Hold Ctrl while you drop, or open it while rexplayer is running |
 | Pause, jump, change the volume | Space; Left and Right jump 10 seconds; Up and Down change the volume |
 | Full screen | Double-click the picture, or press F; Escape leaves |
-| Look closer | Alt with the mouse wheel zooms in where the pointer is; drag to move about; Alt+0 shows it all |
+| Look closer | Pinch the touchpad or the screen, or Ctrl with the mouse wheel, to zoom in where the pointer is; scroll with two fingers or drag to move about, with the whole picture small in a corner; Alt+0 shows it all |
 | Look through pictures | Open a folder of them: each shows for 5 seconds (Preferences, Playback), GIFs move |
 | Browse your music and videos | View, Library (Ctrl+Shift+L): add your folders, then search, or go by album, artist or genre |
 | Keep a playlist | Media, Playlists, New playlist; Playback, Add to a playlist adds what is playing |

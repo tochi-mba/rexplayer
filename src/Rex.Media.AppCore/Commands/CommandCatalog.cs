@@ -89,6 +89,7 @@ public static class CommandCatalog
     public const string OpenLocation = "open-location";
     public const string PasteLocation = "paste-location";
     public const string TogglePlaylist = "toggle-playlist";
+    public const string VisualizerSettings = "visualizer-settings";
     public const string KeyboardAndMouse = "keyboard-and-mouse";
     public const string ToggleLibrary = "toggle-library";
     public const string ClearPlaylist = "clear-playlist";
@@ -141,6 +142,7 @@ public static class CommandCatalog
         New(Mute, "Mute", Audio, "M"),
         New(CycleAudioTrack, "Next audio track", Audio, "B"),
         New(CycleVisualizer, "Next visualisation", Audio, "Z"),
+        New(VisualizerSettings, "Visualisation settings", Audio, "Shift+Z"),
         New(CycleSubtitles, "Next subtitle track", Subtitle, "V"),
         New(ToggleSubtitles, "Subtitles on or off", Subtitle, "Shift+V"),
         New(SubtitlesEarlier, "Subtitles 50 ms earlier", Subtitle, "G"),

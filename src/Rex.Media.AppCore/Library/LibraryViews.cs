@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
 
@@ -7,9 +8,15 @@ namespace Rex.Media.AppCore.Library;
 /// <summary>Entries gathered under one name: an artist's, an album's (with its artist as the detail) or a genre's.</summary>
 public sealed record LibraryGroup(string Name, string? Detail, IReadOnlyList<LibraryEntry> Entries);
 
+/// <summary>A season-and-episode mark inferred from a video's filename.</summary>
+public sealed record VideoEpisode(string Series, int Season, int Episode)
+{
+    public string DisplayName => $"{Series} · S{Season:00}E{Episode:00}";
+}
+
 /// <summary>
 /// The ways the library is looked at (LIB-05): songs, albums, artists and genres of the music;
-/// the videos; what was played or added lately; videos left part-way; and a search across it all.
+/// videos and pictures; what was played or added lately; videos left part-way; and a search across it all.
 /// Each is a plain query over the entries, in the order the window shows it.
 /// </summary>
 public static class LibraryViews
@@ -23,6 +30,7 @@ public static class LibraryViews
 
     private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
+    private static readonly Regex EpisodePattern = new(@"^(?<series>.+?)[ ._-]+S(?<season>\d{1,3})E(?<episode>\d{1,4})(?=[ ._-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     /// <summary>The music, by artist, album, disc and track, then title; songs without an artist or album after those with.</summary>
     public static IReadOnlyList<LibraryEntry> Songs(IEnumerable<LibraryEntry> entries) =>
@@ -49,8 +57,18 @@ public static class LibraryViews
             .ThenBy(group => group.Detail is null)
             .ThenBy(group => group.Detail ?? "", ByName)];
 
-    /// <summary>The artists, by name, each with their songs.</summary>
-    public static IReadOnlyList<LibraryGroup> Artists(IEnumerable<LibraryEntry> entries) => GroupedBy(Songs(entries), entry => entry.FiledArtist, UnknownArtist);
+    /// <summary>
+    /// The artists, by name, each with their songs. Tag formats can carry several artist values;
+    /// rexplayer's canonical metadata joins those with semicolons, so every credited artist gets a
+    /// library entry while the song keeps its original combined credit.
+    /// </summary>
+    public static IReadOnlyList<LibraryGroup> Artists(IEnumerable<LibraryEntry> entries) =>
+        [.. Songs(entries)
+            .SelectMany(entry => ArtistNames(entry.FiledArtist).Select(name => (Name: name, Entry: entry)))
+            .GroupBy(pair => pair.Name, ByName)
+            .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Name)), null, [.. group.Select(pair => pair.Entry).Distinct()]))
+            .OrderBy(group => group.Name == UnknownArtist)
+            .ThenBy(group => group.Name, ByName)];
 
     /// <summary>The genres, by name, each with its songs.</summary>
     public static IReadOnlyList<LibraryGroup> Genres(IEnumerable<LibraryEntry> entries) => GroupedBy(Songs(entries), entry => entry.Genre, UnknownGenre);
@@ -58,6 +76,54 @@ public static class LibraryViews
     /// <summary>The videos, by title in natural order ("Episode 2" before "Episode 10").</summary>
     public static IReadOnlyList<LibraryEntry> Videos(IEnumerable<LibraryEntry> entries) =>
         [.. entries.Where(entry => entry.Kind == LibraryKind.Video).OrderBy(entry => entry.Title, NaturalOrder.Instance).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
+
+    /// <summary>The pictures, by their folders and then file names in natural order.</summary>
+    public static IReadOnlyList<LibraryEntry> Pictures(IEnumerable<LibraryEntry> entries) =>
+        [.. entries.Where(entry => entry.Kind == LibraryKind.Picture)
+            .OrderBy(entry => Path.GetDirectoryName(entry.Path) ?? "", ByName)
+            .ThenBy(entry => Path.GetFileName(entry.Path), NaturalOrder.Instance)
+            .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
+
+    /// <summary>The season and episode a conventional S01E02 filename identifies, or null.</summary>
+    public static VideoEpisode? EpisodeOf(LibraryEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        var name = Path.GetFileNameWithoutExtension(entry.Path);
+        var match = EpisodePattern.Match(name);
+        if (!match.Success || !int.TryParse(match.Groups["season"].Value, out var season) || !int.TryParse(match.Groups["episode"].Value, out var episode))
+        {
+            return null;
+        }
+
+        var series = Regex.Replace(match.Groups["series"].Value, @"[._]+", " ").Trim();
+        return series.Length > 0 ? new VideoEpisode(series, season, episode) : null;
+    }
+
+    /// <summary>
+    /// What follows a video automatically. A recognised episode plays with the same show's season
+    /// in its folder, in episode order; an unrelated video stays on its own. This avoids turning a
+    /// broad library folder into an accidental queue of thousands of unrelated videos.
+    /// </summary>
+    public static IReadOnlyList<LibraryEntry> AutoplayVideos(IEnumerable<LibraryEntry> entries, LibraryEntry selected)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(selected);
+        if (selected.Kind != LibraryKind.Video || EpisodeOf(selected) is not { } wanted)
+        {
+            return [selected];
+        }
+
+        var folder = Path.GetDirectoryName(selected.Path) ?? "";
+        var season = entries
+            .Where(entry => entry.Kind == LibraryKind.Video && string.Equals(Path.GetDirectoryName(entry.Path) ?? "", folder, StringComparison.OrdinalIgnoreCase))
+            .Select(entry => (Entry: entry, Episode: EpisodeOf(entry)))
+            .Where(pair => pair.Episode is { } episode && episode.Season == wanted.Season && episode.Series.Equals(wanted.Series, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(pair => pair.Episode!.Episode)
+            .ThenBy(pair => pair.Entry.Title, NaturalOrder.Instance)
+            .Select(pair => pair.Entry)
+            .ToList();
+        return season.Any(entry => string.Equals(entry.Path, selected.Path, StringComparison.OrdinalIgnoreCase)) ? season : [selected];
+    }
 
     /// <summary>What was played most lately, newest first.</summary>
     public static IReadOnlyList<LibraryEntry> RecentlyPlayed(IEnumerable<LibraryEntry> entries) =>
@@ -88,7 +154,7 @@ public static class LibraryViews
         }
 
         var found = entries.Where(entry => words.All(word => Matches(entry, word))).ToList();
-        return [.. Songs(found), .. Videos(found)];
+        return [.. Songs(found), .. Videos(found), .. Pictures(found)];
     }
 
     private static bool Matches(LibraryEntry entry, string word)
@@ -103,6 +169,12 @@ public static class LibraryViews
             .Select(group => new LibraryGroup(MostSpelled(group.Select(entry => key(entry) ?? unknown)), null, [.. group]))
             .OrderBy(group => group.Name == unknown)
             .ThenBy(group => group.Name, ByName)];
+
+    private static IEnumerable<string> ArtistNames(string? credit)
+    {
+        var names = (credit ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(ByName).ToList();
+        return names.Count == 0 ? [UnknownArtist] : names;
+    }
 
     /// <summary>A group's name as most of its songs spell it ("Asake" over one "asake"), the first in order on a tie.</summary>
     private static string MostSpelled(IEnumerable<string?> names) =>

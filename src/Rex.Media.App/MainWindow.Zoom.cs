@@ -11,8 +11,9 @@ using Windows.Foundation;
 namespace Rex.Media.App;
 
 /// <summary>
-/// Zooming into the picture and moving about in it (VID-07): Alt with the wheel zooms at the
-/// pointer, dragging moves the view, and the navigator (the whole picture, small, in a corner)
+/// Zooming into the picture and moving about in it (VID-07): Ctrl or Alt with the wheel, or a
+/// pinch on a touchpad or a touch screen, zooms at the pointer; dragging, scrolling with two
+/// fingers or the wheel moves the view; and the navigator (the whole picture, small, in a corner)
 /// shows where the view is and moves it with a click or a drag. The presenter draws both; the
 /// window draws the navigator's frame and the box marking the view, and takes the pointer.
 /// </summary>
@@ -34,6 +35,17 @@ public sealed partial class MainWindow
         Navigator.PointerMoved += OnNavigatorPointer;
         Navigator.PointerReleased += (_, e) => Navigator.ReleasePointerCapture(e.Pointer);
         Stage.SizeChanged += (_, _) => ShowNavigator();
+
+        // A touch screen's pinch and drag; a mouse never makes manipulations.
+        Stage.ManipulationMode = ManipulationModes.Scale | ManipulationModes.TranslateX | ManipulationModes.TranslateY;
+        Stage.ManipulationDelta += OnStageManipulated;
+        Stage.ManipulationCompleted += (_, _) =>
+        {
+            if (_view.IsZoomed)
+            {
+                Say(string.Create(CultureInfo.InvariantCulture, $"Zoom {_view.Zoom:0.#}x"));
+            }
+        };
     }
 
     /// <summary>The picture's shape on screen as across : down, or null when there is no picture.</summary>
@@ -149,16 +161,42 @@ public sealed partial class MainWindow
         return x is >= 0 and <= 1 && y is >= 0 and <= 1 ? (x, y) : null;
     }
 
-    /// <summary>Alt with the wheel zooms about the point under the pointer.</summary>
-    private bool ZoomWithWheel(PointerRoutedEventArgs e, int delta)
+    /// <summary>Zooms about the point under the pointer, or the middle when it is off the picture; a touchpad's small steps zoom smoothly.</summary>
+    private void ZoomWithWheel(Point position, int delta)
     {
-        if (!IsDown(Windows.System.VirtualKey.Menu) || OnPicture(e.GetCurrentPoint(Stage).Position) is not { } at)
+        var (x, y) = OnPicture(position) ?? (0.5, 0.5);
+        SetView(_view.ZoomAt(WheelGestures.ZoomFactor(delta, WheelZoom), x, y), announce: true);
+    }
+
+    /// <summary>Moves about the zoomed picture as the wheel or a two-finger scroll turns: a notch a tenth of the view.</summary>
+    private void PanWithWheel(int delta, bool sideways)
+    {
+        var step = PanStep * delta / 120.0;
+        SetView(sideways ? _view.PanBy(-step, 0) : _view.PanBy(0, step));
+    }
+
+    /// <summary>A pinch on a touch screen zooms about its middle; a drag with fingers moves the picture with them.</summary>
+    private void OnStageManipulated(object sender, ManipulationDeltaRoutedEventArgs e)
+    {
+        if (e.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Touch || PictureShape() is not { } shape)
         {
-            return false;
+            return;
         }
 
-        SetView(_view.ZoomAt(delta > 0 ? WheelZoom : 1 / WheelZoom, at.X, at.Y), announce: true);
-        return true;
+        var view = _view;
+        if (e.Delta.Scale is > 0 and not 1 && OnPicture(e.Position) is { } at)
+        {
+            view = view.ZoomAt(e.Delta.Scale, at.X, at.Y);
+        }
+
+        var picture = SubtitleLook.Picture(Stage.ActualWidth, Stage.ActualHeight, shape.Across, shape.Down);
+        if (view.IsZoomed)
+        {
+            view = view.PanBy(e.Delta.Translation.X / picture.Width, e.Delta.Translation.Y / picture.Height);
+        }
+
+        SetView(view);
+        e.Handled = true;
     }
 
     private void OnStagePressed(object sender, PointerRoutedEventArgs e)
@@ -172,7 +210,8 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_view.IsZoomed && point.Properties.IsLeftButtonPressed && OnPicture(point.Position) is not null)
+        // Fingers move the picture through manipulations instead.
+        if (_view.IsZoomed && point.Properties.IsLeftButtonPressed && point.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Touch && OnPicture(point.Position) is not null)
         {
             _dragFrom = point.Position;
             Stage.CapturePointer(e.Pointer);

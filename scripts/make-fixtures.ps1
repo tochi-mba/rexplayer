@@ -254,6 +254,7 @@ Invoke-Video -Name 'h264-gray.h264' -Size '64x48' -Rate '25' -Options ($x264 + @
 $x265 = @('-c:v', 'libx265', '-preset', 'veryfast', '-x265-params')
 Invoke-Video -Name 'hevc-main.hevc' -Size '130x74' -Rate '25' -Options ($x265 + @('log-level=error', '-pix_fmt', 'yuv420p', '-vf', 'setsar=16/11'))
 Invoke-Video -Name 'hevc-main10-hdr.hevc' -Size '128x72' -Rate '50' -Options ($x265 + @('log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:range=full', '-pix_fmt', 'yuv420p10le'))
+Invoke-Video -Name 'hevc-main10-hdr.mp4' -Size '128x72' -Rate '50' -Options ($x265 + @('log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:range=full', '-pix_fmt', 'yuv420p10le', '-tag:v', 'hvc1'))
 Invoke-Video -Name 'hevc-444-layers.hevc' -Size '64x48' -Rate '30' -Options ($x265 + @('log-level=error:temporal-layers=3:scaling-list=default:ref=3:bframes=3', '-pix_fmt', 'yuv444p'))
 Invoke-Video -Name 'hevc-field.hevc' -Size '64x48' -Rate '25' -Options ($x265 + @('log-level=error:interlace=tff', '-pix_fmt', 'yuv422p'))
 Invoke-Video -Name 'hevc-in-mp4.mp4' -Size '130x74' -Rate '25' -Options ($x265 + @('log-level=error', '-pix_fmt', 'yuv420p', '-vf', 'setsar=16/11', '-tag:v', 'hvc1'))
@@ -270,9 +271,9 @@ foreach ($pair in @(@('mp4', 'h264-aac.mp4'), @('mkv', 'h264-aac-subtitles.mkv')
     Write-Host "Wrote $wav ($((Get-Item $wav).Length) bytes)."
 }
 
-# FFmpeg's MD5 of every decoded picture (as NV12, in presentation order). H.264 and HEVC decoding is
-# exact, so the pictures Windows' decoders give must hash the same.
-foreach ($fixture in @('mp4/h264-aac.mp4', 'mkv/h264-aac-subtitles.mkv', 'video/hevc-in-mp4.mp4')) {
+# FFmpeg's MD5 of every decoded picture (as NV12, in presentation order). H.264, HEVC and VP9
+# decoding is exact, so the pictures Windows' decoders give must hash the same.
+foreach ($fixture in @('mp4/h264-aac.mp4', 'mkv/h264-aac-subtitles.mkv', 'video/hevc-in-mp4.mp4', 'mkv/vp9-opus.webm')) {
     $source = Join-Path $root "tests/fixtures/$fixture"
     $hashes = Join-Path $root "tests/fixtures/$([System.IO.Path]::ChangeExtension($fixture, '.nv12.framemd5'))"
     & $Ffmpeg -hide_banner -loglevel error -y -i $source -map 0:v:0 -pix_fmt nv12 -fflags +bitexact -f framemd5 $hashes
@@ -282,6 +283,16 @@ foreach ($fixture in @('mp4/h264-aac.mp4', 'mkv/h264-aac-subtitles.mkv', 'video/
 
     Write-Host "Wrote $hashes."
 }
+
+# The Main10 fixture stays 10-bit so its P010 output is checked without throwing precision away.
+$main10 = Join-Path $video 'hevc-main10-hdr.mp4'
+$main10Hashes = Join-Path $video 'hevc-main10-hdr.p010.framemd5'
+& $Ffmpeg -hide_banner -loglevel error -y -i $main10 -map 0:v:0 -pix_fmt p010le -fflags +bitexact -f framemd5 $main10Hashes
+if ($LASTEXITCODE -ne 0) {
+    throw "ffmpeg failed to write $main10Hashes."
+}
+
+Write-Host "Wrote $main10Hashes."
 
 # FFmpeg's picture of h264-aac.mp4 at 0.24 s, for comparing rexplayer's snapshot with.
 $snapshot = Join-Path $root 'tests/fixtures/mp4/h264-aac.snapshot-0.24.png'

@@ -35,6 +35,13 @@ public sealed partial class MainWindow
             e.Handled = true;
             _shortcutKeys.Add(e.Key);
             Run(command);
+
+            // Space and Enter activate a focused button or menu as well as being shortcuts. Move
+            // focus to the picture before their release so one press cannot do both things.
+            if (e.Key is VirtualKey.Space or VirtualKey.Enter)
+            {
+                Stage.Focus(FocusState.Programmatic);
+            }
         }
     }
 
@@ -88,26 +95,36 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// The wheel over the picture does what the settings say (the volume, at first); with Ctrl held
-    /// it sizes the subtitles (OSD-02), with Alt it zooms (VID-07).
+    /// The wheel over the picture, as <see cref="WheelGestures"/> decides: Ctrl or Alt with it (and
+    /// a touchpad's pinch) zooms, zoomed in it moves about, otherwise it does what the settings say.
     /// </summary>
     private void OnStageWheel(object sender, PointerRoutedEventArgs e)
     {
-        var delta = e.GetCurrentPoint(Stage).Properties.MouseWheelDelta;
-        if (delta != 0 && ZoomWithWheel(e, delta))
+        var point = e.GetCurrentPoint(Stage);
+        var delta = point.Properties.MouseWheelDelta;
+        if (delta == 0)
         {
-            e.Handled = true;
             return;
         }
 
-        if (delta != 0 && IsDown(VirtualKey.Control))
+        var sideways = point.Properties.IsHorizontalMouseWheel;
+        var action = WheelGestures.Interpret(_settings, IsDown(VirtualKey.Control), IsDown(VirtualKey.Menu), sideways, delta > 0, _view.IsZoomed && HasVideo);
+        switch (action.Effect)
         {
-            Run(delta > 0 ? CommandCatalog.SubtitlesBigger : CommandCatalog.SubtitlesSmaller);
-            e.Handled = true;
-            return;
+            case WheelEffect.Zoom:
+                ZoomWithWheel(point.Position, delta);
+                break;
+            case WheelEffect.Pan:
+                PanWithWheel(delta, sideways);
+                break;
+            case WheelEffect.Command:
+                Run(action.Command!);
+                break;
+            default:
+                return;
         }
 
-        e.Handled = RunWheel(e.GetCurrentPoint(Stage));
+        e.Handled = true;
     }
 
     private void OnPlaylistDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

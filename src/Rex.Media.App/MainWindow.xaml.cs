@@ -57,7 +57,7 @@ public sealed partial class MainWindow : Window
 
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
-    private readonly System.Collections.ObjectModel.ObservableCollection<string> _playlistRows = [];
+    private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
 
     public MainWindow(IReadOnlyList<string> files)
     {
@@ -251,14 +251,21 @@ public sealed partial class MainWindow : Window
 
         var (width, height) = VideoPixels();
         var (scaleX, scaleY) = (Video.CompositionScaleX, Video.CompositionScaleY);
+        // With no pictures on their way the surface would keep its old size until the next picture,
+        // leaving the window's background showing round it. Audio must forget the previous picture;
+        // a paused picture or video keeps and redraws it.
+        var clear = _player.Info is not null && !HasVideo;
         var redraw = !_player.IsPlaying;
         OnPresenterThread(presenter =>
         {
             presenter.Resize(width, height);
             presenter.SetScale(scaleX, scaleY);
-            if (redraw)
+            if (clear)
             {
-                // Nothing new is on its way while paused: draw the last picture again at the new size.
+                presenter.Clear();
+            }
+            else if (redraw)
+            {
                 presenter.Redraw();
             }
         });
@@ -306,6 +313,7 @@ public sealed partial class MainWindow : Window
         NowPlaying.Text = title;
 
         var idle = _player.State is SessionState.Idle || (_player.Item is not null && !HasVideo);
+        VideoBlankLayer.Visibility = HasVideo ? Visibility.Collapsed : Visibility.Visible;
         Idle.Visibility = idle ? Visibility.Visible : Visibility.Collapsed;
         IdleTitle.Text = _player.Item is null ? "rexplayer" : title;
         IdleHint.Text = _player.Item is null ? "Drop media here, or press Ctrl+O to open a file."
@@ -381,7 +389,7 @@ public sealed partial class MainWindow : Window
     private void ShowPlaylist()
     {
         var current = _player.Playlist.CurrentIndex;
-        var rows = _player.Playlist.Items.Select((item, i) => (i == current ? "\u25B6 " : "") + item.Title).ToList();
+        var rows = _player.Playlist.Items.Select((item, i) => new PlaylistRow((i == current ? "\u25B6 " : "") + item.Title, _player.IsMissing(item))).ToList();
         for (var i = 0; i < rows.Count; i++)
         {
             if (i >= _playlistRows.Count)
@@ -506,6 +514,8 @@ public sealed partial class MainWindow : Window
         _saveTimer.Stop();
         _resumeTimer.Stop();
         _sleepTimer.Stop();
+        _seekPreviewWork.Cancel();
+        _seekPreviewWork.Dispose();
         SaveSettings();
         _player.SaveQueue();
         CloseLibrary();

@@ -5,10 +5,17 @@ using Microsoft.UI.Xaml.Media;
 namespace Rex.Media.App;
 
 /// <summary>
-/// A line of the library's list: a song or video, an album, artist or genre, a named playlist or a
-/// watched folder (<see cref="Item"/> says which), with a picture for videos once one is loaded.
+/// One item in a library view: a track, video, picture, album, artist, genre, playlist or watched
+/// folder (<see cref="Item"/> says which), with artwork once it is loaded.
 /// </summary>
-public sealed partial class LibraryRow(string name, string? detail, string extra, object item, bool hasPicture = false) : INotifyPropertyChanged
+public sealed partial class LibraryRow(
+    string name,
+    string? detail,
+    string extra,
+    object item,
+    bool hasPicture = false,
+    string picturePlaceholder = "",
+    string badge = "") : INotifyPropertyChanged
 {
     private ImageSource? _picture;
 
@@ -28,6 +35,13 @@ public sealed partial class LibraryRow(string name, string? detail, string extra
     public Visibility PictureVisibility => HasPicture ? Visibility.Visible : Visibility.Collapsed;
 
     public bool HasPicture { get; } = hasPicture;
+
+    public string PicturePlaceholder { get; } = picturePlaceholder;
+
+    /// <summary>A compact piece of media-native context: a track number or episode mark.</summary>
+    public string Badge { get; } = badge;
+
+    public Visibility BadgeVisibility => Badge.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Whether loading the picture has been started, so it is asked for once.</summary>
     public bool PictureAsked { get; set; }

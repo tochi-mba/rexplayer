@@ -15,6 +15,12 @@ public sealed class LibraryViewsTests
     private static LibraryEntry Video(string title, DateTime? lastPlayed = null) =>
         new() { Path = $@"D:\Videos\{title}.mp4", Kind = LibraryKind.Video, Title = title, Added = Monday, LastPlayed = lastPlayed };
 
+    private static LibraryEntry VideoAt(string folder, string title) =>
+        new() { Path = Path.Combine(folder, title + ".mkv"), Kind = LibraryKind.Video, Title = title, Added = Monday };
+
+    private static LibraryEntry Picture(string folder, string title) =>
+        new() { Path = Path.Combine(folder, title), Kind = LibraryKind.Picture, Title = Path.GetFileNameWithoutExtension(title), Added = Monday };
+
     private static readonly LibraryEntry[] Entries =
     [
         Song("Terminator", "Asake", "Work of Art", track: 2, genre: "Afrobeats"),
@@ -65,6 +71,19 @@ public sealed class LibraryViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void EveryCreditedArtistGetsTheirOwnGroup()
+    {
+        var together = Song("Peace Be Unto You", "Asake; DJ Snake; asake", "Singles");
+        var another = Song("Amapiano", "Asake; Kabza De Small", "Singles");
+        var artists = LibraryViews.Artists([together, another]);
+
+        Assert.Equal(["Asake", "DJ Snake", "Kabza De Small"], artists.Select(artist => artist.Name));
+        Assert.Equal(["Peace Be Unto You", "Amapiano"], Titles(artists[0].Entries));
+        Assert.Equal("Asake; DJ Snake; asake", together.Artist);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void VideosLatelyAndPartWay()
     {
         Assert.Equal(["Episode 2", "Episode 10"], Titles(LibraryViews.Videos(Entries)));
@@ -79,6 +98,43 @@ public sealed class LibraryViewsTests
         var left = LibraryViews.ContinueWatching(Entries, path => path.Contains("Episode", StringComparison.Ordinal) || path.Contains("Sungba", StringComparison.Ordinal) ? TimeSpan.FromMinutes(5) : null);
         Assert.Equal(["Episode 2", "Episode 10"], Titles(left));
         Assert.Throws<ArgumentNullException>(() => LibraryViews.ContinueWatching(Entries, null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void PicturesHaveTheirOwnNaturallyOrderedViewAndSearch()
+    {
+        var pictures = new[]
+        {
+            Picture(@"D:\Photos\Trip", "Photo 10.jpg"),
+            Picture(@"D:\Photos\Home", "Cat.png"),
+            Picture(@"D:\Photos\Trip", "Photo 2.jpg"),
+        };
+
+        Assert.Equal(["Cat", "Photo 2", "Photo 10"], Titles(LibraryViews.Pictures(pictures)));
+        Assert.Equal(["Photo 2"], Titles(LibraryViews.Search([.. Entries, .. pictures], "photo 2")));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AnEpisodeAutoplaysOnlyItsSeasonInEpisodeOrder()
+    {
+        var folder = Path.Combine("D:\\Videos", "The Rehearsal Season 1");
+        var episodes = new[] { 10, 2, 1 }.Select(number => VideoAt(folder, $"The.Rehearsal.S01E{number:00}.1080p.WEBRip.x265-RARBG")).ToList();
+        var anotherShow = VideoAt(folder, "Elsewhere.S01E03.1080p");
+        var anotherFolder = VideoAt(Path.Combine("D:\\Videos", "Copy"), "The.Rehearsal.S01E04.1080p");
+        var movie = VideoAt(folder, "A Movie");
+
+        var detected = LibraryViews.EpisodeOf(episodes[1]);
+        Assert.Equal(new VideoEpisode("The Rehearsal", 1, 2), detected);
+        Assert.Equal("The Rehearsal · S01E02", detected!.DisplayName);
+        Assert.Equal([1, 2, 10], LibraryViews.AutoplayVideos([.. episodes, anotherShow, anotherFolder, movie], episodes[1]).Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
+        Assert.Equal([movie], LibraryViews.AutoplayVideos(episodes, movie));
+        Assert.Equal([Song("Not video", null, null)], LibraryViews.AutoplayVideos([], Song("Not video", null, null)));
+        Assert.Null(LibraryViews.EpisodeOf(VideoAt(folder, "S01E01")));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.EpisodeOf(null!));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.AutoplayVideos(null!, episodes[0]));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.AutoplayVideos(episodes, null!));
     }
 
     [Theory]
