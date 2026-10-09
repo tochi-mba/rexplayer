@@ -195,10 +195,11 @@ public sealed partial class MainWindow
         }
 
         // The camera is used only once it has been agreed to.
-        if (_settings.Visualizer == VisualizerChoice.Silhouette && !_settings.CameraAllowed)
+        if (UsesCamera(_settings.Visualizer) && !_settings.CameraAllowed)
         {
+            var chosen = _settings.Visualizer;
             _settings = _settings with { Visualizer = s.Visualizer };
-            await ChooseVisualizerAsync(VisualizerChoice.Silhouette);
+            await ChooseVisualizerAsync(chosen);
         }
     }
 

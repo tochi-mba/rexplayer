@@ -3,6 +3,54 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.10.0 - 2026-10-10
+
+### Added
+
+- **A library to browse, not just a list.** Home opens on shelves of what to play next: jump back
+  into videos, recently played, your most played, new in your library, albums, videos and
+  pictures. Every view has a banner with its artwork, what it holds and how long it lasts, with
+  Play, Shuffle and Add to the playlist. Choose for each view how it is laid out (a list, cards or
+  big cards), how big the cards are, what it is ordered by (title, artist, album, year, date added,
+  last played, most played, length, either way round) and what it is grouped under (first letter,
+  artist, album, genre, year, decade, folder, date added or length), with headings; each view
+  remembers. Videos left part-way show how far you got; cards show a play mark under the pointer.
+- **Every piece of media has a picture.** Videos Windows has no thumbnail for (WebM, Matroska and
+  others) show a frame of the video itself, and the playlist shows every item's picture too.
+- **Menus show what is on.** Shuffle, repeat, mute, subtitles, always on top, full screen, the
+  playlist, the library, lyrics, statistics, the navigator, the minimal interface and stop or pause
+  after this one are ticked when on.
+- **Lyrics over any visualisation.** A song's lyrics now show over the visualisation, not instead
+  of it; Shift+L (or right-click the visualisation) puts them away and brings them back.
+
+### Improved
+
+- **Every visualisation moves with the music.** Kicks, snares and hi-hats are heard apart, as well
+  as the beat, the tempo and the drop, and every effect answers to them: nothing is left to chance.
+  Light no longer builds up until the picture goes white: trails fade and bloom glows without ever
+  piling up, through a filmic curve. Drawing happens away from the window and adapts to the
+  computer, so the window never stutters.
+- **Vinyl** is a turntable: grooves that catch the lamp, the song cut into them in light as it plays,
+  the sound as a ring round the record, strobe dots that flash on the kick, and a tone-arm that swings
+  to the needle.
+- **Aurora** is the northern lights: curtains of rays that fold and drift, green at the hem and
+  violet above, over mountains and stars, with a wave of light along them on each kick.
+- **The beat edit** cuts to the drums: punches in on the kick and swings with it, tilts and glitches
+  on the snare, changes grade on the bar, freezes and snaps back, glitters on the hats, and breaks
+  into four screens on the drop. Its shadows take the palette's colour.
+- **New palettes** (neon, fire, aurora, ocean and sunset), each visualisation starting in the one
+  that suits it; Halo and Embers draw streaks of light; the silhouette's outline is smooth.
+- Settings that did nothing are gone or now work: the aurora's stars and drift, the ripples'
+  origin and when they fall, the strobe's patterns and colours, vinyl's waveform ring and strobe dots.
+
+### Fixed
+
+- The camera visualisations ask before using the camera, wherever they are chosen, and use it
+  reliably: switching between them no longer leaves one on its fallback, a camera that fails to
+  start is tried again, and the beat edit's picture is four times as detailed.
+- Choosing a visualisation while a song had lyrics did nothing.
+- Closing the window as the library finished a scan could end in a crash.
+
 ## 0.9.0 - 2026-10-09
 
 ### Added

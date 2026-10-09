@@ -24,6 +24,9 @@ public sealed class MusicPulse
     private const int EnvelopeSeconds = 6;
     private const double MinimumGap = 1.0 / 6;
 
+    /// <summary>How long the drums must be away for their return to be the drop.</summary>
+    private const double DropGap = 2.5;
+
     private readonly SpectrumAnalyzer _bands = new(BandCount);
     private readonly float[] _magnitudes = new float[SpectrumAnalyzer.Size / 2];
     private readonly float[] _previous = new float[SpectrumAnalyzer.Size / 2];
@@ -37,7 +40,7 @@ public sealed class MusicPulse
     private int _envelopeAt;
     private double _sinceBeat = 10;
     private double _sinceDrop = 10;
-    private double _quietFor;
+    private double _musicFor;
     private bool _primed;
 
     /// <summary>Each band's level, 0 to 1, lowest first.</summary>
@@ -122,9 +125,11 @@ public sealed class MusicPulse
         // own part of the spectrum is watched too: the kick low, the snare in the middle, the hats high.
         var top = Math.Min(_magnitudes.Length, 5000 * SpectrumAnalyzer.Size / sampleRate);
         var (kickTop, snareTop, hatTop) = (Bin(160, sampleRate), Bin(4000, sampleRate), Bin(16000, sampleRate));
-        double flux = 0, kick = 0, snare = 0, hat = 0;
+        double flux = 0, kick = 0, snare = 0, hat = 0, kickEnergy = 0, snareEnergy = 0, hatEnergy = 0;
         for (var bin = 1; bin < hatTop; bin++)
         {
+            // Rises are judged on a log scale, as hearing does; how hard a hit is, by its energy.
+            var energy = _magnitudes[bin] * _magnitudes[bin];
             var now = MathF.Log(1 + (_magnitudes[bin] * 100));
             var rise = Math.Max(0, now - _previous[bin]);
             _previous[bin] = now;
@@ -136,23 +141,24 @@ public sealed class MusicPulse
 
             if (bin < kickTop)
             {
-                kick += rise;
+                (kick, kickEnergy) = (kick + rise, kickEnergy + energy);
             }
             else if (bin < snareTop)
             {
-                snare += rise;
+                (snare, snareEnergy) = (snare + rise, snareEnergy + energy);
             }
             else
             {
-                hat += rise;
+                (hat, hatEnergy) = (hat + rise, hatEnergy + energy);
             }
         }
 
         flux /= top;
         var primed = _primed;
-        _kick.Hear(kick / kickTop, dt, primed && Loudness > 0.15f);
-        _snare.Hear(snare / (snareTop - kickTop), dt, primed && Loudness > 0.15f);
-        _hat.Hear(hat / Math.Max(1, hatTop - snareTop), dt, primed && Loudness > 0.1f);
+        var kickGap = _kick.Since;
+        _kick.Hear(kick / kickTop, kickEnergy, dt, primed && Loudness > 0.15f);
+        _snare.Hear(snare / (snareTop - kickTop), snareEnergy, dt, primed && Loudness > 0.15f);
+        _hat.Hear(hat / Math.Max(1, hatTop - snareTop), hatEnergy, dt, primed && Loudness > 0.1f);
         Beat = false;
         Drop = false;
         BeatStrength = Math.Max(0, BeatStrength - (float)(dt * 4));
@@ -168,25 +174,28 @@ public sealed class MusicPulse
 
         var (mean, spread) = Statistics();
         var threshold = mean + Math.Max(1.6 * spread, 0.004);
-        if (flux > threshold && _sinceBeat >= MinimumGap && Loudness > 0.15f)
+        // A beat is a jump in the whole spectrum's rise, or a kick: either way, no closer than the gap.
+        if ((flux > threshold || _kick.Hit) && _sinceBeat >= MinimumGap && Loudness > 0.15f)
         {
             Beat = true;
             Beats++;
-            BeatStrength = (float)Math.Clamp((flux - mean) / Math.Max(spread * 4, 1e-4), 0.25, 1);
-
-            // The drop: a strong beat after a stretch quieter than the music around it.
-            if (_quietFor > 2 && Loudness > LongLoudness + 0.08f && _sinceDrop > 8)
-            {
-                Drop = true;
-                _sinceDrop = 0;
-            }
+            BeatStrength = _kick.Hit ? _kick.Strength : (float)Math.Clamp((flux - mean) / Math.Max(spread * 4, 1e-4), 0.25, 1);
 
             _sinceBeat = 0;
         }
 
-        _quietFor = Loudness < LongLoudness - 0.05f ? _quietFor + dt : Math.Max(0, _quietFor - (dt * 0.25));
+        // The drop: the kick coming back after the drums dropped out for a while (a breakdown, a
+        // build), in a song that had them before, and the music never stopped meanwhile.
+        if (_kick.Hit && kickGap >= DropGap && _kick.Count > 4 && _musicFor >= DropGap && _sinceDrop > 8)
+        {
+            Drop = true;
+            _sinceDrop = 0;
+        }
+
+        _musicFor = Loudness > 0.15f ? _musicFor + dt : 0;
         Record((float)flux, dt);
-        if (Beats > 3)
+        // The tempo is worked out again only while the beat goes on: silence lines up with nothing.
+        if (Beats > 3 && _sinceBeat < 2)
         {
             Tempo = EstimateTempo();
         }
@@ -214,7 +223,7 @@ public sealed class MusicPulse
         Array.Clear(_envelope);
         Array.Clear(_wave);
         _fluxes.Clear();
-        (_envelopeTime, _envelopeAt, _sinceBeat, _sinceDrop, _quietFor, _primed) = (0, 0, 10, 10, 0, false);
+        (_envelopeTime, _envelopeAt, _sinceBeat, _sinceDrop, _musicFor, _primed) = (0, 0, 10, 10, 0, false);
         (Bass, Mid, Treble, Loudness, LongLoudness, BeatStrength, Pitch) = (0, 0, 0, 0, 0, 0, 0);
         (Beat, Drop, Beats, Tempo) = (false, false, 0, 0);
     }
@@ -266,7 +275,7 @@ public sealed class MusicPulse
         var n = _envelope.Length;
         var mean = _envelope.Average();
         var (bestLag, bestScore, total) = (0, 0.0, 0.0);
-        var (shortest, longest) = (EnvelopeRate * 60 / 180, EnvelopeRate * 60 / 70);
+        var (shortest, longest) = ((EnvelopeRate * 60 / 180) + 1, EnvelopeRate * 60 / 70);
         for (var lag = shortest; lag <= longest; lag++)
         {
             double score = 0;

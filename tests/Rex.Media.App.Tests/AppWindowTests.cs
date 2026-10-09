@@ -26,6 +26,39 @@ public sealed class AppWindowTests : IDisposable
         return path;
     }
 
+    /// <summary>
+    /// A song with a beat: a kick on every beat at 120 a minute, hardest on the first of each bar,
+    /// a snare on two and four, over a held chord. 48 kHz stereo, so the visualisations hear it all.
+    /// </summary>
+    private string Music(int seconds)
+    {
+        const int Rate = 48_000;
+        var random = new Random(5);
+        var samples = new float[Rate * seconds * 2];
+        for (var i = 0; i < Rate * seconds; i++)
+        {
+            var t = (double)i / Rate;
+            var (beat, since) = ((int)(t / 0.5), t % 0.5);
+            var kick = (beat % 4 == 0 ? 0.85 : 0.5) * Math.Sin(Math.Tau * (50 + (90 * Math.Exp(-since * 30))) * since) * Math.Exp(-since * 12);
+            var snare = beat % 2 == 1 ? 0.25 * ((random.NextDouble() * 2) - 1) * Math.Exp(-since * 25) : 0;
+            var pad = 0.06 * (Math.Sin(Math.Tau * 220 * t) + Math.Sin(Math.Tau * 277.2 * t) + Math.Sin(Math.Tau * 329.6 * t));
+            samples[i * 2] = samples[(i * 2) + 1] = (float)Math.Clamp(kick + snare + pad, -1, 1);
+        }
+
+        var path = Path.Combine(_media, "Terminator.wav");
+        File.WriteAllBytes(path, WavBuilder.Pcm(Rate, 2, 16, Pcm.Int16(samples)).Build());
+        return path;
+    }
+
+    /// <summary>A scratch data folder whose settings start with <paramref name="visualisation"/> showing.</summary>
+    private static string RootShowing(string visualisation)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "settings.json"), "{ \"firstRunDone\": true, \"lastSeenVersion\": \"" + AppProcess.Version + "\", \"updateChecks\": \"Off\", \"visualizer\": \"" + visualisation + "\" }");
+        return root;
+    }
+
     private static AutomationElement[] All(AutomationElement root, ControlType type) =>
         [.. root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, type)).Cast<AutomationElement>()];
 
@@ -155,6 +188,55 @@ public sealed class AppWindowTests : IDisposable
         }
 
         Wait.For(() => !app.IsShown("Visualizer"), "the visualisation to go");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Theory]
+    [Capability("AU-18")]
+    [InlineData("Vinyl")]
+    [InlineData("Halo")]
+    [InlineData("Mirror")]
+    [InlineData("Aurora")]
+    [InlineData("Embers")]
+    [InlineData("Ripples")]
+    [InlineData("Strobe")]
+    public void EachVisualisationLightsTheStageAndMovesWithTheMusic(string visualisation)
+    {
+        using var app = AppProcess.Start([Music(30)], RootShowing(visualisation));
+
+        Wait.For(() => app.IsShown("Visualizer"), "the visualisation");
+        var stage = app.Find("Visualizer").Current.BoundingRectangle;
+        var window = app.Window.Current.BoundingRectangle;
+        var area = new System.Windows.Rect(stage.Left - window.Left, stage.Top - window.Top, stage.Width, stage.Height);
+
+        // Some seconds in, the picture is lit and keeps changing from one moment to the next.
+        Thread.Sleep(3000);
+        var frames = Enumerable.Range(0, 6).Select(_ =>
+        {
+            Thread.Sleep(170);
+            return WindowPicture.Take(app.Handle);
+        }).ToList();
+        var lit = frames.Average(frame => WindowPicture.Brightness(frame, area));
+        var change = frames.Zip(frames.Skip(1), (a, b) => WindowPicture.Change(a, b, area)).Average();
+        Assert.True(lit is > 0.01 and < 0.8, $"{visualisation} lit {lit:0.000} of the stage.");
+        Assert.True(change > 0.002, $"{visualisation} changed {change:0.0000} between moments.");
+        Assert.DoesNotContain("could not be drawn", app.LogText, StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheCameraIsAskedForAndNotUsedWhenTheAnswerIsNo()
+    {
+        using var app = AppProcess.Start([Music(30)], RootShowing("Strobe"));
+        Wait.For(() => app.IsShown("Visualizer"), "the visualisation");
+
+        // The next is the silhouette, which asks first; "Not now" passes over the camera's two.
+        _ = Task.Run(() => app.Run(CommandCatalog.CycleVisualizer));
+        app.Press("CloseButton");
+        Wait.For(() => app.SavedSettings.Visualizer == Rex.Media.Settings.VisualizerChoice.Off, "no visualisation");
+        Assert.False(app.SavedSettings.CameraAllowed);
+        Assert.DoesNotContain("The camera is on", app.LogText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 
@@ -291,6 +373,12 @@ public sealed class AppWindowTests : IDisposable
 
         app.Run(CommandCatalog.ToggleLibrary);
         Wait.For(() => app.IsShown("LibraryPane"), "the library");
+
+        // Home first, with the song on its shelf of what is new; then the songs.
+        Wait.For(() => app.IsShown("LibraryHome") && app.Text("LibraryTitle") == "Home", "the library's home");
+        var songs = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Songs")));
+        ((SelectionItemPattern)songs!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        Wait.For(() => app.Text("LibraryTitle") == "Songs", "the songs");
         var song = Wait.Until(() => app.Find("LibraryList").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Sungba")));
         ((SelectionItemPattern)song!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         app.Press("LibraryPlay");

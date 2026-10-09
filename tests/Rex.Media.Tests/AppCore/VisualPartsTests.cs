@@ -1,5 +1,4 @@
 using Rex.Media.AppCore.Visuals;
-using Rex.Media.Audio;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
@@ -54,26 +53,37 @@ public sealed class VisualPartsTests
     [Fact]
     public void AnOnsetsLevelFallsAwayAfterEachHitAndAQuietOneIsNoHit()
     {
-        var onset = new Onset(0.1, 0.2);
+        var onset = new Onset(0.25, 0.2);
         for (var i = 0; i < 10; i++)
         {
-            onset.Hear(0.01, 0.033, listening: true);
+            onset.Hear(0.01, 0.1, 0.033, listening: true);
         }
 
         Assert.False(onset.Hit);
-        onset.Hear(1, 0.033, listening: true);
+        onset.Hear(1, 4, 0.033, listening: true);
         Assert.True(onset.Hit);
+        Assert.Equal(1, onset.Strength);
         Assert.Equal(onset.Strength, onset.Level);
-        onset.Hear(0.01, 0.1, listening: true);
-        Assert.InRange(onset.Level, onset.Strength * 0.45f, onset.Strength * 0.55f);
+        onset.Hear(0.01, 0.1, 0.1, listening: true);
+        Assert.InRange(onset.Level, 0.45f, 0.55f);
 
         // Too soon after the last, or not listening: no hit however loud.
-        onset.Hear(1, 0.001, listening: true);
+        onset.Hear(1, 4, 0.001, listening: true);
         Assert.False(onset.Hit);
-        onset.Hear(1, 1, listening: false);
+        onset.Hear(1, 4, 1, listening: false);
         Assert.False(onset.Hit);
         Assert.Equal(1, onset.Count);
         Assert.Equal(0, onset.Level);
+
+        // A softer hit than the hardest of late is weaker, by its energy.
+        for (var i = 0; i < 10; i++)
+        {
+            onset.Hear(0.01, 0.1, 0.033, listening: true);
+        }
+
+        onset.Hear(1, 2, 0.033, listening: true);
+        Assert.True(onset.Hit);
+        Assert.InRange(onset.Strength, 0.5f, 0.75f);
     }
 
     [Fact]

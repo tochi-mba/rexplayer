@@ -145,7 +145,7 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.CycleVisualizer:
-                _ = ChooseVisualizerAsync(Visualizers.Next(_settings.Visualizer));
+                _ = ChooseVisualizerAsync(Visualizers.Next(_settings.Visualizer), cycling: true);
                 return true;
             case CommandCatalog.VisualizerSettings:
                 _ = ShowVisualizerSettingsAsync();
@@ -189,12 +189,24 @@ public sealed partial class MainWindow
         return true;
     }
 
-    /// <summary>Changes the visualisation; one that uses the camera asks first, the first time.</summary>
-    private async Task ChooseVisualizerAsync(VisualizerChoice choice)
+    /// <summary>
+    /// Changes the visualisation; one that uses the camera asks first, the first time. Declined, a
+    /// chosen one leaves the visualisation as it was, and stepping through them passes the camera's by.
+    /// </summary>
+    private async Task ChooseVisualizerAsync(VisualizerChoice choice, bool cycling = false)
     {
         if (UsesCamera(choice) && !await AllowCameraAsync())
         {
-            choice = _settings.Visualizer;
+            if (!cycling)
+            {
+                return;
+            }
+
+            do
+            {
+                choice = Visualizers.Next(choice);
+            }
+            while (UsesCamera(choice));
         }
 
         _settings = _settings with { Visualizer = choice };

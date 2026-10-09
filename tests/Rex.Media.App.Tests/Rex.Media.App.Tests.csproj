@@ -8,6 +8,8 @@
     <RootNamespace>Rex.Media.App.Tests</RootNamespace>
     <!-- For System.Windows.Automation, the UI Automation client the tests drive the window with. -->
     <UseWPF>true</UseWPF>
+    <!-- For WindowPicture's PrintWindow calls. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

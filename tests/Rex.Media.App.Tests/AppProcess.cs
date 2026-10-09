@@ -29,6 +29,16 @@ internal sealed class AppProcess : IDisposable
 
     public AutomationElement Window { get; }
 
+    /// <summary>The window's handle, for reading what it shows.</summary>
+    public nint Handle
+    {
+        get
+        {
+            _process.Refresh();
+            return _process.MainWindowHandle;
+        }
+    }
+
     public string SettingsPath => Path.Combine(Root, "settings.json");
 
     /// <summary>The settings as saved now, read again if the app is just replacing the file.</summary>

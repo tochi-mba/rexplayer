@@ -36,21 +36,6 @@ public sealed partial class MainWindow
     /// <summary>How often every folder is looked through again, for changes the watching missed.</summary>
     private static readonly TimeSpan LibraryRescanEvery = TimeSpan.FromMinutes(30);
 
-    private static readonly (LibrarySource Source, string Name)[] LibrarySourceNames =
-    [
-        (LibrarySource.Songs, "Songs"),
-        (LibrarySource.Albums, "Albums"),
-        (LibrarySource.Artists, "Artists"),
-        (LibrarySource.Genres, "Genres"),
-        (LibrarySource.Videos, "Videos"),
-        (LibrarySource.Pictures, "Pictures"),
-        (LibrarySource.ContinueWatching, "Continue watching"),
-        (LibrarySource.RecentlyPlayed, "Recently played"),
-        (LibrarySource.RecentlyAdded, "Recently added"),
-        (LibrarySource.Playlists, "Playlists"),
-        (LibrarySource.Folders, "Folders"),
-    ];
-
     private readonly List<FileSystemWatcher> _watchers = [];
     private readonly HashSet<string> _changedFolders = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _libraryPictures = new();
@@ -59,13 +44,13 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _libraryRefresh;
     private DispatcherQueueTimer? _libraryChanges;
     private DispatcherQueueTimer? _libraryRescan;
-    private LibrarySource _librarySource = LibrarySource.Songs;
+    private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
     private string _shownLibrary = "";
-    private LibraryLayout? _libraryLayout;
 
     private enum LibrarySource
     {
+        Home,
         Songs,
         Albums,
         Artists,
@@ -77,15 +62,6 @@ public sealed partial class MainWindow
         RecentlyAdded,
         Playlists,
         Folders,
-    }
-
-    private enum LibraryLayout
-    {
-        Songs,
-        Browse,
-        Videos,
-        Pictures,
-        Generic,
     }
 
     private bool LibraryOpen => LibraryPane.Visibility == Visibility.Visible;
@@ -130,7 +106,8 @@ public sealed partial class MainWindow
         _libraryRescan.Tick += (_, _) => _scanner.Request();
         _libraryRescan.Start();
 
-        LibrarySources.ItemsSource = LibrarySourceNames.Select(source => source.Name).ToList();
+        LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
+        WireLibraryView();
         LibrarySources.SelectedIndex = 0;
         var entries = new MenuFlyout();
         entries.Opening += (_, _) => FillLibraryMenu(entries);
@@ -264,7 +241,7 @@ public sealed partial class MainWindow
     {
         if (LibrarySources.SelectedIndex >= 0)
         {
-            _librarySource = LibrarySourceNames[LibrarySources.SelectedIndex].Source;
+            _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
             _libraryGroup = null;
             LibrarySearch.Text = "";
             ShowLibrary();
@@ -277,78 +254,6 @@ public sealed partial class MainWindow
     {
         _libraryGroup = null;
         ShowLibrary();
-    }
-
-    /// <summary>Brings the open view in line with the library; the list is replaced only when what it shows has changed.</summary>
-    private void ShowLibrary()
-    {
-        if (_library is null || !LibraryOpen)
-        {
-            return;
-        }
-
-        var entries = _library.Entries;
-        var search = LibrarySearch.Text.Trim();
-        var source = search.Length > 0 ? (LibrarySource?)null : _librarySource;
-        var group = search.Length > 0 ? null : _libraryGroup;
-        string title;
-        List<LibraryRow> rows;
-        LibraryLayout layout;
-        if (search.Length > 0)
-        {
-            title = $"Search: {search}";
-            rows = EntryRows(LibraryViews.Search(entries, search));
-            layout = LibraryLayout.Songs;
-        }
-        else if (group is not null)
-        {
-            // The group again, as the library has it now.
-            var fresh = Groups(_librarySource, entries).FirstOrDefault(g => g.Name == group.Name && g.Detail == group.Detail);
-            _libraryGroup = fresh;
-            title = fresh is null ? group.Name : fresh.Detail is null ? fresh.Name : $"{fresh.Name} by {fresh.Detail}";
-            rows = fresh is null ? [] : EntryRows(fresh.Entries);
-            layout = LibraryLayout.Songs;
-        }
-        else
-        {
-            title = LibrarySourceNames.First(pair => pair.Source == _librarySource).Name;
-            rows = _librarySource switch
-            {
-                LibrarySource.Songs => EntryRows(LibraryViews.Songs(entries)),
-                LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres => [.. Groups(_librarySource, entries).Select(GroupRow)],
-                LibrarySource.Videos => EntryRows(LibraryViews.Videos(entries)),
-                LibrarySource.Pictures => EntryRows(LibraryViews.Pictures(entries)),
-                LibrarySource.ContinueWatching => EntryRows(LibraryViews.ContinueWatching(entries, _player.LeftAt)),
-                LibrarySource.RecentlyPlayed => EntryRows(LibraryViews.RecentlyPlayed(entries)),
-                LibrarySource.RecentlyAdded => EntryRows(LibraryViews.RecentlyAdded(entries)),
-                LibrarySource.Playlists => [.. _player.NamedPlaylists.Select(p => new LibraryRow(p.Name, null, Count(p.Items.Count, "item"), p))],
-                _ => [.. _library.Folders.Select(folder => new LibraryRow(folder, Count(entries.Count(entry => MediaLibrary.Holds(folder, entry.Path)), "file"), "", folder))],
-            };
-            layout = _librarySource switch
-            {
-                LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres => LibraryLayout.Browse,
-                LibrarySource.Videos or LibrarySource.ContinueWatching => LibraryLayout.Videos,
-                LibrarySource.Pictures => LibraryLayout.Pictures,
-                LibrarySource.Playlists or LibrarySource.Folders => LibraryLayout.Generic,
-                _ => LibraryLayout.Songs,
-            };
-        }
-
-        SetLibraryLayout(layout);
-        LibraryTitle.Text = title;
-        LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        var folders = source == LibrarySource.Folders;
-        LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
-        LibraryPlay.Visibility = LibraryEnqueue.Visibility = folders ? Visibility.Collapsed : Visibility.Visible;
-        ShowLibraryEmpty(rows.Count == 0, search.Length > 0, source);
-
-        var shown = layout + "\n" + title + "\n" + string.Join("\n", rows.Select(row => row.Name + "|" + row.Detail + "|" + row.Extra));
-        if (shown != _shownLibrary)
-        {
-            CancelLibraryPictures();
-            _shownLibrary = shown;
-            LibraryList.ItemsSource = rows;
-        }
     }
 
     private void ShowLibraryEmpty(bool empty, bool searching, LibrarySource? source)
@@ -426,7 +331,8 @@ public sealed partial class MainWindow
             _ => "",
         };
         var placeholder = entry.Kind switch { LibraryKind.Music => "♪", LibraryKind.Video => "▶", _ => "▧" };
-        return new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge);
+        var progress = entry.Kind == LibraryKind.Video && _player.LeftAt(entry.Path) is { } left && entry.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(left / length, 0, 1) : 0;
+        return new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress);
     }
 
     private static string Count(int count, string what) => count == 1 ? "1 " + what : count.ToString(CultureInfo.CurrentCulture) + " " + what + "s";
@@ -449,28 +355,6 @@ public sealed partial class MainWindow
         _ => null,
     };
 
-    /// <summary>Gives each medium its own density and visual hierarchy without giving up ListView virtualisation.</summary>
-    private void SetLibraryLayout(LibraryLayout layout)
-    {
-        if (_libraryLayout == layout)
-        {
-            return;
-        }
-
-        var (template, panel, accessibleName) = layout switch
-        {
-            LibraryLayout.Songs => ("LibrarySongTemplate", "LibraryListPanel", "Songs, compact list"),
-            LibraryLayout.Browse => ("LibraryBrowseTemplate", "LibraryBrowsePanel", "Collections, cover grid"),
-            LibraryLayout.Videos => ("LibraryVideoTemplate", "LibraryVideoPanel", "Videos, thumbnail grid"),
-            LibraryLayout.Pictures => ("LibraryPhotoTemplate", "LibraryPhotoPanel", "Pictures, gallery grid"),
-            _ => ("LibraryGenericTemplate", "LibraryListPanel", "Library items, list"),
-        };
-        LibraryList.ItemTemplate = (DataTemplate)Root.Resources[template];
-        LibraryList.ItemsPanel = (ItemsPanelTemplate)Root.Resources[panel];
-        AutomationProperties.SetName(LibraryList, accessibleName);
-        _libraryLayout = layout;
-    }
-
     private void CancelLibraryPictures()
     {
         _libraryPictures.Cancel();
@@ -481,7 +365,7 @@ public sealed partial class MainWindow
     /// <summary>The lines chosen, or every line when none is.</summary>
     private List<LibraryRow> ChosenRows()
     {
-        var rows = LibraryList.ItemsSource as List<LibraryRow> ?? [];
+        var rows = _libraryRows;
         var chosen = LibraryList.SelectedItems.OfType<LibraryRow>().ToList();
         return chosen.Count > 0 ? [.. rows.Where(chosen.Contains)] : rows;
     }
@@ -533,7 +417,7 @@ public sealed partial class MainWindow
             case LibraryEntry entry:
                 var view = entry.Kind == LibraryKind.Video
                     ? LibraryViews.AutoplayVideos(_library!.Entries, entry)
-                    : EntriesOf(LibraryList.ItemsSource as List<LibraryRow> ?? []);
+                    : EntriesOf(_libraryRows);
                 Play(view, view.ToList().FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
                 if (view.Count > 1 && LibraryViews.EpisodeOf(entry) is { } episode)
                 {

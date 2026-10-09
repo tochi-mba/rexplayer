@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Library;
+using Rex.Media.AppCore.Player;
 using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.IO;
 using Rex.Media.Library;

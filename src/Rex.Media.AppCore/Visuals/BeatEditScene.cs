@@ -224,6 +224,7 @@ public sealed class BeatEditScene : VisualScene
         var (w, h) = (canvas.Width, canvas.Height);
         var split = _split > 0;
         var (dark, bright) = (context.Paint(0.0).Times(0.12f), context.Paint(0.6));
+        var tint = context.Paint(0.15).Times(0.22f);
         // Cinematic bars that close a little on each kick.
         var bars = context.Toggle("bars") ? (int)(h * (0.09 + (0.03 * context.Pulse.Kick.Level))) : 0;
         var grain = context.Toggle("grain");
@@ -262,6 +263,10 @@ public sealed class BeatEditScene : VisualScene
                 var (px, py) = ((w / 2.0) + (su * w), (h / 2.0) + (sv * w));
                 var color = SampleSplit(source, px, py, w, h, su * rgb * w, sv * rgb * w);
                 color = Graded(_grade, color, dark, bright);
+
+                // Split-toning: the shadows lean toward the palette's deep colour.
+                var shadow = Math.Max(0, 1 - (color.Luma * 2));
+                color = color.Plus(tint.Times(shadow));
                 if (grain)
                 {
                     var n = (float)((Noise.Hash(seed + i) - 0.5) * grainAmount);

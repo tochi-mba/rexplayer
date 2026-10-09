@@ -44,9 +44,10 @@ internal sealed class SyntheticMusic
             double drums = 0;
             if (!quiet)
             {
-                // The kick: a falling sine, fast decay.
+                // The kick: a falling sine, fast decay, hardest on the first beat of each bar.
                 var kickPitch = 50 + (90 * Math.Exp(-sinceBeat * 30));
-                drums += 0.8 * Math.Sin(Math.Tau * kickPitch * sinceBeat) * Math.Exp(-sinceBeat * 12);
+                var accent = beatIndex % 4 == 0 ? 0.85 : 0.5;
+                drums += accent * Math.Sin(Math.Tau * kickPitch * sinceBeat) * Math.Exp(-sinceBeat * 12);
                 if (beatIndex % 2 == 1)
                 {
                     drums += 0.25 * ((random.NextDouble() * 2) - 1) * Math.Exp(-sinceBeat * 25);

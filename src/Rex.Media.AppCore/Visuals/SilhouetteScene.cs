@@ -60,7 +60,7 @@ public sealed class SilhouetteScene : VisualScene
             });
         }
 
-        var glow = (float)(1.1 + (1.6 * pulse.Kick.Level) + (0.6 * pulse.Snare.Level));
+        var glow = (float)(0.5 + (1.0 * pulse.Loudness) + (1.6 * pulse.Kick.Level) + (0.6 * pulse.Snare.Level));
         var spread = 3 + (pulse.Bass * canvas.Width * 0.03);
         var echo = context.Paint((context.Seconds * 0.12) % 1);
         var (w, h) = (canvas.Width, canvas.Height);

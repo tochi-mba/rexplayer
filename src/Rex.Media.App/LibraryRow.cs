@@ -15,7 +15,8 @@ public sealed partial class LibraryRow(
     object item,
     bool hasPicture = false,
     string picturePlaceholder = "",
-    string badge = "") : INotifyPropertyChanged
+    string badge = "",
+    double progress = 0) : INotifyPropertyChanged
 {
     private ImageSource? _picture;
 
@@ -42,6 +43,11 @@ public sealed partial class LibraryRow(
     public string Badge { get; } = badge;
 
     public Visibility BadgeVisibility => Badge.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>How far through a video left part-way it was stopped, 0 to 1; 0 for the rest.</summary>
+    public double Progress { get; } = progress;
+
+    public Visibility ProgressVisibility => Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Whether loading the picture has been started, so it is asked for once.</summary>
     public bool PictureAsked { get; set; }

@@ -368,6 +368,7 @@ public sealed partial class MainWindow : Window
         ApplyVisualizer();
         ShowMemory();
         ShowNamedPlaylists();
+        ShowMenuChecks();
         RememberLater();
     }
 

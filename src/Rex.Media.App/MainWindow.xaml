@@ -39,12 +39,16 @@
     </DataTemplate>
 
     <DataTemplate x:Key="LibraryBrowseTemplate" x:DataType="local:LibraryRow">
-      <Grid Width="180" Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}">
-        <Grid.RowDefinitions><RowDefinition Height="172" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
+      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
+        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="48" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+            <Border x:Name="CardPlay" Opacity="0" Width="44" Height="44" CornerRadius="22" Margin="10" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
+              <FontIcon Glyph="&#xE768;" FontSize="18" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+            </Border>
           </Grid>
         </Border>
         <StackPanel Grid.Row="1">
@@ -56,9 +60,9 @@
     </DataTemplate>
 
     <DataTemplate x:Key="LibraryVideoTemplate" x:DataType="local:LibraryRow">
-      <Grid Width="254" Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}">
-        <Grid.RowDefinitions><RowDefinition Height="143" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
+      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
+        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
@@ -67,6 +71,11 @@
             </Border>
             <Border Background="#C0181818" CornerRadius="4" Padding="6,2" Margin="7" HorizontalAlignment="Right" VerticalAlignment="Bottom">
               <TextBlock Text="{x:Bind Extra}" Foreground="White" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
+            </Border>
+            <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" Margin="0" />
+            <Border x:Name="CardPlay" Opacity="0" Width="48" Height="48" CornerRadius="24" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
+              <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
             </Border>
           </Grid>
         </Border>
@@ -78,19 +87,38 @@
     </DataTemplate>
 
     <DataTemplate x:Key="LibraryPhotoTemplate" x:DataType="local:LibraryRow">
-      <Grid Width="210" Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}">
-        <Grid.RowDefinitions><RowDefinition Height="158" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <Grid Padding="4" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
         <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+            <Border x:Name="CardPlay" Opacity="0" VerticalAlignment="Bottom" Padding="10,6" IsHitTestVisible="False">
+              <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                  <GradientStop Color="#00000000" Offset="0" />
+                  <GradientStop Color="#C0000000" Offset="1" />
+                </LinearGradientBrush>
+              </Border.Background>
+              <TextBlock Text="{x:Bind Name}" Foreground="White" FontSize="12" TextTrimming="CharacterEllipsis" />
+            </Border>
           </Grid>
         </Border>
-        <StackPanel Grid.Row="1">
-          <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
-          <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility}" FontSize="12" />
-        </StackPanel>
       </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="LibrarySourceTemplate" x:DataType="local:LibrarySourceItem">
+      <Grid ColumnSpacing="12" Padding="4,6" AutomationProperties.Name="{x:Bind Name}">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+        <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="LibraryGroupHeaderTemplate" x:DataType="local:LibraryRowGroup">
+      <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,4">
+        <TextBlock Text="{x:Bind Header}" Style="{ThemeResource SubtitleTextBlockStyle}" />
+        <TextBlock Text="{x:Bind CountText}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3" />
+      </StackPanel>
     </DataTemplate>
 
     <DataTemplate x:Key="LibraryGenericTemplate" x:DataType="local:LibraryRow">
@@ -212,61 +240,110 @@
         </Grid.ColumnDefinitions>
 
         <ListView x:Name="LibrarySources" Grid.Column="0" SelectionMode="Single" Padding="0,8" Background="{ThemeResource LayerFillColorDefaultBrush}"
+                  ItemTemplate="{StaticResource LibrarySourceTemplate}"
                   SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
 
-        <Grid Grid.Column="1" Padding="16,12,16,8" RowSpacing="8">
+        <Grid Grid.Column="1">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
 
-          <Grid ColumnSpacing="8">
+          <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
+          <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero">
+            <Image x:Name="LibraryHeroBackdrop" Stretch="UniformToFill" Opacity="0.6" />
+            <Rectangle>
+              <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                  <GradientStop Color="#40000000" Offset="0" />
+                  <GradientStop Color="{ThemeResource SolidBackgroundFillColorBase}" Offset="1" />
+                </LinearGradientBrush>
+              </Rectangle.Fill>
+            </Rectangle>
+            <Grid Padding="24,16,24,14" ColumnSpacing="22">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Border x:Name="LibraryHeroArtBox" Width="150" Height="150" CornerRadius="12" VerticalAlignment="Bottom" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <Grid>
+                  <FontIcon x:Name="LibraryHeroGlyph" Glyph="&#xE8D6;" FontSize="56" Opacity="0.45" />
+                  <Image x:Name="LibraryHeroArt" Stretch="UniformToFill" />
+                </Grid>
+              </Border>
+              <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Spacing="2">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="LibraryBack" Visibility="Collapsed" Click="OnLibraryBack" AutomationProperties.AutomationId="LibraryBack" AutomationProperties.Name="Back"
+                          ToolTipService.ToolTip="Back" Padding="8,4">
+                    <FontIcon Glyph="&#xE72B;" FontSize="12" />
+                  </Button>
+                  <TextBlock x:Name="LibraryKicker" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" CharacterSpacing="80"
+                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AutomationId="LibraryKicker" />
+                </StackPanel>
+                <TextBlock x:Name="LibraryTitle" Style="{ThemeResource TitleLargeTextBlockStyle}" TextTrimming="CharacterEllipsis" MaxLines="1"
+                           AutomationProperties.AutomationId="LibraryTitle" />
+                <TextBlock x:Name="LibrarySubtitle" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
+                           AutomationProperties.AutomationId="LibrarySubtitle" />
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                  <Button x:Name="LibraryPlay" Click="OnLibraryPlay" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="LibraryPlay"
+                          ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock Text="Play" /></StackPanel>
+                  </Button>
+                  <Button x:Name="LibraryShuffle" Click="OnLibraryShuffle" AutomationProperties.AutomationId="LibraryShuffle" ToolTipService.ToolTip="Play the chosen items, or all of them, shuffled">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8B1;" FontSize="14" /><TextBlock Text="Shuffle" /></StackPanel>
+                  </Button>
+                  <Button x:Name="LibraryEnqueue" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to the playlist" /></StackPanel>
+                  </Button>
+                  <StackPanel x:Name="LibraryFolderActions" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                    <Button x:Name="LibraryAddFolder" Content="Add a folder..." Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryAddFolder" />
+                    <Button x:Name="LibraryRemoveFolder" Content="Stop watching" Click="OnLibraryRemoveFolder" AutomationProperties.AutomationId="LibraryRemoveFolder"
+                            ToolTipService.ToolTip="The library forgets the chosen folders; the files stay where they are" />
+                    <Button x:Name="LibraryRescan" Content="Look again" Click="OnLibraryRescan" AutomationProperties.AutomationId="LibraryRescan"
+                            ToolTipService.ToolTip="Look through every folder for files added, changed or removed" />
+                    <Button x:Name="LibraryBackUp" Content="Back up..." Click="OnLibraryBackUp" AutomationProperties.AutomationId="LibraryBackUp"
+                            ToolTipService.ToolTip="Keep the library, its play counts and your playlists in a folder you choose" />
+                    <Button x:Name="LibraryRestore" Content="Bring back..." Click="OnLibraryRestore" AutomationProperties.AutomationId="LibraryRestore"
+                            ToolTipService.ToolTip="Add a backup's folders, play counts and playlists to the library" />
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+          </Grid>
+
+          <!-- How the view is shown: its layout, order, grouping and card size, each kept per view. -->
+          <Grid Grid.Row="1" Padding="24,6,24,8" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Button x:Name="LibraryBack" Visibility="Collapsed" Click="OnLibraryBack" AutomationProperties.AutomationId="LibraryBack" AutomationProperties.Name="Back"
-                    ToolTipService.ToolTip="Back">
-              <FontIcon Glyph="&#xE72B;" />
-            </Button>
-            <TextBlock x:Name="LibraryTitle" Grid.Column="1" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                       AutomationProperties.AutomationId="LibraryTitle" />
-            <TextBox x:Name="LibrarySearch" Grid.Column="2" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
+            <DropDownButton x:Name="LibraryLookButton" AutomationProperties.AutomationId="LibraryLook" ToolTipService.ToolTip="How the view is laid out" />
+            <DropDownButton x:Name="LibrarySortButton" Grid.Column="1" AutomationProperties.AutomationId="LibrarySort" ToolTipService.ToolTip="What the view is ordered by" />
+            <DropDownButton x:Name="LibraryGroupButton" Grid.Column="2" AutomationProperties.AutomationId="LibraryGroup" ToolTipService.ToolTip="What the view is gathered under" />
+            <StackPanel x:Name="LibrarySizePanel" Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
+              <FontIcon Glyph="&#xE71E;" FontSize="12" Opacity="0.7" />
+              <Slider x:Name="LibraryCardSize" Width="110" Minimum="120" Maximum="360" StepFrequency="10" VerticalAlignment="Center"
+                      ValueChanged="OnLibraryCardSizeChanged" AutomationProperties.AutomationId="LibraryCardSize" AutomationProperties.Name="Card size" />
+            </StackPanel>
+            <TextBlock x:Name="LibraryStatus" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus" />
+            <TextBox x:Name="LibrarySearch" Grid.Column="5" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
           </Grid>
 
-          <Grid Grid.Row="1" ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Button x:Name="LibraryPlay" Click="OnLibraryPlay" AutomationProperties.AutomationId="LibraryPlay" ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
-              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock Text="Play" /></StackPanel>
-            </Button>
-            <Button x:Name="LibraryEnqueue" Grid.Column="1" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
-              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to the playlist" /></StackPanel>
-            </Button>
-            <StackPanel x:Name="LibraryFolderActions" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
-              <Button x:Name="LibraryAddFolder" Content="Add a folder..." Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryAddFolder" />
-              <Button x:Name="LibraryRemoveFolder" Content="Stop watching" Click="OnLibraryRemoveFolder" AutomationProperties.AutomationId="LibraryRemoveFolder"
-                      ToolTipService.ToolTip="The library forgets the chosen folders; the files stay where they are" />
-              <Button x:Name="LibraryRescan" Content="Look again" Click="OnLibraryRescan" AutomationProperties.AutomationId="LibraryRescan"
-                      ToolTipService.ToolTip="Look through every folder for files added, changed or removed" />
-              <Button x:Name="LibraryBackUp" Content="Back up..." Click="OnLibraryBackUp" AutomationProperties.AutomationId="LibraryBackUp"
-                      ToolTipService.ToolTip="Keep the library, its play counts and your playlists in a folder you choose" />
-              <Button x:Name="LibraryRestore" Content="Bring back..." Click="OnLibraryRestore" AutomationProperties.AutomationId="LibraryRestore"
-                      ToolTipService.ToolTip="Add a backup's folders, play counts and playlists to the library" />
-            </StackPanel>
-            <TextBlock x:Name="LibraryStatus" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       TextTrimming="CharacterEllipsis" AutomationProperties.AutomationId="LibraryStatus" />
-          </Grid>
-
-          <ListView x:Name="LibraryList" Grid.Row="2" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="OnLibraryDoubleTapped" KeyDown="OnLibraryKeyDown"
+          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="OnLibraryDoubleTapped" KeyDown="OnLibraryKeyDown"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
+
+          <!-- Home: shelves of what to play next. -->
+          <ScrollViewer x:Name="LibraryHome" Grid.Row="2" Visibility="Collapsed" AutomationProperties.AutomationId="LibraryHome">
+            <StackPanel x:Name="LibraryShelves" Spacing="22" Padding="24,4,24,24" />
+          </ScrollViewer>
 
           <StackPanel x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12" MaxWidth="440">
             <TextBlock x:Name="LibraryEmptyText" TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.AutomationId="LibraryEmptyText" />

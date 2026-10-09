@@ -70,6 +70,7 @@ Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
 LevelMeter.cs
+LibraryArrangement.cs
 LibraryBackup.cs
 LibraryScanner.cs
 LibraryViews.cs
@@ -104,8 +105,10 @@ Mpl2.cs
 MusicPulse.cs
 NalUnits.cs
 NaturalOrder.cs
+Noise.cs
 NullAudioSink.cs
 OggDemuxer.cs
+Onset.cs
 OpusHeaders.cs
 Packet.cs
 Particles.cs

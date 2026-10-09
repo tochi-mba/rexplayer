@@ -104,6 +104,7 @@ public sealed partial class MainWindow
 
     private void BuildMenus()
     {
+        _menuChecks.Clear();
         foreach (var (title, commands) in MenuLayout)
         {
             var menu = Menu.Items.First(item => item.Title == title);
@@ -141,15 +142,64 @@ public sealed partial class MainWindow
             }
 
             var command = CommandCatalog.Find(id)!;
-            var item = new MenuFlyoutItem { Text = command.Title, KeyboardAcceleratorTextOverride = _keymap.Label(id) };
+            MenuFlyoutItem item = IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
+            (item.Text, item.KeyboardAcceleratorTextOverride) = (command.Title, _keymap.Label(id));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + id);
             item.Click += (_, _) => Run(id);
             items.Add(item);
+            if (item is ToggleMenuFlyoutItem check)
+            {
+                _menuChecks.Add((check, id));
+            }
+        }
+    }
+
+    // Menu items that are on or off, ticked to match.
+    private readonly List<(ToggleMenuFlyoutItem Item, string Command)> _menuChecks = [];
+
+    /// <summary>Whether a command switches something on and off (rather than doing a thing once), so its menu item carries a tick.</summary>
+    private static bool IsOnOff(string command) => command is CommandCatalog.ToggleShuffle or CommandCatalog.CycleRepeat or CommandCatalog.Mute
+        or CommandCatalog.ToggleSubtitles or CommandCatalog.ToggleNavigator or CommandCatalog.StopAfterCurrent or CommandCatalog.PauseAfterCurrent
+        or CommandCatalog.SleepAtEndOfItem or CommandCatalog.ToggleFullScreen or CommandCatalog.ToggleAlwaysOnTop or CommandCatalog.ToggleStats
+        or CommandCatalog.TogglePlaylist or CommandCatalog.ToggleLyrics or CommandCatalog.ToggleLibrary or CommandCatalog.MinimalInterface;
+
+    /// <summary>Whether what <paramref name="command"/> switches is on now.</summary>
+    private bool IsOn(string command) => command switch
+    {
+        CommandCatalog.ToggleShuffle => _player.Playlist.Shuffle,
+        CommandCatalog.CycleRepeat => _player.Playlist.Repeat != RepeatMode.Off,
+        CommandCatalog.Mute => _player.Muted,
+        CommandCatalog.ToggleSubtitles => _player.Subtitles is not null,
+        CommandCatalog.ToggleNavigator => _settings.ShowNavigator,
+        CommandCatalog.StopAfterCurrent => _player.AfterCurrent == AfterItem.Stop,
+        CommandCatalog.PauseAfterCurrent => _player.AfterCurrent == AfterItem.Pause,
+        CommandCatalog.SleepAtEndOfItem => _player.SleepAtEndOfItem,
+        CommandCatalog.ToggleFullScreen => IsFullScreen,
+        CommandCatalog.ToggleAlwaysOnTop => _settings.AlwaysOnTop != AlwaysOnTop.Never,
+        CommandCatalog.ToggleStats => _settings.StatsOverlay,
+        CommandCatalog.TogglePlaylist => PlaylistPane.Visibility == Visibility.Visible,
+        CommandCatalog.ToggleLyrics => _settings.ShowLyrics,
+        CommandCatalog.ToggleLibrary => LibraryOpen,
+        _ => _settings.MinimalInterface,
+    };
+
+    /// <summary>Ticks every on-and-off menu item to match what is on now: after every command and every change of the player.</summary>
+    private void ShowMenuChecks()
+    {
+        foreach (var (item, command) in _menuChecks)
+        {
+            item.IsChecked = IsOn(command);
         }
     }
 
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
     private void Run(string command)
+    {
+        RunCommand(command);
+        ShowMenuChecks();
+    }
+
+    private void RunCommand(string command)
     {
         if (_player.Execute(command))
         {

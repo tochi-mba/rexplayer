@@ -14,8 +14,8 @@ public sealed class RasterTests
         Assert.Equal(0, Raster.Tone(0));
         Assert.Equal(0, Raster.Tone(-1));
         Assert.Equal(0, Raster.Tone(float.NaN));
-        Assert.Equal(128, Raster.Tone(0.5f));
-        Assert.InRange(Raster.Tone(1), 220, 240);
+        Assert.InRange(Raster.Tone(0.5f), 150, 162);
+        Assert.InRange(Raster.Tone(1), 200, 210);
         Assert.Equal(255, Raster.Tone(50));
         Assert.True(Raster.Tone(2) > Raster.Tone(1));
 
@@ -31,7 +31,7 @@ public sealed class RasterTests
         canvas.ToBgra(pixels);
         Assert.Equal([0, 0, Raster.Tone(0.25f), 255], pixels[20..24]);
         Assert.Throws<ArgumentException>(() => canvas.ToBgra(new byte[3]));
-        Assert.Equal(0.2126f * 0.15625f, canvas.AverageLuma(), 5);
+        Assert.Equal(0.2126f * ((15 * 0.125f) + 0.25f) / 16, canvas.AverageLuma(), 5);
     }
 
     [Fact]
@@ -78,39 +78,64 @@ public sealed class RasterTests
         var canvas = new Raster(21, 21);
         canvas.Fill(15, 10, 1, 1, Red);
 
-        // Kept as it is.
+        // Kept as it is: the frame starts empty and the trail shows once it settles.
         canvas.Feedback(1, 1, 0, 0, 0);
+        Assert.Equal(0, canvas[15, 10].R);
+        canvas.Settle();
         Assert.Equal(1, canvas[15, 10].R, 4);
 
         // Half a turn about the middle, faded by half.
         canvas.Feedback(0.5f, 1, Math.PI, 0, 0);
+        canvas.Settle();
         Assert.Equal(0.5f, canvas[5, 10].R, 3);
         Assert.Equal(0, canvas[15, 10].R, 3);
+
+        // A trail never adds to new light: the brighter of the two shows.
+        canvas.Feedback(1, 1, 0, 0, 0);
+        canvas.Fill(5, 10, 1, 1, Red, 0.3f);
+        canvas.Settle();
+        Assert.Equal(0.5f, canvas[5, 10].R, 3);
+        canvas.Settle();
 
         // Doubled in size about the middle, then moved one pixel down; a nonsense zoom is no zoom.
         canvas.Clear(Rgb.Black);
         canvas.Fill(12, 10, 1, 1, Red);
         canvas.Feedback(1, 2, 0, 0, 1);
+        canvas.Settle();
         Assert.True(canvas[14, 11].R > 0.4f);
         canvas.Feedback(1, 0, 0, 0, 0);
         canvas.Feedback(2, 1, 0, 0, 0);
+        canvas.Settle();
     }
 
     [Fact]
-    public void BloomSpreadsOnlyTheBrightLight()
+    public void BloomSpreadsOnlyTheBrightLightAndOnlyInThePicture()
     {
         var canvas = new Raster(30, 30);
-        canvas.Fill(15, 15, 1, 1, Red, 4);
+        canvas.Fill(14, 14, 2, 2, Red, 4);
         canvas.Fill(2, 2, 1, 1, Red, 0.2f);
+        var (plain, bloomed) = (new byte[30 * 30 * 4], new byte[30 * 30 * 4]);
+        canvas.ToBgra(plain);
 
-        canvas.Bloom(0.5f, 1, 3);
+        canvas.Bloom(0.5f, 1, 4);
+        canvas.ToBgra(bloomed);
 
-        Assert.True(canvas[18, 15].R > 0, "The bright light glows round it.");
-        Assert.Equal(0, canvas[4, 2].R);
-        var before = canvas[18, 15];
-        canvas.Bloom(0.5f, 0, 3);
+        // Red round the bright light, none round the faint one, and the canvas itself unchanged.
+        static int RedAt(byte[] pixels, int x, int y) => pixels[(((y * 30) + x) * 4) + 2];
+        Assert.True(RedAt(bloomed, 18, 15) > RedAt(plain, 18, 15), "The bright light glows round it.");
+        Assert.Equal(RedAt(plain, 4, 2), RedAt(bloomed, 4, 2));
+        Assert.Equal(0, canvas[18, 15].R);
+
+        // Asked for once: the next picture has none unless asked again; no strength or no reach is none.
+        var again = new byte[30 * 30 * 4];
+        canvas.ToBgra(again);
+        Assert.Equal(plain, again);
+        canvas.Bloom(0.5f, 0, 4);
+        canvas.ToBgra(again);
+        Assert.Equal(plain, again);
         canvas.Bloom(0.5f, 1, 0);
-        Assert.Equal(before, canvas[18, 15]);
+        canvas.ToBgra(again);
+        Assert.Equal(plain, again);
     }
 
     [Fact]
@@ -155,7 +180,7 @@ public sealed class RasterTests
         Assert.Equal(2, sparks.Alive);
 
         sparks.Step(0.1, 0, 10, 0, (_, _) => 1);
-        Assert.Equal(2, sparks.Alive);
+        Assert.Equal(1, sparks.Alive);
         sparks.Step(0.95, 0, 0, 1);
         Assert.Equal(0, sparks.Alive);
 
@@ -164,6 +189,9 @@ public sealed class RasterTests
         sparks.Add(10, 10, 0, 0, 4, 0, 1);
         sparks.Draw(context);
         Assert.True(context.Canvas[10, 10].Luma > 0);
+        sparks.Add(5, 5, 50, 0, 2, 0, 1);
+        sparks.Draw(context, 1, 0.05);
+        Assert.True(context.Canvas[3, 5].Luma > 0, "A moving spark draws its streak behind it.");
         sparks.Clear();
         Assert.Equal(0, sparks.Alive);
         Assert.Throws<ArgumentNullException>(() => sparks.Draw(null!));

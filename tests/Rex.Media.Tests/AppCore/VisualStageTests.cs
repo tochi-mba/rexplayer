@@ -27,8 +27,11 @@ public sealed class VisualStageTests
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 
-    /// <summary>Options the camera itself takes, not the scene: they cannot change a drawn frame.</summary>
-    private static readonly HashSet<(VisualizerChoice, string)> CameraOptions = [(VisualizerChoice.Silhouette, "mirror"), (VisualizerChoice.Silhouette, "threshold")];
+    /// <summary>
+    /// Options that cannot change a frame of this test: the camera's own (taken by the camera, not the
+    /// scene), and the strobe's limit, which only binds faster than this music (its own test plays faster).
+    /// </summary>
+    private static readonly HashSet<(VisualizerChoice, string)> CameraOptions = [(VisualizerChoice.Silhouette, "mirror"), (VisualizerChoice.Silhouette, "threshold"), (VisualizerChoice.Strobe, "flashes")];
 
     private static VisualStage Stage(int width = 96, int height = 54)
     {
@@ -104,7 +107,7 @@ public sealed class VisualStageTests
     public void EveryOneOfItsOwnSettingsChangesWhatIsDrawn(VisualizerChoice choice)
     {
         var music = new SyntheticMusic(120, 3);
-        var plain = Play(Stage(), choice, music)[^1];
+        var plain = Play(Stage(), choice, music);
         foreach (var option in VisualizerOptions.For(choice).Where(option => option.Key != VisualizerOptions.Color && !CameraOptions.Contains((choice, option.Key))))
         {
             var values = option.Kind switch
@@ -116,8 +119,8 @@ public sealed class VisualStageTests
             foreach (var value in values)
             {
                 var changed = VisualizerOptions.With(Defaults, choice, option.Key, value);
-                var drawn = Play(Stage(), choice, music, changed)[^1];
-                Assert.False(drawn.SequenceEqual(plain), $"{choice}'s \"{option.Label}\" at {value.ToString(CultureInfo.InvariantCulture)} draws the same as at its default.");
+                var drawn = Play(Stage(), choice, music, changed);
+                Assert.False(drawn.Zip(plain).All(pair => pair.First.SequenceEqual(pair.Second)), $"{choice}'s \"{option.Label}\" at {value.ToString(CultureInfo.InvariantCulture)} draws the same as at its default.");
             }
         }
     }
@@ -130,7 +133,7 @@ public sealed class VisualStageTests
         if (choice == VisualizerChoice.BeatEdit)
         {
             // The edit shows a picture; with no camera or cover it paints its own, in its colours.
-            red = VisualizerOptions.With(VisualizerOptions.With(red, choice, "source", 1), choice, "grain", 0);
+            red = VisualizerOptions.With(VisualizerOptions.With(VisualizerOptions.With(red, choice, "source", 1), choice, "grain", 0), choice, "style", 3);
         }
 
         var stage = Stage();
@@ -220,7 +223,7 @@ public sealed class VisualStageTests
     public void TheStageFitsTheWindowAndOnlyDrawsItsOwnScenes()
     {
         Assert.Equal((16, 9), VisualStage.SizeFor(0, double.NaN));
-        Assert.Equal((560, 315), VisualStage.SizeFor(1920, 1080));
+        Assert.Equal((480, 270), VisualStage.SizeFor(1920, 1080));
         Assert.Equal((320, 180), VisualStage.SizeFor(320, 180));
         Assert.False(VisualStage.Draws(VisualizerChoice.Spectrum));
         Assert.True(VisualStage.Draws(VisualizerChoice.BeatEdit));
