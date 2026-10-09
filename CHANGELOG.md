@@ -3,6 +3,50 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.8.0 - 2026-10-09
+
+### Added
+
+- **Eight new visualisations**, twelve in all. **Vinyl**: a record turning at 33, 45 or 78, its
+  groove cut by the music itself, the song's cover as the label and a tone-arm that rides in as
+  the song plays. **Halo**: the spectrum radiating from a ring that swells with the bass.
+  **Mirror wave**, **Aurora** and **Embers** (sparks the music throws up). **Ripples**: a ring
+  bursting outward on every beat. **Strobe**: the screen glowing with the music in the colours you
+  choose, kept to three flashes a second unless you allow more. **Camera silhouette**: you, seen by
+  the camera, drawn as a glowing outline, a figure filled with the music, or sparks; it asks first,
+  records nothing, and the camera is on only while it shows.
+- **Settings for every visualisation** (Audio, Visualisation settings, Shift+Z, or right-click the
+  visualisation): colours (Windows' accent, following the pitch, a rainbow, warm, cool or one of
+  your own), sensitivity, and what each has of its own, such as bars and peaks, ray count, spark
+  amount, ring thickness or record speed. Changes show as you make them.
+- **Change any shortcut** (View, Keyboard and mouse, Ctrl+K): press the new keys, clear one, or
+  give it its own back; a shortcut taken from another command is reported. Tick Everywhere for a
+  shortcut that works while another program is in front. Choose what the wheel, the tilted wheel,
+  the middle button and the back and forward buttons do, and save the whole set to a file.
+- **Pinch to zoom.** Pinching a touchpad (or Ctrl with the wheel) zooms into videos and pictures
+  at the pointer, with the whole picture small in a corner; scrolling with two fingers moves about.
+  Touch screens pinch and drag too. Sizing subtitles with Ctrl and the wheel is a setting.
+- **The timeline shows more.** Bookmarks are marked on it, a click away; with Preferences, Show
+  the video frame under the pointer, hovering over it shows the exact picture there. A speed button
+  beside the volume shows the rate and offers every speed, with a step to normal.
+- **Lyrics you can click.** A timed line of the lyrics takes the song to it.
+- **More in the library.** Pictures have a gallery of their own; albums, artists and genres show as
+  covers; videos named like Show.S01E02 are marked with their season and episode, and play on with
+  the rest of their season; songs credited to several artists appear under each of them.
+- **VP9 and 10-bit HEVC** video play with Windows' decoders, and subtitles kept in a folder named
+  after the film inside Subs or Subtitles are found.
+- **Missing files.** Playlist entries whose files have moved are greyed and marked; right-click,
+  Find it, or Look for the missing files in a folder to relink them all at once.
+- **Preferences** gains the navigator, the visualisation, and a way to the keyboard and mouse.
+
+### Fixed
+
+- Closing the playlist or choosing the minimal interface while music played left grey strips
+  where the black picture area had not grown to fill the window.
+- Tooltips named the shortcut rexplayer came with, not the one in use.
+- Closing the window as the pointer left the timeline, or with a visualisation showing, could
+  crash rexplayer on its way out.
+
 ## 0.7.0 - 2026-10-08
 
 ### Added

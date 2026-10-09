@@ -8,11 +8,12 @@ window to watch and listen in, and a command line made for scripts.
 [Capability matrix](docs/capability-matrix.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.7.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
+> **Status: 0.8.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
 > the graphics card; MP3, FLAC, Ogg, Opus, WAV, RF64 and AIFF without a gap from one file to the
 > next; and pictures (JPEG, PNG, animated GIF, WebP, BMP, TIFF), a folder of them as a slideshow.
 > A media library keeps up with the folders you choose, with named playlists, covers and lyrics,
-> subtitles, an equaliser, playback speed without a change of pitch, visualisations, bookmarks,
+> subtitles, an equaliser, playback speed without a change of pitch, twelve visualisations (a vinyl
+> record cut by the music among them, each with its own settings), shortcuts you choose, bookmarks,
 > resume, a sleep timer, full screen and snapshots. rexplayer decodes MP3, FLAC, Vorbis, GIF and PCM
 > itself and hands H.264, HEVC, AAC, Opus and the other picture formats to Windows' own decoders. More formats, streaming and the rest of the
 > [capability matrix](docs/capability-matrix.md) arrive release by release.
