@@ -57,6 +57,50 @@ public sealed partial class MainWindow
         ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
     ];
 
+
+    /// <summary>The current rate remains visible while the player is paused or changing items.</summary>
+    private void ShowSpeed()
+    {
+        var label = SpeedLabel(_player.Speed);
+        SpeedButton.Content = label;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SpeedButton, "Playback speed, " + label);
+        ToolTipService.SetToolTip(SpeedButton, "Playback speed: " + label + ". Choose a rate, or use + and - to change it.");
+    }
+
+    private static string SpeedLabel(double speed) => speed.ToString("0.##", CultureInfo.InvariantCulture) + "\u00D7";
+
+    /// <summary>Offer slower and faster speeds in one place, including one-touch return to normal.</summary>
+    private void OnSpeedButton(object sender, RoutedEventArgs e)
+    {
+        var menu = new MenuFlyout();
+
+        void AddCommand(string name, string id, string command)
+        {
+            var item = new MenuFlyoutItem { Text = name };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, id);
+            item.Click += (_, _) => Run(command);
+            menu.Items.Add(item);
+        }
+
+        AddCommand("Slower", "SpeedSlower", CommandCatalog.Slower);
+        AddCommand("Normal speed (1\u00D7)", "SpeedNormal", CommandCatalog.NormalSpeed);
+        AddCommand("Faster", "SpeedFaster", CommandCatalog.Faster);
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        foreach (var rate in PlayerController.SpeedSteps)
+        {
+            var label = SpeedLabel(rate);
+            var chosen = Math.Abs(rate - _player.Speed) < 0.005;
+            var item = new MenuFlyoutItem { Text = (chosen ? "\u2713  " : "     ") + label };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, "SpeedRate-" + rate.ToString("0.##", CultureInfo.InvariantCulture));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, chosen ? label + ", current speed" : label);
+            item.Click += (_, _) => _player.SetSpeed(rate);
+            menu.Items.Add(item);
+        }
+
+        menu.ShowAt(SpeedButton);
+    }
+
     private void BuildMenus()
     {
         foreach (var (title, commands) in MenuLayout)

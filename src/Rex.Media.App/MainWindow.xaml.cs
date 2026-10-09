@@ -335,6 +335,7 @@ public sealed partial class MainWindow : Window
         MuteIcon.Glyph = _player.Muted ? "\uE74F" : "\uE767";
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(MuteButton, _player.Muted ? "Unmute" : "Mute");
         SeekBar.IsEnabled = _player.CanSeek;
+        ShowSpeed();
         _updatingControls = false;
 
         if (!ReferenceEquals(_player.Item, _shownItem))
