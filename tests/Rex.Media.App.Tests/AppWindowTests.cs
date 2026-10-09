@@ -189,7 +189,7 @@ public sealed class AppWindowTests : IDisposable
         File.WriteAllText(Path.ChangeExtension(song, ".lrc"), "[00:00.00]First line\n[00:20.00]The part I want\n");
         using var app = AppProcess.Start([song]);
 
-        Assert.True(app.IsShown("Lyrics"));
+        Wait.For(() => app.IsShown("Lyrics"), "the timed lyrics to be ready");
         var lyric = app.Find("LyricLine-1");
         Assert.Contains("Go to 0:20", lyric.Current.Name, StringComparison.Ordinal);
         ((InvokePattern)lyric.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
