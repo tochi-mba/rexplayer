@@ -52,6 +52,30 @@ public sealed class AppWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+
+    [Fact]
+    [Capability("PB-06")]
+    public void PlaybackSpeedCanBeSlowedRaisedAndRestoredFromItsControl()
+    {
+        using var app = AppProcess.Start([Song(30)]);
+
+        Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1\u00D7", "the normal speed to be shown");
+        app.Press("SpeedButton");
+        Assert.Contains("current speed", app.Find("SpeedRate-1").Current.Name, StringComparison.Ordinal);
+        app.Press("SpeedRate-0.5");
+        Wait.For(() => app.Text("SpeedButton") == "Playback speed, 0.5\u00D7", "the slower speed to be shown");
+
+        app.Run(CommandCatalog.SlightlyFaster);
+        Wait.For(() => app.Text("SpeedButton") == "Playback speed, 0.6\u00D7", "the fine speed step to be shown");
+        app.Press("SpeedButton");
+        app.Press("SpeedRate-2");
+        Wait.For(() => app.Text("SpeedButton") == "Playback speed, 2\u00D7", "the faster speed to be shown");
+
+        app.Run(CommandCatalog.NormalSpeed);
+        Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1\u00D7", "the reset speed to be shown");
+        Assert.Equal(0, app.Close());
+    }
+
     [Fact]
     [Capability("VID-03")]
     [Capability("UI-04")]

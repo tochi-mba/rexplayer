@@ -355,6 +355,9 @@
       </StackPanel>
 
       <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
+        <Button x:Name="SpeedButton" Content="1×" MinWidth="52" Click="OnSpeedButton" VerticalAlignment="Center"
+                AutomationProperties.AutomationId="SpeedButton" AutomationProperties.Name="Playback speed, 1×"
+                ToolTipService.ToolTip="Choose playback speed" />
         <Button x:Name="MuteButton" Click="OnMute" AutomationProperties.AutomationId="MuteButton" AutomationProperties.Name="Mute">
           <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" />
         </Button>
