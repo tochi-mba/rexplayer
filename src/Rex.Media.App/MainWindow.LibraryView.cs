@@ -5,9 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Markup;
-using Rex.Media.AppCore;
 using Rex.Media.AppCore.Library;
-using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
 using Rex.Media.Settings;
 

@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.UI.Dispatching;
@@ -7,19 +6,15 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
-using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.IO;
 using Rex.Media.Library;
-using Rex.Media.Primitives;
 using Rex.Media.Video;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 using Windows.Storage.Pickers;
-using Windows.Storage.Streams;
 using Launcher = Windows.System.Launcher;
 using VirtualKey = Windows.System.VirtualKey;
 
