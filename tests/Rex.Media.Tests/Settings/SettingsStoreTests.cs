@@ -54,7 +54,7 @@ public sealed class SettingsStoreTests : IDisposable
         var loaded = SettingsStore.Load(File);
 
         // Lists compare by reference in a record, so they are compared by content apart.
-        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions }, loaded);
+        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews }, loaded);
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
         Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
     }
@@ -100,7 +100,7 @@ public sealed class SettingsStoreTests : IDisposable
 
         var loaded = SettingsStore.Load(File);
 
-        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions }, loaded);
+        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews }, loaded);
         Assert.Equal(new double[10], loaded.EqualizerGains);
         Assert.True(loaded.SingleInstance);
         Assert.Equal(10, loaded.ShortJumpSeconds);
