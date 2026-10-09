@@ -15,7 +15,19 @@ public sealed partial class MainWindow
     // Keys whose press ran a shortcut: their release is the shortcut's too.
     private readonly HashSet<VirtualKey> _shortcutKeys = [];
 
-    private static bool IsDown(VirtualKey key) =>
+    /// <summary>
+    /// Whether <paramref name="key"/> is held. For Ctrl, Alt and Shift either of the pair counts:
+    /// the general key's state does not always follow the right-hand one.
+    /// </summary>
+    private static bool IsDown(VirtualKey key) => key switch
+    {
+        VirtualKey.Control => Held(VirtualKey.Control) || Held(VirtualKey.LeftControl) || Held(VirtualKey.RightControl),
+        VirtualKey.Menu => Held(VirtualKey.Menu) || Held(VirtualKey.LeftMenu) || Held(VirtualKey.RightMenu),
+        VirtualKey.Shift => Held(VirtualKey.Shift) || Held(VirtualKey.LeftShift) || Held(VirtualKey.RightShift),
+        _ => Held(key),
+    };
+
+    private static bool Held(VirtualKey key) =>
         InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
 
     /// <summary>

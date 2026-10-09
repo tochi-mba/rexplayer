@@ -24,6 +24,7 @@ public sealed class VisualizerOptionsTests
 
         Assert.Contains(VisualizerOptions.For(VisualizerChoice.Vinyl), option => option.Key == "speed");
         Assert.Contains(VisualizerOptions.For(VisualizerChoice.Silhouette), option => option.Key == "mirror");
+        Assert.Contains(VisualizerOptions.For(VisualizerChoice.BeatEdit), option => option.Key == "intensity");
         Assert.Equal(3, VisualizerOptions.For(VisualizerChoice.Meters).Count);
 
         // The strobe follows the pitch unless told otherwise; the rest use Windows' accent.

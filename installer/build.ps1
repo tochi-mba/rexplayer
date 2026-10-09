@@ -15,7 +15,7 @@ $payload = Join-Path $dist "rexplayer"
 if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
 New-Item -ItemType Directory -Path $payload | Out-Null
 
-$projects = @("src/Rex.Media.Cli/Rex.Media.Cli.csproj")
+$projects = @("src/Rex.Media.Cli/Rex.Media.Cli.csproj", "src/Rex.Media.Updater/Rex.Media.Updater.csproj")
 $app = Join-Path $root "src/Rex.Media.App/Rex.Media.App.csproj"
 if (Test-Path $app) { $projects += "src/Rex.Media.App/Rex.Media.App.csproj" }
 
@@ -27,7 +27,7 @@ foreach ($project in $projects) {
 
 # The window cannot start without its resource index and compiled XAML; never ship it without them.
 if (Test-Path $app) {
-    foreach ($needed in @("rexplayer.exe", "rexplayer.pri", "App.xbf", "MainWindow.xbf")) {
+    foreach ($needed in @("rexplayer.exe", "rexupdate.exe", "rexplayer.pri", "App.xbf", "MainWindow.xbf")) {
         if (-not (Test-Path (Join-Path $payload $needed))) { throw "The app was published without $needed, so it would not start." }
     }
 }

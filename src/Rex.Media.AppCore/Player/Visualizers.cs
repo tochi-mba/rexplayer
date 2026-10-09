@@ -34,6 +34,7 @@ public static class Visualizers
         VisualizerChoice.Ripples => "Ripples",
         VisualizerChoice.Strobe => "Strobe",
         VisualizerChoice.Silhouette => "Camera silhouette",
+        VisualizerChoice.BeatEdit => "Beat edit",
         _ => "No visualisation",
     };
 

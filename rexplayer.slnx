@@ -16,6 +16,7 @@
     <Project Path="src/Rex.Media.Subtitles/Rex.Media.Subtitles.csproj" />
     <Project Path="src/Rex.Media.Library/Rex.Media.Library.csproj" />
     <Project Path="src/Rex.Media.AppCore/Rex.Media.AppCore.csproj" />
+    <Project Path="src/Rex.Media.Updater/Rex.Media.Updater.csproj" />
     <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />
     <Project Path="src/Rex.Media.Cli/Rex.Media.Cli.csproj" />
     <Project Path="src/Rex.Media.App/Rex.Media.App.csproj" />

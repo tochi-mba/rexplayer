@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
+using Rex.Media.AppCore.Visuals;
 using Rex.Media.Audio;
 using Rex.Media.Engine;
 using Rex.Media.Settings;
@@ -54,6 +55,9 @@ public sealed partial class MainWindow
     private byte[] _visualPixels = [];
     private byte[] _cameraMask = [];
     private CameraSilhouette? _camera;
+    private VisualStage? _visualStage;
+    private VisualPicture? _visualCover;
+    private readonly byte[] _cameraPicture = new byte[CameraSilhouette.Width * CameraSilhouette.Height * 4];
     private double[] _sparkX = [], _sparkY = [], _sparkVx = [], _sparkVy = [], _sparkLife = [];
     private double[] _ringAge = [];
     private float _beatAverage;
@@ -85,20 +89,29 @@ public sealed partial class MainWindow
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
+            if (_player.Lyrics is not null)
+            {
+                var lyrics = new ToggleMenuFlyoutItem { Text = "Show the lyrics", IsChecked = _settings.ShowLyrics };
+                lyrics.Click += (_, _) => RunVisualizerCommand(CommandCatalog.ToggleLyrics);
+                menu.Items.Add(lyrics);
+            }
+
             menu.Items.Add(MenuItem("Settings of this visualisation...", "VisualizerMenuSettings", () => _ = ShowVisualizerSettingsAsync()));
             menu.Items.Add(MenuItem("No visualisation", null, () => _ = ChooseVisualizerAsync(VisualizerChoice.Off)));
         };
         return menu;
     }
 
-    /// <summary>Shows the chosen visualisation while sound without pictures plays, and stops drawing otherwise.</summary>
+    /// <summary>
+    /// Shows the chosen visualisation while sound without pictures plays, and stops drawing
+    /// otherwise. Lyrics, when the song has them and they are wanted, show over it.
+    /// </summary>
     private void ApplyVisualizer()
     {
-        // Lyrics, when the music has them, take the visualisation's place.
         var music = _player.Item is not null && _player.Info is not null && !HasVideo && _player.State is not (SessionState.Idle or SessionState.Faulted);
-        var show = music && _settings.Visualizer != VisualizerChoice.Off && _player.Lyrics is null;
+        var show = music && _settings.Visualizer != VisualizerChoice.Off;
         Visualizer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        var below = show || (music && _player.Lyrics is not null);
+        var below = show || (music && _player.Lyrics is not null && _settings.ShowLyrics);
         Idle.VerticalAlignment = below ? VerticalAlignment.Top : VerticalAlignment.Center;
         Idle.Margin = below ? new Thickness(24, 24, 24, 0) : new Thickness(24);
         if (show && _builtFor != _settings.Visualizer)
@@ -145,6 +158,13 @@ public sealed partial class MainWindow
             case CommandCatalog.VisualizerSettings:
                 _ = ShowVisualizerSettingsAsync();
                 return true;
+            case CommandCatalog.ToggleLyrics:
+                _settings = _settings with { ShowLyrics = !_settings.ShowLyrics };
+                Say(_settings.ShowLyrics ? "Lyrics on" : "Lyrics off");
+                ShowPresentation();
+                ApplyVisualizer();
+                RememberLater();
+                return true;
             default:
                 return false;
         }
@@ -153,7 +173,7 @@ public sealed partial class MainWindow
     /// <summary>Changes the visualisation; the camera's asks first, the first time.</summary>
     private async Task ChooseVisualizerAsync(VisualizerChoice choice)
     {
-        if (choice == VisualizerChoice.Silhouette && !_settings.CameraAllowed)
+        if ((choice is VisualizerChoice.Silhouette or VisualizerChoice.BeatEdit) && !_settings.CameraAllowed)
         {
             var note = new TextBlock
             {
@@ -163,7 +183,7 @@ public sealed partial class MainWindow
             };
             if (!await Ask("Use the camera?", note, "Use the camera", "Not now"))
             {
-                choice = Visualizers.Next(choice);
+                choice = VisualizerChoice.Off;
             }
             else
             {
@@ -222,12 +242,43 @@ public sealed partial class MainWindow
         SpectrogramImage.Source = null;
         SpectrogramImage.Stretch = Stretch.Fill;
         (_beatAverage, _beatRest, _flash) = (0, 0, 0);
-        if (_settings.Visualizer != VisualizerChoice.Silhouette)
+        _visualStage = null;
+        if (_settings.Visualizer is not (VisualizerChoice.Silhouette or VisualizerChoice.BeatEdit))
         {
             StopCamera();
         }
 
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
+        if (VisualStage.Draws(_settings.Visualizer))
+        {
+            var size = VisualStage.SizeFor(width, height);
+            _visualStage = new VisualStage(size.Width, size.Height);
+            _visualBitmap = new WriteableBitmap(size.Width, size.Height);
+            SpectrogramImage.Source = _visualBitmap;
+            SpectrogramImage.Stretch = Stretch.Fill;
+            if (_visualStage.UsesCamera)
+            {
+                _cameraMask = new byte[CameraSilhouette.Width * CameraSilhouette.Height];
+                _visualNote = new TextBlock { Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 255, 255, 255)), TextWrapping = TextWrapping.Wrap, MaxWidth = 460 };
+                Canvas.SetLeft(_visualNote, 12);
+                Canvas.SetTop(_visualNote, 12);
+                VisualCanvas.Children.Add(_visualNote);
+                if (_camera is null)
+                {
+                    _camera = new CameraSilhouette();
+                    _ = _camera.StartAsync();
+                }
+
+                _camera.Mirror = _settings.Visualizer == VisualizerChoice.Silhouette && OptionOn("mirror");
+                if (_settings.Visualizer == VisualizerChoice.Silhouette)
+                {
+                    _camera.Threshold = Option("threshold");
+                }
+            }
+
+            return;
+        }
+
         switch (_settings.Visualizer)
         {
             case VisualizerChoice.Spectrum:
@@ -470,6 +521,40 @@ public sealed partial class MainWindow
             Array.Clear(_soundRight);
         }
 
+        var rate = Math.Max(1, _player.SoundSampleRate);
+        if (_visualStage is { } stage && _visualBitmap is not null && _builtFor is { } choice)
+        {
+            stage.Context.Seconds = _player.Position.TotalSeconds;
+            stage.Context.Progress = _player.Duration > TimeSpan.Zero ? Math.Clamp(_player.Position / _player.Duration, 0, 1) : 0;
+            var accent = Accent().Color;
+            stage.Context.Accent = new Argb(255, accent.R, accent.G, accent.B);
+            stage.Context.Cover = _visualCover;
+            var camera = _camera;
+            if (camera is not null && camera.Problem is null)
+            {
+                camera.CopyPicture(_cameraPicture);
+                camera.CopyMask(_cameraMask);
+                stage.Context.Camera = new VisualPicture(_cameraPicture, CameraSilhouette.Width, CameraSilhouette.Height);
+                stage.Context.Mask = _cameraMask;
+                stage.Context.MaskWidth = CameraSilhouette.Width;
+                stage.Context.MaskHeight = CameraSilhouette.Height;
+            }
+
+            if (_visualNote is not null)
+            {
+                _visualNote.Text = camera?.Problem ?? (camera?.IsLearning == true ? "Looking at the room. Stay still, or step out of view for a moment." : "");
+            }
+
+            stage.Draw(choice, _settings.VisualOptions, _soundLeft, _soundRight, rate, elapsed);
+            using (var stream = _visualBitmap.PixelBuffer.AsStream())
+            {
+                stream.Write(stage.Pixels);
+            }
+
+            _visualBitmap.Invalidate();
+            return;
+        }
+
         // Sensitivity: quiet music can fill the picture, loud music can be calmed.
         var gain = (float)Option(VisualizerOptions.Sensitivity);
         for (var i = 0; i < _soundMono.Length; i++)
@@ -479,7 +564,6 @@ public sealed partial class MainWindow
             _soundMono[i] = (_soundLeft[i] + _soundRight[i]) / 2;
         }
 
-        var rate = Math.Max(1, _player.SoundSampleRate);
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
         switch (_builtFor)
         {

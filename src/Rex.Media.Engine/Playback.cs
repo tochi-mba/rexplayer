@@ -79,7 +79,7 @@ public sealed partial class MediaSession
             _sink = sink;
             _sinkFormat = sinkFormat;
             _pipeline = new AudioPipeline(sinkFormat, session._options.ResamplerQuality);
-            _clock = new AudioClock(sink);
+            _clock = new AudioClock(sink, first);
             _clock.Rebase(MediaTime.Zero, sinkFormat.SampleRate, _speed);
             _audioQueue = new BoundedQueue<Packet>(session._options.AudioQueueCapacity);
             _demuxThread = new Thread(RunDemux) { IsBackground = true, Name = "rexplayer demux" };
@@ -103,6 +103,7 @@ public sealed partial class MediaSession
         {
             get
             {
+                AnnounceHeard();
                 var now = _clock.Now;
                 return Info.Duration.IsKnown ? MediaTime.Min(now, Info.Duration) : now;
             }
@@ -490,6 +491,13 @@ public sealed partial class MediaSession
                 WriteFrames(state);
                 _currentSeek = new SeekRequest(state.Generation, MediaTime.Zero, SeekMode.Precise);
                 state.AwaitingFirstFrame = true;
+                state.Continuing = true;
+
+                // A run that had ended (the next item queued after it) is playing again.
+                lock (_endGate)
+                {
+                    _audioEndedGeneration = -1;
+                }
             }
 
             state.NextPts = MediaTime.Unknown;
@@ -498,11 +506,21 @@ public sealed partial class MediaSession
             Interlocked.Add(ref _earlierTicks, finishedDuration.IsKnown ? finishedDuration.Ticks : 0);
             Interlocked.Increment(ref _itemsStarted);
             Volatile.Write(ref _audioItem, next);
-            Volatile.Write(ref _info, next.Info);
             _pipeline.Effects = Volatile.Read(ref _sound).EffectsFor(next.Info);
             ReleaseFinishedItems();
+        }
 
-            _session.OnItemStarted(this, next.Info, next.AudioTrack.Id);
+        /// <summary>
+        /// Reports each item whose first sample has now been heard: the session then describes it.
+        /// Decoding runs ahead of the device by its buffer, so this comes later than the switch above.
+        /// </summary>
+        private void AnnounceHeard()
+        {
+            foreach (var item in _clock.TakeStarted().Cast<MediaItem>())
+            {
+                Volatile.Write(ref _info, item.Info);
+                _session.OnItemStarted(this, item.Info, item.AudioTrack.Id, _clock.NowFor(item));
+            }
         }
 
         private void FinishStream(AudioState state)
@@ -635,9 +653,15 @@ public sealed partial class MediaSession
                 if (state.AwaitingFirstFrame)
                 {
                     state.AwaitingFirstFrame = false;
-                    if (processed.Pts.IsKnown)
+                    if (state.Continuing)
                     {
-                        _clock.Rebase(processed.Pts, _sinkFormat.SampleRate, _pipeline.Speed);
+                        // Joined behind the last item's tail: its time starts when this sample is heard.
+                        state.Continuing = false;
+                        _clock.Continue(processed.Pts.IsKnown ? processed.Pts : MediaTime.Zero, _audioItem);
+                    }
+                    else if (processed.Pts.IsKnown)
+                    {
+                        _clock.Rebase(processed.Pts, _sinkFormat.SampleRate, _pipeline.Speed, _audioItem);
                     }
 
                     _session.OnSeekCompleted(this, state.Generation, processed.Pts.IsKnown ? processed.Pts : _currentSeek.Target);
@@ -648,6 +672,7 @@ public sealed partial class MediaSession
                 {
                     _playGate.Wait(generationToken);
                     _sink.Write(processed, generationToken);
+                    _clock.Wrote(processed.SampleCount);
                     _session.Scope.Write(processed);
                 }
                 catch (OperationCanceledException)
@@ -663,6 +688,7 @@ public sealed partial class MediaSession
 
         private void PostPosition(bool force)
         {
+            AnnounceHeard();
             var time = _session._options.Time;
             var now = time.GetTimestamp();
             var last = Interlocked.Read(ref _lastPositionPost);
@@ -725,6 +751,9 @@ public sealed partial class MediaSession
             public long Generation { get; set; }
 
             public bool AwaitingFirstFrame { get; set; }
+
+            /// <summary>The next frame joins the last item's tail without a seek between them.</summary>
+            public bool Continuing { get; set; }
 
             public int ConsecutiveFailures { get; set; }
 

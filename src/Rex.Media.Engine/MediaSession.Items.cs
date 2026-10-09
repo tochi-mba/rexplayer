@@ -160,23 +160,23 @@ public sealed partial class MediaSession
     }
 
     /// <summary>The audio thread has moved on to the next item: the session now describes it.</summary>
-    private void OnItemStarted(Playback playback, MediaInfo info, int audioTrack)
+    private void OnItemStarted(Playback playback, MediaInfo info, int audioTrack, MediaTime position)
     {
         Enqueue(new Command(
             () =>
             {
-                if (!ReferenceEquals(playback, _playback))
+                if (ReferenceEquals(playback, _playback))
                 {
-                    return;
-                }
-
-                _events.Post(new MediaOpenedEvent(info));
-                _events.Post(new TracksChangedEvent(audioTrack, null, null));
-                if (_state == SessionState.Ended)
-                {
-                    // Queued after the last item had already finished: playing again, with a new finish.
-                    Volatile.Write(ref _finished, NewCompletion());
-                    MoveTo(SessionState.Playing);
+                    _events.PostTogether(
+                        new MediaOpenedEvent(info),
+                        new TracksChangedEvent(audioTrack, null, null),
+                        new PositionEvent(info.Duration.IsKnown ? MediaTime.Min(position, info.Duration) : position, info.Duration));
+                    if (_state == SessionState.Ended)
+                    {
+                        // Queued after the last item had already finished: playing again, with a new finish.
+                        Volatile.Write(ref _finished, NewCompletion());
+                        MoveTo(SessionState.Playing);
+                    }
                 }
             },
             null));

@@ -3,6 +3,39 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.9.0 - 2026-10-09
+
+### Added
+
+- **Artwork made from the music.** Songs without a cover now get a stable, unique image whose
+  palette follows the spectrum and whose shapes follow its waveform and dynamics. Preferences has
+  controls for the style, colour, detail, contrast and filename influence. Covers are made only as
+  they become visible, two at a time, and cached by the file and settings.
+- **A live beat edit.** The camera or cover art now punches, cuts, colour-splits, freezes, echoes and
+  changes grade with the music. Five styles and all of their controls sit beside every other
+  visualisation's settings. Camera pictures stay in memory and never leave the computer.
+- **Library backup and restore**, including watched folders, history and named playlists.
+
+### Improved
+
+- Vinyl, halo, mirror wave, aurora, embers, ripples, strobe and camera silhouette now use a shared
+  music-aware renderer with beat, tempo and drop tracking, richer motion and more individual
+  controls. Lyrics can be hidden so any visualisation fills the presentation.
+- Music, video, picture, album, artist and genre views have purpose-built compact, cover-grid,
+  thumbnail and gallery layouts. Missing video thumbnails fall back to a decoded frame.
+- Opening a large picture yields to the window before decoding, and thumbnail/artwork work is
+  bounded, cancellable and cached so scrolling does not stall the app.
+
+### Fixed
+
+- Choosing a video in Continue watching starts at its saved point immediately without a second
+  resume question.
+- Gapless autoplay now changes the title, duration, picture and seek position exactly when the next
+  item's first sample is heard instead of leaving the previous item frozen on screen.
+- Right Ctrl works everywhere Left Ctrl does.
+- Updating closes rexplayer cleanly, then a tiny hand-off starts the verified installer after the
+  process has exited; the window no longer hangs while the installer tries to replace it.
+
 ## 0.8.0 - 2026-10-09
 
 ### Added

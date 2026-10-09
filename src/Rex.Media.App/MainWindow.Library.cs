@@ -1,17 +1,25 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Rex.Media.AppCore;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
+using Rex.Media.Codecs.MediaFoundation;
+using Rex.Media.IO;
 using Rex.Media.Library;
+using Rex.Media.Primitives;
+using Rex.Media.Video;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 using Windows.Storage.Pickers;
+using Windows.Storage.Streams;
 using Launcher = Windows.System.Launcher;
 using VirtualKey = Windows.System.VirtualKey;
 
@@ -103,14 +111,14 @@ public sealed partial class MainWindow
         _library = new MediaLibrary(OpenLibraryStore());
         _player.Library = _library;
         _scanner = new LibraryScanner(_library, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, App.Log);
-        _scanner.StatusChanged += (_, _) => DispatcherQueue.TryEnqueue(ShowLibraryStatus);
+        _scanner.StatusChanged += (_, _) => OnWindowThread(ShowLibraryStatus);
 
         // A burst of changes (a scan's batches) shows once.
         _libraryRefresh = DispatcherQueue.CreateTimer();
         _libraryRefresh.Interval = TimeSpan.FromMilliseconds(400);
         _libraryRefresh.IsRepeating = false;
         _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
-        _library.Changed += (_, _) => DispatcherQueue.TryEnqueue(() => Restart(_libraryRefresh));
+        _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
 
         // Files copied in arrive in many events; the folder is looked at once they settle.
         _libraryChanges = DispatcherQueue.CreateTimer();
@@ -233,7 +241,7 @@ public sealed partial class MainWindow
             _changedFolders.Add(folder);
         }
 
-        DispatcherQueue.TryEnqueue(() => Restart(_libraryChanges!));
+        OnWindowThread(() => Restart(_libraryChanges!));
     }
 
     private void LookAtChangedFolders()
@@ -431,7 +439,7 @@ public sealed partial class MainWindow
             && PictureEntry(row.Item) is { } entry)
         {
             row.PictureAsked = true;
-            _ = LoadPictureAsync(row, entry.Path, entry.Kind, _libraryPictures.Token);
+            _ = LoadPictureAsync(row, entry, _libraryPictures.Token);
         }
     }
 
@@ -469,45 +477,47 @@ public sealed partial class MainWindow
     /// take tens of seconds on damaged or unsupported video, so each request also has a short bound
     /// and every request is cancelled when its view goes away.
     /// </summary>
-    private async Task LoadPictureAsync(LibraryRow row, string path, LibraryKind kind, CancellationToken viewToken)
+    private async Task LoadPictureAsync(LibraryRow row, LibraryEntry entry, CancellationToken viewToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(viewToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(2));
+        timeout.CancelAfter(TimeSpan.FromSeconds(8));
         var token = timeout.Token;
         var entered = false;
         try
         {
             await _libraryPictureSlots.WaitAsync(token);
             entered = true;
-            var mode = kind switch
+            var mode = entry.Kind switch
             {
                 LibraryKind.Music => ThumbnailMode.MusicView,
                 LibraryKind.Picture => ThumbnailMode.PicturesView,
                 _ => ThumbnailMode.VideosView,
             };
-            var size = kind == LibraryKind.Music ? 192u : 256u;
+            var size = entry.Kind == LibraryKind.Music ? 192u : 256u;
             using var thumbnail = await Task.Run(async () =>
             {
-                var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
+                var file = await StorageFile.GetFileFromPathAsync(entry.Path).AsTask(token);
                 return await file.GetThumbnailAsync(mode, size, ThumbnailOptions.UseCurrentScale).AsTask(token);
             }, token);
-            if (thumbnail is null || thumbnail.Size == 0)
+            if (thumbnail is not null && thumbnail.Size > 0)
             {
+                var image = new BitmapImage();
+                await image.SetSourceAsync(thumbnail);
+                token.ThrowIfCancellationRequested();
+                row.Picture = image;
                 return;
             }
 
-            var image = new BitmapImage();
-            await image.SetSourceAsync(thumbnail);
-            token.ThrowIfCancellationRequested();
-            row.Picture = image;
+            var bytes = await Task.Run(() => MakeLibraryPicture(entry, token), token);
+            await SetLibraryPictureAsync(row, bytes, token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             // A slow codec or a row that left the view keeps its placeholder; neither is an error.
         }
-        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            App.Log.Debug(LogSource, $"No picture for {path}: {ex.Message}");
+            App.Log.Debug(LogSource, $"No picture for {entry.Path}: {ex.Message}");
         }
         finally
         {
@@ -516,6 +526,138 @@ public sealed partial class MainWindow
                 _libraryPictureSlots.Release();
             }
         }
+    }
+
+    /// <summary>
+    /// The shell does not make thumbnails for every format. Pictures and videos fall back to the
+    /// same exact decoder as playback; music falls back first to folder art and then to artwork
+    /// drawn from its decoded samples. Generated results are cached until the file changes.
+    /// </summary>
+    private byte[] MakeLibraryPicture(LibraryEntry entry, CancellationToken token)
+    {
+        var cache = LibraryPictureCache(entry);
+        if (File.Exists(cache))
+        {
+            return File.ReadAllBytes(cache);
+        }
+
+        if (entry.Kind == LibraryKind.Music && FolderArt.Find(entry.Path) is { } folderArt)
+        {
+            return File.ReadAllBytes(folderArt);
+        }
+
+        byte[] png;
+        if (entry.Kind == LibraryKind.Music)
+        {
+            if (!_settings.GenerateAudioArtwork)
+            {
+                throw new NotSupportedException("Generated music artwork is turned off.");
+            }
+
+            png = AudioArtworkPng(entry.Path, new AudioArtworkOptions(
+                _settings.AudioArtworkStyle,
+                _settings.AudioArtworkColor,
+                _settings.AudioArtworkDetail,
+                _settings.AudioArtworkContrast,
+                _settings.AudioArtworkUsesIdentity), token);
+        }
+        else
+        {
+            var at = entry.Kind == LibraryKind.Picture || entry.Duration is not { } duration
+                ? TimeSpan.Zero
+                : TimeSpan.FromSeconds(Math.Clamp(duration.TotalSeconds * 0.2, 1, 30));
+            png = PreviewPng(entry.Path, at, token);
+        }
+
+        Rex.Media.IO.AtomicFile.Write(cache, png);
+        return png;
+    }
+
+    private static byte[] AudioArtworkPng(string path, AudioArtworkOptions options, CancellationToken token)
+    {
+        using var source = new FileByteSource(path);
+        using var demuxer = MediaRegistries.Demuxers().Open(source, token);
+        var track = demuxer.Info.FirstTrack(MediaKind.Audio) ?? throw new NotSupportedException("The file has no sound to draw.");
+        var opened = MediaRegistries.Decoders(new MfDecoderFactory()).CreateAudio(track);
+        using var decoder = opened.Decoder ?? throw new NotSupportedException(opened.Reason);
+        var decoded = new List<AudioFrame>();
+        var mono = new List<float>(96_000);
+        var sampleRate = track.Audio!.SampleRate;
+        var wanted = sampleRate * 8;
+        while (mono.Count < wanted && demuxer.ReadPacket(token) is { } packet)
+        {
+            using (packet)
+            {
+                if (packet.TrackId == track.Id)
+                {
+                    decoder.Decode(packet, decoded);
+                }
+            }
+
+            AddMono(decoded, mono, wanted);
+        }
+
+        decoder.Drain(decoded);
+        AddMono(decoded, mono, wanted);
+        if (mono.Count == 0)
+        {
+            throw new MediaFormatException("The audio track gave no samples for its artwork.");
+        }
+
+        using var picture = AudioArtwork.Render([.. mono], sampleRate, path, options);
+        using var output = new MemoryStream();
+        PngWriter.Write(output, picture);
+        return output.ToArray();
+    }
+
+    private static void AddMono(List<AudioFrame> frames, List<float> mono, int wanted)
+    {
+        foreach (var frame in frames)
+        {
+            using (frame)
+            {
+                for (var sample = 0; sample < frame.SampleCount && mono.Count < wanted; sample++)
+                {
+                    var sum = 0f;
+                    for (var channel = 0; channel < frame.Channels; channel++)
+                    {
+                        sum += frame.Channel(channel)[sample];
+                    }
+
+                    mono.Add(sum / frame.Channels);
+                }
+            }
+        }
+
+        frames.Clear();
+    }
+
+    private string LibraryPictureCache(LibraryEntry entry)
+    {
+        var art = entry.Kind == LibraryKind.Music
+            ? $"\n{_settings.AudioArtworkStyle}\n{_settings.AudioArtworkColor}\n{_settings.AudioArtworkDetail}\n{_settings.AudioArtworkContrast}\n{_settings.AudioArtworkUsesIdentity}"
+            : "";
+        var identity = Encoding.UTF8.GetBytes($"3\n{entry.Path}\n{entry.Size}\n{entry.Modified.Ticks}{art}");
+        var name = Convert.ToHexStringLower(SHA256.HashData(identity)) + ".png";
+        return Path.Combine(App.DataRoot, "cache", "library-pictures", name);
+    }
+
+    private static async Task SetLibraryPictureAsync(LibraryRow row, byte[] bytes, CancellationToken token)
+    {
+        using var stream = new InMemoryRandomAccessStream();
+        using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
+        {
+            writer.WriteBytes(bytes);
+            await writer.StoreAsync();
+            writer.DetachStream();
+        }
+
+        token.ThrowIfCancellationRequested();
+        stream.Seek(0);
+        var image = new BitmapImage();
+        await image.SetSourceAsync(stream);
+        token.ThrowIfCancellationRequested();
+        row.Picture = image;
     }
 
     private void CancelLibraryPictures()
@@ -634,10 +776,18 @@ public sealed partial class MainWindow
             return;
         }
 
-        _player.PlayFromLibrary(entries, start);
-        if (entries[Math.Clamp(start, 0, entries.Count - 1)].Kind is LibraryKind.Video or LibraryKind.Picture)
+        var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
+        var resumeAt = _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
+        if (chosen.Kind is LibraryKind.Video or LibraryKind.Picture)
         {
+            // Let the pane disappear and the window paint before opening a potentially large image
+            // or video. Its probing and decoding stay on the engine threads, never this UI turn.
             SetLibraryOpen(false);
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _player.PlayFromLibrary(entries, start, resumeAt));
+        }
+        else
+        {
+            _player.PlayFromLibrary(entries, start, resumeAt);
         }
     }
 
@@ -751,4 +901,61 @@ public sealed partial class MainWindow
     }
 
     private void OnLibraryRescan(object sender, RoutedEventArgs e) => _scanner!.Request();
+
+    private void OnLibraryBackUp(object sender, RoutedEventArgs e) => _ = BackUpLibraryAsync();
+
+    private void OnLibraryRestore(object sender, RoutedEventArgs e) => _ = RestoreLibraryAsync();
+
+    /// <summary>Keeps the library and the named playlists in a folder the user chooses (LIB-10).</summary>
+    private async Task BackUpLibraryAsync()
+    {
+        var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary });
+        picker.FileTypeFilter.Add("*");
+        if (await picker.PickSingleFolderAsync() is not { } folder)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var (path, bytes) in LibraryBackup.Export(_library!, _player.NamedPlaylists))
+            {
+                var target = Path.Combine(folder.Path, path);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                Rex.Media.IO.AtomicFile.Write(target, bytes);
+            }
+
+            App.Log.Info(LogSource, "Backed the library up to " + folder.Path);
+            Say("The library is backed up in " + folder.Path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            App.Log.Warning(LogSource, "The library could not be backed up: " + ex.Message);
+            Say("The library could not be backed up there: " + ex.Message);
+        }
+    }
+
+    /// <summary>Adds a backup's folders, play counts and playlists to what the library has (LIB-10).</summary>
+    private async Task RestoreLibraryAsync()
+    {
+        var picker = Prepared(new FileOpenPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary });
+        picker.FileTypeFilter.Add(".json");
+        if (await picker.PickSingleFileAsync() is not { } file)
+        {
+            return;
+        }
+
+        try
+        {
+            var summary = LibraryBackup.Restore(LibraryBackup.Read(await File.ReadAllBytesAsync(file.Path)), _library!, _player);
+            WatchLibraryFolders();
+            _scanner!.Request();
+            App.Log.Info(LogSource, $"Brought back {file.Path}: {summary}.");
+            Say($"Brought back {Count(summary.Folders, "folder")}, {Count(summary.Entries, "file")} and {Count(summary.Playlists, "playlist")}");
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        {
+            Say(ex.Message);
+        }
+    }
 }

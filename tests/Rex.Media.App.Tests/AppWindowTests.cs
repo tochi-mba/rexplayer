@@ -168,7 +168,7 @@ public sealed class AppWindowTests : IDisposable
     [Capability("AU-19")]
     [Capability("META-06")]
     [Capability("META-09")]
-    public void ASongShowsTheFoldersCoverAndItsLyricsInPlaceOfTheVisualisation()
+    public void ASongShowsTheFoldersCoverAndItsLyricsOverTheVisualisation()
     {
         var song = Song(30);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png"), Path.Combine(_media, "cover.png"));
@@ -177,7 +177,15 @@ public sealed class AppWindowTests : IDisposable
 
         Wait.For(() => app.IsShown("Cover"), "the folder's cover");
         Wait.For(() => app.IsShown("Lyrics"), "the lyrics");
-        Assert.False(app.IsShown("Visualizer"));
+        Assert.True(app.IsShown("Visualizer"));
+
+        // The lyrics can be put away, leaving the visualisation, and brought back.
+        app.Run(CommandCatalog.ToggleLyrics);
+        Wait.For(() => !app.IsShown("Lyrics"), "the lyrics to go");
+        Assert.True(app.IsShown("Visualizer"));
+        Wait.For(() => !app.SavedSettings.ShowLyrics, "no lyrics to be kept");
+        app.Run(CommandCatalog.ToggleLyrics);
+        Wait.For(() => app.IsShown("Lyrics"), "the lyrics to come back");
         Assert.Equal(0, app.Close());
     }
 
@@ -195,6 +203,22 @@ public sealed class AppWindowTests : IDisposable
         ((InvokePattern)lyric.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         var position = (RangeValuePattern)app.Find("SeekBar").GetCurrentPattern(RangeValuePattern.Pattern);
         Wait.For(() => position.Current.Value >= 19.5, "the song to seek to the lyric");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-09")]
+    public void AnEntryWhoseFileHasGoneIsMarkedMissingAndOffersToFindIt()
+    {
+        Song(30);
+        var playlist = Path.Combine(_media, "Asake.m3u8");
+        File.WriteAllText(playlist, "Sungba.wav\nTerminator.wav\n");
+        using var app = AppProcess.Start([playlist]);
+        app.Run(CommandCatalog.TogglePlaylist);
+
+        var gone = Wait.Until(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Terminator (missing)")));
+        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "\u25B6 Sungba")));
+        ((SelectionItemPattern)gone!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Assert.Equal(0, app.Close());
     }
 
@@ -399,9 +423,13 @@ public sealed class AppWindowTests : IDisposable
         app.Run(CommandCatalog.Preferences);
         var jump = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Short jump (seconds)")));
         ((RangeValuePattern)jump.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(25);
+        var artwork = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Artwork detail (%)")));
+        ((RangeValuePattern)artwork.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(135);
+        var generated = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Generate artwork from music when no cover exists")));
+        ((TogglePattern)generated.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
         app.Press("PrimaryButton");
 
-        Wait.For(() => app.SavedSettings.ShortJumpSeconds == 25, "the new jump to be saved");
+        Wait.For(() => app.SavedSettings is { ShortJumpSeconds: 25, AudioArtworkDetail: 135, GenerateAudioArtwork: false }, "the preferences to be saved");
         Assert.Equal(0, app.Close());
     }
 

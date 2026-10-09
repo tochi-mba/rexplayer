@@ -102,8 +102,9 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Downloads the installer and its checksum, runs the installer only if they match, and closes
-    /// so it can replace this copy.
+    /// Downloads the installer and its checksum, and hands the verified file to the updater. The
+    /// updater waits for this process to close cleanly before starting installation, so neither the
+    /// shell nor the installer blocks this window or has to force it down.
     /// </summary>
     private async Task InstallAsync(UpdateOffer offer)
     {
@@ -138,8 +139,36 @@ public sealed partial class MainWindow
             return;
         }
 
-        App.Log.Info(LogSource, $"Installing rexplayer {offer.Version}.");
-        Process.Start(new ProcessStartInfo(installer) { UseShellExecute = true, ArgumentList = { "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/relaunch=1" } });
+        Say($"Starting the rexplayer {offer.Version} update\u2026");
+        try
+        {
+            var updater = Path.Combine(AppContext.BaseDirectory, "rexupdate.exe");
+            var stagedUpdater = Path.Combine(folder, "rexupdate.exe");
+            var handoffLog = Path.Combine(App.DataRoot, "logs", "update.log");
+            var parent = Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await Task.Run(() =>
+            {
+                File.Copy(updater, stagedUpdater, overwrite: true);
+                using var process = Process.Start(new ProcessStartInfo(stagedUpdater)
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    ArgumentList = { parent, installer, handoffLog },
+                });
+                if (process is null)
+                {
+                    throw new InvalidOperationException("Windows did not start the update hand-off.");
+                }
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            App.Log.Warning(LogSource, "The update hand-off could not start: " + ex.Message);
+            Say("The installer is ready, but the update could not start: " + ex.Message);
+            return;
+        }
+
+        App.Log.Info(LogSource, $"Handed rexplayer {offer.Version} to the updater; closing cleanly.");
         Close();
     }
 

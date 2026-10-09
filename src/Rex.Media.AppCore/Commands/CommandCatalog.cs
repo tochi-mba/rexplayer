@@ -90,6 +90,9 @@ public static class CommandCatalog
     public const string PasteLocation = "paste-location";
     public const string TogglePlaylist = "toggle-playlist";
     public const string VisualizerSettings = "visualizer-settings";
+    public const string ToggleLyrics = "toggle-lyrics";
+    public const string BackUpLibrary = "back-up-library";
+    public const string RestoreLibrary = "restore-library";
     public const string KeyboardAndMouse = "keyboard-and-mouse";
     public const string ToggleLibrary = "toggle-library";
     public const string ClearPlaylist = "clear-playlist";
@@ -143,6 +146,7 @@ public static class CommandCatalog
         New(CycleAudioTrack, "Next audio track", Audio, "B"),
         New(CycleVisualizer, "Next visualisation", Audio, "Z"),
         New(VisualizerSettings, "Visualisation settings", Audio, "Shift+Z"),
+        New(ToggleLyrics, "Lyrics on or off", Audio, "Shift+L"),
         New(CycleSubtitles, "Next subtitle track", Subtitle, "V"),
         New(ToggleSubtitles, "Subtitles on or off", Subtitle, "Shift+V"),
         New(SubtitlesEarlier, "Subtitles 50 ms earlier", Subtitle, "G"),
@@ -150,7 +154,7 @@ public static class CommandCatalog
         New(ResetSubtitleDelay, "Subtitles back in step", Subtitle),
         New(AddSubtitles, "Add a subtitle file", Subtitle),
         New(CycleSecondarySubtitles, "Next second subtitle track", Subtitle, "Alt+V"),
-        New(SubtitlesBigger, "Bigger subtitles", Subtitle, "Ctrl+Plus"),
+        New(SubtitlesBigger, "Bigger subtitles", Subtitle, "Ctrl+Plus", "Ctrl+Equals"),
         New(SubtitlesSmaller, "Smaller subtitles", Subtitle, "Ctrl+Minus"),
         New(ResetSubtitleSize, "Subtitles at their normal size", Subtitle, "Ctrl+0"),
         New(ToggleFullScreen, "Full screen", Video, "F", "F11"),
@@ -179,6 +183,8 @@ public static class CommandCatalog
         New(Quit, "Quit", Media, "Ctrl+Q"),
         New(TogglePlaylist, "Playlist", View, "Ctrl+L"),
         New(ToggleLibrary, "Library", View, "Ctrl+Shift+L"),
+        New(BackUpLibrary, "Back up the library", View),
+        New(RestoreLibrary, "Bring back a library backup", View),
         New(SavePlaylist, "Save the playlist", View, "Ctrl+Y"),
         New(OpenPlaylist, "Open a playlist", View, "Ctrl+X"),
         New(AddBookmark, "Add a bookmark here", Playback, "Ctrl+B"),

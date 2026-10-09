@@ -10,8 +10,10 @@ public sealed partial class PlayerController
     /// <summary>
     /// Plays <paramref name="entries"/> (a library view, in its order) from the one at
     /// <paramref name="start"/>, in place of the playlist, so the rest of the view follows it.
+    /// <paramref name="resumeAt"/> is an explicit start chosen by the caller (the Continue watching
+    /// view), so it starts there without offering the usual resume choice.
     /// </summary>
-    public void PlayFromLibrary(IReadOnlyList<LibraryEntry> entries, int start = 0)
+    public void PlayFromLibrary(IReadOnlyList<LibraryEntry> entries, int start = 0, TimeSpan? resumeAt = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         if (entries.Count == 0)
@@ -22,7 +24,7 @@ public sealed partial class PlayerController
         _log.Info(LogSource, $"Playing {entries.Count} item(s) from the library, from {entries[Math.Clamp(start, 0, entries.Count - 1)].Path}.");
         Playlist.Clear();
         Playlist.Add(entries.Select(ItemOf));
-        Start(Playlist.JumpTo(Math.Clamp(start, 0, entries.Count - 1)));
+        Start(Playlist.JumpTo(Math.Clamp(start, 0, entries.Count - 1)), resumeAt is { } at && at > TimeSpan.Zero ? at : TimeSpan.Zero);
     }
 
     /// <summary>Puts <paramref name="entries"/> at the end of the playlist, playing them if nothing plays.</summary>

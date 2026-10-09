@@ -1365,11 +1365,11 @@
       "id": "AU-18",
       "area": "Audio",
       "name": "Visualisations",
-      "details": "Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able",
+      "details": "Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, ripples, strobe, camera silhouette and live beat edit; per-effect colours, sensitivity, motion and composition controls",
       "milestone": "M5/M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "built"
+      "status": "verified"
     },
     {
       "id": "AU-19",
@@ -2405,7 +2405,7 @@
       "id": "LIB-05",
       "area": "Playlist, library & persistence",
       "name": "Media library",
-      "details": "Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications plus a periodic rescan; low-priority background probing (duration, tags, thumbnails); views: Videos (thumbnail grid; series/season grouping C), Music (artists, albums, tracks, genres), Pictures (S), Recent, Playlists, Podcasts; library-wide search; play counts and last played; \"Continue watching\" row",
+      "details": "Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications and periodic rescan; bounded lazy thumbnails with decoded video fallback and sound-derived music artwork; purpose-built song, collection, video and picture layouts; search, play counts, recent views and immediate-resume Continue watching",
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE UIA",
@@ -2449,7 +2449,7 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "UIA STORE",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "LIB-10",
@@ -2459,7 +2459,7 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "FILE",
-      "status": "planned"
+      "status": "verified"
     },
     {
       "id": "LIB-11",

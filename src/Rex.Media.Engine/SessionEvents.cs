@@ -100,20 +100,43 @@ public sealed class EventPump : IDisposable
         ArgumentNullException.ThrowIfNull(sessionEvent);
         lock (_gate)
         {
-            switch (sessionEvent)
+            Add(sessionEvent);
+            Monitor.Pulse(_gate);
+        }
+    }
+
+    /// <summary>
+    /// Posts one indivisible group: the listener cannot take an older coalesced position between a
+    /// media change and the position that belongs to it.
+    /// </summary>
+    public void PostTogether(params SessionEvent[] events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        lock (_gate)
+        {
+            foreach (var sessionEvent in events)
             {
-                case PositionEvent position:
-                    _position = position;
-                    break;
-                case StatsEvent stats:
-                    _stats = stats;
-                    break;
-                default:
-                    _discrete.Enqueue(sessionEvent);
-                    break;
+                ArgumentNullException.ThrowIfNull(sessionEvent);
+                Add(sessionEvent);
             }
 
             Monitor.Pulse(_gate);
+        }
+    }
+
+    private void Add(SessionEvent sessionEvent)
+    {
+        switch (sessionEvent)
+        {
+            case PositionEvent position:
+                _position = position;
+                break;
+            case StatsEvent stats:
+                _stats = stats;
+                break;
+            default:
+                _discrete.Enqueue(sessionEvent);
+                break;
         }
     }
 

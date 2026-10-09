@@ -33,14 +33,14 @@ public sealed partial class MainWindow
             CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
             CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
-            CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings]),
+            CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
             CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
             CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
             CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse]),
+        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary, null, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
     ];
 
@@ -172,6 +172,12 @@ public sealed partial class MainWindow
                 break;
             case CommandCatalog.ToggleLibrary:
                 SetLibraryOpen(!LibraryOpen);
+                break;
+            case CommandCatalog.BackUpLibrary:
+                _ = BackUpLibraryAsync();
+                break;
+            case CommandCatalog.RestoreLibrary:
+                _ = RestoreLibraryAsync();
                 break;
             case CommandCatalog.TogglePlaylist:
                 var show = PlaylistPane.Visibility != Visibility.Visible;

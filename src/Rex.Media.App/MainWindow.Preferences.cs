@@ -23,7 +23,13 @@ public sealed partial class MainWindow
         var seekPreview = Check("Show the video frame under the pointer on the timeline", s.SeekPreview);
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
-        var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera"], (int)s.Visualizer);
+        var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera", "A live beat edit"], (int)s.Visualizer);
+        var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
+        var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
+        var artworkColor = Number("Artwork colour (%)", s.AudioArtworkColor, 0, 200);
+        var artworkDetail = Number("Artwork detail (%)", s.AudioArtworkDetail, 0, 200);
+        var artworkContrast = Number("Artwork contrast (%)", s.AudioArtworkContrast, 0, 200);
+        var artworkIdentity = Check("Let the file name make each generated cover more distinct", s.AudioArtworkUsesIdentity);
         var theme = Choice("Theme", ["Windows' choice", "Light", "Dark"], (int)s.Theme);
         var onTop = Choice("Always on top", ["Never", "Always", "While playing"], (int)s.AlwaysOnTop);
         var hide = Number("Hide the full-screen controls after (seconds)", s.ControlsHideSeconds, 0.5, 10);
@@ -64,7 +70,7 @@ public sealed partial class MainWindow
         }
 
         content.Children.Add(Heading("Pictures and music"));
-        foreach (var control in new UIElement[] { pictures, navigator, visualizer })
+        foreach (var control in new UIElement[] { pictures, navigator, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
         {
             content.Children.Add(control);
         }
@@ -113,7 +119,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        _settings = (s with
+        var next = (s with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,
@@ -125,6 +131,12 @@ public sealed partial class MainWindow
             PictureSeconds = (int)pictures.Value,
             ShowNavigator = navigator.IsChecked == true,
             Visualizer = (VisualizerChoice)visualizer.SelectedIndex,
+            GenerateAudioArtwork = generatedArt.IsChecked == true,
+            AudioArtworkStyle = (ArtworkStyle)artworkStyle.SelectedIndex,
+            AudioArtworkColor = (int)artworkColor.Value,
+            AudioArtworkDetail = (int)artworkDetail.Value,
+            AudioArtworkContrast = (int)artworkContrast.Value,
+            AudioArtworkUsesIdentity = artworkIdentity.IsChecked == true,
             Theme = (ThemeChoice)theme.SelectedIndex,
             AlwaysOnTop = (AlwaysOnTop)onTop.SelectedIndex,
             ControlsHideSeconds = hide.Value,
@@ -155,6 +167,13 @@ public sealed partial class MainWindow
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
         }).Normalize();
+        var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
+            || s.AudioArtworkStyle != next.AudioArtworkStyle
+            || s.AudioArtworkColor != next.AudioArtworkColor
+            || s.AudioArtworkDetail != next.AudioArtworkDetail
+            || s.AudioArtworkContrast != next.AudioArtworkContrast
+            || s.AudioArtworkUsesIdentity != next.AudioArtworkUsesIdentity;
+        _settings = next;
         _player.Settings = _settings;
         _player.SetVolume(_player.Volume);
         _controlsTimer.Interval = TimeSpan.FromSeconds(_settings.ControlsHideSeconds);
@@ -165,6 +184,15 @@ public sealed partial class MainWindow
         ShowState();
         SaveSettings();
         Say("Preferences saved");
+
+        // A settings-specific cache key regenerates only visible covers, in the existing bounded
+        // background queue. The rest are made lazily as the user scrolls to them.
+        if (artworkChanged && LibraryPane.Visibility == Visibility.Visible)
+        {
+            CancelLibraryPictures();
+            _shownLibrary = "";
+            ShowLibrary();
+        }
 
         // The camera is used only once it has been agreed to.
         if (_settings.Visualizer == VisualizerChoice.Silhouette && !_settings.CameraAllowed)

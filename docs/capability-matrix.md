@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 155 planned, 43 built, 91 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -180,7 +180,7 @@ Totals: 155 planned, 43 built, 91 verified, 1 verified-hardware, 27 post-1.0.
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned |
 | AU-17 | Vocal reduction (karaoke) | Centre-channel cancellation with a band limit | M11 | could | planned |
-| AU-18 | Visualisations | Spectrum bars, spectrogram, oscilloscope, VU/peak meters, GPU shader visualiser; chosen per session; fullscreen-able | M5/M11 | should | built |
+| AU-18 | Visualisations | Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, ripples, strobe, camera silhouette and live beat edit; per-effect colours, sensitivity, motion and composition controls | M5/M11 | should | verified |
 | AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | verified |
 | AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built |
 | AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified |
@@ -314,12 +314,12 @@ Totals: 155 planned, 43 built, 91 verified, 1 verified-hardware, 27 post-1.0.
 | LIB-02 | Adding media | Open file(s) Ctrl+O, folder Ctrl+F, disc Ctrl+D, network Ctrl+N, capture Ctrl+C, paste location Ctrl+V; drag-and-drop (drop plays, Ctrl+drop enqueues, drop on the list inserts at that position); recursive folder expansion with natural sort; playlist files expand in place | M4 | must | verified |
 | LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | verified |
 | LIB-04 | Named playlists | Create, rename, duplicate, delete; add to playlist from anywhere | M6 | must | verified |
-| LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications plus a periodic rescan; low-priority background probing (duration, tags, thumbnails); views: Videos (thumbnail grid; series/season grouping C), Music (artists, albums, tracks, genres), Pictures (S), Recent, Playlists, Podcasts; library-wide search; play counts and last played; "Continue watching" row | M6 | must | verified |
+| LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications and periodic rescan; bounded lazy thumbnails with decoded video fallback and sound-derived music artwork; purpose-built song, collection, video and picture layouts; search, play counts, recent views and immediate-resume Continue watching | M6 | must | verified |
 | LIB-06 | Sidebar sources | Playlist, Library, Discs, Local network (DLNA servers, Windows shares, SAP), Internet (podcasts, provider extensions) | M6/M10 | must | planned |
 | LIB-07 | Recent media | Menu + jump list; clear; "do not keep history" privacy switch | M6 | must | built |
 | LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified |
-| LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | planned |
-| LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | planned |
+| LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | verified |
+| LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | verified |
 | LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified |
 | LIB-12 | Ratings, duplicates finder | — | post | could | post-1.0 |
 

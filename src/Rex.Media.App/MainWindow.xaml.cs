@@ -54,6 +54,7 @@ public sealed partial class MainWindow : Window
     private bool _showRemaining = true;
     private Microsoft.UI.Xaml.Controls.ContentDialog? _dialog;
     private bool _closed;
+    private bool _closing;
 
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
@@ -73,7 +74,7 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "rexplayer.ico"));
         ExtendsContentIntoTitleBar = false;
 
-        _player = new PlayerController(NewSession, OpenSource, action => DispatcherQueue.TryEnqueue(() => action()), _settings, store: OpenStore(), log: App.Log);
+        _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log);
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.PositionChanged += (_, _) => ShowLyricLine();
@@ -510,8 +511,21 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Runs <paramref name="action"/> on the window's thread, unless the window is closing by then:
+    /// work queued from another thread as it closes must not wake timers or touch controls that are going.
+    /// </summary>
+    private void OnWindowThread(Action action) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (!_closing)
+        {
+            action();
+        }
+    });
+
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        _closing = true;
         _saveTimer.Stop();
         _resumeTimer.Stop();
         _sleepTimer.Stop();

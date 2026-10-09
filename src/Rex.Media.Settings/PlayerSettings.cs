@@ -72,6 +72,15 @@ public enum SubtitleStyleChoice
     Override,
 }
 
+/// <summary>The broad composition used for cover art drawn from an audio file.</summary>
+public enum ArtworkStyle
+{
+    Prism,
+    Orbit,
+    Wave,
+    Minimal,
+}
+
 /// <summary>What the picture area shows while sound without pictures plays (AU-18).</summary>
 public enum VisualizerChoice
 {
@@ -104,6 +113,9 @@ public enum VisualizerChoice
 
     /// <summary>The listener, seen by the camera, drawn in light that moves with the music.</summary>
     Silhouette,
+
+    /// <summary>Live camera or cover art cut, graded and moved to the music.</summary>
+    BeatEdit,
 }
 
 /// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>
@@ -231,6 +243,23 @@ public sealed record PlayerSettings
 
     public VisualizerChoice Visualizer { get; init; } = VisualizerChoice.Spectrum;
 
+    /// <summary>Draw a distinctive cover from the sound when a music file has no embedded or folder art.</summary>
+    public bool GenerateAudioArtwork { get; init; } = true;
+
+    public ArtworkStyle AudioArtworkStyle { get; init; } = ArtworkStyle.Prism;
+
+    /// <summary>Generated artwork colour strength, as a percentage from 0 to 200.</summary>
+    public int AudioArtworkColor { get; init; } = 100;
+
+    /// <summary>Generated artwork complexity, as a percentage from 0 to 200.</summary>
+    public int AudioArtworkDetail { get; init; } = 100;
+
+    /// <summary>Generated artwork contrast, as a percentage from 0 to 200.</summary>
+    public int AudioArtworkContrast { get; init; } = 100;
+
+    /// <summary>Let the file identity add variation beyond the decoded sound.</summary>
+    public bool AudioArtworkUsesIdentity { get; init; } = true;
+
     /// <summary>While zoomed in, the whole picture shows small in a corner, with the view marked on it.</summary>
     public bool ShowNavigator { get; init; } = true;
 
@@ -242,6 +271,9 @@ public sealed record PlayerSettings
 
     /// <summary>Whether the user has agreed to the silhouette visualisation using the camera.</summary>
     public bool CameraAllowed { get; init; }
+
+    /// <summary>Whether a song's lyrics show over its visualisation (META-09).</summary>
+    public bool ShowLyrics { get; init; } = true;
 
     /// <summary>The languages to play audio in, best first, such as "ja, original"; empty for the media's own choice.</summary>
     public string AudioLanguages { get; init; } = "";
@@ -419,6 +451,10 @@ public sealed record PlayerSettings
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
             ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
+            AudioArtworkStyle = Enum.IsDefined(AudioArtworkStyle) ? AudioArtworkStyle : ArtworkStyle.Prism,
+            AudioArtworkColor = Math.Clamp(AudioArtworkColor, 0, 200),
+            AudioArtworkDetail = Math.Clamp(AudioArtworkDetail, 0, 200),
+            AudioArtworkContrast = Math.Clamp(AudioArtworkContrast, 0, 200),
             VisualOptions = VisualOptions ?? new Dictionary<string, string>(StringComparer.Ordinal),
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",

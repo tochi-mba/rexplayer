@@ -298,6 +298,46 @@ public sealed class MediaLibrary
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Brings in entries from a backup (LIB-10): ones not known are added as they were; for ones
+    /// known, the higher play count and the later last play win. Gives how many were added.
+    /// </summary>
+    public int Restore(IEnumerable<LibraryEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        var added = 0;
+        lock (_gate)
+        {
+            var written = new List<LibraryEntry>();
+            foreach (var entry in entries.DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase))
+            {
+                if (!_entries.TryGetValue(entry.Path, out var known))
+                {
+                    written.Add(entry);
+                    added++;
+                }
+                else if (entry.Plays > known.Plays || entry.LastPlayed > (known.LastPlayed ?? DateTime.MinValue))
+                {
+                    written.Add(known with
+                    {
+                        Plays = Math.Max(known.Plays, entry.Plays),
+                        LastPlayed = entry.LastPlayed > (known.LastPlayed ?? DateTime.MinValue) ? entry.LastPlayed : known.LastPlayed,
+                    });
+                }
+            }
+
+            if (written.Count == 0)
+            {
+                return 0;
+            }
+
+            Write(written, remove: false);
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return added;
+    }
+
     /// <summary>Forgets every play count and when each file was last played (the history, PRIV-03).</summary>
     public void ClearPlays()
     {

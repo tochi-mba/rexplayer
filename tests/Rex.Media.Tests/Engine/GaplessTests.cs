@@ -61,6 +61,27 @@ public sealed class GaplessTests
     }
 
     [Fact]
+    [Capability("PB-14")]
+    public async Task ThePositionStartsAgainFromTheNextItemsOwnBeginning()
+    {
+        using var harness = new SessionHarness();
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 8000)), [SessionHarness.Source(Count(0, 8000))]);
+        await harness.FinishAsync();
+        harness.WaitFor<EndedEvent>();
+
+        // Every position after the second item opened is in its own time: from its start up to its
+        // end, not the end of the first plus however far the second has got (which stays at the end).
+        var events = harness.Events.ToList();
+        var opened = events.Select((e, i) => (e, i)).Where(pair => pair.e is MediaOpenedEvent).Select(pair => pair.i).ToList();
+        Assert.Equal(2, opened.Count);
+        var positions = events.Skip(opened[1]).OfType<PositionEvent>().Select(e => e.Position).ToList();
+        Assert.NotEmpty(positions);
+        Assert.Contains(positions, position => position < MediaTime.FromSeconds(0.9));
+        Assert.Equal(positions.Order(), positions);
+    }
+
+    [Fact]
     public async Task MediaQueuedAfterTheEndPlaysOn()
     {
         using var harness = new SessionHarness();

@@ -19,6 +19,7 @@ internal sealed partial class CameraSilhouette : IAsyncDisposable
     public const int Height = 120;
 
     private readonly SilhouetteMask _mask = new(Width, Height);
+    private readonly byte[] _picture = new byte[Width * Height * 4];
     private readonly object _gate = new();
     private MediaCapture? _capture;
     private MediaFrameReader? _reader;
@@ -92,6 +93,21 @@ internal sealed partial class CameraSilhouette : IAsyncDisposable
         }
     }
 
+    /// <summary>The latest small camera picture, BGRA and never retained after this camera closes.</summary>
+    public void CopyPicture(byte[] into)
+    {
+        ArgumentNullException.ThrowIfNull(into);
+        if (into.Length != _picture.Length)
+        {
+            throw new ArgumentException("The camera picture buffer has the wrong size.", nameof(into));
+        }
+
+        lock (_gate)
+        {
+            _picture.CopyTo(into, 0);
+        }
+    }
+
     /// <summary>Watches the room again, as when the camera has moved.</summary>
     public void Relearn()
     {
@@ -129,7 +145,27 @@ internal sealed partial class CameraSilhouette : IAsyncDisposable
         var brightness = SilhouetteMask.Brightness(bytes, picture.PixelWidth, picture.PixelHeight, picture.PixelWidth * 4, Width, Height, Mirror);
         lock (_gate)
         {
+            CopySmall(bytes, picture.PixelWidth, picture.PixelHeight, _picture, Mirror);
             _mask.Update(brightness, Threshold);
+        }
+    }
+
+    private static void CopySmall(byte[] source, int width, int height, byte[] target, bool mirror)
+    {
+        for (var y = 0; y < Height; y++)
+        {
+            var sy = Math.Min(height - 1, y * height / Height);
+            for (var x = 0; x < Width; x++)
+            {
+                var sx = Math.Min(width - 1, x * width / Width);
+                var dx = mirror ? Width - 1 - x : x;
+                var from = ((sy * width) + sx) * 4;
+                var to = ((y * Width) + dx) * 4;
+                target[to] = source[from];
+                target[to + 1] = source[from + 1];
+                target[to + 2] = source[from + 2];
+                target[to + 3] = 255;
+            }
         }
     }
 }

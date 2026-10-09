@@ -1,3 +1,4 @@
+using Rex.Media.Audio;
 using Rex.Media.Engine;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
@@ -181,6 +182,8 @@ public sealed class PipelinePartsTests
         using var pump = new EventPump(_ => { });
 
         Assert.Throws<ArgumentNullException>(() => pump.Post(null!));
+        Assert.Throws<ArgumentNullException>(() => pump.PostTogether(null!));
+        Assert.Throws<ArgumentNullException>(() => pump.PostTogether(new EndedEvent(), null!));
     }
 
     [Fact]
@@ -197,6 +200,91 @@ public sealed class PipelinePartsTests
         Assert.Equal(MediaTime.FromSeconds(10.5), clock.Now);
         Assert.Throws<ArgumentOutOfRangeException>(() => clock.Rebase(MediaTime.Zero, 0));
         Assert.Throws<ArgumentNullException>(() => new AudioClock(null!));
+    }
+
+    /// <summary>A device that has played exactly as many samples as the test says.</summary>
+    private sealed class PlayedSink : IAudioSink
+    {
+        public long Played { get; set; }
+
+        public string Name => "played";
+
+        public long PlayedSamples => Played;
+
+        public long QueuedSamples => 0;
+
+        public bool IsRealTime => true;
+
+        public AudioFormat Open(AudioFormat preferred) => preferred;
+
+        public void Write(AudioFrame frame, CancellationToken cancellationToken)
+        {
+        }
+
+        public void Pause()
+        {
+        }
+
+        public void Resume()
+        {
+        }
+
+        public void Flush()
+        {
+        }
+
+        public void Drain(CancellationToken cancellationToken)
+        {
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    [Fact]
+    [Capability("PB-14")]
+    public void TheAudioClockMovesToTheNextItemOfARunWhenItsFirstSampleIsHeard()
+    {
+        var (first, second, third) = ("first", "second", "third");
+        var sink = new PlayedSink();
+        var clock = new AudioClock(sink, first);
+        clock.Rebase(MediaTime.Zero, 1000);
+
+        // A second of the first item is written; the second item's first sample goes behind it.
+        clock.Wrote(1000);
+        clock.Continue(MediaTime.Zero, second);
+        clock.Wrote(500);
+        clock.Continue(MediaTime.FromSeconds(0.1), third);
+        sink.Played = 800;
+
+        // Still the first item: the second is 0.2 s off, and the third has not been heard either.
+        Assert.Equal(MediaTime.FromSeconds(0.8), clock.Now);
+        Assert.Same(first, clock.Heard);
+        Assert.Empty(clock.TakeStarted());
+        Assert.Equal(MediaTime.FromSeconds(-0.2), clock.NowFor(second));
+        Assert.Equal(MediaTime.FromSeconds(-0.6), clock.NowFor(third));
+        Assert.Equal(MediaTime.FromSeconds(-3600), clock.NowFor("not written yet"));
+
+        // Past both hand-overs at once: each is reported, in order, and only once.
+        sink.Played = 1700;
+        Assert.Equal(MediaTime.FromSeconds(0.3), clock.Now);
+        Assert.Equal(new object[] { second, third }, clock.TakeStarted());
+        Assert.Empty(clock.TakeStarted());
+        Assert.Equal(MediaTime.FromSeconds(1.7), clock.NowFor(first));
+        Assert.Equal(MediaTime.FromSeconds(0.7), clock.NowFor(second));
+        Assert.Same(third, clock.Heard);
+
+        // A seek starts afresh: into another item it is reported; within the same, not.
+        clock.Rebase(MediaTime.FromSeconds(5), 1000, 2, first);
+        sink.Played = 100;
+        Assert.Equal(MediaTime.FromSeconds(5.2), clock.Now);
+        Assert.Equal(new object[] { first }, clock.TakeStarted());
+        clock.Rebase(MediaTime.Zero, 1000);
+        Assert.Empty(clock.TakeStarted());
+        Assert.Same(first, clock.Heard);
+        Assert.Throws<ArgumentNullException>(() => clock.Continue(MediaTime.Zero, null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() => clock.Rebase(MediaTime.Zero, 1000, 0));
     }
 
     [Fact]

@@ -45,8 +45,9 @@ public sealed partial class MediaSession
             {
                 lock (_endGate)
                 {
+                    // Each item's pictures follow that item's own time: the next one's wait for its sound.
                     var now = _audioEndedGeneration < 0 || _audioEndedGeneration != Generation
-                        ? _clock.Now
+                        ? _clock.NowFor(Volatile.Read(ref _videoItem))
                         : _audioEndedAt + new MediaTime((long)(_session._options.Time.GetElapsedTime(_audioEndedTimestamp).Ticks * Speed));
                     return now + new MediaTime(Interlocked.Read(ref _audioDelayTicks));
                 }
@@ -133,6 +134,11 @@ public sealed partial class MediaSession
                     DrainAndShow(_videoItem.VideoDecoder, state);
                     Volatile.Write(ref _videoItem, owner);
                     state.Target = MediaTime.Zero;
+                    lock (_endGate)
+                    {
+                        _videoEndedGeneration = -1;
+                    }
+
                     ReleaseFinishedItems();
                 }
 

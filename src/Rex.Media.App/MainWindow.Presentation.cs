@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Rex.Media.AppCore.Player;
+using Rex.Media.AppCore.Visuals;
 using Rex.Media.Primitives;
 using Windows.Storage.Streams;
 
@@ -37,7 +38,7 @@ public sealed partial class MainWindow
             _ = ShowCoverAsync(cover);
         }
 
-        var lyrics = music ? _player.Lyrics : null;
+        var lyrics = music && _settings.ShowLyrics ? _player.Lyrics : null;
         if (!ReferenceEquals(lyrics, _shownLyrics))
         {
             _shownLyrics = lyrics;
@@ -108,6 +109,7 @@ public sealed partial class MainWindow
                     return;
                 }
 
+                _visualCover = await DecodeVisualPictureAsync(cover);
                 CoverImage.Source = image;
                 shown = true;
             }
@@ -120,6 +122,7 @@ public sealed partial class MainWindow
         CoverBox.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
         if (!shown)
         {
+            _visualCover = null;
             CoverImage.Source = null;
         }
 
@@ -131,6 +134,26 @@ public sealed partial class MainWindow
             text.HorizontalAlignment = alignment;
             text.TextAlignment = textAlignment;
         }
+    }
+
+    /// <summary>A small BGRA copy of cover art for software-drawn visualisations.</summary>
+    private static async Task<VisualPicture> DecodeVisualPictureAsync(byte[] encoded)
+    {
+        using var stream = new InMemoryRandomAccessStream();
+        await stream.WriteAsync(encoded.AsBuffer());
+        stream.Seek(0);
+        var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+        var scale = Math.Min(1, 400.0 / Math.Max(decoder.PixelWidth, decoder.PixelHeight));
+        var width = Math.Max(1u, (uint)Math.Round(decoder.PixelWidth * scale));
+        var height = Math.Max(1u, (uint)Math.Round(decoder.PixelHeight * scale));
+        var transform = new Windows.Graphics.Imaging.BitmapTransform { ScaledWidth = width, ScaledHeight = height };
+        var data = await decoder.GetPixelDataAsync(
+            Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+            Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+            transform,
+            Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
+            Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
+        return new VisualPicture(data.DetachPixelData(), (int)width, (int)height);
     }
 
     /// <summary>Marks the line being sung and brings it to the middle of the lyrics.</summary>

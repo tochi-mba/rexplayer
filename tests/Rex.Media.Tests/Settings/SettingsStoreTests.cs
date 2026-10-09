@@ -137,6 +137,10 @@ public sealed class SettingsStoreTests : IDisposable
             TitleSeconds = 100,
             Theme = (ThemeChoice)9,
             UpdateChecks = (UpdateCadence)9,
+            AudioArtworkStyle = (ArtworkStyle)9,
+            AudioArtworkColor = -1,
+            AudioArtworkDetail = 500,
+            AudioArtworkContrast = 201,
             Shortcuts = null!,
         }.Normalize();
 
@@ -152,6 +156,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(30, wild.TitleSeconds);
         Assert.Equal(ThemeChoice.System, wild.Theme);
         Assert.Equal(UpdateCadence.Weekly, wild.UpdateChecks);
+        Assert.Equal((ArtworkStyle.Prism, 0, 200, 200), (wild.AudioArtworkStyle, wild.AudioArtworkColor, wild.AudioArtworkDetail, wild.AudioArtworkContrast));
         Assert.Empty(wild.Shortcuts);
 
         var tame = new PlayerSettings { Volume = double.PositiveInfinity, MaxVolumePercent = 10, TitleSeconds = double.NaN, ControlsHideSeconds = 99 }.Normalize();

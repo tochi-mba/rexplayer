@@ -31,8 +31,11 @@ public sealed class WicDecoderFactory : IDecoderFactory
 /// </summary>
 public sealed class WicPictureDecoder : IVideoDecoder
 {
-    /// <summary>The longest side a picture is shown at; bigger ones are shrunk to it.</summary>
-    public const int MaxSide = 8192;
+    /// <summary>
+    /// The longest side a picture is shown at; enough for a 4K display without allocating the
+    /// quarter-gigabyte frame an 8192-pixel photograph required before it could be presented.
+    /// </summary>
+    public const int MaxSide = 4096;
 
     /// <summary>What is said when Windows cannot decode a picture's format at all.</summary>
     public const string NoDecoderMessage = "Windows has no decoder for this kind of picture. WebP, HEIC and AVIF pictures need the WebP Image Extension, HEIF Image Extensions or AV1 Video Extension from the Microsoft Store.";

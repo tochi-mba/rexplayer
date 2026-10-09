@@ -194,9 +194,14 @@ internal sealed class AppProcess : IDisposable
             _process.CloseMainWindow();
         }
 
-        Assert.True(_process.WaitForExit(Patience), "rexplayer did not close. Its log ends:" + Environment.NewLine + string.Join(Environment.NewLine, LogText.Split(Environment.NewLine).TakeLast(15)));
+        Assert.True(_process.WaitForExit(Patience), "rexplayer did not close. Its log ends:" + LogTail);
+
+        // A crash on the way out says what the log saw last.
+        Assert.True(_process.ExitCode == 0, $"rexplayer closed with 0x{_process.ExitCode:X8}. Its log ends:" + LogTail);
         return _process.ExitCode;
     }
+
+    private string LogTail => Environment.NewLine + string.Join(Environment.NewLine, LogText.Split(Environment.NewLine).TakeLast(15));
 
     public void Dispose()
     {

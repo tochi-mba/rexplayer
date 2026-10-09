@@ -131,7 +131,7 @@ public sealed class WicPictureDecoderTests
 
         Assert.Equal((32, 24, 32 * 24 * 4), (bitmap.Width, bitmap.Height, bitmap.Pixels.Length));
         Assert.Null(WicPicture.Transform(1));
-        Assert.Equal(8192, WicPictureDecoder.MaxSide);
+        Assert.Equal(4096, WicPictureDecoder.MaxSide);
     }
 
     [Fact]

@@ -273,7 +273,8 @@ public sealed partial class MainWindow
                 return;
             }
 
-            if (e.Key is VirtualKey.Control or VirtualKey.Shift or VirtualKey.Menu or VirtualKey.LeftWindows or VirtualKey.RightWindows or VirtualKey.Tab)
+            if (e.Key is VirtualKey.Control or VirtualKey.LeftControl or VirtualKey.RightControl or VirtualKey.Shift or VirtualKey.LeftShift or VirtualKey.RightShift
+                or VirtualKey.Menu or VirtualKey.LeftMenu or VirtualKey.RightMenu or VirtualKey.LeftWindows or VirtualKey.RightWindows or VirtualKey.Tab)
             {
                 return;
             }

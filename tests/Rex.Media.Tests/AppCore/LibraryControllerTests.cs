@@ -46,12 +46,18 @@ public sealed class LibraryControllerTests
         Assert.Equal(("Asake", (string?)null), (controller.Playlist.Items[0].Artist, controller.Playlist.Items[1].Artist));
         Assert.Equal(1, library.Entry("Terminator.wav")!.Plays);
 
+        // Continue watching supplies an explicit point: it starts there without making a resume offer.
+        controller.PlayFromLibrary(view, start: 0, resumeAt: TimeSpan.FromMilliseconds(250));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "Sungba.wav");
+        Assert.Equal(TimeSpan.FromMilliseconds(250), controller.Position);
+        Assert.Null(controller.ResumeOffer);
+
         // Queued after, and played only when nothing plays; nothing to play does nothing.
         controller.EnqueueFromLibrary([Entry("Joha.wav")]);
         controller.EnqueueFromLibrary([]);
         controller.PlayFromLibrary([]);
         Assert.Equal(["Sungba.wav", "Terminator.wav", "Joha.wav"], controller.Playlist.Items.Select(item => item.Location));
-        Assert.Equal("Terminator.wav", controller.Item!.Location);
+        Assert.Equal("Sungba.wav", controller.Item!.Location);
 
         // Clearing the history clears the play counts.
         controller.ClearHistory();

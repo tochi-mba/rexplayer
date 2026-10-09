@@ -70,39 +70,74 @@ public static class VisualizerOptions
                 new("depth", "How deep the sound cuts the groove", VisualOptionKind.Number, 0.16, 0.04, 0.3),
                 new("arm", "Show the tone-arm", VisualOptionKind.Toggle, 1),
                 new("label", "The cover as the label", VisualOptionKind.Toggle, 1),
+                new("sheen", "Moving light across the record", VisualOptionKind.Toggle, 1),
+                new("glow", "Edge glow", VisualOptionKind.Number, 0.7, 0, 2),
             ],
             VisualizerChoice.Halo =>
             [
                 new("rays", "Rays", VisualOptionKind.Number, 48, 12, 128),
                 new("thickness", "Ray thickness", VisualOptionKind.Number, 4, 1, 12),
                 new("spin", "Turn slowly", VisualOptionKind.Toggle, 1),
+                new("trails", "Light trails", VisualOptionKind.Number, 0.72, 0, 0.95),
+                new("burst", "Burst on drops", VisualOptionKind.Toggle, 1),
             ],
-            VisualizerChoice.Mirror => [new("columns", "Columns", VisualOptionKind.Number, 96, 24, 192)],
+            VisualizerChoice.Mirror =>
+            [
+                new("columns", "Columns", VisualOptionKind.Number, 96, 24, 192),
+                new("thickness", "Wave thickness", VisualOptionKind.Number, 2, 1, 8),
+                new("trails", "Light trails", VisualOptionKind.Number, 0.7, 0, 0.95),
+                new("stereo", "Split left and right channels", VisualOptionKind.Toggle, 1),
+            ],
             VisualizerChoice.Aurora =>
             [
                 new("glow", "Glow beneath the ridge", VisualOptionKind.Toggle, 1),
                 new("bands", "Points along the ridge", VisualOptionKind.Number, 48, 12, 128),
+                new("curtains", "Light curtains", VisualOptionKind.Number, 5, 1, 10),
+                new("height", "Curtain height", VisualOptionKind.Number, 1, 0.25, 2),
             ],
             VisualizerChoice.Embers =>
             [
                 new("amount", "How many sparks", VisualOptionKind.Number, 90, 20, 300),
                 new("speed", "How fast they rise", VisualOptionKind.Number, 1, 0.25, 3),
+                new("wind", "Sideways drift", VisualOptionKind.Number, 0.3, -2, 2),
+                new("smoke", "Smoke and glow", VisualOptionKind.Number, 0.7, 0, 2),
+                new("burst", "Burst on beats", VisualOptionKind.Toggle, 1),
             ],
             VisualizerChoice.Ripples =>
             [
                 new("beat", "Beat sensitivity", VisualOptionKind.Number, 1.4, 1.1, 2.5),
                 new("thickness", "Ring thickness", VisualOptionKind.Number, 2.5, 1, 8),
+                new("rings", "Maximum rings", VisualOptionKind.Number, 16, 4, 40),
+                new("lifetime", "Ring lifetime", VisualOptionKind.Number, 1.5, 0.4, 4),
+                new("where", "Ripple origin", VisualOptionKind.Choice, 0, Choices: ["Centre", "Across the stage", "Follow the pitch"]),
+                new("drops", "On each", VisualOptionKind.Choice, 0, Choices: ["Beat", "Strong beat", "Drop"]),
             ],
             VisualizerChoice.Strobe =>
             [
                 new("flashes", "At most this many flashes a second", VisualOptionKind.Number, 3, 1, 10),
                 new("fade", "How long a flash takes to fade (seconds)", VisualOptionKind.Number, 0.4, 0.1, 2),
+                new("pattern", "Flash shape", VisualOptionKind.Choice, 0, Choices: ["Whole stage", "Stripes", "Radial", "Blocks"]),
+                new("step", "Colour step", VisualOptionKind.Choice, 1, Choices: ["Every beat", "Every 2 beats", "Every 4 beats"]),
+                new("glow", "Background glow", VisualOptionKind.Number, 0.25, 0, 1),
             ],
             VisualizerChoice.Silhouette =>
             [
-                new("style", "Draw me as", VisualOptionKind.Choice, 0, Choices: ["A glowing outline", "Filled with the music", "Sparks"]),
+                new("style", "Draw me as", VisualOptionKind.Choice, 0, Choices: ["A glowing outline", "Filled with the music", "Sparks", "Motion echoes", "Split neon"]),
                 new("mirror", "Mirror the camera, like a mirror", VisualOptionKind.Toggle, 1),
                 new("threshold", "How different from the room I must be", VisualOptionKind.Number, 0.12, 0.04, 0.4),
+                new("background", "Room behind me", VisualOptionKind.Choice, 0, Choices: ["Hidden", "Dimly visible"]),
+            ],
+            VisualizerChoice.BeatEdit =>
+            [
+                new("style", "Edit style", VisualOptionKind.Choice, 0, Choices: ["Velocity", "Glitch", "Hype", "Dreamy", "Everything"]),
+                new("source", "Picture source", VisualOptionKind.Choice, 0, Choices: ["Camera, then cover", "Cover art"]),
+                new("intensity", "Edit intensity", VisualOptionKind.Number, 1, 0.2, 2),
+                new("cuts", "Change grade every", VisualOptionKind.Choice, 1, Choices: ["Beat", "2 beats", "4 beats", "8 beats"]),
+                new("mirror", "Mirror the camera", VisualOptionKind.Toggle, 1),
+                new("flash", "White flashes on strong beats", VisualOptionKind.Toggle, 1),
+                new("flashes", "At most this many flashes a second", VisualOptionKind.Number, 3, 1, 3),
+                new("grain", "Film grain", VisualOptionKind.Toggle, 1),
+                new("bars", "Cinematic bars", VisualOptionKind.Toggle, 0),
             ],
             _ => [],
         });
