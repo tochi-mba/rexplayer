@@ -51,9 +51,15 @@ public sealed class AuroraScene : VisualScene
 
         for (var x = 0; x < w; x++)
         {
-            var band = pulse.Bands[Math.Min(pulse.Bands.Count - 1, (int)(Math.Pow((double)x / w, 1.4) * pulse.Bands.Count))];
+            // Between bands, blended: the curtains rise and fall in swells, never in steps.
+            var at = Math.Pow((double)x / w, 1.4) * (pulse.Bands.Count - 1);
+            var below = (int)at;
+            var above = Math.Min(pulse.Bands.Count - 1, below + 1);
+            var band = pulse.Bands[below] + ((pulse.Bands[above] - pulse.Bands[below]) * (float)(at - below));
             _levels[x] += (band - _levels[x]) * (float)Math.Min(1, context.Dt * 5);
         }
+
+        Soften(_levels, Math.Max(2, w / 24));
 
         // A kick sends a wave of light along the curtains, left to right.
         if (pulse.Kick.Hit)
@@ -77,6 +83,26 @@ public sealed class AuroraScene : VisualScene
 
         Mountains(canvas);
         canvas.Bloom(0.25f, 0.9f, 6);
+    }
+
+    /// <summary>A running average of <paramref name="radius"/> each side along <paramref name="levels"/>, twice: a soft swell.</summary>
+    private static void Soften(float[] levels, int radius)
+    {
+        var copy = new float[levels.Length];
+        for (var pass = 0; pass < 2; pass++)
+        {
+            Array.Copy(levels, copy, levels.Length);
+            for (var x = 0; x < levels.Length; x++)
+            {
+                float sum = 0;
+                for (var d = -radius; d <= radius; d++)
+                {
+                    sum += copy[Math.Clamp(x + d, 0, levels.Length - 1)];
+                }
+
+                levels[x] = sum / ((2 * radius) + 1);
+            }
+        }
     }
 
     /// <summary>One curtain: for each column, rays rising from a folding hem.</summary>

@@ -98,7 +98,7 @@ public static class VisualizerOptions
             [
                 new("rays", "Rays", VisualOptionKind.Number, 48, 12, 128),
                 new("thickness", "Ray thickness", VisualOptionKind.Number, 4, 1, 12),
-                new("spin", "Turn slowly", VisualOptionKind.Toggle, 1),
+                new("spin", "Turn slowly", VisualOptionKind.Toggle, 0),
                 new("trails", "Light trails", VisualOptionKind.Number, 0.72, 0, 0.95),
                 new("burst", "Sparks on the beat", VisualOptionKind.Toggle, 1),
             ],
