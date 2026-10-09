@@ -134,7 +134,16 @@ public sealed class AppWindowTests : IDisposable
     [Capability("AU-18")]
     public void ASongShowsAVisualisationThatCanBeChanged()
     {
-        using var app = AppProcess.Start([Song(30)]);
+        var root = Path.Combine(_media, ".visualisations");
+        Directory.CreateDirectory(root);
+        Rex.Media.Settings.SettingsStore.Save(Path.Combine(root, "settings.json"), new Rex.Media.Settings.PlayerSettings
+        {
+            FirstRunDone = true,
+            LastSeenVersion = AppProcess.Version,
+            UpdateChecks = Rex.Media.Settings.UpdateCadence.Off,
+            CameraAllowed = true,
+        });
+        using var app = AppProcess.Start([Song(30)], root);
 
         Wait.For(() => app.IsShown("Visualizer"), "the visualisation");
         app.Run(CommandCatalog.CycleVisualizer);
