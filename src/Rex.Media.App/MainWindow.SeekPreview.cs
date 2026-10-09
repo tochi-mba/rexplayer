@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Player;
 using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
