@@ -27,9 +27,15 @@ public sealed class VisualizerOptionsTests
         Assert.Contains(VisualizerOptions.For(VisualizerChoice.BeatEdit), option => option.Key == "intensity");
         Assert.Equal(3, VisualizerOptions.For(VisualizerChoice.Meters).Count);
 
-        // The strobe follows the pitch unless told otherwise; the rest use Windows' accent.
+        // Each starts in colours that suit it; the classic ones in Windows' accent.
         Assert.Equal((int)VisualPalette.Pitch, VisualizerOptions.Choice(None, VisualizerChoice.Strobe, VisualizerOptions.Colors));
-        Assert.Equal((int)VisualPalette.Accent, VisualizerOptions.Choice(None, VisualizerChoice.Halo, VisualizerOptions.Colors));
+        Assert.Equal((int)VisualPalette.Neon, VisualizerOptions.Choice(None, VisualizerChoice.Halo, VisualizerOptions.Colors));
+        Assert.Equal((int)VisualPalette.Fire, VisualizerOptions.Choice(None, VisualizerChoice.Embers, VisualizerOptions.Colors));
+        Assert.Equal((int)VisualPalette.Aurora, VisualizerOptions.Choice(None, VisualizerChoice.Aurora, VisualizerOptions.Colors));
+        Assert.Equal((int)VisualPalette.Ocean, VisualizerOptions.Choice(None, VisualizerChoice.Ripples, VisualizerOptions.Colors));
+        Assert.Equal((int)VisualPalette.Sunset, VisualizerOptions.Choice(None, VisualizerChoice.Vinyl, VisualizerOptions.Colors));
+        Assert.Equal((int)VisualPalette.Accent, VisualizerOptions.Choice(None, VisualizerChoice.Spectrum, VisualizerOptions.Colors));
+        Assert.Same(VisualizerOptions.For(VisualizerChoice.Halo), VisualizerOptions.For(VisualizerChoice.Halo));
     }
 
     [Fact]
@@ -55,7 +61,7 @@ public sealed class VisualizerOptionsTests
         Assert.Equal(0, VisualizerOptions.Choice(wild, VisualizerChoice.Vinyl, "speed"));
         Assert.Equal(96, VisualizerOptions.Number(wild, VisualizerChoice.Mirror, "columns"));
         Assert.Equal(20, VisualizerOptions.Number(wild, VisualizerChoice.Embers, "amount"));
-        Assert.Equal(0.04, VisualizerOptions.Number(wild, VisualizerChoice.Vinyl, "depth"));
+        Assert.Equal(0.25, VisualizerOptions.Number(wild, VisualizerChoice.Vinyl, "depth"));
         Assert.Equal(0, VisualizerOptions.Choice(new Dictionary<string, string> { ["vinyl.speed"] = "1.5" }, VisualizerChoice.Vinyl, "speed"));
         Assert.Equal(0, VisualizerOptions.Choice(new Dictionary<string, string> { ["vinyl.speed"] = "-1" }, VisualizerChoice.Vinyl, "speed"));
 
@@ -81,6 +87,14 @@ public sealed class VisualizerOptionsTests
     [InlineData(VisualPalette.Warm, 0, 0, 255, 255, 21, 0)]
     [InlineData(VisualPalette.Cool, 0, 0, 255, 38, 219, 255)]
     [InlineData(VisualPalette.OneColor, 0.3, 0, 255, 0x12, 0x34, 0x56)]
+    [InlineData(VisualPalette.Neon, 0, 0, 255, 255, 40, 170)]
+    [InlineData(VisualPalette.Neon, 1, 0, 255, 30, 220, 255)]
+    [InlineData(VisualPalette.Fire, 0, 0, 255, 150, 10, 0)]
+    [InlineData(VisualPalette.Fire, 2, 0, 255, 255, 235, 150)]
+    [InlineData(VisualPalette.Aurora, 0, 0, 255, 40, 255, 120)]
+    [InlineData(VisualPalette.Aurora, 0.125, 0, 255, 30, 238, 155)]
+    [InlineData(VisualPalette.Ocean, double.NaN, 0, 255, 10, 40, 160)]
+    [InlineData(VisualPalette.Sunset, 1, 0, 255, 255, 200, 70)]
     public void EachPaletteColoursByPitchTimeOrChoice(VisualPalette palette, double share, double seconds, byte a, byte r, byte g, byte b) =>
         Assert.Equal(new Argb(a, r, g, b), Visualizers.PaletteColor(palette, share, seconds, new Argb(255, 10, 20, 30), 0x123456));
 

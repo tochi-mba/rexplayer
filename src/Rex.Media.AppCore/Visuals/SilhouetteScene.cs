@@ -12,6 +12,7 @@ public sealed class SilhouetteScene : VisualScene
     private readonly Particles _sparks = new(400);
     private float[] _fill = [];
     private float[] _edge = [];
+    private float[] _soft = [];
     private double _flash;
 
     public override bool UsesCamera => true;
@@ -45,7 +46,7 @@ public sealed class SilhouetteScene : VisualScene
         {
             // The room, dimmed and greyed, behind.
             var (roomScale, roomLeft, roomTop) = Cover(canvas.Width, canvas.Height, room.Width, room.Height);
-            for (var y = 0; y < canvas.Height; y++)
+            Raster.Rows(canvas.Height, y =>
             {
                 for (var x = 0; x < canvas.Width; x++)
                 {
@@ -56,14 +57,14 @@ public sealed class SilhouetteScene : VisualScene
                     canvas.G[i] += grey;
                     canvas.B[i] += grey * 1.1f;
                 }
-            }
+            });
         }
 
-        var glow = (float)(1.1 + (1.4 * pulse.BeatStrength));
+        var glow = (float)(1.1 + (1.6 * pulse.Kick.Level) + (0.6 * pulse.Snare.Level));
         var spread = 3 + (pulse.Bass * canvas.Width * 0.03);
         var echo = context.Paint((context.Seconds * 0.12) % 1);
         var (w, h) = (canvas.Width, canvas.Height);
-        for (var y = 0; y < h; y++)
+        Raster.Rows(h, y =>
         {
             var row = Math.Clamp(1 - ((double)y / h), 0, 1);
             var color = context.Paint(row);
@@ -86,7 +87,7 @@ public sealed class SilhouetteScene : VisualScene
                 canvas.G[i] += light.G + (float)(_flash * fill * 0.5);
                 canvas.B[i] += light.B + (float)(_flash * fill * 0.5);
             }
-        }
+        });
 
         if (style == 2)
         {
@@ -117,21 +118,54 @@ public sealed class SilhouetteScene : VisualScene
         return light;
     }
 
-    /// <summary>The figure (1 inside) and its outline (1 on the edge), softened, from the camera's mask.</summary>
+    /// <summary>
+    /// The figure (1 inside) and its outline, from the camera's mask: the mask is softened first, so
+    /// the figure's edge is smooth rather than stepped, and the outline is where that soft edge falls
+    /// fastest (its gradient), a line that fades either side as a drawn line of light would.
+    /// </summary>
     private void Outline(byte[] mask, int w, int h)
     {
         if (_fill.Length != w * h)
         {
-            (_fill, _edge) = (new float[w * h], new float[w * h]);
+            (_fill, _edge, _soft) = (new float[w * h], new float[w * h], new float[w * h]);
         }
 
+        for (var i = 0; i < mask.Length && i < _fill.Length; i++)
+        {
+            _fill[i] = mask[i] > 0 ? 1 : 0;
+        }
+
+        Soften(_fill, _soft, w, h);
+        Soften(_soft, _fill, w, h);
         for (var y = 0; y < h; y++)
         {
             for (var x = 0; x < w; x++)
             {
-                var i = (y * w) + x;
-                _fill[i] = mask[i] > 0 ? 1 : 0;
-                _edge[i] = Player.SilhouetteMask.IsEdge(mask, w, h, x, y) ? 1 : 0;
+                var gx = _fill[(y * w) + Math.Min(w - 1, x + 1)] - _fill[(y * w) + Math.Max(0, x - 1)];
+                var gy = _fill[(Math.Min(h - 1, y + 1) * w) + x] - _fill[(Math.Max(0, y - 1) * w) + x];
+                _edge[(y * w) + x] = Math.Min(1, MathF.Sqrt((gx * gx) + (gy * gy)) * 1.6f);
+            }
+        }
+    }
+
+    /// <summary>A three-by-three average of <paramref name="from"/> into <paramref name="to"/>.</summary>
+    private static void Soften(float[] from, float[] to, int w, int h)
+    {
+        for (var y = 0; y < h; y++)
+        {
+            for (var x = 0; x < w; x++)
+            {
+                float sum = 0;
+                for (var dy = -1; dy <= 1; dy++)
+                {
+                    var row = Math.Clamp(y + dy, 0, h - 1) * w;
+                    for (var dx = -1; dx <= 1; dx++)
+                    {
+                        sum += from[row + Math.Clamp(x + dx, 0, w - 1)];
+                    }
+                }
+
+                to[(y * w) + x] = sum / 9;
             }
         }
     }
@@ -157,7 +191,7 @@ public sealed class SilhouetteScene : VisualScene
     {
         var (w, h) = (context.MaskWidth, context.MaskHeight);
         var size = Math.Min(context.Canvas.Width, context.Canvas.Height);
-        var wanted = (int)(context.Dt * 600 * context.Pulse.Loudness) + (context.Pulse.Beat ? 30 : 0);
+        var wanted = (int)(context.Dt * 300 * context.Pulse.Loudness) + (context.Pulse.Kick.Hit ? 40 : 0) + (context.Pulse.Hat.Hit ? 10 : 0);
         for (var tries = 0; tries < wanted * 8 && wanted > 0; tries++)
         {
             var i = context.Random.Next(_edge.Length);
@@ -170,7 +204,7 @@ public sealed class SilhouetteScene : VisualScene
         }
 
         _sparks.Step(context.Dt, 0, -size * 0.1, 0.8);
-        _sparks.Draw(context);
+        _sparks.Draw(context, 1, 0.03);
     }
 }
 

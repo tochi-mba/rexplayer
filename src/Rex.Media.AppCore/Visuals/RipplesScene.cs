@@ -16,13 +16,24 @@ public sealed class RipplesScene : VisualScene
         var (w, h) = (canvas.Width, canvas.Height);
         var pulse = context.Pulse;
         var size = Math.Min(w, h);
-        canvas.Fade(0.5f);
+        canvas.Feedback(0.6f, 1.0, 0, 0, 0);
         var lifetime = context.Number("lifetime");
-        if (pulse.Beat && (context.Pick("drops") == 0 || pulse.BeatStrength >= 0.6f))
+        var falls = context.Pick("drops") switch
         {
-            var anywhere = context.Pick("where") == 1;
-            var (x, y) = anywhere ? (w * (0.15 + (0.7 * context.Random.NextDouble())), h * (0.15 + (0.7 * context.Random.NextDouble()))) : (w / 2.0, h / 2.0);
-            _drops.Add(new Drop(x, y, pulse.Pitch, 0.4 + (0.6 * pulse.BeatStrength)));
+            1 => pulse.Kick.Hit && pulse.Kick.Strength >= 0.6f,
+            2 => pulse.Drop,
+            _ => pulse.Kick.Hit,
+        };
+        if (falls)
+        {
+            // In the middle, anywhere, or across the stage by the pitch: bass to the left, treble to the right.
+            var (x, y) = context.Pick("where") switch
+            {
+                1 => (w * (0.15 + (0.7 * context.Random.NextDouble())), h * (0.15 + (0.7 * context.Random.NextDouble()))),
+                2 => (w * (0.1 + (0.8 * pulse.Pitch)), h * (0.35 + (0.3 * context.Random.NextDouble()))),
+                _ => (w / 2.0, h / 2.0),
+            };
+            _drops.Add(new Drop(x, y, pulse.Pitch, 0.4 + (0.6 * pulse.Kick.Strength)));
         }
 
         var rings = (int)context.Number("rings");

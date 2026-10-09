@@ -31,6 +31,21 @@ public enum VisualPalette
 
     /// <summary>One colour of the user's own (the "color" setting).</summary>
     OneColor,
+
+    /// <summary>Magenta through violet to electric cyan.</summary>
+    Neon,
+
+    /// <summary>Deep red through orange to yellow-white, as flames are.</summary>
+    Fire,
+
+    /// <summary>The green of the aurora's lower edge, through teal, to the violet and pink above.</summary>
+    Aurora,
+
+    /// <summary>Deep blue through cyan to foam.</summary>
+    Ocean,
+
+    /// <summary>Purple through pink and orange to gold.</summary>
+    Sunset,
 }
 
 /// <summary>
@@ -44,14 +59,18 @@ public static class VisualizerOptions
     public const string Color = "color";
     public const string Sensitivity = "sensitivity";
 
-    private static readonly string[] PaletteNames = ["Windows' accent", "Follow the pitch", "A rainbow", "Warm", "Cool", "One colour"];
+    private static readonly string[] PaletteNames = ["Windows' accent", "Follow the pitch", "A rainbow", "Warm", "Cool", "One colour", "Neon", "Fire", "Aurora", "Ocean", "Sunset"];
 
-    /// <summary>The settings every visualisation has, then its own.</summary>
-    public static IReadOnlyList<VisualOption> For(VisualizerChoice choice)
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<VisualizerChoice, IReadOnlyList<VisualOption>> Made = new();
+
+    /// <summary>The settings every visualisation has, then its own; made once for each, as they never change.</summary>
+    public static IReadOnlyList<VisualOption> For(VisualizerChoice choice) => Made.GetOrAdd(choice, Make);
+
+    private static IReadOnlyList<VisualOption> Make(VisualizerChoice choice)
     {
         List<VisualOption> options =
         [
-            new(Colors, "Colours", VisualOptionKind.Choice, choice == VisualizerChoice.Strobe ? (int)VisualPalette.Pitch : (int)VisualPalette.Accent, Choices: PaletteNames),
+            new(Colors, "Colours", VisualOptionKind.Choice, (int)DefaultPalette(choice), Choices: PaletteNames),
             new(Color, "Its own colour (with One colour)", VisualOptionKind.Color, 0xFF3B30),
             new(Sensitivity, "Sensitivity", VisualOptionKind.Number, 1, 0.25, 4),
         ];
@@ -67,11 +86,13 @@ public static class VisualizerOptions
             VisualizerChoice.Vinyl =>
             [
                 new("speed", "Turns at", VisualOptionKind.Choice, 0, Choices: ["33 1/3 rpm", "45 rpm", "78 rpm"]),
-                new("depth", "How deep the sound cuts the groove", VisualOptionKind.Number, 0.16, 0.04, 0.3),
+                new("depth", "How brightly the music lights the groove", VisualOptionKind.Number, 1, 0.25, 2.5),
                 new("arm", "Show the tone-arm", VisualOptionKind.Toggle, 1),
                 new("label", "The cover as the label", VisualOptionKind.Toggle, 1),
-                new("sheen", "Moving light across the record", VisualOptionKind.Toggle, 1),
-                new("glow", "Edge glow", VisualOptionKind.Number, 0.7, 0, 2),
+                new("sheen", "The lamp's sheen on the vinyl", VisualOptionKind.Toggle, 1),
+                new("wave", "The sound as a ring round the record", VisualOptionKind.Toggle, 1),
+                new("strobe", "Strobe dots on the platter that flash on the beat", VisualOptionKind.Toggle, 1),
+                new("glow", "Glow", VisualOptionKind.Number, 0.7, 0, 2),
             ],
             VisualizerChoice.Halo =>
             [
@@ -79,7 +100,7 @@ public static class VisualizerOptions
                 new("thickness", "Ray thickness", VisualOptionKind.Number, 4, 1, 12),
                 new("spin", "Turn slowly", VisualOptionKind.Toggle, 1),
                 new("trails", "Light trails", VisualOptionKind.Number, 0.72, 0, 0.95),
-                new("burst", "Burst on drops", VisualOptionKind.Toggle, 1),
+                new("burst", "Sparks on the beat", VisualOptionKind.Toggle, 1),
             ],
             VisualizerChoice.Mirror =>
             [
@@ -90,24 +111,23 @@ public static class VisualizerOptions
             ],
             VisualizerChoice.Aurora =>
             [
-                new("glow", "Glow beneath the ridge", VisualOptionKind.Toggle, 1),
-                new("bands", "Points along the ridge", VisualOptionKind.Number, 48, 12, 128),
-                new("curtains", "Light curtains", VisualOptionKind.Number, 5, 1, 10),
+                new("curtains", "Light curtains", VisualOptionKind.Number, 3, 1, 6),
                 new("height", "Curtain height", VisualOptionKind.Number, 1, 0.25, 2),
+                new("drift", "How fast they drift", VisualOptionKind.Number, 1, 0, 3),
+                new("stars", "Stars", VisualOptionKind.Toggle, 1),
             ],
             VisualizerChoice.Embers =>
             [
                 new("amount", "How many sparks", VisualOptionKind.Number, 90, 20, 300),
                 new("speed", "How fast they rise", VisualOptionKind.Number, 1, 0.25, 3),
                 new("wind", "Sideways drift", VisualOptionKind.Number, 0.3, -2, 2),
-                new("smoke", "Smoke and glow", VisualOptionKind.Number, 0.7, 0, 2),
+                new("smoke", "How long their smoke lingers", VisualOptionKind.Number, 0.6, 0, 0.9),
                 new("burst", "Burst on beats", VisualOptionKind.Toggle, 1),
             ],
             VisualizerChoice.Ripples =>
             [
-                new("beat", "Beat sensitivity", VisualOptionKind.Number, 1.4, 1.1, 2.5),
                 new("thickness", "Ring thickness", VisualOptionKind.Number, 2.5, 1, 8),
-                new("rings", "Maximum rings", VisualOptionKind.Number, 16, 4, 40),
+                new("rings", "Rings in each drop", VisualOptionKind.Number, 3, 1, 4),
                 new("lifetime", "Ring lifetime", VisualOptionKind.Number, 1.5, 0.4, 4),
                 new("where", "Ripple origin", VisualOptionKind.Choice, 0, Choices: ["Centre", "Across the stage", "Follow the pitch"]),
                 new("drops", "On each", VisualOptionKind.Choice, 0, Choices: ["Beat", "Strong beat", "Drop"]),
@@ -116,8 +136,8 @@ public static class VisualizerOptions
             [
                 new("flashes", "At most this many flashes a second", VisualOptionKind.Number, 3, 1, 10),
                 new("fade", "How long a flash takes to fade (seconds)", VisualOptionKind.Number, 0.4, 0.1, 2),
-                new("pattern", "Flash shape", VisualOptionKind.Choice, 0, Choices: ["Whole stage", "Stripes", "Radial", "Blocks"]),
-                new("step", "Colour step", VisualOptionKind.Choice, 1, Choices: ["Every beat", "Every 2 beats", "Every 4 beats"]),
+                new("pattern", "Flash shape", VisualOptionKind.Choice, 0, Choices: ["Whole stage", "Halves that trade places", "Bars that step along", "Rays from the middle", "Chequerboard"]),
+                new("step", "Colour", VisualOptionKind.Choice, 0, Choices: ["Follows the pitch", "Steps through the colours each flash"]),
                 new("glow", "Background glow", VisualOptionKind.Number, 0.25, 0, 1),
             ],
             VisualizerChoice.Silhouette =>
@@ -143,6 +163,18 @@ public static class VisualizerOptions
         });
         return options;
     }
+
+    /// <summary>The colours each visualisation is first drawn in: those that suit what it pictures.</summary>
+    public static VisualPalette DefaultPalette(VisualizerChoice choice) => choice switch
+    {
+        VisualizerChoice.Strobe or VisualizerChoice.Mirror => VisualPalette.Pitch,
+        VisualizerChoice.Vinyl => VisualPalette.Sunset,
+        VisualizerChoice.Halo or VisualizerChoice.Silhouette or VisualizerChoice.BeatEdit => VisualPalette.Neon,
+        VisualizerChoice.Aurora => VisualPalette.Aurora,
+        VisualizerChoice.Embers => VisualPalette.Fire,
+        VisualizerChoice.Ripples => VisualPalette.Ocean,
+        _ => VisualPalette.Accent,
+    };
 
     /// <summary>A number setting, kept to its range; the default when it is missing or unreadable.</summary>
     public static double Number(IReadOnlyDictionary<string, string> options, VisualizerChoice choice, string key)

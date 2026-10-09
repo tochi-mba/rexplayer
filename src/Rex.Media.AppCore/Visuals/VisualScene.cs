@@ -33,7 +33,7 @@ public sealed class VisualContext
         Pulse = pulse ?? throw new ArgumentNullException(nameof(pulse));
     }
 
-    public Raster Canvas { get; }
+    public Raster Canvas { get; internal set; }
 
     public MusicPulse Pulse { get; }
 
@@ -73,15 +73,42 @@ public sealed class VisualContext
     /// <summary>Where chance comes from: seeded in tests, so a frame can be drawn again exactly.</summary>
     public Random Random { get; set; } = new();
 
-    public double Number(string key) => VisualizerOptions.Number(Options, Choice, key);
+    /// <summary>A setting's number, read once a frame.</summary>
+    public double Number(string key)
+    {
+        if (!_numbers.TryGetValue(key, out var value))
+        {
+            value = VisualizerOptions.Number(Options, Choice, key);
+            _numbers[key] = value;
+        }
+
+        return value;
+    }
 
     public bool Toggle(string key) => VisualizerOptions.Toggle(Options, Choice, key);
 
     public int Pick(string key) => VisualizerOptions.Choice(Options, Choice, key);
 
-    /// <summary>The visualisation's colour <paramref name="share"/> (0 to 1) along its palette.</summary>
-    public Rgb Paint(double share) =>
-        Rgb.From(Visualizers.PaletteColor((VisualPalette)Pick(VisualizerOptions.Colors), share, Seconds, Accent, VisualizerOptions.Rgb(Options, Choice, VisualizerOptions.Color)));
+    private readonly Rgb[] _paints = new Rgb[256];
+    private readonly Dictionary<string, double> _numbers = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Readies a frame: the palette is worked out once, into a table every <see cref="Paint"/> reads,
+    /// and the settings are read afresh (they may have changed since the last frame).
+    /// </summary>
+    public void Prepare()
+    {
+        _numbers.Clear();
+        var palette = (VisualPalette)Pick(VisualizerOptions.Colors);
+        var own = VisualizerOptions.Rgb(Options, Choice, VisualizerOptions.Color);
+        for (var i = 0; i < _paints.Length; i++)
+        {
+            _paints[i] = Rgb.From(Visualizers.PaletteColor(palette, i / 255.0, Seconds, Accent, own));
+        }
+    }
+
+    /// <summary>The visualisation's colour <paramref name="share"/> (0 to 1) along its palette, from the table <see cref="Prepare"/> made.</summary>
+    public Rgb Paint(double share) => _paints[double.IsFinite(share) ? (int)Math.Round(Math.Clamp(share, 0, 1) * 255) : 0];
 }
 
 /// <summary>A visualisation drawn on a <see cref="Raster"/>: it keeps what it needs from frame to frame.</summary>

@@ -122,6 +122,7 @@ public sealed partial class MainWindow : Window
         }
 
         PlaylistView.ItemsSource = _playlistRows;
+        PlaylistView.ContainerContentChanging += OnPlaylistRowShown;
         ApplySettingsToControls();
         ShowState();
         ShowPosition();
@@ -391,14 +392,14 @@ public sealed partial class MainWindow : Window
     private void ShowPlaylist()
     {
         var current = _player.Playlist.CurrentIndex;
-        var rows = _player.Playlist.Items.Select((item, i) => new PlaylistRow((i == current ? "\u25B6 " : "") + item.Title, _player.IsMissing(item))).ToList();
+        var rows = _player.Playlist.Items.Select((item, i) => new PlaylistRow((i == current ? "\u25B6 " : "") + item.Title, _player.IsMissing(item), item.Location)).ToList();
         for (var i = 0; i < rows.Count; i++)
         {
             if (i >= _playlistRows.Count)
             {
                 _playlistRows.Add(rows[i]);
             }
-            else if (_playlistRows[i] != rows[i])
+            else if (!_playlistRows[i].Equals(rows[i]))
             {
                 _playlistRows[i] = rows[i];
             }

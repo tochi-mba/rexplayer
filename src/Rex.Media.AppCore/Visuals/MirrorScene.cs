@@ -37,7 +37,7 @@ public sealed class MirrorScene : VisualScene
         var edge = context.Paint(context.Pulse.Pitch);
         canvas.Path(top, context.Number("thickness"), edge, 0.9f, 1.5);
         canvas.Path(bottom, context.Number("thickness"), edge, 0.9f, 1.5);
-        canvas.Line(0, mid, w, mid, 1, edge, 0.15f + context.Pulse.BeatStrength * 0.4f);
+        canvas.Line(0, mid, w, mid, 1 + (3 * context.Pulse.Kick.Level), edge, 0.15f + (context.Pulse.Kick.Level * 0.8f), 3);
         canvas.Bloom(0.4f, 0.7f, 4);
     }
 

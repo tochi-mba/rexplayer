@@ -22,7 +22,7 @@ public sealed class HaloScene : VisualScene
             _spin += context.Dt * (0.15 + (pulse.Bass * 0.6));
         }
 
-        canvas.Feedback((float)context.Number("trails"), 1.012 + (pulse.Bass * 0.025), context.Toggle("spin") ? 0.004 : 0, 0, 0);
+        canvas.Feedback((float)context.Number("trails"), 1.005 + (pulse.Bass * 0.012), context.Toggle("spin") ? 0.002 : 0, 0, 0);
         var inner = size * (0.16 + (pulse.Bass * 0.07));
         var reach = size * 0.3;
         var rays = (int)context.Number("rays");
@@ -41,9 +41,10 @@ public sealed class HaloScene : VisualScene
         }
 
         canvas.Ring(cx, cy, inner * 0.94, 1.5 + (pulse.Bass * 5), context.Paint(pulse.Pitch), 0.5f + pulse.Bass);
-        if (pulse.Beat && context.Toggle("burst"))
+        // The kick throws sparks off the ring, as many as it is hard.
+        if (pulse.Kick.Hit && context.Toggle("burst"))
         {
-            var count = (int)(12 + (28 * pulse.BeatStrength));
+            var count = (int)(12 + (28 * pulse.Kick.Strength));
             for (var n = 0; n < count; n++)
             {
                 var angle = context.Random.NextDouble() * Math.Tau;
@@ -53,7 +54,7 @@ public sealed class HaloScene : VisualScene
         }
 
         _sparks.Step(context.Dt, 0, 0, 1.6);
-        _sparks.Draw(context, 0.9f);
+        _sparks.Draw(context, 0.9f, 0.035);
         canvas.Bloom(0.45f, 0.8f, 5);
     }
 }

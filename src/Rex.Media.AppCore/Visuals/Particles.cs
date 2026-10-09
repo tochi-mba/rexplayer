@@ -60,8 +60,12 @@ public sealed class Particles
         }
     }
 
-    /// <summary>Draws every live spark as a glow, its size and light following its life.</summary>
-    public void Draw(VisualContext context, float strength = 1)
+    /// <summary>
+    /// Draws every live spark, its size and light following its life: as a glow, or, with
+    /// <paramref name="streak"/> seconds, as a streak along the way it has just come (motion blur), so
+    /// fast sparks draw lines of light rather than dotted trails.
+    /// </summary>
+    public void Draw(VisualContext context, float strength = 1, double streak = 0)
     {
         ArgumentNullException.ThrowIfNull(context);
         for (var i = 0; i < _x.Length; i++)
@@ -69,7 +73,14 @@ public sealed class Particles
             if (_life[i] > 0)
             {
                 var life = Math.Min(1, _life[i]);
-                context.Canvas.Glow(_x[i], _y[i], _size[i] * (0.4 + (0.6 * life)), context.Paint(_share[i]), (float)life * strength);
+                var size = _size[i] * (0.4 + (0.6 * life));
+                var color = context.Paint(_share[i]);
+                if (streak > 0)
+                {
+                    context.Canvas.Line(_x[i] - (_vx[i] * streak), _y[i] - (_vy[i] * streak), _x[i], _y[i], size, color, (float)life * strength * 0.8f, 1.5);
+                }
+
+                context.Canvas.Glow(_x[i], _y[i], size * 1.3, color, (float)life * strength);
             }
         }
     }

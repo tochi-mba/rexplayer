@@ -3,17 +3,3 @@ IAudioSink.cs Interface only: no executable code.
 IByteSource.cs Interface only: no executable code.
 IDemuxer.cs Interfaces only: no executable code.
 IVideoPresenter.cs Interface only: no executable code.
-AuroraScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-BeatEditScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-EmbersScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-HaloScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-MirrorScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-MusicPulse.cs Stateful beat analysis is exercised end-to-end by VisualStageTests.
-Particles.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-Raster.cs Pixel kernel is exercised end-to-end by VisualStageTests.
-RipplesScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-SilhouetteScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-StrobeScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-VinylScene.cs Stateful frame renderer is exercised end-to-end by VisualStageTests.
-VisualScene.cs Scene dispatch is exercised end-to-end by VisualStageTests.
-VisualStage.cs Stateful frame orchestration is exercised end-to-end by VisualStageTests.

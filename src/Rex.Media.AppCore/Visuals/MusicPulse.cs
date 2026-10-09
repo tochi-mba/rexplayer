@@ -30,6 +30,9 @@ public sealed class MusicPulse
     private readonly Queue<float> _fluxes = new();
     private readonly float[] _envelope = new float[EnvelopeRate * EnvelopeSeconds];
     private readonly float[] _wave = new float[SpectrumAnalyzer.Size];
+    private readonly Onset _kick = new(0.18, 0.15);
+    private readonly Onset _snare = new(0.15, 0.2);
+    private readonly Onset _hat = new(0.09, 0.08);
     private double _envelopeTime;
     private int _envelopeAt;
     private double _sinceBeat = 10;
@@ -115,20 +118,41 @@ public sealed class MusicPulse
         Loudness = (float)Math.Clamp((decibels + 60) / 60, 0, 1);
         LongLoudness += (Loudness - LongLoudness) * (float)Math.Min(1, dt / 4);
 
-        // The onset strength: how much the spectrum below 5 kHz rose since the last frame.
+        // The onset strength: how much the spectrum below 5 kHz rose since the last frame. Each drum's
+        // own part of the spectrum is watched too: the kick low, the snare in the middle, the hats high.
         var top = Math.Min(_magnitudes.Length, 5000 * SpectrumAnalyzer.Size / sampleRate);
-        double flux = 0;
-        for (var bin = 1; bin < top; bin++)
+        var (kickTop, snareTop, hatTop) = (Bin(160, sampleRate), Bin(4000, sampleRate), Bin(16000, sampleRate));
+        double flux = 0, kick = 0, snare = 0, hat = 0;
+        for (var bin = 1; bin < hatTop; bin++)
         {
             var now = MathF.Log(1 + (_magnitudes[bin] * 100));
-            var rise = now - _previous[bin];
+            var rise = Math.Max(0, now - _previous[bin]);
             _previous[bin] = now;
+            if (bin < top)
+            {
+                // Low bins weigh more: the kick and the bass carry the beat.
+                flux += rise * (bin < top / 8 ? 3 : 1);
+            }
 
-            // Low bins weigh more: the kick and the bass carry the beat.
-            flux += rise > 0 ? rise * (bin < top / 8 ? 3 : 1) : 0;
+            if (bin < kickTop)
+            {
+                kick += rise;
+            }
+            else if (bin < snareTop)
+            {
+                snare += rise;
+            }
+            else
+            {
+                hat += rise;
+            }
         }
 
         flux /= top;
+        var primed = _primed;
+        _kick.Hear(kick / kickTop, dt, primed && Loudness > 0.15f);
+        _snare.Hear(snare / (snareTop - kickTop), dt, primed && Loudness > 0.15f);
+        _hat.Hear(hat / Math.Max(1, hatTop - snareTop), dt, primed && Loudness > 0.1f);
         Beat = false;
         Drop = false;
         BeatStrength = Math.Max(0, BeatStrength - (float)(dt * 4));
@@ -168,9 +192,23 @@ public sealed class MusicPulse
         }
     }
 
+    /// <summary>The kick drum (and the bass that hits with it): a hit now, how hard, and a level that falls away after each.</summary>
+    public Onset Kick => _kick;
+
+    /// <summary>The snare and claps, in the middle of the spectrum.</summary>
+    public Onset Snare => _snare;
+
+    /// <summary>The hi-hats and cymbals, at the top.</summary>
+    public Onset Hat => _hat;
+
+    private int Bin(double hertz, int sampleRate) => (int)Math.Clamp(Math.Round(hertz * SpectrumAnalyzer.Size / sampleRate), 2, _magnitudes.Length);
+
     /// <summary>Forgets everything heard, as when another song starts.</summary>
     public void Reset()
     {
+        _kick.Reset();
+        _snare.Reset();
+        _hat.Reset();
         _bands.Reset();
         Array.Clear(_previous);
         Array.Clear(_envelope);

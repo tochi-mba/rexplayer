@@ -72,6 +72,65 @@ public enum SubtitleStyleChoice
     Override,
 }
 
+/// <summary>How a library view orders what it shows.</summary>
+public enum LibrarySort
+{
+    /// <summary>The view's own order: by artist and album for music, by name for the rest.</summary>
+    Natural,
+    Title,
+    Artist,
+    Album,
+    Year,
+    Added,
+    Played,
+    MostPlayed,
+    Length,
+}
+
+/// <summary>What a library view gathers its items under, each under a heading.</summary>
+public enum LibraryGrouping
+{
+    None,
+    Letter,
+    Artist,
+    Album,
+    Genre,
+    Year,
+    Decade,
+    Folder,
+    Added,
+    Length,
+}
+
+/// <summary>How a library view lays its items out.</summary>
+public enum LibraryLook
+{
+    /// <summary>Compact lines, each with a small picture.</summary>
+    List,
+
+    /// <summary>Cards with their pictures, in a grid.</summary>
+    Grid,
+
+    /// <summary>Big cards: covers, posters and photos large.</summary>
+    Wall,
+}
+
+/// <summary>How one library view is shown, as the user last set it: its layout, order, grouping and card size.</summary>
+public sealed record LibraryViewChoice(LibraryLook Look = LibraryLook.Grid, LibrarySort Sort = LibrarySort.Natural, bool Descending = false, LibraryGrouping Grouping = LibraryGrouping.None, int CardSize = 180)
+{
+    /// <summary>The smallest and largest cards, in pixels across.</summary>
+    public const int SmallestCard = 120;
+    public const int LargestCard = 360;
+
+    public LibraryViewChoice Normalize() => this with
+    {
+        Look = Enum.IsDefined(Look) ? Look : LibraryLook.Grid,
+        Sort = Enum.IsDefined(Sort) ? Sort : LibrarySort.Natural,
+        Grouping = Enum.IsDefined(Grouping) ? Grouping : LibraryGrouping.None,
+        CardSize = Math.Clamp(CardSize, SmallestCard, LargestCard),
+    };
+}
+
 /// <summary>The broad composition used for cover art drawn from an audio file.</summary>
 public enum ArtworkStyle
 {
@@ -275,6 +334,9 @@ public sealed record PlayerSettings
     /// <summary>Whether a song's lyrics show over its visualisation (META-09).</summary>
     public bool ShowLyrics { get; init; } = true;
 
+    /// <summary>How each library view is shown, by the view's name (LIB-05).</summary>
+    public IReadOnlyDictionary<string, LibraryViewChoice> LibraryViews { get; init; } = new Dictionary<string, LibraryViewChoice>(StringComparer.Ordinal);
+
     /// <summary>The languages to play audio in, best first, such as "ja, original"; empty for the media's own choice.</summary>
     public string AudioLanguages { get; init; } = "";
 
@@ -456,6 +518,7 @@ public sealed record PlayerSettings
             AudioArtworkDetail = Math.Clamp(AudioArtworkDetail, 0, 200),
             AudioArtworkContrast = Math.Clamp(AudioArtworkContrast, 0, 200),
             VisualOptions = VisualOptions ?? new Dictionary<string, string>(StringComparer.Ordinal),
+            LibraryViews = (LibraryViews ?? new Dictionary<string, LibraryViewChoice>()).Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value.Normalize(), StringComparer.Ordinal),
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),

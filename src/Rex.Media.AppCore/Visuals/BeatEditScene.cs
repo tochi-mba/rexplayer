@@ -1,31 +1,35 @@
 namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
-/// A beat edit of the camera, cut live to the music (AU-18), the way short music videos are edited:
-/// the picture punches in on every beat, shakes, splits into red, green and blue, slips in glitched
-/// slices, cuts between colour grades every few beats, freezes for half a beat and snaps back, leaves
-/// echoes, flashes white on the big hits, and on the drop breaks into four mirrored screens. A style
-/// sets which tricks it plays, the intensity how hard; with no camera, the song's cover is edited.
-/// The camera's picture never leaves the computer, and is not kept.
+/// A beat edit of the camera, cut live to the music (AU-18), the way short music videos are edited.
+/// Nothing in it is left to chance: every move is a drum.
+/// <list type="bullet">
+/// <item>The kick punches the picture in, snapping in on the hit and easing out, and swings it left
+/// then right on alternate kicks; red, green and blue spread apart with it and the bass.</item>
+/// <item>With the tempo known the picture also pumps on every beat, like a side-chained bass.</item>
+/// <item>The snare tilts the picture, slips glitched slices across it, and flashes on the big ones.</item>
+/// <item>Bars of four kicks set the cuts: the colour grade changes every so many kicks, and every
+/// eighth kick the picture freezes for half a beat, then snaps back.</item>
+/// <item>The hi-hats glitter in the film grain.</item>
+/// <item>The drop breaks the picture into four mirrored screens for a bar, with a flash and a twist.</item>
+/// </list>
+/// A style sets which tricks it plays, the intensity how hard. With no camera, the song's cover is
+/// edited. The camera's picture never leaves the computer, and is not kept.
 /// </summary>
 public sealed class BeatEditScene : VisualScene
 {
-    private const int Grain = 4096;
-
-    private readonly float[] _grain = new float[Grain];
     private readonly int[] _sliceShift = new int[12];
     private VisualPicture? _frozen;
     private VisualPicture? _made;
-    private double _punch;
-    private double _shake;
+    private VisualPicture? _mirrored;
     private double _flash;
     private double _sinceFlash = 10;
-    private double _glitch;
     private double _split;
     private double _freeze;
-    private double _tilt;
+    private double _twist;
     private int _grade;
     private long _flashes;
+    private long _frame;
 
     public override bool UsesCamera => true;
 
@@ -38,65 +42,79 @@ public sealed class BeatEditScene : VisualScene
     public override void Draw(VisualContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        var canvas = context.Canvas;
         var pulse = context.Pulse;
+        var (kick, snare, hat) = (pulse.Kick, pulse.Snare, pulse.Hat);
         var tricks = Tricks.For(context.Pick("style"));
         var intensity = context.Number("intensity");
         var dt = context.Dt;
-        var random = context.Random;
         var source = Source(context);
-        _sinceFlash += dt;
         var beatSeconds = pulse.Tempo > 0 ? 60 / pulse.Tempo : 0.5;
-        if (pulse.Beat)
+        _frame++;
+        _sinceFlash += dt;
+
+        if (kick.Hit)
         {
-            _punch = Math.Max(_punch, tricks.Punch * (0.5 + (0.5 * pulse.BeatStrength)) * intensity);
-            _shake = Math.Max(_shake, tricks.Shake * pulse.BeatStrength * intensity);
             var every = context.Pick("cuts") switch { 0 => 1, 2 => 4, 3 => 8, _ => 2 };
-            if (pulse.Beats % every == 0)
+            if (kick.Count % every == 0)
             {
-                _grade = tricks.Grades[(int)(pulse.Beats / every % tricks.Grades.Length)];
+                _grade = tricks.Grades[(int)(kick.Count / every % tricks.Grades.Length)];
             }
 
-            if (tricks.Slices > 0 && random.NextDouble() < tricks.Slices)
-            {
-                _glitch = 0.18;
-                for (var i = 0; i < _sliceShift.Length; i++)
-                {
-                    _sliceShift[i] = random.NextDouble() < 0.4 ? (int)((random.NextDouble() - 0.5) * canvas.Width * 0.2 * intensity) : 0;
-                }
-            }
-
-            if (tricks.Freeze && pulse.Beats % 8 == 0 && source is not null)
+            if (tricks.Freeze && kick.Count % 8 == 0)
             {
                 _frozen = source with { Bgra = (byte[])source.Bgra.Clone() };
                 _freeze = beatSeconds / 2;
             }
 
-            if (pulse.BeatStrength > 0.7)
+            // The first kick of each bar of four flashes, when it is a hard one.
+            if (kick.Count % 4 == 1 && kick.Strength > 0.6f)
             {
                 Flash(context, tricks.Flash * intensity);
             }
         }
 
+        if (snare.Hit)
+        {
+            if (tricks.Slices > 0)
+            {
+                // Which slices slip, and how far, follows the count of snares: varied, never random.
+                for (var i = 0; i < _sliceShift.Length; i++)
+                {
+                    var roll = Noise.Hash((snare.Count * 31) + i);
+                    _sliceShift[i] = roll < tricks.Slices * 0.6 ? (int)((Noise.Hash((snare.Count * 57) + i) - 0.5) * context.Canvas.Width * 0.22 * intensity) : 0;
+                }
+            }
+
+            if (snare.Strength > 0.8f)
+            {
+                Flash(context, tricks.Flash * intensity * 0.6);
+            }
+        }
+
         if (pulse.Drop)
         {
-            _punch = Math.Max(_punch, 1.2 * intensity);
-            _tilt = (random.NextDouble() < 0.5 ? -1 : 1) * 0.07 * intensity;
             _split = tricks.Split ? beatSeconds * 4 : 0;
+            _twist = (pulse.Beats % 2 == 0 ? 1 : -1) * 0.08 * intensity;
             Flash(context, intensity);
         }
 
-        var zoom = (tricks.Drift ? 1.06 + (0.04 * Math.Sin(context.Seconds * 0.35)) : 1.02) * (1 + (0.24 * _punch));
-        var (jx, jy) = ((random.NextDouble() - 0.5) * _shake * 0.06, (random.NextDouble() - 0.5) * _shake * 0.06);
-        var split = (tricks.Rgb * intensity * (0.004 + (0.03 * _punch) + (0.012 * pulse.Bass))) + (_glitch > 0 ? 0.02 : 0);
-        var shown = _freeze > 0 && _frozen is not null ? _frozen : source!;
-        Render(context, shown, zoom, _tilt, jx, jy, split, tricks.Echo);
+        // The kick's punch snaps in and eases out; the beat's pump swells between kicks.
+        var punch = Math.Pow(kick.Level, 0.7) * tricks.Punch * intensity;
+        var pump = pulse.Tempo > 0 ? Math.Pow(1 - pulse.Phase, 3) * tricks.Punch * 0.35 * intensity : 0;
+        var drift = tricks.Drift ? 1.06 + (0.04 * Math.Sin(context.Seconds * Math.Tau / (beatSeconds * 16))) : 1.03;
+        var zoom = drift * (1 + (0.2 * punch) + (0.05 * pump) + (0.12 * Math.Max(0, _split > 0 ? 0 : _twist * _twist * 10)));
 
-        _punch *= Math.Exp(-dt / 0.16);
-        _shake *= Math.Exp(-dt / 0.12);
-        _tilt *= Math.Exp(-dt / 0.6);
-        _flash = Math.Max(0, _flash - (dt / 0.22));
-        _glitch -= dt;
+        // Swing: left on one kick, right on the next; a snare tilts it, alternately too.
+        var swing = (kick.Count % 2 == 0 ? 1 : -1) * kick.Level * tricks.Shake * 0.05 * intensity;
+        var tilt = ((snare.Count % 2 == 0 ? 1 : -1) * snare.Level * tricks.Shake * 0.045 * intensity) + _twist;
+        var lift = -snare.Level * tricks.Shake * 0.015 * intensity;
+        var rgb = tricks.Rgb * intensity * ((0.025 * kick.Level) + (0.01 * pulse.Bass) + (snare.Level > 0.3f && tricks.Slices > 0 ? 0.015 : 0));
+        var shown = _freeze > 0 && _frozen is not null ? _frozen : source;
+        var echo = Math.Clamp(tricks.Echo + (0.15 * pulse.Mid * tricks.Echo), 0, 0.85);
+        Render(context, shown, zoom, tilt, swing, lift, rgb, echo, snare.Level > 0.25f && tricks.Slices > 0, hat.Level);
+
+        _twist *= Math.Exp(-dt / 0.5);
+        _flash = Math.Max(0, _flash - (dt / 0.2));
         _split -= dt;
         _freeze -= dt;
     }
@@ -181,8 +199,6 @@ public sealed class BeatEditScene : VisualScene
         return _made;
     }
 
-    private VisualPicture? _mirrored;
-
     private VisualPicture Mirrored(VisualPicture picture)
     {
         if (_mirrored is null || _mirrored.Width != picture.Width || _mirrored.Height != picture.Height)
@@ -202,28 +218,26 @@ public sealed class BeatEditScene : VisualScene
     }
 
     /// <summary>Draws <paramref name="source"/> through the edit's camera moves, colour and effects.</summary>
-    private void Render(VisualContext context, VisualPicture source, double zoom, double tilt, double jx, double jy, double rgb, double echo)
+    private void Render(VisualContext context, VisualPicture source, double zoom, double tilt, double jx, double jy, double rgb, double echo, bool glitched, float hats)
     {
         var canvas = context.Canvas;
         var (w, h) = (canvas.Width, canvas.Height);
         var split = _split > 0;
         var (dark, bright) = (context.Paint(0.0).Times(0.12f), context.Paint(0.6));
-        var bars = context.Toggle("bars") ? (int)(h * 0.1) : 0;
+        // Cinematic bars that close a little on each kick.
+        var bars = context.Toggle("bars") ? (int)(h * (0.09 + (0.03 * context.Pulse.Kick.Level))) : 0;
         var grain = context.Toggle("grain");
-        if (grain)
-        {
-            for (var i = 0; i < Grain; i++)
-            {
-                _grain[i] = (float)((context.Random.NextDouble() - 0.5) * 0.07);
-            }
-        }
+
+        // Film grain, a new pattern each frame, glittering harder on the hi-hats.
+        var seed = _frame * 7_919;
+        var grainAmount = 0.05 + (0.12 * hats);
 
         var (cos, sin) = (Math.Cos(tilt) / zoom, Math.Sin(tilt) / zoom);
         var flash = (float)_flash;
         var keep = (float)echo;
-        for (var y = 0; y < h; y++)
+        Raster.Rows(h, y =>
         {
-            var slice = _glitch > 0 ? _sliceShift[y * _sliceShift.Length / h] : 0;
+            var slice = glitched ? _sliceShift[y * _sliceShift.Length / h] : 0;
             for (var x = 0; x < w; x++)
             {
                 var i = (y * w) + x;
@@ -250,7 +264,7 @@ public sealed class BeatEditScene : VisualScene
                 color = Graded(_grade, color, dark, bright);
                 if (grain)
                 {
-                    var n = _grain[(i * 7) % Grain];
+                    var n = (float)((Noise.Hash(seed + i) - 0.5) * grainAmount);
                     color = new Rgb(color.R + n, color.G + n, color.B + n);
                 }
 
@@ -258,7 +272,7 @@ public sealed class BeatEditScene : VisualScene
                 canvas.G[i] = (color.G * (1 - keep)) + (canvas.G[i] * keep) + flash;
                 canvas.B[i] = (color.B * (1 - keep)) + (canvas.B[i] * keep) + flash;
             }
-        }
+        });
     }
 
     /// <summary>The source at a stage pixel, its picture scaled to fill the stage, red and blue drawn apart by (<paramref name="ox"/>, <paramref name="oy"/>).</summary>

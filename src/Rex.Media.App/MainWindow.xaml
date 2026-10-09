@@ -287,10 +287,22 @@
                   AutomationProperties.AutomationId="PlaylistView" AutomationProperties.Name="Playlist">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:PlaylistRow">
-              <StackPanel Orientation="Horizontal" Spacing="6" Opacity="{x:Bind Opacity}">
-                <TextBlock Text="{x:Bind Text}" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="(missing)" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind MissingVisibility}" />
-              </StackPanel>
+              <Grid ColumnSpacing="10" Padding="0,3" Opacity="{x:Bind Opacity}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="64" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Width="64" Height="36" CornerRadius="4" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                  <Grid>
+                    <TextBlock Text="{x:Bind Placeholder}" FontSize="16" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+                  </Grid>
+                </Border>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <TextBlock Text="{x:Bind Text}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="(missing)" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind MissingVisibility}" />
+                </StackPanel>
+              </Grid>
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>

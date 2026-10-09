@@ -24,7 +24,7 @@ public sealed class StrobeScene : VisualScene
         var dt = context.Dt;
         _sinceFlash += dt;
         _flash = Math.Max(0, _flash - (dt / context.Number("fade")));
-        if (pulse.Beat && _sinceFlash >= 1 / context.Number("flashes"))
+        if ((pulse.Kick.Hit || (pulse.Snare.Hit && pulse.Snare.Strength > 0.7f)) && _sinceFlash >= 1 / context.Number("flashes"))
         {
             _flash = 1;
             _sinceFlash = 0;

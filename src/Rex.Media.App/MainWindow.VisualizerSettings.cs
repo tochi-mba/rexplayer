@@ -32,7 +32,7 @@ public sealed partial class MainWindow
         void Preview()
         {
             _settings = _settings with { Visualizer = shown, VisualOptions = new Dictionary<string, string>(options, StringComparer.Ordinal) };
-            if (shown == VisualizerChoice.Silhouette && !before.CameraAllowed && !_settings.CameraAllowed)
+            if (UsesCamera(shown) && !_settings.CameraAllowed)
             {
                 // The camera waits until it has been agreed to, after Save.
                 _settings = _settings with { Visualizer = before.Visualizer };
@@ -59,6 +59,7 @@ public sealed partial class MainWindow
             {
                 VisualizerChoice.Strobe => "Flashing light can trigger seizures in people with photosensitive epilepsy. Three flashes a second is the most guidelines allow.",
                 VisualizerChoice.Silhouette => "Uses your camera to draw you. Nothing is recorded, kept or sent anywhere; the camera is on only while this shows.",
+                VisualizerChoice.BeatEdit => "Edits your camera live to the music, or the song's cover when there is no camera. Nothing is recorded, kept or sent anywhere. Flashes never come more than three times a second.",
                 VisualizerChoice.Vinyl => "The groove is the music itself, and the label is the song's cover when it has one.",
                 _ => "",
             };

@@ -19,7 +19,7 @@ public sealed class EmbersScene : VisualScene
         var speed = context.Number("speed");
         var wind = context.Number("wind");
         var size = Math.Min(w, h);
-        canvas.Feedback((float)context.Number("smoke"), 1.0, 0, wind * 0.6, -1.2 * speed);
+        canvas.Feedback((float)context.Number("smoke"), 1.0, 0, wind * 0.4, -0.7 * speed);
 
         // A steady stream that thickens with the loudness, and a burst on each beat.
         var amount = context.Number("amount");
@@ -30,18 +30,27 @@ public sealed class EmbersScene : VisualScene
             Spawn(context, w, h, size, speed, 1);
         }
 
-        if (pulse.Beat && context.Toggle("burst"))
+        // Each kick throws a burst up from the fire; each hi-hat a few quick sparks.
+        if (pulse.Kick.Hit && context.Toggle("burst"))
         {
-            for (var n = 0; n < (int)(amount * 0.25 * pulse.BeatStrength); n++)
+            for (var n = 0; n < (int)(amount * 0.3 * pulse.Kick.Strength); n++)
             {
                 Spawn(context, w, h, size, speed, 1.8);
+            }
+        }
+
+        if (pulse.Hat.Hit)
+        {
+            for (var n = 0; n < 4; n++)
+            {
+                Spawn(context, w, h, size, speed * 1.6, 1.4);
             }
         }
 
         var t = context.Seconds;
         _embers.Step(context.Dt, wind * size * 0.2, -size * 0.15 * speed, 0.6, (x, y) => Math.Sin((y * 0.025) + (t * 1.7) + (x * 0.01)) * size * 0.5);
         canvas.Glow(w / 2.0, h + (size * 0.1), size * (0.55 + (0.35 * pulse.Bass)), context.Paint(0.05), 0.25f + pulse.Bass);
-        _embers.Draw(context, 0.85f);
+        _embers.Draw(context, 0.85f, 0.03);
         canvas.Bloom(0.4f, 0.9f, 5);
     }
 

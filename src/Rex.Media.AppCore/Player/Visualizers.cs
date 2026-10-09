@@ -64,8 +64,30 @@ public static class Visualizers
         VisualPalette.Warm => Hsv(5 + (40 * share), 1, 1),
         VisualPalette.Cool => Hsv(190 + (90 * share), 0.85, 1),
         VisualPalette.OneColor => new Argb(255, (byte)(own >> 16), (byte)(own >> 8), (byte)own),
+        VisualPalette.Neon => Along(Neon, share),
+        VisualPalette.Fire => Along(Fire, share),
+        VisualPalette.Aurora => Along(Aurora, share),
+        VisualPalette.Ocean => Along(Ocean, share),
+        VisualPalette.Sunset => Along(Sunset, share),
         _ => accent,
     };
+
+    private static readonly Argb[] Neon = [new(255, 255, 40, 170), new(255, 170, 60, 255), new(255, 80, 90, 255), new(255, 30, 220, 255)];
+    private static readonly Argb[] Fire = [new(255, 150, 10, 0), new(255, 255, 70, 0), new(255, 255, 160, 20), new(255, 255, 235, 150)];
+    private static readonly Argb[] Aurora = [new(255, 40, 255, 120), new(255, 20, 220, 190), new(255, 90, 120, 255), new(255, 200, 70, 230), new(255, 255, 70, 140)];
+    private static readonly Argb[] Ocean = [new(255, 10, 40, 160), new(255, 0, 120, 230), new(255, 0, 210, 240), new(255, 190, 250, 255)];
+    private static readonly Argb[] Sunset = [new(255, 110, 30, 180), new(255, 240, 50, 130), new(255, 255, 120, 60), new(255, 255, 200, 70)];
+
+    /// <summary>The colour <paramref name="share"/> of the way along <paramref name="stops"/>, blended between them; shares outside 0 to 1 are kept to it.</summary>
+    private static Argb Along(Argb[] stops, double share)
+    {
+        share = double.IsFinite(share) ? Math.Clamp(share, 0, 1) : 0;
+        var at = share * (stops.Length - 1);
+        var from = Math.Min(stops.Length - 2, (int)at);
+        var t = (float)(at - from);
+        var (a, b) = (stops[from], stops[from + 1]);
+        return new Argb(255, Mix(a.R, b.R, t), Mix(a.G, b.G, t), Mix(a.B, b.B, t));
+    }
 
     /// <summary>The band carrying the most energy, for colours that follow the pitch; 0 in silence.</summary>
     public static int DominantBand(IReadOnlyList<float> levels)
