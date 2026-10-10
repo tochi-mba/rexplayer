@@ -39,7 +39,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// coordinates when a decoder's surface is larger than the picture it holds.
     /// </summary>
     private const string Shaders = """
-        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; };
+        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
         SamplerState linearClamp : register(s0);
@@ -80,9 +80,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 return saturate((lerp(grey, c, 1.7) - 0.5) * 1.14 + 0.5 + float3(0.013, -0.008, 0.035));
             return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
         }
-        // Four mathematically different GPU effects: sinusoidal RGB refraction, a spatial
-        // gradient/edge map, animated quantisation, and sixfold polar symmetry. They operate on
-        // decoded pixels and never mutate the video or its colour metadata.
+        // All effects operate on sampled pixels, after decoding and before colour grading.
+        // Sampling geometry and spatial derivatives are GPU-local; original frames stay intact.
         float2 effectUv(float2 uv)
         {
             if (effect.x < 0.5 || effect.y <= 0) return uv;
@@ -102,14 +101,52 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 return saturate((floor((uv + float2(stagger, 0)) * grid) + 0.5) / grid);
             }
 
-            float2 p = (uv - 0.5) * float2(effect.w, 1);
-            float r = length(p);
-            float angle = atan2(p.y, p.x);
-            float section = 1.0471975512; // pi / 3: six mirrored sectors
-            float folded = abs(fmod(angle + 6.2831853072, section * 2) - section);
-            float2 transformed = float2(cos(folded + time * 0.05), sin(folded + time * 0.05)) * r;
-            float2 kaleido = saturate(0.5 + transformed / float2(effect.w, 1));
-            return lerp(uv, kaleido, intensity);
+            if (effect.x < 4.5)
+            {
+                float2 p = (uv - 0.5) * float2(effect.w, 1);
+                float r = length(p);
+                float angle = atan2(p.y, p.x);
+                float section = 1.0471975512; // pi / 3: six mirrored sectors
+                float folded = abs(fmod(angle + 6.2831853072, section * 2) - section);
+                float2 transformed = float2(cos(folded + time * 0.05), sin(folded + time * 0.05)) * r;
+                float2 kaleido = saturate(0.5 + transformed / float2(effect.w, 1));
+                return lerp(uv, kaleido, intensity);
+            }
+            // 5-7 are contours and operate on colour, so they do not warp the sample location.
+            if (effect.x < 7.5) return uv;
+            if (effect.x < 8.5) // Liquid glass: interference between crossing sine fields
+            {
+                float2 displacement = float2(
+                    sin(uv.y * 35 + time * 1.3) + sin((uv.x + uv.y) * 23 - time * 0.8),
+                    cos(uv.x * 29 - time * 1.1) + sin((uv.x - uv.y) * 19 + time * 0.9));
+                return saturate(uv + displacement * (0.013 * intensity));
+            }
+            if (effect.x < 9.5) // Slice shift: moving, hashed bands rather than regular pixels
+            {
+                float band = floor(uv.y * 29);
+                float epoch = floor(time * 6);
+                float displacement = frac(sin(band * 37.719 + epoch * 11.13) * 43758.5453) * 2 - 1;
+                return saturate(uv + float2(displacement * 0.12 * intensity, 0));
+            }
+            if (effect.x < 10.5) // Vortex: bounded polar displacement with a steady centre
+            {
+                float2 delta = (uv - 0.5) * float2(effect.w, 1);
+                float radius = length(delta);
+                float turn = intensity * 4 * exp(-radius * 3.3) + time * 0.11 * intensity;
+                float cs = cos(turn), sn = sin(turn);
+                float2 rotated = float2(cs * delta.x - sn * delta.y, sn * delta.x + cs * delta.y);
+                return saturate(0.5 + rotated / float2(effect.w, 1));
+            }
+            // Cursor lens: radial glass displacement, only while the pointer is over the picture.
+            if (pointer.z > 0.5)
+            {
+                float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
+                float distance = length(delta);
+                float radius = 0.23;
+                float inside = 1 - smoothstep(radius * 0.72, radius, distance);
+                return saturate(uv - delta / float2(effect.w, 1) * (0.55 * intensity * inside));
+            }
+            return uv;
         }
         float3 readColour(float2 uv, bool isYuv)
         {
@@ -120,6 +157,18 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
             }
             return luma.Sample(linearClamp, mapped).rgb;
+        }
+        // A four-neighbour spatial gradient, measured in real output-pixel units.
+        // Derivatives adapt across window sizes, avoiding a permanently chunky outline.
+        float2 pictureGradient(float2 uv, bool isYuv)
+        {
+            float2 stepUv = max(fwidth(uv), float2(0.001, 0.001));
+            float3 weights = float3(0.2126, 0.7152, 0.0722);
+            float left = dot(readColour(uv - float2(stepUv.x, 0), isYuv), weights);
+            float right = dot(readColour(uv + float2(stepUv.x, 0), isYuv), weights);
+            float above = dot(readColour(uv - float2(0, stepUv.y), isYuv), weights);
+            float below = dot(readColour(uv + float2(0, stepUv.y), isYuv), weights);
+            return float2(right - left, below - above);
         }
         float3 effected(float2 uv, bool isYuv)
         {
@@ -143,6 +192,42 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 float edge = saturate(sqrt(gx * gx + gy * gy) * 3.7);
                 float3 ink = colour * 0.22 + edge * float3(0.12, 0.95, 1);
                 colour = lerp(colour, ink, effect.y);
+            }
+
+            if (effect.y > 0 && effect.x > 4.5 && effect.x < 7.5)
+            {
+                float2 gradient = pictureGradient(uv, isYuv);
+                float edge = saturate(length(gradient) * 4);
+                float lum = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                float3 styled = colour;
+                if (effect.x < 5.5) // Ink trace: paper-coloured rendering with dark outlines
+                {
+                    float ink = smoothstep(0.09, 0.47, edge);
+                    styled = saturate(float3(0.96, 0.935, 0.86) - ink * 0.9 - (1 - lum) * 0.12);
+                }
+                else if (effect.x < 6.5) // Topographic: isolines of actual pixel luminance
+                {
+                    float iso = 1 - smoothstep(0.04, 0.12, abs(frac(lum * 14) - 0.5));
+                    float slopes = smoothstep(0.02, 0.2, edge);
+                    float ridge = iso * slopes;
+                    styled = saturate(colour * float3(0.23, 0.35, 0.48)
+                        + ridge * float3(0.25, 0.92, 0.78) + edge * 0.12);
+                }
+                else // Chromatic contours: gradient orientation chooses the edge colour
+                {
+                    float angle = atan2(gradient.y, gradient.x);
+                    float3 rainbow = 0.5 + 0.5 * cos(angle + float3(0, 2.094, 4.189));
+                    styled = saturate(colour * 0.1 + edge * (0.3 + 0.7 * rainbow));
+                }
+                colour = lerp(colour, styled, effect.y);
+            }
+            if (effect.x > 10.5 && pointer.z > 0.5 && effect.y > 0)
+            {
+                // A fine highlight at the actual lens boundary communicates where the cursor is.
+                float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
+                float dist = length(delta);
+                float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23));
+                colour = saturate(colour + float3(0.23, 0.48, 0.57) * rim * effect.y);
             }
             return pictureLook(saturate(colour));
         }
@@ -201,7 +286,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
         {
-            ByteWidth = 112,
+            ByteWidth = 128,
             Usage = D3D11_USAGE.D3D11_USAGE_DEFAULT,
             BindFlags = D3D11_BIND_FLAG.D3D11_BIND_CONSTANT_BUFFER,
         };
@@ -447,7 +532,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// from 0 to 1 of the picture) into the rectangle given; over what is there already, rather than on
     /// black, when not <paramref name="clear"/> (a small copy drawn over the large one).
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false)
     {
         if (colourMatrix.Length != 12)
         {
@@ -465,7 +550,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             return;
         }
 
-        Span<float> constants = stackalloc float[28];
+        Span<float> constants = stackalloc float[32];
         constants.Clear();
         colourMatrix.CopyTo(constants);
         (constants[12], constants[13]) = (_crop.U, _crop.V);
@@ -475,9 +560,12 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         constants[25] = Math.Clamp(strength, 0, 1);
         constants[26] = float.IsFinite(seconds) ? seconds : 0;
         constants[27] = height > 0 ? (float)width / height : 1;
+        constants[28] = Math.Clamp(pointerX, 0, 1);
+        constants[29] = Math.Clamp(pointerY, 0, 1);
+        constants[30] = pointerActive ? 1 : 0;
         fixed (float* values = constants)
         {
-            _context.UpdateSubresource(_colour, 0, null, values, 112, 0);
+            _context.UpdateSubresource(_colour, 0, null, values, 128, 0);
         }
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };
