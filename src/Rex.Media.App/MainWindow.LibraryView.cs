@@ -109,6 +109,7 @@ public sealed partial class MainWindow
         var home = source == LibrarySource.Home;
         LibraryHome.Visibility = home ? Visibility.Visible : Visibility.Collapsed;
         LibraryList.Visibility = home ? Visibility.Collapsed : Visibility.Visible;
+        LibraryCollage.Visibility = Visibility.Collapsed;
         if (home)
         {
             ShowHome(entries);
@@ -205,6 +206,9 @@ public sealed partial class MainWindow
         }
 
         _libraryRows = [.. sections.SelectMany(section => section)];
+        var collage = options && choice.Look == LibraryLook.Collage;
+        LibraryList.Visibility = collage ? Visibility.Collapsed : Visibility.Visible;
+        LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
         ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, _libraryRows.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
         ShowViewOptions(options, choice, groupsView, kind);
@@ -224,6 +228,17 @@ public sealed partial class MainWindow
 
         CancelLibraryPictures();
         _shownLibrary = shown;
+        if (collage)
+        {
+            // ItemsView keeps selection, focus and virtualized rows. Never build all card visuals
+            // at once or replace the collection on every playback-position update.
+            LibraryList.ItemsSource = null;
+            LibraryList.GroupStyle.Clear();
+            LibraryCollage.ItemsSource = _libraryRows;
+            return;
+        }
+
+        LibraryCollage.ItemsSource = null;
         LibraryList.GroupStyle.Clear();
         if (grouped)
         {
@@ -291,8 +306,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        LibraryLookButton.Content = choice.Look switch { LibraryLook.List => "List", LibraryLook.Wall => "Big cards", _ => "Cards" };
-        LibraryLookButton.Flyout = Choices("LibraryLook", [(LibraryLook.List, "List"), (LibraryLook.Grid, "Cards"), (LibraryLook.Wall, "Big cards")], choice.Look, look => KeepViewChoice(choice with { Look = look }));
+        LibraryLookButton.Content = choice.Look switch { LibraryLook.List => "List", LibraryLook.Wall => "Big cards", LibraryLook.Collage => "Collage", _ => "Cards" };
+        LibraryLookButton.Flyout = Choices("LibraryLook",
+            [(LibraryLook.List, "List"), (LibraryLook.Grid, "Cards"), (LibraryLook.Wall, "Big cards"), (LibraryLook.Collage, "Collage")],
+            choice.Look, look => KeepViewChoice(choice with { Look = look, Grouping = look == LibraryLook.Collage ? LibraryGrouping.None : choice.Grouping }));
 
         // Each view offers the orders and groups that mean something for what it holds.
         var sorts = groupsView
@@ -321,7 +338,8 @@ public sealed partial class MainWindow
         sortMenu.Items.Add(reverse);
         LibrarySortButton.Flyout = sortMenu;
         LibraryGroupButton.Content = GroupingNames.First(pair => pair.Grouping == choice.Grouping).Name;
-        LibraryGroupButton.Flyout = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping, grouping => KeepViewChoice(choice with { Grouping = grouping }));
+        LibraryGroupButton.Flyout = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping,
+            grouping => KeepViewChoice(choice with { Grouping = grouping, Look = grouping != LibraryGrouping.None && choice.Look == LibraryLook.Collage ? LibraryLook.Grid : choice.Look }));
         LibrarySizePanel.Visibility = choice.Look == LibraryLook.List ? Visibility.Collapsed : Visibility.Visible;
         _settingCardSize = true;
         LibraryCardSize.Value = choice.CardSize;
@@ -358,6 +376,23 @@ public sealed partial class MainWindow
     /// </summary>
     private string SetLibraryLook(LibraryViewChoice choice, object? sample, bool media)
     {
+        if (choice.Look == LibraryLook.Collage && media)
+        {
+            var collageKey = $"Collage|{choice.CardSize}";
+            if (collageKey != _shownLook)
+            {
+                _shownLook = collageKey;
+                if (LibraryCollage.Layout is LinedFlowLayout flow)
+                {
+                    flow.LineHeight = choice.CardSize;
+                }
+
+                AutomationProperties.SetName(LibraryCollage, "Justified collage of library artwork");
+            }
+
+            return collageKey;
+        }
+
         var kind = sample switch { LibraryEntry entry => entry.Kind, LibraryGroup => _librarySource == LibrarySource.TvShows ? LibraryKind.Video : LibraryKind.Music, _ => (LibraryKind?)null };
         var size = choice.Look == LibraryLook.Wall ? Math.Min(LibraryViewChoice.LargestCard * 1.4, choice.CardSize * 1.6) : choice.CardSize;
         var (template, width, height, name) = !media || kind is null ? ("LibraryGenericTemplate", 0.0, 0.0, "Library items, list")
