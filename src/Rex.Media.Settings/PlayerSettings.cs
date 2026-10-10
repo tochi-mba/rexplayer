@@ -327,6 +327,12 @@ public sealed record PlayerSettings
     /// <summary>The GPU picture look to use for videos; Original does not alter the media.</summary>
     public VideoLook VideoLook { get; init; } = Rex.Media.Primitives.VideoLook.Original;
 
+    /// <summary>Optional real-time pixel effects, disabled by default.</summary>
+    public VideoEffect VideoEffect { get; init; } = Rex.Media.Primitives.VideoEffect.Off;
+
+    /// <summary>How strongly the current pixel effect changes the frame, from 0 to 100.</summary>
+    public int VideoEffectStrength { get; init; } = 65;
+
     /// <summary>
     /// Each visualisation's own settings, by "visualisation.setting" (AppCore's VisualizerOptions
     /// reads them, with their defaults and ranges).
@@ -519,6 +525,8 @@ public sealed record PlayerSettings
             ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
             VideoLook = Enum.IsDefined(VideoLook) ? VideoLook : Rex.Media.Primitives.VideoLook.Original,
+            VideoEffect = Enum.IsDefined(VideoEffect) ? VideoEffect : Rex.Media.Primitives.VideoEffect.Off,
+            VideoEffectStrength = VideoEffects.Strength(VideoEffectStrength),
             AudioArtworkStyle = Enum.IsDefined(AudioArtworkStyle) ? AudioArtworkStyle : ArtworkStyle.Prism,
             AudioArtworkColor = Math.Clamp(AudioArtworkColor, 0, 200),
             AudioArtworkDetail = Math.Clamp(AudioArtworkDetail, 0, 200),

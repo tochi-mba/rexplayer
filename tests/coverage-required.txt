@@ -181,6 +181,7 @@ TrackInfo.cs
 UpdateCheck.cs
 VideoFrame.cs
 VideoLook.cs
+VideoEffect.cs
 VideoGeometry.cs
 VideoLayout.cs
 VinylScene.cs

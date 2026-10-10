@@ -222,6 +222,7 @@ public sealed partial class MainWindow : Window
             {
                 presenter.SetScale(scaleX, scaleY);
                 presenter.SetLook(_settings.VideoLook);
+                presenter.SetEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
                 presenter.Redraw();
             });
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");

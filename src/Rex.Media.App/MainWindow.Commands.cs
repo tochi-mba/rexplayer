@@ -126,6 +126,7 @@ public sealed partial class MainWindow
             if (title == "Video")
             {
                 AddPictureLooks(sub.Items, "ContextVideoLook-");
+                AddPictureEffects(sub.Items, "ContextVideoEffect-");
             }
 
             context.Items.Add(sub);
@@ -133,6 +134,7 @@ public sealed partial class MainWindow
 
         Stage.ContextFlyout = context;
         AddPictureLooks(Menu.Items.First(item => item.Title == "Video").Items, "VideoLook-");
+        AddPictureEffects(Menu.Items.First(item => item.Title == "Video").Items, "VideoEffect-");
         BuildMemoryMenus();
         BuildNamedPlaylistMenus();
     }
@@ -161,6 +163,56 @@ public sealed partial class MainWindow
 
         items.Add(new MenuFlyoutSeparator());
         items.Add(looks);
+    }
+
+    private readonly List<(RadioMenuFlyoutItem Item, VideoEffect Effect)> _videoEffectItems = [];
+
+    /// <summary>Four spatial GPU effects, independently selectable from normal colour looks.</summary>
+    private void AddPictureEffects(IList<MenuFlyoutItemBase> items, string prefix)
+    {
+        var sub = new MenuFlyoutSubItem { Text = "Picture effects" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sub, prefix + "Menu");
+        foreach (var effect in Enum.GetValues<VideoEffect>())
+        {
+            var item = new RadioMenuFlyoutItem
+            {
+                Text = VideoEffects.Name(effect),
+                GroupName = prefix + "PictureEffects",
+                IsChecked = effect == _settings.VideoEffect,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + effect);
+            item.Click += (_, _) => ChooseVideoEffect(effect);
+            _videoEffectItems.Add((item, effect));
+            sub.Items.Add(item);
+        }
+
+        items.Add(sub);
+    }
+
+    private void ApplyVideoEffect(VideoEffect effect, int strength)
+    {
+        foreach (var (item, chosen) in _videoEffectItems)
+        {
+            item.IsChecked = chosen == effect;
+        }
+
+        var redraw = !_player.IsPlaying;
+        OnPresenterThread(presenter =>
+        {
+            presenter.SetEffect(effect, strength);
+            if (redraw)
+            {
+                presenter.Redraw();
+            }
+        });
+    }
+
+    private void ChooseVideoEffect(VideoEffect effect)
+    {
+        _settings = _settings with { VideoEffect = effect };
+        RememberLater();
+        ApplyVideoEffect(effect, _settings.VideoEffectStrength);
+        Say("Picture effects: " + VideoEffects.Name(effect));
     }
 
     /// <summary>Changes the renderer live and redraws the current picture when paused.</summary>

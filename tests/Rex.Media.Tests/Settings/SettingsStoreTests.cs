@@ -79,6 +79,32 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SpatialVideoEffectsHaveStableNamesAndSafeSettings()
+    {
+        Assert.Equal(5, VideoEffects.Names.Count);
+        Assert.Equal("Off", VideoEffects.Name(VideoEffect.Off));
+        Assert.Equal("Off", VideoEffects.Name((VideoEffect)999));
+        Assert.Equal(0, VideoEffects.Strength(-1));
+        Assert.Equal(100, VideoEffects.Strength(1000));
+        Assert.Equal(VideoEffect.Off, new PlayerSettings().VideoEffect);
+        Assert.Equal(65, new PlayerSettings().VideoEffectStrength);
+
+        foreach (var effect in Enum.GetValues<VideoEffect>())
+        {
+            Assert.False(string.IsNullOrWhiteSpace(VideoEffects.Name(effect)));
+            SettingsStore.Save(File, new PlayerSettings { VideoEffect = effect, VideoEffectStrength = 82 });
+            var loaded = SettingsStore.Load(File);
+            Assert.Equal(effect, loaded.VideoEffect);
+            Assert.Equal(82, loaded.VideoEffectStrength);
+        }
+
+        var invalid = new PlayerSettings { VideoEffect = (VideoEffect)1000, VideoEffectStrength = 900 }.Normalize();
+        Assert.Equal(VideoEffect.Off, invalid.VideoEffect);
+        Assert.Equal(100, invalid.VideoEffectStrength);
+        Assert.Equal(0, new PlayerSettings { VideoEffectStrength = -9 }.Normalize().VideoEffectStrength);
+    }
+
+    [Fact]
     public void TheFileIsReadableJsonWithNamedValues()
     {
         SettingsStore.Save(File, new PlayerSettings { Repeat = RepeatMode.One });
