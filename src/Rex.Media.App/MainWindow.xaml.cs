@@ -377,6 +377,7 @@ public sealed partial class MainWindow : Window
         ShowPresentation();
         ApplyVisualizer();
         ShowMemory();
+        ShowEpisodeSkip();
         ShowNamedPlaylists();
         ShowMenuChecks();
         RememberLater();
@@ -397,6 +398,7 @@ public sealed partial class MainWindow : Window
         }
 
         _updatingControls = false;
+        ShowEpisodeSkip();
     }
 
     /// <summary>Brings the playlist view in line, row by row, keeping its selection and scroll and the playing item in sight.</summary>

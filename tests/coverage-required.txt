@@ -45,6 +45,7 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+EpisodeSections.cs
 Equalizer.cs
 ExceptionDiagnostics.cs
 ExifOrientation.cs
@@ -123,6 +124,7 @@ Playback.cs
 Playback.Video.cs
 PlayerController.cs
 PlayerController.Events.cs
+PlayerController.EpisodeSections.cs
 PlayerController.Library.cs
 PlayerController.Memory.cs
 PlayerController.Missing.cs
