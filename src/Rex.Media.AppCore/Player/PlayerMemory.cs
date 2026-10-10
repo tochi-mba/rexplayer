@@ -35,6 +35,7 @@ public sealed record UpdateSession(
     string? GroupDetail,
     string? SeasonName,
     bool PlaylistVisible,
+    double Speed,
     DateTimeOffset SavedAt);
 
 /// <summary>A playlist the user named and keeps (LIB-04), known by an id that stays when it is renamed.</summary>
