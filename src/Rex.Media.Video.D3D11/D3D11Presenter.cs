@@ -159,6 +159,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
+    /// <summary>Refine soft-mask boundaries while keeping the source frame untouched.</summary>
+    public void RefineSubject(int feather, int tolerance)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.Refine(feather, tolerance);
+        }
+    }
+
     /// <summary>Return to the unmodified picture and clear tracking and observed samples.</summary>
     public void ClearSubject()
     {
