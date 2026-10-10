@@ -67,11 +67,13 @@ public sealed partial class MainWindow
                 var button = new Button
                 {
                     Content = text,
-                    Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                    // Keep contrast just behind the words, not across the entire light background.
+                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19)),
                     BorderThickness = new Thickness(0),
-                    CornerRadius = new CornerRadius(6),
+                    CornerRadius = new CornerRadius(9),
                     Padding = new Thickness(12, 7, 12, 7),
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    MaxWidth = 640,
+                    HorizontalAlignment = HorizontalAlignment.Center,
                     HorizontalContentAlignment = HorizontalAlignment.Center,
                 };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, $"LyricLine-{index}");
