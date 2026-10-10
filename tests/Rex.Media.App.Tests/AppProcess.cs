@@ -145,8 +145,21 @@ internal sealed class AppProcess : IDisposable
         Wait.Until(() => Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, automationId)));
 
     /// <summary>Whether a control with this id is shown now (collapsed controls are not in the tree).</summary>
-    public bool IsShown(string automationId) =>
-        Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, automationId)) is { } element && !element.Current.IsOffscreen;
+    public bool IsShown(string automationId)
+    {
+        try
+        {
+            var element = Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, automationId));
+            return element is not null && !element.Current.IsOffscreen;
+        }
+        catch (ElementNotAvailableException)
+        {
+            // WinUI can replace visualizer controls after FindFirst and before IsOffscreen.
+            // Treat a stale element as absent so a polling wait can query the new tree.
+            return false;
+        }
+    }
 
     public string Text(string automationId) => Find(automationId).Current.Name;
 
