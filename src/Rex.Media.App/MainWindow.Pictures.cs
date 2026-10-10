@@ -85,8 +85,13 @@ public sealed partial class MainWindow
 
             // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
             var image = poster is null ? null : await LocalPictureAsync(poster, token);
+            image ??= await ReadPictureCacheAsync(key, token);
             image ??= await ShellPictureAsync(path, kind, token);
-            image ??= await CachedPictureAsync(path, kind, duration, key, settings, token);
+            if (image is null)
+            {
+                var bytes = await Task.Run(() => MakePicture(path, kind, duration, key, settings, token), token);
+                image = await DecodePictureAsync(bytes, token);
+            }
             token.ThrowIfCancellationRequested();
             if (_closed)
             {
@@ -205,25 +210,25 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Recover from a damaged on-disk picture without leaving a permanent empty card. Rebuild at
-    /// most once: an unreadable source must not turn the library into a retry loop.
+    /// Read the disk cache before asking a potentially slow shell provider. A damaged or
+    /// unreadable cache is a miss, never a permanent empty card or an unbounded retry loop.
     /// </summary>
-    private async Task<ImageSource> CachedPictureAsync(
-        string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token)
+    private static async Task<ImageSource?> ReadPictureCacheAsync(string key, CancellationToken token)
     {
-        var bytes = await Task.Run(() => MakePicture(path, kind, duration, key, settings, token), token);
         try
         {
+            var bytes = await Task.Run(() => File.ReadAllBytes(PictureCachePath(key)), token);
             return await DecodePictureAsync(bytes, token);
         }
-        catch (Exception ex) when (ex is COMException or IOException or ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             token.ThrowIfCancellationRequested();
-            App.Log.Info(LogSource, $"Rebuilding unreadable cached picture for {path}: {ex.Message}");
-            var fresh = await Task.Run(() => MakePicture(path, kind, duration, key, settings, token, rebuild: true), token);
-            return await DecodePictureAsync(fresh, token);
+            return null;
         }
     }
+
+    private static string PictureCachePath(string key) =>
+        Path.Combine(App.DataRoot, "cache", "library-pictures", key + ".png");
 
     private static async Task<ImageSource?> ReadShellPictureAsync(string path, LibraryKind kind, CancellationToken token)
     {
@@ -254,14 +259,8 @@ public sealed partial class MainWindow
     /// least a second, at most half a minute), a picture itself, or for music its folder's art or
     /// artwork drawn from its sound. Kept on disk under <paramref name="key"/> until the file changes.
     /// </summary>
-    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token, bool rebuild = false)
+    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token)
     {
-        var cache = Path.Combine(App.DataRoot, "cache", "library-pictures", key + ".png");
-        if (!rebuild && File.Exists(cache))
-        {
-            return File.ReadAllBytes(cache);
-        }
-
         byte[] png;
         if (kind == LibraryKind.Music)
         {
@@ -281,7 +280,16 @@ public sealed partial class MainWindow
         }
 
         token.ThrowIfCancellationRequested();
-        AtomicFile.Write(cache, png);
+        try
+        {
+            AtomicFile.Write(PictureCachePath(key), png);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A cache is optional: display the successfully decoded image even on a
+            // full disk or when another process temporarily locks its cache file.
+            App.Log.Debug(LogSource, "The thumbnail could not be cached: " + ex.Message);
+        }
         return png;
     }
 

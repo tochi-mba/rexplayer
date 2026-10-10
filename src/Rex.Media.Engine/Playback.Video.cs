@@ -216,6 +216,9 @@ public sealed partial class MediaSession
                         }
                     }
 
+                    // Decoders may not copy packet metadata onto delayed output frames.
+                    // The video worker owns the authoritative seek generation.
+                    frame.Generation = state.Generation;
                     _presenter!.Present(frame);
                     Interlocked.Increment(ref _videoFramesPresented);
                 }

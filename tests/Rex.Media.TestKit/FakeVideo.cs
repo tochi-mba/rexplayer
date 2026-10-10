@@ -117,6 +117,18 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
 public sealed class RecordingVideoPresenter : IVideoPresenter
 {
     private readonly List<(MediaTime Pts, byte First)> _shown = [];
+    private readonly List<long> _generations = [];
+
+    public IReadOnlyList<long> Generations
+    {
+        get
+        {
+            lock (_shown)
+            {
+                return [.. _generations];
+            }
+        }
+    }
 
     public string Name => "recording";
 
@@ -139,6 +151,7 @@ public sealed class RecordingVideoPresenter : IVideoPresenter
         lock (_shown)
         {
             _shown.Add((frame.Pts, frame.Row(0, 0)[0]));
+            _generations.Add(frame.Generation);
         }
     }
 

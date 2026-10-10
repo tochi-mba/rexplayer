@@ -111,12 +111,14 @@ public sealed class ColorConverterTests
     {
         using var source = Picture(format, matrix, fullRange);
         source.Pts = MediaTime.FromSeconds(1);
+        source.Generation = 17;
         source.PixelAspect = new Rational(4, 3);
 
         using var bgra = ColorConverter.ToBgra(source);
 
         Assert.Equal((PixelFormat.Bgra32, source.Width, source.Height), (bgra.Format, bgra.Width, bgra.Height));
         Assert.Equal((source.Pts, source.PixelAspect), (bgra.Pts, bgra.PixelAspect));
+        Assert.Equal(source.Generation, bgra.Generation);
         for (var i = 0; i < Colours.Length; i++)
         {
             for (var dy = 0; dy < 2; dy++)
@@ -152,11 +154,13 @@ public sealed class ColorConverterTests
         grey.Row(0, 0)[1] = 235;
         using var bgra = VideoFrame.Rent(PixelFormat.Bgra32, 1, 1);
         bgra.Row(0, 0)[0] = 9;
+        bgra.Generation = 23;
 
         using var fromGrey = ColorConverter.ToBgra(grey);
         using var copy = ColorConverter.ToBgra(bgra);
 
         Assert.Equal([0, 0, 0, 255, 255, 255, 255, 255], fromGrey.Row(0, 0).ToArray());
         Assert.Equal(bgra.Row(0, 0).ToArray(), copy.Row(0, 0).ToArray());
+        Assert.Equal(bgra.Generation, copy.Generation);
     }
 }

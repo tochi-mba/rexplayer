@@ -564,6 +564,27 @@ public sealed class D3D11PresenterTests
     }
 
     [Fact]
+    public void MotionHistoryDoesNotCrossAPlaybackGenerationWithContinuousTimestamps()
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
+        presenter.SetMotionOptions(100, 2);
+        using var before = MotionPicture(24, 1);
+        before.Generation = 2;
+        presenter.Present(before);
+        using var after = MotionPicture(39, 1.04);
+        after.Generation = 3;
+        presenter.Present(after);
+        using var actual = presenter.ReadBack();
+        using var fresh = D3D11Presenter.Offscreen(144, 96);
+        fresh.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
+        fresh.SetMotionOptions(100, 2);
+        fresh.Present(after);
+        using var expected = fresh.ReadBack();
+        Assert.Equal(0, MaxDifference(actual, expected));
+    }
+
+    [Fact]
     public void GhostwireMotionHistoryClearsAfterSeekOrLongGap()
     {
         using var presenter = D3D11Presenter.Offscreen(144, 96);

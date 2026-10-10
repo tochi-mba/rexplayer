@@ -22,6 +22,7 @@ public sealed partial class MainWindow
     private Point? _subjectAnchor;
     private PictureView _viewBeforeSubjectFollow;
     private bool _subjectAutoFollowing;
+    private long _subjectRevision;
 
     private void WireSubjectTools()
     {
@@ -89,6 +90,8 @@ public sealed partial class MainWindow
 
     private void OnSubjectReset(object sender, RoutedEventArgs e)
     {
+        _subjectRevision++;
+        _subjectAnchor = null;
         RestoreSubjectFollowView();
         _selectingSubject = true;
         _subjectErase = false;
@@ -112,6 +115,7 @@ public sealed partial class MainWindow
 
     private void CloseSubjectTools()
     {
+        _subjectRevision++;
         RestoreSubjectFollowView();
         _subjectOpen = false;
         _selectingSubject = false;
@@ -320,6 +324,15 @@ public sealed partial class MainWindow
 
     private void LockSubjectRegion(float left, float top, float width, float height)
     {
+        if (width < 0.01f || height < 0.01f)
+        {
+            SubjectStatusText.Text = "Zoom out or select a larger visible area before locking.";
+            return;
+        }
+
+        var revision = ++_subjectRevision;
+        var item = _player.Item;
+        var seekPausedPicture = !_player.IsPlaying && _player.CanSeek;
         _selectingSubject = false;
         _subjectErase = false;
         SubjectEraseButton.IsEnabled = false;
@@ -332,14 +345,20 @@ public sealed partial class MainWindow
         {
             p.SelectSubject(left, top, width, height);
             p.RefineSubject(feather, tolerance);
+            // Order the paused seek after selection actually reaches the presenter.
+            // Otherwise the one decoded picture can arrive before the selection exists.
+            if (seekPausedPicture)
+            {
+                OnWindowThread(() =>
+                {
+                    if (_subjectOpen && revision == _subjectRevision
+                        && ReferenceEquals(item, _player.Item) && !_player.IsPlaying && _player.CanSeek)
+                    {
+                        _player.Seek(_player.Position);
+                    }
+                });
+            }
         });
-
-        // Re-present the current picture while paused; simply calling Redraw on the last
-        // GPU surface does not give the tracker an original, undecorated decoder frame.
-        if (!_player.IsPlaying && _player.CanSeek)
-        {
-            _player.Seek(_player.Position);
-        }
     }
 
     private void ShowSubjectDrag(Point current)
@@ -363,13 +382,14 @@ public sealed partial class MainWindow
         }
 
         _subjectPollBusy = true;
+        var revision = _subjectRevision;
         OnPresenterThread(p =>
         {
             var snapshot = p.SubjectStatus();
             OnWindowThread(() =>
             {
                 _subjectPollBusy = false;
-                if (!_subjectOpen || _closed || _selectingSubject)
+                if (!_subjectOpen || _closed || _selectingSubject || revision != _subjectRevision)
                 {
                     return;
                 }

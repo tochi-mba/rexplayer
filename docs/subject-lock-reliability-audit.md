@@ -65,3 +65,31 @@ Do not bump the release just because the synthetic suite is green if the real UI
 or performance checks are failing. A real-world annotated clip benchmark measuring
 success rate, false reacquisition rate, latency, and runtime at HD/UHD resolutions is
 still needed for claims about broad real-video reliability.
+
+## Cross-version follow-up: 0.13.0 through 0.15.6
+
+The follow-up reviewed the 180-commit history and cumulative changes in 60 files:
+library pictures and generated artwork, update hand-off and workspace recovery,
+audio clock lifetime, visualisation/camera processing, subject selection and recovery,
+GPU effects, settings, tests, and release/site text. Historical fixes already merged
+were retained rather than replayed from the old audit branch.
+
+Further corrections connect playback generations all the way from the video worker
+through colour conversion to tracking and motion history. Short forward seeks now
+invalidate identity and temporal evidence even when timestamps look continuous.
+Paused preview redraws do not adapt the template or count as recovery sightings.
+Paused selection requests reach the presenter before requesting their decoded frame;
+stale overlay callbacks are rejected after reset or reselection.
+
+Large recovery candidates now use successively smaller bounded refinement grids,
+instead of a final exhaustive square whose work grew with selection area. A UHD
+regression checks the full-template comparison count independently of machine speed.
+Oversized frames are rejected before hardware readback. Lighting accumulators are
+explicitly cleared: C# does not guarantee initialized stack-allocated memory
+([language reference](https://learn.microsoft.com/dotnet/csharp/language-reference/operators/stackalloc)).
+
+Outside tracking, the audit makes thumbnail disk caches precede shell providers,
+treats cache failures as optional, rejects stale hero-image callbacks, validates
+upgrade queues before changing playback, consumes upgrade markers before callbacks,
+and ties deferred picture geometry to the restored item. Regression gates remain
+those listed above; these corrections do not remove the real-footage limitations.

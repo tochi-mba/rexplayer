@@ -57,6 +57,7 @@ public sealed partial class MainWindow
     private string _libraryViewKey = "";
     private string _shownLook = "";
     private string _shownHero = "";
+    private long _heroRequest;
     private bool _settingCardSize;
 
     private void WireLibraryView()
@@ -280,13 +281,14 @@ public sealed partial class MainWindow
         }
 
         _shownHero = key;
+        var request = ++_heroRequest;
         LibraryHeroArt.Source = null;
         LibraryHeroBackdrop.Source = null;
         if (art is not null)
         {
             _ = ShowPictureAsync(art.Path, art.Kind, art.Duration, picture =>
             {
-                if (_shownHero == key)
+                if (_shownHero == key && request == _heroRequest)
                 {
                     (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
                 }

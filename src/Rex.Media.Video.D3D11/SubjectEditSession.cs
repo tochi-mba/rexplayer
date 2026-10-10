@@ -26,6 +26,7 @@ public sealed partial class SubjectEditSession
     private byte[]? _clean;
     private byte[]? _known;
     private MediaTime _lastPts = MediaTime.Unknown;
+    private long? _generation;
     private int _width;
     private int _height;
 
@@ -50,6 +51,9 @@ public sealed partial class SubjectEditSession
     /// <summary>How many pixels of the erased preview were estimated rather than previously observed.</summary>
     public int EstimatedPixels { get; private set; }
 
+    /// <summary>Full-template comparisons in the latest global search, for local performance diagnostics.</summary>
+    public int LastSearchComparisons { get; private set; }
+
     /// <summary>Soft-edge width in pixels, adjustable without modifying the selected media.</summary>
     public int Feather { get; private set; } = 3;
 
@@ -72,26 +76,10 @@ public sealed partial class SubjectEditSession
             throw new ArgumentOutOfRangeException(nameof(width), "Select an area inside the picture at least one percent across.");
         }
 
+        Reset();
         Region = (Math.Clamp(left, 0, 1), Math.Clamp(top, 0, 1),
             Math.Min(width, 1 - left), Math.Min(height, 1 - top));
         Locked = true;
-        Erase = false;
-        Tracking = false;
-        _reference = null;
-        _returnReference = null;
-        _returnFrames = 0;
-        _returnCandidate = null;
-        _returnConfirmations = 0;
-        _reacquiredFrames = 0;
-        _identityWidth = _identityHeight = 0;
-        _width = _height = 0;
-        _needsReselection = false;
-        _originalBorderContrast = 0;
-        _clean = null;
-        _known = null;
-        _lastPts = MediaTime.Unknown;
-        Confidence = 0;
-        EstimatedPixels = 0;
         Status = "Acquiring the selected region...";
     }
 
@@ -120,6 +108,8 @@ public sealed partial class SubjectEditSession
         Confidence = 0;
         EstimatedPixels = 0;
         _lastPts = MediaTime.Unknown;
+        _generation = null;
+        LastSearchComparisons = 0;
         Status = "Select a region in the picture.";
     }
 
@@ -128,7 +118,7 @@ public sealed partial class SubjectEditSession
     /// the original. Never modifies the caller's frame. A cache can use genuinely uncovered pixels
     /// from preceding frames only if the camera appears stationary; otherwise estimates from edges.
     /// </summary>
-    public VideoFrame? Process(VideoFrame frame)
+    public VideoFrame? Process(VideoFrame frame, bool advanceTracking = true)
     {
         ArgumentNullException.ThrowIfNull(frame);
         if (frame.Format != PixelFormat.Bgra32 || frame.Surface is not null)
@@ -143,10 +133,23 @@ public sealed partial class SubjectEditSession
             return null;
         }
 
-        if ((long)frame.Width * frame.Height > MaxPixels)
+        EstimatedPixels = 0;
+        if (_generation is { } generation && generation != frame.Generation)
         {
             Reset();
-            Status = "Picture too large for local tracking. Select a smaller video.";
+            Status = "The playback generation changed. Select the subject again.";
+            return null;
+        }
+
+        _generation = frame.Generation;
+        // A paused redraw changes only the preview, not the evidence for identity.
+        if (!advanceTracking && !Tracking)
+        {
+            return null;
+        }
+
+        if (!AcceptPictureSize(frame.Width, frame.Height))
+        {
             return null;
         }
 
@@ -236,7 +239,7 @@ public sealed partial class SubjectEditSession
                 return null;
             }
         }
-        else if (Tracking)
+        else if (Tracking && advanceTracking)
         {
             // Search a coarse motion window first, then refine to individual pixels. The
             // previous fixed 9-pixel search lost fast-moving accessories even at 1080p.
@@ -356,13 +359,13 @@ public sealed partial class SubjectEditSession
             _clean = new byte[pixels * 4];
             _known = new byte[pixels];
         }
-        else if (CameraMoved(frame, _clean, _known))
+        else if (advanceTracking && CameraMoved(frame, _clean, _known))
         {
             Array.Clear(_known);
         }
 
         var box = Bounds(frame.Width, frame.Height);
-        for (var y = 0; y < frame.Height; y++)
+        for (var y = 0; advanceTracking && y < frame.Height; y++)
         {
             var row = frame.Row(0, y);
             for (var x = 0; x < frame.Width; x++)
@@ -439,6 +442,19 @@ public sealed partial class SubjectEditSession
                 ? "Estimated fill: some hidden pixels were never seen in the video. Preview only."
                 : "Observed fill: using background pixels seen in other frames. Preview only.";
         return output;
+    }
+
+    /// <summary>Reject over-budget pictures before a presenter copies a hardware surface to the CPU.</summary>
+    internal bool AcceptPictureSize(int width, int height)
+    {
+        if ((long)width * height <= MaxPixels)
+        {
+            return true;
+        }
+
+        Reset();
+        Status = "Picture too large for local tracking. Select a smaller video.";
+        return false;
     }
 
     /// <summary>
