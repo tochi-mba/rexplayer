@@ -3,6 +3,22 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.13.0 - 2026-10-10
+
+### Added
+
+- **Eight more real-time GPU picture effects.** Ink trace, Topographic contours and
+  Chromatic contours respond to outlines and image structure. Liquid glass, Slice shift,
+  Vortex and Cursor lens warp the video in different ways; Edge gravity responds to
+  spatial image detail. All effects are non-destructive and work alongside video looks.
+- **Organized picture styling.** Browse effects in Contours, Motion & geometry, Interactive
+  and Image-aware groups. Effect intensity and detail or movement each have independent
+  saved values with controls for previewing, resetting and restoring original playback.
+- **Per-episode intro and credits markers.** Mark the start and end of an intro or credit
+  segment for each video, then choose Skip Intro or Skip Credits when playback enters a
+  confirmed section. Nothing is guessed or skipped automatically: cold opens, recaps,
+  alternative intros and post-credit scenes remain under the viewer's control.
+
 ## 0.12.0 - 2026-10-10
 
 ### Added
