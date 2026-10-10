@@ -40,6 +40,19 @@ public sealed class SubjectEditSession
     /// <summary>How many pixels of the erased preview were estimated rather than previously observed.</summary>
     public int EstimatedPixels { get; private set; }
 
+    /// <summary>Soft-edge width in pixels, adjustable without modifying the selected media.</summary>
+    public int Feather { get; private set; } = 3;
+
+    /// <summary>How broadly the foreground's colours are included, from 0 to 100.</summary>
+    public int MaskTolerance { get; private set; } = 50;
+
+    /// <summary>Live, bounded mask adjustments; preview and original frames remain independent.</summary>
+    public void Refine(int feather, int tolerance)
+    {
+        Feather = Math.Clamp(feather, 0, 12);
+        MaskTolerance = Math.Clamp(tolerance, 0, 100);
+    }
+
     /// <summary>Choose a bounded patch in the decoded video, independent of the viewport and crop.</summary>
     public void Select(float left, float top, float width, float height)
     {
@@ -285,12 +298,12 @@ public sealed class SubjectEditSession
                 var p = x * 4;
                 var edge = Math.Min(Math.Min(x - box.Left, box.Right - x - 1),
                     Math.Min(y - box.Top, box.Bottom - y - 1));
-                var alpha = Math.Min(1.0, (edge + 1) / 3.0);
+                var alpha = Feather == 0 ? 1.0 : Math.Min(1.0, (edge + 1) / (double)Feather);
                 if (difference > 60)
                 {
                     var foregroundDistance = ColourDistance(row, p, foreground);
                     var backgroundDistance = ColourDistance(row, p, background);
-                    alpha *= Math.Clamp((backgroundDistance - foregroundDistance + 50) / 100.0, 0, 1);
+                    alpha *= Math.Clamp((backgroundDistance - foregroundDistance + MaskTolerance) / 100.0, 0, 1);
                 }
 
                 if (alpha < 0.01)
