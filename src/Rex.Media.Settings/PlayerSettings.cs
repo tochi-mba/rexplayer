@@ -328,7 +328,7 @@ public sealed record PlayerSettings
     public VideoLook VideoLook { get; init; } = Rex.Media.Primitives.VideoLook.Original;
 
     /// <summary>Optional real-time pixel effects, disabled by default.</summary>
-    public VideoEffect VideoEffect { get; init; } = VideoEffect.Off;
+    public VideoEffect VideoEffect { get; init; } = Rex.Media.Primitives.VideoEffect.Off;
 
     /// <summary>How strongly the current pixel effect changes the frame, from 0 to 100.</summary>
     public int VideoEffectStrength { get; init; } = 65;
