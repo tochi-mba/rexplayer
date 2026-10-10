@@ -137,8 +137,9 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 float2 rotated = float2(cs * delta.x - sn * delta.y, sn * delta.x + cs * delta.y);
                 return saturate(0.5 + rotated / float2(effect.w, 1));
             }
-            // Cursor lens: radial glass displacement, only while the pointer is over the picture.
-            if (pointer.z > 0.5)
+            // Cursor lens works only under a pointer. The following image-aware effect has
+            // no global UV warp; it samples its original gradients in effected() instead.
+            if (effect.x < 11.5 && pointer.z > 0.5)
             {
                 float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
                 float distance = length(delta);
@@ -221,7 +222,23 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 }
                 colour = lerp(colour, styled, effect.y);
             }
-            if (effect.x > 10.5 && pointer.z > 0.5 && effect.y > 0)
+            if (effect.x > 11.5 && effect.y > 0)
+            {
+                // Edge Gravity: derive a normal from gradients in the *current video frame*.
+                // Flat regions stay still; high-contrast outlines become elastic folds that
+                // pulse along their own normals. No fictional semantic/object tracking.
+                float2 gradient = pictureGradient(uv, isYuv);
+                float gradientSize = length(gradient);
+                float edge = smoothstep(0.045, 0.28, gradientSize);
+                float2 normal = gradient / max(gradientSize, 0.0001);
+                float phase = sin(effect.z * 1.7 + uv.x * 12 + uv.y * 9);
+                float2 warped = saturate(uv + normal * (0.028 * effect.y * edge * phase));
+                float3 refracted = readColour(warped, isYuv);
+                colour = lerp(colour, refracted, edge * effect.y);
+                // Shimmer hugs edges; untextured backgrounds never illuminate.
+                colour = saturate(colour + edge * (0.11 * effect.y) * float3(0.11, 0.65, 0.98));
+            }
+            if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {
                 // A fine highlight at the actual lens boundary communicates where the cursor is.
                 float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
