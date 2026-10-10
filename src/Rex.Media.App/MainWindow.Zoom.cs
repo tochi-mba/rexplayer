@@ -178,6 +178,12 @@ public sealed partial class MainWindow
     /// <summary>A pinch on a touch screen zooms about its middle; a drag with fingers moves the picture with them.</summary>
     private void OnStageManipulated(object sender, ManipulationDeltaRoutedEventArgs e)
     {
+        // A selection drag must not also pan or zoom the picture under the pointer.
+        if (_selectingSubject)
+        {
+            return;
+        }
+
         if (e.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Touch || PictureShape() is not { } shape)
         {
             return;
@@ -245,6 +251,14 @@ public sealed partial class MainWindow
 
     private void OnStageReleased(object sender, PointerRoutedEventArgs e)
     {
+        // Subject Lock also handles this same PointerReleased event, after zoom's handler.
+        // Releasing capture here raises PointerCaptureLost and cancels its selection before
+        // it can read the drag endpoint. Let the subject handler release its own capture.
+        if (_selectingSubject && _subjectAnchor is not null)
+        {
+            return;
+        }
+
         _dragFrom = null;
         Stage.ReleasePointerCapture(e.Pointer);
     }
