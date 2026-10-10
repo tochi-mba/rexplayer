@@ -97,13 +97,62 @@ public sealed partial class MainWindow
 
     private void OnStageDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => Run(CommandCatalog.ToggleFullScreen);
 
-    /// <summary>In full screen, moving the mouse brings the controls back until it rests again.</summary>
+    private long _lastLensPointerTick;
+
+    /// <summary>The lens uses only the current pointer location; neither coordinates nor images are persisted.</summary>
     private void OnStagePointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (IsFullScreen)
         {
             ShowFullScreenControls();
         }
+
+        if (_settings.VideoEffect != Rex.Media.Primitives.VideoEffect.CursorLens || !HasVideo
+            || PictureShape() is not { } shape || Stage.ActualWidth <= 0 || Stage.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        // Pointer notifications can arrive hundreds of times a second; bound queued GPU updates.
+        var tick = Environment.TickCount64;
+        if (tick - _lastLensPointerTick < 16)
+        {
+            return;
+        }
+
+        _lastLensPointerTick = tick;
+        var position = e.GetCurrentPoint(Stage).Position;
+        var picture = Rex.Media.AppCore.Player.SubtitleLook.Picture(Stage.ActualWidth, Stage.ActualHeight, shape.Across, shape.Down);
+        var x = (position.X - picture.X) / picture.Width;
+        var y = (position.Y - picture.Y) / picture.Height;
+        var active = x >= 0 && x <= 1 && y >= 0 && y <= 1;
+        var redraw = !_player.IsPlaying;
+        OnPresenterThread(presenter =>
+        {
+            presenter.SetPointer((float)x, (float)y, active);
+            if (redraw)
+            {
+                presenter.Redraw();
+            }
+        });
+    }
+
+    private void OnStagePointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (_settings.VideoEffect != Rex.Media.Primitives.VideoEffect.CursorLens)
+        {
+            return;
+        }
+
+        var redraw = !_player.IsPlaying;
+        OnPresenterThread(presenter =>
+        {
+            presenter.SetPointer(0.5f, 0.5f, false);
+            if (redraw)
+            {
+                presenter.Redraw();
+            }
+        });
     }
 
     /// <summary>

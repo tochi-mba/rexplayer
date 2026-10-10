@@ -135,6 +135,14 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.NeonEdges)]
     [InlineData(VideoEffect.PixelDrift)]
     [InlineData(VideoEffect.Kaleidoscope)]
+    [InlineData(VideoEffect.InkTrace)]
+    [InlineData(VideoEffect.TopographicContours)]
+    [InlineData(VideoEffect.ChromaticContours)]
+    [InlineData(VideoEffect.LiquidGlass)]
+    [InlineData(VideoEffect.SliceShift)]
+    [InlineData(VideoEffect.Vortex)]
+    [InlineData(VideoEffect.CursorLens)]
+    [InlineData(VideoEffect.EdgeGravity)]
     public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
     {
         using var picture = DecodedPicture();
@@ -142,6 +150,11 @@ public sealed class D3D11PresenterTests
         using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
         presenter.Present(picture);
         using var original = presenter.ReadBack();
+
+        if (effect == VideoEffect.CursorLens)
+        {
+            presenter.SetPointer(0.45f, 0.52f, true);
+        }
 
         presenter.SetEffect(effect, 100);
         presenter.Redraw();
@@ -162,6 +175,57 @@ public sealed class D3D11PresenterTests
         presenter.Redraw();
         using var invalid = presenter.ReadBack();
         Assert.Equal(0, MaxDifference(original, invalid));
+    }
+
+    [Fact]
+    public void ImageAwareEffectsAreDrivenByFrameStructureAndLookControlsAreIndependent()
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 80, 64);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                byte c = (byte)(x < 40 ? 12 : 235);
+                row[x * 4] = c;
+                row[x * 4 + 1] = c;
+                row[x * 4 + 2] = c;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(80, 64);
+        picture.Pts = MediaTime.FromSeconds(1);
+        presenter.Present(picture);
+        using var baseline = presenter.ReadBack();
+
+        presenter.SetEffect(VideoEffect.EdgeGravity, 100, 175);
+        presenter.Redraw();
+        using var edges = presenter.ReadBack();
+        Assert.True(MaxDifference(baseline, edges) > 2, "The subject boundary should refract");
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.SetLook(VideoLook.Cinema, 150, 135);
+        presenter.Redraw();
+        using var cinematic = presenter.ReadBack();
+        Assert.True(MaxDifference(baseline, cinematic) > 2);
+
+        presenter.SetLook(VideoLook.Cinema, 0, 100);
+        presenter.Redraw();
+        using var intensityZero = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(baseline, intensityZero));
+
+        presenter.SetLook(VideoLook.Original);
+        presenter.SetEffect(VideoEffect.CursorLens, 100);
+        presenter.SetPointer(float.NaN, float.PositiveInfinity, false);
+        presenter.Redraw();
+        using var notHovering = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(baseline, notHovering));
+
+        presenter.SetPointer(0.5f, 0.5f, true);
+        presenter.Redraw();
+        using var hovered = presenter.ReadBack();
+        Assert.True(MaxDifference(baseline, hovered) > 2);
     }
 
     [Fact]

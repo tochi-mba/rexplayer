@@ -339,6 +339,9 @@ public sealed record PlayerSettings
     /// <summary>How strongly the current pixel effect changes the frame, from 0 to 100.</summary>
     public int VideoEffectStrength { get; init; } = 65;
 
+    /// <summary>Independent controls for every GPU picture look and effect, keyed by style and option.</summary>
+    public IReadOnlyDictionary<string, int> VideoStyleValues { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
+
     /// <summary>
     /// Each visualisation's own settings, by "visualisation.setting" (AppCore's VisualizerOptions
     /// reads them, with their defaults and ranges).
@@ -533,6 +536,9 @@ public sealed record PlayerSettings
             VideoLook = Enum.IsDefined(VideoLook) ? VideoLook : Rex.Media.Primitives.VideoLook.Original,
             VideoEffect = Enum.IsDefined(VideoEffect) ? VideoEffect : Rex.Media.Primitives.VideoEffect.Off,
             VideoEffectStrength = VideoEffects.Strength(VideoEffectStrength),
+            VideoStyleValues = (VideoStyleValues ?? new Dictionary<string, int>())
+                .Where(pair => pair.Key is { Length: > 0 and <= 100 })
+                .ToDictionary(pair => pair.Key, pair => Math.Clamp(pair.Value, 0, 200), StringComparer.Ordinal),
             AudioArtworkStyle = Enum.IsDefined(AudioArtworkStyle) ? AudioArtworkStyle : ArtworkStyle.Prism,
             AudioArtworkColor = Math.Clamp(AudioArtworkColor, 0, 200),
             AudioArtworkDetail = Math.Clamp(AudioArtworkDetail, 0, 200),

@@ -210,7 +210,7 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
-      <Grid x:Name="Stage" Grid.Column="0" Background="Black" IsTabStop="True" DoubleTapped="OnStageDoubleTapped" PointerMoved="OnStagePointerMoved" PointerWheelChanged="OnStageWheel"
+      <Grid x:Name="Stage" Grid.Column="0" Background="Black" IsTabStop="True" DoubleTapped="OnStageDoubleTapped" PointerMoved="OnStagePointerMoved" PointerExited="OnStagePointerExited" PointerWheelChanged="OnStageWheel"
             AutomationProperties.AutomationId="Stage" AutomationProperties.Name="Picture">
         <SwapChainPanel x:Name="Video" AutomationProperties.AutomationId="Video" />
         <!-- Covers a presenter's late or remembered frame as soon as an audio-only item takes over. -->
