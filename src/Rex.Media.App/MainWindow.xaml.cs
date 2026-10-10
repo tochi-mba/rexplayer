@@ -87,6 +87,7 @@ public sealed partial class MainWindow : Window
         ApplyTooltips();
         ApplyGlobalShortcuts();
         WireZoom();
+        WireSubjectTools();
         WireSeekBar();
 
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
@@ -354,6 +355,11 @@ public sealed partial class MainWindow : Window
         {
             // Each item starts at its own shape; a crop chosen for one film rarely suits the next.
             _shownItem = _player.Item;
+            if (_subjectOpen)
+            {
+                CloseSubjectTools();
+            }
+
             if (_view.IsZoomed)
             {
                 SetView(PictureView.Whole);
@@ -547,6 +553,7 @@ public sealed partial class MainWindow : Window
         // The seek area can still see the pointer leave while the window goes, so its work is
         // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
         HideSeekPreview();
+        _subjectTimer?.Stop();
         StopVisualizing();
         SaveSettings();
         _player.SaveQueue();
