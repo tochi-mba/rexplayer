@@ -281,11 +281,13 @@ public sealed class D3D11Presenter : IVideoPresenter
                 return;
             }
 
-            using var original = frame.Surface is D3D11Surface gpu
+            // Keep the sole CPU copy as the paused-frame original. Another deep copy here
+            // doubled memory traffic on 4K hardware surfaces even when erasure was off.
+            var original = frame.Surface is D3D11Surface gpu
                 ? ReadGpuFrame(frame, gpu)
                 : ColorConverter.ToBgra(frame);
             _originalForEditing?.Dispose();
-            _originalForEditing = ColorConverter.ToBgra(original);
+            _originalForEditing = original;
             using var edited = _subjectEdit.Process(original);
             Show(edited ?? frame);
         }
