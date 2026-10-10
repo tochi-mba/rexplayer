@@ -104,6 +104,7 @@ public sealed partial class MainWindow
         var entries = new MenuFlyout();
         entries.Opening += (_, _) => FillLibraryMenu(entries);
         LibraryList.ContextFlyout = entries;
+        LibraryCollage.ContextFlyout = entries;
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();
@@ -347,8 +348,16 @@ public sealed partial class MainWindow
     /// <summary>A visible media line asks for its picture once; recycled, off-screen rows ask for nothing.</summary>
     private void OnLibraryRowShown(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (!args.InRecycleQueue && args.Item is LibraryRow { HasPicture: true, PictureAsked: false } row
-            && PictureEntry(row.Item) is { } entry)
+        if (!args.InRecycleQueue)
+        {
+            RequestLibraryPicture(args.Item as LibraryRow);
+        }
+    }
+
+    /// <summary>Only request artwork when the virtualizing panel actually realizes a tile.</summary>
+    private void RequestLibraryPicture(LibraryRow? row)
+    {
+        if (row is { HasPicture: true, PictureAsked: false } && PictureEntry(row.Item) is { } entry)
         {
             row.PictureAsked = true;
             _ = ShowPictureAsync(entry.Path, entry.Kind, entry.Duration, picture => row.Picture = picture, _libraryPictures.Token);
@@ -413,11 +422,17 @@ public sealed partial class MainWindow
         _libraryPictures = new CancellationTokenSource();
     }
 
+    /// <summary>Selection follows the active surface; library commands work in every layout.</summary>
+    private List<LibraryRow> SelectedLibraryRows() =>
+        LibraryCollage.Visibility == Visibility.Visible
+            ? [.. LibraryCollage.SelectedItems.OfType<LibraryRow>()]
+            : [.. LibraryList.SelectedItems.OfType<LibraryRow>()];
+
     /// <summary>The lines chosen, or every line when none is.</summary>
     private List<LibraryRow> ChosenRows()
     {
         var rows = _libraryRows;
-        var chosen = LibraryList.SelectedItems.OfType<LibraryRow>().ToList();
+        var chosen = SelectedLibraryRows();
         return chosen.Count > 0 ? [.. rows.Where(chosen.Contains)] : rows;
     }
 
@@ -490,7 +505,7 @@ public sealed partial class MainWindow
 
     private void PlayChosen()
     {
-        var chosen = LibraryList.SelectedItems.OfType<LibraryRow>().ToList();
+        var chosen = SelectedLibraryRows();
         if (chosen is [{ Item: LibraryEntry }])
         {
             Activate(chosen[0]);
@@ -550,7 +565,7 @@ public sealed partial class MainWindow
     private void FillLibraryMenu(MenuFlyout menu)
     {
         menu.Items.Clear();
-        var chosen = LibraryList.SelectedItems.OfType<LibraryRow>().ToList();
+        var chosen = SelectedLibraryRows();
         if (chosen.Count == 0)
         {
             menu.Items.Add(new MenuFlyoutItem { Text = "Choose something first", IsEnabled = false });

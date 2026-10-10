@@ -114,6 +114,31 @@ public sealed class LibraryArrangementTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void CollageCardShapesAreBoundedVariedAndRepeatable()
+    {
+        foreach (var (kind, poster) in new[]
+        {
+            (LibraryKind.Music, false), (LibraryKind.Picture, false),
+            (LibraryKind.Video, false), (LibraryKind.Video, true),
+        })
+        {
+            var ratios = Enumerable.Range(0, 16).Select(i => CollageLayout.AspectRatio(kind, poster, i)).ToArray();
+            Assert.All(ratios, ratio => Assert.InRange(ratio, 0.70, 2.1));
+            Assert.True(ratios.Distinct().Count() > 3);
+            Assert.Equal(ratios[..8], ratios[8..]);
+            Assert.Equal(ratios[3], CollageLayout.AspectRatio(kind, poster, -3));
+            Assert.Equal(ratios[0], CollageLayout.AspectRatio(kind, poster, int.MinValue));
+        }
+
+        Assert.NotEqual(CollageLayout.AspectRatio(LibraryKind.Video, false, 0), CollageLayout.AspectRatio(LibraryKind.Video, true, 0));
+        Assert.Equal(LibraryLook.Collage, new LibraryViewChoice(LibraryLook.Collage).Normalize().Look);
+        Assert.Equal(LibraryLook.Collage,
+            new PlayerSettings { LibraryViews = new Dictionary<string, LibraryViewChoice> { ["Pictures"] = new(LibraryLook.Collage) } }
+                .Normalize().LibraryViews["Pictures"].Look);
+    }
+
+    [Fact]
     public void AViewsChoicesAreKeptInRange()
     {
         var wild = new LibraryViewChoice((LibraryLook)9, (LibrarySort)99, true, (LibraryGrouping)42, 5000).Normalize();

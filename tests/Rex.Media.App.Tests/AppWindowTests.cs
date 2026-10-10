@@ -482,6 +482,21 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => scroll.Current.VerticallyScrollable, "the picture grid to be vertically scrollable");
         scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
         Wait.For(() => scroll.Current.VerticalScrollPercent > 0, "the picture grid to scroll");
+
+        // Collage uses a separate virtualizing panel with justified, variable-width tiles;
+        // switching away restores the normal grid and the choice is saved for this view.
+        app.Press("LibraryLook");
+        app.Press("LibraryLook-Collage");
+        Wait.For(() => app.IsShown("LibraryCollage"), "the collage to be visible");
+        Assert.False(app.IsShown("LibraryList"));
+        Wait.Until(() => app.Find("LibraryCollage").FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Photo-01")));
+        Wait.For(() => app.SavedSettings.LibraryViews.GetValueOrDefault("Pictures")?.Look == Rex.Media.Settings.LibraryLook.Collage,
+            "the collage layout to be saved");
+
+        app.Press("LibraryLook");
+        app.Press("LibraryLook-Grid");
+        Wait.For(() => app.IsShown("LibraryList") && !app.IsShown("LibraryCollage"), "the card grid to return");
         Assert.Equal(0, app.Close());
     }
 

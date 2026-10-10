@@ -115,6 +115,9 @@ public enum LibraryLook
 
     /// <summary>Big cards: covers, posters and photos large.</summary>
     Wall,
+
+    /// <summary>Dense, justified rows of differently shaped artwork, without empty grid columns.</summary>
+    Collage,
 }
 
 /// <summary>How one library view is shown, as the user last set it: its layout, order, grouping and card size.</summary>
