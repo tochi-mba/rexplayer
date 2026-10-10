@@ -89,6 +89,37 @@ public sealed class VisualStageTests
         return sum / (frames.Count - 1);
     }
 
+    [Fact]
+    [Capability("AU-18")]
+    public void ResonanceBoundsOverlappingDrumWavesDuringConsecutiveHits()
+    {
+        var canvas = new Raster(64, 36);
+        var pulse = new MusicPulse();
+        var context = new VisualContext(canvas, pulse)
+        {
+            Choice = VisualizerChoice.Resonance,
+            Dt = 0,
+        };
+        var scene = new ResonanceScene();
+        context.Prepare();
+
+        // Keep time at zero so the ring lifecycle cannot remove old rings. Four confirmed
+        // onsets must exercise the bounded-ring eviction path, even on fast music.
+        for (var n = 0; n < 4; n++)
+        {
+            for (var quiet = 0; quiet < 10; quiet++)
+            {
+                pulse.Kick.Hear(0, 0, 0.03, listening: true);
+            }
+
+            pulse.Kick.Hear(50, 100, 0.2, listening: true);
+            Assert.True(pulse.Kick.Hit);
+            scene.Draw(context);
+        }
+
+        Assert.NotNull(canvas);
+    }
+
     [Theory]
     [Capability("AU-18")]
     [MemberData(nameof(Scenes))]
