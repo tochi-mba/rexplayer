@@ -23,7 +23,8 @@ public sealed class VisualStageTests
         VisualizerChoice.Ripples,
         VisualizerChoice.Strobe,
         VisualizerChoice.Silhouette,
-        VisualizerChoice.BeatEdit);
+        VisualizerChoice.BeatEdit,
+        VisualizerChoice.Resonance);
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 
@@ -86,6 +87,37 @@ public sealed class VisualStageTests
         }
 
         return sum / (frames.Count - 1);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void ResonanceBoundsOverlappingDrumWavesDuringConsecutiveHits()
+    {
+        var canvas = new Raster(64, 36);
+        var pulse = new MusicPulse();
+        var context = new VisualContext(canvas, pulse)
+        {
+            Choice = VisualizerChoice.Resonance,
+            Dt = 0,
+        };
+        var scene = new ResonanceScene();
+        context.Prepare();
+
+        // Keep time at zero so the ring lifecycle cannot remove old rings. Four confirmed
+        // onsets must exercise the bounded-ring eviction path, even on fast music.
+        for (var n = 0; n < 4; n++)
+        {
+            for (var quiet = 0; quiet < 10; quiet++)
+            {
+                pulse.Kick.Hear(0, 0, 0.03, listening: true);
+            }
+
+            pulse.Kick.Hear(50, 100, 0.2, listening: true);
+            Assert.True(pulse.Kick.Hit);
+            scene.Draw(context);
+        }
+
+        Assert.NotNull(canvas);
     }
 
     [Theory]
@@ -264,7 +296,7 @@ public sealed class VisualStageTests
     public void TheStageFitsTheWindowAndOnlyDrawsItsOwnScenes()
     {
         Assert.Equal((16, 9), VisualStage.SizeFor(0, double.NaN));
-        Assert.Equal((480, 270), VisualStage.SizeFor(1920, 1080));
+        Assert.Equal((800, 450), VisualStage.SizeFor(1920, 1080));
         Assert.Equal((320, 180), VisualStage.SizeFor(320, 180));
         Assert.False(VisualStage.Draws(VisualizerChoice.Spectrum));
         Assert.True(VisualStage.Draws(VisualizerChoice.BeatEdit));

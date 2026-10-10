@@ -122,6 +122,7 @@ public abstract class VisualScene
         VisualizerChoice.Mirror => new MirrorScene(),
         VisualizerChoice.Aurora => new AuroraScene(),
         VisualizerChoice.Embers => new EmbersScene(),
+        VisualizerChoice.Resonance => new ResonanceScene(),
         VisualizerChoice.Ripples => new RipplesScene(),
         VisualizerChoice.Strobe => new StrobeScene(),
         VisualizerChoice.Silhouette => new SilhouetteScene(),

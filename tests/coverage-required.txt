@@ -147,6 +147,7 @@ ResumeMarker.cs
 RexLog.cs
 RexStore.cs
 RipplesScene.cs
+ResonanceScene.cs
 Sami.cs
 SampleConverter.cs
 ScanWindow.cs

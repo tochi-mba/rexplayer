@@ -242,6 +242,7 @@ public sealed class AppWindowTests : IDisposable
     [InlineData("Embers")]
     [InlineData("Ripples")]
     [InlineData("Strobe")]
+    [InlineData("Resonance")]
     public void EachVisualisationLightsTheStageAndMovesWithTheMusic(string visualisation)
     {
         using var app = AppProcess.Start([Music(30)], RootShowing(visualisation));
@@ -273,10 +274,11 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start([Music(30)], RootShowing("Strobe"));
         Wait.For(() => app.IsShown("Visualizer"), "the visualisation");
 
-        // The next is the silhouette, which asks first; "Not now" passes over the camera's two.
+        // The next is the silhouette, which asks first; "Not now" passes over the
+        // camera's two effects and lands on Resonance, which needs no camera.
         _ = Task.Run(() => app.Run(CommandCatalog.CycleVisualizer));
         app.Press("CloseButton");
-        Wait.For(() => app.SavedSettings.Visualizer == Rex.Media.Settings.VisualizerChoice.Off, "no visualisation");
+        Wait.For(() => app.SavedSettings.Visualizer == Rex.Media.Settings.VisualizerChoice.Resonance, "the next non-camera visualisation");
         Assert.False(app.SavedSettings.CameraAllowed);
         Assert.DoesNotContain("The camera is on", app.LogText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
