@@ -22,8 +22,8 @@ namespace Rex.Media.App;
 internal sealed partial class CameraFeed : IAsyncDisposable
 {
     /// <summary>The outline's size.</summary>
-    public const int MaskWidth = 160;
-    public const int MaskHeight = 120;
+    public const int MaskWidth = 240;
+    public const int MaskHeight = 180;
 
     /// <summary>The colour picture's size: enough for the beat edit to fill the stage cleanly.</summary>
     public const int PictureWidth = 320;
@@ -36,9 +36,35 @@ internal sealed partial class CameraFeed : IAsyncDisposable
     private MediaCapture? _capture;
     private MediaFrameReader? _reader;
     private bool _closed;
+    private bool _mirror = true;
 
-    /// <summary>Whether the pictures are flipped left for right, as a mirror shows them.</summary>
-    public bool Mirror { get; set; } = true;
+    /// <summary>Whether pictures and the tracking model are mirrored together.</summary>
+    public bool Mirror
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _mirror;
+            }
+        }
+
+        set
+        {
+            lock (_gate)
+            {
+                if (_mirror == value)
+                {
+                    return;
+                }
+
+                _mirror = value;
+                // A flipped camera needs a flipped room reference, otherwise its walls
+                // appear as foreground until the old model slowly adapts.
+                _mask.Reset();
+            }
+        }
+    }
 
     /// <summary>How different from the room a pixel must be to count as the person (0 to 1).</summary>
     public double Threshold { get; set; } = 0.12;
@@ -201,7 +227,6 @@ internal sealed partial class CameraFeed : IAsyncDisposable
         var bytes = new byte[picture.PixelWidth * picture.PixelHeight * 4];
         picture.CopyToBuffer(bytes.AsBuffer());
         var mirror = Mirror;
-        var brightness = SilhouetteMask.Brightness(bytes, picture.PixelWidth, picture.PixelHeight, picture.PixelWidth * 4, MaskWidth, MaskHeight, mirror);
         lock (_gate)
         {
             if (_closed)
@@ -210,7 +235,7 @@ internal sealed partial class CameraFeed : IAsyncDisposable
             }
 
             Shrink(bytes, picture.PixelWidth, picture.PixelHeight, _picture, mirror);
-            _mask.Update(brightness, Threshold);
+            _mask.UpdateColour(bytes, picture.PixelWidth, picture.PixelHeight, Threshold, mirror);
             HasPicture = true;
         }
     }

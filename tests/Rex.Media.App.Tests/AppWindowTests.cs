@@ -341,6 +341,27 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("AU-18")]
+    public void SilhouetteShowsAnAccessibleRecalibrationActionAndRemovesItWhenChangingVisuals()
+    {
+        var root = RootShowing("Silhouette");
+        var settingsPath = Path.Combine(root, "settings.json");
+        var settings = Rex.Media.Settings.SettingsStore.Load(settingsPath);
+        Rex.Media.Settings.SettingsStore.Save(settingsPath, settings with { CameraAllowed = true });
+        using var app = AppProcess.Start([Music(12)], root);
+
+        Wait.For(() => app.IsShown("SilhouetteRecalibrate"), "camera silhouette calibration button");
+        app.Press("SilhouetteRecalibrate"); // safe even on runners without a camera
+        Assert.True(app.IsShown("Visualizer"));
+        app.Run(CommandCatalog.CycleVisualizer);
+        Wait.For(() => app.SavedSettings.Visualizer == Rex.Media.Settings.VisualizerChoice.BeatEdit,
+            "the next camera visualisation");
+        Wait.For(() => !app.IsShown("SilhouetteRecalibrate"),
+            "the silhouette-only calibration button to disappear");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void CoverOnlyBeatEditDoesNotStartAnAllowedCameraAndStopsCleanly()
     {
         var root = RootShowing("BeatEdit");

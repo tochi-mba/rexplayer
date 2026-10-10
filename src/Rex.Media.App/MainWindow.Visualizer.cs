@@ -368,6 +368,22 @@ public sealed partial class MainWindow
         Canvas.SetLeft(_visualNote, 24);
         Canvas.SetTop(_visualNote, Math.Max(24, height - 72));
         VisualCanvas.Children.Add(_visualNote);
+        if (_settings.Visualizer == VisualizerChoice.Silhouette)
+        {
+            var recalibrate = new Button { Content = "Recalibrate silhouette", Padding = new Thickness(12, 6, 12, 6) };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(recalibrate, "SilhouetteRecalibrate");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(recalibrate,
+                "Recalibrate the empty background after stepping out of camera view");
+            Canvas.SetLeft(recalibrate, 24);
+            Canvas.SetTop(recalibrate, Math.Max(12, height - 120));
+            recalibrate.Click += (_, _) =>
+            {
+                _camera?.Relearn();
+                Say("Step completely out of the camera view while the background recalibrates.");
+            };
+            VisualCanvas.Children.Add(recalibrate);
+        }
+
         if (_camera is not null)
         {
             ConfigureCamera(_camera);
@@ -578,7 +594,7 @@ public sealed partial class MainWindow
                 _visualNote.Text = !_settings.CameraAllowed ? "Choose this visualisation from the menu to let it use the camera."
                     : camera?.Problem is { } problem ? problem + $" Trying again every {CameraRetry.TotalSeconds:0} seconds."
                     : camera is null || !camera.HasPicture ? "Starting the camera..."
-                    : choice == VisualizerChoice.Silhouette && camera.IsLearning ? "Looking at the room. Stay still, or step out of view for a moment."
+                    : choice == VisualizerChoice.Silhouette && camera.IsLearning ? "Learning the EMPTY background. Step fully out of view until calibration finishes, then come back."
                     : "";
             }
         }
