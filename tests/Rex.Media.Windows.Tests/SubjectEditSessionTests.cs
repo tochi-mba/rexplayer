@@ -60,6 +60,68 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void RecoveryUsesPreviouslyExposedPixelsBeforeInventingNewOnes()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture();
+        tracker.Process(first);
+        tracker.SetErase(true);
+        using var initially = tracker.Process(first);
+        Assert.NotNull(initially);
+        var initiallyEstimated = tracker.EstimatedPixels;
+        Assert.True(initiallyEstimated > 0);
+
+        // The moving object exposes its old location; only the still-occluded area
+        // should need inference. Original frames remain byte-for-byte unchanged.
+        using var later = Picture(40, 20, 1.04);
+        using var recovered = tracker.Process(later);
+        Assert.True(tracker.Tracking);
+        Assert.NotNull(recovered);
+        Assert.True(tracker.EstimatedPixels < initiallyEstimated);
+        Assert.Contains("Estimated fill", tracker.Status, StringComparison.Ordinal);
+        Assert.Equal((byte)210, later.Row(0, 24)[42 * 4 + 2]);
+    }
+
+    [Fact]
+    public void InferenceUsesVerticalAndHorizontalBoundariesAndPreservesLooseRectangleCorners()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(26 / 128f, 16 / 80f, 24 / 128f, 24 / 80f);
+        using var source = Picture();
+        tracker.Process(source);
+        tracker.SetErase(true);
+        using var preview = tracker.Process(source);
+        Assert.NotNull(preview);
+        // Colour-aware border suppression leaves background inside a loose selection alone.
+        Assert.Equal(source.Row(0, 17)[27 * 4 + 2], preview.Row(0, 17)[27 * 4 + 2]);
+        Assert.NotEqual(source.Row(0, 28)[38 * 4 + 2], preview.Row(0, 28)[38 * 4 + 2]);
+
+        // The sampled fill is also bounded at the picture's edge and is deterministic.
+        var edge = new SubjectEditSession();
+        edge.Select(0, 0, 0.15f, 0.25f);
+        using var original = Picture(x: 0, y: 0);
+        edge.Process(original);
+        edge.SetErase(true);
+        using var edited = edge.Process(original);
+        Assert.NotNull(edited);
+        Assert.InRange(edge.EstimatedPixels, 1, original.Width * original.Height);
+    }
+
+    [Fact]
+    public void MotionSearchFollowsAVisibleTargetBeyondTheOldSmallSearchWindow()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture();
+        tracker.Process(first);
+        using var fast = Picture(41, 20, 1.04);
+        tracker.Process(fast);
+        Assert.True(tracker.Tracking);
+        Assert.InRange(tracker.Region.Left * fast.Width, 40, 42);
+    }
+
+    [Fact]
     public void RejectsMissingOrInvalidInputAndUnreliableTimelineChanges()
     {
         var tracker = new SubjectEditSession();
