@@ -220,12 +220,16 @@ internal static class D3D11VideoShaders
                 abs(frac(luma * (18 * detail)) - 0.5));
             float3 normal = normalize(float3(-slope.x * 6, -slope.y * 6, 0.6));
             float light = 0.6 + 0.4 * dot(normal, normalize(float3(-0.45, -0.5, 0.74)));
-            float3 base = colour * (0.22 + 0.27 * saturate(light))
+            // Compress bright areas while lifting real low-light surface gradients.
+            // This local monotone mapping does not infer any hidden geometry.
+            float3 lifted = colour / (colour + float3(0.20, 0.20, 0.20));
+            float3 base = lerp(colour, lifted, 0.68)
+                * (0.62 + 0.25 * saturate(light))
                 + float3(0.012, 0.017, 0.031);
             // Neither band nor "relief" invents anatomy: both are driven by
             // variation that can be read from the recorded picture itself.
             base += contours * visibleSurface * float3(0.10, 0.68, 0.75);
-            base += visibleSurface * (1 - contours) * float3(0.018, 0.054, 0.078);
+            base += visibleSurface * (1 - contours) * float3(0.045, 0.095, 0.125);
             base += fineEdge * float3(0.17, 0.70, 0.82);
             return saturate(base);
         }
@@ -412,9 +416,14 @@ internal static class D3D11VideoShaders
                 }
                 float3 ink = float3(0.013, 0.02, 0.033) + colour * 0.055;
                 float3 stationary = edge * float3(0.12, 0.78, 0.81);
-                float trail = activity * oldEdge * motion.x;
-                float3 moving = activity * float3(0.60, 0.18, 0.90)
-                    + trail * float3(0.12, 0.45, 0.98);
+                // The previous-frame rim is a faint blue afterimage at its
+                // actual prior position, not just a second glow on the new rim.
+                float previousDifference = length(colour - readPrior(uv, isYuv));
+                float trail = motion.x * (oldEdge
+                    * smoothstep(0.025, 0.18, previousDifference) + activity * 0.6)
+                    * (1 - edge * 0.35);
+                float3 moving = activity * float3(0.60, 0.18, 0.37)
+                    + trail * float3(0.10, 0.40, 0.78);
                 // Mode: 0 hybrid, 1 contours, 2 motion, 3 stationary
                 // surface shape. Surface mode needs no previous frame, and
                 // works just as well when paused or on a photograph.
