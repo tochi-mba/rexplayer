@@ -151,6 +151,7 @@ public static class VisualizerOptions
             [
                 new("style", "Edit style", VisualOptionKind.Choice, 0, Choices: ["Velocity", "Glitch", "Hype", "Dreamy", "Everything"]),
                 new("source", "Picture source", VisualOptionKind.Choice, 0, Choices: ["Camera, then cover", "Cover art"]),
+                new("follow", "Keep people centred (best with a clear background)", VisualOptionKind.Toggle, 1),
                 new("intensity", "Edit intensity", VisualOptionKind.Number, 1, 0.2, 2),
                 new("cuts", "Change grade every", VisualOptionKind.Choice, 1, Choices: ["Beat", "2 beats", "4 beats", "8 beats"]),
                 new("mirror", "Mirror the camera", VisualOptionKind.Toggle, 1),
