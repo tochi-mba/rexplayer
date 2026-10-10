@@ -3,6 +3,41 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.15.1 - 2026-10-10
+
+### Improved
+
+- **Subject Lock auto-follow.** Gently centres the selected visible region with a
+  contextual zoom capped at 1.85x. The camera responds to a moving target and restores
+  the previous framing when follow is switched off. Manual navigation takes priority.
+- **Return tracking.** After losing the subject, periodically searches the frame for
+  the original visible texture and resumes only on a sufficiently distinctive match.
+  Ambiguous lookalikes are rejected; removal does not restart automatically.
+- **Subject tools usability.** A responsive, vertically scrollable control panel uses
+  a two-column action layout instead of clipping its buttons. Separate Auto-follow
+  and Show tracking box switches let the user hide the outline while tracking continues.
+- **Camera silhouette.** Better distinguishes similarly bright colours, stabilizes fine
+  outlines, raises the mask resolution to 240 by 180, and fits the whole camera picture
+  into the visual stage without cutting off its top and bottom. A new recalibration
+  button and clearer empty-room instructions help when camera or lighting changes.
+- **Detailed video contours.** Neon contours, Ink trace, Topographic contours,
+  Chromatic contours, Ghostwire and Ghostwire mask mode detect narrow internal lines,
+  gentle recorded shading changes and colour differences that have similar luminance.
+  The per-effect sensitivity slider controls the fine-detail response.
+- **Quality and verification.** Added GPU readback tests for grey-on-grey texture,
+  near-equal-brightness colour edges and original-frame restoration, along with
+  tracking, interface, camera mask and framing regressions. The GPU shader and
+  renderer sources are separated to meet the repository's file-size gate.
+
+### Limitations
+
+- Contour effects cannot reveal edges missing from the recording; higher sensitivity
+  may also illuminate compression noise. Subject Lock matches visible texture rather
+  than semantic identity, so prolonged occlusion or lookalikes can still defeat it.
+- Camera silhouette is local background separation, not a person-segmentation model;
+  it works best after calibrating on an empty, stable room. Ghost Peel remains a
+  non-destructive preview, not edited-video export.
+
 ## 0.15.0 - 2026-10-10
 
 ### Added
