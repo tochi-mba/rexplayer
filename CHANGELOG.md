@@ -3,6 +3,35 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.15.4 - 2026-10-10
+
+### Fixed
+
+- **Silhouette control checks.** UI Automation visibility polling now retries when a
+  visualisation rebuilds a control between finding it and reading its screen state.
+  The accessible recalibration action remains verified by the desktop tests.
+- **Subject reacquisition.** Keeps the original selected texture while a subject is
+  absent, searches at several sizes when it returns, and requires two consistent
+  sightings before following again. Separate candidates at each size and an
+  outline-contrast check help avoid switching to a similar-looking region.
+
+### Improved
+
+- **Auto-follow framing.** Gradually widens the view after losing the selected subject
+  and eases back toward the target after a confirmed return. Small frame-to-frame
+  location noise no longer makes the camera drift.
+- **Verification.** Added Windows tracking tests for prolonged absence, changing
+  subject size, temporary matches, and visually ambiguous alternatives; added
+  portable tests for steady framing and recovery zoom. The release audit reviewed
+  all changes since 0.15.3, and the latest main CI run passed the Windows desktop,
+  engine, performance, packaging, website and Linux test jobs.
+
+### Limitations
+
+- Subject Lock matches visible texture, not a person's or object's semantic identity.
+  Lighting changes, occlusion and lookalikes can still prevent reliable reacquisition;
+  the non-destructive removal preview remains off after tracking is lost.
+
 ## 0.15.3 - 2026-10-10
 
 ### Fixed
