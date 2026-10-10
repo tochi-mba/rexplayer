@@ -10,6 +10,7 @@ using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.IO;
 using Rex.Media.Library;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 using Rex.Media.Video;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
@@ -49,20 +50,8 @@ public sealed partial class MainWindow
     /// <summary>Finds or makes the picture for <paramref name="path"/>, and hands it to <paramref name="show"/> on the window's thread.</summary>
     private async Task ShowPictureAsync(string path, LibraryKind kind, TimeSpan? duration, Action<ImageSource> show, CancellationToken viewToken, bool urgent = false)
     {
-        var key = PictureKey(path, kind);
-        if (key is null)
-        {
-            return;
-        }
-
-        if (_pictureMemory.TryGetValue(key, out var known))
-        {
-            show(known);
-            return;
-        }
-
+        var settings = _settings;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(viewToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(10));
         var token = timeout.Token;
         var lane = urgent ? _priorityPictureSlot : _pictureSlots;
         var entered = false;
@@ -70,18 +59,39 @@ public sealed partial class MainWindow
         {
             await lane.WaitAsync(token);
             entered = true;
-            if (_pictureMemory.TryGetValue(key, out known))
+            if (_closed)
+            {
+                return;
+            }
+
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            var (key, poster) = await Task.Run(() =>
+            {
+                var local = kind == LibraryKind.Video ? LocalVideoPoster(path)
+                    : kind == LibraryKind.Music ? FolderArt.Find(path) : null;
+                return (PictureKey(path, kind, settings, local), local);
+            }, token);
+            token.ThrowIfCancellationRequested();
+            if (key is null || _closed)
+            {
+                return;
+            }
+
+            if (_pictureMemory.TryGetValue(key, out var known))
             {
                 show(known);
                 return;
             }
 
             // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
-            var poster = kind == LibraryKind.Video ? LocalVideoPoster(path) : null;
-            var image = poster is null ? await ShellPictureAsync(path, kind, token)
-                : await DecodePictureAsync(await File.ReadAllBytesAsync(poster, token), token);
-            image ??= await DecodePictureAsync(await Task.Run(() => MakePicture(path, kind, duration, key, token), token), token);
+            var image = poster is null ? null : await LocalPictureAsync(poster, token);
+            image ??= await ShellPictureAsync(path, kind, token);
+            image ??= await DecodePictureAsync(await Task.Run(() => MakePicture(path, kind, duration, key, settings, token), token), token);
             token.ThrowIfCancellationRequested();
+            if (_closed)
+            {
+                return;
+            }
             Remember(key, image);
             show(image);
         }
@@ -157,6 +167,38 @@ public sealed partial class MainWindow
     /// </summary>
     private static async Task<ImageSource?> ShellPictureAsync(string path, LibraryKind kind, CancellationToken token)
     {
+        using var shellTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        shellTimeout.CancelAfter(TimeSpan.FromSeconds(2));
+        try
+        {
+            return await ReadShellPictureAsync(path, kind, shellTimeout.Token);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            // Leave time in the overall request for a frame from our own decoder.
+            return null;
+        }
+        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
+        {
+            // A broken shell thumbnail provider must not prevent our own decoder from trying.
+            return null;
+        }
+    }
+
+    private static async Task<ImageSource?> LocalPictureAsync(string path, CancellationToken token)
+    {
+        try
+        {
+            return await DecodePictureAsync(await File.ReadAllBytesAsync(path, token), token);
+        }
+        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    private static async Task<ImageSource?> ReadShellPictureAsync(string path, LibraryKind kind, CancellationToken token)
+    {
         var mode = kind switch
         {
             LibraryKind.Music => ThumbnailMode.MusicView,
@@ -184,7 +226,7 @@ public sealed partial class MainWindow
     /// least a second, at most half a minute), a picture itself, or for music its folder's art or
     /// artwork drawn from its sound. Kept on disk under <paramref name="key"/> until the file changes.
     /// </summary>
-    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, CancellationToken token)
+    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token)
     {
         var cache = Path.Combine(App.DataRoot, "cache", "library-pictures", key + ".png");
         if (File.Exists(cache))
@@ -192,25 +234,15 @@ public sealed partial class MainWindow
             return File.ReadAllBytes(cache);
         }
 
-        if (kind == LibraryKind.Music && FolderArt.Find(path) is { } folderArt)
-        {
-            return File.ReadAllBytes(folderArt);
-        }
-
         byte[] png;
         if (kind == LibraryKind.Music)
         {
-            if (!_settings.GenerateAudioArtwork)
-            {
-                throw new NotSupportedException("Generated music artwork is turned off.");
-            }
-
             png = AudioArtworkPng(path, new AudioArtworkOptions(
-                _settings.AudioArtworkStyle,
-                _settings.AudioArtworkColor,
-                _settings.AudioArtworkDetail,
-                _settings.AudioArtworkContrast,
-                _settings.AudioArtworkUsesIdentity), token);
+                settings.AudioArtworkStyle,
+                settings.AudioArtworkColor,
+                settings.AudioArtworkDetail,
+                settings.AudioArtworkContrast,
+                settings.AudioArtworkUsesIdentity), settings.GenerateAudioArtwork, token);
         }
         else
         {
@@ -220,6 +252,7 @@ public sealed partial class MainWindow
             png = PreviewPng(path, at, token);
         }
 
+        token.ThrowIfCancellationRequested();
         AtomicFile.Write(cache, png);
         return png;
     }
@@ -228,7 +261,7 @@ public sealed partial class MainWindow
     /// Names a picture by the file's path, size and time of change (and, for music, the artwork
     /// settings), so a changed file gets a new one; null when the file is not there.
     /// </summary>
-    private string? PictureKey(string path, LibraryKind kind)
+    private static string? PictureKey(string path, LibraryKind kind, PlayerSettings settings, string? local)
     {
         var file = new FileInfo(path);
         if (!file.Exists)
@@ -237,10 +270,10 @@ public sealed partial class MainWindow
         }
 
         var art = kind == LibraryKind.Music
-            ? $"\n{_settings.AudioArtworkStyle}\n{_settings.AudioArtworkColor}\n{_settings.AudioArtworkDetail}\n{_settings.AudioArtworkContrast}\n{_settings.AudioArtworkUsesIdentity}"
+            ? $"\n{settings.GenerateAudioArtwork}\n{settings.AudioArtworkStyle}\n{settings.AudioArtworkColor}\n{settings.AudioArtworkDetail}\n{settings.AudioArtworkContrast}\n{settings.AudioArtworkUsesIdentity}"
             : "";
         // Replacing local artwork must invalidate its thumbnail without touching the video file.
-        if (kind == LibraryKind.Video && LocalVideoPoster(path) is { } local)
+        if (local is not null)
         {
             var posterInfo = new FileInfo(local);
             art += $"\n{local}\n{posterInfo.Length}\n{posterInfo.LastWriteTimeUtc.Ticks}";
@@ -278,32 +311,58 @@ public sealed partial class MainWindow
         return image;
     }
 
-    private static byte[] AudioArtworkPng(string path, AudioArtworkOptions options, CancellationToken token)
+    private static byte[] AudioArtworkPng(string path, AudioArtworkOptions options, bool generate, CancellationToken token)
     {
         using var source = new FileByteSource(path);
         using var demuxer = MediaRegistries.Demuxers().Open(source, token);
+        if (demuxer.Info.CoverArt is { Length: > 0 } embedded)
+        {
+            return embedded;
+        }
+
+        if (!generate)
+        {
+            throw new NotSupportedException("Generated music artwork is turned off.");
+        }
+
         var track = demuxer.Info.FirstTrack(MediaKind.Audio) ?? throw new NotSupportedException("The file has no sound to draw.");
         var opened = MediaRegistries.Decoders(new MfDecoderFactory()).CreateAudio(track);
         using var decoder = opened.Decoder ?? throw new NotSupportedException(opened.Reason);
         var decoded = new List<AudioFrame>();
         var mono = new List<float>(96_000);
         var sampleRate = track.Audio!.SampleRate;
-        var wanted = sampleRate * 8;
-        while (mono.Count < wanted && demuxer.ReadPacket(token) is { } packet)
+        var wanted = checked(Math.Clamp(sampleRate, 1, 384_000) * 8);
+        try
         {
-            using (packet)
+            while (mono.Count < wanted && demuxer.ReadPacket(token) is { } packet)
             {
-                if (packet.TrackId == track.Id)
+                using (packet)
                 {
-                    decoder.Decode(packet, decoded);
+                    if (packet.TrackId == track.Id)
+                    {
+                        decoder.Decode(packet, decoded);
+                    }
                 }
+
+                AddMono(decoded, mono, wanted);
+            }
+
+            if (mono.Count < wanted)
+            {
+                decoder.Drain(decoded);
             }
 
             AddMono(decoded, mono, wanted);
         }
+        finally
+        {
+            foreach (var frame in decoded)
+            {
+                frame.Dispose();
+            }
+        }
 
-        decoder.Drain(decoded);
-        AddMono(decoded, mono, wanted);
+        token.ThrowIfCancellationRequested();
         if (mono.Count == 0)
         {
             throw new MediaFormatException("The audio track gave no samples for its artwork.");

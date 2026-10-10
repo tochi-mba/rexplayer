@@ -121,7 +121,13 @@ public sealed partial class MainWindow
                     return;
                 }
 
-                _visualCover = await DecodeVisualPictureAsync(cover);
+                var visualCover = await DecodeVisualPictureAsync(cover);
+                if (_closed || !ReferenceEquals(cover, _shownCover))
+                {
+                    return;
+                }
+
+                _visualCover = visualCover;
                 CoverImage.Source = image;
                 shown = true;
             }
@@ -129,6 +135,11 @@ public sealed partial class MainWindow
             {
                 App.Log.Info(LogSource, "The cover picture could not be shown: " + ex.Message);
             }
+        }
+
+        if (_closed || !ReferenceEquals(cover, _shownCover))
+        {
+            return;
         }
 
         CoverBox.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
@@ -165,7 +176,8 @@ public sealed partial class MainWindow
             transform,
             Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
             Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
-        return new VisualPicture(data.DetachPixelData(), (int)width, (int)height);
+        var rotated = decoder.OrientedPixelWidth != decoder.PixelWidth;
+        return new VisualPicture(data.DetachPixelData(), (int)(rotated ? height : width), (int)(rotated ? width : height));
     }
 
     /// <summary>Marks the line being sung and brings it to the middle of the lyrics.</summary>

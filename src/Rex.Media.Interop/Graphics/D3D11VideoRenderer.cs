@@ -89,7 +89,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             {
                 return saturate((original - 0.5) * look.z + 0.5 + (look.y - 1) * 0.25);
             }
-            return saturate(lerp(original, styled, saturate(look.y)));
+            return saturate(lerp(original, styled, look.y));
         }
         // All effects operate on sampled pixels, after decoding and before colour grading.
         // Sampling geometry and spatial derivatives are GPU-local; original frames stay intact.
@@ -106,7 +106,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             if (effect.x < 2.5) return uv;
             if (effect.x < 3.5)
             {
-                float scale = lerp(150, 16, intensity);
+                float scale = lerp(150, 16, intensity) * max(pointer.w, 0.25);
                 float2 grid = float2(scale * effect.w, scale);
                 float stagger = sin(floor(uv.y * grid.y) * 0.8 + time * 2) * 0.013 * intensity;
                 return saturate((floor((uv + float2(stagger, 0)) * grid) + 0.5) / grid);
@@ -154,7 +154,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             {
                 float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
                 float distance = length(delta);
-                float radius = 0.23;
+                float radius = 0.23 / max(pointer.w, 0.25);
                 float inside = 1 - smoothstep(radius * 0.72, radius, distance);
                 return saturate(uv - delta / float2(effect.w, 1) * (0.55 * intensity * inside));
             }
@@ -194,7 +194,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             }
             if (effect.y > 0 && effect.x > 1.5 && effect.x < 2.5)
             {
-                float2 texel = float2(0.002, 0.002 * effect.w);
+                float2 texel = float2(0.002, 0.002 * effect.w) / max(pointer.w, 0.25);
                 float3 left = readColour(uv - float2(texel.x, 0), isYuv);
                 float3 right = readColour(uv + float2(texel.x, 0), isYuv);
                 float3 top = readColour(uv - float2(0, texel.y), isYuv);
@@ -219,7 +219,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 }
                 else if (effect.x < 6.5) // Topographic: isolines of actual pixel luminance
                 {
-                    float iso = 1 - smoothstep(0.04, 0.12, abs(frac(lum * 14) - 0.5));
+                    float iso = 1 - smoothstep(0.04, 0.12, abs(frac(lum * 14 * max(pointer.w, 0.25)) - 0.5));
                     float slopes = smoothstep(0.02, 0.2, edge);
                     float ridge = iso * slopes;
                     styled = saturate(colour * float3(0.23, 0.35, 0.48)
@@ -242,7 +242,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 float gradientSize = length(gradient);
                 float edge = smoothstep(0.045, 0.28, gradientSize);
                 float2 normal = gradient / max(gradientSize, 0.0001);
-                float phase = sin(effect.z * 1.7 + uv.x * 12 + uv.y * 9);
+                float phase = sin(effect.z * 1.7 * max(pointer.w, 0.25) + uv.x * 12 + uv.y * 9);
                 float2 warped = saturate(uv + normal * (0.028 * effect.y * edge * phase));
                 float3 refracted = readColour(warped, isYuv);
                 colour = lerp(colour, refracted, edge * effect.y);
@@ -254,7 +254,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 // A fine highlight at the actual lens boundary communicates where the cursor is.
                 float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
                 float dist = length(delta);
-                float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23));
+                float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23 / max(pointer.w, 0.25)));
                 colour = saturate(colour + float3(0.23, 0.48, 0.57) * rim * effect.y);
             }
             return styledLook(saturate(colour));

@@ -243,6 +243,38 @@ public sealed class PipelinePartsTests
     }
 
     [Fact]
+    public void AGaplessClockDoesNotKeepFinishedItemsAlive()
+    {
+        var (clock, old) = ClockWithFinishedItem();
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        Assert.False(old.IsAlive);
+        GC.KeepAlive(clock);
+    }
+
+    [Fact]
+    public void RebasingDropsUnreportedHandoversFromThePreviousGeneration()
+    {
+        var clock = new AudioClock(new PlayedSink());
+        clock.Continue(MediaTime.Zero, new object());
+        Assert.NotNull(clock.Heard);
+        var afterSeek = new object();
+        clock.Rebase(MediaTime.FromSeconds(5), 1000, item: afterSeek);
+        Assert.Same(afterSeek, Assert.Single(clock.TakeStarted()));
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static (AudioClock Clock, WeakReference Old) ClockWithFinishedItem()
+    {
+        var item = new object();
+        var clock = new AudioClock(new PlayedSink(), item);
+        clock.Continue(MediaTime.Zero, new object());
+        Assert.Single(clock.TakeStarted());
+        return (clock, new WeakReference(item));
+    }
+
+    [Fact]
     [Capability("PB-14")]
     public void TheAudioClockMovesToTheNextItemOfARunWhenItsFirstSampleIsHeard()
     {

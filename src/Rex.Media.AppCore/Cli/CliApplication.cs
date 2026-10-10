@@ -62,7 +62,7 @@ public static partial class CliApplication
             return 0;
         }
 
-        host.Out.WriteLine("rexplay — the rexplayer command line, by REX Technologies.");
+        host.Out.WriteLine("rexplay - the rexplayer command line, by REX Technologies.");
         host.Out.WriteLine();
         host.Out.WriteLine("Commands:");
         foreach (var command in CliReference.Commands)

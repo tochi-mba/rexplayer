@@ -93,7 +93,7 @@ public static class LibraryBackup
         var playlists = 0;
         foreach (var playlist in data.Playlists.Where(playlist => playlist is not null && !string.IsNullOrWhiteSpace(playlist.Name)))
         {
-            var items = playlist.Items ?? [];
+            var items = (playlist.Items ?? []).Where(item => item is not null && !string.IsNullOrWhiteSpace(item.Location)).ToArray();
             var same = controller.NamedPlaylists.Any(kept => kept.Name.Equals(playlist.Name, StringComparison.OrdinalIgnoreCase)
                 && kept.Items.Select(item => item.Location).SequenceEqual(items.Select(item => item.Location), StringComparer.OrdinalIgnoreCase));
             if (!same)

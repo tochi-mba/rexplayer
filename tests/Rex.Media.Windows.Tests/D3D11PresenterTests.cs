@@ -161,6 +161,11 @@ public sealed class D3D11PresenterTests
         using var altered = presenter.ReadBack();
         Assert.True(MaxDifference(original, altered) > 2, $"{effect} did not change picture geometry or detail");
 
+        presenter.SetEffect(effect, 100, 175);
+        presenter.Redraw();
+        using var detailed = presenter.ReadBack();
+        Assert.True(MaxDifference(altered, detailed) > 0, $"{effect}'s detail control did not change its pixels");
+
         presenter.SetEffect(effect, 0);
         presenter.Redraw();
         using var zeroIntensity = presenter.ReadBack();
@@ -209,6 +214,11 @@ public sealed class D3D11PresenterTests
         presenter.Redraw();
         using var cinematic = presenter.ReadBack();
         Assert.True(MaxDifference(baseline, cinematic) > 2);
+
+        presenter.SetLook(VideoLook.Cinema, 100, 135);
+        presenter.Redraw();
+        using var normalIntensity = presenter.ReadBack();
+        Assert.True(MaxDifference(cinematic, normalIntensity) > 0, "Intensity above 100 must not be silently clipped");
 
         presenter.SetLook(VideoLook.Cinema, 0, 100);
         presenter.Redraw();

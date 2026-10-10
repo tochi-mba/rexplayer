@@ -79,10 +79,10 @@ test('a missing address shows the styled 404 page', async ({ page }) => {
   const response = await page.goto('./no/such/page');
 
   expect(response.status()).toBe(404);
-  await expect(page).toHaveTitle(/Not found — rexplayer/);
+  await expect(page).toHaveTitle(/Not found - rexplayer/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(8, 10, 9)');
   await page.getByRole('link', { name: 'Back to rexplayer' }).click();
-  await expect(page).toHaveTitle(/rexplayer — every file/);
+  await expect(page).toHaveTitle(/rexplayer - every file/);
 });
 
 test('every FAQ answer opens and the first is open already', async ({ page }) => {

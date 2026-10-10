@@ -8,6 +8,25 @@ public sealed class RasterTests
 {
     private static readonly Rgb Red = new(1, 0, 0);
 
+    [Theory]
+    [InlineData(10, 2)]
+    [InlineData(1, 4)]
+    [InlineData(2.2, 2)]
+    public void ARingMatchesItsDistanceAtEveryPixelWithoutPaintingCapsTwice(double radius, double width)
+    {
+        var canvas = new Raster(31, 31);
+        canvas.Ring(15, 15, radius, width, Red);
+        for (var y = 0; y < 31; y++)
+        {
+            for (var x = 0; x < 31; x++)
+            {
+                var distance = Math.Abs(Math.Sqrt(((x - 15) * (x - 15)) + ((y - 15) * (y - 15))) - radius);
+                var expected = (float)Math.Clamp(Math.Max(0.5, width / 2) + 0.5 - distance, 0, 1);
+                Assert.Equal(expected, canvas[x, y].R, 5);
+            }
+        }
+    }
+
     [Fact]
     public void LightAddsUpAndTheToneCurveRollsItOffWithoutClipping()
     {

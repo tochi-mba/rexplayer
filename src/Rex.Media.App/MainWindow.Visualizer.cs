@@ -34,6 +34,8 @@ public sealed partial class MainWindow
     private readonly float[] _soundLeft = new float[SpectrumAnalyzer.Size];
     private readonly float[] _soundRight = new float[SpectrumAnalyzer.Size];
     private readonly float[] _soundMono = new float[SpectrumAnalyzer.Size];
+    private readonly float[] _stageLeft = new float[SpectrumAnalyzer.Size];
+    private readonly float[] _stageRight = new float[SpectrumAnalyzer.Size];
     private readonly SpectrumAnalyzer _spectrogramBands = new(SpectrogramRows);
     private readonly LevelMeter _meterLeft = new();
     private readonly LevelMeter _meterRight = new();
@@ -55,6 +57,7 @@ public sealed partial class MainWindow
     private VisualizerChoice? _builtFor;
     private Task? _stageWork;
     private bool _stageFailed;
+    private bool _stageReset;
     private TimeSpan _lastDrawn;
     private bool _visualizing;
 
@@ -136,7 +139,8 @@ public sealed partial class MainWindow
         _spectrogramBands.Reset();
         _meterLeft.Reset();
         _meterRight.Reset();
-        _visualStage?.Reset();
+        // The worker owns the stage until its frame finishes. Reset between frames, never during one.
+        _stageReset = true;
         StopCamera();
     }
 
@@ -163,7 +167,8 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Whether <paramref name="choice"/> uses the camera.</summary>
-    private static bool UsesCamera(VisualizerChoice choice) => VisualScene.For(choice)?.UsesCamera ?? false;
+    private bool UsesCamera(VisualizerChoice choice) => choice == VisualizerChoice.Silhouette
+        || (choice == VisualizerChoice.BeatEdit && VisualizerOptions.Choice(_settings.VisualOptions, choice, "source") == 0);
 
     /// <summary>Asks once whether the camera may be used; true when it may.</summary>
     private async Task<bool> AllowCameraAsync()
@@ -431,7 +436,7 @@ public sealed partial class MainWindow
 
     private void OnRendering(object? sender, object e)
     {
-        if (_closed)
+        if (_closed || (_visualStage is not null && _stageWork is { IsCompleted: false }))
         {
             return;
         }
@@ -520,7 +525,12 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_stageWork is { IsCompletedSuccessfully: true } && bitmap.PixelWidth == stage.Canvas.Width && bitmap.PixelHeight == stage.Canvas.Height)
+        if (_stageReset)
+        {
+            stage.Reset();
+            _stageReset = false;
+        }
+        else if (_stageWork is { IsCompletedSuccessfully: true } && bitmap.PixelWidth == stage.Canvas.Width && bitmap.PixelHeight == stage.Canvas.Height)
         {
             using (var stream = bitmap.PixelBuffer.AsStream())
             {
@@ -574,11 +584,13 @@ public sealed partial class MainWindow
         }
 
         // The sound and the settings as they are now go with the frame; the window keeps its own.
-        var (left, right, options) = ((float[])_soundLeft.Clone(), (float[])_soundRight.Clone(), _settings.VisualOptions);
+        _soundLeft.CopyTo(_stageLeft, 0);
+        _soundRight.CopyTo(_stageRight, 0);
+        var options = _settings.VisualOptions;
         _stageWork = Task.Run(() =>
         {
             var clock = System.Diagnostics.Stopwatch.StartNew();
-            stage.Draw(choice, options, left, right, rate, elapsed);
+            stage.Draw(choice, options, _stageLeft, _stageRight, rate, elapsed);
             stage.Took(clock.Elapsed.TotalMilliseconds);
         });
     }

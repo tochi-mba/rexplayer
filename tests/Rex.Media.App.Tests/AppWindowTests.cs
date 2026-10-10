@@ -285,6 +285,28 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    public void CoverOnlyBeatEditDoesNotStartAnAllowedCameraAndStopsCleanly()
+    {
+        var root = RootShowing("BeatEdit");
+        var path = Path.Combine(root, "settings.json");
+        var settings = Rex.Media.Settings.SettingsStore.Load(path);
+        Rex.Media.Settings.SettingsStore.Save(path, settings with
+        {
+            CameraAllowed = true,
+            VisualOptions = new Dictionary<string, string> { ["beatedit.source"] = "1" },
+        });
+        using var app = AppProcess.Start([Music(30)], root);
+        Wait.For(() => app.IsShown("Visualizer"), "the cover-only beat edit");
+        Thread.Sleep(1000);
+        app.Run(CommandCatalog.Stop);
+        Wait.For(() => !app.IsShown("Visualizer"), "the visualisation to stop");
+        Assert.DoesNotContain("The camera is on", app.LogText, StringComparison.Ordinal);
+        Assert.DoesNotContain("The camera could not be used", app.LogText, StringComparison.Ordinal);
+        Assert.DoesNotContain("could not be drawn", app.LogText, StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void MusicCoversThePictureThatPlayedBeforeIt()
     {
         var picture = Path.Combine(_media, "photo.png");

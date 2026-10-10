@@ -60,7 +60,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-C17 | MXF (OP1a) | Broadcast exchange | post | could | post-1.0 |
 | FMT-C18 | DV raw | DIF stream | post | could | post-1.0 |
 | FMT-C19 | Image files as media | JPEG/PNG/BMP/GIF/TIFF/WebP/HEIC (via WIC, so OS codecs); a display duration for slideshows in playlists | M6 | should | verified |
-| FMT-C20 | Real/NSV/NUT/PVA/SMF-as-container | Legacy | — | wont | post-1.0 |
+| FMT-C20 | Real/NSV/NUT/PVA/SMF-as-container | Legacy | - | wont | post-1.0 |
 
 ## Formats: Video decoders
 
@@ -81,7 +81,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-V13 | Theora | MF if present; own Could | M12 | could | planned |
 | FMT-V14 | DV (25/50) | MF | M7 | could | planned |
 | FMT-V15 | VVC | MF only if an extension exists | post | could | post-1.0 |
-| FMT-V16 | Legacy (Cinepak, Indeo, Sorenson, RealVideo, VP3/5/6, ProRes, FFV1/HuffYUV) | — (FFV1/HuffYUV own Could post-1.0) | — | wont | post-1.0 |
+| FMT-V16 | Legacy (Cinepak, Indeo, Sorenson, RealVideo, VP3/5/6, ProRes, FFV1/HuffYUV) | - (FFV1/HuffYUV own Could post-1.0) | - | wont | post-1.0 |
 
 ## Formats: Audio decoders
 
@@ -107,7 +107,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | FMT-A18 | MIDI (SMF) | Own small synthesiser (sine/wavetable GM-lite) or the OS synth via midiOut | post | could | post-1.0 |
 | FMT-A19 | Tracker modules (MOD/S3M/XM/IT) | Own Could | post | could | post-1.0 |
 | FMT-A20 | G.711/G.722 (RTP telephony) | Own G.711; G.722 Could | M12 | could | planned |
-| FMT-A21 | ATRAC, QDM2, MACE, RealAudio | — | — | wont | post-1.0 |
+| FMT-A21 | ATRAC, QDM2, MACE, RealAudio | - | - | wont | post-1.0 |
 
 ## Formats: Subtitles & captions
 
@@ -122,10 +122,10 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | SUB-07 | PGS (HDMV .sup / in M2TS/MKV) | Composition, cropping, forced | M7 | must | planned |
 | SUB-08 | DVB subtitles | Region/CLUT/object segments | M7 | should | planned |
 | SUB-09 | CEA-608 (in H.264 SEI / MPEG-2 user data) | Roll-up / pop-on / paint-on | M15 | should | planned |
-| SUB-10 | CEA-708 | — | post | could | post-1.0 |
-| SUB-11 | TTML / DFXP / SMPTE-TT (text) | — | M15 | could | planned |
-| SUB-12 | Teletext subtitles (DVB) | — | post | could | post-1.0 |
-| SUB-13 | JACOsub, PJS, MPSub, USF, SCC, RealText, Kate | — | post | could/wont | post-1.0 |
+| SUB-10 | CEA-708 | - | post | could | post-1.0 |
+| SUB-11 | TTML / DFXP / SMPTE-TT (text) | - | M15 | could | planned |
+| SUB-12 | Teletext subtitles (DVB) | - | post | could | post-1.0 |
+| SUB-13 | JACOsub, PJS, MPSub, USF, SCC, RealText, Kate | - | post | could/wont | post-1.0 |
 | SUB-14 | Sidecar autoload | Same folder plus `Subs/`, `subs/`, `Subtitles/`, `subtitles/`; match levels exact / starts-with / contains / any; language codes in the filename (`movie.en.srt`, `movie.fr.forced.srt`) | M5 | must | verified |
 | SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built |
 | SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified |
@@ -247,7 +247,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | NET-02 | Internet radio (ICY/SHOUTcast/Icecast) | `Icy-MetaData` titles into now-playing, reconnect, chained Ogg | M8 | must | planned |
 | NET-03 | HLS | VOD + live + event; TS and fMP4 segments; AES-128 and SAMPLE-AES (non-DRM); alternate audio/subtitle renditions; WebVTT segments; adaptive bitrate (throughput + buffer based) with a manual quality pin; live-edge seeking and DVR window; discontinuity handling | M8 | must | planned |
 | NET-04 | MPEG-DASH | Static + dynamic MPD, SegmentTemplate/Timeline/List/Base, multi-period (C), ABR; non-DRM | M12 | should | planned |
-| NET-05 | Smooth Streaming | — | post | could | post-1.0 |
+| NET-05 | Smooth Streaming | - | post | could | post-1.0 |
 | NET-06 | RTSP | RTP over UDP with TCP-interleaved fallback (and a forced-TCP option); Basic/Digest auth; keep-alive; H.264/H.265/AAC/MPEG-audio/PCM/JPEG depacketisers; RTCP sender reports for sync | M12 | must | planned |
 | NET-07 | RTP / UDP | Unicast + multicast (`udp://@239.x.x.x:port`), TTL and interface selection, MPEG-TS over UDP/RTP, jitter buffer, reorder, FEC Could | M12 | must | planned |
 | NET-08 | FTP / FTPS | Passive mode, resume, explicit TLS | M12 | should | planned |
@@ -278,14 +278,14 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | DISC-04 | DVD-Video (unencrypted) | Disc, `VIDEO_TS` folder, ISO; title/chapter navigation, audio/subtitle stream selection, angles (C), forced subtitles, LPCM/AC-3/DTS/MPEG audio | M13 | must | planned |
 | DISC-05 | DVD menus | Navigation VM, highlights, buttons | post | could | post-1.0 |
 | DISC-06 | Blu-ray (unencrypted BDMV) | Disc, `BDMV` folder, ISO; playlist (mpls) selection with main-feature heuristic, chapters, PGS, multi-clip seamless joins | M13 | should | planned |
-| DISC-07 | Blu-ray menus (HDMV/BD-J) | — | post | wont | post-1.0 |
+| DISC-07 | Blu-ray menus (HDMV/BD-J) | - | post | wont | post-1.0 |
 | DISC-08 | VCD/SVCD | MPEG-1/2 in Mode 2 sectors | M13 | could | planned |
 | DISC-09 | Encrypted-disc message | Detects CSS/AACS and says plainly it is unsupported (§5.5) | M13 | must | planned |
 | DISC-10 | Disc auto-detection | Media arrival → "Play disc" prompt or AutoPlay handler | M13/M15 | should | planned |
 | CAP-01 | Webcam / capture card video + audio | MF device sources (formats, resolution, fps pick), audio endpoint pairing; device config dialog where the device exposes properties | M12 | should | planned |
 | CAP-02 | Screen capture | Monitor or window, fps, region, cursor draw, follow-mouse region; Windows.Graphics.Capture first, DXGI duplication fallback (house knowledge from Flint) | M12 | should | planned |
 | CAP-03 | Capture to file / stream | Through Convert/Stream-out | M12 | should | planned |
-| CAP-04 | TV tuners (DVB via BDA) and analog TV | — | post | wont | post-1.0 |
+| CAP-04 | TV tuners (DVB via BDA) and analog TV | - | post | wont | post-1.0 |
 
 ## Convert, record, stream-out
 
@@ -300,10 +300,10 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | OUT-07 | Stream-out: HTTP server | Serve TS / fragmented MP4 / WebM over HTTP to the LAN (opt-in, bind address, port, password optional) | M9 | should | planned |
 | OUT-08 | Stream-out: RTP/UDP | MPEG-TS over UDP or RTP unicast/multicast, TTL, SDP file generation, SAP announce (C) | M9 | should | planned |
 | OUT-09 | Stream-out: Icecast source | Push audio to an Icecast/SHOUTcast server (MP3/AAC/Ogg) | M12 | could | planned |
-| OUT-10 | Stream-out: RTSP server | — | post | could | post-1.0 |
+| OUT-10 | Stream-out: RTSP server | - | post | could | post-1.0 |
 | OUT-11 | Transcode-while-streaming | Same graph as Convert with real-time pacing; "display locally while streaming" toggle | M9 | should | planned |
 | OUT-12 | Stream chain string | A human-readable, versioned JSON "output chain" document equivalent (for CLI/automation): `{ "transcode": {...}, "outputs": [ {"file": ...}, {"http": ...} ] }` | M9 | should | planned |
-| OUT-13 | Scheduled broadcasts (multi-channel manager) | — (CLI + Task Scheduler recipe documented instead) | post | could | post-1.0 |
+| OUT-13 | Scheduled broadcasts (multi-channel manager) | - (CLI + Task Scheduler recipe documented instead) | post | could | post-1.0 |
 | OUT-14 | Own audio encoders | PCM/WAV, FLAC (own); MP3/AAC/WMA via MF; Opus/Vorbis encoders own (C, post-1.0) | M9 | must | planned |
 
 ## Playlist, library & persistence
@@ -321,7 +321,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | verified |
 | LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | verified |
 | LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified |
-| LIB-12 | Ratings, duplicates finder | — | post | could | post-1.0 |
+| LIB-12 | Ratings, duplicates finder | - | post | could | post-1.0 |
 
 ## UI surface
 
@@ -342,7 +342,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | UI-13 | Themes | System / light / dark; accent from the system or the REX signal colour; high contrast; Mica backdrop; theme packages (C) | M4/M15 | must | built |
 | UI-14 | First run | Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern) | M4/M15 | must | verified |
 | UI-15 | What's new | Shown once after an update (house pattern) | M4 | should | verified |
-| UI-16 | Window title | `<title> — rexplayer`; token format configurable | M4 | should | verified |
+| UI-16 | Window title | `<title> - rexplayer`; token format configurable | M4 | should | verified |
 | UI-17 | In-window confirmations | No modal pop-ups during playback; system dialogs only before a window exists (house rule) | M4 | must | built |
 | UI-18 | Mouse & touch | Wheel volume (default) or seek; double-click fullscreen; middle-click pause; back/forward buttons = previous/next; touch: tap shows controls, double-tap left/right edge seeks ∓10 s, pinch zoom in zoom/360° modes | M4/M15 | must/should | built |
 
@@ -362,7 +362,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | TOOL-10 | Diagnostics bundle | Logs + redacted settings + system/codec report → zip for issue reports | M4 | should | verified |
 | TOOL-11 | System probe | `rexplay probe --system`: MF decoders/encoders present, hardware decode caps per codec/resolution, audio endpoints, displays/HDR state | M3 | must | verified |
 | TOOL-12 | Portable mode | Settings and library beside the exe when `rexplayer.portable` exists | M15 | should | planned |
-| TOOL-13 | Broadcast manager (scheduled multi-channel outputs) | — | post | could | post-1.0 |
+| TOOL-13 | Broadcast manager (scheduled multi-channel outputs) | - | post | could | post-1.0 |
 
 ## Windows platform integration
 
@@ -381,9 +381,9 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | WIN-11 | Power awareness | VID-29 power requests; pause on sleep, re-open devices on resume | M4/M11 | must | built |
 | WIN-12 | Architectures | x64 (M); ARM64 native (S) through cross-platform `Vector128` SIMD paths | M0/M15 | must/should | planned |
 | WIN-13 | Minimum OS | Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target | M0 | must | built |
-| WIN-14 | Crash recovery | Global handlers (house), "rexplayer closed unexpectedly — resume where you were?" on next start, opt-in local minidumps, nothing uploaded | M4 | must | verified |
-| WIN-15 | Share / "Open with" from apps | — | post | could | post-1.0 |
-| WIN-16 | URL protocol handler | Deliberately not registered (attack surface without user value) | — | wont | post-1.0 |
+| WIN-14 | Crash recovery | Global handlers (house), "rexplayer closed unexpectedly - resume where you were?" on next start, opt-in local minidumps, nothing uploaded | M4 | must | verified |
+| WIN-15 | Share / "Open with" from apps | - | post | could | post-1.0 |
+| WIN-16 | URL protocol handler | Deliberately not registered (attack surface without user value) | - | wont | post-1.0 |
 
 ## Accessibility & internationalisation
 

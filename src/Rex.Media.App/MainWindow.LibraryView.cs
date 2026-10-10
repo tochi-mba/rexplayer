@@ -205,28 +205,29 @@ public sealed partial class MainWindow
             }
         }
 
-        _libraryRows = [.. sections.SelectMany(section => section)];
+        var rowsForView = sections.SelectMany(section => section).ToList();
         var collage = options && choice.Look == LibraryLook.Collage;
         LibraryList.Visibility = collage ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
-        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, _libraryRows.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
+        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
         ShowViewOptions(options, choice, groupsView, kind);
         LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
-        ShowLibraryEmpty(_libraryRows.Count == 0, search.Length > 0, source);
+        ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source);
 
-        var look = SetLibraryLook(options ? choice : new LibraryViewChoice(LibraryLook.List), _libraryRows.FirstOrDefault()?.Item, options);
+        var look = SetLibraryLook(options ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
-        var shown = look + "\n" + title + "\n" + grouped + "\n" + string.Join("\n", sections.Select(section => section.Header + ":" + string.Join("\n", section.Select(row => row.Name + "|" + row.Detail + "|" + row.Extra))));
+        var shown = look + "\n" + title + "\n" + grouped + "\n" + string.Join("\n", sections.Select(section => section.Header + ":" + string.Join("\n", section.Select(RowIdentity))));
         if (shown == _shownLibrary)
         {
             return;
         }
 
         CancelLibraryPictures();
+        _libraryRows = rowsForView;
         _shownLibrary = shown;
         if (collage)
         {
@@ -445,14 +446,14 @@ public sealed partial class MainWindow
             ("Videos", LibrarySource.Videos, [.. recent.Where(entry => entry.Kind == LibraryKind.Video).Take(20).Select(EntryRow)], true),
             ("Pictures", LibrarySource.Pictures, [.. recent.Where(entry => entry.Kind == LibraryKind.Picture).Take(24).Select(EntryRow)], false),
         };
-        _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
-        var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row => row.Name + row.Extra))));
+        var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(RowIdentity))));
         if (shown == _shownLibrary)
         {
             return;
         }
 
         CancelLibraryPictures();
+        _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
         _shownLibrary = shown;
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
@@ -525,10 +526,12 @@ public sealed partial class MainWindow
                 break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);
-                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
+                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see == LibrarySource.ContinueWatching);
                 break;
         }
     }
+
+    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.Detail}|{row.Extra}|{row.Progress:R}";
 
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)

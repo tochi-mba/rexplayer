@@ -124,7 +124,12 @@ public sealed partial class MainWindow
         }
 
         _watchers.Clear();
-        _scanner?.Dispose();
+        if (_scanner is { } scanner)
+        {
+            _scanner = null;
+            // Closing a scan can join a slow filesystem worker; never hold up the window or updater.
+            _ = Task.Run(scanner.Dispose);
+        }
     }
 
     private static void Restart(DispatcherQueueTimer timer)
@@ -538,7 +543,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Plays from the library; visual media closes the library so its picture shows.</summary>
-    private void Play(IReadOnlyList<LibraryEntry> entries, int start)
+    private void Play(IReadOnlyList<LibraryEntry> entries, int start, bool resume = false)
     {
         if (entries.Count == 0)
         {
@@ -547,13 +552,19 @@ public sealed partial class MainWindow
         }
 
         var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
-        var resumeAt = _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
+        var resumeAt = resume || _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
         if (chosen.Kind is LibraryKind.Video or LibraryKind.Picture)
         {
             // Let the pane disappear and the window paint before opening a potentially large image
             // or video. Its probing and decoding stay on the engine threads, never this UI turn.
             SetLibraryOpen(false);
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _player.PlayFromLibrary(entries, start, resumeAt));
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            {
+                if (!_closing)
+                {
+                    _player.PlayFromLibrary(entries, start, resumeAt);
+                }
+            });
         }
         else
         {
@@ -688,12 +699,16 @@ public sealed partial class MainWindow
 
         try
         {
-            foreach (var (path, bytes) in LibraryBackup.Export(_library!, _player.NamedPlaylists))
+            var playlists = _player.NamedPlaylists.ToArray();
+            await Task.Run(() =>
             {
-                var target = Path.Combine(folder.Path, path);
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                Rex.Media.IO.AtomicFile.Write(target, bytes);
-            }
+                foreach (var (path, bytes) in LibraryBackup.Export(_library!, playlists))
+                {
+                    var target = Path.Combine(folder.Path, path);
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    Rex.Media.IO.AtomicFile.Write(target, bytes);
+                }
+            });
 
             App.Log.Info(LogSource, "Backed the library up to " + folder.Path);
             Say("The library is backed up in " + folder.Path);

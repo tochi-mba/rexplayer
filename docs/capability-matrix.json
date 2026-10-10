@@ -466,7 +466,7 @@
       "area": "Formats: Containers / demuxers",
       "name": "Real/NSV/NUT/PVA/SMF-as-container",
       "details": "Legacy",
-      "milestone": "—",
+      "milestone": "-",
       "priority": "wont",
       "oracles": "",
       "status": "post-1.0"
@@ -625,8 +625,8 @@
       "id": "FMT-V16",
       "area": "Formats: Video decoders",
       "name": "Legacy (Cinepak, Indeo, Sorenson, RealVideo, VP3/5/6, ProRes, FFV1/HuffYUV)",
-      "details": "— (FFV1/HuffYUV own Could post-1.0)",
-      "milestone": "—",
+      "details": "- (FFV1/HuffYUV own Could post-1.0)",
+      "milestone": "-",
       "priority": "wont",
       "oracles": "",
       "status": "post-1.0"
@@ -835,8 +835,8 @@
       "id": "FMT-A21",
       "area": "Formats: Audio decoders",
       "name": "ATRAC, QDM2, MACE, RealAudio",
-      "details": "—",
-      "milestone": "—",
+      "details": "-",
+      "milestone": "-",
       "priority": "wont",
       "oracles": "",
       "status": "post-1.0"
@@ -935,7 +935,7 @@
       "id": "SUB-10",
       "area": "Formats: Subtitles & captions",
       "name": "CEA-708",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could",
       "oracles": "",
@@ -945,7 +945,7 @@
       "id": "SUB-11",
       "area": "Formats: Subtitles & captions",
       "name": "TTML / DFXP / SMPTE-TT (text)",
-      "details": "—",
+      "details": "-",
       "milestone": "M15",
       "priority": "could",
       "oracles": "",
@@ -955,7 +955,7 @@
       "id": "SUB-12",
       "area": "Formats: Subtitles & captions",
       "name": "Teletext subtitles (DVB)",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could",
       "oracles": "",
@@ -965,7 +965,7 @@
       "id": "SUB-13",
       "area": "Formats: Subtitles & captions",
       "name": "JACOsub, PJS, MPSub, USF, SCC, RealText, Kate",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could/wont",
       "oracles": "",
@@ -1885,7 +1885,7 @@
       "id": "NET-05",
       "area": "Network input, discovery & casting",
       "name": "Smooth Streaming",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could",
       "oracles": "NET",
@@ -1948,7 +1948,7 @@
       "details": "Large protocol work for little desktop demand",
       "milestone": "post",
       "priority": "could/wont",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {
@@ -2145,10 +2145,10 @@
       "id": "DISC-07",
       "area": "Discs & capture",
       "name": "Blu-ray menus (HDMV/BD-J)",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "wont",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {
@@ -2215,10 +2215,10 @@
       "id": "CAP-04",
       "area": "Discs & capture",
       "name": "TV tuners (DVB via BDA) and analog TV",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "wont",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {
@@ -2315,7 +2315,7 @@
       "id": "OUT-10",
       "area": "Convert, record, stream-out",
       "name": "Stream-out: RTSP server",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could",
       "oracles": "NET",
@@ -2345,10 +2345,10 @@
       "id": "OUT-13",
       "area": "Convert, record, stream-out",
       "name": "Scheduled broadcasts (multi-channel manager)",
-      "details": "— (CLI + Task Scheduler recipe documented instead)",
+      "details": "- (CLI + Task Scheduler recipe documented instead)",
       "milestone": "post",
       "priority": "could",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {
@@ -2475,7 +2475,7 @@
       "id": "LIB-12",
       "area": "Playlist, library & persistence",
       "name": "Ratings, duplicates finder",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could",
       "oracles": "STORE",
@@ -2635,7 +2635,7 @@
       "id": "UI-16",
       "area": "UI surface",
       "name": "Window title",
-      "details": "`<title> — rexplayer`; token format configurable",
+      "details": "`<title> - rexplayer`; token format configurable",
       "milestone": "M4",
       "priority": "should",
       "oracles": "UIA",
@@ -2785,10 +2785,10 @@
       "id": "TOOL-13",
       "area": "Tools, interfaces, extensions & CLI",
       "name": "Broadcast manager (scheduled multi-channel outputs)",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {
@@ -2918,14 +2918,14 @@
       "details": "Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target",
       "milestone": "M0",
       "priority": "must",
-      "oracles": "—",
+      "oracles": "-",
       "status": "built"
     },
     {
       "id": "WIN-14",
       "area": "Windows platform integration",
       "name": "Crash recovery",
-      "details": "Global handlers (house), \"rexplayer closed unexpectedly — resume where you were?\" on next start, opt-in local minidumps, nothing uploaded",
+      "details": "Global handlers (house), \"rexplayer closed unexpectedly - resume where you were?\" on next start, opt-in local minidumps, nothing uploaded",
       "milestone": "M4",
       "priority": "must",
       "oracles": "EVT STORE",
@@ -2935,10 +2935,10 @@
       "id": "WIN-15",
       "area": "Windows platform integration",
       "name": "Share / \"Open with\" from apps",
-      "details": "—",
+      "details": "-",
       "milestone": "post",
       "priority": "could",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {
@@ -2946,9 +2946,9 @@
       "area": "Windows platform integration",
       "name": "URL protocol handler",
       "details": "Deliberately not registered (attack surface without user value)",
-      "milestone": "—",
+      "milestone": "-",
       "priority": "wont",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {
@@ -3048,7 +3048,7 @@
       "details": "1.0 ships English (house British spelling); translations accepted post-1.0",
       "milestone": "M15",
       "priority": "must",
-      "oracles": "—",
+      "oracles": "-",
       "status": "planned"
     },
     {
@@ -3118,7 +3118,7 @@
       "details": "MF transforms run in-process at 1.0; out-of-process decode host is a post-1.0 hardening option",
       "milestone": "post",
       "priority": "could",
-      "oracles": "—",
+      "oracles": "-",
       "status": "post-1.0"
     },
     {

@@ -35,6 +35,7 @@ public sealed partial class MediaSession
         private readonly AudioFormat _sinkFormat;
         private readonly AudioPipeline _pipeline;
         private readonly AudioClock _clock;
+        private readonly object _heardGate = new();
         private readonly BoundedQueue<Packet> _audioQueue;
         private readonly CancellationTokenSource _lifetime = new();
         private readonly ManualResetEventSlim _playGate = new(false);
@@ -474,6 +475,7 @@ public sealed partial class MediaSession
             _pipeline.Speed = Volatile.Read(ref _speed);
             _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate, _pipeline.Speed);
             state.AwaitingFirstFrame = true;
+            state.Continuing = false;
             state.NextPts = MediaTime.Unknown;
             state.PaddingSamples = 0;
         }
@@ -516,10 +518,13 @@ public sealed partial class MediaSession
         /// </summary>
         private void AnnounceHeard()
         {
-            foreach (var item in _clock.TakeStarted().Cast<MediaItem>())
+            lock (_heardGate)
             {
-                Volatile.Write(ref _info, item.Info);
-                _session.OnItemStarted(this, item.Info, item.AudioTrack.Id, _clock.NowFor(item));
+                foreach (var item in _clock.TakeStarted().Cast<MediaItem>())
+                {
+                    Volatile.Write(ref _info, item.Info);
+                    _session.OnItemStarted(this, item.Info, item.AudioTrack.Id, _clock.NowFor(item));
+                }
             }
         }
 
