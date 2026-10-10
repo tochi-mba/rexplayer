@@ -22,6 +22,7 @@ public sealed partial class SubjectEditSession
     private (int X, int Y, int Width, int Height)? _returnCandidate;
     private int _returnConfirmations;
     private int _reacquiredFrames;
+    private bool _needsReselection;
     private byte[]? _clean;
     private byte[]? _known;
     private MediaTime _lastPts = MediaTime.Unknown;
@@ -83,6 +84,9 @@ public sealed partial class SubjectEditSession
         _returnConfirmations = 0;
         _reacquiredFrames = 0;
         _identityWidth = _identityHeight = 0;
+        _width = _height = 0;
+        _needsReselection = false;
+        _originalBorderContrast = 0;
         _clean = null;
         _known = null;
         _lastPts = MediaTime.Unknown;
@@ -109,6 +113,9 @@ public sealed partial class SubjectEditSession
         _returnConfirmations = 0;
         _reacquiredFrames = 0;
         _identityWidth = _identityHeight = 0;
+        _width = _height = 0;
+        _needsReselection = false;
+        _originalBorderContrast = 0;
         _clean = _known = null;
         Confidence = 0;
         EstimatedPixels = 0;
@@ -129,16 +136,17 @@ public sealed partial class SubjectEditSession
             throw new ArgumentException("A system-memory BGRA frame is required.", nameof(frame));
         }
 
-        if (!Locked)
+        if (!Locked || _needsReselection)
         {
+            // A rejected initial selection must not silently attach to a different
+            // object that later happens to enter its old picture coordinates.
             return null;
         }
 
         if ((long)frame.Width * frame.Height > MaxPixels)
         {
-            Tracking = false;
-            Confidence = 0;
-            Status = "Picture too large for local tracking. Original picture is shown.";
+            Reset();
+            Status = "Picture too large for local tracking. Select a smaller video.";
             return null;
         }
 
@@ -202,8 +210,9 @@ public sealed partial class SubjectEditSession
                 Tracking = false;
                 Erase = false;
                 _reference = _returnReference = null;
+                _needsReselection = true;
                 Confidence = 0;
-                Status = "Selection has too little distinguishing detail. Pick a visible edge or textured area.";
+                Status = "Selection has too little distinguishing detail. Select again around a visible edge or textured area.";
                 return null;
             }
 
