@@ -233,7 +233,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 }
                 colour = lerp(colour, styled, effect.y);
             }
-            if (effect.x > 11.5 && effect.y > 0)
+            if (effect.x > 11.5 && effect.x < 12.5 && effect.y > 0)
             {
                 // Edge Gravity: derive a normal from gradients in the *current video frame*.
                 // Flat regions stay still; high-contrast outlines become elastic folds that
