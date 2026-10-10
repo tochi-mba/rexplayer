@@ -418,8 +418,8 @@ public sealed class SubjectEditSession
                 var existing = -1;
                 for (var i = 0; i < shortlist.Count; i++)
                 {
-                    if (Math.Abs(shortlist[i].X - x) < patchWidth / 2 &&
-                        Math.Abs(shortlist[i].Y - y) < patchHeight / 2)
+                    if (Math.Abs(shortlist[i].X - x) < patchWidth &&
+                        Math.Abs(shortlist[i].Y - y) < patchHeight)
                     {
                         existing = i;
                         break;
