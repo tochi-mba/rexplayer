@@ -103,7 +103,8 @@ public sealed partial class MainWindow
 
             var options = VideoStyleOptions.ForEffect(effect);
             var values = _settings.VideoStyleValues;
-            var intensity = values.ContainsKey(options[0].Key) ? VideoStyleOptions.Read(values, options[0]) : strength;
+            var intensity = values.ContainsKey(options[0].Key) ? VideoStyleOptions.Read(values, options[0])
+                : effect == VideoEffect.Ghostwire ? options[0].Default : strength;
             presenter.SetEffect(effect, intensity, VideoStyleOptions.Read(values, options[1]));
             if (redraw)
             {
