@@ -154,7 +154,7 @@ public static class VisualizerOptions
             [
                 new("style", "Draw me as", VisualOptionKind.Choice, 0, Choices: ["A glowing outline", "Filled with the music", "Sparks", "Motion echoes", "Split neon"]),
                 new("mirror", "Mirror the camera, like a mirror", VisualOptionKind.Toggle, 1),
-                new("threshold", "How different from the room I must be", VisualOptionKind.Number, 0.12, 0.04, 0.4),
+                new("threshold", "Foreground sensitivity (lower detects more detail)", VisualOptionKind.Number, 0.09, 0.03, 0.35),
                 new("background", "Room behind me", VisualOptionKind.Choice, 0, Choices: ["Hidden", "Dimly visible"]),
             ],
             VisualizerChoice.BeatEdit =>
