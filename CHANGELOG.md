@@ -3,6 +3,26 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.11.0 - 2026-10-10
+
+### Added
+
+- **Movies and TV Shows have their own library views.** Filenames identify series, seasons and
+  episodes locally, including S01E02 and 1x03 naming; shows open into seasons and episodes in
+  viewing order. Standalone movies get a poster-style grid with cleaned-up titles and years when
+  available. All videos remain accessible in the original all-videos view.
+- **Eight real-time video looks.** Cinema, Clear, Sunset, Arctic, Monochrome, Vintage, Neon and
+  Night vision, alongside Original, are selectable from the video menu and Preferences. The GPU
+  adjusts the displayed picture without rewriting the source or changing its metadata.
+- **Artwork beside videos.** Local posters and folder covers are used when present; otherwise the
+  library can show a frame from the video. Hovered and keyboard-focused cards, followed by nearby
+  cards, get priority while background thumbnail work remains bounded and cancellable.
+
+### Fixed
+
+- A large library banner image could expand the header until the Home shelves and media lists were
+  pushed offscreen. The banner now has a bounded height and browse views retain vertical scrolling.
+
 ## 0.10.0 - 2026-10-10
 
 ### Added
