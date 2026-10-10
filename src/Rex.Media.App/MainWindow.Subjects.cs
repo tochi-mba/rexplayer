@@ -67,9 +67,9 @@ public sealed partial class MainWindow
 
     private void OnSubjectSelect(object sender, RoutedEventArgs e)
     {
-        _selectingSubject = true;
-        _subjectErase = false;
-        SubjectEraseButton.Content = "Preview removal";
+        // The previous subject must stop tracking immediately, including when the preview
+        // was enabled. Otherwise a drag to replace it can continue erasing the old target.
+        OnSubjectReset(sender, e);
         SubjectStatusText.Text = "Drag across the picture to select the visible object again.";
     }
 
@@ -179,7 +179,7 @@ public sealed partial class MainWindow
 
     private void OnSubjectPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (_subjectAnchor is { } anchor)
+        if (_subjectAnchor is not null)
         {
             ShowSubjectDrag(e.GetCurrentPoint(Stage).Position);
             e.Handled = true;
@@ -223,10 +223,38 @@ public sealed partial class MainWindow
             return;
         }
 
+        LockSubjectRegion(left, top, width, height);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Accessible selection fallback: after panning/zooming to an object, keyboard users can
+    /// lock the central 20 percent of the visible picture without a mouse or touchscreen.
+    /// </summary>
+    private void OnSubjectCenter(object sender, RoutedEventArgs e)
+    {
+        if (!_subjectOpen || !HasVideo ||
+            _player.Info?.FirstTrack(MediaKind.Video)?.Video is not { } video)
+        {
+            return;
+        }
+
+        var (source, _, _) = VideoGeometry.Shape(video.Width, video.Height,
+            video.PixelAspect, _aspect.Ratio, _crop.Ratio);
+        var visible = _view.Within(source);
+        var width = (visible.Right - visible.Left) * 0.2f;
+        var height = (visible.Bottom - visible.Top) * 0.2f;
+        LockSubjectRegion(visible.Left + (visible.Right - visible.Left - width) / 2,
+            visible.Top + (visible.Bottom - visible.Top - height) / 2, width, height);
+    }
+
+    private void LockSubjectRegion(float left, float top, float width, float height)
+    {
         _selectingSubject = false;
         _subjectErase = false;
+        SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
-        SubjectStatusText.Text = "Acquiring selected texture. If the pattern becomes ambiguous, tracking will stop.";
+        SubjectStatusText.Text = "Acquiring selected texture. If its identity is ambiguous, tracking stops.";
         var feather = (int)SubjectFeather.Value;
         var tolerance = (int)SubjectTolerance.Value;
         OnPresenterThread(p =>
@@ -234,14 +262,13 @@ public sealed partial class MainWindow
             p.SelectSubject(left, top, width, height);
             p.RefineSubject(feather, tolerance);
         });
-        // A paused picture has already been presented. Ask the decoder for this exact image
-        // again so the tracker acquires the user-selected subject without auto-playing.
+
+        // Re-present the current picture while paused; simply calling Redraw on the last
+        // GPU surface does not give the tracker an original, undecorated decoder frame.
         if (!_player.IsPlaying && _player.CanSeek)
         {
             _player.Seek(_player.Position);
         }
-
-        e.Handled = true;
     }
 
     private void ShowSubjectDrag(Point current)
