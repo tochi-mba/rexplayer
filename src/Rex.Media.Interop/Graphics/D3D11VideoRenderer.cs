@@ -311,9 +311,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             }
             if (effect.x > 15.5 && effect.x < 16.5 && effect.y > 0)
             {
-                // Ghostwire mask mode maps ONLY the visible frame's contrast into a
-                // translucent-looking visual mask. It is not garment recognition, x-ray,
-                // real transparency or reconstruction of any hidden anatomy.
+                // A translucent visual mask of recorded pixels, never hidden geometry.
                 float2 gradient = pictureGradient(uv, isYuv);
                 float edgeSize = length(gradient);
                 float detail = max(pointer.w, 0.25);
@@ -326,16 +324,12 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 float luminance = dot(colour, float3(0.2126, 0.7152, 0.0722));
                 float2 weave = uv * float2(250 * detail, 220 * detail);
                 float fabricPattern = sin(weave.x) * sin(weave.y);
-                // Fine visible texture modulates a faint tinted layer. Uniform areas
-                // remain subdued; strong original outlines glow like glass filaments.
-                float haze = (0.02 + luminance * 0.06)
-                    * (0.92 + 0.08 * fabricPattern);
+                // Visible texture and contours determine the tint and filaments.
+                float haze = (0.02 + luminance * 0.06) * (0.92 + 0.08 * fabricPattern);
                 float3 maskColour = float3(0.012, 0.019, 0.032)
-                    + colour * (0.07 + haze)
-                    + edge * float3(0.025, 0.10, 0.12);
+                    + colour * (0.07 + haze) + edge * float3(0.025, 0.10, 0.12);
                 maskColour += filament * float3(0.18, 0.80, 0.88);
-                // Colour from the *same recorded pixel* gives the stylized mask
-                // a local material-like tint without hallucinating anything behind it.
+                // Tint uses recorded colour; it does not invent a hidden layer.
                 maskColour += luminance * float3(0.009, 0.022, 0.035);
                 colour = lerp(colour, saturate(maskColour), effect.y);
             }
