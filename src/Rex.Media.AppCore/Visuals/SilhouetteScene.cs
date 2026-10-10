@@ -41,11 +41,11 @@ public sealed class SilhouetteScene : VisualScene
         }
 
         Outline(mask, context.MaskWidth, context.MaskHeight);
-        var (scale, left, top) = Cover(canvas.Width, canvas.Height, context.MaskWidth, context.MaskHeight);
+        var (scale, left, top) = Fit(canvas.Width, canvas.Height, context.MaskWidth, context.MaskHeight);
         if (context.Pick("background") == 1 && context.Camera is { } room)
         {
             // The room, dimmed and greyed, behind.
-            var (roomScale, roomLeft, roomTop) = Cover(canvas.Width, canvas.Height, room.Width, room.Height);
+            var (roomScale, roomLeft, roomTop) = Fit(canvas.Width, canvas.Height, room.Width, room.Height);
             Raster.Rows(canvas.Height, y =>
             {
                 for (var x = 0; x < canvas.Width; x++)
@@ -101,6 +101,16 @@ public sealed class SilhouetteScene : VisualScene
     internal static (double Scale, double Left, double Top) Cover(int width, int height, int across, int down)
     {
         var scale = Math.Max((double)width / across, (double)height / down);
+        return (scale, (width - (across * scale)) / 2, (height - (down * scale)) / 2);
+    }
+
+    /// <summary>
+    /// Keep the entire camera figure visible within the stage instead of cropping the
+    /// top and bottom of a 4:3 camera on a widescreen audio visualisation.
+    /// </summary>
+    internal static (double Scale, double Left, double Top) Fit(int width, int height, int across, int down)
+    {
+        var scale = Math.Min((double)width / across, (double)height / down);
         return (scale, (width - (across * scale)) / 2, (height - (down * scale)) / 2);
     }
 
