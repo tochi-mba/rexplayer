@@ -144,6 +144,7 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.CursorLens)]
     [InlineData(VideoEffect.EdgeGravity)]
     [InlineData(VideoEffect.Ghostwire)]
+    [InlineData(VideoEffect.GhostwireMask)]
     [InlineData(VideoEffect.ColourSpotlight)]
     [InlineData(VideoEffect.ReliefEtch)]
     public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
@@ -272,6 +273,41 @@ public sealed class D3D11PresenterTests
         presenter.Redraw();
         using var original = presenter.ReadBack();
         Assert.Equal(0, MaxDifference(original, picture));
+    }
+
+    [Fact]
+    public void GhostwireMaskUsesOnlyVisibleEdgesAndFullyRestoresTheRecordedFrame()
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 96, 64);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                byte sample = (byte)(x < 48 ? 8 : 240);
+                row[x * 4] = sample;
+                row[x * 4 + 1] = sample;
+                row[x * 4 + 2] = sample;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(96, 64);
+        presenter.Present(picture);
+        using var original = presenter.ReadBack();
+
+        presenter.SetEffect(VideoEffect.GhostwireMask, 100);
+        presenter.Redraw();
+        using var mask = presenter.ReadBack();
+        var flat = mask.Row(0, 32)[8 * 4 + 1];
+        var line = mask.Row(0, 32)[47 * 4 + 1];
+        Assert.True(line > flat + 30, $"Visible contours must remain distinct: {line} and {flat}");
+        Assert.True(MaxDifference(mask, original) > 10);
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var restored = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(restored, original));
     }
 
     [Fact]
