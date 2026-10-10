@@ -168,7 +168,8 @@ public sealed partial class PlayerController
     /// </summary>
     public void SaveForUpdate(
         string librarySource, bool libraryVisible, string search, string? groupName,
-        string? groupDetail, string? seasonName, bool playlistVisible, UpdateWindowState? windowState = null)
+        string? groupDetail, string? seasonName, bool playlistVisible, UpdateWindowState? windowState = null,
+        string? targetVersion = null)
     {
         RememberPosition();
         var queue = Playlist.Items.Count == 0 ? null
@@ -179,6 +180,7 @@ public sealed partial class PlayerController
             search, groupName, groupDetail, seasonName, playlistVisible, Speed, DateTimeOffset.UtcNow)
         {
             WindowState = windowState,
+            TargetVersion = targetVersion,
         };
     }
 
@@ -187,11 +189,19 @@ public sealed partial class PlayerController
     /// or empty hand-offs fall back to normal startup. A paused video remains paused; a playing
     /// video starts at its saved position, without prompting for a second resume.
     /// </summary>
-    public UpdateSession? RestoreAfterUpdate()
+    public UpdateSession? RestoreAfterUpdate(string? currentVersion = null)
     {
         var saved = Memory.Updating;
         if (saved is null)
         {
+            return null;
+        }
+
+        // A failed installer leaves the old version in place; never silently recover a
+        // pending update hand-off into a different version on the next ordinary launch.
+        if (currentVersion is not null && !string.Equals(currentVersion, saved.TargetVersion, StringComparison.Ordinal))
+        {
+            Memory.Updating = null;
             return null;
         }
 
