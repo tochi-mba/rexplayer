@@ -360,6 +360,14 @@ public sealed class VisualStageTests
     }
 
     [Fact]
+    [Capability("AU-18")]
+    public void TheWholeCameraSilhouetteFitsAWideMusicStageWithoutCuttingOffHeadOrFeet()
+    {
+        Assert.Equal((3.0, 20.0, 0.0), SilhouetteScene.Fit(160, 90, 40, 30));
+        Assert.Equal((2.0, 0.0, 20.0), SilhouetteScene.Fit(80, 100, 40, 30));
+    }
+
+    [Fact]
     public void ARecordSkippedAlongWritesOnlyTheGrooveItReached()
     {
         var stage = Stage();
