@@ -313,6 +313,7 @@ public sealed class D3D11PresenterTests
     [Theory]
     [InlineData(VideoEffect.NeonEdges)]
     [InlineData(VideoEffect.InkTrace)]
+    [InlineData(VideoEffect.TopographicContours)]
     [InlineData(VideoEffect.ChromaticContours)]
     [InlineData(VideoEffect.Ghostwire)]
     [InlineData(VideoEffect.GhostwireMask)]
