@@ -259,7 +259,6 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             ApplySize();
-            var (width, height) = _renderer.TargetSize;
             if (_subjectEdit.Locked && _originalForEditing is not null)
             {
                 using var edited = _subjectEdit.Process(_originalForEditing);
@@ -289,7 +288,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             }
             else
             {
-                _renderer.Draw(BgraMatrix, 0, 0, width, height, SmoothChroma);
+                _renderer.ClearFrame();
             }
 
             _renderer.Present(waitForRefresh: false);
