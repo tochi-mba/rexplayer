@@ -1,6 +1,7 @@
 using System.Text;
 using Rex.Media.IO;
 using Rex.Media.Settings;
+using Rex.Media.Primitives;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.Settings;
@@ -59,6 +60,22 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
         Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
         Assert.Equal(saved.LibraryViews, loaded.LibraryViews);
+    }
+
+    [Fact]
+    public void EveryPictureLookIsNamedSavedAndNormalized()
+    {
+        Assert.Equal(9, VideoLooks.Names.Count);
+        Assert.Equal("Original", VideoLooks.Name(VideoLook.Original));
+        Assert.Equal("Original", VideoLooks.Name((VideoLook)1_000));
+        foreach (var look in Enum.GetValues<VideoLook>())
+        {
+            Assert.False(string.IsNullOrWhiteSpace(VideoLooks.Name(look)));
+            SettingsStore.Save(File, new PlayerSettings { VideoLook = look });
+            Assert.Equal(look, SettingsStore.Load(File).VideoLook);
+        }
+
+        Assert.Equal(VideoLook.Original, new PlayerSettings { VideoLook = (VideoLook)999 }.Normalize().VideoLook);
     }
 
     [Fact]
