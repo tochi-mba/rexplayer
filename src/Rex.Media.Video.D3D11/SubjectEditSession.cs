@@ -12,6 +12,7 @@ public sealed class SubjectEditSession
     private const int Samples = 16;
     private const int MaxPixels = 3840 * 2160;
 
+    private readonly float[] _samples = new float[Samples * Samples * 3];
     private float[]? _reference;
     private float[]? _returnReference;
     private int _returnFrames;
@@ -276,10 +277,10 @@ public sealed class SubjectEditSession
             Region = (Region.Left + (float)bestDx / frame.Width,
                 Region.Top + (float)bestDy / frame.Height, Region.Width, Region.Height);
             // Update very slowly to accommodate lighting, without adopting a neighbouring target.
-            var fresh = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
+            SampleInto(frame, Region.Left, Region.Top, Region.Width, Region.Height, _samples);
             for (var i = 0; i < _reference.Length; i++)
             {
-                _reference[i] = _reference[i] * 0.97f + fresh[i] * 0.03f;
+                _reference[i] = _reference[i] * 0.97f + _samples[i] * 0.03f;
             }
 
             Status = "Tracking selected region.";
@@ -660,6 +661,13 @@ public sealed class SubjectEditSession
     private static float[] Sample(VideoFrame frame, float left, float top, float width, float height)
     {
         var samples = new float[Samples * Samples * 3];
+        SampleInto(frame, left, top, width, height, samples);
+        return samples;
+    }
+
+    private static void SampleInto(VideoFrame frame, float left, float top, float width, float height,
+        Span<float> samples)
+    {
         var i = 0;
         for (var y = 0; y < Samples; y++)
         {
@@ -674,7 +682,6 @@ public sealed class SubjectEditSession
             }
         }
 
-        return samples;
     }
 
     private static double Distance(VideoFrame frame, float left, float top, float width, float height, float[] reference)

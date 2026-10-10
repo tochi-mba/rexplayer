@@ -16,6 +16,9 @@ namespace Rex.Media.Video.D3D11;
 [SupportedOSPlatform("windows8.0")]
 public sealed class D3D11Presenter : IVideoPresenter
 {
+    // The BGRA shader ignores the YUV transform; reuse its zero matrix across frames.
+    private static readonly float[] BgraMatrix = new float[12];
+
     private readonly D3D11VideoRenderer _renderer;
     private readonly VideoWindow? _window;
     private readonly bool _onScreen;
@@ -208,7 +211,7 @@ public sealed class D3D11Presenter : IVideoPresenter
                 // transform cannot be reused when the next paused redraw displays it.
                 if (_last is { } last)
                 {
-                    _last = (new float[12], last.Width, last.Height, last.PixelAspect);
+                    _last = (BgraMatrix, last.Width, last.Height, last.PixelAspect);
                 }
             }
 
@@ -276,7 +279,7 @@ public sealed class D3D11Presenter : IVideoPresenter
                 // cached YUV matrix would convert those RGB pixels a second time.
                 if (_last is { } cached)
                 {
-                    _last = (new float[12], cached.Width, cached.Height, cached.PixelAspect);
+                    _last = (BgraMatrix, cached.Width, cached.Height, cached.PixelAspect);
                 }
             }
 
@@ -286,7 +289,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             }
             else
             {
-                _renderer.Draw(new float[12], 0, 0, width, height, SmoothChroma);
+                _renderer.Draw(BgraMatrix, 0, 0, width, height, SmoothChroma);
             }
 
             _renderer.Present(waitForRefresh: false);
@@ -410,13 +413,13 @@ public sealed class D3D11Presenter : IVideoPresenter
                 break;
             case PixelFormat.Bgra32:
                 _renderer.Upload(VideoPlaneFormat.Bgra, frame.Width, frame.Height, frame.Plane(0), frame.Stride(0), default, 0);
-                Draw(frame, new float[12]);
+                Draw(frame, BgraMatrix);
                 break;
             default:
                 using (var bgra = ColorConverter.ToBgra(frame))
                 {
                     _renderer.Upload(VideoPlaneFormat.Bgra, bgra.Width, bgra.Height, bgra.Plane(0), bgra.Stride(0), default, 0);
-                    Draw(bgra, new float[12]);
+                    Draw(bgra, BgraMatrix);
                 }
 
                 break;
