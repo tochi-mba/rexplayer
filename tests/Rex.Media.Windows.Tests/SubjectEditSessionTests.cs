@@ -109,6 +109,32 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void MaskRefinementHasSafeLimitsAndKeepsTheSourceUnchanged()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Refine(-100, 200);
+        Assert.Equal(0, tracker.Feather);
+        Assert.Equal(100, tracker.MaskTolerance);
+
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var source = Picture();
+        tracker.Process(source);
+        tracker.SetErase(true);
+        using var sharp = tracker.Process(source);
+        Assert.NotNull(sharp);
+        var originalPixel = source.Row(0, 26)[36 * 4 + 2];
+        var sharpPixel = sharp.Row(0, 26)[36 * 4 + 2];
+        Assert.NotEqual(originalPixel, sharpPixel);
+
+        tracker.Refine(12, 0);
+        using var feathered = tracker.Process(source);
+        Assert.NotNull(feathered);
+        Assert.Equal(originalPixel, source.Row(0, 26)[36 * 4 + 2]);
+        Assert.NotEqual(sharp.Row(0, 20)[30 * 4 + 2],
+            feathered.Row(0, 20)[30 * 4 + 2]);
+    }
+
+    [Fact]
     public void MotionSearchFollowsAVisibleTargetBeyondTheOldSmallSearchWindow()
     {
         var tracker = new SubjectEditSession();
