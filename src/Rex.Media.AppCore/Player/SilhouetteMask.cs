@@ -77,6 +77,7 @@ public sealed class SilhouetteMask
         // Compensating for it prevents an automatic exposure adjustment from outlining the room.
         // A histogram is stack-only: no per-camera-frame allocation.
         Span<int> histogram = stackalloc int[511];
+        histogram.Clear(); // stackalloc storage is not initialized; the median must be deterministic.
         for (var i = 0; i < _room.Length; i += 4)
         {
             histogram[Math.Clamp((int)MathF.Round(brightness[i] - _room[i]), -255, 255) + 255]++;
