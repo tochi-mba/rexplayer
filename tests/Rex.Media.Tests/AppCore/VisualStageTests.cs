@@ -194,6 +194,44 @@ public sealed class VisualStageTests
     }
 
     [Fact]
+    [Capability("AU-18")]
+    public void BeatEditFollowsAConfidentSilhouetteButIgnoresNoiseAndBadMasks()
+    {
+        const int Width = 100, Height = 80;
+        var mask = new byte[Width * Height];
+        for (var y = 20; y < 70; y++)
+        {
+            for (var x = 70; x < 90; x++)
+            {
+                mask[(y * Width) + x] = 255;
+            }
+        }
+
+        var subject = BeatEditScene.SubjectCentre(mask, Width, Height);
+        Assert.NotNull(subject);
+        Assert.InRange(subject.Value.X, 0.79, 0.81);
+        Assert.InRange(subject.Value.Y, 0.55, 0.57);
+
+        var noise = new byte[mask.Length];
+        noise[3] = 255;
+        Assert.Null(BeatEditScene.SubjectCentre(noise, Width, Height));
+        Assert.Null(BeatEditScene.SubjectCentre(new byte[mask.Length], Width, Height));
+        Assert.Null(BeatEditScene.SubjectCentre(Enumerable.Repeat((byte)255, mask.Length).ToArray(), Width, Height));
+        Assert.Null(BeatEditScene.SubjectCentre(mask, Width, 0));
+        Assert.Null(BeatEditScene.SubjectCentre(mask, -1, Height));
+        Assert.Null(BeatEditScene.SubjectCentre(mask.AsSpan(0, 10), Width, Height));
+
+        var follow = Stage();
+        follow.Context.Mask = PersonMask(40, 30);
+        var options = VisualizerOptions.With(Defaults, VisualizerChoice.BeatEdit, "grain", 0);
+        var following = Play(follow, VisualizerChoice.BeatEdit, new SyntheticMusic(120, 1), options);
+        var still = Stage();
+        options = VisualizerOptions.With(options, VisualizerChoice.BeatEdit, "follow", 0);
+        var untracked = Play(still, VisualizerChoice.BeatEdit, new SyntheticMusic(120, 1), options);
+        Assert.NotEqual(following[^1], untracked[^1]);
+    }
+
+    [Fact]
     public void TheGradesAreDifferentLooks()
     {
         var (color, dark, bright) = (new Rgb(0.2f, 0.5f, 0.8f), new Rgb(0.05f, 0.1f, 0.2f), new Rgb(1, 0.7f, 0.3f));
