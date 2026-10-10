@@ -64,21 +64,28 @@ public sealed class GaplessTests
     [Capability("PB-14")]
     public async Task ThePositionStartsAgainFromTheNextItemsOwnBeginning()
     {
-        using var harness = new SessionHarness();
+        // A second of each; the position is read as the sink takes each frame, so whatever the
+        // machine's speed, it is seen part-way through the second item.
+        var sink = new RecordingAudioSink(channels: 1);
+        var written = 0L;
+        var seen = new List<(long Written, MediaTime Position)>();
+        using var harness = new SessionHarness(sink: sink);
+        sink.Writing += frame =>
+        {
+            seen.Add((written, harness.Session.Position));
+            written += frame.SampleCount;
+        };
 
         await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 8000)), [SessionHarness.Source(Count(0, 8000))]);
         await harness.FinishAsync();
         harness.WaitFor<EndedEvent>();
 
-        // Every position after the second item opened is in its own time: from its start up to its
-        // end, not the end of the first plus however far the second has got (which stays at the end).
-        var events = harness.Events.ToList();
-        var opened = events.Select((e, i) => (e, i)).Where(pair => pair.e is MediaOpenedEvent).Select(pair => pair.i).ToList();
-        Assert.Equal(2, opened.Count);
-        var positions = events.Skip(opened[1]).OfType<PositionEvent>().Select(e => e.Position).ToList();
-        Assert.NotEmpty(positions);
-        Assert.Contains(positions, position => position < MediaTime.FromSeconds(0.9));
-        Assert.Equal(positions.Order(), positions);
+        // Once the second item's sound is playing, the position is how far into it, not the first's
+        // second plus that (which would sit at the end).
+        var second = seen.Where(pair => pair.Written >= 8000 + 2000).ToList();
+        Assert.NotEmpty(second);
+        Assert.All(second, pair => Assert.Equal(MediaTime.FromSamples(pair.Written - 8000, 8000).Ticks, pair.Position.Ticks, 1_000_000));
+        Assert.Equal(2, harness.Events.OfType<MediaOpenedEvent>().Count());
     }
 
     [Fact]

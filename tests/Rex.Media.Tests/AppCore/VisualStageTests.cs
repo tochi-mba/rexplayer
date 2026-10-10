@@ -172,22 +172,25 @@ public sealed class VisualStageTests
     public void TheBeatEditCutsOnTheBeatAndFlashesOnlyWhenAllowed()
     {
         var stage = Stage();
-        var frames = Play(stage, VisualizerChoice.BeatEdit, new SyntheticMusic(300, 6, quietFrom: 2, quietUntil: 4));
+        var frames = Play(stage, VisualizerChoice.BeatEdit, new SyntheticMusic(300, 7, quietFrom: 2, quietUntil: 5));
         var edit = Assert.IsType<BeatEditScene>(SceneOf(stage));
-        Assert.InRange(edit.Flashes, 1, (6 * 3) + 1);
+        Assert.InRange(edit.Flashes, 1, (7 * 3) + 1);
 
         var calm = Stage();
-        Play(calm, VisualizerChoice.BeatEdit, new SyntheticMusic(300, 6, quietFrom: 2, quietUntil: 4), VisualizerOptions.With(Defaults, VisualizerChoice.BeatEdit, "flash", 0));
+        Play(calm, VisualizerChoice.BeatEdit, new SyntheticMusic(300, 7, quietFrom: 2, quietUntil: 5), VisualizerOptions.With(Defaults, VisualizerChoice.BeatEdit, "flash", 0));
         Assert.Equal(0, Assert.IsType<BeatEditScene>(SceneOf(calm)).Flashes);
 
-        // Every style, on the camera mirrored and not, and on the cover.
+        // Every style, through a breakdown and its drop (which splits the screen in four for the styles that do).
         foreach (var style in Enumerable.Range(0, 5))
         {
             var styled = VisualizerOptions.With(Defaults, VisualizerChoice.BeatEdit, "style", style);
-            Assert.NotEmpty(Play(Stage(), VisualizerChoice.BeatEdit, new SyntheticMusic(128, 3, quietFrom: 1, quietUntil: 2), styled));
+            var stage = Stage(64, 36);
+            Assert.NotEmpty(Play(stage, VisualizerChoice.BeatEdit, new SyntheticMusic(128, 9, quietFrom: 3, quietUntil: 6.2), styled));
+            Assert.InRange(Assert.IsType<BeatEditScene>(SceneOf(stage)).Grade, 0, 6);
         }
 
         Assert.True(frames.Count > 0);
+        Assert.True(VisualScene.For(VisualizerChoice.BeatEdit)!.UsesCamera);
     }
 
     [Fact]
@@ -246,6 +249,18 @@ public sealed class VisualStageTests
         Assert.Throws<ArgumentNullException>(() => new VisualContext(new Raster(2, 2), null!));
         Assert.Null(VisualScene.For(VisualizerChoice.Meters));
         Assert.All(Scenes.Select(row => VisualScene.For(row.Data)!), scene => Assert.Throws<ArgumentNullException>(() => scene.Draw(null!)));
+    }
+
+    [Fact]
+    public void TheToneArmReachesTheNeedleOrAsNearAsItCan()
+    {
+        // Pivot 10 to the right of the middle, an arm of 10: a needle 10 out is reached above the line.
+        var (x, y) = VinylScene.Reach(0, 0, 10, 10, 0, 10);
+        Assert.Equal(5, x, 6);
+        Assert.Equal(-Math.Sqrt(75), y, 6);
+
+        // A needle the arm cannot reach: the nearest point of its circle, on the line to the pivot.
+        Assert.Equal((2.0, 0.0), VinylScene.Reach(0, 0, 2, 100, 0, 10));
     }
 
     [Fact]

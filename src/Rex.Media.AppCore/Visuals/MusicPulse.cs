@@ -239,13 +239,9 @@ public sealed class MusicPulse
         return sum / (to - from);
     }
 
+    /// <summary>The mean and spread of the recent onset strengths: at least the first frame's is always there.</summary>
     private (double Mean, double Spread) Statistics()
     {
-        if (_fluxes.Count == 0)
-        {
-            return (0, 0);
-        }
-
         var mean = _fluxes.Average();
         var variance = _fluxes.Sum(value => (value - mean) * (value - mean)) / _fluxes.Count;
         return (mean, Math.Sqrt(variance));
