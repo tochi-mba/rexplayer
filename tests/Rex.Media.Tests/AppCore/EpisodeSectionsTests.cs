@@ -74,6 +74,61 @@ public sealed class EpisodeSectionsTests
 
     [Fact]
     [Capability("PB-10")]
+    public void SeekableVideosCanMarkSkipAndClearDifferentEpisodeSections()
+    {
+        // A video with an explicit duration keeps the timeline deterministic in the portable
+        // controller tests. A fake video decoder never opens a camera or produces sound.
+        var video = Rex.Media.TestKit.EbmlWriter.Element(
+            Rex.Media.Containers.Matroska.MatroskaId.TrackEntry,
+            Rex.Media.TestKit.EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TrackNumber, 2),
+            Rex.Media.TestKit.EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TrackType, 1),
+            Rex.Media.TestKit.EbmlWriter.Text(Rex.Media.Containers.Matroska.MatroskaId.CodecId, "V_MPEG4/ISO/AVC"),
+            Rex.Media.TestKit.EbmlWriter.Element(Rex.Media.Containers.Matroska.MatroskaId.Video,
+                Rex.Media.TestKit.EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.PixelWidth, 16),
+                Rex.Media.TestKit.EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.PixelHeight, 8)));
+        var info = Rex.Media.TestKit.EbmlWriter.Element(Rex.Media.Containers.Matroska.MatroskaId.Info,
+            Rex.Media.TestKit.EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TimestampScale, 1_000_000),
+            Rex.Media.TestKit.EbmlWriter.Float(Rex.Media.Containers.Matroska.MatroskaId.Duration, 10_000));
+        var frames = Enumerable.Range(0, 200)
+            .Select(i => Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(2, (short)(i * 40), true, (byte)i))
+            .ToArray();
+        var bytes = Rex.Media.Tests.Containers.MatroskaCraftedTests.Mkv(
+            info, Rex.Media.Tests.Containers.MatroskaCraftedTests.Tracks(video),
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Cluster(0, frames));
+
+        using var harness = new ControllerHarness(autoPlay: false, pictures: true);
+        harness.Files["pilot.mkv"] = bytes;
+        var player = harness.Controller;
+        player.Open(["pilot.mkv"]);
+        harness.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null);
+        Assert.True(player.CanMarkEpisodeSections);
+        Assert.Equal(TimeSpan.FromSeconds(10), player.Duration);
+        Assert.Null(player.AvailableEpisodeSkip);
+        Assert.False(player.SkipEpisodeSection());
+
+        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Intro, true));
+        player.Seek(TimeSpan.FromSeconds(3));
+        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Intro, false));
+        player.Seek(TimeSpan.FromSeconds(1));
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Intro, TimeSpan.FromSeconds(3)),
+            player.AvailableEpisodeSkip);
+        Assert.True(player.SkipEpisodeSection());
+        Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
+
+        player.Seek(TimeSpan.FromSeconds(5));
+        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, true));
+        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, false, atVideoEnd: true));
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Credits, TimeSpan.FromSeconds(10)),
+            player.AvailableEpisodeSkip);
+        Assert.True(player.ClearEpisodeSection(EpisodeSectionKind.Intro));
+        Assert.Null(player.CurrentSections.IntroStart);
+        Assert.True(player.ClearEpisodeSection(EpisodeSectionKind.Credits));
+        Assert.Null(player.AvailableEpisodeSkip);
+        Assert.True(harness.Changes >= 4);
+    }
+
+    [Fact]
+    [Capability("PB-10")]
     public void SongsAndUnseekableMediaCannotBeGivenIntroOrCreditsSkips()
     {
         using var harness = new ControllerHarness(autoPlay: false);
