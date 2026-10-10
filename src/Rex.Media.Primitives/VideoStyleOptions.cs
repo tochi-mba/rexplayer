@@ -44,7 +44,7 @@ public static class VideoStyleOptions
     {
         ArgumentNullException.ThrowIfNull(option);
         var updated = previous is null ? new Dictionary<string, int>(StringComparer.Ordinal)
-            : new Dictionary<string, int>(previous, StringComparer.Ordinal);
+            : previous.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         updated[option.Key] = Math.Clamp(value, option.Min, option.Max);
         return updated;
     }
@@ -54,7 +54,7 @@ public static class VideoStyleOptions
     {
         ArgumentNullException.ThrowIfNull(options);
         var updated = previous is null ? new Dictionary<string, int>(StringComparer.Ordinal)
-            : new Dictionary<string, int>(previous, StringComparer.Ordinal);
+            : previous.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         foreach (var option in options)
         {
             updated.Remove(option.Key);
