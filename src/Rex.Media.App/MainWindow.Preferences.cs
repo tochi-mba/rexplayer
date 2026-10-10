@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.Settings;
+using Rex.Media.Primitives;
 using Rex.Media.Subtitles;
 
 namespace Rex.Media.App;
@@ -23,6 +24,7 @@ public sealed partial class MainWindow
         var seekPreview = Check("Show the video frame under the pointer on the timeline", s.SeekPreview);
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
+        var pictureLook = Choice("Default video picture look", VideoLooks.Names, (int)s.VideoLook);
         var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera", "A live beat edit"], (int)s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
         var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
@@ -69,8 +71,8 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
-        content.Children.Add(Heading("Pictures and music"));
-        foreach (var control in new UIElement[] { pictures, navigator, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
+        content.Children.Add(Heading("Video and pictures"));
+        foreach (var control in new UIElement[] { pictures, navigator, pictureLook, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
         {
             content.Children.Add(control);
         }
@@ -130,6 +132,7 @@ public sealed partial class MainWindow
             SeekPreview = seekPreview.IsChecked == true,
             PictureSeconds = (int)pictures.Value,
             ShowNavigator = navigator.IsChecked == true,
+            VideoLook = (VideoLook)pictureLook.SelectedIndex,
             Visualizer = (VisualizerChoice)visualizer.SelectedIndex,
             GenerateAudioArtwork = generatedArt.IsChecked == true,
             AudioArtworkStyle = (ArtworkStyle)artworkStyle.SelectedIndex,
@@ -179,6 +182,7 @@ public sealed partial class MainWindow
         _controlsTimer.Interval = TimeSpan.FromSeconds(_settings.ControlsHideSeconds);
         ApplyTheme();
         ApplyAlwaysOnTop();
+        ApplyVideoLook(_settings.VideoLook);
         LayOutSubtitles();
         SetView(_view);
         ShowState();
