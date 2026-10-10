@@ -59,7 +59,17 @@ public sealed partial class MainWindow
                 _lyricTexts.Add(text);
                 if (line.At is not { } at)
                 {
-                    LyricsLines.Children.Add(text);
+                    // Untimed lyric lines need the same close-fitting contrast as timed lines;
+                    // never paint a broad translucent rectangle behind the whole stage.
+                    LyricsLines.Children.Add(new Border
+                    {
+                        Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19)),
+                        CornerRadius = new CornerRadius(9),
+                        Padding = new Thickness(12, 7, 12, 7),
+                        MaxWidth = 640,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Child = text,
+                    });
                     continue;
                 }
 
