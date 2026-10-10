@@ -372,6 +372,137 @@ public sealed class SubjectEditSessionTests
         Assert.False(tracker.Tracking);
     }
 
+    [Theory]
+    [InlineData(12, 60, 26, 0)]
+    [InlineData(14, 7, 12, -15)]
+    [InlineData(16, 104, 55, 35)]
+    [InlineData(20, 53, 30, 15)]
+    [InlineData(24, 68, 22, 25)]
+    [InlineData(32, 45, 29, 0)]
+    public void AReturnedTargetMayChangeSizeLightingAndPositionWithoutLosingItsSelection(
+        int size, int x, int y, int lighting)
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture();
+        tracker.Process(first);
+        Assert.True(tracker.Tracking);
+
+        using var missing = Picture(-50, -50, 1.04);
+        tracker.Process(missing);
+        Assert.False(tracker.Tracking);
+
+        for (var i = 0; i < 24; i++)
+        {
+            using var returned = Picture(x, y, 1.08 + i * 0.04, size, lighting);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.True(tracker.Locked);
+        Assert.True(tracker.Tracking);
+        Assert.False(tracker.Erase);
+        Assert.InRange(tracker.Region.Left * 128, x - 3, x + 3);
+        Assert.InRange(tracker.Region.Top * 80, y - 3, y + 3);
+        Assert.InRange(tracker.Region.Width * 128, size - 4, size + 4);
+    }
+
+    [Fact]
+    public void LongOcclusionThenChangedDistanceAndLightingCanRestoreTheOriginalTarget()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture();
+        tracker.Process(first);
+        tracker.SetErase(true);
+
+        for (var i = 0; i < 120; i++)
+        {
+            using var hidden = Picture(-50, -50, 1.04 + i * 0.04, lighting: i % 2 == 0 ? -10 : 15);
+            Assert.Null(tracker.Process(hidden));
+            Assert.True(tracker.Locked);
+            Assert.False(tracker.Tracking);
+            Assert.False(tracker.Erase);
+        }
+
+        for (var i = 0; i < 24; i++)
+        {
+            using var returned = Picture(65, 25, 5.84 + i * 0.04, size: 24, lighting: 25);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.True(tracker.Tracking);
+        Assert.InRange(tracker.Region.Width * 128, 20, 28);
+        Assert.False(tracker.Erase);
+    }
+
+    [Fact]
+    public void LostTrackingCannotReenableRemovalBeforeTheOriginalTargetIsFound()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture();
+        tracker.Process(first);
+        tracker.SetErase(true);
+        using var hidden = Picture(-50, -50, 1.04);
+        tracker.Process(hidden);
+        Assert.False(tracker.Tracking);
+        tracker.SetErase(true);
+        Assert.False(tracker.Erase);
+        using var next = Picture(-50, -50, 1.08);
+        Assert.Null(tracker.Process(next));
+
+        for (var i = 0; i < 12; i++)
+        {
+            using var returned = Picture(70, 28, 1.12 + i * 0.04);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.True(tracker.Tracking);
+        Assert.False(tracker.Erase);
+    }
+
+    [Fact]
+    public void ResolutionChangeRequiresFreshSelectionRatherThanAcquiringAnUnrelatedRegion()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture();
+        tracker.Process(first);
+        tracker.SetErase(true);
+        Assert.True(tracker.Tracking);
+
+        using var resized = VideoFrame.Rent(PixelFormat.Bgra32, 192, 120);
+        resized.Pts = MediaTime.FromSeconds(1.04);
+        Assert.Null(tracker.Process(resized));
+        Assert.False(tracker.Locked);
+        Assert.False(tracker.Tracking);
+        Assert.False(tracker.Erase);
+        Assert.Contains("dimensions changed", tracker.Status, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(tracker.Process(resized));
+    }
+
+    [Fact]
+    public void ASceneWithoutTheOriginalTextureNeverRestoresTheLock()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture();
+        tracker.Process(first);
+        for (var i = 0; i < 36; i++)
+        {
+            using var unrelated = VideoFrame.Rent(PixelFormat.Bgra32, 128, 80);
+            unrelated.Pts = MediaTime.FromSeconds(1.04 + i * 0.04);
+            for (var y = 0; y < unrelated.Height; y++)
+            {
+                unrelated.Row(0, y).Fill(100);
+            }
+
+            Assert.Null(tracker.Process(unrelated));
+            Assert.False(tracker.Tracking);
+            Assert.True(tracker.Locked);
+        }
+    }
+
     [Fact]
     public void ATransientCandidateCannotRestoreTrackingAfterItDisappears()
     {
