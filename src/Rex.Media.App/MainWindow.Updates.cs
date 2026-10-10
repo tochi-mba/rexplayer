@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.UI.Xaml.Controls;
+using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Updates;
 
