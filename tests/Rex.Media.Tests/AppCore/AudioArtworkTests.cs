@@ -16,12 +16,14 @@ public sealed class AudioArtworkTests
         using var again = AudioArtwork.Render(Sound(220), 48_000, "first", 96);
         using var otherSound = AudioArtwork.Render(Sound(1760), 48_000, "first", 96);
         using var otherName = AudioArtwork.Render(Sound(220), 48_000, "second", 96);
+        using var otherRate = AudioArtwork.Render(Sound(220), 44_100, "first", 96);
 
         Assert.Equal(PixelFormat.Bgra32, first.Format);
         Assert.Equal((96, 96), (first.Width, first.Height));
         Assert.Equal(first.Plane(0).ToArray(), again.Plane(0).ToArray());
         Assert.NotEqual(first.Plane(0).ToArray(), otherSound.Plane(0).ToArray());
         Assert.NotEqual(first.Plane(0).ToArray(), otherName.Plane(0).ToArray());
+        Assert.NotEqual(first.Plane(0).ToArray(), otherRate.Plane(0).ToArray());
         Assert.True(first.Plane(0).ToArray().Distinct().Count() > 32);
     }
 
