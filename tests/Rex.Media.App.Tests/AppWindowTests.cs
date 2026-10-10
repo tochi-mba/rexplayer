@@ -383,7 +383,10 @@ public sealed class AppWindowTests : IDisposable
 
         // Home first, with the song on its shelf of what is new; then the songs.
         Wait.For(() => app.Text("LibraryTitle") == "Home", "the library's home");
-        Wait.For(() => app.IsShown("LibraryShelfCards-RecentlyAdded"), "the shelf of what is new");
+        // The shelf may be outside the scroll viewport; it must exist, not be onscreen.
+        var newSongs = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "LibraryShelfCards-RecentlyAdded")));
+        Assert.Equal("New in your library", newSongs.Current.Name);
         var songs = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Songs")));
         ((SelectionItemPattern)songs!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Text("LibraryTitle") == "Songs", "the songs");
