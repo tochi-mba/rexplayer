@@ -130,6 +130,7 @@ public sealed partial class MainWindow
             {
                 AddPictureLooks(sub.Items, "ContextVideoLook-");
                 AddPictureEffects(sub.Items, "ContextVideoEffect-");
+                AddSubjectTools(sub.Items, "Context");
                 AddEpisodeSectionMenus(sub.Items, "Context");
             }
 
@@ -139,6 +140,7 @@ public sealed partial class MainWindow
         Stage.ContextFlyout = context;
         AddPictureLooks(Menu.Items.First(item => item.Title == "Video").Items, "VideoLook-");
         AddPictureEffects(Menu.Items.First(item => item.Title == "Video").Items, "VideoEffect-");
+        AddSubjectTools(Menu.Items.First(item => item.Title == "Video").Items, "Video");
         AddEpisodeSectionMenus(Menu.Items.First(item => item.Title == "Video").Items, "Video");
         BuildMemoryMenus();
         BuildNamedPlaylistMenus();
