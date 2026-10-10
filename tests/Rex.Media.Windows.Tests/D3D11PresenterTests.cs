@@ -92,6 +92,45 @@ public sealed class D3D11PresenterTests
     }
 
     [Fact]
+    public void EachPictureLookTransformsPixelsAndOriginalRestoresThem()
+    {
+        using var picture = DecodedPicture();
+        using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
+        presenter.SmoothChroma = false;
+        presenter.Present(picture);
+        using var original = presenter.ReadBack();
+
+        foreach (var look in Enum.GetValues<VideoLook>().Where(look => look != VideoLook.Original))
+        {
+            presenter.SetLook(look);
+            presenter.Redraw();
+            using var styled = presenter.ReadBack();
+            Assert.True(MaxDifference(original, styled) > 2, $"{look} did not change the displayed frame");
+
+            if (look == VideoLook.Monochrome)
+            {
+                var center = styled.Row(0, styled.Height / 2);
+                for (var x = 0; x < styled.Width; x++)
+                {
+                    Assert.InRange(Math.Abs(center[x * 4] - center[(x * 4) + 1]), 0, 1);
+                    Assert.InRange(Math.Abs(center[(x * 4) + 1] - center[(x * 4) + 2]), 0, 1);
+                }
+            }
+        }
+
+        presenter.SetLook(VideoLook.Original);
+        presenter.Redraw();
+        using var restored = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, restored));
+
+        // Invalid saved styles may never leave playback with an unpredictable shader state.
+        presenter.SetLook((VideoLook)999);
+        presenter.Redraw();
+        using var reset = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, reset));
+    }
+
+    [Fact]
     public void APictureIsLetterboxedToItsDisplayAspect()
     {
         using var picture = DecodedPicture();
