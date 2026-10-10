@@ -230,6 +230,13 @@ public sealed partial class MainWindow : Window
                 var power = _settings.VideoStyleValues.ContainsKey(effectOptions[0].Key)
                     ? VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[0])
                     : _settings.VideoEffectStrength;
+                if (_settings.VideoEffect == VideoEffect.GhostwireMotion)
+                {
+                    presenter.SetMotionOptions(
+                        VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[2]),
+                        VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[3]));
+                }
+
                 presenter.SetEffect(_settings.VideoEffect, power,
                     VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[1]));
                 presenter.Redraw();

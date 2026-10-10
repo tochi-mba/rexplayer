@@ -28,6 +28,7 @@ public static class VideoStyleOptions
         var detailLabel = effect switch
         {
             VideoEffect.Ghostwire => "Filament sensitivity (%)",
+            VideoEffect.GhostwireMotion => "Contour sensitivity (%)",
             VideoEffect.GhostwireMask => "Inner contour sensitivity (%)",
             VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.TopographicContours
                 or VideoEffect.ChromaticContours => "Contour sensitivity (%)",
@@ -35,11 +36,19 @@ public static class VideoStyleOptions
             VideoEffect.ReliefEtch => "Surface relief (%)",
             _ => animated ? "Movement (%)" : "Fine detail (%)",
         };
-        return
-        [
-            new($"effect.{name}.intensity", "Effect intensity (%)", effect == VideoEffect.Off ? 0 : effect is VideoEffect.Ghostwire or VideoEffect.GhostwireMask ? 96 : 65, 0, 100),
+        var options = new List<VideoStyleOption>
+        {
+            new($"effect.{name}.intensity", effect == VideoEffect.GhostwireMotion ? "Motion emphasis (%)" : "Effect intensity (%)",
+                effect == VideoEffect.Off ? 0 : effect is VideoEffect.Ghostwire or VideoEffect.GhostwireMask ? 96 : 65, 0, 100),
             new($"effect.{name}.detail", detailLabel, 100, 25, 175),
-        ];
+        };
+        if (effect == VideoEffect.GhostwireMotion)
+        {
+            options.Add(new($"effect.{name}.trails", "Motion trail length (%)", 35, 0, 100));
+            options.Add(new($"effect.{name}.mode", "Visualization mode", 3, 0, 3));
+        }
+
+        return options;
     }
 
     public static int Read(IReadOnlyDictionary<string, int>? values, VideoStyleOption option)

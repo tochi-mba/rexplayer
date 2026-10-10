@@ -124,7 +124,7 @@ public sealed class SettingsStoreTests : IDisposable
         foreach (var effect in Enum.GetValues<VideoEffect>())
         {
             var options = VideoStyleOptions.ForEffect(effect);
-            Assert.Equal(2, options.Count);
+            Assert.Equal(effect == VideoEffect.GhostwireMotion ? 4 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);
@@ -134,6 +134,19 @@ public sealed class SettingsStoreTests : IDisposable
 
             Assert.False(string.IsNullOrWhiteSpace(VideoEffects.Name(effect)));
         }
+
+        var motion = VideoStyleOptions.ForEffect(VideoEffect.GhostwireMotion);
+        Assert.Equal("Motion emphasis (%)", motion[0].Label);
+        Assert.Equal("Contour sensitivity (%)", motion[1].Label);
+        Assert.Equal("Motion trail length (%)", motion[2].Label);
+        Assert.Equal(35, motion[2].Default);
+        Assert.Equal(3, motion[3].Max);
+        Assert.Equal(3, motion[3].Default);
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.GhostwireMotion));
+        Assert.Equal("Ghostwire motion", VideoEffects.Name(VideoEffect.GhostwireMotion));
+        var restoredMotion = VideoStyleOptions.Reset(values, motion);
+        Assert.All(motion, option => Assert.Equal(option.Default, VideoStyleOptions.Read(restoredMotion, option)));
+        Assert.True(restoredMotion.ContainsKey(VideoStyleOptions.ForEffect(VideoEffect.Ghostwire)[0].Key));
 
         var resetOptions = VideoStyleOptions.ForEffect(VideoEffect.CursorLens);
         var reset = VideoStyleOptions.Reset(values, resetOptions);

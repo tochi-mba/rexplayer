@@ -414,6 +414,221 @@ public sealed class D3D11PresenterTests
             $"{effect} must see colour-only contours: edge={edge}, uniform={flat}");
     }
 
+    /// <summary>A high-contrast moving bar and a separate stationary bar in a dark field.</summary>
+    private static VideoFrame MotionPicture(int left, double seconds, int cameraShift = 0)
+    {
+        var picture = VideoFrame.Rent(PixelFormat.Bgra32, 144, 96);
+        picture.Pts = MediaTime.FromSeconds(seconds);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                var moving = x >= left + cameraShift && x < left + cameraShift + 12
+                    && y >= 20 && y < 74;
+                var stationary = x >= 108 + cameraShift && x < 120 + cameraShift;
+                byte grey = moving || stationary ? (byte)210 : (byte)30;
+                row[x * 4] = grey;
+                row[x * 4 + 1] = grey;
+                row[x * 4 + 2] = grey;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        return picture;
+    }
+
+    /// <summary>
+    /// A synthetic soft curved surface in dark and bright footage. Its entire boundary
+    /// is a smooth gradient rather than a hard edge: a still-image shape detector must
+    /// find the visible shading, not require frame-to-frame movement.
+    /// </summary>
+    private static VideoFrame CurvedSurfacePicture(bool dim, double seconds = 0)
+    {
+        var picture = VideoFrame.Rent(PixelFormat.Bgra32, 144, 96);
+        picture.Pts = MediaTime.FromSeconds(seconds);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                var dx = (x - 72.0) / 30;
+                var dy = (y - 48.0) / 23;
+                var bump = Math.Exp(-2.2 * (dx * dx + dy * dy));
+                var shade = Math.Clamp((dim ? 17 : 64) + (dim ? 88 : 142) * bump, 0, 255);
+                var at = x * 4;
+                row[at] = (byte)Math.Round(shade * (dim ? 0.68 : 0.85));
+                row[at + 1] = (byte)Math.Round(shade * (dim ? 0.86 : 0.93));
+                row[at + 2] = (byte)Math.Round(shade);
+                row[at + 3] = 255;
+            }
+        }
+
+        return picture;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GhostwireSurfaceShapeShowsCurvedShadingWithoutAnyMovement(bool dim)
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 175);
+        // Default is surface mode: no previous decoded frame is required.
+        using var frame = CurvedSurfacePicture(dim);
+        presenter.Present(frame);
+        using var first = presenter.ReadBack();
+
+        var flat = first.Row(0, 48)[8 * 4 + 1];
+        var gradient = Enumerable.Range(48, 12)
+            .Max(x => (int)first.Row(0, 48)[x * 4 + 1]);
+        Assert.True(gradient > flat + 12,
+            $"Curved shading must be visible in {(dim ? "low" : "bright")} light: {gradient} vs {flat}");
+
+        presenter.Redraw();
+        using var redraw = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, redraw));
+
+        using var sameStill = CurvedSurfacePicture(dim, 0.04);
+        presenter.Present(sameStill);
+        using var repeated = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, repeated));
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var original = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, sameStill));
+    }
+
+    [Fact]
+    public void UniformSurfaceHasNoFabricatedContourLinesAtHighSensitivity()
+    {
+        using var frame = VideoFrame.Rent(PixelFormat.Bgra32, 144, 96);
+        foreach (var y in Enumerable.Range(0, frame.Height))
+        {
+            var row = frame.Row(0, y);
+            for (var x = 0; x < frame.Width; x++)
+            {
+                row[x * 4] = 95;
+                row[x * 4 + 1] = 95;
+                row[x * 4 + 2] = 95;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 175);
+        presenter.Present(frame);
+        using var drawn = presenter.ReadBack();
+        for (var y = 5; y < 90; y += 11)
+        {
+            var row = drawn.Row(0, y);
+            for (var x = 5; x < 140; x += 11)
+            {
+                Assert.Equal(row[5 * 4 + 1], row[x * 4 + 1]);
+                Assert.Equal(row[5 * 4 + 2], row[x * 4 + 2]);
+            }
+        }
+    }
+
+    [Fact]
+    public void GhostwireMotionSeparatesMovingContoursFromStationaryOnesAndRestoresSource()
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
+        presenter.SetMotionOptions(80, 2); // motion only
+        using var initial = MotionPicture(24, 0);
+        presenter.Present(initial);
+        using var first = presenter.ReadBack();
+        presenter.Redraw();
+        using var redrawn = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, redrawn)); // no fictitious time while paused
+
+        using var unchanged = MotionPicture(24, 0.04);
+        presenter.Present(unchanged);
+        using var still = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, still));
+
+        using var shifted = MotionPicture(39, 0.08);
+        presenter.Present(shifted);
+        using var moving = presenter.ReadBack();
+        var movingPeak = Enumerable.Range(20, 38).Max(x => (int)moving.Row(0, 46)[x * 4 + 2]);
+        var stationaryPeak = Enumerable.Range(105, 18).Max(x => (int)moving.Row(0, 46)[x * 4 + 2]);
+        Assert.True(movingPeak > stationaryPeak + 20,
+            $"Moving contours must glow more than stationary lines: {movingPeak} vs {stationaryPeak}");
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var original = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, shifted));
+    }
+
+    [Fact]
+    public void GhostwireMotionHistoryClearsAfterSeekOrLongGap()
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
+        presenter.SetMotionOptions(100, 2);
+        using var initial = MotionPicture(24, 0);
+        using var moved = MotionPicture(39, 0.04);
+        presenter.Present(initial);
+        presenter.Present(moved);
+        using var active = presenter.ReadBack();
+
+        using var backwards = MotionPicture(62, 0.01);
+        presenter.Present(backwards);
+        using var noTrail = presenter.ReadBack();
+        presenter.Redraw();
+        using var pause = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(noTrail, pause));
+
+        using var another = MotionPicture(24, 2);
+        presenter.Present(another); // discontinuity: no old moving bar leaks in
+        using var afterGap = presenter.ReadBack();
+
+        using var fresh = D3D11Presenter.Offscreen(144, 96);
+        fresh.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
+        fresh.SetMotionOptions(100, 2);
+        fresh.Present(another);
+        using var first = fresh.ReadBack();
+        Assert.Equal(0, MaxDifference(first, afterGap));
+        Assert.True(MaxDifference(active, noTrail) > 15);
+    }
+
+    [Fact]
+    public void GhostwireMotionModeAndTrailControlsRemainIndependent()
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
+        presenter.SetMotionOptions(0, 2); // Activate temporal capture before the first picture.
+        using var before = MotionPicture(24, 0);
+        using var moved = MotionPicture(39, 0.04);
+        presenter.Present(before);
+        presenter.Present(moved);
+        presenter.Redraw();
+        using var withoutTrails = presenter.ReadBack();
+
+        presenter.SetMotionOptions(100, 2);
+        presenter.Redraw();
+        using var withTrails = presenter.ReadBack();
+        Assert.True(MaxDifference(withoutTrails, withTrails) > 4);
+
+        presenter.SetMotionOptions(100, 1);
+        presenter.Redraw();
+        using var contours = presenter.ReadBack();
+        Assert.True(MaxDifference(withTrails, contours) > 10);
+
+        presenter.SetMotionOptions(100, 0);
+        // Switching from a non-temporal mode intentionally discards stale history.
+        // Show a new pair instead of borrowing an old motion vector.
+        using var again = MotionPicture(24, 0.08);
+        using var movedAgain = MotionPicture(39, 0.12);
+        presenter.Present(again);
+        presenter.Present(movedAgain);
+        using var hybrid = presenter.ReadBack();
+        Assert.True(MaxDifference(hybrid, contours) > 10);
+    }
+
     [Fact]
     public void ColourSpotlightOnlyRespondsToTheChosenPixelAndClearsWithThePointer()
     {

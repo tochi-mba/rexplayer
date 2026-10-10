@@ -7,9 +7,11 @@ namespace Rex.Media.Interop.Graphics;
 internal static class D3D11VideoShaders
 {
     public const string Source = """
-        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; };
+        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; float4 motion; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
+        Texture2D priorLuma : register(t2);
+        Texture2D priorChroma : register(t3);
         SamplerState linearClamp : register(s0);
         SamplerState chromaSampler : register(s1);
         struct Vertex { float4 position : SV_Position; float2 uv : TEXCOORD0; };
@@ -138,6 +140,19 @@ internal static class D3D11VideoShaders
             }
             return luma.Sample(linearClamp, mapped).rgb;
         }
+        // The previous frame is sampled from separately retained GPU planes. Decode on
+        // the card as for the current image; never read back video into managed memory.
+        float3 readPrior(float2 uv, bool isYuv)
+        {
+            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
+            if (isYuv)
+            {
+                float4 samples = float4(priorLuma.Sample(linearClamp, mapped).r,
+                    priorChroma.Sample(chromaSampler, mapped).rg, 1);
+                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
+            }
+            return priorLuma.Sample(linearClamp, mapped).rgb;
+        }
         // A four-neighbour spatial gradient, measured in real output-pixel units.
         // Derivatives adapt across window sizes, avoiding a permanently chunky outline.
         float2 pictureGradient(float2 uv, bool isYuv)
@@ -181,6 +196,38 @@ internal static class D3D11VideoShaders
             float3 broad = contourGradient(uv, isYuv, 2.0);
             return float3(dot(fine.xy, fine.xy) > 0.000001 ? fine.xy : broad.xy,
                 max(fine.z, broad.z * 0.62));
+        }
+        // Stationary surface view: image-derived isolines on smoothed luminance
+        // plus local gradient relief. Broad sampling resolves softly shaded
+        // rounded forms without requiring a moving target or previous frames.
+        // Flat untextured pixels have zero contour confidence.
+        float3 surfaceContours(float2 uv, bool isYuv, float3 colour, float detail,
+            float fineEdge)
+        {
+            float2 stepUv = max(fwidth(uv) * 3.0, float2(0.0005, 0.0005))
+                / max(detail, 0.25);
+            float3 weights = float3(0.2126, 0.7152, 0.0722);
+            float centre = dot(colour, weights);
+            float left = dot(readColour(uv - float2(stepUv.x, 0), isYuv), weights);
+            float right = dot(readColour(uv + float2(stepUv.x, 0), isYuv), weights);
+            float top = dot(readColour(uv - float2(0, stepUv.y), isYuv), weights);
+            float bottom = dot(readColour(uv + float2(0, stepUv.y), isYuv), weights);
+            float luma = (centre * 4 + left + right + top + bottom) * 0.125;
+            float2 slope = float2(right - left, bottom - top);
+            float slopeSize = length(slope) * 0.5;
+            float visibleSurface = smoothstep(0.0045 / detail, 0.068 / detail, slopeSize);
+            float contours = 1 - smoothstep(0.025, 0.11,
+                abs(frac(luma * (18 * detail)) - 0.5));
+            float3 normal = normalize(float3(-slope.x * 6, -slope.y * 6, 0.6));
+            float light = 0.6 + 0.4 * dot(normal, normalize(float3(-0.45, -0.5, 0.74)));
+            float3 base = colour * (0.22 + 0.27 * saturate(light))
+                + float3(0.012, 0.017, 0.031);
+            // Neither band nor "relief" invents anatomy: both are driven by
+            // variation that can be read from the recorded picture itself.
+            base += contours * visibleSurface * float3(0.10, 0.68, 0.75);
+            base += visibleSurface * (1 - contours) * float3(0.018, 0.054, 0.078);
+            base += fineEdge * float3(0.17, 0.70, 0.82);
+            return saturate(base);
         }
         float3 effected(float2 uv, bool isYuv)
         {
@@ -330,6 +377,56 @@ internal static class D3D11VideoShaders
                 maskColour += filament * float3(0.22, 0.93, 0.96);
                 maskColour += luminance * float3(0.009, 0.022, 0.035);
                 colour = lerp(colour, saturate(maskColour), effect.y);
+            }
+            if (effect.x > 16.5 && effect.x < 17.5 && effect.y > 0)
+            {
+                // Ghostwire Motion: fine recorded contours + conservative two-frame
+                // motion residuals. Matching the previous image at nearby texels rejects
+                // slight pans and camera shake; it is not a semantic motion detector.
+                float3 structure = contourDetail(uv, isYuv);
+                float sensitivity = max(pointer.w, 0.25);
+                float edge = smoothstep(0.006 / sensitivity, 0.16 / sensitivity, structure.z);
+                float activity = 0;
+                float oldEdge = 0;
+                if (motion.y > 0.5 && (motion.z < 0.5 || (motion.z > 1.5 && motion.z < 2.5)))
+                {
+                    float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                    float3 old = readPrior(uv, isYuv);
+                    // A small correspondence search suppresses a one-pixel global shift
+                    // and flicker from sampling while preserving larger local deformation.
+                    float mismatch = length(colour - old);
+                    mismatch = min(mismatch, length(colour - readPrior(uv + float2(px.x, 0), isYuv)));
+                    mismatch = min(mismatch, length(colour - readPrior(uv - float2(px.x, 0), isYuv)));
+                    mismatch = min(mismatch, length(colour - readPrior(uv + float2(0, px.y), isYuv)));
+                    mismatch = min(mismatch, length(colour - readPrior(uv - float2(0, px.y), isYuv)));
+                    float3 oldDx = readPrior(uv + float2(px.x, 0), isYuv)
+                        - readPrior(uv - float2(px.x, 0), isYuv);
+                    float3 oldDy = readPrior(uv + float2(0, px.y), isYuv)
+                        - readPrior(uv - float2(0, px.y), isYuv);
+                    oldEdge = smoothstep(0.01 / sensitivity, 0.22 / sensitivity,
+                        sqrt(dot(oldDx, oldDx) + dot(oldDy, oldDy)));
+                    // Spatial-edge gating keeps global brightness changes from
+                    // illuminating uniform picture regions.
+                    activity = smoothstep(0.028, 0.21, mismatch)
+                        * max(edge, oldEdge);
+                }
+                float3 ink = float3(0.013, 0.02, 0.033) + colour * 0.055;
+                float3 stationary = edge * float3(0.12, 0.78, 0.81);
+                float trail = activity * oldEdge * motion.x;
+                float3 moving = activity * float3(0.60, 0.18, 0.90)
+                    + trail * float3(0.12, 0.45, 0.98);
+                // Mode: 0 hybrid, 1 contours, 2 motion, 3 stationary
+                // surface shape. Surface mode needs no previous frame, and
+                // works just as well when paused or on a photograph.
+                if (motion.z > 2.5)
+                    ink = surfaceContours(uv, isYuv, colour, sensitivity, edge);
+                else if (motion.z < 0.5)
+                    ink += stationary + moving;
+                else if (motion.z < 1.5)
+                    ink += stationary;
+                else
+                    ink += moving;
+                colour = lerp(colour, saturate(ink), effect.y);
             }
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {

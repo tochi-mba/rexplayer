@@ -105,6 +105,12 @@ public sealed partial class MainWindow
             var values = _settings.VideoStyleValues;
             var intensity = values.ContainsKey(options[0].Key) ? VideoStyleOptions.Read(values, options[0])
                 : effect is VideoEffect.Ghostwire or VideoEffect.GhostwireMask ? options[0].Default : strength;
+            if (effect == VideoEffect.GhostwireMotion)
+            {
+                presenter.SetMotionOptions(VideoStyleOptions.Read(values, options[2]),
+                    VideoStyleOptions.Read(values, options[3]));
+            }
+
             presenter.SetEffect(effect, intensity, VideoStyleOptions.Read(values, options[1]));
             if (redraw)
             {
@@ -135,6 +141,7 @@ public sealed partial class MainWindow
         {
             VideoEffect.Ghostwire => "Ghostwire makes an almost invisible glass-like picture with luminous contours. It shows visible edges, not hidden surfaces.",
             VideoEffect.GhostwireMask => "Ghostwire mask mode stylizes visible video regions using only their brightness and contours. It does not detect clothing, remove it, or reveal skin or anatomy hidden behind it.",
+            VideoEffect.GhostwireMotion => "Surface shape (default) reveals visible curves, highlights and soft shading even when the image is paused or still. Hybrid adds motion highlights; Contours and Motion isolate their respective signals. This is artistic image contrast, not a reconstruction of hidden anatomy. Camera movement and cuts can produce artefacts.",
             VideoEffect.ColourSpotlight => "Move the pointer over a colour to highlight similar colours in the current frame. This does not follow an object.",
             VideoEffect.ReliefEtch => "Simulated directional light carves relief from visible contrast; it does not estimate real depth.",
             _ => "",
@@ -146,21 +153,14 @@ public sealed partial class MainWindow
                 : "Changes preview live. Each preset remembers its own settings. Cancel restores your previous values.",
             TextWrapping = TextWrapping.Wrap,
         });
-        var sliders = new List<(VideoStyleOption Option, NumberBox Control)>();
+        var sliders = new List<(VideoStyleOption Option, Action<int> SetValue)>();
         foreach (var option in options)
         {
-            var box = Number(option.Label, VideoStyleOptions.Read(before, option), option.Min, option.Max);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "VideoStyle-" + option.Key);
-            box.ValueChanged += (_, _) =>
+            void Preview(int value)
             {
-                if (!double.IsFinite(box.Value))
-                {
-                    return;
-                }
-
                 _settings = _settings with
                 {
-                    VideoStyleValues = VideoStyleOptions.With(_settings.VideoStyleValues, option, (int)box.Value),
+                    VideoStyleValues = VideoStyleOptions.With(_settings.VideoStyleValues, option, value),
                 };
                 if (effect)
                 {
@@ -170,9 +170,43 @@ public sealed partial class MainWindow
                 {
                     ApplyVideoLook(_settings.VideoLook);
                 }
-            };
-            sliders.Add((option, box));
-            content.Children.Add(box);
+            }
+
+            if (effect && option.Key.EndsWith(".mode", StringComparison.Ordinal))
+            {
+                // Modes are named, not a cryptic 0-2 numeric control.
+                var mode = new ComboBox
+                {
+                    Header = option.Label,
+                    ItemsSource = new[] { "Hybrid (contours + movement)", "Contours only", "Motion only", "Surface shape (still-friendly)" },
+                    SelectedIndex = VideoStyleOptions.Read(before, option),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(mode, "VideoStyle-" + option.Key);
+                mode.SelectionChanged += (_, _) =>
+                {
+                    if (mode.SelectedIndex >= 0)
+                    {
+                        Preview(mode.SelectedIndex);
+                    }
+                };
+                sliders.Add((option, value => mode.SelectedIndex = value));
+                content.Children.Add(mode);
+            }
+            else
+            {
+                var box = Number(option.Label, VideoStyleOptions.Read(before, option), option.Min, option.Max);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "VideoStyle-" + option.Key);
+                box.ValueChanged += (_, _) =>
+                {
+                    if (double.IsFinite(box.Value))
+                    {
+                        Preview((int)box.Value);
+                    }
+                };
+                sliders.Add((option, value => box.Value = value));
+                content.Children.Add(box);
+            }
         }
 
         var reset = new Button { Content = "Reset this preset to defaults" };
@@ -180,9 +214,9 @@ public sealed partial class MainWindow
         reset.Click += (_, _) =>
         {
             _settings = _settings with { VideoStyleValues = VideoStyleOptions.Reset(_settings.VideoStyleValues, options) };
-            foreach (var (option, box) in sliders)
+            foreach (var (option, setValue) in sliders)
             {
-                box.Value = option.Default;
+                setValue(option.Default);
             }
         };
         content.Children.Add(reset);
