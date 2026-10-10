@@ -45,7 +45,7 @@ public static class VideoStyleOptions
         if (effect == VideoEffect.GhostwireMotion)
         {
             options.Add(new($"effect.{name}.trails", "Motion trail length (%)", 35, 0, 100));
-            options.Add(new($"effect.{name}.mode", "Visualization mode", 0, 0, 2));
+            options.Add(new($"effect.{name}.mode", "Visualization mode", 3, 0, 3));
         }
 
         return options;
