@@ -81,7 +81,7 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void SpatialVideoEffectsHaveStableNamesAndSafeSettings()
     {
-        Assert.Equal(13, VideoEffects.Names.Count);
+        Assert.Equal(16, VideoEffects.Names.Count);
         Assert.Equal("Off", VideoEffects.Name(VideoEffect.Off));
         Assert.Equal("Off", VideoEffects.Name((VideoEffect)999));
         Assert.Equal(0, VideoEffects.Strength(-1));
@@ -166,12 +166,17 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.InkTrace));
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.TopographicContours));
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.ChromaticContours));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.PrecisionContours));
         Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.SliceShift));
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.CursorLens));
+        Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.ColourSpotlight));
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.EdgeGravity));
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.ReliefEtch));
         Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.NeonEdges));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.CursorLens));
+        Assert.True(VideoEffects.UsesPointer(VideoEffect.ColourSpotlight));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));
+        Assert.False(VideoEffects.UsesPointer(VideoEffect.PrecisionContours));
         Assert.Equal(100, VideoStyleOptions.Read(null, VideoStyleOptions.ForLook((VideoLook)1000)[0]));
         Assert.Equal(0, VideoStyleOptions.Read(null, VideoStyleOptions.ForEffect((VideoEffect)1000)[0]));
     }
