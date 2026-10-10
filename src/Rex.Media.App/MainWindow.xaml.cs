@@ -221,6 +221,7 @@ public sealed partial class MainWindow : Window
             OnPresenterThread(presenter =>
             {
                 presenter.SetScale(scaleX, scaleY);
+                presenter.SetLook(_settings.VideoLook);
                 presenter.Redraw();
             });
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
