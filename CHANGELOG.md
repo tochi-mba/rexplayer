@@ -3,6 +3,27 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.15.3 - 2026-10-10
+
+### Fixed
+
+- **Clearing the picture.** Clearing or switching away from video now clears the GPU render target
+  to black instead of drawing a cached video texture. A decoder-independent Windows regression
+  confirms that later redraws remain black.
+
+### Improved
+
+- **Subject tracking.** Reuses a small template-sampling buffer across consecutive video frames
+  without altering the original reference used to reacquire a selected subject. A regression
+  checks steady-frame allocations.
+- **Video presentation.** Shares the unchanged BGRA colour matrix across draws and paused-frame
+  redraws instead of allocating a new matrix each time.
+- **Camera memory.** Reuses the temporary capture buffer while processing frames under the
+  existing lock, and erases that buffer when capture is disposed.
+- **Verification.** Windows builds, formatting, line coverage, adapter tests, UI Automation,
+  installer and update tests, portable engine tests, site checks and performance baselines
+  passed on the fix pull request.
+
 ## 0.15.2 - 2026-10-10
 
 ### Added
