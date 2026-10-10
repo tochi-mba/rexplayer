@@ -66,6 +66,20 @@ public readonly record struct PictureView
     /// <summary>The view, as zoomed, centred on (<paramref name="x"/>, <paramref name="y"/>) of the whole picture: a click in the navigator.</summary>
     public PictureView CenteredOn(double x, double y) => new(Zoom, x, y);
 
+    /// <summary>
+    /// Ease the viewport toward a selected visible subject without cropping it out. Coordinates
+    /// and dimensions are relative to the picture after its user-selected crop. The 1.85x cap
+    /// keeps enough context for a moving subject to remain recognizable.
+    /// </summary>
+    public PictureView Follow(double centreX, double centreY, double width, double height)
+    {
+        var zoom = Math.Clamp(0.8 / Math.Max(0.01, Math.Max(width, height)), 1, 1.85);
+        return new PictureView(
+            Zoom + (zoom - Zoom) * 0.35,
+            CenterX + (centreX - CenterX) * 0.3,
+            CenterY + (centreY - CenterY) * 0.3);
+    }
+
     /// <summary>The part of <paramref name="picture"/> (a crop of the decoded picture) this view shows.</summary>
     public SourceRect Within(SourceRect picture)
     {
