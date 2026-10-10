@@ -27,8 +27,10 @@ public static class VideoStyleOptions
             or VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.EdgeGravity;
         var detailLabel = effect switch
         {
-            VideoEffect.Ghostwire => "Filament detail (%)",
-            VideoEffect.GhostwireMask => "Mask edge detail (%)",
+            VideoEffect.Ghostwire => "Filament sensitivity (%)",
+            VideoEffect.GhostwireMask => "Inner contour sensitivity (%)",
+            VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.TopographicContours
+                or VideoEffect.ChromaticContours => "Contour sensitivity (%)",
             VideoEffect.ColourSpotlight => "Colour selectivity (%)",
             VideoEffect.ReliefEtch => "Surface relief (%)",
             _ => animated ? "Movement (%)" : "Fine detail (%)",
