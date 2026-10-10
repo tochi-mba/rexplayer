@@ -221,8 +221,16 @@ public sealed partial class MainWindow : Window
             OnPresenterThread(presenter =>
             {
                 presenter.SetScale(scaleX, scaleY);
-                presenter.SetLook(_settings.VideoLook);
-                presenter.SetEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
+                var lookOptions = VideoStyleOptions.ForLook(_settings.VideoLook);
+                presenter.SetLook(_settings.VideoLook,
+                    VideoStyleOptions.Read(_settings.VideoStyleValues, lookOptions[0]),
+                    VideoStyleOptions.Read(_settings.VideoStyleValues, lookOptions[1]));
+                var effectOptions = VideoStyleOptions.ForEffect(_settings.VideoEffect);
+                var power = _settings.VideoStyleValues.ContainsKey(effectOptions[0].Key)
+                    ? VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[0])
+                    : _settings.VideoEffectStrength;
+                presenter.SetEffect(_settings.VideoEffect, power,
+                    VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[1]));
                 presenter.Redraw();
             });
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
