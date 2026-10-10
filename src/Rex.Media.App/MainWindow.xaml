@@ -219,14 +219,6 @@
         <!-- Lyrics, the line being sung marked and kept in the middle (META-09). -->
         <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="48,0,48,24" MaxWidth="720" CornerRadius="12"
                       VerticalScrollBarVisibility="Hidden" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
-          <ScrollViewer.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-              <GradientStop Color="#00000000" Offset="0" />
-              <GradientStop Color="#A0000000" Offset="0.25" />
-              <GradientStop Color="#A0000000" Offset="0.75" />
-              <GradientStop Color="#00000000" Offset="1" />
-            </LinearGradientBrush>
-          </ScrollViewer.Background>
           <StackPanel x:Name="LyricsLines" Spacing="6" Padding="0,8" />
         </ScrollViewer>
 
