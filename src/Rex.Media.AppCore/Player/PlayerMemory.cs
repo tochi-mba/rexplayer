@@ -19,6 +19,24 @@ public sealed record QueuedItem(string Location, string? Title, string? Artist, 
 /// <summary>The queue as it was when the player closed (LIB-03): its items, the one playing, and where.</summary>
 public sealed record QueueSnapshot(IReadOnlyList<QueuedItem> Items, int Current, TimeSpan At);
 
+/// <summary>
+/// One-time session hand-off for an app-initiated upgrade. Unlike the ordinary saved queue,
+/// it remembers whether playback was active, even when automatic queue restoration is off.
+/// Its UI values are names, not control instances, so a newer version can ignore unknown views.
+/// </summary>
+public sealed record UpdateSession(
+    QueueSnapshot? Queue,
+    bool Active,
+    bool Playing,
+    string LibrarySource,
+    bool LibraryVisible,
+    string Search,
+    string? GroupName,
+    string? GroupDetail,
+    string? SeasonName,
+    bool PlaylistVisible,
+    DateTimeOffset SavedAt);
+
 /// <summary>A playlist the user named and keeps (LIB-04), known by an id that stays when it is renamed.</summary>
 public sealed record NamedPlaylist(string Id, string Name, IReadOnlyList<QueuedItem> Items);
 
@@ -45,6 +63,7 @@ public sealed class PlayerMemory(RexStore store)
     private const string EpisodePrefix = "episode-sections/";
     private const string RecentKey = "recent";
     private const string QueueKey = "queue";
+    private const string UpdateSessionKey = "update-session";
     private const string PlaylistPrefix = "playlist/";
 
     public RexStore Store { get; } = store ?? throw new ArgumentNullException(nameof(store));
@@ -162,6 +181,23 @@ public sealed class PlayerMemory(RexStore store)
         }
     }
 
+    /// <summary>One-time post-update recovery; normal launches never write this marker.</summary>
+    public UpdateSession? Updating
+    {
+        get => Read(UpdateSessionKey, MemoryJson.Default.UpdateSession);
+        set
+        {
+            if (value is null)
+            {
+                Store.Remove(UpdateSessionKey);
+            }
+            else
+            {
+                Write(UpdateSessionKey, value, MemoryJson.Default.UpdateSession);
+            }
+        }
+    }
+
     /// <summary>The named playlists, by name; one that no longer reads is left out.</summary>
     public IReadOnlyList<NamedPlaylist> Playlists =>
         [.. Store.WithPrefix(PlaylistPrefix)
@@ -219,5 +255,6 @@ public sealed class PlayerMemory(RexStore store)
 [JsonSerializable(typeof(EpisodeSections))]
 [JsonSerializable(typeof(QuickSlot))]
 [JsonSerializable(typeof(QueueSnapshot))]
+[JsonSerializable(typeof(UpdateSession))]
 [JsonSerializable(typeof(NamedPlaylist))]
 internal sealed partial class MemoryJson : JsonSerializerContext;
