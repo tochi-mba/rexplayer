@@ -249,6 +249,53 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 // Shimmer hugs edges; untextured backgrounds never illuminate.
                 colour = saturate(colour + edge * (0.11 * effect.y) * float3(0.11, 0.65, 0.98));
             }
+            if (effect.x > 12.5 && effect.x < 13.5 && effect.y > 0)
+            {
+                // Precision contours: suppress edges that are not local maxima along their
+                // measured gradient, so a high-contrast transition forms one thin outline
+                // rather than several parallel lines. This detects visible boundaries;
+                // it does not infer semantic object membership.
+                float2 gradient = pictureGradient(uv, isYuv);
+                float energy = length(gradient);
+                float2 direction = gradient / max(energy, 0.00001);
+                float2 stepUv = max(fwidth(uv), float2(0.0005, 0.0005))
+                    / max(pointer.w, 0.25);
+                float2 offsetUv = direction * stepUv;
+                float previous = length(pictureGradient(uv - offsetUv, isYuv));
+                float next = length(pictureGradient(uv + offsetUv, isYuv));
+                float ridge = (energy >= previous && energy >= next) ? 1.0 : 0.0;
+                float line = ridge * smoothstep(0.045 / max(pointer.w, 0.25),
+                    0.23 / max(pointer.w, 0.25), energy);
+                float3 ink = saturate(colour * 0.16 + line * float3(0.22, 1.0, 0.85));
+                colour = lerp(colour, ink, effect.y);
+            }
+            if (effect.x > 13.5 && effect.x < 14.5 && effect.y > 0 && pointer.z > 0.5)
+            {
+                // Colour spotlight: the pointer chooses a *pixel colour*, not an object.
+                // Similar colours are highlighted anywhere in the current picture.
+                // With no pointer there is no modification and no stale selection.
+                float3 chosen = readColour(pointer.xy, isYuv);
+                float deviation = length(colour - chosen);
+                float similarity = 1 - smoothstep(0.07 / max(pointer.w, 0.25),
+                    0.38 / max(pointer.w, 0.25), deviation);
+                float grey = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                float3 muted = lerp(colour, grey.xxx * 0.7, 0.82 * effect.y);
+                float3 vivid = saturate(colour * (1 + effect.y * 0.24)
+                    + similarity * effect.y * float3(0.03, 0.11, 0.17));
+                colour = lerp(muted, vivid, similarity);
+            }
+            if (effect.x > 14.5 && effect.x < 15.5 && effect.y > 0)
+            {
+                // Relief etch: light falls across the *image gradient*. It is an
+                // artistic surface-relief illusion, not an estimated depth map.
+                float2 slope = pictureGradient(uv, isYuv) * (5 * max(pointer.w, 0.25));
+                float3 normal = normalize(float3(-slope.x, -slope.y, 0.65));
+                float directional = saturate(dot(normal, normalize(float3(-0.55, -0.4, 0.75))));
+                float edge = smoothstep(0.04, 0.35, length(slope));
+                float3 relief = saturate(colour * (0.35 + 0.95 * directional)
+                    + edge * (directional - 0.5) * float3(0.21, 0.24, 0.22));
+                colour = lerp(colour, relief, effect.y);
+            }
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {
                 // A fine highlight at the actual lens boundary communicates where the cursor is.
