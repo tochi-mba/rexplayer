@@ -84,7 +84,11 @@ public sealed class GaplessTests
         // second plus that (which would sit at the end).
         var second = seen.Where(pair => pair.Written >= 8000 + 2000).ToList();
         Assert.NotEmpty(second);
-        Assert.All(second, pair => Assert.Equal(MediaTime.FromSamples(pair.Written - 8000, 8000).Ticks, pair.Position.Ticks, 1_000_000));
+        Assert.All(second, pair =>
+        {
+            var expectedTicks = MediaTime.FromSamples(pair.Written - 8000, 8000).Ticks;
+            Assert.InRange(pair.Position.Ticks, expectedTicks - 1_000_000L, expectedTicks + 1_000_000L);
+        });
         Assert.Equal(2, harness.Events.OfType<MediaOpenedEvent>().Count());
     }
 
