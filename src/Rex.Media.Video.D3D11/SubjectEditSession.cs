@@ -440,7 +440,7 @@ public sealed class SubjectEditSession
         // several sizes so a shirt that returns nearer or farther can still be found.
         // Limit candidate work and use sparse RGB samples before the full comparison.
         List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(24);
-        ReadOnlySpan<float> scales = stackalloc float[] { 0.7f, 0.85f, 1f, 1.3f, 1.6f };
+        ReadOnlySpan<float> scales = stackalloc float[] { 0.7f, 0.85f, 1f, 1.3f, 1.5f };
         foreach (var scale in scales)
         {
             // Preserve a separate shortlist per scale: otherwise proposals from one
