@@ -36,6 +36,8 @@ public sealed class D3D11Presenter : IVideoPresenter
     private float _effectStrength = 0.65f;
     private float _effectTime;
     private bool _navigator;
+    private readonly SubjectEditSession _subjectEdit = new();
+    private VideoFrame? _originalForEditing;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
     {
@@ -139,6 +141,47 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
+    /// <summary>Select a region of the decoded picture, independent of the current visual effect.</summary>
+    public void SelectSubject(float left, float top, float width, float height)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.Select(left, top, width, height);
+        }
+    }
+
+    /// <summary>Preview erasing the selected item; the original media is never changed.</summary>
+    public void SetSubjectErasure(bool enabled)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.SetErase(enabled);
+        }
+    }
+
+    /// <summary>Return to the unmodified picture and clear tracking and observed samples.</summary>
+    public void ClearSubject()
+    {
+        lock (_gate)
+        {
+            _subjectEdit.Reset();
+            _originalForEditing?.Dispose();
+            _originalForEditing = null;
+        }
+    }
+
+    /// <summary>Thread-safe, local-only status for the selection overlay.</summary>
+    public (bool Locked, bool Tracking, bool Erase, float Left, float Top, float Width, float Height, double Confidence, int EstimatedPixels, string Status) SubjectStatus()
+    {
+        lock (_gate)
+        {
+            var region = _subjectEdit.Region;
+            return (_subjectEdit.Locked, _subjectEdit.Tracking, _subjectEdit.Erase,
+                region.Left, region.Top, region.Width, region.Height,
+                _subjectEdit.Confidence, _subjectEdit.EstimatedPixels, _subjectEdit.Status);
+        }
+    }
+
     /// <summary>The panel's new size in physical pixels, applied before the next picture is drawn.</summary>
     public void Resize(int width, int height)
     {
@@ -167,6 +210,21 @@ public sealed class D3D11Presenter : IVideoPresenter
         {
             ApplySize();
             var (width, height) = _renderer.TargetSize;
+            if (_subjectEdit.Locked && _originalForEditing is not null)
+            {
+                using var edited = _subjectEdit.Process(_originalForEditing);
+                if (edited is not null)
+                {
+                    _renderer.Upload(VideoPlaneFormat.Bgra, edited.Width, edited.Height,
+                        edited.Plane(0), edited.Stride(0), default, 0);
+                }
+                else
+                {
+                    _renderer.Upload(VideoPlaneFormat.Bgra, _originalForEditing.Width, _originalForEditing.Height,
+                        _originalForEditing.Plane(0), _originalForEditing.Stride(0), default, 0);
+                }
+            }
+
             if (_last is { } last)
             {
                 DrawShaped(last.Matrix, last.Width, last.Height, last.PixelAspect);
@@ -186,6 +244,9 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _last = null;
+            _originalForEditing?.Dispose();
+            _originalForEditing = null;
+            _subjectEdit.Reset();
         }
 
         Redraw();
@@ -197,7 +258,43 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             ApplySize();
-            Show(frame);
+            if (!_subjectEdit.Locked)
+            {
+                _originalForEditing?.Dispose();
+                _originalForEditing = null;
+                Show(frame);
+                return;
+            }
+
+            using var original = frame.Surface is D3D11Surface gpu
+                ? ReadGpuFrame(frame, gpu)
+                : ColorConverter.ToBgra(frame);
+            _originalForEditing?.Dispose();
+            _originalForEditing = ColorConverter.ToBgra(original);
+            using var edited = _subjectEdit.Process(original);
+            Show(edited ?? frame);
+        }
+    }
+
+    private VideoFrame ReadGpuFrame(VideoFrame original, D3D11Surface surface)
+    {
+        var frame = VideoFrame.Rent(original.Format, original.Width, original.Height);
+        frame.Pts = original.Pts;
+        frame.Duration = original.Duration;
+        frame.PixelAspect = original.PixelAspect;
+        frame.Color = original.Color;
+        frame.Generation = original.Generation;
+        try
+        {
+            _renderer.CopySurfacePlanes(surface, original.Width, original.Height,
+                original.Format == PixelFormat.P010, frame.Plane(0), frame.Stride(0),
+                frame.Plane(1), frame.Stride(1));
+            using var converted = ColorConverter.ToBgra(frame);
+            return ColorConverter.ToBgra(converted);
+        }
+        finally
+        {
+            frame.Dispose();
         }
     }
 
@@ -272,6 +369,8 @@ public sealed class D3D11Presenter : IVideoPresenter
     {
         lock (_gate)
         {
+            _originalForEditing?.Dispose();
+            _originalForEditing = null;
             _renderer.Dispose();
             _window?.Dispose();
         }
