@@ -483,8 +483,8 @@ public sealed class AppWindowTests : IDisposable
         }
 
         Visit("Movies");
-        Wait.Until(() => app.Find("LibraryList").FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.NameProperty, "Small Film")));
+        Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 movie", StringComparison.Ordinal),
+            "only standalone video files to appear in Movies");
         Visit("TV Shows");
         Wait.Until(() => app.Find("LibraryList").FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, "North Shore")));
