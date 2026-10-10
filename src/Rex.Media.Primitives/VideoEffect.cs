@@ -22,6 +22,7 @@ public enum VideoEffect
     Ghostwire,
     ColourSpotlight,
     ReliefEtch,
+    GhostwireMask,
 }
 
 /// <summary>Names, categories and safe bounds for the optional effects.</summary>
@@ -32,7 +33,7 @@ public static class VideoEffects
         "Off", "Prism flow", "Neon contours", "Pixel drift", "Kaleidoscope",
         "Ink trace", "Topographic contours", "Chromatic contours",
         "Liquid glass", "Slice shift", "Vortex", "Cursor lens", "Edge gravity",
-        "Ghostwire", "Colour spotlight", "Relief etch",
+        "Ghostwire", "Colour spotlight", "Relief etch", "Ghostwire mask mode",
     ];
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
@@ -40,7 +41,7 @@ public static class VideoEffects
     /// <summary>Visual grouping for an accessible effect picker.</summary>
     public static string Category(VideoEffect effect) => effect switch
     {
-        VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire => "Contours",
+        VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire or VideoEffect.GhostwireMask => "Contours",
         VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex => "Motion & geometry",
         VideoEffect.CursorLens or VideoEffect.ColourSpotlight => "Interactive",
         VideoEffect.EdgeGravity or VideoEffect.ReliefEtch => "Image-aware",
