@@ -403,6 +403,49 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void LibraryArtworkLeavesRoomToBrowseAndScrollPictures()
+    {
+        var example = RepoPaths.Combine("tests", "fixtures", "picture", "still.jpg");
+        var pictures = Enumerable.Range(1, 36).Select(index => Path.Combine(_media, $"Photo-{index:00}.jpg")).ToList();
+        foreach (var picture in pictures)
+        {
+            File.Copy(example, picture);
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log")));
+        library.AddFolder(_media);
+        var files = pictures.Select(path =>
+        {
+            var info = new FileInfo(path);
+            return new Rex.Media.Library.LibraryFile(path, info.Length, info.LastWriteTimeUtc);
+        }).ToList();
+        Assert.Equal(pictures.Count, library.Scan(_media, files, _ => Rex.Media.Library.LibraryKind.Picture).Added);
+
+        using var app = AppProcess.Start(root: root);
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => app.Text("LibraryTitle") == "Home", "the library home");
+        // Artwork must not stretch the banner and push the scrolling content out of the window.
+        Assert.InRange(app.Find("LibraryHero").Current.BoundingRectangle.Height, 190, 210);
+        Assert.True(app.IsShown("LibraryHome"), "The home shelves must have a visible viewport.");
+
+        var picturesView = Wait.Until(() => app.Find("LibrarySources").FindFirst(
+            TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Pictures")));
+        ((SelectionItemPattern)picturesView!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        Wait.For(() => app.Text("LibraryTitle") == "Pictures", "the pictures view");
+        Assert.InRange(app.Find("LibraryHero").Current.BoundingRectangle.Height, 190, 210);
+        Assert.True(app.IsShown("LibraryList"), "The picture grid must have a visible viewport.");
+
+        var scroll = (ScrollPattern)app.Find("LibraryList").GetCurrentPattern(ScrollPattern.Pattern);
+        Wait.For(() => scroll.Current.VerticallyScrollable, "the picture grid to be vertically scrollable");
+        scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
+        Wait.For(() => scroll.Current.VerticalScrollPercent > 0, "the picture grid to scroll");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-04")]
     public void APlaylistIsNamedFromTheMenuAndDeletedAgain()
     {
