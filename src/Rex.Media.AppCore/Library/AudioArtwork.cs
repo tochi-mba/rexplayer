@@ -34,7 +34,9 @@ public static class AudioArtwork
         }
 
         options = options.Normalize();
-        var seed = Hash(options.UseIdentity ? identity : "", samples) ^ ((ulong)options.Style * 0x9E3779B97F4A7C15UL);
+        var seed = Hash(options.UseIdentity ? identity : "", samples)
+            ^ unchecked((ulong)sampleRate * 0xD6E8FEB86659FD93UL)
+            ^ unchecked((ulong)options.Style * 0x9E3779B97F4A7C15UL);
         var envelope = Envelope(samples);
         var spectrum = Spectrum(samples, seed);
         var centroid = Centroid(spectrum);
@@ -180,7 +182,16 @@ public static class AudioArtwork
         {
             var from = Math.Max(1, (int)Math.Pow(magnitudes.Length, (double)band / bands.Length));
             var to = Math.Max(from + 1, (int)Math.Pow(magnitudes.Length, (double)(band + 1) / bands.Length));
-            bands[band] = Math.Clamp(magnitudes[from..Math.Min(to, magnitudes.Length)].ToArray().DefaultIfEmpty().Average() * 7, 0, 1);
+            var end = Math.Min(to, magnitudes.Length);
+            var total = 0.0;
+            for (var index = from; index < end; index++)
+            {
+                total += magnitudes[index];
+            }
+
+            // The spectrum runs for every missing-art track. Avoid allocating and averaging
+            // 24 temporary arrays for each render.
+            bands[band] = Math.Clamp((float)(total * 7 / (end - from)), 0, 1);
         }
 
         return bands;
