@@ -345,6 +345,20 @@ public sealed partial class MainWindow
     private void AfterGreeting(ResumePoint? crashed, bool openedSomething)
     {
         var upgraded = !openedSomething && RestoreUpdatedWorkspace();
+        if (openedSomething && _player.Memory.Updating is not null)
+        {
+            // Explicitly opening media wins over a pending upgrade recovery. Do not let
+            // the old workspace override a later ordinary launch either.
+            try
+            {
+                _player.Memory.Updating = null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                App.Log.Warning(LogSource, "The outdated update hand-off could not be cleared: " + ex.Message);
+            }
+        }
+
         if (!upgraded && crashed is not null && !openedSomething)
         {
             OfferResume(crashed);
