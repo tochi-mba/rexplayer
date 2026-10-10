@@ -226,7 +226,7 @@ public sealed class VisualStageTests
     public void TheStageFitsTheWindowAndOnlyDrawsItsOwnScenes()
     {
         Assert.Equal((16, 9), VisualStage.SizeFor(0, double.NaN));
-        Assert.Equal((480, 270), VisualStage.SizeFor(1920, 1080));
+        Assert.Equal((800, 450), VisualStage.SizeFor(1920, 1080));
         Assert.Equal((320, 180), VisualStage.SizeFor(320, 180));
         Assert.False(VisualStage.Draws(VisualizerChoice.Spectrum));
         Assert.True(VisualStage.Draws(VisualizerChoice.BeatEdit));
