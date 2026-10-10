@@ -373,11 +373,15 @@ public sealed class SubjectEditSessionTests
     }
 
     [Theory]
+    [InlineData(8, 110, 60, 0)]
     [InlineData(12, 60, 26, 0)]
     [InlineData(14, 7, 12, -15)]
+    [InlineData(16, 0, 0, 0)]
     [InlineData(16, 104, 55, 35)]
+    [InlineData(16, 112, 64, 0)]
     [InlineData(20, 53, 30, 15)]
     [InlineData(24, 68, 22, 25)]
+    [InlineData(28, 40, 35, -10)]
     [InlineData(32, 45, 29, 0)]
     public void AReturnedTargetMayChangeSizeLightingAndPositionWithoutLosingItsSelection(
         int size, int x, int y, int lighting)
