@@ -415,9 +415,16 @@ public sealed class SubjectEditSession
 
                 // Only one coarse proposal per neighbourhood; keep distinct possible
                 // lookalikes so the final uniqueness check can reject them.
-                var existing = shortlist.FindIndex(candidate =>
-                    Math.Abs(candidate.X - x) < patchWidth / 2 &&
-                    Math.Abs(candidate.Y - y) < patchHeight / 2);
+                var existing = -1;
+                for (var i = 0; i < shortlist.Count; i++)
+                {
+                    if (Math.Abs(shortlist[i].X - x) < patchWidth / 2 &&
+                        Math.Abs(shortlist[i].Y - y) < patchHeight / 2)
+                    {
+                        existing = i;
+                        break;
+                    }
+                }
                 if (existing >= 0)
                 {
                     if (shortlist[existing].Error <= error)
