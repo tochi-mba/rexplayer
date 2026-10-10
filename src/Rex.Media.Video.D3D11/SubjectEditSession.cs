@@ -94,7 +94,7 @@ public sealed class SubjectEditSession
     /// <summary>Toggle the non-destructive reconstruction preview; no file is ever rewritten.</summary>
     public void SetErase(bool enabled)
     {
-        Erase = Locked && enabled;
+        Erase = Locked && Tracking && enabled;
         EstimatedPixels = 0;
     }
 
@@ -144,6 +144,15 @@ public sealed class SubjectEditSession
 
         if (_width != frame.Width || _height != frame.Height)
         {
+            if (_width > 0 && _height > 0 && _reference is not null)
+            {
+                // A resized decoder picture may put an entirely different object under
+                // the old normalized region. Do not adopt it as a new identity.
+                Reset();
+                Status = "Picture dimensions changed. Select the subject again.";
+                return null;
+            }
+
             (_width, _height) = (frame.Width, frame.Height);
             _clean = null;
             _known = null;
@@ -440,7 +449,7 @@ public sealed class SubjectEditSession
         // several sizes so a shirt that returns nearer or farther can still be found.
         // Limit candidate work and use sparse RGB samples before the full comparison.
         List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(24);
-        ReadOnlySpan<float> scales = stackalloc float[] { 0.7f, 0.85f, 1f, 1.3f, 1.5f };
+        ReadOnlySpan<float> scales = stackalloc float[] { 0.5f, 0.7f, 0.85f, 1f, 1.3f, 1.5f, 2f };
         foreach (var scale in scales)
         {
             // Preserve a separate shortlist per scale: otherwise proposals from one
