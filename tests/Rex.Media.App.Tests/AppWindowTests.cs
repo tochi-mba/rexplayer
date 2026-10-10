@@ -131,14 +131,16 @@ public sealed class AppWindowTests : IDisposable
     [Fact]
     public void SubjectLockControlsAreIndependentOfPictureEffectsAndCanCloseCleanly()
     {
-        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
-        Wait.For(() => !app.IsShown("VideoBlank"), "the video to be visible");
+        // The sub-second movie fixture can finish during the welcome animation. A still
+        // picture keeps the presentation surface available for deterministic toolbar checks.
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png")]);
+        Wait.For(() => !app.IsShown("VideoBlank"), "the picture to be visible");
 
         var videoMenu = (ExpandCollapsePattern)app.Find("VideoMenu")
             .GetCurrentPattern(ExpandCollapsePattern.Pattern);
         videoMenu.Expand();
         app.Press("VideoSubjectLock");
-        Wait.For(() => app.IsShown("SubjectToolbar"), "Subject Lock tools to open");
+        Wait.For(() => app.IsShown("SubjectSelect"), "Subject Lock tools to open");
         Assert.Contains("Drag", app.Text("SubjectStatusText"), StringComparison.Ordinal);
         Assert.Equal(3.0, ((RangeValuePattern)app.Find("SubjectFeather")
             .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
@@ -147,9 +149,9 @@ public sealed class AppWindowTests : IDisposable
         Assert.Equal(VideoEffect.Off, app.SavedSettings.VideoEffect);
 
         app.Press("SubjectReset");
-        Assert.True(app.IsShown("SubjectToolbar"));
+        Assert.True(app.IsShown("SubjectSelect"));
         app.Press("SubjectClose");
-        Wait.For(() => !app.IsShown("SubjectToolbar"), "the selection tools to close");
+        Wait.For(() => !app.IsShown("SubjectSelect"), "the selection tools to close");
         Assert.Equal(0, app.Close());
     }
 
