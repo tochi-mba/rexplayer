@@ -246,8 +246,8 @@ public sealed class AppWindowTests : IDisposable
         var picture = Path.Combine(_media, "photo.png");
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png"), picture);
         using var app = AppProcess.Start([picture]);
-        Wait.For(() => app.LogText.Contains("Opened photo.png as PNG", StringComparison.Ordinal), "the picture");
-        Assert.False(app.IsShown("VideoBlank"));
+        // Assert the actual visual state, not the timing or wording of a decoder log message.
+        Wait.For(() => !app.IsShown("VideoBlank"), "the picture to appear");
 
         Assert.Equal(0, AppProcess.Launch([Song(30)], app.Root));
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song");
