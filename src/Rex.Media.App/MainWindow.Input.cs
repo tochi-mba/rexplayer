@@ -122,7 +122,7 @@ public sealed partial class MainWindow
 
         _lastLensPointerTick = tick;
         var position = e.GetCurrentPoint(Stage).Position;
-        var picture = Rex.Media.Subtitles.SubtitleLook.Picture(Stage.ActualWidth, Stage.ActualHeight, shape.Across, shape.Down);
+        var picture = Rex.Media.AppCore.Player.SubtitleLook.Picture(Stage.ActualWidth, Stage.ActualHeight, shape.Across, shape.Down);
         var x = (position.X - picture.X) / picture.Width;
         var y = (position.Y - picture.Y) / picture.Height;
         var active = x >= 0 && x <= 1 && y >= 0 && y <= 1;
