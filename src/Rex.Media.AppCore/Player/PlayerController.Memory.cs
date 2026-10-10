@@ -168,7 +168,7 @@ public sealed partial class PlayerController
     /// </summary>
     public void SaveForUpdate(
         string librarySource, bool libraryVisible, string search, string? groupName,
-        string? groupDetail, string? seasonName, bool playlistVisible)
+        string? groupDetail, string? seasonName, bool playlistVisible, UpdateWindowState? windowState = null)
     {
         RememberPosition();
         var queue = Playlist.Items.Count == 0 ? null
@@ -176,7 +176,10 @@ public sealed partial class PlayerController
         var active = Item is not null && State is not (Rex.Media.Engine.SessionState.Idle
             or Rex.Media.Engine.SessionState.Ended or Rex.Media.Engine.SessionState.Faulted);
         Memory.Updating = new UpdateSession(queue, active, IsPlaying, librarySource, libraryVisible,
-            search, groupName, groupDetail, seasonName, playlistVisible, Speed, DateTimeOffset.UtcNow);
+            search, groupName, groupDetail, seasonName, playlistVisible, Speed, DateTimeOffset.UtcNow)
+        {
+            WindowState = windowState,
+        };
     }
 
     /// <summary>
