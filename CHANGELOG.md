@@ -3,6 +3,23 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.13.1 - 2026-10-10
+
+### Fixed
+
+- **More reliable library artwork.** Damaged cached thumbnails are generated again instead of
+  permanently leaving an empty card. Local video posters and folder covers decode from scaled
+  file streams without loading the whole original image into managed memory. Slow thumbnail
+  decoding follows cancellation when the view changes.
+- **Sound-derived cover identity.** Generated music artwork accounts for playback sample rate
+  and avoids temporary spectrum-slice allocations during rendering.
+- **Library responsiveness.** The post-release audit improved row refresh stability, picture
+  loading and cancellation, and direct resumption from the Home shelf's Jump back in cards.
+- **Playback and effects stability.** The audit tightened gapless playback timing and object
+  lifetimes, visualisation canvas resets, portrait rendering limits and camera cleanup.
+- **Smoother update checking.** Installer checksum verification no longer runs on the window
+  thread, keeping the interface responsive during a handoff.
+
 ## 0.13.0 - 2026-10-10
 
 ### Added
