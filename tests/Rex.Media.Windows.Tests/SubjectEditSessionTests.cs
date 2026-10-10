@@ -1,9 +1,11 @@
+using System.Runtime.Versioning;
 using Rex.Media.Primitives;
 using Rex.Media.Video.D3D11;
 
 namespace Rex.Media.Windows.Tests;
 
 /// <summary>Non-destructive selected-region tracking, conservative lost-target handling and fill provenance.</summary>
+[SupportedOSPlatform("windows8.0")]
 public sealed class SubjectEditSessionTests
 {
     private static VideoFrame Picture(int x = 30, int y = 20, double seconds = 1)
