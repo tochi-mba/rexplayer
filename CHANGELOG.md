@@ -3,6 +3,33 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.15.6 - 2026-10-10
+
+### Fixed
+
+- **Unreliable initial selections.** When an area has too little distinguishing
+  texture, Subject Lock now waits for an explicit new selection instead of possibly
+  locking onto an unrelated object that later enters the rejected coordinates.
+- **Oversized video safety.** Frames exceeding the local tracking budget clear the
+  previous subject and removal preview rather than retaining stale tracking state.
+  Manual reselection also starts with fresh frame dimensions and reference data.
+
+### Improved
+
+- **Tracking maintainability.** Moved full-picture re-detection into its own source
+  file, separate from per-frame tracking and non-destructive preview handling.
+- **Regression coverage and audit.** Added Windows tests for rejected selections,
+  frame-budget limits, resolution changes, manual reselection and invalid pixel
+  formats. Published a detailed Subject Lock reliability audit and test matrix in
+  `docs/subject-lock-reliability-audit.md`. The audit PR passed the Windows adapter,
+  desktop UI, packaging/update, performance, Linux and website CI jobs.
+
+### Limitations
+
+- Visible-texture matching cannot guarantee recovery through all pose changes,
+  occlusions, motion blur or lookalikes. A benchmark on representative, annotated
+  real footage is still needed to quantify false locks and reacquisition latency.
+
 ## 0.15.5 - 2026-10-10
 
 ### Fixed
