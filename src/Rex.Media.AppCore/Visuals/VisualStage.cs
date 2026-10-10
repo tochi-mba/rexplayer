@@ -11,7 +11,7 @@ namespace Rex.Media.AppCore.Visuals;
 public sealed class VisualStage
 {
     /// <summary>The widest the canvas is drawn: wider stages show it scaled up, which suits soft light.</summary>
-    public const int MaxWidth = 480;
+    public const int MaxWidth = 800;
 
     private readonly MusicPulse _pulse = new();
     private readonly float[] _mono = new float[SpectrumAnalyzer.Size];
