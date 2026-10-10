@@ -76,8 +76,11 @@ public sealed partial class MainWindow
                 return;
             }
 
-            var image = await ShellPictureAsync(path, kind, token)
-                ?? await DecodePictureAsync(await Task.Run(() => MakePicture(path, kind, duration, key, token), token), token);
+            // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
+            var poster = kind == LibraryKind.Video ? LocalVideoPoster(path) : null;
+            var image = poster is null ? await ShellPictureAsync(path, kind, token)
+                : await DecodePictureAsync(await File.ReadAllBytesAsync(poster, token), token);
+            image ??= await DecodePictureAsync(await Task.Run(() => MakePicture(path, kind, duration, key, token), token), token);
             token.ThrowIfCancellationRequested();
             Remember(key, image);
             show(image);
@@ -97,6 +100,36 @@ public sealed partial class MainWindow
                 lane.Release();
             }
         }
+    }
+
+    /// <summary>
+    /// Use artwork the user put beside the video, without any network metadata lookups. A
+    /// same-name poster takes precedence over folder artwork; no poster leaves video-frame
+    /// thumbnails working exactly as before.
+    /// </summary>
+    private static string? LocalVideoPoster(string path)
+    {
+        var folder = Path.GetDirectoryName(path);
+        if (folder is null)
+        {
+            return null;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(path);
+        foreach (var name in new[]
+        {
+            stem + ".poster.jpg", stem + ".jpg", stem + ".png", stem + ".webp",
+            "poster.jpg", "poster.png", "folder.jpg", "cover.jpg",
+        })
+        {
+            var candidate = Path.Combine(folder, name);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -187,6 +220,12 @@ public sealed partial class MainWindow
         var art = kind == LibraryKind.Music
             ? $"\n{_settings.AudioArtworkStyle}\n{_settings.AudioArtworkColor}\n{_settings.AudioArtworkDetail}\n{_settings.AudioArtworkContrast}\n{_settings.AudioArtworkUsesIdentity}"
             : "";
+        // Replacing local artwork must invalidate its thumbnail without touching the video file.
+        if (kind == LibraryKind.Video && LocalVideoPoster(path) is { } local)
+        {
+            var posterInfo = new FileInfo(local);
+            art += $"\n{local}\n{posterInfo.Length}\n{posterInfo.LastWriteTimeUtc.Ticks}";
+        }
         var identity = Encoding.UTF8.GetBytes($"4\n{path}\n{file.Length}\n{file.LastWriteTimeUtc.Ticks}{art}");
         return Convert.ToHexStringLower(SHA256.HashData(identity));
     }
