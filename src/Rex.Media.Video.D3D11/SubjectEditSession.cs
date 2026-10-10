@@ -20,6 +20,7 @@ public sealed class SubjectEditSession
     private int _identityHeight;
     private (int X, int Y, int Width, int Height)? _returnCandidate;
     private int _returnConfirmations;
+    private int _reacquiredFrames;
     private byte[]? _clean;
     private byte[]? _known;
     private MediaTime _lastPts = MediaTime.Unknown;
@@ -79,6 +80,7 @@ public sealed class SubjectEditSession
         _returnFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
+        _reacquiredFrames = 0;
         _identityWidth = _identityHeight = 0;
         _clean = null;
         _known = null;
@@ -104,6 +106,7 @@ public sealed class SubjectEditSession
         _returnFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
+        _reacquiredFrames = 0;
         _identityWidth = _identityHeight = 0;
         _clean = _known = null;
         Confidence = 0;
@@ -148,6 +151,7 @@ public sealed class SubjectEditSession
             _returnFrames = 0;
             _returnCandidate = null;
             _returnConfirmations = 0;
+            _reacquiredFrames = 0;
             Tracking = false;
         }
 
@@ -159,6 +163,7 @@ public sealed class SubjectEditSession
             _returnFrames = 0;
             _returnCandidate = null;
             _returnConfirmations = 0;
+            _reacquiredFrames = 0;
             Tracking = false;
             Confidence = 0;
             Erase = false;
@@ -275,6 +280,7 @@ public sealed class SubjectEditSession
                 _returnFrames = 0;
                 _returnCandidate = null;
                 _returnConfirmations = 0;
+                _reacquiredFrames = 0;
                 Status = "Tracking uncertain: looking for the selected object to return.";
                 return null;
             }
@@ -293,6 +299,7 @@ public sealed class SubjectEditSession
                     _returnFrames = 0;
                     _returnCandidate = null;
                     _returnConfirmations = 0;
+                    _reacquiredFrames = 0;
                     Status = "Similar-looking regions: watching for a clear match. Select again if necessary.";
                     return null;
                 }
@@ -307,7 +314,13 @@ public sealed class SubjectEditSession
                 _reference[i] = _reference[i] * 0.97f + _samples[i] * 0.03f;
             }
 
-            Status = "Tracking selected region.";
+            Status = _reacquiredFrames > 0
+                ? "Original visual texture found again. Tracking resumed."
+                : "Tracking selected region.";
+            if (_reacquiredFrames > 0)
+            {
+                _reacquiredFrames--;
+            }
         }
 
         if (!Tracking)
@@ -424,10 +437,13 @@ public sealed class SubjectEditSession
         // The original appearance survives any number of missing frames. Search in
         // several sizes so a shirt that returns nearer or farther can still be found.
         // Limit candidate work and use sparse RGB samples before the full comparison.
-        List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(8);
+        List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(24);
         ReadOnlySpan<float> scales = stackalloc float[] { 0.75f, 1f, 1.3f };
         foreach (var scale in scales)
         {
+            // Preserve a separate shortlist per scale: otherwise proposals from one
+            // patch size can evict another size's correct match or a distant lookalike.
+            List<(double Error, int X, int Y, int Width, int Height)> candidates = new(8);
             var patchWidth = Math.Clamp((int)Math.Round(_identityWidth * scale), 1, frame.Width);
             var patchHeight = Math.Clamp((int)Math.Round(_identityHeight * scale), 1, frame.Height);
             var maxX = frame.Width - patchWidth;
@@ -448,9 +464,9 @@ public sealed class SubjectEditSession
                     // compete for one shortlist place; spatially separate matches remain
                     // to guard against visually identical subjects.
                     var existing = -1;
-                    for (var i = 0; i < shortlist.Count; i++)
+                    for (var i = 0; i < candidates.Count; i++)
                     {
-                        var candidate = shortlist[i];
+                        var candidate = candidates[i];
                         if (Math.Abs(candidate.X + candidate.Width / 2 - x - patchWidth / 2) <
                                 Math.Min(candidate.Width, patchWidth) * 0.75 &&
                             Math.Abs(candidate.Y + candidate.Height / 2 - y - patchHeight / 2) <
@@ -468,17 +484,19 @@ public sealed class SubjectEditSession
                             continue;
                         }
 
-                        shortlist.RemoveAt(existing);
+                        candidates.RemoveAt(existing);
                     }
 
-                    shortlist.Add((error, x, y, patchWidth, patchHeight));
-                    shortlist.Sort((a, b) => a.Error.CompareTo(b.Error));
-                    if (shortlist.Count > 8)
+                    candidates.Add((error, x, y, patchWidth, patchHeight));
+                    candidates.Sort((a, b) => a.Error.CompareTo(b.Error));
+                    if (candidates.Count > 8)
                     {
-                        shortlist.RemoveAt(8);
+                        candidates.RemoveAt(8);
                     }
                 }
             }
+
+            shortlist.AddRange(candidates);
         }
 
         List<(double Error, int X, int Y, int Width, int Height)> refined = new(shortlist.Count);
@@ -573,6 +591,7 @@ public sealed class SubjectEditSession
         _returnFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
+        _reacquiredFrames = 15;
         Confidence = Math.Clamp(1 - best.Error / 75, 0, 1);
         Status = "Original visual texture found again. Tracking resumed.";
         return true;
