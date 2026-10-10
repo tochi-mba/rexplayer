@@ -1,7 +1,7 @@
 using System.Text;
 using Rex.Media.IO;
-using Rex.Media.Settings;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.Settings;
