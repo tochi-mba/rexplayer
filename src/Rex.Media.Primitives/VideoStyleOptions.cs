@@ -21,7 +21,8 @@ public static class VideoStyleOptions
 
     public static IReadOnlyList<VideoStyleOption> ForEffect(VideoEffect effect)
     {
-        var name = Enum.IsDefined(effect) ? effect.ToString() : VideoEffect.Off.ToString();
+        effect = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
+        var name = effect.ToString();
         var animated = effect is VideoEffect.PrismFlow or VideoEffect.PixelDrift or VideoEffect.Kaleidoscope
             or VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.EdgeGravity;
         return
