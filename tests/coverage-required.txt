@@ -123,6 +123,7 @@ Playback.cs
 Playback.Video.cs
 PlayerController.cs
 PlayerController.Events.cs
+PlayerController.EpisodeSections.cs
 PlayerController.Library.cs
 PlayerController.Memory.cs
 PlayerController.Missing.cs
