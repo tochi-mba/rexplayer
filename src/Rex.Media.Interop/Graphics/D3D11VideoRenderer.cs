@@ -39,7 +39,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// coordinates when a decoder's surface is larger than the picture it holds.
     /// </summary>
     private const string Shaders = """
-        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; };
+        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
         SamplerState linearClamp : register(s0);
@@ -53,15 +53,42 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             output.position = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
             return output;
         }
+        float3 pictureLook(float3 c)
+        {
+            if (look.x < 0.5) return c;
+            float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+            float3 grey = float3(l, l, l);
+            if (look.x < 1.5)
+                return saturate((lerp(grey, c, 0.94) - 0.5) * 1.13 + 0.5 + float3(0.025, 0.004, -0.017));
+            if (look.x < 2.5)
+                return saturate((lerp(grey, c, 1.08) - 0.5) * 1.09 + 0.5);
+            if (look.x < 3.5)
+                return saturate(lerp(grey, c, 1.12) + float3(0.065, 0.022, -0.043));
+            if (look.x < 4.5)
+                return saturate(lerp(grey, c, 1.07) + float3(-0.025, 0.015, 0.069));
+            if (look.x < 5.5)
+                return grey;
+            if (look.x < 6.5)
+            {
+                float3 sepia = float3(
+                    dot(c, float3(0.393, 0.769, 0.189)),
+                    dot(c, float3(0.349, 0.686, 0.168)),
+                    dot(c, float3(0.272, 0.534, 0.131)));
+                return saturate((lerp(c, sepia, 0.85) - 0.5) * 0.94 + 0.5);
+            }
+            if (look.x < 7.5)
+                return saturate((lerp(grey, c, 1.7) - 0.5) * 1.14 + 0.5 + float3(0.013, -0.008, 0.035));
+            return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
+        }
         float4 yuv(Vertex input) : SV_Target
         {
             float2 uv = (source.xy + input.uv * (source.zw - source.xy)) * crop.xy;
             float4 samples = float4(luma.Sample(linearClamp, uv).r, chroma.Sample(chromaSampler, uv).rg, 1);
-            return float4(saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples))), 1);
+            return float4(pictureLook(saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)))), 1);
         }
         float4 bgra(Vertex input) : SV_Target
         {
-            return float4(luma.Sample(linearClamp, (source.xy + input.uv * (source.zw - source.xy)) * crop.xy).rgb, 1);
+            return float4(pictureLook(luma.Sample(linearClamp, (source.xy + input.uv * (source.zw - source.xy)) * crop.xy).rgb), 1);
         }
         """;
 
@@ -110,7 +137,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
         {
-            ByteWidth = 80,
+            ByteWidth = 96,
             Usage = D3D11_USAGE.D3D11_USAGE_DEFAULT,
             BindFlags = D3D11_BIND_FLAG.D3D11_BIND_CONSTANT_BUFFER,
         };
@@ -356,7 +383,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// from 0 to 1 of the picture) into the rectangle given; over what is there already, rather than on
     /// black, when not <paramref name="clear"/> (a small copy drawn over the large one).
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0)
     {
         if (colourMatrix.Length != 12)
         {
@@ -374,13 +401,14 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             return;
         }
 
-        Span<float> constants = stackalloc float[20];
+        Span<float> constants = stackalloc float[24];
         colourMatrix.CopyTo(constants);
         (constants[12], constants[13]) = (_crop.U, _crop.V);
         (constants[16], constants[17], constants[18], constants[19]) = source;
+        constants[20] = look;
         fixed (float* values = constants)
         {
-            _context.UpdateSubresource(_colour, 0, null, values, 80, 0);
+            _context.UpdateSubresource(_colour, 0, null, values, 96, 0);
         }
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };
