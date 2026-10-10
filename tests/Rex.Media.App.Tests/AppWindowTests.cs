@@ -108,6 +108,27 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("VID-23")]
+    public void VideoEffectsAreSelectedInTheirOwnMenuAndSavedIndependentlyFromLooks()
+    {
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        var menu = (ExpandCollapsePattern)app.Find("VideoMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        menu.Expand();
+        var effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        effects.Expand();
+        app.Press("VideoEffect-NeonEdges");
+        Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.NeonEdges, "the effect choice to be saved");
+        Assert.Equal(VideoLook.Original, app.SavedSettings.VideoLook);
+
+        menu.Expand();
+        effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        effects.Expand();
+        app.Press("VideoEffect-Off");
+        Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.Off, "effect Off to be restored");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("PB-06")]
     public void PlaybackSpeedCanBeSlowedRaisedAndRestoredFromItsControl()
     {
