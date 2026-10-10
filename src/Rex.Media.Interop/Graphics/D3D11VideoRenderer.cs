@@ -53,7 +53,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             output.position = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
             return output;
         }
-        float3 pictureLook(float3 c)
+        float3 basePictureLook(float3 c)
         {
             if (look.x < 0.5) return c;
             float l = dot(c, float3(0.2126, 0.7152, 0.0722));
@@ -80,13 +80,24 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 return saturate((lerp(grey, c, 1.7) - 0.5) * 1.14 + 0.5 + float3(0.013, -0.008, 0.035));
             return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
         }
+        float3 styledLook(float3 original)
+        {
+            float3 styled = basePictureLook(original);
+            float l = dot(styled, float3(0.2126, 0.7152, 0.0722));
+            styled = saturate(lerp(float3(l, l, l), styled, look.z));
+            if (look.x < 0.5)
+            {
+                return saturate((original - 0.5) * look.z + 0.5 + (look.y - 1) * 0.25);
+            }
+            return saturate(lerp(original, styled, saturate(look.y)));
+        }
         // All effects operate on sampled pixels, after decoding and before colour grading.
         // Sampling geometry and spatial derivatives are GPU-local; original frames stay intact.
         float2 effectUv(float2 uv)
         {
             if (effect.x < 0.5 || effect.y <= 0) return uv;
             float intensity = effect.y;
-            float time = effect.z;
+            float time = effect.z * max(pointer.w, 0.25);
             if (effect.x < 1.5)
             {
                 float2 wave = float2(sin(uv.y * 26 + time * 1.7), cos(uv.x * 18 - time * 1.1));
@@ -163,7 +174,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         // Derivatives adapt across window sizes, avoiding a permanently chunky outline.
         float2 pictureGradient(float2 uv, bool isYuv)
         {
-            float2 stepUv = max(fwidth(uv), float2(0.001, 0.001));
+            float2 stepUv = max(fwidth(uv), float2(0.001, 0.001)) / max(pointer.w, 0.25);
             float3 weights = float3(0.2126, 0.7152, 0.0722);
             float left = dot(readColour(uv - float2(stepUv.x, 0), isYuv), weights);
             float right = dot(readColour(uv + float2(stepUv.x, 0), isYuv), weights);
@@ -246,7 +257,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23));
                 colour = saturate(colour + float3(0.23, 0.48, 0.57) * rim * effect.y);
             }
-            return pictureLook(saturate(colour));
+            return styledLook(saturate(colour));
         }
         float4 yuv(Vertex input) : SV_Target
         {
@@ -549,7 +560,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// from 0 to 1 of the picture) into the rectangle given; over what is there already, rather than on
     /// black, when not <paramref name="clear"/> (a small copy drawn over the large one).
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false, float lookIntensity = 1, float lookDetail = 1, float effectDetail = 1)
     {
         if (colourMatrix.Length != 12)
         {
@@ -573,6 +584,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         (constants[12], constants[13]) = (_crop.U, _crop.V);
         (constants[16], constants[17], constants[18], constants[19]) = source;
         constants[20] = look;
+        constants[21] = Math.Clamp(lookIntensity, 0, 1.5f);
+        constants[22] = Math.Clamp(lookDetail, 0.5f, 1.5f);
         constants[24] = effect;
         constants[25] = Math.Clamp(strength, 0, 1);
         constants[26] = float.IsFinite(seconds) ? seconds : 0;
@@ -580,6 +593,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         constants[28] = Math.Clamp(pointerX, 0, 1);
         constants[29] = Math.Clamp(pointerY, 0, 1);
         constants[30] = pointerActive ? 1 : 0;
+        constants[31] = Math.Clamp(effectDetail, 0.25f, 1.75f);
         fixed (float* values = constants)
         {
             _context.UpdateSubresource(_colour, 0, null, values, 128, 0);
