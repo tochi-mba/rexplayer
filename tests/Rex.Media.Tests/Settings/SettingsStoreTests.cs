@@ -81,7 +81,7 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void SpatialVideoEffectsHaveStableNamesAndSafeSettings()
     {
-        Assert.Equal(16, VideoEffects.Names.Count);
+        Assert.Equal(Enum.GetValues<VideoEffect>().Length, VideoEffects.Names.Count);
         Assert.Equal("Off", VideoEffects.Name(VideoEffect.Off));
         Assert.Equal("Off", VideoEffects.Name((VideoEffect)999));
         Assert.Equal(0, VideoEffects.Strength(-1));
