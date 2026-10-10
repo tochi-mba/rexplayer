@@ -24,6 +24,11 @@ public sealed record QueueSnapshot(IReadOnlyList<QueuedItem> Items, int Current,
 /// it remembers whether playback was active, even when automatic queue restoration is off.
 /// Its UI values are names, not control instances, so a newer version can ignore unknown views.
 /// </summary>
+/// <summary>Transient layout details kept only across a deliberate upgrade.</summary>
+public sealed record UpdateWindowState(
+    string Aspect, string Crop, double Zoom, double CenterX, double CenterY,
+    bool FullScreen, bool ShowRemaining);
+
 public sealed record UpdateSession(
     QueueSnapshot? Queue,
     bool Active,
@@ -36,7 +41,11 @@ public sealed record UpdateSession(
     string? SeasonName,
     bool PlaylistVisible,
     double Speed,
-    DateTimeOffset SavedAt);
+    DateTimeOffset SavedAt)
+{
+    /// <summary>Optional for compatibility with earlier saved hand-offs.</summary>
+    public UpdateWindowState? WindowState { get; init; }
+}
 
 /// <summary>A playlist the user named and keeps (LIB-04), known by an id that stays when it is renamed.</summary>
 public sealed record NamedPlaylist(string Id, string Name, IReadOnlyList<QueuedItem> Items);

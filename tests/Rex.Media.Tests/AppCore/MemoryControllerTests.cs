@@ -239,7 +239,8 @@ public sealed class MemoryControllerTests
             before.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "b.wav");
             before.Controller.Seek(TimeSpan.FromSeconds(13));
             before.Controller.SetSpeed(1.5);
-            before.Controller.SaveForUpdate("ContinueWatching", true, "   ", null, null, null, true);
+            before.Controller.SaveForUpdate("ContinueWatching", true, "   ", null, null, null, true,
+                new UpdateWindowState("16:9", "None", 3, 0.6, 0.4, true, false));
             before.Controller.SaveQueue();
 
             Assert.Null(before.Controller.Memory.Queue);
@@ -252,6 +253,8 @@ public sealed class MemoryControllerTests
         var state = after.Controller.RestoreAfterUpdate();
         Assert.NotNull(state);
         Assert.Equal(("ContinueWatching", true, true), (state.LibrarySource, state.LibraryVisible, state.PlaylistVisible));
+        Assert.Equal((3.0, 0.6, 0.4, true, false),
+            (state.WindowState!.Zoom, state.WindowState.CenterX, state.WindowState.CenterY, state.WindowState.FullScreen, state.WindowState.ShowRemaining));
         after.PumpUntil(c => (c.State is SessionState.Ready or SessionState.Paused) && c.Item?.Location == "b.wav");
         Assert.Equal(["a.wav", "b.wav"], after.Controller.Playlist.Items.Select(item => item.Location));
         Assert.Equal(1, after.Controller.Playlist.CurrentIndex);

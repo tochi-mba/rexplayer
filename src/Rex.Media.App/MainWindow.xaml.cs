@@ -372,6 +372,7 @@ public sealed partial class MainWindow : Window
             OnPresenterThread(presenter => presenter.Clear());
         }
 
+        RestoreUpdatedPictureView();
         KeepAwake(playing && HasVideo, playing);
         LayOutSubtitles();
         ShowPresentation();
