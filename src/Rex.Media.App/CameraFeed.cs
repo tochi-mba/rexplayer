@@ -31,6 +31,7 @@ internal sealed partial class CameraFeed : IAsyncDisposable
 
     private readonly SilhouetteMask _mask = new(MaskWidth, MaskHeight);
     private readonly byte[] _picture = new byte[PictureWidth * PictureHeight * 4];
+    private byte[] _frameBytes = [];
     private readonly object _gate = new();
     private readonly SemaphoreSlim _lifetime = new(1, 1);
     private MediaCapture? _capture;
@@ -192,6 +193,8 @@ internal sealed partial class CameraFeed : IAsyncDisposable
             lock (_gate)
             {
                 Array.Clear(_picture);
+                Array.Clear(_frameBytes);
+                _frameBytes = [];
                 _mask.Reset();
                 HasPicture = false;
             }
@@ -224,9 +227,6 @@ internal sealed partial class CameraFeed : IAsyncDisposable
 
         using var converted = bitmap.BitmapPixelFormat == BitmapPixelFormat.Bgra8 ? null : SoftwareBitmap.Convert(bitmap, BitmapPixelFormat.Bgra8);
         var picture = converted ?? bitmap;
-        var bytes = new byte[picture.PixelWidth * picture.PixelHeight * 4];
-        picture.CopyToBuffer(bytes.AsBuffer());
-        var mirror = Mirror;
         lock (_gate)
         {
             if (_closed)
@@ -234,8 +234,17 @@ internal sealed partial class CameraFeed : IAsyncDisposable
                 return;
             }
 
-            Shrink(bytes, picture.PixelWidth, picture.PixelHeight, _picture, mirror);
-            _mask.UpdateColour(bytes, picture.PixelWidth, picture.PixelHeight, Threshold, mirror);
+            // The reader can deliver overlapping callbacks. Reuse the source buffer only
+            // while holding the same gate as mask and preview updates.
+            var required = checked(picture.PixelWidth * picture.PixelHeight * 4);
+            if (_frameBytes.Length < required)
+            {
+                _frameBytes = new byte[required];
+            }
+
+            picture.CopyToBuffer(_frameBytes.AsBuffer());
+            Shrink(_frameBytes, picture.PixelWidth, picture.PixelHeight, _picture, _mirror);
+            _mask.UpdateColour(_frameBytes, picture.PixelWidth, picture.PixelHeight, Threshold, _mirror);
             HasPicture = true;
         }
     }

@@ -135,6 +135,28 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void TrackingReusesSamplesInsteadOfAllocatingATemplatePerFrame()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var frame = Picture();
+        Assert.Null(tracker.Process(frame));
+        Assert.Null(tracker.Process(frame));
+        Assert.True(tracker.Tracking);
+
+        // Warm up the search path before measuring temporary allocations.
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 60; i++)
+        {
+            Assert.Null(tracker.Process(frame));
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        Assert.InRange(allocated, 0, 70_000);
+        Assert.True(tracker.Tracking);
+    }
+
+    [Fact]
     public void MotionSearchFollowsAVisibleTargetBeyondTheOldSmallSearchWindow()
     {
         var tracker = new SubjectEditSession();
