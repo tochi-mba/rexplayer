@@ -179,7 +179,8 @@ public sealed partial class MainWindow
                 _libraryGroup?.Name, _libraryGroup?.Detail, _librarySeason?.Name,
                 PlaylistPane.Visibility == Microsoft.UI.Xaml.Visibility.Visible,
                 new UpdateWindowState(_aspect.Name, _crop.Name, _view.Zoom,
-                    _view.CenterX, _view.CenterY, IsFullScreen, _showRemaining));
+                    _view.CenterX, _view.CenterY, IsFullScreen, _showRemaining),
+                targetVersion: offer.Version.ToString());
             handoffSaved = true;
             var updater = Path.Combine(AppContext.BaseDirectory, "rexupdate.exe");
             var stagedUpdater = Path.Combine(folder, "rexupdate.exe");
@@ -249,7 +250,7 @@ public sealed partial class MainWindow
         UpdateSession? saved;
         try
         {
-            saved = _player.RestoreAfterUpdate();
+            saved = _player.RestoreAfterUpdate(Version);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -295,12 +296,17 @@ public sealed partial class MainWindow
             SetLibraryOpen(true);
         }
 
-        _pendingUpdateWindowState = saved.WindowState;
+        // There is no incoming video to restore geometry onto for a stopped/idle session.
+        // Without this guard stale zoom could unexpectedly affect media opened later.
+        _pendingUpdateWindowState = saved.Active ? saved.WindowState : null;
         if (saved.WindowState is { } display)
         {
             _showRemaining = display.ShowRemaining;
             SetFullScreen(display.FullScreen);
-            RestoreUpdatedPictureView();
+            if (saved.Active)
+            {
+                RestoreUpdatedPictureView();
+            }
         }
 
         ShowPlaylist();
