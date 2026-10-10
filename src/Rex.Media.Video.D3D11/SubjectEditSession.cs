@@ -18,6 +18,7 @@ public sealed class SubjectEditSession
     private int _returnFrames;
     private int _identityWidth;
     private int _identityHeight;
+    private int _originalBorderContrast;
     private (int X, int Y, int Width, int Height)? _returnCandidate;
     private int _returnConfirmations;
     private int _reacquiredFrames;
@@ -184,6 +185,7 @@ public sealed class SubjectEditSession
             var borderContrast = Math.Abs(selectedCentre.B - nearbyBorder.B)
                 + Math.Abs(selectedCentre.G - nearbyBorder.G)
                 + Math.Abs(selectedCentre.R - nearbyBorder.R);
+            _originalBorderContrast = borderContrast;
             if (!HasDistinctiveAppearance(_reference) && borderContrast < 40)
             {
                 // A flat patch of sky, wall or clothing with no contrasting edges can
@@ -460,9 +462,9 @@ public sealed class SubjectEditSession
                         continue;
                     }
 
-                    // Proposals for the same physical patch, even at different scales,
-                    // compete for one shortlist place; spatially separate matches remain
-                    // to guard against visually identical subjects.
+                    // Proposals for the same physical patch at this scale compete for
+                    // one shortlist place; spatially separate matches remain to guard
+                    // against visually identical subjects.
                     var existing = -1;
                     for (var i = 0; i < candidates.Count; i++)
                     {
@@ -535,6 +537,20 @@ public sealed class SubjectEditSession
                         (bestError, bestX, bestY) = (error, x, y);
                     }
                 }
+            }
+
+            // Matching only the middle of a larger object can favour an undersized
+            // patch. When the original selection touched visible object boundaries,
+            // compare that foreground-to-surroundings contrast as an additional spatial
+            // cue. Keep texture-only matching for interior selections with no boundary.
+            if (_originalBorderContrast >= 40)
+            {
+                var (centre, outside, _) = CompareSubjectWithBorder(frame,
+                    (bestX, bestY, bestX + candidate.Width, bestY + candidate.Height));
+                var contrast = Math.Abs(centre.B - outside.B)
+                    + Math.Abs(centre.G - outside.G)
+                    + Math.Abs(centre.R - outside.R);
+                bestError += Math.Max(0, _originalBorderContrast - contrast) * 0.12;
             }
 
             refined.Add((bestError, bestX, bestY, candidate.Width, candidate.Height));
