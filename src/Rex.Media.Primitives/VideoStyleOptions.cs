@@ -28,13 +28,14 @@ public static class VideoStyleOptions
         var detailLabel = effect switch
         {
             VideoEffect.Ghostwire => "Filament detail (%)",
+            VideoEffect.GhostwireMask => "Mask edge detail (%)",
             VideoEffect.ColourSpotlight => "Colour selectivity (%)",
             VideoEffect.ReliefEtch => "Surface relief (%)",
             _ => animated ? "Movement (%)" : "Fine detail (%)",
         };
         return
         [
-            new($"effect.{name}.intensity", "Effect intensity (%)", effect == VideoEffect.Off ? 0 : effect == VideoEffect.Ghostwire ? 96 : 65, 0, 100),
+            new($"effect.{name}.intensity", "Effect intensity (%)", effect == VideoEffect.Off ? 0 : effect is VideoEffect.Ghostwire or VideoEffect.GhostwireMask ? 96 : 65, 0, 100),
             new($"effect.{name}.detail", detailLabel, 100, 25, 175),
         ];
     }
