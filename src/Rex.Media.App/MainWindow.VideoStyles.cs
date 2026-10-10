@@ -141,7 +141,7 @@ public sealed partial class MainWindow
         {
             VideoEffect.Ghostwire => "Ghostwire makes an almost invisible glass-like picture with luminous contours. It shows visible edges, not hidden surfaces.",
             VideoEffect.GhostwireMask => "Ghostwire mask mode stylizes visible video regions using only their brightness and contours. It does not detect clothing, remove it, or reveal skin or anatomy hidden behind it.",
-            VideoEffect.GhostwireMotion => "Ghostwire motion tracks changes between adjacent recorded frames, with fine contours and optional motion trails. Hybrid combines both; Contours shows only image detail; Motion shows movement. One-pixel camera shifts are suppressed, but complex camera motion and scene cuts may still create artefacts.",
+            VideoEffect.GhostwireMotion => "Surface shape (default) reveals visible curves, highlights and soft shading even when the image is paused or still. Hybrid adds motion highlights; Contours and Motion isolate their respective signals. This is artistic image contrast, not a reconstruction of hidden anatomy. Camera movement and cuts can produce artefacts.",
             VideoEffect.ColourSpotlight => "Move the pointer over a colour to highlight similar colours in the current frame. This does not follow an object.",
             VideoEffect.ReliefEtch => "Simulated directional light carves relief from visible contrast; it does not estimate real depth.",
             _ => "",
@@ -178,7 +178,7 @@ public sealed partial class MainWindow
                 var mode = new ComboBox
                 {
                     Header = option.Label,
-                    ItemsSource = new[] { "Hybrid (contours + movement)", "Contours only", "Motion only" },
+                    ItemsSource = new[] { "Hybrid (contours + movement)", "Contours only", "Motion only", "Surface shape (still-friendly)" },
                     SelectedIndex = VideoStyleOptions.Read(before, option),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                 };
