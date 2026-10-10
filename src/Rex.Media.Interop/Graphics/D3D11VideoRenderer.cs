@@ -39,7 +39,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// coordinates when a decoder's surface is larger than the picture it holds.
     /// </summary>
     private const string Shaders = """
-        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; };
+        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
         SamplerState linearClamp : register(s0);
@@ -80,15 +80,79 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 return saturate((lerp(grey, c, 1.7) - 0.5) * 1.14 + 0.5 + float3(0.013, -0.008, 0.035));
             return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
         }
+        // Four mathematically different GPU effects: sinusoidal RGB refraction, a spatial
+        // gradient/edge map, animated quantisation, and sixfold polar symmetry. They operate on
+        // decoded pixels and never mutate the video or its colour metadata.
+        float2 effectUv(float2 uv)
+        {
+            if (effect.x < 0.5 || effect.y <= 0) return uv;
+            float intensity = effect.y;
+            float time = effect.z;
+            if (effect.x < 1.5)
+            {
+                float2 wave = float2(sin(uv.y * 26 + time * 1.7), cos(uv.x * 18 - time * 1.1));
+                return saturate(uv + wave * (0.019 * intensity));
+            }
+            if (effect.x < 2.5) return uv;
+            if (effect.x < 3.5)
+            {
+                float scale = lerp(150, 16, intensity);
+                float2 grid = float2(scale * effect.w, scale);
+                float stagger = sin(floor(uv.y * grid.y) * 0.8 + time * 2) * 0.013 * intensity;
+                return saturate((floor((uv + float2(stagger, 0)) * grid) + 0.5) / grid);
+            }
+
+            float2 p = (uv - 0.5) * float2(effect.w, 1);
+            float r = length(p);
+            float angle = atan2(p.y, p.x);
+            float section = 1.0471975512; // pi / 3: six mirrored sectors
+            float folded = abs(fmod(angle + 6.2831853072, section * 2) - section);
+            float2 transformed = float2(cos(folded + time * 0.05), sin(folded + time * 0.05)) * r;
+            float2 kaleido = saturate(0.5 + transformed / float2(effect.w, 1));
+            return lerp(uv, kaleido, intensity);
+        }
+        float3 readColour(float2 uv, bool isYuv)
+        {
+            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
+            if (isYuv)
+            {
+                float4 samples = float4(luma.Sample(linearClamp, mapped).r, chroma.Sample(chromaSampler, mapped).rg, 1);
+                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
+            }
+            return luma.Sample(linearClamp, mapped).rgb;
+        }
+        float3 effected(float2 uv, bool isYuv)
+        {
+            float2 warped = effectUv(uv);
+            float3 colour = readColour(warped, isYuv);
+            if (effect.y > 0 && effect.x > 0.5 && effect.x < 1.5)
+            {
+                float2 fringe = float2(0.005, 0.0015) * effect.y;
+                colour.r = readColour(warped + fringe, isYuv).r;
+                colour.b = readColour(warped - fringe, isYuv).b;
+            }
+            if (effect.y > 0 && effect.x > 1.5 && effect.x < 2.5)
+            {
+                float2 texel = float2(0.002, 0.002 * effect.w);
+                float3 left = readColour(uv - float2(texel.x, 0), isYuv);
+                float3 right = readColour(uv + float2(texel.x, 0), isYuv);
+                float3 top = readColour(uv - float2(0, texel.y), isYuv);
+                float3 bottom = readColour(uv + float2(0, texel.y), isYuv);
+                float gx = dot(right - left, float3(0.2126, 0.7152, 0.0722));
+                float gy = dot(bottom - top, float3(0.2126, 0.7152, 0.0722));
+                float edge = saturate(sqrt(gx * gx + gy * gy) * 3.7);
+                float3 ink = colour * 0.22 + edge * float3(0.12, 0.95, 1);
+                colour = lerp(colour, ink, effect.y);
+            }
+            return pictureLook(saturate(colour));
+        }
         float4 yuv(Vertex input) : SV_Target
         {
-            float2 uv = (source.xy + input.uv * (source.zw - source.xy)) * crop.xy;
-            float4 samples = float4(luma.Sample(linearClamp, uv).r, chroma.Sample(chromaSampler, uv).rg, 1);
-            return float4(pictureLook(saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)))), 1);
+            return float4(effected(input.uv, true), 1);
         }
         float4 bgra(Vertex input) : SV_Target
         {
-            return float4(pictureLook(luma.Sample(linearClamp, (source.xy + input.uv * (source.zw - source.xy)) * crop.xy).rgb), 1);
+            return float4(effected(input.uv, false), 1);
         }
         """;
 
@@ -137,7 +201,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
         {
-            ByteWidth = 96,
+            ByteWidth = 112,
             Usage = D3D11_USAGE.D3D11_USAGE_DEFAULT,
             BindFlags = D3D11_BIND_FLAG.D3D11_BIND_CONSTANT_BUFFER,
         };
@@ -383,7 +447,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// from 0 to 1 of the picture) into the rectangle given; over what is there already, rather than on
     /// black, when not <paramref name="clear"/> (a small copy drawn over the large one).
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0)
     {
         if (colourMatrix.Length != 12)
         {
@@ -401,15 +465,19 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             return;
         }
 
-        Span<float> constants = stackalloc float[24];
+        Span<float> constants = stackalloc float[28];
         constants.Clear();
         colourMatrix.CopyTo(constants);
         (constants[12], constants[13]) = (_crop.U, _crop.V);
         (constants[16], constants[17], constants[18], constants[19]) = source;
         constants[20] = look;
+        constants[24] = effect;
+        constants[25] = Math.Clamp(strength, 0, 1);
+        constants[26] = float.IsFinite(seconds) ? seconds : 0;
+        constants[27] = height > 0 ? (float)width / height : 1;
         fixed (float* values = constants)
         {
-            _context.UpdateSubresource(_colour, 0, null, values, 96, 0);
+            _context.UpdateSubresource(_colour, 0, null, values, 112, 0);
         }
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };
