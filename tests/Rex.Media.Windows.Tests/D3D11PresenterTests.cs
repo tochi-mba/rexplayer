@@ -197,6 +197,47 @@ public sealed class D3D11PresenterTests
     }
 
     [Fact]
+    public void TenBitP010EffectsUseTheSameShaderAsEightBitVideo()
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.P010, 64, 32);
+        picture.Color = new ColorInfo(ColorMatrix.Bt709, ColorTransfer.Bt709, ColorPrimaries.Bt709, true);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var pixels = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                var brightness = (ushort)(64 + (x * 13 % 880));
+                var packed = (ushort)(brightness << 6);
+                pixels[x * 2] = (byte)packed;
+                pixels[x * 2 + 1] = (byte)(packed >> 8);
+            }
+        }
+
+        for (var y = 0; y < picture.Height / 2; y++)
+        {
+            var chroma = picture.Row(1, y);
+            for (var i = 0; i < chroma.Length; i += 2)
+            {
+                chroma[i] = 0;
+                chroma[i + 1] = 0x80;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(64, 32);
+        presenter.Present(picture);
+        using var original = presenter.ReadBack();
+        presenter.SetEffect(VideoEffect.NeonEdges, 100);
+        presenter.Redraw();
+        using var outlines = presenter.ReadBack();
+        Assert.True(MaxDifference(original, outlines) > 2);
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var restored = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, restored));
+    }
+
+    [Fact]
     public void APictureIsLetterboxedToItsDisplayAspect()
     {
         using var picture = DecodedPicture();
