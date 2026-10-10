@@ -182,6 +182,38 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             float below = dot(readColour(uv + float2(0, stepUv.y), isYuv), weights);
             return float2(right - left, below - above);
         }
+        // Fine texture inside low-contrast regions needs a different signal from the
+        // outer silhouette. Read RGB deltas as well as luminance so equal-brightness
+        // colours and shallow grey folds still create true, recorded contours.
+        // The sample footprint stays tied to display pixels (and source zoom).
+        float3 contourGradient(float2 uv, bool isYuv, float scale)
+        {
+            float2 pixel = max(fwidth(uv) * scale, float2(0.00018, 0.00018))
+                / max(pointer.w, 0.25);
+            float3 dx = readColour(uv + float2(pixel.x, 0), isYuv)
+                - readColour(uv - float2(pixel.x, 0), isYuv);
+            float3 dy = readColour(uv + float2(0, pixel.y), isYuv)
+                - readColour(uv - float2(0, pixel.y), isYuv);
+            float3 weights = float3(0.2126, 0.7152, 0.0722);
+            float2 direction = float2(dot(dx, weights), dot(dy, weights));
+            float chroma = sqrt(dot(dx, dx) + dot(dy, dy));
+            // For colour-only boundaries, choose a meaningful signed orientation too.
+            float2 colourDirection = float2(dot(dx, float3(0.49, -0.25, -0.24)),
+                dot(dy, float3(0.49, -0.25, -0.24)));
+            if (dot(direction, direction) < 0.000001)
+                direction = colourDirection;
+            return float3(direction, length(float2(dot(dx, weights),
+                dot(dy, weights))) + chroma * 0.32);
+        }
+        // The fine pass keeps narrow interior lines; a larger pixel footprint also
+        // catches soft, low-frequency shading without artificially drawing flat areas.
+        float3 contourDetail(float2 uv, bool isYuv)
+        {
+            float3 fine = contourGradient(uv, isYuv, 0.75);
+            float3 broad = contourGradient(uv, isYuv, 2.0);
+            return float3(dot(fine.xy, fine.xy) > 0.000001 ? fine.xy : broad.xy,
+                max(fine.z, broad.z * 0.62));
+        }
         float3 effected(float2 uv, bool isYuv)
         {
             float2 warped = effectUv(uv);
@@ -194,33 +226,31 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             }
             if (effect.y > 0 && effect.x > 1.5 && effect.x < 2.5)
             {
-                float2 texel = float2(0.002, 0.002 * effect.w) / max(pointer.w, 0.25);
-                float3 left = readColour(uv - float2(texel.x, 0), isYuv);
-                float3 right = readColour(uv + float2(texel.x, 0), isYuv);
-                float3 top = readColour(uv - float2(0, texel.y), isYuv);
-                float3 bottom = readColour(uv + float2(0, texel.y), isYuv);
-                float gx = dot(right - left, float3(0.2126, 0.7152, 0.0722));
-                float gy = dot(bottom - top, float3(0.2126, 0.7152, 0.0722));
-                float edge = saturate(sqrt(gx * gx + gy * gy) * 3.7);
+                float detail = max(pointer.w, 0.25);
+                float3 structure = contourDetail(uv, isYuv);
+                float edge = smoothstep(0.007 / detail, 0.18 / detail, structure.z);
                 float3 ink = colour * 0.22 + edge * float3(0.12, 0.95, 1);
                 colour = lerp(colour, ink, effect.y);
             }
 
             if (effect.y > 0 && effect.x > 4.5 && effect.x < 7.5)
             {
-                float2 gradient = pictureGradient(uv, isYuv);
-                float edge = saturate(length(gradient) * 4);
+                float3 structure = contourDetail(uv, isYuv);
+                float2 gradient = structure.xy;
+                float detail = max(pointer.w, 0.25);
+                float edge = smoothstep(0.006 / detail, 0.16 / detail, structure.z);
                 float lum = dot(colour, float3(0.2126, 0.7152, 0.0722));
                 float3 styled = colour;
                 if (effect.x < 5.5) // Ink trace: paper-coloured rendering with dark outlines
                 {
-                    float ink = smoothstep(0.09, 0.47, edge);
+                    float ink = smoothstep(0.025, 0.50, edge);
                     styled = saturate(float3(0.96, 0.935, 0.86) - ink * 0.9 - (1 - lum) * 0.12);
                 }
                 else if (effect.x < 6.5) // Topographic: isolines of actual pixel luminance
                 {
-                    float iso = 1 - smoothstep(0.04, 0.12, abs(frac(lum * 14 * max(pointer.w, 0.25)) - 0.5));
-                    float slopes = smoothstep(0.02, 0.2, edge);
+                    float iso = 1 - smoothstep(0.025, 0.12,
+                        abs(frac(lum * 20 * detail) - 0.5));
+                    float slopes = smoothstep(0.015, 0.28, edge);
                     float ridge = iso * slopes;
                     styled = saturate(colour * float3(0.23, 0.35, 0.48)
                         + ridge * float3(0.25, 0.92, 0.78) + edge * 0.12);
@@ -251,25 +281,25 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             }
             if (effect.x > 12.5 && effect.x < 13.5 && effect.y > 0)
             {
-                // Ghostwire: a glass-like phantom of the *whole* frame, woven from thin
-                // luma-gradient ridges. Retain only a faint interior to suggest transparency.
-                // Occluded surfaces cannot be reconstructed from ordinary video pixels.
-                float2 gradient = pictureGradient(uv, isYuv);
-                float energy = length(gradient);
-                float2 direction = gradient / max(energy, 0.00001);
-                float2 stepUv = max(fwidth(uv), float2(0.0005, 0.0005))
-                    / max(pointer.w, 0.25);
-                float2 offsetUv = direction * stepUv;
-                float previous = length(pictureGradient(uv - offsetUv, isYuv));
-                float next = length(pictureGradient(uv + offsetUv, isYuv));
-                // Non-maximum suppression makes an edge into a filament instead of a
-                // thick parallel band. The gradient threshold filters texture noise.
-                float ridge = (energy >= previous && energy >= next) ? 1.0 : 0.0;
+                // Ghostwire: capture weak internal folds, fine recorded texture and
+                // high-contrast outlines as luminous filaments. Not an x-ray.
                 float detail = max(pointer.w, 0.25);
-                float thread = ridge * smoothstep(0.035 / detail, 0.19 / detail, energy);
+                float3 structure = contourDetail(uv, isYuv);
+                float2 direction = normalize(structure.xy + float2(0.000001, 0));
+                float2 stepUv = max(fwidth(uv), float2(0.00025, 0.00025))
+                    / detail;
+                float2 offsetUv = direction * stepUv;
+                float originalEnergy = contourGradient(uv, isYuv, 0.75).z;
+                float prior = contourGradient(saturate(uv - offsetUv), isYuv, 0.75).z;
+                float later = contourGradient(saturate(uv + offsetUv), isYuv, 0.75).z;
+                float ridge = (originalEnergy >= prior && originalEnergy >= later) ? 1 : 0;
+                float fineLine = smoothstep(0.006 / detail, 0.085 / detail, structure.z);
+                float boldLine = smoothstep(0.035 / detail, 0.20 / detail, structure.z);
+                // NMS thins strong boundaries, but a faint secondary trace preserves
+                // subtle gradients that otherwise vanished inside grey objects.
+                float thread = ridge * max(boldLine, fineLine * 0.78)
+                    + (1 - ridge) * fineLine * 0.18;
                 float luminance = dot(colour, float3(0.2126, 0.7152, 0.0722));
-                // A second, dimmer displaced line makes the surface feel refractive,
-                // with slow enough motion to avoid flashing between frames.
                 float2 ghostUv = saturate(uv + direction * stepUv
                     * (1.1 + 0.25 * sin(effect.z * 0.7)));
                 float3 ghostColour = readColour(ghostUv, isYuv);
@@ -277,9 +307,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 float3 phantom = float3(0.012, 0.018, 0.034)
                     + float3(luminance, luminance, luminance) * 0.055
                     + float3(0.06, 0.09, 0.14) * ghostLuma * 0.16;
-                phantom += thread * float3(0.18, 0.92, 0.88);
-                phantom += smoothstep(0.06, 0.27, energy) * (1 - ridge)
-                    * float3(0.12, 0.05, 0.19);
+                phantom += thread * float3(0.21, 0.96, 0.91);
+                phantom += fineLine * (1 - ridge) * float3(0.055, 0.075, 0.10);
                 colour = lerp(colour, saturate(phantom), effect.y);
             }
             if (effect.x > 13.5 && effect.x < 14.5 && effect.y > 0 && pointer.z > 0.5)
@@ -311,25 +340,26 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             }
             if (effect.x > 15.5 && effect.x < 16.5 && effect.y > 0)
             {
-                // A translucent visual mask of recorded pixels, never hidden geometry.
-                float2 gradient = pictureGradient(uv, isYuv);
-                float edgeSize = length(gradient);
+                // Ghostwire Mask Mode: a dim visual layer with detailed contours
+                // from the same recorded frame. Grey surface structure is still
+                // visible even when there is no strong outer silhouette.
                 float detail = max(pointer.w, 0.25);
-                float edge = smoothstep(0.045 / detail, 0.22 / detail, edgeSize);
-                float2 normal = gradient / max(edgeSize, 0.00001);
-                float2 onePixel = max(fwidth(uv), float2(0.0005, 0.0005));
-                float prior = length(pictureGradient(saturate(uv - normal * onePixel), isYuv));
-                float later = length(pictureGradient(saturate(uv + normal * onePixel), isYuv));
-                float filament = (edgeSize >= prior && edgeSize >= later) ? edge : edge * 0.16;
+                float3 structure = contourDetail(uv, isYuv);
+                float edge = smoothstep(0.007 / detail, 0.16 / detail, structure.z);
+                float2 normal = normalize(structure.xy + float2(0.000001, 0));
+                float2 pixel = max(fwidth(uv), float2(0.00025, 0.00025)) / detail;
+                float narrow = contourGradient(uv, isYuv, 0.75).z;
+                float prior = contourGradient(saturate(uv - normal * pixel), isYuv, 0.75).z;
+                float later = contourGradient(saturate(uv + normal * pixel), isYuv, 0.75).z;
+                float ridge = (narrow >= prior && narrow >= later) ? 1 : 0;
+                float filament = edge * (ridge ? 1 : 0.24);
                 float luminance = dot(colour, float3(0.2126, 0.7152, 0.0722));
                 float2 weave = uv * float2(250 * detail, 220 * detail);
                 float fabricPattern = sin(weave.x) * sin(weave.y);
-                // Visible texture and contours determine the tint and filaments.
                 float haze = (0.02 + luminance * 0.06) * (0.92 + 0.08 * fabricPattern);
                 float3 maskColour = float3(0.012, 0.019, 0.032)
-                    + colour * (0.07 + haze) + edge * float3(0.025, 0.10, 0.12);
-                maskColour += filament * float3(0.18, 0.80, 0.88);
-                // Tint uses recorded colour; it does not invent a hidden layer.
+                    + colour * (0.07 + haze) + edge * float3(0.04, 0.15, 0.17);
+                maskColour += filament * float3(0.22, 0.93, 0.96);
                 maskColour += luminance * float3(0.009, 0.022, 0.035);
                 colour = lerp(colour, saturate(maskColour), effect.y);
             }
