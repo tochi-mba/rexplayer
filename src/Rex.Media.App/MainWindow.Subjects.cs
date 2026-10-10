@@ -20,6 +20,8 @@ public sealed partial class MainWindow
     private bool _subjectErase;
     private bool _subjectPollBusy;
     private Point? _subjectAnchor;
+    private PictureView _viewBeforeSubjectFollow;
+    private bool _subjectAutoFollowing;
 
     private void WireSubjectTools()
     {
@@ -27,7 +29,12 @@ public sealed partial class MainWindow
         Stage.PointerMoved += OnSubjectPointerMoved;
         Stage.PointerReleased += OnSubjectPointerReleased;
         Stage.PointerCaptureLost += (_, _) => _subjectAnchor = null;
-        Stage.SizeChanged += (_, _) => PollSubjectOverlay();
+        Stage.SizeChanged += (_, _) =>
+        {
+            SizeSubjectToolbar();
+            PollSubjectOverlay();
+        };
+        SubjectToolbar.Loaded += (_, _) => SizeSubjectToolbar();
         _subjectTimer = DispatcherQueue.CreateTimer();
         _subjectTimer.Interval = TimeSpan.FromMilliseconds(200);
         _subjectTimer.IsRepeating = true;
@@ -52,11 +59,18 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (_subjectOpen)
+        {
+            CloseSubjectTools();
+        }
+
         _subjectOpen = true;
         _selectingSubject = true;
         _subjectErase = false;
         SubjectCanvas.Visibility = Visibility.Visible;
         SubjectToolbar.Visibility = Visibility.Visible;
+        SizeSubjectToolbar();
+        SubjectConfidenceText.Text = "Waiting for selection";
         SubjectSelectButton.Content = "Select again";
         SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
@@ -75,11 +89,13 @@ public sealed partial class MainWindow
 
     private void OnSubjectReset(object sender, RoutedEventArgs e)
     {
+        RestoreSubjectFollowView();
         _selectingSubject = true;
         _subjectErase = false;
         SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
         SubjectStatusText.Text = "Selection reset. Drag to choose another object.";
+        SubjectConfidenceText.Text = "Waiting for selection";
         SubjectOutline.Visibility = Visibility.Collapsed;
         var redraw = !_player.IsPlaying;
         OnPresenterThread(p =>
@@ -96,6 +112,7 @@ public sealed partial class MainWindow
 
     private void CloseSubjectTools()
     {
+        RestoreSubjectFollowView();
         _subjectOpen = false;
         _selectingSubject = false;
         _subjectAnchor = null;
@@ -113,6 +130,59 @@ public sealed partial class MainWindow
                 p.Redraw();
             }
         });
+    }
+
+    private void SizeSubjectToolbar()
+    {
+        // WinUI's layout is constrained by the available stage, not by a hard-coded
+        // desktop resolution. The inner ScrollViewer keeps every control reachable.
+        SubjectToolbar.Width = Math.Max(140, Math.Min(336, Stage.ActualWidth - 24));
+        SubjectToolbar.MaxHeight = Math.Max(48, Stage.ActualHeight - 24);
+    }
+
+    private void RestoreSubjectFollowView()
+    {
+        if (!_subjectAutoFollowing)
+        {
+            return;
+        }
+
+        _subjectAutoFollowing = false;
+        SetView(_viewBeforeSubjectFollow, fromSubject: true);
+    }
+
+    private void OnSubjectFollowChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_subjectOpen || _closed)
+        {
+            return;
+        }
+
+        if (!SubjectFollow.IsOn)
+        {
+            RestoreSubjectFollowView();
+        }
+        else
+        {
+            PollSubjectOverlay();
+        }
+    }
+
+    private void OnSubjectShowBoxChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_subjectOpen || _closed)
+        {
+            return;
+        }
+
+        if (!SubjectShowBox.IsOn)
+        {
+            SubjectOutline.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            PollSubjectOverlay();
+        }
     }
 
     private void OnSubjectMaskChanged(object sender,
@@ -255,6 +325,7 @@ public sealed partial class MainWindow
         SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
         SubjectStatusText.Text = "Acquiring selected texture. If its identity is ambiguous, tracking stops.";
+        SubjectConfidenceText.Text = "Acquiring target";
         var feather = (int)SubjectFeather.Value;
         var tolerance = (int)SubjectTolerance.Value;
         OnPresenterThread(p =>
@@ -303,8 +374,10 @@ public sealed partial class MainWindow
                     return;
                 }
 
-                SubjectStatusText.Text = snapshot.Status + (snapshot.Tracking
-                    ? $" Match {snapshot.Confidence:P0}." : "");
+                SubjectStatusText.Text = snapshot.Status;
+                SubjectConfidenceText.Text = snapshot.Tracking
+                    ? $"Match confidence {snapshot.Confidence:P0}" + (SubjectShowBox.IsOn ? "" : " · Outline hidden")
+                    : snapshot.Locked ? "Looking for target · Original picture shown" : "Waiting for selection";
                 SubjectEraseButton.IsEnabled = snapshot.Tracking;
                 if (!snapshot.Tracking)
                 {
@@ -319,16 +392,50 @@ public sealed partial class MainWindow
                 }
 
                 var (source, _, _) = VideoGeometry.Shape(video.Width, video.Height, video.PixelAspect, _aspect.Ratio, _crop.Ratio);
+                if (snapshot.Tracking && SubjectFollow.IsOn)
+                {
+                    var sourceWidth = Math.Max(0.000001f, source.Right - source.Left);
+                    var sourceHeight = Math.Max(0.000001f, source.Bottom - source.Top);
+                    var x = (snapshot.Left + snapshot.Width / 2 - source.Left) / sourceWidth;
+                    var y = (snapshot.Top + snapshot.Height / 2 - source.Top) / sourceHeight;
+                    if (x is >= 0 and <= 1 && y is >= 0 and <= 1)
+                    {
+                        if (!_subjectAutoFollowing)
+                        {
+                            _viewBeforeSubjectFollow = _view;
+                            _subjectAutoFollowing = true;
+                        }
+
+                        var next = _view.Follow(x, y, snapshot.Width / sourceWidth, snapshot.Height / sourceHeight);
+                        if (Math.Abs(next.Zoom - _view.Zoom) > 0.002 ||
+                            Math.Abs(next.CenterX - _view.CenterX) > 0.0008 ||
+                            Math.Abs(next.CenterY - _view.CenterY) > 0.0008)
+                        {
+                            SetView(next, fromSubject: true);
+                        }
+                    }
+                }
+
                 var visible = _view.Within(source);
                 var picture = Rex.Media.AppCore.Player.SubtitleLook.Picture(Stage.ActualWidth,
                     Stage.ActualHeight, shape.Across, shape.Down);
                 var dx = Math.Max(0.000001f, visible.Right - visible.Left);
                 var dy = Math.Max(0.000001f, visible.Bottom - visible.Top);
-                Canvas.SetLeft(SubjectOutline, picture.X + picture.Width * ((snapshot.Left - visible.Left) / dx));
-                Canvas.SetTop(SubjectOutline, picture.Y + picture.Height * ((snapshot.Top - visible.Top) / dy));
-                SubjectOutline.Width = Math.Max(1, picture.Width * snapshot.Width / dx);
-                SubjectOutline.Height = Math.Max(1, picture.Height * snapshot.Height / dy);
-                SubjectOutline.Visibility = snapshot.Locked ? Visibility.Visible : Visibility.Collapsed;
+                var left = picture.X + picture.Width * ((snapshot.Left - visible.Left) / dx);
+                var top = picture.Y + picture.Height * ((snapshot.Top - visible.Top) / dy);
+                var right = left + picture.Width * snapshot.Width / dx;
+                var bottom = top + picture.Height * snapshot.Height / dy;
+                var shownLeft = Math.Clamp(left, 0, Stage.ActualWidth);
+                var shownTop = Math.Clamp(top, 0, Stage.ActualHeight);
+                var shownRight = Math.Clamp(right, 0, Stage.ActualWidth);
+                var shownBottom = Math.Clamp(bottom, 0, Stage.ActualHeight);
+                Canvas.SetLeft(SubjectOutline, shownLeft);
+                Canvas.SetTop(SubjectOutline, shownTop);
+                SubjectOutline.Width = Math.Max(1, shownRight - shownLeft);
+                SubjectOutline.Height = Math.Max(1, shownBottom - shownTop);
+                SubjectOutline.Visibility = snapshot.Tracking && SubjectShowBox.IsOn &&
+                    shownRight > shownLeft && shownBottom > shownTop
+                    ? Visibility.Visible : Visibility.Collapsed;
             });
         });
     }
