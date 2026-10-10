@@ -55,10 +55,10 @@ public sealed class ResonanceScene : VisualScene
             var color = context.Paint(hue);
             var light = (float)(contrast * (0.36 + (pulse.Loudness * 0.65) + (pulse.Bass * 0.2)));
             var thickness = Math.Clamp(size * (0.0035 + (0.0025 * pulse.Mid)) * (1.15 - (share * 0.3)), 1, 4);
-            var previous = Point(0, lane, samples, baseY, bandDepth, share, mirror, pulse);
+            var previous = Point(0, lane, samples, w, baseY, bandDepth, share, mirror, pulse);
             for (var x = 1; x <= samples; x++)
             {
-                var current = Point(x, lane, samples, baseY, bandDepth, share, mirror, pulse);
+                var current = Point(x, lane, samples, w, baseY, bandDepth, share, mirror, pulse);
                 canvas.Line(previous.X, previous.Y, current.X, current.Y, thickness, color, light, 1.5);
                 previous = current;
             }
@@ -105,7 +105,7 @@ public sealed class ResonanceScene : VisualScene
         canvas.Bloom(0.42f, 0.54f, 3);
     }
 
-    private (double X, double Y) Point(int position, int lane, int samples,
+    private (double X, double Y) Point(int position, int lane, int samples, int width,
         double baseY, double depth, double share, bool mirror, MusicPulse pulse)
     {
         var x = position / (double)samples;
@@ -123,6 +123,6 @@ public sealed class ResonanceScene : VisualScene
         var kick = pulse.Kick.Level * (1 - share) * Math.Sin((x * 2 + _phase * 0.1) * Math.Tau);
         var snare = pulse.Snare.Level * share * Math.Sin((x * 5 + _phase) * Math.Tau);
         var y = baseY - (depth * (bass + treble + push + (kick * 0.5) + (snare * 0.5)));
-        return (x, y);
+        return (x * width, y);
     }
 }
