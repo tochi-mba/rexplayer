@@ -479,7 +479,7 @@ public sealed class SubjectEditSession
 
                     if (existing >= 0)
                     {
-                        if (shortlist[existing].Error <= error)
+                        if (candidates[existing].Error <= error)
                         {
                             continue;
                         }
