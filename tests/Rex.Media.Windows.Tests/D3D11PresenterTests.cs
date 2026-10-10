@@ -143,7 +143,7 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.Vortex)]
     [InlineData(VideoEffect.CursorLens)]
     [InlineData(VideoEffect.EdgeGravity)]
-    [InlineData(VideoEffect.PrecisionContours)]
+    [InlineData(VideoEffect.Ghostwire)]
     [InlineData(VideoEffect.ColourSpotlight)]
     [InlineData(VideoEffect.ReliefEtch)]
     public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
@@ -242,7 +242,7 @@ public sealed class D3D11PresenterTests
     }
 
     [Fact]
-    public void PrecisionContoursHighlightTheBoundaryNotTheUniformSurface()
+    public void GhostwireHighlightTheBoundaryNotTheUniformSurface()
     {
         using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 96, 64);
         for (var y = 0; y < picture.Height; y++)
@@ -260,7 +260,7 @@ public sealed class D3D11PresenterTests
 
         using var presenter = D3D11Presenter.Offscreen(96, 64);
         presenter.Present(picture);
-        presenter.SetEffect(VideoEffect.PrecisionContours, 100);
+        presenter.SetEffect(VideoEffect.Ghostwire, 100);
         presenter.Redraw();
         using var contours = presenter.ReadBack();
 
