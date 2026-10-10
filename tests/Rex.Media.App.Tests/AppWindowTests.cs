@@ -148,6 +148,12 @@ public sealed class AppWindowTests : IDisposable
             .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         Assert.Equal(VideoEffect.Off, app.SavedSettings.VideoEffect);
 
+        // This invokes actual presenter selection, rather than merely opening the toolbar.
+        // Even a low-texture fixture must respond (either a lock or an explicit refusal).
+        app.Press("SubjectCenter");
+        Wait.For(() => !app.Text("SubjectStatusText").StartsWith("Drag", StringComparison.Ordinal),
+            "the selection command to reach the video presenter");
+
         app.Press("SubjectReset");
         Assert.True(app.IsShown("SubjectSelect"));
         app.Press("SubjectClose");
