@@ -147,6 +147,21 @@ public sealed class SubjectEditSession
         if (_reference is null)
         {
             _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
+            var (foreground, background, _) = CompareSubjectWithBorder(frame, Bounds(frame.Width, frame.Height));
+            var borderContrast = Math.Abs(foreground.B - background.B)
+                + Math.Abs(foreground.G - background.G)
+                + Math.Abs(foreground.R - background.R);
+            if (!HasDistinctiveAppearance(_reference) && borderContrast < 40)
+            {
+                // A flat patch of sky, wall or clothing with no contrasting edges can
+                // match thousands of unrelated places. Never claim an identity lock.
+                Tracking = false;
+                Erase = false;
+                Confidence = 0;
+                Status = "Selection has too little distinguishing detail. Pick a visible edge or textured area.";
+                return null;
+            }
+
             Tracking = true;
             Confidence = 1;
             Status = "Selected region locked. Tracking uses its visible texture, not a person recognizer.";
@@ -160,6 +175,7 @@ public sealed class SubjectEditSession
                 frame.Width * Region.Width, frame.Height * Region.Height) * 0.9), 12, 64);
             var coarse = Math.Max(1, radius / 8);
             var best = double.MaxValue;
+            var bestScore = double.MaxValue;
             var bestDx = 0;
             var bestDy = 0;
             void TryMatch(int dx, int dy)
@@ -172,8 +188,13 @@ public sealed class SubjectEditSession
                 }
 
                 var distance = Distance(frame, left, top, Region.Width, Region.Height, _reference);
-                if (distance < best)
+                // A repeated or flat pattern may match dozens of places equally well.
+                // Prefer continuity at the last known position to avoid drifting across
+                // an unrelated but identically-coloured surface.
+                var score = distance + 0.06 * Math.Sqrt((double)dx * dx + (double)dy * dy);
+                if (score < bestScore)
                 {
+                    bestScore = score;
                     best = distance;
                     bestDx = dx;
                     bestDy = dy;
@@ -434,6 +455,33 @@ public sealed class SubjectEditSession
          Math.Clamp((int)(Region.Top * height), 0, height - 1),
          Math.Clamp((int)Math.Ceiling((Region.Left + Region.Width) * width), 1, width),
          Math.Clamp((int)Math.Ceiling((Region.Top + Region.Height) * height), 1, height));
+
+    /// <summary>
+    /// Reject a textureless, borderless patch before announcing a confident lock. Colour
+    /// channels are measured separately so a solid colourful region is not mistaken for
+    /// a textured one just because its red and blue values differ.
+    /// </summary>
+    private static bool HasDistinctiveAppearance(float[] template)
+    {
+        var averages = new double[3];
+        for (var i = 0; i < template.Length; i++)
+        {
+            averages[i % 3] += template[i];
+        }
+
+        for (var channel = 0; channel < 3; channel++)
+        {
+            averages[channel] /= template.Length / 3;
+        }
+
+        var difference = 0d;
+        for (var i = 0; i < template.Length; i++)
+        {
+            difference += Math.Abs(template[i] - averages[i % 3]);
+        }
+
+        return difference / template.Length >= 3;
+    }
 
     private static float[] Sample(VideoFrame frame, float left, float top, float width, float height)
     {
