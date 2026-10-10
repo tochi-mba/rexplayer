@@ -3,6 +3,29 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.15.5 - 2026-10-10
+
+### Fixed
+
+- **Subject Lock recovery.** The lost-subject search now tolerates moderate changes in
+  lighting, distance and position, covering apparent size changes from half to twice
+  the original selection. Added intermediate size scales after a Windows regression
+  exposed a missing range.
+- **Tracking safety.** A video resolution change requires a fresh selection rather than
+  silently acquiring a different target. The removal preview cannot be re-enabled
+  while the selected subject is lost.
+
+### Verification
+
+- Expanded Windows regression cases cover return size, position, frame edges, lighting,
+  occlusion, lookalikes and the D3D11 presenter path. Full release CI remains the gate
+  for publishing the installable build.
+
+### Limitations
+
+- Subject Lock compares visible image texture rather than semantic identity. It cannot
+  guarantee reacquisition through every pose, occlusion or appearance change.
+
 ## 0.15.4 - 2026-10-10
 
 ### Fixed
