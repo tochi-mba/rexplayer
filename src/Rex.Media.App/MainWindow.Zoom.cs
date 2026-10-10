@@ -97,8 +97,16 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Shows <paramref name="view"/> of the picture, and the navigator when it helps.</summary>
-    private void SetView(PictureView view, bool announce = false)
+    private void SetView(PictureView view, bool announce = false, bool fromSubject = false)
     {
+        // Manual zoom, panning and navigator gestures take precedence over automatic
+        // following. Do not pull the viewport back under the user's pointer.
+        if (!fromSubject && _subjectOpen && _subjectAutoFollowing)
+        {
+            _subjectAutoFollowing = false;
+            SubjectFollow.IsOn = false;
+        }
+
         if (!HasVideo)
         {
             view = PictureView.Whole;
