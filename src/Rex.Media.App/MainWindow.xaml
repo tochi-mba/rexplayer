@@ -251,8 +251,8 @@
           </Grid.RowDefinitions>
 
           <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
-          <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero">
-            <Image x:Name="LibraryHeroBackdrop" Stretch="UniformToFill" Opacity="0.6" />
+          <Grid x:Name="LibraryHero" Height="196" AutomationProperties.AutomationId="LibraryHero">
+            <Image x:Name="LibraryHeroBackdrop" Height="196" Stretch="UniformToFill" Opacity="0.6" />
             <Rectangle>
               <Rectangle.Fill>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -341,7 +341,8 @@
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
 
           <!-- Home: shelves of what to play next. -->
-          <ScrollViewer x:Name="LibraryHome" Grid.Row="2" Visibility="Collapsed" AutomationProperties.AutomationId="LibraryHome">
+          <ScrollViewer x:Name="LibraryHome" Grid.Row="2" Visibility="Collapsed" VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
+                         AutomationProperties.AutomationId="LibraryHome">
             <StackPanel x:Name="LibraryShelves" Spacing="22" Padding="24,4,24,24" />
           </ScrollViewer>
 
