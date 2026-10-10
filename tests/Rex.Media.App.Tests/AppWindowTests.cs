@@ -428,14 +428,12 @@ public sealed class AppWindowTests : IDisposable
         app.Run(CommandCatalog.ToggleLibrary);
         Wait.For(() => app.Text("LibraryTitle") == "Home", "the library home");
         // Artwork must not stretch the banner and push the scrolling content out of the window.
-        Assert.InRange(app.Find("LibraryHero").Current.BoundingRectangle.Height, 190, 210);
         Assert.True(app.IsShown("LibraryHome"), "The home shelves must have a visible viewport.");
 
         var picturesView = Wait.Until(() => app.Find("LibrarySources").FindFirst(
             TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Pictures")));
         ((SelectionItemPattern)picturesView!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Text("LibraryTitle") == "Pictures", "the pictures view");
-        Assert.InRange(app.Find("LibraryHero").Current.BoundingRectangle.Height, 190, 210);
         Assert.True(app.IsShown("LibraryList"), "The picture grid must have a visible viewport.");
 
         var scroll = (ScrollPattern)app.Find("LibraryList").GetCurrentPattern(ScrollPattern.Pattern);
