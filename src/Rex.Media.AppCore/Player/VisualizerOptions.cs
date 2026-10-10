@@ -116,6 +116,16 @@ public static class VisualizerOptions
                 new("drift", "How fast they drift", VisualOptionKind.Number, 1, 0, 3),
                 new("stars", "Stars", VisualOptionKind.Toggle, 1),
             ],
+            VisualizerChoice.Resonance =>
+            [
+                new("density", "Luminous filaments", VisualOptionKind.Number, 7, 3, 12),
+                new("depth", "Spectral movement", VisualOptionKind.Number, 1.1, 0.3, 2),
+                new("flow", "Fluid flow", VisualOptionKind.Number, 0.8, 0.1, 2),
+                new("contrast", "Light intensity", VisualOptionKind.Number, 1.15, 0.5, 1.8),
+                new("trails", "Light trails", VisualOptionKind.Number, 0.45, 0, 0.9),
+                new("mirror", "Reflect frequencies across the screen", VisualOptionKind.Toggle, 1),
+                new("rings", "Pressure waves on drum hits", VisualOptionKind.Toggle, 1),
+            ],
             VisualizerChoice.Embers =>
             [
                 new("amount", "How many sparks", VisualOptionKind.Number, 90, 20, 300),
