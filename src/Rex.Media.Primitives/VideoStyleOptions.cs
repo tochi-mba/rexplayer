@@ -34,7 +34,7 @@ public static class VideoStyleOptions
         };
         return
         [
-            new($"effect.{name}.intensity", "Effect intensity (%)", effect == VideoEffect.Off ? 0 : 65, 0, 100),
+            new($"effect.{name}.intensity", "Effect intensity (%)", effect == VideoEffect.Off ? 0 : effect == VideoEffect.Ghostwire ? 96 : 65, 0, 100),
             new($"effect.{name}.detail", detailLabel, 100, 25, 175),
         ];
     }
