@@ -104,7 +104,7 @@ public sealed partial class MainWindow
             var options = VideoStyleOptions.ForEffect(effect);
             var values = _settings.VideoStyleValues;
             var intensity = values.ContainsKey(options[0].Key) ? VideoStyleOptions.Read(values, options[0])
-                : effect == VideoEffect.Ghostwire ? options[0].Default : strength;
+                : effect is VideoEffect.Ghostwire or VideoEffect.GhostwireMask ? options[0].Default : strength;
             presenter.SetEffect(effect, intensity, VideoStyleOptions.Read(values, options[1]));
             if (redraw)
             {
@@ -134,6 +134,7 @@ public sealed partial class MainWindow
         var explanation = effect ? _settings.VideoEffect switch
         {
             VideoEffect.Ghostwire => "Ghostwire makes an almost invisible glass-like picture with luminous contours. It shows visible edges, not hidden surfaces.",
+            VideoEffect.GhostwireMask => "Ghostwire mask mode stylizes visible video regions using only their brightness and contours. It does not detect clothing, remove it, or reveal skin or anatomy hidden behind it.",
             VideoEffect.ColourSpotlight => "Move the pointer over a colour to highlight similar colours in the current frame. This does not follow an object.",
             VideoEffect.ReliefEtch => "Simulated directional light carves relief from visible contrast; it does not estimate real depth.",
             _ => "",
