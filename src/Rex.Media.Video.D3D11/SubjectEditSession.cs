@@ -1,5 +1,4 @@
 using Rex.Media.Primitives;
-using Rex.Media.Video;
 
 namespace Rex.Media.Video.D3D11;
 
