@@ -146,12 +146,15 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(values.Count, loaded.VideoStyleValues.Count);
         Assert.All(values, pair => Assert.Equal(pair.Value, loaded.VideoStyleValues[pair.Key]));
 
-        var normalized = new PlayerSettings { VideoStyleValues = new Dictionary<string, int>
+        var normalized = new PlayerSettings
         {
-            ["look.Cinema.intensity"] = -50,
-            ["effect.Vortex.detail"] = 999,
-            [""] = 11,
-        } }.Normalize();
+            VideoStyleValues = new Dictionary<string, int>
+            {
+                ["look.Cinema.intensity"] = -50,
+                ["effect.Vortex.detail"] = 999,
+                [""] = 11,
+            },
+        }.Normalize();
         Assert.Equal(0, normalized.VideoStyleValues["look.Cinema.intensity"]);
         Assert.Equal(200, normalized.VideoStyleValues["effect.Vortex.detail"]);
         Assert.False(normalized.VideoStyleValues.ContainsKey(""));
