@@ -29,6 +29,9 @@ public sealed partial class MainWindow
     private const int PicturesRemembered = 400;
 
     private readonly SemaphoreSlim _pictureSlots = new(2, 2);
+    // A separate fast lane keeps one hovered or keyboard-focused thumbnail responsive while
+    // the normal visible-card workers finish slower disk reads or video decodes.
+    private readonly SemaphoreSlim _priorityPictureSlot = new(1, 1);
     private readonly Dictionary<string, ImageSource> _pictureMemory = new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<string> _pictureOrder = new();
 
@@ -44,7 +47,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Finds or makes the picture for <paramref name="path"/>, and hands it to <paramref name="show"/> on the window's thread.</summary>
-    private async Task ShowPictureAsync(string path, LibraryKind kind, TimeSpan? duration, Action<ImageSource> show, CancellationToken viewToken)
+    private async Task ShowPictureAsync(string path, LibraryKind kind, TimeSpan? duration, Action<ImageSource> show, CancellationToken viewToken, bool urgent = false)
     {
         var key = PictureKey(path, kind);
         if (key is null)
@@ -61,10 +64,11 @@ public sealed partial class MainWindow
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(viewToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(10));
         var token = timeout.Token;
+        var lane = urgent ? _priorityPictureSlot : _pictureSlots;
         var entered = false;
         try
         {
-            await _pictureSlots.WaitAsync(token);
+            await lane.WaitAsync(token);
             entered = true;
             if (_pictureMemory.TryGetValue(key, out known))
             {
@@ -90,7 +94,7 @@ public sealed partial class MainWindow
         {
             if (entered)
             {
-                _pictureSlots.Release();
+                lane.Release();
             }
         }
     }

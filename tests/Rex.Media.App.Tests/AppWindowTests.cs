@@ -444,6 +444,54 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void MoviesAndSeriesBrowseSeparatelyWithAccessibleArtwork()
+    {
+        var example = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+        var paths = new[]
+        {
+            Path.Combine(_media, "Small.Film.2023.mp4"),
+            Path.Combine(_media, "North.Shore.S01E01.Pilot.mp4"),
+            Path.Combine(_media, "North.Shore.S02E03.Return.mp4"),
+        };
+        foreach (var path in paths)
+        {
+            File.Copy(example, path);
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log")));
+        library.AddFolder(_media);
+        Assert.Equal(paths.Length, library.Scan(_media, paths.Select(path =>
+        {
+            var info = new FileInfo(path);
+            return new Rex.Media.Library.LibraryFile(path, info.Length, info.LastWriteTimeUtc);
+        }), _ => Rex.Media.Library.LibraryKind.Video).Added);
+
+        using var app = AppProcess.Start(root: root);
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => app.Text("LibraryTitle") == "Home", "the media home");
+
+        void Visit(string name)
+        {
+            var source = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.NameProperty, name)));
+            ((SelectionItemPattern)source!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+            Wait.For(() => app.Text("LibraryTitle") == name, name + " to appear");
+            Assert.True(app.IsShown("LibraryList"));
+        }
+
+        Visit("Movies");
+        Wait.Until(() => app.Find("LibraryList").FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Small Film")));
+        Visit("TV Shows");
+        Wait.Until(() => app.Find("LibraryList").FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "North Shore")));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-04")]
     public void APlaylistIsNamedFromTheMenuAndDeletedAgain()
     {

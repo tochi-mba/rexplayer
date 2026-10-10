@@ -137,6 +137,45 @@ public sealed class LibraryViewsTests
         Assert.Throws<ArgumentNullException>(() => LibraryViews.AutoplayVideos(episodes, null!));
     }
 
+    [Fact]
+    [Capability("LIB-05")]
+    public void MoviesAndShowsAreSeparateAndSeasonsAreInEpisodeOrder()
+    {
+        var movies = new[]
+        {
+            VideoAt(@"D:\Media\Movies", "The.Cinema.Example.2024.2160p.BluRay"),
+            VideoAt(@"D:\Media\Movies", "Independent Film"),
+        };
+        var tv = new[]
+        {
+            VideoAt(@"D:\Media\TV\North Shore\Season 2", "North.Shore.S02E10.Finale"),
+            VideoAt(@"D:\Media\TV\North Shore\Season 1", "North.Shore.S01E02.Next"),
+            VideoAt(@"D:\Media\TV\North Shore\Season 1", "North.Shore.S01E01.Pilot"),
+            VideoAt(@"D:\Media\TV\North Shore\Season 2", "North.Shore.S02E01.Return"),
+            VideoAt(@"D:\Media\TV\Sky City", "Sky.City.1x03.720p"),
+        };
+        var all = movies.Concat(tv).ToArray();
+
+        Assert.Equal([movies[1], movies[0]], LibraryViews.Movies(all));
+        var shows = LibraryViews.TvShows(all);
+        Assert.Equal(["North Shore", "Sky City"], shows.Select(show => show.Name));
+        Assert.Equal("2 seasons · 4 episodes", shows[0].Detail);
+        Assert.Equal([1, 1, 2, 2], shows[0].Entries.Select(entry => LibraryViews.EpisodeOf(entry)!.Season));
+        var seasons = LibraryViews.TvSeasons(shows[0]);
+        Assert.Equal(["Season 1", "Season 2"], seasons.Select(season => season.Name));
+        Assert.Equal([1, 2], seasons[0].Entries.Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
+        Assert.Equal([1, 10], seasons[1].Entries.Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
+        Assert.Equal(new VideoEpisode("Sky City", 1, 3), LibraryViews.EpisodeOf(tv[4]));
+        Assert.Equal("The Cinema Example", LibraryViews.MovieTitleOf(movies[0]));
+        Assert.Equal(2024, LibraryViews.MovieYearOf(movies[0]));
+        Assert.Equal("Independent Film", LibraryViews.MovieTitleOf(movies[1]));
+        Assert.Null(LibraryViews.MovieYearOf(movies[1]));
+        Assert.Empty(LibraryViews.TvShows(movies));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.TvSeasons(null!));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.MovieTitleOf(null!));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.MovieYearOf(null!));
+    }
+
     [Theory]
     [Capability("LIB-05")]
     [InlineData("", new string[0])]
