@@ -177,6 +177,9 @@ public enum VisualizerChoice
 
     /// <summary>Live camera or cover art cut, graded and moved to the music.</summary>
     BeatEdit,
+
+    /// <summary>Continuous, spectrally driven light filaments and drum pressure waves.</summary>
+    Resonance,
 }
 
 /// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>
