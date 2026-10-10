@@ -127,6 +127,7 @@ public sealed partial class MainWindow
             {
                 AddPictureLooks(sub.Items, "ContextVideoLook-");
                 AddPictureEffects(sub.Items, "ContextVideoEffect-");
+                AddEpisodeSectionMenus(sub.Items, "Context");
             }
 
             context.Items.Add(sub);
