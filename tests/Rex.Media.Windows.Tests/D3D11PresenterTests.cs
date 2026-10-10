@@ -143,6 +143,9 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.Vortex)]
     [InlineData(VideoEffect.CursorLens)]
     [InlineData(VideoEffect.EdgeGravity)]
+    [InlineData(VideoEffect.Ghostwire)]
+    [InlineData(VideoEffect.ColourSpotlight)]
+    [InlineData(VideoEffect.ReliefEtch)]
     public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
     {
         using var picture = DecodedPicture();
@@ -151,7 +154,7 @@ public sealed class D3D11PresenterTests
         presenter.Present(picture);
         using var original = presenter.ReadBack();
 
-        if (effect == VideoEffect.CursorLens)
+        if (VideoEffects.UsesPointer(effect))
         {
             presenter.SetPointer(0.45f, 0.52f, true);
         }
@@ -236,6 +239,76 @@ public sealed class D3D11PresenterTests
         presenter.Redraw();
         using var hovered = presenter.ReadBack();
         Assert.True(MaxDifference(baseline, hovered) > 2);
+    }
+
+    [Fact]
+    public void GhostwireHighlightTheBoundaryNotTheUniformSurface()
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 96, 64);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                byte value = (byte)(x < 48 ? 8 : 240);
+                row[x * 4] = value;
+                row[x * 4 + 1] = value;
+                row[x * 4 + 2] = value;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(96, 64);
+        presenter.Present(picture);
+        presenter.SetEffect(VideoEffect.Ghostwire, 100);
+        presenter.Redraw();
+        using var contours = presenter.ReadBack();
+
+        var flat = contours.Row(0, 32)[8 * 4 + 1];
+        var boundary = contours.Row(0, 32)[47 * 4 + 1];
+        Assert.True(boundary > flat + 40, $"Expected a distinct boundary: {boundary} versus {flat}");
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var original = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, picture));
+    }
+
+    [Fact]
+    public void ColourSpotlightOnlyRespondsToTheChosenPixelAndClearsWithThePointer()
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 96, 64);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                row[x * 4] = (byte)(x < 48 ? 10 : 210);
+                row[x * 4 + 1] = 20;
+                row[x * 4 + 2] = (byte)(x < 48 ? 220 : 10);
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(96, 64);
+        presenter.Present(picture);
+        using var baseline = presenter.ReadBack();
+
+        presenter.SetEffect(VideoEffect.ColourSpotlight, 100);
+        presenter.Redraw();
+        using var noPointer = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(baseline, noPointer));
+
+        presenter.SetPointer(0.25f, 0.5f, true);
+        presenter.Redraw();
+        using var selected = presenter.ReadBack();
+        Assert.True(MaxDifference(baseline, selected) > 2);
+        Assert.True(selected.Row(0, 32)[12 * 4 + 2] > selected.Row(0, 32)[80 * 4 + 2]);
+
+        presenter.SetPointer(float.NaN, float.NaN, false);
+        presenter.Redraw();
+        using var released = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(baseline, released));
     }
 
     [Fact]

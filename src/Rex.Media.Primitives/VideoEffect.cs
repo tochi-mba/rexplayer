@@ -19,6 +19,9 @@ public enum VideoEffect
     Vortex,
     CursorLens,
     EdgeGravity,
+    Ghostwire,
+    ColourSpotlight,
+    ReliefEtch,
 }
 
 /// <summary>Names, categories and safe bounds for the optional effects.</summary>
@@ -29,6 +32,7 @@ public static class VideoEffects
         "Off", "Prism flow", "Neon contours", "Pixel drift", "Kaleidoscope",
         "Ink trace", "Topographic contours", "Chromatic contours",
         "Liquid glass", "Slice shift", "Vortex", "Cursor lens", "Edge gravity",
+        "Ghostwire", "Colour spotlight", "Relief etch",
     ];
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
@@ -36,15 +40,15 @@ public static class VideoEffects
     /// <summary>Visual grouping for an accessible effect picker.</summary>
     public static string Category(VideoEffect effect) => effect switch
     {
-        VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours => "Contours",
+        VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire => "Contours",
         VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex => "Motion & geometry",
-        VideoEffect.CursorLens => "Interactive",
-        VideoEffect.EdgeGravity => "Image-aware",
+        VideoEffect.CursorLens or VideoEffect.ColourSpotlight => "Interactive",
+        VideoEffect.EdgeGravity or VideoEffect.ReliefEtch => "Image-aware",
         _ => "Essentials",
     };
 
-    /// <summary>Only the lens requires pointer coordinates; no input is captured for other effects.</summary>
-    public static bool UsesPointer(VideoEffect effect) => effect == VideoEffect.CursorLens;
+    /// <summary>Only the two pointer-driven effects read pointer coordinates, never persisted or recorded.</summary>
+    public static bool UsesPointer(VideoEffect effect) => effect is VideoEffect.CursorLens or VideoEffect.ColourSpotlight;
 
     public static int Strength(int percent) => Math.Clamp(percent, 0, 100);
 }

@@ -233,7 +233,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 }
                 colour = lerp(colour, styled, effect.y);
             }
-            if (effect.x > 11.5 && effect.y > 0)
+            if (effect.x > 11.5 && effect.x < 12.5 && effect.y > 0)
             {
                 // Edge Gravity: derive a normal from gradients in the *current video frame*.
                 // Flat regions stay still; high-contrast outlines become elastic folds that
@@ -248,6 +248,66 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 colour = lerp(colour, refracted, edge * effect.y);
                 // Shimmer hugs edges; untextured backgrounds never illuminate.
                 colour = saturate(colour + edge * (0.11 * effect.y) * float3(0.11, 0.65, 0.98));
+            }
+            if (effect.x > 12.5 && effect.x < 13.5 && effect.y > 0)
+            {
+                // Ghostwire: a glass-like phantom of the *whole* frame, woven from thin
+                // luma-gradient ridges. Retain only a faint interior to suggest transparency.
+                // Occluded surfaces cannot be reconstructed from ordinary video pixels.
+                float2 gradient = pictureGradient(uv, isYuv);
+                float energy = length(gradient);
+                float2 direction = gradient / max(energy, 0.00001);
+                float2 stepUv = max(fwidth(uv), float2(0.0005, 0.0005))
+                    / max(pointer.w, 0.25);
+                float2 offsetUv = direction * stepUv;
+                float previous = length(pictureGradient(uv - offsetUv, isYuv));
+                float next = length(pictureGradient(uv + offsetUv, isYuv));
+                // Non-maximum suppression makes an edge into a filament instead of a
+                // thick parallel band. The gradient threshold filters texture noise.
+                float ridge = (energy >= previous && energy >= next) ? 1.0 : 0.0;
+                float detail = max(pointer.w, 0.25);
+                float thread = ridge * smoothstep(0.035 / detail, 0.19 / detail, energy);
+                float luminance = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                // A second, dimmer displaced line makes the surface feel refractive,
+                // with slow enough motion to avoid flashing between frames.
+                float2 ghostUv = saturate(uv + direction * stepUv
+                    * (1.1 + 0.25 * sin(effect.z * 0.7)));
+                float3 ghostColour = readColour(ghostUv, isYuv);
+                float ghostLuma = dot(ghostColour, float3(0.2126, 0.7152, 0.0722));
+                float3 phantom = float3(0.012, 0.018, 0.034)
+                    + float3(luminance, luminance, luminance) * 0.055
+                    + float3(0.06, 0.09, 0.14) * ghostLuma * 0.16;
+                phantom += thread * float3(0.18, 0.92, 0.88);
+                phantom += smoothstep(0.06, 0.27, energy) * (1 - ridge)
+                    * float3(0.12, 0.05, 0.19);
+                colour = lerp(colour, saturate(phantom), effect.y);
+            }
+            if (effect.x > 13.5 && effect.x < 14.5 && effect.y > 0 && pointer.z > 0.5)
+            {
+                // Colour spotlight: the pointer chooses a *pixel colour*, not an object.
+                // Similar colours are highlighted anywhere in the current picture.
+                // With no pointer there is no modification and no stale selection.
+                float3 chosen = readColour(pointer.xy, isYuv);
+                float deviation = length(colour - chosen);
+                float similarity = 1 - smoothstep(0.07 / max(pointer.w, 0.25),
+                    0.38 / max(pointer.w, 0.25), deviation);
+                float grey = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                float3 muted = lerp(colour, float3(grey, grey, grey) * 0.7, 0.82 * effect.y);
+                float3 vivid = saturate(colour * (1 + effect.y * 0.24)
+                    + similarity * effect.y * float3(0.03, 0.11, 0.17));
+                colour = lerp(muted, vivid, similarity);
+            }
+            if (effect.x > 14.5 && effect.x < 15.5 && effect.y > 0)
+            {
+                // Relief etch: light falls across the *image gradient*. It is an
+                // artistic surface-relief illusion, not an estimated depth map.
+                float2 slope = pictureGradient(uv, isYuv) * (5 * max(pointer.w, 0.25));
+                float3 normal = normalize(float3(-slope.x, -slope.y, 0.65));
+                float directional = saturate(dot(normal, normalize(float3(-0.55, -0.4, 0.75))));
+                float edge = smoothstep(0.04, 0.35, length(slope));
+                float3 relief = saturate(colour * (0.35 + 0.95 * directional)
+                    + edge * (directional - 0.5) * float3(0.21, 0.24, 0.22));
+                colour = lerp(colour, relief, effect.y);
             }
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {

@@ -94,9 +94,17 @@ public sealed partial class MainWindow
         var redraw = !_player.IsPlaying;
         OnPresenterThread(presenter =>
         {
+            // Interactive effects must not reuse a pointer left by a previous effect.
+            // The next genuine pointer movement will provide a fresh coordinate.
+            if (!VideoEffects.UsesPointer(effect))
+            {
+                presenter.SetPointer(0.5f, 0.5f, false);
+            }
+
             var options = VideoStyleOptions.ForEffect(effect);
             var values = _settings.VideoStyleValues;
-            var intensity = values.ContainsKey(options[0].Key) ? VideoStyleOptions.Read(values, options[0]) : strength;
+            var intensity = values.ContainsKey(options[0].Key) ? VideoStyleOptions.Read(values, options[0])
+                : effect == VideoEffect.Ghostwire ? options[0].Default : strength;
             presenter.SetEffect(effect, intensity, VideoStyleOptions.Read(values, options[1]));
             if (redraw)
             {
@@ -123,9 +131,18 @@ public sealed partial class MainWindow
         var title = effect ? VideoEffects.Name(_settings.VideoEffect) : VideoLooks.Name(_settings.VideoLook);
         var before = _settings.VideoStyleValues;
         var content = new StackPanel { Spacing = 12, MinWidth = 300 };
+        var explanation = effect ? _settings.VideoEffect switch
+        {
+            VideoEffect.Ghostwire => "Ghostwire makes an almost invisible glass-like picture with luminous contours. It shows visible edges, not hidden surfaces.",
+            VideoEffect.ColourSpotlight => "Move the pointer over a colour to highlight similar colours in the current frame. This does not follow an object.",
+            VideoEffect.ReliefEtch => "Simulated directional light carves relief from visible contrast; it does not estimate real depth.",
+            _ => "",
+        } : "";
         content.Children.Add(new TextBlock
         {
-            Text = "Changes preview live. Each preset remembers its own settings. Cancel restores your previous values.",
+            Text = explanation.Length > 0
+                ? explanation + " Changes preview live. Cancel restores the previous settings."
+                : "Changes preview live. Each preset remembers its own settings. Cancel restores your previous values.",
             TextWrapping = TextWrapping.Wrap,
         });
         var sliders = new List<(VideoStyleOption Option, NumberBox Control)>();

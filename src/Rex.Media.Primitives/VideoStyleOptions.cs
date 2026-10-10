@@ -25,10 +25,17 @@ public static class VideoStyleOptions
         var name = effect.ToString();
         var animated = effect is VideoEffect.PrismFlow or VideoEffect.PixelDrift or VideoEffect.Kaleidoscope
             or VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.EdgeGravity;
+        var detailLabel = effect switch
+        {
+            VideoEffect.Ghostwire => "Filament detail (%)",
+            VideoEffect.ColourSpotlight => "Colour selectivity (%)",
+            VideoEffect.ReliefEtch => "Surface relief (%)",
+            _ => animated ? "Movement (%)" : "Fine detail (%)",
+        };
         return
         [
-            new($"effect.{name}.intensity", "Effect intensity (%)", effect == VideoEffect.Off ? 0 : 65, 0, 100),
-            new($"effect.{name}.detail", animated ? "Movement (%)" : "Fine detail (%)", 100, 25, 175),
+            new($"effect.{name}.intensity", "Effect intensity (%)", effect == VideoEffect.Off ? 0 : effect == VideoEffect.Ghostwire ? 96 : 65, 0, 100),
+            new($"effect.{name}.detail", detailLabel, 100, 25, 175),
         ];
     }
 
