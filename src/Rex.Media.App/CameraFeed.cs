@@ -36,9 +36,35 @@ internal sealed partial class CameraFeed : IAsyncDisposable
     private MediaCapture? _capture;
     private MediaFrameReader? _reader;
     private bool _closed;
+    private bool _mirror = true;
 
-    /// <summary>Whether the pictures are flipped left for right, as a mirror shows them.</summary>
-    public bool Mirror { get; set; } = true;
+    /// <summary>Whether pictures and the tracking model are mirrored together.</summary>
+    public bool Mirror
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _mirror;
+            }
+        }
+
+        set
+        {
+            lock (_gate)
+            {
+                if (_mirror == value)
+                {
+                    return;
+                }
+
+                _mirror = value;
+                // A flipped camera needs a flipped room reference, otherwise its walls
+                // appear as foreground until the old model slowly adapts.
+                _mask.Reset();
+            }
+        }
+    }
 
     /// <summary>How different from the room a pixel must be to count as the person (0 to 1).</summary>
     public double Threshold { get; set; } = 0.12;
