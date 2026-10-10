@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Rex.Media.Settings;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 using Rex.Media.Subtitles;
 
 namespace Rex.Media.App;
