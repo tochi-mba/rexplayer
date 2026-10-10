@@ -165,6 +165,12 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _subjectEdit.Reset();
+            if (_originalForEditing is { } source)
+            {
+                _renderer.Upload(VideoPlaneFormat.Bgra, source.Width, source.Height,
+                    source.Plane(0), source.Stride(0), default, 0);
+            }
+
             _originalForEditing?.Dispose();
             _originalForEditing = null;
         }
@@ -289,8 +295,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             _renderer.CopySurfacePlanes(surface, original.Width, original.Height,
                 original.Format == PixelFormat.P010, frame.Plane(0), frame.Stride(0),
                 frame.Plane(1), frame.Stride(1));
-            using var converted = ColorConverter.ToBgra(frame);
-            return ColorConverter.ToBgra(converted);
+            return ColorConverter.ToBgra(frame);
         }
         finally
         {

@@ -201,6 +201,11 @@ public sealed partial class MainWindow
 
     private void OnStagePressed(object sender, PointerRoutedEventArgs e)
     {
+        if (_selectingSubject)
+        {
+            return;
+        }
+
         var point = e.GetCurrentPoint(Stage);
         var button = ButtonCommand(point);
         if (button is not null)
@@ -221,6 +226,11 @@ public sealed partial class MainWindow
     /// <summary>A drag moves the picture with the pointer.</summary>
     private void OnStageDragged(object sender, PointerRoutedEventArgs e)
     {
+        if (_selectingSubject)
+        {
+            return;
+        }
+
         if (_dragFrom is not { } from || PictureShape() is not { } shape)
         {
             return;

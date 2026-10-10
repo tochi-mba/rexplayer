@@ -727,7 +727,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _context.CopySubresourceRegion(_analysisStaging, 0, 0, 0, 0,
             surface.Texture, surface.Index, null);
         D3D11_MAPPED_SUBRESOURCE mapped;
-        _context.Map(_analysisStaging, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mapped).ThrowOnFailure();
+        _context.Map(_analysisStaging, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mapped);
         try
         {
             var rowPitch = checked((int)mapped.RowPitch);
