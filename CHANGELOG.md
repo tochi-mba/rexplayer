@@ -3,6 +3,33 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.12.0 - 2026-10-10
+
+### Added
+
+- **Collage layout for the library.** A fourth layout choice arranges different-sized artwork
+  in dense, justified rows. Pictures load only as tiles become visible, with hover/focus
+  priority preserved; the layout choice is remembered for each view.
+- **Four optional GPU picture effects.** Prism flow refracts and separates colour, Neon contours
+  outlines edges found in the picture, Pixel drift moves quantised image blocks, and
+  Kaleidoscope remaps the frame into reflected sectors. The Video menu keeps these separate
+  from colour looks. Effects can be switched during playback, adjusted in Preferences and
+  turned fully off. Files are never modified.
+- **Resonance visualisation.** A new music-driven light field maps spectral bands into layered
+  filaments while percussion launches expanding pressure waves. Control colour, shape,
+  fluidity, intensity, trails and symmetry in the visualisation settings.
+
+### Improved
+
+- **Camera visualisations.** Foreground masks compensate for exposure changes, join tiny
+  silhouette gaps and discard small disconnected noise. Beat Edit can smoothly follow a
+  sufficiently confident foreground outline. This is local background subtraction, not
+  semantic recognition; a static camera and a clean background still matter.
+- **Sharper music graphics.** A higher software drawing ceiling improves definition on
+  capable hardware while the existing adaptive quality controller protects responsiveness.
+- **Cleaner timed lyrics.** Compact text backdrops replace the broad dark overlay across
+  bright visualisations, keeping words readable without hiding the scene.
+
 ## 0.11.0 - 2026-10-10
 
 ### Added
