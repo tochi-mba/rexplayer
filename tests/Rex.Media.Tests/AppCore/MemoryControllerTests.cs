@@ -229,6 +229,70 @@ public sealed class MemoryControllerTests
 
     [Fact]
     [Capability("LIB-03")]
+    public void AnUpgradeRestoresTheQueuePositionAndWorkspaceEvenWhenRegularRestoreIsOff()
+    {
+        var store = RexStore.InMemory();
+        using (var before = Harness(store, ResumeChoice.Never, restoreQueue: false))
+        {
+            before.Controller.Open(["a.wav", "b.wav"]);
+            before.Controller.PlayAt(1);
+            before.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "b.wav");
+            before.Controller.Seek(TimeSpan.FromSeconds(13));
+            before.Controller.SetSpeed(1.5);
+            before.Controller.SaveForUpdate("ContinueWatching", true, "   ", null, null, null, true);
+            before.Controller.SaveQueue();
+
+            Assert.Null(before.Controller.Memory.Queue);
+            Assert.Equal(["a.wav", "b.wav"], before.Controller.Memory.Updating!.Queue!.Items.Select(item => item.Location));
+            Assert.False(before.Controller.Memory.Updating!.Playing);
+        }
+
+        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        Assert.False(after.Controller.RestoreQueue());
+        var state = after.Controller.RestoreAfterUpdate();
+        Assert.NotNull(state);
+        Assert.Equal(("ContinueWatching", true, true), (state.LibrarySource, state.LibraryVisible, state.PlaylistVisible));
+        after.PumpUntil(c => (c.State is SessionState.Ready or SessionState.Paused) && c.Item?.Location == "b.wav");
+        Assert.Equal(["a.wav", "b.wav"], after.Controller.Playlist.Items.Select(item => item.Location));
+        Assert.Equal(1, after.Controller.Playlist.CurrentIndex);
+        Assert.Equal(TimeSpan.FromSeconds(13), after.Controller.Position);
+        Assert.Equal(1.5, after.Controller.Speed);
+        Assert.False(after.Controller.IsPlaying);
+        Assert.Null(after.Controller.Memory.Updating);
+        Assert.Null(after.Controller.RestoreAfterUpdate());
+    }
+
+    [Fact]
+    public void AnExpiredOrMalformedUpgradeSessionCannotStartPlayback()
+    {
+        var store = RexStore.InMemory();
+        using var harness = Harness(store, restoreQueue: false);
+        var old = new UpdateSession(
+            new QueueSnapshot([new QueuedItem("a.wav", "a", null, TimeSpan.Zero, null)], 0, TimeSpan.FromSeconds(8)),
+            true, true, "Home", false, "", null, null, null, false, 1, DateTimeOffset.UtcNow.AddDays(-8));
+        harness.Controller.Memory.Updating = old;
+
+        Assert.Null(harness.Controller.RestoreAfterUpdate());
+        Assert.Null(harness.Controller.Memory.Updating);
+        Assert.Empty(harness.Controller.Playlist.Items);
+        Assert.Equal(SessionState.Idle, harness.Controller.State);
+
+        // An otherwise valid hand-off with an invalid current index still restores the queue,
+        // but must not launch the wrong item.
+        harness.Controller.Memory.Updating = old with
+        {
+            SavedAt = DateTimeOffset.UtcNow,
+            Queue = old.Queue! with { Current = 99 },
+        };
+        var recovery = harness.Controller.RestoreAfterUpdate();
+        Assert.NotNull(recovery);
+        Assert.Single(harness.Controller.Playlist.Items);
+        Assert.Null(harness.Controller.Playlist.Current);
+        Assert.Equal(SessionState.Idle, harness.Controller.State);
+    }
+
+    [Fact]
+    [Capability("LIB-03")]
     public void TheQueueIsNotKeptWhenTheUserSaysNot()
     {
         var store = RexStore.InMemory();

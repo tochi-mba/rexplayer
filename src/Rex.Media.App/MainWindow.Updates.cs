@@ -99,7 +99,7 @@ public sealed partial class MainWindow
             Notice.IsOpen = false;
             await InstallAsync(offer);
         };
-        ShowNotice($"rexplayer {offer.Version} is available", "It installs over this one and keeps your settings.", install, InfoBarSeverity.Success);
+        ShowNotice($"rexplayer {offer.Version} is available", "Your queue, playback position and open library view will be restored when rexplayer reopens.", install, InfoBarSeverity.Success);
     }
 
     /// <summary>
@@ -166,8 +166,15 @@ public sealed partial class MainWindow
         }
 
         Say($"Starting the rexplayer {offer.Version} update\u2026");
+        var handoffSaved = false;
         try
         {
+            // Store the one-time hand-off *before* starting the updater. It waits for us to
+            // close; if starting it fails, remove the hand-off and leave the window open.
+            _player.SaveForUpdate(_librarySource.ToString(), LibraryOpen, LibrarySearch.Text,
+                _libraryGroup?.Name, _libraryGroup?.Detail, _librarySeason?.Name,
+                PlaylistPane.Visibility == Microsoft.UI.Xaml.Visibility.Visible);
+            handoffSaved = true;
             var updater = Path.Combine(AppContext.BaseDirectory, "rexupdate.exe");
             var stagedUpdater = Path.Combine(folder, "rexupdate.exe");
             var handoffLog = Path.Combine(App.DataRoot, "logs", "update.log");
@@ -189,6 +196,18 @@ public sealed partial class MainWindow
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException)
         {
+            if (handoffSaved)
+            {
+                try
+                {
+                    _player.Memory.Updating = null;
+                }
+                catch (Exception clearError) when (clearError is IOException or UnauthorizedAccessException)
+                {
+                    App.Log.Warning(LogSource, "The abandoned update marker could not be cleared: " + clearError.Message);
+                }
+            }
+
             App.Log.Warning(LogSource, "The update hand-off could not start: " + ex.Message);
             Say("The installer is ready, but the update could not start: " + ex.Message);
             return;
@@ -214,10 +233,72 @@ public sealed partial class MainWindow
         Notice.IsOpen = true;
     }
 
-    /// <summary>What happens once the window is up: the scheduled update check and any crash to recover from.</summary>
+    /// <summary>
+    /// Puts the user's open workspace back after a verified in-app upgrade. Unknown views, removed
+    /// albums and missing folders degrade to the containing library view instead of crashing.
+    /// Ordinary launches and files intentionally opened from Explorer are unaffected.
+    /// </summary>
+    private bool RestoreUpdatedWorkspace()
+    {
+        UpdateSession? saved;
+        try
+        {
+            saved = _player.RestoreAfterUpdate();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            App.Log.Warning(LogSource, "The previous update session could not be restored: " + ex.Message);
+            return false;
+        }
+
+        if (saved is null)
+        {
+            return false;
+        }
+
+        PlaylistPane.Visibility = saved.PlaylistVisible
+            ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        PlaylistButton.IsChecked = saved.PlaylistVisible;
+        if (Enum.TryParse<LibrarySource>(saved.LibrarySource, out var source) && Enum.IsDefined(source))
+        {
+            var index = Array.FindIndex(LibrarySourceItems, item => item.Source == source);
+            if (index >= 0)
+            {
+                LibrarySources.SelectedIndex = index;
+                _librarySource = source;
+                if (saved.GroupName is { Length: > 0 } && _library is { } library)
+                {
+                    _libraryGroup = Groups(source, library.Entries).FirstOrDefault(group =>
+                        group.Name == saved.GroupName && group.Detail == saved.GroupDetail);
+                    if (_libraryGroup is not null && saved.SeasonName is { Length: > 0 })
+                    {
+                        _librarySeason = LibraryViews.TvSeasons(_libraryGroup)
+                            .FirstOrDefault(season => season.Name == saved.SeasonName);
+                    }
+                }
+            }
+        }
+
+        if (saved.Search.Length > 0)
+        {
+            LibrarySearch.Text = saved.Search[..Math.Min(saved.Search.Length, 256)];
+        }
+
+        if (saved.LibraryVisible)
+        {
+            SetLibraryOpen(true);
+        }
+
+        ShowPlaylist();
+        Say("Back where you left off after the update.");
+        return true;
+    }
+
+    /// <summary>What happens once the window is up: restore an upgrade, or offer crash recovery, then check for updates.</summary>
     private void AfterGreeting(ResumePoint? crashed, bool openedSomething)
     {
-        if (crashed is not null && !openedSomething)
+        var upgraded = !openedSomething && RestoreUpdatedWorkspace();
+        if (!upgraded && crashed is not null && !openedSomething)
         {
             OfferResume(crashed);
         }

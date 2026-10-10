@@ -162,6 +162,66 @@ public sealed partial class PlayerController
         return true;
     }
 
+    /// <summary>
+    /// Records the exact queue, position and playback state just before an app-initiated upgrade.
+    /// This is deliberate one-time recovery, independent of the normal RestoreQueue preference.
+    /// </summary>
+    public void SaveForUpdate(
+        string librarySource, bool libraryVisible, string search, string? groupName,
+        string? groupDetail, string? seasonName, bool playlistVisible)
+    {
+        RememberPosition();
+        var queue = Playlist.Items.Count == 0 ? null
+            : new QueueSnapshot([.. Playlist.Items.Select(Kept)], Playlist.CurrentIndex, Position);
+        var active = Item is not null && State is not (Rex.Media.Engine.SessionState.Idle
+            or Rex.Media.Engine.SessionState.Ended or Rex.Media.Engine.SessionState.Faulted);
+        Memory.Updating = new UpdateSession(queue, active, IsPlaying, librarySource, libraryVisible,
+            search, groupName, groupDetail, seasonName, playlistVisible, Speed, DateTimeOffset.UtcNow);
+    }
+
+    /// <summary>
+    /// Consumes a pending upgrade hand-off once on the new app's ordinary startup. Invalid, stale
+    /// or empty hand-offs fall back to normal startup. A paused video remains paused; a playing
+    /// video starts at its saved position, without prompting for a second resume.
+    /// </summary>
+    public UpdateSession? RestoreAfterUpdate()
+    {
+        var saved = Memory.Updating;
+        if (saved is null)
+        {
+            return null;
+        }
+
+        // A failed or abandoned upgrade must not unexpectedly resume months later.
+        if (saved.SavedAt > DateTimeOffset.UtcNow.AddMinutes(5)
+            || saved.SavedAt < DateTimeOffset.UtcNow.AddDays(-7))
+        {
+            Memory.Updating = null;
+            return null;
+        }
+
+        if (saved.Queue is { Items: { Count: > 0 } items } queue)
+        {
+            Playlist.Clear();
+            Playlist.Add(items.Select(Restored));
+            if (queue.Current >= 0 && queue.Current < Playlist.Items.Count)
+            {
+                Playlist.JumpTo(queue.Current);
+                _restoredAt = queue.At >= TimeSpan.Zero ? queue.At : TimeSpan.Zero;
+            }
+
+            Changed?.Invoke(this, EventArgs.Empty);
+            if (saved.Active && Playlist.Current is { } current)
+            {
+                SetSpeed(saved.Speed);
+                Start(current, paused: !saved.Playing);
+            }
+        }
+
+        Memory.Updating = null;
+        return saved;
+    }
+
     /// <summary>The quick slot and bookmark commands; false for any other.</summary>
     private bool ExecuteMemory(string commandId)
     {
