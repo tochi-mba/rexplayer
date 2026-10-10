@@ -166,6 +166,9 @@ public sealed class LibraryViewsTests
         Assert.Equal([1, 2], seasons[0].Entries.Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
         Assert.Equal([1, 10], seasons[1].Entries.Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
         Assert.Equal(new VideoEpisode("Sky City", 1, 3), LibraryViews.EpisodeOf(tv[4]));
+        var tagged = movies[0] with { Title = "Directors Cut", Year = 2025 };
+        Assert.Equal("Directors Cut", LibraryViews.MovieTitleOf(tagged));
+        Assert.Equal(2025, LibraryViews.MovieYearOf(tagged));
         Assert.Equal("The Cinema Example", LibraryViews.MovieTitleOf(movies[0]));
         Assert.Equal(2024, LibraryViews.MovieYearOf(movies[0]));
         Assert.Equal("Independent Film", LibraryViews.MovieTitleOf(movies[1]));
