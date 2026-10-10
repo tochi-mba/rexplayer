@@ -148,6 +148,29 @@ public sealed class AppWindowTests : IDisposable
             .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         Assert.Equal(VideoEffect.Off, app.SavedSettings.VideoEffect);
 
+        // The primary actions must fit horizontally inside the picture. The remaining
+        // controls are in a vertically scrollable card, never in a clipped action row.
+        var stage = app.Find("Stage").Current.BoundingRectangle;
+        foreach (var id in new[] { "SubjectSelect", "SubjectClose" })
+        {
+            var action = app.Find(id).Current.BoundingRectangle;
+            Assert.True(action.Left >= stage.Left && action.Right <= stage.Right + 1,
+                $"{id} is clipped by the right edge of the picture");
+        }
+
+        Assert.Equal(ToggleState.On, ((TogglePattern)app.Find("SubjectFollow")
+            .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
+        Assert.Equal(ToggleState.On, ((TogglePattern)app.Find("SubjectShowBox")
+            .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
+        app.Toggle("SubjectShowBox");
+        Assert.Equal(ToggleState.Off, ((TogglePattern)app.Find("SubjectShowBox")
+            .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
+        app.Toggle("SubjectFollow");
+        Assert.Equal(ToggleState.Off, ((TogglePattern)app.Find("SubjectFollow")
+            .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
+        app.Toggle("SubjectShowBox");
+        app.Toggle("SubjectFollow");
+
         // This invokes actual presenter selection, rather than merely opening the toolbar.
         // Even a low-texture fixture must respond (either a lock or an explicit refusal).
         app.Press("SubjectCenter");

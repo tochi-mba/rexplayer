@@ -228,40 +228,66 @@
           <Border x:Name="SubjectOutline" BorderBrush="#FF45ECD2" BorderThickness="2" CornerRadius="3"
                   Background="#2045ECD2" Width="1" Height="1" />
         </Canvas>
+        <!-- The compact card stays inside the stage. Its content scrolls on short windows,
+             instead of letting a horizontal action row clip the last buttons. -->
         <Border x:Name="SubjectToolbar" Visibility="Collapsed" VerticalAlignment="Top"
-                HorizontalAlignment="Right" Margin="16" MaxWidth="360" CornerRadius="10"
-                Padding="12" Background="#E8121822" BorderBrush="#605FFFFF" BorderThickness="1"
+                HorizontalAlignment="Right" Margin="12" Width="320" CornerRadius="12"
+                Padding="12" Background="#F0121822" BorderBrush="#605FFFFF" BorderThickness="1"
                 AutomationProperties.AutomationId="SubjectToolbar">
-          <StackPanel Spacing="8">
-            <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="White" FontSize="16" />
-            <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="SubjectStatusText"
-                       AutomationProperties.LiveSetting="Polite"
-                       Text="Drag around an object, accessory or body part to select its visible area." />
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button x:Name="SubjectSelectButton" Content="Select again" Click="OnSubjectSelect"
-                      AutomationProperties.AutomationId="SubjectSelect" />
-              <Button x:Name="SubjectEraseButton" Content="Preview removal" Click="OnSubjectErase" IsEnabled="False"
-                      AutomationProperties.AutomationId="SubjectErase" />
-              <Button Content="Reset" Click="OnSubjectReset" AutomationProperties.AutomationId="SubjectReset" />
-              <Button Content="Close" Click="OnSubjectClose" AutomationProperties.AutomationId="SubjectClose" />
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                        VerticalScrollMode="Enabled">
+            <StackPanel Spacing="9">
+              <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="White" FontSize="16" />
+              <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SubjectStatusText"
+                         AutomationProperties.LiveSetting="Polite"
+                         Text="Drag around an object, accessory or body part to select its visible area." />
+              <TextBlock x:Name="SubjectConfidenceText" Foreground="#FF45ECD2" FontSize="12"
+                         AutomationProperties.AutomationId="SubjectConfidenceText"
+                         Text="Waiting for selection" />
+              <Grid ColumnSpacing="6" RowSpacing="6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Button x:Name="SubjectSelectButton" Grid.Column="0" Content="Select again"
+                        HorizontalAlignment="Stretch" Click="OnSubjectSelect"
+                        AutomationProperties.AutomationId="SubjectSelect" />
+                <Button Grid.Column="1" Content="Close" HorizontalAlignment="Stretch"
+                        Click="OnSubjectClose" AutomationProperties.AutomationId="SubjectClose" />
+                <Button x:Name="SubjectEraseButton" Grid.Row="1" Content="Preview removal"
+                        HorizontalAlignment="Stretch" Click="OnSubjectErase" IsEnabled="False"
+                        AutomationProperties.AutomationId="SubjectErase" />
+                <Button Grid.Row="1" Grid.Column="1" Content="Reset" HorizontalAlignment="Stretch"
+                        Click="OnSubjectReset" AutomationProperties.AutomationId="SubjectReset" />
+              </Grid>
+              <Button Content="Lock visible centre (keyboard)" Click="OnSubjectCenter"
+                      HorizontalAlignment="Stretch" AutomationProperties.AutomationId="SubjectCenter"
+                      AutomationProperties.Name="Lock visible centre of picture" />
+              <ToggleSwitch x:Name="SubjectFollow" Header="Auto-follow and zoom" IsOn="True"
+                            Toggled="OnSubjectFollowChanged" AutomationProperties.AutomationId="SubjectFollow"
+                            AutomationProperties.Name="Automatically follow selected object with a gentle zoom" />
+              <ToggleSwitch x:Name="SubjectShowBox" Header="Show tracking box" IsOn="True"
+                            Toggled="OnSubjectShowBoxChanged" AutomationProperties.AutomationId="SubjectShowBox"
+                            AutomationProperties.Name="Show tracking outline; tracking continues when hidden" />
+              <StackPanel Spacing="2">
+                <TextBlock Text="Removal edge softness" Foreground="#FFE0EAF0" />
+                <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
+                        ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather"
+                        AutomationProperties.Name="Removal edge softness" />
+                <TextBlock Text="Removal colour tolerance" Foreground="#FFE0EAF0" />
+                <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
+                        ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance"
+                        AutomationProperties.Name="Removal mask colour tolerance" />
+              </StackPanel>
+              <TextBlock Text="Tracking and the camera view are non-destructive. A returning target is followed only when its visible texture matches unambiguously. Removed areas that were never visible are estimates."
+                         Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
             </StackPanel>
-            <Button Content="Lock visible centre (keyboard)" Click="OnSubjectCenter"
-                    AutomationProperties.AutomationId="SubjectCenter"
-                    AutomationProperties.Name="Lock visible centre of picture" />
-            <StackPanel Spacing="2">
-              <TextBlock Text="Edge softness" Foreground="#FFE0EAF0" />
-              <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
-                      ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather"
-                      AutomationProperties.Name="Removal edge softness" />
-              <TextBlock Text="Colour tolerance" Foreground="#FFE0EAF0" />
-              <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
-                      ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance"
-                      AutomationProperties.Name="Removal mask colour tolerance" />
-            </StackPanel>
-            <TextBlock Text="Local preview only. A rectangular selection and colour estimate cannot perfectly separate overlapping objects. Areas never visible in the footage are estimated, not revealed."
-                       Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
-          </StackPanel>
+          </ScrollViewer>
         </Border>
 
         <Grid x:Name="SubtitleLayer" IsHitTestVisible="False" AutomationProperties.AutomationId="Subtitles">

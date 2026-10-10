@@ -70,6 +70,28 @@ public sealed class PictureViewTests
 
     [Fact]
     [Capability("VID-07")]
+    public void FollowingASubjectEasesIntoViewWithContextAndNeverLeavesTheFrame()
+    {
+        var view = PictureView.Whole;
+        for (var frame = 0; frame < 20; frame++)
+        {
+            view = view.Follow(0.85, 0.15, 0.12, 0.2);
+        }
+
+        Assert.InRange(view.Zoom, 1.8, 1.851);
+        Assert.InRange(view.CenterX, 0.72, 0.74);
+        Assert.InRange(view.CenterY, 0.26, 0.28);
+        var (left, top, width, height) = view.Visible;
+        Assert.InRange(left, 0, 1 - width);
+        Assert.InRange(top, 0, 1 - height);
+
+        // A large selection stays entirely in view rather than zooming through it.
+        var large = PictureView.Whole.Follow(0.5, 0.5, 0.9, 0.9);
+        Assert.Equal(PictureView.Whole, large);
+    }
+
+    [Fact]
+    [Capability("VID-07")]
     public void TheNavigatorSitsSmallInTheTopLeftAtThePicturesShape()
     {
         // A wide window: a fifth of its width, as wide as the picture is.

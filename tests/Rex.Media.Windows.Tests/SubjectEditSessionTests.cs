@@ -183,6 +183,65 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void RecoversTheSameTargetAfterItLeavesTheFrameAndReturnsElsewhere()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var original = Picture();
+        tracker.Process(original);
+        Assert.True(tracker.Tracking);
+
+        tracker.SetErase(true);
+        using var absent = Picture(-50, -50, 1.04);
+        Assert.Null(tracker.Process(absent));
+        Assert.False(tracker.Tracking);
+        Assert.False(tracker.Erase);
+        Assert.True(tracker.Locked);
+
+        // Keep presenting new images: the original identity reference survives a loss.
+        for (var i = 0; i < 8; i++)
+        {
+            using var returned = Picture(70, 28, 1.08 + i * 0.04);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.True(tracker.Tracking);
+        Assert.InRange(tracker.Region.Left * 128, 69, 71);
+        Assert.InRange(tracker.Region.Top * 80, 27, 29);
+        Assert.False(tracker.Erase);
+        Assert.Contains("Tracking", tracker.Status, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TwoMatchingReturnCandidatesDoNotSilentlySwitchTheSelectedIdentity()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var initial = Picture();
+        tracker.Process(initial);
+        using var absent = Picture(-50, -50, 1.04);
+        tracker.Process(absent);
+
+        for (var i = 0; i < 8; i++)
+        {
+            using var ambiguous = Picture(70, 20, 1.08 + i * 0.04);
+            // Add a second, pixel-identical subject at a distant location.
+            for (var y = 0; y < 16; y++)
+            {
+                var source = ambiguous.Row(0, 20 + y);
+                var destination = ambiguous.Row(0, 50 + y);
+                source.Slice(70 * 4, 16 * 4).CopyTo(destination.Slice(18 * 4, 16 * 4));
+            }
+
+            Assert.Null(tracker.Process(ambiguous));
+        }
+
+        Assert.False(tracker.Tracking);
+        Assert.True(tracker.Locked);
+        Assert.Equal(0, tracker.EstimatedPixels);
+    }
+
+    [Fact]
     public void FeaturelessPatchDoesNotPretendToLockAnObject()
     {
         var tracker = new SubjectEditSession();
