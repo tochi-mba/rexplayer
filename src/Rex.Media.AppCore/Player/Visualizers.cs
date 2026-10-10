@@ -31,6 +31,7 @@ public static class Visualizers
         VisualizerChoice.Mirror => "Mirror wave",
         VisualizerChoice.Aurora => "Aurora",
         VisualizerChoice.Embers => "Embers",
+        VisualizerChoice.Resonance => "Resonance",
         VisualizerChoice.Ripples => "Ripples",
         VisualizerChoice.Strobe => "Strobe",
         VisualizerChoice.Silhouette => "Camera silhouette",
