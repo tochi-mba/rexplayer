@@ -1,3 +1,5 @@
+using Rex.Media.Primitives;
+
 namespace Rex.Media.Settings;
 
 /// <summary>What happens when the end of the play queue is reached.</summary>
@@ -322,6 +324,9 @@ public sealed record PlayerSettings
     /// <summary>While zoomed in, the whole picture shows small in a corner, with the view marked on it.</summary>
     public bool ShowNavigator { get; init; } = true;
 
+    /// <summary>The GPU picture look to use for videos; Original does not alter the media.</summary>
+    public VideoLook VideoLook { get; init; } = Rex.Media.Primitives.VideoLook.Original;
+
     /// <summary>
     /// Each visualisation's own settings, by "visualisation.setting" (AppCore's VisualizerOptions
     /// reads them, with their defaults and ranges).
@@ -513,6 +518,7 @@ public sealed record PlayerSettings
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
             ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
+            VideoLook = Enum.IsDefined(VideoLook) ? VideoLook : Rex.Media.Primitives.VideoLook.Original,
             AudioArtworkStyle = Enum.IsDefined(AudioArtworkStyle) ? AudioArtworkStyle : ArtworkStyle.Prism,
             AudioArtworkColor = Math.Clamp(AudioArtworkColor, 0, 200),
             AudioArtworkDetail = Math.Clamp(AudioArtworkDetail, 0, 200),
