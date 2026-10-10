@@ -451,7 +451,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         constants[31] = Math.Clamp(effectDetail, 0.25f, 1.75f);
         constants[32] = Math.Clamp(motionTrail, 0, 1);
         constants[33] = _hasPrevious ? 1 : 0;
-        constants[34] = Math.Clamp(motionMode, 0, 2);
+        constants[34] = Math.Clamp(motionMode, 0, 3);
         fixed (float* values = constants)
         {
             _context.UpdateSubresource(_colour, 0, null, values, 144, 0);
