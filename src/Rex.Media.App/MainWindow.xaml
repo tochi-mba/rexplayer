@@ -246,6 +246,9 @@
               <Button Content="Reset" Click="OnSubjectReset" AutomationProperties.AutomationId="SubjectReset" />
               <Button Content="Close" Click="OnSubjectClose" AutomationProperties.AutomationId="SubjectClose" />
             </StackPanel>
+            <Button Content="Lock visible centre (keyboard)" Click="OnSubjectCenter"
+                    AutomationProperties.AutomationId="SubjectCenter"
+                    AutomationProperties.Name="Lock visible centre of picture" />
             <StackPanel Spacing="2">
               <TextBlock Text="Edge softness" Foreground="#FFE0EAF0" />
               <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"

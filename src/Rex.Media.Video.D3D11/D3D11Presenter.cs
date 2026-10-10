@@ -178,6 +178,12 @@ public sealed class D3D11Presenter : IVideoPresenter
             {
                 _renderer.Upload(VideoPlaneFormat.Bgra, source.Width, source.Height,
                     source.Plane(0), source.Stride(0), default, 0);
+                // An image converted from NV12/P010 is now BGRA. Its former YUV colour
+                // transform cannot be reused when the next paused redraw displays it.
+                if (_last is { } last)
+                {
+                    _last = (new float[12], last.Width, last.Height, last.PixelAspect);
+                }
             }
 
             _originalForEditing?.Dispose();
@@ -237,6 +243,14 @@ public sealed class D3D11Presenter : IVideoPresenter
                 {
                     _renderer.Upload(VideoPlaneFormat.Bgra, _originalForEditing.Width, _originalForEditing.Height,
                         _originalForEditing.Plane(0), _originalForEditing.Stride(0), default, 0);
+                }
+
+                // When a frame decoded on the GPU is read back for paused-frame editing,
+                // both the preview and the original are already colour-correct BGRA. The
+                // cached YUV matrix would convert those RGB pixels a second time.
+                if (_last is { } cached)
+                {
+                    _last = (new float[12], cached.Width, cached.Height, cached.PixelAspect);
                 }
             }
 
