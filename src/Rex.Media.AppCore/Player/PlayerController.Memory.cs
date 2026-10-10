@@ -176,7 +176,7 @@ public sealed partial class PlayerController
         var active = Item is not null && State is not (Rex.Media.Engine.SessionState.Idle
             or Rex.Media.Engine.SessionState.Ended or Rex.Media.Engine.SessionState.Faulted);
         Memory.Updating = new UpdateSession(queue, active, IsPlaying, librarySource, libraryVisible,
-            search, groupName, groupDetail, seasonName, playlistVisible, DateTimeOffset.UtcNow);
+            search, groupName, groupDetail, seasonName, playlistVisible, Speed, DateTimeOffset.UtcNow);
     }
 
     /// <summary>
