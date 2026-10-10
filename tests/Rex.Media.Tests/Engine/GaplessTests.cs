@@ -164,6 +164,9 @@ public sealed class GaplessTests
         using var decoder = new JoinGateDecoderFactory();
         using var harness = new SessionHarness(decoder: decoder);
         await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 400)), [SessionHarness.Source(Count(500, 400))]);
+        // Event notifications arrive on a separate thread. Wait until the first item was
+        // reported before testing that a hand-over after Stop cannot report another one.
+        harness.WaitFor<MediaOpenedEvent>();
         Assert.True(decoder.AtJoin.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
 
         // The stop is queued before the audio thread reports the hand-over, so the report finds
