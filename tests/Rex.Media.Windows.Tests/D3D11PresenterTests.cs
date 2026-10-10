@@ -600,11 +600,11 @@ public sealed class D3D11PresenterTests
     {
         using var presenter = D3D11Presenter.Offscreen(144, 96);
         presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
+        presenter.SetMotionOptions(0, 2); // Activate temporal capture before the first picture.
         using var before = MotionPicture(24, 0);
         using var moved = MotionPicture(39, 0.04);
         presenter.Present(before);
         presenter.Present(moved);
-        presenter.SetMotionOptions(0, 2);
         presenter.Redraw();
         using var withoutTrails = presenter.ReadBack();
 
@@ -619,7 +619,12 @@ public sealed class D3D11PresenterTests
         Assert.True(MaxDifference(withTrails, contours) > 10);
 
         presenter.SetMotionOptions(100, 0);
-        presenter.Redraw();
+        // Switching from a non-temporal mode intentionally discards stale history.
+        // Show a new pair instead of borrowing an old motion vector.
+        using var again = MotionPicture(24, 0.08);
+        using var movedAgain = MotionPicture(39, 0.12);
+        presenter.Present(again);
+        presenter.Present(movedAgain);
         using var hybrid = presenter.ReadBack();
         Assert.True(MaxDifference(hybrid, contours) > 10);
     }
