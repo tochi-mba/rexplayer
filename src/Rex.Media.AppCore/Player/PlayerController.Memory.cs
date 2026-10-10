@@ -213,6 +213,7 @@ public sealed partial class PlayerController
             Changed?.Invoke(this, EventArgs.Empty);
             if (saved.Active && Playlist.Current is { } current)
             {
+                SetSpeed(saved.Speed);
                 Start(current, paused: !saved.Playing);
             }
         }
