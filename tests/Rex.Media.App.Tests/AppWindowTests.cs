@@ -267,8 +267,8 @@ public sealed class AppWindowTests : IDisposable
         var picture = Path.Combine(_media, "photo.png");
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png"), picture);
         using var app = AppProcess.Start([picture]);
-        Wait.For(() => app.LogText.Contains("Opened photo.png as PNG", StringComparison.Ordinal), "the picture");
-        Assert.False(app.IsShown("VideoBlank"));
+        // Assert the actual visual state, not the timing or wording of a decoder log message.
+        Wait.For(() => !app.IsShown("VideoBlank"), "the picture to appear");
 
         Assert.Equal(0, AppProcess.Launch([Song(30)], app.Root));
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song");
@@ -461,6 +461,54 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => scroll.Current.VerticallyScrollable, "the picture grid to be vertically scrollable");
         scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
         Wait.For(() => scroll.Current.VerticalScrollPercent > 0, "the picture grid to scroll");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void MoviesAndSeriesBrowseSeparatelyWithAccessibleArtwork()
+    {
+        var example = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+        var paths = new[]
+        {
+            Path.Combine(_media, "Small.Film.2023.mp4"),
+            Path.Combine(_media, "North.Shore.S01E01.Pilot.mp4"),
+            Path.Combine(_media, "North.Shore.S02E03.Return.mp4"),
+        };
+        foreach (var path in paths)
+        {
+            File.Copy(example, path);
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log")));
+        library.AddFolder(_media);
+        Assert.Equal(paths.Length, library.Scan(_media, paths.Select(path =>
+        {
+            var info = new FileInfo(path);
+            return new Rex.Media.Library.LibraryFile(path, info.Length, info.LastWriteTimeUtc);
+        }), _ => Rex.Media.Library.LibraryKind.Video).Added);
+
+        using var app = AppProcess.Start(root: root);
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => app.Text("LibraryTitle") == "Home", "the media home");
+
+        void Visit(string name)
+        {
+            var source = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.NameProperty, name)));
+            ((SelectionItemPattern)source!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+            Wait.For(() => app.Text("LibraryTitle") == name, name + " to appear");
+            Assert.True(app.IsShown("LibraryList"));
+        }
+
+        Visit("Movies");
+        Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 movie", StringComparison.Ordinal),
+            "only standalone video files to appear in Movies");
+        Visit("TV Shows");
+        Wait.Until(() => app.Find("LibraryList").FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "North Shore")));
         Assert.Equal(0, app.Close());
     }
 

@@ -27,6 +27,7 @@ public sealed partial class MainWindow
     private readonly List<FileSystemWatcher> _watchers = [];
     private readonly HashSet<string> _changedFolders = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _libraryPictures = new();
+    private CancellationTokenSource _hoverPictures = new();
     private MediaLibrary? _library;
     private LibraryScanner? _scanner;
     private DispatcherQueueTimer? _libraryRefresh;
@@ -34,6 +35,7 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _libraryRescan;
     private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
+    private LibraryGroup? _librarySeason;
     private string _shownLibrary = "";
 
     private enum LibrarySource
@@ -43,6 +45,8 @@ public sealed partial class MainWindow
         Albums,
         Artists,
         Genres,
+        Movies,
+        TvShows,
         Videos,
         Pictures,
         ContinueWatching,
@@ -231,6 +235,7 @@ public sealed partial class MainWindow
         {
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
             _libraryGroup = null;
+            _librarySeason = null;
             LibrarySearch.Text = "";
             ShowLibrary();
         }
@@ -240,7 +245,15 @@ public sealed partial class MainWindow
 
     private void OnLibraryBack(object sender, RoutedEventArgs e)
     {
-        _libraryGroup = null;
+        if (_librarySeason is not null)
+        {
+            _librarySeason = null;
+        }
+        else
+        {
+            _libraryGroup = null;
+        }
+
         ShowLibrary();
     }
 
@@ -293,19 +306,25 @@ public sealed partial class MainWindow
         LibrarySource.Albums => LibraryViews.Albums(entries),
         LibrarySource.Artists => LibraryViews.Artists(entries),
         LibrarySource.Genres => LibraryViews.Genres(entries),
+        LibrarySource.TvShows => LibraryViews.TvShows(entries),
         _ => [],
     };
 
-    private static LibraryRow GroupRow(LibraryGroup group) => new(group.Name, group.Detail, Count(group.Entries.Count, "song"), group, hasPicture: true, picturePlaceholder: "♪");
+    private static LibraryRow GroupRow(LibraryGroup group) => new(group.Name, group.Detail,
+        Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
+        group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
 
     private List<LibraryRow> EntryRows(IEnumerable<LibraryEntry> entries) => [.. entries.Select(EntryRow)];
 
     private LibraryRow EntryRow(LibraryEntry entry)
     {
         var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
-        var name = episode is not null && entry.Title == MediaLibrary.TitleOf(entry.Path) ? episode.DisplayName : entry.Title;
+        var name = _librarySource == LibrarySource.Movies && entry.Kind == LibraryKind.Video
+            ? LibraryViews.MovieTitleOf(entry)
+            : episode is not null && entry.Title == MediaLibrary.TitleOf(entry.Path) ? episode.DisplayName : entry.Title;
         var detail = entry.Kind == LibraryKind.Video
             ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
+                + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
                 + (episode is null ? "" : $"Season {episode.Season} · Episode {episode.Episode} · ")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
@@ -336,6 +355,47 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Put the pointed-at card first, then its near neighbours. Old hover work is cancelled
+    /// as soon as the pointer moves, while the ordinary visible-card queue keeps progressing.
+    /// </summary>
+    private void PrioritizeLibraryPicture(LibraryRow row)
+    {
+        _hoverPictures.Cancel();
+        _hoverPictures.Dispose();
+        _hoverPictures = CancellationTokenSource.CreateLinkedTokenSource(_libraryPictures.Token);
+        var token = _hoverPictures.Token;
+
+        void Request(LibraryRow item)
+        {
+            if (item.Picture is not null || PictureEntry(item.Item) is not { } entry)
+            {
+                return;
+            }
+
+            item.PictureAsked = true;
+            _ = ShowPictureAsync(entry.Path, entry.Kind, entry.Duration,
+                picture => item.Picture = picture, token, urgent: true);
+        }
+
+        Request(row);
+        var rows = _libraryRows.Contains(row) ? _libraryRows : _homeShelfRows;
+        var index = rows.IndexOf(row);
+        if (index < 0)
+        {
+            return;
+        }
+
+        // A bounded neighbourhood: fast to fill but never preloads the whole library.
+        foreach (var neighbour in new[] { index - 1, index + 1, index - 2, index + 2 })
+        {
+            if (neighbour >= 0 && neighbour < rows.Count)
+            {
+                Request(rows[neighbour]);
+            }
+        }
+    }
+
     private static LibraryEntry? PictureEntry(object item) => item switch
     {
         LibraryEntry entry => entry,
@@ -345,6 +405,9 @@ public sealed partial class MainWindow
 
     private void CancelLibraryPictures()
     {
+        _hoverPictures.Cancel();
+        _hoverPictures.Dispose();
+        _hoverPictures = new CancellationTokenSource();
         _libraryPictures.Cancel();
         _libraryPictures.Dispose();
         _libraryPictures = new CancellationTokenSource();
@@ -395,7 +458,16 @@ public sealed partial class MainWindow
         switch (row?.Item)
         {
             case LibraryGroup group:
-                _libraryGroup = group;
+                if (_librarySource == LibrarySource.TvShows && _libraryGroup is not null && _librarySeason is null)
+                {
+                    _librarySeason = group;
+                }
+                else
+                {
+                    _libraryGroup = group;
+                    _librarySeason = null;
+                }
+
                 LibrarySearch.Text = "";
                 ShowLibrary();
                 break;

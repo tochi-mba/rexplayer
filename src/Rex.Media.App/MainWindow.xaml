@@ -39,12 +39,12 @@
     </DataTemplate>
 
     <DataTemplate x:Key="LibraryBrowseTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
+      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
         <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="48" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
             <Border x:Name="CardPlay" Opacity="0" Width="44" Height="44" CornerRadius="22" Margin="10" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
               <FontIcon Glyph="&#xE768;" FontSize="18" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
@@ -60,7 +60,7 @@
     </DataTemplate>
 
     <DataTemplate x:Key="LibraryVideoTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
+      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
         <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
@@ -86,8 +86,33 @@
       </Grid>
     </DataTemplate>
 
+    <!-- Poster-height cards keep their image ratio. Hover or focus reveals Play but never hides the artwork. -->
+    <DataTemplate x:Key="LibraryMovieTemplate" x:DataType="local:LibraryRow">
+      <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Border CornerRadius="12" Background="#20252D" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+          <Grid>
+            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="54" Opacity="0.36" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
+            <Border Background="#BE17202C" CornerRadius="4" Padding="6,3" Margin="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Visibility="{x:Bind BadgeVisibility}">
+              <TextBlock Text="{x:Bind Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+            </Border>
+            <Border x:Name="CardPlay" Opacity="0" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
+              <FontIcon Glyph="&#xE768;" FontSize="22" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+            </Border>
+          </Grid>
+        </Border>
+        <StackPanel Grid.Row="1" Spacing="2">
+          <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{x:Bind Detail}" Visibility="{x:Bind DetailVisibility}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" FontSize="12" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
     <DataTemplate x:Key="LibraryPhotoTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="4" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
+      <Grid Padding="4" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
         <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
