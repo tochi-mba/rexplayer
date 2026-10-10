@@ -267,6 +267,13 @@
           </Canvas>
         </Grid>
 
+        <!-- Skip stays out of the centre of the picture and appears only within a confirmed section. -->
+        <Button x:Name="EpisodeSkipButton" Content="Skip intro" Visibility="Collapsed"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,90"
+                Padding="20,10" CornerRadius="12" Style="{ThemeResource AccentButtonStyle}"
+                Click="OnSkipEpisodeSection" AutomationProperties.AutomationId="EpisodeSkipButton"
+                AutomationProperties.Name="Skip intro" />
+
         <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
                 Background="#C0080A09" Visibility="Collapsed" IsHitTestVisible="False">
           <TextBlock x:Name="Stats" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.AutomationId="Stats" />
