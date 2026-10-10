@@ -74,11 +74,29 @@ public readonly record struct PictureView
     public PictureView Follow(double centreX, double centreY, double width, double height)
     {
         var zoom = Math.Clamp(0.8 / Math.Max(0.01, Math.Max(width, height)), 1, 1.85);
+        // Pixel matching can shift by a few pixels between successive frames.
+        // Hold the viewport inside a small dead zone, but respond to larger movement.
+        static double Ease(double current, double target)
+        {
+            var delta = target - current;
+            return Math.Abs(delta) <= 0.02 ? current
+                : current + delta * Math.Clamp(Math.Abs(delta) * 1.2, 0.16, 0.4);
+        }
+
         return new PictureView(
-            Zoom + (zoom - Zoom) * 0.35,
-            CenterX + (centreX - CenterX) * 0.3,
-            CenterY + (centreY - CenterY) * 0.3);
+            Zoom + (zoom - Zoom) * 0.23,
+            Ease(CenterX, centreX),
+            Ease(CenterY, centreY));
     }
+
+    /// <summary>
+    /// When a previously tracked subject disappears, gently return to the whole picture
+    /// so the viewer can see where it might reappear. Only the auto-follow camera uses this.
+    /// </summary>
+    public PictureView Reveal() => new(
+        Zoom + (1 - Zoom) * 0.30,
+        CenterX + (0.5 - CenterX) * 0.30,
+        CenterY + (0.5 - CenterY) * 0.30);
 
     /// <summary>The part of <paramref name="picture"/> (a crop of the decoded picture) this view shows.</summary>
     public SourceRect Within(SourceRect picture)
