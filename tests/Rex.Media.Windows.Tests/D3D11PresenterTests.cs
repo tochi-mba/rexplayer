@@ -438,6 +438,99 @@ public sealed class D3D11PresenterTests
         return picture;
     }
 
+    /// <summary>
+    /// A synthetic soft curved surface in dark and bright footage. Its entire boundary
+    /// is a smooth gradient rather than a hard edge: a still-image shape detector must
+    /// find the visible shading, not require frame-to-frame movement.
+    /// </summary>
+    private static VideoFrame CurvedSurfacePicture(bool dim, double seconds = 0)
+    {
+        var picture = VideoFrame.Rent(PixelFormat.Bgra32, 144, 96);
+        picture.Pts = MediaTime.FromSeconds(seconds);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                var dx = (x - 72.0) / 30;
+                var dy = (y - 48.0) / 23;
+                var bump = Math.Exp(-2.2 * (dx * dx + dy * dy));
+                var shade = Math.Clamp((dim ? 17 : 64) + (dim ? 88 : 142) * bump, 0, 255);
+                var at = x * 4;
+                row[at] = (byte)Math.Round(shade * (dim ? 0.68 : 0.85));
+                row[at + 1] = (byte)Math.Round(shade * (dim ? 0.86 : 0.93));
+                row[at + 2] = (byte)Math.Round(shade);
+                row[at + 3] = 255;
+            }
+        }
+
+        return picture;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GhostwireSurfaceShapeShowsCurvedShadingWithoutAnyMovement(bool dim)
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 175);
+        // Default is surface mode: no previous decoded frame is required.
+        using var frame = CurvedSurfacePicture(dim);
+        presenter.Present(frame);
+        using var first = presenter.ReadBack();
+
+        var flat = first.Row(0, 48)[8 * 4 + 1];
+        var gradient = Enumerable.Range(48, 12)
+            .Max(x => (int)first.Row(0, 48)[x * 4 + 1]);
+        Assert.True(gradient > flat + 12,
+            $"Curved shading must be visible in {(dim ? "low" : "bright")} light: {gradient} vs {flat}");
+
+        presenter.Redraw();
+        using var redraw = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, redraw));
+
+        using var sameStill = CurvedSurfacePicture(dim, 0.04);
+        presenter.Present(sameStill);
+        using var repeated = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, repeated));
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var original = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, sameStill));
+    }
+
+    [Fact]
+    public void UniformSurfaceHasNoFabricatedContourLinesAtHighSensitivity()
+    {
+        using var frame = VideoFrame.Rent(PixelFormat.Bgra32, 144, 96);
+        foreach (var y in Enumerable.Range(0, frame.Height))
+        {
+            var row = frame.Row(0, y);
+            for (var x = 0; x < frame.Width; x++)
+            {
+                row[x * 4] = 95;
+                row[x * 4 + 1] = 95;
+                row[x * 4 + 2] = 95;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 175);
+        presenter.Present(frame);
+        using var drawn = presenter.ReadBack();
+        for (var y = 5; y < 90; y += 11)
+        {
+            var row = drawn.Row(0, y);
+            for (var x = 5; x < 140; x += 11)
+            {
+                Assert.Equal(row[5 * 4 + 1], row[x * 4 + 1]);
+                Assert.Equal(row[5 * 4 + 2], row[x * 4 + 2]);
+            }
+        }
+    }
+
     [Fact]
     public void GhostwireMotionSeparatesMovingContoursFromStationaryOnesAndRestoresSource()
     {
