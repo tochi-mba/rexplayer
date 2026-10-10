@@ -183,6 +183,40 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void FeaturelessPatchDoesNotPretendToLockAnObject()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(0.2f, 0.2f, 0.2f, 0.2f);
+        using var frame = Picture(-60, -60);
+        Assert.Null(tracker.Process(frame));
+        Assert.True(tracker.Locked);
+        Assert.False(tracker.Tracking);
+        Assert.False(tracker.Erase);
+        Assert.Equal(0, tracker.Confidence);
+        Assert.Contains("too little distinguishing detail", tracker.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReacquiringAfterAResetReplacesTheOldSubjectWithoutModifyingTheSource()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var frame = Picture();
+        Assert.Null(tracker.Process(frame));
+        Assert.True(tracker.Tracking);
+        tracker.SetErase(true);
+        using var preview = tracker.Process(frame);
+        Assert.NotNull(preview);
+        tracker.Reset();
+        Assert.False(tracker.Locked);
+        tracker.Select(28 / 128f, 18 / 80f, 20 / 128f, 20 / 80f);
+        Assert.False(tracker.Erase);
+        Assert.Null(tracker.Process(frame));
+        Assert.True(tracker.Tracking);
+        Assert.Equal((byte)210, frame.Row(0, 24)[36 * 4 + 2]);
+    }
+
+    [Fact]
     public void GPUVideoPresenterRendersTheOriginalAgainAfterClearingThePreview()
     {
         using var source = Picture();
