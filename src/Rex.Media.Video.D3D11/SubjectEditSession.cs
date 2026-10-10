@@ -13,6 +13,8 @@ public sealed class SubjectEditSession
     private const int MaxPixels = 3840 * 2160;
 
     private float[]? _reference;
+    private float[]? _returnReference;
+    private int _returnFrames;
     private byte[]? _clean;
     private byte[]? _known;
     private MediaTime _lastPts = MediaTime.Unknown;
@@ -68,6 +70,8 @@ public sealed class SubjectEditSession
         Erase = false;
         Tracking = false;
         _reference = null;
+        _returnReference = null;
+        _returnFrames = 0;
         _clean = null;
         _known = null;
         _lastPts = MediaTime.Unknown;
@@ -88,6 +92,8 @@ public sealed class SubjectEditSession
     {
         Locked = Erase = Tracking = false;
         _reference = null;
+        _returnReference = null;
+        _returnFrames = 0;
         _clean = _known = null;
         Confidence = 0;
         EstimatedPixels = 0;
@@ -127,6 +133,8 @@ public sealed class SubjectEditSession
             _clean = null;
             _known = null;
             _reference = null;
+            _returnReference = null;
+            _returnFrames = 0;
             Tracking = false;
         }
 
@@ -134,6 +142,8 @@ public sealed class SubjectEditSession
             && (frame.Pts < _lastPts || frame.Pts - _lastPts > MediaTime.FromSeconds(2)))
         {
             _reference = null;
+            _returnReference = null;
+            _returnFrames = 0;
             Tracking = false;
             Confidence = 0;
             Erase = false;
@@ -147,6 +157,7 @@ public sealed class SubjectEditSession
         if (_reference is null)
         {
             _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
+            _returnReference = (float[])_reference.Clone();
             var (selectedCentre, nearbyBorder, _) = CompareSubjectWithBorder(frame, Bounds(frame.Width, frame.Height));
             var borderContrast = Math.Abs(selectedCentre.B - nearbyBorder.B)
                 + Math.Abs(selectedCentre.G - nearbyBorder.G)
@@ -157,6 +168,7 @@ public sealed class SubjectEditSession
                 // match thousands of unrelated places. Never claim an identity lock.
                 Tracking = false;
                 Erase = false;
+                _reference = _returnReference = null;
                 Confidence = 0;
                 Status = "Selection has too little distinguishing detail. Pick a visible edge or textured area.";
                 return null;
@@ -165,6 +177,18 @@ public sealed class SubjectEditSession
             Tracking = true;
             Confidence = 1;
             Status = "Selected region locked. Tracking uses its visible texture, not a person recognizer.";
+        }
+        else if (!Tracking)
+        {
+            // Keep the original identity template after the target leaves view. A bounded
+            // sparse scan periodically looks for it again; never resume from a weak or
+            // ambiguous match, and never turn the removal preview on automatically.
+            _returnFrames++;
+            if (_returnFrames % 4 != 0 || !TryReacquire(frame))
+            {
+                Status = "Tracking uncertain: looking for the selected object to return. Select again if it cannot be recognized.";
+                return null;
+            }
         }
         else if (Tracking)
         {
@@ -227,7 +251,8 @@ public sealed class SubjectEditSession
             {
                 Tracking = false;
                 Erase = false;
-                Status = "Tracking uncertain. The selection is frozen; choose the object again.";
+                _returnFrames = 0;
+                Status = "Tracking uncertain: looking for the selected object to return.";
                 return null;
             }
 
@@ -242,7 +267,8 @@ public sealed class SubjectEditSession
                     Tracking = false;
                     Erase = false;
                     Confidence = 0;
-                    Status = "Similar-looking regions: select the intended subject again.";
+                    _returnFrames = 0;
+                    Status = "Similar-looking regions: watching for a clear match. Select again if necessary.";
                     return null;
                 }
             }
@@ -355,6 +381,147 @@ public sealed class SubjectEditSession
                 ? "Estimated fill: some hidden pixels were never seen in the video. Preview only."
                 : "Observed fill: using background pixels seen in other frames. Preview only.";
         return output;
+    }
+
+    /// <summary>
+    /// Periodic, bounded full-frame re-acquisition after an object moves outside the picture
+    /// or is hidden. Sparse colour-template comparisons shortlist candidates; only a sharp,
+    /// spatially unambiguous full-resolution match can restore tracking. This is not a
+    /// person recognizer and cannot distinguish two physically identical appearances.
+    /// </summary>
+    private bool TryReacquire(VideoFrame frame)
+    {
+        if (_returnReference is not { } reference)
+        {
+            return false;
+        }
+
+        var patchWidth = Math.Max(1, (int)Math.Round(Region.Width * frame.Width));
+        var patchHeight = Math.Max(1, (int)Math.Round(Region.Height * frame.Height));
+        var maxX = frame.Width - patchWidth;
+        var maxY = frame.Height - patchHeight;
+        var stride = Math.Max(2, Math.Max(Math.Min(patchWidth, patchHeight) / 3,
+            Math.Max(frame.Width / 200, frame.Height / 130)));
+        var shortlist = new List<(double Error, int X, int Y)>(6);
+        for (var y = 0; y <= maxY; y += stride)
+        {
+            for (var x = 0; x <= maxX; x += stride)
+            {
+                var error = SparseDistance(frame, x, y, patchWidth, patchHeight, reference);
+                if (error > 80)
+                {
+                    continue;
+                }
+
+                // Only one coarse proposal per neighbourhood; keep distinct possible
+                // lookalikes so the final uniqueness check can reject them.
+                var existing = shortlist.FindIndex(candidate =>
+                    Math.Abs(candidate.X - x) < patchWidth / 2 &&
+                    Math.Abs(candidate.Y - y) < patchHeight / 2);
+                if (existing >= 0)
+                {
+                    if (shortlist[existing].Error <= error)
+                    {
+                        continue;
+                    }
+
+                    shortlist.RemoveAt(existing);
+                }
+
+                shortlist.Add((error, x, y));
+                shortlist.Sort((a, b) => a.Error.CompareTo(b.Error));
+                if (shortlist.Count > 6)
+                {
+                    shortlist.RemoveAt(6);
+                }
+            }
+        }
+
+        var refined = new List<(double Error, int X, int Y)>(shortlist.Count);
+        foreach (var candidate in shortlist)
+        {
+            var bestError = double.MaxValue;
+            var bestX = candidate.X;
+            var bestY = candidate.Y;
+            var refinementStep = Math.Max(1, stride / 4);
+            for (var y = Math.Max(0, candidate.Y - stride); y <= Math.Min(maxY, candidate.Y + stride); y += refinementStep)
+            {
+                for (var x = Math.Max(0, candidate.X - stride); x <= Math.Min(maxX, candidate.X + stride); x += refinementStep)
+                {
+                    var error = Distance(frame, (float)x / frame.Width, (float)y / frame.Height,
+                        Region.Width, Region.Height, reference);
+                    if (error < bestError)
+                    {
+                        (bestError, bestX, bestY) = (error, x, y);
+                    }
+                }
+            }
+
+            var centreX = bestX;
+            var centreY = bestY;
+            for (var y = Math.Max(0, centreY - refinementStep); y <= Math.Min(maxY, centreY + refinementStep); y++)
+            {
+                for (var x = Math.Max(0, centreX - refinementStep); x <= Math.Min(maxX, centreX + refinementStep); x++)
+                {
+                    var error = Distance(frame, (float)x / frame.Width, (float)y / frame.Height,
+                        Region.Width, Region.Height, reference);
+                    if (error < bestError)
+                    {
+                        (bestError, bestX, bestY) = (error, x, y);
+                    }
+                }
+            }
+
+            refined.Add((bestError, bestX, bestY));
+        }
+
+        refined.Sort((a, b) => a.Error.CompareTo(b.Error));
+        if (refined.Count == 0 || refined[0].Error > 22)
+        {
+            return false;
+        }
+
+        var best = refined[0];
+        // Different shortlist proposals may refine onto the same object. They are not
+        // evidence of two subjects unless their final rectangles are separated.
+        if (refined.Skip(1).Any(candidate =>
+            (Math.Abs(candidate.X - best.X) >= patchWidth * 0.75 ||
+             Math.Abs(candidate.Y - best.Y) >= patchHeight * 0.75) &&
+            candidate.Error <= best.Error + 9))
+        {
+            return false;
+        }
+
+        Region = ((float)best.X / frame.Width, (float)best.Y / frame.Height, Region.Width, Region.Height);
+        _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
+        Tracking = true;
+        Erase = false;
+        _returnFrames = 0;
+        Confidence = Math.Clamp(1 - best.Error / 75, 0, 1);
+        Status = "Target found again. Tracking resumed.";
+        return true;
+    }
+
+    /// <summary>Cheap 4-by-4 thumbnail comparison before full template refinement.</summary>
+    private static double SparseDistance(VideoFrame frame, int left, int top, int width, int height, float[] reference)
+    {
+        var error = 0d;
+        for (var y = 2; y < Samples; y += 4)
+        {
+            var sourceY = Math.Min(frame.Height - 1, top + (int)((y + 0.5f) * height / Samples));
+            var row = frame.Row(0, sourceY);
+            for (var x = 2; x < Samples; x += 4)
+            {
+                var sourceX = Math.Min(frame.Width - 1, left + (int)((x + 0.5f) * width / Samples));
+                var sample = sourceX * 4;
+                var at = (y * Samples + x) * 3;
+                error += Math.Abs(row[sample] - reference[at]);
+                error += Math.Abs(row[sample + 1] - reference[at + 1]);
+                error += Math.Abs(row[sample + 2] - reference[at + 2]);
+            }
+        }
+
+        return error / 48;
     }
 
     /// <summary>
