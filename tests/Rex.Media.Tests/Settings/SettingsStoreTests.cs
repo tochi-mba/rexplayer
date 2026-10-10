@@ -166,7 +166,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.InkTrace));
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.TopographicContours));
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.ChromaticContours));
-        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.PrecisionContours));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.Ghostwire));
         Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.SliceShift));
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.CursorLens));
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.ColourSpotlight));
@@ -176,7 +176,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.True(VideoEffects.UsesPointer(VideoEffect.CursorLens));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.ColourSpotlight));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));
-        Assert.False(VideoEffects.UsesPointer(VideoEffect.PrecisionContours));
+        Assert.False(VideoEffects.UsesPointer(VideoEffect.Ghostwire));
         Assert.Equal(100, VideoStyleOptions.Read(null, VideoStyleOptions.ForLook((VideoLook)1000)[0]));
         Assert.Equal(0, VideoStyleOptions.Read(null, VideoStyleOptions.ForEffect((VideoEffect)1000)[0]));
     }
