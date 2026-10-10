@@ -99,7 +99,7 @@ public sealed partial class MainWindow
 
     private long _lastLensPointerTick;
 
-    /// <summary>The lens uses only the current pointer location; neither coordinates nor images are persisted.</summary>
+    /// <summary>Interactive shaders use only the current pointer location; neither coordinates nor images are persisted.</summary>
     private void OnStagePointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (IsFullScreen)
@@ -107,7 +107,7 @@ public sealed partial class MainWindow
             ShowFullScreenControls();
         }
 
-        if (_settings.VideoEffect != Rex.Media.Primitives.VideoEffect.CursorLens || !HasVideo
+        if (!Rex.Media.Primitives.VideoEffects.UsesPointer(_settings.VideoEffect) || !HasVideo
             || PictureShape() is not { } shape || Stage.ActualWidth <= 0 || Stage.ActualHeight <= 0)
         {
             return;
@@ -139,7 +139,7 @@ public sealed partial class MainWindow
 
     private void OnStagePointerExited(object sender, PointerRoutedEventArgs e)
     {
-        if (_settings.VideoEffect != Rex.Media.Primitives.VideoEffect.CursorLens)
+        if (!Rex.Media.Primitives.VideoEffects.UsesPointer(_settings.VideoEffect))
         {
             return;
         }
