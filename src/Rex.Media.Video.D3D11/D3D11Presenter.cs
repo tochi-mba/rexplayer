@@ -35,6 +35,9 @@ public sealed class D3D11Presenter : IVideoPresenter
     private bool _pointerActive;
     private float _effectStrength = 0.65f;
     private float _effectTime;
+    private float _motionTrail = 0.35f;
+    private int _motionMode;
+    private double _lastMotionTime = double.NaN;
     private bool _navigator;
     private readonly SubjectEditSession _subjectEdit = new();
     private VideoFrame? _originalForEditing;
@@ -124,9 +127,26 @@ public sealed class D3D11Presenter : IVideoPresenter
     {
         lock (_gate)
         {
-            _effect = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
+            var chosen = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
+            if (_effect != chosen)
+            {
+                _renderer.EnableMotionHistory(chosen == VideoEffect.GhostwireMotion);
+                _lastMotionTime = double.NaN;
+            }
+
+            _effect = chosen;
             _effectStrength = VideoEffects.Strength(strength) / 100f;
             _effectDetail = Math.Clamp(detail, 25, 175) / 100f;
+        }
+    }
+
+    /// <summary>Motion contour trails and visualization mode, independent of line sensitivity.</summary>
+    public void SetMotionOptions(int trails, int mode)
+    {
+        lock (_gate)
+        {
+            _motionTrail = Math.Clamp(trails, 0, 100) / 100f;
+            _motionMode = Math.Clamp(mode, 0, 2);
         }
     }
 
@@ -276,6 +296,8 @@ public sealed class D3D11Presenter : IVideoPresenter
             _originalForEditing?.Dispose();
             _originalForEditing = null;
             _subjectEdit.Reset();
+            _renderer.ResetMotionHistory();
+            _lastMotionTime = double.NaN;
         }
 
         Redraw();
@@ -287,6 +309,20 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             ApplySize();
+            if (_effect == VideoEffect.GhostwireMotion)
+            {
+                var now = frame.Pts.IsKnown ? frame.Pts.TotalSeconds : double.NaN;
+                // Repeated/stale frames, long gaps, and backwards seeks cannot
+                // contribute a trustworthy motion trail to the next picture.
+                if (!double.IsFinite(now) || !double.IsFinite(_lastMotionTime)
+                    || now <= _lastMotionTime || now - _lastMotionTime > 0.25)
+                {
+                    _renderer.ResetMotionHistory();
+                }
+
+                _lastMotionTime = now;
+            }
+
             if (!_subjectEdit.Locked)
             {
                 _originalForEditing?.Dispose();
@@ -421,13 +457,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         var shown = _view.Within(source);
         _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (shown.Left, shown.Top, shown.Right, shown.Bottom), SmoothChroma, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime,
             pointerX: _pointerX, pointerY: _pointerY, pointerActive: _pointerActive,
-            lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail);
+            lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail,
+            motionTrail: _motionTrail, motionMode: _motionMode);
         if (_navigator && _view.IsZoomed)
         {
             var (navigatorX, navigatorY, navigatorWidth, navigatorHeight) = PictureView.Navigator(width, height, across, down);
             _renderer.Draw(matrix, (int)navigatorX, (int)navigatorY, Math.Max(1, (int)navigatorWidth), Math.Max(1, (int)navigatorHeight), (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma, clear: false, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime,
             pointerX: _pointerX, pointerY: _pointerY, pointerActive: _pointerActive,
-            lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail);
+            lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail,
+                motionTrail: _motionTrail, motionMode: _motionMode);
         }
     }
 }
