@@ -24,10 +24,7 @@ public sealed record EpisodeSections(
     /// <summary>A boundary at the viewer's current position. Incomplete spans remain editable.</summary>
     public EpisodeSections Mark(EpisodeSectionKind kind, bool start, TimeSpan at)
     {
-        if (at < TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(at));
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThan(at, TimeSpan.Zero);
 
         return (kind, start) switch
         {
