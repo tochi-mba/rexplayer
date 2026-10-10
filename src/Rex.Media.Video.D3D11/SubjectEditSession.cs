@@ -440,7 +440,7 @@ public sealed class SubjectEditSession
         // several sizes so a shirt that returns nearer or farther can still be found.
         // Limit candidate work and use sparse RGB samples before the full comparison.
         List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(24);
-        ReadOnlySpan<float> scales = stackalloc float[] { 0.75f, 1f, 1.3f };
+        ReadOnlySpan<float> scales = stackalloc float[] { 0.7f, 0.85f, 1f, 1.3f, 1.6f };
         foreach (var scale in scales)
         {
             // Preserve a separate shortlist per scale: otherwise proposals from one
@@ -457,7 +457,7 @@ public sealed class SubjectEditSession
                 for (var x = 0; x <= maxX; x += stride)
                 {
                     var error = SparseDistance(frame, x, y, patchWidth, patchHeight, fingerprint);
-                    if (error > 80)
+                    if (error > 105)
                     {
                         continue;
                     }
@@ -515,7 +515,7 @@ public sealed class SubjectEditSession
             {
                 for (var x = Math.Max(0, candidate.X - radius); x <= Math.Min(maxX, candidate.X + radius); x += refinementStep)
                 {
-                    var error = Distance(frame, (float)x / frame.Width, (float)y / frame.Height,
+                    var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
                         (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
                     if (error < bestError)
                     {
@@ -530,7 +530,7 @@ public sealed class SubjectEditSession
             {
                 for (var x = Math.Max(0, centreX - refinementStep); x <= Math.Min(maxX, centreX + refinementStep); x++)
                 {
-                    var error = Distance(frame, (float)x / frame.Width, (float)y / frame.Height,
+                    var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
                         (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
                     if (error < bestError)
                     {
@@ -580,9 +580,9 @@ public sealed class SubjectEditSession
 
         if (_returnCandidate is { } previous &&
             Math.Abs(previous.X + previous.Width / 2 - best.X - best.Width / 2) <
-                Math.Max(12, best.Width * 2) &&
+                Math.Max(12, best.Width * 3) &&
             Math.Abs(previous.Y + previous.Height / 2 - best.Y - best.Height / 2) <
-                Math.Max(12, best.Height * 2) &&
+                Math.Max(12, best.Height * 3) &&
             Math.Abs(previous.Width - best.Width) <= Math.Max(4, best.Width / 3) &&
             Math.Abs(previous.Height - best.Height) <= Math.Max(4, best.Height / 3))
         {
@@ -611,6 +611,60 @@ public sealed class SubjectEditSession
         Confidence = Math.Clamp(1 - best.Error / 75, 0, 1);
         Status = "Original visual texture found again. Tracking resumed.";
         return true;
+    }
+
+    /// <summary>
+    /// Compare texture after allowing a small, uniform lighting shift. Absolute RGB matching
+    /// misses the same moving object when the scene brightens or darkens. Keep a colour-shift
+    /// penalty so a differently coloured lookalike is not treated as an identical match.
+    /// Only the lost-subject search uses this; ordinary frame-to-frame tracking is unchanged.
+    /// </summary>
+    private static double ReturnDistance(VideoFrame frame, float left, float top, float width,
+        float height, float[] reference)
+    {
+        Span<double> shift = stackalloc double[3];
+        for (var y = 2; y < Samples; y += 4)
+        {
+            var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);
+            var row = frame.Row(0, fy);
+            for (var x = 2; x < Samples; x += 4)
+            {
+                var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
+                var at = (y * Samples + x) * 3;
+                for (var channel = 0; channel < 3; channel++)
+                {
+                    shift[channel] += row[fx + channel] - reference[at + channel];
+                }
+            }
+        }
+
+        for (var channel = 0; channel < 3; channel++)
+        {
+            shift[channel] = Math.Clamp(shift[channel] / 16, -60, 60);
+        }
+
+        var original = 0d;
+        var adjusted = 0d;
+        var i = 0;
+        for (var y = 0; y < Samples; y++)
+        {
+            var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);
+            var row = frame.Row(0, fy);
+            for (var x = 0; x < Samples; x++)
+            {
+                var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
+                for (var channel = 0; channel < 3; channel++)
+                {
+                    var difference = row[fx + channel] - reference[i++];
+                    original += Math.Abs(difference);
+                    adjusted += Math.Abs(difference - shift[channel]);
+                }
+            }
+        }
+
+        const int components = Samples * Samples * 3;
+        var lightingPenalty = (Math.Abs(shift[0]) + Math.Abs(shift[1]) + Math.Abs(shift[2])) * 0.16 / 3;
+        return Math.Min(original / components, adjusted / components + lightingPenalty);
     }
 
     /// <summary>Cheap 4-by-4 thumbnail comparison before full template refinement.</summary>
