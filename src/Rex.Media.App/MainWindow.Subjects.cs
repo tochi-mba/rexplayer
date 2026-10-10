@@ -115,6 +115,27 @@ public sealed partial class MainWindow
         });
     }
 
+    private void OnSubjectMaskChanged(object sender,
+        Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (!_subjectOpen || _closed || _presenter is null)
+        {
+            return;
+        }
+
+        var feather = (int)SubjectFeather.Value;
+        var tolerance = (int)SubjectTolerance.Value;
+        var redraw = _subjectErase && !_player.IsPlaying;
+        OnPresenterThread(p =>
+        {
+            p.RefineSubject(feather, tolerance);
+            if (redraw)
+            {
+                p.Redraw();
+            }
+        });
+    }
+
     private void OnSubjectErase(object sender, RoutedEventArgs e)
     {
         if (!_subjectOpen || _selectingSubject)
@@ -206,7 +227,13 @@ public sealed partial class MainWindow
         _subjectErase = false;
         SubjectEraseButton.Content = "Preview removal";
         SubjectStatusText.Text = "Acquiring selected texture. If the pattern becomes ambiguous, tracking will stop.";
-        OnPresenterThread(p => p.SelectSubject(left, top, width, height));
+        var feather = (int)SubjectFeather.Value;
+        var tolerance = (int)SubjectTolerance.Value;
+        OnPresenterThread(p =>
+        {
+            p.SelectSubject(left, top, width, height);
+            p.RefineSubject(feather, tolerance);
+        });
         // A paused picture has already been presented. Ask the decoder for this exact image
         // again so the tracker acquires the user-selected subject without auto-playing.
         if (!_player.IsPlaying && _player.CanSeek)
