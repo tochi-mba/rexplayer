@@ -30,7 +30,9 @@ public sealed class AudioClock : IMediaClock
     private readonly IAudioSink _sink;
     private readonly object _gate = new();
     private readonly Queue<Segment> _coming = new();
-    private readonly List<Segment> _past = [];
+    // Old timestamps remain queryable while a video worker still owns that item, without keeping
+    // every disposed item of an indefinitely running playlist alive.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, Segment> _past = new();
     private readonly Queue<object> _started = new();
     private Segment _heard;
     private long _written;
@@ -74,7 +76,8 @@ public sealed class AudioClock : IMediaClock
             Advance(played);
             var segment = item is null || ReferenceEquals(item, _heard.Item)
                 ? _heard
-                : _coming.Concat(_past).FirstOrDefault(candidate => ReferenceEquals(candidate.Item, item));
+                : _past.TryGetValue(item, out var past) ? past
+                : _coming.FirstOrDefault(candidate => ReferenceEquals(candidate.Item, item));
             return segment is null ? NotYet : segment.Anchor + Scaled(played - segment.At);
         }
     }
@@ -92,6 +95,7 @@ public sealed class AudioClock : IMediaClock
         {
             _coming.Clear();
             _past.Clear();
+            _started.Clear();
             item ??= _heard.Item;
             if (item is not null && !ReferenceEquals(item, _heard.Item))
             {
@@ -141,7 +145,10 @@ public sealed class AudioClock : IMediaClock
         while (_coming.TryPeek(out var next) && next.At <= played)
         {
             _coming.Dequeue();
-            _past.Add(_heard);
+            if (_heard.Item is { } previous)
+            {
+                _past.AddOrUpdate(previous, _heard);
+            }
             _heard = next;
             _started.Enqueue(next.Item!);
         }

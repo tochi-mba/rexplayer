@@ -208,10 +208,13 @@ public sealed partial class MainWindow
 
         // A settings-specific cache key regenerates only visible covers, in the existing bounded
         // background queue. The rest are made lazily as the user scrolls to them.
-        if (artworkChanged && LibraryPane.Visibility == Visibility.Visible)
+        if (artworkChanged)
         {
             CancelLibraryPictures();
             _shownLibrary = "";
+            _shownHero = "";
+            _playlistRows.Clear();
+            ShowPlaylist();
             ShowLibrary();
         }
 

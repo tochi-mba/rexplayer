@@ -352,7 +352,13 @@ public sealed class Raster
             var hole = dy * dy < inner * inner ? Math.Sqrt((inner * inner) - (dy * dy)) : -1;
 
             // The ring crosses this row in at most two runs, left and right of its hole.
-            foreach (var (from, to) in new[] { (x - across, hole < 0 ? x + across : x - hole), (hole < 0 ? double.MaxValue : x + hole, x + across) })
+            PaintRun(x - across, hole <= 0 ? x + across : x - hole);
+            if (hole > 0)
+            {
+                PaintRun(Math.Max(x + hole, Math.Ceiling(x - hole) + 1), x + across);
+            }
+
+            void PaintRun(double from, double to)
             {
                 for (var px = Math.Max(0, (int)Math.Floor(from)); px <= Math.Min(Width - 1, (int)Math.Ceiling(to)); px++)
                 {

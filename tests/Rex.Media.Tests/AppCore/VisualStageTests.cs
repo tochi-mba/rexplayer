@@ -28,6 +28,27 @@ public sealed class VisualStageTests
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(48000)]
+    [InlineData(int.MaxValue)]
+    public void NonFiniteAudioCannotPoisonTheStage(int sampleRate)
+    {
+        var stage = Stage();
+        var samples = Enumerable.Repeat(float.NaN, Rex.Media.Audio.SpectrumAnalyzer.Size).ToArray();
+        samples[0] = float.PositiveInfinity;
+        samples[1] = float.NegativeInfinity;
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, samples, samples, sampleRate, TimeSpan.FromMilliseconds(30)));
+        }
+
+        Assert.All(stage.Context.Left, value => Assert.Equal(0, value));
+        Assert.All(stage.Context.Right, value => Assert.Equal(0, value));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+        Assert.True(float.IsFinite(stage.Pulse.Snare.Level));
+    }
+
     /// <summary>
     /// Options that cannot change a frame of this test: the camera's own (taken by the camera, not the
     /// scene), and the strobe's limit, which only binds faster than this music (its own test plays faster).
@@ -297,6 +318,11 @@ public sealed class VisualStageTests
     {
         Assert.Equal((16, 9), VisualStage.SizeFor(0, double.NaN));
         Assert.Equal((800, 450), VisualStage.SizeFor(1920, 1080));
+        Assert.Equal((450, 800), VisualStage.SizeFor(1080, 1920));
+        Assert.Equal((2, 800), VisualStage.SizeFor(2, 1000000));
+        Assert.Equal((16, 9), VisualStage.SizeFor(double.PositiveInfinity, 1080));
+        Assert.Equal((16, 9), VisualStage.SizeFor(1920, double.PositiveInfinity));
+        Assert.Equal((800, 450), VisualStage.SizeFor(1920, 1080, double.NaN));
         Assert.Equal((320, 180), VisualStage.SizeFor(320, 180));
         Assert.False(VisualStage.Draws(VisualizerChoice.Spectrum));
         Assert.True(VisualStage.Draws(VisualizerChoice.BeatEdit));

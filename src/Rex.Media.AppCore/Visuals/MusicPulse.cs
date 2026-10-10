@@ -123,7 +123,7 @@ public sealed class MusicPulse
 
         // The onset strength: how much the spectrum below 5 kHz rose since the last frame. Each drum's
         // own part of the spectrum is watched too: the kick low, the snare in the middle, the hats high.
-        var top = Math.Min(_magnitudes.Length, 5000 * SpectrumAnalyzer.Size / sampleRate);
+        var top = Math.Clamp(5000 * SpectrumAnalyzer.Size / sampleRate, 1, _magnitudes.Length);
         var (kickTop, snareTop, hatTop) = (Bin(160, sampleRate), Bin(4000, sampleRate), Bin(16000, sampleRate));
         double flux = 0, kick = 0, snare = 0, hat = 0, kickEnergy = 0, snareEnergy = 0, hatEnergy = 0;
         for (var bin = 1; bin < hatTop; bin++)
@@ -157,7 +157,7 @@ public sealed class MusicPulse
         var primed = _primed;
         var kickGap = _kick.Since;
         _kick.Hear(kick / kickTop, kickEnergy, dt, primed && Loudness > 0.15f);
-        _snare.Hear(snare / (snareTop - kickTop), snareEnergy, dt, primed && Loudness > 0.15f);
+        _snare.Hear(snare / Math.Max(1, snareTop - kickTop), snareEnergy, dt, primed && Loudness > 0.15f);
         _hat.Hear(hat / Math.Max(1, hatTop - snareTop), hatEnergy, dt, primed && Loudness > 0.1f);
         Beat = false;
         Drop = false;

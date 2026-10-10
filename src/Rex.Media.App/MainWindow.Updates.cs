@@ -8,6 +8,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private static readonly string ResumePath = Path.Combine(App.DataRoot, "resume.json");
+    private bool _installingUpdate;
 
     /// <summary>
     /// Offers, in the banner at the foot of the picture, to carry on where a run that did not close
@@ -108,8 +109,26 @@ public sealed partial class MainWindow
     /// </summary>
     private async Task InstallAsync(UpdateOffer offer)
     {
+        if (_installingUpdate || _closed)
+        {
+            return;
+        }
+
+        _installingUpdate = true;
+        try
+        {
+            await DownloadAndInstallAsync(offer);
+        }
+        finally
+        {
+            _installingUpdate = false;
+        }
+    }
+
+    private async Task DownloadAndInstallAsync(UpdateOffer offer)
+    {
         Say($"Downloading rexplayer {offer.Version}\u2026");
-        var folder = Path.Combine(Path.GetTempPath(), "rexplayer-update");
+        var folder = Path.Combine(Path.GetTempPath(), "rexplayer-update", Guid.NewGuid().ToString("N"));
         var installer = Path.Combine(folder, offer.InstallerName);
         try
         {
@@ -123,19 +142,26 @@ public sealed partial class MainWindow
                 await download.CopyToAsync(file);
             }
 
-            await using (var file = File.OpenRead(installer))
+            var verified = await Task.Run(() =>
             {
-                if (!UpdateCheck.Verify(file, checksum, offer.InstallerName))
-                {
-                    App.Log.Warning(LogSource, $"The download of {offer.InstallerName} did not match its checksum.");
-                    Say("The download did not match its published checksum, so nothing was installed.");
-                    return;
-                }
+                using var file = File.OpenRead(installer);
+                return UpdateCheck.Verify(file, checksum, offer.InstallerName);
+            });
+            if (!verified)
+            {
+                App.Log.Warning(LogSource, $"The download of {offer.InstallerName} did not match its checksum.");
+                Say("The download did not match its published checksum, so nothing was installed.");
+                return;
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException)
         {
             Say("The update could not be downloaded: " + ex.Message);
+            return;
+        }
+
+        if (_closed)
+        {
             return;
         }
 

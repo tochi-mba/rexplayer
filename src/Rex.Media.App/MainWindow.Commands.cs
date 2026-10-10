@@ -105,6 +105,9 @@ public sealed partial class MainWindow
     private void BuildMenus()
     {
         _menuChecks.Clear();
+        _videoLookItems.Clear();
+        _videoEffectItems.Clear();
+        _episodeMarkerCommands.Clear();
         foreach (var (title, commands) in MenuLayout)
         {
             var menu = Menu.Items.First(item => item.Title == title);

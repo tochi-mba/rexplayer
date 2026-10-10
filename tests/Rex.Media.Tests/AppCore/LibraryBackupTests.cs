@@ -106,6 +106,9 @@ public sealed class LibraryBackupTests
         Assert.Equal([Path.Combine("Playlists", "Mix_.m3u8"), Path.Combine("Playlists", "Mix_ (2).m3u8")], twins.Skip(1).Select(file => file.Path));
         Assert.Equal("Playlist", LibraryBackup.SafeName(" ... "));
         Assert.Equal("a_b", LibraryBackup.SafeName("a\tb"));
+        var damaged = LibraryBackup.Read("""{"version":1,"playlists":[{"name":"Damaged","items":[null,{"location":" "}]}]}"""u8.ToArray());
+        Assert.Equal(new BackupSummary(0, 0, 1), LibraryBackup.Restore(damaged, new MediaLibrary(RexStore.InMemory()), harness.Controller));
+        Assert.Empty(harness.Controller.NamedPlaylists.Single(playlist => playlist.Name == "Damaged").Items);
         Assert.Throws<ArgumentNullException>(() => LibraryBackup.SafeName(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryBackup.Read(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryBackup.Export(null!, []));

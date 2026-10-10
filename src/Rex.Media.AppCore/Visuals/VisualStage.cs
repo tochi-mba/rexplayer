@@ -77,17 +77,19 @@ public sealed class VisualStage
     /// <summary>The canvas for a stage of <paramref name="width"/> by <paramref name="height"/>: its shape, at most <see cref="MaxWidth"/> times <paramref name="quality"/> across.</summary>
     public static (int Width, int Height) SizeFor(double width, double height, double quality = 1)
     {
-        if (!(width >= 2 && height >= 2))
+        if (!(width >= 2 && height >= 2) || !double.IsFinite(width) || !double.IsFinite(height))
         {
             return (16, 9);
         }
 
-        var scale = Math.Min(1, MaxWidth * Math.Clamp(quality, LowestQuality, 1) / width);
+        var scale = Math.Min(1, MaxWidth * (double.IsFinite(quality) ? Math.Clamp(quality, LowestQuality, 1) : 1) / Math.Max(width, height));
         return (Math.Max(2, (int)Math.Round(width * scale)), Math.Max(2, (int)Math.Round(height * scale)));
     }
 
     /// <summary>Whether <paramref name="choice"/> is drawn here rather than with the window's shapes.</summary>
-    public static bool Draws(VisualizerChoice choice) => VisualScene.For(choice) is not null;
+    public static bool Draws(VisualizerChoice choice) => choice is VisualizerChoice.Vinyl or VisualizerChoice.Halo
+        or VisualizerChoice.Mirror or VisualizerChoice.Aurora or VisualizerChoice.Embers or VisualizerChoice.Resonance
+        or VisualizerChoice.Ripples or VisualizerChoice.Strobe or VisualizerChoice.Silhouette or VisualizerChoice.BeatEdit;
 
     /// <summary>
     /// Draws a frame of <paramref name="choice"/> from the newest sound (each channel
@@ -122,8 +124,8 @@ public sealed class VisualStage
         var gain = (float)Context.Number(Player.VisualizerOptions.Sensitivity);
         for (var i = 0; i < _mono.Length; i++)
         {
-            Context.Left[i] = Math.Clamp(left[i] * gain, -1, 1);
-            Context.Right[i] = Math.Clamp(right[i] * gain, -1, 1);
+            Context.Left[i] = float.IsFinite(left[i]) ? Math.Clamp(left[i] * gain, -1, 1) : 0;
+            Context.Right[i] = float.IsFinite(right[i]) ? Math.Clamp(right[i] * gain, -1, 1) : 0;
             _mono[i] = (Context.Left[i] + Context.Right[i]) / 2;
         }
 

@@ -147,8 +147,18 @@ internal sealed partial class CameraFeed : IAsyncDisposable
             if (_reader is { } reader)
             {
                 reader.FrameArrived -= OnFrame;
-                await reader.StopAsync();
-                reader.Dispose();
+                try
+                {
+                    await reader.StopAsync();
+                }
+                catch (Exception ex) when (ex is COMException or InvalidOperationException)
+                {
+                    Problem = "The camera could not stop normally: " + ex.Message;
+                }
+                finally
+                {
+                    reader.Dispose();
+                }
             }
 
             _capture?.Dispose();
@@ -156,6 +166,8 @@ internal sealed partial class CameraFeed : IAsyncDisposable
             lock (_gate)
             {
                 Array.Clear(_picture);
+                _mask.Reset();
+                HasPicture = false;
             }
         }
         finally
@@ -165,6 +177,18 @@ internal sealed partial class CameraFeed : IAsyncDisposable
     }
 
     private void OnFrame(MediaFrameReader sender, MediaFrameArrivedEventArgs args)
+    {
+        try
+        {
+            ReadFrame(sender);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ObjectDisposedException)
+        {
+            Problem = "The camera frame could not be read: " + ex.Message;
+        }
+    }
+
+    private void ReadFrame(MediaFrameReader sender)
     {
         using var frame = sender.TryAcquireLatestFrame();
         if (frame?.VideoMediaFrame?.SoftwareBitmap is not { } bitmap)
@@ -176,7 +200,8 @@ internal sealed partial class CameraFeed : IAsyncDisposable
         var picture = converted ?? bitmap;
         var bytes = new byte[picture.PixelWidth * picture.PixelHeight * 4];
         picture.CopyToBuffer(bytes.AsBuffer());
-        var brightness = SilhouetteMask.Brightness(bytes, picture.PixelWidth, picture.PixelHeight, picture.PixelWidth * 4, MaskWidth, MaskHeight, Mirror);
+        var mirror = Mirror;
+        var brightness = SilhouetteMask.Brightness(bytes, picture.PixelWidth, picture.PixelHeight, picture.PixelWidth * 4, MaskWidth, MaskHeight, mirror);
         lock (_gate)
         {
             if (_closed)
@@ -184,7 +209,7 @@ internal sealed partial class CameraFeed : IAsyncDisposable
                 return;
             }
 
-            Shrink(bytes, picture.PixelWidth, picture.PixelHeight, _picture, Mirror);
+            Shrink(bytes, picture.PixelWidth, picture.PixelHeight, _picture, mirror);
             _mask.Update(brightness, Threshold);
             HasPicture = true;
         }
