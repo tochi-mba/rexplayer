@@ -374,6 +374,7 @@ public sealed class SubjectEditSessionTests
 
     [Theory]
     [InlineData(8, 110, 60, 0)]
+    [InlineData(10, 50, 25, 0)]
     [InlineData(12, 60, 26, 0)]
     [InlineData(14, 7, 12, -15)]
     [InlineData(16, 0, 0, 0)]
