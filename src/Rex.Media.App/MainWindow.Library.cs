@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -8,8 +7,6 @@ using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
-using Windows.Storage;
-using Windows.Storage.FileProperties;
 using Windows.Storage.Pickers;
 using Launcher = Windows.System.Launcher;
 using VirtualKey = Windows.System.VirtualKey;
