@@ -165,6 +165,58 @@ public sealed class VisualizerOptionsTests
     }
 
     [Fact]
+    [Capability("AU-18")]
+    public void SilhouettesPreserveThinConnectedLimbsAndMultiplePeopleButDiscardNoise()
+    {
+        const int Width = 80, Height = 60;
+        var tracker = new SilhouetteMask(Width, Height);
+        var room = Enumerable.Repeat((byte)60, Width * Height).ToArray();
+        for (var frame = 0; frame < SilhouetteMask.LearningPictures; frame++)
+        {
+            tracker.Update(room, 0.12);
+        }
+
+        var people = (byte[])room.Clone();
+        // Two separated figures, with narrow arms and one-pixel sensor artefacts.
+        for (var y = 12; y < 49; y++)
+        {
+            for (var x = 15; x <= 25; x++)
+            {
+                people[y * Width + x] = 210;
+            }
+
+            for (var x = 49; x <= 60; x++)
+            {
+                people[y * Width + x] = 220;
+            }
+        }
+
+        for (var x = 8; x <= 32; x++)
+        {
+            people[26 * Width + x] = 210;
+        }
+
+        people[2 * Width + 2] = 250;
+        people[Width * 3 + 71] = 250;
+        people[30 * Width + 20] = room[30 * Width + 20]; // one-pixel clothing gap
+
+        var share = tracker.Update(people, 0.12);
+        Assert.InRange(share, 0.1, 0.28);
+        Assert.Equal(255, tracker.Mask[26 * Width + 8]);
+        Assert.Equal(255, tracker.Mask[26 * Width + 32]);
+        Assert.Equal(255, tracker.Mask[30 * Width + 20]);
+        Assert.Equal(255, tracker.Mask[30 * Width + 54]);
+        Assert.Equal(0, tracker.Mask[2 * Width + 2]);
+        Assert.Equal(0, tracker.Mask[3 * Width + 71]);
+        Assert.Equal(0, tracker.Mask[30 * Width + 40]);
+
+        // Autoexposure brightening the whole scene must not turn the room into a person.
+        var brighter = Enumerable.Repeat((byte)105, Width * Height).ToArray();
+        Assert.Equal(0, tracker.Update(brighter, 0.12));
+        Assert.All(tracker.Mask, p => Assert.Equal((byte)0, p));
+    }
+
+    [Fact]
     public void CameraPicturesAreShrunkToTheirBrightnessAndMirrored()
     {
         // 4x2 BGRA with a padded stride: white, black, red, green on top; blue and grays below.
