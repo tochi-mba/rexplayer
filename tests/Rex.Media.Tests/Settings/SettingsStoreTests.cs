@@ -140,7 +140,8 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Contour sensitivity (%)", motion[1].Label);
         Assert.Equal("Motion trail length (%)", motion[2].Label);
         Assert.Equal(35, motion[2].Default);
-        Assert.Equal(2, motion[3].Max);
+        Assert.Equal(3, motion[3].Max);
+        Assert.Equal(3, motion[3].Default);
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.GhostwireMotion));
         Assert.Equal("Ghostwire motion", VideoEffects.Name(VideoEffect.GhostwireMotion));
         var restoredMotion = VideoStyleOptions.Reset(values, motion);
