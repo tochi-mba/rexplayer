@@ -30,6 +30,9 @@ public sealed class BeatEditScene : VisualScene
     private int _grade;
     private long _flashes;
     private long _frame;
+    private double _subjectPanX;
+    private double _subjectPanY;
+    private double _subjectZoom;
 
     public override bool UsesCamera => true;
 
@@ -104,6 +107,19 @@ public sealed class BeatEditScene : VisualScene
         var drift = tricks.Drift ? 1.06 + (0.04 * Math.Sin(context.Seconds * Math.Tau / (beatSeconds * 16))) : 1.03;
         var zoom = drift * (1 + (0.2 * punch) + (0.05 * pump) + (0.12 * Math.Max(0, _split > 0 ? 0 : _twist * _twist * 10)));
 
+        // When an outline is trustworthy, frame the people rather than blindly zooming into the
+        // centre. A gentle damped camera follows the silhouette without shaking on every gesture.
+        var follow = context.Toggle("follow") && context.Pick("source") == 0 && context.Camera is not null
+            && context.Mask is { } mask ? SubjectCentre(mask, context.MaskWidth, context.MaskHeight) : null;
+        var mirror = context.Toggle("mirror");
+        var targetX = follow is { } subject ? ((mirror ? 1 - subject.X : subject.X) - 0.5) * 0.55 : 0;
+        var targetY = follow is { } tracked ? (tracked.Y - 0.5) * 0.30 : 0;
+        var targetZoom = follow is not null ? 0.07 : 0;
+        var smoothing = 1 - Math.Exp(-Math.Clamp(dt, 0, 0.25) * 5.0);
+        _subjectPanX += (targetX - _subjectPanX) * smoothing;
+        _subjectPanY += (targetY - _subjectPanY) * smoothing;
+        _subjectZoom += (targetZoom - _subjectZoom) * smoothing;
+
         // Swing: left on one kick, right on the next; a snare tilts it, alternately too.
         var swing = (kick.Count % 2 == 0 ? 1 : -1) * kick.Level * tricks.Shake * 0.05 * intensity;
         var tilt = ((snare.Count % 2 == 0 ? 1 : -1) * snare.Level * tricks.Shake * 0.045 * intensity) + _twist;
@@ -111,12 +127,49 @@ public sealed class BeatEditScene : VisualScene
         var rgb = tricks.Rgb * intensity * ((0.025 * kick.Level) + (0.01 * pulse.Bass) + (snare.Level > 0.3f && tricks.Slices > 0 ? 0.015 : 0));
         var shown = _freeze > 0 && _frozen is not null ? _frozen : source;
         var echo = Math.Clamp(tricks.Echo + (0.15 * pulse.Mid * tricks.Echo), 0, 0.85);
-        Render(context, shown, zoom, tilt, swing, lift, rgb, echo, snare.Level > 0.25f && tricks.Slices > 0, hat.Level);
+        Render(context, shown, zoom + _subjectZoom, tilt, swing + _subjectPanX, lift + _subjectPanY, rgb, echo, snare.Level > 0.25f && tricks.Slices > 0, hat.Level);
 
         _twist *= Math.Exp(-dt / 0.5);
         _flash = Math.Max(0, _flash - (dt / 0.2));
         _split -= dt;
         _freeze -= dt;
+    }
+
+    /// <summary>
+    /// Mass centre of a sufficiently large, known foreground shape. This isn't face or person
+    /// detection: when a room's outline is unreliable, don't invent a subject or snap the camera.
+    /// </summary>
+    public static (double X, double Y)? SubjectCentre(ReadOnlySpan<byte> mask, int width, int height)
+    {
+        if (width <= 0 || height <= 0 || mask.Length != width * height)
+        {
+            return null;
+        }
+
+        long xSum = 0, ySum = 0;
+        var pixels = 0;
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                if (mask[(y * width) + x] == 0)
+                {
+                    continue;
+                }
+
+                xSum += x;
+                ySum += y;
+                pixels++;
+            }
+        }
+
+        // Ignore sparse camera noise and full-screen lighting failures.
+        if (pixels < Math.Max(4, width * height / 80) || pixels > width * height * 0.85)
+        {
+            return null;
+        }
+
+        return ((xSum / (double)pixels + 0.5) / width, (ySum / (double)pixels + 0.5) / height);
     }
 
     /// <summary>

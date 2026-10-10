@@ -124,7 +124,8 @@ public sealed class AppEndToEndTests : IDisposable
         using var app = AppProcess.Start([broken]);
 
         Wait.For(() => app.Text("IdleHint").Length > 0 && app.Text("IdleTitle") == "broken", "the reason to show");
-        Assert.Contains("broken could not be played", app.LogText, StringComparison.Ordinal);
+        // The error banner updates on the UI thread, but logging flushes asynchronously.
+        Wait.For(() => app.LogText.Contains("broken could not be played", StringComparison.Ordinal), "the media failure to be logged");
         Assert.Equal(0, app.Close());
     }
 }

@@ -1,11 +1,11 @@
 namespace Rex.Media.AppCore.Player;
 
 /// <summary>
-/// Picks a person out of a camera's pictures for the silhouette visualisation (AU-18), with no
-/// learning model: it watches the room for its first pictures, then marks what differs from the
-/// room as it has come to look. The room's picture keeps adjusting, quickly where nobody is (light
-/// changing) and very slowly where somebody is, and a mark needs most of its neighbours marked too,
-/// so specks of noise fall away. Pictures come in as rows of brightness, smallest first.
+/// Estimates foreground in a fixed camera for the silhouette visualisation (AU-18), without
+/// claiming semantic person recognition. Learns an empty-room reference, compensates for uniform
+/// lighting changes, closes small holes and removes disconnected sensor-noise islands. Connected
+/// outlines, including limbs and multiple people, remain. It works best with a stable camera and an
+/// empty background during calibration; no frame is saved or sent anywhere.
 /// </summary>
 public sealed class SilhouetteMask
 {
@@ -17,6 +17,10 @@ public sealed class SilhouetteMask
 
     private readonly float[] _room;
     private readonly byte[] _raw;
+    private readonly byte[] _expanded;
+    private readonly byte[] _clean;
+    private readonly bool[] _visited;
+    private readonly int[] _queue;
     private int _seen;
 
     public SilhouetteMask(int width, int height)
@@ -26,6 +30,10 @@ public sealed class SilhouetteMask
         (Width, Height) = (width, height);
         _room = new float[width * height];
         _raw = new byte[width * height];
+        _expanded = new byte[width * height];
+        _clean = new byte[width * height];
+        _visited = new bool[width * height];
+        _queue = new int[width * height];
         Mask = new byte[width * height];
     }
 
@@ -65,32 +73,156 @@ public sealed class SilhouetteMask
             return 0;
         }
 
-        for (var i = 0; i < _room.Length; i++)
+        // Median per-frame change is robust when a person occupies less than half the picture.
+        // Compensating for it prevents an automatic exposure adjustment from outlining the room.
+        // A histogram is stack-only: no per-camera-frame allocation.
+        Span<int> histogram = stackalloc int[511];
+        histogram.Clear(); // stackalloc storage is not initialized; the median must be deterministic.
+        for (var i = 0; i < _room.Length; i += 4)
         {
-            var person = Math.Abs(brightness[i] - _room[i]) > limit;
-            _raw[i] = person ? (byte)1 : (byte)0;
-            _room[i] += (brightness[i] - _room[i]) * (person ? PersonRate : RoomRate);
+            histogram[Math.Clamp((int)MathF.Round(brightness[i] - _room[i]), -255, 255) + 255]++;
         }
 
-        // A pixel stays marked when at least five of the nine around it (itself included) are.
-        var marked = 0;
+        var middle = ((_room.Length + 3) / 4 + 1) / 2;
+        var seen = 0;
+        var global = 0;
+        for (var bucket = 0; bucket < histogram.Length; bucket++)
+        {
+            seen += histogram[bucket];
+            if (seen >= middle)
+            {
+                global = bucket - 255;
+                break;
+            }
+        }
+
+        // With a tiny synthetic image there is no stable background majority to estimate.
+        if (_room.Length < 256)
+        {
+            global = 0;
+        }
+
+        for (var i = 0; i < _room.Length; i++)
+        {
+            var difference = brightness[i] - _room[i] - global;
+            var foreground = Math.Abs(difference) > limit;
+            _raw[i] = foreground ? (byte)1 : (byte)0;
+            var rate = foreground ? PersonRate : RoomRate;
+            _room[i] += (brightness[i] - _room[i]) * rate;
+        }
+
+        // Morphological closing preserves connected thin limbs and fills tiny gaps, unlike a
+        // majority filter, which shaves fingers and arms off an otherwise good silhouette.
         for (var y = 0; y < Height; y++)
         {
             for (var x = 0; x < Width; x++)
             {
-                var count = 0;
-                for (var dy = -1; dy <= 1; dy++)
+                byte on = 0;
+                for (var dy = -1; dy <= 1 && on == 0; dy++)
                 {
                     var row = Math.Clamp(y + dy, 0, Height - 1) * Width;
                     for (var dx = -1; dx <= 1; dx++)
                     {
-                        count += _raw[row + Math.Clamp(x + dx, 0, Width - 1)];
+                        if (_raw[row + Math.Clamp(x + dx, 0, Width - 1)] != 0)
+                        {
+                            on = 1;
+                            break;
+                        }
                     }
                 }
 
-                var on = count >= 5;
-                Mask[(y * Width) + x] = on ? (byte)255 : (byte)0;
-                marked += on ? 1 : 0;
+                _expanded[(y * Width) + x] = on;
+            }
+        }
+
+        for (var y = 0; y < Height; y++)
+        {
+            for (var x = 0; x < Width; x++)
+            {
+                byte on = 1;
+                for (var dy = -1; dy <= 1 && on != 0; dy++)
+                {
+                    var row = Math.Clamp(y + dy, 0, Height - 1) * Width;
+                    for (var dx = -1; dx <= 1; dx++)
+                    {
+                        if (_expanded[row + Math.Clamp(x + dx, 0, Width - 1)] == 0)
+                        {
+                            on = 0;
+                            break;
+                        }
+                    }
+                }
+
+                _clean[(y * Width) + x] = on;
+            }
+        }
+
+        // Keep every sufficiently large connected region (not merely the largest person). A
+        // one-pixel noise island is discarded, even when contrast makes it pass the threshold.
+        Array.Clear(_visited);
+        Array.Clear(Mask);
+        var minArea = Math.Max(2, Mask.Length / 1000);
+        var marked = 0;
+        for (var i = 0; i < _clean.Length; i++)
+        {
+            if (_clean[i] == 0 || _visited[i])
+            {
+                continue;
+            }
+
+            _visited[i] = true;
+            var start = 0;
+            var count = 1;
+            _queue[0] = i;
+            while (start < count)
+            {
+                var point = _queue[start++];
+                var x = point % Width;
+                var y = point / Width;
+                for (var dy = -1; dy <= 1; dy++)
+                {
+                    var ny = y + dy;
+                    if (ny < 0 || ny >= Height)
+                    {
+                        continue;
+                    }
+
+                    for (var dx = -1; dx <= 1; dx++)
+                    {
+                        var nx = x + dx;
+                        if (nx < 0 || nx >= Width)
+                        {
+                            continue;
+                        }
+
+                        var neighbour = (ny * Width) + nx;
+                        if (_clean[neighbour] == 0 || _visited[neighbour])
+                        {
+                            continue;
+                        }
+
+                        _visited[neighbour] = true;
+                        _queue[count++] = neighbour;
+                    }
+                }
+            }
+
+            // Border-clamped closing can expand a lone bright speck to two pixels. Require
+            // enough actual raw foreground evidence as well as a connected cleaned region.
+            var rawCount = 0;
+            for (var n = 0; n < count; n++)
+            {
+                rawCount += _raw[_queue[n]];
+            }
+
+            if (count >= minArea && rawCount >= minArea)
+            {
+                for (var n = 0; n < count; n++)
+                {
+                    Mask[_queue[n]] = 255;
+                }
+
+                marked += count;
             }
         }
 
