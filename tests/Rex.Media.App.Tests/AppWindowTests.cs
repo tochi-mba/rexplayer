@@ -140,9 +140,9 @@ public sealed class AppWindowTests : IDisposable
         app.Press("VideoSubjectLock");
         Wait.For(() => app.IsShown("SubjectToolbar"), "Subject Lock tools to open");
         Assert.Contains("Drag", app.Text("SubjectStatusText"), StringComparison.Ordinal);
-        Assert.Equal(3, ((RangeValuePattern)app.Find("SubjectFeather")
+        Assert.Equal(3.0, ((RangeValuePattern)app.Find("SubjectFeather")
             .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
-        Assert.Equal(50, ((RangeValuePattern)app.Find("SubjectTolerance")
+        Assert.Equal(50.0, ((RangeValuePattern)app.Find("SubjectTolerance")
             .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         Assert.Equal(VideoEffect.Off, app.SavedSettings.VideoEffect);
 
