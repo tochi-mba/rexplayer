@@ -36,7 +36,7 @@ public sealed class D3D11Presenter : IVideoPresenter
     private float _effectStrength = 0.65f;
     private float _effectTime;
     private float _motionTrail = 0.35f;
-    private int _motionMode;
+    private int _motionMode = 3;
     private double _lastMotionTime = double.NaN;
     private bool _navigator;
     private readonly SubjectEditSession _subjectEdit = new();
@@ -130,7 +130,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             var chosen = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
             if (_effect != chosen)
             {
-                _renderer.EnableMotionHistory(chosen == VideoEffect.GhostwireMotion);
+                _renderer.EnableMotionHistory(chosen == VideoEffect.GhostwireMotion && _motionMode is 0 or 2);
                 _lastMotionTime = double.NaN;
             }
 
@@ -146,7 +146,13 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _motionTrail = Math.Clamp(trails, 0, 100) / 100f;
-            _motionMode = Math.Clamp(mode, 0, 2);
+            var selected = Math.Clamp(mode, 0, 3);
+            if (_motionMode != selected)
+            {
+                _motionMode = selected;
+                _renderer.EnableMotionHistory(_effect == VideoEffect.GhostwireMotion && selected is 0 or 2);
+                _lastMotionTime = double.NaN;
+            }
         }
     }
 
@@ -309,7 +315,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             ApplySize();
-            if (_effect == VideoEffect.GhostwireMotion)
+            if (_effect == VideoEffect.GhostwireMotion && _motionMode is 0 or 2)
             {
                 var now = frame.Pts.IsKnown ? frame.Pts.TotalSeconds : double.NaN;
                 // Repeated/stale frames, long gaps, and backwards seeks cannot
