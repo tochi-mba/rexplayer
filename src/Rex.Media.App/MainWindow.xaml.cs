@@ -369,6 +369,7 @@ public sealed partial class MainWindow : Window
         ShowPresentation();
         ApplyVisualizer();
         ShowMemory();
+        ShowEpisodeSkip();
         ShowNamedPlaylists();
         ShowMenuChecks();
         RememberLater();
