@@ -402,6 +402,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
 
         Span<float> constants = stackalloc float[24];
+        constants.Clear();
         colourMatrix.CopyTo(constants);
         (constants[12], constants[13]) = (_crop.U, _crop.V);
         (constants[16], constants[17], constants[18], constants[19]) = source;
