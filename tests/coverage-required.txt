@@ -45,6 +45,7 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+EpisodeSections.cs
 Equalizer.cs
 ExceptionDiagnostics.cs
 ExifOrientation.cs
