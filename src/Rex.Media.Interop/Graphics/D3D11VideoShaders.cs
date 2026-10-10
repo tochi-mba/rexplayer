@@ -419,8 +419,8 @@ internal static class D3D11VideoShaders
                 // The previous-frame rim is a faint blue afterimage at its
                 // actual prior position, not just a second glow on the new rim.
                 float previousDifference = length(colour - readPrior(uv, isYuv));
-                float trail = motion.x * oldEdge
-                    * smoothstep(0.025, 0.18, previousDifference)
+                float trail = motion.x * (oldEdge
+                    * smoothstep(0.025, 0.18, previousDifference) + activity * 0.6)
                     * (1 - edge * 0.35);
                 float3 moving = activity * float3(0.60, 0.18, 0.37)
                     + trail * float3(0.10, 0.40, 0.78);
