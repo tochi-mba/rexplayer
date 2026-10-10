@@ -45,6 +45,9 @@ public sealed record UpdateSession(
 {
     /// <summary>Optional for compatibility with earlier saved hand-offs.</summary>
     public UpdateWindowState? WindowState { get; init; }
+
+    /// <summary>The release this snapshot may restore into; prevents resuming after a failed installer.</summary>
+    public string? TargetVersion { get; init; }
 }
 
 /// <summary>A playlist the user named and keeps (LIB-04), known by an id that stays when it is renamed.</summary>
