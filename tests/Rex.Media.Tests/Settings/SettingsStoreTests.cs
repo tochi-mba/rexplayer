@@ -81,7 +81,7 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void SpatialVideoEffectsHaveStableNamesAndSafeSettings()
     {
-        Assert.Equal(5, VideoEffects.Names.Count);
+        Assert.Equal(13, VideoEffects.Names.Count);
         Assert.Equal("Off", VideoEffects.Name(VideoEffect.Off));
         Assert.Equal("Off", VideoEffects.Name((VideoEffect)999));
         Assert.Equal(0, VideoEffects.Strength(-1));
@@ -102,6 +102,75 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(VideoEffect.Off, invalid.VideoEffect);
         Assert.Equal(100, invalid.VideoEffectStrength);
         Assert.Equal(0, new PlayerSettings { VideoEffectStrength = -9 }.Normalize().VideoEffectStrength);
+    }
+
+    [Fact]
+    public void EveryPictureStyleSavesIndependentControlsAndCanResetOnlyItself()
+    {
+        IReadOnlyDictionary<string, int> values = new Dictionary<string, int>();
+        foreach (var look in Enum.GetValues<VideoLook>())
+        {
+            var options = VideoStyleOptions.ForLook(look);
+            Assert.Equal(2, options.Count);
+            foreach (var option in options)
+            {
+                Assert.InRange(option.Default, option.Min, option.Max);
+                Assert.Equal(option.Default, VideoStyleOptions.Read(null, option));
+                values = VideoStyleOptions.With(values, option, option.Max + 999);
+                Assert.Equal(option.Max, VideoStyleOptions.Read(values, option));
+            }
+        }
+
+        foreach (var effect in Enum.GetValues<VideoEffect>())
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            Assert.Equal(2, options.Count);
+            foreach (var option in options)
+            {
+                Assert.InRange(option.Default, option.Min, option.Max);
+                values = VideoStyleOptions.With(values, option, option.Min - 999);
+                Assert.Equal(option.Min, VideoStyleOptions.Read(values, option));
+            }
+
+            Assert.False(string.IsNullOrWhiteSpace(VideoEffects.Name(effect)));
+        }
+
+        var resetOptions = VideoStyleOptions.ForEffect(VideoEffect.CursorLens);
+        var reset = VideoStyleOptions.Reset(values, resetOptions);
+        Assert.Equal(resetOptions[0].Default, VideoStyleOptions.Read(reset, resetOptions[0]));
+        Assert.False(reset.ContainsKey(resetOptions[0].Key));
+        Assert.True(reset.ContainsKey(VideoStyleOptions.ForEffect(VideoEffect.EdgeGravity)[0].Key));
+
+        SettingsStore.Save(File, new PlayerSettings { VideoStyleValues = values });
+        var loaded = SettingsStore.Load(File);
+        Assert.Equal(values.Count, loaded.VideoStyleValues.Count);
+        Assert.All(values, pair => Assert.Equal(pair.Value, loaded.VideoStyleValues[pair.Key]));
+
+        var normalized = new PlayerSettings { VideoStyleValues = new Dictionary<string, int>
+        {
+            ["look.Cinema.intensity"] = -50,
+            ["effect.Vortex.detail"] = 999,
+            [""] = 11,
+        } }.Normalize();
+        Assert.Equal(0, normalized.VideoStyleValues["look.Cinema.intensity"]);
+        Assert.Equal(200, normalized.VideoStyleValues["effect.Vortex.detail"]);
+        Assert.False(normalized.VideoStyleValues.ContainsKey(""));
+
+        Assert.Throws<ArgumentNullException>(() => VideoStyleOptions.Read(values, null!));
+        Assert.Throws<ArgumentNullException>(() => VideoStyleOptions.With(values, null!, 9));
+        Assert.Throws<ArgumentNullException>(() => VideoStyleOptions.Reset(values, null!));
+        Assert.Equal(VideoEffect.Off, new PlayerSettings { VideoEffect = (VideoEffect)1000 }.Normalize().VideoEffect);
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.InkTrace));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.TopographicContours));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.ChromaticContours));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.SliceShift));
+        Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.CursorLens));
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.EdgeGravity));
+        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.NeonEdges));
+        Assert.True(VideoEffects.UsesPointer(VideoEffect.CursorLens));
+        Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));
+        Assert.Equal(100, VideoStyleOptions.Read(null, VideoStyleOptions.ForLook((VideoLook)1000)[0]));
+        Assert.Equal(0, VideoStyleOptions.Read(null, VideoStyleOptions.ForEffect((VideoEffect)1000)[0]));
     }
 
     [Fact]
