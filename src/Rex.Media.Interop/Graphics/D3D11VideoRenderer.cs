@@ -346,6 +346,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     private IDXGISwapChain1? _swapChain;
     private ID3D11Texture2D? _target;
     private ID3D11Texture2D? _staging;
+    private ID3D11Texture2D? _analysisStaging;
+    private (int Width, int Height, DXGI_FORMAT Format) _analysisSize;
     private ID3D11RenderTargetView? _targetView;
     private bool _disposed;
 
@@ -684,6 +686,70 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _swapChain.Present(waitForRefresh ? 1u : 0u, 0).ThrowOnFailure();
     }
 
+    /// <summary>
+    /// Copies a decoder's planar video surface to caller-owned system memory for opt-in region
+    /// tracking. A staging texture is reused across frames. Neither the decoder surface nor its
+    /// GPU texture is modified. This readback is deliberately not on the normal playback path.
+    /// </summary>
+    public void CopySurfacePlanes(D3D11Surface surface, int width, int height, bool tenBit,
+        Span<byte> yPlane, int yStride, Span<byte> uvPlane, int uvStride)
+    {
+        ArgumentNullException.ThrowIfNull(surface);
+        D3D11_TEXTURE2D_DESC source;
+        surface.Texture.GetDesc(&source);
+        var sourceWidth = (int)source.Width;
+        var sourceHeight = (int)source.Height;
+        var bytes = tenBit ? 2 : 1;
+        var lumaRow = width * bytes;
+        var uvRow = ((width + 1) / 2) * 2 * bytes;
+        var uvRows = (height + 1) / 2;
+        if (width <= 0 || height <= 0 || width > sourceWidth || height > sourceHeight
+            || yStride < lumaRow || uvStride < uvRow
+            || yPlane.Length < (height - 1) * yStride + lumaRow
+            || uvPlane.Length < (uvRows - 1) * uvStride + uvRow)
+        {
+            throw new ArgumentException("The destination planes do not fit the decoded surface.");
+        }
+
+        var size = (sourceWidth, sourceHeight, source.Format);
+        if (_analysisStaging is null || _analysisSize != size)
+        {
+            if (_analysisStaging is not null)
+            {
+                Marshal.ReleaseComObject(_analysisStaging);
+            }
+
+            _analysisStaging = Texture(sourceWidth, sourceHeight, source.Format,
+                D3D11_USAGE.D3D11_USAGE_STAGING, 0, D3D11_CPU_ACCESS_FLAG.D3D11_CPU_ACCESS_READ);
+            _analysisSize = size;
+        }
+
+        _context.CopySubresourceRegion(_analysisStaging, 0, 0, 0, 0,
+            surface.Texture, surface.Index, null);
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        _context.Map(_analysisStaging, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mapped).ThrowOnFailure();
+        try
+        {
+            var rowPitch = checked((int)mapped.RowPitch);
+            for (var row = 0; row < height; row++)
+            {
+                new ReadOnlySpan<byte>((byte*)mapped.pData + row * rowPitch, lumaRow)
+                    .CopyTo(yPlane.Slice(row * yStride, lumaRow));
+            }
+
+            var chromaStart = (byte*)mapped.pData + sourceHeight * rowPitch;
+            for (var row = 0; row < uvRows; row++)
+            {
+                new ReadOnlySpan<byte>(chromaStart + row * rowPitch, uvRow)
+                    .CopyTo(uvPlane.Slice(row * uvStride, uvRow));
+            }
+        }
+        finally
+        {
+            _context.Unmap(_analysisStaging, 0);
+        }
+    }
+
     /// <summary>Copies the offscreen picture out as BGRA rows <paramref name="stride"/> bytes apart.</summary>
     public void ReadBack(Span<byte> bgra, int stride)
     {
@@ -715,6 +781,12 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _disposed = true;
         ReleasePlanes();
         ReleaseTarget();
+        if (_analysisStaging is not null)
+        {
+            Marshal.ReleaseComObject(_analysisStaging);
+            _analysisStaging = null;
+        }
+
         foreach (var com in new object[] { _colour, _pointSampler, _sampler, _bgraShader, _yuvShader, _vertexShader, _context, _device })
         {
             Marshal.ReleaseComObject(com);
