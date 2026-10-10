@@ -181,6 +181,7 @@ public static class VisualizerOptions
         VisualizerChoice.Vinyl => VisualPalette.Sunset,
         VisualizerChoice.Halo or VisualizerChoice.Silhouette or VisualizerChoice.BeatEdit => VisualPalette.Neon,
         VisualizerChoice.Aurora => VisualPalette.Aurora,
+        VisualizerChoice.Resonance => VisualPalette.Ocean,
         VisualizerChoice.Embers => VisualPalette.Fire,
         VisualizerChoice.Ripples => VisualPalette.Ocean,
         _ => VisualPalette.Accent,
