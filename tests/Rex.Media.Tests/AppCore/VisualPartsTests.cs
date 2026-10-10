@@ -109,7 +109,7 @@ public sealed class VisualPartsTests
         stage.Took(80);
         Assert.True(stage.WantsResize);
         Assert.Equal(0.85, stage.Quality, 3);
-        Assert.Equal((408, 230), VisualStage.SizeFor(1920, 1080, stage.Quality));
+        Assert.Equal((680, 382), VisualStage.SizeFor(1920, 1080, stage.Quality));
 
         for (var i = 0; i < 200; i++)
         {
