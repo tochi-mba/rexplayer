@@ -30,7 +30,7 @@
 
   <PropertyGroup>
     <!-- The one version every build, the installer and the release job read. -->
-    <Version>0.15.1</Version>
+    <Version>0.15.2</Version>
     <Company>REX Technologies</Company>
     <Authors>REX Technologies</Authors>
     <Product>rexplayer</Product>
