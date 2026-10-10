@@ -86,7 +86,7 @@ public sealed partial class MainWindow
             // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
             var image = poster is null ? null : await LocalPictureAsync(poster, token);
             image ??= await ShellPictureAsync(path, kind, token);
-            image ??= await DecodePictureAsync(await Task.Run(() => MakePicture(path, kind, duration, key, settings, token), token), token);
+            image ??= await CachedPictureAsync(path, kind, duration, key, settings, token);
             token.ThrowIfCancellationRequested();
             if (_closed)
             {
@@ -189,11 +189,39 @@ public sealed partial class MainWindow
     {
         try
         {
-            return await DecodePictureAsync(await File.ReadAllBytesAsync(path, token), token);
+            // Decode directly from the file instead of allocating a second copy of a potentially
+            // enormous poster. WIC scales the decoded bitmap to the size needed by the cards.
+            var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
+            using var stream = await file.OpenReadAsync().AsTask(token);
+            var image = new BitmapImage { DecodePixelWidth = 320 };
+            await image.SetSourceAsync(stream);
+            token.ThrowIfCancellationRequested();
+            return image;
         }
-        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Recover from a damaged on-disk picture without leaving a permanent empty card. Rebuild at
+    /// most once: an unreadable source must not turn the library into a retry loop.
+    /// </summary>
+    private async Task<ImageSource> CachedPictureAsync(
+        string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token)
+    {
+        var bytes = await Task.Run(() => MakePicture(path, kind, duration, key, settings, token), token);
+        try
+        {
+            return await DecodePictureAsync(bytes, token);
+        }
+        catch (Exception ex) when (ex is COMException or IOException or ArgumentException or InvalidOperationException)
+        {
+            token.ThrowIfCancellationRequested();
+            App.Log.Info(LogSource, $"Rebuilding unreadable cached picture for {path}: {ex.Message}");
+            var fresh = await Task.Run(() => MakePicture(path, kind, duration, key, settings, token, rebuild: true), token);
+            return await DecodePictureAsync(fresh, token);
         }
     }
 
@@ -226,10 +254,10 @@ public sealed partial class MainWindow
     /// least a second, at most half a minute), a picture itself, or for music its folder's art or
     /// artwork drawn from its sound. Kept on disk under <paramref name="key"/> until the file changes.
     /// </summary>
-    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token)
+    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token, bool rebuild = false)
     {
         var cache = Path.Combine(App.DataRoot, "cache", "library-pictures", key + ".png");
-        if (File.Exists(cache))
+        if (!rebuild && File.Exists(cache))
         {
             return File.ReadAllBytes(cache);
         }
