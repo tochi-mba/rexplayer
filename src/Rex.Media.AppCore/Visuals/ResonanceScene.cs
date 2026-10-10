@@ -31,7 +31,8 @@ public sealed class ResonanceScene : VisualScene
         // The slowly drifting phase only accelerates with music, so silence doesn't resemble a
         // song. The faster onset envelopes govern sharp movement independently of the phase.
         _phase += dt * flow * (0.15 + (1.5 * pulse.Loudness));
-        _surge = pulse.Drop ? 1 : Math.Max(0, _surge - (float)(dt * 1.6));
+        var impulse = pulse.Drop ? 1f : pulse.Kick.Hit ? pulse.Kick.Strength * 0.36f : 0f;
+        _surge = Math.Max(impulse, Math.Max(0, _surge - (float)(dt * 1.6)));
         canvas.Feedback((float)(0.10 + (trails * 0.72)), 1.002, 0, 0, 0);
 
         // A dim, spatially broad bed keeps the artwork legible in quiet sections without burning
@@ -68,11 +69,14 @@ public sealed class ResonanceScene : VisualScene
         {
             if (pulse.Kick.Hit || pulse.Snare.Hit)
             {
-                _waves.Add((size * 0.06, focusX, focusY, Math.Clamp(pulse.Kick.Strength + (pulse.Snare.Strength * 0.5f), 0.2f, 1f)));
-                if (_waves.Count > 5)
+                // At most three overlapping rings: fast tracks stay legible and memory stays
+                // bounded, without dropping a new beat's response.
+                if (_waves.Count >= 3)
                 {
                     _waves.RemoveAt(0);
                 }
+
+                _waves.Add((size * 0.06, focusX, focusY, Math.Clamp(pulse.Kick.Strength + (pulse.Snare.Strength * 0.5f), 0.2f, 1f)));
             }
 
             for (var i = _waves.Count - 1; i >= 0; i--)
