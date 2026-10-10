@@ -594,6 +594,34 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void GPUVideoPresenterReacquiresTheOriginalSubjectAfterItReturnsLargerAndBrighter()
+    {
+        using var presenter = D3D11Presenter.Offscreen(128, 80);
+        using var initial = Picture();
+        presenter.Present(initial);
+        presenter.SelectSubject(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        presenter.Present(initial);
+        Assert.True(presenter.SubjectStatus().Tracking);
+
+        using var absent = Picture(-50, -50, 1.04);
+        presenter.Present(absent);
+        Assert.False(presenter.SubjectStatus().Tracking);
+
+        for (var i = 0; i < 16; i++)
+        {
+            using var returned = Picture(65, 25, 1.08 + i * 0.04, size: 24, lighting: 25);
+            presenter.Present(returned);
+        }
+
+        var status = presenter.SubjectStatus();
+        Assert.True(status.Locked);
+        Assert.True(status.Tracking);
+        Assert.False(status.Erase);
+        Assert.InRange(status.Left * 128, 62, 68);
+        Assert.InRange(status.Width * 128, 20, 28);
+    }
+
+    [Fact]
     public void GPUVideoPresenterRendersTheOriginalAgainAfterClearingThePreview()
     {
         using var source = Picture();
