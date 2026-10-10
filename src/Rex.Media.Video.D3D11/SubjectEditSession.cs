@@ -147,10 +147,10 @@ public sealed class SubjectEditSession
         if (_reference is null)
         {
             _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
-            var (foreground, background, _) = CompareSubjectWithBorder(frame, Bounds(frame.Width, frame.Height));
-            var borderContrast = Math.Abs(foreground.B - background.B)
-                + Math.Abs(foreground.G - background.G)
-                + Math.Abs(foreground.R - background.R);
+            var (selectedCentre, nearbyBorder, _) = CompareSubjectWithBorder(frame, Bounds(frame.Width, frame.Height));
+            var borderContrast = Math.Abs(selectedCentre.B - nearbyBorder.B)
+                + Math.Abs(selectedCentre.G - nearbyBorder.G)
+                + Math.Abs(selectedCentre.R - nearbyBorder.R);
             if (!HasDistinctiveAppearance(_reference) && borderContrast < 40)
             {
                 // A flat patch of sky, wall or clothing with no contrasting edges can
