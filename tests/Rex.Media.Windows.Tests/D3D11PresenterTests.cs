@@ -310,6 +310,110 @@ public sealed class D3D11PresenterTests
         Assert.Equal(0, MaxDifference(restored, original));
     }
 
+    [Theory]
+    [InlineData(VideoEffect.NeonEdges)]
+    [InlineData(VideoEffect.InkTrace)]
+    [InlineData(VideoEffect.ChromaticContours)]
+    [InlineData(VideoEffect.Ghostwire)]
+    [InlineData(VideoEffect.GhostwireMask)]
+    public void ContoursKeepSubtleLinesInsideAGreyObject(VideoEffect effect)
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 160, 96);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                byte grey = (byte)(x < 30 || x >= 135 ? 35 : x >= 65 && x < 69 ? 126 : 110);
+                var pixel = x * 4;
+                row[pixel] = grey;
+                row[pixel + 1] = grey;
+                row[pixel + 2] = grey;
+                row[pixel + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(160, 96);
+        presenter.Present(picture);
+        presenter.SetEffect(effect, 100, 175);
+        presenter.Redraw();
+        using var detailed = presenter.ReadBack();
+        var flat = detailed.Row(0, 48)[54 * 4 + 1];
+        var line = Enumerable.Range(63, 8).Select(x => (int)detailed.Row(0, 48)[x * 4 + 1]).ToArray();
+        Assert.True(line.Any(g => Math.Abs(g - flat) >= 6),
+            $"{effect} must respond to grey-on-grey internal edges: flat={flat}; lines={string.Join(",", line)}");
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var restored = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(picture, restored));
+    }
+
+    [Theory]
+    [InlineData(VideoEffect.Ghostwire)]
+    [InlineData(VideoEffect.GhostwireMask)]
+    public void ContourSensitivityExposesWeakerInternalLines(VideoEffect effect)
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 160, 96);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                var grey = (byte)(x >= 70 && x < 74 ? 119 : 108);
+                row[x * 4] = grey;
+                row[x * 4 + 1] = grey;
+                row[x * 4 + 2] = grey;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(160, 96);
+        presenter.Present(picture);
+        presenter.SetEffect(effect, 100, 25);
+        presenter.Redraw();
+        using var low = presenter.ReadBack();
+        presenter.SetEffect(effect, 100, 175);
+        presenter.Redraw();
+        using var high = presenter.ReadBack();
+        var lowFlat = low.Row(0, 48)[40 * 4 + 1];
+        var highFlat = high.Row(0, 48)[40 * 4 + 1];
+        var lowContrast = Enumerable.Range(68, 8).Max(x => Math.Abs(low.Row(0, 48)[x * 4 + 1] - lowFlat));
+        var highContrast = Enumerable.Range(68, 8).Max(x => Math.Abs(high.Row(0, 48)[x * 4 + 1] - highFlat));
+        Assert.True(highContrast > lowContrast + 6,
+            $"{effect}: raising contour detail must reveal weak lines ({lowContrast} vs {highContrast})");
+    }
+
+    [Theory]
+    [InlineData(VideoEffect.Ghostwire)]
+    [InlineData(VideoEffect.GhostwireMask)]
+    public void GhostwireSeparatesDifferentColoursAtNearlyEqualBrightness(VideoEffect effect)
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 160, 96);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                var tint = x >= 74 && x < 88;
+                row[x * 4] = tint ? (byte)225 : (byte)110;
+                row[x * 4 + 1] = tint ? (byte)81 : (byte)110;
+                row[x * 4 + 2] = tint ? (byte)145 : (byte)110;
+                row[x * 4 + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(160, 96);
+        presenter.Present(picture);
+        presenter.SetEffect(effect, 100, 175);
+        presenter.Redraw();
+        using var result = presenter.ReadBack();
+        var flat = result.Row(0, 48)[42 * 4 + 1];
+        var edge = Enumerable.Range(72, 5).Max(x => (int)result.Row(0, 48)[x * 4 + 1]);
+        Assert.True(edge > flat + 10,
+            $"{effect} must see colour-only contours: edge={edge}, uniform={flat}");
+    }
+
     [Fact]
     public void ColourSpotlightOnlyRespondsToTheChosenPixelAndClearsWithThePointer()
     {
