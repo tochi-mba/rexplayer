@@ -180,6 +180,7 @@ TimeText.cs
 TrackInfo.cs
 UpdateCheck.cs
 VideoFrame.cs
+VideoLook.cs
 VideoGeometry.cs
 VideoLayout.cs
 VinylScene.cs
