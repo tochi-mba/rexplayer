@@ -16,6 +16,10 @@ public sealed class SubjectEditSession
     private float[]? _reference;
     private float[]? _returnReference;
     private int _returnFrames;
+    private int _identityWidth;
+    private int _identityHeight;
+    private (int X, int Y, int Width, int Height)? _returnCandidate;
+    private int _returnConfirmations;
     private byte[]? _clean;
     private byte[]? _known;
     private MediaTime _lastPts = MediaTime.Unknown;
@@ -73,6 +77,9 @@ public sealed class SubjectEditSession
         _reference = null;
         _returnReference = null;
         _returnFrames = 0;
+        _returnCandidate = null;
+        _returnConfirmations = 0;
+        _identityWidth = _identityHeight = 0;
         _clean = null;
         _known = null;
         _lastPts = MediaTime.Unknown;
@@ -95,6 +102,9 @@ public sealed class SubjectEditSession
         _reference = null;
         _returnReference = null;
         _returnFrames = 0;
+        _returnCandidate = null;
+        _returnConfirmations = 0;
+        _identityWidth = _identityHeight = 0;
         _clean = _known = null;
         Confidence = 0;
         EstimatedPixels = 0;
@@ -136,6 +146,8 @@ public sealed class SubjectEditSession
             _reference = null;
             _returnReference = null;
             _returnFrames = 0;
+            _returnCandidate = null;
+            _returnConfirmations = 0;
             Tracking = false;
         }
 
@@ -145,6 +157,8 @@ public sealed class SubjectEditSession
             _reference = null;
             _returnReference = null;
             _returnFrames = 0;
+            _returnCandidate = null;
+            _returnConfirmations = 0;
             Tracking = false;
             Confidence = 0;
             Erase = false;
@@ -159,6 +173,8 @@ public sealed class SubjectEditSession
         {
             _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
             _returnReference = (float[])_reference.Clone();
+            _identityWidth = Math.Max(1, (int)Math.Round(Region.Width * frame.Width));
+            _identityHeight = Math.Max(1, (int)Math.Round(Region.Height * frame.Height));
             var (selectedCentre, nearbyBorder, _) = CompareSubjectWithBorder(frame, Bounds(frame.Width, frame.Height));
             var borderContrast = Math.Abs(selectedCentre.B - nearbyBorder.B)
                 + Math.Abs(selectedCentre.G - nearbyBorder.G)
@@ -184,10 +200,14 @@ public sealed class SubjectEditSession
             // Keep the original identity template after the target leaves view. A bounded
             // sparse scan periodically looks for it again; never resume from a weak or
             // ambiguous match, and never turn the removal preview on automatically.
-            _returnFrames++;
-            if (_returnFrames % 4 != 0 || !TryReacquire(frame))
+            // No expiry while the original selection remains locked. Search at a bounded
+            // cadence; require two consistent sightings before the viewport can follow again.
+            _returnFrames = (_returnFrames + 1) % 4;
+            if (_returnFrames != 0 || !TryReacquire(frame))
             {
-                Status = "Tracking uncertain: looking for the selected object to return. Select again if it cannot be recognized.";
+                Status = _returnCandidate is null
+                    ? "Tracking uncertain: searching the picture for the original texture."
+                    : "Possible match: verifying the original texture before following.";
                 return null;
             }
         }
@@ -253,6 +273,8 @@ public sealed class SubjectEditSession
                 Tracking = false;
                 Erase = false;
                 _returnFrames = 0;
+                _returnCandidate = null;
+                _returnConfirmations = 0;
                 Status = "Tracking uncertain: looking for the selected object to return.";
                 return null;
             }
@@ -269,6 +291,8 @@ public sealed class SubjectEditSession
                     Erase = false;
                     Confidence = 0;
                     _returnFrames = 0;
+                    _returnCandidate = null;
+                    _returnConfirmations = 0;
                     Status = "Similar-looking regions: watching for a clear match. Select again if necessary.";
                     return null;
                 }
@@ -392,72 +416,87 @@ public sealed class SubjectEditSession
     /// </summary>
     private bool TryReacquire(VideoFrame frame)
     {
-        if (_returnReference is not { } reference)
+        if (_returnReference is not { } fingerprint)
         {
             return false;
         }
 
-        var patchWidth = Math.Max(1, (int)Math.Round(Region.Width * frame.Width));
-        var patchHeight = Math.Max(1, (int)Math.Round(Region.Height * frame.Height));
-        var maxX = frame.Width - patchWidth;
-        var maxY = frame.Height - patchHeight;
-        var stride = Math.Max(2, Math.Max(Math.Min(patchWidth, patchHeight) / 3,
-            Math.Max(frame.Width / 200, frame.Height / 130)));
-        var shortlist = new List<(double Error, int X, int Y)>(6);
-        for (var y = 0; y <= maxY; y += stride)
+        // The original appearance survives any number of missing frames. Search in
+        // several sizes so a shirt that returns nearer or farther can still be found.
+        // Limit candidate work and use sparse RGB samples before the full comparison.
+        List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(8);
+        ReadOnlySpan<float> scales = stackalloc float[] { 0.75f, 1f, 1.3f };
+        foreach (var scale in scales)
         {
-            for (var x = 0; x <= maxX; x += stride)
+            var patchWidth = Math.Clamp((int)Math.Round(_identityWidth * scale), 1, frame.Width);
+            var patchHeight = Math.Clamp((int)Math.Round(_identityHeight * scale), 1, frame.Height);
+            var maxX = frame.Width - patchWidth;
+            var maxY = frame.Height - patchHeight;
+            var stride = Math.Max(2, Math.Max(Math.Min(patchWidth, patchHeight) / 3,
+                Math.Max(frame.Width / 200, frame.Height / 130)));
+            for (var y = 0; y <= maxY; y += stride)
             {
-                var error = SparseDistance(frame, x, y, patchWidth, patchHeight, reference);
-                if (error > 80)
+                for (var x = 0; x <= maxX; x += stride)
                 {
-                    continue;
-                }
-
-                // Only one coarse proposal per neighbourhood; keep distinct possible
-                // lookalikes so the final uniqueness check can reject them.
-                var existing = -1;
-                for (var i = 0; i < shortlist.Count; i++)
-                {
-                    if (Math.Abs(shortlist[i].X - x) < patchWidth &&
-                        Math.Abs(shortlist[i].Y - y) < patchHeight)
-                    {
-                        existing = i;
-                        break;
-                    }
-                }
-                if (existing >= 0)
-                {
-                    if (shortlist[existing].Error <= error)
+                    var error = SparseDistance(frame, x, y, patchWidth, patchHeight, fingerprint);
+                    if (error > 80)
                     {
                         continue;
                     }
 
-                    shortlist.RemoveAt(existing);
-                }
+                    // Proposals for the same physical patch, even at different scales,
+                    // compete for one shortlist place; spatially separate matches remain
+                    // to guard against visually identical subjects.
+                    var existing = -1;
+                    for (var i = 0; i < shortlist.Count; i++)
+                    {
+                        var candidate = shortlist[i];
+                        if (Math.Abs(candidate.X + candidate.Width / 2 - x - patchWidth / 2) <
+                                Math.Min(candidate.Width, patchWidth) * 0.75 &&
+                            Math.Abs(candidate.Y + candidate.Height / 2 - y - patchHeight / 2) <
+                                Math.Min(candidate.Height, patchHeight) * 0.75)
+                        {
+                            existing = i;
+                            break;
+                        }
+                    }
 
-                shortlist.Add((error, x, y));
-                shortlist.Sort((a, b) => a.Error.CompareTo(b.Error));
-                if (shortlist.Count > 6)
-                {
-                    shortlist.RemoveAt(6);
+                    if (existing >= 0)
+                    {
+                        if (shortlist[existing].Error <= error)
+                        {
+                            continue;
+                        }
+
+                        shortlist.RemoveAt(existing);
+                    }
+
+                    shortlist.Add((error, x, y, patchWidth, patchHeight));
+                    shortlist.Sort((a, b) => a.Error.CompareTo(b.Error));
+                    if (shortlist.Count > 8)
+                    {
+                        shortlist.RemoveAt(8);
+                    }
                 }
             }
         }
 
-        var refined = new List<(double Error, int X, int Y)>(shortlist.Count);
+        List<(double Error, int X, int Y, int Width, int Height)> refined = new(shortlist.Count);
         foreach (var candidate in shortlist)
         {
             var bestError = double.MaxValue;
             var bestX = candidate.X;
             var bestY = candidate.Y;
-            var refinementStep = Math.Max(1, stride / 4);
-            for (var y = Math.Max(0, candidate.Y - stride); y <= Math.Min(maxY, candidate.Y + stride); y += refinementStep)
+            var maxX = frame.Width - candidate.Width;
+            var maxY = frame.Height - candidate.Height;
+            var radius = Math.Max(2, Math.Min(candidate.Width, candidate.Height) / 3);
+            var refinementStep = Math.Max(1, radius / 4);
+            for (var y = Math.Max(0, candidate.Y - radius); y <= Math.Min(maxY, candidate.Y + radius); y += refinementStep)
             {
-                for (var x = Math.Max(0, candidate.X - stride); x <= Math.Min(maxX, candidate.X + stride); x += refinementStep)
+                for (var x = Math.Max(0, candidate.X - radius); x <= Math.Min(maxX, candidate.X + radius); x += refinementStep)
                 {
                     var error = Distance(frame, (float)x / frame.Width, (float)y / frame.Height,
-                        Region.Width, Region.Height, reference);
+                        (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
                     if (error < bestError)
                     {
                         (bestError, bestX, bestY) = (error, x, y);
@@ -472,7 +511,7 @@ public sealed class SubjectEditSession
                 for (var x = Math.Max(0, centreX - refinementStep); x <= Math.Min(maxX, centreX + refinementStep); x++)
                 {
                     var error = Distance(frame, (float)x / frame.Width, (float)y / frame.Height,
-                        Region.Width, Region.Height, reference);
+                        (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
                     if (error < bestError)
                     {
                         (bestError, bestX, bestY) = (error, x, y);
@@ -480,33 +519,62 @@ public sealed class SubjectEditSession
                 }
             }
 
-            refined.Add((bestError, bestX, bestY));
+            refined.Add((bestError, bestX, bestY, candidate.Width, candidate.Height));
         }
 
         refined.Sort((a, b) => a.Error.CompareTo(b.Error));
         if (refined.Count == 0 || refined[0].Error > 22)
         {
+            _returnCandidate = null;
+            _returnConfirmations = 0;
             return false;
         }
 
         var best = refined[0];
-        // Different shortlist proposals may refine onto the same object. They are not
-        // evidence of two subjects unless their final rectangles are separated.
+        // A similarly patterned shirt at another location must not steal the lock.
         if (refined.Skip(1).Any(candidate =>
-            (Math.Abs(candidate.X - best.X) >= patchWidth * 0.75 ||
-             Math.Abs(candidate.Y - best.Y) >= patchHeight * 0.75) &&
+            (Math.Abs(candidate.X + candidate.Width / 2 - best.X - best.Width / 2) >=
+                 Math.Min(candidate.Width, best.Width) * 0.75 ||
+             Math.Abs(candidate.Y + candidate.Height / 2 - best.Y - best.Height / 2) >=
+                 Math.Min(candidate.Height, best.Height) * 0.75) &&
             candidate.Error <= best.Error + 9))
+        {
+            _returnCandidate = null;
+            _returnConfirmations = 0;
+            return false;
+        }
+
+        if (_returnCandidate is { } previous &&
+            Math.Abs(previous.X + previous.Width / 2 - best.X - best.Width / 2) <
+                Math.Max(12, best.Width * 2) &&
+            Math.Abs(previous.Y + previous.Height / 2 - best.Y - best.Height / 2) <
+                Math.Max(12, best.Height * 2) &&
+            Math.Abs(previous.Width - best.Width) <= Math.Max(4, best.Width / 3) &&
+            Math.Abs(previous.Height - best.Height) <= Math.Max(4, best.Height / 3))
+        {
+            _returnConfirmations++;
+        }
+        else
+        {
+            _returnConfirmations = 1;
+        }
+
+        _returnCandidate = (best.X, best.Y, best.Width, best.Height);
+        if (_returnConfirmations < 2)
         {
             return false;
         }
 
-        Region = ((float)best.X / frame.Width, (float)best.Y / frame.Height, Region.Width, Region.Height);
+        Region = ((float)best.X / frame.Width, (float)best.Y / frame.Height,
+            (float)best.Width / frame.Width, (float)best.Height / frame.Height);
         _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
         Tracking = true;
         Erase = false;
         _returnFrames = 0;
+        _returnCandidate = null;
+        _returnConfirmations = 0;
         Confidence = Math.Clamp(1 - best.Error / 75, 0, 1);
-        Status = "Target found again. Tracking resumed.";
+        Status = "Original visual texture found again. Tracking resumed.";
         return true;
     }
 

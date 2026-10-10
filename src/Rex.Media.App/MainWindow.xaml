@@ -268,7 +268,7 @@
               <Button Content="Lock visible centre (keyboard)" Click="OnSubjectCenter"
                       HorizontalAlignment="Stretch" AutomationProperties.AutomationId="SubjectCenter"
                       AutomationProperties.Name="Lock visible centre of picture" />
-              <ToggleSwitch x:Name="SubjectFollow" Header="Auto-follow and zoom" IsOn="True"
+              <ToggleSwitch x:Name="SubjectFollow" Header="Auto-follow (widen on loss)" IsOn="True"
                             Toggled="OnSubjectFollowChanged" AutomationProperties.AutomationId="SubjectFollow"
                             AutomationProperties.Name="Automatically follow selected object with a gentle zoom" />
               <ToggleSwitch x:Name="SubjectShowBox" Header="Show tracking box" IsOn="True"

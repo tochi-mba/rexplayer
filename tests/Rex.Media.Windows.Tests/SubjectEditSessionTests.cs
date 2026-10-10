@@ -8,7 +8,7 @@ namespace Rex.Media.Windows.Tests;
 [SupportedOSPlatform("windows8.0")]
 public sealed class SubjectEditSessionTests
 {
-    private static VideoFrame Picture(int x = 30, int y = 20, double seconds = 1)
+    private static VideoFrame Picture(int x = 30, int y = 20, double seconds = 1, int size = 16)
     {
         var frame = VideoFrame.Rent(PixelFormat.Bgra32, 128, 80);
         frame.Pts = MediaTime.FromSeconds(seconds);
@@ -18,9 +18,9 @@ public sealed class SubjectEditSessionTests
             for (var col = 0; col < frame.Width; col++)
             {
                 var i = col * 4;
-                var item = col >= x && col < x + 16 && row >= y && row < y + 16;
-                data[i] = item ? (byte)(130 + ((col - x) % 3) * 20) : (byte)25;
-                data[i + 1] = item ? (byte)(30 + ((row - y) % 4) * 20) : (byte)40;
+                var item = col >= x && col < x + size && row >= y && row < y + size;
+                data[i] = item ? (byte)(130 + (((col - x) * 16 / size) % 3) * 20) : (byte)25;
+                data[i + 1] = item ? (byte)(30 + (((row - y) * 16 / size) % 4) * 20) : (byte)40;
                 data[i + 2] = item ? (byte)210 : (byte)60;
                 data[i + 3] = 255;
             }
@@ -232,6 +232,95 @@ public sealed class SubjectEditSessionTests
         Assert.InRange(tracker.Region.Top * 80, 27, 29);
         Assert.False(tracker.Erase);
         Assert.Contains("Tracking", tracker.Status, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ALongAbsenceRetainsTheOriginalFingerprintAndRequiresTwoSightings()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var initial = Picture();
+        tracker.Process(initial);
+        Assert.True(tracker.Tracking);
+        tracker.SetErase(true);
+
+        // More than fifty absent pictures must not erase the identity reference.
+        for (var i = 0; i < 52; i++)
+        {
+            using var empty = Picture(-50, -50, 1.04 + i * 0.04);
+            Assert.Null(tracker.Process(empty));
+            Assert.True(tracker.Locked);
+            Assert.False(tracker.Tracking);
+            Assert.False(tracker.Erase);
+        }
+
+        // One fleeting match is not enough to move the viewport onto a possible lookalike.
+        for (var i = 0; i < 4; i++)
+        {
+            using var returned = Picture(70, 28, 3.2 + i * 0.04);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.False(tracker.Tracking);
+        Assert.Contains("verifying", tracker.Status, StringComparison.OrdinalIgnoreCase);
+        for (var i = 0; i < 4; i++)
+        {
+            using var returned = Picture(70, 28, 3.36 + i * 0.04);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.True(tracker.Tracking);
+        Assert.InRange(tracker.Region.Left * 128, 69, 71);
+        Assert.False(tracker.Erase);
+        Assert.Contains("found again", tracker.Status, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ReacquisitionCanMatchAChangedSizeWithoutLosingTheOriginalSelection()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var initial = Picture();
+        tracker.Process(initial);
+        using var absent = Picture(-50, -50, 1.04);
+        tracker.Process(absent);
+        for (var i = 0; i < 8; i++)
+        {
+            // Same coloured texture, now closer to the camera and elsewhere in frame.
+            using var returned = Picture(65, 25, 1.08 + i * 0.04, size: 20);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.True(tracker.Tracking);
+        Assert.InRange(tracker.Region.Left * 128, 64, 67);
+        Assert.InRange(tracker.Region.Width * 128, 18, 21);
+    }
+
+    [Fact]
+    public void ATransientCandidateCannotRestoreTrackingAfterItDisappears()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var original = Picture();
+        tracker.Process(original);
+        using var absent = Picture(-50, -50, 1.04);
+        tracker.Process(absent);
+        for (var i = 0; i < 4; i++)
+        {
+            using var brief = Picture(70, 28, 1.08 + i * 0.04);
+            tracker.Process(brief);
+        }
+
+        Assert.False(tracker.Tracking);
+        for (var i = 0; i < 4; i++)
+        {
+            using var missing = Picture(-50, -50, 1.24 + i * 0.04);
+            tracker.Process(missing);
+        }
+
+        Assert.True(tracker.Locked);
+        Assert.False(tracker.Tracking);
+        Assert.Equal(0, tracker.Confidence);
     }
 
     [Fact]

@@ -92,6 +92,48 @@ public sealed class PictureViewTests
 
     [Fact]
     [Capability("VID-07")]
+    public void FollowHoldsSteadyAgainstSmallLocationNoiseAndRespondsToRealMovement()
+    {
+        var stable = new PictureView(1.7, 0.5, 0.5);
+        for (var frame = 0; frame < 80; frame++)
+        {
+            stable = stable.Follow(frame % 2 == 0 ? 0.511 : 0.489, 0.49, 0.15, 0.15);
+        }
+
+        Assert.Equal(0.5, stable.CenterX);
+        Assert.Equal(0.5, stable.CenterY);
+        Assert.InRange(stable.Zoom, 1.849, 1.851);
+
+        var moved = stable.Follow(0.82, 0.18, 0.15, 0.15);
+        Assert.True(moved.CenterX > stable.CenterX);
+        Assert.True(moved.CenterY < stable.CenterY);
+        Assert.True(moved.CenterX < 0.82);
+        Assert.True(moved.CenterY > 0.18);
+    }
+
+    [Fact]
+    [Capability("VID-07")]
+    public void ASubjectLossGraduallyRevealsTheWholePictureBeforeReturnZoom()
+    {
+        var view = new PictureView(1.85, 0.72, 0.27);
+        var first = view.Reveal();
+        Assert.InRange(first.Zoom, 1.5, 1.7);
+        Assert.InRange(first.CenterX, 0.5, view.CenterX);
+        for (var i = 0; i < 24; i++)
+        {
+            view = view.Reveal();
+        }
+
+        Assert.InRange(view.Zoom, 1, 1.001);
+        Assert.InRange(view.CenterX, 0.499, 0.501);
+        Assert.InRange(view.CenterY, 0.499, 0.501);
+        var returning = view.Follow(0.78, 0.42, 0.18, 0.2);
+        Assert.True(returning.Zoom > view.Zoom);
+        Assert.True(returning.CenterX > view.CenterX);
+    }
+
+    [Fact]
+    [Capability("VID-07")]
     public void TheNavigatorSitsSmallInTheTopLeftAtThePicturesShape()
     {
         // A wide window: a fifth of its width, as wide as the picture is.

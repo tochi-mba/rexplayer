@@ -74,7 +74,7 @@ public sealed partial class MainWindow
         SubjectSelectButton.Content = "Select again";
         SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
-        SubjectStatusText.Text = "Drag a rectangle around the object or body part. Tracking follows visible texture; use Select again if it loses the target.";
+        SubjectStatusText.Text = "Drag around a distinctive texture or clothing detail. If it disappears, auto-follow widens the view and keeps looking for the original pattern.";
         _subjectTimer?.Start();
         Stage.Focus(FocusState.Programmatic);
     }
@@ -377,7 +377,7 @@ public sealed partial class MainWindow
                 SubjectStatusText.Text = snapshot.Status;
                 SubjectConfidenceText.Text = snapshot.Tracking
                     ? $"Match confidence {snapshot.Confidence:P0}" + (SubjectShowBox.IsOn ? "" : " · Outline hidden")
-                    : snapshot.Locked ? "Looking for target · Original picture shown" : "Waiting for selection";
+                    : snapshot.Locked ? "Searching original pattern · Wide view" : "Waiting for selection";
                 SubjectEraseButton.IsEnabled = snapshot.Tracking;
                 if (!snapshot.Tracking)
                 {
@@ -392,6 +392,19 @@ public sealed partial class MainWindow
                 }
 
                 var (source, _, _) = VideoGeometry.Shape(video.Width, video.Height, video.PixelAspect, _aspect.Ratio, _crop.Ratio);
+                // Keep the original identity search running on the decoded picture.
+                // A lost lock changes only framing: never clear the selection or its template.
+                if (!snapshot.Tracking && snapshot.Locked && SubjectFollow.IsOn && _subjectAutoFollowing)
+                {
+                    var wider = _view.Reveal();
+                    if (Math.Abs(wider.Zoom - _view.Zoom) > 0.0008 ||
+                        Math.Abs(wider.CenterX - _view.CenterX) > 0.0008 ||
+                        Math.Abs(wider.CenterY - _view.CenterY) > 0.0008)
+                    {
+                        SetView(wider, fromSubject: true);
+                    }
+                }
+
                 if (snapshot.Tracking && SubjectFollow.IsOn)
                 {
                     var sourceWidth = Math.Max(0.000001f, source.Right - source.Left);
