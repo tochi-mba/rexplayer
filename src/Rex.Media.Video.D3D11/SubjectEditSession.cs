@@ -140,28 +140,50 @@ public sealed class SubjectEditSession
         }
         else if (Tracking)
         {
+            // Search a coarse motion window first, then refine to individual pixels. The
+            // previous fixed 9-pixel search lost fast-moving accessories even at 1080p.
+            // The bounded window keeps the work deterministic on low-end WARP machines.
+            var radius = Math.Clamp((int)Math.Round(Math.Min(
+                frame.Width * Region.Width, frame.Height * Region.Height) * 0.9), 12, 64);
+            var coarse = Math.Max(1, radius / 8);
             var best = double.MaxValue;
             var bestDx = 0;
             var bestDy = 0;
-            var step = Math.Max(1, Math.Min(frame.Width, frame.Height) / 240);
-            var range = Math.Max(2, Math.Min(9, Math.Min(frame.Width, frame.Height) / (step * 24)));
-            for (var dy = -range; dy <= range; dy++)
+            void TryMatch(int dx, int dy)
             {
-                for (var dx = -range; dx <= range; dx++)
+                var left = Region.Left + (float)dx / frame.Width;
+                var top = Region.Top + (float)dy / frame.Height;
+                if (left < 0 || top < 0 || left + Region.Width > 1 || top + Region.Height > 1)
                 {
-                    var left = Region.Left + (float)(dx * step) / frame.Width;
-                    var top = Region.Top + (float)(dy * step) / frame.Height;
-                    if (left < 0 || top < 0 || left + Region.Width > 1 || top + Region.Height > 1)
-                    {
-                        continue;
-                    }
+                    return;
+                }
 
-                    var distance = Distance(frame, left, top, Region.Width, Region.Height, _reference);
-                    if (distance < best)
+                var distance = Distance(frame, left, top, Region.Width, Region.Height, _reference);
+                if (distance < best)
+                {
+                    best = distance;
+                    bestDx = dx;
+                    bestDy = dy;
+                }
+            }
+
+            for (var dy = -radius; dy <= radius; dy += coarse)
+            {
+                for (var dx = -radius; dx <= radius; dx += coarse)
+                {
+                    TryMatch(dx, dy);
+                }
+            }
+
+            var roughX = bestDx;
+            var roughY = bestDy;
+            for (var dy = roughY - coarse; dy <= roughY + coarse; dy++)
+            {
+                for (var dx = roughX - coarse; dx <= roughX + coarse; dx++)
+                {
+                    if (Math.Abs(dx) <= radius && Math.Abs(dy) <= radius)
                     {
-                        best = distance;
-                        bestDx = dx * step;
-                        bestDy = dy * step;
+                        TryMatch(dx, dy);
                     }
                 }
             }
@@ -173,6 +195,22 @@ public sealed class SubjectEditSession
                 Erase = false;
                 Status = "Tracking uncertain. The selection is frozen; choose the object again.";
                 return null;
+            }
+
+            // Distant candidate matches with the same appearance are ambiguous: do not
+            // jump to a nearby identical shoe/person when the selected one is lost.
+            if ((Math.Abs(bestDx) > 2 || Math.Abs(bestDy) > 2) && best < 12)
+            {
+                var original = Distance(frame, Region.Left, Region.Top,
+                    Region.Width, Region.Height, _reference);
+                if (original < best + 2)
+                {
+                    Tracking = false;
+                    Erase = false;
+                    Confidence = 0;
+                    Status = "Similar-looking regions: select the intended subject again.";
+                    return null;
+                }
             }
 
             Region = (Region.Left + (float)bestDx / frame.Width,
