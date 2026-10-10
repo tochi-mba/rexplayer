@@ -42,6 +42,7 @@ public sealed class PlayerMemory(RexStore store)
 
     private const string ResumePrefix = "resume/";
     private const string BookmarkPrefix = "bookmarks/";
+    private const string EpisodePrefix = "episode-sections/";
     private const string RecentKey = "recent";
     private const string QueueKey = "queue";
     private const string PlaylistPrefix = "playlist/";
@@ -116,6 +117,25 @@ public sealed class PlayerMemory(RexStore store)
         }
 
         Write(key, sorted, MemoryJson.Default.ListBookmark);
+    }
+
+    /// <summary>Per-file, user-confirmed intro and credits markers; not watch history.</summary>
+    public EpisodeSections Sections(string location) =>
+        Read(EpisodePrefix + KeyFor(location), MemoryJson.Default.EpisodeSections) ?? new EpisodeSections();
+
+    /// <summary>Save section boundaries separately for each episode, even with watch history off.</summary>
+    public void SetSections(string location, EpisodeSections sections)
+    {
+        ArgumentNullException.ThrowIfNull(sections);
+        var key = EpisodePrefix + KeyFor(location);
+        if (sections == new EpisodeSections())
+        {
+            Store.Remove(key);
+        }
+        else
+        {
+            Write(key, sections, MemoryJson.Default.EpisodeSections);
+        }
     }
 
     public QuickSlot? Slot(int number) => Read(SlotKey(number), MemoryJson.Default.QuickSlot);
@@ -196,6 +216,7 @@ public sealed class PlayerMemory(RexStore store)
 
 [JsonSerializable(typeof(List<string>), TypeInfoPropertyName = "ListString")]
 [JsonSerializable(typeof(List<Bookmark>), TypeInfoPropertyName = "ListBookmark")]
+[JsonSerializable(typeof(EpisodeSections))]
 [JsonSerializable(typeof(QuickSlot))]
 [JsonSerializable(typeof(QueueSnapshot))]
 [JsonSerializable(typeof(NamedPlaylist))]
