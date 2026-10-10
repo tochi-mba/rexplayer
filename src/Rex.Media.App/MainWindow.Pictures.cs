@@ -116,16 +116,35 @@ public sealed partial class MainWindow
         }
 
         var stem = Path.GetFileNameWithoutExtension(path);
-        foreach (var name in new[]
-        {
-            stem + ".poster.jpg", stem + ".jpg", stem + ".png", stem + ".webp",
-            "poster.jpg", "poster.png", "folder.jpg", "cover.jpg",
-        })
+        foreach (var name in new[] { stem + ".poster.jpg", stem + ".jpg", stem + ".png", stem + ".webp" })
         {
             var candidate = Path.Combine(folder, name);
             if (File.Exists(candidate))
             {
                 return candidate;
+            }
+        }
+
+        var folders = new List<string> { folder };
+        var folderName = Path.GetFileName(folder);
+        if (folderName.StartsWith("Season ", StringComparison.OrdinalIgnoreCase)
+            || (folderName.Length == 3 && (folderName[0] is 's' or 'S') && char.IsAsciiDigit(folderName[1]) && char.IsAsciiDigit(folderName[2])))
+        {
+            if (Directory.GetParent(folder)?.FullName is { } showFolder)
+            {
+                folders.Add(showFolder);
+            }
+        }
+
+        foreach (var root in folders)
+        {
+            foreach (var name in new[] { "poster.jpg", "poster.png", "folder.jpg", "cover.jpg" })
+            {
+                var candidate = Path.Combine(root, name);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
             }
         }
 
