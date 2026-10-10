@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.Primitives;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
@@ -85,6 +86,26 @@ public sealed class AppWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+
+    [Fact]
+    [Capability("VID-23")]
+    public void VideoLookMenuChangesTheSavedStyleAndReturnsToOriginal()
+    {
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        var videoMenu = (ExpandCollapsePattern)app.Find("VideoMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        videoMenu.Expand();
+        var looks = (ExpandCollapsePattern)app.Find("VideoLook-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        looks.Expand();
+        app.Press("VideoLook-Monochrome");
+        Wait.For(() => app.SavedSettings.VideoLook == VideoLook.Monochrome, "the picture look to be saved");
+
+        videoMenu.Expand();
+        looks = (ExpandCollapsePattern)app.Find("VideoLook-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        looks.Expand();
+        app.Press("VideoLook-Original");
+        Wait.For(() => app.SavedSettings.VideoLook == VideoLook.Original, "Original to restore the video");
+        Assert.Equal(0, app.Close());
+    }
 
     [Fact]
     [Capability("PB-06")]
