@@ -3,6 +3,46 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.14.0 - 2026-10-10
+
+### Added
+
+- **Ghostwire contours.** A near-transparent, dark-glass rendering of the visible video frame,
+  with fine luminous cyan contours and secondary colour accents. It is an artistic image-aware
+  effect and does not reveal pixels hidden by real-world objects.
+- **Colour spotlight and Relief etch.** Colour spotlight responds to a pointed-at colour in
+  the current picture; Relief etch adds directional lighting based on visible image contrast.
+  Neither effect claims to recognize or track an object's identity.
+- **Subject Lock preview.** Select a visible region with a drag and follow its texture as it
+  moves. Bounded coarse-to-fine matching follows larger frame-to-frame motion; ambiguous or
+  lost matches stop rather than silently attaching to another subject. A visible selection,
+  tracking status, reselect and reset controls keep the original picture available.
+- **Ghost Peel removal preview.** Reconstruct the selected region from authentic background
+  pixels exposed elsewhere in the played footage when the camera is sufficiently steady.
+  Where a region is never exposed, use a four-sided background-colour estimate, with
+  adjustable feathering and colour tolerance. Preview, show original and reset do not
+  change the video file.
+
+### Improved
+
+- **Resume after an in-app update.** One-time recovery restores the ordered playlist, selected
+  item, position, playing or paused state, speed, open library source and search, and window
+  display choices including fullscreen, crop, aspect and zoom. Recovery checks the installed
+  target version; explicit newly opened media takes precedence, and stale update hand-offs
+  are discarded.
+- **Performance and quality checks.** The selected-region path avoids an extra full-frame
+  copy. Regression tests exercise GPU rendering and reset, visible-frame tracking, lost
+  targets, seeking, rough selections, inferred fill, and the real Subject Lock controls.
+
+### Limitations
+
+- Subject Lock uses local visible-texture matching and a rectangular, colour-refined mask:
+  it is not a semantic person, limb or garment segmentation system, and difficult
+  occlusions, camera changes and similar objects can cause tracking to stop.
+- Ghost Peel is a **non-destructive preview**, not an editor that exports modified video.
+  Unseen regions are only plausible background estimates; they cannot reveal authentic
+  surfaces or anatomy that the footage never captured.
+
 ## 0.13.1 - 2026-10-10
 
 ### Fixed
