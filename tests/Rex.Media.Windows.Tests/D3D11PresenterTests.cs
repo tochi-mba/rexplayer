@@ -130,6 +130,72 @@ public sealed class D3D11PresenterTests
         Assert.Equal(0, MaxDifference(original, reset));
     }
 
+    [Theory]
+    [InlineData(VideoEffect.PrismFlow)]
+    [InlineData(VideoEffect.NeonEdges)]
+    [InlineData(VideoEffect.PixelDrift)]
+    [InlineData(VideoEffect.Kaleidoscope)]
+    public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
+    {
+        using var picture = DecodedPicture();
+        picture.Pts = MediaTime.FromSeconds(1.5);
+        using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
+        presenter.Present(picture);
+        using var original = presenter.ReadBack();
+
+        presenter.SetEffect(effect, 100);
+        presenter.Redraw();
+        using var altered = presenter.ReadBack();
+        Assert.True(MaxDifference(original, altered) > 2, $"{effect} did not change picture geometry or detail");
+
+        presenter.SetEffect(effect, 0);
+        presenter.Redraw();
+        using var zeroIntensity = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, zeroIntensity));
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var off = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, off));
+
+        presenter.SetEffect((VideoEffect)999, 100);
+        presenter.Redraw();
+        using var invalid = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, invalid));
+    }
+
+    [Fact]
+    public void SpatialEffectsAlsoWorkOnBgraAndRespondToPlaybackTime()
+    {
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 64, 64);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                row[(x * 4)] = (byte)(x * 4);
+                row[(x * 4) + 1] = (byte)(y * 4);
+                row[(x * 4) + 2] = (byte)(Math.Abs(x - y) * 4);
+                row[(x * 4) + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(64, 64);
+        presenter.SetEffect(VideoEffect.PrismFlow, 100);
+        picture.Pts = MediaTime.FromSeconds(1);
+        presenter.Present(picture);
+        using var first = presenter.ReadBack();
+        picture.Pts = MediaTime.FromSeconds(2.5);
+        presenter.Present(picture);
+        using var second = presenter.ReadBack();
+        Assert.True(MaxDifference(first, second) > 2, "Prism flow should follow video time");
+
+        presenter.SetEffect(VideoEffect.Off, 65);
+        presenter.Redraw();
+        using var restored = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(restored, picture));
+    }
+
     [Fact]
     public void APictureIsLetterboxedToItsDisplayAspect()
     {
