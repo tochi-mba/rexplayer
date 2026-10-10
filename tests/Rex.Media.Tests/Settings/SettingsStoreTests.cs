@@ -56,7 +56,7 @@ public sealed class SettingsStoreTests : IDisposable
         var loaded = SettingsStore.Load(File);
 
         // Lists compare by reference in a record, so they are compared by content apart.
-        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews }, loaded);
+        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, VideoStyleValues = loaded.VideoStyleValues }, loaded);
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
         Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
         Assert.Equal(saved.LibraryViews, loaded.LibraryViews);
