@@ -3,6 +3,8 @@ using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Updates;
+using Rex.Media.Engine;
+using Rex.Media.Video;
 
 namespace Rex.Media.App;
 
@@ -10,6 +12,7 @@ public sealed partial class MainWindow
 {
     private static readonly string ResumePath = Path.Combine(App.DataRoot, "resume.json");
     private bool _installingUpdate;
+    private UpdateWindowState? _pendingUpdateWindowState;
 
     /// <summary>
     /// Offers, in the banner at the foot of the picture, to carry on where a run that did not close
@@ -174,7 +177,9 @@ public sealed partial class MainWindow
             // close; if starting it fails, remove the hand-off and leave the window open.
             _player.SaveForUpdate(_librarySource.ToString(), LibraryOpen, LibrarySearch.Text,
                 _libraryGroup?.Name, _libraryGroup?.Detail, _librarySeason?.Name,
-                PlaylistPane.Visibility == Microsoft.UI.Xaml.Visibility.Visible);
+                PlaylistPane.Visibility == Microsoft.UI.Xaml.Visibility.Visible,
+                new UpdateWindowState(_aspect.Name, _crop.Name, _view.Zoom,
+                    _view.CenterX, _view.CenterY, IsFullScreen, _showRemaining));
             handoffSaved = true;
             var updater = Path.Combine(AppContext.BaseDirectory, "rexupdate.exe");
             var stagedUpdater = Path.Combine(folder, "rexupdate.exe");
@@ -290,9 +295,50 @@ public sealed partial class MainWindow
             SetLibraryOpen(true);
         }
 
+        _pendingUpdateWindowState = saved.WindowState;
+        if (saved.WindowState is { } display)
+        {
+            _showRemaining = display.ShowRemaining;
+            SetFullScreen(display.FullScreen);
+            RestoreUpdatedPictureView();
+        }
+
         ShowPlaylist();
+        ShowPosition();
         Say("Back where you left off after the update.");
         return true;
+    }
+
+    /// <summary>
+    /// Apply restored picture geometry when the decoded stream supplies its dimensions.
+    /// Opening is asynchronous, so applying zoom immediately after the upgrade would erase it:
+    /// HasVideo is still false at that point. An item that cannot open drops stale geometry.
+    /// </summary>
+    private void RestoreUpdatedPictureView()
+    {
+        if (_pendingUpdateWindowState is not { } saved)
+        {
+            return;
+        }
+
+        if (_player.State is SessionState.Faulted or SessionState.Ended)
+        {
+            _pendingUpdateWindowState = null;
+            return;
+        }
+
+        if (!HasVideo)
+        {
+            return;
+        }
+
+        _pendingUpdateWindowState = null;
+        _aspect = VideoGeometry.AspectRatios.FirstOrDefault(preset => preset.Name == saved.Aspect)
+            ?? VideoGeometry.AspectRatios[0];
+        _crop = VideoGeometry.Crops.FirstOrDefault(preset => preset.Name == saved.Crop)
+            ?? VideoGeometry.Crops[0];
+        ApplyShape();
+        SetView(new PictureView(saved.Zoom, saved.CenterX, saved.CenterY));
     }
 
     /// <summary>What happens once the window is up: restore an upgrade, or offer crash recovery, then check for updates.</summary>
