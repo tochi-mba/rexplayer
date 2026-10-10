@@ -123,12 +123,71 @@ public sealed partial class MainWindow
 
             var sub = new MenuFlyoutSubItem { Text = title };
             Fill(sub.Items, commands, "Context-");
+            if (title == "Video")
+            {
+                AddPictureLooks(sub.Items, "ContextVideoLook-");
+            }
+
             context.Items.Add(sub);
         }
 
         Stage.ContextFlyout = context;
+        AddPictureLooks(Menu.Items.First(item => item.Title == "Video").Items, "VideoLook-");
         BuildMemoryMenus();
         BuildNamedPlaylistMenus();
+    }
+
+    private readonly List<(RadioMenuFlyoutItem Item, VideoLook Look)> _videoLookItems = [];
+
+    /// <summary>One-tap, accessible GPU picture looks from the Video and picture context menus.</summary>
+    private void AddPictureLooks(IList<MenuFlyoutItemBase> items, string prefix)
+    {
+        var looks = new MenuFlyoutSubItem { Text = "Picture look" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(looks, prefix + "Menu");
+        foreach (var look in Enum.GetValues<VideoLook>())
+        {
+            var name = VideoLooks.Name(look);
+            var item = new RadioMenuFlyoutItem
+            {
+                Text = name,
+                GroupName = prefix + "PictureLook",
+                IsChecked = look == _settings.VideoLook,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + look);
+            item.Click += (_, _) => ChooseVideoLook(look);
+            _videoLookItems.Add((item, look));
+            looks.Items.Add(item);
+        }
+
+        items.Add(new MenuFlyoutSeparator());
+        items.Add(looks);
+    }
+
+    /// <summary>Changes the renderer live and redraws the current picture when paused.</summary>
+    private void ApplyVideoLook(VideoLook look)
+    {
+        foreach (var (item, selected) in _videoLookItems)
+        {
+            item.IsChecked = selected == look;
+        }
+
+        var redraw = !_player.IsPlaying;
+        OnPresenterThread(presenter =>
+        {
+            presenter.SetLook(look);
+            if (redraw)
+            {
+                presenter.Redraw();
+            }
+        });
+    }
+
+    private void ChooseVideoLook(VideoLook look)
+    {
+        _settings = _settings with { VideoLook = look };
+        RememberLater();
+        ApplyVideoLook(look);
+        Say("Picture look: " + VideoLooks.Name(look));
     }
 
     private void Fill(IList<MenuFlyoutItemBase> items, string?[] commands, string prefix)
