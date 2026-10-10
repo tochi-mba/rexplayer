@@ -194,7 +194,7 @@ public sealed partial class MainWindow
             var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
             using var stream = await file.OpenReadAsync().AsTask(token);
             var image = new BitmapImage { DecodePixelWidth = 320 };
-            await image.SetSourceAsync(stream);
+            await image.SetSourceAsync(stream).AsTask(token);
             token.ThrowIfCancellationRequested();
             return image;
         }
@@ -245,7 +245,7 @@ public sealed partial class MainWindow
         }
 
         var image = new BitmapImage();
-        await image.SetSourceAsync(thumbnail);
+        await image.SetSourceAsync(thumbnail).AsTask(token);
         return image;
     }
 
@@ -328,14 +328,14 @@ public sealed partial class MainWindow
         using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
         {
             writer.WriteBytes(bytes);
-            await writer.StoreAsync();
+            await writer.StoreAsync().AsTask(token);
             writer.DetachStream();
         }
 
         token.ThrowIfCancellationRequested();
         stream.Seek(0);
         var image = new BitmapImage { DecodePixelWidth = 320 };
-        await image.SetSourceAsync(stream);
+        await image.SetSourceAsync(stream).AsTask(token);
         return image;
     }
 
