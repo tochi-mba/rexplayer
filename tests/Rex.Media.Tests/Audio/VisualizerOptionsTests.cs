@@ -216,6 +216,117 @@ public sealed class VisualizerOptionsTests
         Assert.All(tracker.Mask, p => Assert.Equal((byte)0, p));
     }
 
+    /// <summary>Filled BGRA frame used to prove colour-based foreground segmentation.</summary>
+    private static byte[] CameraFrame(int width, int height, byte b, byte g, byte r)
+    {
+        var data = new byte[width * height * 4];
+        for (var i = 0; i < data.Length; i += 4)
+        {
+            (data[i], data[i + 1], data[i + 2], data[i + 3]) = (b, g, r, 255);
+        }
+
+        return data;
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void SameBrightnessDifferentColourIsStillRecognizedAsForeground()
+    {
+        const int Width = 32, Height = 24;
+        var tracker = new SilhouetteMask(Width, Height);
+        // The red/blue subject has almost exactly the same measured luma as the room.
+        var room = CameraFrame(Width * 2, Height * 2, 58, 58, 58);
+        for (var i = 0; i < SilhouetteMask.LearningPictures; i++)
+        {
+            Assert.Equal(0, tracker.UpdateColour(room, Width * 2, Height * 2, 0.09, mirror: false));
+        }
+
+        var person = (byte[])room.Clone();
+        for (var y = 7; y < 41; y++)
+        {
+            for (var x = 20; x < 44; x++)
+            {
+                var at = (y * Width * 2 + x) * 4;
+                (person[at], person[at + 1], person[at + 2]) = (200, 50, 20);
+            }
+        }
+
+        Assert.InRange(tracker.UpdateColour(person, Width * 2, Height * 2, 0.09, mirror: false), 0.1, 0.45);
+        Assert.Equal(255, tracker.Mask[12 * Width + 15]);
+        Assert.Equal(0, tracker.Mask[12 * Width + 2]);
+
+        // An exposure change is global, not a silhouette. Colour differences stay stable.
+        var brighter = CameraFrame(Width * 2, Height * 2, 88, 88, 88);
+        Assert.Equal(0, tracker.UpdateColour(brighter, Width * 2, Height * 2, 0.09, mirror: false));
+        Assert.All(tracker.Mask, pixel => Assert.Equal((byte)0, pixel));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void MirroringRecalibrationAndMaskHysteresisKeepASilhouetteUsable()
+    {
+        const int Width = 32, Height = 24;
+        var tracker = new SilhouetteMask(Width, Height);
+        var room = CameraFrame(Width, Height, 60, 60, 60);
+        for (var i = 0; i < SilhouetteMask.LearningPictures; i++)
+        {
+            tracker.UpdateColour(room, Width, Height, 0.09, mirror: true);
+        }
+
+        var person = (byte[])room.Clone();
+        for (var y = 5; y < 19; y++)
+        {
+            for (var x = 3; x < 13; x++)
+            {
+                var at = (y * Width + x) * 4;
+                (person[at], person[at + 1], person[at + 2]) = (200, 50, 20);
+            }
+        }
+
+        tracker.UpdateColour(person, Width, Height, 0.09, mirror: true);
+        Assert.Equal(255, tracker.Mask[10 * Width + 23]);
+        Assert.Equal(0, tracker.Mask[10 * Width + 8]);
+
+        var weak = (byte[])room.Clone();
+        for (var y = 5; y < 19; y++)
+        {
+            for (var x = 3; x < 13; x++)
+            {
+                var at = (y * Width + x) * 4;
+                (weak[at], weak[at + 1], weak[at + 2]) = (80, 80, 80);
+            }
+        }
+
+        tracker.UpdateColour(weak, Width, Height, 0.09, mirror: true);
+        Assert.Equal(255, tracker.Mask[10 * Width + 23]); // retained at the lower edge threshold
+        tracker.UpdateColour(room, Width, Height, 0.09, mirror: true);
+        Assert.Equal(0, tracker.Mask[10 * Width + 23]); // no permanently burned-in person
+
+        tracker.Reset();
+        Assert.True(tracker.IsLearning);
+        Assert.All(tracker.Mask, pixel => Assert.Equal((byte)0, pixel));
+        for (var i = 0; i < SilhouetteMask.LearningPictures; i++)
+        {
+            tracker.UpdateColour(room, Width, Height, 0.09, mirror: false);
+        }
+
+        tracker.UpdateColour(person, Width, Height, 0.09, mirror: false);
+        Assert.Equal(255, tracker.Mask[10 * Width + 8]);
+        Assert.Equal(0, tracker.Mask[10 * Width + 23]);
+    }
+
+    [Fact]
+    public void ColourCameraFrameRequiresDimensionsAndCompletePixels()
+    {
+        var tracker = new SilhouetteMask(8, 8);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            tracker.UpdateColour(new byte[64], 0, 8, 0.1, mirror: false));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            tracker.UpdateColour(new byte[64], 8, 0, 0.1, mirror: false));
+        Assert.Throws<ArgumentException>(() =>
+            tracker.UpdateColour(new byte[10], 8, 8, 0.1, mirror: false));
+    }
+
     [Fact]
     public void CameraPicturesAreShrunkToTheirBrightnessAndMirrored()
     {
