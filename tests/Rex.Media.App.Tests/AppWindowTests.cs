@@ -129,6 +129,31 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    public void SubjectLockControlsAreIndependentOfPictureEffectsAndCanCloseCleanly()
+    {
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        Wait.For(() => !app.IsShown("VideoBlank"), "the video to be visible");
+
+        var videoMenu = (ExpandCollapsePattern)app.Find("VideoMenu")
+            .GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        videoMenu.Expand();
+        app.Press("VideoSubjectLock");
+        Wait.For(() => app.IsShown("SubjectToolbar"), "Subject Lock tools to open");
+        Assert.Contains("Drag", app.Text("SubjectStatusText"), StringComparison.Ordinal);
+        Assert.Equal(3.0, ((RangeValuePattern)app.Find("SubjectFeather")
+            .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
+        Assert.Equal(50.0, ((RangeValuePattern)app.Find("SubjectTolerance")
+            .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
+        Assert.Equal(VideoEffect.Off, app.SavedSettings.VideoEffect);
+
+        app.Press("SubjectReset");
+        Assert.True(app.IsShown("SubjectToolbar"));
+        app.Press("SubjectClose");
+        Wait.For(() => !app.IsShown("SubjectToolbar"), "the selection tools to close");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("PB-06")]
     public void PlaybackSpeedCanBeSlowedRaisedAndRestoredFromItsControl()
     {

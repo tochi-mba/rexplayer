@@ -40,6 +40,19 @@ public sealed class SubjectEditSession
     /// <summary>How many pixels of the erased preview were estimated rather than previously observed.</summary>
     public int EstimatedPixels { get; private set; }
 
+    /// <summary>Soft-edge width in pixels, adjustable without modifying the selected media.</summary>
+    public int Feather { get; private set; } = 3;
+
+    /// <summary>How broadly the foreground's colours are included, from 0 to 100.</summary>
+    public int MaskTolerance { get; private set; } = 50;
+
+    /// <summary>Live, bounded mask adjustments; preview and original frames remain independent.</summary>
+    public void Refine(int feather, int tolerance)
+    {
+        Feather = Math.Clamp(feather, 0, 12);
+        MaskTolerance = Math.Clamp(tolerance, 0, 100);
+    }
+
     /// <summary>Choose a bounded patch in the decoded video, independent of the viewport and crop.</summary>
     public void Select(float left, float top, float width, float height)
     {
@@ -140,28 +153,50 @@ public sealed class SubjectEditSession
         }
         else if (Tracking)
         {
+            // Search a coarse motion window first, then refine to individual pixels. The
+            // previous fixed 9-pixel search lost fast-moving accessories even at 1080p.
+            // The bounded window keeps the work deterministic on low-end WARP machines.
+            var radius = Math.Clamp((int)Math.Round(Math.Min(
+                frame.Width * Region.Width, frame.Height * Region.Height) * 0.9), 12, 64);
+            var coarse = Math.Max(1, radius / 8);
             var best = double.MaxValue;
             var bestDx = 0;
             var bestDy = 0;
-            var step = Math.Max(1, Math.Min(frame.Width, frame.Height) / 240);
-            var range = Math.Max(2, Math.Min(9, Math.Min(frame.Width, frame.Height) / (step * 24)));
-            for (var dy = -range; dy <= range; dy++)
+            void TryMatch(int dx, int dy)
             {
-                for (var dx = -range; dx <= range; dx++)
+                var left = Region.Left + (float)dx / frame.Width;
+                var top = Region.Top + (float)dy / frame.Height;
+                if (left < 0 || top < 0 || left + Region.Width > 1 || top + Region.Height > 1)
                 {
-                    var left = Region.Left + (float)(dx * step) / frame.Width;
-                    var top = Region.Top + (float)(dy * step) / frame.Height;
-                    if (left < 0 || top < 0 || left + Region.Width > 1 || top + Region.Height > 1)
-                    {
-                        continue;
-                    }
+                    return;
+                }
 
-                    var distance = Distance(frame, left, top, Region.Width, Region.Height, _reference);
-                    if (distance < best)
+                var distance = Distance(frame, left, top, Region.Width, Region.Height, _reference);
+                if (distance < best)
+                {
+                    best = distance;
+                    bestDx = dx;
+                    bestDy = dy;
+                }
+            }
+
+            for (var dy = -radius; dy <= radius; dy += coarse)
+            {
+                for (var dx = -radius; dx <= radius; dx += coarse)
+                {
+                    TryMatch(dx, dy);
+                }
+            }
+
+            var roughX = bestDx;
+            var roughY = bestDy;
+            for (var dy = roughY - coarse; dy <= roughY + coarse; dy++)
+            {
+                for (var dx = roughX - coarse; dx <= roughX + coarse; dx++)
+                {
+                    if (Math.Abs(dx) <= radius && Math.Abs(dy) <= radius)
                     {
-                        best = distance;
-                        bestDx = dx * step;
-                        bestDy = dy * step;
+                        TryMatch(dx, dy);
                     }
                 }
             }
@@ -173,6 +208,22 @@ public sealed class SubjectEditSession
                 Erase = false;
                 Status = "Tracking uncertain. The selection is frozen; choose the object again.";
                 return null;
+            }
+
+            // Distant candidate matches with the same appearance are ambiguous: do not
+            // jump to a nearby identical shoe/person when the selected one is lost.
+            if ((Math.Abs(bestDx) > 2 || Math.Abs(bestDy) > 2) && best < 12)
+            {
+                var original = Distance(frame, Region.Left, Region.Top,
+                    Region.Width, Region.Height, _reference);
+                if (original < best + 2)
+                {
+                    Tracking = false;
+                    Erase = false;
+                    Confidence = 0;
+                    Status = "Similar-looking regions: select the intended subject again.";
+                    return null;
+                }
             }
 
             Region = (Region.Left + (float)bestDx / frame.Width,
@@ -233,6 +284,11 @@ public sealed class SubjectEditSession
 
         var output = ColorConverter.ToBgra(frame);
         EstimatedPixels = 0;
+        // A roughly chosen rectangle should not automatically erase pixels resembling the
+        // surrounding backdrop. This colour-aware soft mask is deliberately conservative,
+        // not a semantic segmentation or a reconstruction of obscured anatomy.
+        var (foreground, background, difference) = CompareSubjectWithBorder(frame, box);
+        var edited = 0;
         for (var y = box.Top; y < box.Bottom; y++)
         {
             var row = output.Row(0, y);
@@ -240,37 +296,137 @@ public sealed class SubjectEditSession
             {
                 var at = y * frame.Width + x;
                 var p = x * 4;
-                if (_known[at] != 0)
+                var edge = Math.Min(Math.Min(x - box.Left, box.Right - x - 1),
+                    Math.Min(y - box.Top, box.Bottom - y - 1));
+                var alpha = Feather == 0 ? 1.0 : Math.Min(1.0, (edge + 1) / (double)Feather);
+                if (difference > 60)
                 {
-                    for (var c = 0; c < 3; c++)
-                    {
-                        row[p + c] = _clean[at * 4 + c];
-                    }
-                }
-                else
-                {
-                    // An entirely unseen patch is an *estimate*, never a recovered pixel:
-                    // interpolate nearby observed surface colours with bounded image coordinates.
-                    EstimatedPixels++;
-                    var a = Math.Max(0, box.Left - 1);
-                    var b = Math.Min(frame.Width - 1, box.Right);
-                    var alpha = box.Right == box.Left ? 0.5 : (double)(x - box.Left + 1) / (box.Right - box.Left + 1);
-                    for (var c = 0; c < 3; c++)
-                    {
-                        var first = row[a * 4 + c];
-                        var last = row[b * 4 + c];
-                        row[p + c] = (byte)Math.Clamp(Math.Round(first * (1 - alpha) + last * alpha), 0, 255);
-                    }
+                    var foregroundDistance = ColourDistance(row, p, foreground);
+                    var backgroundDistance = ColourDistance(row, p, background);
+                    alpha *= Math.Clamp((backgroundDistance - foregroundDistance + MaskTolerance) / 100.0, 0, 1);
                 }
 
-                row[p + 3] = 255;
+                if (alpha < 0.01)
+                {
+                    continue;
+                }
+
+                edited++;
+                var observed = _known[at] != 0;
+                if (!observed)
+                {
+                    EstimatedPixels++;
+                }
+
+                for (var c = 0; c < 3; c++)
+                {
+                    var restored = observed ? _clean[at * 4 + c]
+                        : EstimateFromBorders(frame, box, x, y, c);
+                    row[p + c] = (byte)Math.Clamp(Math.Round(
+                        row[p + c] * (1 - alpha) + restored * alpha), 0, 255);
+                }
             }
         }
 
-        Status = EstimatedPixels > 0
-            ? "Estimated fill: parts of the hidden area were never observed. Preview only."
-            : "Observed fill: using pixels revealed in other frames. Preview only.";
+        Status = edited == 0
+            ? "Selected region blends into its surroundings. Refine the selection; original is shown."
+            : EstimatedPixels > 0
+                ? "Estimated fill: some hidden pixels were never seen in the video. Preview only."
+                : "Observed fill: using background pixels seen in other frames. Preview only.";
         return output;
+    }
+
+    /// <summary>
+    /// Local foreground/background colour estimate for a user-defined rectangle. Sampling just
+    /// outside its border avoids classifying a loose rectangular selection as an entire object.
+    /// A weak colour separation leaves the user's rectangle intact instead of inventing a mask.
+    /// </summary>
+    private static ((int B, int G, int R) Foreground, (int B, int G, int R) Background, int Difference)
+        CompareSubjectWithBorder(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box)
+    {
+        var cx = (box.Left + box.Right) / 2;
+        var cy = (box.Top + box.Bottom) / 2;
+        var center = frame.Row(0, Math.Min(frame.Height - 1, cy));
+        var foreground = (B: (int)center[Math.Min(frame.Width - 1, cx) * 4],
+            G: (int)center[Math.Min(frame.Width - 1, cx) * 4 + 1],
+            R: (int)center[Math.Min(frame.Width - 1, cx) * 4 + 2]);
+        var b = 0;
+        var g = 0;
+        var r = 0;
+        var count = 0;
+        void Add(int x, int y)
+        {
+            if ((uint)x >= (uint)frame.Width || (uint)y >= (uint)frame.Height)
+            {
+                return;
+            }
+
+            var row = frame.Row(0, y);
+            var index = x * 4;
+            b += row[index];
+            g += row[index + 1];
+            r += row[index + 2];
+            count++;
+        }
+
+        Add(box.Left - 1, cy);
+        Add(box.Right, cy);
+        Add(cx, box.Top - 1);
+        Add(cx, box.Bottom);
+        var background = count > 0
+            ? (B: b / count, G: g / count, R: r / count)
+            : foreground;
+        var difference = Math.Abs(foreground.B - background.B)
+            + Math.Abs(foreground.G - background.G)
+            + Math.Abs(foreground.R - background.R);
+        return (foreground, background, difference);
+    }
+
+    private static int ColourDistance(ReadOnlySpan<byte> row, int index, (int B, int G, int R) colour) =>
+        Math.Abs(row[index] - colour.B) + Math.Abs(row[index + 1] - colour.G)
+        + Math.Abs(row[index + 2] - colour.R);
+
+    /// <summary>
+    /// Smooth four-sided boundary interpolation for a never-observed area. This is a plausible
+    /// flat-surface estimate, *not* inference of the actual physically hidden object. It uses
+    /// only original pixels outside the selected area, including selections touching an edge.
+    /// </summary>
+    private static double EstimateFromBorders(VideoFrame frame,
+        (int Left, int Top, int Right, int Bottom) box, int x, int y, int channel)
+    {
+        double total = 0;
+        double weight = 0;
+        var width = box.Right - box.Left + 1;
+        var height = box.Bottom - box.Top + 1;
+        if (box.Left > 0)
+        {
+            var w = (double)(box.Right - x) / width;
+            total += w * frame.Row(0, y)[(box.Left - 1) * 4 + channel];
+            weight += w;
+        }
+
+        if (box.Right < frame.Width)
+        {
+            var w = (double)(x - box.Left + 1) / width;
+            total += w * frame.Row(0, y)[box.Right * 4 + channel];
+            weight += w;
+        }
+
+        if (box.Top > 0)
+        {
+            var w = (double)(box.Bottom - y) / height;
+            total += w * frame.Row(0, box.Top - 1)[x * 4 + channel];
+            weight += w;
+        }
+
+        if (box.Bottom < frame.Height)
+        {
+            var w = (double)(y - box.Top + 1) / height;
+            total += w * frame.Row(0, box.Bottom)[x * 4 + channel];
+            weight += w;
+        }
+
+        return weight > 0 ? total / weight : frame.Row(0, y)[x * 4 + channel];
     }
 
     private (int Left, int Top, int Right, int Bottom) Bounds(int width, int height) =>

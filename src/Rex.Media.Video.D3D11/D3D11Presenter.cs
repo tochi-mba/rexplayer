@@ -159,6 +159,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
+    /// <summary>Refine soft-mask boundaries while keeping the source frame untouched.</summary>
+    public void RefineSubject(int feather, int tolerance)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.Refine(feather, tolerance);
+        }
+    }
+
     /// <summary>Return to the unmodified picture and clear tracking and observed samples.</summary>
     public void ClearSubject()
     {
@@ -272,11 +281,13 @@ public sealed class D3D11Presenter : IVideoPresenter
                 return;
             }
 
-            using var original = frame.Surface is D3D11Surface gpu
+            // Keep the sole CPU copy as the paused-frame original. Another deep copy here
+            // doubled memory traffic on 4K hardware surfaces even when erasure was off.
+            var original = frame.Surface is D3D11Surface gpu
                 ? ReadGpuFrame(frame, gpu)
                 : ColorConverter.ToBgra(frame);
             _originalForEditing?.Dispose();
-            _originalForEditing = ColorConverter.ToBgra(original);
+            _originalForEditing = original;
             using var edited = _subjectEdit.Process(original);
             Show(edited ?? frame);
         }
