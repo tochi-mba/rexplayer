@@ -184,9 +184,9 @@ public sealed class VisualStageTests
         foreach (var style in Enumerable.Range(0, 5))
         {
             var styled = VisualizerOptions.With(Defaults, VisualizerChoice.BeatEdit, "style", style);
-            var stage = Stage(64, 36);
-            Assert.NotEmpty(Play(stage, VisualizerChoice.BeatEdit, new SyntheticMusic(128, 9, quietFrom: 3, quietUntil: 6.2), styled));
-            Assert.InRange(Assert.IsType<BeatEditScene>(SceneOf(stage)).Grade, 0, 6);
+            var styledStage = Stage(64, 36);
+            Assert.NotEmpty(Play(styledStage, VisualizerChoice.BeatEdit, new SyntheticMusic(128, 9, quietFrom: 3, quietUntil: 6.2), styled));
+            Assert.InRange(Assert.IsType<BeatEditScene>(SceneOf(styledStage)).Grade, 0, 6);
         }
 
         Assert.True(frames.Count > 0);
