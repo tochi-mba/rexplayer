@@ -279,7 +279,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 float similarity = 1 - smoothstep(0.07 / max(pointer.w, 0.25),
                     0.38 / max(pointer.w, 0.25), deviation);
                 float grey = dot(colour, float3(0.2126, 0.7152, 0.0722));
-                float3 muted = lerp(colour, grey.xxx * 0.7, 0.82 * effect.y);
+                float3 muted = lerp(colour, float3(grey, grey, grey) * 0.7, 0.82 * effect.y);
                 float3 vivid = saturate(colour * (1 + effect.y * 0.24)
                     + similarity * effect.y * float3(0.03, 0.11, 0.17));
                 colour = lerp(muted, vivid, similarity);
