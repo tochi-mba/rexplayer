@@ -266,6 +266,31 @@ public sealed class MemoryControllerTests
     }
 
     [Fact]
+    public void AnUpgradeMarkerOnlyRestoresIntoItsVerifiedTargetVersion()
+    {
+        var store = RexStore.InMemory();
+        using var before = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        before.Controller.Open(["a.wav"]);
+        before.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "a.wav");
+        before.Controller.Seek(TimeSpan.FromSeconds(14));
+        before.Controller.SaveForUpdate("Home", false, "", null, null, null, false,
+            targetVersion: "0.14.0");
+
+        Assert.Equal("0.14.0", before.Controller.Memory.Updating!.TargetVersion);
+        Assert.Null(before.Controller.RestoreAfterUpdate("0.13.1"));
+        Assert.Null(before.Controller.Memory.Updating);
+        Assert.Equal(TimeSpan.FromSeconds(14), before.Controller.Position);
+
+        before.Controller.SaveForUpdate("Home", false, "", null, null, null, false,
+            targetVersion: "0.14.0");
+        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        Assert.NotNull(after.Controller.RestoreAfterUpdate("0.14.0"));
+        after.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "a.wav");
+        Assert.Equal(TimeSpan.FromSeconds(14), after.Controller.Position);
+        Assert.Null(after.Controller.Memory.Updating);
+    }
+
+    [Fact]
     public void AnExpiredOrMalformedUpgradeSessionCannotStartPlayback()
     {
         var store = RexStore.InMemory();
