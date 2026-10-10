@@ -401,6 +401,13 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _hasPrevious = true;
     }
 
+    /// <summary>Clears the current target without redisplaying a previously uploaded video texture.</summary>
+    public void ClearFrame()
+    {
+        var view = _targetView ?? throw new InvalidOperationException("There is no target to clear.");
+        _context.ClearRenderTargetView(view, [0, 0, 0, 1]);
+    }
+
     /// <summary>
     /// Clears to black and draws the last uploaded picture into a rectangle of the target. The colour
     /// matrix is three rows of four: red, green and blue from the samples as the textures hold them and

@@ -757,14 +757,25 @@ public sealed class D3D11PresenterTests
     [Fact]
     public void ClearingForSoundForgetsTheLastPictureAndDrawsBlack()
     {
-        using var picture = DecodedPicture();
-        using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
+        // A generated BGRA frame keeps this regression independent of Media Foundation
+        // decoder availability on Windows CI runners.
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 16, 16);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            picture.Row(0, y).Fill(255);
+        }
 
+        using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
         presenter.Present(picture);
+        using var shown = presenter.ReadBack();
+        Assert.All(shown.Row(0, 8).ToArray().Where((_, i) => i % 4 != 3), value => Assert.Equal(255, value));
+
         presenter.Clear();
         using var cleared = presenter.ReadBack();
-
         Assert.All(cleared.Plane(0).ToArray().Where((_, i) => i % 4 != 3), value => Assert.Equal(0, value));
+        presenter.Redraw();
+        using var stillCleared = presenter.ReadBack();
+        Assert.All(stillCleared.Plane(0).ToArray().Where((_, i) => i % 4 != 3), value => Assert.Equal(0, value));
     }
 
     [Theory]
