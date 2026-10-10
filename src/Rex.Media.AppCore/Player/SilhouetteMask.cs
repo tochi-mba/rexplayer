@@ -3,7 +3,7 @@ namespace Rex.Media.AppCore.Player;
 /// <summary>
 /// Estimates foreground in a fixed camera for the silhouette visualisation (AU-18), without
 /// claiming semantic person recognition. Learns an empty-room reference, compensates for uniform
-/// lighting changes, closes small holes and removes disconnected sensor-noise islands. Connected
+/// lighting changes and colour contrast, closes small holes and removes disconnected noise. Connected
 /// outlines, including limbs and multiple people, remain. It works best with a stable camera and an
 /// empty background during calibration; no frame is saved or sent anywhere.
 /// </summary>
@@ -16,6 +16,11 @@ public sealed class SilhouetteMask
     private const float PersonRate = 0.0015f;
 
     private readonly float[] _room;
+    private readonly float[] _roomBlue;
+    private readonly float[] _roomRed;
+    private readonly byte[] _currentLuma;
+    private readonly short[] _currentBlue;
+    private readonly short[] _currentRed;
     private readonly byte[] _raw;
     private readonly byte[] _expanded;
     private readonly byte[] _clean;
@@ -29,6 +34,11 @@ public sealed class SilhouetteMask
         ArgumentOutOfRangeException.ThrowIfLessThan(height, 3);
         (Width, Height) = (width, height);
         _room = new float[width * height];
+        _roomBlue = new float[width * height];
+        _roomRed = new float[width * height];
+        _currentLuma = new byte[width * height];
+        _currentBlue = new short[width * height];
+        _currentRed = new short[width * height];
         _raw = new byte[width * height];
         _expanded = new byte[width * height];
         _clean = new byte[width * height];
@@ -52,7 +62,63 @@ public sealed class SilhouetteMask
     /// what differs from the room by more than <paramref name="threshold"/> (0 to 1); gives the share
     /// of the picture marked.
     /// </summary>
-    public double Update(ReadOnlySpan<byte> brightness, double threshold)
+    public double Update(ReadOnlySpan<byte> brightness, double threshold) =>
+        UpdateCore(brightness, threshold, colour: false);
+
+    /// <summary>
+    /// Convert a BGRA camera frame into area-averaged luminance and two signed colour
+    /// differences. Unlike brightness-only subtraction, this distinguishes similarly bright
+    /// clothing and walls. Mirroring applies to the camera mask, not the source image.
+    /// </summary>
+    public double UpdateColour(ReadOnlySpan<byte> bgra, int sourceWidth, int sourceHeight,
+        double threshold, bool mirror)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(sourceWidth, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(sourceHeight, 1);
+        if (bgra.Length < (long)sourceWidth * sourceHeight * 4)
+        {
+            throw new ArgumentException("The camera picture is shorter than its dimensions.", nameof(bgra));
+        }
+
+        for (var y = 0; y < Height; y++)
+        {
+            var top = y * sourceHeight / Height;
+            var bottom = Math.Max(top + 1, (y + 1) * sourceHeight / Height);
+            for (var x = 0; x < Width; x++)
+            {
+                var left = x * sourceWidth / Width;
+                var right = Math.Max(left + 1, (x + 1) * sourceWidth / Width);
+                var b = 0;
+                var g = 0;
+                var r = 0;
+                var count = 0;
+                for (var sy = top; sy < Math.Min(sourceHeight, bottom); sy++)
+                {
+                    for (var sx = left; sx < Math.Min(sourceWidth, right); sx++)
+                    {
+                        var at = (sy * sourceWidth + sx) * 4;
+                        b += bgra[at];
+                        g += bgra[at + 1];
+                        r += bgra[at + 2];
+                        count++;
+                    }
+                }
+
+                b /= count;
+                g /= count;
+                r /= count;
+                var luma = (r * 77 + g * 150 + b * 29) >> 8;
+                var index = y * Width + (mirror ? Width - 1 - x : x);
+                _currentLuma[index] = (byte)luma;
+                _currentBlue[index] = (short)(b - luma);
+                _currentRed[index] = (short)(r - luma);
+            }
+        }
+
+        return UpdateCore(_currentLuma, threshold, colour: true);
+    }
+
+    private double UpdateCore(ReadOnlySpan<byte> brightness, double threshold, bool colour)
     {
         if (brightness.Length != _room.Length)
         {
@@ -67,6 +133,11 @@ public sealed class SilhouetteMask
             for (var i = 0; i < _room.Length; i++)
             {
                 _room[i] += (brightness[i] - _room[i]) / _seen;
+                if (colour)
+                {
+                    _roomBlue[i] += (_currentBlue[i] - _roomBlue[i]) / _seen;
+                    _roomRed[i] += (_currentRed[i] - _roomRed[i]) / _seen;
+                }
             }
 
             Array.Clear(Mask);
@@ -105,10 +176,20 @@ public sealed class SilhouetteMask
         for (var i = 0; i < _room.Length; i++)
         {
             var difference = brightness[i] - _room[i] - global;
-            var foreground = Math.Abs(difference) > limit;
+            // A weak threshold for last frame's confirmed mask preserves slender limbs
+            // that would flicker around the edge. The preceding frame is still intact.
+            var cutoff = Mask[i] != 0 ? limit * 0.78f : limit;
+            var chroma = colour && MathF.Abs(_currentBlue[i] - _roomBlue[i])
+                + MathF.Abs(_currentRed[i] - _roomRed[i]) > cutoff * 0.85f;
+            var foreground = Math.Abs(difference) > cutoff || chroma;
             _raw[i] = foreground ? (byte)1 : (byte)0;
             var rate = foreground ? PersonRate : RoomRate;
             _room[i] += (brightness[i] - _room[i]) * rate;
+            if (colour)
+            {
+                _roomBlue[i] += (_currentBlue[i] - _roomBlue[i]) * rate;
+                _roomRed[i] += (_currentRed[i] - _roomRed[i]) * rate;
+            }
         }
 
         // Morphological closing preserves connected thin limbs and fills tiny gaps, unlike a
@@ -161,7 +242,7 @@ public sealed class SilhouetteMask
         // one-pixel noise island is discarded, even when contrast makes it pass the threshold.
         Array.Clear(_visited);
         Array.Clear(Mask);
-        var minArea = Math.Max(2, Mask.Length / 1000);
+        var minArea = Math.Max(2, Mask.Length / 4000);
         var marked = 0;
         for (var i = 0; i < _clean.Length; i++)
         {
@@ -246,6 +327,11 @@ public sealed class SilhouetteMask
     {
         _seen = 0;
         Array.Clear(_room);
+        Array.Clear(_roomBlue);
+        Array.Clear(_roomRed);
+        Array.Clear(_currentLuma);
+        Array.Clear(_currentBlue);
+        Array.Clear(_currentRed);
         Array.Clear(Mask);
     }
 
