@@ -365,10 +365,17 @@ public sealed class AppWindowTests : IDisposable
     [Capability("LIB-05")]
     public void TheLibraryFindsTheSongsInItsFoldersAndPlaysThem()
     {
-        Song(30);
+        var songPath = Song(30);
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log"))).AddFolder(_media);
+        var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log")));
+        library.AddFolder(_media);
+        // The window tests navigation, not a background scan's timing; persist its one media
+        // file first. The scanner's own suite independently tests discovering new files.
+        var file = new FileInfo(songPath);
+        Assert.Equal(1, library.Scan(_media,
+            [new Rex.Media.Library.LibraryFile(songPath, file.Length, file.LastWriteTimeUtc)],
+            _ => Rex.Media.Library.LibraryKind.Music).Added);
         using var app = AppProcess.Start(root: root);
 
         app.Run(CommandCatalog.ToggleLibrary);
