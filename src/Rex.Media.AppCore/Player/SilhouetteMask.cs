@@ -207,7 +207,15 @@ public sealed class SilhouetteMask
                 }
             }
 
-            if (count >= minArea)
+            // Border-clamped closing can expand a lone bright speck to two pixels. Require
+            // enough actual raw foreground evidence as well as a connected cleaned region.
+            var rawCount = 0;
+            for (var n = 0; n < count; n++)
+            {
+                rawCount += _raw[_queue[n]];
+            }
+
+            if (count >= minArea && rawCount >= minArea)
             {
                 for (var n = 0; n < count; n++)
                 {
