@@ -136,6 +136,7 @@ public sealed partial class MainWindow
         Stage.ContextFlyout = context;
         AddPictureLooks(Menu.Items.First(item => item.Title == "Video").Items, "VideoLook-");
         AddPictureEffects(Menu.Items.First(item => item.Title == "Video").Items, "VideoEffect-");
+        AddEpisodeSectionMenus(Menu.Items.First(item => item.Title == "Video").Items, "Video");
         BuildMemoryMenus();
         BuildNamedPlaylistMenus();
     }
