@@ -27,6 +27,12 @@ public sealed class D3D11Presenter : IVideoPresenter
     private PictureView _view = PictureView.Whole;
     private VideoLook _look = VideoLook.Original;
     private VideoEffect _effect = VideoEffect.Off;
+    private float _lookIntensity = 1;
+    private float _lookDetail = 1;
+    private float _effectDetail = 1;
+    private float _pointerX = 0.5f;
+    private float _pointerY = 0.5f;
+    private bool _pointerActive;
     private float _effectStrength = 0.65f;
     private float _effectTime;
     private bool _navigator;
@@ -101,21 +107,35 @@ public sealed class D3D11Presenter : IVideoPresenter
     }
 
     /// <summary>Colour style applied by the GPU on the next frame or a paused-frame redraw.</summary>
-    public void SetLook(VideoLook look)
+    public void SetLook(VideoLook look, int intensity = 100, int detail = 100)
     {
         lock (_gate)
         {
             _look = Enum.IsDefined(look) ? look : VideoLook.Original;
+            _lookIntensity = Math.Clamp(intensity, 0, 150) / 100f;
+            _lookDetail = Math.Clamp(detail, 50, 150) / 100f;
         }
     }
 
     /// <summary>Non-destructive shader effect and normalized strength, live and safe on paused frames.</summary>
-    public void SetEffect(VideoEffect effect, int strength)
+    public void SetEffect(VideoEffect effect, int strength, int detail = 100)
     {
         lock (_gate)
         {
             _effect = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
             _effectStrength = VideoEffects.Strength(strength) / 100f;
+            _effectDetail = Math.Clamp(detail, 25, 175) / 100f;
+        }
+    }
+
+    /// <summary>Pointer location within the rendered picture, never persisted or recorded.</summary>
+    public void SetPointer(float x, float y, bool active)
+    {
+        lock (_gate)
+        {
+            _pointerX = float.IsFinite(x) ? Math.Clamp(x, 0, 1) : 0.5f;
+            _pointerY = float.IsFinite(y) ? Math.Clamp(y, 0, 1) : 0.5f;
+            _pointerActive = active;
         }
     }
 
@@ -270,11 +290,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         var (source, across, down) = VideoGeometry.Shape(pictureWidth, pictureHeight, pixelAspect, _aspect, _crop);
         var (x, y, fitWidth, fitHeight) = VideoLayout.FitAspect(across, down, width, height);
         var shown = _view.Within(source);
-        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (shown.Left, shown.Top, shown.Right, shown.Bottom), SmoothChroma, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime);
+        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (shown.Left, shown.Top, shown.Right, shown.Bottom), SmoothChroma, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime,
+            pointerX: _pointerX, pointerY: _pointerY, pointerActive: _pointerActive,
+            lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail);
         if (_navigator && _view.IsZoomed)
         {
             var (navigatorX, navigatorY, navigatorWidth, navigatorHeight) = PictureView.Navigator(width, height, across, down);
-            _renderer.Draw(matrix, (int)navigatorX, (int)navigatorY, Math.Max(1, (int)navigatorWidth), Math.Max(1, (int)navigatorHeight), (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma, clear: false, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime);
+            _renderer.Draw(matrix, (int)navigatorX, (int)navigatorY, Math.Max(1, (int)navigatorWidth), Math.Max(1, (int)navigatorHeight), (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma, clear: false, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime,
+            pointerX: _pointerX, pointerY: _pointerY, pointerActive: _pointerActive,
+            lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail);
         }
     }
 }
