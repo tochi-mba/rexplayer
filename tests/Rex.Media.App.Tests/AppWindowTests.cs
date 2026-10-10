@@ -108,6 +108,27 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("VID-23")]
+    public void VideoEffectsAreSelectedInTheirOwnMenuAndSavedIndependentlyFromLooks()
+    {
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        var menu = (ExpandCollapsePattern)app.Find("VideoMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        menu.Expand();
+        var effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        effects.Expand();
+        app.Press("VideoEffect-NeonEdges");
+        Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.NeonEdges, "the effect choice to be saved");
+        Assert.Equal(VideoLook.Original, app.SavedSettings.VideoLook);
+
+        menu.Expand();
+        effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        effects.Expand();
+        app.Press("VideoEffect-Off");
+        Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.Off, "effect Off to be restored");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("PB-06")]
     public void PlaybackSpeedCanBeSlowedRaisedAndRestoredFromItsControl()
     {
@@ -219,9 +240,9 @@ public sealed class AppWindowTests : IDisposable
     [InlineData("Mirror")]
     [InlineData("Aurora")]
     [InlineData("Embers")]
-    [InlineData("Resonance")]
     [InlineData("Ripples")]
     [InlineData("Strobe")]
+    [InlineData("Resonance")]
     public void EachVisualisationLightsTheStageAndMovesWithTheMusic(string visualisation)
     {
         using var app = AppProcess.Start([Music(30)], RootShowing(visualisation));
@@ -463,6 +484,21 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => scroll.Current.VerticallyScrollable, "the picture grid to be vertically scrollable");
         scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
         Wait.For(() => scroll.Current.VerticalScrollPercent > 0, "the picture grid to scroll");
+
+        // Collage uses a separate virtualizing panel with justified, variable-width tiles;
+        // switching away restores the normal grid and the choice is saved for this view.
+        app.Press("LibraryLook");
+        app.Press("LibraryLook-Collage");
+        Wait.For(() => app.IsShown("LibraryCollage"), "the collage to be visible");
+        Assert.False(app.IsShown("LibraryList"));
+        Wait.Until(() => app.Find("LibraryCollage").FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Photo-01")));
+        Wait.For(() => app.SavedSettings.LibraryViews.GetValueOrDefault("Pictures")?.Look == Rex.Media.Settings.LibraryLook.Collage,
+            "the collage layout to be saved");
+
+        app.Press("LibraryLook");
+        app.Press("LibraryLook-Grid");
+        Wait.For(() => app.IsShown("LibraryList") && !app.IsShown("LibraryCollage"), "the card grid to return");
         Assert.Equal(0, app.Close());
     }
 

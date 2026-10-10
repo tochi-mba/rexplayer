@@ -25,6 +25,8 @@ public sealed partial class MainWindow
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
         var pictureLook = Choice("Default video picture look", VideoLooks.Names.ToArray(), (int)s.VideoLook);
+        var pictureEffect = Choice("Picture effects (optional)", VideoEffects.Names.ToArray(), (int)s.VideoEffect);
+        var pictureEffectStrength = Number("Picture effect intensity (%)", s.VideoEffectStrength, 0, 100);
         var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera", "A live beat edit", "Resonance light field"], (int)s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
         var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
@@ -72,7 +74,7 @@ public sealed partial class MainWindow
         }
 
         content.Children.Add(Heading("Video and pictures"));
-        foreach (var control in new UIElement[] { pictures, navigator, pictureLook, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
+        foreach (var control in new UIElement[] { pictures, navigator, pictureLook, pictureEffect, pictureEffectStrength, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
         {
             content.Children.Add(control);
         }
@@ -133,6 +135,8 @@ public sealed partial class MainWindow
             PictureSeconds = (int)pictures.Value,
             ShowNavigator = navigator.IsChecked == true,
             VideoLook = (VideoLook)pictureLook.SelectedIndex,
+            VideoEffect = (VideoEffect)pictureEffect.SelectedIndex,
+            VideoEffectStrength = (int)pictureEffectStrength.Value,
             Visualizer = (VisualizerChoice)visualizer.SelectedIndex,
             GenerateAudioArtwork = generatedArt.IsChecked == true,
             AudioArtworkStyle = (ArtworkStyle)artworkStyle.SelectedIndex,
@@ -183,6 +187,7 @@ public sealed partial class MainWindow
         ApplyTheme();
         ApplyAlwaysOnTop();
         ApplyVideoLook(_settings.VideoLook);
+        ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
         LayOutSubtitles();
         SetView(_view);
         ShowState();

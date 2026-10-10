@@ -111,6 +111,37 @@
       </Grid>
     </DataTemplate>
 
+    <!-- Justified collage: variable-width items, virtualized by ItemsView and LinedFlowLayout. -->
+    <DataTemplate x:Key="LibraryCollageTemplate" x:DataType="local:LibraryRow">
+      <ItemContainer AutomationProperties.Name="{x:Bind Name}" Loaded="OnCollageItemLoaded" DataContextChanged="OnCollageItemDataChanged">
+        <Grid Margin="2" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+          <Border CornerRadius="9" Background="#20252D">
+            <Grid>
+              <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+              <Border VerticalAlignment="Bottom">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#00000000" Offset="0" />
+                    <GradientStop Color="#E5151A22" Offset="1" />
+                  </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel Padding="12,28,12,11" Spacing="2">
+                  <TextBlock Text="{x:Bind Name}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                  <TextBlock Text="{x:Bind Detail}" Foreground="#DCE3ED" Visibility="{x:Bind DetailVisibility}" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="12" />
+                </StackPanel>
+              </Border>
+              <Border x:Name="CardPlay" Opacity="0" Width="48" Height="48" CornerRadius="24" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
+                <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+              </Border>
+              <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" />
+            </Grid>
+          </Border>
+        </Grid>
+      </ItemContainer>
+    </DataTemplate>
+
     <DataTemplate x:Key="LibraryPhotoTemplate" x:DataType="local:LibraryRow">
       <Grid Padding="4" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
         <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
@@ -357,6 +388,16 @@
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
+
+          <ItemsView x:Name="LibraryCollage" Grid.Row="2" Visibility="Collapsed" Padding="18,0,18,8"
+                     SelectionMode="Extended" ItemTemplate="{StaticResource LibraryCollageTemplate}"
+                     DoubleTapped="OnCollageDoubleTapped" KeyDown="OnCollageKeyDown"
+                     AutomationProperties.AutomationId="LibraryCollage" AutomationProperties.Name="Justified collage, select or open media">
+            <ItemsView.Layout>
+              <LinedFlowLayout ItemsStretch="Fill" LineHeight="180" LineSpacing="6" MinItemSpacing="6"
+                               ItemsInfoRequested="OnCollageItemsInfoRequested" />
+            </ItemsView.Layout>
+          </ItemsView>
 
           <!-- Home: shelves of what to play next. -->
           <ScrollViewer x:Name="LibraryHome" Grid.Row="2" Visibility="Collapsed" VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"

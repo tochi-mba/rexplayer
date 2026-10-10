@@ -26,6 +26,9 @@ public sealed class D3D11Presenter : IVideoPresenter
     private Rational? _crop;
     private PictureView _view = PictureView.Whole;
     private VideoLook _look = VideoLook.Original;
+    private VideoEffect _effect = VideoEffect.Off;
+    private float _effectStrength = 0.65f;
+    private float _effectTime;
     private bool _navigator;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
@@ -103,6 +106,16 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _look = Enum.IsDefined(look) ? look : VideoLook.Original;
+        }
+    }
+
+    /// <summary>Non-destructive shader effect and normalized strength, live and safe on paused frames.</summary>
+    public void SetEffect(VideoEffect effect, int strength)
+    {
+        lock (_gate)
+        {
+            _effect = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
+            _effectStrength = VideoEffects.Strength(strength) / 100f;
         }
     }
 
@@ -185,6 +198,7 @@ public sealed class D3D11Presenter : IVideoPresenter
 
     private void Show(VideoFrame frame)
     {
+        _effectTime = frame.Pts.IsKnown ? (float)Math.Clamp(frame.Pts.TotalSeconds, 0, 1_000_000) : 0;
         var color = frame.Color.Resolve(frame.Width, frame.Height);
         if (frame.Surface is D3D11Surface surface)
         {
@@ -256,11 +270,11 @@ public sealed class D3D11Presenter : IVideoPresenter
         var (source, across, down) = VideoGeometry.Shape(pictureWidth, pictureHeight, pixelAspect, _aspect, _crop);
         var (x, y, fitWidth, fitHeight) = VideoLayout.FitAspect(across, down, width, height);
         var shown = _view.Within(source);
-        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (shown.Left, shown.Top, shown.Right, shown.Bottom), SmoothChroma, look: (int)_look);
+        _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (shown.Left, shown.Top, shown.Right, shown.Bottom), SmoothChroma, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime);
         if (_navigator && _view.IsZoomed)
         {
             var (navigatorX, navigatorY, navigatorWidth, navigatorHeight) = PictureView.Navigator(width, height, across, down);
-            _renderer.Draw(matrix, (int)navigatorX, (int)navigatorY, Math.Max(1, (int)navigatorWidth), Math.Max(1, (int)navigatorHeight), (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma, clear: false, look: (int)_look);
+            _renderer.Draw(matrix, (int)navigatorX, (int)navigatorY, Math.Max(1, (int)navigatorWidth), Math.Max(1, (int)navigatorHeight), (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma, clear: false, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime);
         }
     }
 }

@@ -42,6 +42,25 @@ public sealed class GaplessTests
 
     [Fact]
     [Capability("PB-14")]
+    public async Task ClosingAPausedQueueDisposesUnopenedMedia()
+    {
+        // A long first file cannot be prefetched entirely through the bounded packet queue.
+        // Pause before playback starts, then close with a queued unopened source. This also
+        // exercises disposal of the pending queue deterministically for the coverage gate.
+        var pending = new TrackedSource(Count(3, 400));
+        using (var harness = new SessionHarness(autoPlay: false))
+        {
+            await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 800_000)));
+            await harness.Session.QueueNextAsync(pending);
+            Assert.Equal(SessionState.Ready, harness.Session.State);
+            Assert.False(pending.Disposed);
+        }
+
+        Assert.True(pending.Disposed);
+    }
+
+    [Fact]
+    [Capability("PB-14")]
     public async Task QueuedItemsFollowEachOtherSampleForSample()
     {
         using var harness = new SessionHarness();
