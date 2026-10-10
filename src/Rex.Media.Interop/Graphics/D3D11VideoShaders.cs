@@ -197,6 +197,38 @@ internal static class D3D11VideoShaders
             return float3(dot(fine.xy, fine.xy) > 0.000001 ? fine.xy : broad.xy,
                 max(fine.z, broad.z * 0.62));
         }
+        // Stationary surface view: image-derived isolines on smoothed luminance
+        // plus local gradient relief. Broad sampling resolves softly shaded
+        // rounded forms without requiring a moving target or previous frames.
+        // Flat untextured pixels have zero contour confidence.
+        float3 surfaceContours(float2 uv, bool isYuv, float3 colour, float detail,
+            float fineEdge)
+        {
+            float2 stepUv = max(fwidth(uv) * 3.0, float2(0.0005, 0.0005))
+                / max(detail, 0.25);
+            float3 weights = float3(0.2126, 0.7152, 0.0722);
+            float centre = dot(colour, weights);
+            float left = dot(readColour(uv - float2(stepUv.x, 0), isYuv), weights);
+            float right = dot(readColour(uv + float2(stepUv.x, 0), isYuv), weights);
+            float top = dot(readColour(uv - float2(0, stepUv.y), isYuv), weights);
+            float bottom = dot(readColour(uv + float2(0, stepUv.y), isYuv), weights);
+            float luma = (centre * 4 + left + right + top + bottom) * 0.125;
+            float2 slope = float2(right - left, bottom - top);
+            float slopeSize = length(slope) * 0.5;
+            float visibleSurface = smoothstep(0.0045 / detail, 0.068 / detail, slopeSize);
+            float contours = 1 - smoothstep(0.025, 0.11,
+                abs(frac(luma * (18 * detail)) - 0.5));
+            float3 normal = normalize(float3(-slope.x * 6, -slope.y * 6, 0.6));
+            float light = 0.6 + 0.4 * dot(normal, normalize(float3(-0.45, -0.5, 0.74)));
+            float3 base = colour * (0.22 + 0.27 * saturate(light))
+                + float3(0.012, 0.017, 0.031);
+            // Neither band nor "relief" invents anatomy: both are driven by
+            // variation that can be read from the recorded picture itself.
+            base += contours * visibleSurface * float3(0.10, 0.68, 0.75);
+            base += visibleSurface * (1 - contours) * float3(0.018, 0.054, 0.078);
+            base += fineEdge * float3(0.17, 0.70, 0.82);
+            return saturate(base);
+        }
         float3 effected(float2 uv, bool isYuv)
         {
             float2 warped = effectUv(uv);
@@ -346,7 +378,7 @@ internal static class D3D11VideoShaders
                 maskColour += luminance * float3(0.009, 0.022, 0.035);
                 colour = lerp(colour, saturate(maskColour), effect.y);
             }
-            if (effect.x > 16.5 && effect.x < 17.5)
+            if (effect.x > 16.5 && effect.x < 17.5 && effect.y > 0)
             {
                 // Ghostwire Motion: fine recorded contours + conservative two-frame
                 // motion residuals. Matching the previous image at nearby texels rejects
@@ -356,7 +388,7 @@ internal static class D3D11VideoShaders
                 float edge = smoothstep(0.006 / sensitivity, 0.16 / sensitivity, structure.z);
                 float activity = 0;
                 float oldEdge = 0;
-                if (motion.y > 0.5)
+                if (motion.y > 0.5 && (motion.z < 0.5 || (motion.z > 1.5 && motion.z < 2.5)))
                 {
                     float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
                     float3 old = readPrior(uv, isYuv);
@@ -381,17 +413,20 @@ internal static class D3D11VideoShaders
                 float3 ink = float3(0.013, 0.02, 0.033) + colour * 0.055;
                 float3 stationary = edge * float3(0.12, 0.78, 0.81);
                 float trail = activity * oldEdge * motion.x;
-                float3 moving = activity * effect.y * float3(0.60, 0.18, 0.90)
+                float3 moving = activity * float3(0.60, 0.18, 0.90)
                     + trail * float3(0.12, 0.45, 0.98);
-                // Mode: 0 hybrid, 1 contours, 2 motion. If there is no prior
-                // frame, the moving component is exactly zero (also on redraw).
-                if (motion.z < 0.5)
+                // Mode: 0 hybrid, 1 contours, 2 motion, 3 stationary
+                // surface shape. Surface mode needs no previous frame, and
+                // works just as well when paused or on a photograph.
+                if (motion.z > 2.5)
+                    ink = surfaceContours(uv, isYuv, colour, sensitivity, edge);
+                else if (motion.z < 0.5)
                     ink += stationary + moving;
                 else if (motion.z < 1.5)
                     ink += stationary;
                 else
                     ink += moving;
-                colour = saturate(ink);
+                colour = lerp(colour, saturate(ink), effect.y);
             }
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {
