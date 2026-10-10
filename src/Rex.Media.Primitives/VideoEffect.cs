@@ -18,6 +18,7 @@ public enum VideoEffect
     SliceShift,
     Vortex,
     CursorLens,
+    EdgeGravity,
 }
 
 /// <summary>Names, categories and safe bounds for the optional effects.</summary>
@@ -27,11 +28,10 @@ public static class VideoEffects
     [
         "Off", "Prism flow", "Neon contours", "Pixel drift", "Kaleidoscope",
         "Ink trace", "Topographic contours", "Chromatic contours",
-        "Liquid glass", "Slice shift", "Vortex", "Cursor lens",
+        "Liquid glass", "Slice shift", "Vortex", "Cursor lens", "Edge gravity",
     ];
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
-
 
     /// <summary>Visual grouping for an accessible effect picker.</summary>
     public static string Category(VideoEffect effect) => effect switch
@@ -39,6 +39,7 @@ public static class VideoEffects
         VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours => "Contours",
         VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex => "Motion & geometry",
         VideoEffect.CursorLens => "Interactive",
+        VideoEffect.EdgeGravity => "Image-aware",
         _ => "Essentials",
     };
 
