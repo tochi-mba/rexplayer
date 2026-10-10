@@ -52,6 +52,13 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     private ID3D11Texture2D? _chroma;
     private ID3D11ShaderResourceView? _lumaView;
     private ID3D11ShaderResourceView? _chromaView;
+    private ID3D11Texture2D? _previousLuma;
+    private ID3D11Texture2D? _previousChroma;
+    private ID3D11ShaderResourceView? _previousLumaView;
+    private ID3D11ShaderResourceView? _previousChromaView;
+    private bool _motionHistoryEnabled;
+    private bool _hasCurrent;
+    private bool _hasPrevious;
     private (VideoPlaneFormat Format, int Width, int Height, bool Surface) _planes;
     private (float U, float V) _crop = (1, 1);
     private IDXGISwapChain1? _swapChain;
@@ -87,7 +94,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
         {
-            ByteWidth = 128,
+            ByteWidth = 144,
             Usage = D3D11_USAGE.D3D11_USAGE_DEFAULT,
             BindFlags = D3D11_BIND_FLAG.D3D11_BIND_CONSTANT_BUFFER,
         };
@@ -277,6 +284,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             _planes = (format, width, height, false);
         }
 
+        CapturePrevious();
         _crop = (1, 1);
         fixed (byte* luma = plane0)
         {
@@ -290,6 +298,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
                 _context.UpdateSubresource(_chroma, 0, null, chroma, (uint)stride1, 0);
             }
         }
+
+        _hasCurrent = true;
     }
 
     /// <summary>
@@ -315,8 +325,80 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             _planes = (format, codedWidth, codedHeight, true);
         }
 
+        CapturePrevious();
         _context.CopySubresourceRegion(_luma, 0, 0, 0, 0, surface.Texture, surface.Index, null);
+        _hasCurrent = true;
         _crop = ((float)width / codedWidth, (float)height / codedHeight);
+    }
+
+    /// <summary>
+    /// Enable/disable GPU-only history for the motion contour effect. Other looks incur
+    /// no per-frame history copies or extra temporal texture allocations.
+    /// </summary>
+    public void EnableMotionHistory(bool enabled)
+    {
+        if (_motionHistoryEnabled == enabled)
+        {
+            return;
+        }
+
+        _motionHistoryEnabled = enabled;
+        ResetMotionHistory();
+    }
+
+    /// <summary>Do not compare frames across a seek, discontinuity or effect switch.</summary>
+    public void ResetMotionHistory()
+    {
+        _hasCurrent = false;
+        _hasPrevious = false;
+    }
+
+    /// <summary>
+    /// Copy the last decoded GPU planes before an upload replaces them. Previous YUV and
+    /// BGRA frames retain the same layout and colour conversion as the current frame.
+    /// </summary>
+    private void CapturePrevious()
+    {
+        if (!_motionHistoryEnabled || !_hasCurrent || _luma is null)
+        {
+            _hasPrevious = false;
+            return;
+        }
+
+        if (_previousLuma is null)
+        {
+            D3D11_TEXTURE2D_DESC desc;
+            _luma.GetDesc(&desc);
+            _previousLuma = Texture((int)desc.Width, (int)desc.Height, desc.Format,
+                D3D11_USAGE.D3D11_USAGE_DEFAULT, D3D11_BIND_FLAG.D3D11_BIND_SHADER_RESOURCE, 0);
+            if (_planes.Surface)
+            {
+                var yuv = _planes.Format == VideoPlaneFormat.P010;
+                _previousLumaView = PlaneView(_previousLuma, yuv
+                    ? DXGI_FORMAT.DXGI_FORMAT_R16_UNORM : DXGI_FORMAT.DXGI_FORMAT_R8_UNORM);
+                _previousChromaView = PlaneView(_previousLuma, yuv
+                    ? DXGI_FORMAT.DXGI_FORMAT_R16G16_UNORM : DXGI_FORMAT.DXGI_FORMAT_R8G8_UNORM);
+            }
+            else
+            {
+                _previousLumaView = View(_previousLuma);
+                if (_chroma is not null)
+                {
+                    _chroma.GetDesc(&desc);
+                    _previousChroma = Texture((int)desc.Width, (int)desc.Height, desc.Format,
+                        D3D11_USAGE.D3D11_USAGE_DEFAULT, D3D11_BIND_FLAG.D3D11_BIND_SHADER_RESOURCE, 0);
+                    _previousChromaView = View(_previousChroma);
+                }
+            }
+        }
+
+        _context.CopyResource(_previousLuma, _luma);
+        if (_previousChroma is not null && _chroma is not null)
+        {
+            _context.CopyResource(_previousChroma, _chroma);
+        }
+
+        _hasPrevious = true;
     }
 
     /// <summary>
@@ -333,7 +415,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// from 0 to 1 of the picture) into the rectangle given; over what is there already, rather than on
     /// black, when not <paramref name="clear"/> (a small copy drawn over the large one).
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false, float lookIntensity = 1, float lookDetail = 1, float effectDetail = 1)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false, float lookIntensity = 1, float lookDetail = 1, float effectDetail = 1, float motionTrail = 0.35f, int motionMode = 0)
     {
         if (colourMatrix.Length != 12)
         {
@@ -351,7 +433,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             return;
         }
 
-        Span<float> constants = stackalloc float[32];
+        Span<float> constants = stackalloc float[36];
         constants.Clear();
         colourMatrix.CopyTo(constants);
         (constants[12], constants[13]) = (_crop.U, _crop.V);
@@ -367,9 +449,12 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         constants[29] = Math.Clamp(pointerY, 0, 1);
         constants[30] = pointerActive ? 1 : 0;
         constants[31] = Math.Clamp(effectDetail, 0.25f, 1.75f);
+        constants[32] = Math.Clamp(motionTrail, 0, 1);
+        constants[33] = _hasPrevious ? 1 : 0;
+        constants[34] = Math.Clamp(motionMode, 0, 2);
         fixed (float* values = constants)
         {
-            _context.UpdateSubresource(_colour, 0, null, values, 128, 0);
+            _context.UpdateSubresource(_colour, 0, null, values, 144, 0);
         }
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };
@@ -379,7 +464,10 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _context.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY.D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         _context.VSSetShader(_vertexShader, null, 0);
         _context.PSSetShader(_planes.Format == VideoPlaneFormat.Bgra ? _bgraShader : _yuvShader, null, 0);
-        _context.PSSetShaderResources(0, 2, [_lumaView, _chromaView ?? _lumaView]);
+        _context.PSSetShaderResources(0, 4,
+            [_lumaView, _chromaView ?? _lumaView,
+                _previousLumaView ?? _lumaView,
+                _previousChromaView ?? _previousLumaView ?? _lumaView]);
         _context.PSSetSamplers(0, 2, [_sampler, smoothChroma ? _sampler : _pointSampler]);
         _context.PSSetConstantBuffers(0, 1, [_colour]);
         _context.Draw(3, 0);
@@ -649,7 +737,11 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 
     private void ReleasePlanes()
     {
-        foreach (var com in new object?[] { _lumaView, _chromaView, _luma, _chroma })
+        foreach (var com in new object?[]
+        {
+            _lumaView, _chromaView, _luma, _chroma,
+            _previousLumaView, _previousChromaView, _previousLuma, _previousChroma,
+        })
         {
             if (com is not null)
             {
@@ -658,6 +750,9 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
 
         (_lumaView, _chromaView, _luma, _chroma) = (null, null, null, null);
+        (_previousLumaView, _previousChromaView, _previousLuma, _previousChroma) =
+            (null, null, null, null);
+        ResetMotionHistory();
         _planes = default;
     }
 
