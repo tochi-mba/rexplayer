@@ -32,7 +32,7 @@ public sealed partial class SubjectEditSession
             {
                 return;
             }
-    
+
             var distance = Distance(frame, left, top, width, height, _reference);
             if (_returnAppearance is { } appearance)
             {
@@ -56,7 +56,7 @@ public sealed partial class SubjectEditSession
                 bestHeight = height;
             }
         }
-    
+
         TryMatch(0, 0, Region.Width, Region.Height);
         for (var dy = -radius; dy <= radius; dy += coarse)
         {
@@ -65,7 +65,7 @@ public sealed partial class SubjectEditSession
                 TryMatch(dx, dy, Region.Width, Region.Height);
             }
         }
-    
+
         var roughX = bestDx;
         var roughY = bestDy;
         for (var dy = roughY - coarse; dy <= roughY + coarse; dy++)
@@ -78,7 +78,7 @@ public sealed partial class SubjectEditSession
                 }
             }
         }
-    
+
         // Estimate scale independently after translation. Preserve the same centre while
         // testing nearby sizes; a fixed box gradually incorporates background as a
         // subject walks away, poisoning every subsequent template update.
@@ -114,7 +114,7 @@ public sealed partial class SubjectEditSession
             Status = "Tracking uncertain: looking for the selected object to return.";
             return;
         }
-    
+
         // Distant candidate matches with the same appearance are ambiguous: do not
         // jump to a nearby identical shoe/person when the selected one is lost.
         if ((Math.Abs(bestDx) > 2 || Math.Abs(bestDy) > 2) && best < 12)
@@ -134,7 +134,7 @@ public sealed partial class SubjectEditSession
                 return;
             }
         }
-    
+
         Region = (Region.Left + (float)bestDx / frame.Width,
             Region.Top + (float)bestDy / frame.Height, bestWidth, bestHeight);
         // Update very slowly to accommodate lighting, without adopting a neighbouring target.
@@ -143,7 +143,7 @@ public sealed partial class SubjectEditSession
         {
             _reference[i] = _reference[i] * 0.97f + _samples[i] * 0.03f;
         }
-    
+
         Status = _reacquiredFrames > 0
             ? "Original visual texture found again. Tracking resumed."
             : "Tracking selected region.";
