@@ -46,7 +46,7 @@ public sealed partial class MainWindow
     private void AddSubjectTools(IList<MenuFlyoutItemBase> items, string prefix)
     {
         items.Add(new MenuFlyoutSeparator());
-        var lockItem = new MenuFlyoutItem { Text = "Subject Lock — select an object..." };
+        var lockItem = new MenuFlyoutItem { Text = "Subject Lock: select an object..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(lockItem, prefix + "SubjectLock");
         lockItem.Click += (_, _) => OpenSubjectTools();
         items.Add(lockItem);
@@ -75,7 +75,9 @@ public sealed partial class MainWindow
         SubjectSelectButton.Content = "Select again";
         SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
-        SubjectStatusText.Text = "Drag around a distinctive texture or clothing detail. If it disappears, auto-follow widens the view and keeps looking for the original pattern.";
+        SubjectStatusText.Text = SubjectFollow.IsOn
+            ? "Drag around the object you want to follow. If it leaves the picture, auto-follow widens the view and keeps looking for it."
+            : "Drag around the object you want to follow. If it leaves the picture, Subject Lock keeps looking for it; auto-follow is off.";
         _subjectTimer?.Start();
         Stage.Focus(FocusState.Programmatic);
     }
@@ -405,7 +407,7 @@ public sealed partial class MainWindow
 
                 SubjectStatusText.Text = snapshot.Status;
                 SubjectConfidenceText.Text = snapshot.Tracking
-                    ? $"Match confidence {snapshot.Confidence:P0}" + (SubjectShowBox.IsOn ? "" : " · Outline hidden")
+                    ? $"Match confidence {snapshot.Confidence:P0}" + (SubjectShowBox.IsOn ? "" : ", outline hidden")
                     : snapshot.Locked ? "Searching original pattern · Wide view" : "Waiting for selection";
                 SubjectEraseButton.IsEnabled = snapshot.Tracking;
                 if (!snapshot.Tracking)
