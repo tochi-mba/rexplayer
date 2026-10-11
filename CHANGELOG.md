@@ -3,6 +3,31 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.15.8 - 2026-10-11
+
+### Improved
+
+- **Subject Lock distance changes.** Tracks a selected patch with a size-adaptive local
+  search, rather than leaving the rectangle fixed as a subject moves nearer or farther.
+- **Return after an exit.** Searches additional subject sizes and refines intermediate
+  dimensions and placement. A coarse spatial-colour descriptor supplies an alternative
+  cue for moderate viewpoint and lighting changes, while the original visual reference
+  remains the basis for recovery.
+- **Lighting tolerance.** Models bounded brightness and contrast changes during
+  recovery, while retaining repeat-sighting and competing-match checks.
+
+### Testing
+
+- Adds Windows regressions for continuous changes in apparent size and return sizes
+  that fall between the previous discrete search levels.
+
+### Limitations
+
+- Visible colour and texture are not semantic identity. Similar clothing, drastic
+  viewpoints, motion blur and extended occlusion can still cause a lost lock or a
+  mistaken match. Real-footage precision, false-lock rate and recovery latency are
+  not yet established by an annotated benchmark.
+
 ## 0.15.7 - 2026-10-11
 
 ### Fixed
