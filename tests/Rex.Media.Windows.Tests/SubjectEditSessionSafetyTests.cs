@@ -8,6 +8,22 @@ namespace Rex.Media.Windows.Tests;
 [SupportedOSPlatform("windows8.0")]
 public sealed class SubjectEditSessionSafetyTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    [InlineData(10)]
+    public void FeaturelessDarkSelectionsDoNotAcquireAnIdentity(byte value)
+    {
+        using var tracker = new SubjectEditSession();
+        using var frame = VideoFrame.Rent(PixelFormat.Bgra32, 128, 80);
+        frame.Plane(0).Fill(value);
+        frame.Pts = MediaTime.FromSeconds(1);
+        tracker.Select(0.25f, 0.25f, 0.25f, 0.25f);
+        tracker.Process(frame);
+        Assert.False(tracker.Tracking);
+        Assert.Equal(0, tracker.Confidence);
+    }
+
     private static VideoFrame Picture(double seconds, bool withTarget, int width = 128, int height = 80)
     {
         var frame = VideoFrame.Rent(PixelFormat.Bgra32, width, height);
@@ -55,7 +71,21 @@ public sealed class SubjectEditSessionSafetyTests
         frame.Pts = MediaTime.FromSeconds(1.04);
         Assert.Null(tracker.Process(frame));
         Assert.False(tracker.Tracking);
-        frame.Plane(0).Fill(100);
+        // A busy picture that is not the subject is the expensive case: every textured place
+        // survives the cheap pre-filter and has to be read properly before it can be rejected.
+        // An empty grey frame would be rejected without a single full-resolution comparison and
+        // would say nothing about the budget.
+        for (var y = 0; y < 2160; y++)
+        {
+            var row = frame.Row(0, y);
+            for (var x = 0; x < 3840; x++)
+            {
+                row[x * 4] = (byte)(60 + (x / 37 + y / 53) % 5 * 35);
+                row[x * 4 + 1] = (byte)(90 + (x / 53) % 4 * 30);
+                row[x * 4 + 2] = (byte)(40 + (y / 37) % 6 * 30);
+            }
+        }
+
         for (var i = 0; i < 4; i++)
         {
             frame.Pts = MediaTime.FromSeconds(1.08 + i * 0.04);

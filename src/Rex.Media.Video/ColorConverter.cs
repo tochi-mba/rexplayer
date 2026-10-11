@@ -40,14 +40,20 @@ public static class ColorConverter
         }
 
         var bits = source.Format is PixelFormat.P010 or PixelFormat.I420P10 ? 10 : 8;
-        var reader = new SampleReader(source);
-        var transform = YuvTransform.For(source.Color.Resolve(source.Width, source.Height), bits, reader.HasChroma);
+        var hasChroma = source.Format != PixelFormat.Gray8;
+        var transform = YuvTransform.For(source.Color.Resolve(source.Width, source.Height), bits, hasChroma);
         for (var y = 0; y < source.Height; y++)
         {
+            // Resolve and validate each plane once per row. Frame.Row also computes
+            // plane geometry; doing that three times per pixel stalls live analysis.
+            var reader = new SampleReader(source, y);
             var row = output.Row(0, y);
             for (var x = 0; x < source.Width; x++)
             {
-                var (r, g, b) = reader.HasChroma ? transform.Apply(reader.Luma(x, y), reader.Cb(x, y), reader.Cr(x, y)) : transform.Apply(reader.Luma(x, y), 0, 0);
+                var luma = reader.Luma(x);
+                var cb = hasChroma ? reader.Cb(x) : 0;
+                var cr = hasChroma ? reader.Cr(x) : 0;
+                var (r, g, b) = transform.Apply(luma, cb, cr);
                 row[(x * 4) + 0] = ToByte(b);
                 row[(x * 4) + 1] = ToByte(g);
                 row[(x * 4) + 2] = ToByte(r);
@@ -58,40 +64,42 @@ public static class ColorConverter
         return output;
     }
 
-    private static byte ToByte(double value) => (byte)Math.Round(Math.Clamp(value, 0, 1) * 255, MidpointRounding.AwayFromZero);
+    // Clamping makes the value non-negative, so adding half before truncation has
+    // the same away-from-zero rounding without a per-channel rounding-mode call.
+    private static byte ToByte(double value) => (byte)(int)((Math.Clamp(value, 0, 1) * 255) + 0.5);
 
     /// <summary>Reads samples of any planar or semi-planar format as integers at their coded depth.</summary>
     private readonly ref struct SampleReader
     {
-        private readonly VideoFrame _frame;
+        private readonly PixelFormat _format;
+        private readonly ReadOnlySpan<byte> _luma;
+        private readonly ReadOnlySpan<byte> _cb;
+        private readonly ReadOnlySpan<byte> _cr;
         private readonly int _shiftX;
-        private readonly int _shiftY;
+        private readonly bool _semiPlanar;
 
-        public SampleReader(VideoFrame frame)
+        public SampleReader(VideoFrame frame, int row)
         {
-            _frame = frame;
-            HasChroma = frame.Format != PixelFormat.Gray8;
+            _format = frame.Format;
+            _luma = frame.Row(0, row);
             _shiftX = frame.Format is PixelFormat.I444 ? 0 : 1;
-            _shiftY = frame.Format is PixelFormat.I444 or PixelFormat.I422 ? 0 : 1;
+            var shiftY = frame.Format is PixelFormat.I444 or PixelFormat.I422 ? 0 : 1;
+            _semiPlanar = frame.Format is PixelFormat.Nv12 or PixelFormat.P010;
+            _cb = frame.Format == PixelFormat.Gray8 ? default : frame.Row(1, row >> shiftY);
+            _cr = frame.Format == PixelFormat.Gray8 ? default
+                : _semiPlanar ? _cb : frame.Row(2, row >> shiftY);
         }
 
-        public bool HasChroma { get; }
+        public int Luma(int x) => Read(_luma, x);
 
-        public int Luma(int x, int y) => Read(0, x, y);
+        public int Cb(int x) => Read(_cb, (x >> _shiftX) * (_semiPlanar ? 2 : 1));
 
-        public int Cb(int x, int y) => _frame.Format is PixelFormat.Nv12 or PixelFormat.P010
-            ? Read(1, (x >> _shiftX) * 2, y >> _shiftY)
-            : Read(1, x >> _shiftX, y >> _shiftY);
-
-        public int Cr(int x, int y) => _frame.Format is PixelFormat.Nv12 or PixelFormat.P010
-            ? Read(1, ((x >> _shiftX) * 2) + 1, y >> _shiftY)
-            : Read(2, x >> _shiftX, y >> _shiftY);
+        public int Cr(int x) => Read(_cr, _semiPlanar ? ((x >> _shiftX) * 2) + 1 : x >> _shiftX);
 
         /// <summary>The sample at a column of a plane's row; 16-bit formats are little-endian, P010 holding its value in the top bits.</summary>
-        private int Read(int plane, int column, int row)
+        private int Read(ReadOnlySpan<byte> bytes, int column)
         {
-            var bytes = _frame.Row(plane, row);
-            return _frame.Format switch
+            return _format switch
             {
                 PixelFormat.P010 => (bytes[column * 2] | (bytes[(column * 2) + 1] << 8)) >> 6,
                 PixelFormat.I420P10 => bytes[column * 2] | (bytes[(column * 2) + 1] << 8),

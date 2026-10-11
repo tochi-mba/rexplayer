@@ -74,13 +74,20 @@ public sealed partial class SubjectEditSession
                         // A result describes its captured frame, not today's pixels.
                         // Verify continuity on the current frame before moving the box.
                         Region = found.Region;
-                        _reference = found._reference;
-                        _reacquiredFrames = 15;
+                        _reacquiredFrames = 12;
                         Tracking = true;
                         Erase = false;
                         Track(frame);
                         if (Tracking)
                         {
+                            // Views the worker learned while confirming the return are worth
+                            // keeping, but only once the live picture has agreed with them.
+                            // At capacity, adding a view replaces an old one without
+                            // changing Count. Transfer new instances, not a suffix by count.
+                            foreach (var view in found._positive)
+                                if (!_positive.Contains(view)) RememberSubject(view);
+                            foreach (var view in found._negative)
+                                if (!_negative.Contains(view)) RememberOther(view);
                             _lostFrames = 0;
                             return true;
                         }
@@ -97,14 +104,15 @@ public sealed partial class SubjectEditSession
         var snapshot = ColorConverter.ToBgra(frame);
         var worker = new SubjectEditSession
         {
-            _returnReference = _returnReference,
-            _returnAppearance = _returnAppearance,
             _identityWidth = _identityWidth,
             _identityHeight = _identityHeight,
-            _originalBorderContrast = _originalBorderContrast,
             _returnCandidate = _returnCandidate,
             _returnConfirmations = _returnConfirmations,
         };
+        // The worker reads the model and never writes back into this session's copy, so the
+        // presenting thread can keep tracking and learning while a search is in flight.
+        worker._positive.AddRange(_positive);
+        worker._negative.AddRange(_negative);
         _recoveryTime = frame.Pts;
         _recoveryCancellation = new CancellationTokenSource();
         var cancellation = _recoveryCancellation.Token;

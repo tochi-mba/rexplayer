@@ -2,59 +2,60 @@ using Rex.Media.Primitives;
 
 namespace Rex.Media.Video.D3D11;
 
+/// <summary>Frame-to-frame following of a subject that is currently visible.</summary>
 public sealed partial class SubjectEditSession
 {
+    // Following a visible subject and finding a vanished one are different problems. This search
+    // assumes the subject is near where it was a fortieth of a second ago and spends its budget on
+    // precision; the re-detection search assumes nothing about position and spends its budget on
+    // coverage. Keeping them apart stops a brief stumble from triggering a whole-picture hunt.
+    private const double HoldSubject = 0.575;
+    private const double HoldRelative = 0.50;
+    // One modest push per frame. Following runs on every picture, so the correction only has to
+    // cancel one frame's worth of creep, and a larger one would let the box inflate just as fast.
+    private const int OutlineRounds = 1;
+    private const int OutlineStep = 12;
+
     private void Track(VideoFrame frame)
     {
-        if (_reference is null) return;
+        if (_positive.Count == 0) return;
 
-        // Search a coarse motion window first, then refine to individual pixels. The
-        // previous fixed 9-pixel search lost fast-moving accessories even at 1080p.
-        // The bounded window keeps the work deterministic on low-end WARP machines.
-        // A just-recovered subject can still be moving quickly across the frame.
-        // Give those first few ordinary tracking frames a wider, still bounded
-        // continuity window so recovery does not immediately lose the same subject.
-        var recoveryRadiusMultiplier = _reacquiredFrames > 0 ? 3 : 1;
-        var radius = Math.Clamp((int)Math.Round(Math.Min(
-            frame.Width * Region.Width, frame.Height * Region.Height) * 0.9 * recoveryRadiusMultiplier), 12, 96);
-        var coarse = Math.Max(1, radius / 6);
-        var best = double.MaxValue;
-        var bestScore = double.MaxValue;
-        var bestDx = 0;
-        var bestDy = 0;
-        var bestWidth = Region.Width;
-        var bestHeight = Region.Height;
+        // A subject that just returned may be moving quickly, and the box that recovery produced
+        // is only approximately placed, so widen the window for the first few frames afterwards.
+        var span = Math.Min(frame.Width * Region.Width, frame.Height * Region.Height);
+        var radius = Math.Clamp((int)Math.Round(span * (_reacquiredFrames > 0 ? 2.4 : 0.8)), 12, 110);
+        // One step must not move the subject by more than about one cell of the descriptor, or
+        // the search samples a jagged score surface and the refinement that follows climbs
+        // whichever false peak it happened to land nearest.
+        var coarse = Math.Clamp((int)(span / Samples), 1, Math.Max(1, radius / 4));
+        var best = new Match(double.MinValue, 0, 0, Region.Width, Region.Height);
+
+        var shape = Math.Log((double)_identityWidth / Math.Max(1, _identityHeight));
         void TryMatch(int dx, int dy, float width, float height)
         {
             var left = Region.Left + (float)dx / frame.Width;
             var top = Region.Top + (float)dy / frame.Height;
-            if (left < 0 || top < 0 || left + width > 1 || top + height > 1)
-            {
-                return;
-            }
-
-            var distance = Distance(frame, left, top, width, height, _reference);
-            if (_returnAppearance is { } appearance)
-            {
-                var identityError = AppearanceDistance(frame,
-                    (int)Math.Round(left * frame.Width), (int)Math.Round(top * frame.Height),
-                    (int)Math.Round(width * frame.Width), (int)Math.Round(height * frame.Height), appearance);
-                distance = Math.Min(distance, 4 + identityError) + Math.Max(0, identityError - 22);
-            }
-            // A repeated or flat pattern may match dozens of places equally well.
-            // Prefer continuity at the last known position to avoid drifting across
-            // an unrelated but identically-coloured surface.
-            var score = distance + 0.06 * Math.Sqrt((double)dx * dx + (double)dy * dy)
-                + 8 * Math.Abs(Math.Log(width / Region.Width));
-            if (score < bestScore)
-            {
-                bestScore = score;
-                best = distance;
-                bestDx = dx;
-                bestDy = dy;
-                bestWidth = width;
-                bestHeight = height;
-            }
+            if (left < 0 || top < 0 || left + width > 1 || top + height > 1) return;
+            if (Distortion((int)Math.Round(width * frame.Width),
+                (int)Math.Round(height * frame.Height)) > MaxDistortion) return;
+            Describe(frame, (int)Math.Round(left * frame.Width), (int)Math.Round(top * frame.Height),
+                Math.Max(2, (int)Math.Round(width * frame.Width)),
+                Math.Max(2, (int)Math.Round(height * frame.Height)), _probe);
+            // A repeating pattern - railings, paving, a row of identical seats - matches equally
+            // well in many places. Preferring the nearest of those keeps the box on the subject
+            // instead of letting it slide along the repetition.
+            // Measured against the subject's own size, so the same preference applies whether it
+            // fills the picture or sits far away: a thing does not usually move its own width
+            // between two frames a fortieth of a second apart.
+            var score = Resembles(_probe)
+                - (_reacquiredFrames > 0 ? 0.02 : 0.10) * Math.Sqrt((double)dx * dx + (double)dy * dy) / Math.Max(1, span)
+                - 0.015 * Math.Abs(Math.Log(width / Region.Width))
+                // Size may change freely as the subject approaches or recedes, but its shape may
+                // not. Without this the box slowly settles onto whichever part of the subject
+                // matches best - a pair of trousers rather than the person - and once it has,
+                // every learned view reinforces the smaller thing.
+                - 0.06 * Math.Abs(Math.Log(width * frame.Width / (height * frame.Height)) - shape);
+            if (score > best.Score) best = new Match(score, dx, dy, width, height);
         }
 
         TryMatch(0, 0, Region.Width, Region.Height);
@@ -66,96 +67,156 @@ public sealed partial class SubjectEditSession
             }
         }
 
-        var step = coarse;
-        while (step > 1)
+        for (var step = coarse; step > 1;)
         {
-            var roughX = bestDx;
-            var roughY = bestDy;
-            var window = step;
+            var (roughX, roughY, window) = (best.Dx, best.Dy, step);
             step = Math.Max(1, step / 2);
             for (var dy = roughY - window; dy <= roughY + window; dy += step)
             {
                 for (var dx = roughX - window; dx <= roughX + window; dx += step)
                 {
-                    if (Math.Abs(dx) <= radius && Math.Abs(dy) <= radius)
-                    {
-                        TryMatch(dx, dy, Region.Width, Region.Height);
-                    }
+                    if (Math.Abs(dx) <= radius && Math.Abs(dy) <= radius) TryMatch(dx, dy, Region.Width, Region.Height);
                 }
             }
         }
 
-        // Estimate scale independently after translation. Preserve the same centre while
-        // testing nearby sizes; a fixed box gradually incorporates background as a
-        // subject walks away, poisoning every subsequent template update.
-        var centreX = bestDx;
-        var centreY = bestDy;
-        ReadOnlySpan<float> scales = stackalloc float[] { 0.85f, 0.925f, 1.075f, 1.15f };
-        foreach (var scale in scales)
+        // Size is estimated after position and allowed to change each axis separately. A box that
+        // cannot change shape slowly fills with background as a subject walks away or turns, and
+        // every accepted view after that teaches the model a little more of the background.
+        var (centreX, centreY) = (best.Dx, best.Dy);
+        ReadOnlySpan<float> sides = stackalloc float[] { 0.93f, 1f, 1.08f };
+        foreach (var horizontal in sides)
         {
-            var width = Math.Max(4, (int)Math.Round(Region.Width * frame.Width * scale)) / (float)frame.Width;
-            var height = Math.Max(4, (int)Math.Round(Region.Height * frame.Height * scale)) / (float)frame.Height;
-            if (width * frame.Width < Math.Max(4, _identityWidth / 4)
-                || height * frame.Height < Math.Max(4, _identityHeight / 4)) continue;
-            var offsetX = centreX + (int)Math.Round((Region.Width - width) * frame.Width / 2);
-            var offsetY = centreY + (int)Math.Round((Region.Height - height) * frame.Height / 2);
-            for (var dy = offsetY - coarse; dy <= offsetY + coarse; dy += Math.Max(1, coarse / 2))
+            foreach (var vertical in sides)
             {
-                for (var dx = offsetX - coarse; dx <= offsetX + coarse; dx += Math.Max(1, coarse / 2))
-                {
-                    TryMatch(dx, dy, width, height);
-                }
+                if (horizontal == 1 && vertical == 1) continue;
+                var width = Math.Max(4, (int)Math.Round(Region.Width * frame.Width * horizontal)) / (float)frame.Width;
+                var height = Math.Max(4, (int)Math.Round(Region.Height * frame.Height * vertical)) / (float)frame.Height;
+                if (width * frame.Width < Math.Max(6, _identityWidth / 5f)
+                    || height * frame.Height < Math.Max(6, _identityHeight / 5f)
+                    || width * frame.Width > _identityWidth * 5f
+                    || height * frame.Height > _identityHeight * 5f) continue;
+                TryMatch(centreX + (int)Math.Round((Region.Width - width) * frame.Width / 2),
+                    centreY + (int)Math.Round((Region.Height - height) * frame.Height / 2), width, height);
             }
         }
 
-        Confidence = Math.Clamp(1 - best / 75, 0, 1);
-        if (Confidence < 0.38)
+        // Resizing keeps the old centre, but a subject that is receding is usually also moving,
+        // so the box has to be placed again at its new size. Without this the box creeps away
+        // from a shrinking subject a pixel at a time until it is no longer on it at all.
+        var (sizedWidth, sizedHeight) = (best.Width, best.Height);
+        for (var step = Math.Max(1, coarse); ; step /= 2)
         {
-            Tracking = false;
-            Erase = false;
-            _lostFrames = 0;
-            _returnCandidate = null;
-            _returnConfirmations = 0;
-            _reacquiredFrames = 0;
-            Status = "Tracking uncertain: looking for the selected object to return.";
+            var (settledX, settledY) = (best.Dx, best.Dy);
+            for (var dy = -step; dy <= step; dy += step)
+            {
+                for (var dx = -step; dx <= step; dx += step) TryMatch(settledX + dx, settledY + dy, sizedWidth, sizedHeight);
+            }
+
+            if (step == 1) break;
+        }
+
+        var placed = new Reading(default,
+            (int)Math.Round((Region.Left + (float)best.Dx / frame.Width) * frame.Width),
+            (int)Math.Round((Region.Top + (float)best.Dy / frame.Height) * frame.Height),
+            Math.Max(2, (int)Math.Round(best.Width * frame.Width)),
+            Math.Max(2, (int)Math.Round(best.Height * frame.Height)));
+        Describe(frame, placed.Left, placed.Top, placed.Width, placed.Height, _probe);
+        placed.Resemblance = Compare(_probe);
+        // Nothing above objects to a box a little smaller than the subject, because a crop of
+        // the subject still looks like it, and a little smaller is what every frame offers. Left
+        // alone the box walks inwards until it is a thumbnail of a trouser leg and the lock is
+        // lost for good. Pushing each side back out while the room beyond it still reads as the
+        // subject is the force that opposes that, and it costs four readings a frame.
+        // No allowance is given here: a box nudged outwards forty times a second on a reading
+        // that merely held would swallow the background just as surely as it shrank.
+        Extend(frame, ref placed, OutlineRounds, OutlineStep, 0, MaxDistortion);
+        var resemblance = placed.Resemblance;
+        Confidence = Math.Clamp((resemblance.ToSubject - 0.5) / 0.42, 0, 1);
+        if (resemblance.ToSubject < HoldSubject || resemblance.Relative < HoldRelative)
+        {
+            LoseTracking(resemblance.ToSubject >= HoldSubject
+                ? "Similar-looking regions: watching for a clear match. Select again if necessary."
+                : "Tracking uncertain: looking for the selected object to return.");
             return;
         }
 
-        // Distant candidate matches with the same appearance are ambiguous: do not
-        // jump to a nearby identical shoe/person when the selected one is lost.
-        if ((Math.Abs(bestDx) > 2 || Math.Abs(bestDy) > 2) && best < 12)
+        var left = (float)placed.Left / frame.Width;
+        var top = (float)placed.Top / frame.Height;
+        Region = (left, top, (float)placed.Width / frame.Width, (float)placed.Height / frame.Height);
+        Describe(frame, placed.Left, placed.Top, placed.Width, placed.Height, _probe);
+        // Only a confident, settled view is worth remembering, and only one view every so often:
+        // learning from every frame turns the memory into twelve copies of the last second.
+        if (_reacquiredFrames == 0 && resemblance.ToSubject > 0.78
+            && Similarity(_probe, _positive[0]) > 0.72
+            && resemblance.Relative > ReturnRelative && --_untilRemember <= 0)
         {
-            var original = Distance(frame, Region.Left, Region.Top,
-                Region.Width, Region.Height, _reference);
-            if (original < best + 2)
-            {
-                Tracking = false;
-                Erase = false;
-                Confidence = 0;
-                _lostFrames = 0;
-                _returnCandidate = null;
-                _returnConfirmations = 0;
-                _reacquiredFrames = 0;
-                Status = "Similar-looking regions: watching for a clear match. Select again if necessary.";
-                return;
-            }
-        }
-
-        Region = (Region.Left + (float)bestDx / frame.Width,
-            Region.Top + (float)bestDy / frame.Height, bestWidth, bestHeight);
-        // Update very slowly to accommodate lighting, without adopting a neighbouring target.
-        SampleInto(frame, Region.Left, Region.Top, Region.Width, Region.Height, _samples);
-        for (var i = 0; best < 22 && i < _reference.Length; i++)
-        {
-            _reference[i] = _reference[i] * 0.97f + _samples[i] * 0.03f;
+            _untilRemember = RememberInterval;
+            RememberSubject(_probe);
+            LearnDistractors(frame);
         }
 
         Status = _reacquiredFrames > 0
             ? "Original visual texture found again. Tracking resumed."
             : "Tracking selected region.";
-        if (_reacquiredFrames > 0)
+        if (_reacquiredFrames > 0) _reacquiredFrames--;
+    }
+
+    private readonly record struct Match(double Score, int Dx, int Dy, float Width, float Height);
+
+    private const int RememberInterval = 12;
+    private int _untilRemember = RememberInterval;
+
+    /// <summary>Best resemblance to the subject using the anchor and newest views only.</summary>
+    private double Resembles(Patch candidate)
+    {
+        var anchor = Similarity(candidate, _positive[0]);
+        return _positive.Count > 1 ? Math.Max(anchor, Similarity(candidate, _positive[^1])) : anchor;
+    }
+
+    /// <summary>Shape agreement alone, for ranking candidate positions before colour is read.</summary>
+    private double StructuralResemblance(Patch candidate)
+    {
+        if (candidate.IsFlat) return 0;
+        var best = Correlation(candidate.Structure, _positive[0].Structure);
+        if (_positive.Count > 1) best = Math.Max(best, Correlation(candidate.Structure, _positive[^1].Structure));
+        return (best + 1) / 2;
+    }
+
+    private void LoseTracking(string status)
+    {
+        Tracking = false;
+        Erase = false;
+        Confidence = 0;
+        _lostFrames = 0;
+        _returnCandidate = null;
+        _returnConfirmations = 0;
+        _reacquiredFrames = 0;
+        Status = status;
+    }
+
+    /// <summary>
+    /// Learn the things nearby that currently look most like the subject. A second person in
+    /// similar clothing is the hardest case there is, and the only moment it can be learned
+    /// safely is while the real subject is still visible and being followed.
+    /// </summary>
+    private void LearnDistractors(VideoFrame frame)
+    {
+        var box = Bounds(frame.Width, frame.Height);
+        var width = Math.Max(8, box.Right - box.Left);
+        var height = Math.Max(8, box.Bottom - box.Top);
+        var found = 0;
+        for (var top = 0; top + height <= frame.Height && found < 2; top += Math.Max(8, height / 2))
         {
-            _reacquiredFrames--;
+            for (var left = 0; left + width <= frame.Width && found < 2; left += Math.Max(8, width / 2))
+            {
+                if (left < box.Right && left + width > box.Left
+                    && top < box.Bottom && top + height > box.Top) continue;
+                Describe(frame, left, top, width, height, _spare);
+                if (Resembles(_spare) < 0.7) continue;
+                RememberOther(_spare);
+                found++;
+            }
         }
     }
 }

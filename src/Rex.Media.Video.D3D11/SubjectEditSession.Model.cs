@@ -1,0 +1,393 @@
+using Rex.Media.Primitives;
+
+namespace Rex.Media.Video.D3D11;
+
+/// <summary>
+/// The appearance model behind Subject Lock: what the selected thing looks like, what the rest of
+/// this video looks like, and how strongly an arbitrary patch resembles one rather than the other.
+///
+/// Absolute colour differences cannot answer that question. The same jacket is a different set of
+/// RGB values when the person walks into shade, turns towards a window, or is lit by a passing car,
+/// so a fixed "close enough" distance either rejects the subject constantly or accepts the wall
+/// behind it. Three properties make the comparison survive those changes:
+///
+/// * Structure is compared by normalized cross-correlation over mean-subtracted, unit-length luma.
+///   Any uniform change of brightness and contrast cancels out exactly, so the measure reports how
+///   the patch is shaped, not how brightly it happens to be lit.
+/// * Colour is compared as distributions of chromaticity, which divides out intensity, so a red
+///   coat stays red in shade. A small coarse-luma term keeps a white shirt from matching a black
+///   one, since both are chromatically neutral.
+/// * Resemblance is judged relative to the rest of the picture rather than against a fixed number.
+///   A patch counts as the subject when it looks more like remembered views of the subject than
+///   like remembered views of everything else, following the relative-similarity rule of
+///   Kalal, Mikolajczyk and Matas, "Tracking-Learning-Detection" (IEEE TPAMI 34(7), 2012).
+///
+/// None of this is identity. The model compares surfaces, and two people dressed alike are two
+/// patches that look the same; such cases are reported as ambiguous instead of guessed.
+/// </summary>
+public sealed partial class SubjectEditSession
+{
+    private const int ChromaBins = 8;
+    private const int ColourLength = ChromaBins * ChromaBins + 8;
+
+    /// <summary>Structure and colour of one view of a patch, independent of how it was lit.</summary>
+    private sealed class Patch
+    {
+        public float[] Structure { get; } = new float[Samples * Samples];
+        public float[] Colour { get; } = new float[ColourLength];
+
+        /// <summary>Luma standard deviation before normalizing; below <see cref="FlatDeviation"/> the patch carries no structure.</summary>
+        public float Deviation { get; set; }
+
+        /// <summary>Where the whole picture's colours sat when this view was taken, in chromaticity bins.</summary>
+        public float Red { get; set; }
+
+        public float Green { get; set; }
+
+        public bool IsFlat => Deviation < FlatDeviation;
+    }
+
+    private const float FlatDeviation = 3.5f;
+
+    // A bounded memory of how the subject has looked, and of what else this video contains.
+    // The first positive view is the user's own selection and is never forgotten: it anchors the
+    // model so that slow drift through accepted updates cannot migrate the lock onto something
+    // else. Later views are replaced oldest-first, except for that anchor.
+    private const int MaxPositive = 12;
+    private const int MaxNegative = 24;
+    private readonly List<Patch> _positive = new(MaxPositive);
+    private readonly List<Patch> _negative = new(MaxNegative);
+    private readonly Patch _probe = new();
+    private readonly Patch _spare = new();
+
+    /// <summary>Resemblance to the subject, to everything else, and the two combined as a ratio.</summary>
+    private readonly record struct Resemblance(double ToSubject, double ToOthers)
+    {
+        /// <summary>
+        /// The relative similarity of Tracking-Learning-Detection: how much of the patch's total
+        /// resemblance belongs to the subject rather than to the remembered background. Half means
+        /// the patch is equally like both, so it decides nothing.
+        /// </summary>
+        public double Relative => ToSubject + ToOthers <= 0 ? 0 : ToSubject / (ToSubject + ToOthers);
+    }
+
+    private Resemblance Compare(Patch candidate)
+    {
+        var subject = 0d;
+        foreach (var view in _positive)
+        {
+            var similarity = Similarity(candidate, view);
+            if (similarity > subject) subject = similarity;
+        }
+
+        var others = 0d;
+        foreach (var view in _negative)
+        {
+            var similarity = Similarity(candidate, view);
+            if (similarity > others) others = similarity;
+        }
+
+        return new Resemblance(subject, others);
+    }
+
+    /// <summary>
+    /// How alike two views are, from 0 to 1. Structure dominates because it is the part that
+    /// survives lighting exactly; colour distributions carry the rest, because they survive
+    /// the rotations and deformations that destroy point-for-point structural agreement.
+    /// </summary>
+    private static double Similarity(Patch a, Patch b)
+    {
+        // Two flat patches agree on nothing structural: fall back to colour alone rather than
+        // pretending that two featureless areas correlate.
+        var structure = a.IsFlat != b.IsFlat ? 0
+            : a.IsFlat ? 0.5 : (Correlation(a.Structure, b.Structure) + 1) / 2;
+        var chroma = Chroma(a, b);
+        var luma = 0d;
+        for (var i = ChromaBins * ChromaBins; i < ColourLength; i++) luma += Math.Min(a.Colour[i], b.Colour[i]);
+        return 0.55 * structure + 0.31 * chroma + 0.14 * luma;
+    }
+
+    // How far a patch's colours may be assumed to have been moved by the light falling on it,
+    // in chromaticity bins, and what assuming it costs. Beyond this a red coat could be read as
+    // a green one; within it, a face under a shop sign is still the same face.
+    private const int MaxCast = 2;
+    private const double CastPenalty = 0.05;
+
+    /// <summary>
+    /// How much two patches' colours agree, allowing for the light having changed between them.
+    ///
+    /// A brake light, a neon sign, the green cast under trees, a room lit by a different lamp:
+    /// these move every colour the same way, leaving the spread of colours intact while putting
+    /// each of them in a different bin. Comparing bin for bin reports no agreement at all, and a
+    /// tracker that believes it loses the subject to every change of light.
+    ///
+    /// What is allowed for is the change in the light, measured across the whole picture, not any
+    /// difference between these two patches. That distinction is the whole safety of it: letting
+    /// each candidate explain its own colours away as a trick of the light is how a search ends
+    /// up confidently matching a brown coat to a blue one. A shift every surface in the picture
+    /// underwent is evidence about the light; a shift only this patch underwent is evidence that
+    /// it is something else. Agreement needing no shift always wins a tie, and a shift is paid
+    /// for in proportion to its size.
+    /// </summary>
+    private static double Chroma(Patch a, Patch b)
+    {
+        var direct = Overlap(a, b, 0, 0);
+        var red = Math.Clamp((int)Math.Round(b.Red - a.Red), -MaxCast, MaxCast);
+        var green = Math.Clamp((int)Math.Round(b.Green - a.Green), -MaxCast, MaxCast);
+        if (red == 0 && green == 0) return direct;
+        return Math.Max(direct, Overlap(a, b, red, green) - CastPenalty * (Math.Abs(red) + Math.Abs(green)));
+
+        static double Overlap(Patch a, Patch b, int red, int green)
+        {
+            var total = 0d;
+            for (var i = Math.Max(0, -red); i < Math.Min(ChromaBins, ChromaBins - red); i++)
+            {
+                for (var j = Math.Max(0, -green); j < Math.Min(ChromaBins, ChromaBins - green); j++)
+                {
+                    total += Math.Min(a.Colour[i * ChromaBins + j], b.Colour[(i + red) * ChromaBins + j + green]);
+                }
+            }
+
+            return total;
+        }
+    }
+
+    // Where the colours of the picture being read sit, in chromaticity bins. Every view is
+    // stamped with this, so two views can be compared knowing how the light differed between them.
+    private float _lightRed;
+    private float _lightGreen;
+
+    /// <summary>
+    /// Read the colour of the light in this picture, from a coarse grid over the whole of it.
+    /// Sparse on purpose: this is one reading of an entire frame, and a few thousand pixels
+    /// settle where the picture's colours sit as well as all of them would.
+    /// </summary>
+    private void MeasureLight(VideoFrame frame)
+    {
+        Span<float> histogram = stackalloc float[ChromaBins * ChromaBins];
+        histogram.Clear();
+        var down = Math.Max(1, frame.Height / 48);
+        var across = Math.Max(1, frame.Width / 48);
+        for (var y = 0; y < frame.Height; y += down)
+        {
+            var row = frame.Row(0, y);
+            for (var x = 0; x < frame.Width; x += across)
+            {
+                var at = x * 4;
+                Accumulate(histogram, row[at], row[at + 1], row[at + 2]);
+            }
+        }
+
+        Locate(histogram, out _lightRed, out _lightGreen);
+    }
+
+    /// <summary>Where a chromaticity histogram's weight sits, in bins, along each axis.</summary>
+    private static void Locate(ReadOnlySpan<float> histogram, out float red, out float green)
+    {
+        var weight = 0f;
+        var alongRed = 0f;
+        var alongGreen = 0f;
+        for (var i = 0; i < ChromaBins; i++)
+        {
+            for (var j = 0; j < ChromaBins; j++)
+            {
+                var count = histogram[i * ChromaBins + j];
+                weight += count;
+                alongRed += count * i;
+                alongGreen += count * j;
+            }
+        }
+
+        red = weight > 0 ? alongRed / weight : 0;
+        green = weight > 0 ? alongGreen / weight : 0;
+    }
+
+    /// <summary>Read a rectangle of the picture into <paramref name="patch"/> as structure and colour.</summary>
+    private void Describe(VideoFrame frame, int left, int top, int width, int height, Patch patch)
+    {
+        Span<float> luma = stackalloc float[Samples * Samples];
+        var colour = patch.Colour;
+        Array.Clear(colour);
+        var total = 0f;
+        var i = 0;
+        for (var y = 0; y < Samples; y++)
+        {
+            var upper = frame.Row(0, Row(frame, top, height, y, 1));
+            var lower = frame.Row(0, Row(frame, top, height, y, 3));
+            for (var x = 0; x < Samples; x++)
+            {
+                var near = Column(frame, left, width, x, 1);
+                var far = Column(frame, left, width, x, 3);
+                var b = (upper[near] + upper[far] + lower[near] + lower[far]) / 4;
+                var g = (upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) / 4;
+                var r = (upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) / 4;
+                var value = (b * 29 + g * 150 + r * 77) / 256f;
+                luma[i++] = value;
+                total += value;
+                Accumulate(colour, b, g, r);
+                colour[ChromaBins * ChromaBins + Math.Clamp((b + g + r) / 96, 0, 7)]++;
+            }
+        }
+
+        Normalize(luma, total, patch);
+        patch.Red = _lightRed;
+        patch.Green = _lightGreen;
+        var weight = 1f / (Samples * Samples);
+        for (var bin = 0; bin < ColourLength; bin++) colour[bin] *= weight;
+    }
+
+    // Each of the 16 by 16 cells stands for a block of the rectangle, and reading one pixel from
+    // the middle of that block misrepresents it: a striped shirt sampled one pixel to the left can
+    // invert, so the match score jumps about between neighbouring positions and a coarse-to-fine
+    // search climbs the wrong peak. Averaging four spread taps per cell keeps the score surface
+    // smooth enough to descend, at a quarter of the cost of averaging the block outright.
+    private static int Row(VideoFrame frame, int top, int height, int y, int quarter) =>
+        Math.Clamp(top + (y * 4 + quarter) * height / (Samples * 4), 0, frame.Height - 1);
+
+    private static int Column(VideoFrame frame, int left, int width, int x, int quarter) =>
+        Math.Clamp(left + (x * 4 + quarter) * width / (Samples * 4), 0, frame.Width - 1) * 4;
+
+    /// <summary>
+    /// Structure only, for the hundreds of positions a search rejects. Building colour
+    /// distributions for every one of those costs two divisions per pixel and decides nothing:
+    /// the places worth considering are found by shape first and judged on colour afterwards.
+    /// </summary>
+    private static void DescribeStructure(VideoFrame frame, int left, int top, int width, int height, Patch patch)
+    {
+        Span<float> luma = stackalloc float[Samples * Samples];
+        var total = 0f;
+        var i = 0;
+        for (var y = 0; y < Samples; y++)
+        {
+            var upper = frame.Row(0, Row(frame, top, height, y, 1));
+            var lower = frame.Row(0, Row(frame, top, height, y, 3));
+            for (var x = 0; x < Samples; x++)
+            {
+                var near = Column(frame, left, width, x, 1);
+                var far = Column(frame, left, width, x, 3);
+                var value = ((upper[near] + upper[far] + lower[near] + lower[far]) * 29
+                    + (upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) * 150
+                    + (upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) * 77) / 1024f;
+                luma[i++] = value;
+                total += value;
+            }
+        }
+
+        Normalize(luma, total, patch);
+    }
+
+    /// <summary>
+    /// Chromaticity divides each channel by the pixel's own total, so the bin a pixel lands in
+    /// depends on its colour and not on how much light reached it. Near-black pixels have no
+    /// reliable chromaticity, so they are counted only in the coarse luma bins.
+    /// </summary>
+    private static void Accumulate(Span<float> chroma, int b, int g, int r)
+    {
+        var sum = b + g + r;
+        // Near-black pixels have no reliable chromaticity: dividing by a total close to zero
+        // turns sensor noise into a confident colour, so they are left to the luma bins.
+        if (sum < 36) return;
+        // Real surfaces cluster near a third of the total in each channel; spreading the
+        // bins over the lower three fifths keeps that cluster from collapsing into one bin.
+        var red = Math.Clamp(r * ChromaBins / (sum * 3 / 5 + 1), 0, ChromaBins - 1);
+        var green = Math.Clamp(g * ChromaBins / (sum * 3 / 5 + 1), 0, ChromaBins - 1);
+        chroma[red * ChromaBins + green]++;
+    }
+
+    private static void Normalize(ReadOnlySpan<float> luma, float total, Patch patch)
+    {
+        var mean = total / luma.Length;
+        var square = 0f;
+        var structure = patch.Structure;
+        for (var i = 0; i < luma.Length; i++)
+        {
+            var centred = luma[i] - mean;
+            structure[i] = centred;
+            square += centred * centred;
+        }
+
+        var deviation = MathF.Sqrt(square / luma.Length);
+        patch.Deviation = deviation;
+        // Unit length makes the dot product of two patches their correlation directly, so a
+        // candidate is compared with every remembered view at the cost of one multiply each.
+        var scale = square > 0 ? 1f / MathF.Sqrt(square) : 0f;
+        for (var i = 0; i < structure.Length; i++) structure[i] *= scale;
+    }
+
+    /// <summary>
+    /// Whether a patch has enough to go on. A rectangle of clear sky or a blank wall matches
+    /// thousands of unrelated places equally well, and claiming a lock on one would be a
+    /// promise the tracker cannot keep. Either visible structure or a colour the patch does
+    /// not share with everything around it is enough.
+    /// </summary>
+    private static bool IsDistinctive(Patch patch)
+    {
+        if (!patch.IsFlat) return true;
+        // A smooth but strongly coloured patch still carries evidence; a smooth neutral one,
+        // whose colour sits in a single near-grey bin, does not.
+        var largest = 0f;
+        var reliableColour = 0f;
+        for (var i = 0; i < ChromaBins * ChromaBins; i++)
+        {
+            largest = Math.Max(largest, patch.Colour[i]);
+            reliableColour += patch.Colour[i];
+        }
+        // An empty histogram means the patch was too dark to measure, not that it
+        // contains a distinctive spread of colours.
+        return reliableColour >= 0.25f && largest < 0.9f;
+    }
+
+    private static Patch Copy(Patch source)
+    {
+        var copy = new Patch { Deviation = source.Deviation, Red = source.Red, Green = source.Green };
+        source.Structure.CopyTo(copy.Structure, 0);
+        source.Colour.CopyTo(copy.Colour, 0);
+        return copy;
+    }
+
+    /// <summary>Remember another view of the subject, keeping the user's original selection.</summary>
+    private void RememberSubject(Patch view)
+    {
+        // A view that the model already explains teaches it nothing and would only crowd out
+        // the genuinely new viewpoints this memory exists to hold.
+        if (_positive.Count > 0 && Compare(view).ToSubject > 0.94) return;
+        if (_positive.Count >= MaxPositive) _positive.RemoveAt(1);
+        _positive.Add(Copy(view));
+    }
+
+    private void RememberOther(Patch view)
+    {
+        if (view.IsFlat) return;
+        if (_negative.Count > 0 && Compare(view).ToOthers > 0.94) return;
+        if (_negative.Count >= MaxNegative) _negative.RemoveAt(0);
+        _negative.Add(Copy(view));
+    }
+
+    /// <summary>
+    /// Learn what the rest of this picture looks like at the moment of selection. Without these
+    /// the model can only ask "is this like the subject?", which every roughly similar surface
+    /// answers yes to; with them it can ask the far more useful "is this more like the subject
+    /// than like anything else here?". Patches are taken only from areas clear of the selection,
+    /// so parts of the subject are never learned as background.
+    /// </summary>
+    private void LearnSurroundings(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box)
+    {
+        var width = Math.Max(8, box.Right - box.Left);
+        var height = Math.Max(8, box.Bottom - box.Top);
+        var stepX = Math.Max(8, width / 2);
+        var stepY = Math.Max(8, height / 2);
+        for (var top = 0; top + height <= frame.Height; top += stepY)
+        {
+            for (var left = 0; left + width <= frame.Width; left += stepX)
+            {
+                // Any overlap at all disqualifies a sample: a patch holding the subject's sleeve
+                // would teach the model that the subject is background.
+                if (left < box.Right && left + width > box.Left
+                    && top < box.Bottom && top + height > box.Top) continue;
+                Describe(frame, left, top, width, height, _probe);
+                RememberOther(_probe);
+                if (_negative.Count >= MaxNegative) return;
+            }
+        }
+    }
+}
