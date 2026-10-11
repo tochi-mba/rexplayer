@@ -142,7 +142,10 @@ public sealed partial class SubjectEditSession
             // and a modest change in viewpoint need not preserve the aspect ratio.
             if (bestError < 35)
             {
-                var step = Math.Max(1, Math.Min(bestWidth, bestHeight) / 16);
+                // Refine a meaningful fraction of the candidate size, not just one pixel.
+                // At 16-24px, adjacent coarse sizes differ by 4px and a one-pixel
+                // adjustment can never reach some genuine intermediate returns.
+                var step = Math.Max(1, Math.Min(bestWidth, bestHeight) / 8);
                 while (step >= 1)
                 {
                     var sizeWidth = bestWidth;
