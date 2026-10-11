@@ -291,6 +291,42 @@ public sealed class MemoryControllerTests
     }
 
     [Fact]
+    public void DamagedUpgradeQueuesAreConsumedWithoutChangingTheCurrentQueue()
+    {
+        using var harness = Harness(RexStore.InMemory(), restoreQueue: false);
+        harness.Controller.Playlist.Add([new PlaylistItem("b.wav")]);
+        foreach (var items in new IReadOnlyList<QueuedItem>[]
+        {
+            null!, [null!], [new QueuedItem(" ", null, null, TimeSpan.Zero, null)],
+            [new QueuedItem("a.wav", null, null, TimeSpan.FromSeconds(-1), null)],
+            [new QueuedItem("a.wav", null, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1))],
+        })
+        {
+            harness.Controller.Memory.Updating = new UpdateSession(
+                new QueueSnapshot(items, 0, TimeSpan.Zero), true, true, "Home", false,
+                "", null, null, null, false, 1, DateTimeOffset.UtcNow);
+            Assert.Null(harness.Controller.RestoreAfterUpdate());
+            Assert.Null(harness.Controller.Memory.Updating);
+            Assert.Equal("b.wav", Assert.Single(harness.Controller.Playlist.Items).Location);
+            Assert.Equal(SessionState.Idle, harness.Controller.State);
+        }
+    }
+
+    [Fact]
+    public void UpgradeRecoveryConsumesItsMarkerBeforeEventsAndNormalizesMissingWorkspaceText()
+    {
+        using var harness = Harness(RexStore.InMemory(), restoreQueue: false);
+        harness.Controller.Memory.Updating = new UpdateSession(
+            new QueueSnapshot([new QueuedItem("a.wav", null, null, TimeSpan.Zero, null)], 0, TimeSpan.Zero),
+            false, false, null!, false, null!, null, null, null, false, 1, DateTimeOffset.UtcNow);
+        harness.Controller.Changed += (_, _) => Assert.Null(harness.Controller.Memory.Updating);
+        var saved = harness.Controller.RestoreAfterUpdate();
+        Assert.NotNull(saved);
+        Assert.Equal("Home", saved.LibrarySource);
+        Assert.Equal("", saved.Search);
+    }
+
+    [Fact]
     public void AnExpiredOrMalformedUpgradeSessionCannotStartPlayback()
     {
         var store = RexStore.InMemory();

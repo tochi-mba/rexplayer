@@ -19,16 +19,16 @@ public sealed record QueuedItem(string Location, string? Title, string? Artist, 
 /// <summary>The queue as it was when the player closed (LIB-03): its items, the one playing, and where.</summary>
 public sealed record QueueSnapshot(IReadOnlyList<QueuedItem> Items, int Current, TimeSpan At);
 
-/// <summary>
-/// One-time session hand-off for an app-initiated upgrade. Unlike the ordinary saved queue,
-/// it remembers whether playback was active, even when automatic queue restoration is off.
-/// Its UI values are names, not control instances, so a newer version can ignore unknown views.
-/// </summary>
 /// <summary>Transient layout details kept only across a deliberate upgrade.</summary>
 public sealed record UpdateWindowState(
     string Aspect, string Crop, double Zoom, double CenterX, double CenterY,
     bool FullScreen, bool ShowRemaining);
 
+/// <summary>
+/// One-time session hand-off for an app-initiated upgrade. Unlike the ordinary saved queue,
+/// it remembers whether playback was active, even when automatic queue restoration is off.
+/// Its UI values are names, not control instances, so a newer version can ignore unknown views.
+/// </summary>
 public sealed record UpdateSession(
     QueueSnapshot? Queue,
     bool Active,

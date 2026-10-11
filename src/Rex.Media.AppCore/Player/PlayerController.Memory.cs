@@ -197,11 +197,22 @@ public sealed partial class PlayerController
             return null;
         }
 
+        // Consume before raising events or opening media: a partial recovery must never
+        // leave a marker that replays again on the next ordinary launch.
+        Memory.Updating = null;
+        if (saved.Queue is { } invalid && (invalid.Items is null || invalid.Items.Any(item =>
+            item is null || string.IsNullOrWhiteSpace(item.Location) || item.Start < TimeSpan.Zero
+            || item.End is { } end && end <= item.Start)))
+        {
+            return null;
+        }
+
+        saved = saved with { Search = saved.Search ?? "", LibrarySource = saved.LibrarySource ?? "Home" };
+
         // A failed installer leaves the old version in place; never silently recover a
         // pending update hand-off into a different version on the next ordinary launch.
         if (currentVersion is not null && !string.Equals(currentVersion, saved.TargetVersion, StringComparison.Ordinal))
         {
-            Memory.Updating = null;
             return null;
         }
 
@@ -209,7 +220,6 @@ public sealed partial class PlayerController
         if (saved.SavedAt > DateTimeOffset.UtcNow.AddMinutes(5)
             || saved.SavedAt < DateTimeOffset.UtcNow.AddDays(-7))
         {
-            Memory.Updating = null;
             return null;
         }
 
@@ -231,7 +241,6 @@ public sealed partial class PlayerController
             }
         }
 
-        Memory.Updating = null;
         return saved;
     }
 

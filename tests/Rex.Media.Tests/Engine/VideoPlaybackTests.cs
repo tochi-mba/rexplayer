@@ -251,6 +251,8 @@ public sealed class VideoPlaybackTests
         WaitUntil(() => presenter.Shown.Count == 2);
 
         Assert.Equal([0, 0], presenter.Shown.Select(s => (int)s.First));
+        Assert.Equal(2, presenter.Generations.Count);
+        Assert.True(presenter.Generations[1] > presenter.Generations[0]);
     }
 
     [Fact]

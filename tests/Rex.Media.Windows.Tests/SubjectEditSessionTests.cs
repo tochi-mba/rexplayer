@@ -237,6 +237,30 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void ObviousReturnIsConfirmedWithinFourPresentedPictures()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var original = Picture();
+        tracker.Process(original);
+        using var absent = Picture(-50, -50, 1.04);
+        tracker.Process(absent);
+        Assert.False(tracker.Tracking);
+
+        // Two independent sightings are enough for a clear return. At 30 fps this
+        // bounds the visible recovery delay to about 130 ms rather than a third second.
+        for (var i = 0; i < 4; i++)
+        {
+            using var returned = Picture(70, 28, 1.08 + i * 0.04);
+            Assert.Null(tracker.Process(returned));
+        }
+
+        Assert.True(tracker.Tracking);
+        Assert.InRange(tracker.Region.Left * 128, 69, 71);
+        Assert.InRange(tracker.Region.Top * 80, 27, 29);
+    }
+
+    [Fact]
     public void ALongAbsenceRetainsTheOriginalFingerprintAndRequiresTwoSightings()
     {
         var tracker = new SubjectEditSession();
@@ -256,7 +280,8 @@ public sealed class SubjectEditSessionTests
             Assert.False(tracker.Erase);
         }
 
-        // One fleeting match is not enough to move the viewport onto a possible lookalike.
+        // One sampled sighting is not enough to move the viewport onto a possible lookalike.
+        // After a long absence, searches remain throttled to every fourth picture.
         for (var i = 0; i < 4; i++)
         {
             using var returned = Picture(70, 28, 3.2 + i * 0.04);
@@ -517,7 +542,9 @@ public sealed class SubjectEditSessionTests
         tracker.Process(original);
         using var absent = Picture(-50, -50, 1.04);
         tracker.Process(absent);
-        for (var i = 0; i < 4; i++)
+        // The initial recovery window searches on the second presented picture.
+        // Two pictures produce only one candidate, so a transient cannot restore tracking.
+        for (var i = 0; i < 2; i++)
         {
             using var brief = Picture(70, 28, 1.08 + i * 0.04);
             tracker.Process(brief);

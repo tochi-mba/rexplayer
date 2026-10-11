@@ -41,6 +41,7 @@ public sealed class D3D11Presenter : IVideoPresenter
     private float _motionTrail = 0.35f;
     private int _motionMode = 3;
     private double _lastMotionTime = double.NaN;
+    private long? _motionGeneration;
     private bool _navigator;
     private readonly SubjectEditSession _subjectEdit = new();
     private VideoFrame? _originalForEditing;
@@ -205,6 +206,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             _subjectEdit.Reset();
             if (_originalForEditing is { } source)
             {
+                _renderer.ResetMotionHistory();
                 _renderer.Upload(VideoPlaneFormat.Bgra, source.Width, source.Height,
                     source.Plane(0), source.Stride(0), default, 0);
                 // An image converted from NV12/P010 is now BGRA. Its former YUV colour
@@ -261,7 +263,9 @@ public sealed class D3D11Presenter : IVideoPresenter
             ApplySize();
             if (_subjectEdit.Locked && _originalForEditing is not null)
             {
-                using var edited = _subjectEdit.Process(_originalForEditing);
+                using var edited = _subjectEdit.Process(_originalForEditing, advanceTracking: false);
+                // Re-uploading a paused preview is not a new temporal observation.
+                _renderer.ResetMotionHistory();
                 if (edited is not null)
                 {
                     _renderer.Upload(VideoPlaneFormat.Bgra, edited.Width, edited.Height,
@@ -306,6 +310,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             _subjectEdit.Reset();
             _renderer.ResetMotionHistory();
             _lastMotionTime = double.NaN;
+            _motionGeneration = null;
         }
 
         Redraw();
@@ -322,16 +327,17 @@ public sealed class D3D11Presenter : IVideoPresenter
                 var now = frame.Pts.IsKnown ? frame.Pts.TotalSeconds : double.NaN;
                 // Repeated/stale frames, long gaps, and backwards seeks cannot
                 // contribute a trustworthy motion trail to the next picture.
-                if (!double.IsFinite(now) || !double.IsFinite(_lastMotionTime)
+                if (_motionGeneration != frame.Generation || !double.IsFinite(now) || !double.IsFinite(_lastMotionTime)
                     || now <= _lastMotionTime || now - _lastMotionTime > 0.25)
                 {
                     _renderer.ResetMotionHistory();
                 }
 
                 _lastMotionTime = now;
+                _motionGeneration = frame.Generation;
             }
 
-            if (!_subjectEdit.Locked)
+            if (!_subjectEdit.Locked || !_subjectEdit.AcceptPictureSize(frame.Width, frame.Height))
             {
                 _originalForEditing?.Dispose();
                 _originalForEditing = null;

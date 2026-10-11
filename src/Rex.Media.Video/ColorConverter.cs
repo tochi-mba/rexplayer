@@ -26,6 +26,7 @@ public static class ColorConverter
         var output = VideoFrame.Rent(PixelFormat.Bgra32, source.Width, source.Height);
         output.Pts = source.Pts;
         output.Duration = source.Duration;
+        output.Generation = source.Generation;
         output.PixelAspect = source.PixelAspect;
         output.Color = source.Color;
         if (source.Format == PixelFormat.Bgra32)

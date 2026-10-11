@@ -30,6 +30,95 @@ public sealed class SubjectEditSessionSafetyTests
     }
 
     [Fact]
+    public void UhdReacquisitionRefinesLargeSelectionsWithABoundedComparisonBudget()
+    {
+        var tracker = new SubjectEditSession();
+        using var frame = VideoFrame.Rent(PixelFormat.Bgra32, 3840, 2160);
+        frame.Plane(0).Fill(100);
+        frame.Pts = MediaTime.FromSeconds(1);
+        // A broad selection exercises the worst refinement radius, not just tiny fixtures.
+        for (var y = 200; y < 1800; y++)
+        {
+            var row = frame.Row(0, y);
+            for (var x = 400; x < 3200; x++)
+            {
+                row[x * 4] = (byte)(120 + x / 90 % 3 * 20);
+                row[x * 4 + 1] = (byte)(30 + y / 90 % 4 * 20);
+                row[x * 4 + 2] = 210;
+            }
+        }
+
+        tracker.Select(400 / 3840f, 200 / 2160f, 2800 / 3840f, 1600 / 2160f);
+        Assert.Null(tracker.Process(frame));
+        Assert.True(tracker.Tracking);
+        frame.Plane(0).Fill(20);
+        frame.Pts = MediaTime.FromSeconds(1.04);
+        Assert.Null(tracker.Process(frame));
+        Assert.False(tracker.Tracking);
+        frame.Plane(0).Fill(100);
+        for (var i = 0; i < 4; i++)
+        {
+            frame.Pts = MediaTime.FromSeconds(1.08 + i * 0.04);
+            Assert.Null(tracker.Process(frame));
+        }
+
+        Assert.InRange(tracker.LastSearchComparisons, 1, 100_000);
+        Assert.False(tracker.Tracking);
+    }
+
+    [Fact]
+    public void ShortForwardSeekClearsIdentityEvenWhenTimestampsLookContinuous()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture(1, withTarget: true);
+        first.Generation = 7;
+        tracker.Process(first);
+        tracker.SetErase(true);
+        using var afterSeek = Picture(1.04, withTarget: true);
+        afterSeek.Generation = 8;
+        Assert.Null(tracker.Process(afterSeek));
+        Assert.False(tracker.Locked);
+        Assert.False(tracker.Tracking);
+        Assert.False(tracker.Erase);
+        Assert.Equal(0, tracker.EstimatedPixels);
+        Assert.Contains("generation", tracker.Status, StringComparison.Ordinal);
+
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        Assert.Null(tracker.Process(afterSeek));
+        Assert.True(tracker.Tracking);
+    }
+
+    [Fact]
+    public void PausedPreviewDoesNotAdvanceTrackingOrConfirmAReturn()
+    {
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var first = Picture(1, withTarget: true);
+        tracker.Process(first);
+        tracker.SetErase(true);
+        var region = tracker.Region;
+        for (var i = 0; i < 12; i++)
+        {
+            tracker.Refine(i, 50);
+            using var preview = tracker.Process(first, advanceTracking: false);
+            Assert.NotNull(preview);
+            Assert.Equal(region, tracker.Region);
+            Assert.Equal(1, tracker.Confidence);
+        }
+
+        using var lost = Picture(1.04, withTarget: false);
+        Assert.Null(tracker.Process(lost));
+        Assert.False(tracker.Tracking);
+        using var returned = Picture(1.08, withTarget: true);
+        for (var i = 0; i < 32; i++)
+        {
+            Assert.Null(tracker.Process(returned, advanceTracking: false));
+            Assert.False(tracker.Tracking);
+        }
+    }
+
+    [Fact]
     public void FeaturelessInitialSelectionCannotAcquireAReplacementObjectWithoutReselection()
     {
         var tracker = new SubjectEditSession();

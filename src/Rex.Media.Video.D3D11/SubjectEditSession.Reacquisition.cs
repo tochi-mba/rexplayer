@@ -13,6 +13,7 @@ public sealed partial class SubjectEditSession
     /// </summary>
     private bool TryReacquire(VideoFrame frame)
     {
+        LastSearchComparisons = 0;
         if (_returnReference is not { } fingerprint)
         {
             return false;
@@ -99,6 +100,7 @@ public sealed partial class SubjectEditSession
                 {
                     var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
                         (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
+                    LastSearchComparisons++;
                     if (error < bestError)
                     {
                         (bestError, bestX, bestY) = (error, x, y);
@@ -106,17 +108,26 @@ public sealed partial class SubjectEditSession
                 }
             }
 
-            var centreX = bestX;
-            var centreY = bestY;
-            for (var y = Math.Max(0, centreY - refinementStep); y <= Math.Min(maxY, centreY + refinementStep); y++)
+            // Descend in bounded grids instead of scanning every pixel in a large
+            // final square. A UHD-sized selection otherwise multiplies the expensive
+            // full-template comparisons by hundreds of thousands per candidate.
+            while (refinementStep > 1)
             {
-                for (var x = Math.Max(0, centreX - refinementStep); x <= Math.Min(maxX, centreX + refinementStep); x++)
+                var centreX = bestX;
+                var centreY = bestY;
+                var window = refinementStep;
+                refinementStep = Math.Max(1, refinementStep / 4);
+                for (var y = Math.Max(0, centreY - window); y <= Math.Min(maxY, centreY + window); y += refinementStep)
                 {
-                    var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
-                        (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
-                    if (error < bestError)
+                    for (var x = Math.Max(0, centreX - window); x <= Math.Min(maxX, centreX + window); x += refinementStep)
                     {
-                        (bestError, bestX, bestY) = (error, x, y);
+                        var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
+                            (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
+                        LastSearchComparisons++;
+                        if (error < bestError)
+                        {
+                            (bestError, bestX, bestY) = (error, x, y);
+                        }
                     }
                 }
             }
@@ -186,7 +197,7 @@ public sealed partial class SubjectEditSession
         _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
         Tracking = true;
         Erase = false;
-        _returnFrames = 0;
+        _lostFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
         _reacquiredFrames = 15;
@@ -205,6 +216,7 @@ public sealed partial class SubjectEditSession
         float height, float[] reference)
     {
         Span<double> shift = stackalloc double[3];
+        shift.Clear();
         for (var y = 2; y < Samples; y += 4)
         {
             var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);

@@ -13,6 +13,7 @@ public sealed partial class MainWindow
     private static readonly string ResumePath = Path.Combine(App.DataRoot, "resume.json");
     private bool _installingUpdate;
     private UpdateWindowState? _pendingUpdateWindowState;
+    private PlaylistItem? _pendingUpdateItem;
 
     /// <summary>
     /// Offers, in the banner at the foot of the picture, to carry on where a run that did not close
@@ -299,6 +300,7 @@ public sealed partial class MainWindow
         // There is no incoming video to restore geometry onto for a stopped/idle session.
         // Without this guard stale zoom could unexpectedly affect media opened later.
         _pendingUpdateWindowState = saved.Active ? saved.WindowState : null;
+        _pendingUpdateItem = _player.Item;
         if (saved.WindowState is { } display)
         {
             _showRemaining = display.ShowRemaining;
@@ -327,9 +329,12 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_player.State is SessionState.Faulted or SessionState.Ended)
+        if (!ReferenceEquals(_pendingUpdateItem, _player.Item)
+            || _player.State is SessionState.Idle or SessionState.Faulted or SessionState.Ended
+            || _player.Info is not null && !HasVideo)
         {
             _pendingUpdateWindowState = null;
+            _pendingUpdateItem = null;
             return;
         }
 
@@ -339,6 +344,7 @@ public sealed partial class MainWindow
         }
 
         _pendingUpdateWindowState = null;
+        _pendingUpdateItem = null;
         _aspect = VideoGeometry.AspectRatios.FirstOrDefault(preset => preset.Name == saved.Aspect)
             ?? VideoGeometry.AspectRatios[0];
         _crop = VideoGeometry.Crops.FirstOrDefault(preset => preset.Name == saved.Crop)

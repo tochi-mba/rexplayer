@@ -174,7 +174,13 @@ public sealed class AppWindowTests : IDisposable
         // This invokes actual presenter selection, rather than merely opening the toolbar.
         // Even a low-texture fixture must respond (either a lock or an explicit refusal).
         app.Press("SubjectCenter");
-        Wait.For(() => !app.Text("SubjectStatusText").StartsWith("Drag", StringComparison.Ordinal),
+        Wait.For(() =>
+        {
+            var status = app.Text("SubjectStatusText");
+            return status.Contains("Tracking selected region", StringComparison.Ordinal)
+                || status.Contains("Selected region locked", StringComparison.Ordinal)
+                || status.Contains("too little distinguishing detail", StringComparison.Ordinal);
+        },
             "the selection command to reach the video presenter");
 
         app.Press("SubjectReset");
