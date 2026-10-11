@@ -181,7 +181,9 @@ public sealed class AppWindowTests : IDisposable
                 || status.Contains("Selected region locked", StringComparison.Ordinal)
                 || status.Contains("too little distinguishing detail", StringComparison.Ordinal);
         },
-            "the selection command to reach the video presenter");
+            "the selection command to reach the video presenter",
+            () => $"Last status: {app.Text("SubjectStatusText")}. App log tail: "
+                + string.Join(" | ", app.LogText.Split('\n').TakeLast(15)));
 
         app.Press("SubjectReset");
         Assert.True(app.IsShown("SubjectSelect"));
