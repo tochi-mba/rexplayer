@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.15.9 - 2026-10-11
+
+### Improved
+
+- **Subject Lock playback responsiveness.** On-screen recovery now searches an
+  owned video snapshot on a background worker instead of repeatedly searching the
+  entire picture during presentation. While a search is running, the presenter
+  can avoid redundant picture readbacks; local tracking also uses a bounded
+  coarse-to-fine search.
+- **Return after an exit.** Recovery uses less descriptor sampling work and no
+  longer treats a change in the subject's background contrast by itself as a
+  reason to reject an otherwise plausible appearance match. Confirmation and
+  competing-match checks remain in place.
+- **Recovery lifecycle.** Seek, reset and reselection cancel outstanding searches.
+  A background result is checked against the current picture before a lock is
+  restored, reducing the chance of applying an outdated result.
+
+### Testing
+
+- Adds Windows regression coverage for background recovery, worker lifecycle,
+  target appearance and candidate validation.
+- Stabilizes timer playback tests with a cancellable audio-write barrier and
+  expands selected container and playlist regressions.
+- The preceding application commit passed the Windows build, adapter/coverage
+  and package gates, desktop UI Automation, performance, portable Linux and
+  website CI. The version-only release change must pass its own checks.
+
+### Limitations
+
+- Appearance matching cannot guarantee identity through arbitrary rotations,
+  occlusions or similar-looking subjects. The flower-dress and grey-outfit
+  footage still need an annotated, repeatable accuracy and frame-time benchmark
+  before claiming reliable recovery under all real-world conditions.
+
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
