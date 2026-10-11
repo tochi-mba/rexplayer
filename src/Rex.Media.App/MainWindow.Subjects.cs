@@ -332,7 +332,10 @@ public sealed partial class MainWindow
 
         var revision = ++_subjectRevision;
         var item = _player.Item;
-        var seekPausedPicture = !_player.IsPlaying && _player.CanSeek;
+        // A still image can remain "playing" without another decoded picture arriving.
+        // Selecting a subject must request fresh image data even during its display interval.
+        var stillPicture = item is not null && Rex.Media.AppCore.Player.MediaFiles.IsPicture(item.Location);
+        var refreshSelectionFrame = _player.CanSeek && (stillPicture || !_player.IsPlaying);
         _selectingSubject = false;
         _subjectErase = false;
         SubjectEraseButton.IsEnabled = false;
@@ -345,19 +348,21 @@ public sealed partial class MainWindow
         {
             p.SelectSubject(left, top, width, height);
             p.RefineSubject(feather, tolerance);
-            // Order the paused seek after selection actually reaches the presenter.
-            // Otherwise the one decoded picture can arrive before the selection exists.
-            if (seekPausedPicture)
+            // The presenter must know the selection before the seek can decode its
+            // only picture. The same applies to a playing slideshow image: no later
+            // frame would otherwise arrive to initialize the selected texture.
+            if (refreshSelectionFrame)
             {
                 OnWindowThread(() =>
                 {
                     if (_subjectOpen && revision == _subjectRevision
-                        && ReferenceEquals(item, _player.Item) && !_player.IsPlaying && _player.CanSeek)
+                        && ReferenceEquals(item, _player.Item) && _player.CanSeek
+                        && (stillPicture || !_player.IsPlaying))
                     {
-                        // An ended still picture is parked at EOF. Seeking there yields no
-                        // decoded frame, so the new selection never receives a texture sample.
-                        // Revisit the first frame instead, while preserving position for paused video.
-                        var at = _player.Position >= _player.Duration ? TimeSpan.Zero : _player.Position;
+                        // Images are static: rescan their first frame, never EOF.
+                        // For paused video retain the chosen position when possible.
+                        var at = stillPicture || _player.Position >= _player.Duration
+                            ? TimeSpan.Zero : _player.Position;
                         _player.Seek(at);
                     }
                 });
