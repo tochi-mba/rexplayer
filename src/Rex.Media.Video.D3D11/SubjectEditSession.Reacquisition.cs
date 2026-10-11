@@ -23,7 +23,7 @@ public sealed partial class SubjectEditSession
         // several sizes so a shirt that returns nearer or farther can still be found.
         // Limit candidate work and use sparse RGB samples before the full comparison.
         List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(24);
-        ReadOnlySpan<float> scales = stackalloc float[] { 0.5f, 0.625f, 0.75f, 0.875f, 1f, 1.25f, 1.5f, 1.75f, 2f };
+        ReadOnlySpan<float> scales = stackalloc float[] { 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f };
         foreach (var scale in scales)
         {
             // Preserve a separate shortlist per scale: otherwise proposals from one
@@ -40,6 +40,10 @@ public sealed partial class SubjectEditSession
                 for (var x = 0; x <= maxX; x += stride)
                 {
                     var error = SparseDistance(frame, x, y, patchWidth, patchHeight, fingerprint);
+                    if (_returnAppearance is { } appearance)
+                    {
+                        error = Math.Min(error, 15 + AppearanceDistance(frame, x, y, patchWidth, patchHeight, appearance, sparse: true));
+                    }
                     if (error > 105)
                     {
                         continue;
@@ -74,9 +78,9 @@ public sealed partial class SubjectEditSession
 
                     candidates.Add((error, x, y, patchWidth, patchHeight));
                     candidates.Sort((a, b) => a.Error.CompareTo(b.Error));
-                    if (candidates.Count > 8)
+                    if (candidates.Count > 4)
                     {
-                        candidates.RemoveAt(8);
+                        candidates.RemoveAt(4);
                     }
                 }
             }
@@ -90,10 +94,12 @@ public sealed partial class SubjectEditSession
             var bestError = double.MaxValue;
             var bestX = candidate.X;
             var bestY = candidate.Y;
+            var bestWidth = candidate.Width;
+            var bestHeight = candidate.Height;
             var maxX = frame.Width - candidate.Width;
             var maxY = frame.Height - candidate.Height;
             var radius = Math.Max(2, Math.Min(candidate.Width, candidate.Height) / 3);
-            var refinementStep = Math.Max(1, radius / 4);
+            var refinementStep = Math.Max(1, radius / 2);
             for (var y = Math.Max(0, candidate.Y - radius); y <= Math.Min(maxY, candidate.Y + radius); y += refinementStep)
             {
                 for (var x = Math.Max(0, candidate.X - radius); x <= Math.Min(maxX, candidate.X + radius); x += refinementStep)
@@ -116,7 +122,7 @@ public sealed partial class SubjectEditSession
                 var centreX = bestX;
                 var centreY = bestY;
                 var window = refinementStep;
-                refinementStep = Math.Max(1, refinementStep / 4);
+                refinementStep = Math.Max(1, refinementStep / 2);
                 for (var y = Math.Max(0, centreY - window); y <= Math.Min(maxY, centreY + window); y += refinementStep)
                 {
                     for (var x = Math.Max(0, centreX - window); x <= Math.Min(maxX, centreX + window); x += refinementStep)
@@ -132,6 +138,45 @@ public sealed partial class SubjectEditSession
                 }
             }
 
+            // Refine dimensions as well as location. Fixed scale levels leave gaps,
+            // and a modest change in viewpoint need not preserve the aspect ratio.
+            if (bestError < 35)
+            {
+                var step = Math.Max(1, Math.Min(bestWidth, bestHeight) / 16);
+                while (step >= 1)
+                {
+                    var sizeWidth = bestWidth;
+                    var sizeHeight = bestHeight;
+                    var centreX = bestX + bestWidth / 2;
+                    var centreY = bestY + bestHeight / 2;
+                    for (var dh = -step; dh <= step; dh += step)
+                    {
+                        for (var dw = -step; dw <= step; dw += step)
+                        {
+                            var width = sizeWidth + dw;
+                            var height = sizeHeight + dh;
+                            var x = centreX - width / 2;
+                            var y = centreY - height / 2;
+                            if (width < 4 || height < 4 || x < 0 || y < 0 || x + width > frame.Width || y + height > frame.Height)
+                            {
+                                continue;
+                            }
+
+                            var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
+                                (float)width / frame.Width, (float)height / frame.Height, fingerprint);
+                            LastSearchComparisons++;
+                            if (error < bestError)
+                            {
+                                (bestError, bestX, bestY, bestWidth, bestHeight) = (error, x, y, width, height);
+                            }
+                        }
+                    }
+
+                    if (step == 1) break;
+                    step = Math.Max(1, step / 2);
+                }
+            }
+
             // Matching only the middle of a larger object can favour an undersized
             // patch. When the original selection touched visible object boundaries,
             // compare that foreground-to-surroundings contrast as an additional spatial
@@ -139,14 +184,14 @@ public sealed partial class SubjectEditSession
             if (_originalBorderContrast >= 40)
             {
                 var (centre, outside, _) = CompareSubjectWithBorder(frame,
-                    (bestX, bestY, bestX + candidate.Width, bestY + candidate.Height));
+                    (bestX, bestY, bestX + bestWidth, bestY + bestHeight));
                 var contrast = Math.Abs(centre.B - outside.B)
                     + Math.Abs(centre.G - outside.G)
                     + Math.Abs(centre.R - outside.R);
                 bestError += Math.Max(0, _originalBorderContrast - contrast) * 0.12;
             }
 
-            refined.Add((bestError, bestX, bestY, candidate.Width, candidate.Height));
+            refined.Add((bestError, bestX, bestY, bestWidth, bestHeight));
         }
 
         refined.Sort((a, b) => a.Error.CompareTo(b.Error));
@@ -161,10 +206,10 @@ public sealed partial class SubjectEditSession
         // A similarly patterned shirt at another location must not steal the lock.
         if (refined.Skip(1).Any(candidate =>
             (Math.Abs(candidate.X + candidate.Width / 2 - best.X - best.Width / 2) >=
-                 Math.Min(candidate.Width, best.Width) * 0.75 ||
+                 Math.Max(candidate.Width, best.Width) * 0.75 ||
              Math.Abs(candidate.Y + candidate.Height / 2 - best.Y - best.Height / 2) >=
-                 Math.Min(candidate.Height, best.Height) * 0.75) &&
-            candidate.Error <= best.Error + 9))
+                 Math.Max(candidate.Height, best.Height) * 0.75) &&
+            candidate.Error <= Math.Min(22, best.Error + 9)))
         {
             _returnCandidate = null;
             _returnConfirmations = 0;
@@ -212,11 +257,14 @@ public sealed partial class SubjectEditSession
     /// penalty so a differently coloured lookalike is not treated as an identical match.
     /// Only the lost-subject search uses this; ordinary frame-to-frame tracking is unchanged.
     /// </summary>
-    private static double ReturnDistance(VideoFrame frame, float left, float top, float width,
+    private double ReturnDistance(VideoFrame frame, float left, float top, float width,
         float height, float[] reference)
     {
-        Span<double> shift = stackalloc double[3];
-        shift.Clear();
+        Span<double> referenceMean = stackalloc double[3];
+        Span<double> currentMean = stackalloc double[3];
+        referenceMean.Clear();
+        currentMean.Clear();
+        double referenceSquare = 0, currentSquare = 0, cross = 0;
         for (var y = 2; y < Samples; y += 4)
         {
             var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);
@@ -225,16 +273,37 @@ public sealed partial class SubjectEditSession
             {
                 var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
                 var at = (y * Samples + x) * 3;
-                for (var channel = 0; channel < 3; channel++)
+                for (var c = 0; c < 3; c++)
                 {
-                    shift[channel] += row[fx + channel] - reference[at + channel];
+                    var originalValue = reference[at + c];
+                    referenceMean[c] += originalValue;
+                    currentMean[c] += row[fx + c];
+                    referenceSquare += originalValue * originalValue;
+                    currentSquare += row[fx + c] * row[fx + c];
+                    cross += originalValue * row[fx + c];
                 }
             }
         }
 
-        for (var channel = 0; channel < 3; channel++)
+        for (var c = 0; c < 3; c++)
         {
-            shift[channel] = Math.Clamp(shift[channel] / 16, -60, 60);
+            referenceSquare -= referenceMean[c] * referenceMean[c] / 16;
+            currentSquare -= currentMean[c] * currentMean[c] / 16;
+            cross -= referenceMean[c] * currentMean[c] / 16;
+        }
+
+        if (referenceSquare > 100 && currentSquare < Math.Max(20, referenceSquare * 0.16))
+        {
+            return double.MaxValue;
+        }
+
+        // Exposure changes both gain and offset. Bound the shared contrast gain so a
+        // flat background cannot explain away all of the reference's texture.
+        var gain = referenceSquare > 100 ? Math.Clamp(cross / referenceSquare, 0.5, 2) : 1;
+        Span<double> shift = stackalloc double[3];
+        for (var c = 0; c < 3; c++)
+        {
+            shift[c] = Math.Clamp((currentMean[c] - gain * referenceMean[c]) / 16, -80, 80);
         }
 
         var original = 0d;
@@ -249,16 +318,24 @@ public sealed partial class SubjectEditSession
                 var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
                 for (var channel = 0; channel < 3; channel++)
                 {
-                    var difference = row[fx + channel] - reference[i++];
-                    original += Math.Abs(difference);
-                    adjusted += Math.Abs(difference - shift[channel]);
+                    var value = reference[i++];
+                    original += Math.Abs(row[fx + channel] - value);
+                    adjusted += Math.Abs(row[fx + channel] - gain * value - shift[channel]);
                 }
             }
         }
 
         const int components = Samples * Samples * 3;
-        var lightingPenalty = (Math.Abs(shift[0]) + Math.Abs(shift[1]) + Math.Abs(shift[2])) * 0.16 / 3;
-        return Math.Min(original / components, adjusted / components + lightingPenalty);
+        var lightingPenalty = (Math.Abs(shift[0]) + Math.Abs(shift[1]) + Math.Abs(shift[2])) * 0.16 / 3 + Math.Abs(gain - 1) * 4;
+        var error = Math.Min(original / components, adjusted / components + lightingPenalty);
+        if (error > 12 && _returnAppearance is { } appearance)
+        {
+            error = Math.Min(error, 4 + AppearanceDistance(frame,
+                (int)Math.Round(left * frame.Width), (int)Math.Round(top * frame.Height),
+                (int)Math.Round(width * frame.Width), (int)Math.Round(height * frame.Height), appearance));
+        }
+
+        return error;
     }
 
     /// <summary>Cheap 4-by-4 thumbnail comparison before full template refinement.</summary>

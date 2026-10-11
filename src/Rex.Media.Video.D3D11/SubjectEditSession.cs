@@ -98,6 +98,7 @@ public sealed partial class SubjectEditSession
         Locked = Erase = Tracking = false;
         _reference = null;
         _returnReference = null;
+        _returnAppearance = null;
         _lostFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
@@ -201,13 +202,14 @@ public sealed partial class SubjectEditSession
         {
             _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
             _returnReference = (float[])_reference.Clone();
+            _returnAppearance = new Appearance(_returnReference);
             _identityWidth = Math.Max(1, (int)Math.Round(Region.Width * frame.Width));
             _identityHeight = Math.Max(1, (int)Math.Round(Region.Height * frame.Height));
             var (selectedCentre, nearbyBorder, _) = CompareSubjectWithBorder(frame, Bounds(frame.Width, frame.Height));
             var borderContrast = Math.Abs(selectedCentre.B - nearbyBorder.B)
                 + Math.Abs(selectedCentre.G - nearbyBorder.G)
                 + Math.Abs(selectedCentre.R - nearbyBorder.R);
-            _originalBorderContrast = borderContrast;
+            _originalBorderContrast = HasDistinctiveAppearance(_reference) ? 0 : borderContrast;
             if (!HasDistinctiveAppearance(_reference) && borderContrast < 40)
             {
                 // A flat patch of sky, wall or clothing with no contrasting edges can
@@ -246,113 +248,7 @@ public sealed partial class SubjectEditSession
         }
         else if (Tracking && advanceTracking)
         {
-            // Search a coarse motion window first, then refine to individual pixels. The
-            // previous fixed 9-pixel search lost fast-moving accessories even at 1080p.
-            // The bounded window keeps the work deterministic on low-end WARP machines.
-            // A just-recovered subject can still be moving quickly across the frame.
-            // Give those first few ordinary tracking frames a wider, still bounded
-            // continuity window so recovery does not immediately lose the same subject.
-            var recoveryRadiusMultiplier = _reacquiredFrames > 0 ? 3 : 1;
-            var radius = Math.Clamp((int)Math.Round(Math.Min(
-                frame.Width * Region.Width, frame.Height * Region.Height) * 0.9 * recoveryRadiusMultiplier), 12, 96);
-            var coarse = Math.Max(1, radius / 8);
-            var best = double.MaxValue;
-            var bestScore = double.MaxValue;
-            var bestDx = 0;
-            var bestDy = 0;
-            void TryMatch(int dx, int dy)
-            {
-                var left = Region.Left + (float)dx / frame.Width;
-                var top = Region.Top + (float)dy / frame.Height;
-                if (left < 0 || top < 0 || left + Region.Width > 1 || top + Region.Height > 1)
-                {
-                    return;
-                }
-
-                var distance = Distance(frame, left, top, Region.Width, Region.Height, _reference);
-                // A repeated or flat pattern may match dozens of places equally well.
-                // Prefer continuity at the last known position to avoid drifting across
-                // an unrelated but identically-coloured surface.
-                var score = distance + 0.06 * Math.Sqrt((double)dx * dx + (double)dy * dy);
-                if (score < bestScore)
-                {
-                    bestScore = score;
-                    best = distance;
-                    bestDx = dx;
-                    bestDy = dy;
-                }
-            }
-
-            for (var dy = -radius; dy <= radius; dy += coarse)
-            {
-                for (var dx = -radius; dx <= radius; dx += coarse)
-                {
-                    TryMatch(dx, dy);
-                }
-            }
-
-            var roughX = bestDx;
-            var roughY = bestDy;
-            for (var dy = roughY - coarse; dy <= roughY + coarse; dy++)
-            {
-                for (var dx = roughX - coarse; dx <= roughX + coarse; dx++)
-                {
-                    if (Math.Abs(dx) <= radius && Math.Abs(dy) <= radius)
-                    {
-                        TryMatch(dx, dy);
-                    }
-                }
-            }
-
-            Confidence = Math.Clamp(1 - best / 75, 0, 1);
-            if (Confidence < 0.38)
-            {
-                Tracking = false;
-                Erase = false;
-                _lostFrames = 0;
-                _returnCandidate = null;
-                _returnConfirmations = 0;
-                _reacquiredFrames = 0;
-                Status = "Tracking uncertain: looking for the selected object to return.";
-                return null;
-            }
-
-            // Distant candidate matches with the same appearance are ambiguous: do not
-            // jump to a nearby identical shoe/person when the selected one is lost.
-            if ((Math.Abs(bestDx) > 2 || Math.Abs(bestDy) > 2) && best < 12)
-            {
-                var original = Distance(frame, Region.Left, Region.Top,
-                    Region.Width, Region.Height, _reference);
-                if (original < best + 2)
-                {
-                    Tracking = false;
-                    Erase = false;
-                    Confidence = 0;
-                    _lostFrames = 0;
-                    _returnCandidate = null;
-                    _returnConfirmations = 0;
-                    _reacquiredFrames = 0;
-                    Status = "Similar-looking regions: watching for a clear match. Select again if necessary.";
-                    return null;
-                }
-            }
-
-            Region = (Region.Left + (float)bestDx / frame.Width,
-                Region.Top + (float)bestDy / frame.Height, Region.Width, Region.Height);
-            // Update very slowly to accommodate lighting, without adopting a neighbouring target.
-            SampleInto(frame, Region.Left, Region.Top, Region.Width, Region.Height, _samples);
-            for (var i = 0; i < _reference.Length; i++)
-            {
-                _reference[i] = _reference[i] * 0.97f + _samples[i] * 0.03f;
-            }
-
-            Status = _reacquiredFrames > 0
-                ? "Original visual texture found again. Tracking resumed."
-                : "Tracking selected region.";
-            if (_reacquiredFrames > 0)
-            {
-                _reacquiredFrames--;
-            }
+            Track(frame);
         }
 
         if (!Tracking)
