@@ -17,7 +17,7 @@ public sealed partial class SubjectEditSession
         var recoveryRadiusMultiplier = _reacquiredFrames > 0 ? 3 : 1;
         var radius = Math.Clamp((int)Math.Round(Math.Min(
             frame.Width * Region.Width, frame.Height * Region.Height) * 0.9 * recoveryRadiusMultiplier), 12, 96);
-        var coarse = Math.Max(1, radius / 8);
+        var coarse = Math.Max(1, radius / 6);
         var best = double.MaxValue;
         var bestScore = double.MaxValue;
         var bestDx = 0;
@@ -66,15 +66,21 @@ public sealed partial class SubjectEditSession
             }
         }
 
-        var roughX = bestDx;
-        var roughY = bestDy;
-        for (var dy = roughY - coarse; dy <= roughY + coarse; dy++)
+        var step = coarse;
+        while (step > 1)
         {
-            for (var dx = roughX - coarse; dx <= roughX + coarse; dx++)
+            var roughX = bestDx;
+            var roughY = bestDy;
+            var window = step;
+            step = Math.Max(1, step / 2);
+            for (var dy = roughY - window; dy <= roughY + window; dy += step)
             {
-                if (Math.Abs(dx) <= radius && Math.Abs(dy) <= radius)
+                for (var dx = roughX - window; dx <= roughX + window; dx += step)
                 {
-                    TryMatch(dx, dy, Region.Width, Region.Height);
+                    if (Math.Abs(dx) <= radius && Math.Abs(dy) <= radius)
+                    {
+                        TryMatch(dx, dy, Region.Width, Region.Height);
+                    }
                 }
             }
         }

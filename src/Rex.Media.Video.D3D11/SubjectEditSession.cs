@@ -7,7 +7,7 @@ namespace Rex.Media.Video.D3D11;
 /// conservative: when a selected pattern cannot be distinguished from the next picture, the lock
 /// is marked lost rather than silently jumping to another person or object.
 /// </summary>
-public sealed partial class SubjectEditSession
+public sealed partial class SubjectEditSession : IDisposable
 {
     private const int Samples = 16;
     private const int MaxPixels = 3840 * 2160;
@@ -95,6 +95,7 @@ public sealed partial class SubjectEditSession
     /// <summary>Restore the unedited picture and forget the selected subject and cached pixels.</summary>
     public void Reset()
     {
+        CancelRecovery();
         Locked = Erase = Tracking = false;
         _reference = null;
         _returnReference = null;
@@ -182,6 +183,7 @@ public sealed partial class SubjectEditSession
         if (_lastPts.IsKnown && frame.Pts.IsKnown
             && (frame.Pts < _lastPts || frame.Pts - _lastPts > MediaTime.FromSeconds(2)))
         {
+            CancelRecovery();
             _reference = null;
             _returnReference = null;
             _lostFrames = 0;
@@ -242,7 +244,8 @@ public sealed partial class SubjectEditSession
             // consistent sightings are still required before the viewport may follow.
             _lostFrames++;
             var searchInterval = _lostFrames <= 24 ? 2 : 4;
-            if (_lostFrames % searchInterval != 0 || !TryReacquire(frame))
+            if (_lostFrames % searchInterval != 0
+                || !(_asynchronousRecovery ? RecoverWithoutBlocking(frame) : TryReacquire(frame)))
             {
                 Status = _returnCandidate is null
                     ? "Tracking uncertain: searching the picture for the original texture."
@@ -277,20 +280,18 @@ public sealed partial class SubjectEditSession
         for (var y = 0; advanceTracking && y < frame.Height; y++)
         {
             var row = frame.Row(0, y);
-            for (var x = 0; x < frame.Width; x++)
+            var rowOffset = y * frame.Width;
+            if (y < box.Top || y >= box.Bottom)
             {
-                if (x >= box.Left && x < box.Right && y >= box.Top && y < box.Bottom)
-                {
-                    continue;
-                }
-
-                var at = y * frame.Width + x;
-                var p = x * 4;
-                _clean[at * 4] = row[p];
-                _clean[at * 4 + 1] = row[p + 1];
-                _clean[at * 4 + 2] = row[p + 2];
-                _clean[at * 4 + 3] = 255;
-                _known[at] = 1;
+                row.CopyTo(_clean.AsSpan(rowOffset * 4, frame.Width * 4));
+                _known.AsSpan(rowOffset, frame.Width).Fill(1);
+            }
+            else
+            {
+                row[..(box.Left * 4)].CopyTo(_clean.AsSpan(rowOffset * 4));
+                row[(box.Right * 4)..].CopyTo(_clean.AsSpan((rowOffset + box.Right) * 4));
+                _known.AsSpan(rowOffset, box.Left).Fill(1);
+                _known.AsSpan(rowOffset + box.Right, frame.Width - box.Right).Fill(1);
             }
         }
 

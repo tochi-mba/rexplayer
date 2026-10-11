@@ -11,7 +11,7 @@ public sealed partial class SubjectEditSession
     /// spatially unambiguous full-resolution match can restore tracking. This is not a
     /// person recognizer and cannot distinguish two physically identical appearances.
     /// </summary>
-    private bool TryReacquire(VideoFrame frame)
+    private bool TryReacquire(VideoFrame frame, CancellationToken cancellation = default)
     {
         LastSearchComparisons = 0;
         if (_returnReference is not { } fingerprint)
@@ -26,17 +26,22 @@ public sealed partial class SubjectEditSession
         ReadOnlySpan<float> scales = stackalloc float[] { 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f };
         foreach (var scale in scales)
         {
+            cancellation.ThrowIfCancellationRequested();
             // Preserve a separate shortlist per scale: otherwise proposals from one
             // patch size can evict another size's correct match or a distant lookalike.
             List<(double Error, int X, int Y, int Width, int Height)> candidates = new(8);
-            var patchWidth = Math.Clamp((int)Math.Round(_identityWidth * scale), 1, frame.Width);
-            var patchHeight = Math.Clamp((int)Math.Round(_identityHeight * scale), 1, frame.Height);
+            var patchWidth = Math.Max(1, (int)Math.Round(_identityWidth * scale));
+            var patchHeight = Math.Max(1, (int)Math.Round(_identityHeight * scale));
+            // A scale must fit as a whole. Clamping the dimensions independently
+            // stretches tall subjects into wide background patches near frame edges.
+            if (patchWidth > frame.Width || patchHeight > frame.Height) continue;
             var maxX = frame.Width - patchWidth;
             var maxY = frame.Height - patchHeight;
             var stride = Math.Max(2, Math.Max(Math.Min(patchWidth, patchHeight) / 3,
                 Math.Max(frame.Width / 200, frame.Height / 130)));
             for (var y = 0; y <= maxY; y += stride)
             {
+                cancellation.ThrowIfCancellationRequested();
                 for (var x = 0; x <= maxX; x += stride)
                 {
                     var error = SparseDistance(frame, x, y, patchWidth, patchHeight, fingerprint);
@@ -88,9 +93,10 @@ public sealed partial class SubjectEditSession
             shortlist.AddRange(candidates);
         }
 
-        List<(double Error, int X, int Y, int Width, int Height)> refined = new(shortlist.Count);
+        List<(double Error, double MatchError, int X, int Y, int Width, int Height)> refined = new(shortlist.Count);
         foreach (var candidate in shortlist)
         {
+            cancellation.ThrowIfCancellationRequested();
             var bestError = double.MaxValue;
             var bestX = candidate.X;
             var bestY = candidate.Y;
@@ -184,6 +190,7 @@ public sealed partial class SubjectEditSession
             // patch. When the original selection touched visible object boundaries,
             // compare that foreground-to-surroundings contrast as an additional spatial
             // cue. Keep texture-only matching for interior selections with no boundary.
+            var matchError = bestError;
             if (_originalBorderContrast >= 40)
             {
                 var (centre, outside, _) = CompareSubjectWithBorder(frame,
@@ -194,11 +201,14 @@ public sealed partial class SubjectEditSession
                 bestError += Math.Max(0, _originalBorderContrast - contrast) * 0.12;
             }
 
-            refined.Add((bestError, bestX, bestY, bestWidth, bestHeight));
+            refined.Add((bestError, matchError, bestX, bestY, bestWidth, bestHeight));
         }
 
+        // Background contrast ranks plausible sizes, but is not identity evidence:
+        // the same subject may return in front of entirely different surroundings.
+        refined.RemoveAll(candidate => candidate.MatchError > 22);
         refined.Sort((a, b) => a.Error.CompareTo(b.Error));
-        if (refined.Count == 0 || refined[0].Error > 22)
+        if (refined.Count == 0)
         {
             _returnCandidate = null;
             _returnConfirmations = 0;
@@ -212,7 +222,7 @@ public sealed partial class SubjectEditSession
                  Math.Max(candidate.Width, best.Width) * 0.75 ||
              Math.Abs(candidate.Y + candidate.Height / 2 - best.Y - best.Height / 2) >=
                  Math.Max(candidate.Height, best.Height) * 0.75) &&
-            candidate.Error <= Math.Min(22, best.Error + 9)))
+            candidate.MatchError <= Math.Min(22, best.MatchError + 9)))
         {
             _returnCandidate = null;
             _returnConfirmations = 0;
@@ -249,7 +259,7 @@ public sealed partial class SubjectEditSession
         _returnCandidate = null;
         _returnConfirmations = 0;
         _reacquiredFrames = 15;
-        Confidence = Math.Clamp(1 - best.Error / 75, 0, 1);
+        Confidence = Math.Clamp(1 - best.MatchError / 75, 0, 1);
         Status = "Original visual texture found again. Tracking resumed.";
         return true;
     }

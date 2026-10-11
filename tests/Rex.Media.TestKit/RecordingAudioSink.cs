@@ -51,6 +51,9 @@ public sealed class RecordingAudioSink : IAudioSink
     /// <summary>Raised before each write, so a test can act at an exact point in the stream.</summary>
     public event Action<AudioFrame>? Writing;
 
+    /// <summary>A cancellable write barrier for tests that must hold playback before EOF.</summary>
+    public event Action<AudioFrame, CancellationToken>? BeforeWrite;
+
     public AudioFormat Open(AudioFormat preferred)
     {
         ArgumentNullException.ThrowIfNull(preferred);
@@ -65,6 +68,7 @@ public sealed class RecordingAudioSink : IAudioSink
     public void Write(AudioFrame frame, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        BeforeWrite?.Invoke(frame, cancellationToken);
         Writing?.Invoke(frame);
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)

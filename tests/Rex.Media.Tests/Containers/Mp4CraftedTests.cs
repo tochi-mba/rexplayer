@@ -482,6 +482,23 @@ public sealed class Mp4CraftedTests
     }
 
     [Fact]
+    public void TruncatedNestedLongHeaderKeepsEarlierCompleteBoxes()
+    {
+        var children = Mp4Boxes.Children(Concat(Box("free", [7]), U32(1), Ascii("skip"), [0, 0]));
+        var child = Assert.Single(children);
+        Assert.Equal("free", child.Type);
+        Assert.Equal(1, child.Length);
+    }
+
+    [Fact]
+    public void OverflowingTopLevelSizeCannotWrapTheNextSeek()
+    {
+        var bytes = Concat(Box("free"), U32(1), Ascii("skip"), U64(long.MaxValue));
+        var failure = Assert.Throws<MediaFormatException>(() => Open(bytes));
+        Assert.Contains("no movie header", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BrokenFilesAreRejectedOrEndCleanly()
     {
         var track = Audio(AudioEntry("sowt", 1, 16, 8000), Samples(2, 2));

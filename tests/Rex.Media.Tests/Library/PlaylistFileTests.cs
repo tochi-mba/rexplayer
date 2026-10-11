@@ -253,6 +253,15 @@ public sealed class PlaylistFileTests
         Assert.Equal((@"C:\Music\Album\Bonus.wav", "Bonus", (TimeSpan?)null), (entries[3].Location, entries[3].Title, entries[3].Duration));
     }
 
+    [Fact]
+    public void BlankCueLinesDoNotDropTheFollowingTrack()
+    {
+        var entries = Read("blank.cue", "\n \t\r\nFILE \"album.wav\" WAVE\n\nTRACK 01 AUDIO\n \t\nINDEX 01 00:00:00\n");
+        var track = Assert.Single(entries);
+        Assert.Equal(@"C:\Music\Album\album.wav", track.Location);
+        Assert.Equal(TimeSpan.Zero, track.Start);
+    }
+
     private static TimeSpan? Round(TimeSpan? time) => time is { } value ? TimeSpan.FromSeconds(Math.Round(value.TotalSeconds, 5)) : null;
 
     [Fact]

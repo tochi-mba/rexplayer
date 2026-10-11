@@ -17,9 +17,16 @@ public sealed class TimerControllerTests
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
-    private static ControllerHarness Harness(bool autoPlay = true, SleepChoice sleep = SleepChoice.Pause, TimeProvider? time = null)
+    private static ControllerHarness Harness(bool autoPlay = true, SleepChoice sleep = SleepChoice.Pause, TimeProvider? time = null, bool blockAudio = false)
     {
-        var harness = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0, SleepAction = sleep }, time: time);
+        var harness = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0, SleepAction = sleep }, time: time, beforeAudioWrite: blockAudio ? (frame, cancellation) =>
+        {
+            // A recording sink otherwise consumes the whole long fixture before the
+            // dispatcher can pause it. Let the short queued item end, then hold the
+            // long one until stop/dispose cancels its generation. No wall-clock race.
+            if (frame.Pts.TotalSeconds >= 0.1) cancellation.WaitHandle.WaitOne();
+        }
+        : null);
         harness.Files["a.wav"] = Count(0, 400);
         harness.Files["b.wav"] = Count(500, 400);
         harness.Files["long.wav"] = Count(0, 8000 * 30);
@@ -77,7 +84,7 @@ public sealed class TimerControllerTests
     [InlineData(AfterItem.Pause, SessionState.Paused)]
     public void AskedForAfterTheNextWasQueuedItStillHolds(AfterItem after, SessionState state)
     {
-        using var harness = Harness();
+        using var harness = Harness(blockAudio: true);
         var controller = harness.Controller;
         controller.Open(["a.wav", "long.wav"]);
 
@@ -94,7 +101,7 @@ public sealed class TimerControllerTests
     public void TheSleepTimerFadesThenPauses()
     {
         var time = new ManualTime();
-        using var harness = Harness(time: time);
+        using var harness = Harness(time: time, blockAudio: true);
         var controller = harness.Controller;
         controller.SleepTick();
         Assert.False(controller.SleepTimerSet);
@@ -120,7 +127,7 @@ public sealed class TimerControllerTests
     public void TheSleepTimerCanStopAndBeTurnedOff()
     {
         var time = new ManualTime();
-        using var harness = Harness(sleep: SleepChoice.Stop, time: time);
+        using var harness = Harness(sleep: SleepChoice.Stop, time: time, blockAudio: true);
         var controller = harness.Controller;
         controller.Open(["long.wav"]);
         harness.PumpUntil(c => c.State == SessionState.Playing);

@@ -43,7 +43,7 @@ public sealed class D3D11Presenter : IVideoPresenter
     private double _lastMotionTime = double.NaN;
     private long? _motionGeneration;
     private bool _navigator;
-    private readonly SubjectEditSession _subjectEdit = new();
+    private readonly SubjectEditSession _subjectEdit;
     private VideoFrame? _originalForEditing;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
@@ -51,6 +51,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         _renderer = renderer;
         _window = window;
         _onScreen = onScreen;
+        _subjectEdit = new SubjectEditSession(asynchronousRecovery: onScreen);
     }
 
     /// <summary>Interpolate chroma between samples (smoother on screen), or take the nearest (a still of the coded picture).</summary>
@@ -337,7 +338,8 @@ public sealed class D3D11Presenter : IVideoPresenter
                 _motionGeneration = frame.Generation;
             }
 
-            if (!_subjectEdit.Locked || !_subjectEdit.AcceptPictureSize(frame.Width, frame.Height))
+            if (!_subjectEdit.Locked || !_subjectEdit.AcceptPictureSize(frame.Width, frame.Height)
+                || _subjectEdit.CanPresentWithoutAnalysis(frame))
             {
                 _originalForEditing?.Dispose();
                 _originalForEditing = null;
@@ -449,6 +451,7 @@ public sealed class D3D11Presenter : IVideoPresenter
     {
         lock (_gate)
         {
+            _subjectEdit.Dispose();
             _originalForEditing?.Dispose();
             _originalForEditing = null;
             _renderer.Dispose();

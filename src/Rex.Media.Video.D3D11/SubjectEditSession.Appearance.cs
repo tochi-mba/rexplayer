@@ -48,22 +48,37 @@ public sealed partial class SubjectEditSession
         int height, Appearance reference, bool sparse = false)
     {
         var side = sparse ? 8 : Samples;
-        Span<float> samples = stackalloc float[Samples * Samples * 3];
+        Span<int> values = stackalloc int[96];
+        values.Clear();
+        Span<int> columns = stackalloc int[Samples];
+        for (var x = 0; x < side; x++)
+            columns[x] = Math.Clamp(left + (int)((x + 0.5f) * width / side), 0, frame.Width - 1) * 4;
         for (var y = 0; y < side; y++)
         {
             var row = frame.Row(0, Math.Clamp(top + (int)((y + 0.5f) * height / side), 0, frame.Height - 1));
             for (var x = 0; x < side; x++)
             {
-                var pixel = Math.Clamp(left + (int)((x + 0.5f) * width / side), 0, frame.Width - 1) * 4;
-                for (var c = 0; c < 3; c++) samples[(y * side + x) * 3 + c] = row[pixel + c];
+                var cell = ((y * 4 / side) * 4 + x * 4 / side) * 3;
+                var pixel = columns[x];
+                for (var c = 0; c < 3; c++)
+                {
+                    var value = row[pixel + c];
+                    values[cell + c] += value;
+                    var low = value / 17;
+                    var remainder = value - low * 17;
+                    values[48 + c * 16 + low] += 17 - remainder;
+                    values[48 + c * 16 + Math.Min(15, low + 1)] += remainder;
+                }
             }
         }
 
-        Span<float> values = stackalloc float[96];
-        DescribeInto(samples, side, values);
+        // Accumulate integer pixels once, then normalize the small descriptor. The
+        // former path sampled, copied, and divided every component several times.
         double spatial = 0, distribution = 0;
-        for (var i = 0; i < 48; i++) spatial += Math.Abs(values[i] - reference.Values[i]);
-        for (var i = 48; i < 96; i++) distribution += Math.Abs(values[i] - reference.Values[i]);
+        var cellScale = 16.0 / (side * side);
+        var histogramScale = 1.0 / (17 * side * side);
+        for (var i = 0; i < 48; i++) spatial += Math.Abs(values[i] * cellScale - reference.Values[i]);
+        for (var i = 48; i < 96; i++) distribution += Math.Abs(values[i] * histogramScale - reference.Values[i]);
         return spatial / 48 * 0.55 + distribution / 3 * 35;
     }
 }

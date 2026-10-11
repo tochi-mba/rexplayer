@@ -33,7 +33,8 @@ internal sealed class ControllerHarness : IDisposable
     /// <param name="time">The clock for the sleep timer; the system's when null.</param>
     /// <param name="log">Where the controller writes what it does; its own in-memory log when null.</param>
     /// <param name="pictures">Give sessions a stand-in video decoder and somewhere to show pictures.</param>
-    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null, TimeProvider? time = null, Rex.Media.Diagnostics.RexLog? log = null, bool pictures = false)
+    /// <param name="beforeAudioWrite">An optional cancellable barrier before recording a frame.</param>
+    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null, TimeProvider? time = null, Rex.Media.Diagnostics.RexLog? log = null, bool pictures = false, Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null)
     {
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory()).Add(new Rex.Media.Containers.Matroska.MatroskaDemuxerFactory());
         var decoders = new DecoderRegistry().Add(new PcmDecoderFactory());
@@ -46,6 +47,7 @@ internal sealed class ControllerHarness : IDisposable
             listener =>
             {
                 var sink = new RecordingAudioSink(channels: 1);
+                sink.BeforeWrite += beforeAudioWrite;
                 lock (_gate)
                 {
                     Sinks.Add(sink);
