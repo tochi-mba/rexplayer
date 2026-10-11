@@ -354,7 +354,11 @@ public sealed partial class MainWindow
                     if (_subjectOpen && revision == _subjectRevision
                         && ReferenceEquals(item, _player.Item) && !_player.IsPlaying && _player.CanSeek)
                     {
-                        _player.Seek(_player.Position);
+                        // An ended still picture is parked at EOF. Seeking there yields no
+                        // decoded frame, so the new selection never receives a texture sample.
+                        // Revisit the first frame instead, while preserving position for paused video.
+                        var at = _player.Position >= _player.Duration ? TimeSpan.Zero : _player.Position;
+                        _player.Seek(at);
                     }
                 });
             }
