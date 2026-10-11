@@ -197,7 +197,7 @@ public sealed partial class SubjectEditSession
         _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
         Tracking = true;
         Erase = false;
-        _returnFrames = 0;
+        _lostFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
         _reacquiredFrames = 15;

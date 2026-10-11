@@ -15,7 +15,9 @@ public sealed partial class SubjectEditSession
     private readonly float[] _samples = new float[Samples * Samples * 3];
     private float[]? _reference;
     private float[]? _returnReference;
-    private int _returnFrames;
+    // Count consecutive pictures since the lock was lost. The first few are checked more
+    // eagerly because a subject that just crossed an edge is most likely to reappear then.
+    private int _lostFrames;
     private int _identityWidth;
     private int _identityHeight;
     private int _originalBorderContrast;
@@ -96,7 +98,7 @@ public sealed partial class SubjectEditSession
         Locked = Erase = Tracking = false;
         _reference = null;
         _returnReference = null;
-        _returnFrames = 0;
+        _lostFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
         _reacquiredFrames = 0;
@@ -169,7 +171,7 @@ public sealed partial class SubjectEditSession
             _known = null;
             _reference = null;
             _returnReference = null;
-            _returnFrames = 0;
+            _lostFrames = 0;
             _returnCandidate = null;
             _returnConfirmations = 0;
             _reacquiredFrames = 0;
@@ -181,7 +183,7 @@ public sealed partial class SubjectEditSession
         {
             _reference = null;
             _returnReference = null;
-            _returnFrames = 0;
+            _lostFrames = 0;
             _returnCandidate = null;
             _returnConfirmations = 0;
             _reacquiredFrames = 0;
@@ -228,10 +230,13 @@ public sealed partial class SubjectEditSession
             // Keep the original identity template after the target leaves view. A bounded
             // sparse scan periodically looks for it again; never resume from a weak or
             // ambiguous match, and never turn the removal preview on automatically.
-            // No expiry while the original selection remains locked. Search at a bounded
-            // cadence; require two consistent sightings before the viewport can follow again.
-            _returnFrames = (_returnFrames + 1) % 4;
-            if (_returnFrames != 0 || !TryReacquire(frame))
+            // No expiry while the original selection remains locked. Check every second
+            // picture immediately after loss so an obvious re-entry is not visibly late,
+            // then fall back to every fourth picture for a long disappearance. Two
+            // consistent sightings are still required before the viewport may follow.
+            _lostFrames++;
+            var searchInterval = _lostFrames <= 24 ? 2 : 4;
+            if (_lostFrames % searchInterval != 0 || !TryReacquire(frame))
             {
                 Status = _returnCandidate is null
                     ? "Tracking uncertain: searching the picture for the original texture."
@@ -244,8 +249,12 @@ public sealed partial class SubjectEditSession
             // Search a coarse motion window first, then refine to individual pixels. The
             // previous fixed 9-pixel search lost fast-moving accessories even at 1080p.
             // The bounded window keeps the work deterministic on low-end WARP machines.
+            // A just-recovered subject can still be moving quickly across the frame.
+            // Give those first few ordinary tracking frames a wider, still bounded
+            // continuity window so recovery does not immediately lose the same subject.
+            var recoveryRadiusMultiplier = _reacquiredFrames > 0 ? 3 : 1;
             var radius = Math.Clamp((int)Math.Round(Math.Min(
-                frame.Width * Region.Width, frame.Height * Region.Height) * 0.9), 12, 64);
+                frame.Width * Region.Width, frame.Height * Region.Height) * 0.9 * recoveryRadiusMultiplier), 12, 96);
             var coarse = Math.Max(1, radius / 8);
             var best = double.MaxValue;
             var bestScore = double.MaxValue;
@@ -300,7 +309,7 @@ public sealed partial class SubjectEditSession
             {
                 Tracking = false;
                 Erase = false;
-                _returnFrames = 0;
+                _lostFrames = 0;
                 _returnCandidate = null;
                 _returnConfirmations = 0;
                 _reacquiredFrames = 0;
@@ -319,7 +328,7 @@ public sealed partial class SubjectEditSession
                     Tracking = false;
                     Erase = false;
                     Confidence = 0;
-                    _returnFrames = 0;
+                    _lostFrames = 0;
                     _returnCandidate = null;
                     _returnConfirmations = 0;
                     _reacquiredFrames = 0;

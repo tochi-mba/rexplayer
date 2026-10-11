@@ -93,3 +93,8 @@ treats cache failures as optional, rejects stale hero-image callbacks, validates
 upgrade queues before changing playback, consumes upgrade markers before callbacks,
 and ties deferred picture geometry to the restored item. Regression gates remain
 those listed above; these corrections do not remove the real-footage limitations.
+
+The initial return window now searches every second presented picture, while a long
+absence remains throttled to every fourth picture. It still requires two compatible
+sightings, so a clear re-entry can resume promptly without allowing a one-frame
+lookalike to steal the lock.
