@@ -12,15 +12,11 @@ public sealed partial class SubjectEditSession : IDisposable
     private const int Samples = 16;
     private const int MaxPixels = 3840 * 2160;
 
-    private readonly float[] _samples = new float[Samples * Samples * 3];
-    private float[]? _reference;
-    private float[]? _returnReference;
     // Count consecutive pictures since the lock was lost. The first few are checked more
     // eagerly because a subject that just crossed an edge is most likely to reappear then.
     private int _lostFrames;
     private int _identityWidth;
     private int _identityHeight;
-    private int _originalBorderContrast;
     private (int X, int Y, int Width, int Height)? _returnCandidate;
     private int _returnConfirmations;
     private int _reacquiredFrames;
@@ -97,9 +93,9 @@ public sealed partial class SubjectEditSession : IDisposable
     {
         CancelRecovery();
         Locked = Erase = Tracking = false;
-        _reference = null;
-        _returnReference = null;
-        _returnAppearance = null;
+        _positive.Clear();
+        _negative.Clear();
+        _untilRemember = RememberInterval;
         _lostFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
@@ -107,8 +103,10 @@ public sealed partial class SubjectEditSession : IDisposable
         _identityWidth = _identityHeight = 0;
         _width = _height = 0;
         _needsReselection = false;
-        _originalBorderContrast = 0;
         _clean = _known = null;
+        _scan = _scanColour = null;
+        _scanWidth = _scanHeight = 0;
+        _lightRed = _lightGreen = 0;
         Confidence = 0;
         EstimatedPixels = 0;
         _lastPts = MediaTime.Unknown;
@@ -159,7 +157,7 @@ public sealed partial class SubjectEditSession : IDisposable
 
         if (_width != frame.Width || _height != frame.Height)
         {
-            if (_width > 0 && _height > 0 && _reference is not null)
+            if (_width > 0 && _height > 0 && _positive.Count > 0)
             {
                 // A resized decoder picture may put an entirely different object under
                 // the old normalized region. Do not adopt it as a new identity.
@@ -171,8 +169,8 @@ public sealed partial class SubjectEditSession : IDisposable
             (_width, _height) = (frame.Width, frame.Height);
             _clean = null;
             _known = null;
-            _reference = null;
-            _returnReference = null;
+            _positive.Clear();
+            _negative.Clear();
             _lostFrames = 0;
             _returnCandidate = null;
             _returnConfirmations = 0;
@@ -184,8 +182,8 @@ public sealed partial class SubjectEditSession : IDisposable
             && (frame.Pts < _lastPts || frame.Pts - _lastPts > MediaTime.FromSeconds(2)))
         {
             CancelRecovery();
-            _reference = null;
-            _returnReference = null;
+            _positive.Clear();
+            _negative.Clear();
             _lostFrames = 0;
             _returnCandidate = null;
             _returnConfirmations = 0;
@@ -200,35 +198,37 @@ public sealed partial class SubjectEditSession : IDisposable
         }
 
         _lastPts = frame.Pts;
-        if (_reference is null)
+        // Read the colour of the light before anything in this picture is described, so every
+        // view taken from it records the light it was seen under.
+        MeasureLight(frame);
+        if (_positive.Count == 0)
         {
-            _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
-            _returnReference = (float[])_reference.Clone();
-            _returnAppearance = new Appearance(_returnReference);
+            var selection = Bounds(frame.Width, frame.Height);
             _identityWidth = Math.Max(1, (int)Math.Round(Region.Width * frame.Width));
             _identityHeight = Math.Max(1, (int)Math.Round(Region.Height * frame.Height));
-            var (selectedCentre, nearbyBorder, _) = CompareSubjectWithBorder(frame, Bounds(frame.Width, frame.Height));
+            Describe(frame, selection.Left, selection.Top,
+                selection.Right - selection.Left, selection.Bottom - selection.Top, _probe);
+            var (selectedCentre, nearbyBorder, _) = CompareSubjectWithBorder(frame, selection);
             var borderContrast = Math.Abs(selectedCentre.B - nearbyBorder.B)
                 + Math.Abs(selectedCentre.G - nearbyBorder.G)
                 + Math.Abs(selectedCentre.R - nearbyBorder.R);
-            // The initial rectangle's foreground/background boundary also helps preserve
-            // apparent subject size during return matching. Textured subjects may still
-            // have a clear silhouette; do not discard this evidence just because the
-            // selected patch contains distinctive internal texture.
-            _originalBorderContrast = borderContrast;
-            if (!HasDistinctiveAppearance(_reference) && borderContrast < 40)
+            if (!IsDistinctive(_probe) && borderContrast < 40)
             {
                 // A flat patch of sky, wall or clothing with no contrasting edges can
                 // match thousands of unrelated places. Never claim an identity lock.
                 Tracking = false;
                 Erase = false;
-                _reference = _returnReference = null;
                 _needsReselection = true;
                 Confidence = 0;
                 Status = "Selection has too little distinguishing detail. Select again around a visible edge or textured area.";
                 return null;
             }
 
+            RememberSubject(_probe);
+            // Learning the rest of this picture at the same moment is what lets every later
+            // comparison ask whether a patch is more like the subject than like its
+            // surroundings, instead of only whether it is roughly similar to the subject.
+            LearnSurroundings(frame, selection);
             Tracking = true;
             Confidence = 1;
             Status = "Selected region locked. Tracking uses its visible texture, not a person recognizer.";
@@ -465,79 +465,6 @@ public sealed partial class SubjectEditSession : IDisposable
          Math.Clamp((int)(Region.Top * height), 0, height - 1),
          Math.Clamp((int)Math.Ceiling((Region.Left + Region.Width) * width), 1, width),
          Math.Clamp((int)Math.Ceiling((Region.Top + Region.Height) * height), 1, height));
-
-    /// <summary>
-    /// Reject a textureless, borderless patch before announcing a confident lock. Colour
-    /// channels are measured separately so a solid colourful region is not mistaken for
-    /// a textured one just because its red and blue values differ.
-    /// </summary>
-    private static bool HasDistinctiveAppearance(float[] template)
-    {
-        var averages = new double[3];
-        for (var i = 0; i < template.Length; i++)
-        {
-            averages[i % 3] += template[i];
-        }
-
-        for (var channel = 0; channel < 3; channel++)
-        {
-            averages[channel] /= template.Length / 3;
-        }
-
-        var difference = 0d;
-        for (var i = 0; i < template.Length; i++)
-        {
-            difference += Math.Abs(template[i] - averages[i % 3]);
-        }
-
-        return difference / template.Length >= 3;
-    }
-
-    private static float[] Sample(VideoFrame frame, float left, float top, float width, float height)
-    {
-        var samples = new float[Samples * Samples * 3];
-        SampleInto(frame, left, top, width, height, samples);
-        return samples;
-    }
-
-    private static void SampleInto(VideoFrame frame, float left, float top, float width, float height,
-        Span<float> samples)
-    {
-        var i = 0;
-        for (var y = 0; y < Samples; y++)
-        {
-            var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);
-            var row = frame.Row(0, fy);
-            for (var x = 0; x < Samples; x++)
-            {
-                var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
-                samples[i++] = row[fx];
-                samples[i++] = row[fx + 1];
-                samples[i++] = row[fx + 2];
-            }
-        }
-
-    }
-
-    private static double Distance(VideoFrame frame, float left, float top, float width, float height, float[] reference)
-    {
-        var error = 0d;
-        var i = 0;
-        for (var y = 0; y < Samples; y++)
-        {
-            var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);
-            var row = frame.Row(0, fy);
-            for (var x = 0; x < Samples; x++)
-            {
-                var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
-                error += Math.Abs(row[fx] - reference[i++]);
-                error += Math.Abs(row[fx + 1] - reference[i++]);
-                error += Math.Abs(row[fx + 2] - reference[i++]);
-            }
-        }
-
-        return error / (Samples * Samples * 3);
-    }
 
     private static bool CameraMoved(VideoFrame frame, byte[] history, byte[] seen)
     {

@@ -10,6 +10,52 @@ namespace Rex.Media.Tests.Video;
 /// </summary>
 public sealed class ColorConverterTests
 {
+    [Theory]
+    [InlineData(PixelFormat.Nv12)]
+    [InlineData(PixelFormat.P010)]
+    public void OddSizedPicturesUseTheRightChromaRowAndIgnoreStridePadding(PixelFormat format)
+    {
+        using var source = VideoFrame.Rent(format, 17, 5);
+        source.Color = new ColorInfo(ColorMatrix.Bt709, ColorTransfer.Unspecified, ColorPrimaries.Unspecified, false);
+        source.Plane(0).Fill(255);
+        source.Plane(1).Fill(255);
+        var bits = format == PixelFormat.P010 ? 10 : 8;
+        void Put(Span<byte> row, int column, int value)
+        {
+            if (format == PixelFormat.P010)
+            {
+                value <<= 6;
+                row[column * 2] = (byte)value;
+                row[column * 2 + 1] = (byte)(value >> 8);
+            }
+            else row[column] = (byte)value;
+        }
+        for (var y = 0; y < source.Height; y++)
+        {
+            for (var x = 0; x < source.Width; x++)
+            {
+                var colour = Colours[(y / 2 * 9 + x / 2) % Colours.Length];
+                var (luma, cb, cr) = Encode(colour, ColorMatrix.Bt709, false, bits);
+                Put(source.Row(0, y), x, luma);
+                Put(source.Row(1, y / 2), x / 2 * 2, cb);
+                Put(source.Row(1, y / 2), x / 2 * 2 + 1, cr);
+            }
+        }
+        using var converted = ColorConverter.ToBgra(source);
+        for (var y = 0; y < source.Height; y++)
+        {
+            var row = converted.Row(0, y);
+            for (var x = 0; x < source.Width; x++)
+            {
+                var colour = Colours[(y / 2 * 9 + x / 2) % Colours.Length];
+                Assert.InRange(Math.Abs(row[x * 4] - colour.B), 0, 1);
+                Assert.InRange(Math.Abs(row[x * 4 + 1] - colour.G), 0, 1);
+                Assert.InRange(Math.Abs(row[x * 4 + 2] - colour.R), 0, 1);
+                Assert.Equal(255, row[x * 4 + 3]);
+            }
+        }
+    }
+
     private static readonly (byte R, byte G, byte B)[] Colours =
     [
         (0, 0, 0), (255, 255, 255), (255, 0, 0), (0, 255, 0), (0, 0, 255), (215, 255, 63), (8, 10, 9), (128, 64, 200),

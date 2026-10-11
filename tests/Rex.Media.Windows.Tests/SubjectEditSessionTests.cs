@@ -429,7 +429,7 @@ public sealed class SubjectEditSessionTests
         }
 
         Assert.True(tracker.Locked);
-        Assert.True(tracker.Tracking);
+        Assert.True(tracker.Tracking, $"{tracker.Status} {tracker.Region} {tracker.Confidence}");
         Assert.False(tracker.Erase);
         Assert.InRange(tracker.Region.Left * 128, x - 3, x + 3);
         Assert.InRange(tracker.Region.Top * 80, y - 3, y + 3);

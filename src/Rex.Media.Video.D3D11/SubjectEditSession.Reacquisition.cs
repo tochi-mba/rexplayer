@@ -2,240 +2,186 @@ using Rex.Media.Primitives;
 
 namespace Rex.Media.Video.D3D11;
 
-/// <summary>Bounded global re-detection of the originally selected visual texture.</summary>
+/// <summary>
+/// Finding the subject again once it has gone: round a corner, behind a car, out of the frame
+/// entirely. Nothing about its previous position helps here, so the whole picture is searched at
+/// many sizes. Two things make that affordable and make the answer trustworthy.
+///
+/// The search runs on a reduced copy of the picture and spends real work only where there is
+/// enough local contrast for the subject to be, which is the variance pre-filter of
+/// Kalal, Mikolajczyk and Matas, "Tracking-Learning-Detection" (IEEE TPAMI 34(7), 2012); the
+/// survivors are then re-checked against the full-resolution picture.
+///
+/// A match is accepted on evidence relative to the picture it was found in, not against a fixed
+/// distance. The best candidate must look more like the subject than like the remembered
+/// background, must beat every rival elsewhere in the frame by a clear margin, and must be seen
+/// twice. Where it cannot, the lock stays lost and says so: a wrong lock is worse than none.
+/// </summary>
 public sealed partial class SubjectEditSession
 {
-    /// <summary>
-    /// Periodic, bounded full-frame re-acquisition after an object moves outside the picture
-    /// or is hidden. Sparse colour-template comparisons shortlist candidates; only a sharp,
-    /// spatially unambiguous full-resolution match can restore tracking. This is not a
-    /// person recognizer and cannot distinguish two physically identical appearances.
-    /// </summary>
+    // Accepting the subject back.
+    private const double ReturnSubject = 0.655;
+    private const double ReturnRelative = 0.56;
+    // How far ahead of the best rival elsewhere in the picture the winner must be. Two people in
+    // the same coat land within this margin of each other, and that is reported as ambiguous.
+    private const double RivalMargin = 0.035;
+
+    private const int ScanExtent = 480;
+    private const int PlacesPerSize = 4;
+    private const int Verifiable = 24;
+    private const int Settleable = 4;
+    private byte[]? _scan;
+    private byte[]? _scanColour;
+    private int _scanWidth;
+    private int _scanHeight;
+    private int _scanReduction = 1;
+    private int _searchUncertainty = 1;
+
     private bool TryReacquire(VideoFrame frame, CancellationToken cancellation = default)
     {
         LastSearchComparisons = 0;
-        if (_returnReference is not { } fingerprint)
-        {
-            return false;
-        }
+        _searchUncertainty = 1;
+        if (_positive.Count == 0 || _identityWidth <= 0 || _identityHeight <= 0) return false;
 
-        // The original appearance survives any number of missing frames. Search in
-        // several sizes so a shirt that returns nearer or farther can still be found.
-        // Limit candidate work and use sparse RGB samples before the full comparison.
-        List<(double Error, int X, int Y, int Width, int Height)> shortlist = new(24);
-        ReadOnlySpan<float> scales = stackalloc float[] { 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f };
+        // A search on a worker holds a picture of its own, so it reads the light for itself.
+        MeasureLight(frame);
+        BuildScanImage(frame);
+        var anchor = _positive[0];
+        var recent = _positive[^1];
+        // Reducing the picture blurs it, which lowers local contrast, so the threshold the
+        // original view sets has to be forgiving enough to survive its own reduction.
+        var floor = anchor.Deviation * 0.4f;
+        List<(double Score, int Left, int Top, int Width, int Height)> shortlist = new(48);
+        List<(double Score, int Left, int Top)> places = new(PlacesPerSize + 1);
+        Span<float> structure = stackalloc float[Samples * Samples];
+        Span<int> columns = stackalloc int[Samples * 2];
+        Span<int> rows = stackalloc int[Samples * 2];
+
+        ReadOnlySpan<float> scales = stackalloc float[] { 0.4f, 0.55f, 0.7f, 0.85f, 1f, 1.2f, 1.45f, 1.75f, 2.1f, 2.5f };
         foreach (var scale in scales)
         {
             cancellation.ThrowIfCancellationRequested();
-            // Preserve a separate shortlist per scale: otherwise proposals from one
-            // patch size can evict another size's correct match or a distant lookalike.
-            List<(double Error, int X, int Y, int Width, int Height)> candidates = new(8);
-            var patchWidth = Math.Max(1, (int)Math.Round(_identityWidth * scale));
-            var patchHeight = Math.Max(1, (int)Math.Round(_identityHeight * scale));
-            // A scale must fit as a whole. Clamping the dimensions independently
-            // stretches tall subjects into wide background patches near frame edges.
-            if (patchWidth > frame.Width || patchHeight > frame.Height) continue;
-            var maxX = frame.Width - patchWidth;
-            var maxY = frame.Height - patchHeight;
-            var stride = Math.Max(2, Math.Max(Math.Min(patchWidth, patchHeight) / 3,
-                Math.Max(frame.Width / 200, frame.Height / 130)));
-            for (var y = 0; y <= maxY; y += stride)
+            var fullWidth = Math.Max(4, (int)Math.Round(_identityWidth * scale));
+            var fullHeight = Math.Max(4, (int)Math.Round(_identityHeight * scale));
+            // A size has to fit whole. Clamping the sides separately would stretch a standing
+            // person into a wide strip of pavement whenever the box reached a frame edge.
+            if (fullWidth > frame.Width || fullHeight > frame.Height) continue;
+            var width = Math.Max(3, fullWidth / _scanReduction);
+            var height = Math.Max(3, fullHeight / _scanReduction);
+            if (width > _scanWidth || height > _scanHeight) continue;
+            // Two taps per cell on each axis, matching the full-resolution descriptor. Reading a
+            // single pixel per cell makes the score depend on which pixels the grid happens to
+            // land on, which is how a sub-window of a patterned subject can outscore the subject.
+            for (var i = 0; i < Samples; i++)
+            {
+                columns[i] = Math.Min(width - 1, (i * 4 + 1) * width / (Samples * 4));
+                columns[Samples + i] = Math.Min(width - 1, (i * 4 + 3) * width / (Samples * 4));
+                rows[i] = Math.Min(height - 1, (i * 4 + 1) * height / (Samples * 4));
+                rows[Samples + i] = Math.Min(height - 1, (i * 4 + 3) * height / (Samples * 4));
+            }
+
+            var step = Math.Max(2, Math.Min(width, height) / 10);
+            // Several places per size, each a different part of the picture. Keeping only the
+            // single best would throw away the true subject whenever some other surface happened
+            // to score fractionally higher at that size; neighbouring offsets, on the other hand,
+            // describe the same physical thing and only one of them is worth a place.
+            places.Clear();
+            for (var top = 0; top + height <= _scanHeight; top += step)
             {
                 cancellation.ThrowIfCancellationRequested();
-                for (var x = 0; x <= maxX; x += stride)
+                for (var left = 0; left + width <= _scanWidth; left += step)
                 {
-                    var error = SparseDistance(frame, x, y, patchWidth, patchHeight, fingerprint);
-                    if (_returnAppearance is { } appearance)
+                    if (!ScanStructure(left, top, columns, rows, structure, floor)) continue;
+                    // Shape alone cannot shortlist a subject that returns turned around: the
+                    // correlation of a back view with a front view is near nothing, while its
+                    // colours are unchanged. A coarse chromaticity reading costs a fraction of
+                    // the shape comparison and keeps those returns in the running.
+                    var shape = (Math.Max(Correlation(structure, anchor.Structure),
+                        Correlation(structure, recent.Structure)) + 1) / 2;
+                    var score = 0.55 * shape + 0.45 * ScanColour(left, top, columns, rows, anchor, recent);
+                    if (score < 0.4) continue;
+                    var replaces = -1;
+                    for (var i = 0; i < places.Count; i++)
                     {
-                        error = Math.Min(error, 15 + AppearanceDistance(frame, x, y, patchWidth, patchHeight, appearance, sparse: true));
-                    }
-                    if (error > 105)
-                    {
-                        continue;
-                    }
-
-                    // Proposals for the same physical patch at this scale compete for
-                    // one shortlist place; spatially separate matches remain to guard
-                    // against visually identical subjects.
-                    var existing = -1;
-                    for (var i = 0; i < candidates.Count; i++)
-                    {
-                        var candidate = candidates[i];
-                        if (Math.Abs(candidate.X + candidate.Width / 2 - x - patchWidth / 2) <
-                                Math.Min(candidate.Width, patchWidth) * 0.75 &&
-                            Math.Abs(candidate.Y + candidate.Height / 2 - y - patchHeight / 2) <
-                                Math.Min(candidate.Height, patchHeight) * 0.75)
-                        {
-                            existing = i;
-                            break;
-                        }
+                        if (Math.Abs(places[i].Left - left) >= width * 0.5 || Math.Abs(places[i].Top - top) >= height * 0.5) continue;
+                        replaces = i;
+                        break;
                     }
 
-                    if (existing >= 0)
+                    if (replaces >= 0)
                     {
-                        if (candidates[existing].Error <= error)
-                        {
-                            continue;
-                        }
-
-                        candidates.RemoveAt(existing);
+                        if (places[replaces].Score >= score) continue;
+                        places.RemoveAt(replaces);
                     }
 
-                    candidates.Add((error, x, y, patchWidth, patchHeight));
-                    candidates.Sort((a, b) => a.Error.CompareTo(b.Error));
-                    if (candidates.Count > 4)
-                    {
-                        candidates.RemoveAt(4);
-                    }
+                    places.Add((score, left, top));
+                    places.Sort((a, b) => b.Score.CompareTo(a.Score));
+                    if (places.Count > PlacesPerSize) places.RemoveAt(PlacesPerSize);
                 }
             }
 
-            shortlist.AddRange(candidates);
+            // The shortlist position is only accurate to one step of the reduced grid, so the
+            // full-resolution check is told how far it may have to look to find the real peak.
+            _searchUncertainty = Math.Max(_searchUncertainty, step * _scanReduction);
+            foreach (var place in places)
+            {
+                shortlist.Add((place.Score, place.Left * _scanReduction, place.Top * _scanReduction, fullWidth, fullHeight));
+            }
         }
 
-        List<(double Error, double MatchError, int X, int Y, int Width, int Height)> refined = new(shortlist.Count);
-        foreach (var candidate in shortlist)
+        shortlist.Sort((a, b) => b.Score.CompareTo(a.Score));
+        List<Reading> verified = new(shortlist.Count);
+        foreach (var candidate in shortlist.Take(Verifiable))
         {
             cancellation.ThrowIfCancellationRequested();
-            var bestError = double.MaxValue;
-            var bestX = candidate.X;
-            var bestY = candidate.Y;
-            var bestWidth = candidate.Width;
-            var bestHeight = candidate.Height;
-            var maxX = frame.Width - candidate.Width;
-            var maxY = frame.Height - candidate.Height;
-            var radius = Math.Max(2, Math.Min(candidate.Width, candidate.Height) / 3);
-            var refinementStep = Math.Max(1, radius / 2);
-            for (var y = Math.Max(0, candidate.Y - radius); y <= Math.Min(maxY, candidate.Y + radius); y += refinementStep)
-            {
-                for (var x = Math.Max(0, candidate.X - radius); x <= Math.Min(maxX, candidate.X + radius); x += refinementStep)
-                {
-                    var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
-                        (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
-                    LastSearchComparisons++;
-                    if (error < bestError)
-                    {
-                        (bestError, bestX, bestY) = (error, x, y);
-                    }
-                }
-            }
-
-            // Descend in bounded grids instead of scanning every pixel in a large
-            // final square. A UHD-sized selection otherwise multiplies the expensive
-            // full-template comparisons by hundreds of thousands per candidate.
-            while (refinementStep > 1)
-            {
-                var centreX = bestX;
-                var centreY = bestY;
-                var window = refinementStep;
-                refinementStep = Math.Max(1, refinementStep / 2);
-                for (var y = Math.Max(0, centreY - window); y <= Math.Min(maxY, centreY + window); y += refinementStep)
-                {
-                    for (var x = Math.Max(0, centreX - window); x <= Math.Min(maxX, centreX + window); x += refinementStep)
-                    {
-                        var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
-                            (float)candidate.Width / frame.Width, (float)candidate.Height / frame.Height, fingerprint);
-                        LastSearchComparisons++;
-                        if (error < bestError)
-                        {
-                            (bestError, bestX, bestY) = (error, x, y);
-                        }
-                    }
-                }
-            }
-
-            // Refine dimensions as well as location. Fixed scale levels leave gaps,
-            // and a modest change in viewpoint need not preserve the aspect ratio.
-            if (bestError < 35)
-            {
-                // Refine a meaningful fraction of the candidate size, not just one pixel.
-                // At 16-24px, adjacent coarse sizes differ by 4px and a one-pixel
-                // adjustment can never reach some genuine intermediate returns.
-                var step = Math.Max(1, Math.Min(bestWidth, bestHeight) / 8);
-                while (step >= 1)
-                {
-                    var sizeWidth = bestWidth;
-                    var sizeHeight = bestHeight;
-                    var centreX = bestX + bestWidth / 2;
-                    var centreY = bestY + bestHeight / 2;
-                    for (var dh = -step; dh <= step; dh += step)
-                    {
-                        for (var dw = -step; dw <= step; dw += step)
-                        {
-                            var width = sizeWidth + dw;
-                            var height = sizeHeight + dh;
-                            var x = centreX - width / 2;
-                            var y = centreY - height / 2;
-                            if (width < 4 || height < 4 || x < 0 || y < 0 || x + width > frame.Width || y + height > frame.Height)
-                            {
-                                continue;
-                            }
-
-                            var error = ReturnDistance(frame, (float)x / frame.Width, (float)y / frame.Height,
-                                (float)width / frame.Width, (float)height / frame.Height, fingerprint);
-                            LastSearchComparisons++;
-                            if (error < bestError)
-                            {
-                                (bestError, bestX, bestY, bestWidth, bestHeight) = (error, x, y, width, height);
-                            }
-                        }
-                    }
-
-                    if (step == 1) break;
-                    step = Math.Max(1, step / 2);
-                }
-            }
-
-            // Matching only the middle of a larger object can favour an undersized
-            // patch. When the original selection touched visible object boundaries,
-            // compare that foreground-to-surroundings contrast as an additional spatial
-            // cue. Keep texture-only matching for interior selections with no boundary.
-            var matchError = bestError;
-            if (_originalBorderContrast >= 40)
-            {
-                var (centre, outside, _) = CompareSubjectWithBorder(frame,
-                    (bestX, bestY, bestX + bestWidth, bestY + bestHeight));
-                var contrast = Math.Abs(centre.B - outside.B)
-                    + Math.Abs(centre.G - outside.G)
-                    + Math.Abs(centre.R - outside.R);
-                bestError += Math.Max(0, _originalBorderContrast - contrast) * 0.12;
-            }
-
-            refined.Add((bestError, matchError, bestX, bestY, bestWidth, bestHeight));
+            verified.Add(Verify(frame, candidate.Left, candidate.Top, candidate.Width, candidate.Height));
         }
 
-        // Background contrast ranks plausible sizes, but is not identity evidence:
-        // the same subject may return in front of entirely different surroundings.
-        refined.RemoveAll(candidate => candidate.MatchError > 22);
-        refined.Sort((a, b) => a.Error.CompareTo(b.Error));
-        if (refined.Count == 0)
+        verified.RemoveAll(candidate => Distortion(candidate.Width, candidate.Height) > MaxDistortion);
+        verified.Sort((a, b) => Preference(b).CompareTo(Preference(a)));
+        // Settling is the most expensive reading in the search, so only the few readings that
+        // could still be accepted are put through it; the rest are already out on their score.
+        var best = default(Reading);
+        var attempts = 0;
+        foreach (var candidate in verified)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (candidate.Resemblance.ToSubject < ReturnSubject || candidate.Resemblance.Relative < ReturnRelative) continue;
+            if (++attempts > Settleable) break;
+            var box = candidate;
+            if (!Settle(frame, ref box)) continue;
+            best = box;
+            break;
+        }
+
+        if (best.Width == 0)
         {
             _returnCandidate = null;
             _returnConfirmations = 0;
             return false;
         }
 
-        var best = refined[0];
-        // A similarly patterned shirt at another location must not steal the lock.
-        if (refined.Skip(1).Any(candidate =>
-            (Math.Abs(candidate.X + candidate.Width / 2 - best.X - best.Width / 2) >=
-                 Math.Max(candidate.Width, best.Width) * 0.75 ||
-             Math.Abs(candidate.Y + candidate.Height / 2 - best.Y - best.Height / 2) >=
-                 Math.Max(candidate.Height, best.Height) * 0.75) &&
-            candidate.MatchError <= Math.Min(22, best.MatchError + 9)))
+        var rival = verified.Where(other =>
+            Math.Abs(other.Left + other.Width / 2 - best.Left - best.Width / 2) >= Math.Max(other.Width, best.Width) * 0.7 ||
+            Math.Abs(other.Top + other.Height / 2 - best.Top - best.Height / 2) >= Math.Max(other.Height, best.Height) * 0.7)
+            .OrderByDescending(other => other.Resemblance.ToSubject).FirstOrDefault();
+        if (rival.Width > 0 && rival.Resemblance.ToSubject > best.Resemblance.ToSubject - RivalMargin)
         {
+            // Two places in this picture look equally like the subject. Guessing between them is
+            // how a lock silently moves to the wrong person, so neither is taken.
             _returnCandidate = null;
             _returnConfirmations = 0;
+            Status = "Similar-looking regions: watching for a clear match. Select again if necessary.";
             return false;
         }
 
-        if (_returnCandidate is { } previous &&
-            Math.Abs(previous.X + previous.Width / 2 - best.X - best.Width / 2) <
-                Math.Max(12, best.Width * 3) &&
-            Math.Abs(previous.Y + previous.Height / 2 - best.Y - best.Height / 2) <
-                Math.Max(12, best.Height * 3) &&
-            Math.Abs(previous.Width - best.Width) <= Math.Max(4, best.Width / 3) &&
-            Math.Abs(previous.Height - best.Height) <= Math.Max(4, best.Height / 3))
+        // One sighting can be a passing reflection or a frame of motion blur. A second sighting in
+        // nearly the same place and at nearly the same size is required before the box moves.
+        if (_returnCandidate is { } previous
+            && Math.Abs(previous.X + previous.Width / 2 - best.Left - best.Width / 2) < Math.Max(16, best.Width * 2)
+            && Math.Abs(previous.Y + previous.Height / 2 - best.Top - best.Height / 2) < Math.Max(16, best.Height * 2)
+            && Math.Abs(previous.Width - best.Width) <= Math.Max(6, best.Width / 2)
+            && Math.Abs(previous.Height - best.Height) <= Math.Max(6, best.Height / 2))
         {
             _returnConfirmations++;
         }
@@ -244,132 +190,331 @@ public sealed partial class SubjectEditSession
             _returnConfirmations = 1;
         }
 
-        _returnCandidate = (best.X, best.Y, best.Width, best.Height);
-        if (_returnConfirmations < 2)
-        {
-            return false;
-        }
+        _returnCandidate = (best.Left, best.Top, best.Width, best.Height);
+        if (_returnConfirmations < 2) return false;
 
-        Region = ((float)best.X / frame.Width, (float)best.Y / frame.Height,
+        Region = ((float)best.Left / frame.Width, (float)best.Top / frame.Height,
             (float)best.Width / frame.Width, (float)best.Height / frame.Height);
-        _reference = Sample(frame, Region.Left, Region.Top, Region.Width, Region.Height);
+        if (rival.Width > 0) RememberRival(frame, rival.Left, rival.Top, rival.Width, rival.Height);
+        Describe(frame, best.Left, best.Top, best.Width, best.Height, _probe);
+        RememberSubject(_probe);
         Tracking = true;
         Erase = false;
         _lostFrames = 0;
         _returnCandidate = null;
         _returnConfirmations = 0;
-        _reacquiredFrames = 15;
-        Confidence = Math.Clamp(1 - best.MatchError / 75, 0, 1);
+        _reacquiredFrames = 12;
+        Confidence = Math.Clamp((best.Resemblance.ToSubject - 0.5) / 0.42, 0, 1);
         Status = "Original visual texture found again. Tracking resumed.";
         return true;
     }
 
+    private double Preference(Reading candidate) =>
+        candidate.Resemblance.ToSubject + SizePreference(candidate.Width)
+        + ShapePreference(candidate.Width, candidate.Height);
+
     /// <summary>
-    /// Compare texture after allowing a small, uniform lighting shift. Absolute RGB matching
-    /// misses the same moving object when the scene brightens or darkens. Keep a colour-shift
-    /// penalty so a differently coloured lookalike is not treated as an identical match.
-    /// Only the lost-subject search uses this; ordinary frame-to-frame tracking is unchanged.
+    /// Between two readings of the picture that resemble the subject equally, prefer the one
+    /// closest to the size it was selected at, and prefer the larger of the two. Most subjects
+    /// are made partly of themselves: a patterned dress contains smaller patches of the same
+    /// pattern, a brick wall contains smaller walls. Those sub-patches match perfectly, so
+    /// without a reason to prefer the whole the box collapses onto a detail and stays there.
+    /// Growing is treated more gently than shrinking because a box slightly too large still
+    /// contains the subject, whereas one too small has already lost most of it.
     /// </summary>
-    private double ReturnDistance(VideoFrame frame, float left, float top, float width,
-        float height, float[] reference)
+    private double SizePreference(int width)
     {
-        Span<double> referenceMean = stackalloc double[3];
-        Span<double> currentMean = stackalloc double[3];
-        referenceMean.Clear();
-        currentMean.Clear();
-        double referenceSquare = 0, currentSquare = 0, cross = 0;
-        for (var y = 2; y < Samples; y += 4)
+        var ratio = Math.Log((double)_identityWidth / Math.Max(1, width));
+        return ratio > 0 ? -0.03 * ratio : 0.015 * ratio;
+    }
+
+    /// <summary>Re-check a reduced-resolution proposal against the real picture, refining where and how big.</summary>
+    private Reading Verify(VideoFrame frame, int left, int top, int width, int height)
+    {
+        var (bestLeft, bestTop, bestWidth, bestHeight) = (left, top, width, height);
+        var bestScore = double.MinValue;
+        void Consider(int x, int y, int candidateWidth, int candidateHeight)
         {
-            var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);
-            var row = frame.Row(0, fy);
-            for (var x = 2; x < Samples; x += 4)
+            if (x < 0 || y < 0 || candidateWidth < 4 || candidateHeight < 4
+                || x + candidateWidth > frame.Width || y + candidateHeight > frame.Height
+                || Distortion(candidateWidth, candidateHeight) > MaxDistortion) return;
+            DescribeStructure(frame, x, y, candidateWidth, candidateHeight, _spare);
+            LastSearchComparisons++;
+            var score = StructuralResemblance(_spare) + SizePreference(candidateWidth) + ShapePreference(candidateWidth, candidateHeight);
+            if (score <= bestScore) return;
+            (bestScore, bestLeft, bestTop, bestWidth, bestHeight) = (score, x, y, candidateWidth, candidateHeight);
+        }
+
+        // Walk down from the spacing of the reduced grid to single pixels, re-centring each time.
+        for (var step = Math.Max(1, _searchUncertainty); ; step = step / 2)
+        {
+            var (centreLeft, centreTop) = (bestLeft, bestTop);
+            for (var dy = -step; dy <= step; dy += step)
             {
-                var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
-                var at = (y * Samples + x) * 3;
-                for (var c = 0; c < 3; c++)
+                for (var dx = -step; dx <= step; dx += step) Consider(centreLeft + dx, centreTop + dy, bestWidth, bestHeight);
+            }
+
+            if (step == 1) break;
+        }
+
+        // Then the size, each side independently so a subject that turned side-on can be found.
+        ReadOnlySpan<float> sides = stackalloc float[] { 0.84f, 0.92f, 1f, 1.09f, 1.19f };
+        for (var pass = 0; pass < 2; pass++)
+        {
+            var (centreLeft, centreTop, centreWidth, centreHeight) = (bestLeft, bestTop, bestWidth, bestHeight);
+            foreach (var horizontal in sides)
+            {
+                foreach (var vertical in sides)
                 {
-                    var originalValue = reference[at + c];
-                    referenceMean[c] += originalValue;
-                    currentMean[c] += row[fx + c];
-                    referenceSquare += originalValue * originalValue;
-                    currentSquare += row[fx + c] * row[fx + c];
-                    cross += originalValue * row[fx + c];
+                    var candidateWidth = Math.Max(4, (int)Math.Round(centreWidth * horizontal));
+                    var candidateHeight = Math.Max(4, (int)Math.Round(centreHeight * vertical));
+                    Consider(centreLeft + (centreWidth - candidateWidth) / 2,
+                        centreTop + (centreHeight - candidateHeight) / 2, candidateWidth, candidateHeight);
                 }
             }
         }
 
-        for (var c = 0; c < 3; c++)
-        {
-            referenceSquare -= referenceMean[c] * referenceMean[c] / 16;
-            currentSquare -= currentMean[c] * currentMean[c] / 16;
-            cross -= referenceMean[c] * currentMean[c] / 16;
-        }
+        Describe(frame, bestLeft, bestTop, bestWidth, bestHeight, _spare);
+        return new Reading(Compare(_spare), bestLeft, bestTop, bestWidth, bestHeight);
+    }
 
-        if (referenceSquare > 100 && currentSquare < Math.Max(20, referenceSquare * 0.16))
-        {
-            return double.MaxValue;
-        }
+    // How far the box may grow in one step, and how many steps it may take before the thing it
+    // is sitting on is treated as an expanse rather than an object.
+    private const int SettleStep = 30;
+    private const int SettleRounds = 6;
 
-        // Exposure changes both gain and offset. Bound the shared contrast gain so a
-        // flat background cannot explain away all of the reference's texture.
-        var gain = referenceSquare > 100 ? Math.Clamp(cross / referenceSquare, 0.5, 2) : 1;
-        Span<double> shift = stackalloc double[3];
-        for (var c = 0; c < 3; c++)
-        {
-            shift[c] = Math.Clamp((currentMean[c] - gain * referenceMean[c]) / 16, -80, 80);
-        }
+    private bool Settle(VideoFrame frame, ref Reading box) =>
+        Extend(frame, ref box, SettleRounds, SettleStep, 0.015, MaxDistortion);
 
-        var original = 0d;
-        var adjusted = 0d;
+    /// <summary>A patch of the picture, where it is, and how much it looks like the subject.</summary>
+    private record struct Reading(Resemblance Resemblance, int Left, int Top, int Width, int Height);
+
+    /// <summary>
+    /// Push the box outwards until its surroundings stop looking like the subject, and report
+    /// whether they ever do. Two different faults are settled by the same movement.
+    ///
+    /// A box that stopped short of the subject's outline stays short, and worse, keeps shrinking:
+    /// a crop of a person is still a good match for that person, so nothing in a frame-to-frame
+    /// search objects to a slightly smaller box, and a slightly smaller box is what it is offered
+    /// forty times a second. Extending one side at a time while the new room still looks like the
+    /// subject is the opposing force; together they settle on the outline.
+    ///
+    /// A box that is not around an object at all - one panel of a patterned wall, a slice of a
+    /// much larger copy of the same surface - never stops growing, because there is always more
+    /// of the same thing beyond it. When that growth can only be halted by the subject's own
+    /// proportions, the match is discarded: a confident lock on part of a larger expanse is the
+    /// kind of wrong answer that looks right, and it is worse than reporting nothing.
+    /// </summary>
+    private bool Extend(VideoFrame frame, ref Reading box, int rounds, int step, double slack, double distortion)
+    {
+        for (var round = 0; ; round++)
+        {
+            var sideways = Math.Max(2, box.Width * step / 100);
+            var upright = Math.Max(2, box.Height * step / 100);
+            // Room added at the edge of a subject fills with background and the reading falls.
+            // Any allowance keeps a row of motion blur from ending the growth early, at the cost
+            // of letting a box creep outwards, so a search that must not creep passes none.
+            var floor = box.Resemblance.ToSubject - slack;
+            var grown = default(Reading);
+            var misshapen = false;
+            Consider(box.Left, box.Top, box.Width + sideways, box.Height, box.Left + box.Width + sideways <= frame.Width);
+            Consider(box.Left - sideways, box.Top, box.Width + sideways, box.Height, box.Left >= sideways);
+            Consider(box.Left, box.Top, box.Width, box.Height + upright, box.Top + box.Height + upright <= frame.Height);
+            Consider(box.Left, box.Top - upright, box.Width, box.Height + upright, box.Top >= upright);
+            if (grown.Width > 0)
+            {
+                box = grown;
+                // A box that starts far too small needs several pushes to reach the outline, and
+                // needing them says nothing about what it is sitting on. Running out of pushes is
+                // therefore not a verdict; it just stops the work.
+                if (round + 1 < rounds) continue;
+                return true;
+            }
+
+            // Nothing beyond any reachable side resembles the subject: this is an outline. Sides
+            // the picture itself cuts off are not evidence either way, so a subject standing
+            // against the edge of the frame is settled by the sides that remain. But if the only
+            // direction the thing carries on in is one the subject's own proportions forbid, then
+            // it is not the subject: it is a larger expanse of something that looks like it.
+            return !misshapen;
+
+            void Consider(int x, int y, int width, int height, bool insidePicture)
+            {
+                if (!insidePicture) return;
+                Describe(frame, x, y, width, height, _spare);
+                var resemblance = Compare(_spare);
+                if (resemblance.ToSubject < floor) return;
+                if (Distortion(width, height) > distortion)
+                {
+                    misshapen = true;
+                    return;
+                }
+
+                if (resemblance.ToSubject <= grown.Resemblance.ToSubject) return;
+                grown = new Reading(resemblance, x, y, width, height);
+            }
+        }
+    }
+
+    /// <summary>Hold the proportions the subject was selected with unless the evidence is strong.</summary>
+    private double ShapePreference(int width, int height) => -0.05 * Distortion(width, height);
+
+    /// <summary>
+    /// How far a candidate's proportions have been stretched away from the subject's. Beyond
+    /// <see cref="MaxDistortion"/> the candidate is not considered at all: allowing the box to
+    /// take any shape lets a search squeeze the subject's texture over something that merely
+    /// contains a stretched version of it, which is a confident-looking wrong answer.
+    /// </summary>
+    private double Distortion(int width, int height) => Math.Abs(
+        Math.Log((double)width / Math.Max(1, height)) - Math.Log((double)_identityWidth / Math.Max(1, _identityHeight)));
+
+    // Half as wide again, or half as tall, relative to the selection's own proportions.
+    private const double MaxDistortion = 0.405;
+
+    /// <summary>The thing that nearly stole the lock is worth remembering as not-the-subject.</summary>
+    private void RememberRival(VideoFrame frame, int left, int top, int width, int height)
+    {
+        Describe(frame, left, top, width, height, _spare);
+        RememberOther(_spare);
+    }
+
+    /// <summary>
+    /// Read one candidate from the reduced picture. Areas too smooth to hold the subject's
+    /// structure are rejected before any comparison, which is what keeps a whole-picture search
+    /// at many sizes affordable: most of a frame is sky, road, wall or blurred background.
+    /// </summary>
+    private bool ScanStructure(int left, int top, ReadOnlySpan<int> columns, ReadOnlySpan<int> rows,
+        Span<float> structure, float floor)
+    {
+        var scan = _scan!;
+        var total = 0f;
         var i = 0;
         for (var y = 0; y < Samples; y++)
         {
-            var fy = Math.Clamp((int)((top + (y + 0.5f) / Samples * height) * frame.Height), 0, frame.Height - 1);
-            var row = frame.Row(0, fy);
+            var upper = (top + rows[y]) * _scanWidth + left;
+            var lower = (top + rows[Samples + y]) * _scanWidth + left;
             for (var x = 0; x < Samples; x++)
             {
-                var fx = Math.Clamp((int)((left + (x + 0.5f) / Samples * width) * frame.Width), 0, frame.Width - 1) * 4;
-                for (var channel = 0; channel < 3; channel++)
-                {
-                    var value = reference[i++];
-                    original += Math.Abs(row[fx + channel] - value);
-                    adjusted += Math.Abs(row[fx + channel] - gain * value - shift[channel]);
-                }
+                var near = columns[x];
+                var far = columns[Samples + x];
+                var value = (scan[upper + near] + scan[upper + far] + scan[lower + near] + scan[lower + far]) * 0.25f;
+                structure[i++] = value;
+                total += value;
             }
         }
 
-        const int components = Samples * Samples * 3;
-        var lightingPenalty = (Math.Abs(shift[0]) + Math.Abs(shift[1]) + Math.Abs(shift[2])) * 0.16 / 3 + Math.Abs(gain - 1) * 4;
-        var error = Math.Min(original / components, adjusted / components + lightingPenalty);
-        if (error > 12 && _returnAppearance is { } appearance)
+        var mean = total / structure.Length;
+        var square = 0f;
+        for (var j = 0; j < structure.Length; j++)
         {
-            error = Math.Min(error, 4 + AppearanceDistance(frame,
-                (int)Math.Round(left * frame.Width), (int)Math.Round(top * frame.Height),
-                (int)Math.Round(width * frame.Width), (int)Math.Round(height * frame.Height), appearance));
+            var centred = structure[j] - mean;
+            structure[j] = centred;
+            square += centred * centred;
         }
 
-        return error;
+        if (square <= 0 || MathF.Sqrt(square / structure.Length) < floor) return false;
+        var normalize = 1f / MathF.Sqrt(square);
+        for (var j = 0; j < structure.Length; j++) structure[j] *= normalize;
+        return true;
     }
 
-    /// <summary>Cheap 4-by-4 thumbnail comparison before full template refinement.</summary>
-    private static double SparseDistance(VideoFrame frame, int left, int top, int width, int height, float[] reference)
+    /// <summary>
+    /// A sixteen-sample chromaticity reading of a candidate, compared with the subject's own.
+    /// Coarse on purpose: this only has to keep a plausible candidate on the shortlist, and the
+    /// full-resolution check that follows reads the whole patch properly.
+    /// </summary>
+    private double ScanColour(int left, int top, ReadOnlySpan<int> columns, ReadOnlySpan<int> rows,
+        Patch anchor, Patch recent)
     {
-        var error = 0d;
-        for (var y = 2; y < Samples; y += 4)
+        Span<float> histogram = stackalloc float[ChromaBins * ChromaBins];
+        histogram.Clear();
+        var colour = _scanColour!;
+        for (var y = 1; y < Samples; y += 4)
         {
-            var sourceY = Math.Min(frame.Height - 1, top + (int)((y + 0.5f) * height / Samples));
-            var row = frame.Row(0, sourceY);
-            for (var x = 2; x < Samples; x += 4)
+            var row = (top + rows[y]) * _scanWidth;
+            for (var x = 1; x < Samples; x += 4)
             {
-                var sourceX = Math.Min(frame.Width - 1, left + (int)((x + 0.5f) * width / Samples));
-                var sample = sourceX * 4;
-                var at = (y * Samples + x) * 3;
-                error += Math.Abs(row[sample] - reference[at]);
-                error += Math.Abs(row[sample + 1] - reference[at + 1]);
-                error += Math.Abs(row[sample + 2] - reference[at + 2]);
+                var at = (row + left + columns[x]) * 3;
+                Accumulate(histogram, colour[at], colour[at + 1], colour[at + 2]);
             }
         }
 
-        return error / 48;
+        // Sixteen readings, scaled to the share-of-the-patch the stored views are kept as.
+        for (var i = 0; i < histogram.Length; i++) histogram[i] /= 16;
+        return Math.Max(Intersection(histogram, _lightRed, _lightGreen, anchor),
+            Intersection(histogram, _lightRed, _lightGreen, recent));
+
+        // The shortlist has to allow for a change of light as well, or a subject walking back in
+        // under a different lamp never reaches the full-resolution check that would recognise it.
+        static double Intersection(ReadOnlySpan<float> histogram, float red, float green, Patch view)
+        {
+            var alongRed = Math.Clamp((int)Math.Round(view.Red - red), -MaxCast, MaxCast);
+            var alongGreen = Math.Clamp((int)Math.Round(view.Green - green), -MaxCast, MaxCast);
+            var direct = 0d;
+            var shifted = 0d;
+            for (var i = 0; i < ChromaBins; i++)
+            {
+                for (var j = 0; j < ChromaBins; j++)
+                {
+                    var count = histogram[i * ChromaBins + j];
+                    direct += Math.Min(count, view.Colour[i * ChromaBins + j]);
+                    var toRed = i + alongRed;
+                    var toGreen = j + alongGreen;
+                    if ((uint)toRed < ChromaBins && (uint)toGreen < ChromaBins)
+                    {
+                        shifted += Math.Min(count, view.Colour[toRed * ChromaBins + toGreen]);
+                    }
+                }
+            }
+
+            return Math.Max(direct, shifted - CastPenalty * (Math.Abs(alongRed) + Math.Abs(alongGreen)));
+        }
+    }
+
+    private static double Correlation(ReadOnlySpan<float> a, ReadOnlySpan<float> b)
+    {
+        var total = 0d;
+        for (var i = 0; i < a.Length; i++) total += a[i] * b[i];
+        return Math.Clamp(total, -1, 1);
+    }
+
+    /// <summary>A reduced luma copy of the picture, reused between searches.</summary>
+    private void BuildScanImage(VideoFrame frame)
+    {
+        var reduction = Math.Max(1, (Math.Max(frame.Width, frame.Height) + ScanExtent - 1) / ScanExtent);
+        _scanReduction = reduction;
+        _scanWidth = Math.Max(1, frame.Width / reduction);
+        _scanHeight = Math.Max(1, frame.Height / reduction);
+        var required = _scanWidth * _scanHeight;
+        if (_scan is null || _scan.Length < required)
+        {
+            _scan = new byte[required];
+            _scanColour = new byte[required * 3];
+        }
+
+        var scan = _scan;
+        var colour = _scanColour!;
+        for (var y = 0; y < _scanHeight; y++)
+        {
+            var source = y * reduction;
+            var first = frame.Row(0, source);
+            // Averaging two lines costs little and keeps a reduced picture from losing the
+            // fine texture that distinguishes a patterned dress from a plain one.
+            var second = frame.Row(0, Math.Min(frame.Height - 1, source + reduction / 2));
+            var destination = y * _scanWidth;
+            for (var x = 0; x < _scanWidth; x++)
+            {
+                var at = x * reduction * 4;
+                var other = Math.Min(frame.Width - 1, x * reduction + reduction / 2) * 4;
+                var blue = (first[at] + second[other]) >> 1;
+                var green = (first[at + 1] + second[other + 1]) >> 1;
+                var red = (first[at + 2] + second[other + 2]) >> 1;
+                scan[destination + x] = (byte)((blue * 29 + green * 150 + red * 77) >> 8);
+                var pixel = (destination + x) * 3;
+                colour[pixel] = (byte)blue;
+                colour[pixel + 1] = (byte)green;
+                colour[pixel + 2] = (byte)red;
+            }
+        }
     }
 }
