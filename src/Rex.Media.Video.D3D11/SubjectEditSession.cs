@@ -209,7 +209,11 @@ public sealed partial class SubjectEditSession
             var borderContrast = Math.Abs(selectedCentre.B - nearbyBorder.B)
                 + Math.Abs(selectedCentre.G - nearbyBorder.G)
                 + Math.Abs(selectedCentre.R - nearbyBorder.R);
-            _originalBorderContrast = HasDistinctiveAppearance(_reference) ? 0 : borderContrast;
+            // The initial rectangle's foreground/background boundary also helps preserve
+            // apparent subject size during return matching. Textured subjects may still
+            // have a clear silhouette; do not discard this evidence just because the
+            // selected patch contains distinctive internal texture.
+            _originalBorderContrast = borderContrast;
             if (!HasDistinctiveAppearance(_reference) && borderContrast < 40)
             {
                 // A flat patch of sky, wall or clothing with no contrasting edges can
