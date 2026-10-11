@@ -3,6 +3,37 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.15.7 - 2026-10-11
+
+### Fixed
+
+- **Subject selection on still pictures.** Refreshes the decoded picture after a
+  new Subject Lock selection, including when a slideshow picture is already
+  visible or has reached its end. The presenter receives the selection before
+  the image is decoded again, so tracking can inspect the chosen region.
+- **Playback generation safety.** Carries the active seek generation through to
+  video frames presented after decoding, helping prevent stale frames from
+  crossing seeks into tracking and picture effects.
+- **Upgrade hand-off safety.** Consumes one-time recovery markers before
+  attempting restoration and rejects invalid queued items, so an interrupted
+  restore is not replayed at a later launch.
+- **Picture caching and presentation.** Hardens thumbnail caching and the
+  unedited-frame path used by Subject Lock previews.
+
+### Improved
+
+- **Tracking reliability.** Tightens bounded reacquisition and conservative
+  subject-identity checks without treating an uncertain match as a confirmed
+  return.
+- **Regression diagnostics.** Expands engine, Windows presenter and desktop
+  coverage. UI Automation now includes the visible Subject Lock status and app
+  log context when selection times out.
+
+### Limitations
+
+- Subject Lock follows visible texture, not semantic identity. Occlusions,
+  lookalikes and low-detail regions may still require manual reselection.
+
 ## 0.15.6 - 2026-10-10
 
 ### Fixed
