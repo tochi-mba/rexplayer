@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.15.10 - 2026-10-12
+
+### Improved
+
+- **Subject Lock recognises a returning subject after the light changes.** Shape
+  is compared independently of brightness and contrast, and colour is compared
+  as chromaticity, allowing for a change of light measured across the whole
+  picture. A coloured reflection or a different lamp no longer rejects the
+  subject, while one candidate still cannot explain its own colours away.
+- **Relative acceptance.** A returning subject must look more like remembered
+  views of itself than like remembered views of the rest of the video, beat
+  every rival elsewhere in the picture by a margin, and be seen twice.
+- **Pose, turning and size.** Remembered views cover new viewpoints, recovery
+  settles each candidate onto the subject's outline, and local tracking no
+  longer lets the box collapse onto part of a subject in uniform clothing.
+- **Faster picture conversion.** Colour conversion resolves each plane once per
+  row instead of three times per pixel, which shortens the Subject Lock
+  readback path.
+
+### Fixed
+
+- Switching Ghostwire Motion off releases its previous-frame texture, and its
+  shader no longer reads the previous frame in modes that do not use it.
+- Resetting a picture-style preset no longer writes back the keys it removed.
+- The Subject Lock panel describes auto-follow as it actually is, and a manual
+  zoom or pan announces that it switched auto-follow off.
+
+### Testing
+
+- Adds Windows regressions for self-similar clothing, loose selections,
+  coloured light, turned-round and deformed returns, colour-only false matches
+  and gradual stretching. The full local check passed before merge; this
+  release was merged without waiting for CI at the owner's request.
+
+### Limitations
+
+- Subject Lock compares visible surfaces, not identity. Two people dressed
+  alike are reported as ambiguous. Accuracy has not yet been measured against
+  an annotated benchmark.
+
 ## 0.15.9 - 2026-10-11
 
 ### Improved
