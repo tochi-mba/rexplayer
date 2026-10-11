@@ -392,10 +392,12 @@ internal static class D3D11VideoShaders
                 float edge = smoothstep(0.006 / sensitivity, 0.16 / sensitivity, structure.z);
                 float activity = 0;
                 float oldEdge = 0;
+                float previousDifference = 0;
                 if (motion.y > 0.5 && (motion.z < 0.5 || (motion.z > 1.5 && motion.z < 2.5)))
                 {
                     float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
                     float3 old = readPrior(uv, isYuv);
+                    previousDifference = length(colour - old);
                     // A small correspondence search suppresses a one-pixel global shift
                     // and flicker from sampling while preserving larger local deformation.
                     float mismatch = length(colour - old);
@@ -418,7 +420,6 @@ internal static class D3D11VideoShaders
                 float3 stationary = edge * float3(0.12, 0.78, 0.81);
                 // The previous-frame rim is a faint blue afterimage at its
                 // actual prior position, not just a second glow on the new rim.
-                float previousDifference = length(colour - readPrior(uv, isYuv));
                 float trail = motion.x * (oldEdge
                     * smoothstep(0.025, 0.18, previousDifference) + activity * 0.6)
                     * (1 - edge * 0.35);

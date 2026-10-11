@@ -154,22 +154,34 @@ public sealed partial class MainWindow
             TextWrapping = TextWrapping.Wrap,
         });
         var sliders = new List<(VideoStyleOption Option, Action<int> SetValue)>();
+        var resetting = false;
+        void Apply()
+        {
+            if (effect)
+            {
+                ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
+            }
+            else
+            {
+                ApplyVideoLook(_settings.VideoLook);
+            }
+        }
+
         foreach (var option in options)
         {
             void Preview(int value)
             {
+                // Moving the controls back to their defaults must not write the keys Reset removed.
+                if (resetting)
+                {
+                    return;
+                }
+
                 _settings = _settings with
                 {
                     VideoStyleValues = VideoStyleOptions.With(_settings.VideoStyleValues, option, value),
                 };
-                if (effect)
-                {
-                    ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
-                }
-                else
-                {
-                    ApplyVideoLook(_settings.VideoLook);
-                }
+                Apply();
             }
 
             if (effect && option.Key.EndsWith(".mode", StringComparison.Ordinal))
@@ -214,10 +226,20 @@ public sealed partial class MainWindow
         reset.Click += (_, _) =>
         {
             _settings = _settings with { VideoStyleValues = VideoStyleOptions.Reset(_settings.VideoStyleValues, options) };
-            foreach (var (option, setValue) in sliders)
+            resetting = true;
+            try
             {
-                setValue(option.Default);
+                foreach (var (option, setValue) in sliders)
+                {
+                    setValue(option.Default);
+                }
             }
+            finally
+            {
+                resetting = false;
+            }
+
+            Apply();
         };
         content.Children.Add(reset);
 

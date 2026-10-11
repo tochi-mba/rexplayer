@@ -343,7 +343,14 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
 
         _motionHistoryEnabled = enabled;
-        ResetMotionHistory();
+        if (enabled)
+        {
+            ResetMotionHistory();
+        }
+        else
+        {
+            ReleaseHistory();
+        }
     }
 
     /// <summary>Do not compare frames across a seek, discontinuity or effect switch.</summary>
@@ -744,11 +751,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 
     private void ReleasePlanes()
     {
-        foreach (var com in new object?[]
-        {
-            _lumaView, _chromaView, _luma, _chroma,
-            _previousLumaView, _previousChromaView, _previousLuma, _previousChroma,
-        })
+        foreach (var com in new object?[] { _lumaView, _chromaView, _luma, _chroma })
         {
             if (com is not null)
             {
@@ -757,10 +760,24 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
 
         (_lumaView, _chromaView, _luma, _chroma) = (null, null, null, null);
+        ReleaseHistory();
+        _planes = default;
+    }
+
+    /// <summary>Free the previous-frame copy; a 4K picture's history is a second full-size texture.</summary>
+    private void ReleaseHistory()
+    {
+        foreach (var com in new object?[] { _previousLumaView, _previousChromaView, _previousLuma, _previousChroma })
+        {
+            if (com is not null)
+            {
+                Marshal.ReleaseComObject(com);
+            }
+        }
+
         (_previousLumaView, _previousChromaView, _previousLuma, _previousChroma) =
             (null, null, null, null);
         ResetMotionHistory();
-        _planes = default;
     }
 
     private void ReleaseViewAndTarget()

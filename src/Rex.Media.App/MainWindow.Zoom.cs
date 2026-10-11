@@ -105,6 +105,7 @@ public sealed partial class MainWindow
         {
             _subjectAutoFollowing = false;
             SubjectFollow.IsOn = false;
+            Say("Auto-follow off while you zoom or pan. Turn it back on in Subject Lock.");
         }
 
         if (!HasVideo)
