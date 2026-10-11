@@ -257,12 +257,17 @@ internal static class Wait
         }
     }
 
-    public static void For(Func<bool> condition, string what)
+    public static void For(Func<bool> condition, string what, Func<string>? diagnostic = null)
     {
         var clock = Stopwatch.StartNew();
         while (!condition())
         {
-            Assert.True(clock.Elapsed < AppProcess.Patience, $"Waited in vain for {what}.");
+            if (clock.Elapsed >= AppProcess.Patience)
+            {
+                // Resolve extra context only after a timeout, not on every UI poll.
+                Assert.Fail($"Waited in vain for {what}.{(diagnostic is null ? "" : " " + diagnostic())}");
+            }
+
             Thread.Sleep(50);
         }
     }
