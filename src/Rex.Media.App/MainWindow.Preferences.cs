@@ -55,6 +55,41 @@ public sealed partial class MainWindow
         var single = Check("Use one window: open files in the player already running", s.SingleInstance);
         var enqueue = Check("Files opened that way join the playlist instead of playing", s.EnqueueFromSecondLaunch);
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "PreferencesUpdateChecks");
+        var updateMode = Choice("When a new version is found", ["Install it by itself when rexplayer is closed or not in use", "Download it, then ask me when to install", "Only tell me about it"], (int)s.UpdateMode);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updateMode, "PreferencesUpdateMode");
+        var updateStatus = new TextBlock { Text = Status(), TextWrapping = TextWrapping.Wrap };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updateStatus, "PreferencesUpdateStatus");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(updateStatus, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
+        var checkNow = new Button { Content = "Check for updates now" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(checkNow, "PreferencesCheckUpdates");
+        checkNow.Click += (_, _) => _ = CheckForUpdatesAsync(asked: true);
+        var installNow = new Button { Content = "Restart and install now", Visibility = Pending is { Stage: Rex.Media.Settings.UpdateStage.Ready } ? Visibility.Visible : Visibility.Collapsed };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(installNow, "PreferencesInstallUpdate");
+        installNow.Click += (_, _) =>
+        {
+            _dialog?.Hide();
+            DispatcherQueue.TryEnqueue(() => _ = InstallAsync(unattended: false));
+        };
+        var updateButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        updateButtons.Children.Add(checkNow);
+        updateButtons.Children.Add(installNow);
+        var lastUpdated = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        if (Rex.Media.AppCore.Updates.UpdateFlow.LastUpdated(s.LastUpdatedVersion, s.LastUpdatedAt, DateTimeOffset.Now) is { } updated)
+        {
+            var updatedText = new TextBlock { Text = updated, VerticalAlignment = VerticalAlignment.Center };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updatedText, "PreferencesLastUpdated");
+            var whatsNew = new HyperlinkButton { Content = "What's new" };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "PreferencesWhatsNew");
+            whatsNew.Click += (_, _) =>
+            {
+                _dialog?.Hide();
+                DispatcherQueue.TryEnqueue(() => _ = ShowWhatsNewAsync());
+            };
+            lastUpdated.Children.Add(updatedText);
+            lastUpdated.Children.Add(whatsNew);
+        }
+
         var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
         var pauseLibrary = Check("Pause playback when the library opens", s.PauseWhenLibraryOpens);
@@ -146,12 +181,30 @@ public sealed partial class MainWindow
         content.Children.Add(keys);
 
         content.Children.Add(Heading("rexplayer"));
-        foreach (var control in new UIElement[] { single, enqueue, updates })
+        foreach (var control in new UIElement[] { single, enqueue })
         {
             content.Children.Add(control);
         }
 
-        if (!await Ask("Preferences", new ScrollViewer { Content = content, MaxHeight = 560 }, "Save"))
+        content.Children.Add(Heading("Updates"));
+        foreach (var control in new UIElement[] { updates, updateMode, updateStatus, lastUpdated, updateButtons })
+        {
+            content.Children.Add(control);
+        }
+
+        // The status line follows a check or a download while Preferences is open.
+        _updateStatusText = updateStatus;
+        bool saved;
+        try
+        {
+            saved = await Ask("Preferences", new ScrollViewer { Content = content, MaxHeight = 560 }, "Save");
+        }
+        finally
+        {
+            _updateStatusText = null;
+        }
+
+        if (!saved)
         {
             return;
         }
@@ -184,6 +237,7 @@ public sealed partial class MainWindow
             SingleInstance = single.IsChecked == true,
             EnqueueFromSecondLaunch = enqueue.IsChecked == true,
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
+            UpdateMode = (UpdateMode)updateMode.SelectedIndex,
             ResumePlayback = (ResumeChoice)resume.SelectedIndex,
             KeepHistory = history.IsChecked == true,
             PauseWhenLibraryOpens = pauseLibrary.IsChecked == true,
@@ -230,6 +284,9 @@ public sealed partial class MainWindow
         SaveSettings();
         Say("Preferences saved");
 
+        // A changed mode or schedule may start, stop or allow a download or a prompt.
+        UpdateTick();
+
         // A settings-specific cache key regenerates only visible covers, in the existing bounded
         // background queue. The rest are made lazily as the user scrolls to them.
         if (artworkChanged)
@@ -259,7 +316,7 @@ public sealed partial class MainWindow
     {
         if (!_settings.FirstRunDone)
         {
-            var updates = Check("Look for new versions once a week", true);
+            var updates = Check("Look for new versions every day and download them in the background", true);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "WelcomeUpdates");
             var welcome = new StackPanel { Spacing = 12, MaxWidth = 480 };
             welcome.Children.Add(new TextBlock
@@ -274,22 +331,33 @@ public sealed partial class MainWindow
             });
             welcome.Children.Add(updates);
             await Ask("Welcome to rexplayer", welcome, null, "Start");
-            _settings = _settings with { FirstRunDone = true, UpdateChecks = updates.IsChecked == true ? UpdateCadence.Weekly : UpdateCadence.Off, LastSeenVersion = Version };
+            _settings = _settings with { FirstRunDone = true, UpdateChecks = updates.IsChecked == true ? UpdateCadence.Daily : UpdateCadence.Off, LastSeenVersion = Version };
             SaveSettings();
             return;
         }
 
+        // After an update, a small note offers what changed rather than a dialog in the way.
         if (_settings.LastSeenVersion != Version)
         {
-            _settings = _settings with { LastSeenVersion = Version };
+            _settings = _settings with { LastSeenVersion = Version, LastUpdatedVersion = Version, LastUpdatedAt = DateTimeOffset.UtcNow };
             SaveSettings();
-            using var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("CHANGELOG.md");
-            if (stream is not null && Rex.Media.AppCore.Changelog.Section(new StreamReader(stream).ReadToEnd(), Version) is { } changes)
-            {
-                var text = new TextBlock { Text = changes, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(text, "WhatsNewText");
-                await Ask($"What's new in rexplayer {Version}", new ScrollViewer { Content = text, MaxHeight = 480 }, null);
-            }
+            _showUpdatedNote = true;
+        }
+    }
+
+    /// <summary>What changed in this version (UI-15), from the changelog the app carries.</summary>
+    private async Task ShowWhatsNewAsync()
+    {
+        using var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("CHANGELOG.md");
+        if (stream is not null && Rex.Media.AppCore.Changelog.Section(new StreamReader(stream).ReadToEnd(), Version) is { } changes)
+        {
+            var text = new TextBlock { Text = changes, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(text, "WhatsNewText");
+            await Ask($"What's new in rexplayer {Version}", new ScrollViewer { Content = text, MaxHeight = 480 }, null);
+        }
+        else
+        {
+            Say($"There are no notes for rexplayer {Version}.");
         }
     }
 

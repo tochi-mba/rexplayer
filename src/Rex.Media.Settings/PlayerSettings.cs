@@ -40,6 +40,19 @@ public enum UpdateCadence
     Weekly,
 }
 
+/// <summary>What rexplayer does with a newer version once a check finds it.</summary>
+public enum UpdateMode
+{
+    /// <summary>Download it in the background and install it when rexplayer closes or sits unused, never while playing.</summary>
+    Automatic,
+
+    /// <summary>Download it in the background, then ask when to install it.</summary>
+    DownloadAndAsk,
+
+    /// <summary>Say it is there; download nothing until asked.</summary>
+    NotifyOnly,
+}
+
 /// <summary>How the two front channels are heard.</summary>
 public enum StereoChoice
 {
@@ -319,7 +332,7 @@ public sealed record WindowPlacement(int X, int Y, int Width, int Height, bool M
 public sealed record PlayerSettings
 {
     /// <summary>The version of this shape; older files are migrated when they are read.</summary>
-    public const int CurrentSchema = 2;
+    public const int CurrentSchema = 3;
 
     public int Schema { get; init; } = CurrentSchema;
 
@@ -558,12 +571,26 @@ public sealed record PlayerSettings
     /// <summary>Looking up artwork and details online: off until the user turns it on (§6.15).</summary>
     public bool OnlineLookups { get; init; }
 
-    public UpdateCadence UpdateChecks { get; init; } = UpdateCadence.Weekly;
+    public UpdateCadence UpdateChecks { get; init; } = UpdateCadence.Daily;
 
     public DateTimeOffset? LastUpdateCheck { get; init; }
 
     /// <summary>The newest version whose "what's new" the user has seen.</summary>
     public string? LastSeenVersion { get; init; }
+
+    /// <summary>What happens when a check finds a newer version (TOOL-09).</summary>
+    public UpdateMode UpdateMode { get; init; } = UpdateMode.DownloadAndAsk;
+
+    /// <summary>The version the user chose to skip; a newer one is still offered.</summary>
+    public string? SkippedUpdateVersion { get; init; }
+
+    /// <summary>The newer version being downloaded, held or installed; null when there is none.</summary>
+    public PendingUpdate? PendingUpdate { get; init; }
+
+    /// <summary>The version an update last brought, and when, for Preferences to say what happened.</summary>
+    public string? LastUpdatedVersion { get; init; }
+
+    public DateTimeOffset? LastUpdatedAt { get; init; }
 
     /// <summary>
     /// Shortcuts the user changed, by command id: the chord's text, or an empty string for a
@@ -616,7 +643,11 @@ public sealed record PlayerSettings
             ControlsHideSeconds = double.IsFinite(ControlsHideSeconds) ? Math.Clamp(ControlsHideSeconds, 0.5, 10) : 1.5,
             TitleSeconds = double.IsFinite(TitleSeconds) ? Math.Clamp(TitleSeconds, 0, 30) : 3,
             Theme = Enum.IsDefined(Theme) ? Theme : ThemeChoice.System,
-            UpdateChecks = Enum.IsDefined(UpdateChecks) ? UpdateChecks : UpdateCadence.Weekly,
+            // Before schema 3 the default was weekly; a user who never changed it gets the new daily default.
+            UpdateChecks = !Enum.IsDefined(UpdateChecks) ? UpdateCadence.Daily
+                : Schema < 3 && UpdateChecks == UpdateCadence.Weekly ? UpdateCadence.Daily : UpdateChecks,
+            UpdateMode = Enum.IsDefined(UpdateMode) ? UpdateMode : UpdateMode.DownloadAndAsk,
+            PendingUpdate = PendingUpdate?.Normalize(),
             Shortcuts = Shortcuts ?? new Dictionary<string, string>(StringComparer.Ordinal),
             GlobalShortcuts = [.. (GlobalShortcuts ?? []).Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.Ordinal)],
             Wheel = Enum.IsDefined(Wheel) ? Wheel : WheelChoice.Volume,

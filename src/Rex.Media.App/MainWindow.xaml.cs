@@ -388,6 +388,8 @@ public sealed partial class MainWindow : Window
         }
 
         RestoreUpdatedPictureView();
+        _updatePlaying = playing;
+        ConsiderUpdatePrompt();
         KeepAwake(playing && HasVideo, playing);
         LayOutSubtitles();
         ShowPresentation();
@@ -580,6 +582,7 @@ public sealed partial class MainWindow : Window
         HideSeekPreview();
         _subjectTimer?.Stop();
         StopVisualizing();
+        InstallAsWeClose();
         SaveSettings();
         _player.SaveQueue();
         CloseLibrary();
