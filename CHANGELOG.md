@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.17.0 - 2026-10-12
+
+### Added
+
+- **Lumen weave.** A new contour effect that follows each outline along its own direction
+  and keeps only edges that stay continuous, so noise drops away and real silhouettes
+  become flowing strands of light. Strands are coloured by how sharply they curve, or by
+  source colour, monochrome or brightness, and Strand flow sends light travelling along them.
+- **Five more picture effects.** Depth haze fades soft and flat areas into a coloured
+  atmosphere; Particle veil sends sparks up from whatever is moving; Lens bloom adds
+  anamorphic streaks and glow to highlights; Stipple engrave draws the picture as an
+  engraving whose lines bend with the edges; Time echo splits movement into a red echo
+  behind and a blue echo ahead. Each has its own saved controls and named colour choices.
+- **Five more picture looks.** Teal & orange, Golden film, Bleach bypass, Cross process
+  and Infrared.
+
+### Improved
+
+- **Faster start for video.** The picture shaders compile once per session instead of for
+  every video surface.
+
 ## 0.16.0 - 2026-10-12
 
 ### Added
