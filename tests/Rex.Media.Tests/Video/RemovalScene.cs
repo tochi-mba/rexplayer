@@ -175,8 +175,9 @@ internal static class RemovalScore
 
     /// <summary>
     /// How much of the figure is still visible in the preview, from 0 (none) to 1 (all of it): the
-    /// preview's error, projected onto the figure's own difference from the wall, over the figure.
-    /// An unrelated wrong colour scores near nothing; a ghost of the figure scores its strength.
+    /// regression of the preview's error onto the figure's own difference from the wall, over the
+    /// figure. Errors unrelated to the figure, such as a fill whose bricks are a little off, cancel
+    /// out; a ghost of the figure scores its strength.
     /// </summary>
     public static (double Projected, double Energy) Ghost(VideoFrame picture, VideoFrame preview, VideoFrame wall, float[] opacity)
     {
@@ -202,12 +203,43 @@ internal static class RemovalScore
                     square += figure * figure;
                 }
 
-                projected += Math.Max(0, dot);
+                projected += dot;
                 energy += square;
             }
         }
 
         return (projected, energy);
+    }
+
+    /// <summary>
+    /// The fine texture of the preview and of the wall where the figure was: the summed brightness
+    /// steps between neighbouring pixels. A smear has little; a convincing fill about the wall's.
+    /// </summary>
+    public static (double Preview, double Wall) Texture(VideoFrame preview, VideoFrame wall, float[] opacity)
+    {
+        double found = 0, truth = 0;
+        for (var y = 0; y + 1 < preview.Height; y++)
+        {
+            for (var x = 0; x + 1 < preview.Width; x++)
+            {
+                if (opacity[y * preview.Width + x] < 0.5f)
+                {
+                    continue;
+                }
+
+                found += Steps(preview, x, y);
+                truth += Steps(wall, x, y);
+            }
+        }
+
+        return (found, truth);
+    }
+
+    private static double Steps(VideoFrame frame, int x, int y)
+    {
+        static double Grey(ReadOnlySpan<byte> row, int x) => 0.114 * row[x * 4] + 0.587 * row[x * 4 + 1] + 0.299 * row[x * 4 + 2];
+        var here = Grey(frame.Row(0, y), x);
+        return Math.Abs(Grey(frame.Row(0, y), x + 1) - here) + Math.Abs(Grey(frame.Row(0, y + 1), x) - here);
     }
 
     public static double Psnr(double squaredError, int count) =>
