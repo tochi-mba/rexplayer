@@ -239,6 +239,8 @@ public sealed partial class MainWindow : Window
 
                 presenter.SetEffect(_settings.VideoEffect, power,
                     VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[1]));
+                var (third, fourth) = VideoStyleOptions.Extras(_settings.VideoStyleValues, effectOptions);
+                presenter.SetEffectExtras(third, fourth);
                 presenter.Redraw();
             });
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
