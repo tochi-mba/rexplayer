@@ -212,13 +212,10 @@ public sealed class VisualStageTests
         var stage = Stage();
         Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 2));
         var scene = Assert.IsType<ResonanceScene>(SceneOf(stage));
-        var waves = (System.Collections.ICollection)typeof(ResonanceScene)
-            .GetField("_waves", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .GetValue(scene)!;
-        Assert.True(waves.Count > 0);
+        Assert.True(scene.Waves > 0);
 
         Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 5, silence: true));
-        Assert.Empty(waves);
+        Assert.Equal(0, scene.Waves);
     }
 
     [Fact]
