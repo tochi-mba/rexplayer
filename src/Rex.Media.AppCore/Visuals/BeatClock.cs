@@ -20,21 +20,27 @@ public sealed class BeatClock
     public const int EnvelopeRate = 50;
 
     private const int EnvelopeSeconds = 8;
-    private const double Slowest = 60;
-    private const double Fastest = 200;
+    private const double Slowest = 70;
+    private const double Fastest = 160;
     private const double Preferred = 120;
 
     /// <summary>How far from a beat (in beats) an onset may land and still be that beat.</summary>
     private const double Window = 0.2;
 
     private readonly float[] _envelope = new float[EnvelopeRate * EnvelopeSeconds];
-    private readonly double[] _scores = new double[(EnvelopeRate * 60 / (int)Slowest) + 2];
+    /// <summary>The tempos tried apart, in beats a minute.</summary>
+    private const double Step = 0.25;
+
+    private readonly double[] _scores = new double[(int)((Fastest - Slowest) / Step) + 1];
+    private readonly int[] _onsetAt = new int[EnvelopeRate * EnvelopeSeconds];
+    private readonly float[] _onsetWeight = new float[EnvelopeRate * EnvelopeSeconds];
     private double _envelopeTime;
     private int _envelopeAt;
     private double _position;
     private long _matched = -1;
     private int _disagree;
     private int _halfVotes;
+    private int _doubleVotes;
 
     /// <summary>Seconds a beat, or 0 before the tempo is known.</summary>
     public double Period { get; private set; }
@@ -44,6 +50,9 @@ public sealed class BeatClock
 
     /// <summary>How far through the beat the grid is, 0 at a beat to 1 at the next.</summary>
     public double Phase => _position - Math.Floor(_position);
+
+    /// <summary>The grid's beat nearest now, counted from when the tempo was found.</summary>
+    public long Nearest => (long)Math.Round(_position);
 
     /// <summary>Seconds until the grid's next beat, or 0 before the tempo is known.</summary>
     public double NextBeatIn => (1 - Phase) * Period;
@@ -113,8 +122,17 @@ public sealed class BeatClock
         if (Math.Abs(error) > Window)
         {
             // Between beats (an off-beat, a syncopation): neither for nor against the grid, unless
-            // the kicks keep landing there.
-            if (strong && Math.Abs(Math.Abs(error) - 0.5) < Window && ++_halfVotes >= 3)
+            // the kicks keep landing there. A slow grid with kicks both on and halfway between its
+            // beats is counting the music at half its speed, and doubles; otherwise kicks only
+            // halfway mean the grid is on the off-beat, and it moves half a beat.
+            var halfway = strong && Math.Abs(Math.Abs(error) - 0.5) < Window;
+            if (halfway && Tempo < 95 && Confidence >= 0.5 && ++_doubleVotes >= 4)
+            {
+                Period /= 2;
+                _position *= 2;
+                (_doubleVotes, _halfVotes, _matched) = (0, 0, (long)Math.Round(_position));
+            }
+            else if (halfway && (Tempo >= 95 || Confidence < 0.5) && ++_halfVotes >= 3)
             {
                 _position += 0.5;
                 // Three consistent strong off-beats establish the corrected grid.
@@ -129,6 +147,13 @@ public sealed class BeatClock
         // Late onsets (a positive error) move the grid later and lengthen the beat; early ones the opposite.
         _position -= 0.5 * error;
         Period *= 1 + (0.15 * error);
+        if (Tempo > 180)
+        {
+            // Drawn into counting the off-beats too: the beat is every other one of these.
+            (Period, _position) = (Period * 2, _position / 2);
+            nearest = Math.Round(_position);
+        }
+
         Confidence = Math.Min(1, Confidence + 0.2);
         _matched = (long)nearest;
     }
@@ -164,7 +189,7 @@ public sealed class BeatClock
             // Twice or half the beat: the same music counted another way, not a new tempo.
             _disagree = 0;
         }
-        else if (++_disagree >= 20)
+        else if (++_disagree >= (Locked ? 90 : 20))
         {
             Adopt(period, Confidence * 0.5);
         }
@@ -174,14 +199,14 @@ public sealed class BeatClock
     public void Reset()
     {
         Array.Clear(_envelope);
-        (_envelopeTime, _envelopeAt, _position, _matched, _disagree, _halfVotes) = (0, 0, 0, -1, 0, 0);
+        (_envelopeTime, _envelopeAt, _position, _matched, _disagree, _halfVotes, _doubleVotes) = (0, 0, 0, -1, 0, 0, 0);
         (Period, Confidence, SinceOnset, SinceStrong) = (0, 0, 10, 10);
     }
 
     /// <summary>A new tempo, with the grid's beat on the last kick, or the last onset when there has been no kick of late.</summary>
     private void Adopt(double period, double confidence)
     {
-        (Period, Confidence, _disagree, _halfVotes) = (period, confidence, 0, 0);
+        (Period, Confidence, _disagree, _halfVotes, _doubleVotes) = (period, confidence, 0, 0, 0);
         var since = SinceStrong < period * 4 ? SinceStrong : SinceOnset;
         _position = since / period;
         _matched = since < period * Window ? 0 : -1;
@@ -209,60 +234,72 @@ public sealed class BeatClock
         _envelope[(((_envelopeAt - 1 - back) % n) + n) % n] += strength;
     }
 
-    /// <summary>The seconds a beat whose spacing best repeats the envelope, weighed toward the preferred tempo; 0 when nothing stands out.</summary>
+    /// <summary>
+    /// The seconds a beat at which the onsets of late line up best: for each tempo from the slowest
+    /// to the fastest, in steps of a quarter beat a minute, how tightly the onsets cluster at one
+    /// place in the beat (the length of the mean of their phases, each a unit arrow weighed by its
+    /// strength), weighed a little toward the preferred tempo. Onsets on every beat cancel at half
+    /// that tempo, and rhythms of three against two (dotted beats, a 3-3-2 bass) never cluster at
+    /// four-thirds or two-thirds of it, as they would line up with themselves there. 0 when nothing
+    /// lines up.
+    /// </summary>
     internal double EstimatePeriod()
     {
         var n = _envelope.Length;
-        double mean = 0;
+        var loudest = 0f;
         foreach (var value in _envelope)
         {
-            mean += value;
+            loudest = Math.Max(loudest, value);
         }
 
-        mean /= n;
-        var (shortest, longest) = ((int)Math.Ceiling(EnvelopeRate * 60 / Fastest), (int)Math.Floor(EnvelopeRate * 60 / Slowest));
-        for (var lag = shortest - 1; lag <= longest + 1; lag++)
+        // The onsets: the samples of the envelope that stand out, oldest first.
+        var count = 0;
+        for (var i = 0; i < n; i++)
         {
-            _scores[lag - shortest + 1] = Correlation(lag, mean);
-        }
-
-        var (best, bestWeighted, total) = (0, 0.0, 0.0);
-        for (var lag = shortest; lag <= longest; lag++)
-        {
-            var score = _scores[lag - shortest + 1] + (0.5 * Correlation(lag * 2, mean));
-            total += Math.Max(0, score);
-            var octaves = Math.Log2(EnvelopeRate * 60.0 / lag / Preferred);
-            var weighted = score * Math.Exp(-0.5 * octaves * octaves);
-            if (weighted > bestWeighted)
+            var value = _envelope[(_envelopeAt + i) % n];
+            if (loudest > 0 && value >= loudest * 0.2f)
             {
-                (best, bestWeighted) = (lag, weighted);
+                (_onsetAt[count], _onsetWeight[count]) = (i, value);
+                count++;
             }
         }
 
-        // A clear peak, well above the average lag: otherwise nothing is sure.
-        if (best == 0 || bestWeighted <= 1.5 * total / (longest - shortest + 1))
+        if (count < 4)
         {
             return 0;
         }
 
-        // Between lags: the top of the parabola through the best and its neighbours.
-        var (a, b, c) = (_scores[best - shortest], _scores[best - shortest + 1], _scores[best - shortest + 2]);
-        var bend = a - (2 * b) + c;
-        var offset = bend < 0 ? Math.Clamp(0.5 * (a - c) / bend, -0.5, 0.5) : 0;
-        return (best + offset) / EnvelopeRate;
-    }
-
-    /// <summary>How well the envelope lines up with itself <paramref name="lag"/> samples on, its mean taken away.</summary>
-    private double Correlation(int lag, double mean)
-    {
-        var n = _envelope.Length;
-        // EstimatePeriod calls this only with lags shorter than the envelope.
-        double score = 0;
-        for (var i = 0; i + lag < n; i++)
+        var (best, bestWeighted) = (-1, 0.0);
+        for (var step = 0; step < _scores.Length; step++)
         {
-            score += (_envelope[(_envelopeAt + i) % n] - mean) * (_envelope[(_envelopeAt + i + lag) % n] - mean);
+            var bpm = Slowest + (step * Step);
+            var turn = Math.Tau * bpm / 60 / EnvelopeRate;
+            var (x, y, total) = (0.0, 0.0, 0.0);
+            for (var k = 0; k < count; k++)
+            {
+                var angle = turn * _onsetAt[k];
+                (x, y, total) = (x + (_onsetWeight[k] * Math.Cos(angle)), y + (_onsetWeight[k] * Math.Sin(angle)), total + _onsetWeight[k]);
+            }
+
+            _scores[step] = Math.Sqrt((x * x) + (y * y)) / total;
+            var octaves = Math.Log2(bpm / Preferred);
+            var weighted = _scores[step] * Math.Exp(-0.5 * octaves * octaves);
+            if (weighted > bestWeighted)
+            {
+                (best, bestWeighted) = (step, weighted);
+            }
         }
 
-        return score / (n - lag);
+        // A clear cluster, or nothing is sure.
+        if (best < 0 || _scores[best] < 0.3)
+        {
+            return 0;
+        }
+
+        // Between steps: the top of the parabola through the best and its neighbours.
+        var (a, b, c) = (_scores[Math.Max(0, best - 1)], _scores[best], _scores[Math.Min(_scores.Length - 1, best + 1)]);
+        var bend = a - (2 * b) + c;
+        var offset = bend < 0 ? Math.Clamp(0.5 * (a - c) / bend, -0.5, 0.5) : 0;
+        return 60 / (Slowest + ((best + offset) * Step));
     }
 }

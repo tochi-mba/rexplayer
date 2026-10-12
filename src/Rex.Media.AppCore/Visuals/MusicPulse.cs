@@ -87,6 +87,7 @@ public sealed class MusicPulse
     private double _slowBass = double.NaN;
     private double _lastFlux;
     private double _peakFlux;
+    private long _landedOn = long.MinValue;
     private double _sinceBeat = 10;
     private double _sinceDrop = 10;
     private double _musicFor;
@@ -224,7 +225,10 @@ public sealed class MusicPulse
         _sinceDrop += dt;
         // Where in the frame the kick struck, so the clock keeps finer time than the frames do.
         var age = _kick.Hit ? Math.Min(dt, _bassBand.RiseAge()) : dt / 2;
-        _clock.Advance(dt, (float)flux, age);
+        // The tempo is found mostly from the kicks, which carry the beat; the whole spectrum's rise,
+        // busy with shakers and log drums between the beats, counts for a little.
+        var peak = Math.Max(_peakFlux, 1e-6);
+        _clock.Advance(dt, (_kick.Hit ? _kick.Strength : 0) + (float)(0.25 * Math.Min(1, flux / peak)), age);
         if (!_primed)
         {
             // The first frame rises from nothing: it is no beat.
@@ -239,14 +243,22 @@ public sealed class MusicPulse
         _peakFlux = Math.Max(flux, _peakFlux * Math.Exp(-dt / 3));
         var surge = flux > median + Math.Max(Math.Max(3 * spread, 0.004), 0.4 * (_peakFlux - median)) && flux >= _lastFlux;
         var onBeat = !_clock.Locked || _clock.Phase < 0.2 || _clock.Phase > 0.8;
-        var onset = (_kick.Hit || (surge && onBeat)) && RawLoudness > Quiet;
+        // Once the clock is sure, a kick between its beats (a log drum, a syncopated bass) is still
+        // a kick for the scenes, and still tells the clock where the music is, but is not a beat.
+        var onset = (_kick.Hit || surge) && onBeat && RawLoudness > Quiet;
+        if (_kick.Hit && !onBeat && RawLoudness > Quiet)
+        {
+            _clock.Onset(strong: true, age);
+        }
+
         var sinceGrid = _clock.Phase * _clock.Period;
         if (onset)
         {
             var strength = _kick.Hit ? _kick.Strength : (float)Math.Clamp((flux - median) / Math.Max(spread * 8, 1e-4), 0.25, 1);
             _detected++;
             _clock.Onset(_kick.Hit, age);
-            if (_sinceBeat >= MinimumGap)
+            // Once the clock is sure, one beat for each of its beats; before, none closer than the gap.
+            if (_clock.Locked ? _clock.Nearest != _landedOn : _sinceBeat >= MinimumGap)
             {
                 Land(strength, filled: false);
             }
@@ -256,7 +268,7 @@ public sealed class MusicPulse
                 BeatStrength = Math.Max(BeatStrength, strength);
             }
         }
-        else if (_clock.Locked && _detected >= 8 && sinceGrid >= FillWait && sinceGrid - dt < FillWait && _sinceBeat > sinceGrid + FillWait && RawLoudness > Quiet)
+        else if (_clock.Locked && _detected >= 8 && sinceGrid >= FillWait && sinceGrid - dt < FillWait && _clock.Nearest != _landedOn && RawLoudness > Quiet)
         {
             // The clock's beat came and went with nothing heard near it: the mix hid it, so it is stood in for.
             Land(0.5f, filled: true);
@@ -311,11 +323,13 @@ public sealed class MusicPulse
         (_sinceBeat, _sinceDrop, _musicFor, _busy, _detected, _primed) = (10, 10, 0, 0, 0, false);
         (_bass, _mid, _treble, _loudness, _punch) = (0, 0, 0, 0, 0);
         (RawLoudness, LongLoudness, BeatStrength, Pitch, Build) = (0, 0, 0, 0, 0);
+        _landedOn = long.MinValue;
         (Beat, Filled, Drop, Beats) = (false, false, false, 0);
     }
 
     private void Land(float strength, bool filled)
     {
+        _landedOn = _clock.Nearest;
         (Beat, Filled, BeatStrength, _sinceBeat) = (true, filled, strength, 0);
         Beats++;
     }

@@ -32,6 +32,7 @@ public static partial class CliApplication
         var pulse = new MusicPulse();
         var window = new float[MusicPulse.AnalysisSize];
         var beats = new JsonArray();
+        var kicks = new JsonArray();
         var tempos = new JsonArray();
         var (bass, punch, loudness, times) = (new List<double>(), new List<double>(), new List<double>(), new List<double>());
         double? lockedAt = null;
@@ -53,6 +54,11 @@ public static partial class CliApplication
             punch.Add(pulse.Punch);
             loudness.Add(pulse.Loudness);
             lockedAt ??= pulse.Locked ? t : null;
+            if (pulse.Kick.Hit)
+            {
+                kicks.Add(new JsonObject { ["at"] = Round(t), ["strength"] = Round(pulse.Kick.Strength) });
+            }
+
             if (pulse.Beat)
             {
                 (heard, filled) = pulse.Filled ? (heard, filled + 1) : (heard + 1, filled);
@@ -84,6 +90,7 @@ public static partial class CliApplication
             ["levels"] = new JsonObject { ["bass"] = Percentiles(bass), ["punch"] = Percentiles(punch), ["loudness"] = Percentiles(loudness) },
             ["tempoOverTime"] = tempos,
             ["beats"] = beats,
+            ["kicks"] = kicks,
         };
         if (machine)
         {
