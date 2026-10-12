@@ -57,6 +57,13 @@ public sealed partial class MainWindow
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
         var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
+        var pauseLibrary = Check("Pause playback when the library opens", s.PauseWhenLibraryOpens);
+        var keepLibraryAudio = Check("Keep audio-only items playing in the library", s.KeepAudioPlayingInLibrary);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(pauseLibrary, "PreferencesPauseLibrary");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(keepLibraryAudio, "PreferencesKeepLibraryAudio");
+        keepLibraryAudio.IsEnabled = pauseLibrary.IsChecked == true;
+        pauseLibrary.Checked += (_, _) => keepLibraryAudio.IsEnabled = true;
+        pauseLibrary.Unchecked += (_, _) => keepLibraryAudio.IsEnabled = false;
         var queue = Check("Put the playlist back when rexplayer starts", s.RestoreQueue);
         var sleep = Choice("When the sleep timer's time comes", ["Pause", "Stop"], (int)s.SleepAction);
         var audioLanguages = Words("Play sound in (languages, best first, such as \"ja, original\")", s.AudioLanguages);
@@ -107,6 +114,10 @@ public sealed partial class MainWindow
         {
             content.Children.Add(control);
         }
+
+        content.Children.Add(Heading("Library playback"));
+        content.Children.Add(pauseLibrary);
+        content.Children.Add(keepLibraryAudio);
 
         content.Children.Add(Heading("Memory"));
         foreach (var control in new UIElement[] { resume, history, queue, sleep })
@@ -166,6 +177,8 @@ public sealed partial class MainWindow
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
             ResumePlayback = (ResumeChoice)resume.SelectedIndex,
             KeepHistory = history.IsChecked == true,
+            PauseWhenLibraryOpens = pauseLibrary.IsChecked == true,
+            KeepAudioPlayingInLibrary = keepLibraryAudio.IsChecked == true,
             RestoreQueue = queue.IsChecked == true,
             SleepAction = (SleepChoice)sleep.SelectedIndex,
             AudioLanguages = audioLanguages.Text,
