@@ -183,7 +183,9 @@ internal static class RemovalScore
         double projected = 0, energy = 0;
         for (var y = 0; y < picture.Height; y++)
         {
-            var (a, b, c) = (picture.Row(0, y), preview.Row(0, y), wall.Row(0, y));
+            var a = picture.Row(0, y);
+            var b = preview.Row(0, y);
+            var c = wall.Row(0, y);
             for (var x = 0; x < picture.Width; x++)
             {
                 if (opacity[y * picture.Width + x] < 0.5f)
