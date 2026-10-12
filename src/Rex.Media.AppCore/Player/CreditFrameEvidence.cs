@@ -252,7 +252,7 @@ public static class CreditFrameEvidence
                 (i + 1 < ordered.Length && ordered[i + 1].At - frame.At <= ScrollSpacing && Scroll(frame, ordered[i + 1]) > 0);
             // Still cards are text on near-black (every credit picture measured was over 90 % dark;
             // a dark scene with a lamp was 83 %); text on a lighter ground counts while it scrolls.
-            credit[i] = LooksLikeText(frame) && (frame.DarkFraction > 0.9 || scrolls);
+            credit[i] = LooksLikeText(frame) && (frame.DarkFraction >= 0.9 || scrolls);
         }
 
         var runs = new List<CreditRun>();
