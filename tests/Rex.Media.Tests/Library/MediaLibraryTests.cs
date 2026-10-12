@@ -109,6 +109,9 @@ public sealed class MediaLibraryTests
         Assert.Throws<ArgumentNullException>(() => again.Hide(null!));
         Assert.Throws<ArgumentNullException>(() => again.Forget(null!));
 
+        // Keep an unrelated watched folder so the hidden-file cleanup also checks
+        // the remaining folder instead of short-circuiting an empty collection.
+        Assert.True(again.AddFolder(Path.Combine("E:" + Path.DirectorySeparatorChar, "Other")));
         Assert.True(again.RemoveFolder(Music));
         Assert.Empty(again.Hidden);
         Assert.Empty(new MediaLibrary(store).Hidden);
