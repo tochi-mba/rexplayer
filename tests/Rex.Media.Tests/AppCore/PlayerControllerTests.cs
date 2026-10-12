@@ -403,6 +403,12 @@ public sealed class PlayerControllerTests
         Assert.True(harness.Controller.ReadSound(left, right));
         Assert.True(harness.Controller.SoundSampleRate > 0);
         Assert.Contains(left, sample => sample != 0);
+
+        // Reading ahead of what is heard never reads past what was written, nor behind it.
+        var (aheadLeft, aheadRight) = (new float[64], new float[64]);
+        Assert.True(harness.Controller.ReadSound(aheadLeft, aheadRight, TimeSpan.FromSeconds(1)));
+        Assert.True(harness.Controller.ReadSound(aheadLeft, aheadRight, TimeSpan.FromSeconds(-1)));
+        Assert.Equal(left, aheadLeft);
     }
 
     /// <summary>English, a French commentary and French sound, with English and French subtitles.</summary>

@@ -164,19 +164,21 @@ public sealed partial class PlayerController
 
     /// <summary>
     /// Records the exact queue, position and playback state just before an app-initiated upgrade.
+    /// With <paramref name="resumePaused"/> the new version opens the item paused at the same place,
+    /// whatever was happening: what the update bar's Restart now promises.
     /// This is deliberate one-time recovery, independent of the normal RestoreQueue preference.
     /// </summary>
     public void SaveForUpdate(
         string librarySource, bool libraryVisible, string search, string? groupName,
         string? groupDetail, string? seasonName, bool playlistVisible, UpdateWindowState? windowState = null,
-        string? targetVersion = null)
+        string? targetVersion = null, bool resumePaused = false)
     {
         RememberPosition();
         var queue = Playlist.Items.Count == 0 ? null
             : new QueueSnapshot([.. Playlist.Items.Select(Kept)], Playlist.CurrentIndex, Position);
         var active = Item is not null && State is not (Rex.Media.Engine.SessionState.Idle
             or Rex.Media.Engine.SessionState.Ended or Rex.Media.Engine.SessionState.Faulted);
-        Memory.Updating = new UpdateSession(queue, active, IsPlaying, librarySource, libraryVisible,
+        Memory.Updating = new UpdateSession(queue, active, IsPlaying && !resumePaused, librarySource, libraryVisible,
             search, groupName, groupDetail, seasonName, playlistVisible, Speed, DateTimeOffset.UtcNow)
         {
             WindowState = windowState,

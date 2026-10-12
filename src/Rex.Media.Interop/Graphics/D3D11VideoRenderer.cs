@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -40,6 +41,14 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// </summary>
     private const string Shaders = D3D11VideoShaders.Source;
 
+    // Each effect is its own shader variant, compiled the first time any renderer in the
+    // process draws it and then shared: the plain picture compiles in about a second however
+    // many effects exist, and an effect costs its own compile only when someone chooses it.
+    private static readonly ConcurrentDictionary<(string Entry, int Effect), Lazy<byte[]>> Bytecode = new();
+
+    /// <summary>Effect indices above this are not effects; they draw the plain picture.</summary>
+    private const int HighestEffect = 255;
+
     /// <summary>The shader's constant buffer: ten float4 rows (see the cbuffer in <see cref="D3D11VideoShaders"/>).</summary>
     private const int ConstantFloats = 40;
     private const uint ConstantBytes = ConstantFloats * sizeof(float);
@@ -47,8 +56,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     private readonly ID3D11Device _device;
     private readonly ID3D11DeviceContext _context;
     private readonly ID3D11VertexShader _vertexShader;
-    private readonly ID3D11PixelShader _yuvShader;
-    private readonly ID3D11PixelShader _bgraShader;
+    private readonly Dictionary<(bool Bgra, int Effect), ID3D11PixelShader> _pixelShaders = [];
     private readonly ID3D11SamplerState _sampler;
     private readonly ID3D11SamplerState _pointSampler;
     private readonly ID3D11Buffer _colour;
@@ -82,9 +90,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 
         // Decoders sharing the device call into it from their own thread.
         ((Windows.Win32.Graphics.Direct3D10.ID3D10Multithread)context).SetMultithreadProtected(true);
-        var vertex = Compile("vs", "vs_4_0");
-        var yuv = Compile("yuv", "ps_4_0");
-        var bgra = Compile("bgra", "ps_4_0");
+        var vertex = Code("vs", "vs_4_0", 0);
         ID3D11VertexShader_unmanaged* vertexShader;
         fixed (byte* code = vertex)
         {
@@ -92,8 +98,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         }
 
         _vertexShader = Wrap<ID3D11VertexShader>(vertexShader);
-        _yuvShader = PixelShader(yuv);
-        _bgraShader = PixelShader(bgra);
+        PixelShaderFor(bgra: false, 0);
+        PixelShaderFor(bgra: true, 0);
         _sampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_LINEAR);
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
@@ -485,7 +491,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _context.IASetInputLayout(null);
         _context.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY.D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         _context.VSSetShader(_vertexShader, null, 0);
-        _context.PSSetShader(_planes.Format == VideoPlaneFormat.Bgra ? _bgraShader : _yuvShader, null, 0);
+        var variant = strength > 0 && effect is > 0 and <= HighestEffect ? effect : 0;
+        _context.PSSetShader(PixelShaderFor(_planes.Format == VideoPlaneFormat.Bgra, variant), null, 0);
         _context.PSSetShaderResources(0, 4,
             [_lumaView, _chromaView ?? _lumaView,
                 _previousLumaView ?? _lumaView,
@@ -608,7 +615,13 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             _analysisStaging = null;
         }
 
-        foreach (var com in new object[] { _colour, _pointSampler, _sampler, _bgraShader, _yuvShader, _vertexShader, _context, _device })
+        foreach (var shader in _pixelShaders.Values)
+        {
+            Marshal.ReleaseComObject(shader);
+        }
+
+        _pixelShaders.Clear();
+        foreach (var com in new object[] { _colour, _pointSampler, _sampler, _vertexShader, _context, _device })
         {
             Marshal.ReleaseComObject(com);
         }
@@ -643,10 +656,11 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         return wrapped;
     }
 
-    /// <summary>Compiles one entry point of <see cref="Shaders"/> with the compiler Windows ships.</summary>
-    private static byte[] Compile(string entry, string profile)
+    /// <summary>Compiles one entry point of <see cref="Shaders"/>, for one effect, with the compiler Windows ships.</summary>
+    private static byte[] Compile(string entry, string profile, int effect)
     {
-        var result = PInvoke.D3DCompile(Encoding.ASCII.GetBytes(Shaders), "rexplayer.hlsl", null, null, entry, profile, 0, 0, out var code, out var errors);
+        var source = $"#define EFFECT_ONLY {effect.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n" + Shaders;
+        var result = PInvoke.D3DCompile(Encoding.ASCII.GetBytes(source), "rexplayer.hlsl", null, null, entry, profile, 0, 0, out var code, out var errors);
         try
         {
             if (result.Failed)
@@ -685,6 +699,20 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         ID3D11SamplerState_unmanaged* sampler;
         _device.CreateSamplerState(&description, &sampler);
         return Wrap<ID3D11SamplerState>(sampler);
+    }
+
+    private static byte[] Code(string entry, string profile, int effect) =>
+        Bytecode.GetOrAdd((entry, effect), key => new Lazy<byte[]>(() => Compile(key.Entry, profile, key.Effect))).Value;
+
+    private ID3D11PixelShader PixelShaderFor(bool bgra, int effect)
+    {
+        if (!_pixelShaders.TryGetValue((bgra, effect), out var shader))
+        {
+            shader = PixelShader(Code(bgra ? "bgra" : "yuv", "ps_4_0", effect));
+            _pixelShaders.Add((bgra, effect), shader);
+        }
+
+        return shader;
     }
 
     private ID3D11PixelShader PixelShader(byte[] code)

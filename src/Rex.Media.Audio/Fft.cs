@@ -56,16 +56,23 @@ public static class Fft
     /// Hann window and scaled so a full-scale sine wave reads 1: bin k is k × rate / count hertz.
     /// <paramref name="magnitudes"/> takes the first half of the bins.
     /// </summary>
-    public static void Magnitudes(ReadOnlySpan<float> samples, Span<float> magnitudes)
+    public static void Magnitudes(ReadOnlySpan<float> samples, Span<float> magnitudes) =>
+        Magnitudes(samples, magnitudes, new float[samples.Length], new float[samples.Length]);
+
+    /// <summary>
+    /// As <see cref="Magnitudes(ReadOnlySpan{float}, Span{float})"/>, working in <paramref name="real"/>
+    /// and <paramref name="imaginary"/> (each as long as <paramref name="samples"/>), so a caller that
+    /// analyses every frame allocates nothing.
+    /// </summary>
+    public static void Magnitudes(ReadOnlySpan<float> samples, Span<float> magnitudes, Span<float> real, Span<float> imaginary)
     {
         var n = samples.Length;
-        if (magnitudes.Length != n / 2)
+        if (magnitudes.Length != n / 2 || real.Length != n || imaginary.Length != n)
         {
-            throw new ArgumentException("There is one magnitude for each of the first half of the bins.");
+            throw new ArgumentException("There is one magnitude for each of the first half of the bins, and working space as long as the samples.");
         }
 
-        var real = new float[n];
-        var imaginary = new float[n];
+        imaginary.Clear();
         for (var i = 0; i < n; i++)
         {
             real[i] = samples[i] * (float)(0.5 - (0.5 * Math.Cos(2 * Math.PI * i / n)));

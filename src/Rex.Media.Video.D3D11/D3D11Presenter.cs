@@ -135,12 +135,14 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             var chosen = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
-            if (_effect != chosen)
+            var normalizedStrength = VideoEffects.Strength(strength) / 100f;
+            var historyChanged = (_effectStrength > 0) != (normalizedStrength > 0);
+            _effectStrength = normalizedStrength;
+            if (_effect != chosen || historyChanged)
             {
                 _effect = chosen;
                 UpdateEffectHistory();
             }
-            _effectStrength = VideoEffects.Strength(strength) / 100f;
             _effectDetail = Math.Clamp(detail, 25, 175) / 100f;
         }
     }
@@ -179,7 +181,7 @@ public sealed class D3D11Presenter : IVideoPresenter
     private void UpdateEffectHistory()
     {
         var fourth = _effect == VideoEffect.GhostwireMotion ? _motionMode : _optionFourth;
-        _renderer.EnableMotionHistory(VideoEffects.UsesHistory(_effect, fourth));
+        _renderer.EnableMotionHistory(VideoEffects.UsesHistory(_effect, fourth, _effectStrength));
         _lastMotionTime = double.NaN;
     }
 
@@ -354,7 +356,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             ApplySize();
-            if (VideoEffects.UsesHistory(_effect, _effect == VideoEffect.GhostwireMotion ? _motionMode : _optionFourth))
+            if (VideoEffects.UsesHistory(_effect, _effect == VideoEffect.GhostwireMotion ? _motionMode : _optionFourth, _effectStrength))
             {
                 var now = frame.Pts.IsKnown ? frame.Pts.TotalSeconds : double.NaN;
                 // Repeated/stale frames, long gaps, and backwards seeks cannot

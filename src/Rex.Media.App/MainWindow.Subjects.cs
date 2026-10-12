@@ -25,8 +25,21 @@ public sealed partial class MainWindow
     private PictureView _viewBeforeSubjectFollow;
     private bool _subjectAutoFollowing;
     private long _subjectRevision;
-    // Wired to SubjectEditSession.SelectAround when it lands; a null handler uses a bounded selection box.
-    private Func<float, float, bool> _subjectSelectAround = static (_, _) => false;
+
+    private bool IsInSubjectPanel(DependencyObject? element) => IsWithin(element, SubjectToolbar);
+
+    private static bool IsWithin(DependencyObject? element, DependencyObject ancestor)
+    {
+        for (var current = element; current is not null; current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current))
+        {
+            if (ReferenceEquals(current, ancestor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private void WireSubjectTools()
     {
@@ -70,13 +83,13 @@ public sealed partial class MainWindow
             CloseSubjectTools();
         }
 
-        _subjectOpen = true;
         _selectingSubject = true;
         _subjectErase = false;
         SubjectClickToLock.IsOn = _settings.SubjectSelection == SubjectSelectionMode.Click;
         SubjectFollowingSection.IsExpanded = _settings.SubjectFollowingOpen;
         SubjectRemovalSection.IsExpanded = _settings.SubjectRemovalOpen;
         SubjectHelpSection.IsExpanded = _settings.SubjectHelpOpen;
+        _subjectOpen = true;
         UpdateSubjectPanelHelp();
         ShowRemovalReadouts();
         SubjectCanvas.Visibility = Visibility.Visible;
@@ -305,7 +318,7 @@ public sealed partial class MainWindow
 
     private void OnSubjectPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (!_subjectOpen || !_selectingSubject)
+        if (!_subjectOpen || !_selectingSubject || IsInSubjectPanel(e.OriginalSource as DependencyObject))
         {
             return;
         }
@@ -356,15 +369,7 @@ public sealed partial class MainWindow
         var visible = _view.Within(source);
         if (SubjectPanel.IsClick(_settings.SubjectSelection, last.X - first.X, last.Y - first.Y))
         {
-            // Wired to SubjectEditSession.SelectAround when it lands; use the bounded box until then.
-            if (_subjectSelectAround((float)start.Value.X, (float)start.Value.Y))
-            {
-                _selectingSubject = false;
-                SubjectOutline.Visibility = Visibility.Collapsed;
-                e.Handled = true;
-                return;
-            }
-
+            // Click selection chooses a bounded patch; tracking still validates its texture.
             var box = SubjectPanel.ClickBox(start.Value.X, start.Value.Y, shape.Across, shape.Down);
             LockSubjectRegion(
                 visible.Left + (float)box.Left * (visible.Right - visible.Left),
@@ -506,11 +511,8 @@ public sealed partial class MainWindow
                     (byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)tint));
                 SubjectSelectButton.Content = SubjectPanel.SelectText(snapshot.Locked);
                 SubjectEraseButton.IsEnabled = snapshot.Tracking;
-                if (!snapshot.Tracking)
-                {
-                    _subjectErase = false;
-                    SubjectEraseButton.Content = "Preview removal";
-                }
+                _subjectErase = snapshot.Erase;
+                SubjectEraseButton.Content = SubjectPanel.EraseText(snapshot.Erase);
 
                 if (PictureShape() is not { } shape || _player.Info?.FirstTrack(MediaKind.Video)?.Video is not { } video)
                 {

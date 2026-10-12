@@ -156,6 +156,5 @@ public sealed class LibraryControllerActionsTests
         test.Pump();
         Assert.Equal(after, controller.Position);
         Assert.False(controller.IsPlaying);
-        Assert.False(controller.IsPlaying);
     }
 }

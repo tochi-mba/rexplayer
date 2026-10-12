@@ -15,6 +15,11 @@ public enum VideoLook
     Vintage,
     Neon,
     NightVision,
+    TealOrange,
+    GoldenFilm,
+    BleachBypass,
+    CrossProcess,
+    Infrared,
 }
 
 /// <summary>Short, screen-reader-friendly names shared by the player menu and Preferences.</summary>
@@ -24,6 +29,7 @@ public static class VideoLooks
     [
         "Original", "Cinema", "Clear", "Sunset", "Arctic",
         "Monochrome", "Vintage", "Neon", "Night vision",
+        "Teal & orange", "Golden film", "Bleach bypass", "Cross process", "Infrared",
     ];
 
     public static string Name(VideoLook look) => Enum.IsDefined(look) ? Names[(int)look] : Names[0];

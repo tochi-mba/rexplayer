@@ -147,6 +147,19 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.GhostwireMask)]
     [InlineData(VideoEffect.ColourSpotlight)]
     [InlineData(VideoEffect.ReliefEtch)]
+    [InlineData(VideoEffect.LumenWeave)]
+    [InlineData(VideoEffect.DepthHaze)]
+    [InlineData(VideoEffect.LensBloom)]
+    [InlineData(VideoEffect.StippleEngrave)]
+    [InlineData(VideoEffect.BrickBuild)]
+    [InlineData(VideoEffect.StainedGlass)]
+    [InlineData(VideoEffect.CrossStitch)]
+    [InlineData(VideoEffect.LedWall)]
+    [InlineData(VideoEffect.DigitalRain)]
+    [InlineData(VideoEffect.DiceMosaic)]
+    [InlineData(VideoEffect.CubeMosaic)]
+    [InlineData(VideoEffect.HexTiles)]
+    [InlineData(VideoEffect.RetroPixels)]
     public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
     {
         using var picture = DecodedPicture();
@@ -612,6 +625,58 @@ public sealed class D3D11PresenterTests
         presenter.Redraw();
         using var original = presenter.ReadBack();
         Assert.Equal(0, MaxDifference(original, shifted));
+    }
+
+    [Fact]
+    public void LumenWeaveLightsContinuousOutlinesAndLeavesFlatAreasDark()
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(VideoEffect.LumenWeave, 100);
+        presenter.SetEffectExtras(0, 2); // still strands, monochrome
+        using var bars = MotionPicture(24, 0);
+        presenter.Present(bars);
+        using var woven = presenter.ReadBack();
+        var row = woven.Row(0, 46).ToArray();
+        var strand = Enumerable.Range(104, 20).Max(x => (int)row[x * 4 + 1]);
+        var flat = Enumerable.Range(60, 30).Max(x => (int)row[x * 4 + 1]);
+        Assert.True(strand > flat + 80, $"The bar's outline must glow above the flat field: {strand} vs {flat}");
+        Assert.True(flat < 40, $"A flat area must stay dark under Lumen weave, got {flat}");
+
+        presenter.SetEffect(VideoEffect.Off, 100);
+        presenter.Redraw();
+        using var original = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(original, bars));
+    }
+
+    [Theory]
+    [InlineData(VideoEffect.ParticleVeil)]
+    [InlineData(VideoEffect.TimeEcho)]
+    [InlineData(VideoEffect.MotionAmplify)]
+    public void TemporalEffectsLeaveStillPicturesAloneAndReactToMovement(VideoEffect effect)
+    {
+        using var presenter = D3D11Presenter.Offscreen(144, 96);
+        presenter.SetEffect(effect, 100);
+        var (third, fourth) = VideoStyleOptions.Extras(null, VideoStyleOptions.ForEffect(effect));
+        presenter.SetEffectExtras(third, fourth);
+        using var initial = MotionPicture(24, 0);
+        presenter.Present(initial);
+        using var first = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, initial));
+
+        using var unchanged = MotionPicture(24, 0.04);
+        presenter.Present(unchanged);
+        using var still = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(first, still));
+
+        using var shifted = MotionPicture(39, 0.08);
+        presenter.Present(shifted);
+        using var moving = presenter.ReadBack();
+        Assert.True(MaxDifference(moving, shifted) > 10, $"{effect} did not react to a moving bar");
+
+        presenter.SetEffect(effect, 0);
+        presenter.Redraw();
+        using var disabled = presenter.ReadBack();
+        Assert.Equal(0, MaxDifference(disabled, shifted));
     }
 
     [Fact]

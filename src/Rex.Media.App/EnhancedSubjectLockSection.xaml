@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Preferences, "Enhanced Subject Lock (optional download)" (ADR-0019): what would be downloaded,
+     its size and licence, the buttons, progress and errors. Subject Lock works without it. The words
+     and button states come from ModelDownloadText; this block only shows them. -->
+<UserControl
+  x:Class="Rex.Media.App.EnhancedSubjectLockSection"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel Spacing="6">
+    <TextBlock x:Name="Note" TextWrapping="Wrap" AutomationProperties.AutomationId="PreferencesSubjectModelsNote" />
+    <StackPanel x:Name="Contents" Spacing="2" AutomationProperties.AutomationId="PreferencesSubjectModelsContents" />
+    <TextBlock x:Name="Total" TextWrapping="Wrap" AutomationProperties.AutomationId="PreferencesSubjectModelsTotal" />
+    <ProgressBar
+      x:Name="Progress"
+      Minimum="0"
+      Maximum="100"
+      Visibility="Collapsed"
+      AutomationProperties.AutomationId="PreferencesSubjectModelsProgress"
+      AutomationProperties.Name="Download progress" />
+    <TextBlock
+      x:Name="Status"
+      TextWrapping="Wrap"
+      AutomationProperties.AutomationId="PreferencesSubjectModelsStatus"
+      AutomationProperties.LiveSetting="Polite" />
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button x:Name="Download" Content="Download" Click="OnDownload" AutomationProperties.AutomationId="PreferencesSubjectModelsDownload" />
+      <Button x:Name="Stop" Content="Stop" Click="OnStop" AutomationProperties.AutomationId="PreferencesSubjectModelsStop" />
+      <Button x:Name="Remove" Content="Remove" Click="OnRemove" AutomationProperties.AutomationId="PreferencesSubjectModelsRemove" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

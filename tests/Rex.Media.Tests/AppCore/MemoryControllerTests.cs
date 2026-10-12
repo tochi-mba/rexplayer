@@ -290,6 +290,29 @@ public sealed class MemoryControllerTests
     }
 
     [Fact]
+    public void RestartingForAnUpdateWhilePlayingComesBackPausedAtTheSamePlace()
+    {
+        var store = RexStore.InMemory();
+        using (var before = Harness(store, ResumeChoice.Never, autoPlay: true, restoreQueue: false))
+        {
+            before.Controller.Open(["a.wav"]);
+            before.PumpUntil(c => c.IsPlaying && c.Position > TimeSpan.Zero);
+            before.Controller.SaveForUpdate("Home", false, "", null, null, null, false, targetVersion: "0.16.0");
+            Assert.True(before.Controller.Memory.Updating!.Playing);
+
+            before.Controller.SaveForUpdate("Home", false, "", null, null, null, false, targetVersion: "0.16.0", resumePaused: true);
+            Assert.False(before.Controller.Memory.Updating!.Playing);
+            Assert.True(before.Controller.Memory.Updating.Active);
+        }
+
+        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        Assert.NotNull(after.Controller.RestoreAfterUpdate("0.16.0"));
+        after.PumpUntil(c => c.State == SessionState.Ready && c.Duration > TimeSpan.Zero);
+        Assert.False(after.Controller.IsPlaying);
+        Assert.True(after.Controller.Position > TimeSpan.Zero);
+    }
+
+    [Fact]
     public void AnUpgradeMarkerOnlyRestoresIntoItsVerifiedTargetVersion()
     {
         var store = RexStore.InMemory();

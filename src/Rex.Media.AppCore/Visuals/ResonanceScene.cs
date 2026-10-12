@@ -1,7 +1,7 @@
 namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
-/// A woven soundscape: each of the spectrum's 64 bands bends a glowing filament. The low end
+/// A woven soundscape (AU-18): each of the spectrum's 64 bands bends a glowing filament. The low end
 /// rolls the whole field, midrange shapes the folds, treble picks out fine ridges, and drum onsets
 /// launch concentric pressure waves. Unlike Embers, this is a continuous, spectrally mapped field,
 /// not independent particles. All motion comes from local audio analysis and elapsed time.
@@ -11,6 +11,9 @@ public sealed class ResonanceScene : VisualScene
     private readonly List<(double Radius, double X, double Y, float Strength)> _waves = [];
     private double _phase;
     private float _surge;
+
+    /// <summary>The pressure waves spreading now: what its tests count.</summary>
+    internal int Waves => _waves.Count;
 
     public override void Draw(VisualContext context)
     {
@@ -30,9 +33,9 @@ public sealed class ResonanceScene : VisualScene
 
         // The slowly drifting phase only accelerates with music, so silence doesn't resemble a
         // song. The faster onset envelopes govern sharp movement independently of the phase.
-        _phase += dt * flow * (0.15 + (1.5 * pulse.Loudness));
-        var impulse = pulse.Drop ? 1f : pulse.Kick.Hit ? pulse.Kick.Strength * 0.36f : 0f;
-        _surge = Math.Max(impulse, Math.Max(0, _surge - (float)(dt * 1.6)));
+        _phase += dt * flow * (0.1 + (1.2 * pulse.Loudness) + (2.5 * pulse.Punch));
+        var impulse = pulse.Drop ? 1f : Math.Max(pulse.Kick.Hit ? pulse.Kick.Strength * 0.6f : 0f, pulse.Punch * 0.6f);
+        _surge = Math.Max(impulse, Math.Max(0, _surge - (float)(dt * 2.5)));
         canvas.Feedback((float)(0.10 + (trails * 0.72)), 1.002, 0, 0, 0);
 
         // A dim, spatially broad bed keeps the artwork legible in quiet sections without burning
@@ -54,7 +57,7 @@ public sealed class ResonanceScene : VisualScene
             var bandDepth = depth * h * (0.055 + (share * 0.025));
             var hue = (share * 0.72 + (pulse.Pitch * 0.28) + (_phase * 0.025)) % 1;
             var color = context.Paint(hue);
-            var light = (float)(contrast * (0.36 + (pulse.Loudness * 0.65) + (pulse.Bass * 0.2)));
+            var light = (float)(contrast * (0.25 + (pulse.Loudness * 0.5) + (pulse.Punch * 0.6)));
             var thickness = Math.Clamp(size * (0.0035 + (0.0025 * pulse.Mid)) * (1.15 - (share * 0.3)), 1, 4);
             var previous = Point(0, lane, samples, w, baseY, bandDepth, share, mirror, pulse);
             for (var x = 1; x <= samples; x++)

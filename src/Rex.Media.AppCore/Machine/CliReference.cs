@@ -18,6 +18,7 @@ public static class CliReference
         new("play", "rexplay play <file> [more files] [options]", "Plays the files one after another without gaps, then exits.", MachineReadable: true),
         new("snapshot", "rexplay snapshot <file> [--at <time>] [--out <png>]", "Saves the picture a video shows at a moment as a PNG.", MachineReadable: true),
         new("sections", "rexplay sections <file> [--season-folder <dir>] [--json]", "Finds repeat-based intro and credits suggestions without skipping media.", MachineReadable: true),
+        new("pulse", "rexplay pulse <file> [--start <time>] [--stop <time>] [--json]", "Hears a file as the visualisations do: its tempo, every beat, and how strongly it moves them.", MachineReadable: true),
         new("probe", "rexplay probe <file> | --system", "Describes a file's format, tracks and tags without playing it, or with --system what this PC can decode and show.", MachineReadable: true),
         new("version", "rexplay version", "Prints the version.", MachineReadable: true),
         new("help", "rexplay help [command]", "Explains the commands.", MachineReadable: false),

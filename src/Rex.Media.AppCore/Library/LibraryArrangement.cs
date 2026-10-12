@@ -163,7 +163,9 @@ public static class LibraryArrangement
             LibrarySort.Path => order.OrderBy(pair => Path.GetDirectoryName(pair.Entry.Path) ?? "", NaturalOrder.Instance).ThenBy(pair => Path.GetFileName(pair.Entry.Path), NaturalOrder.Instance),
             _ => order,
         };
-        var list = sorted is IOrderedEnumerable<(LibraryEntry Entry, int Index)> ordered ? ordered.ThenBy(pair => pair.Index) : sorted;
+        var list = sorted is IOrderedEnumerable<(LibraryEntry Entry, int Index)> ordered
+            ? descending ? ordered.ThenByDescending(pair => pair.Index) : ordered.ThenBy(pair => pair.Index)
+            : sorted;
         var result = list.Select(pair => pair.Entry).ToList();
         if (descending)
         {
@@ -270,7 +272,10 @@ public static class LibraryArrangement
             LibrarySort.Path => order.OrderBy(pair => pair.Group.Entries.Select(entry => Path.GetDirectoryName(entry.Path) ?? "").DefaultIfEmpty("").Order(NaturalOrder.Instance).First(), NaturalOrder.Instance),
             _ => order,
         };
-        var list = (sorted is IOrderedEnumerable<(LibraryGroup Group, int Index)> ordered ? ordered.ThenBy(pair => pair.Index) : sorted).Select(pair => pair.Group).ToList();
+        var stable = sorted is IOrderedEnumerable<(LibraryGroup Group, int Index)> ordered
+            ? descending ? ordered.ThenByDescending(pair => pair.Index) : ordered.ThenBy(pair => pair.Index)
+            : sorted;
+        var list = stable.Select(pair => pair.Group).ToList();
         if (descending)
         {
             list.Reverse();

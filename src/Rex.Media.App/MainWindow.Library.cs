@@ -157,7 +157,14 @@ public sealed partial class MainWindow
             _shownLibrary = "";
             ShowLibrary();
             ShowLibraryStatus();
-            LibraryList.Focus(FocusState.Programmatic);
+            if (LibraryCollage.Visibility == Visibility.Visible)
+            {
+                LibraryCollage.Focus(FocusState.Programmatic);
+            }
+            else
+            {
+                LibraryList.Focus(FocusState.Programmatic);
+            }
         }
         else
         {
@@ -662,13 +669,22 @@ public sealed partial class MainWindow
                 () => _player.ResetProgress(selectedEntries.Select(entry => entry.Path).ToList())));
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Copy", selectedEntries.Count, tail: "paths"), "LibraryMenuCopyPath",
                 () => CopyLibraryPaths(selectedEntries)));
-            menu.Items.Add(MenuItem("Open containing folder", "LibraryMenuOpenFolder",
-                () => _ = Launcher.LaunchFolderPathAsync(Path.GetDirectoryName(selectedEntries[0].Path)!)));
+            menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
+                () => _ = OpenLibraryFoldersAsync(selectedEntries)));
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Delete", selectedEntries.Count, tail: "to Recycle Bin..."), "LibraryMenuDelete",
                 () => _ = DeleteLibraryEntriesAsync(selectedEntries)));
+        }
+    }
+
+    private static async Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries)
+    {
+        foreach (var folder in entries.Select(entry => Path.GetDirectoryName(entry.Path))
+            .Where(folder => !string.IsNullOrEmpty(folder)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            await Launcher.LaunchFolderPathAsync(folder!);
         }
     }
 
