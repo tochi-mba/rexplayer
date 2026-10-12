@@ -145,7 +145,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
         {
             ErrorDiskFull or ErrorHandleDiskFull => new DownloadReport(DownloadOutcome.NoSpace, "the disk is full"),
             ErrorSharingViolation or ErrorLockViolation => new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it"),
-            ErrorUnixWouldBlock when !OperatingSystem.IsWindows() => new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it"),
+            ErrorUnixWouldBlock => new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it"),
             _ => new DownloadReport(DownloadOutcome.Failed, error.Message),
         };
     }
