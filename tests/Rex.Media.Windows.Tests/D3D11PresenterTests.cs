@@ -147,6 +147,14 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.GhostwireMask)]
     [InlineData(VideoEffect.ColourSpotlight)]
     [InlineData(VideoEffect.ReliefEtch)]
+    [InlineData(VideoEffect.GhostwireMotion)]
+    [InlineData(VideoEffect.Halftone)]
+    [InlineData(VideoEffect.ChromaticRift)]
+    [InlineData(VideoEffect.OilPaint)]
+    [InlineData(VideoEffect.GlyphMosaic)]
+    [InlineData(VideoEffect.ThermalMap)]
+    [InlineData(VideoEffect.TapeWear)]
+    [InlineData(VideoEffect.PixelSort)]
     public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
     {
         using var picture = DecodedPicture();
@@ -206,28 +214,29 @@ public sealed class D3D11PresenterTests
         }
 
         using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
+        using var nv12 = EffectPictures.Nv12Gradient(picture.Width, picture.Height);
         picture.Pts = MediaTime.FromSeconds(1);
         presenter.Present(picture);
         foreach (var effect in Enum.GetValues<VideoEffect>())
         {
-            var options = VideoStyleOptions.ForEffect(effect);
-            var (third, fourth) = VideoStyleOptions.Extras(null, options);
-            presenter.SetEffect(effect, options[0].Default, options[1].Default);
-            if (effect == VideoEffect.GhostwireMotion)
-            {
-                presenter.SetMotionOptions(third, fourth);
-            }
-
-            presenter.SetEffectExtras(third, fourth);
+            var controls = VideoStyleOptions.Controls(effect, null, VideoStyleOptions.SharedStrengthDefault);
+            presenter.SetEffect(effect, controls.Intensity, controls.Detail);
+            presenter.SetEffectExtras(controls.Third, controls.Fourth);
             if (VideoEffects.UsesPointer(effect))
             {
                 presenter.SetPointer(0.5f, 0.5f, true);
             }
 
-            picture.Pts = MediaTime.FromSeconds(1.04);
-            presenter.Present(picture);
-            using var drawn = presenter.ReadBack();
-            Assert.Equal((picture.Width, picture.Height), (drawn.Width, drawn.Height));
+            // Both pixel shaders (packed and planar pictures), each twice so effects that keep
+            // the previous picture draw with it.
+            foreach (var (frame, seconds) in new[] { (picture, 1.04), (picture, 1.08), (nv12, 1.12), (nv12, 1.16) })
+            {
+                frame.Pts = MediaTime.FromSeconds(seconds);
+                presenter.Present(frame);
+                using var drawn = presenter.ReadBack();
+                Assert.Equal((picture.Width, picture.Height), (drawn.Width, drawn.Height));
+                Assert.Contains(drawn.Plane(0).ToArray(), value => value is > 0 and < 255);
+            }
         }
 
         presenter.SetEffect(VideoEffect.Off, 0);
@@ -364,6 +373,7 @@ public sealed class D3D11PresenterTests
     [Theory]
     [InlineData(VideoEffect.NeonEdges)]
     [InlineData(VideoEffect.InkTrace)]
+    [InlineData(VideoEffect.TopographicContours)]
     [InlineData(VideoEffect.ChromaticContours)]
     [InlineData(VideoEffect.Ghostwire)]
     [InlineData(VideoEffect.GhostwireMask)]
@@ -429,8 +439,9 @@ public sealed class D3D11PresenterTests
         using var high = presenter.ReadBack();
         var lowFlat = low.Row(0, 48)[40 * 4 + 1];
         var highFlat = high.Row(0, 48)[40 * 4 + 1];
-        var lowContrast = Enumerable.Range(68, 8).Max(x => Math.Abs(low.Row(0, 48)[x * 4 + 1] - lowFlat));
-        var highContrast = Enumerable.Range(68, 8).Max(x => Math.Abs(high.Row(0, 48)[x * 4 + 1] - highFlat));
+        // Several rows, as Ghostwire mask mode draws its inner lines dotted.
+        var lowContrast = Enumerable.Range(44, 8).Max(y => Enumerable.Range(68, 8).Max(x => Math.Abs(low.Row(0, y)[x * 4 + 1] - lowFlat)));
+        var highContrast = Enumerable.Range(44, 8).Max(y => Enumerable.Range(68, 8).Max(x => Math.Abs(high.Row(0, y)[x * 4 + 1] - highFlat)));
         Assert.True(highContrast > lowContrast + 6,
             $"{effect}: raising contour detail must reveal weak lines ({lowContrast} vs {highContrast})");
     }
@@ -587,7 +598,7 @@ public sealed class D3D11PresenterTests
     {
         using var presenter = D3D11Presenter.Offscreen(144, 96);
         presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
-        presenter.SetMotionOptions(80, 2); // motion only
+        presenter.SetEffectExtras(80, 2); // motion only
         using var initial = MotionPicture(24, 0);
         presenter.Present(initial);
         using var first = presenter.ReadBack();
@@ -619,7 +630,7 @@ public sealed class D3D11PresenterTests
     {
         using var presenter = D3D11Presenter.Offscreen(144, 96);
         presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
-        presenter.SetMotionOptions(100, 2);
+        presenter.SetEffectExtras(100, 2);
         using var before = MotionPicture(24, 1);
         before.Generation = 2;
         presenter.Present(before);
@@ -629,7 +640,7 @@ public sealed class D3D11PresenterTests
         using var actual = presenter.ReadBack();
         using var fresh = D3D11Presenter.Offscreen(144, 96);
         fresh.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
-        fresh.SetMotionOptions(100, 2);
+        fresh.SetEffectExtras(100, 2);
         fresh.Present(after);
         using var expected = fresh.ReadBack();
         Assert.Equal(0, MaxDifference(actual, expected));
@@ -640,7 +651,7 @@ public sealed class D3D11PresenterTests
     {
         using var presenter = D3D11Presenter.Offscreen(144, 96);
         presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
-        presenter.SetMotionOptions(100, 2);
+        presenter.SetEffectExtras(100, 2);
         using var initial = MotionPicture(24, 0);
         using var moved = MotionPicture(39, 0.04);
         presenter.Present(initial);
@@ -660,7 +671,7 @@ public sealed class D3D11PresenterTests
 
         using var fresh = D3D11Presenter.Offscreen(144, 96);
         fresh.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
-        fresh.SetMotionOptions(100, 2);
+        fresh.SetEffectExtras(100, 2);
         fresh.Present(another);
         using var first = fresh.ReadBack();
         Assert.Equal(0, MaxDifference(first, afterGap));
@@ -672,7 +683,7 @@ public sealed class D3D11PresenterTests
     {
         using var presenter = D3D11Presenter.Offscreen(144, 96);
         presenter.SetEffect(VideoEffect.GhostwireMotion, 100, 150);
-        presenter.SetMotionOptions(0, 2); // Activate temporal capture before the first picture.
+        presenter.SetEffectExtras(0, 2); // Activate temporal capture before the first picture.
         using var before = MotionPicture(24, 0);
         using var moved = MotionPicture(39, 0.04);
         presenter.Present(before);
@@ -680,17 +691,17 @@ public sealed class D3D11PresenterTests
         presenter.Redraw();
         using var withoutTrails = presenter.ReadBack();
 
-        presenter.SetMotionOptions(100, 2);
+        presenter.SetEffectExtras(100, 2);
         presenter.Redraw();
         using var withTrails = presenter.ReadBack();
         Assert.True(MaxDifference(withoutTrails, withTrails) > 4);
 
-        presenter.SetMotionOptions(100, 1);
+        presenter.SetEffectExtras(100, 1);
         presenter.Redraw();
         using var contours = presenter.ReadBack();
         Assert.True(MaxDifference(withTrails, contours) > 10);
 
-        presenter.SetMotionOptions(100, 0);
+        presenter.SetEffectExtras(100, 0);
         // Switching from a non-temporal mode intentionally discards stale history.
         // Show a new pair instead of borrowing an old motion vector.
         using var again = MotionPicture(24, 0.08);
