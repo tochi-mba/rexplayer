@@ -99,8 +99,8 @@ public sealed partial class MainWindow
         keepLibraryAudio.IsEnabled = pauseLibrary.IsChecked == true;
         pauseLibrary.Checked += (_, _) => keepLibraryAudio.IsEnabled = true;
         pauseLibrary.Unchecked += (_, _) => keepLibraryAudio.IsEnabled = false;
-        var autoIntro = Check("Skip detected or confirmed intros automatically", s.SkipIntrosAutomatically);
-        var autoCredits = Check("Skip detected or confirmed credits automatically", s.SkipCreditsAutomatically);
+        var autoIntro = Check("Skip intros automatically", s.SkipIntrosAutomatically);
+        var autoCredits = Check("Skip credits automatically (plays the next episode when one follows)", s.SkipCreditsAutomatically);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(autoIntro, "PreferencesAutoSkipIntro");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(autoCredits, "PreferencesAutoSkipCredits");
         var queue = Check("Put the playlist back when rexplayer starts", s.RestoreQueue);
@@ -132,6 +132,11 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        content.Children.Add(Heading("Intros and credits"));
+        content.Children.Add(new TextBlock { Text = "While an episode's intro or credits play, a button offers to skip them. Turn these on to skip without a click; a 5 second countdown lets you cancel. To choose per show, use Always skip for this show on the button's menu.", TextWrapping = TextWrapping.Wrap });
+        content.Children.Add(autoIntro);
+        content.Children.Add(autoCredits);
+
         content.Children.Add(Heading("Video and pictures"));
         foreach (var control in new UIElement[] { pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
         {
@@ -157,11 +162,6 @@ public sealed partial class MainWindow
         content.Children.Add(Heading("Library playback"));
         content.Children.Add(pauseLibrary);
         content.Children.Add(keepLibraryAudio);
-
-        content.Children.Add(Heading("Episode sections"));
-        content.Children.Add(new TextBlock { Text = "Detected sections can be confirmed, adjusted or rejected. Automatic skipping is off until you choose it.", TextWrapping = TextWrapping.Wrap });
-        content.Children.Add(autoIntro);
-        content.Children.Add(autoCredits);
 
         content.Children.Add(Heading("Memory"));
         foreach (var control in new UIElement[] { resume, history, queue, sleep })

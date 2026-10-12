@@ -16,6 +16,8 @@ public static class CommandCatalog
     public const string Stop = "stop";
     public const string Next = "next";
     public const string Previous = "previous";
+    public const string SkipSection = "skip-section";
+    public const string NextEpisode = "next-episode";
     public const string Quit = "quit";
     public const string ShowPosition = "show-position";
     public const string GoToTime = "go-to-time";
@@ -120,6 +122,8 @@ public static class CommandCatalog
         New(Stop, "Stop", Playback, "S", "MediaStop"),
         New(Next, "Next item", Playback, "N", "MediaNext"),
         New(Previous, "Previous item", Playback, "P", "MediaPrevious"),
+        New(SkipSection, "Skip intro or credits", Playback, "I"),
+        New(NextEpisode, "Next episode", Playback, "Shift+N"),
         New(ShowPosition, "Show the position", Playback, "T"),
         New(GoToTime, "Go to a time", Playback, "Ctrl+T"),
         New(CycleRepeat, "Repeat: off, all, one", Playback, "L"),

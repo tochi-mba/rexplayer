@@ -96,6 +96,88 @@ public sealed class SectionAnalysisTests
     }
 
 
+    /// <summary>
+    /// Ten minutes of video with audio interleaved: keyframes at 0, 450 and 600 s, and pictures
+    /// that are not keyframes at 451, 585, 587 and 589 s.
+    /// </summary>
+    private static byte[] SparseKeyframes()
+    {
+        var video = EbmlWriter.Element(MatroskaId.TrackEntry,
+            EbmlWriter.UInt(MatroskaId.TrackNumber, 2),
+            EbmlWriter.UInt(MatroskaId.TrackType, 1),
+            EbmlWriter.Text(MatroskaId.CodecId, "V_MPEG4/ISO/AVC"),
+            EbmlWriter.Element(MatroskaId.Video,
+                EbmlWriter.UInt(MatroskaId.PixelWidth, 16),
+                EbmlWriter.UInt(MatroskaId.PixelHeight, 8)));
+        var info = EbmlWriter.Element(MatroskaId.Info,
+            EbmlWriter.UInt(MatroskaId.TimestampScale, 1_000_000),
+            EbmlWriter.Float(MatroskaId.Duration, 600_000));
+        return MatroskaCraftedTests.Mkv(info, MatroskaCraftedTests.Tracks(MatroskaCraftedTests.PcmTrack(1), video),
+            MatroskaCraftedTests.Cluster(0, MatroskaCraftedTests.Simple(2, 0, true, 30)),
+            MatroskaCraftedTests.Cluster(450_000,
+                MatroskaCraftedTests.Simple(1, 0, true, [.. Enumerable.Repeat((byte)16, 64)]),
+                MatroskaCraftedTests.Simple(2, 0, true, 20),
+                MatroskaCraftedTests.Simple(2, 1000, false, 21)),
+            MatroskaCraftedTests.Cluster(585_000,
+                MatroskaCraftedTests.Simple(2, 0, false, 22),
+                MatroskaCraftedTests.Simple(2, 2000, false, 23),
+                MatroskaCraftedTests.Simple(2, 4000, false, 24)),
+            MatroskaCraftedTests.Cluster(600_000, MatroskaCraftedTests.Simple(2, 0, true, 25)));
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public void KeyframesAreDecodedAloneAndOnlyTheLastSecondsDensely(bool hold, bool silent, bool untimed)
+    {
+        var folder = Directory.CreateTempSubdirectory("rexplayer-section-keyframes-").FullName;
+        try
+        {
+            var path = Path.Combine(folder, "Series.S01E04.mkv");
+            File.WriteAllBytes(path, SparseKeyframes());
+            var pictures = new FakeVideoDecoderFactory { Hold = hold, DrainOneAtATime = hold, Silent = silent, Untimed = untimed };
+            var decoders = new DecoderRegistry().Add(new PcmDecoderFactory()).Add(pictures);
+            var analyzed = SectionAnalysis.Analyze(path, decoders, CancellationToken.None);
+            Assert.StartsWith("v" + SectionAnalysis.FeatureVersion + ":", analyzed.Signature, StringComparison.Ordinal);
+            var times = analyzed.Frames.Select(frame => frame.At.TotalSeconds).ToArray();
+            if (silent)
+            {
+                Assert.Empty(times);
+            }
+            else if (untimed)
+            {
+                // The keyframe keeps its packet's time; untimed pictures in the dense pass are skipped.
+                Assert.Equal([450.0], times);
+            }
+            else if (hold)
+            {
+                // A holding decoder gives its pictures only when drained: keyframes still come out.
+                Assert.Contains(450.0, times);
+            }
+            else
+            {
+                // The keyframe pass sees 450 s; the window over the last 17 s decodes 585 to 589 s
+                // a second apart and stops at the picture at the end.
+                Assert.Equal([450.0, 585.0, 587.0, 589.0], times);
+            }
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SearchWindowsGrowWithTheEpisodeUpToTheirLimits()
+    {
+        Assert.Equal(TimeSpan.FromMinutes(12), SectionAnalysis.OpeningSpan(TimeSpan.FromMinutes(60)));
+        Assert.Equal(TimeSpan.FromMinutes(7), SectionAnalysis.OpeningSpan(TimeSpan.FromMinutes(20)));
+        Assert.Equal(TimeSpan.FromMinutes(6), SectionAnalysis.ClosingSpan(TimeSpan.FromMinutes(60)));
+        Assert.Equal(TimeSpan.FromMinutes(4), SectionAnalysis.ClosingSpan(TimeSpan.FromMinutes(10)));
+    }
+
     [Fact]
     public void MissingCodecsLeaveSectionFeaturesEmptyInsteadOfFailingTheEpisode()
     {
