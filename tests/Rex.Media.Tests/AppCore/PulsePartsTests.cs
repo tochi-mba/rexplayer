@@ -88,6 +88,7 @@ public sealed class PulsePartsTests
     {
         var whole = new BandEnergy(0, 0);
         Assert.Equal(0, whole.RiseAge()); // No analysed samples yet.
+        Assert.Equal(0, whole.RiseAge()); // No analysed samples yet.
         Assert.Equal(1, whole.Power(Enumerable.Repeat(1f, 100).ToArray(), 48_000, 1000), 6);
         Assert.Equal(0.25, whole.Power([0, 0, 0.5f, 0.5f], 48_000, 2), 6);
 
