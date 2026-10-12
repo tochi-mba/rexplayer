@@ -300,8 +300,8 @@ public static class CreditFrameEvidence
     public static CreditRun? Find(IReadOnlyList<CreditFrameSample> frames, TimeSpan duration) =>
         Runs(frames, duration).OrderByDescending(run => run.Confidence).FirstOrDefault();
 
-    /// <param name="continued">The last picture of the run's text-or-black continuation: black after
-    /// the last card (a card too faint to read, a fade) still counts towards reaching the end.</param>
+    // "continued" is the last picture of the run's text-or-black continuation: black after the last
+    // card (a card too faint to read, a fade) still counts towards reaching the end.
     private static CreditRun? Describe(CreditFrameSample[] ordered, bool[] credit, (int First, int Last) span,
         TimeSpan continued, TimeSpan duration)
     {
