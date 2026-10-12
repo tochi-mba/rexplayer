@@ -83,10 +83,12 @@ public sealed record LibraryEntry
 public sealed class MediaLibrary
 {
     private const string FoldersKey = "folders";
+    private const string HiddenKey = "hidden";
     private const string EntryPrefix = "entry/";
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _hidden = new(StringComparer.OrdinalIgnoreCase);
     private readonly TimeProvider _time;
     private List<string> _folders;
 
@@ -95,6 +97,7 @@ public sealed class MediaLibrary
         Store = store ?? throw new ArgumentNullException(nameof(store));
         _time = time ?? TimeProvider.System;
         _folders = Parse(Store.Get(FoldersKey), LibraryJson.Default.ListString) ?? [];
+        _hidden.UnionWith(Parse(Store.Get(HiddenKey), LibraryJson.Default.ListString) ?? []);
         foreach (var (_, json) in Store.WithPrefix(EntryPrefix))
         {
             if (Parse(json, LibraryJson.Default.LibraryEntry) is { } entry)
@@ -129,6 +132,18 @@ public sealed class MediaLibrary
             lock (_gate)
             {
                 return [.. _entries.Values];
+            }
+        }
+    }
+
+    /// <summary>The files the user removed from the library (<see cref="Hide"/>), which scans pass over while they stay on the disk.</summary>
+    public IReadOnlyList<string> Hidden
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _hidden.Order(StringComparer.OrdinalIgnoreCase)];
             }
         }
     }
@@ -192,6 +207,12 @@ public sealed class MediaLibrary
 
             Store.Set(FoldersKey, JsonSerializer.Serialize(_folders, LibraryJson.Default.ListString));
             Write([.. _entries.Values.Where(entry => Holds(folder, entry.Path) && !_folders.Any(other => Holds(other, entry.Path)))], remove: true);
+
+            // Adding the folder again later starts afresh: nothing in it stays hidden.
+            if (_hidden.RemoveWhere(path => Holds(folder, path) && !_folders.Any(other => Holds(other, path))) > 0)
+            {
+                WriteHidden();
+            }
         }
 
         Changed?.Invoke(this, EventArgs.Empty);
@@ -218,7 +239,7 @@ public sealed class MediaLibrary
             int added = 0, changed = 0;
             foreach (var file in files)
             {
-                if (kindOf(file.Path) is not { } kind || !seen.Add(file.Path))
+                if (kindOf(file.Path) is not { } kind || _hidden.Contains(file.Path) || !seen.Add(file.Path))
                 {
                     continue;
                 }
@@ -297,6 +318,89 @@ public sealed class MediaLibrary
 
         Changed?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Marks each of <paramref name="paths"/> as played through: a play is counted for one never
+    /// played, and the last play is now. Ones the library does not know are passed over.
+    /// </summary>
+    public void MarkPlayed(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var now = _time.GetUtcNow().UtcDateTime;
+        Change(paths, known => known with { Plays = Math.Max(1, known.Plays), LastPlayed = now });
+    }
+
+    /// <summary>Forgets the plays of each of <paramref name="paths"/>, so it counts as never played.</summary>
+    public void ResetPlays(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        Change(paths, known => known with { Plays = 0, LastPlayed = null });
+    }
+
+    /// <summary>Forgets <paramref name="paths"/> (files deleted from the disk); a scan finds them again if they come back.</summary>
+    public int Forget(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        List<LibraryEntry> gone;
+        lock (_gate)
+        {
+            gone = [.. paths.Select(path => _entries.GetValueOrDefault(path)).OfType<LibraryEntry>().DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
+            Write(gone, remove: true);
+        }
+
+        if (gone.Count > 0)
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+
+        return gone.Count;
+    }
+
+    /// <summary>
+    /// Removes <paramref name="paths"/> from the library while the files stay on the disk: they are
+    /// forgotten and scans pass them over, until their folder is removed and added again.
+    /// </summary>
+    public int Hide(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        List<LibraryEntry> gone;
+        lock (_gate)
+        {
+            var hidden = paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+            if (hidden.Count == 0)
+            {
+                return 0;
+            }
+
+            _hidden.UnionWith(hidden);
+            WriteHidden();
+            gone = [.. hidden.Select(path => _entries.GetValueOrDefault(path)).OfType<LibraryEntry>().DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
+            Write(gone, remove: true);
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return gone.Count;
+    }
+
+    /// <summary>Writes each known entry of <paramref name="paths"/> as <paramref name="change"/> makes it; unknown ones are passed over.</summary>
+    private void Change(IEnumerable<string> paths, Func<LibraryEntry, LibraryEntry> change)
+    {
+        lock (_gate)
+        {
+            var written = paths.Select(path => _entries.GetValueOrDefault(path)).OfType<LibraryEntry>().DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).Select(change).ToList();
+            if (written.Count == 0)
+            {
+                return;
+            }
+
+            Write(written, remove: false);
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Keeps the hidden paths in the store. Called holding the gate.</summary>
+    private void WriteHidden() => Store.Set(HiddenKey, JsonSerializer.Serialize(_hidden.Order(StringComparer.OrdinalIgnoreCase).ToList(), LibraryJson.Default.ListString));
 
     /// <summary>
     /// Brings in entries from a backup (LIB-10): ones not known are added as they were; for ones

@@ -114,6 +114,9 @@ public sealed class PlayerMemory(RexStore store)
         }
     }
 
+    /// <summary>Forgets where <paramref name="location"/> was left, so it starts from the top next time; false when nothing was kept.</summary>
+    public bool Forget(string location) => Store.Remove(ResumePrefix + KeyFor(location));
+
     /// <summary>The media played most recently, newest first.</summary>
     public IReadOnlyList<string> Recent => Read(RecentKey, MemoryJson.Default.ListString) ?? [];
 

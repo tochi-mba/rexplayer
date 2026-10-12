@@ -87,6 +87,39 @@ public enum LibrarySort
     Played,
     MostPlayed,
     Length,
+
+    /// <summary>When the file last changed, newest first.</summary>
+    Modified,
+
+    /// <summary>The file's size, largest first.</summary>
+    Size,
+
+    /// <summary>The file's folder and name.</summary>
+    Path,
+}
+
+/// <summary>Which items a library view keeps, by how far they have been watched or played.</summary>
+public enum LibraryFilter
+{
+    All,
+
+    /// <summary>Never played and not left part-way.</summary>
+    Unwatched,
+
+    /// <summary>Left part-way, with somewhere to go back to.</summary>
+    InProgress,
+
+    /// <summary>Played at least once and not left part-way.</summary>
+    Finished,
+}
+
+/// <summary>Which kinds of media a library view keeps.</summary>
+public enum LibraryKindFilter
+{
+    Any,
+    Music,
+    Video,
+    Picture,
 }
 
 /// <summary>What a library view gathers its items under, each under a heading.</summary>
@@ -120,12 +153,29 @@ public enum LibraryLook
     Collage,
 }
 
-/// <summary>How one library view is shown, as the user last set it: its layout, order, grouping and card size.</summary>
-public sealed record LibraryViewChoice(LibraryLook Look = LibraryLook.Grid, LibrarySort Sort = LibrarySort.Natural, bool Descending = false, LibraryGrouping Grouping = LibraryGrouping.None, int CardSize = 180)
+/// <summary>
+/// How one library view is shown, as the user last set it: its layout, order, grouping and card
+/// size, and which of its items it keeps (by watched state, by kind, and by folder).
+/// </summary>
+public sealed record LibraryViewChoice(
+    LibraryLook Look = LibraryLook.Grid,
+    LibrarySort Sort = LibrarySort.Natural,
+    bool Descending = false,
+    LibraryGrouping Grouping = LibraryGrouping.None,
+    int CardSize = 180,
+    LibraryFilter Filter = LibraryFilter.All,
+    LibraryKindFilter Kinds = LibraryKindFilter.Any,
+    string? Folder = null)
 {
     /// <summary>The smallest and largest cards, in pixels across.</summary>
     public const int SmallestCard = 120;
     public const int LargestCard = 360;
+
+    /// <summary>Whether any of the quick filters narrows the view.</summary>
+    public bool IsFiltered => Filter != LibraryFilter.All || Kinds != LibraryKindFilter.Any || Folder is not null;
+
+    /// <summary>The same view with every quick filter off.</summary>
+    public LibraryViewChoice Unfiltered() => this with { Filter = LibraryFilter.All, Kinds = LibraryKindFilter.Any, Folder = null };
 
     public LibraryViewChoice Normalize() => this with
     {
@@ -133,6 +183,9 @@ public sealed record LibraryViewChoice(LibraryLook Look = LibraryLook.Grid, Libr
         Sort = Enum.IsDefined(Sort) ? Sort : LibrarySort.Natural,
         Grouping = Enum.IsDefined(Grouping) ? Grouping : LibraryGrouping.None,
         CardSize = Math.Clamp(CardSize, SmallestCard, LargestCard),
+        Filter = Enum.IsDefined(Filter) ? Filter : LibraryFilter.All,
+        Kinds = Enum.IsDefined(Kinds) ? Kinds : LibraryKindFilter.Any,
+        Folder = string.IsNullOrWhiteSpace(Folder) ? null : Folder.Trim(),
     };
 }
 
@@ -390,6 +443,12 @@ public sealed record PlayerSettings
 
     /// <summary>How each library view is shown, by the view's name (LIB-05).</summary>
     public IReadOnlyDictionary<string, LibraryViewChoice> LibraryViews { get; init; } = new Dictionary<string, LibraryViewChoice>(StringComparer.Ordinal);
+
+    /// <summary>Opening the library pauses what is playing, so the picture is not missed while browsing (LIB-05).</summary>
+    public bool PauseWhenLibraryOpens { get; init; } = true;
+
+    /// <summary>With <see cref="PauseWhenLibraryOpens"/>, music and other sound-only items keep playing while the library is open.</summary>
+    public bool KeepAudioPlayingInLibrary { get; init; } = true;
 
     /// <summary>The languages to play audio in, best first, such as "ja, original"; empty for the media's own choice.</summary>
     public string AudioLanguages { get; init; } = "";
