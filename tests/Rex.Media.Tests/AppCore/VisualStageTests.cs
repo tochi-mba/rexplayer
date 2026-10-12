@@ -35,7 +35,7 @@ public sealed class VisualStageTests
     public void NonFiniteAudioCannotPoisonTheStage(int sampleRate)
     {
         var stage = Stage();
-        var samples = Enumerable.Repeat(float.NaN, Rex.Media.Audio.SpectrumAnalyzer.Size).ToArray();
+        var samples = Enumerable.Repeat(float.NaN, VisualStage.SoundSize).ToArray();
         samples[0] = float.PositiveInfinity;
         samples[1] = float.NegativeInfinity;
         for (var i = 0; i < 5; i++)

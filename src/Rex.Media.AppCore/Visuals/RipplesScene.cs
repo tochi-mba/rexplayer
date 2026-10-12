@@ -1,9 +1,10 @@
 namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
-/// Drops on still water (AU-18): every beat lands a drop, harder beats bigger, from the middle or
-/// anywhere; each spreads in rings that fade as they grow, crossing the rings of the drops before,
-/// the colour following the pitch of the moment it fell.
+/// Drops on still water (AU-18): every beat lands a drop (heard, or kept by the beat clock), harder
+/// beats bigger, from the middle or anywhere; each spreads in rings that fade as they grow, crossing
+/// the rings of the drops before, the colour following the pitch of the moment it fell. With the
+/// tempo known, the rings spread in time with it, and the water flares with each kick's punch.
 /// </summary>
 public sealed class RipplesScene : VisualScene
 {
@@ -19,24 +20,24 @@ public sealed class RipplesScene : VisualScene
         canvas.Feedback(0.6f, 1.0, 0, 0, 0);
 
         // The water itself, lit from below, brightening with the bass.
-        canvas.Glow(w / 2.0, h / 2.0, Math.Max(w, h) * 0.7, context.Paint(0.2), 0.08f + (0.35f * pulse.Bass));
+        canvas.Glow(w / 2.0, h / 2.0, Math.Max(w, h) * 0.7, context.Paint(0.2), 0.05f + (0.15f * pulse.Bass) + (0.45f * pulse.Punch));
         var lifetime = context.Number("lifetime");
         var falls = context.Pick("drops") switch
         {
-            1 => pulse.Kick.Hit && pulse.Kick.Strength >= 0.6f,
+            1 => pulse.Beat && pulse.BeatStrength >= 0.6f,
             2 => pulse.Drop,
-            _ => pulse.Kick.Hit,
+            _ => pulse.Beat,
         };
         if (falls)
         {
             // In the middle, anywhere, or across the stage by the pitch: bass to the left, treble to the right.
             var (x, y) = context.Pick("where") switch
             {
-                1 => (w * (0.15 + (0.7 * Noise.Hash(pulse.Kick.Count * 2))), h * (0.15 + (0.7 * Noise.Hash((pulse.Kick.Count * 2) + 1)))),
-                2 => (w * (0.1 + (0.8 * pulse.Pitch)), h * (0.35 + (0.3 * Noise.Hash(pulse.Kick.Count)))),
+                1 => (w * (0.15 + (0.7 * Noise.Hash(pulse.Beats * 2))), h * (0.15 + (0.7 * Noise.Hash((pulse.Beats * 2) + 1)))),
+                2 => (w * (0.1 + (0.8 * pulse.Pitch)), h * (0.35 + (0.3 * Noise.Hash(pulse.Beats)))),
                 _ => (w / 2.0, h / 2.0),
             };
-            _drops.Add(new Drop(x, y, pulse.Pitch, 0.4 + (0.6 * pulse.Kick.Strength)));
+            _drops.Add(new Drop(x, y, pulse.Pitch, 0.4 + (0.6 * pulse.BeatStrength)));
         }
 
         // Each hi-hat lands a droplet, small and faint, somewhere the count of hats says.
@@ -47,9 +48,10 @@ public sealed class RipplesScene : VisualScene
 
         var rings = (int)context.Number("rings");
         var thickness = context.Number("thickness") * size / 360;
+        var spread = pulse.Tempo > 0 ? Math.Clamp(pulse.Tempo / 120, 0.6, 1.6) : 1;
         foreach (var drop in _drops)
         {
-            drop.Age += context.Dt;
+            drop.Age += context.Dt * spread;
             var share = drop.Age / lifetime;
             var color = context.Paint(drop.Pitch);
             for (var ring = 0; ring < rings; ring++)

@@ -2,13 +2,15 @@ namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
 /// The spectrum as rays of light round a ring that swells with the bass (AU-18), mirrored left and
-/// right with the bass at the top, leaving trails that drift outward like a tunnel; every beat
-/// throws sparks off the ring.
+/// right with the bass at the top, leaving trails that drift outward like a tunnel. Every kick
+/// thumps the whole halo outward and throws sparks off the ring; the ring burns with the punch, and
+/// turning, it steps round on each beat.
 /// </summary>
 public sealed class HaloScene : VisualScene
 {
     private readonly Particles _sparks = new(240);
     private double _spin;
+    private double _spinTo;
 
     public override void Draw(VisualContext context)
     {
@@ -19,12 +21,16 @@ public sealed class HaloScene : VisualScene
         var (cx, cy) = (canvas.Width / 2.0, canvas.Height / 2.0);
         if (context.Toggle("spin"))
         {
-            _spin += context.Dt * (0.15 + (pulse.Bass * 0.6));
+            // A step round on each beat, eased in, over a slow drift.
+            _spinTo += (context.Dt * 0.04) + (pulse.Beat ? 0.09 * (pulse.Filled ? 0.5 : 1) : 0);
+            _spin += (_spinTo - _spin) * (1 - Math.Exp(-context.Dt / 0.08));
         }
 
-        canvas.Feedback((float)context.Number("trails"), 1.005 + (pulse.Bass * 0.012), context.Toggle("spin") ? 0.002 : 0, 0, 0);
-        var inner = size * (0.16 + (pulse.Bass * 0.07));
-        var reach = size * 0.3;
+        // The kick thumps it all outward; the tunnel of trails rushes with it.
+        var thump = 1 + (0.1 * pulse.Punch);
+        canvas.Feedback((float)context.Number("trails"), 1.003 + (pulse.Punch * 0.025), context.Toggle("spin") ? 0.002 : 0, 0, 0);
+        var inner = size * (0.13 + (pulse.Bass * 0.1)) * thump;
+        var reach = size * 0.32 * thump;
         var rays = (int)context.Number("rays");
         var thickness = context.Number("thickness") * size / 360;
         var half = rays / 2;
@@ -37,14 +43,14 @@ public sealed class HaloScene : VisualScene
             var angle = ((double)i / rays * Math.Tau) - (Math.PI / 2) + _spin;
             var length = Math.Max(1.5, level * reach);
             var (cos, sin) = (Math.Cos(angle), Math.Sin(angle));
-            canvas.Line(cx + (inner * cos), cy + (inner * sin), cx + ((inner + length) * cos), cy + ((inner + length) * sin), thickness, context.Paint((double)k / half), 0.55f + level, 1.2);
+            canvas.Line(cx + (inner * cos), cy + (inner * sin), cx + ((inner + length) * cos), cy + ((inner + length) * sin), thickness, context.Paint((double)k / half), (0.35f + (1.1f * level)) * (1 + (0.5f * pulse.Build)), 1.2);
         }
 
-        canvas.Ring(cx, cy, inner * 0.94, 1.5 + (pulse.Bass * 5), context.Paint(pulse.Pitch), 0.5f + pulse.Bass);
+        canvas.Ring(cx, cy, inner * 0.94, (1.5 + (pulse.Punch * 9)) * size / 360, context.Paint(pulse.Pitch), 0.3f + (0.4f * pulse.Bass) + (1.3f * pulse.Punch));
         // The kick throws sparks off the ring, as many as it is hard.
-        if (pulse.Kick.Hit && context.Toggle("burst"))
+        if ((pulse.Kick.Hit || pulse.Drop) && context.Toggle("burst"))
         {
-            var count = (int)(12 + (28 * pulse.Kick.Strength));
+            var count = pulse.Drop ? 120 : (int)(16 + (40 * pulse.Kick.Strength));
             for (var n = 0; n < count; n++)
             {
                 var angle = context.Random.NextDouble() * Math.Tau;

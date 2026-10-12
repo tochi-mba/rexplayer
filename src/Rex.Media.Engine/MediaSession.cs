@@ -74,9 +74,15 @@ public sealed partial class MediaSession : IDisposable
 
     /// <summary>
     /// Copies the sound being heard now, its newest samples last, into <paramref name="left"/> and
-    /// <paramref name="right"/>; false when nothing has played yet.
+    /// <paramref name="right"/>; false when nothing has played yet. With a <paramref name="lead"/>,
+    /// the sound that will be heard that long from now (as far as it has been written): what a
+    /// picture drawn now and shown that much later should move to.
     /// </summary>
-    public bool ReadSound(Span<float> left, Span<float> right) => Scope.Read(left, right, _playback?.QueuedSamples ?? 0);
+    public bool ReadSound(Span<float> left, Span<float> right, TimeSpan lead = default)
+    {
+        var ahead = (long)(Math.Max(0, lead.TotalSeconds) * Scope.SampleRate);
+        return Scope.Read(left, right, Math.Max(0, (_playback?.QueuedSamples ?? 0) - ahead));
+    }
 
     /// <summary>The equaliser, stereo mode and loudness evening (M5). Applies immediately, and to every item that follows.</summary>
     public SoundSettings Sound

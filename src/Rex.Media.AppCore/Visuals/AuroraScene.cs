@@ -4,8 +4,8 @@ namespace Rex.Media.AppCore.Visuals;
 /// The northern lights over mountains at night (AU-18). Each curtain is a ribbon that folds and
 /// drifts across the sky, made of fine vertical rays: bright at its lower hem, where the light is
 /// green, fading upward into violet and pink, as the real thing does. Where its part of the
-/// spectrum is loud a curtain climbs higher and burns brighter; a beat sends a wave of light running
-/// along it; stars twinkle with the treble.
+/// spectrum is loud a curtain climbs higher and burns brighter, the whole sky flaring with each
+/// kick; a kick sends a wave of light running along it; stars glint on the hi-hats.
 /// </summary>
 public sealed class AuroraScene : VisualScene
 {
@@ -23,7 +23,7 @@ public sealed class AuroraScene : VisualScene
         var (w, h) = (canvas.Width, canvas.Height);
         var t = context.Seconds;
         var pulse = context.Pulse;
-        var drift = t * context.Number("drift");
+        var drift = t * context.Number("drift") * 0.35;
 
         // The sky: deep blue overhead, lighter and greener toward the horizon.
         for (var y = 0; y < h; y++)
@@ -39,7 +39,8 @@ public sealed class AuroraScene : VisualScene
             _stars ??= [.. Enumerable.Range(0, StarCount).Select(n => (Noise.Hash(n * 3), Noise.Hash((n * 3) + 1) * 0.75, 0.5 + Noise.Hash((n * 3) + 2), Noise.Hash(n + 999) * Math.Tau))];
             foreach (var (x, y, size, phase) in _stars)
             {
-                var twinkle = (0.5 + (0.5 * Math.Sin((t * (1.5 + size)) + phase))) * (0.35 + (0.65 * size)) + (pulse.Treble * 0.6);
+                var glint = phase < Math.PI ? pulse.Hat.Level * 1.2 : 0;
+                var twinkle = ((0.5 + (0.5 * Math.Sin((t * (1.5 + size)) + phase))) * (0.3 + (0.4 * size))) + glint;
                 canvas.Glow(x * w, y * h, 0.8 + size, new Rgb(0.85f, 0.9f, 1f), (float)twinkle * 0.7f);
             }
         }
@@ -57,10 +58,10 @@ public sealed class AuroraScene : VisualScene
             var below = (int)at;
             var above = Math.Min(pulse.Bands.Count - 1, below + 1);
             var band = pulse.Bands[below] + ((pulse.Bands[above] - pulse.Bands[below]) * (float)(at - below));
-            _levels[x] += (band - _levels[x]) * (float)Math.Min(1, context.Dt * 5);
+            _levels[x] = Math.Max(band, _levels[x] * (float)Math.Exp(-context.Dt / 0.12));
         }
 
-        Soften(_levels, _smoothed, Math.Max(2, w / 24));
+        Soften(_levels, _smoothed, Math.Max(2, w / 48));
 
         // A kick sends a wave of light along the curtains, left to right.
         if (pulse.Kick.Hit)
@@ -70,7 +71,7 @@ public sealed class AuroraScene : VisualScene
 
         for (var i = 0; i < _waves.Count; i++)
         {
-            _waves[i] += context.Dt * 1.3;
+            _waves[i] += context.Dt * 1.6;
         }
 
         _waves.RemoveAll(wave => wave > 1.4);
@@ -129,11 +130,11 @@ public sealed class AuroraScene : VisualScene
             foreach (var wave in _waves)
             {
                 var d = (u - (wave - 0.2)) / 0.12;
-                glow += 0.9 * Math.Exp(-d * d) * (1.4 - wave);
+                glow += 1.4 * Math.Exp(-d * d) * (1.4 - wave);
             }
 
             var level = _levels[x];
-            var intensity = glow * (0.35 + (1.4 * level)) * strength;
+            var intensity = glow * (0.3 + (1.5 * level)) * strength * (1 + (0.7 * pulse.Punch));
             if (intensity < 0.003)
             {
                 return;
@@ -141,7 +142,7 @@ public sealed class AuroraScene : VisualScene
 
             // Rays: the fine vertical striations along the curtain, flickering with the hi-hats.
             var ray = 0.55 + (0.45 * Noise.At((u * 140) + (drift * 0.6) + seed + (pulse.Hat.Count * 0.37)));
-            var rise = h * height * (0.18 + (0.55 * level) + (0.2 * Noise.At((u * 9) + seed))) * (1 + (0.3 * pulse.Bass));
+            var rise = h * height * (0.08 + (0.75 * level) + (0.12 * Noise.At((u * 9) + seed))) * (1 + (0.25 * pulse.Bass));
             Column(canvas, context, x, hem, rise, (float)(intensity * ray), depth);
         });
     }
