@@ -35,18 +35,24 @@ public readonly record struct Rgb(float R, float G, float B)
 /// </summary>
 public sealed class Raster
 {
-    private readonly float[] _stroke;
     private readonly List<int> _touched = [];
-    private readonly float[][] _glow;
+    private readonly float[][] _planes;
     private readonly float[][] _lines;
     private readonly float[][] _sums;
-    private readonly float[][] _copies;
+    private float[]? _stroke;
+    private float[][]? _glow;
+    private float[][]? _copies;
+    private float[][]? _trail;
     private float[]? _shades;
     private float _shadesFor;
-    private readonly float[][] _trail;
     private bool _trailing;
     private (float Threshold, float Strength, int Radius) _bloom;
 
+    /// <summary>
+    /// The planes every frame needs are made here; those only some scenes use (the trails of
+    /// <see cref="Feedback"/>, the stroke of <see cref="Path"/>, the bloom of <see cref="Bloom"/>)
+    /// are made on first use, so a full-screen canvas costs only what is drawn on it.
+    /// </summary>
     public Raster(int width, int height)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(width, 2);
@@ -55,14 +61,13 @@ public sealed class Raster
         R = new float[width * height];
         G = new float[width * height];
         B = new float[width * height];
-        _stroke = new float[width * height];
-        _trail = [new float[width * height], new float[width * height], new float[width * height]];
-        var half = ((width + 1) / 2) * ((height + 1) / 2);
-        _glow = [new float[half], new float[half], new float[half]];
+        _planes = [R, G, B];
         _lines = [new float[Math.Max(width, height)], new float[Math.Max(width, height)], new float[Math.Max(width, height)]];
         _sums = [new float[width], new float[width], new float[width]];
-        _copies = [new float[half], new float[half], new float[half]];
     }
+
+    /// <summary>Three planes of <paramref name="length"/> each, for working space made on first use.</summary>
+    private static float[][] Planes(int length) => [new float[length], new float[length], new float[length]];
 
     public int Width { get; }
 
@@ -85,19 +90,6 @@ public sealed class Raster
         Array.Fill(B, color.B);
     }
 
-    /// <summary>Keeps <paramref name="keep"/> of the light everywhere: what was drawn fades, leaving trails.</summary>
-    public void Fade(float keep)
-    {
-        keep = Math.Clamp(keep, 0, 1);
-        foreach (var plane in new[] { R, G, B })
-        {
-            for (var i = 0; i < plane.Length; i++)
-            {
-                plane[i] *= keep;
-            }
-        }
-    }
-
     /// <summary>
     /// Starts a frame with trails: the last frame, faded to <paramref name="keep"/>, scaled by
     /// <paramref name="zoom"/> and turned by <paramref name="turn"/> radians about the middle, then
@@ -112,6 +104,7 @@ public sealed class Raster
         var (cx, cy) = ((Width - 1) / 2f, (Height - 1) / 2f);
         var (cos, sin) = ((float)(Math.Cos(-turn) / zoom), (float)(Math.Sin(-turn) / zoom));
         var (sx0, sy0) = ((float)shiftX, (float)shiftY);
+        _trail ??= Planes(Width * Height);
         var (tr, tg, tb) = (_trail[0], _trail[1], _trail[2]);
         Rows(Height, y =>
         {
@@ -155,7 +148,7 @@ public sealed class Raster
         }
 
         _trailing = false;
-        var (tr, tg, tb) = (_trail[0], _trail[1], _trail[2]);
+        var (tr, tg, tb) = (_trail![0], _trail[1], _trail[2]);
         Rows(Height, y =>
         {
             for (var i = y * Width; i < (y + 1) * Width; i++)
@@ -260,24 +253,25 @@ public sealed class Raster
         }
 
         _touched.Clear();
+        var stroke = _stroke ??= new float[Width * Height];
         for (var n = 1; n < count; n++)
         {
             var (from, to) = (points[n - 1], points[n % points.Count]);
             Stroke(from.X, from.Y, to.X, to.Y, width, halo, (i, light) =>
             {
-                if (_stroke[i] == 0)
+                if (stroke[i] == 0)
                 {
                     _touched.Add(i);
                 }
 
-                _stroke[i] = Math.Max(_stroke[i], light);
+                stroke[i] = Math.Max(stroke[i], light);
             });
         }
 
         foreach (var i in _touched)
         {
-            Add(i, color, _stroke[i] * strength);
-            _stroke[i] = 0;
+            Add(i, color, stroke[i] * strength);
+            stroke[i] = 0;
         }
     }
 
@@ -445,10 +439,12 @@ public sealed class Raster
         if (bloom)
         {
             // The light above the threshold, two by two pixels at a time, then blurred: each colour on its own core.
-            var planes = new[] { R, G, B };
+            _glow ??= Planes(halfWidth * halfHeight);
+            _copies ??= Planes(halfWidth * halfHeight);
+            var (planes, glows) = (_planes, _glow);
             Parallel.For(0, 3, channel =>
             {
-                var (plane, glow) = (planes[channel], _glow[channel]);
+                var (plane, glow) = (planes[channel], glows[channel]);
                 for (var y = 0; y < halfHeight; y++)
                 {
                     for (var x = 0; x < halfWidth; x++)
@@ -468,7 +464,8 @@ public sealed class Raster
             });
         }
 
-        var (gr, gg, gb) = (_glow[0], _glow[1], _glow[2]);
+        // Without bloom the glow planes are never read (and may not exist).
+        var (gr, gg, gb) = bloom ? (_glow![0], _glow[1], _glow[2]) : (_lines[0], _lines[1], _lines[2]);
         Rows(Height, y =>
         {
             // Where this row falls in the half-size bloom.
@@ -575,7 +572,7 @@ public sealed class Raster
     private void BoxBlur(float[] plane, int width, int height, int radius, int lane)
     {
         var span = (2 * radius) + 1;
-        var (line, sums, copy) = (_lines[lane], _sums[lane], _copies[lane]);
+        var (line, sums, copy) = (_lines[lane], _sums[lane], _copies![lane]);
         for (var y = 0; y < height; y++)
         {
             var row = y * width;

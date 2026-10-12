@@ -114,24 +114,26 @@ public sealed class VisualContext
 /// <summary>A visualisation drawn on a <see cref="Raster"/>: it keeps what it needs from frame to frame.</summary>
 public abstract class VisualScene
 {
-    /// <summary>The scene for <paramref name="choice"/>, or null for those the window draws with shapes.</summary>
-    public static VisualScene? For(VisualizerChoice choice) => choice switch
+    /// <summary>The visualisations drawn here, and how each scene is made; the rest the window draws with shapes.</summary>
+    private static readonly Dictionary<VisualizerChoice, Func<VisualScene>> Scenes = new()
     {
-        VisualizerChoice.Vinyl => new VinylScene(),
-        VisualizerChoice.Halo => new HaloScene(),
-        VisualizerChoice.Mirror => new MirrorScene(),
-        VisualizerChoice.Aurora => new AuroraScene(),
-        VisualizerChoice.Embers => new EmbersScene(),
-        VisualizerChoice.Resonance => new ResonanceScene(),
-        VisualizerChoice.Ripples => new RipplesScene(),
-        VisualizerChoice.Strobe => new StrobeScene(),
-        VisualizerChoice.Silhouette => new SilhouetteScene(),
-        VisualizerChoice.BeatEdit => new BeatEditScene(),
-        _ => null,
+        [VisualizerChoice.Vinyl] = () => new VinylScene(),
+        [VisualizerChoice.Halo] = () => new HaloScene(),
+        [VisualizerChoice.Mirror] = () => new MirrorScene(),
+        [VisualizerChoice.Aurora] = () => new AuroraScene(),
+        [VisualizerChoice.Embers] = () => new EmbersScene(),
+        [VisualizerChoice.Resonance] = () => new ResonanceScene(),
+        [VisualizerChoice.Ripples] = () => new RipplesScene(),
+        [VisualizerChoice.Strobe] = () => new StrobeScene(),
+        [VisualizerChoice.Silhouette] = () => new SilhouetteScene(),
+        [VisualizerChoice.BeatEdit] = () => new BeatEditScene(),
     };
 
-    /// <summary>Whether the scene draws the camera's picture (and so the camera must be on).</summary>
-    public virtual bool UsesCamera => false;
+    /// <summary>The scene for <paramref name="choice"/>, or null for those the window draws with shapes.</summary>
+    public static VisualScene? For(VisualizerChoice choice) => Scenes.TryGetValue(choice, out var make) ? make() : null;
+
+    /// <summary>Whether <paramref name="choice"/> is drawn by a scene rather than with the window's shapes.</summary>
+    public static bool Draws(VisualizerChoice choice) => Scenes.ContainsKey(choice);
 
     /// <summary>Draws the next frame on <see cref="VisualContext.Canvas"/>.</summary>
     public abstract void Draw(VisualContext context);
