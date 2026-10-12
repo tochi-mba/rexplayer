@@ -80,16 +80,26 @@ public sealed partial class PlayerController
         return true;
     }
 
-    /// <summary>One click skips the current confirmed or detected section; detection does not alter saved boundaries.</summary>
+    /// <summary>
+    /// One click (or the shortcut) does what the skip button offers: skips the intro, skips the
+    /// credits to whatever follows them, or plays the next episode when nothing follows them.
+    /// Detection never alters saved boundaries.
+    /// </summary>
     public bool SkipEpisodeSection()
     {
-        if (AvailableEpisodeSkip is not { } skip)
+        if (SkipPrompt is not { } prompt)
         {
             return false;
         }
 
-        Seek(skip.End);
-        Say(skip.Kind == EpisodeSectionKind.Intro ? "Intro skipped." : "Credits skipped.");
+        _automaticSkip = null;
+        if (prompt.Primary == EpisodeSkipAction.NextEpisode && PlayNextEpisode())
+        {
+            return true;
+        }
+
+        Seek(prompt.Target);
+        Say(prompt.Kind == EpisodeSectionKind.Intro ? "Intro skipped." : "Credits skipped.");
         return true;
     }
 }

@@ -50,6 +50,9 @@ public sealed record UpdateSession(
     public string? TargetVersion { get; init; }
 }
 
+/// <summary>Whether a show's intros and credits are skipped without a click ("Always skip for this show").</summary>
+public sealed record ShowSkipping(bool Intros, bool Credits);
+
 /// <summary>A playlist the user named and keeps (LIB-04), known by an id that stays when it is renamed.</summary>
 public sealed record NamedPlaylist(string Id, string Name, IReadOnlyList<QueuedItem> Items);
 
@@ -76,6 +79,7 @@ public sealed class PlayerMemory(RexStore store)
     private const string EpisodePrefix = "episode-sections/";
     private const string ProposalsPrefix = "episode-proposals/";
     private const string AnalysesPrefix = "episode-analysis/";
+    private const string ShowSkipPrefix = "episode-show-skip/";
     private const string RecentKey = "recent";
     private const string QueueKey = "queue";
     private const string UpdateSessionKey = "update-session";
@@ -219,6 +223,23 @@ public sealed class PlayerMemory(RexStore store)
         Write(AnalysesPrefix + KeyFor(analysis.Path), analysis, MemoryJson.Default.EpisodeAnalysis);
     }
 
+    /// <summary>The automatic skipping chosen for one show, known by its normalised name.</summary>
+    public ShowSkipping ShowSkips(string show) =>
+        Read(ShowSkipPrefix + KeyFor(show), MemoryJson.Default.ShowSkipping) ?? new ShowSkipping(false, false);
+
+    public void SetShowSkips(string show, ShowSkipping skipping)
+    {
+        ArgumentNullException.ThrowIfNull(skipping);
+        var key = ShowSkipPrefix + KeyFor(show);
+        if (!skipping.Intros && !skipping.Credits)
+        {
+            Store.Remove(key);
+            return;
+        }
+
+        Write(key, skipping, MemoryJson.Default.ShowSkipping);
+    }
+
     public QuickSlot? Slot(int number) => Read(SlotKey(number), MemoryJson.Default.QuickSlot);
 
     public void SetSlot(int number, QuickSlot slot)
@@ -317,6 +338,7 @@ public sealed class PlayerMemory(RexStore store)
 [JsonSerializable(typeof(EpisodeSections))]
 [JsonSerializable(typeof(SectionProposals))]
 [JsonSerializable(typeof(EpisodeAnalysis))]
+[JsonSerializable(typeof(ShowSkipping))]
 [JsonSerializable(typeof(QuickSlot))]
 [JsonSerializable(typeof(QueueSnapshot))]
 [JsonSerializable(typeof(UpdateSession))]
