@@ -722,7 +722,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var prompt = LibraryActions.RemovePrompt(paths.Select(Path.GetFileName).ToList());
+        var prompt = LibraryActions.RemovePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Remove", "Cancel"))
         {
             _player.RemoveFromLibrary(paths);
@@ -738,7 +738,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var prompt = LibraryActions.DeletePrompt(paths.Select(Path.GetFileName).ToList());
+        var prompt = LibraryActions.DeletePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Move to Recycle Bin", "Cancel"))
         {
             return;
