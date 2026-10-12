@@ -178,7 +178,9 @@ public sealed class PulsePartsTests
         var crossings = gap.Where(frame => frame.Crossed).Select(frame => frame.T).ToList();
         // A beat at exactly the boundary may cross in the first frame of the gap;
         // include it if it lands within one frame of the starting time.
-        var expected = Beats(bpm, 0, 10 + (60 * 3.2 / bpm)).Where(t => t >= 10 - 0.04).ToList();
+        var gapEnd = 10 + (60 * 3.2 / bpm);
+        var expected = Beats(bpm, 0, gapEnd + (60 / bpm))
+            .Where(t => t >= 10 - 0.04 && t <= gapEnd + 0.05).ToList();
         Assert.Equal(expected.Count, crossings.Count);
         foreach (var (beat, at) in expected.Zip(crossings))
         {
