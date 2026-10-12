@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.16.1 - 2026-10-12
+
+### Improved
+
+- **Visualisations move with the music.** Every software visualisation now thumps on the
+  kick, swells with the bass and lands on the beat, and is still in silence. Levels are
+  measured against each song's own quiet and loud, so a quiet recording moves as much as a
+  loud one. A beat clock locks to the kicks, keeps time through a busy mix, and stands in
+  for a kick the mix hides. The picture is drawn from the sound that will be playing when
+  it reaches the screen, at sixty frames a second when the computer keeps up.
+- **Beat meter.** Each visualisation can show a strip of what it hears: the spectrum, the
+  bass, middle and treble, the punch, the loudness, and a light on every beat.
+
+### Added
+
+- **`rexplay pulse`.** Hears a file as the visualisations do and reports its tempo, every
+  beat, when the beat clock locked, and how strongly the music moves the levels; `--json`
+  gives the same as one document.
+
 ## 0.16.0 - 2026-10-12
 
 ### Added
