@@ -479,6 +479,10 @@ public sealed partial class MainWindow
                 OnLibraryBack(sender, e);
                 e.Handled = true;
                 break;
+            case VirtualKey.F2 when LibraryList.SelectedItem is LibraryRow { Item: NamedPlaylist playlist }:
+                _ = RenamePlaylistAsync(playlist.Id);
+                e.Handled = true;
+                break;
             case VirtualKey.Delete when EntriesOf(SelectedLibraryRows()).Count > 0:
                 _ = ChooseLibraryDeletionAsync();
                 e.Handled = true;
