@@ -1,9 +1,7 @@
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
 using Rex.Media.Library;
-using Rex.Media.Primitives;
 using Rex.Media.Settings;
-using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
 
@@ -30,7 +28,7 @@ public sealed class LibraryControllerActionsTests
         Assert.Throws<ArgumentNullException>(() => controller.PlayNextFromLibrary(null!));
         Assert.Throws<ArgumentNullException>(() => controller.PlayFromLibrary(null!));
         Assert.Throws<ArgumentNullException>(() => controller.EnqueueFromLibrary(null!));
-        Assert.Throws<ArgumentNullException>(() => controller.ItemOf(null!));
+        Assert.Throws<ArgumentNullException>(() => PlayerController.ItemOf(null!));
         Assert.Throws<ArgumentNullException>(() => controller.MarkWatched(null!));
         Assert.Throws<ArgumentNullException>(() => controller.MarkUnwatched(null!));
         Assert.Throws<ArgumentNullException>(() => controller.ResetProgress(null!));
@@ -108,7 +106,7 @@ public sealed class LibraryControllerActionsTests
         controller.ForgetDeleted([b]);
         Assert.Null(library.Entry(b));
         Assert.Empty(library.Entries);
-        Assert.Equal(0, controller.Playlist.Items.Count);
+        Assert.Empty(controller.Playlist.Items);
     }
 
     [Fact]
