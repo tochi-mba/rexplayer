@@ -257,6 +257,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
+    /// <summary>Where the removal preview's last fill came from: pixels the video showed, and pixels synthesised.</summary>
+    public (bool Erase, int ObservedPixels, int EstimatedPixels) SubjectFill()
+    {
+        lock (_gate)
+        {
+            return (_subjectEdit.Erase, _subjectEdit.ObservedPixels, _subjectEdit.EstimatedPixels);
+        }
+    }
+
     /// <summary>The panel's new size in physical pixels, applied before the next picture is drawn.</summary>
     public void Resize(int width, int height)
     {

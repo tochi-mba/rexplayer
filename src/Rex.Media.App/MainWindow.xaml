@@ -314,38 +314,43 @@
                         AutomationProperties.AutomationId="SubjectRemovalSection"
                         AutomationProperties.Name="Removal preview">
                 <StackPanel Spacing="4">
+                  <TextBlock x:Name="SubjectRemovalDescription" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap"
+                             AutomationProperties.AutomationId="SubjectRemovalDescription" />
                   <Button x:Name="SubjectEraseButton" Content="Preview removal" HorizontalAlignment="Stretch"
                           Click="OnSubjectErase" IsEnabled="False"
                           AutomationProperties.AutomationId="SubjectErase"
                           AutomationProperties.Name="Preview removing the subject; the file is not changed" />
+                  <TextBlock x:Name="SubjectFillText" Foreground="#FF45ECD2" FontSize="12" TextWrapping="Wrap"
+                             AutomationProperties.AutomationId="SubjectFillText"
+                             AutomationProperties.LiveSetting="Polite"
+                             AutomationProperties.Name="Where the removal fill comes from" />
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Edge softness" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
+                    <TextBlock x:Name="SubjectToleranceLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
+                    <TextBlock x:Name="SubjectToleranceText" Grid.Column="1" Text="50%, balanced" Foreground="#FF45ECD2" FontSize="13"
+                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectToleranceText"
+                               AutomationProperties.Name="Subject coverage value" />
+                  </Grid>
+                  <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
+                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance"
+                          AutomationProperties.Name="Subject coverage" />
+                  <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="SubjectFeatherLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
                     <TextBlock x:Name="SubjectFeatherText" Grid.Column="1" Text="3 px" Foreground="#FF45ECD2" FontSize="13"
                                VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectFeatherText"
                                AutomationProperties.Name="Edge softness value" />
                   </Grid>
                   <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
                           ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather"
-                          AutomationProperties.Name="Removal edge softness" />
-                  <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="Colour tolerance" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
-                    <TextBlock x:Name="SubjectToleranceText" Grid.Column="1" Text="50%" Foreground="#FF45ECD2" FontSize="13"
-                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectToleranceText"
-                               AutomationProperties.Name="Colour tolerance value" />
-                  </Grid>
-                  <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
-                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance"
-                          AutomationProperties.Name="Removal mask colour tolerance" />
-                  <TextBlock Text="A preview only: the file is never changed. Areas that were never visible are estimates."
-                             Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
+                          AutomationProperties.Name="Edge softness" />
+                  <TextBlock x:Name="SubjectRemovalNote" Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
               </Expander>
 
