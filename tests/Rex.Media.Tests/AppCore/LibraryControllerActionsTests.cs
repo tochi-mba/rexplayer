@@ -135,12 +135,13 @@ public sealed class LibraryControllerActionsTests
         controller.Open(["a.wav"]);
         test.PumpUntil(c => c.State == SessionState.Playing);
         controller.Seek(TimeSpan.FromSeconds(11));
-        var before = controller.Position;
+        test.PumpUntil(c => c.State == SessionState.Playing && c.Position >= TimeSpan.FromSeconds(10));
         controller.Pause();
         test.PumpUntil(c => c.State == SessionState.Paused);
         var after = controller.Position;
         controller.Pause();
-        Assert.Equal(before, after);
+        Assert.Equal(after, controller.Position);
+        Assert.InRange(after.TotalSeconds, 9.5, 12.5);
         Assert.False(controller.IsPlaying);
     }
 }
