@@ -56,7 +56,7 @@ public sealed partial class PlayerController
         _nextEpisode = null;
         _automaticSkip = null;
         _automaticallySkipped.Clear();
-        if (!CanMarkEpisodeSections || CurrentEpisode is not { } identity || !File.Exists(Item!.Location))
+        if (!CanMarkEpisodeSections || CurrentEpisode is not { } identity || !Path.IsPathFullyQualified(Item!.Location))
         {
             _showSkips = new ShowSkipping(false, false);
             return;
@@ -64,15 +64,13 @@ public sealed partial class PlayerController
 
         _showSkips = Memory.ShowSkips(identity.Show);
         var path = Item.Location;
-        var signature = SectionAnalysis.SignatureOf(path);
-        _activeProposals = Memory.Proposals(path, signature);
-        var analyzer = _activeProposals is { Candidates.Count: > 0 } ? null : SectionAnalyzer;
+        var analyzer = SectionAnalyzer;
         var stop = new CancellationTokenSource();
         // Capture the token before the worker is scheduled: a rapid episode change can
         // cancel and dispose its source before the background delegate starts running.
         var token = stop.Token;
         _sectionStop = stop;
-        var worker = new Thread(() => FindSections(path, signature, analyzer, token))
+        var worker = new Thread(() => FindSections(path, analyzer, token))
         {
             IsBackground = true,
             Priority = ThreadPriority.BelowNormal,
@@ -86,11 +84,22 @@ public sealed partial class PlayerController
     /// siblings. Sibling features are cached independently: adding an episode doesn't rescan
     /// previously decoded recordings, only the across-episode match is repeated.
     /// </summary>
-    private void FindSections(string path, string signature,
+    private void FindSections(string path,
         Func<string, CancellationToken, EpisodeAnalysis>? analyzer, CancellationToken token)
     {
         try
         {
+            var signature = SectionAnalysis.SignatureOf(path);
+            var cached = Memory.Proposals(path, signature);
+            _dispatch(() =>
+            {
+                if (!token.IsCancellationRequested && Item?.Location == path)
+                {
+                    _activeProposals = cached;
+                    Changed?.Invoke(this, EventArgs.Empty);
+                    PositionChanged?.Invoke(this, EventArgs.Empty);
+                }
+            });
             var folder = Path.GetDirectoryName(path)!;
             var files = Directory.EnumerateFiles(folder)
                 .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
@@ -104,7 +113,7 @@ public sealed partial class PlayerController
                     Changed?.Invoke(this, EventArgs.Empty);
                 }
             });
-            if (analyzer is null)
+            if (analyzer is null || cached is { Candidates.Count: > 0 })
             {
                 return;
             }
