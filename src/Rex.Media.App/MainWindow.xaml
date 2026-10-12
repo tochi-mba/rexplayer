@@ -426,7 +426,7 @@
         </Border>
       </Grid>
 
-      <!-- The media library (LIB-05), over the picture while it is open; what plays keeps playing. -->
+      <!-- The media library (LIB-05), over the picture while it is open; playback follows the library preference. -->
       <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
             AutomationProperties.AutomationId="LibraryPane" AutomationProperties.Name="Library">
         <Grid.ColumnDefinitions>
@@ -514,20 +514,22 @@
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <DropDownButton x:Name="LibraryLookButton" AutomationProperties.AutomationId="LibraryLook" ToolTipService.ToolTip="How the view is laid out" />
             <DropDownButton x:Name="LibrarySortButton" Grid.Column="1" AutomationProperties.AutomationId="LibrarySort" ToolTipService.ToolTip="What the view is ordered by" />
             <DropDownButton x:Name="LibraryGroupButton" Grid.Column="2" AutomationProperties.AutomationId="LibraryGroup" ToolTipService.ToolTip="What the view is gathered under" />
-            <StackPanel x:Name="LibrarySizePanel" Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
+            <DropDownButton x:Name="LibraryFilterButton" Grid.Column="3" AutomationProperties.AutomationId="LibraryFilter" AutomationProperties.Name="Filter by progress, type or folder" ToolTipService.ToolTip="Filter this view by progress, media type or folder" />
+            <StackPanel x:Name="LibrarySizePanel" Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
               <FontIcon Glyph="&#xE71E;" FontSize="12" Opacity="0.7" />
               <Slider x:Name="LibraryCardSize" Width="110" Minimum="120" Maximum="360" StepFrequency="10" VerticalAlignment="Center"
                       ValueChanged="OnLibraryCardSizeChanged" AutomationProperties.AutomationId="LibraryCardSize" AutomationProperties.Name="Card size" />
             </StackPanel>
-            <TextBlock x:Name="LibraryStatus" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            <TextBlock x:Name="LibraryStatus" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus" />
-            <TextBox x:Name="LibrarySearch" Grid.Column="5" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
+            <TextBox x:Name="LibrarySearch" Grid.Column="6" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
           </Grid>
 
