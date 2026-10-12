@@ -57,6 +57,7 @@ public sealed partial class MainWindow
         _subjectTimer.Interval = TimeSpan.FromMilliseconds(200);
         _subjectTimer.IsRepeating = true;
         _subjectTimer.Tick += (_, _) => PollSubjectOverlay();
+        WireRemovalTools();
     }
 
     /// <summary>Tools in both the video menu and the picture's context menu.</summary>
@@ -90,8 +91,7 @@ public sealed partial class MainWindow
         SubjectHelpSection.IsExpanded = _settings.SubjectHelpOpen;
         _subjectOpen = true;
         UpdateSubjectPanelHelp();
-        SubjectFeatherText.Text = SubjectPanel.FeatherText((int)SubjectFeather.Value);
-        SubjectToleranceText.Text = SubjectPanel.ToleranceText((int)SubjectTolerance.Value);
+        ShowRemovalReadouts();
         SubjectCanvas.Visibility = Visibility.Visible;
         SubjectToolbar.Visibility = Visibility.Visible;
         SizeSubjectToolbar();
@@ -278,8 +278,7 @@ public sealed partial class MainWindow
 
         var feather = (int)SubjectFeather.Value;
         var tolerance = (int)SubjectTolerance.Value;
-        SubjectFeatherText.Text = SubjectPanel.FeatherText(feather);
-        SubjectToleranceText.Text = SubjectPanel.ToleranceText(tolerance);
+        ShowRemovalReadouts();
         if (_presenter is null)
         {
             return;
