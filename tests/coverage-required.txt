@@ -72,7 +72,9 @@ Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
 LevelMeter.cs
+LibraryActions.cs
 LibraryArrangement.cs
+LibraryOpening.cs
 LibraryBackup.cs
 LibraryScanner.cs
 LibraryViews.cs
