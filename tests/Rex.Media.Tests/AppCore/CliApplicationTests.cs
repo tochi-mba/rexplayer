@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Player;
 using System.Text.Json;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Cli;
@@ -61,6 +62,85 @@ public sealed class CliApplicationTests : IDisposable
         Assert.Contains("wav", data.GetProperty("containers").EnumerateArray().Select(e => e.GetString()));
         Assert.Equal("rexplayer PCM", data.GetProperty("decoders")[0].GetProperty("name").GetString());
         Assert.DoesNotContain("\\u003C", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SectionsCommandReturnsOneJsonDocumentWithoutChangingPlayback()
+    {
+        var data = new WavBuilder().Format(1, 1, 8000, 2, 16).Data(new byte[16_000]).Build();
+        var episode = Fixture("Series.S01E01.wav", data);
+        _ = Fixture("Series.S01E02.wav", data);
+
+        var (exit, output, error) = Run(null, "sections", episode, "--season-folder", _directory, "--json");
+        Assert.Equal(0, exit);
+        Assert.Empty(error);
+        var document = Single(output);
+        Assert.True(document.GetProperty("ok").GetBoolean());
+        Assert.Equal("sections", document.GetProperty("command").GetString());
+        var payload = document.GetProperty("data");
+        Assert.Equal(episode, payload.GetProperty("file").GetString());
+        Assert.Equal(1, payload.GetProperty("episodesCompared").GetInt32());
+        Assert.Empty(payload.GetProperty("proposals").EnumerateArray());
+        Assert.False(payload.GetProperty("autoSkipEnabled").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, payload.GetProperty("chapterHints").ValueKind);
+        Assert.NotEmpty(payload.GetProperty("signature").GetString()!);
+
+        var human = Run(null, "sections", episode);
+        Assert.Equal(0, human.Exit);
+        Assert.Contains("compared with 1 episodes", human.Out, StringComparison.Ordinal);
+        Assert.Contains("nothing will be skipped", human.Out, StringComparison.Ordinal);
+
+        var noFolder = Run(null, "sections", episode, "--season-folder",
+            Path.Combine(_directory, "missing"), "--json");
+        Assert.Equal(1, noFolder.Exit);
+        Assert.Equal("CliException", Single(noFolder.Out).GetProperty("error").GetProperty("type").GetString());
+
+        var unknown = Run(null, "sections", Path.Combine(_directory, "not-there.mp4"), "--json");
+        Assert.Equal(1, unknown.Exit);
+        Assert.False(Single(unknown.Out).GetProperty("ok").GetBoolean());
+    }
+
+
+    [Fact]
+    public void SectionsInspectsRepeatedOpeningsAndContinuesPastAnUnreadableEpisode()
+    {
+        var audio = new byte[16 * 8000 * 2];
+        for (var sample = 0; sample < audio.Length / 2; sample++)
+        {
+            var time = sample / 8000.0;
+            var wave = 0.3 * Math.Sin(2 * Math.PI * 320 * time) +
+                0.28 * Math.Sin(2 * Math.PI * (500 + (int)(time / 2) * 23) * time);
+            System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(
+                audio.AsSpan(sample * 2, 2), (short)Math.Round(wave * 32767));
+        }
+
+        var info = EbmlWriter.Element(Rex.Media.Containers.Matroska.MatroskaId.Info,
+            EbmlWriter.UInt(Rex.Media.Containers.Matroska.MatroskaId.TimestampScale, 1_000_000),
+            EbmlWriter.Float(Rex.Media.Containers.Matroska.MatroskaId.Duration, 600_000));
+        var recording = Rex.Media.Tests.Containers.MatroskaCraftedTests.Mkv(
+            info,
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Tracks(
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.PcmTrack()),
+            Rex.Media.Tests.Containers.MatroskaCraftedTests.Cluster(0,
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(1, 0, true, audio)));
+        var first = Fixture("Series.S01E01.mkv", recording);
+        Fixture("Series.S01E02.mkv", recording);
+        Fixture("Series.S01E03.mkv", [0, 1, 2, 3]);
+
+        var machine = Run(null, "sections", first, "--json");
+        Assert.Equal(0, machine.Exit);
+        var payload = Single(machine.Out).GetProperty("data");
+        Assert.Equal(1, payload.GetProperty("episodesCompared").GetInt32());
+        var proposals = payload.GetProperty("proposals").EnumerateArray().ToArray();
+        var intro = Assert.Single(proposals, x => x.GetProperty("kind").GetString() == "intro");
+        Assert.True(intro.GetProperty("confidence").GetDouble() >= SectionProposals.OfferThreshold);
+        Assert.True(intro.GetProperty("end").GetDouble() > intro.GetProperty("start").GetDouble());
+        Assert.Equal("shared audio", intro.GetProperty("source").GetString());
+        Assert.NotEmpty(intro.GetProperty("reason").GetString()!);
+
+        var plain = Run(null, "sections", first);
+        Assert.Equal(0, plain.Exit);
+        Assert.Contains("Intro:", plain.Out, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -161,6 +161,9 @@ public sealed class MediaSessionTests
         await harness.Session.OpenAsync(SessionHarness.Source(Ramp));
 
         await harness.Session.SeekAsync(MediaTime.FromSeconds(0.5));
+        // Wait for the first seek to finish before requesting the end. This test
+        // proves sequential paused seeks, not cancellation of an in-flight seek.
+        harness.WaitFor<SeekCompletedEvent>(e => e.Position == MediaTime.FromSeconds(0.5));
         await harness.Session.SeekAsync(MediaTime.FromSeconds(50));
         harness.WaitFor<SeekCompletedEvent>(e => e.Position == MediaTime.FromSeconds(1));
         await harness.FinishAsync();

@@ -57,6 +57,86 @@ public sealed class EpisodeSectionsTests
 
     [Fact]
     [Capability("PB-10")]
+    public void ObviousDetectionsOfferOneClickSkipWithoutConfirmation()
+    {
+        var duration = TimeSpan.FromMinutes(43);
+        var start = TimeSpan.FromSeconds(68);
+        var end = TimeSpan.FromSeconds(145);
+        var intro = new SectionCandidate(EpisodeSectionKind.Intro, start, end,
+            0.94, "Opening repeated across episodes", "shared audio");
+        var credits = new SectionCandidate(EpisodeSectionKind.Credits,
+            TimeSpan.FromMinutes(41), TimeSpan.FromMinutes(42), 0.91,
+            "Shared end music", "shared audio");
+        var proposals = new SectionProposals("123:456", [intro, credits]);
+        var none = new EpisodeSections();
+
+        // A detection above the confidence threshold is an offer immediately.
+        // Saving the proposal as manually confirmed is never a prerequisite.
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Intro, end),
+            proposals.Offer(none, TimeSpan.FromSeconds(90), duration));
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Credits, TimeSpan.FromMinutes(42)),
+            proposals.Offer(none, TimeSpan.FromMinutes(41.5), duration));
+        Assert.Null(proposals.Offer(none, TimeSpan.FromSeconds(40), duration));
+        Assert.Null(proposals.Offer(none, end, duration));
+        Assert.Null(proposals.Offer(none, duration, duration));
+
+        // A threshold failure or a user rejection must never create a skip offer.
+        var uncertain = proposals.Adjust(intro with { Confidence = SectionProposals.OfferThreshold - 0.01 });
+        Assert.Null(uncertain.Offer(none, TimeSpan.FromSeconds(90), duration));
+        Assert.Null(proposals.Reject(EpisodeSectionKind.Intro).Offer(none, TimeSpan.FromSeconds(90), duration));
+        Assert.NotNull(proposals.Reject(EpisodeSectionKind.Intro).Reject(EpisodeSectionKind.Intro, false)
+            .Offer(none, TimeSpan.FromSeconds(90), duration));
+
+        // Saved boundaries take precedence and override inferred ones.
+        var manual = new EpisodeSections(TimeSpan.FromSeconds(80), TimeSpan.FromSeconds(110));
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Intro, TimeSpan.FromSeconds(110)),
+            proposals.Offer(manual, TimeSpan.FromSeconds(90), duration));
+        Assert.Null(proposals.Offer(new EpisodeSections(IntroStart: TimeSpan.FromSeconds(70)),
+            TimeSpan.FromSeconds(90), duration));
+    }
+
+    [Fact]
+    [Capability("PB-10")]
+    public void ChapterDetectionOnlyOffersNamedAndBoundedSegments()
+    {
+        static Rex.Media.Primitives.Chapter At(double seconds, string title) =>
+            new(Rex.Media.Primitives.MediaTime.FromSeconds(seconds), title);
+        var chapters = new[]
+        {
+            At(2400, "Post-credit scene"), At(2100, "End Credits"), At(120, "Act one"),
+            At(10, "Opening Theme"), At(0, "Previously on"),
+        };
+        var detected = EpisodeSectionDetection.Suggest(chapters, TimeSpan.FromSeconds(2500));
+        Assert.NotNull(detected);
+        Assert.Equal(new EpisodeSections(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(120),
+            TimeSpan.FromSeconds(2100), TimeSpan.FromSeconds(2400)), detected);
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Intro, TimeSpan.FromSeconds(120)),
+            detected.Offer(TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(2500)));
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Credits, TimeSpan.FromSeconds(2400)),
+            detected.Offer(TimeSpan.FromSeconds(2200), TimeSpan.FromSeconds(2500)));
+
+        Assert.Null(EpisodeSectionDetection.Suggest([], TimeSpan.FromMinutes(30)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(0, "Intro")], TimeSpan.FromSeconds(1)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(0, "Previously on"), At(10, "Act one")], TimeSpan.FromMinutes(30)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(0, "Intro"), At(10, "Intro"), At(100, "Act one")], TimeSpan.FromMinutes(10)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(0, "Intro"), At(1000, "Act one")], TimeSpan.FromMinutes(30)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(1400, "Opening"), At(1450, "Act one")], TimeSpan.FromMinutes(40)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(30, "Credits"), At(90, "Act one")], TimeSpan.FromMinutes(40)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(0, "Intro"), At(1, "Act one")], TimeSpan.FromMinutes(30)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(-2, "Opening"), At(30, "Act one")], TimeSpan.FromMinutes(30)));
+        Assert.Null(EpisodeSectionDetection.Suggest([At(20, "Credits"), At(2500, "End")], TimeSpan.FromMinutes(30)));
+        Assert.Null(EpisodeSectionDetection.Suggest([new Rex.Media.Primitives.Chapter(Rex.Media.Primitives.MediaTime.Unknown, "Intro")], TimeSpan.FromMinutes(30)));
+
+        var onlyCredits = EpisodeSectionDetection.Suggest([At(2000, "  ENDING  ")], TimeSpan.FromSeconds(2400));
+        Assert.NotNull(onlyCredits);
+        Assert.Null(onlyCredits.IntroStart);
+        Assert.Equal(TimeSpan.FromSeconds(2400), onlyCredits.CreditsEnd);
+        Assert.Null(EpisodeSectionDetection.Suggest([At(2000, "Credits"), At(2200, "Closing Credits")], TimeSpan.FromSeconds(2400)));
+        Assert.Throws<ArgumentNullException>(() => EpisodeSectionDetection.Suggest(null!, TimeSpan.FromMinutes(30)));
+    }
+
+    [Fact]
+    [Capability("PB-10")]
     public void TheMarkersPersistPerFileEvenIfHistoryIsDisabled()
     {
         var store = RexStore.InMemory();
@@ -136,6 +216,8 @@ public sealed class EpisodeSectionsTests
         var player = harness.Controller;
         Assert.False(player.CanMarkEpisodeSections);
         Assert.Null(player.AvailableEpisodeSkip);
+        Assert.Null(player.ChapterSectionSuggestions);
+        Assert.False(player.ApplyChapterSectionSuggestions());
         Assert.Equal(new EpisodeSections(), player.CurrentSections);
         Assert.False(player.MarkEpisodeSection(EpisodeSectionKind.Intro, true));
         Assert.False(player.ClearEpisodeSection(EpisodeSectionKind.Credits));

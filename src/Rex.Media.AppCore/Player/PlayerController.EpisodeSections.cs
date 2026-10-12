@@ -2,7 +2,7 @@ using Rex.Media.Primitives;
 
 namespace Rex.Media.AppCore.Player;
 
-/// <summary>Viewer-controlled episode chapters; never estimates or automatically skips content.</summary>
+/// <summary>Confirmed boundaries and high-confidence detected sections; automatic skipping is strictly opt-in.</summary>
 public sealed partial class PlayerController
 {
     /// <summary>Only a seekable video can be marked or skipped, never a song or an unknown stream.</summary>
@@ -13,9 +13,9 @@ public sealed partial class PlayerController
     public EpisodeSections CurrentSections =>
         Item is { } item ? Memory.Sections(MemoryKey(item)) : new EpisodeSections();
 
-    /// <summary>Visible only while inside a complete, valid intro or credits range.</summary>
+    /// <summary>One-click skip offered from confirmed boundaries or sufficiently confident detection, without asking for confirmation.</summary>
     public EpisodeSkip? AvailableEpisodeSkip =>
-        CanMarkEpisodeSections ? CurrentSections.Offer(Position, Duration) : null;
+        CanMarkEpisodeSections ? (CurrentSections.Offer(Position, Duration) ?? _activeProposals?.Offer(CurrentSections, Position, Duration)) : null;
 
     /// <summary>Record an exact start or end at the current frame, or the explicit file end.</summary>
     public bool MarkEpisodeSection(EpisodeSectionKind kind, bool start, bool atVideoEnd = false)
@@ -49,7 +49,38 @@ public sealed partial class PlayerController
         return true;
     }
 
-    /// <summary>A click seeks past precisely the user's saved segment; no automatic skipping.</summary>
+    /// <summary>Optional hints from labeled container chapters; never a time guessed from duration.</summary>
+    public EpisodeSections? ChapterSectionSuggestions =>
+        CanMarkEpisodeSections && Info is { } info ? EpisodeSectionDetection.Suggest(info.Chapters, Duration) : null;
+
+    /// <summary>Only an explicit user confirmation commits missing chapter-derived ranges.</summary>
+    public bool ApplyChapterSectionSuggestions()
+    {
+        if (!CanMarkEpisodeSections || Item is not { } item || ChapterSectionSuggestions is not { } suggested)
+        {
+            return false;
+        }
+
+        var saved = CurrentSections;
+        var updated = saved with
+        {
+            IntroStart = saved.IntroStart is null && saved.IntroEnd is null ? suggested.IntroStart : saved.IntroStart,
+            IntroEnd = saved.IntroStart is null && saved.IntroEnd is null ? suggested.IntroEnd : saved.IntroEnd,
+            CreditsStart = saved.CreditsStart is null && saved.CreditsEnd is null ? suggested.CreditsStart : saved.CreditsStart,
+            CreditsEnd = saved.CreditsStart is null && saved.CreditsEnd is null ? suggested.CreditsEnd : saved.CreditsEnd,
+        };
+        if (updated == saved)
+        {
+            return false;
+        }
+
+        Memory.SetSections(MemoryKey(item), updated);
+        Say("Chapter section markers saved. Playback will never skip them without a click.");
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>One click skips the current confirmed or detected section; detection does not alter saved boundaries.</summary>
     public bool SkipEpisodeSection()
     {
         if (AvailableEpisodeSkip is not { } skip)

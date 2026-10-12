@@ -64,6 +64,10 @@ public sealed partial class MainWindow
         keepLibraryAudio.IsEnabled = pauseLibrary.IsChecked == true;
         pauseLibrary.Checked += (_, _) => keepLibraryAudio.IsEnabled = true;
         pauseLibrary.Unchecked += (_, _) => keepLibraryAudio.IsEnabled = false;
+        var autoIntro = Check("Skip detected or confirmed intros automatically", s.SkipIntrosAutomatically);
+        var autoCredits = Check("Skip detected or confirmed credits automatically", s.SkipCreditsAutomatically);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(autoIntro, "PreferencesAutoSkipIntro");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(autoCredits, "PreferencesAutoSkipCredits");
         var queue = Check("Put the playlist back when rexplayer starts", s.RestoreQueue);
         var sleep = Choice("When the sleep timer's time comes", ["Pause", "Stop"], (int)s.SleepAction);
         var audioLanguages = Words("Play sound in (languages, best first, such as \"ja, original\")", s.AudioLanguages);
@@ -118,6 +122,11 @@ public sealed partial class MainWindow
         content.Children.Add(Heading("Library playback"));
         content.Children.Add(pauseLibrary);
         content.Children.Add(keepLibraryAudio);
+
+        content.Children.Add(Heading("Episode sections"));
+        content.Children.Add(new TextBlock { Text = "Detected sections can be confirmed, adjusted or rejected. Automatic skipping is off until you choose it.", TextWrapping = TextWrapping.Wrap });
+        content.Children.Add(autoIntro);
+        content.Children.Add(autoCredits);
 
         content.Children.Add(Heading("Memory"));
         foreach (var control in new UIElement[] { resume, history, queue, sleep })
@@ -179,6 +188,8 @@ public sealed partial class MainWindow
             KeepHistory = history.IsChecked == true,
             PauseWhenLibraryOpens = pauseLibrary.IsChecked == true,
             KeepAudioPlayingInLibrary = keepLibraryAudio.IsChecked == true,
+            SkipIntrosAutomatically = autoIntro.IsChecked == true,
+            SkipCreditsAutomatically = autoCredits.IsChecked == true,
             RestoreQueue = queue.IsChecked == true,
             SleepAction = (SleepChoice)sleep.SelectedIndex,
             AudioLanguages = audioLanguages.Text,

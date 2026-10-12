@@ -248,16 +248,12 @@ public sealed partial class PlayerController
                 Info = opened.Info;
                 _log.Info(LogSource, "Opened " + Describe(opened.Info));
                 Duration = PartDuration(opened.Info.Duration);
+                BeginSectionDetection();
                 Memory.Played(Item!.Location);
                 CountPlay(Item);
                 FindPresentation(Item, opened.Info);
                 AddEmbeddedSubtitles(opened.Info);
                 Changed?.Invoke(this, EventArgs.Empty);
-
-                // The position was announced as the item started, before its length was known. An
-                // item opened paused part-way (restored after an update, say) reports no position
-                // until it plays, so the window learns the length here or shows the thumb at the end.
-                PositionChanged?.Invoke(this, EventArgs.Empty);
                 if (Settings.TitleSeconds > 0)
                 {
                     Say(Title);
@@ -300,6 +296,7 @@ public sealed partial class PlayerController
                 }
 
                 PositionChanged?.Invoke(this, EventArgs.Empty);
+                MaybeSkipAutomatically();
                 QueueNextIfNearTheEnd(session);
                 break;
             case ItemSkippedEvent skipped:

@@ -54,7 +54,7 @@ public sealed partial class MainWindow : Window
     private bool _showRemaining = true;
     private Microsoft.UI.Xaml.Controls.ContentDialog? _dialog;
     private bool _closed;
-    private bool _closing;
+    private volatile bool _closing;
 
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
@@ -75,6 +75,8 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = false;
 
         _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log);
+        _player.SectionAnalyzer = (path, cancellation) => SectionAnalysis.Analyze(path,
+            MediaRegistries.Decoders(new MfDecoderFactory()), cancellation);
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.PositionChanged += (_, _) => ShowLyricLine();
@@ -239,8 +241,6 @@ public sealed partial class MainWindow : Window
 
                 presenter.SetEffect(_settings.VideoEffect, power,
                     VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[1]));
-                var (third, fourth) = VideoStyleOptions.Extras(_settings.VideoStyleValues, effectOptions);
-                presenter.SetEffectExtras(third, fourth);
                 presenter.Redraw();
             });
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
@@ -410,9 +410,7 @@ public sealed partial class MainWindow : Window
         SeekBar.Maximum = Math.Max(1, duration.TotalSeconds);
         if (!_scrubbing)
         {
-            // Until the length is known the thumb has no place to be but the start: clamping a
-            // position of minutes into a one-second rail would show it at the end.
-            SeekBar.Value = duration <= TimeSpan.Zero ? 0 : Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
+            SeekBar.Value = Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
         }
 
         _updatingControls = false;
@@ -547,13 +545,29 @@ public sealed partial class MainWindow : Window
     /// Runs <paramref name="action"/> on the window's thread, unless the window is closing by then:
     /// work queued from another thread as it closes must not wake timers or touch controls that are going.
     /// </summary>
-    private void OnWindowThread(Action action) => DispatcherQueue.TryEnqueue(() =>
+    private void OnWindowThread(Action action)
     {
-        if (!_closing)
+        // Engine events may arrive after Closed, when WinUI has detached this window's
+        // dispatcher. Never access that dispatcher after the window starts closing.
+        if (_closing)
         {
-            action();
+            return;
         }
-    });
+
+        var dispatcher = DispatcherQueue;
+        if (dispatcher is null)
+        {
+            return;
+        }
+
+        dispatcher.TryEnqueue(() =>
+        {
+            if (!_closing)
+            {
+                action();
+            }
+        });
+    }
 
     private void OnClosed(object sender, WindowEventArgs args)
     {
