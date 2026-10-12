@@ -61,13 +61,13 @@ internal static class D3D11VideoShaders
         static const float Bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
         // Palette matching compares brightness and two colour-difference axes separately, so a
         // bright green finds a green rather than the grey of the same brightness.
-        float colourDistance(float3 a, float3 b)
+        float colourDistance(float3 a, float3 b, float lumaWeight)
         {
             float3 d = a - b;
             float luma = dot(d, float3(0.299, 0.587, 0.114));
             float orange = d.r - d.b;
             float green = d.g - (d.r + d.b) * 0.5;
-            return luma * luma * 2 + orange * orange + green * green;
+            return luma * luma * lumaWeight + orange * orange + green * green;
         }
         float3 nearestBrick(float3 c)
         {
@@ -79,7 +79,7 @@ internal static class D3D11VideoShaders
             float3 chosen = c;
             [loop] for (int i = 0; i < 24; i++)
             {
-                float error = colourDistance(c, BrickPalette[i]);
+                float error = colourDistance(c, BrickPalette[i], 2);
                 if (error < best) { best = error; chosen = BrickPalette[i]; }
             }
             return chosen;
@@ -90,7 +90,7 @@ internal static class D3D11VideoShaders
             float3 chosen = c;
             [loop] for (int i = 0; i < 6; i++)
             {
-                float error = colourDistance(c, CubePalette[i]);
+                float error = colourDistance(c, CubePalette[i], 0.5);
                 if (error < best) { best = error; chosen = CubePalette[i]; }
             }
             return chosen;
@@ -802,13 +802,13 @@ internal static class D3D11VideoShaders
                 float3 here = contourDetail(uv, isYuv);
                 float2 normal0 = here.xy / max(length(here.xy), 0.000001);
                 float2 tangent0 = float2(-normal0.y, normal0.x);
-                float2 px = max(fwidth(uv), float2(0.00022, 0.00022)) * 1.6;
-                float strand = smoothstep(0.006 / detail, 0.16 / detail, here.z);
+                float2 px = max(fwidth(uv), float2(0.00022, 0.00022)) * 2.4;
+                float strand = smoothstep(0.02 / detail, 0.22 / detail, here.z);
                 float coherent = strand;
                 float3 silk = colour;
                 float silkWeight = 1;
                 float turning = 0;
-                float2 footprint = max(fwidth(uv) * 0.9, float2(0.00018, 0.00018)) / detail;
+                float2 footprint = max(fwidth(uv) * 1.8, float2(0.00018, 0.00018)) / detail;
                 [loop] for (int side = 0; side < 2; side++)
                 {
                     float2 position = uv;
@@ -824,7 +824,7 @@ internal static class D3D11VideoShaders
                         float agreement = abs(dot(n, previousNormal));
                         alive *= smoothstep(0.55, 0.85, agreement);
                         float w = 1 - i / 7.0;
-                        coherent += smoothstep(0.006 / detail, 0.16 / detail, g.z) * alive * w;
+                        coherent += smoothstep(0.02 / detail, 0.22 / detail, g.z) * alive * w;
                         silk += readColourAt(position, isYuv) * w;
                         silkWeight += w;
                         turning += (1 - agreement) * alive;
@@ -939,7 +939,7 @@ internal static class D3D11VideoShaders
                     float3 tap = readColourAt(uv + float2(cos(angle) / effect.w, sin(angle)) * 0.012, isYuv);
                     glow += tap * max(dot(tap, weights) - threshold, 0) / max(1 - threshold, 0.05);
                 }
-                colour = saturate(colour + (streak * 0.25 + glow * 0.09) * effect.y * 1.4);
+                colour = saturate(colour + (streak * 0.45 + glow * 0.12) * effect.y * 1.4);
             }
         #endif
         #if EFFECT_ONLY == 30
@@ -954,7 +954,7 @@ internal static class D3D11VideoShaders
                 float2 along = float2(-broad.y, broad.x) / max(length(broad.xy), 0.000001);
                 along = dot(along, diagonal) < 0 ? -along : along;
                 float2 direction = normalize(lerp(diagonal, along, smoothstep(0.01, 0.08, broad.z)) + 0.000001);
-                float lines = lerp(60, 200, extras.x * 0.01);
+                float lines = lerp(40, 120, extras.x * 0.01);
                 float2 p = (uv - 0.5) * float2(effect.w, 1) * lines;
                 float darkness = 1 - dot(colour, float3(0.2126, 0.7152, 0.0722));
                 float weight = max(pointer.w, 0.25);
@@ -964,11 +964,11 @@ internal static class D3D11VideoShaders
                     float angle = family == 0 ? 0 : family == 1 ? 1.5707963 : family == 2 ? 0.78539816 : -0.78539816;
                     float cs = cos(angle), sn = sin(angle);
                     float2 d = float2(direction.x * cs - direction.y * sn, direction.x * sn + direction.y * cs);
-                    float width = saturate(darkness * 4 - family) * 0.32 * weight;
+                    float width = saturate(darkness * 3.2 - family * 0.8) * 0.13 * weight;
                     float gap = abs(frac(dot(p, float2(-d.y, d.x))) - 0.5);
                     ink = max(ink, saturate((width - gap) / 0.08));
                 }
-                ink = max(ink, smoothstep(0.01 / weight, 0.2 / weight, structure.z));
+                ink = max(ink, smoothstep(0.04 / weight, 0.3 / weight, structure.z) * 0.85);
                 float3 paper = extras.y < 0.5 ? float3(0.95, 0.92, 0.84)
                     : extras.y < 1.5 ? float3(0.94, 0.94, 0.90)
                     : extras.y < 2.5 ? float3(0.03, 0.03, 0.035) : float3(0.88, 0.78, 0.60);
@@ -1117,7 +1117,7 @@ internal static class D3D11VideoShaders
                 // A wall of light-emitting diodes on a black panel, each cell lit by the picture
                 // under it: red, green and blue triads, round lamps, amber lamps or square pixels.
                 float3 weights = float3(0.2126, 0.7152, 0.0722);
-                float rows = mosaicRows(140, 28);
+                float rows = mosaicRows(80, 20);
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
@@ -1132,7 +1132,7 @@ internal static class D3D11VideoShaders
                         float spread = dot(offset, offset);
                         float diode = 1 - smoothstep(0.009, 0.016, spread);
                         float3 channel = k == 0 ? float3(1, 0.12, 0.06) : k == 1 ? float3(0.1, 1, 0.2) : float3(0.12, 0.25, 1);
-                        lit += channel * sampled[k] * (diode * 1.6 + exp(-spread * 60) * glow);
+                        lit += channel * sampled[k] * (diode * 2.6 + exp(-spread * 60) * glow * 1.5);
                     }
                 }
                 else if (extras.y < 2.5)
@@ -1159,7 +1159,7 @@ internal static class D3D11VideoShaders
                 // each stream and its trail fading behind. The picture shows through as how
                 // strongly every glyph glows, so shapes stay readable inside the rain.
                 float3 weights = float3(0.2126, 0.7152, 0.0722);
-                float rows = mosaicRows(90, 22);
+                float rows = mosaicRows(56, 16);
                 float2 cells = float2(rows * effect.w * 0.6, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
@@ -1183,7 +1183,7 @@ internal static class D3D11VideoShaders
                     * step(0, inner.x) * step(inner.x, 1) * step(0, inner.y) * step(inner.y, 1);
                 float3 sampled = readColour((cell + 0.5) / cells, isYuv);
                 float lum = dot(sampled, weights);
-                float intensity = glyph * saturate(max(trail * (0.4 + 0.6 * lum), lum * 0.5));
+                float intensity = glyph * saturate(max(trail * (0.5 + 0.5 * lum), lum * 0.9));
                 float3 tint = extras.y < 0.5 ? float3(0.25, 1, 0.45)
                     : extras.y < 1.5 ? float3(0.3, 0.9, 1)
                     : extras.y < 2.5 ? float3(1, 0.7, 0.2) : saturate(sampled * 1.3 + 0.05);
@@ -1197,7 +1197,7 @@ internal static class D3D11VideoShaders
                 // Every cell is a die showing the face that matches the brightness under it:
                 // on white dice a dark area shows six pips and a bright one shows one.
                 float3 weights = float3(0.2126, 0.7152, 0.0722);
-                float rows = mosaicRows(80, 16);
+                float rows = mosaicRows(44, 12);
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
@@ -1232,7 +1232,7 @@ internal static class D3D11VideoShaders
                 // Puzzle cubes, each face a 3x3 grid of stickers. Every sticker takes the cube
                 // colour nearest the picture under it, set in black plastic.
                 float3 weights = float3(0.2126, 0.7152, 0.0722);
-                float rows = mosaicRows(40, 8);
+                float rows = mosaicRows(24, 6);
                 float2 cubes = float2(rows * effect.w, rows);
                 float2 stickers = cubes * 3;
                 float2 sticker = floor(uv * stickers);
@@ -1259,7 +1259,7 @@ internal static class D3D11VideoShaders
                 // Hexagonal tiles in a honeycomb lattice. Each takes the colour under its centre,
                 // with a bevelled edge lit from the top left, set in grout.
                 float3 weights = float3(0.2126, 0.7152, 0.0722);
-                float rows = mosaicRows(90, 14);
+                float rows = mosaicRows(52, 10);
                 float2 scale = float2(effect.w, 1) * rows;
                 float2 p = (uv - 0.5) * scale;
                 float2 s = float2(1, 1.7320508);
