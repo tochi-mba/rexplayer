@@ -323,17 +323,11 @@ internal static class D3D11VideoShaders
             float fineConfidence = fine.z / (fine.z + k * noise + floorEnergy);
             float broadConfidence = broad.z / (broad.z + k * max(noise, broad.w) + floorEnergy * 2);
             float confidence = max(fineConfidence, broadConfidence * 0.92);
-            // Clear outlines (real contrast, well above the noise) always count; fainter responses
-            // need neighbours along the edge unless they stand far above the noise.
+            // Bold outlines count directly; faint ones need spatial continuity.
             float contrast = sqrt(max(fine.z, broad.z * 0.4));
             float strong = smoothstep(0.035 / s, 0.10 / s, contrast) * smoothstep(0.35, 0.6, confidence);
-            // Linking compares the edge's strength either side along it with its strength here, so a
-            // soft edge links as well as a sharp one, and a lone speck (strong here, nothing beside
-            // it) does not.
-            // Averaging signed contrasts along the contour cancels uncorrelated grain while
-            // retaining a faint but persistent line. Measure on both sides of the edge at
-            // eleven points along its tangent, so a single bright noise pixel cannot qualify.
-            // Pure colour boundaries use the colour-structure confidence instead of luma.
+            // Eleven signed, edge-aligned contrasts cancel random grain while retaining lines.
+            // Colour-only boundaries use colour confidence instead of luma.
             float continuity = 1;
             [branch] if (fineLuma >= 0.55 && confidence > 0.20)
             {
@@ -348,16 +342,11 @@ internal static class D3D11VideoShaders
             }
             float weak = smoothstep(0.33, 0.67, confidence) * continuity;
             float edge = max(strong, weak);
-            // Thin the edge to its crest (soft non-maximum suppression across it). Colour-only
-            // boundaries have no luma crest to find, so they keep their width.
+            // Suppress off-crest edges; colour-only boundaries retain their width.
             float centre = fineLuma * fine.z;
             float crest = smoothstep(0.5, 0.95, centre / max(max(n1.x, n2.x), 1e-12));
             crest = lerp(1, crest, fineLuma * fineLuma);
-            // A third, wide scale finds soft boundaries (a blurred background, a shape in deep shadow)
-            // that are too gradual for the other two. Contrast is measured against the local
-            // brightness, so a dark scene's edges count as much as a bright one's, while gentle shading
-            // across a face stays below it. Where the brightness curve turns (the middle of the soft
-            // edge) a soft line is drawn.
+            // A wide scale catches soft boundaries in dark scenes without tracing gentle shading.
             float2 wideStep = stepUv * 8;
             float4 wide = lumaSlope(uv, wideStep, isYuv);
             float wideSlope = length(wide.xy);
