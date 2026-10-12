@@ -38,10 +38,9 @@ public sealed class D3D11Presenter : IVideoPresenter
     private bool _pointerActive;
     private float _effectStrength = 0.65f;
     private float _effectTime;
-    private float _motionTrail = 0.35f;
-    private int _motionMode = 3;
     private int _optionThird;
     private int _optionFourth;
+    private bool _historyWanted;
     private double _lastMotionTime = double.NaN;
     private long? _motionGeneration;
     private bool _navigator;
@@ -129,58 +128,53 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
-    /// <summary>Non-destructive shader effect and normalized strength, live and safe on paused frames.</summary>
+    /// <summary>
+    /// Non-destructive shader effect and normalized strength, live and safe on paused frames.
+    /// Choosing a different effect starts its third and fourth controls at that effect's defaults,
+    /// so nothing carries over from the previous effect; <see cref="SetEffectExtras"/> then sets
+    /// the saved ones.
+    /// </summary>
     public void SetEffect(VideoEffect effect, int strength, int detail = 100)
     {
         lock (_gate)
         {
             var chosen = Enum.IsDefined(effect) ? effect : VideoEffect.Off;
-            if (_effect != chosen)
+            var changed = _effect != chosen;
+            if (changed)
             {
                 _effect = chosen;
-                UpdateEffectHistory();
+                (_optionThird, _optionFourth) = VideoStyleOptions.Extras(null, VideoStyleOptions.ForEffect(chosen));
             }
+
             _effectStrength = VideoEffects.Strength(strength) / 100f;
             _effectDetail = Math.Clamp(detail, 25, 175) / 100f;
+            UpdateEffectHistory(changed);
         }
     }
 
-    /// <summary>Motion contour trails and visualization mode, independent of line sensitivity.</summary>
-    public void SetMotionOptions(int trails, int mode)
-    {
-        lock (_gate)
-        {
-            _motionTrail = Math.Clamp(trails, 0, 100) / 100f;
-            var selected = Math.Clamp(mode, 0, 3);
-            if (_motionMode != selected)
-            {
-                _motionMode = selected;
-                UpdateEffectHistory();
-            }
-        }
-    }
-
-    /// <summary>Third and fourth effect controls; old frames are kept only for effects that need them.</summary>
+    /// <summary>
+    /// The effect's third and fourth controls as saved (for Ghostwire motion its trail length and
+    /// mode); old frames are kept only while the effect needs them.
+    /// </summary>
     public void SetEffectExtras(int third, int fourth)
     {
         lock (_gate)
         {
-            var nextFourth = Math.Clamp(fourth, 0, 200);
-            if (_optionFourth != nextFourth)
-            {
-                _optionFourth = nextFourth;
-                UpdateEffectHistory();
-            }
-
             _optionThird = Math.Clamp(third, 0, 200);
+            _optionFourth = Math.Clamp(fourth, 0, 200);
+            UpdateEffectHistory(effectChanged: false);
         }
     }
 
-    private void UpdateEffectHistory()
+    private void UpdateEffectHistory(bool effectChanged)
     {
-        var fourth = _effect == VideoEffect.GhostwireMotion ? _motionMode : _optionFourth;
-        _renderer.EnableMotionHistory(VideoEffects.UsesHistory(_effect, fourth));
-        _lastMotionTime = double.NaN;
+        var wanted = VideoEffects.UsesHistory(_effect, (int)MathF.Round(_effectStrength * 100), _optionThird, _optionFourth);
+        if (effectChanged || wanted != _historyWanted)
+        {
+            _historyWanted = wanted;
+            _renderer.EnableMotionHistory(wanted);
+            _lastMotionTime = double.NaN;
+        }
     }
 
     /// <summary>Pointer location within the rendered picture, never persisted or recorded.</summary>
@@ -345,13 +339,12 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             ApplySize();
-            if (VideoEffects.UsesHistory(_effect, _effect == VideoEffect.GhostwireMotion ? _motionMode : _optionFourth))
+            if (_historyWanted)
             {
                 var now = frame.Pts.IsKnown ? frame.Pts.TotalSeconds : double.NaN;
                 // Repeated/stale frames, long gaps, and backwards seeks cannot
                 // contribute a trustworthy motion trail to the next picture.
-                if (_motionGeneration != frame.Generation || !double.IsFinite(now) || !double.IsFinite(_lastMotionTime)
-                    || now <= _lastMotionTime || now - _lastMotionTime > 0.25)
+                if (!VideoEffects.ContinuesHistory(_motionGeneration, _lastMotionTime, frame.Generation, now))
                 {
                     _renderer.ResetMotionHistory();
                 }
@@ -497,14 +490,14 @@ public sealed class D3D11Presenter : IVideoPresenter
         _renderer.Draw(matrix, x, y, fitWidth, fitHeight, (shown.Left, shown.Top, shown.Right, shown.Bottom), SmoothChroma, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime,
             pointerX: _pointerX, pointerY: _pointerY, pointerActive: _pointerActive,
             lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail,
-            motionTrail: _motionTrail, motionMode: _motionMode, optionThird: _optionThird, optionFourth: _optionFourth);
+            optionThird: _optionThird, optionFourth: _optionFourth);
         if (_navigator && _view.IsZoomed)
         {
             var (navigatorX, navigatorY, navigatorWidth, navigatorHeight) = PictureView.Navigator(width, height, across, down);
             _renderer.Draw(matrix, (int)navigatorX, (int)navigatorY, Math.Max(1, (int)navigatorWidth), Math.Max(1, (int)navigatorHeight), (source.Left, source.Top, source.Right, source.Bottom), SmoothChroma, clear: false, look: (int)_look, effect: (int)_effect, strength: _effectStrength, seconds: _effectTime,
             pointerX: _pointerX, pointerY: _pointerY, pointerActive: _pointerActive,
             lookIntensity: _lookIntensity, lookDetail: _lookDetail, effectDetail: _effectDetail,
-                motionTrail: _motionTrail, motionMode: _motionMode, optionThird: _optionThird, optionFourth: _optionFourth);
+                optionThird: _optionThird, optionFourth: _optionFourth);
         }
     }
 }

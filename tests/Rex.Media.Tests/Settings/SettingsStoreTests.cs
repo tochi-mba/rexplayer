@@ -127,15 +127,16 @@ public sealed class SettingsStoreTests : IDisposable
             Assert.All(VideoStyleOptions.ModeNames(effect), name => Assert.False(string.IsNullOrWhiteSpace(name)));
         }
 
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 0));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 30));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 0));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 2));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 1));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 3));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 65, 60, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 65, 0, 70));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 65, 0, 30));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 65, 90, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 2));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 1));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 3));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0, 35, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100, 100, 100));
         Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.Halftone));
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GlyphMosaic).Count);
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.ThermalMap).Count);
@@ -167,7 +168,7 @@ public sealed class SettingsStoreTests : IDisposable
             var options = VideoStyleOptions.ForEffect(effect);
             Assert.Equal(effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
                 or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.TapeWear
-                or VideoEffect.PixelSort or VideoEffect.MotionSmear ? 4 : 2, options.Count);
+                or VideoEffect.PixelSort or VideoEffect.MotionSmear ? 4 : effect == VideoEffect.Off ? 0 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);
@@ -179,7 +180,7 @@ public sealed class SettingsStoreTests : IDisposable
         }
 
         var motion = VideoStyleOptions.ForEffect(VideoEffect.GhostwireMotion);
-        Assert.Equal("Motion emphasis (%)", motion[0].Label);
+        Assert.Equal("Effect intensity (%)", motion[0].Label);
         Assert.Equal("Contour sensitivity (%)", motion[1].Label);
         Assert.Equal("Motion trail length (%)", motion[2].Label);
         Assert.Equal(35, motion[2].Default);
@@ -194,7 +195,8 @@ public sealed class SettingsStoreTests : IDisposable
         var resetOptions = VideoStyleOptions.ForEffect(VideoEffect.CursorLens);
         var reset = VideoStyleOptions.Reset(values, resetOptions);
         Assert.Equal(resetOptions[0].Default, VideoStyleOptions.Read(reset, resetOptions[0]));
-        Assert.False(reset.ContainsKey(resetOptions[0].Key));
+        Assert.Equal(resetOptions[0].Default, reset[resetOptions[0].Key]);
+        Assert.False(reset.ContainsKey(resetOptions[1].Key));
         Assert.True(reset.ContainsKey(VideoStyleOptions.ForEffect(VideoEffect.EdgeGravity)[0].Key));
 
         SettingsStore.Save(File, new PlayerSettings { VideoStyleValues = values });
@@ -234,7 +236,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.Ghostwire));
         Assert.Equal(100, VideoStyleOptions.Read(null, VideoStyleOptions.ForLook((VideoLook)1000)[0]));
-        Assert.Equal(0, VideoStyleOptions.Read(null, VideoStyleOptions.ForEffect((VideoEffect)1000)[0]));
+        Assert.Empty(VideoStyleOptions.ForEffect((VideoEffect)1000));
     }
 
     [Fact]

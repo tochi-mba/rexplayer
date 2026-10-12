@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+### Improved
+
+- **Contour effects find subtle outlines.** Neon contours, Ink trace, Chromatic contours and
+  the three Ghostwire styles now measure edges against the picture's own noise, at three scales
+  and in colour as well as brightness. Faint outlines in dark, soft or low-colour scenes show,
+  while grain, compression noise and banding no longer turn into specks, and lines hold still
+  from one picture to the next. Black bars recorded into a video no longer draw a line.
+- **Each contour effect has its own look.** Neon contours turns the main outlines into pink
+  neon tubes; Ink trace sketches tapering strokes and cross-hatched shadows on paper;
+  Topographic contours draws a tinted, hill-shaded relief map of the picture's brightness;
+  Chromatic contours draws every fine line in the colour of its direction on black; Ghostwire
+  mask mode shows flat violet shapes with solid outlines and dotted inner contours; Ghostwire
+  motion's surface view is a silver relief.
+- **Kaleidoscope, Oil paint and Tape wear look better out of the box.** The kaleidoscope repeats
+  the middle of the picture, oil paint uses broader strokes, and tape wear wobbles visibly.
+- **Effect settings explain themselves.** Every effect describes what it does, every control
+  has a tooltip, the picker in Preferences shows each effect's group, and labels say what the
+  controls really change (for example Cursor lens has Lens size, Kaleidoscope has Mirror zoom).
+  Customizing with no effect on says so instead of showing empty controls.
+
+### Fixed
+
+- Kaleidoscope's Mirror folds and Rotation speed controls now work.
+- Effects with four controls start with their saved settings after the player restarts
+  (Thermal map no longer starts flat grey, Pixel sort and Motion smear no longer start off).
+- Warping effects (Kaleidoscope, Vortex, Liquid glass, Prism flow and others) mirror the
+  picture at its border instead of smearing the edge pixels into streaks, and nothing reads a
+  decoder's padding at the picture's edge.
+- Waves and swirls are the same size across as down on every picture shape; Vortex keeps the
+  edges of the picture still.
+- Halftone print leaves white paper clean and closes full ink up solid.
+- Glyph mosaic's screen palettes light the bright parts of the picture, not the dark ones.
+- Thermal map's Rainbow runs from cold blue to hot red instead of giving black and white the
+  same colour.
+- Pixel sort's streaks run in the direction named, and reach far enough to see.
+- Tape wear wobbles in bands, bleeds colour rather than just red, and has a real
+  head-switching band.
+- Oil paint's Edge sharpness control now changes the strokes.
+- Reset puts an effect's intensity back to its own default.
+- Effects that compare with the previous picture keep it only while they need it (not at
+  zero strength, nor with Motion smear's amount at 0).
+
 ## 0.15.11 - 2026-10-12
 
 ### Added

@@ -228,19 +228,7 @@ public sealed partial class MainWindow : Window
                 presenter.SetLook(_settings.VideoLook,
                     VideoStyleOptions.Read(_settings.VideoStyleValues, lookOptions[0]),
                     VideoStyleOptions.Read(_settings.VideoStyleValues, lookOptions[1]));
-                var effectOptions = VideoStyleOptions.ForEffect(_settings.VideoEffect);
-                var power = _settings.VideoStyleValues.ContainsKey(effectOptions[0].Key)
-                    ? VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[0])
-                    : _settings.VideoEffectStrength;
-                if (_settings.VideoEffect == VideoEffect.GhostwireMotion)
-                {
-                    presenter.SetMotionOptions(
-                        VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[2]),
-                        VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[3]));
-                }
-
-                presenter.SetEffect(_settings.VideoEffect, power,
-                    VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[1]));
+                ConfigureEffect(presenter, _settings.VideoEffect, _settings.VideoStyleValues, _settings.VideoEffectStrength);
                 presenter.Redraw();
             });
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
