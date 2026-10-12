@@ -214,6 +214,11 @@ public sealed class MusicPulse
         var kickGap = _kick.Since;
         var bassBefore = _bassDb;
         _kick.Hear(Rise(ref _bassDb, _bassRaw), _bassPower, dt, listening);
+        if (_kick.Hit)
+        {
+            _bass = 1;
+        }
+
         Punching(dt, bassBefore);
         _snare.Hear(Rise(ref _midDb, _midRaw), _midPower, dt, listening);
         _hat.Hear(Rise(ref _trebleDb, _trebleRaw), _treblePower, dt, _primed && RawLoudness > 0.1f);
@@ -370,7 +375,9 @@ public sealed class MusicPulse
         (_bassRaw, _midRaw, _trebleRaw) = (AdaptiveRange.Decibels(_bassPower), AdaptiveRange.Decibels(_midPower), AdaptiveRange.Decibels(_treblePower));
 
         RawLoudness = (float)Math.Clamp((whole + 60) / 60, 0, 1);
-        _bass = Envelope(_bass, _bassRange.Map(_bassRaw, dt), dt, 0.065);
+        // Leave room above ordinary bass notes for the full punch of a detected kick,
+        // including when the mix keeps a constant bass line underneath.
+        _bass = Envelope(_bass, 0.38f * _bassRange.Map(_bassRaw, dt), dt, 0.065);
         _mid = Envelope(_mid, _midRange.Map(_midRaw, dt), dt, 0.12);
         _treble = Envelope(_treble, _trebleRange.Map(_trebleRaw, dt), dt, 0.06);
         _loudness = Envelope(_loudness, _loudnessRange.Map(whole, dt), dt, 0.09);
