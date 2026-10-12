@@ -122,14 +122,16 @@ public sealed class SubjectEditSessionTests
         using var source = Picture();
         tracker.Process(source);
         tracker.SetErase(true);
-        using var sharp = tracker.Process(source);
+        // A second rendering of the same frame is a paused redraw, not a new
+        // tracking observation. Preserve the background plate from the first pass.
+        using var sharp = tracker.Process(source, advanceTracking: false);
         Assert.NotNull(sharp);
         var originalPixel = source.Row(0, 26)[36 * 4 + 2];
         var sharpPixel = sharp.Row(0, 26)[36 * 4 + 2];
         Assert.NotEqual(originalPixel, sharpPixel);
 
         tracker.Refine(12, 0);
-        using var feathered = tracker.Process(source);
+        using var feathered = tracker.Process(source, advanceTracking: false);
         Assert.NotNull(feathered);
         Assert.Equal(originalPixel, source.Row(0, 26)[36 * 4 + 2]);
         Assert.NotEqual(sharp.Row(0, 20)[30 * 4 + 2],
