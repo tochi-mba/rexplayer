@@ -26,7 +26,7 @@ public sealed partial class MainWindow
     private bool _subjectAutoFollowing;
     private long _subjectRevision;
     // Wired to SubjectEditSession.SelectAround when it lands; a null handler uses a bounded selection box.
-    private Func<float, float, bool>? _subjectSelectAround;
+    private Func<float, float, bool>? _subjectSelectAround = null;
 
     private void WireSubjectTools()
     {
