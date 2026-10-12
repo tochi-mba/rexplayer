@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.15.11 - 2026-10-12
+
+### Added
+
+- **One-click episode skipping.** Detects likely opening and closing sections using
+  repeated audio landmarks across episodes, credit-frame evidence and explicitly
+  named chapter boundaries. Confident suggestions show **Skip intro** or **Skip credits**
+  immediately, without requiring a confirmation first.
+- **Episode section inspection.** The `rexplay sections` command reports detected
+  segments and supporting evidence, including a machine-readable JSON form.
+- **Library controls.** Sort and filter library views by progress, media type,
+  folder and additional ordering choices, with saved view preferences.
+
+### Improved
+
+- **Playback while browsing.** Preferences control whether opening the library
+  pauses video and whether audio-only media may keep playing.
+- **Library maintenance.** Better handling of deleted items, stale references,
+  folder removal and library scanning.
+- **Reliable playback lifecycle.** A paused media restore announces its duration
+  to the seek bar; the window ignores late playback events while closing.
+
+### Safety and limitations
+
+- Detection only offers a button when confidence is high enough; automatic seeking
+  remains **off by default** for intros and credits, with separate opt-in switches.
+  Manually saved section bounds take precedence, and incorrect detections can be rejected.
+- Repeated opening and closing boundaries have not yet been measured against a
+  representative, annotated collection of real episodes.
+
 ## 0.15.10 - 2026-10-12
 
 ### Improved
