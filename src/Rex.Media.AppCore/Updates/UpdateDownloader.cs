@@ -42,6 +42,8 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
 
     private const int ErrorSharingViolation = 32;
     private const int ErrorLockViolation = 33;
+    // Unix reports an exclusive file-share conflict as EAGAIN, rather than Win32 error 32.
+    private const int ErrorUnixWouldBlock = 11;
     private const int ErrorHandleDiskFull = 39;
     private const int ErrorDiskFull = 112;
 
@@ -143,6 +145,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
         {
             ErrorDiskFull or ErrorHandleDiskFull => new DownloadReport(DownloadOutcome.NoSpace, "the disk is full"),
             ErrorSharingViolation or ErrorLockViolation => new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it"),
+            ErrorUnixWouldBlock when !OperatingSystem.IsWindows() => new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it"),
             _ => new DownloadReport(DownloadOutcome.Failed, error.Message),
         };
     }
