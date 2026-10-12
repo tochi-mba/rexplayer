@@ -17,7 +17,7 @@ namespace Rex.Media.App;
 /// The media library in the window (LIB-05): the folders it watches, kept up to date in the
 /// background as files come and go, and its views (songs, albums, artists, genres, videos, pictures, what
 /// was played or added lately, videos left part-way, named playlists and the folders), with a
-/// search across it all. It opens over the picture (Ctrl+Shift+L) and what plays carries on.
+/// search across it all. It opens over the picture (Ctrl+Shift+L); playback follows the user's pause preference.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -140,6 +140,14 @@ public sealed partial class MainWindow
 
     private void SetLibraryOpen(bool open)
     {
+        // Only a transition into the library can pause playback. A paused item stays paused,
+        // and closing the library never restarts it or changes the seek position.
+        if (open && !LibraryOpen && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
+                _settings.KeepAudioPlayingInLibrary, HasVideo, _player.IsPlaying) == LibraryOpenAction.Pause)
+        {
+            _player.Execute(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
+        }
+
         LibraryPane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         LibraryButton.IsChecked = open;
         if (open)
