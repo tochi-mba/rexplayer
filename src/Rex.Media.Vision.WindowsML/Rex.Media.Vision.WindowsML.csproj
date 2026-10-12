@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Windows ML's managed runtime targets Windows 10 1809 and later, so this adapter names a
+         Windows platform version, as the app does. -->
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Rex.Media.Vision.WindowsML</RootNamespace>
+    <!-- NU1603: the SDK's Foundation package asks for an InteractiveExperiences version that was
+         never published, and NuGet takes the next one, the version Microsoft.WindowsAppSDK itself
+         pins for the app. -->
+    <NoWarn>$(NoWarn);NU1603</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The ONNX Runtime and DirectML that ship with the Windows App SDK (ADR-0019). The app already
+         carries them through Microsoft.WindowsAppSDK; this reference only lets the adapter compile
+         against them without the whole SDK. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Vision\Rex.Media.Vision.csproj" />
+  </ItemGroup>
+
+</Project>
