@@ -136,8 +136,8 @@ public sealed class LibraryControllerActionsTests
         test.PumpUntil(c => c.State == SessionState.Playing && c.Item?.Location == "a.wav");
         Assert.Equal(2, controller.Playlist.Items.Count);
         controller.ForgetDeleted(["a.wav"]);
-        Assert.Null(controller.Item);
-        Assert.NotEqual(SessionState.Playing, controller.State);
+        Assert.Equal(SessionState.Idle, controller.State);
+        Assert.False(controller.IsPlaying);
         Assert.DoesNotContain(controller.Playlist.Items, item => item.Location == "a.wav");
         Assert.Single(controller.Playlist.Items);
     }
