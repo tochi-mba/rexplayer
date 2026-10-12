@@ -50,7 +50,7 @@ public sealed class MusicPulse
     private const double DropGap = 2.5;
 
     /// <summary>How long past the beat the clock expected a stand-in waits for the music to show it.</summary>
-    private const double FillWait = 0.07;
+    private const double FillWait = 0.015;
 
     /// <summary>The raw loudness under which nothing is a beat.</summary>
     private const float Quiet = 0.15f;
@@ -370,10 +370,10 @@ public sealed class MusicPulse
         (_bassRaw, _midRaw, _trebleRaw) = (AdaptiveRange.Decibels(_bassPower), AdaptiveRange.Decibels(_midPower), AdaptiveRange.Decibels(_treblePower));
 
         RawLoudness = (float)Math.Clamp((whole + 60) / 60, 0, 1);
-        _bass = Envelope(_bass, _bassRange.Map(_bassRaw, dt), dt, 0.09);
+        _bass = Envelope(_bass, _bassRange.Map(_bassRaw, dt), dt, 0.065);
         _mid = Envelope(_mid, _midRange.Map(_midRaw, dt), dt, 0.12);
         _treble = Envelope(_treble, _trebleRange.Map(_trebleRaw, dt), dt, 0.06);
-        _loudness = Envelope(_loudness, _loudnessRange.Map(whole, dt), dt, 0.15);
+        _loudness = Envelope(_loudness, _loudnessRange.Map(whole, dt), dt, 0.09);
         LongLoudness += (_loudness - LongLoudness) * (float)Math.Min(1, dt / 4);
 
     }
