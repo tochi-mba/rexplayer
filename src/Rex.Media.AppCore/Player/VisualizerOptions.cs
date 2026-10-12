@@ -225,8 +225,20 @@ public static class VisualizerOptions
         return options.Where(pair => !pair.Key.StartsWith(prefix, StringComparison.Ordinal)).ToDictionary(StringComparer.Ordinal);
     }
 
-    private static VisualOption Find(VisualizerChoice choice, string key) =>
-        For(choice).FirstOrDefault(option => option.Key == key) ?? throw new ArgumentException($"{choice} has no setting {key}.", nameof(key));
+    /// <summary>A setting by key: read many times a frame, so without a search that allocates.</summary>
+    private static VisualOption Find(VisualizerChoice choice, string key)
+    {
+        var options = For(choice);
+        for (var i = 0; i < options.Count; i++)
+        {
+            if (options[i].Key == key)
+            {
+                return options[i];
+            }
+        }
+
+        throw new ArgumentException($"{choice} has no setting {key}.", nameof(key));
+    }
 
     private static double? Read(IReadOnlyDictionary<string, string> options, VisualizerChoice choice, string key)
     {
@@ -237,5 +249,8 @@ public static class VisualizerOptions
 
     private static string Prefix(VisualizerChoice choice) => choice.ToString().ToLowerInvariant() + ".";
 
-    private static string KeyOf(VisualizerChoice choice, string key) => Prefix(choice) + key;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(VisualizerChoice, string), string> Keys = new();
+
+    /// <summary>The stored key of a setting, made once: a frame reads settings many times and must not allocate.</summary>
+    private static string KeyOf(VisualizerChoice choice, string key) => Keys.GetOrAdd((choice, key), static pair => Prefix(pair.Item1) + pair.Item2);
 }

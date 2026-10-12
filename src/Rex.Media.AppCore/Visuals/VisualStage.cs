@@ -5,13 +5,15 @@ namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
 /// The visualisations drawn in software (AU-18): takes the sound as it is heard, works out its beat
-/// (<see cref="MusicPulse"/>), has the chosen <see cref="VisualScene"/> draw on a canvas the shape
-/// of the stage, and gives BGRA pixels for the window to show, scaled up smoothly.
+/// (<see cref="MusicPulse"/>), has the chosen <see cref="VisualScene"/> draw on a canvas the size of
+/// the stage in the screen's own pixels, and gives BGRA pixels for the window to show. Only when the
+/// stage is wider than <see cref="MaxSide"/>, or a slow computer cannot keep up (<see cref="Quality"/>),
+/// is the canvas smaller than the stage and shown scaled up.
 /// </summary>
 public sealed class VisualStage
 {
-    /// <summary>The widest the canvas is drawn: wider stages show it scaled up, which suits soft light.</summary>
-    public const int MaxWidth = 800;
+    /// <summary>The longest side the canvas is drawn at, in pixels: full HD, beyond which the picture is scaled up.</summary>
+    public const int MaxSide = 1920;
 
     private readonly MusicPulse _pulse = new();
     private readonly float[] _mono = new float[SpectrumAnalyzer.Size];
@@ -39,11 +41,8 @@ public sealed class VisualStage
     /// <summary>The last frame drawn, BGRA, row by row.</summary>
     public byte[] Pixels { get; private set; }
 
-    /// <summary>Whether the visualisation chosen last needs the camera.</summary>
-    public bool UsesCamera => _scene?.UsesCamera ?? false;
-
     /// <summary>
-    /// How finely the canvas is drawn, from 1 (up to <see cref="MaxWidth"/> across) down to
+    /// How finely the canvas is drawn, from 1 (the stage's own pixels, up to <see cref="MaxSide"/>) down to
     /// <see cref="LowestQuality"/>: it falls when frames take too long to draw, so a slow computer
     /// keeps its music moving smoothly, and climbs back when there is time to spare.
     /// </summary>
@@ -74,22 +73,25 @@ public sealed class VisualStage
         }
     }
 
-    /// <summary>The canvas for a stage of <paramref name="width"/> by <paramref name="height"/>: its shape, at most <see cref="MaxWidth"/> times <paramref name="quality"/> across.</summary>
-    public static (int Width, int Height) SizeFor(double width, double height, double quality = 1)
+    /// <summary>
+    /// The canvas for a stage <paramref name="width"/> by <paramref name="height"/> layout units
+    /// across on a screen of <paramref name="scale"/> pixels a unit: the stage's own pixels, so
+    /// nothing is scaled up on the way to the screen, until its longest side would pass
+    /// <see cref="MaxSide"/> times <paramref name="quality"/>; then that, in the stage's shape.
+    /// </summary>
+    public static (int Width, int Height) SizeFor(double width, double height, double quality = 1, double scale = 1)
     {
         if (!(width >= 2 && height >= 2) || !double.IsFinite(width) || !double.IsFinite(height))
         {
             return (16, 9);
         }
 
-        var scale = Math.Min(1, MaxWidth * (double.IsFinite(quality) ? Math.Clamp(quality, LowestQuality, 1) : 1) / Math.Max(width, height));
-        return (Math.Max(2, (int)Math.Round(width * scale)), Math.Max(2, (int)Math.Round(height * scale)));
+        scale = double.IsFinite(scale) && scale > 0 ? scale : 1;
+        var (pixelsAcross, pixelsDown) = (width * scale, height * scale);
+        var most = MaxSide * (double.IsFinite(quality) ? Math.Clamp(quality, LowestQuality, 1) : 1);
+        var fit = Math.Min(1, most / Math.Max(pixelsAcross, pixelsDown));
+        return (Math.Max(2, (int)Math.Round(pixelsAcross * fit)), Math.Max(2, (int)Math.Round(pixelsDown * fit)));
     }
-
-    /// <summary>Whether <paramref name="choice"/> is drawn here rather than with the window's shapes.</summary>
-    public static bool Draws(VisualizerChoice choice) => choice is VisualizerChoice.Vinyl or VisualizerChoice.Halo
-        or VisualizerChoice.Mirror or VisualizerChoice.Aurora or VisualizerChoice.Embers or VisualizerChoice.Resonance
-        or VisualizerChoice.Ripples or VisualizerChoice.Strobe or VisualizerChoice.Silhouette or VisualizerChoice.BeatEdit;
 
     /// <summary>
     /// Draws a frame of <paramref name="choice"/> from the newest sound (each channel

@@ -13,6 +13,7 @@ public sealed class AuroraScene : VisualScene
 
     private (double X, double Y, double Size, double Phase)[]? _stars;
     private float[] _levels = [];
+    private float[] _smoothed = [];
     private readonly List<double> _waves = [];
 
     public override void Draw(VisualContext context)
@@ -46,7 +47,7 @@ public sealed class AuroraScene : VisualScene
         // The spectrum across the sky, smoothed so the curtains move like cloth, not like bars.
         if (_levels.Length != w)
         {
-            _levels = new float[w];
+            (_levels, _smoothed) = (new float[w], new float[w]);
         }
 
         for (var x = 0; x < w; x++)
@@ -59,7 +60,7 @@ public sealed class AuroraScene : VisualScene
             _levels[x] += (band - _levels[x]) * (float)Math.Min(1, context.Dt * 5);
         }
 
-        Soften(_levels, Math.Max(2, w / 24));
+        Soften(_levels, _smoothed, Math.Max(2, w / 24));
 
         // A kick sends a wave of light along the curtains, left to right.
         if (pulse.Kick.Hit)
@@ -85,10 +86,9 @@ public sealed class AuroraScene : VisualScene
         canvas.Bloom(0.25f, 0.9f, 6);
     }
 
-    /// <summary>A running average of <paramref name="radius"/> each side along <paramref name="levels"/>, twice: a soft swell.</summary>
-    private static void Soften(float[] levels, int radius)
+    /// <summary>A running average of <paramref name="radius"/> each side along <paramref name="levels"/>, twice: a soft swell. <paramref name="copy"/> is working space.</summary>
+    private static void Soften(float[] levels, float[] copy, int radius)
     {
-        var copy = new float[levels.Length];
         for (var pass = 0; pass < 2; pass++)
         {
             Array.Copy(levels, copy, levels.Length);

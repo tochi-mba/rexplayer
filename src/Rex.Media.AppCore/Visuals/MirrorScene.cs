@@ -7,6 +7,9 @@ namespace Rex.Media.AppCore.Visuals;
 /// </summary>
 public sealed class MirrorScene : VisualScene
 {
+    private readonly List<(double, double)> _top = [];
+    private readonly List<(double, double)> _bottom = [];
+
     public override void Draw(VisualContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -16,8 +19,9 @@ public sealed class MirrorScene : VisualScene
         canvas.Feedback((float)context.Number("trails"), 1.0 + (context.Pulse.Bass * 0.02), 0, 0, 0);
         var columns = (int)context.Number("columns");
         var stereo = context.Toggle("stereo");
-        var top = new List<(double, double)>(columns);
-        var bottom = new List<(double, double)>(columns);
+        var (top, bottom) = (_top, _bottom);
+        top.Clear();
+        bottom.Clear();
         for (var c = 0; c < columns; c++)
         {
             var x = (c + 0.5) * w / columns;
