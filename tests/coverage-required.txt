@@ -246,3 +246,4 @@ WheelGestures.cs
 Wpl.cs
 Xspf.cs
 YuvTransform.cs
+src/Rex.Media.AppCore/Player/EpisodeSkipPrompt.cs

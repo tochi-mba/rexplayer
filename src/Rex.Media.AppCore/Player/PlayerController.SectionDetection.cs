@@ -66,7 +66,7 @@ public sealed partial class PlayerController
         var path = Item.Location;
         var signature = SectionAnalysis.SignatureOf(path);
         _activeProposals = Memory.Proposals(path, signature);
-        var analyzer = _activeProposals is null ? SectionAnalyzer : null;
+        var analyzer = _activeProposals is { Candidates.Count: > 0 } ? null : SectionAnalyzer;
         var stop = new CancellationTokenSource();
         // Capture the token before the worker is scheduled: a rapid episode change can
         // cancel and dispose its source before the background delegate starts running.
@@ -114,16 +114,25 @@ public sealed partial class PlayerController
             foreach (var candidate in targets)
             {
                 token.ThrowIfCancellationRequested();
-                var stamp = SectionAnalysis.SignatureOf(candidate);
-                var analysis = Memory.Analysis(candidate, stamp);
-                if (analysis is null)
+                try
                 {
-                    analysis = analyzer(candidate, token);
-                    token.ThrowIfCancellationRequested();
-                    Memory.SetAnalysis(analysis);
-                }
+                    var stamp = SectionAnalysis.SignatureOf(candidate);
+                    var analysis = Memory.Analysis(candidate, stamp);
+                    if (analysis is null)
+                    {
+                        analysis = analyzer(candidate, token);
+                        token.ThrowIfCancellationRequested();
+                        Memory.SetAnalysis(analysis);
+                    }
 
-                analyses.Add(analysis);
+                    analyses.Add(analysis);
+                }
+                catch (Exception ex) when (candidate != path &&
+                    ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                        Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
+                {
+                    _log.Warning("sections", "Could not analyse sibling " + candidate + ": " + ex.Message);
+                }
             }
 
             token.ThrowIfCancellationRequested();
