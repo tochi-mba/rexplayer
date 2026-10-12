@@ -227,6 +227,23 @@ public enum MiddleButtonChoice
     None,
 }
 
+/// <summary>Which side of the picture a panel over it sits on.</summary>
+public enum PanelSide
+{
+    Right,
+    Left,
+}
+
+/// <summary>How a Subject Lock selection is made on the picture.</summary>
+public enum SubjectSelectionMode
+{
+    /// <summary>One click locks onto a small area around the point; a drag still draws a box.</summary>
+    Click,
+
+    /// <summary>A drag draws the box to lock onto.</summary>
+    Draw,
+}
+
 /// <summary>What the mouse's back and forward buttons do over the picture (UI-11).</summary>
 public enum SideButtonChoice
 {
@@ -329,6 +346,23 @@ public sealed record PlayerSettings
 
     /// <summary>While zoomed in, the whole picture shows small in a corner, with the view marked on it.</summary>
     public bool ShowNavigator { get; init; } = true;
+
+    // Subject Lock's panel
+
+    /// <summary>Which side of the picture the Subject Lock panel sits on.</summary>
+    public PanelSide SubjectPanelSide { get; init; } = PanelSide.Right;
+
+    /// <summary>Whether a click or a drawn box selects the subject.</summary>
+    public SubjectSelectionMode SubjectSelection { get; init; } = SubjectSelectionMode.Click;
+
+    /// <summary>Whether the panel's Following section is open.</summary>
+    public bool SubjectFollowingOpen { get; init; } = true;
+
+    /// <summary>Whether the panel's Removal preview section is open.</summary>
+    public bool SubjectRemovalOpen { get; init; } = true;
+
+    /// <summary>Whether the panel's Help section is open.</summary>
+    public bool SubjectHelpOpen { get; init; }
 
     /// <summary>The GPU picture look to use for videos; Original does not alter the media.</summary>
     public VideoLook VideoLook { get; init; } = Rex.Media.Primitives.VideoLook.Original;
@@ -533,6 +567,8 @@ public sealed record PlayerSettings
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
             ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
+            SubjectPanelSide = Enum.IsDefined(SubjectPanelSide) ? SubjectPanelSide : PanelSide.Right,
+            SubjectSelection = Enum.IsDefined(SubjectSelection) ? SubjectSelection : SubjectSelectionMode.Click,
             VideoLook = Enum.IsDefined(VideoLook) ? VideoLook : Rex.Media.Primitives.VideoLook.Original,
             VideoEffect = Enum.IsDefined(VideoEffect) ? VideoEffect : Rex.Media.Primitives.VideoEffect.Off,
             VideoEffectStrength = VideoEffects.Strength(VideoEffectStrength),
