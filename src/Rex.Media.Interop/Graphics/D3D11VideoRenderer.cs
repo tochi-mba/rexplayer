@@ -40,6 +40,10 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// </summary>
     private const string Shaders = D3D11VideoShaders.Source;
 
+    /// <summary>The shader's constant buffer: ten float4 rows (see the cbuffer in <see cref="D3D11VideoShaders"/>).</summary>
+    private const int ConstantFloats = 40;
+    private const uint ConstantBytes = ConstantFloats * sizeof(float);
+
     private readonly ID3D11Device _device;
     private readonly ID3D11DeviceContext _context;
     private readonly ID3D11VertexShader _vertexShader;
@@ -94,7 +98,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         _pointSampler = Sampler(D3D11_FILTER.D3D11_FILTER_MIN_MAG_MIP_POINT);
         var buffer = new D3D11_BUFFER_DESC
         {
-            ByteWidth = 144,
+            ByteWidth = ConstantBytes,
             Usage = D3D11_USAGE.D3D11_USAGE_DEFAULT,
             BindFlags = D3D11_BIND_FLAG.D3D11_BIND_CONSTANT_BUFFER,
         };
@@ -428,8 +432,10 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// Draws the part of the picture inside <paramref name="source"/> (left, top, right, bottom, each
     /// from 0 to 1 of the picture) into the rectangle given; over what is there already, rather than on
     /// black, when not <paramref name="clear"/> (a small copy drawn over the large one).
+    /// <paramref name="optionThird"/> and <paramref name="optionFourth"/> are an effect's third and
+    /// fourth controls as saved (the shader scales them itself), so every effect can have up to four.
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false, float lookIntensity = 1, float lookDetail = 1, float effectDetail = 1, float motionTrail = 0.35f, int motionMode = 0)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false, float lookIntensity = 1, float lookDetail = 1, float effectDetail = 1, float motionTrail = 0.35f, int motionMode = 0, int optionThird = 0, int optionFourth = 0)
     {
         if (colourMatrix.Length != 12)
         {
@@ -447,7 +453,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
             return;
         }
 
-        Span<float> constants = stackalloc float[36];
+        Span<float> constants = stackalloc float[ConstantFloats];
         constants.Clear();
         colourMatrix.CopyTo(constants);
         (constants[12], constants[13]) = (_crop.U, _crop.V);
@@ -466,9 +472,11 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         constants[32] = Math.Clamp(motionTrail, 0, 1);
         constants[33] = _hasPrevious ? 1 : 0;
         constants[34] = Math.Clamp(motionMode, 0, 3);
+        constants[36] = Math.Clamp(optionThird, 0, 200);
+        constants[37] = Math.Clamp(optionFourth, 0, 200);
         fixed (float* values = constants)
         {
-            _context.UpdateSubresource(_colour, 0, null, values, 144, 0);
+            _context.UpdateSubresource(_colour, 0, null, values, ConstantBytes, 0);
         }
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };
