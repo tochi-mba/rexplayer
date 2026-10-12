@@ -112,6 +112,8 @@ public sealed partial class MainWindow
             }
 
             presenter.SetEffect(effect, intensity, VideoStyleOptions.Read(values, options[1]));
+            var (third, fourth) = VideoStyleOptions.Extras(values, options);
+            presenter.SetEffectExtras(third, fourth);
             if (redraw)
             {
                 presenter.Redraw();
@@ -190,7 +192,7 @@ public sealed partial class MainWindow
                 var mode = new ComboBox
                 {
                     Header = option.Label,
-                    ItemsSource = new[] { "Hybrid (contours + movement)", "Contours only", "Motion only", "Surface shape (still-friendly)" },
+                    ItemsSource = VideoStyleOptions.ModeNames(_settings.VideoEffect),
                     SelectedIndex = VideoStyleOptions.Read(before, option),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                 };
