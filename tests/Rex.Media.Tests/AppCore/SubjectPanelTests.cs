@@ -82,7 +82,7 @@ public sealed class SubjectPanelTests
     public void TheInstructionAndHelpNameTheSelectionMode()
     {
         var click = SubjectPanel.Instruction(SubjectSelectionMode.Click, follow: true);
-        Assert.StartsWith("Click the object", click, StringComparison.Ordinal);
+        Assert.StartsWith("Drag a box", click, StringComparison.Ordinal);
         Assert.Contains("auto-follow widens", click, StringComparison.Ordinal);
         var draw = SubjectPanel.Instruction(SubjectSelectionMode.Draw, follow: false);
         Assert.StartsWith("Drag a box", draw, StringComparison.Ordinal);
