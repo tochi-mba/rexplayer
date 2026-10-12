@@ -266,6 +266,30 @@ public sealed class MemoryControllerTests
     }
 
     [Fact]
+    public void AnUpgradeRestoredPausedAnnouncesItsPositionOnceTheLengthIsKnown()
+    {
+        var store = RexStore.InMemory();
+        using (var before = Harness(store, ResumeChoice.Never, restoreQueue: false))
+        {
+            OpenReady(before, "a.wav");
+            before.Controller.Seek(TimeSpan.FromSeconds(13));
+            before.Controller.SaveForUpdate("Home", false, "", null, null, null, false);
+        }
+
+        // The window draws the seek bar from the position and the length together, on each
+        // PositionChanged; a paused session reports no position of its own until it plays.
+        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        var announced = new List<(TimeSpan Position, TimeSpan Duration)>();
+        after.Controller.PositionChanged += (_, _) => announced.Add((after.Controller.Position, after.Controller.Duration));
+        Assert.NotNull(after.Controller.RestoreAfterUpdate());
+        Assert.Equal((TimeSpan.FromSeconds(13), TimeSpan.Zero), announced.Single());
+
+        after.PumpUntil(c => c.State == SessionState.Ready && c.Duration > TimeSpan.Zero);
+        Assert.False(after.Controller.IsPlaying);
+        Assert.Equal((TimeSpan.FromSeconds(13), TimeSpan.FromSeconds(30)), announced[^1]);
+    }
+
+    [Fact]
     public void AnUpgradeMarkerOnlyRestoresIntoItsVerifiedTargetVersion()
     {
         var store = RexStore.InMemory();
