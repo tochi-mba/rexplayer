@@ -408,7 +408,9 @@ public sealed partial class MainWindow : Window
         SeekBar.Maximum = Math.Max(1, duration.TotalSeconds);
         if (!_scrubbing)
         {
-            SeekBar.Value = Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
+            // Until the length is known the thumb has no place to be but the start: clamping a
+            // position of minutes into a one-second rail would show it at the end.
+            SeekBar.Value = duration <= TimeSpan.Zero ? 0 : Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
         }
 
         _updatingControls = false;
