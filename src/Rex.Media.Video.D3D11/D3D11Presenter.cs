@@ -345,7 +345,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             ApplySize();
-            if (_effect == VideoEffect.GhostwireMotion && _motionMode is 0 or 2)
+            if (VideoEffects.UsesHistory(_effect, _effect == VideoEffect.GhostwireMotion ? _motionMode : _optionFourth))
             {
                 var now = frame.Pts.IsKnown ? frame.Pts.TotalSeconds : double.NaN;
                 // Repeated/stale frames, long gaps, and backwards seeks cannot
