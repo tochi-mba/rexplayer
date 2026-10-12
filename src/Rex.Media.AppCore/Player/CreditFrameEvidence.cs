@@ -300,6 +300,11 @@ public static class CreditFrameEvidence
     public static CreditRun? Find(IReadOnlyList<CreditFrameSample> frames, TimeSpan duration) =>
         Runs(frames, duration).OrderByDescending(run => run.Confidence).FirstOrDefault();
 
+    /// <summary>Describe a detected credit run with its continuation and duration.</summary>
+    /// <param name="ordered">The samples ordered by presentation time.</param>
+    /// <param name="credit">Whether each sample carries credit-like evidence.</param>
+    /// <param name="span">Indices of the proposed credit segment.</param>
+    /// <param name="duration">Duration of the whole episode.</param>
     /// <param name="continued">The last picture of the run's text-or-black continuation: black after
     /// the last card (a card too faint to read, a fade) still counts towards reaching the end.</param>
     private static CreditRun? Describe(CreditFrameSample[] ordered, bool[] credit, (int First, int Last) span,
