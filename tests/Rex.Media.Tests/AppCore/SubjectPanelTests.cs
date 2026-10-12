@@ -1,6 +1,5 @@
 using Rex.Media.AppCore.Player;
 using Rex.Media.Settings;
-using Xunit;
 
 namespace Rex.Media.Tests.AppCore;
 
