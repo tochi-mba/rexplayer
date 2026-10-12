@@ -96,6 +96,20 @@ public sealed class SubjectRemovalMotionTests
         Assert.Throws<ArgumentNullException>(() => motion.Estimate(null!, NoSubject, NoSubject));
     }
 
+    [Fact]
+    public void AHiddenCameraBackgroundStopsBothRefinementStages()
+    {
+        var scene = Wall(320, 180, _ => (0, 0));
+        var motion = new SubjectRemovalMotion();
+        using var first = scene.Render(0);
+        motion.Estimate(first, NoSubject, (0, 0, 320, 180));
+        // When the entire view is excluded there is not one valid pixel to correlate.
+        // Refinement must report no candidate instead of interpreting missing data as motion.
+        var allHidden = (0, 0, 320, 180);
+        Assert.Null(motion.Descend(allHidden, 0, 0));
+        Assert.Null(motion.Finest(allHidden, 0, 0, 1));
+    }
+
     [Theory]
     [InlineData(4f, 1f, 2f, 0.25f)]
     [InlineData(2f, 1f, 4f, -0.25f)]
