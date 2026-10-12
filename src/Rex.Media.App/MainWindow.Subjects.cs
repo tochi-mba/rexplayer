@@ -231,6 +231,11 @@ public sealed partial class MainWindow
         {
             PollSubjectOverlay();
         }
+
+        if (_selectingSubject)
+        {
+            SubjectStatusText.Text = SubjectPanel.Instruction(_settings.SubjectSelection, SubjectFollow.IsOn);
+        }
     }
 
     private void OnSubjectShowBoxChanged(object sender, RoutedEventArgs e)
@@ -253,13 +258,20 @@ public sealed partial class MainWindow
     private void OnSubjectMaskChanged(object sender,
         Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
-        if (!_subjectOpen || _closed || _presenter is null)
+        if (!_subjectOpen || _closed)
         {
             return;
         }
 
         var feather = (int)SubjectFeather.Value;
         var tolerance = (int)SubjectTolerance.Value;
+        SubjectFeatherText.Text = SubjectPanel.FeatherText(feather);
+        SubjectToleranceText.Text = SubjectPanel.ToleranceText(tolerance);
+        if (_presenter is null)
+        {
+            return;
+        }
+
         var redraw = _subjectErase && !_player.IsPlaying;
         OnPresenterThread(p =>
         {
