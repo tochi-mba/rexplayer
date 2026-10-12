@@ -25,13 +25,16 @@ public sealed class AuroraScene : VisualScene
         var pulse = context.Pulse;
         var drift = t * context.Number("drift") * 0.35;
 
-        // The sky: deep blue overhead, lighter and greener toward the horizon.
+        // The sky follows the selected palette, including a user-selected single colour.
+        // Its low luminance leaves the moving aurora curtains in the foreground.
+        var sky = context.Paint(0.5);
         for (var y = 0; y < h; y++)
         {
             var down = (float)y / h;
-            Array.Fill(canvas.R, 0.006f + (0.012f * down), y * w, w);
-            Array.Fill(canvas.G, 0.012f + (0.03f * down), y * w, w);
-            Array.Fill(canvas.B, 0.05f + (0.03f * down), y * w, w);
+            var glow = 0.015f + (0.045f * down);
+            Array.Fill(canvas.R, sky.R * glow, y * w, w);
+            Array.Fill(canvas.G, sky.G * glow, y * w, w);
+            Array.Fill(canvas.B, sky.B * glow, y * w, w);
         }
 
         if (context.Toggle("stars"))
