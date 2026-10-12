@@ -244,6 +244,8 @@ public sealed class UpdateDownloaderTests : IDisposable
         Assert.Equal(new DownloadReport(DownloadOutcome.NoSpace, "the disk is full"), UpdateDownloader.Classify(new IOException("full", unchecked((int)0x80070070))));
         Assert.Equal(DownloadOutcome.NoSpace, UpdateDownloader.Classify(new IOException("full", unchecked((int)0x80070027))).Outcome);
         Assert.Equal(DownloadOutcome.Busy, UpdateDownloader.Classify(new IOException("locked", unchecked((int)0x80070021))).Outcome);
+        // Unix file sharing reports EAGAIN (11), including on CI running Windows.
+        Assert.Equal(DownloadOutcome.Busy, UpdateDownloader.Classify(new IOException("locked", unchecked((int)0x8007000B))).Outcome);
         Assert.Equal(new DownloadReport(DownloadOutcome.Failed, "other"), UpdateDownloader.Classify(new IOException("other")));
         Assert.Throws<ArgumentNullException>(() => UpdateDownloader.Classify(null!));
     }
