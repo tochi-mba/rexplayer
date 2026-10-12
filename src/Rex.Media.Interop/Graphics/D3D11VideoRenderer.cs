@@ -342,8 +342,8 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     }
 
     /// <summary>
-    /// Enable/disable GPU-only history for the motion contour effect. Other looks incur
-    /// no per-frame history copies or extra temporal texture allocations.
+    /// Enable/disable GPU-only history for the effects that read the previous picture. Other
+    /// effects and looks incur no per-frame history copies or extra temporal texture allocations.
     /// </summary>
     public void EnableMotionHistory(bool enabled)
     {
@@ -441,7 +441,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// <paramref name="optionThird"/> and <paramref name="optionFourth"/> are an effect's third and
     /// fourth controls as saved (the shader scales them itself), so every effect can have up to four.
     /// </summary>
-    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false, float lookIntensity = 1, float lookDetail = 1, float effectDetail = 1, float motionTrail = 0.35f, int motionMode = 0, int optionThird = 0, int optionFourth = 0)
+    public void Draw(ReadOnlySpan<float> colourMatrix, int x, int y, int width, int height, (float Left, float Top, float Right, float Bottom) source, bool smoothChroma, bool clear = true, int look = 0, int effect = 0, float strength = 0.65f, float seconds = 0, float pointerX = 0.5f, float pointerY = 0.5f, bool pointerActive = false, float lookIntensity = 1, float lookDetail = 1, float effectDetail = 1, int optionThird = 0, int optionFourth = 0)
     {
         if (colourMatrix.Length != 12)
         {
@@ -462,7 +462,9 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         Span<float> constants = stackalloc float[ConstantFloats];
         constants.Clear();
         colourMatrix.CopyTo(constants);
+        // One texel of the texture, so the shader keeps every read inside the picture.
         (constants[12], constants[13]) = (_crop.U, _crop.V);
+        (constants[14], constants[15]) = (1f / Math.Max(1, _planes.Width), 1f / Math.Max(1, _planes.Height));
         (constants[16], constants[17], constants[18], constants[19]) = source;
         constants[20] = look;
         constants[21] = Math.Clamp(lookIntensity, 0, 1.5f);
@@ -475,9 +477,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         constants[29] = Math.Clamp(pointerY, 0, 1);
         constants[30] = pointerActive ? 1 : 0;
         constants[31] = Math.Clamp(effectDetail, 0.25f, 1.75f);
-        constants[32] = Math.Clamp(motionTrail, 0, 1);
         constants[33] = _hasPrevious ? 1 : 0;
-        constants[34] = Math.Clamp(motionMode, 0, 3);
         constants[36] = Math.Clamp(optionThird, 0, 200);
         constants[37] = Math.Clamp(optionFourth, 0, 200);
         fixed (float* values = constants)

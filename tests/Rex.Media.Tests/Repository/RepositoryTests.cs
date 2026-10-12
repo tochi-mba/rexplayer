@@ -224,8 +224,14 @@ public sealed partial class RepositoryTests
     public void TheNewestChangelogEntryIsTheBuildVersion()
     {
         var version = XDocument.Load(RepoPaths.Combine("Directory.Build.props")).Descendants("Version").Single().Value;
-        var headings = File.ReadAllLines(RepoPaths.Combine("CHANGELOG.md"))
+        // Changes not yet released collect under one "## Unreleased" heading at the top, which the
+        // release renames to its version.
+        var lines = File.ReadAllLines(RepoPaths.Combine("CHANGELOG.md"))
             .Where(line => line.StartsWith("## ", StringComparison.Ordinal))
+            .ToList();
+        Assert.DoesNotContain("## Unreleased", lines.Skip(1));
+        var headings = lines
+            .SkipWhile(line => line == "## Unreleased")
             .Select(line => ChangelogHeading().Match(line))
             .ToList();
 

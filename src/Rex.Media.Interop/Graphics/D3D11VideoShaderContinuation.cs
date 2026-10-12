@@ -4,99 +4,6 @@ namespace Rex.Media.Interop.Graphics;
 internal static class D3D11VideoShaderContinuation
 {
     public const string Source = """
-                float rim = 1 - smoothstep(0.07, 0.13,
-                    min(min(local.x, 1 - local.x), min(local.y, 1 - local.y)));
-                float glyph = grey < 0.20 ? rim : grey < 0.45 ? max(vertical, cross)
-                    : grey < 0.70 ? diagonal : grey < 0.89 ? vertical : 0;
-                glyph = saturate(glyph * (0.7 + extras.x * 0.006));
-                float3 palette = extras.y < 0.5 ? float3(0.28, 1, 0.48)
-                    : extras.y < 1.5 ? float3(1, 0.72, 0.27)
-                    : extras.y < 2.5 ? float3(0.18, 0.16, 0.13) : sampled;
-                float3 paper = extras.y > 1.5 && extras.y < 2.5 ? float3(0.94, 0.91, 0.80) : float3(0.025, 0.03, 0.045);
-                colour = lerp(colour, lerp(paper, palette, glyph), effect.y);
-            }
-        #endif
-        #if EFFECT_ONLY == 22
-            if (effect.x > 21.5 && effect.x < 22.5 && effect.y > 0) // Thermal mapping
-            {
-                float temperature = saturate(dot(colour, float3(0.2126, 0.7152, 0.0722))
-                    * (extras.x * 0.01) + (1 - extras.x * 0.01) * 0.5);
-                float3 heat = temperature < 0.33
-                    ? lerp(float3(0.02, 0.01, 0.08), float3(0.43, 0.03, 0.42), temperature / 0.33)
-                    : temperature < 0.66
-                    ? lerp(float3(0.43, 0.03, 0.42), float3(1, 0.40, 0.05), (temperature - 0.33) / 0.33)
-                    : lerp(float3(1, 0.40, 0.05), float3(1, 1, 0.82), (temperature - 0.66) / 0.34);
-                if (extras.y > 0.5 && extras.y < 1.5)
-                    heat = 0.5 + 0.5 * cos((1 - temperature) * 6.2831853 + float3(0, 2.094, 4.189));
-                else if (extras.y > 1.5 && extras.y < 2.5)
-                    heat = lerp(float3(0.01, 0.07, 0.18), float3(0.82, 1, 0.93), temperature);
-                else if (extras.y > 2.5)
-                    heat = float3(temperature, temperature, temperature);
-                float edges = length(pictureGradient(uv, isYuv));
-                heat = saturate(heat + edges * (pointer.w - 0.25) * 0.20);
-                colour = lerp(colour, heat, effect.y);
-            }
-        #endif
-        #if EFFECT_ONLY == 23
-            if (effect.x > 22.5 && effect.x < 23.5 && effect.y > 0) // Tape wear
-            {
-                float row = floor(uv.y * 480);
-                float epoch = floor(effect.z * 23);
-                float noise = frac(sin(row * 19.13 + epoch * 7.13) * 43758.545);
-                float tracking = (noise * 2 - 1) * effect.y * pointer.w * 0.018;
-                float2 shifted = saturate(uv + float2(tracking, 0));
-                float3 shiftedColour = readColour(shifted, isYuv);
-                float bleed = extras.x * 0.00008 * effect.y;
-                float3 neighbour = readColour(shifted + float2(bleed, 0), isYuv);
-                float head = 1 - smoothstep(0.001, 0.018,
-                    abs(uv.y - (0.94 + 0.03 * sin(effect.z * 1.5)))) ;
-                float speckle = frac(sin(dot(uv * 1900 + epoch, float2(12.9898, 78.233))) * 43758.5453);
-                float3 worn = float3(neighbour.r, shiftedColour.g, shiftedColour.b)
-                    * (1 - head * extras.y * 0.006) + (speckle - 0.5) * effect.y * 0.08;
-                colour = lerp(colour, saturate(worn), effect.y);
-            }
-        #endif
-        #if EFFECT_ONLY == 24
-            if (effect.x > 23.5 && effect.x < 24.5 && effect.y > 0) // Bounded pixel sort
-            {
-                float2 direction = extras.y < 0.5 ? float2(0, 1)
-                    : extras.y < 1.5 ? float2(0, -1)
-                    : extras.y < 2.5 ? float2(1, 0) : float2(-1, 0);
-                float2 pixel = max(fwidth(uv), float2(0.00018, 0.00018));
-                float threshold = saturate(pointer.w * 0.45);
-                float bestBrightness = dot(colour, float3(0.2126, 0.7152, 0.0722));
-                float3 best = colour;
-                [unroll] for (int i = 1; i <= 8; i++)
-                {
-                    float2 target = uv + direction * pixel * (i * extras.x * 0.018);
-                    float3 sampleColour = readColour(target, isYuv);
-                    float lum = dot(sampleColour, float3(0.2126, 0.7152, 0.0722));
-                    if (lum > threshold && lum > bestBrightness)
-                    {
-                        best = sampleColour;
-                        bestBrightness = lum;
-                    }
-                }
-                colour = lerp(colour, best, effect.y);
-            }
-        #endif
-        #if EFFECT_ONLY == 25
-            if (effect.x > 24.5 && effect.x < 25.5 && effect.y > 0) // Motion smear
-            {
-                if (motion.y > 0.5)
-                {
-                    float2 blocks = float2(14 + extras.y * 0.45, 10 + extras.y * 0.25);
-                    float2 tile = floor(uv * blocks);
-                    float epoch = floor(effect.z * 12);
-                    float random = frac(sin(dot(tile + epoch, float2(12.9898, 78.233))) * 43758.5453);
-                    float2 offset = float2((random - 0.5) * 0.065 * effect.y, 0);
-                    float3 previous = readPrior(uv + offset, isYuv);
-                    float delta = length(colour - previous);
-                    float gate = smoothstep(0.03 * pointer.w, 0.20 * pointer.w, delta);
-                    colour = lerp(colour, previous, gate * effect.y * extras.x * 0.01);
-                }
-            }
-        #endif
         #if EFFECT_ONLY == 26
             if (effect.x > 25.5 && effect.x < 26.5 && effect.y > 0) // Lumen weave
             {
@@ -664,16 +571,19 @@ internal static class D3D11VideoShaderContinuation
                 colour = lerp(colour, readColour(pushed, isYuv), effect.y);
             }
         #endif
-        #if EFFECT_ONLY == 11
-            if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
-            {
-                // A fine highlight at the actual lens boundary communicates where the cursor is.
-                float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
-                float dist = length(delta);
-                float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23 / max(pointer.w, 0.25)));
-                colour = saturate(colour + float3(0.23, 0.48, 0.57) * rim * effect.y);
-            }
-        #endif
+            return colour;
+        }
+        // Effects work on the decoded picture, before the colour look. Off (or no strength) reads
+        // the picture once and nothing more.
+        float3 effected(float2 uv, bool isYuv)
+        {
+            float2 pixel = max(fwidth(uv), float2(0.00002, 0.00002));
+            // A branch, not the ?: operator, which would evaluate both sides.
+            float3 colour;
+            [branch] if (effect.x < 0.5 || effect.y <= 0)
+                colour = readColour(uv, isYuv);
+            else
+                colour = effectColour(uv, pixel, isYuv);
             return styledLook(saturate(colour));
         }
         float4 yuv(Vertex input) : SV_Target
