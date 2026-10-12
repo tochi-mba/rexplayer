@@ -146,7 +146,7 @@ public sealed class VinylScene : VisualScene
         {
             var angle = ((double)dot / Dots * Math.Tau) + turned;
             var (x, y) = (cx + (radius * 1.03 * Math.Cos(angle)), cy + (radius * 1.03 * Math.Sin(angle)));
-            var on = context.Pulse.Kick.Level * (dot % 2 == 0 ? 1 : 0.5f);
+            var on = Math.Max(context.Pulse.Kick.Level, context.Pulse.Filled ? 0.5f : 0) * (dot % 2 == 0 ? 1 : 0.5f);
             canvas.Disc(x, y, Math.Max(0.7, radius * 0.008), new Rgb(0.16f, 0.16f, 0.17f).Plus(lit.Times(on * 1.2f)));
         }
     }
@@ -304,8 +304,8 @@ public sealed class VinylScene : VisualScene
         canvas.Line(sx - (ux * radius * 0.14), sy - (uy * radius * 0.14), sx + (ux * radius * 0.02), sy + (uy * radius * 0.02), Math.Max(3, radius * 0.07), new Rgb(0.2f, 0.2f, 0.22f));
         canvas.Disc(px, py, radius * 0.065, new Rgb(0.42f, 0.42f, 0.45f));
         canvas.Glow(px - (radius * 0.02), py - (radius * 0.02), radius * 0.04, Rgb.White, 0.35f);
-        var pulse = context.Pulse.Kick.Level;
-        canvas.Glow(sx, sy, radius * (0.06 + (0.08 * pulse)), context.Paint(context.Pulse.Pitch), 0.5f + (1.2f * pulse));
+        var pulse = Math.Max(context.Pulse.Kick.Level, context.Pulse.Punch);
+        canvas.Glow(sx, sy, radius * (0.06 + (0.12 * pulse)), context.Paint(context.Pulse.Pitch), 0.4f + (1.6f * pulse));
     }
 
     /// <summary>

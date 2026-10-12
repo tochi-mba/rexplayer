@@ -19,6 +19,7 @@
         <ModulePath>.*[\\/]Rex\.Media\.Library\.dll$</ModulePath>
         <ModulePath>.*[\\/]Rex\.Media\.Settings\.dll$</ModulePath>
         <ModulePath>.*[\\/]Rex\.Media\.AppCore\.dll$</ModulePath>
+        <ModulePath>.*[\\/]Rex\.Media\.Vision\.dll$</ModulePath>
       </Include>
     </ModulePaths>
     <EnableStaticNativeInstrumentation>False</EnableStaticNativeInstrumentation>

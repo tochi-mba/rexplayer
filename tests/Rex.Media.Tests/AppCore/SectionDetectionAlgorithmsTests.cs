@@ -339,6 +339,19 @@ public sealed class SectionDetectionAlgorithmsTests
     }
 
     [Fact]
+    public void DuplicateEpisodeCopiesDoNotCreateOrInflateIndependentEvidence()
+    {
+        var own = Episode("Series.S01E02.mkv");
+        Assert.Empty(SectionDetector.Detect(own, [Episode("Series.S01E02.copy.mkv")]).Candidates);
+        var sibling = Episode("Series.S01E03.mkv");
+        var single = SectionDetector.Detect(own, [sibling]);
+        var duplicates = SectionDetector.Detect(own, [sibling, sibling with { Path = "Series.S01E03.copy.mkv" }]);
+        Assert.Equal(single.Candidates, duplicates.Candidates);
+        Assert.All(single.Candidates, candidate => Assert.Equal("shared audio", candidate.Source));
+        Assert.All(single.Candidates, candidate => Assert.Contains("2 episodes", candidate.Reason));
+    }
+
+    [Fact]
     public void MultipleEpisodeMatchesProvideHighConfidenceOneClickProposals()
     {
         var frames = Enumerable.Range(0, 100).Select(i => Frame(2390 + i)).ToArray();

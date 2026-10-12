@@ -35,7 +35,7 @@ public sealed class VisualStageTests
     public void NonFiniteAudioCannotPoisonTheStage(int sampleRate)
     {
         var stage = Stage();
-        var samples = Enumerable.Repeat(float.NaN, Rex.Media.Audio.SpectrumAnalyzer.Size).ToArray();
+        var samples = Enumerable.Repeat(float.NaN, VisualStage.SoundSize).ToArray();
         samples[0] = float.PositiveInfinity;
         samples[1] = float.NegativeInfinity;
         for (var i = 0; i < 5; i++)
@@ -207,6 +207,19 @@ public sealed class VisualStageTests
 
     [Fact]
     [Capability("AU-18")]
+    public void ResonanceRingsExpireAfterTheDrumsStop()
+    {
+        var stage = Stage();
+        Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 2));
+        var scene = Assert.IsType<ResonanceScene>(SceneOf(stage));
+        Assert.True(scene.Waves > 0);
+
+        Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 5, silence: true));
+        Assert.Equal(0, scene.Waves);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
     public void TheStrobeNeverFlashesFasterThanItsLimit()
     {
         // 300 beats a minute: five a second, more than the limit of three.
@@ -354,6 +367,10 @@ public sealed class VisualStageTests
         Assert.Equal((800, 450), VisualStage.SizeFor(800, 450, scale: double.NaN));
         Assert.Equal((1920, 1080), VisualStage.SizeFor(3840, 2160, quality: double.NaN));
         Assert.Equal((768, 432), VisualStage.SizeFor(3840, 2160, quality: -100));
+        Assert.Equal((400, 225), VisualStage.SizeFor(800, 450, quality: 0.5));
+        Assert.Equal((600, 338), VisualStage.SizeFor(800, 450, quality: 0.5, scale: 1.5));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(800, 450, scale: double.MaxValue));
+        Assert.Equal((1920, 960), VisualStage.SizeFor(double.MaxValue, double.MaxValue / 2, scale: 2));
 
         var stage = Stage(96, 54);
         Assert.Equal(1, stage.Quality);

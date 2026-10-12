@@ -16,9 +16,12 @@ public sealed class VisualStage
     public const int MaxSide = 1920;
 
     private readonly MusicPulse _pulse = new();
-    private readonly float[] _mono = new float[SpectrumAnalyzer.Size];
+    private readonly float[] _mono = new float[SoundSize];
     private VisualScene? _scene;
     private VisualizerChoice _choice;
+
+    /// <summary>Samples of each channel a frame is drawn from: what <see cref="MusicPulse"/> analyses.</summary>
+    public const int SoundSize = MusicPulse.AnalysisSize;
 
     public VisualStage(int width, int height, Random? random = null)
     {
@@ -76,8 +79,8 @@ public sealed class VisualStage
     /// <summary>
     /// The canvas for a stage <paramref name="width"/> by <paramref name="height"/> layout units
     /// across on a screen of <paramref name="scale"/> pixels a unit: the stage's own pixels, so
-    /// nothing is scaled up on the way to the screen, until its longest side would pass
-    /// <see cref="MaxSide"/> times <paramref name="quality"/>; then that, in the stage's shape.
+    /// nothing is scaled up at full quality until its longest side would pass
+    /// <see cref="MaxSide"/>. Quality scales that fitted size, including on smaller windows.
     /// </summary>
     public static (int Width, int Height) SizeFor(double width, double height, double quality = 1, double scale = 1)
     {
@@ -87,23 +90,28 @@ public sealed class VisualStage
         }
 
         scale = double.IsFinite(scale) && scale > 0 ? scale : 1;
-        var (pixelsAcross, pixelsDown) = (width * scale, height * scale);
-        var most = MaxSide * (double.IsFinite(quality) ? Math.Clamp(quality, LowestQuality, 1) : 1);
-        var fit = Math.Min(1, most / Math.Max(pixelsAcross, pixelsDown));
-        return (Math.Max(2, (int)Math.Round(pixelsAcross * fit)), Math.Max(2, (int)Math.Round(pixelsDown * fit)));
+        var longest = Math.Max(width, height);
+        var fitted = Math.Min(MaxSide, longest * scale)
+            * (double.IsFinite(quality) ? Math.Clamp(quality, LowestQuality, 1) : 1);
+        // Divide before multiplying so even very large finite layout sizes or scales retain
+        // their aspect ratio instead of producing infinity times zero.
+        return (Math.Max(2, (int)Math.Round(width / longest * fitted)), Math.Max(2, (int)Math.Round(height / longest * fitted)));
     }
 
     /// <summary>
     /// Draws a frame of <paramref name="choice"/> from the newest sound (each channel
-    /// <see cref="SpectrumAnalyzer.Size"/> samples), <paramref name="elapsed"/> after the last frame,
-    /// with its <paramref name="options"/>; false when <paramref name="choice"/> is not drawn here.
+    /// <see cref="SoundSize"/> samples), <paramref name="elapsed"/> after the last frame, with its
+    /// <paramref name="options"/>; false when <paramref name="choice"/> is not drawn here. The scenes'
+    /// own copies of the channels (<see cref="VisualContext.Left"/>) are the newest
+    /// <see cref="SpectrumAnalyzer.Size"/>, with the sensitivity applied; the beat is heard from the
+    /// sound as it is, the sensitivity setting how strongly it moves things.
     /// </summary>
     public bool Draw(VisualizerChoice choice, IReadOnlyDictionary<string, string> options, ReadOnlySpan<float> left, ReadOnlySpan<float> right, int sampleRate, TimeSpan elapsed)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (left.Length != SpectrumAnalyzer.Size || right.Length != SpectrumAnalyzer.Size)
+        if (left.Length != SoundSize || right.Length != SoundSize)
         {
-            throw new ArgumentException($"Each channel takes {SpectrumAnalyzer.Size} samples.", nameof(left));
+            throw new ArgumentException($"Each channel takes {SoundSize} samples.", nameof(left));
         }
 
         if (_scene is null || choice != _choice)
@@ -124,19 +132,84 @@ public sealed class VisualStage
         Context.Dt = Math.Clamp(elapsed.TotalSeconds, 0, 0.25);
         Context.Prepare();
         var gain = (float)Context.Number(Player.VisualizerOptions.Sensitivity);
+        var skip = SoundSize - Context.Left.Length;
         for (var i = 0; i < _mono.Length; i++)
         {
-            Context.Left[i] = float.IsFinite(left[i]) ? Math.Clamp(left[i] * gain, -1, 1) : 0;
-            Context.Right[i] = float.IsFinite(right[i]) ? Math.Clamp(right[i] * gain, -1, 1) : 0;
-            _mono[i] = (Context.Left[i] + Context.Right[i]) / 2;
+            var (l, r) = (float.IsFinite(left[i]) ? Math.Clamp(left[i], -1, 1) : 0, float.IsFinite(right[i]) ? Math.Clamp(right[i], -1, 1) : 0);
+            _mono[i] = (l + r) / 2;
+            if (i >= skip)
+            {
+                Context.Left[i - skip] = Math.Clamp(l * gain, -1, 1);
+                Context.Right[i - skip] = Math.Clamp(r * gain, -1, 1);
+            }
         }
 
+        _pulse.Sensitivity = gain;
         _pulse.Update(_mono, Math.Max(1, sampleRate), elapsed);
         _scene.Draw(Context);
         Canvas.Settle();
         Canvas.ToBgra(Pixels, 1, 0.35f);
+        if (Context.Toggle(Player.VisualizerOptions.Meter))
+        {
+            // Over the finished picture, so it never feeds the scene's trails.
+            Meter();
+        }
+
         return true;
     }
+
+    /// <summary>
+    /// The beat meter, along the bottom: the bands as thin bars; the bass, middle and treble, the
+    /// punch and the loudness as blocks; a square lit on each beat (half lit for one the clock stood
+    /// in for), and a line across it that fills through the beat, white once the clock is locked.
+    /// </summary>
+    private void Meter()
+    {
+        var (w, h) = (Canvas.Width, Canvas.Height);
+        var strip = Math.Max(8, h / 8);
+        var top = h - strip;
+        Shade(0, top, w, strip, Rgb.Black, 0.8f);
+        var bands = _pulse.Bands;
+        var across = w * 0.6;
+        for (var band = 0; band < bands.Count; band++)
+        {
+            var tall = (int)(bands[band] * (strip - 2));
+            Shade((int)(band * across / bands.Count), h - 1 - tall, Math.Max(1, (int)(across / bands.Count) - 1), tall, Context.Paint((double)band / bands.Count), 1);
+        }
+
+        float[] levels = [_pulse.Bass, _pulse.Mid, _pulse.Treble, _pulse.Punch, _pulse.Loudness];
+        var block = w * 0.05;
+        for (var i = 0; i < levels.Length; i++)
+        {
+            var tall = (int)(levels[i] * (strip - 2));
+            Shade((int)(across + (i * block) + 2), h - 1 - tall, (int)(block - 3), tall, i == 3 ? Rgb.White : Context.Paint(i / 4.0), 1);
+        }
+
+        _beatLight = _pulse.Beat ? (_pulse.Filled ? 0.5f : 1) : Math.Max(0, _beatLight - (float)(Context.Dt * 6));
+        var left = (int)(across + (levels.Length * block) + 6);
+        var side = Math.Min(strip - 4, w - left - 4);
+        Shade(left, top + 2, side, side, Rgb.White, Math.Min(1, 0.12f + _beatLight));
+        Shade(left, h - 3, (int)(side * _pulse.Phase), 2, _pulse.Locked ? Rgb.White : new Rgb(0.5f, 0.5f, 0.5f), 1);
+    }
+
+    /// <summary>Lays <paramref name="color"/> over a rectangle of the finished pixels at <paramref name="opacity"/>, clipped to them.</summary>
+    private void Shade(int x, int y, int width, int height, Rgb color, float opacity)
+    {
+        var (w, h) = (Canvas.Width, Canvas.Height);
+        var (b, g, r) = (Math.Clamp(color.B, 0, 1) * 255, Math.Clamp(color.G, 0, 1) * 255, Math.Clamp(color.R, 0, 1) * 255);
+        for (var py = Math.Max(0, y); py < Math.Min(h, y + height); py++)
+        {
+            for (var px = Math.Max(0, x); px < Math.Min(w, x + width); px++)
+            {
+                var at = ((py * w) + px) * 4;
+                Pixels[at] = (byte)(Pixels[at] + ((b - Pixels[at]) * opacity));
+                Pixels[at + 1] = (byte)(Pixels[at + 1] + ((g - Pixels[at + 1]) * opacity));
+                Pixels[at + 2] = (byte)(Pixels[at + 2] + ((r - Pixels[at + 2]) * opacity));
+            }
+        }
+    }
+
+    private float _beatLight;
 
     /// <summary>
     /// Draws at a new size from the next frame, as when the window is resized; the scene keeps what

@@ -1,5 +1,57 @@
 # Changelog
 
+Every version of rexplayer that reaches users, newest first. A version is published by the CI
+pipeline the moment its number reaches `main`.
+
+## 0.17.0 - 2026-10-12
+
+### Added
+
+- **Lumen weave.** A new contour effect that follows each outline along its own direction
+  and keeps only edges that stay continuous, so noise drops away and real silhouettes
+  become flowing strands of light. Strands are coloured by how sharply they curve, or by
+  source colour, monochrome or brightness, and Strand flow sends light travelling along them.
+- **Five more picture effects.** Depth haze fades soft and flat areas into a coloured
+  atmosphere; Particle veil sends sparks up from whatever is moving; Lens bloom adds
+  anamorphic streaks and glow to highlights; Stipple engrave draws the picture as an
+  engraving whose lines bend with the edges; Time echo splits movement into a red echo
+  behind and a blue echo ahead. Each has its own saved controls and named colour choices.
+- **Five more picture looks.** Teal & orange, Golden film, Bleach bypass, Cross process
+  and Infrared.
+
+### Improved
+
+- **Faster start for video.** The picture shaders compile once per session instead of for
+  every video surface.
+
+## 0.16.0 - 2026-10-12
+
+### Added
+
+- **Updates without the waiting.** rexplayer looks for a new version by itself every day,
+  downloads it quietly in the background and checks it against its published checksum.
+  An update bar then offers Restart now (you come back paused at the same place), Install
+  when I close rexplayer, Install tonight, Remind me later or Skip this version, with what's
+  new. It never appears over full-screen playback.
+- **Choose how updates install.** Preferences, Updates: install by itself when rexplayer is
+  not in use, download and ask, or only tell me. Preferences also shows the update's
+  progress and what the last update brought. A cancelled install reopens rexplayer where
+  you were.
+
+### Improved
+
+- **Library.** The selection survives sorting, filtering and scans; an opened show, season
+  or album never shows stale items; reversed orders keep ties in order; Open containing
+  folder works for every selected item.
+- **Keyboard.** Arrow, Enter, Delete and selection keys work inside a focused library or
+  playlist instead of seeking or changing the volume, while Space still plays and pauses.
+  Escape closes the Subject Lock panel, and input inside the panel no longer moves the
+  picture.
+- **Episode sections.** An unreadable episode no longer stops analysis of the others, and
+  duplicate copies of one episode no longer count as separate evidence.
+- **Visualisations and effects.** Adaptive quality now works at every window size, and an
+  effect at zero strength stops keeping a copy of the previous frame.
+
 ## 0.15.11 - 2026-10-12
 
 ### Added
@@ -103,9 +155,6 @@
   occlusions or similar-looking subjects. The flower-dress and grey-outfit
   footage still need an annotated, repeatable accuracy and frame-time benchmark
   before claiming reliable recovery under all real-world conditions.
-
-Every version of rexplayer that reaches users, newest first. A version is published by the CI
-pipeline the moment its number reaches `main`.
 
 ## 0.15.8 - 2026-10-11
 

@@ -106,8 +106,8 @@ public sealed class BeatEditScene : VisualScene
         }
 
         // The kick's punch snaps in and eases out; the beat's pump swells between kicks.
-        var punch = Math.Pow(kick.Level, 0.7) * tricks.Punch * intensity;
-        var pump = pulse.Tempo > 0 ? Math.Pow(1 - pulse.Phase, 3) * tricks.Punch * 0.35 * intensity : 0;
+        var punch = Math.Pow(Math.Max(kick.Level, pulse.Punch), 0.7) * tricks.Punch * intensity;
+        var pump = pulse.Locked ? Math.Pow(1 - pulse.Phase, 3) * tricks.Punch * 0.35 * intensity : 0;
         var drift = tricks.Drift ? 1.06 + (0.04 * Math.Sin(context.Seconds * Math.Tau / (beatSeconds * 16))) : 1.03;
         var zoom = drift * (1 + (0.2 * punch) + (0.05 * pump) + (0.12 * Math.Max(0, _split > 0 ? 0 : _twist * _twist * 10)));
 

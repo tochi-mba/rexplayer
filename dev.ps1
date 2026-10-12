@@ -135,6 +135,8 @@ function Invoke-Lexicon([string]$Path) {
 # coverage is reported by the pure suite's boundary, not gated (ADR-008).
 function Invoke-Adapters {
     Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj", "-c", $Configuration, "--no-build", "--filter-not-trait", "Category=Perf")
+    # The optional models (ADR-0019) through Windows ML; tests needing a download skip cleanly without one.
+    Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Vision.Windows.Tests/Rex.Media.Vision.Windows.Tests.csproj", "-c", $Configuration, "--no-build")
 }
 
 # Measurements are noisy, so they run on their own, never in the adapters run. The lane is

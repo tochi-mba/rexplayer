@@ -36,13 +36,46 @@ public sealed partial class MainWindow
     /// </summary>
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        _lastInputTick = Environment.TickCount64;
+        if (e.Key == VirtualKey.Escape && !e.Handled && EscapeFromUpdateBar())
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (!e.Handled && _subjectOpen && e.Key == VirtualKey.Escape)
+        {
+            CloseSubjectTools();
+            Stage.Focus(FocusState.Programmatic);
+            e.Handled = true;
+            return;
+        }
+
+        // Controls in the tool panel own their activation and navigation keys.
+        // In particular, Space toggles a switch and arrows adjust a slider.
+        if (_subjectOpen && IsInSubjectPanel(FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject))
+        {
+            return;
+        }
+
         if (e.Handled || FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox or PasswordBox or AutoSuggestBox)
         {
             return;
         }
 
-        if (VirtualKeys.Chord((int)e.Key, IsDown(VirtualKey.Control), IsDown(VirtualKey.Menu), IsDown(VirtualKey.Shift)) is { } chord
-            && _keymap.CommandFor(chord) is { } command)
+        if (VirtualKeys.Chord((int)e.Key, IsDown(VirtualKey.Control), IsDown(VirtualKey.Menu), IsDown(VirtualKey.Shift)) is not { } chord)
+        {
+            return;
+        }
+
+        var focused = FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject;
+        if (ShortcutRouting.ListOwns(chord) && (IsWithin(focused, LibraryList)
+            || IsWithin(focused, LibraryCollage) || IsWithin(focused, PlaylistView)))
+        {
+            return;
+        }
+
+        if (_keymap.CommandFor(chord) is { } command)
         {
             e.Handled = true;
             _shortcutKeys.Add(e.Key);
@@ -95,7 +128,15 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnStageDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => Run(CommandCatalog.ToggleFullScreen);
+    private void OnStageDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (_subjectOpen || IsInSubjectPanel(e.OriginalSource as DependencyObject))
+        {
+            return;
+        }
+
+        Run(CommandCatalog.ToggleFullScreen);
+    }
 
     private long _lastLensPointerTick;
 
@@ -161,6 +202,11 @@ public sealed partial class MainWindow
     /// </summary>
     private void OnStageWheel(object sender, PointerRoutedEventArgs e)
     {
+        if (IsInSubjectPanel(e.OriginalSource as DependencyObject))
+        {
+            return;
+        }
+
         var point = e.GetCurrentPoint(Stage);
         var delta = point.Properties.MouseWheelDelta;
         if (delta == 0)

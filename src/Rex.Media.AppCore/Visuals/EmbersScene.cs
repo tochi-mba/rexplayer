@@ -1,9 +1,9 @@
 namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
-/// Embers rising from a fire (AU-18): more of them and faster the louder the music, swirling as they
-/// climb and leaving smoke behind, a glow at the base that breathes with the bass, and a burst
-/// thrown up on every beat.
+/// Embers rising from a fire (AU-18): more of them the louder the music, swirling in time with the
+/// beat as they climb and leaving smoke behind, a fire at the base that flares with every kick, and a
+/// burst thrown up on each.
 /// </summary>
 public sealed class EmbersScene : VisualScene
 {
@@ -33,7 +33,7 @@ public sealed class EmbersScene : VisualScene
         // Each kick throws a burst up from the fire; each hi-hat a few quick sparks.
         if (pulse.Kick.Hit && context.Toggle("burst"))
         {
-            for (var n = 0; n < (int)(amount * 0.3 * pulse.Kick.Strength); n++)
+            for (var n = 0; n < (int)(amount * 0.6 * pulse.Kick.Strength); n++)
             {
                 Spawn(context, w, h, size, speed, 1.8);
             }
@@ -47,9 +47,10 @@ public sealed class EmbersScene : VisualScene
             }
         }
 
-        var t = context.Seconds;
-        _embers.Step(context.Dt, wind * size * 0.2, -size * 0.15 * speed, 0.6, (x, y) => Math.Sin((y * 0.025) + (t * 1.7) + (x * 0.01)) * size * 0.5);
-        canvas.Glow(w / 2.0, h + (size * 0.1), size * (0.55 + (0.35 * pulse.Bass)), context.Paint(0.05), 0.25f + pulse.Bass);
+        // The swirl turns over once a beat.
+        var turn = (pulse.Beats + pulse.Phase) * Math.PI;
+        _embers.Step(context.Dt, wind * size * 0.2, -size * 0.15 * speed, 0.6, (x, y) => Math.Sin((y * 0.025) + turn + (x * 0.01)) * size * 0.5);
+        canvas.Glow(w / 2.0, h + (size * 0.1), size * (0.45 + (0.3 * pulse.Bass) + (0.25 * pulse.Punch)), context.Paint(0.05), 0.15f + (0.4f * pulse.Bass) + (1.1f * pulse.Punch));
         _embers.Draw(context, 0.85f, 0.03);
         canvas.Bloom(0.4f, 0.9f, 5);
     }

@@ -58,12 +58,10 @@ public sealed class SpectrumAnalyzer
         ArgumentOutOfRangeException.ThrowIfLessThan(sampleRate, 1);
         Fft.Magnitudes(samples, _magnitudes);
         var seconds = (float)Math.Max(0, elapsed.TotalSeconds);
-        var lastBin = _magnitudes.Length - 1;
         for (var band = 0; band < _levels.Length; band++)
         {
             // Bands share the range by ratio, as octaves do; each covers at least one bin.
-            var from = Bin(_low * Math.Pow(_high / _low, (double)band / _levels.Length), sampleRate, lastBin);
-            var to = Math.Max(from, Bin(_low * Math.Pow(_high / _low, (double)(band + 1) / _levels.Length), sampleRate, lastBin) - 1);
+            var (from, to) = BandLayout.Bins(band, _levels.Length, _low, _high, sampleRate, Size);
             var strongest = 0f;
             for (var bin = from; bin <= to; bin++)
             {
@@ -82,8 +80,6 @@ public sealed class SpectrumAnalyzer
         Array.Clear(_levels);
         Array.Clear(_peaks);
     }
-
-    private static int Bin(double hertz, int sampleRate, int lastBin) => (int)Math.Clamp(Math.Round(hertz * Size / sampleRate), 1, lastBin);
 
     private float Level(float magnitude)
     {

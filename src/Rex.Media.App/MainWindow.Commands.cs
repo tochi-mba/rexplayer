@@ -374,6 +374,9 @@ public sealed partial class MainWindow
             ApplyMinimalInterface();
             ApplyAlwaysOnTop();
         }
+
+        // An update bar waits out full-screen playback and comes back on leaving it.
+        ConsiderUpdatePrompt();
     }
 
     private void ShowFullScreenControls()

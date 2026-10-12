@@ -44,6 +44,9 @@ public sealed class UpdateAndResumeTests : IDisposable
     [InlineData(UpdateCadence.Weekly, 24.0 * 6, false)]
     [InlineData(UpdateCadence.Weekly, 24.0 * 7, true)]
     [InlineData(UpdateCadence.Weekly, null, true)]
+    [InlineData(UpdateCadence.Daily, -0.5, false)]
+    [InlineData(UpdateCadence.Daily, -2.0, true)]
+    [InlineData(UpdateCadence.Weekly, -24.0 * 30, true)]
     public void AChecksIsDueOnlyWhenTheCadenceSays(UpdateCadence cadence, double? hoursAgo, bool due)
     {
         Assert.Equal(due, UpdateCheck.IsDue(cadence, hoursAgo is { } h ? Now.AddHours(-h) : null, Now));
@@ -61,6 +64,36 @@ public sealed class UpdateAndResumeTests : IDisposable
         Assert.Equal("https://example.com/setup.exe.sha256", offer.Checksum.ToString());
         Assert.Equal("https://github.com/tochi-mba/rexplayer/releases/tag/v0.4.0", offer.ReleasePage.ToString());
         Assert.Equal("https://api.github.com/repos/tochi-mba/rexplayer/releases/latest", UpdateCheck.LatestRelease.ToString());
+    }
+
+    [Fact]
+    public void AnOfferCarriesTheInstallersSizeAndTheReleaseNotes()
+    {
+        var release = Release("v0.4.0")
+            .Replace("\"browser_download_url\": \"https://example.com/setup.exe\" }", "\"browser_download_url\": \"https://example.com/setup.exe\", \"size\": 1234 }", StringComparison.Ordinal)
+            .Replace("\"prerelease\"", "\"body\": \"## What's Changed\\n* **Faster** start by @someone in https://github.com/x/pull/1\\n\\nBreaking change: settings move.\",\n  \"prerelease\"", StringComparison.Ordinal);
+        var offer = UpdateCheck.Offer(release, "0.3.1")!;
+
+        Assert.Equal(1234, offer.Size);
+        Assert.Equal("What's Changed\n\u2022 Faster start\nBreaking change: settings move.", offer.Notes);
+        Assert.True(offer.NeedsAttention);
+
+        var plain = UpdateCheck.Offer(Release("v0.4.0"), "0.3.1")!;
+        Assert.Equal((0L, "", false), (plain.Size, plain.Notes, plain.NeedsAttention));
+        Assert.Equal(0, UpdateCheck.Offer(Release("v0.4.0").Replace("\"browser_download_url\": \"https://example.com/setup.exe\" }", "\"browser_download_url\": \"https://example.com/setup.exe\", \"size\": \"big\" }", StringComparison.Ordinal), "0.3.1")!.Size);
+    }
+
+    [Fact]
+    public void ReleaseNotesReadAsPlainText()
+    {
+        Assert.Equal(
+            "Highlights\n\u2022 See the guide\n\u2022 Use code here\nPlain line",
+            UpdateCheck.PlainNotes("# Highlights\r\n\r\n- See [the guide](https://example.com/guide)\n* Use `code` here\n<!-- hidden -->\nPlain line\n**Full Changelog**: https://x"));
+        Assert.True(UpdateCheck.NeedsAttention("ACTION REQUIRED: back up"));
+        Assert.True(UpdateCheck.NeedsAttention("[attention] read me"));
+        Assert.False(UpdateCheck.NeedsAttention("Faster"));
+        Assert.Throws<ArgumentNullException>(() => UpdateCheck.PlainNotes(null!));
+        Assert.Throws<ArgumentNullException>(() => UpdateCheck.NeedsAttention(null!));
     }
 
     [Theory]

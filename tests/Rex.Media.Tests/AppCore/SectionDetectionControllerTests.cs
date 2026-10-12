@@ -18,7 +18,7 @@ public sealed class SectionDetectionControllerTests
         try
         {
             var fileA = Path.Combine(folder, "Series.S01E01.mkv");
-            var fileB = Path.Combine(folder, "Series.S01E02.mkv");
+            var fileB = Path.Combine(folder, "Series.S01E02.MKV");
             var video = EbmlWriter.Element(MatroskaId.TrackEntry,
                 EbmlWriter.UInt(MatroskaId.TrackNumber, 2),
                 EbmlWriter.UInt(MatroskaId.TrackType, 1),
@@ -33,7 +33,11 @@ public sealed class SectionDetectionControllerTests
                 MatroskaCraftedTests.Cluster(0, MatroskaCraftedTests.Simple(2, 0, true, 40)));
             File.WriteAllBytes(fileA, bytes);
             File.WriteAllBytes(fileB, bytes);
+            var broken = Path.Combine(folder, "Series.S01E03.mkv");
+            File.WriteAllBytes(broken, bytes);
             var store = RexStore.InMemory();
+            new PlayerMemory(store).SetProposals(fileA,
+                new SectionProposals(SectionAnalysis.SignatureOf(fileA), []));
             var analyzed = 0;
             using (var harness = new ControllerHarness(autoPlay: false, pictures: true, store: store))
             {
@@ -43,6 +47,11 @@ public sealed class SectionDetectionControllerTests
                 controller.SectionAnalyzer = (path, token) =>
                 {
                     token.ThrowIfCancellationRequested();
+                    if (path == broken)
+                    {
+                        throw new IOException("Unreadable sibling");
+                    }
+
                     Interlocked.Increment(ref analyzed);
                     var first = path == fileA;
                     var opening = Enumerable.Range(0, 220)
@@ -338,7 +347,7 @@ public sealed class SectionDetectionControllerTests
             var player = harness.Controller;
             player.SectionAnalyzer = (_, _) => throw new InvalidOperationException("Cached proposals must not re-decode");
             player.Open([path]);
-            harness.PumpUntil(c => c.State == SessionState.Ready && c.Info is not null);
+            harness.PumpUntil(c => c.State == SessionState.Ready && c.Info is not null && c.CurrentProposals is not null);
 
             Assert.True(player.CanMarkEpisodeSections);
             Assert.Equal(proposal.Signature, player.CurrentProposals?.Signature);

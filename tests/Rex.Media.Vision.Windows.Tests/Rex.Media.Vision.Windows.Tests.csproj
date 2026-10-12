@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The framework of the Windows ML adapter it drives (ADR-0019). -->
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <RootNamespace>Rex.Media.Vision.Windows.Tests</RootNamespace>
+    <!-- An executable referencing Windows ML carries the Windows App SDK's runtime beside it, as
+         the app does, and so names its architecture. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <!-- See Rex.Media.Vision.WindowsML.csproj. -->
+    <NoWarn>$(NoWarn);NU1603</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.TestKit\Rex.Media.TestKit.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.IO\Rex.Media.IO.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Video\Rex.Media.Video.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Vision\Rex.Media.Vision.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Vision.WindowsML\Rex.Media.Vision.WindowsML.csproj" />
+  </ItemGroup>
+
+</Project>

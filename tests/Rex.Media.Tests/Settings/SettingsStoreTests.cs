@@ -29,7 +29,9 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(RepeatMode.Off, settings.Repeat);
         Assert.True(settings.SingleInstance);
         Assert.False(settings.OnlineLookups);
-        Assert.Equal(UpdateCadence.Weekly, settings.UpdateChecks);
+        Assert.Equal(UpdateCadence.Daily, settings.UpdateChecks);
+        Assert.Equal(UpdateMode.DownloadAndAsk, settings.UpdateMode);
+        Assert.Null(settings.PendingUpdate);
         Assert.Empty(settings.Shortcuts);
         Assert.False(settings.SeekPreview);
     }
@@ -65,7 +67,9 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void EveryPictureLookIsNamedSavedAndNormalized()
     {
-        Assert.Equal(9, VideoLooks.Names.Count);
+        Assert.Equal(14, VideoLooks.Names.Count);
+        Assert.Equal("Teal & orange", VideoLooks.Name(VideoLook.TealOrange));
+        Assert.Equal("Infrared", VideoLooks.Name(VideoLook.Infrared));
         Assert.Equal("Original", VideoLooks.Name(VideoLook.Original));
         Assert.Equal("Original", VideoLooks.Name((VideoLook)1_000));
         foreach (var look in Enum.GetValues<VideoLook>())
@@ -136,6 +140,10 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 1));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 3));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 30, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70, 0.01f));
         Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.Halftone));
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GlyphMosaic).Count);
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.ThermalMap).Count);
@@ -143,6 +151,51 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GhostwireMotion).Count);
         Assert.Equal((0, 0), VideoStyleOptions.Extras(null, VideoStyleOptions.ForEffect(VideoEffect.Off)));
         Assert.Throws<ArgumentNullException>(() => VideoStyleOptions.Extras(null, null!));
+    }
+
+    [Fact]
+    public void SixthEffectSetHasNamedOptionsCategoriesAndHistoryPolicy()
+    {
+        var withModes = new[]
+        {
+            VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.ParticleVeil,
+            VideoEffect.LensBloom, VideoEffect.StippleEngrave,
+        };
+        foreach (var effect in withModes.Append(VideoEffect.TimeEcho))
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            Assert.Equal(4, options.Count);
+            Assert.All(options, option => Assert.InRange(option.Default, option.Min, option.Max));
+            Assert.Equal(options.Count, options.Select(option => option.Key).Distinct().Count());
+            Assert.DoesNotContain("Fine detail", options[1].Label, StringComparison.Ordinal);
+            Assert.Equal((options[2].Default, options[3].Default), VideoStyleOptions.Extras(null, options));
+        }
+
+        foreach (var effect in withModes)
+        {
+            var modes = VideoStyleOptions.ModeNames(effect);
+            Assert.Equal(4, modes.Count);
+            Assert.Equal(modes.Count - 1, VideoStyleOptions.ForEffect(effect)[3].Max);
+            Assert.EndsWith(".mode", VideoStyleOptions.ForEffect(effect)[3].Key, StringComparison.Ordinal);
+        }
+
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.TimeEcho));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.LumenWeave));
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.DepthHaze));
+        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.ParticleVeil));
+        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.LensBloom));
+        Assert.Equal("Print & texture", VideoEffects.Category(VideoEffect.StippleEngrave));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.TimeEcho));
+        Assert.Equal("Lumen weave", VideoEffects.Name(VideoEffect.LumenWeave));
+        Assert.Equal("Time echo", VideoEffects.Name(VideoEffect.TimeEcho));
+
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.ParticleVeil, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40, 0));
+        foreach (var effect in new[] { VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.LensBloom, VideoEffect.StippleEngrave })
+        {
+            Assert.False(VideoEffects.UsesHistory(effect, 3));
+        }
     }
 
     [Fact]
@@ -167,7 +220,8 @@ public sealed class SettingsStoreTests : IDisposable
             var options = VideoStyleOptions.ForEffect(effect);
             Assert.Equal(effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
                 or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.TapeWear
-                or VideoEffect.PixelSort or VideoEffect.MotionSmear ? 4 : 2, options.Count);
+                or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.LumenWeave or VideoEffect.DepthHaze
+                or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho ? 4 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);
@@ -296,6 +350,102 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void UpdatesAreLookedForDailyUnlessTheUserChoseOtherwise()
+    {
+        // The old weekly default, saved before schema 3, becomes daily; never stays never.
+        Assert.Equal(UpdateCadence.Daily, new PlayerSettings { Schema = 2, UpdateChecks = UpdateCadence.Weekly }.Normalize().UpdateChecks);
+        Assert.Equal(UpdateCadence.Off, new PlayerSettings { Schema = 2, UpdateChecks = UpdateCadence.Off }.Normalize().UpdateChecks);
+        Assert.Equal(UpdateCadence.Weekly, new PlayerSettings { Schema = 3, UpdateChecks = UpdateCadence.Weekly }.Normalize().UpdateChecks);
+    }
+
+    [Fact]
+    public void AFileFromBeforeUpdateModesReadsAsNothingPendingAndMigrates()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(File)!);
+        System.IO.File.WriteAllText(File, """{ "schema": 2, "updateChecks": "Weekly", "lastSeenVersion": "0.15.11" }""");
+        var loaded = SettingsStore.Load(File);
+
+        Assert.Equal((UpdateCadence.Daily, UpdateMode.DownloadAndAsk, (PendingUpdate?)null, (string?)null), (loaded.UpdateChecks, loaded.UpdateMode, loaded.PendingUpdate, loaded.SkippedUpdateVersion));
+    }
+
+    [Fact]
+    public void APendingUpdateComesBackTheSame()
+    {
+        var pending = new PendingUpdate
+        {
+            Version = "0.16.0",
+            InstallerName = "rexplayer-Setup-0.16.0.exe",
+            InstallerUrl = "https://example.com/a.exe",
+            ChecksumUrl = "https://example.com/a.exe.sha256",
+            ReleasePage = "https://example.com/release",
+            Size = 42,
+            Notes = "Faster",
+            NeedsAttention = true,
+            Stage = UpdateStage.Ready,
+            Timing = UpdateTiming.Scheduled,
+            Approved = true,
+            RemindAt = new DateTimeOffset(2026, 10, 13, 9, 0, 0, TimeSpan.Zero),
+            InstallAt = new DateTimeOffset(2026, 10, 13, 3, 0, 0, TimeSpan.Zero),
+            DownloadFailures = 2,
+            RetryAt = new DateTimeOffset(2026, 10, 12, 9, 0, 0, TimeSpan.Zero),
+            LastError = "the disk is full",
+            InstallFailures = 1,
+            HandedOffAt = new DateTimeOffset(2026, 10, 12, 8, 0, 0, TimeSpan.Zero),
+        };
+        var saved = new PlayerSettings
+        {
+            PendingUpdate = pending,
+            UpdateMode = UpdateMode.Automatic,
+            SkippedUpdateVersion = "0.15.12",
+            LastUpdatedVersion = "0.15.11",
+            LastUpdatedAt = new DateTimeOffset(2026, 10, 11, 8, 0, 0, TimeSpan.Zero),
+        };
+
+        SettingsStore.Save(File, saved);
+        var loaded = SettingsStore.Load(File);
+
+        Assert.Equal(pending, loaded.PendingUpdate);
+        Assert.Equal((UpdateMode.Automatic, "0.15.12", "0.15.11", saved.LastUpdatedAt), (loaded.UpdateMode, loaded.SkippedUpdateVersion, loaded.LastUpdatedVersion, loaded.LastUpdatedAt));
+    }
+
+    [Fact]
+    public void APendingUpdateThatCannotBeRexplayersIsDropped()
+    {
+        var good = new PendingUpdate
+        {
+            Version = "0.16.0",
+            InstallerName = "rexplayer-Setup-0.16.0.exe",
+            InstallerUrl = "https://example.com/a.exe",
+            ChecksumUrl = "https://example.com/a.exe.sha256",
+        };
+        Assert.NotNull(good.Normalize());
+
+        Assert.Null((good with { Version = "0.16" }).Normalize());
+        Assert.Null((good with { Version = "0.16.x" }).Normalize());
+        Assert.Null((good with { Version = "0..0" }).Normalize());
+        Assert.Null((good with { Version = null! }).Normalize());
+        Assert.Null((good with { InstallerName = "evil.exe" }).Normalize());
+        Assert.Null((good with { InstallerUrl = "http://example.com/a.exe" }).Normalize());
+        Assert.Null((good with { ChecksumUrl = "not a link" }).Normalize());
+        Assert.Null(new PlayerSettings { PendingUpdate = good with { InstallerUrl = "" } }.Normalize().PendingUpdate);
+
+        var wild = (good with
+        {
+            ReleasePage = "file:///c:/x",
+            Size = -5,
+            Notes = new string('n', PendingUpdate.MaxNotesLength + 10),
+            Stage = (UpdateStage)9,
+            Timing = (UpdateTiming)9,
+            DownloadFailures = -1,
+            InstallFailures = 5000,
+        }).Normalize()!;
+        Assert.Equal("https://github.com/tochi-mba/rexplayer/releases/latest", wild.ReleasePage);
+        Assert.Equal((0L, PendingUpdate.MaxNotesLength), (wild.Size, wild.Notes.Length));
+        Assert.Equal((UpdateStage.Downloading, UpdateTiming.Ask, 0, 1000), (wild.Stage, wild.Timing, wild.DownloadFailures, wild.InstallFailures));
+        Assert.Equal("", (good with { Notes = null! }).Normalize()!.Notes);
+    }
+
+    [Fact]
     public void ValuesOutOfRangeAreBroughtBackIntoIt()
     {
         var wild = new PlayerSettings
@@ -315,6 +465,7 @@ public sealed class SettingsStoreTests : IDisposable
             TitleSeconds = 100,
             Theme = (ThemeChoice)9,
             UpdateChecks = (UpdateCadence)9,
+            UpdateMode = (UpdateMode)9,
             AudioArtworkStyle = (ArtworkStyle)9,
             AudioArtworkColor = -1,
             AudioArtworkDetail = 500,
@@ -333,7 +484,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(1.5, wild.ControlsHideSeconds);
         Assert.Equal(30, wild.TitleSeconds);
         Assert.Equal(ThemeChoice.System, wild.Theme);
-        Assert.Equal(UpdateCadence.Weekly, wild.UpdateChecks);
+        Assert.Equal((UpdateCadence.Daily, UpdateMode.DownloadAndAsk), (wild.UpdateChecks, wild.UpdateMode));
         Assert.Equal((ArtworkStyle.Prism, 0, 200, 200), (wild.AudioArtworkStyle, wild.AudioArtworkColor, wild.AudioArtworkDetail, wild.AudioArtworkContrast));
         Assert.Empty(wild.Shortcuts);
 

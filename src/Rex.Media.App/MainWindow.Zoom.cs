@@ -188,7 +188,7 @@ public sealed partial class MainWindow
     private void OnStageManipulated(object sender, ManipulationDeltaRoutedEventArgs e)
     {
         // A selection drag must not also pan or zoom the picture under the pointer.
-        if (_selectingSubject)
+        if (_selectingSubject || IsInSubjectPanel(e.OriginalSource as DependencyObject))
         {
             return;
         }
@@ -216,7 +216,7 @@ public sealed partial class MainWindow
 
     private void OnStagePressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_selectingSubject)
+        if (_selectingSubject || IsInSubjectPanel(e.OriginalSource as DependencyObject))
         {
             return;
         }

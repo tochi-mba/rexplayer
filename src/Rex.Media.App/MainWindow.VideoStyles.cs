@@ -146,6 +146,10 @@ public sealed partial class MainWindow
             VideoEffect.GhostwireMotion => "Surface shape (default) reveals visible curves, highlights and soft shading even when the image is paused or still. Hybrid adds motion highlights; Contours and Motion isolate their respective signals. This is artistic image contrast, not a reconstruction of hidden anatomy. Camera movement and cuts can produce artefacts.",
             VideoEffect.ColourSpotlight => "Move the pointer over a colour to highlight similar colours in the current frame. This does not follow an object.",
             VideoEffect.ReliefEtch => "Simulated directional light carves relief from visible contrast; it does not estimate real depth.",
+            VideoEffect.LumenWeave => "Lumen weave follows each outline along its own direction, keeping only edges that stay continuous, and lights them as flowing strands. Strand flow sets how fast light travels along them.",
+            VideoEffect.DepthHaze => "Depth haze guesses distance from visible sharpness and texture: soft and flat areas fade into haze. It is atmosphere, not a measurement of real depth.",
+            VideoEffect.ParticleVeil => "Sparks rise from parts of the picture that changed since the previous frame. A still or paused picture shows none.",
+            VideoEffect.TimeEcho => "Moving areas split into a red echo where they were and a blue echo ahead of them. Still areas are unchanged.",
             _ => "",
         } : "";
         content.Children.Add(new TextBlock
