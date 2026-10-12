@@ -111,6 +111,7 @@ public sealed class MediaLibraryTests
 
         Assert.True(again.RemoveFolder(Music));
         Assert.Empty(again.Hidden);
+        Assert.Empty(new MediaLibrary(store).Hidden);
         Assert.True(again.AddFolder(Music));
         Assert.Equal(new ScanResult(2, 0, 0), again.Scan(Music, [File(a), File(b)], KindOf));
         Assert.Equal(2, again.Entries.Count);
