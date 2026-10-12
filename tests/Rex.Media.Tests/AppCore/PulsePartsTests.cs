@@ -176,8 +176,10 @@ public sealed class PulsePartsTests
         Assert.True(clock.Locked);
         var gap = Run(clock, 60 * 3.2 / bpm, [], start: 10);
         var crossings = gap.Where(frame => frame.Crossed).Select(frame => frame.T).ToList();
-        var expected = Beats(bpm, 0, 10 + (60 * 3.2 / bpm)).Where(t => t > 10).Take(3).ToList();
-        Assert.Equal(3, crossings.Count);
+        // A beat at exactly the boundary may cross in the first frame of the gap;
+        // include it if it lands within one frame of the starting time.
+        var expected = Beats(bpm, 0, 10 + (60 * 3.2 / bpm)).Where(t => t >= 10 - 0.04).ToList();
+        Assert.Equal(expected.Count, crossings.Count);
         foreach (var (beat, at) in expected.Zip(crossings))
         {
             Assert.InRange(at - beat, -0.04, 0.07);
