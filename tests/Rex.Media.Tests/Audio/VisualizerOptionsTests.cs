@@ -106,6 +106,26 @@ public sealed class VisualizerOptionsTests
         Assert.Empty(new PlayerSettings { VisualOptions = null! }.Normalize().VisualOptions);
     }
 
+    /// <summary>Exercise the production camera path with neutral BGRA pixels.</summary>
+    private static double MarkGrey(SilhouetteMask mask, ReadOnlySpan<byte> gray, double threshold)
+    {
+        if (gray.Length != mask.Width * mask.Height)
+        {
+            throw new ArgumentException("The brightness picture has the wrong size.", nameof(gray));
+        }
+
+        var pixels = new byte[gray.Length * 4];
+        for (var i = 0; i < gray.Length; i++)
+        {
+            pixels[i * 4] = gray[i];
+            pixels[(i * 4) + 1] = gray[i];
+            pixels[(i * 4) + 2] = gray[i];
+            pixels[(i * 4) + 3] = 255;
+        }
+
+        return mask.UpdateColour(pixels, mask.Width, mask.Height, threshold, mirror: false);
+    }
+
     /// <summary>A picture of the room: a gentle left-to-right gradient.</summary>
     private static byte[] Room(int width, int height) => [.. Enumerable.Range(0, width * height).Select(i => (byte)(40 + (i % width * 2)))];
 
@@ -119,7 +139,7 @@ public sealed class VisualizerOptionsTests
         for (var i = 0; i < SilhouetteMask.LearningPictures; i++)
         {
             Assert.True(mask.IsLearning);
-            Assert.Equal(0, mask.Update(room, 0.12));
+            Assert.Equal(0, MarkGrey(mask, room, 0.12));
         }
 
         Assert.False(mask.IsLearning);
@@ -135,7 +155,7 @@ public sealed class VisualizerOptionsTests
         }
 
         person[(1 * Width) + 17] = 250;
-        var share = mask.Update(person, 0.12);
+        var share = MarkGrey(mask, person, 0.12);
 
         Assert.Equal(255, mask.Mask[(8 * Width) + 8]);
         Assert.Equal(0, mask.Mask[(1 * Width) + 17]);
@@ -149,7 +169,7 @@ public sealed class VisualizerOptionsTests
         var full = new SilhouetteMask(3, 3);
         for (var i = 0; i <= SilhouetteMask.LearningPictures; i++)
         {
-            full.Update(i < SilhouetteMask.LearningPictures ? new byte[9] : Enumerable.Repeat((byte)255, 9).ToArray(), double.NaN);
+            MarkGrey(full, i < SilhouetteMask.LearningPictures ? new byte[9] : Enumerable.Repeat((byte)255, 9).ToArray(), double.NaN);
         }
 
         Assert.True(SilhouetteMask.IsEdge(full.Mask, 3, 3, 0, 0));
@@ -159,7 +179,7 @@ public sealed class VisualizerOptionsTests
         mask.Reset();
         Assert.True(mask.IsLearning);
         Assert.All(mask.Mask, value => Assert.Equal(0, value));
-        Assert.Throws<ArgumentException>(() => mask.Update(new byte[5], 0.1));
+        Assert.Throws<ArgumentException>(() => MarkGrey(mask, new byte[5], 0.1));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SilhouetteMask(2, 10));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SilhouetteMask(10, 2));
     }
@@ -173,7 +193,7 @@ public sealed class VisualizerOptionsTests
         var room = Enumerable.Repeat((byte)60, Width * Height).ToArray();
         for (var frame = 0; frame < SilhouetteMask.LearningPictures; frame++)
         {
-            tracker.Update(room, 0.12);
+            MarkGrey(tracker, room, 0.12);
         }
 
         var people = (byte[])room.Clone();
@@ -200,7 +220,7 @@ public sealed class VisualizerOptionsTests
         people[Width * 3 + 71] = 250;
         people[30 * Width + 20] = room[30 * Width + 20]; // one-pixel clothing gap
 
-        var share = tracker.Update(people, 0.12);
+        var share = MarkGrey(tracker, people, 0.12);
         Assert.InRange(share, 0.1, 0.28);
         Assert.Equal(255, tracker.Mask[26 * Width + 8]);
         Assert.Equal(255, tracker.Mask[26 * Width + 32]);
@@ -212,7 +232,7 @@ public sealed class VisualizerOptionsTests
 
         // Autoexposure brightening the whole scene must not turn the room into a person.
         var brighter = Enumerable.Repeat((byte)105, Width * Height).ToArray();
-        Assert.Equal(0, tracker.Update(brighter, 0.12));
+        Assert.Equal(0, MarkGrey(tracker, brighter, 0.12));
         Assert.All(tracker.Mask, p => Assert.Equal((byte)0, p));
     }
 
@@ -328,21 +348,32 @@ public sealed class VisualizerOptionsTests
     }
 
     [Fact]
-    public void CameraPicturesAreShrunkToTheirBrightnessAndMirrored()
+    public void CameraPicturesAreShrunkAndMirroredIntoTheForegroundMask()
     {
-        // 4x2 BGRA with a padded stride: white, black, red, green on top; blue and grays below.
-        byte[] picture =
-        [
-            255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 255, 255, 0, 255, 0, 255, 9, 9,
-            255, 0, 0, 255, 128, 128, 128, 255, 64, 64, 64, 255, 0, 0, 0, 255, 9, 9,
-        ];
+        const int Width = 8;
+        const int Height = 6;
+        var scene = new SilhouetteMask(Width, Height);
+        var room = CameraFrame(Width * 2, Height * 2, 30, 30, 30);
+        for (var i = 0; i < SilhouetteMask.LearningPictures; i++)
+        {
+            Assert.Equal(0, scene.UpdateColour(room, Width * 2, Height * 2, 0.12, false));
+        }
 
-        Assert.Equal([255, 0, 76, 149, 28, 128, 64, 0], SilhouetteMask.Brightness(picture, 4, 2, 18, 4, 2, mirror: false));
-        Assert.Equal([149, 76, 0, 255, 0, 64, 128, 28], SilhouetteMask.Brightness(picture, 4, 2, 18, 4, 2, mirror: true));
-        Assert.Equal([255, 76], SilhouetteMask.Brightness(picture, 4, 2, 18, 2, 1, mirror: false));
-        Assert.Throws<ArgumentException>(() => SilhouetteMask.Brightness(picture.AsSpan(0, 20), 4, 2, 18, 2, 1, false));
-        Assert.Throws<ArgumentOutOfRangeException>(() => SilhouetteMask.Brightness(picture, 4, 2, 8, 2, 1, false));
-        Assert.Throws<ArgumentOutOfRangeException>(() => SilhouetteMask.Brightness(picture, 0, 2, 18, 2, 1, false));
-        Assert.Throws<ArgumentOutOfRangeException>(() => SilhouetteMask.Brightness(picture, 4, 0, 18, 2, 1, false));
+        var subject = (byte[])room.Clone();
+        for (var y = 4; y < 8; y++)
+        {
+            for (var x = 2; x < 6; x++)
+            {
+                var at = (y * Width * 2 + x) * 4;
+                subject[at] = 220;
+                subject[at + 1] = 220;
+                subject[at + 2] = 220;
+            }
+        }
+
+        Assert.True(scene.UpdateColour(subject, Width * 2, Height * 2, 0.12, mirror: true) > 0);
+        Assert.Contains((byte)255, scene.Mask);
+        Assert.Throws<ArgumentException>(() => scene.UpdateColour(subject.AsSpan(0, 3), Width * 2, Height * 2, 0.12, false));
     }
+
 }
