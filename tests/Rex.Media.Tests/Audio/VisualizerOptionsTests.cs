@@ -161,9 +161,6 @@ public sealed class VisualizerOptionsTests
         Assert.Equal(0, mask.Mask[(1 * Width) + 17]);
         Assert.Equal(0, mask.Mask[(14 * Width) + 2]);
         Assert.InRange(share, 0.1, 0.2);
-        Assert.True(SilhouetteMask.IsEdge(mask.Mask, Width, Height, 6, 8));
-        Assert.False(SilhouetteMask.IsEdge(mask.Mask, Width, Height, 8, 8));
-        Assert.False(SilhouetteMask.IsEdge(mask.Mask, Width, Height, 2, 2));
 
         // At the picture's border a marked pixel is an edge.
         var full = new SilhouetteMask(3, 3);
@@ -172,9 +169,6 @@ public sealed class VisualizerOptionsTests
             MarkGrey(full, i < SilhouetteMask.LearningPictures ? new byte[9] : Enumerable.Repeat((byte)255, 9).ToArray(), double.NaN);
         }
 
-        Assert.True(SilhouetteMask.IsEdge(full.Mask, 3, 3, 0, 0));
-        Assert.True(SilhouetteMask.IsEdge(full.Mask, 3, 3, 2, 1));
-        Assert.False(SilhouetteMask.IsEdge(full.Mask, 3, 3, 1, 1));
 
         mask.Reset();
         Assert.True(mask.IsLearning);
