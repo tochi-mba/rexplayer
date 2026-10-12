@@ -67,7 +67,9 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void EveryPictureLookIsNamedSavedAndNormalized()
     {
-        Assert.Equal(9, VideoLooks.Names.Count);
+        Assert.Equal(14, VideoLooks.Names.Count);
+        Assert.Equal("Teal & orange", VideoLooks.Name(VideoLook.TealOrange));
+        Assert.Equal("Infrared", VideoLooks.Name(VideoLook.Infrared));
         Assert.Equal("Original", VideoLooks.Name(VideoLook.Original));
         Assert.Equal("Original", VideoLooks.Name((VideoLook)1_000));
         foreach (var look in Enum.GetValues<VideoLook>())
@@ -152,6 +154,51 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SixthEffectSetHasNamedOptionsCategoriesAndHistoryPolicy()
+    {
+        var withModes = new[]
+        {
+            VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.ParticleVeil,
+            VideoEffect.LensBloom, VideoEffect.StippleEngrave,
+        };
+        foreach (var effect in withModes.Append(VideoEffect.TimeEcho))
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            Assert.Equal(4, options.Count);
+            Assert.All(options, option => Assert.InRange(option.Default, option.Min, option.Max));
+            Assert.Equal(options.Count, options.Select(option => option.Key).Distinct().Count());
+            Assert.DoesNotContain("Fine detail", options[1].Label, StringComparison.Ordinal);
+            Assert.Equal((options[2].Default, options[3].Default), VideoStyleOptions.Extras(null, options));
+        }
+
+        foreach (var effect in withModes)
+        {
+            var modes = VideoStyleOptions.ModeNames(effect);
+            Assert.Equal(4, modes.Count);
+            Assert.Equal(modes.Count - 1, VideoStyleOptions.ForEffect(effect)[3].Max);
+            Assert.EndsWith(".mode", VideoStyleOptions.ForEffect(effect)[3].Key, StringComparison.Ordinal);
+        }
+
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.TimeEcho));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.LumenWeave));
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.DepthHaze));
+        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.ParticleVeil));
+        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.LensBloom));
+        Assert.Equal("Print & texture", VideoEffects.Category(VideoEffect.StippleEngrave));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.TimeEcho));
+        Assert.Equal("Lumen weave", VideoEffects.Name(VideoEffect.LumenWeave));
+        Assert.Equal("Time echo", VideoEffects.Name(VideoEffect.TimeEcho));
+
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.ParticleVeil, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40, 0));
+        foreach (var effect in new[] { VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.LensBloom, VideoEffect.StippleEngrave })
+        {
+            Assert.False(VideoEffects.UsesHistory(effect, 3));
+        }
+    }
+
+    [Fact]
     public void EveryPictureStyleSavesIndependentControlsAndCanResetOnlyItself()
     {
         IReadOnlyDictionary<string, int> values = new Dictionary<string, int>();
@@ -173,7 +220,8 @@ public sealed class SettingsStoreTests : IDisposable
             var options = VideoStyleOptions.ForEffect(effect);
             Assert.Equal(effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
                 or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.TapeWear
-                or VideoEffect.PixelSort or VideoEffect.MotionSmear ? 4 : 2, options.Count);
+                or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.LumenWeave or VideoEffect.DepthHaze
+                or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho ? 4 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);

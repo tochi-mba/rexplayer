@@ -42,6 +42,12 @@ public static class VideoStyleOptions
             VideoEffect.TapeWear => "Tracking noise (%)",
             VideoEffect.PixelSort => "Brightness threshold (%)",
             VideoEffect.MotionSmear => "Smear threshold (%)",
+            VideoEffect.LumenWeave => "Strand sensitivity (%)",
+            VideoEffect.DepthHaze => "Depth contrast (%)",
+            VideoEffect.ParticleVeil => "Spark threshold (%)",
+            VideoEffect.LensBloom => "Bloom sensitivity (%)",
+            VideoEffect.StippleEngrave => "Line weight (%)",
+            VideoEffect.TimeEcho => "Echo threshold (%)",
             _ => animated ? "Movement (%)" : "Fine detail (%)",
         };
         var options = new List<VideoStyleOption>
@@ -95,6 +101,30 @@ public static class VideoStyleOptions
                 options.Add(new($"effect.{name}.decay", "Smear decay (%)", 60, 0, 100));
                 options.Add(new($"effect.{name}.blocks", "Block size (%)", 40, 0, 100));
                 break;
+            case VideoEffect.LumenWeave:
+                options.Add(new($"effect.{name}.flow", "Strand flow (%)", 40, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Strand colour", 0, 0, 3));
+                break;
+            case VideoEffect.DepthHaze:
+                options.Add(new($"effect.{name}.density", "Haze density (%)", 60, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Haze colour", 0, 0, 3));
+                break;
+            case VideoEffect.ParticleVeil:
+                options.Add(new($"effect.{name}.density", "Spark density (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Spark colour", 0, 0, 3));
+                break;
+            case VideoEffect.LensBloom:
+                options.Add(new($"effect.{name}.stretch", "Streak length (%)", 60, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Bloom tint", 0, 0, 3));
+                break;
+            case VideoEffect.StippleEngrave:
+                options.Add(new($"effect.{name}.hatch", "Hatch density (%)", 60, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Ink and paper", 0, 0, 3));
+                break;
+            case VideoEffect.TimeEcho:
+                options.Add(new($"effect.{name}.separation", "Echo distance (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.hold", "Echo persistence (%)", 40, 0, 100));
+                break;
             default:
                 break;
         }
@@ -109,6 +139,11 @@ public static class VideoStyleOptions
         VideoEffect.GlyphMosaic => ["Phosphor green", "Amber", "Paper", "Source colour"],
         VideoEffect.ThermalMap => ["Iron", "Rainbow", "Arctic", "White hot"],
         VideoEffect.PixelSort => ["Down", "Up", "Right", "Left"],
+        VideoEffect.LumenWeave => ["Curvature", "Source colour", "Monochrome", "Depth cue"],
+        VideoEffect.DepthHaze => ["Blue hour", "Warm dust", "Grey mist", "Green"],
+        VideoEffect.ParticleVeil => ["Embers", "Ice", "Source colour", "White"],
+        VideoEffect.LensBloom => ["Blue", "Warm", "Neutral", "Source colour"],
+        VideoEffect.StippleEngrave => ["Copperplate", "Blue ink", "White on black", "Sepia"],
         _ => [],
     };
 
