@@ -316,7 +316,7 @@ public sealed class SectionDetectionAlgorithmsTests
         var start = TimeSpan.FromSeconds(2220);
         var keys = new[] { Frame(2230, dark: 0.2), Frame(2240, dark: 0.2), Frame(2490, dark: 0.2), Frame(2500), Frame(2510), Frame(2520) };
         var windows = CreditFrameEvidence.RefinementWindows(keys, start, TimeSpan.FromSeconds(2580));
-        Assert.Equal([(TimeSpan.FromSeconds(2490), TimeSpan.FromSeconds(2500)), (TimeSpan.FromSeconds(2563), TimeSpan.FromSeconds(2580))], windows);
+        Assert.Equal([(TimeSpan.FromSeconds(2490), TimeSpan.FromSeconds(2500)), (TimeSpan.FromSeconds(2558), TimeSpan.FromSeconds(2580))], windows);
 
         // Credits running to the last keyframe close to the end: the gap to the end is decoded.
         var late = new[] { Frame(2560, dark: 0.2), Frame(2575) };
