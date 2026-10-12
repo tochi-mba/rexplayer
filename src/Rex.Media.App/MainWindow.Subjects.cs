@@ -26,7 +26,7 @@ public sealed partial class MainWindow
     private bool _subjectAutoFollowing;
     private long _subjectRevision;
     // Wired to SubjectEditSession.SelectAround when it lands; a null handler uses a bounded selection box.
-    private Func<float, float, bool>? _subjectSelectAround = null;
+    private Func<float, float, bool> _subjectSelectAround = static (_, _) => false;
 
     private void WireSubjectTools()
     {
@@ -358,7 +358,7 @@ public sealed partial class MainWindow
         if (SubjectPanel.IsClick(_settings.SubjectSelection, last.X - first.X, last.Y - first.Y))
         {
             // Wired to SubjectEditSession.SelectAround when it lands; use the bounded box until then.
-            if (_subjectSelectAround?.Invoke((float)start.Value.X, (float)start.Value.Y) == true)
+            if (_subjectSelectAround((float)start.Value.X, (float)start.Value.Y))
             {
                 _selectingSubject = false;
                 SubjectOutline.Visibility = Visibility.Collapsed;
