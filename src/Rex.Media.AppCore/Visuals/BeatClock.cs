@@ -256,11 +256,7 @@ public sealed class BeatClock
     private double Correlation(int lag, double mean)
     {
         var n = _envelope.Length;
-        if (lag >= n)
-        {
-            return 0;
-        }
-
+        // EstimatePeriod calls this only with lags shorter than the envelope.
         double score = 0;
         for (var i = 0; i + lag < n; i++)
         {
