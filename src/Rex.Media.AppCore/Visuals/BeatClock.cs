@@ -117,7 +117,8 @@ public sealed class BeatClock
             if (strong && Math.Abs(Math.Abs(error) - 0.5) < Window && ++_halfVotes >= 3)
             {
                 _position += 0.5;
-                (_halfVotes, Confidence, _matched) = (0, Confidence * 0.5, (long)Math.Round(_position));
+                // Three consistent strong off-beats establish the corrected grid.
+                (_halfVotes, Confidence, _matched) = (0, Math.Max(0.6, Confidence * 0.5), (long)Math.Round(_position));
             }
 
             return;
@@ -163,7 +164,7 @@ public sealed class BeatClock
             // Twice or half the beat: the same music counted another way, not a new tempo.
             _disagree = 0;
         }
-        else if (++_disagree >= 20)
+        else if (++_disagree >= 8)
         {
             Adopt(period, Confidence * 0.5);
         }
