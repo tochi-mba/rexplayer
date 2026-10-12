@@ -37,6 +37,40 @@ public sealed class LibraryArrangementTests
     private static string[] Titles(IEnumerable<LibraryEntry> entries) => [.. entries.Select(entry => entry.Title)];
 
     [Fact]
+    public void RefreshingAnOpenedGroupKeepsItsIdentityButNeverStaleMembers()
+    {
+        var opened = new LibraryGroup("Series", "1 season · 2 episodes", [Song("old")]);
+        var current = new LibraryGroup("Series", "1 season · 1 episode", [Song("remaining")]);
+        Assert.Same(current, LibraryViews.RefreshGroup([current], opened));
+        var empty = LibraryViews.RefreshGroup([], opened);
+        Assert.Equal(opened.Name, empty.Name);
+        Assert.Empty(empty.Entries);
+        Assert.Same(current, LibraryViews.RefreshGroup([current], empty));
+
+        var otherArtist = new LibraryGroup("Series", "Other artist", [Song("other")]);
+        Assert.Empty(LibraryViews.RefreshGroup([otherArtist], opened, detailIdentifiesGroup: true).Entries);
+        Assert.Same(opened, LibraryViews.RefreshGroup([otherArtist, opened], opened, detailIdentifiesGroup: true));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.RefreshGroup(null!, opened));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.RefreshGroup([], null!));
+    }
+
+    [Fact]
+    public void ReversingAnOrderPreservesTheOriginalOrderOfTies()
+    {
+        var first = Song("First", plays: 2);
+        var second = Song("Second", plays: 2);
+        var third = Song("Third", plays: 5);
+        Assert.Equal([first, second, third], LibraryArrangement.Sort([first, second, third], LibrarySort.MostPlayed, true));
+        var groups = new[]
+        {
+            new LibraryGroup("First", null, [first]),
+            new LibraryGroup("Second", null, [second]),
+            new LibraryGroup("Third", null, [third]),
+        };
+        Assert.Equal(groups, LibraryArrangement.Sort(groups, LibrarySort.MostPlayed, true));
+    }
+
+    [Fact]
     [Capability("LIB-05")]
     public void EachOrderPutsWhatMattersFirst()
     {

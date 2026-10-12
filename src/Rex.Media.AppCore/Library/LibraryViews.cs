@@ -31,6 +31,20 @@ public static partial class LibraryViews
     private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
 
+    /// <summary>
+    /// Refreshes an opened group without losing navigation when filters hide all its members.
+    /// Album details identify the artist; show and season details are changing counts, not identity.
+    /// Missing groups retain their heading but never retain stale entries.
+    /// </summary>
+    public static LibraryGroup RefreshGroup(IReadOnlyList<LibraryGroup> groups, LibraryGroup opened, bool detailIdentifiesGroup = false)
+    {
+        ArgumentNullException.ThrowIfNull(groups);
+        ArgumentNullException.ThrowIfNull(opened);
+        return groups.FirstOrDefault(group => ByName.Equals(group.Name, opened.Name)
+            && (!detailIdentifiesGroup || ByName.Equals(group.Detail, opened.Detail)))
+            ?? opened with { Entries = [] };
+    }
+
     /// <summary>The music, by artist, album, disc and track, then title; songs without an artist or album after those with.</summary>
     public static IReadOnlyList<LibraryEntry> Songs(IEnumerable<LibraryEntry> entries) =>
         [.. entries.Where(entry => entry.Kind == LibraryKind.Music)
