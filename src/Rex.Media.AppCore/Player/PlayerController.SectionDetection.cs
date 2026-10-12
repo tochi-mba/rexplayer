@@ -19,21 +19,14 @@ public sealed partial class PlayerController
         _sectionStop = null;
         _activeProposals = null;
         _automaticallySkipped.Clear();
-        if (!CanMarkEpisodeSections || Item is not { } current ||
-            EpisodeGrouping.Identify(current.Location) is null || SectionAnalyzer is null ||
-            !File.Exists(current.Location))
+        // Only local files are analysed; the file system itself is touched on the worker.
+        if (!CanMarkEpisodeSections || Item is not { } current || !Path.IsPathFullyQualified(current.Location) ||
+            EpisodeGrouping.Identify(current.Location) is null || SectionAnalyzer is null)
         {
             return;
         }
 
         var path = current.Location;
-        var signature = SectionAnalysis.SignatureOf(path);
-        _activeProposals = Memory.Proposals(path, signature);
-        if (_activeProposals is not null)
-        {
-            return;
-        }
-
         var analyzer = SectionAnalyzer;
         var stop = new CancellationTokenSource();
         // Capture the token before the worker is scheduled: a rapid episode change can
@@ -44,12 +37,20 @@ public sealed partial class PlayerController
         {
             try
             {
+                var signature = SectionAnalysis.SignatureOf(path);
+                var cached = Memory.Proposals(path, signature);
+                if (cached is { Candidates.Count: > 0 })
+                {
+                    Publish(cached);
+                    return;
+                }
+
                 // Sibling features are cached independently: adding an episode doesn't rescan
                 // previously decoded recordings, only the across-episode match is repeated.
                 var identity = EpisodeGrouping.Identify(path)!;
                 var folder = Path.GetDirectoryName(path)!;
                 var siblingPaths = EpisodeGrouping.Siblings(path, Directory.EnumerateFiles(folder)
-                    .Where(file => Path.GetExtension(file) is ".mkv" or ".mp4" or ".m4v" or ".avi"));
+                    .Where(file => Path.GetExtension(file).ToLowerInvariant() is ".mkv" or ".mp4" or ".m4v" or ".avi"));
                 var targets = new[] { path }.Concat(siblingPaths.Take(24)).ToArray();
                 var analyses = new List<EpisodeAnalysis>();
                 foreach (var candidate in targets)
@@ -61,16 +62,25 @@ public sealed partial class PlayerController
                         continue;
                     }
 
-                    var stamp = SectionAnalysis.SignatureOf(candidate);
-                    var analysis = Memory.Analysis(candidate, stamp);
-                    if (analysis is null)
+                    try
                     {
-                        analysis = analyzer(candidate, token);
-                        token.ThrowIfCancellationRequested();
-                        Memory.SetAnalysis(analysis);
-                    }
+                        var stamp = SectionAnalysis.SignatureOf(candidate);
+                        var analysis = Memory.Analysis(candidate, stamp);
+                        if (analysis is null)
+                        {
+                            analysis = analyzer(candidate, token);
+                            token.ThrowIfCancellationRequested();
+                            Memory.SetAnalysis(analysis);
+                        }
 
-                    analyses.Add(analysis);
+                        analyses.Add(analysis);
+                    }
+                    catch (Exception ex) when (candidate != path &&
+                        ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                            Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
+                    {
+                        _log.Warning("sections", "Could not analyse sibling " + candidate + ": " + ex.Message);
+                    }
                 }
 
                 token.ThrowIfCancellationRequested();
@@ -81,17 +91,9 @@ public sealed partial class PlayerController
                 }
 
                 var proposed = SectionDetector.Detect(main, analyses.Where(item => item.Path != path).ToArray());
+                token.ThrowIfCancellationRequested();
                 Memory.SetProposals(path, proposed);
-                var remembered = Memory.Proposals(path, signature);
-                _dispatch(() =>
-                {
-                    if (!token.IsCancellationRequested && Item?.Location == path)
-                    {
-                        _activeProposals = remembered;
-                        Changed?.Invoke(this, EventArgs.Empty);
-                        PositionChanged?.Invoke(this, EventArgs.Empty);
-                    }
-                });
+                Publish(Memory.Proposals(path, signature));
             }
             catch (OperationCanceledException)
             {
@@ -101,6 +103,19 @@ public sealed partial class PlayerController
                 Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
             {
                 _log.Warning("sections", "Background analysis unavailable: " + ex.Message);
+            }
+
+            void Publish(SectionProposals? remembered)
+            {
+                _dispatch(() =>
+                {
+                    if (!token.IsCancellationRequested && Item?.Location == path)
+                    {
+                        _activeProposals = remembered;
+                        Changed?.Invoke(this, EventArgs.Empty);
+                        PositionChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                });
             }
         })
         {
