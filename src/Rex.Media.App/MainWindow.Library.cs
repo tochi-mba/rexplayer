@@ -145,7 +145,7 @@ public sealed partial class MainWindow
         if (open && !LibraryOpen && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
                 _settings.KeepAudioPlayingInLibrary, HasVideo, _player.IsPlaying) == LibraryOpenAction.Pause)
         {
-            _player.Execute(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
+            _player.Pause();
         }
 
         LibraryPane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
