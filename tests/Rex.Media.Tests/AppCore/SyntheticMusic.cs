@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Visuals;
+using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
 
@@ -154,4 +155,7 @@ internal sealed class SyntheticMusic
     }
 
     public static TimeSpan FrameTime => TimeSpan.FromSeconds(1.0 / Fps);
+
+    /// <summary>The music as a 16-bit stereo WAV file.</summary>
+    public byte[] Wav() => WavBuilder.Pcm(Rate, 2, 16, Pcm.Int16(_left, _right)).Build();
 }

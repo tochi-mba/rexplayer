@@ -88,7 +88,6 @@ public sealed class PulsePartsTests
     {
         var whole = new BandEnergy(0, 0);
         Assert.Equal(0, whole.RiseAge()); // No analysed samples yet.
-        Assert.Equal(0, whole.RiseAge()); // No analysed samples yet.
         Assert.Equal(1, whole.Power(Enumerable.Repeat(1f, 100).ToArray(), 48_000, 1000), 6);
         Assert.Equal(0.25, whole.Power([0, 0, 0.5f, 0.5f], 48_000, 2), 6);
 
@@ -146,7 +145,8 @@ public sealed class PulsePartsTests
                 clock.Onset(strong);
             }
 
-            if (hit && clock.SinceOnset < 2)
+            // As the pulse does: the tempo is worked out again every frame while onsets are coming.
+            if (clock.SinceOnset < 2)
             {
                 clock.Estimate();
             }

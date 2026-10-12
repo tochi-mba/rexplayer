@@ -164,7 +164,7 @@ public sealed class BeatClock
             // Twice or half the beat: the same music counted another way, not a new tempo.
             _disagree = 0;
         }
-        else if (++_disagree >= 8)
+        else if (++_disagree >= 20)
         {
             Adopt(period, Confidence * 0.5);
         }

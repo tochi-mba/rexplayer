@@ -50,7 +50,7 @@ public sealed class MusicPulse
     private const double DropGap = 2.5;
 
     /// <summary>How long past the beat the clock expected a stand-in waits for the music to show it.</summary>
-    private const double FillWait = 0.015;
+    private const double FillWait = 0.07;
 
     /// <summary>The raw loudness under which nothing is a beat.</summary>
     private const float Quiet = 0.15f;
@@ -71,7 +71,7 @@ public sealed class MusicPulse
     private readonly BandEnergy _midBand = new(150, 2000);
     private readonly BandEnergy _trebleBand = new(2000, 0);
     private readonly BandEnergy _wholeBand = new(0, 0);
-    private readonly AdaptiveRange _bassRange = new(gamma: 1.8);
+    private readonly AdaptiveRange _bassRange = new();
     private readonly AdaptiveRange _midRange = new();
     private readonly AdaptiveRange _trebleRange = new();
     private readonly AdaptiveRange _loudnessRange = new(12, 2, 4);
@@ -214,11 +214,6 @@ public sealed class MusicPulse
         var kickGap = _kick.Since;
         var bassBefore = _bassDb;
         _kick.Hear(Rise(ref _bassDb, _bassRaw), _bassPower, dt, listening);
-        if (_kick.Hit)
-        {
-            (_bass, _loudness) = (1, 1);
-        }
-
         Punching(dt, bassBefore);
         _snare.Hear(Rise(ref _midDb, _midRaw), _midPower, dt, listening);
         _hat.Hear(Rise(ref _trebleDb, _trebleRaw), _treblePower, dt, _primed && RawLoudness > 0.1f);
@@ -375,14 +370,10 @@ public sealed class MusicPulse
         (_bassRaw, _midRaw, _trebleRaw) = (AdaptiveRange.Decibels(_bassPower), AdaptiveRange.Decibels(_midPower), AdaptiveRange.Decibels(_treblePower));
 
         RawLoudness = (float)Math.Clamp((whole + 60) / 60, 0, 1);
-        // Leave room above ordinary bass notes for the full punch of a detected kick,
-        // including when the mix keeps a constant bass line underneath.
-        _bass = Envelope(_bass, 0.38f * _bassRange.Map(_bassRaw, dt), dt, 0.065);
+        _bass = Envelope(_bass, _bassRange.Map(_bassRaw, dt), dt, 0.09);
         _mid = Envelope(_mid, _midRange.Map(_midRaw, dt), dt, 0.12);
         _treble = Envelope(_treble, _trebleRange.Map(_trebleRaw, dt), dt, 0.06);
-        // Keep the background mix responsive without letting its continuous level
-        // conceal a kick in the visualisations; the kick itself reaches full scale.
-        _loudness = Envelope(_loudness, 0.38f * _loudnessRange.Map(whole, dt), dt, 0.09);
+        _loudness = Envelope(_loudness, _loudnessRange.Map(whole, dt), dt, 0.15);
         LongLoudness += (_loudness - LongLoudness) * (float)Math.Min(1, dt / 4);
 
     }
