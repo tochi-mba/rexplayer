@@ -218,7 +218,7 @@ public sealed class VisualStageTests
         Assert.True(waves.Count > 0);
 
         Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 5, silence: true));
-        Assert.Equal(0, waves.Count);
+        Assert.Empty(waves);
     }
 
     [Fact]
