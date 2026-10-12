@@ -74,6 +74,8 @@ public sealed class PlayerMemory(RexStore store)
     private const string ResumePrefix = "resume/";
     private const string BookmarkPrefix = "bookmarks/";
     private const string EpisodePrefix = "episode-sections/";
+    private const string ProposalsPrefix = "episode-proposals/";
+    private const string AnalysesPrefix = "episode-analysis/";
     private const string RecentKey = "recent";
     private const string QueueKey = "queue";
     private const string UpdateSessionKey = "update-session";
@@ -173,6 +175,50 @@ public sealed class PlayerMemory(RexStore store)
         }
     }
 
+    /// <summary>Detected sections are separate from manually confirmed sections.</summary>
+    public SectionProposals? Proposals(string location, string signature)
+    {
+        var saved = Read(ProposalsPrefix + KeyFor(location), MemoryJson.Default.SectionProposals);
+        return saved?.Signature == signature ? saved : null;
+    }
+
+    /// <summary>Cache a proposal while preserving the user's prior rejection flags.</summary>
+    public void SetProposals(string location, SectionProposals proposals)
+    {
+        ArgumentNullException.ThrowIfNull(proposals);
+        var key = ProposalsPrefix + KeyFor(location);
+        var earlier = Read(key, MemoryJson.Default.SectionProposals);
+        var merged = proposals with
+        {
+            IntroRejected = earlier?.IntroRejected == true || proposals.IntroRejected,
+            CreditsRejected = earlier?.CreditsRejected == true || proposals.CreditsRejected,
+        };
+        Write(key, merged, MemoryJson.Default.SectionProposals);
+    }
+
+    /// <summary>Update feedback without rereading or rescanning the media.</summary>
+    public void RejectProposal(string location, EpisodeSectionKind kind, bool reject)
+    {
+        var key = ProposalsPrefix + KeyFor(location);
+        if (Read(key, MemoryJson.Default.SectionProposals) is { } saved)
+        {
+            Write(key, saved.Reject(kind, reject), MemoryJson.Default.SectionProposals);
+        }
+    }
+
+    /// <summary>A re-usable signature-bound analysis of one media file, independent of sibling files.</summary>
+    public EpisodeAnalysis? Analysis(string location, string signature)
+    {
+        var saved = Read(AnalysesPrefix + KeyFor(location), MemoryJson.Default.EpisodeAnalysis);
+        return saved?.Signature == signature ? saved : null;
+    }
+
+    public void SetAnalysis(EpisodeAnalysis analysis)
+    {
+        ArgumentNullException.ThrowIfNull(analysis);
+        Write(AnalysesPrefix + KeyFor(analysis.Path), analysis, MemoryJson.Default.EpisodeAnalysis);
+    }
+
     public QuickSlot? Slot(int number) => Read(SlotKey(number), MemoryJson.Default.QuickSlot);
 
     public void SetSlot(int number, QuickSlot slot)
@@ -269,6 +315,8 @@ public sealed class PlayerMemory(RexStore store)
 [JsonSerializable(typeof(List<string>), TypeInfoPropertyName = "ListString")]
 [JsonSerializable(typeof(List<Bookmark>), TypeInfoPropertyName = "ListBookmark")]
 [JsonSerializable(typeof(EpisodeSections))]
+[JsonSerializable(typeof(SectionProposals))]
+[JsonSerializable(typeof(EpisodeAnalysis))]
 [JsonSerializable(typeof(QuickSlot))]
 [JsonSerializable(typeof(QueueSnapshot))]
 [JsonSerializable(typeof(UpdateSession))]

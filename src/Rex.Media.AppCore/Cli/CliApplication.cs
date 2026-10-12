@@ -33,6 +33,7 @@ public static partial class CliApplication
                 "probe" => Probe(arguments, machine, host),
                 "play" => Play(arguments, machine, host),
                 "snapshot" => TakeSnapshot(arguments, machine, host),
+                "sections" => Sections(arguments, machine, host),
                 _ => throw new CliException($"'{command}' is not a rexplay command. Run 'rexplay help' to see them."),
             };
         }

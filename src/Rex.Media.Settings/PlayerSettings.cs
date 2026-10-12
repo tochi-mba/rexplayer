@@ -531,6 +531,12 @@ public sealed record PlayerSettings
 
     public ResumeChoice ResumePlayback { get; init; } = ResumeChoice.Ask;
 
+    /// <summary>Only skip an offered intro without a click when the viewer opts in.</summary>
+    public bool SkipIntrosAutomatically { get; init; }
+
+    /// <summary>Only skip offered credits without a click when the viewer opts in.</summary>
+    public bool SkipCreditsAutomatically { get; init; }
+
     /// <summary>Remember where things were left and what played recently (PRIV-03).</summary>
     public bool KeepHistory { get; init; } = true;
 
