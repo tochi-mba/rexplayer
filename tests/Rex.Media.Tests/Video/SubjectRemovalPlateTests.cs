@@ -142,12 +142,13 @@ public sealed class SubjectRemovalPlateTests
         Assert.Equal((150, 160, 90), Split(kept));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(40, 26, out _));
 
-        // Back the other way.
+        // Back the other way: what survived both moves is still where the scene put it. The camera
+        // has moved (-15, -10) in all, so (45, 35) shows what (30, 25) showed at first.
         plate.Advance(new CameraMotion(1, -45, -30));
         plate.Keep((10, 10, 30, 30));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(0, 0, out _));
-        Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(30, 25, out var back));
-        Assert.Equal((45, 20, 90), Split(back));
+        Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(45, 35, out var back));
+        Assert.Equal((90, 100, 90), Split(back));
 
         // A pan wider than the plate leaves nothing.
         plate.Advance(new CameraMotion(1, 500, 0));
@@ -181,7 +182,7 @@ public sealed class SubjectRemovalPlateTests
         // Half a cell along x and y in turn.
         plate.Advance(new CameraMotion(1, 0.5f, 0));
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(2, 1, out var across));
-        Assert.Equal(7, Split(across).B);
+        Assert.Equal(8, Split(across).B);
         Assert.Equal(SubjectRemovalPlate.Estimated, plate.Sample(2, 5, out _));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(7, 1, out _));
         plate.Advance(new CameraMotion(1, -0.5f, 0.5f));

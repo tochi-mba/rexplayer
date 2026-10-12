@@ -40,23 +40,29 @@ public sealed class SubjectRemovalMotion
     private const int Levels = 3;
     private const int Search = 6;
     private const int MinimumSamples = 24;
+    // How many cells of a pyramid level score one shift.
+    private const int ScoredCells = 3_000;
+    // How many of the coarsest level's best shifts are followed down the pyramid.
+    private const int Candidates = 3;
     private const float Huber = 8;
     // The detailed stage reads at most this many pixels and fits at most this many samples.
-    private const int DetailBudget = 120_000;
+    private const int DetailBudget = 400_000;
     private const int DetailSamples = 4_000;
 
     private readonly float[][] _previous = [[], [], []];
     private readonly float[][] _current = [[], [], []];
     private readonly int[] _widths = new int[Levels];
     private readonly int[] _heights = new int[Levels];
+    private readonly CameraMotion[] _candidates = new CameraMotion[Candidates + 4];
+    private CameraMotion _lastMotion = CameraMotion.Still;
     private int _frameWidth;
     private int _frameHeight;
     private int _step = 1;
     private bool _hasPrevious;
-    private float[] _detail = [];
-    private float[] _detailPrevious = [];
-    private (int Left, int Top, int Width, int Height, int Step) _detailArea;
-    private (int Left, int Top, int Width, int Height, int Step) _detailPreviousArea;
+    private float[][] _detail = [[], [], []];
+    private float[][] _detailPrevious = [[], [], []];
+    private DetailLevel[] _detailArea = new DetailLevel[Levels];
+    private DetailLevel[] _detailPreviousArea = new DetailLevel[Levels];
 
     /// <summary>The mean grey-level difference left after the last alignment, from 0 to 255.</summary>
     public float Residual { get; private set; }
@@ -68,6 +74,7 @@ public sealed class SubjectRemovalMotion
     public void Reset()
     {
         _hasPrevious = false;
+        _lastMotion = CameraMotion.Still;
         Cut = false;
         Residual = 0;
     }
@@ -92,11 +99,12 @@ public sealed class SubjectRemovalMotion
         Cut = false;
         Residual = 0;
         var motion = CameraMotion.Still;
-        if (_hasPrevious && Align(exclude) is { } coarse)
+        if (_hasPrevious && Align(exclude) is > 0 and var count)
         {
-            motion = Snap(Cut ? coarse : RefineDetail(coarse, exclude));
+            motion = Snap(Cut ? _candidates[0] : Decide(count, exclude));
         }
 
+        _lastMotion = Cut ? CameraMotion.Still : motion;
         _hasPrevious = true;
         for (var level = 0; level < Levels; level++)
         {
@@ -104,7 +112,7 @@ public sealed class SubjectRemovalMotion
         }
 
         (_detail, _detailPrevious) = (_detailPrevious, _detail);
-        _detailPreviousArea = _detailArea;
+        (_detailArea, _detailPreviousArea) = (_detailPreviousArea, _detailArea);
         return motion;
     }
 
@@ -117,7 +125,81 @@ public sealed class SubjectRemovalMotion
             : motion;
     }
 
-    /// <summary>A grey copy of the detail area, two-by-two averaged when it is too big to read whole.</summary>
+    /// <summary>
+    /// The hypotheses (the camera keeping still, moving as it did last time, and what the pyramid
+    /// found) are refined in the detail area coarse to fine, as Bergen et al. do: at a quarter and
+    /// then half of the detail, where fine texture cannot trap the fit, and the two that match best
+    /// there at full detail, which decides between them. Hypotheses that settle on the same motion
+    /// are followed once.
+    /// </summary>
+    private CameraMotion Decide(int count, (int Left, int Top, int Right, int Bottom) exclude)
+    {
+        _candidates[count++] = CameraMotion.Still;
+        _candidates[count++] = _lastMotion;
+        Span<float> errors = stackalloc float[count];
+        for (var candidate = 0; candidate < count; candidate++)
+        {
+            errors[candidate] = float.PositiveInfinity;
+            if (Repeats(candidate))
+            {
+                continue;
+            }
+
+            var motion = RefineDetail(Levels - 1, _candidates[candidate], exclude, 3).Motion;
+            _candidates[candidate] = motion;
+            if (!Repeats(candidate))
+            {
+                (_candidates[candidate], errors[candidate]) = RefineDetail(1, motion, exclude, 2);
+            }
+        }
+
+        var best = _candidates[0];
+        var bestError = float.PositiveInfinity;
+        for (var round = 0; round < 2; round++)
+        {
+            var pick = 0;
+            for (var candidate = 1; candidate < count; candidate++)
+            {
+                pick = errors[candidate] < errors[pick] ? candidate : pick;
+            }
+
+            if (round > 0 && float.IsPositiveInfinity(errors[pick]))
+            {
+                break;
+            }
+
+            errors[pick] = float.PositiveInfinity;
+            var (refined, error) = RefineDetail(0, _candidates[pick], exclude, 4);
+            if (round == 0 || error < bestError)
+            {
+                (best, bestError) = (refined, error);
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Whether a hypothesis lies within a pixel of an earlier one.</summary>
+    private bool Repeats(int candidate)
+    {
+        var motion = _candidates[candidate];
+        for (var earlier = 0; earlier < candidate; earlier++)
+        {
+            var other = _candidates[earlier];
+            if (Math.Abs(other.ShiftX - motion.ShiftX) + Math.Abs(other.ShiftY - motion.ShiftY) < 1
+                && Math.Abs(other.Scale - motion.Scale) < 0.002f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// A grey copy of the detail area, two-by-two averaged when it is too big to read whole, and two
+    /// halvings of it for the coarse-to-fine fit.
+    /// </summary>
     private void ReadDetail(VideoFrame frame, (int Left, int Top, int Right, int Bottom) area)
     {
         var left = Math.Clamp(area.Left, 0, frame.Width - 1);
@@ -126,11 +208,13 @@ public sealed class SubjectRemovalMotion
         var height = Math.Clamp(area.Bottom, top + 1, frame.Height) - top;
         var step = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((double)width * height / DetailBudget)));
         var (w, h) = (Math.Max(1, width / step), Math.Max(1, height / step));
-        SubjectRemovalMatte.Ensure(ref _detail, w * h);
-        _detailArea = (left, top, w, h, step);
+        SubjectRemovalMatte.Ensure(ref _detail[0], w * h);
+        var far = step / 2;
+        // A sample averages the pixels at 0 and far along each axis, so its centre is far / 2 in.
+        _detailArea[0] = new DetailLevel(left + far / 2f, top + far / 2f, w, h, step);
+        var detail = _detail[0];
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
-        var far = step / 2;
         for (var y = 0; y < h; y++)
         {
             var row0 = (top + y * step) * stride;
@@ -139,30 +223,55 @@ public sealed class SubjectRemovalMotion
             {
                 var a = (left + x * step) * 4;
                 var b = (left + x * step + far) * 4;
-                _detail[y * w + x] = (Grey(plane, row0 + a) + Grey(plane, row0 + b)
+                detail[y * w + x] = (Grey(plane, row0 + a) + Grey(plane, row0 + b)
                     + Grey(plane, row1 + a) + Grey(plane, row1 + b)) * 0.25f;
+            }
+        }
+
+        for (var level = 1; level < Levels; level++)
+        {
+            var fine = _detailArea[level - 1];
+            var (cw, ch) = (Math.Max(1, fine.Width / 2), Math.Max(1, fine.Height / 2));
+            SubjectRemovalMatte.Ensure(ref _detail[level], cw * ch);
+            // Two samples averaged lie halfway between them.
+            _detailArea[level] = new DetailLevel(fine.Left + fine.Step / 2, fine.Top + fine.Step / 2, cw, ch, fine.Step * 2);
+            var (source, target) = (_detail[level - 1], _detail[level]);
+            for (var y = 0; y < ch; y++)
+            {
+                var y0 = Math.Min(fine.Height - 1, y * 2) * fine.Width;
+                var y1 = Math.Min(fine.Height - 1, y * 2 + 1) * fine.Width;
+                for (var x = 0; x < cw; x++)
+                {
+                    var x0 = Math.Min(fine.Width - 1, x * 2);
+                    var x1 = Math.Min(fine.Width - 1, x * 2 + 1);
+                    target[y * cw + x] = (source[y0 + x0] + source[y0 + x1] + source[y1 + x0] + source[y1 + x1]) * 0.25f;
+                }
             }
         }
     }
 
     /// <summary>
-    /// Gauss-Newton refinement of zoom and shift on samples of the detail area, against the previous
-    /// picture's detail area, starting from the pyramid's estimate.
+    /// Gauss-Newton refinement of zoom and shift on samples of one level of the detail area, against
+    /// the same level of the previous picture's, starting from <paramref name="motion"/>. Returns the
+    /// refined motion and the mean difference left, or infinity when too little could be compared.
     /// </summary>
-    private CameraMotion RefineDetail(CameraMotion motion, (int Left, int Top, int Right, int Bottom) exclude)
+    private (CameraMotion Motion, float Error) RefineDetail(int level, CameraMotion motion,
+        (int Left, int Top, int Right, int Bottom) exclude, int iterations)
     {
-        var current = _detailArea;
-        var previous = _detailPreviousArea;
-        var sampleStep = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((double)current.Width * current.Height / DetailSamples)));
+        var current = _detailArea[level];
+        var previous = _detailPreviousArea[level];
+        var (samplesNow, samplesThen) = (_detail[level], _detailPrevious[level]);
+        // Coarser levels need fewer samples: each already averages many pixels.
+        var budget = DetailSamples >> level;
+        var sampleStep = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((double)current.Width * current.Height / budget)));
         // The zoom is fitted about the area's centre so its column of the system is well scaled.
         var cx = current.Left + current.Width * current.Step / 2f;
         var cy = current.Top + current.Height * current.Step / 2f;
         var (scale, u, v) = (motion.Scale, motion.ShiftX + (motion.Scale - 1) * cx, motion.ShiftY + (motion.Scale - 1) * cy);
-        var offset = current.Step / 2 / 2f;
-        var previousOffset = previous.Step / 2 / 2f;
-        for (var iteration = 0; iteration < 6; iteration++)
+        var error = float.PositiveInfinity;
+        for (var iteration = 0; iteration < iterations; iteration++)
         {
-            double h00 = 0, h01 = 0, h02 = 0, h11 = 0, h12 = 0, h22 = 0, b0 = 0, b1 = 0, b2 = 0;
+            double h00 = 0, h01 = 0, h02 = 0, h11 = 0, h12 = 0, h22 = 0, b0 = 0, b1 = 0, b2 = 0, total = 0;
             var samples = 0;
             for (var blockY = 0; blockY < current.Height; blockY += sampleStep)
             {
@@ -173,25 +282,26 @@ public sealed class SubjectRemovalMotion
                     var scramble = (uint)(blockX * 73856093 ^ blockY * 19349663);
                     var i = blockX + (int)(scramble % (uint)sampleStep);
                     var j = blockY + (int)(scramble / 7 % (uint)sampleStep);
-                    var x = current.Left + i * current.Step + offset;
-                    var y = current.Top + j * current.Step + offset;
+                    var x = current.Left + i * current.Step;
+                    var y = current.Top + j * current.Step;
                     if (i >= current.Width || j >= current.Height
                         || (x >= exclude.Left && x < exclude.Right && y >= exclude.Top && y < exclude.Bottom))
                     {
                         continue;
                     }
 
-                    var px = (scale * (x - cx) + cx + u - previous.Left - previousOffset) / previous.Step;
-                    var py = (scale * (y - cy) + cy + v - previous.Top - previousOffset) / previous.Step;
+                    var px = (scale * (x - cx) + cx + u - previous.Left) / previous.Step;
+                    var py = (scale * (y - cy) + cy + v - previous.Top) / previous.Step;
                     if (px < 1 || py < 1 || px >= previous.Width - 2 || py >= previous.Height - 2)
                     {
                         continue;
                     }
 
-                    var (value, gx, gy) = Interpolate(_detailPrevious, previous.Width, px, py);
-                    var r = value - _detail[j * current.Width + i];
+                    var (value, gx, gy) = Interpolate(samplesThen, previous.Width, px, py);
+                    var r = value - samplesNow[j * current.Width + i];
                     (gx, gy) = (gx / previous.Step, gy / previous.Step);
                     var magnitude = Math.Abs(r);
+                    total += magnitude;
                     var weight = magnitude <= Huber ? 1f : Huber / magnitude;
                     var j0 = gx * (x - cx) + gy * (y - cy);
                     h00 += weight * j0 * j0;
@@ -209,9 +319,11 @@ public sealed class SubjectRemovalMotion
 
             if (samples < MinimumSamples)
             {
-                return motion;
+                return (motion, float.PositiveInfinity);
             }
 
+            // The mean difference where this step started, which the step only improves on.
+            error = (float)(total / samples);
             h00 = h00 * 1.02 + 1e-3;
             var (da, du, dv) = Solve(h00, h01, h02, h11, h12, h22, -b0, -b1, -b2);
             scale = Math.Clamp(scale + (float)da, 0.85f, 1.15f);
@@ -225,10 +337,16 @@ public sealed class SubjectRemovalMotion
 
         // A zoom that moves nothing by a quarter of a pixel is noise; dropping it keeps the recorded
         // background on whole-pixel arithmetic, which is both sharper and faster.
-        return Math.Abs(scale - 1) * Math.Max(current.Width, current.Height) * current.Step / 2 < 0.25f
+        return (Math.Abs(scale - 1) * Math.Max(current.Width, current.Height) * current.Step / 2 < 0.25f
             ? new CameraMotion(1, u, v)
-            : new CameraMotion(scale, u - (scale - 1) * cx, v - (scale - 1) * cy);
+            : new CameraMotion(scale, u - (scale - 1) * cx, v - (scale - 1) * cy), error);
     }
+
+    /// <summary>
+    /// One level of the detail area's pyramid: where its first sample's centre lies in the picture,
+    /// how many samples it has, and how far apart they are in picture pixels.
+    /// </summary>
+    private readonly record struct DetailLevel(float Left, float Top, int Width, int Height, float Step);
 
     private void Allocate(int width, int height)
     {
@@ -244,27 +362,38 @@ public sealed class SubjectRemovalMotion
         }
 
         _hasPrevious = false;
+        _lastMotion = CameraMotion.Still;
     }
 
-    /// <summary>Reads a grey copy, averaging four samples a cell, then halves it twice.</summary>
+    /// <summary>
+    /// Reads a grey copy, each cell the mean of an evenly spread grid of up to four by four of its
+    /// pixels, so fine texture is averaged rather than aliased; then halves it twice.
+    /// </summary>
     private void Shrink(VideoFrame frame)
     {
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
         var (w, h) = (_widths[0], _heights[0]);
         var top = _current[0];
-        var near = _step / 4;
-        var far = _step * 3 / 4;
+        var across = Math.Min(_step, 4);
+        var spacing = _step / across;
+        var first = (_step - spacing * (across - 1)) / 2;
+        var weight = 1f / (across * across);
         for (var y = 0; y < h; y++)
         {
-            var row0 = (y * _step + near) * stride;
-            var row1 = (y * _step + far) * stride;
             for (var x = 0; x < w; x++)
             {
-                var a = (x * _step + near) * 4;
-                var b = (x * _step + far) * 4;
-                top[y * w + x] = (Grey(plane, row0 + a) + Grey(plane, row0 + b)
-                    + Grey(plane, row1 + a) + Grey(plane, row1 + b)) * 0.25f;
+                var total = 0f;
+                for (var j = 0; j < across; j++)
+                {
+                    var row = (y * _step + first + j * spacing) * stride;
+                    for (var i = 0; i < across; i++)
+                    {
+                        total += Grey(plane, row + (x * _step + first + i * spacing) * 4);
+                    }
+                }
+
+                top[y * w + x] = total * weight;
             }
         }
 
@@ -292,34 +421,140 @@ public sealed class SubjectRemovalMotion
     /// <summary>
     /// Block matching down the pyramid: every whole-cell shift on the coarsest level, then the cell
     /// either side of the doubled estimate on each finer one, and a parabola through the finest
-    /// level's scores for the fraction of a cell. Matching scores cannot be led astray by a gradient,
-    /// so a repetitive wall does not trap the estimate a pattern away from the truth.
+    /// level's scores for the fraction of a cell. A repetitive wall can make a shift a pattern away
+    /// look as good as the truth on the coarse levels, so several hypotheses are kept: the few best
+    /// coarse shifts followed down, and shifts near no movement and near the last picture's motion
+    /// searched on the finest level directly, since a camera's motion changes little from frame to
+    /// frame. The detailed stage then decides between them.
     /// </summary>
-    private CameraMotion? Align((int Left, int Top, int Right, int Bottom) exclude)
+    private int Align((int Left, int Top, int Right, int Bottom) exclude)
     {
-        Span<float> scores = stackalloc float[(2 * Search + 1) * (2 * Search + 1)];
-        var (x, y, cx, cy, reach) = (0, 0, 0, 0, Search);
-        var mean = 0f;
-        for (var level = Levels - 1; level >= 0; level--)
+        const int Side = 2 * Search + 1;
+        Span<float> coarse = stackalloc float[Side * Side];
+        if (SearchShift(Levels - 1, exclude, 0, 0, Search, coarse) is null)
         {
-            (cx, cy, reach) = level == Levels - 1 ? (0, 0, Search) : (x * 2, y * 2, 1);
-            if (SearchShift(level, exclude, cx, cy, reach, scores) is not { } best)
+            return 0;
+        }
+
+        Span<int> starts = stackalloc int[Candidates];
+        var count = 0;
+        for (var pick = 0; pick < Candidates; pick++)
+        {
+            var best = -1;
+            var bestScore = float.MaxValue;
+            for (var at = 0; at < Side * Side; at++)
+            {
+                // A slight preference for no movement keeps a flat scene still.
+                var score = coarse[at] + 0.05f * (Math.Abs(at % Side - Search) + Math.Abs(at / Side - Search));
+                if (coarse[at] < float.MaxValue && score < bestScore && !starts[..count].Contains(at))
+                {
+                    (best, bestScore) = (at, score);
+                }
+            }
+
+            if (best < 0)
+            {
+                break;
+            }
+
+            starts[count++] = best;
+        }
+
+        Span<float> means = stackalloc float[Candidates + 2];
+        Span<(int X, int Y)> ends = stackalloc (int, int)[Candidates + 2];
+        var found = 0;
+        Keep(Finest(exclude, 0, 0, 1), means, ends, ref found);
+        var (lastX, lastY) = ((int)MathF.Round(_lastMotion.ShiftX / _step), (int)MathF.Round(_lastMotion.ShiftY / _step));
+        if (lastX != 0 || lastY != 0)
+        {
+            Keep(Finest(exclude, lastX, lastY, 1), means, ends, ref found);
+        }
+
+        foreach (var start in starts[..count])
+        {
+            Keep(Descend(exclude, start % Side - Search, start / Side - Search), means, ends, ref found);
+        }
+
+        if (found > 0)
+        {
+            Residual = means[0];
+            Cut = means[0] > CutResidual;
+        }
+
+        return found;
+    }
+
+    /// <summary>Adds a hypothesis to the candidates, best match first, once for each whole-cell shift.</summary>
+    private void Keep((int X, int Y, float Mean, float FractionX, float FractionY)? shift,
+        Span<float> means, Span<(int X, int Y)> ends, ref int found)
+    {
+        if (shift is not { } s || ends[..found].Contains((s.X, s.Y)))
+        {
+            return;
+        }
+
+        var at = found++;
+        while (at > 0 && means[at - 1] > s.Mean)
+        {
+            (means[at], ends[at], _candidates[at]) = (means[at - 1], ends[at - 1], _candidates[at - 1]);
+            at--;
+        }
+
+        // A cell's centre lies half a cell in from its corner, the same in both pictures.
+        (means[at], ends[at], _candidates[at]) = (s.Mean, (s.X, s.Y),
+            new CameraMotion(1, _step * (s.X + s.FractionX), _step * (s.Y + s.FractionY)));
+    }
+
+    /// <summary>Follows a coarse shift down the pyramid, searching the cell either side on each finer level.</summary>
+    private (int X, int Y, float Mean, float FractionX, float FractionY)? Descend(
+        (int Left, int Top, int Right, int Bottom) exclude, int x, int y)
+    {
+        Span<float> scores = stackalloc float[9];
+        for (var level = Levels - 2; level > 0; level--)
+        {
+            if (SearchShift(level, exclude, x * 2, y * 2, 1, scores) is not { } best)
             {
                 return null;
             }
 
-            (x, y, mean) = best;
+            (x, y) = (best.X, best.Y);
         }
 
-        var side = 2 * reach + 1;
-        var (ox, oy) = (x - cx + reach, y - cy + reach);
-        var at = oy * side + ox;
-        var fractionX = ox > 0 && ox < side - 1 ? Vertex(scores[at - 1], scores[at], scores[at + 1]) : 0;
-        var fractionY = oy > 0 && oy < side - 1 ? Vertex(scores[at - side], scores[at], scores[at + side]) : 0;
-        Residual = mean;
-        Cut = mean > CutResidual;
-        // A cell's centre lies half a cell in from its corner, the same in both pictures.
-        return new CameraMotion(1, _step * (x + fractionX), _step * (y + fractionY));
+        return Finest(exclude, x * 2, y * 2, 1);
+    }
+
+    /// <summary>
+    /// The best whole-cell shift on the finest level within <paramref name="reach"/> of (cx, cy), and
+    /// its fraction of a cell from a parabola through the scores either side. A best shift on the
+    /// window's edge is searched around again, at most twice; if it is still on an edge it has no
+    /// fraction.
+    /// </summary>
+    private (int X, int Y, float Mean, float FractionX, float FractionY)? Finest(
+        (int Left, int Top, int Right, int Bottom) exclude, int cx, int cy, int reach)
+    {
+        Span<float> scores = stackalloc float[25];
+        (int X, int Y, float Mean) best = default;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            if (SearchShift(0, exclude, cx, cy, reach, scores) is not { } found)
+            {
+                return null;
+            }
+
+            best = found;
+            var side = 2 * reach + 1;
+            var (ox, oy) = (best.X - cx + reach, best.Y - cy + reach);
+            if (ox > 0 && oy > 0 && ox < side - 1 && oy < side - 1)
+            {
+                var at = oy * side + ox;
+                return (best.X, best.Y, best.Mean, Vertex(scores[at - 1], scores[at], scores[at + 1]),
+                    Vertex(scores[at - side], scores[at], scores[at + side]));
+            }
+
+            (cx, cy, reach) = (best.X, best.Y, 1);
+        }
+
+        return (best.X, best.Y, best.Mean, 0, 0);
     }
 
     /// <summary>Where a parabola through three equally spaced scores is lowest, as an offset from the middle one.</summary>
@@ -351,6 +586,8 @@ public sealed class SubjectRemovalMotion
         var box = Excluded(level, exclude);
         var side = 2 * reach + 1;
         var best = float.MaxValue;
+        // A few thousand cells score a shift as well as every cell would.
+        var stride = Math.Max(1, (int)Math.Sqrt(w * h / (float)ScoredCells));
         (int X, int Y, float Mean)? found = null;
         for (var oy = -reach; oy <= reach; oy++)
         {
@@ -359,16 +596,21 @@ public sealed class SubjectRemovalMotion
                 var (dx, dy) = (cx + ox, cy + oy);
                 var total = 0f;
                 var count = 0;
-                for (var y = Math.Max(0, -dy); y < Math.Min(h, h - dy); y++)
+                var (left, right) = (Math.Max(0, -dx), Math.Min(w, w - dx));
+                for (var y = Math.Max(0, -dy); y < Math.Min(h, h - dy); y += stride)
                 {
-                    for (var x = Math.Max(0, -dx); x < Math.Min(w, w - dx); x++)
+                    var now = current.AsSpan(y * w, w);
+                    var then = previous.AsSpan((y + dy) * w, w);
+                    var inside = y >= box.Top && y < box.Bottom;
+                    for (var x = left; x < right; x += stride)
                     {
-                        if (x >= box.Left && x < box.Right && y >= box.Top && y < box.Bottom)
+                        if (inside && x >= box.Left && x < box.Right)
                         {
+                            x = box.Right - stride;
                             continue;
                         }
 
-                        total += Math.Abs(previous[(y + dy) * w + x + dx] - current[y * w + x]);
+                        total += Math.Abs(then[x + dx] - now[x]);
                         count++;
                     }
                 }

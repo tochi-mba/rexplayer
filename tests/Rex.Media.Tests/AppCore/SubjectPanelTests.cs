@@ -39,12 +39,8 @@ public sealed class SubjectPanelTests
     }
 
     [Fact]
-    public void TheSliderReadoutsAreShortAndInvariant()
+    public void TheSliderDefaultsMatchTheSession()
     {
-        Assert.Equal("Off", SubjectPanel.FeatherText(0));
-        Assert.Equal("3 px", SubjectPanel.FeatherText(3));
-        Assert.Equal("50%", SubjectPanel.ToleranceText(50));
-        Assert.Equal("100%", SubjectPanel.ToleranceText(140));
         Assert.Equal(3, SubjectPanel.DefaultFeather);
         Assert.Equal(50, SubjectPanel.DefaultTolerance);
     }

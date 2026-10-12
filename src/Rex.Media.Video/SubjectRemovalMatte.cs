@@ -115,11 +115,13 @@ public sealed class SubjectRemovalMatte
     public ReadOnlySpan<short> Distance =>
         _distance.AsSpan(0, (Area.Right - Area.Left) * (Area.Bottom - Area.Top));
 
-    /// <summary>Forget the colour models and the previous picture's matte.</summary>
+    /// <summary>Forget the colour models, the previous picture's matte and the last result.</summary>
     public void Reset()
     {
         _hasModels = false;
         _hasMemory = false;
+        IsEmpty = true;
+        Coverage = 0;
     }
 
     /// <summary>
