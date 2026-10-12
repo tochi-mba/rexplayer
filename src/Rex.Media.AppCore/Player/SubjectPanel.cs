@@ -90,14 +90,6 @@ public static class SubjectPanel
         _ => 0xFFC2C9D4,
     };
 
-    /// <summary>The feather slider's readout.</summary>
-    public static string FeatherText(int feather) =>
-        feather <= 0 ? "Off" : string.Create(CultureInfo.InvariantCulture, $"{feather} px");
-
-    /// <summary>The tolerance slider's readout.</summary>
-    public static string ToleranceText(int tolerance) =>
-        string.Create(CultureInfo.InvariantCulture, $"{Math.Clamp(tolerance, 0, 100)}%");
-
     /// <summary>The primary action's label: a first selection, or another one.</summary>
     public static string SelectText(bool hasSelection) => hasSelection ? "Select again" : "Select";
 
