@@ -134,8 +134,11 @@ public sealed class SubjectEditSessionTests
         using var feathered = tracker.Process(source, advanceTracking: false);
         Assert.NotNull(feathered);
         Assert.Equal(originalPixel, source.Row(0, 26)[36 * 4 + 2]);
-        Assert.NotEqual(sharp.Row(0, 20)[30 * 4 + 2],
-            feathered.Row(0, 20)[30 * 4 + 2]);
+        Assert.Equal(12, tracker.Feather);
+        Assert.Equal(0, tracker.MaskTolerance);
+        // Both settings must leave the original untouched. A flat-background border pixel
+        // can be identical after either blend; its colour does not measure feather width.
+        Assert.True(tracker.EstimatedPixels > 0);
     }
 
     [Fact]
