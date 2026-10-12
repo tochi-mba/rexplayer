@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.Primitives;
+using Rex.Media.Video.D3D11;
 
 namespace Rex.Media.App;
 
@@ -101,24 +102,23 @@ public sealed partial class MainWindow
                 presenter.SetPointer(0.5f, 0.5f, false);
             }
 
-            var options = VideoStyleOptions.ForEffect(effect);
-            var values = _settings.VideoStyleValues;
-            var intensity = values.ContainsKey(options[0].Key) ? VideoStyleOptions.Read(values, options[0])
-                : effect is VideoEffect.Ghostwire or VideoEffect.GhostwireMask ? options[0].Default : strength;
-            if (effect == VideoEffect.GhostwireMotion)
-            {
-                presenter.SetMotionOptions(VideoStyleOptions.Read(values, options[2]),
-                    VideoStyleOptions.Read(values, options[3]));
-            }
-
-            presenter.SetEffect(effect, intensity, VideoStyleOptions.Read(values, options[1]));
-            var (third, fourth) = VideoStyleOptions.Extras(values, options);
-            presenter.SetEffectExtras(third, fourth);
+            ConfigureEffect(presenter, effect, _settings.VideoStyleValues, strength);
             if (redraw)
             {
                 presenter.Redraw();
             }
         });
+    }
+
+    /// <summary>
+    /// Hands the presenter all four of an effect's saved controls. The one place this happens, so
+    /// starting the player, choosing an effect and changing its settings always agree.
+    /// </summary>
+    private static void ConfigureEffect(D3D11Presenter presenter, VideoEffect effect, IReadOnlyDictionary<string, int> values, int legacyStrength)
+    {
+        var controls = VideoStyleOptions.Controls(effect, values, legacyStrength);
+        presenter.SetEffect(effect, controls.Intensity, controls.Detail);
+        presenter.SetEffectExtras(controls.Third, controls.Fourth);
     }
 
     private void ChooseVideoEffect(VideoEffect effect)
@@ -138,27 +138,25 @@ public sealed partial class MainWindow
         var options = effect ? VideoStyleOptions.ForEffect(_settings.VideoEffect) : VideoStyleOptions.ForLook(_settings.VideoLook);
         var title = effect ? VideoEffects.Name(_settings.VideoEffect) : VideoLooks.Name(_settings.VideoLook);
         var before = _settings.VideoStyleValues;
-        var content = new StackPanel { Spacing = 12, MinWidth = 300 };
-        var explanation = effect ? _settings.VideoEffect switch
+        var content = new StackPanel { Spacing = 12, MinWidth = 300, MaxWidth = 460 };
+        string explanation;
+        if (effect && options.Count == 0)
         {
-            VideoEffect.Ghostwire => "Ghostwire makes an almost invisible glass-like picture with luminous contours. It shows visible edges, not hidden surfaces.",
-            VideoEffect.GhostwireMask => "Ghostwire mask mode stylizes visible video regions using only their brightness and contours. It does not detect clothing, remove it, or reveal skin or anatomy hidden behind it.",
-            VideoEffect.GhostwireMotion => "Surface shape (default) reveals visible curves, highlights and soft shading even when the image is paused or still. Hybrid adds motion highlights; Contours and Motion isolate their respective signals. This is artistic image contrast, not a reconstruction of hidden anatomy. Camera movement and cuts can produce artefacts.",
-            VideoEffect.ColourSpotlight => "Move the pointer over a colour to highlight similar colours in the current frame. This does not follow an object.",
-            VideoEffect.ReliefEtch => "Simulated directional light carves relief from visible contrast; it does not estimate real depth.",
-            VideoEffect.LumenWeave => "Lumen weave follows each outline along its own direction, keeping only edges that stay continuous, and lights them as flowing strands. Strand flow sets how fast light travels along them.",
-            VideoEffect.DepthHaze => "Depth haze guesses distance from visible sharpness and texture: soft and flat areas fade into haze. It is atmosphere, not a measurement of real depth.",
-            VideoEffect.ParticleVeil => "Sparks rise from parts of the picture that changed since the previous frame. A still or paused picture shows none.",
-            VideoEffect.TimeEcho => "Moving areas split into a red echo where they were and a blue echo ahead of them. Still areas are unchanged.",
-            _ => "",
-        } : "";
-        content.Children.Add(new TextBlock
+            explanation = "No picture effect is on. Choose one from Picture effects first; each keeps its own settings.";
+        }
+        else if (effect)
         {
-            Text = explanation.Length > 0
-                ? explanation + " Changes preview live. Cancel restores the previous settings."
-                : "Changes preview live. Each preset remembers its own settings. Cancel restores your previous values.",
-            TextWrapping = TextWrapping.Wrap,
-        });
+            explanation = VideoEffects.Category(_settings.VideoEffect) + ". " + VideoEffects.Description(_settings.VideoEffect)
+                + " Changes preview live; Cancel restores the previous settings. Snapshots save the original picture, without the effect.";
+        }
+        else
+        {
+            explanation = "Changes preview live. Each look remembers its own settings. Cancel restores your previous values.";
+        }
+
+        var description = new TextBlock { Text = explanation, TextWrapping = TextWrapping.Wrap };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(description, "VideoStyleDescription");
+        content.Children.Add(description);
         var sliders = new List<(VideoStyleOption Option, Action<int> SetValue)>();
         var resetting = false;
         void Apply()
@@ -170,6 +168,21 @@ public sealed partial class MainWindow
             else
             {
                 ApplyVideoLook(_settings.VideoLook);
+            }
+        }
+
+        int Initial(VideoStyleOption option) => effect
+            ? VideoStyleOptions.ReadEffect(_settings.VideoEffect, before, option, _settings.VideoEffectStrength)
+            : VideoStyleOptions.Read(before, option);
+
+        // Every control says what it changes, on hover and to screen readers.
+        static void Explain(FrameworkElement control, VideoStyleOption option)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(control, "VideoStyle-" + option.Key);
+            if (option.Help.Length > 0)
+            {
+                ToolTipService.SetToolTip(control, option.Help);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(control, option.Help);
             }
         }
 
@@ -197,10 +210,11 @@ public sealed partial class MainWindow
                 {
                     Header = option.Label,
                     ItemsSource = VideoStyleOptions.ModeNames(_settings.VideoEffect),
-                    SelectedIndex = VideoStyleOptions.Read(before, option),
+                    SelectedIndex = Initial(option),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                 };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(mode, "VideoStyle-" + option.Key);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mode, option.Label);
+                Explain(mode, option);
                 mode.SelectionChanged += (_, _) =>
                 {
                     if (mode.SelectedIndex >= 0)
@@ -213,8 +227,8 @@ public sealed partial class MainWindow
             }
             else
             {
-                var box = Number(option.Label, VideoStyleOptions.Read(before, option), option.Min, option.Max);
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "VideoStyle-" + option.Key);
+                var box = Number(option.Label, Initial(option), option.Min, option.Max);
+                Explain(box, option);
                 box.ValueChanged += (_, _) =>
                 {
                     if (double.IsFinite(box.Value))
@@ -227,8 +241,13 @@ public sealed partial class MainWindow
             }
         }
 
-        var reset = new Button { Content = "Reset this preset to defaults" };
+        var reset = new Button
+        {
+            Content = effect ? "Reset this effect to its defaults" : "Reset this look to its defaults",
+            Visibility = options.Count > 0 ? Visibility.Visible : Visibility.Collapsed,
+        };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(reset, "VideoStyleReset");
+        ToolTipService.SetToolTip(reset, "Puts only this one's settings back; every other look and effect keeps its own.");
         reset.Click += (_, _) =>
         {
             _settings = _settings with { VideoStyleValues = VideoStyleOptions.Reset(_settings.VideoStyleValues, options) };
