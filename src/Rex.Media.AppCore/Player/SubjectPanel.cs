@@ -24,8 +24,8 @@ public enum SubjectState
 
 /// <summary>
 /// The decisions behind the Subject Lock panel: what the state pill says, how the slider readouts
-/// read, where the panel sits and how wide it is, what the help says in each selection mode, and
-/// the box a single click stands for. The window only shows what this says.
+/// read, where the panel sits and how wide it is, and what the help says in each selection mode.
+/// The window only shows what this says.
 /// </summary>
 public static class SubjectPanel
 {
@@ -40,9 +40,6 @@ public static class SubjectPanel
 
     /// <summary>The narrowest the panel gets before its content scrolls sideways out of reach.</summary>
     public const double NarrowestPanel = 140;
-
-    /// <summary>The side of the picture's shorter edge a click locks onto, as a share of it.</summary>
-    public const double ClickBoxShare = 0.12;
 
     /// <summary>How far the pointer may move between press and release and still count as a click.</summary>
     public const double ClickSlop = 8;
@@ -141,7 +138,7 @@ public static class SubjectPanel
     [
         mode == SubjectSelectionMode.Draw
             ? "Draw a box: drag around the object. A box that fits it closely tracks best."
-            : "Click to lock: one click on the object selects a small area around it. Drag instead to choose the area yourself.",
+            : "Click to lock: one click on the object selects the box around it that tracks best. Drag instead to choose the area yourself.",
         "Choose a textured area with clear edges, such as a face, a jacket or a number plate. Sky, a plain wall or a dark corner has too little detail to follow.",
         "If the subject leaves the picture, tracking pauses and the original texture is searched for; it resumes only on a clear match, and never guesses between lookalikes. Nothing is saved or changed in the file.",
     ];
@@ -149,21 +146,4 @@ public static class SubjectPanel
     /// <summary>Whether a press and a release this far apart count as a click in the given mode.</summary>
     public static bool IsClick(SubjectSelectionMode mode, double dx, double dy) =>
         mode == SubjectSelectionMode.Click && Math.Abs(dx) < ClickSlop && Math.Abs(dy) < ClickSlop;
-
-    /// <summary>
-    /// The box a click at (<paramref name="x"/>, <paramref name="y"/>) stands for, in picture
-    /// coordinates from 0 to 1: a square of <see cref="ClickBoxShare"/> of the picture's shorter
-    /// side, centred on the click and moved inwards where it would leave the picture.
-    /// </summary>
-    public static (double Left, double Top, double Width, double Height) ClickBox(double x, double y, long across, long down)
-    {
-        across = Math.Max(1, across);
-        down = Math.Max(1, down);
-        var shorter = (double)Math.Min(across, down);
-        var width = ClickBoxShare * shorter / across;
-        var height = ClickBoxShare * shorter / down;
-        var left = Math.Clamp(x - width / 2, 0, 1 - width);
-        var top = Math.Clamp(y - height / 2, 0, 1 - height);
-        return (left, top, width, height);
-    }
 }

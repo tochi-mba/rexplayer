@@ -303,7 +303,7 @@ public enum PanelSide
 /// <summary>How a Subject Lock selection is made on the picture.</summary>
 public enum SubjectSelectionMode
 {
-    /// <summary>One click locks onto a small area around the point; a drag still draws a box.</summary>
+    /// <summary>One click locks onto the best box around the point; a drag still draws a box.</summary>
     Click,
 
     /// <summary>A drag draws the box to lock onto.</summary>

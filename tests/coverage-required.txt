@@ -186,6 +186,7 @@ SpectrumAnalyzer.cs
 StatsText.cs
 StrobeScene.cs
 SubjectPanel.cs
+SubjectProposals.cs
 SubRip.cs
 SubtitleCue.cs
 SubtitleFile.cs
