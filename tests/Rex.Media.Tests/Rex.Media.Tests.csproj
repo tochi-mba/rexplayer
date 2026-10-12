@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\src\Rex.Media.Settings\Rex.Media.Settings.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.Subtitles\Rex.Media.Subtitles.csproj" />
     <ProjectReference Include="..\..\src\Rex.Media.Library\Rex.Media.Library.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Vision\Rex.Media.Vision.csproj" />
   </ItemGroup>
 
 </Project>
