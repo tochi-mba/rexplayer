@@ -83,6 +83,72 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void FilesCanBeHiddenUntilTheFolderIsRemovedAndReadded()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var a = In("a.mp3");
+        var b = In("b.mp3");
+        library.AddFolder(Music);
+        Assert.Empty(library.Hidden);
+        library.Scan(Music, [File(a), File(b)], KindOf);
+        Assert.Equal(0, library.Hide([]));
+        Assert.Equal(1, library.Hide([a, a, "", " "]));
+        Assert.Equal([a], library.Hidden);
+        Assert.Null(library.Entry(a));
+        Assert.NotNull(library.Entry(b));
+
+        var again = new MediaLibrary(store);
+        Assert.Equal([a], again.Hidden);
+        Assert.False(again.Scan(Music, [File(a), File(b)], KindOf).Any);
+        Assert.Null(again.Entry(a));
+        Assert.Equal(1, again.Hide([b]));
+        Assert.Equal(0, again.Hide([b]));
+        Assert.Equal(2, again.Hidden.Count);
+        Assert.Equal(0, again.Forget([]));
+        Assert.Throws<ArgumentNullException>(() => again.Hide(null!));
+        Assert.Throws<ArgumentNullException>(() => again.Forget(null!));
+
+        Assert.True(again.RemoveFolder(Music));
+        Assert.Empty(again.Hidden);
+        Assert.True(again.AddFolder(Music));
+        Assert.Equal(new ScanResult(2, 0, 0), again.Scan(Music, [File(a), File(b)], KindOf));
+        Assert.Equal(2, again.Entries.Count);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void MultiItemWatchedAndUnwatchedStateIsStoredForKnownFilesOnly()
+    {
+        var time = new ManualTimeProvider(new DateTimeOffset(Monday));
+        var library = new MediaLibrary(RexStore.InMemory(), time);
+        var a = In("a.mp3");
+        var b = In("b.mp3");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(a), File(b)], KindOf);
+        var changes = 0;
+        library.Changed += (_, _) => changes++;
+        library.MarkPlayed([a, a, b, In("not here.mp3")]);
+        Assert.Equal(1, library.Entry(a)!.Plays);
+        Assert.Equal(1, library.Entry(b)!.Plays);
+        Assert.Equal(Monday, library.Entry(a)!.LastPlayed);
+        time.Advance(TimeSpan.FromDays(1));
+        library.MarkPlayed([a]);
+        Assert.Equal(Monday.AddDays(1), library.Entry(a)!.LastPlayed);
+        library.ResetPlays([a, b]);
+        Assert.All(library.Entries, item => Assert.Equal((0, (DateTime?)null), (item.Plays, item.LastPlayed)));
+        var changed = changes;
+        library.ResetPlays([In("not here.mp3")]);
+        Assert.Equal(changed, changes);
+        Assert.Equal(2, library.Forget([a, a, b, In("not here.mp3")]));
+        Assert.Empty(library.Entries);
+        Assert.Equal(0, library.Forget([a]));
+        Assert.Throws<ArgumentNullException>(() => library.MarkPlayed(null!));
+        Assert.Throws<ArgumentNullException>(() => library.ResetPlays(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void DetailsAreReadFromTheTags()
     {
         var library = new MediaLibrary(RexStore.InMemory());
