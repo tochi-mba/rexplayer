@@ -32,7 +32,7 @@ public sealed class PulsePartsTests
             Assert.InRange(range.Ceiling - range.Floor, 10, 11);
         }
 
-        // A level held steady sits low, never swinging from nothing to everything.
+        // A level held steady sits at the top of a range the span wide, never swinging from nothing to everything.
         range.Reset();
         for (var frame = 0; frame < 300; frame++)
         {
@@ -90,6 +90,13 @@ public sealed class PulsePartsTests
         Assert.Equal(0, whole.RiseAge()); // No analysed samples yet.
         Assert.Equal(1, whole.Power(Enumerable.Repeat(1f, 100).ToArray(), 48_000, 1000), 6);
         Assert.Equal(0.25, whole.Power([0, 0, 0.5f, 0.5f], 48_000, 2), 6);
+        Assert.Equal(0, whole.Earlier);
+
+        // Looking back: the window as long, ending that many samples before the newest.
+        Assert.Equal(0, whole.Power([0.5f, 0.5f, 0, 0], 48_000, 2, lag: 2), 6);
+        Assert.Equal(0.25, whole.Earlier, 6);
+        Assert.Equal(0.25, whole.Power([0.5f, 0.5f, 0, 0, 0.5f], 48_000, 1, lag: 9), 6);
+        Assert.Equal(0.25, whole.Earlier, 6);
 
         // A corner above the rate's limit is left out rather than made unstable.
         var high = new BandEnergy(2000, 20000);
@@ -145,8 +152,7 @@ public sealed class PulsePartsTests
                 clock.Onset(strong);
             }
 
-            // As the pulse does: the tempo is worked out again every frame while onsets are coming.
-            if (clock.SinceOnset < 2)
+            if (hit && clock.SinceOnset < 2)
             {
                 clock.Estimate();
             }
@@ -169,7 +175,7 @@ public sealed class PulsePartsTests
     public void TheClockFindsTheTempoLocksAndKeepsTimeThroughAGap(double bpm)
     {
         var clock = new BeatClock();
-        Assert.Equal((0.0, 0.0, false), (clock.Tempo, clock.NextBeatIn, clock.Locked));
+        Assert.Equal((0.0, 0.0, false), (clock.Tempo, clock.Period, clock.Locked));
 
         // Ten seconds of beats, then three beats with none heard: the grid crosses them on time.
         var onsets = Beats(bpm, 0, 10).ToList();
@@ -201,12 +207,86 @@ public sealed class PulsePartsTests
 
         // The music turns round half a beat: weak onsets there are ignored, three kicks move the grid.
         Run(clock, 2, Beats(120, 8.25, 10), start: 8, strong: false);
-        var phaseBefore = clock.Phase;
         Run(clock, 4, Beats(120, 10.25, 14), start: 10);
         Assert.True(clock.Confidence > 0.5);
         var crossings = Run(clock, 2, Beats(120, 14.25, 16), start: 14).Where(frame => frame.Crossed).Select(frame => frame.T % 0.5).ToList();
         Assert.All(crossings, at => Assert.InRange(at, 0.2, 0.33));
-        Assert.InRange(phaseBefore, 0, 1);
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(48)]
+    [InlineData(60)]
+    [InlineData(144)]
+    public void ASteadyStrengthHasNoTempoWhateverTheFrameRate(int fps)
+    {
+        // The envelope used to add up the frames that fell in each of its samples: at sixty frames
+        // a second against fifty samples every fifth sample held two, and a steady strength read
+        // as a beat at 120 a minute.
+        var clock = new BeatClock();
+        for (var frame = 0; frame < fps * 10; frame++)
+        {
+            clock.Advance(1.0 / fps, 1);
+        }
+
+        Assert.Equal(0, clock.EstimatePeriod());
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(60)]
+    public void TheClockFindsTheTempoOfOnsetsHeardAtTheWindowsFrameRates(int fps)
+    {
+        // Onsets on a busy floor of steady strength, as the spectral flux of a full mix is.
+        var clock = new BeatClock();
+        var next = 0.0;
+        for (var frame = 1; frame <= fps * 8; frame++)
+        {
+            var t = (double)frame / fps;
+            var hit = t >= next;
+            next = hit ? next + 0.56 : next;
+            clock.Advance(1.0 / fps, hit ? 3 : 1);
+        }
+
+        Assert.InRange(clock.EstimatePeriod(), 0.55, 0.57);
+    }
+
+    [Fact]
+    public void AnOnsetJustBeforeTheGridsBeatConfirmsItAndKeepsTheBeatBefore()
+    {
+        var clock = new BeatClock();
+        Run(clock, 8, Beats(120, 0, 8));
+        Assert.True(clock.Locked);
+
+        // The next beat is heard as it comes, so the one under test has a confirmed beat before it.
+        while (!clock.Advance(0.005, 0))
+        {
+        }
+
+        clock.Onset(strong: true);
+        Assert.True(clock.Heard);
+        Assert.Equal(1, clock.Confidence, 6);
+
+        // A kick a tenth of a beat before the grid's next beat.
+        while (clock.Phase < 0.9)
+        {
+            clock.Advance(0.005, 0);
+        }
+
+        Assert.False(clock.Near(0.25 * 0.5));
+        Assert.True(clock.Near(0));
+        clock.Onset(strong: true);
+        var crossed = false;
+        while (!crossed)
+        {
+            crossed = clock.Advance(0.005, 0);
+        }
+
+        // The beat before was heard and so was this one: the clock is as sure as it was, where it
+        // used to forget the beat before and lose a step of confidence.
+        Assert.True(clock.Heard);
+        Assert.Equal(1, clock.Confidence, 6);
+        Assert.True(new BeatClock().Near(0.1));
     }
 
     [Fact]

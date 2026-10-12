@@ -441,4 +441,97 @@ public sealed class UpdateFlowTests
             UpdateFlow.PromptText(UpdatePrompt.Available, Pending(UpdateStage.Available) with { NeedsAttention = true }, true));
         Assert.Throws<ArgumentNullException>(() => UpdateFlow.PromptText(UpdatePrompt.Ready, null!, false));
     }
+
+    [Fact]
+    [Capability("TOOL-09")]
+    public void ABarOfferingAnOlderVersionIsDrawnAgainForTheNewerOne()
+    {
+        // The bar offered 0.16.0; a check found 0.16.1 while it was open. The bar used to be left
+        // as it was, still naming 0.16.0, because it offered the same kind of answer.
+        var newer = Pending(UpdateStage.Available, "0.16.1");
+        Assert.True(UpdateFlow.Redraw(UpdatePrompt.Available, newer, UpdatePrompt.Available, "0.16.0", open: true));
+        Assert.False(UpdateFlow.Redraw(UpdatePrompt.Available, newer, UpdatePrompt.Available, "0.16.1", open: true));
+        Assert.True(UpdateFlow.Redraw(UpdatePrompt.Ready, newer, UpdatePrompt.Available, "0.16.1", open: true));
+        Assert.True(UpdateFlow.Redraw(UpdatePrompt.Available, newer, UpdatePrompt.Available, "0.16.1", open: false));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Redraw(UpdatePrompt.Ready, null!, UpdatePrompt.None, null, false));
+    }
+
+    [Fact]
+    [Capability("TOOL-09")]
+    public void ADamagedDownloadIsFetchedAgainOnAMeteredConnectionOnlyWhenTheUserAsked()
+    {
+        // An install rexplayer started by itself found the file damaged. It used to mark the new
+        // download approved, so it went ahead over a metered connection nobody had allowed.
+        var ready = Pending() with { Approved = false };
+        var again = UpdateFlow.Damaged(ready, asked: false);
+        Assert.Equal((UpdateStage.Downloading, false), (again.Stage, again.Approved));
+        Assert.False(UpdateFlow.MayDownload(again, UpdateMode.Automatic, UpdateCadence.Daily, metered: true, Now));
+        Assert.True(UpdateFlow.MayDownload(again, UpdateMode.Automatic, UpdateCadence.Daily, metered: false, Now));
+
+        // The user pressed Restart now: that is asking.
+        Assert.True(UpdateFlow.Damaged(ready, asked: true).Approved);
+        Assert.True(UpdateFlow.Damaged(ready with { Approved = true }, asked: false).Approved);
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Damaged(null!, false));
+    }
+
+    [Fact]
+    public void TheWindowsAnswersChangeThePendingUpdateAsTheySay()
+    {
+        var waiting = UpdateFlow.DownloadFailed(Pending(UpdateStage.Available) with { RemindAt = Now }, "offline", Now);
+        var approved = UpdateFlow.Approve(waiting);
+        Assert.Equal((UpdateStage.Downloading, true, (DateTimeOffset?)null, (DateTimeOffset?)null), (approved.Stage, approved.Approved, approved.RemindAt, approved.RetryAt));
+
+        var retrying = Pending(UpdateStage.Downloading) with { RetryAt = Now.AddHours(1) };
+        Assert.Null(UpdateFlow.Reconnected(retrying).RetryAt);
+        var ready = Pending() with { RetryAt = Now };
+        Assert.Same(ready, UpdateFlow.Reconnected(ready));
+
+        var handed = UpdateFlow.HandedOff(Pending(), Now);
+        Assert.Equal((UpdateStage.Installing, (DateTimeOffset?)Now), (handed.Stage, handed.HandedOffAt));
+        Assert.Equal(StartupNews.Installed, UpdateFlow.AtStartup(handed, "0.16.0", Now).News);
+
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Approve(null!));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Reconnected(null!));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.HandedOff(null!, Now));
+    }
+
+    [Fact]
+    public void ADownloadAttemptLeavesTheUpdateReadyAsItWasOrWaitingToTryAgain()
+    {
+        var downloading = Pending(UpdateStage.Downloading) with { DownloadFailures = 2, RetryAt = Now, LastError = "offline" };
+        Assert.Equal(UpdateFlow.Downloaded(downloading), UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Ready), Now));
+        Assert.Same(downloading, UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Cancelled), Now));
+        Assert.Same(downloading, UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Busy, "another window"), Now));
+        var failed = UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Mismatch, "it did not match"), Now);
+        Assert.Equal((3, "it did not match"), (failed.DownloadFailures, failed.LastError));
+        Assert.Equal("unknown error", UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Failed), Now).LastError);
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.AfterDownload(null!, new DownloadReport(DownloadOutcome.Ready), Now));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.AfterDownload(downloading, null!, Now));
+    }
+
+    [Fact]
+    public void ABarAlreadyShowingOutlastsAnotherBannerAndEditingButNotWhatEndsTheOffer()
+    {
+        var ready = Pending();
+        Assert.False(UpdateFlow.Hides(ready, UpdateMode.DownloadAndAsk, Quiet with { NoticeOpen = true, Editing = true }, Now));
+        Assert.True(UpdateFlow.Hides(ready, UpdateMode.DownloadAndAsk, Quiet with { DialogOpen = true }, Now));
+        Assert.True(UpdateFlow.Hides(ready, UpdateMode.DownloadAndAsk, Quiet with { FullScreen = true, Playing = true }, Now));
+        Assert.True(UpdateFlow.Hides(null, UpdateMode.DownloadAndAsk, Quiet, Now));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Hides(ready, UpdateMode.DownloadAndAsk, null!, Now));
+    }
+
+    [Fact]
+    public void RemindersAndStartupNewsHavePlainWords()
+    {
+        Assert.Equal("rexplayer reminds you about 0.16.0 in an hour.", UpdateFlow.Reminded(RemindChoice.InAnHour, "0.16.0"));
+        Assert.Equal("rexplayer reminds you about 0.16.0 tomorrow.", UpdateFlow.Reminded(RemindChoice.Tomorrow, "0.16.0"));
+        Assert.Equal("rexplayer reminds you about 0.16.0 next week.", UpdateFlow.Reminded(RemindChoice.NextWeek, "0.16.0"));
+
+        Assert.Equal("rexplayer 0.16.0 did not install", UpdateFlow.NewsText(StartupNews.InstallFailed, "0.16.0", "0.15.2")!.Value.Title);
+        Assert.Contains("rexplayer 0.15.2 is still here", UpdateFlow.NewsText(StartupNews.InstallFailed, "0.16.0", "0.15.2")!.Value.Message, StringComparison.Ordinal);
+        Assert.Equal("It failed 3 times, so rexplayer 0.15.2 set it aside. A later check offers it again; the log has the details.",
+            UpdateFlow.NewsText(StartupNews.InstallAbandoned, null, "0.15.2")!.Value.Message);
+        Assert.Null(UpdateFlow.NewsText(StartupNews.Installed, "0.16.0", "0.16.0"));
+        Assert.Null(UpdateFlow.NewsText(StartupNews.None, null, "0.16.0"));
+    }
 }

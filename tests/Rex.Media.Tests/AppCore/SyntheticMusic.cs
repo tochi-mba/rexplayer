@@ -31,10 +31,14 @@ internal sealed class SyntheticMusic
     /// <param name="changeAt">Where the tempo changes to <paramref name="newBpm"/>, or a negative number for never.</param>
     /// <param name="newBpm">The tempo after the change.</param>
     /// <param name="tone">A held 55 Hz note and nothing else.</param>
+    /// <param name="fps">Frames a second it is heard at, as the window draws: thirty, or sixty when the stage draws quickly.</param>
+    /// <param name="humanize">How far, in seconds, each beat after the first may fall early or late, as a drummer plays.</param>
     public SyntheticMusic(double bpm, double seconds, double quietFrom = -1, double quietUntil = -1, bool silence = false,
-        double gainDb = 0, bool busy = false, int[]? missing = null, double changeAt = -1, double newBpm = 0, bool tone = false)
+        double gainDb = 0, bool busy = false, int[]? missing = null, double changeAt = -1, double newBpm = 0, bool tone = false, int fps = Fps,
+        double humanize = 0)
     {
         Bpm = bpm;
+        FramesPerSecond = fps;
         var count = (int)(seconds * Rate);
         (_left, _right) = (new float[count], new float[count]);
         if (silence)
@@ -58,6 +62,12 @@ internal sealed class SyntheticMusic
         for (var t = 0.0; t < seconds; t += 60 / (changeAt >= 0 && t >= changeAt ? newBpm : bpm))
         {
             beats.Add(t);
+        }
+
+        var played = new Random(11);
+        for (var b = 1; b < beats.Count; b++)
+        {
+            beats[b] += humanize * ((played.NextDouble() * 2) - 1);
         }
 
         var random = new Random(7);
@@ -128,12 +138,18 @@ internal sealed class SyntheticMusic
     /// <summary>Where every kick lands, in seconds.</summary>
     public IReadOnlyList<double> Kicks => _kicks;
 
-    public int Frames => _left.Length * Fps / Rate;
+    /// <summary>Frames a second this music is heard at.</summary>
+    public int FramesPerSecond { get; }
+
+    /// <summary>The time between two of this music's frames.</summary>
+    public TimeSpan Step => TimeSpan.FromSeconds(1.0 / FramesPerSecond);
+
+    public int Frames => (int)((long)_left.Length * FramesPerSecond / Rate);
 
     /// <summary>The <see cref="MusicPulse.AnalysisSize"/> samples of each channel heard by frame <paramref name="frame"/>, silence before the start.</summary>
     public (float[] Left, float[] Right) At(int frame)
     {
-        var end = (int)((long)frame * Rate / Fps);
+        var end = (int)((long)frame * Rate / FramesPerSecond);
         var (left, right) = (new float[MusicPulse.AnalysisSize], new float[MusicPulse.AnalysisSize]);
         for (var i = 0; i < left.Length; i++)
         {

@@ -1,23 +1,28 @@
 # Changelog
 
-## 0.16.1 - 2026-10-12
+Every version of rexplayer that reaches users, newest first. A version is published by the CI
+pipeline the moment its number reaches `main`.
 
-### Improved
-
-- **Visualisations move with the music.** Every software visualisation now thumps on the
-  kick, swells with the bass and lands on the beat, and is still in silence. Levels are
-  measured against each song's own quiet and loud, so a quiet recording moves as much as a
-  loud one. A beat clock locks to the kicks, keeps time through a busy mix, and stands in
-  for a kick the mix hides. The picture is drawn from the sound that will be playing when
-  it reaches the screen, at sixty frames a second when the computer keeps up.
-- **Beat meter.** Each visualisation can show a strip of what it hears: the spectrum, the
-  bass, middle and treble, the punch, the loudness, and a light on every beat.
+## 0.17.0 - 2026-10-12
 
 ### Added
 
-- **`rexplay pulse`.** Hears a file as the visualisations do and reports its tempo, every
-  beat, when the beat clock locked, and how strongly the music moves the levels; `--json`
-  gives the same as one document.
+- **Lumen weave.** A new contour effect that follows each outline along its own direction
+  and keeps only edges that stay continuous, so noise drops away and real silhouettes
+  become flowing strands of light. Strands are coloured by how sharply they curve, or by
+  source colour, monochrome or brightness, and Strand flow sends light travelling along them.
+- **Five more picture effects.** Depth haze fades soft and flat areas into a coloured
+  atmosphere; Particle veil sends sparks up from whatever is moving; Lens bloom adds
+  anamorphic streaks and glow to highlights; Stipple engrave draws the picture as an
+  engraving whose lines bend with the edges; Time echo splits movement into a red echo
+  behind and a blue echo ahead. Each has its own saved controls and named colour choices.
+- **Five more picture looks.** Teal & orange, Golden film, Bleach bypass, Cross process
+  and Infrared.
+
+### Improved
+
+- **Faster start for video.** The picture shaders compile once per session instead of for
+  every video surface.
 
 ## 0.16.0 - 2026-10-12
 
@@ -150,9 +155,6 @@
   occlusions or similar-looking subjects. The flower-dress and grey-outfit
   footage still need an annotated, repeatable accuracy and frame-time benchmark
   before claiming reliable recovery under all real-world conditions.
-
-Every version of rexplayer that reaches users, newest first. A version is published by the CI
-pipeline the moment its number reaches `main`.
 
 ## 0.15.8 - 2026-10-11
 

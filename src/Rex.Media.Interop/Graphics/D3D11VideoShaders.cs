@@ -48,7 +48,31 @@ internal static class D3D11VideoShaders
             }
             if (look.x < 7.5)
                 return saturate((lerp(grey, c, 1.7) - 0.5) * 1.14 + 0.5 + float3(0.013, -0.008, 0.035));
-            return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
+            if (look.x < 8.5)
+                return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
+            if (look.x < 9.5) // Teal & orange: cool shadows, warm highlights, gentle S-curve
+            {
+                float3 split = lerp(grey, c, 1.08) + lerp(float3(-0.02, 0.05, 0.09),
+                    float3(0.09, 0.03, -0.06), smoothstep(0.15, 0.8, l));
+                split = saturate(split);
+                return lerp(split, smoothstep(0, 1, split), 0.35);
+            }
+            if (look.x < 10.5) // Golden film: warm stock, lifted blacks, highlight halation
+            {
+                float3 film = c * float3(1.06, 1.0, 0.86) + float3(0.035, 0.025, 0.02);
+                return saturate((lerp(grey, film, 1.05) - 0.5) * 0.97 + 0.5
+                    + l * l * l * float3(0.10, 0.04, 0));
+            }
+            if (look.x < 11.5) // Bleach bypass: retained silver, low saturation, hard contrast
+                return saturate((lerp(c, grey, 0.55) - 0.5) * 1.35 + 0.5 + grey * grey * 0.12 - 0.03);
+            if (look.x < 12.5) // Cross process: per-channel curves, cyan shadows, yellow highlights
+            {
+                float3 crossed = float3(smoothstep(0.04, 0.96, c.r), c.g * 0.92 + 0.07, c.b * 0.72 + 0.10);
+                return saturate(crossed + lerp(float3(-0.03, 0.04, 0.06), float3(0.06, 0.05, -0.08), l));
+            }
+            // Infrared: false-colour channel swap, so foliage greens turn red and reds turn gold
+            float3 infrared = float3(c.g * 1.15, c.r * 0.95, c.b * 1.05);
+            return saturate(infrared + smoothstep(0.55, 1, l) * float3(0.12, 0.10, 0.08));
         }
         float3 styledLook(float3 original)
         {
@@ -152,6 +176,39 @@ internal static class D3D11VideoShaders
                 return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
             }
             return priorLuma.Sample(linearClamp, mapped).rgb;
+        }
+        // Level-zero reads for real (not unrolled) loops: they need no screen-space
+        // derivatives, so long walks compile in a moment instead of inlining every step.
+        float3 readColourAt(float2 uv, bool isYuv)
+        {
+            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
+            if (isYuv)
+            {
+                float4 samples = float4(luma.SampleLevel(linearClamp, mapped, 0).r,
+                    chroma.SampleLevel(chromaSampler, mapped, 0).rg, 1);
+                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
+            }
+            return luma.SampleLevel(linearClamp, mapped, 0).rgb;
+        }
+        float3 readPriorAt(float2 uv, bool isYuv)
+        {
+            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
+            if (isYuv)
+            {
+                float4 samples = float4(priorLuma.SampleLevel(linearClamp, mapped, 0).r,
+                    priorChroma.SampleLevel(chromaSampler, mapped, 0).rg, 1);
+                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
+            }
+            return priorLuma.SampleLevel(linearClamp, mapped, 0).rgb;
+        }
+        // The contourGradient signal at a given pixel footprint, for use inside loops.
+        float3 contourGradientAt(float2 uv, bool isYuv, float2 pixel)
+        {
+            float3 dx = readColourAt(uv + float2(pixel.x, 0), isYuv) - readColourAt(uv - float2(pixel.x, 0), isYuv);
+            float3 dy = readColourAt(uv + float2(0, pixel.y), isYuv) - readColourAt(uv - float2(0, pixel.y), isYuv);
+            float3 weights = float3(0.2126, 0.7152, 0.0722);
+            float2 direction = float2(dot(dx, weights), dot(dy, weights));
+            return float3(direction, length(direction) + sqrt(dot(dx, dx) + dot(dy, dy)) * 0.32);
         }
         // A four-neighbour spatial gradient, measured in real output-pixel units.
         // Derivatives adapt across window sizes, avoiding a permanently chunky outline.
@@ -600,6 +657,211 @@ internal static class D3D11VideoShaders
                     float gate = smoothstep(0.03 * pointer.w, 0.20 * pointer.w, delta);
                     colour = lerp(colour, previous, gate * effect.y * extras.x * 0.01);
                 }
+            }
+            if (effect.x > 25.5 && effect.x < 26.5 && effect.y > 0) // Lumen weave
+            {
+                // A short line integral along the edge tangent, in both directions. Strength
+                // accumulates only while the gradient keeps its orientation, so speckle drops
+                // out and real outlines and folds become continuous strands. How far the
+                // tangent turns along the walk is the strand's curvature, which colours it.
+                float detail = max(pointer.w, 0.25);
+                float3 here = contourDetail(uv, isYuv);
+                float2 normal0 = here.xy / max(length(here.xy), 0.000001);
+                float2 tangent0 = float2(-normal0.y, normal0.x);
+                float2 px = max(fwidth(uv), float2(0.00022, 0.00022)) * 1.6;
+                float strand = smoothstep(0.006 / detail, 0.16 / detail, here.z);
+                float coherent = strand;
+                float3 silk = colour;
+                float silkWeight = 1;
+                float turning = 0;
+                float2 footprint = max(fwidth(uv) * 0.9, float2(0.00018, 0.00018)) / detail;
+                [loop] for (int side = 0; side < 2; side++)
+                {
+                    float2 position = uv;
+                    float2 tangent = side == 0 ? tangent0 : -tangent0;
+                    float2 previousNormal = normal0;
+                    float alive = 1;
+                    [loop] for (int i = 1; i <= 6; i++)
+                    {
+                        position += tangent * px;
+                        float3 g = contourGradientAt(position, isYuv, footprint);
+                        float2 n = g.xy / max(length(g.xy), 0.000001);
+                        // Edge direction is unsigned: a flipped gradient is the same line.
+                        float agreement = abs(dot(n, previousNormal));
+                        alive *= smoothstep(0.55, 0.85, agreement);
+                        float w = 1 - i / 7.0;
+                        coherent += smoothstep(0.006 / detail, 0.16 / detail, g.z) * alive * w;
+                        silk += readColourAt(position, isYuv) * w;
+                        silkWeight += w;
+                        turning += (1 - agreement) * alive;
+                        n = dot(n, previousNormal) < 0 ? -n : n;
+                        float2 next = float2(-n.y, n.x);
+                        tangent = dot(next, tangent) < 0 ? -next : next;
+                        previousNormal = n;
+                    }
+                }
+                // An isolated edge pixel has no coherent neighbours and stays dark; a gap of a
+                // pixel or two inside a long strand is bridged by its neighbours.
+                float thread = saturate((coherent - strand * 0.5) / 3.5) * saturate(strand * 2 + 0.25);
+                float curve = saturate(turning * 1.5);
+                float arc = dot((uv - 0.5) * float2(effect.w, 1), tangent0) * 140 / detail;
+                float pulse = 0.55 + 0.45 * sin(arc - effect.z * extras.x * 0.12);
+                float lum = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                silk /= silkWeight;
+                float3 tint = extras.y < 0.5 ? lerp(float3(0.55, 0.95, 1), float3(1, 0.62, 0.18), curve)
+                    : extras.y < 1.5 ? saturate(silk * 1.6 + 0.08)
+                    : extras.y < 2.5 ? float3(0.92, 0.95, 1)
+                    : lerp(float3(0.25, 0.35, 0.9), float3(0.95, 1, 0.95), lum);
+                float3 woven = silk * 0.10 + float3(0.006, 0.008, 0.014)
+                    + tint * thread * (pulse * 1.15 + thread * 0.4);
+                colour = lerp(colour, saturate(woven), effect.y);
+            }
+            if (effect.x > 26.5 && effect.x < 27.5 && effect.y > 0) // Depth haze
+            {
+                // A depth guess from what is visible: fine, sharp texture reads as near;
+                // soft, blurred or flat regions and the top of the frame read as far.
+                // It is atmosphere, not a measurement of real distance.
+                float detail = max(pointer.w, 0.25);
+                float3 fine = contourGradient(uv, isYuv, 0.75);
+                float3 broad = contourGradient(uv, isYuv, 4.0);
+                float sharpness = saturate(fine.z / max(broad.z, 0.004));
+                float textured = saturate((fine.z * 0.4 + broad.z * 0.6) * 6 * detail);
+                float far = smoothstep(0.15, 0.85,
+                    0.55 * (1 - textured) + 0.30 * (1 - sharpness) + 0.15 * (1 - uv.y));
+                float3 fog = extras.y < 0.5 ? float3(0.42, 0.55, 0.75)
+                    : extras.y < 1.5 ? float3(0.80, 0.66, 0.48)
+                    : extras.y < 2.5 ? float3(0.70, 0.71, 0.72) : float3(0.40, 0.62, 0.48);
+                float lum = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                float3 hazed = lerp(colour, lerp(float3(lum, lum, lum), colour, 0.4), far);
+                hazed = lerp(hazed, fog, far * extras.x * 0.0085);
+                hazed = lerp(hazed, saturate((hazed - 0.5) * 1.12 + 0.5), 1 - far);
+                colour = lerp(colour, hazed, effect.y);
+            }
+            if (effect.x > 27.5 && effect.x < 28.5 && effect.y > 0 && motion.y > 0.5) // Particle veil
+            {
+                // Each grid cell may hold one spark, born where the picture changed since the
+                // previous frame and rising about one cell over its life. The 3x3 neighbourhood
+                // lets a spark cross into the cell above without being clipped.
+                float rows = lerp(28, 90, extras.x * 0.01);
+                float2 cells = float2(rows * effect.w, rows);
+                float2 home = floor(uv * cells);
+                float threshold = 0.03 * max(pointer.w, 0.25);
+                float time = effect.z;
+                float3 sparks = 0;
+                [loop] for (int dy = -1; dy <= 1; dy++)
+                {
+                    [loop] for (int dx = -1; dx <= 1; dx++)
+                    {
+                        float2 cell = home + float2(dx, dy);
+                        float h1 = frac(sin(dot(cell, float2(12.9898, 78.233))) * 43758.5453);
+                        float h2 = frac(sin(dot(cell, float2(39.346, 11.135))) * 24634.6345);
+                        float h3 = frac(sin(dot(cell, float2(73.156, 52.235))) * 19341.2137);
+                        float2 birth = (cell + float2(h1, 0.5)) / cells;
+                        float3 now = readColourAt(birth, isYuv);
+                        float activity = smoothstep(threshold, threshold * 6,
+                            length(now - readPriorAt(birth, isYuv)));
+                        float life = frac(time * 0.7 + h2);
+                        float2 spark = (cell + float2(0.5 + (h1 - 0.5) * 0.8
+                            + 0.25 * sin(time * 2 + h2 * 6.2831853), 0.5 - life)) / cells;
+                        float2 offset = (uv - spark) * cells;
+                        float present = step(h3, 0.35 + 0.6 * extras.x * 0.01);
+                        float glow = exp(-dot(offset, offset) * 30) * activity * (1 - life) * present;
+                        float3 tint = extras.y < 0.5 ? lerp(float3(1, 0.85, 0.4), float3(1, 0.35, 0.05), life)
+                            : extras.y < 1.5 ? float3(0.55, 0.85, 1)
+                            : extras.y < 2.5 ? saturate(now * 1.4 + 0.1) : float3(1, 1, 1);
+                        sparks += tint * glow;
+                    }
+                }
+                colour = saturate(colour + sparks * effect.y * 1.6);
+            }
+            if (effect.x > 28.5 && effect.x < 29.5 && effect.y > 0) // Lens bloom
+            {
+                // Anamorphic streaks: only highlights above the threshold contribute, spread
+                // widely along the horizontal with tails drifting to the tint colour, plus a
+                // soft round glow.
+                float threshold = saturate(1 - 0.35 * pointer.w);
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float3 tint = extras.y < 0.5 ? float3(0.35, 0.6, 1)
+                    : extras.y < 1.5 ? float3(1, 0.7, 0.35) : float3(1, 1, 1);
+                float reach = 0.02 + extras.x * 0.0025;
+                float3 streak = 0;
+                [loop] for (int i = -4; i <= 4; i++)
+                {
+                    float3 tap = readColourAt(uv + float2(i * 0.25 * reach, 0), isYuv);
+                    float3 bright = tap * max(dot(tap, weights) - threshold, 0) / max(1 - threshold, 0.05);
+                    float3 tail = extras.y > 2.5 ? bright : lerp(bright, tint * dot(bright, weights), abs(i) * 0.25);
+                    streak += tail * exp(-abs(i) * 0.45);
+                }
+                float3 glow = 0;
+                [loop] for (int k = 0; k < 8; k++)
+                {
+                    float angle = k * 0.78539816;
+                    float3 tap = readColourAt(uv + float2(cos(angle) / effect.w, sin(angle)) * 0.012, isYuv);
+                    glow += tap * max(dot(tap, weights) - threshold, 0) / max(1 - threshold, 0.05);
+                }
+                colour = saturate(colour + (streak * 0.25 + glow * 0.09) * effect.y * 1.4);
+            }
+            if (effect.x > 29.5 && effect.x < 30.5 && effect.y > 0) // Stipple engrave
+            {
+                // Engraver's hatching: the first family of lines runs along the local edge
+                // (from a broad gradient, so it bends smoothly), with crossing families added
+                // as the picture darkens. Flat regions fall back to a 45 degree hatch.
+                float3 structure = contourDetail(uv, isYuv);
+                float3 broad = contourGradient(uv, isYuv, 3.0);
+                float2 diagonal = float2(0.70710678, 0.70710678);
+                float2 along = float2(-broad.y, broad.x) / max(length(broad.xy), 0.000001);
+                along = dot(along, diagonal) < 0 ? -along : along;
+                float2 direction = normalize(lerp(diagonal, along, smoothstep(0.01, 0.08, broad.z)) + 0.000001);
+                float lines = lerp(60, 200, extras.x * 0.01);
+                float2 p = (uv - 0.5) * float2(effect.w, 1) * lines;
+                float darkness = 1 - dot(colour, float3(0.2126, 0.7152, 0.0722));
+                float weight = max(pointer.w, 0.25);
+                float ink = 0;
+                [unroll] for (int family = 0; family < 4; family++)
+                {
+                    float angle = family == 0 ? 0 : family == 1 ? 1.5707963 : family == 2 ? 0.78539816 : -0.78539816;
+                    float cs = cos(angle), sn = sin(angle);
+                    float2 d = float2(direction.x * cs - direction.y * sn, direction.x * sn + direction.y * cs);
+                    float width = saturate(darkness * 4 - family) * 0.32 * weight;
+                    float gap = abs(frac(dot(p, float2(-d.y, d.x))) - 0.5);
+                    ink = max(ink, saturate((width - gap) / 0.08));
+                }
+                ink = max(ink, smoothstep(0.01 / weight, 0.2 / weight, structure.z));
+                float3 paper = extras.y < 0.5 ? float3(0.95, 0.92, 0.84)
+                    : extras.y < 1.5 ? float3(0.94, 0.94, 0.90)
+                    : extras.y < 2.5 ? float3(0.03, 0.03, 0.035) : float3(0.88, 0.78, 0.60);
+                float3 pen = extras.y < 0.5 ? float3(0.10, 0.08, 0.07)
+                    : extras.y < 1.5 ? float3(0.08, 0.16, 0.42)
+                    : extras.y < 2.5 ? float3(0.93, 0.93, 0.90) : float3(0.28, 0.16, 0.08);
+                colour = lerp(colour, lerp(paper, pen, ink), effect.y);
+            }
+            if (effect.x > 30.5 && effect.x < 31.5 && effect.y > 0 && motion.y > 0.5) // Time echo
+            {
+                // Estimate which way this pixel's content moved by finding the nearby shift of
+                // the previous frame that matches it best, then split the change into channels:
+                // red where it was, green where it is, blue a step ahead. Still pixels are untouched.
+                float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                float3 prior = readPrior(uv, isYuv);
+                float threshold = 0.03 * max(pointer.w, 0.25);
+                float gate = saturate(smoothstep(threshold, threshold * 5, length(colour - prior))
+                    * (1 + extras.y * 0.03));
+                float2 travel = float2(1, 0);
+                float bestError = length(colour - prior);
+                [loop] for (int k = 0; k < 8; k++)
+                {
+                    float angle = k * 0.78539816;
+                    float2 candidate = float2(cos(angle), sin(angle));
+                    float error = length(colour - readPriorAt(uv - candidate * px * 8, isYuv));
+                    if (error < bestError)
+                    {
+                        bestError = error;
+                        travel = candidate;
+                    }
+                }
+                float2 reach = travel * px * (4 + extras.x * 0.6);
+                float3 echo = float3(readPrior(uv + reach, isYuv).r, colour.g,
+                    readColour(uv - reach, isYuv).b);
+                colour = lerp(colour, saturate(echo * 1.08), gate * effect.y);
             }
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {

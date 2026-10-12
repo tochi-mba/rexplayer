@@ -296,6 +296,96 @@ public static class UpdateFlow
         return pending.Timing is UpdateTiming.OnClose or UpdateTiming.Scheduled || InstallsUnasked(pending, mode);
     }
 
+    /// <summary>
+    /// Whether an update bar already showing goes: when it would not be offered even without
+    /// another banner or some editing, which only keep a new bar from appearing.
+    /// </summary>
+    public static bool Hides(PendingUpdate? pending, UpdateMode mode, UpdateMoment moment, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(moment);
+        return Prompt(pending, mode, moment with { NoticeOpen = false, Editing = false }, now) == UpdatePrompt.None;
+    }
+
+    /// <summary>
+    /// The pending update after a download attempt: verified, it is ready; stopped on purpose or
+    /// left to another window, it is as it was; otherwise the attempt failed and waits to try again.
+    /// </summary>
+    public static PendingUpdate AfterDownload(PendingUpdate pending, DownloadReport report, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        ArgumentNullException.ThrowIfNull(report);
+        return report.Outcome switch
+        {
+            DownloadOutcome.Ready => Downloaded(pending),
+            DownloadOutcome.Cancelled or DownloadOutcome.Busy => pending,
+            _ => DownloadFailed(pending, report.Reason ?? "unknown error", now),
+        };
+    }
+
+    /// <summary>
+    /// Whether the update bar must be drawn again to offer <paramref name="prompt"/> for
+    /// <paramref name="pending"/>: it is closed, offers something else, or offers another version
+    /// (a newer release found while it was open).
+    /// </summary>
+    public static bool Redraw(UpdatePrompt prompt, PendingUpdate pending, UpdatePrompt shown, string? shownVersion, bool open)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return !open || prompt != shown || pending.Version != shownVersion;
+    }
+
+    /// <summary>The user chose Download: it goes ahead now, whatever the connection, and any reminder or wait is dropped.</summary>
+    public static PendingUpdate Approve(PendingUpdate pending)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending with { Stage = UpdateStage.Downloading, Approved = true, RemindAt = null, RetryAt = null };
+    }
+
+    /// <summary>
+    /// A downloaded installer that no longer matches its checksum is downloaded again. It is
+    /// approved (so it goes ahead on a metered connection) only when it was, or the user
+    /// <paramref name="asked"/> to install it; an install rexplayer started by itself does not.
+    /// </summary>
+    public static PendingUpdate Damaged(PendingUpdate pending, bool asked)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending with { Stage = UpdateStage.Downloading, Approved = pending.Approved || asked };
+    }
+
+    /// <summary>A new connection: a download waiting to try again after failing on the old one tries now.</summary>
+    public static PendingUpdate Reconnected(PendingUpdate pending)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending is { Stage: UpdateStage.Downloading, RetryAt: not null } ? pending with { RetryAt = null } : pending;
+    }
+
+    /// <summary>Handed to the installer at <paramref name="now"/>; the next start says whether it installed.</summary>
+    public static PendingUpdate HandedOff(PendingUpdate pending, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending with { Stage = UpdateStage.Installing, HandedOffAt = now };
+    }
+
+    /// <summary>What "Remind me later" says once chosen.</summary>
+    public static string Reminded(RemindChoice choice, string version) => choice switch
+    {
+        RemindChoice.InAnHour => $"rexplayer reminds you about {version} in an hour.",
+        RemindChoice.NextWeek => $"rexplayer reminds you about {version} next week.",
+        _ => $"rexplayer reminds you about {version} tomorrow.",
+    };
+
+    /// <summary>The notice for what a start learned (its title and message), or null when there is none.</summary>
+    /// <param name="news">From <see cref="AtStartup"/>.</param>
+    /// <param name="version">The version that did not install.</param>
+    /// <param name="current">The running version.</param>
+    public static (string Title, string Message)? NewsText(StartupNews news, string? version, string current) => news switch
+    {
+        StartupNews.InstallFailed => ($"rexplayer {version} did not install",
+            $"The installer was cancelled or stopped, so rexplayer {current} is still here and nothing was lost. The log (Help, Open the log folder) has the details."),
+        StartupNews.InstallAbandoned => ("The update could not be installed",
+            $"It failed {MostInstallFailures} times, so rexplayer {current} set it aside. A later check offers it again; the log has the details."),
+        _ => null,
+    };
+
     /// <summary>Not offered again until <paramref name="choice"/>'s time.</summary>
     public static PendingUpdate Remind(PendingUpdate pending, RemindChoice choice, DateTimeOffset now)
     {

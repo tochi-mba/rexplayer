@@ -36,16 +36,25 @@ public sealed class BandEnergy
     }
 
     /// <summary>
+    /// The mean power, within the band, of the window <see cref="Power"/> was asked to look back
+    /// to: the same length, ending <c>lag</c> samples before the newest; 0 when it was not asked.
+    /// </summary>
+    public double Earlier { get; private set; }
+
+    /// <summary>
     /// The mean power of the newest <paramref name="window"/> samples of <paramref name="samples"/>
     /// at <paramref name="sampleRate"/>, within the band; up to <see cref="Settle"/> samples before
-    /// them, when there are, settle the filters. The newest <paramref name="keep"/> samples of the
-    /// band (or the window's, if more) are kept for <see cref="RiseAge"/>.
+    /// them, when there are, settle the filters. With a <paramref name="lag"/>, the power of as
+    /// many samples ending that many before the newest is <see cref="Earlier"/>. The newest
+    /// <paramref name="keep"/> samples of the band (or as many as the windows cover, if more) are
+    /// kept for <see cref="RiseAge"/>.
     /// </summary>
-    public double Power(ReadOnlySpan<float> samples, int sampleRate, int window, int keep = 0)
+    public double Power(ReadOnlySpan<float> samples, int sampleRate, int window, int keep = 0, int lag = 0)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(sampleRate, 1);
         window = Math.Clamp(window, 1, samples.Length);
-        keep = Math.Clamp(Math.Max(keep, window), 1, samples.Length);
+        lag = Math.Clamp(lag, 0, samples.Length - window);
+        keep = Math.Clamp(Math.Max(keep, window + lag), 1, samples.Length);
         if (_kept.Length < keep)
         {
             _kept = new float[keep];
@@ -63,7 +72,7 @@ public sealed class BandEnergy
         }
 
         var start = Math.Max(0, samples.Length - keep - Settle);
-        double power = 0;
+        double power = 0, earlier = 0;
         for (var i = start; i < samples.Length; i++)
         {
             double value = samples[i];
@@ -77,12 +86,18 @@ public sealed class BandEnergy
                 power += value * value;
             }
 
+            if (lag > 0 && i >= samples.Length - lag - window && i < samples.Length - lag)
+            {
+                earlier += value * value;
+            }
+
             if (i >= samples.Length - keep)
             {
                 _kept[i - (samples.Length - keep)] = (float)value;
             }
         }
 
+        Earlier = earlier / window;
         return power / window;
     }
 

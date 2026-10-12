@@ -16,6 +16,11 @@ tests where a test can enforce them; the rest are enforced in review.
    `Discs` starts with a `// Spec:` line naming the document and clause it implements.
 3. **No third-party runtime code.** The product depends on the .NET base library and the Windows App
    SDK only; CsWin32 generates bindings at compile time. Test and build tools are listed in ADR-002.
+   The one exception is model weights (ADR-0019): they run only through Windows ML (the ONNX Runtime
+   in the Windows App SDK, `Microsoft.WindowsAppSDK.ML`), are never bundled in the installer, are
+   downloaded only after the user opts in, are verified against a SHA-256 pinned in the source,
+   carry a permissive licence (Apache-2.0, MIT or BSD; never AGPL, GPL or non-commercial), and every
+   feature works without them, falling back to rexplayer's own algorithms.
 4. **Patents.** rexplayer's own decoders exist only for codecs whose patents have expired or that are
    royalty-free (docs/adr/0009). Patented codecs decode through Windows Media Foundation.
 5. **Every pure line is tested.** Every file in `tests/coverage-required.txt` keeps 100 % line
@@ -60,11 +65,14 @@ The protocol version changes only when a field's meaning changes or a field disa
 | `src/Rex.Media.Audio.Wasapi` | The Windows audio adapter |
 | `src/Rex.Media.Engine` | The media session: mailbox, state machine, clocks, pipeline threads |
 | `src/Rex.Media.AppCore` | The command line and everything the app shares with it |
+| `src/Rex.Media.Vision` | Optional downloaded models: the catalogue, the installer, tensors and the interfaces Subject Lock calls |
+| `src/Rex.Media.Vision.WindowsML` | Runs the downloaded models through Windows ML (ADR-0019) |
 | `src/Rex.Media.Interop` | CsWin32 bindings and the only `unsafe` code |
 | `src/Rex.Media.Cli` | `rexplay.exe`, the composition root of the command line |
 | `tests/Rex.Media.Tests` | The pure suite: unit, engine and repository tests |
 | `tests/Rex.Fuzz` | The libFuzzer entry point for the parsers in `tests/Rex.Media.TestKit/FuzzTargets.cs` (nightly `fuzz.yml`) |
 | `tests/Rex.Media.Windows.Tests` | The adapter suite: Windows components driven for real, checked against independent decoders |
+| `tests/Rex.Media.Vision.Windows.Tests` | The downloaded models run for real on the processor and the graphics card (skipped when absent) |
 | `tests/Rex.Media.TestKit` | Builders, signals, fakes and the `[Capability]` attribute |
 | `site/` | The website, checked by `scripts/check_site.py` and `tests/site` |
 | `installer/` | The Inno Setup installer and its build script |

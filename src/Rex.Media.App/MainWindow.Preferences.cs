@@ -163,6 +163,9 @@ public sealed partial class MainWindow
         content.Children.Add(autoIntro);
         content.Children.Add(autoCredits);
 
+        content.Children.Add(Heading(Rex.Media.Vision.ModelDownloadText.Heading));
+        content.Children.Add(SubjectModelsSection());
+
         content.Children.Add(Heading("Memory"));
         foreach (var control in new UIElement[] { resume, history, queue, sleep })
         {

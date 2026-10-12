@@ -40,6 +40,12 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     /// </summary>
     private const string Shaders = D3D11VideoShaders.Source;
 
+    // The source never changes within a process, so each entry point is compiled once and
+    // shared by every renderer: compiling the effect shaders takes seconds, not milliseconds.
+    private static readonly Lazy<byte[]> VertexCode = new(() => Compile("vs", "vs_4_0"));
+    private static readonly Lazy<byte[]> YuvCode = new(() => Compile("yuv", "ps_4_0"));
+    private static readonly Lazy<byte[]> BgraCode = new(() => Compile("bgra", "ps_4_0"));
+
     /// <summary>The shader's constant buffer: ten float4 rows (see the cbuffer in <see cref="D3D11VideoShaders"/>).</summary>
     private const int ConstantFloats = 40;
     private const uint ConstantBytes = ConstantFloats * sizeof(float);
@@ -82,9 +88,9 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 
         // Decoders sharing the device call into it from their own thread.
         ((Windows.Win32.Graphics.Direct3D10.ID3D10Multithread)context).SetMultithreadProtected(true);
-        var vertex = Compile("vs", "vs_4_0");
-        var yuv = Compile("yuv", "ps_4_0");
-        var bgra = Compile("bgra", "ps_4_0");
+        var vertex = VertexCode.Value;
+        var yuv = YuvCode.Value;
+        var bgra = BgraCode.Value;
         ID3D11VertexShader_unmanaged* vertexShader;
         fixed (byte* code = vertex)
         {

@@ -15,3 +15,13 @@ The FFmpeg command line is a fixture tool only: `scripts/make-fixtures.ps1` uses
 ## Consequences
 
 Everything media-related is written here, so the project owns its bugs and its pace.
+
+## Amendments
+
+- 2026-10-12 ([ADR-0019](0019-optional-models-through-windows-ml.md)): the product may run model weights
+  through Windows ML, the ONNX Runtime and DirectML that ship with the Windows App SDK
+  (`Microsoft.WindowsAppSDK.ML`, listed in the product packages so the adapter can reference it alone).
+  Weights are never bundled, are downloaded only after the user opts in, are verified by a SHA-256
+  pinned in the source, carry a permissive licence, and every feature works without them.
+  `RepositoryTests.ProductPackagesAreOnlyTheOnesTheDependencyRecordAllows` allows this one addition
+  and only in `Rex.Media.Vision.WindowsML`.
