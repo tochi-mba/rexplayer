@@ -265,7 +265,6 @@
               </Grid>
               <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap" FontSize="13"
                          AutomationProperties.AutomationId="SubjectStatusText"
-                         AutomationProperties.Name="Subject Lock status"
                          AutomationProperties.LiveSetting="Polite"
                          Text="Click the object you want to follow, or drag a box around it." />
               <Grid ColumnSpacing="6">
