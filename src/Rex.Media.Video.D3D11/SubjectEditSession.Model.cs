@@ -44,6 +44,9 @@ public sealed partial class SubjectEditSession
 
         public float Green { get; set; }
 
+        /// <summary>The view's <see cref="Neutrality"/>, worked out once; not a number until then.</summary>
+        public double Neutral { get; set; } = double.NaN;
+
         public bool IsFlat => Deviation < FlatDeviation;
     }
 
@@ -109,7 +112,10 @@ public sealed partial class SubjectEditSession
         // on. A grey car, a black box, a shadowed doorway or any monochrome footage puts every
         // patch in the same neutral bins, and treating that as agreement hands nearly half the
         // score to anything at all; what colour cannot tell apart, shape has to.
-        var weight = 0.31 * (1 - Neutrality(b));
+        // Remembered views are compared many times a frame and never change, so how neutral each
+        // one is gets worked out once rather than at every comparison.
+        if (double.IsNaN(b.Neutral)) b.Neutral = Neutrality(b);
+        var weight = 0.31 * (1 - b.Neutral);
         return (0.86 - weight) * structure + weight * chroma + 0.14 * luma;
     }
 
@@ -201,6 +207,17 @@ public sealed partial class SubjectEditSession
         histogram.Clear();
         var down = Math.Max(1, frame.Height / 48);
         var across = Math.Max(1, frame.Width / 48);
+        var points = ((frame.Height + down - 1) / down) * ((frame.Width + across - 1) / across);
+        if (_glance.Length != points)
+        {
+            // A different grid is a different picture size: nothing earlier compares with it.
+            _glance = new byte[points];
+            _glanceNext = new byte[points];
+            _glanceKnown = false;
+        }
+
+        var glance = _glanceNext;
+        var i = 0;
         for (var y = 0; y < frame.Height; y += down)
         {
             var row = frame.Row(0, y);
@@ -208,11 +225,75 @@ public sealed partial class SubjectEditSession
             {
                 var at = x * 4;
                 Accumulate(histogram, row[at], row[at + 1], row[at + 2]);
+                glance[i++] = (byte)(((row[at] * 29) + (row[at + 1] * 150) + (row[at + 2] * 77)) >> 8);
             }
         }
 
         Locate(histogram, out _lightRed, out _lightGreen);
+        PictureChange = _glanceKnown ? Change(frame, down, across) : 0;
+        _shotChanged |= PictureChange >= CutChange;
+        (_glance, _glanceNext) = (_glanceNext, _glance);
+        _glanceKnown = true;
     }
+
+    // The previous picture's luma on the same coarse grid, to notice a cut from one shot to another.
+    private byte[] _glance = [];
+    private byte[] _glanceNext = [];
+    private bool _glanceKnown;
+
+    // Whether a cut has happened since the re-detection search last looked: a sighting from before
+    // a cut and one from after it are not two sightings of one thing.
+    private bool _shotChanged;
+
+    /// <summary>
+    /// The share of the picture around the subject that changed since the previous picture, from
+    /// 0 to 1, once any change of overall brightness is allowed for. A cut from one shot to another
+    /// changes nearly all of it at once; a subject moving, the camera drifting or a light coming on
+    /// changes little of it. The subject's own box, with room around it, is left out: it is
+    /// expected to change, and a large subject would otherwise look like a cut every time it moved.
+    /// This is the pixel-difference measure of shot-boundary detection, as compared in H. J. Zhang,
+    /// A. Kankanhalli and S. W. Smoliar, "Automatic partitioning of full-motion video" (Multimedia
+    /// Systems 1(1), 1993), counted over a sparse grid with a per-point threshold so that motion
+    /// confined to part of the picture cannot add up to a cut.
+    /// </summary>
+    internal double PictureChange { get; private set; }
+
+    private double Change(VideoFrame frame, int down, int across)
+    {
+        var (left, top, right, bottom) = Bounds(frame.Width, frame.Height);
+        var spareX = (right - left) / 4;
+        var spareY = (bottom - top) / 4;
+        (left, top, right, bottom) = (left - spareX, top - spareY, right + spareX, bottom + spareY);
+        var shift = 0;
+        var counted = 0;
+        for (int y = 0, i = 0; y < frame.Height; y += down)
+        {
+            for (var x = 0; x < frame.Width; x += across, i++)
+            {
+                if (Locked && x >= left && x < right && y >= top && y < bottom) continue;
+                shift += _glanceNext[i] - _glance[i];
+                counted++;
+            }
+        }
+
+        // Too little of the picture is left outside a subject that fills it to say anything.
+        if (counted < 64) return 0;
+        shift /= counted;
+        var changed = 0;
+        for (int y = 0, i = 0; y < frame.Height; y += down)
+        {
+            for (var x = 0; x < frame.Width; x += across, i++)
+            {
+                if (Locked && x >= left && x < right && y >= top && y < bottom) continue;
+                if (Math.Abs(_glanceNext[i] - _glance[i] - shift) > ChangedLuma) changed++;
+            }
+        }
+
+        return (double)changed / counted;
+    }
+
+    // How far a grid point's luma must move, beyond the picture's overall shift, to count as changed.
+    private const int ChangedLuma = 28;
 
     /// <summary>Where a chromaticity histogram's weight sits, in bins, along each axis.</summary>
     private static void Locate(ReadOnlySpan<float> histogram, out float red, out float green)
@@ -238,6 +319,9 @@ public sealed partial class SubjectEditSession
     /// <summary>Read a rectangle of the picture into <paramref name="patch"/> as structure and colour.</summary>
     private void Describe(VideoFrame frame, int left, int top, int width, int height, Patch patch)
     {
+        Span<int> columns = stackalloc int[Samples * 2];
+        Span<int> rows = stackalloc int[Samples * 2];
+        Taps(frame, left, top, width, height, columns, rows);
         Span<float> luma = stackalloc float[Samples * Samples];
         var colour = patch.Colour;
         Array.Clear(colour);
@@ -245,20 +329,20 @@ public sealed partial class SubjectEditSession
         var i = 0;
         for (var y = 0; y < Samples; y++)
         {
-            var upper = frame.Row(0, Row(frame, top, height, y, 1));
-            var lower = frame.Row(0, Row(frame, top, height, y, 3));
+            var upper = frame.Row(0, rows[y]);
+            var lower = frame.Row(0, rows[Samples + y]);
             for (var x = 0; x < Samples; x++)
             {
-                var near = Column(frame, left, width, x, 1);
-                var far = Column(frame, left, width, x, 3);
+                var near = columns[x];
+                var far = columns[Samples + x];
                 var b = (upper[near] + upper[far] + lower[near] + lower[far]) / 4;
                 var g = (upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) / 4;
                 var r = (upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) / 4;
-                var value = (b * 29 + g * 150 + r * 77) / 256f;
+                var value = ((b * 29) + (g * 150) + (r * 77)) / 256f;
                 luma[i++] = value;
                 total += value;
                 Accumulate(colour, b, g, r);
-                colour[ChromaBins * ChromaBins + Math.Clamp((b + g + r) / 96, 0, 7)]++;
+                colour[(ChromaBins * ChromaBins) + Math.Clamp((b + g + r) / 96, 0, 7)]++;
             }
         }
 
@@ -274,11 +358,35 @@ public sealed partial class SubjectEditSession
     // invert, so the match score jumps about between neighbouring positions and a coarse-to-fine
     // search climbs the wrong peak. Averaging four spread taps per cell keeps the score surface
     // smooth enough to descend, at a quarter of the cost of averaging the block outright.
-    private static int Row(VideoFrame frame, int top, int height, int y, int quarter) =>
-        Math.Clamp(top + (y * 4 + quarter) * height / (Samples * 4), 0, frame.Height - 1);
+    //
+    // Where the taps fall depends only on the rectangle, so it is worked out once per reading, 32
+    // columns and 32 rows, rather than once per tap: the same readings at an eighth of the
+    // divisions. Columns are byte offsets into a row.
+    private static void Taps(VideoFrame frame, int left, int top, int width, int height, Span<int> columns, Span<int> rows)
+    {
+        for (var i = 0; i < Samples; i++)
+        {
+            columns[i] = Math.Clamp(left + (((i * 4) + 1) * width / (Samples * 4)), 0, frame.Width - 1) * 4;
+            columns[Samples + i] = Math.Clamp(left + (((i * 4) + 3) * width / (Samples * 4)), 0, frame.Width - 1) * 4;
+            rows[i] = Math.Clamp(top + (((i * 4) + 1) * height / (Samples * 4)), 0, frame.Height - 1);
+            rows[Samples + i] = Math.Clamp(top + (((i * 4) + 3) * height / (Samples * 4)), 0, frame.Height - 1);
+        }
+    }
 
-    private static int Column(VideoFrame frame, int left, int width, int x, int quarter) =>
-        Math.Clamp(left + (x * 4 + quarter) * width / (Samples * 4), 0, frame.Width - 1) * 4;
+    /// <summary>
+    /// Where the taps fall inside a rectangle of a given size, relative to its corner: the same
+    /// for every position a search tries at that size, so a search works them out once.
+    /// </summary>
+    private static void RelativeTaps(int width, int height, Span<int> columns, Span<int> rows)
+    {
+        for (var i = 0; i < Samples; i++)
+        {
+            columns[i] = ((i * 4) + 1) * width / (Samples * 4) * 4;
+            columns[Samples + i] = ((i * 4) + 3) * width / (Samples * 4) * 4;
+            rows[i] = ((i * 4) + 1) * height / (Samples * 4);
+            rows[Samples + i] = ((i * 4) + 3) * height / (Samples * 4);
+        }
+    }
 
     /// <summary>
     /// Structure only, for the hundreds of positions a search rejects. Building colour
@@ -287,20 +395,35 @@ public sealed partial class SubjectEditSession
     /// </summary>
     private static void DescribeStructure(VideoFrame frame, int left, int top, int width, int height, Patch patch)
     {
+        Span<int> columns = stackalloc int[Samples * 2];
+        Span<int> rows = stackalloc int[Samples * 2];
+        Taps(frame, left, top, width, height, columns, rows);
+        ReadStructure(frame, columns, rows, 0, 0, patch);
+    }
+
+    /// <summary>
+    /// Structure at taps worked out in advance, moved by (<paramref name="left"/>,
+    /// <paramref name="top"/>). The taps must stay inside the picture; a search that moves a
+    /// rectangle about inside the picture keeps them there.
+    /// </summary>
+    private static void ReadStructure(VideoFrame frame, ReadOnlySpan<int> columns, ReadOnlySpan<int> rows,
+        int left, int top, Patch patch)
+    {
         Span<float> luma = stackalloc float[Samples * Samples];
         var total = 0f;
         var i = 0;
+        var across = left * 4;
         for (var y = 0; y < Samples; y++)
         {
-            var upper = frame.Row(0, Row(frame, top, height, y, 1));
-            var lower = frame.Row(0, Row(frame, top, height, y, 3));
+            var upper = frame.Row(0, top + rows[y]);
+            var lower = frame.Row(0, top + rows[Samples + y]);
             for (var x = 0; x < Samples; x++)
             {
-                var near = Column(frame, left, width, x, 1);
-                var far = Column(frame, left, width, x, 3);
-                var value = ((upper[near] + upper[far] + lower[near] + lower[far]) * 29
-                    + (upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) * 150
-                    + (upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) * 77) / 1024f;
+                var near = across + columns[x];
+                var far = across + columns[Samples + x];
+                var value = (((upper[near] + upper[far] + lower[near] + lower[far]) * 29)
+                    + ((upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) * 150)
+                    + ((upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) * 77)) / 1024f;
                 luma[i++] = value;
                 total += value;
             }
@@ -341,6 +464,7 @@ public sealed partial class SubjectEditSession
 
         var deviation = MathF.Sqrt(square / luma.Length);
         patch.Deviation = deviation;
+        patch.Neutral = double.NaN;
         // Unit length makes the dot product of two patches their correlation directly, so a
         // candidate is compared with every remembered view at the cost of one multiply each.
         var scale = square > 0 ? 1f / MathF.Sqrt(square) : 0f;
@@ -372,7 +496,7 @@ public sealed partial class SubjectEditSession
 
     private static Patch Copy(Patch source)
     {
-        var copy = new Patch { Deviation = source.Deviation, Red = source.Red, Green = source.Green };
+        var copy = new Patch { Deviation = source.Deviation, Red = source.Red, Green = source.Green, Neutral = source.Neutral };
         source.Structure.CopyTo(copy.Structure, 0);
         source.Colour.CopyTo(copy.Colour, 0);
         return copy;
