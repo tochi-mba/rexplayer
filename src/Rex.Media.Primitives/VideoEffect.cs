@@ -38,6 +38,15 @@ public enum VideoEffect
     LensBloom,
     StippleEngrave,
     TimeEcho,
+    BrickBuild,
+    StainedGlass,
+    CrossStitch,
+    LedWall,
+    DigitalRain,
+    DiceMosaic,
+    CubeMosaic,
+    HexTiles,
+    RetroPixels,
 }
 
 /// <summary>Names, categories and safe bounds for the optional effects.</summary>
@@ -52,6 +61,8 @@ public static class VideoEffects
         "Halftone print", "Chromatic rift", "Oil paint", "Glyph mosaic", "Thermal map",
         "Tape wear", "Pixel sort", "Motion smear",
         "Lumen weave", "Depth haze", "Particle veil", "Lens bloom", "Stipple engrave", "Time echo",
+        "Brick build", "Stained glass", "Cross-stitch", "LED wall", "Digital rain", "Dice mosaic",
+        "Cube mosaic", "Hex tiles", "Retro pixels",
     ];
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
@@ -63,7 +74,10 @@ public static class VideoEffects
         VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.TimeEcho => "Motion & geometry",
         VideoEffect.CursorLens or VideoEffect.ColourSpotlight => "Interactive",
         VideoEffect.EdgeGravity or VideoEffect.ReliefEtch or VideoEffect.ThermalMap or VideoEffect.DepthHaze => "Image-aware",
-        VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.StippleEngrave => "Print & texture",
+        VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.StippleEngrave => "Print & texture",
+        VideoEffect.GlyphMosaic or VideoEffect.BrickBuild or VideoEffect.StainedGlass or VideoEffect.CrossStitch
+            or VideoEffect.LedWall or VideoEffect.DigitalRain or VideoEffect.DiceMosaic or VideoEffect.CubeMosaic
+            or VideoEffect.HexTiles or VideoEffect.RetroPixels => "Mosaics",
         VideoEffect.ChromaticRift or VideoEffect.TapeWear or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.ParticleVeil => "Playful",
         _ => "Essentials",
     };

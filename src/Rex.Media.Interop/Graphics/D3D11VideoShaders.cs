@@ -23,6 +23,68 @@ internal static class D3D11VideoShaders
             output.position = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
             return output;
         }
+        // Shared by the mosaic effects: a stable per-cell random number, a modulo that
+        // stays positive for negative coordinates, and nearest-colour palette snapping.
+        float hash12(float2 p)
+        {
+            return frac(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+        }
+        float2 positiveMod(float2 x, float2 y)
+        {
+            return x - y * floor(x / y);
+        }
+        static const float3 BrickPalette[16] =
+        {
+            float3(0.95, 0.95, 0.93), float3(0.63, 0.65, 0.65), float3(0.33, 0.35, 0.37), float3(0.11, 0.11, 0.12),
+            float3(0.79, 0.10, 0.11), float3(0.45, 0.08, 0.10), float3(0.96, 0.50, 0.10), float3(0.98, 0.80, 0.10),
+            float3(0.85, 0.76, 0.56), float3(0.40, 0.24, 0.14), float3(0.14, 0.50, 0.22), float3(0.60, 0.77, 0.20),
+            float3(0.05, 0.34, 0.70), float3(0.35, 0.65, 0.88), float3(0.06, 0.15, 0.33), float3(0.93, 0.55, 0.70),
+        };
+        static const float3 CubePalette[6] =
+        {
+            float3(0.95, 0.95, 0.95), float3(1.00, 0.84, 0.00), float3(0.78, 0.05, 0.10),
+            float3(1.00, 0.45, 0.00), float3(0.00, 0.27, 0.68), float3(0.00, 0.60, 0.28),
+        };
+        static const float3 RetroPalettes[12] =
+        {
+            float3(0.06, 0.22, 0.06), float3(0.19, 0.38, 0.19), float3(0.55, 0.67, 0.06), float3(0.61, 0.74, 0.06),
+            float3(0.08, 0.08, 0.08), float3(0.36, 0.36, 0.36), float3(0.68, 0.68, 0.68), float3(0.95, 0.95, 0.95),
+            float3(0.00, 0.00, 0.00), float3(0.33, 1.00, 1.00), float3(1.00, 0.33, 1.00), float3(1.00, 1.00, 1.00),
+        };
+        static const float Bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+        float3 nearestBrick(float3 c)
+        {
+            float best = 1e9;
+            float3 chosen = c;
+            [loop] for (int i = 0; i < 16; i++)
+            {
+                float3 d = c - BrickPalette[i];
+                float error = dot(d * d, float3(0.3, 0.59, 0.11));
+                if (error < best) { best = error; chosen = BrickPalette[i]; }
+            }
+            return chosen;
+        }
+        float3 nearestCube(float3 c)
+        {
+            float best = 1e9;
+            float3 chosen = c;
+            [loop] for (int i = 0; i < 6; i++)
+            {
+                float3 d = c - CubePalette[i];
+                float error = dot(d * d, float3(0.3, 0.59, 0.11));
+                if (error < best) { best = error; chosen = CubePalette[i]; }
+            }
+            return chosen;
+        }
+        float pipAt(float2 local, float2 at, float radius)
+        {
+            return 1 - smoothstep(radius - 0.015, radius, length(local - at));
+        }
+        // Mosaic cell rows from the size control: a larger value gives fewer, bigger cells.
+        float mosaicRows(float fine, float coarse)
+        {
+            return lerp(fine, coarse, saturate((pointer.w - 0.25) / 1.5));
+        }
         float3 basePictureLook(float3 c)
         {
             if (look.x < 0.5) return c;
@@ -862,6 +924,301 @@ internal static class D3D11VideoShaders
                 float3 echo = float3(readPrior(uv + reach, isYuv).r, colour.g,
                     readColour(uv - reach, isYuv).b);
                 colour = lerp(colour, saturate(echo * 1.08), gate * effect.y);
+            }
+            if (effect.x > 31.5 && effect.x < 32.5 && effect.y > 0) // Brick build
+            {
+                // Two-stud bricks in a running bond, seen from above. Each brick takes one
+                // colour from the picture under it; each stud is lit from the top left and
+                // casts a short shadow.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(96, 18);
+                float2 cells = float2(rows * effect.w, rows);
+                float2 cell = floor(uv * cells);
+                float2 local = frac(uv * cells);
+                float shift = positiveMod(cell, float2(2, 2)).y;
+                bool starts = positiveMod(cell + float2(shift, 0), float2(2, 2)).x < 0.5;
+                float2 brickCentre = float2(starts ? cell.x + 1 : cell.x, cell.y + 0.5) / cells;
+                float3 sampled = readColour(brickCentre, isYuv);
+                float grey = dot(sampled, weights);
+                float3 brick = extras.y < 0.5 ? nearestBrick(sampled)
+                    : extras.y < 1.5 ? sampled
+                    : extras.y < 2.5 ? (floor(grey * 5 + 0.5) / 5).xxx
+                    : lerp(nearestBrick(sampled), float3(1, 1, 1), 0.35);
+                float height = extras.x * 0.01;
+                float across = starts ? local.x : 1 - local.x;
+                float shading = 1 + 0.16 * (1 - smoothstep(0, 0.1, local.y)) - 0.24 * smoothstep(0.88, 1, local.y)
+                    + (starts ? 0.10 * (1 - smoothstep(0, 0.1, local.x)) : -0.18 * smoothstep(0.88, 1, local.x));
+                float seam = 1 - smoothstep(0.015, 0.05, min(across, min(local.y, 1 - local.y)));
+                float2 d = local - 0.5;
+                float radius = length(d);
+                float stud = 1 - smoothstep(0.27, 0.30, radius);
+                float rim = smoothstep(0.18, 0.29, radius) * stud;
+                float facing = dot(d / max(radius, 0.0001), float2(-0.7071, -0.7071));
+                float3 studColour = brick * (1.06 + rim * facing * 0.35 * (0.4 + height));
+                float shadow = (1 - stud) * (1 - smoothstep(0.26, 0.36, length(d - float2(0.07, 0.07)))) * 0.45 * height;
+                float3 built = lerp(brick * shading * (1 - shadow), studColour, stud);
+                colour = lerp(colour, saturate(built * (1 - seam * 0.6)), effect.y);
+            }
+            if (effect.x > 32.5 && effect.x < 33.5 && effect.y > 0) // Stained glass
+            {
+                // Irregular panes from a jittered cell pattern: each pane takes the colour under
+                // its centre, deepened like coloured glass and lit from behind, framed by lead.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(60, 9);
+                float2 grid = float2(rows * effect.w, rows);
+                float2 p = uv * grid;
+                float2 base = floor(p);
+                float nearest = 8, second = 8;
+                float2 site = p;
+                [loop] for (int y = -1; y <= 1; y++)
+                {
+                    [loop] for (int x = -1; x <= 1; x++)
+                    {
+                        float2 c = base + float2(x, y);
+                        float2 s = c + 0.15 + 0.7 * float2(hash12(c), hash12(c + 17.31));
+                        float d = length(p - s);
+                        if (d < nearest) { second = nearest; nearest = d; site = s; }
+                        else if (d < second) second = d;
+                    }
+                }
+                float width = 0.025 + extras.x * 0.0007;
+                float border = (second - nearest) * 0.5;
+                float lead = 1 - smoothstep(width, width + 0.025, border);
+                float3 glass = readColour(site / grid, isYuv);
+                float lum = dot(glass, weights);
+                glass = saturate(lerp(lum.xxx, glass, 1.6) * 1.05);
+                float ripple = sin(dot(p, float2(7.1, 3.3)) + hash12(site) * 6.2831853) * 0.05;
+                glass *= 0.78 + ripple + extras.y * 0.0045 * (1 - saturate(nearest * 1.3));
+                float3 leadColour = float3(0.06, 0.06, 0.065) + (1 - smoothstep(0, width, border)) * 0.10;
+                colour = lerp(colour, saturate(lerp(glass, leadColour, lead)), effect.y);
+            }
+            if (effect.x > 33.5 && effect.x < 34.5 && effect.y > 0) // Cross-stitch
+            {
+                // Counted cross-stitch: one X of thread per cell, its colour the picture's
+                // snapped to a limited set of skeins. Cells close to the fabric stay bare.
+                float rows = mosaicRows(120, 26);
+                float2 cells = float2(rows * effect.w, rows);
+                float2 cell = floor(uv * cells);
+                float2 local = frac(uv * cells);
+                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 thread = floor(sampled * 6 + 0.5) / 6;
+                float3 fabric = extras.y < 0.5 ? float3(0.93, 0.90, 0.82)
+                    : extras.y < 1.5 ? float3(0.08, 0.08, 0.09)
+                    : extras.y < 2.5 ? float3(0.82, 0.76, 0.66) : float3(0.25, 0.35, 0.52);
+                float hole = 1 - smoothstep(0.07, 0.13, length(min(local, 1 - local)));
+                float weave = 0.04 * sin(local.x * 25.13) * sin(local.y * 25.13);
+                float3 cloth = fabric * (1 + weave - hole * 0.45);
+                float thickness = 0.07 + extras.x * 0.0011;
+                float under = abs(local.x - local.y) * 0.7071;
+                float over = abs(local.x + local.y - 1) * 0.7071;
+                float lower = 1 - smoothstep(thickness - 0.02, thickness, under);
+                float upper = 1 - smoothstep(thickness - 0.02, thickness, over);
+                float3 lowerThread = thread * (0.86 + 0.14 * sin((local.x + local.y) * 38))
+                    * (1 - 0.35 * pow(saturate(under / thickness), 2));
+                float3 upperThread = thread * (0.86 + 0.14 * sin((local.x - local.y) * 38))
+                    * (1 - 0.35 * pow(saturate(over / thickness), 2)) * 1.05;
+                float stitched = step(0.12, length(thread - fabric));
+                float3 result = lerp(cloth, lowerThread, lower * stitched);
+                colour = lerp(colour, saturate(lerp(result, upperThread, upper * stitched)), effect.y);
+            }
+            if (effect.x > 34.5 && effect.x < 35.5 && effect.y > 0) // LED wall
+            {
+                // A wall of light-emitting diodes on a black panel, each cell lit by the picture
+                // under it: red, green and blue triads, round lamps, amber lamps or square pixels.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(140, 28);
+                float2 cells = float2(rows * effect.w, rows);
+                float2 cell = floor(uv * cells);
+                float2 local = frac(uv * cells);
+                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float glow = extras.x * 0.01;
+                float3 lit = 0;
+                if (extras.y < 0.5)
+                {
+                    [unroll] for (int k = 0; k < 3; k++)
+                    {
+                        float2 offset = float2(local.x - (k * 2 + 1) / 6.0, (local.y - 0.5) * 0.42);
+                        float spread = dot(offset, offset);
+                        float diode = 1 - smoothstep(0.009, 0.016, spread);
+                        float3 channel = k == 0 ? float3(1, 0.12, 0.06) : k == 1 ? float3(0.1, 1, 0.2) : float3(0.12, 0.25, 1);
+                        lit += channel * sampled[k] * (diode * 1.6 + exp(-spread * 60) * glow);
+                    }
+                }
+                else if (extras.y < 2.5)
+                {
+                    float2 offset = local - 0.5;
+                    float spread = dot(offset, offset);
+                    float lamp = 1 - smoothstep(0.11, 0.15, spread);
+                    float3 source = extras.y < 1.5 ? sampled : float3(1, 0.62, 0.12) * dot(sampled, weights);
+                    lit = source * (lamp * 1.25 * (0.92 + 0.08 * (1 - spread * 6)) + exp(-spread * 14) * glow * 0.7);
+                }
+                else
+                {
+                    float2 q = abs(local - 0.5) - 0.36;
+                    float box = 1 - smoothstep(0, 0.04, length(max(q, 0)) - 0.04);
+                    lit = sampled * (box * 1.1 + glow * 0.15);
+                }
+                colour = lerp(colour, saturate(float3(0.012, 0.012, 0.016) + sampled * glow * 0.06 + lit), effect.y);
+            }
+            if (effect.x > 35.5 && effect.x < 36.5 && effect.y > 0) // Digital rain
+            {
+                // Columns of procedural glyphs fall at their own speeds, a bright head leading
+                // each stream and its trail fading behind. The picture shows through as how
+                // strongly every glyph glows, so shapes stay readable inside the rain.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(90, 22);
+                float2 cells = float2(rows * effect.w * 0.6, rows);
+                float2 cell = floor(uv * cells);
+                float2 local = frac(uv * cells);
+                float time = effect.z;
+                float speed = (0.4 + extras.x * 0.02) * (0.6 + hash12(float2(cell.x, 1.7)) * 0.8);
+                float trail = 0;
+                float head = 0;
+                [unroll] for (int stream = 0; stream < 2; stream++)
+                {
+                    float offset = hash12(float2(cell.x, 3.1 + stream * 5.3));
+                    float headRow = frac(time * speed * 0.08 + offset) * (cells.y + 40) - 20;
+                    float behind = headRow - cell.y;
+                    float span = 6 + 14 * hash12(float2(cell.x, 9.7 + stream));
+                    trail = max(trail, behind >= 0 ? exp(-behind / span) : 0);
+                    head = max(head, behind >= 0 && behind < 1 ? 1 : 0);
+                }
+                float2 inner = (local - float2(0.15, 0.1)) / float2(0.7, 0.8);
+                float2 bit = floor(inner * float2(3, 5));
+                float flicker = floor(time * (1.5 + hash12(cell) * 5));
+                float glyph = step(0.45, hash12(cell * 1.31 + bit * 7.17 + flicker))
+                    * step(0, inner.x) * step(inner.x, 1) * step(0, inner.y) * step(inner.y, 1);
+                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float lum = dot(sampled, weights);
+                float intensity = glyph * saturate(max(trail * (0.4 + 0.6 * lum), lum * 0.5));
+                float3 tint = extras.y < 0.5 ? float3(0.25, 1, 0.45)
+                    : extras.y < 1.5 ? float3(0.3, 0.9, 1)
+                    : extras.y < 2.5 ? float3(1, 0.7, 0.2) : saturate(sampled * 1.3 + 0.05);
+                float3 rain = tint * intensity + head * glyph * float3(0.8, 1, 0.85) * 0.9 + tint * 0.015;
+                colour = lerp(colour, saturate(rain), effect.y);
+            }
+            if (effect.x > 36.5 && effect.x < 37.5 && effect.y > 0) // Dice mosaic
+            {
+                // Every cell is a die showing the face that matches the brightness under it:
+                // on white dice a dark area shows six pips and a bright one shows one.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(80, 16);
+                float2 cells = float2(rows * effect.w, rows);
+                float2 cell = floor(uv * cells);
+                float2 local = frac(uv * cells);
+                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float lum = dot(sampled, weights);
+                bool blackDice = extras.y > 0.5 && extras.y < 1.5;
+                float value = blackDice ? clamp(floor(lum * 6) + 1, 1, 6) : clamp(6 - floor(lum * 6), 1, 6);
+                float2 q = abs(local - 0.5) - 0.32;
+                float bodyDistance = length(max(q, 0)) - 0.12;
+                float body = 1 - smoothstep(-0.01, 0.01, bodyDistance);
+                float radius = 0.07 + extras.x * 0.0005;
+                // Odd faces have a centre pip; then the diagonal, the other diagonal and the middle pair.
+                float pip = fmod(value, 2) > 0.5 ? pipAt(local, float2(0.5, 0.5), radius) : 0;
+                if (value >= 2) pip = max(pip, max(pipAt(local, float2(0.27, 0.27), radius), pipAt(local, float2(0.73, 0.73), radius)));
+                if (value >= 4) pip = max(pip, max(pipAt(local, float2(0.73, 0.27), radius), pipAt(local, float2(0.27, 0.73), radius)));
+                if (value >= 6) pip = max(pip, max(pipAt(local, float2(0.27, 0.5), radius), pipAt(local, float2(0.73, 0.5), radius)));
+                float3 face = extras.y < 0.5 ? float3(0.95, 0.94, 0.90)
+                    : extras.y < 1.5 ? float3(0.07, 0.07, 0.08)
+                    : extras.y < 2.5 ? saturate(lerp(lum.xxx, sampled, 1.4))
+                    : float3(0.75, 0.06, 0.08) * (1.1 + 0.4 * (1 - saturate(length(local - 0.5) * 2)));
+                float3 pipColour = extras.y < 0.5 ? float3(0.06, 0.06, 0.07)
+                    : extras.y < 2.5 && !(extras.y > 1.5 && lum > 0.5) ? float3(0.95, 0.95, 0.92)
+                    : extras.y < 2.5 ? float3(0.05, 0.05, 0.05) : float3(0.97, 0.95, 0.90);
+                float shade = (1.05 - 0.12 * local.y - 0.05 * local.x) * (1 - 0.25 * smoothstep(-0.06, 0, bodyDistance));
+                float3 die = lerp(face * shade, pipColour, pip);
+                colour = lerp(colour, saturate(lerp(float3(0.04, 0.04, 0.045), die, body)), effect.y);
+            }
+            if (effect.x > 37.5 && effect.x < 38.5 && effect.y > 0) // Cube mosaic
+            {
+                // Puzzle cubes, each face a 3x3 grid of stickers. Every sticker takes the cube
+                // colour nearest the picture under it, set in black plastic.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(40, 8);
+                float2 cubes = float2(rows * effect.w, rows);
+                float2 stickers = cubes * 3;
+                float2 sticker = floor(uv * stickers);
+                float2 local = frac(uv * stickers);
+                float2 cubeLocal = frac(uv * cubes);
+                float3 sampled = readColour((sticker + 0.5) / stickers, isYuv);
+                float lum = dot(sampled, weights);
+                float3 tile = extras.y < 0.5 ? nearestCube(sampled)
+                    : extras.y < 1.5 ? (floor(lum * 4 + 0.5) / 4).xxx
+                    : extras.y < 2.5 ? sampled : lerp(nearestCube(sampled), float3(1, 1, 1), 0.35);
+                float gap = 0.05 + extras.x * 0.0012;
+                float2 q = abs(local - 0.5) - (0.4 - gap);
+                float shape = 1 - smoothstep(0, 0.03, length(max(q, 0)) - 0.1);
+                float2 shine = local - float2(0.3, 0.28);
+                float gloss = exp(-dot(shine, shine) * 18) * 0.18;
+                float frame = 1 - smoothstep(0.012, 0.03, min(min(cubeLocal.x, 1 - cubeLocal.x), min(cubeLocal.y, 1 - cubeLocal.y)));
+                float3 result = lerp(float3(0.03, 0.03, 0.035), tile * (0.95 + gloss) + gloss, shape * (1 - frame));
+                colour = lerp(colour, saturate(result), effect.y);
+            }
+            if (effect.x > 38.5 && effect.x < 39.5 && effect.y > 0) // Hex tiles
+            {
+                // Hexagonal tiles in a honeycomb lattice. Each takes the colour under its centre,
+                // with a bevelled edge lit from the top left, set in grout.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(90, 14);
+                float2 scale = float2(effect.w, 1) * rows;
+                float2 p = (uv - 0.5) * scale;
+                float2 s = float2(1, 1.7320508);
+                float2 a = positiveMod(p, s) - s * 0.5;
+                float2 b = positiveMod(p - s * 0.5, s) - s * 0.5;
+                float2 gv = dot(a, a) < dot(b, b) ? a : b;
+                float2 q = abs(gv);
+                float edge = 0.5 - max(dot(q, float2(0.5, 0.8660254)), q.x);
+                float3 sampled = readColour((p - gv) / scale + 0.5, isYuv);
+                float lum = dot(sampled, weights);
+                float groutWidth = 0.012 + extras.x * 0.0006;
+                float grout = 1 - smoothstep(groutWidth, groutWidth + 0.018, edge);
+                float bevel = 1 - smoothstep(0.02, 0.09, edge);
+                float light = dot(normalize(gv + 0.00001), float2(-0.6, -0.8));
+                float3 groutColour = float3(0.80, 0.78, 0.74);
+                float3 tile = sampled;
+                if (extras.y < 0.5)
+                {
+                    float2 shine = gv - float2(-0.14, -0.18);
+                    tile = sampled * (1 + bevel * light * 0.35) + exp(-dot(shine, shine) * 70) * 0.35;
+                }
+                else if (extras.y < 1.5)
+                {
+                    tile = lerp(sampled, lum.xxx, 0.3) * (0.92 + bevel * light * 0.2) + hash12(floor(p * 23)) * 0.10 - 0.05;
+                }
+                else if (extras.y < 2.5)
+                {
+                    tile = lerp(float3(0.30, 0.13, 0.02), float3(1, 0.78, 0.25), lum) * (1 - 0.5 * edge);
+                    groutColour = float3(0.98, 0.84, 0.45);
+                }
+                colour = lerp(colour, saturate(lerp(tile, groutColour, grout)), effect.y);
+            }
+            if (effect.x > 39.5 && effect.x < 40.5 && effect.y > 0) // Retro pixels
+            {
+                // Big pixels with ordered (Bayer) dithering into a small fixed palette, the way
+                // early handheld and home-computer screens drew pictures.
+                float3 weights = float3(0.2126, 0.7152, 0.0722);
+                float rows = mosaicRows(220, 56);
+                float2 cells = float2(rows * effect.w, rows);
+                float2 cell = floor(uv * cells);
+                float2 local = frac(uv * cells);
+                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float2 m = positiveMod(cell, float2(4, 4));
+                float threshold = (Bayer[(int)(m.y * 4 + m.x)] + 0.5) / 16 - 0.5;
+                float dither = extras.x * 0.01 / 3;
+                float3 pixel;
+                if (extras.y > 0.5 && extras.y < 1.5)
+                {
+                    pixel = floor(saturate(sampled + threshold * dither) * 3 + 0.5) / 3;
+                }
+                else
+                {
+                    int level = (int)min(floor(saturate(dot(sampled, weights) + threshold * dither) * 4), 3);
+                    int bank = extras.y < 0.5 ? 0 : extras.y < 2.5 ? 4 : 8;
+                    pixel = RetroPalettes[bank + level];
+                }
+                float grid = 1 - 0.10 * (1 - smoothstep(0, 0.08, min(min(local.x, 1 - local.x), min(local.y, 1 - local.y))));
+                colour = lerp(colour, pixel * grid, effect.y);
             }
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {
