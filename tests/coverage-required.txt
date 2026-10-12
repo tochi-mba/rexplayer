@@ -57,6 +57,7 @@ EpisodeSectionDetection.cs
 EpisodeSections.cs
 Equalizer.cs
 ExceptionDiagnostics.cs
+ExecutionPolicy.cs
 ExifOrientation.cs
 Fft.cs
 FileByteSource.cs
@@ -66,6 +67,7 @@ FlacFrameHeader.cs
 FlacStreamInfo.cs
 FolderArt.cs
 FourCC.cs
+FrameBudget.cs
 GifDecoder.cs
 GifDemuxer.cs
 H264Sps.cs
@@ -73,6 +75,8 @@ HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
 Id3v2.cs
+InpaintTensors.cs
+InstallStateMachine.cs
 KeyChord.cs
 Keymap.cs
 LandmarkMatcher.cs
@@ -107,6 +111,11 @@ MediaTime.cs
 MemoryByteSource.cs
 MicroDvd.cs
 MirrorScene.cs
+ModelCatalogue.cs
+ModelDownloader.cs
+ModelDownloadText.cs
+ModelSet.cs
+ModelStore.cs
 Mp3Decoder.cs
 Mp4Boxes.cs
 Mp4Demuxer.cs
@@ -156,11 +165,13 @@ PlaylistPaths.cs
 PlaylistText.cs
 Pls.cs
 PngWriter.cs
+PromptedMaskTracker.cs
 Raster.cs
 Rational.cs
 Resampler.cs
 ResonanceScene.cs
 ResumeMarker.cs
+RetryPolicy.cs
 RexLog.cs
 RexStore.cs
 RipplesScene.cs
@@ -170,6 +181,7 @@ ScanWindow.cs
 SectionAnalysis.cs
 SectionDetector.cs
 SectionProposals.cs
+SegmentationTensors.cs
 SequenceInfo.cs
 SessionEvents.cs
 SessionState.cs
@@ -212,6 +224,8 @@ VideoLook.cs
 VideoStyleOptions.cs
 VinylScene.cs
 VirtualKeys.cs
+VisionModel.cs
+VisionTypes.cs
 VisualizerOptions.cs
 Visualizers.cs
 VisualScene.cs

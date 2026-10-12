@@ -28,6 +28,7 @@ public sealed partial class MainWindow
     private bool _updateAsked;
     private bool _showingUpdateProgress;
     private UpdatePrompt _shownPrompt;
+    private string? _shownVersion;
     private CancellationTokenSource? _updateDownload;
     private string? _updateDownloadVersion;
     private double? _updatePercent;
@@ -84,34 +85,29 @@ public sealed partial class MainWindow
     /// <summary>Tells the user how the update the last run handed over went.</summary>
     private void ShowUpdateNews(StartupNews news)
     {
-        var failed = _settings.PendingUpdate?.Version;
-        switch (news)
+        if (UpdateFlow.NewsText(news, Pending?.Version, Version) is not { } text)
         {
-            case StartupNews.InstallFailed:
-                var retry = new Button { Content = "Try again" };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retry, "UpdateRetryButton");
-                retry.Click += (_, _) =>
-                {
-                    Notice.IsOpen = false;
-                    _ = InstallAsync(unattended: false);
-                };
-                ShowNotice($"rexplayer {failed} did not install",
-                    $"The installer was cancelled or stopped, so rexplayer {Version} is still here and nothing was lost. The log (Help, Open the log folder) has the details.",
-                    retry, InfoBarSeverity.Warning);
-                break;
-            case StartupNews.InstallAbandoned:
-                ShowNotice("The update could not be installed",
-                    $"It failed {UpdateFlow.MostInstallFailures} times, so rexplayer {Version} set it aside. A later check offers it again; the log has the details.",
-                    null, InfoBarSeverity.Warning);
-                break;
-            default:
-                if (_showUpdatedNote && !Notice.IsOpen)
-                {
-                    ShowUpdatedNote();
-                }
+            if (_showUpdatedNote && !Notice.IsOpen)
+            {
+                ShowUpdatedNote();
+            }
 
-                break;
+            return;
         }
+
+        Button? retry = null;
+        if (news == StartupNews.InstallFailed)
+        {
+            retry = new Button { Content = "Try again" };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retry, "UpdateRetryButton");
+            retry.Click += (_, _) =>
+            {
+                Notice.IsOpen = false;
+                _ = InstallAsync(unattended: false);
+            };
+        }
+
+        ShowNotice(text.Title, text.Message, retry, InfoBarSeverity.Warning);
     }
 
     /// <summary>The small note the first start of a new version shows: "Updated to X", with What's new.</summary>
@@ -166,9 +162,9 @@ public sealed partial class MainWindow
         // A new connection deserves a fresh try, not the wait a failure on the old one earned.
         _lastCheckFailure = null;
         _checkFailures = 0;
-        if (Pending is { Stage: UpdateStage.Downloading, RetryAt: not null } waiting && Connection().Online)
+        if (Pending is { } pending && Connection().Online)
         {
-            _settings = _settings with { PendingUpdate = waiting with { RetryAt = null } };
+            _settings = _settings with { PendingUpdate = UpdateFlow.Reconnected(pending) };
         }
 
         UpdateTick();
@@ -449,23 +445,20 @@ public sealed partial class MainWindow
             return;
         }
 
-        switch (report.Outcome)
+        var after = UpdateFlow.AfterDownload(pending, report, DateTimeOffset.UtcNow);
+        _settings = _settings with { PendingUpdate = after };
+        SaveSettings();
+        if (after.Stage == UpdateStage.Ready)
         {
-            case DownloadOutcome.Ready:
-                _settings = _settings with { PendingUpdate = UpdateFlow.Downloaded(pending) };
-                App.Log.Info(LogSource, $"rexplayer {version} is downloaded and verified.");
-                break;
-            case DownloadOutcome.Cancelled or DownloadOutcome.Busy:
-                // Stopped on purpose, or another window has it: the next look carries on.
-                break;
-            default:
-                _settings = _settings with { PendingUpdate = UpdateFlow.DownloadFailed(pending, report.Reason ?? "unknown error", DateTimeOffset.UtcNow) };
-                App.Log.Warning(LogSource, $"The download of rexplayer {version} failed: {report.Reason}.");
-                break;
+            App.Log.Info(LogSource, $"rexplayer {version} is downloaded and verified.");
+        }
+        else if (after != pending)
+        {
+            App.Log.Warning(LogSource, $"The download of rexplayer {version} failed: {report.Reason}.");
         }
 
-        SaveSettings();
-        if (_showingUpdateProgress && report.Outcome is not (DownloadOutcome.Ready or DownloadOutcome.Busy or DownloadOutcome.Cancelled))
+        // Stopped on purpose, or another window has it: the next look carries on. A failure shows on the bar.
+        if (_showingUpdateProgress && after.DownloadFailures > pending.DownloadFailures)
         {
             UpdateProgress.Visibility = Visibility.Collapsed;
             UpdateBar.Severity = InfoBarSeverity.Warning;
@@ -493,7 +486,7 @@ public sealed partial class MainWindow
         if (prompt == UpdatePrompt.None)
         {
             // A bar already showing stays while another banner or some editing comes and goes.
-            if (_shownPrompt != UpdatePrompt.None && UpdateFlow.Prompt(Pending, _settings.UpdateMode, moment with { NoticeOpen = false, Editing = false }, now) == UpdatePrompt.None)
+            if (_shownPrompt != UpdatePrompt.None && UpdateFlow.Hides(Pending, _settings.UpdateMode, moment, now))
             {
                 HideUpdateBar();
             }
@@ -502,7 +495,7 @@ public sealed partial class MainWindow
         }
 
         _updateAsked = false;
-        if (prompt != _shownPrompt || !UpdateBar.IsOpen)
+        if (UpdateFlow.Redraw(prompt, Pending!, _shownPrompt, _shownVersion, UpdateBar.IsOpen))
         {
             ShowUpdateBar(prompt);
         }
@@ -512,7 +505,7 @@ public sealed partial class MainWindow
     {
         var pending = Pending!;
         var (title, message) = UpdateFlow.PromptText(prompt, pending, Connection().Metered);
-        _shownPrompt = prompt;
+        (_shownPrompt, _shownVersion) = (prompt, pending.Version);
         _showingUpdateProgress = false;
         UpdateBar.Title = title;
         UpdateBar.Message = message;
@@ -537,7 +530,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        _shownPrompt = UpdatePrompt.None;
+        (_shownPrompt, _shownVersion) = (UpdatePrompt.None, null);
         _showingUpdateProgress = true;
         UpdateBar.Title = $"Downloading rexplayer {pending.Version}";
         UpdateBar.Message = Status();
@@ -558,7 +551,7 @@ public sealed partial class MainWindow
     private void HideUpdateBar()
     {
         FocusAwayFromUpdateBar();
-        _shownPrompt = UpdatePrompt.None;
+        (_shownPrompt, _shownVersion) = (UpdatePrompt.None, null);
         _showingUpdateProgress = false;
         UpdateBar.IsOpen = false;
     }
@@ -617,10 +610,10 @@ public sealed partial class MainWindow
         {
             _settings = _settings with { PendingUpdate = UpdateFlow.Remind(pending, RemindChoice.Tomorrow, DateTimeOffset.UtcNow) };
             SaveSettings();
-            Say($"rexplayer reminds you about {pending.Version} tomorrow.");
+            Say(UpdateFlow.Reminded(RemindChoice.Tomorrow, pending.Version));
         }
 
-        _shownPrompt = UpdatePrompt.None;
+        (_shownPrompt, _shownVersion) = (UpdatePrompt.None, null);
         _showingUpdateProgress = false;
     }
 
@@ -634,12 +627,7 @@ public sealed partial class MainWindow
 
         _settings = _settings with { PendingUpdate = UpdateFlow.Remind(pending, choice, DateTimeOffset.UtcNow) };
         SaveSettings();
-        Say(choice switch
-        {
-            RemindChoice.InAnHour => $"rexplayer reminds you about {pending.Version} in an hour.",
-            RemindChoice.NextWeek => $"rexplayer reminds you about {pending.Version} next week.",
-            _ => $"rexplayer reminds you about {pending.Version} tomorrow.",
-        });
+        Say(UpdateFlow.Reminded(choice, pending.Version));
     }
 
     private void OnUpdateRemindClick(SplitButton sender, SplitButtonClickEventArgs args) => RemindAboutUpdate(RemindChoice.Tomorrow);
@@ -665,7 +653,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        _settings = _settings with { PendingUpdate = pending with { Stage = UpdateStage.Downloading, Approved = true, RemindAt = null, RetryAt = null } };
+        _settings = _settings with { PendingUpdate = UpdateFlow.Approve(pending) };
         SaveSettings();
         _updateAsked = true;
         StartUpdateDownload();
@@ -754,7 +742,7 @@ public sealed partial class MainWindow
             if (!whole)
             {
                 App.Log.Warning(LogSource, $"The downloaded rexplayer {pending.Version} no longer matches its checksum; downloading it again.");
-                _settings = _settings with { PendingUpdate = pending with { Stage = UpdateStage.Downloading, Approved = true } };
+                _settings = _settings with { PendingUpdate = UpdateFlow.Damaged(pending, asked: !unattended) };
                 SaveSettings();
                 Say("The downloaded update was damaged, so rexplayer is downloading it again.");
                 StartUpdateDownload();
@@ -817,7 +805,7 @@ public sealed partial class MainWindow
             }
 
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Windows did not start the update hand-off.");
-            _settings = _settings with { PendingUpdate = pending with { Stage = UpdateStage.Installing, HandedOffAt = DateTimeOffset.UtcNow } };
+            _settings = _settings with { PendingUpdate = UpdateFlow.HandedOff(pending, DateTimeOffset.UtcNow) };
             SaveSettings();
             return true;
         }
@@ -878,7 +866,7 @@ public sealed partial class MainWindow
         if (!UpdateDownloader.IsReady(UpdateFolder, pending))
         {
             App.Log.Warning(LogSource, $"rexplayer {pending.Version} was not installed on closing: the download no longer matches its checksum.");
-            _settings = _settings with { PendingUpdate = pending with { Stage = UpdateStage.Downloading } };
+            _settings = _settings with { PendingUpdate = UpdateFlow.Damaged(pending, asked: false) };
             return;
         }
 

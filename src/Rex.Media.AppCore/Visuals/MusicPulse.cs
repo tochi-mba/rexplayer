@@ -17,10 +17,13 @@ namespace Rex.Media.AppCore.Visuals;
 /// </para>
 /// <para>
 /// Beats are onsets: a drum's band rising sharply above its own run, or the spectrum as a whole
-/// rising (its flux, each bin against the strongest of its neighbours a frame ago, so a sliding note
-/// is no onset) well above the median of the last second and a half. Once the
-/// <see cref="BeatClock"/> is locked, onsets between its beats are not beats, and a beat it expects
-/// that the music does not show is stood in for.
+/// rising well above the median of the last second and a half plus a multiple of its spread (a
+/// moving-median threshold, as in J. P. Bello et al., "A tutorial on onset detection in music
+/// signals", IEEE Transactions on Speech and Audio Processing 13(5), 2005). The spectrum's rise is its log-compressed spectral flux, each bin against the strongest of itself and its
+/// neighbours a frame ago so a sliding note is no onset (S. Böck and G. Widmer, "Maximum filter
+/// vibrato suppression for onset detection", DAFx 2013). Once the <see cref="BeatClock"/> is
+/// locked, onsets between its beats are not beats (a kick there still counts toward moving its
+/// grid half a beat), and a beat it expects that the music does not show is stood in for.
 /// </para>
 /// </summary>
 public sealed class MusicPulse
@@ -36,6 +39,14 @@ public sealed class MusicPulse
 
     /// <summary>Seconds of the newest sound the levels are measured over.</summary>
     public const double Window = 0.025;
+
+    /// <summary>
+    /// How far back a drum's rise is measured from: its level this long before, from the same
+    /// samples, so the rise means the same at any frame rate. Measured from the frame before, a
+    /// rise was smaller the faster the frames came, and at sixty a second a bass drum between the
+    /// kicks passed for one.
+    /// </summary>
+    public const double RiseSpan = 1.0 / 30;
 
     private const double LowHz = 40;
     private const double HighHz = 16000;
@@ -54,6 +65,12 @@ public sealed class MusicPulse
 
     /// <summary>The raw loudness under which nothing is a beat.</summary>
     private const float Quiet = 0.15f;
+
+    /// <summary>
+    /// How much of their range the bass and the loudness reach between kicks: the rest is kept for
+    /// the kick, which takes them to 1, so a held bass line or a busy mix never hides it.
+    /// </summary>
+    private const float BetweenKicks = 0.38f;
 
     private readonly float[] _wave = new float[ShortSize];
     private readonly float[] _shortMagnitudes = new float[ShortSize / 2];
@@ -81,9 +98,6 @@ public sealed class MusicPulse
     private readonly Onset _snare = new(0.15, 0.2, 2.5);
     private readonly Onset _hat = new(0.09, 0.08, 2.5);
     private readonly BeatClock _clock = new();
-    private double _bassDb = double.NaN;
-    private double _midDb = double.NaN;
-    private double _trebleDb = double.NaN;
     private double _slowBass = double.NaN;
     private double _lastFlux;
     private double _peakFlux;
@@ -94,12 +108,11 @@ public sealed class MusicPulse
     private long _detected;
     private bool _primed;
     private float _bass, _mid, _treble, _loudness, _punch;
+    private double _bassRaw, _midRaw, _trebleRaw, _bassPower, _midPower, _treblePower;
+    private double _bassBefore, _midBefore, _trebleBefore;
 
     /// <summary>Each band's level, 0 to 1, lowest first: against its own recent range, and shaped by how loud the band is beside the rest.</summary>
     public IReadOnlyList<float> Bands => _bands;
-
-    /// <summary>Each band's level on a fixed scale, 0 at 60 dB below full scale to 1 at full scale.</summary>
-    public IReadOnlyList<float> RawBands => _rawBands;
 
     /// <summary>The newest <see cref="ShortSize"/> samples, mono, oldest first.</summary>
     public IReadOnlyList<float> Wave => _wave;
@@ -110,7 +123,10 @@ public sealed class MusicPulse
     /// </summary>
     public double Sensitivity { get; set; } = 1;
 
-    /// <summary>The bass (30 to 150 Hz), 0 to 1 within the song's range: up at once, down over a tenth of a second.</summary>
+    /// <summary>
+    /// The bass (30 to 150 Hz) within the song's range: up at once, down over a tenth of a second;
+    /// up to about 0.4 as it plays, and 1 on each kick.
+    /// </summary>
     public float Bass => Shape(_bass);
 
     /// <summary>The middle (150 Hz to 2 kHz).</summary>
@@ -119,7 +135,10 @@ public sealed class MusicPulse
     /// <summary>The treble (above 2 kHz).</summary>
     public float Treble => Shape(_treble);
 
-    /// <summary>How loud, 0 (silence or the song's quietest) to 1 (its loudest of late).</summary>
+    /// <summary>
+    /// How loud within the song's range: 0 at silence or its quietest, up to about 0.4 at its
+    /// loudest of late, and 1 on each kick.
+    /// </summary>
     public float Loudness => Shape(_loudness);
 
     /// <summary>
@@ -130,9 +149,6 @@ public sealed class MusicPulse
 
     /// <summary>How loud on a fixed scale: 0 at 60 dB below full scale, 1 at full scale.</summary>
     public float RawLoudness { get; private set; }
-
-    /// <summary>The loudness over about the last four seconds.</summary>
-    public float LongLoudness { get; private set; }
 
     /// <summary>Whether a beat landed in this frame, heard or (with <see cref="Filled"/>) expected.</summary>
     public bool Beat { get; private set; }
@@ -146,9 +162,6 @@ public sealed class MusicPulse
     /// <summary>Beats so far, heard and stood in for: the count lets effects change every so many.</summary>
     public long Beats { get; private set; }
 
-    /// <summary>Which beat of a bar of four this is, counting every beat.</summary>
-    public int BeatInBar => (int)(Beats % 4);
-
     /// <summary>Whether the drop came in this frame: the kick back after the drums were away.</summary>
     public bool Drop { get; private set; }
 
@@ -158,9 +171,6 @@ public sealed class MusicPulse
     /// </summary>
     public float Build { get; private set; }
 
-    /// <summary>Seconds since the last drop (large before any).</summary>
-    public double SinceDrop => _sinceDrop;
-
     /// <summary>Seconds since the last beat (large before any).</summary>
     public double SinceBeat => _sinceBeat;
 
@@ -169,9 +179,6 @@ public sealed class MusicPulse
 
     /// <summary>Whether the beat clock is sure of the beat.</summary>
     public bool Locked => _clock.Locked;
-
-    /// <summary>Seconds until the next beat is due, by the clock (0 before the tempo is known).</summary>
-    public double NextBeatIn => _clock.NextBeatIn;
 
     /// <summary>How far through the beat the music is, 0 at a beat to 1 at the next (by the clock, else by the tempo, else since the last beat).</summary>
     public double Phase => _clock.Locked ? _clock.Phase
@@ -188,9 +195,6 @@ public sealed class MusicPulse
 
     /// <summary>The hi-hats and cymbals, at the top.</summary>
     public Onset Hat => _hat;
-
-    /// <summary>The beat clock the beats are kept by.</summary>
-    public BeatClock Clock => _clock;
 
     /// <summary>Takes the newest <see cref="AnalysisSize"/> samples, heard <paramref name="elapsed"/> after the last.</summary>
     public void Update(ReadOnlySpan<float> mono, int sampleRate, TimeSpan elapsed)
@@ -212,16 +216,15 @@ public sealed class MusicPulse
         var flux = Flux(sampleRate);
         var listening = _primed && RawLoudness > Quiet;
         var kickGap = _kick.Since;
-        var bassBefore = _bassDb;
-        _kick.Hear(Rise(ref _bassDb, _bassRaw), _bassPower, dt, listening);
+        _kick.Hear(Rise(_bassBefore, _bassRaw), _bassPower, dt, listening);
         if (_kick.Hit)
         {
             (_bass, _loudness) = (1, 1);
         }
 
-        Punching(dt, bassBefore);
-        _snare.Hear(Rise(ref _midDb, _midRaw), _midPower, dt, listening);
-        _hat.Hear(Rise(ref _trebleDb, _trebleRaw), _treblePower, dt, _primed && RawLoudness > 0.1f);
+        Punching(dt);
+        _snare.Hear(Rise(_midBefore, _midRaw), _midPower, dt, listening);
+        _hat.Hear(Rise(_trebleBefore, _trebleRaw), _treblePower, dt, _primed && RawLoudness > 0.1f);
 
         (Beat, Filled, Drop) = (false, false, false);
         BeatStrength = Math.Max(0, BeatStrength - (float)(dt * 4));
@@ -229,7 +232,7 @@ public sealed class MusicPulse
         _sinceDrop += dt;
         // Where in the frame the kick struck, so the clock keeps finer time than the frames do.
         var age = _kick.Hit ? Math.Min(dt, _bassBand.RiseAge()) : dt / 2;
-        _clock.Advance(dt, (float)flux, age);
+        _clock.Advance(dt, (float)flux);
         if (!_primed)
         {
             // The first frame rises from nothing: it is no beat.
@@ -243,7 +246,7 @@ public sealed class MusicPulse
         // The surge must also stand out against the strongest of late, so the hats between the beats are not beats.
         _peakFlux = Math.Max(flux, _peakFlux * Math.Exp(-dt / 3));
         var surge = flux > median + Math.Max(Math.Max(3 * spread, 0.004), 0.4 * (_peakFlux - median)) && flux >= _lastFlux;
-        var onBeat = !_clock.Locked || _clock.Phase < 0.2 || _clock.Phase > 0.8;
+        var onBeat = _clock.Near(age);
         var onset = (_kick.Hit || (surge && onBeat)) && RawLoudness > Quiet;
         var sinceGrid = _clock.Phase * _clock.Period;
         if (onset)
@@ -251,19 +254,23 @@ public sealed class MusicPulse
             var strength = _kick.Hit ? _kick.Strength : (float)Math.Clamp((flux - median) / Math.Max(spread * 8, 1e-4), 0.25, 1);
             _detected++;
             _clock.Onset(_kick.Hit, age);
-            if (_sinceBeat >= MinimumGap)
+
+            // A kick between the locked clock's beats (a syncopation, an off-beat drum) counts
+            // toward moving the grid half a beat, but it is no beat.
+            if (onBeat && _sinceBeat >= MinimumGap)
             {
                 Land(strength, filled: false);
             }
-            else
+            else if (onBeat)
             {
                 // A second onset of the same beat: one beat, as hard as the harder.
                 BeatStrength = Math.Max(BeatStrength, strength);
             }
         }
-        else if (_clock.Locked && _detected >= 8 && sinceGrid >= FillWait && sinceGrid - dt < FillWait && _sinceBeat > sinceGrid + FillWait && RawLoudness > Quiet)
+        else if (_clock.Locked && _detected >= 8 && sinceGrid >= FillWait && sinceGrid - dt < FillWait && !_clock.Heard && _sinceBeat >= MinimumGap && RawLoudness > Quiet)
         {
-            // The clock's beat came and went with nothing heard near it: the mix hid it, so it is stood in for.
+            // The clock's beat came and went with nothing heard near it, early or late: the mix
+            // hid it, so it is stood in for.
             Land(0.5f, filled: true);
         }
 
@@ -287,8 +294,6 @@ public sealed class MusicPulse
         }
     }
 
-    private double _bassRaw, _midRaw, _trebleRaw, _bassPower, _midPower, _treblePower;
-
     /// <summary>Forgets everything heard, as when another song starts.</summary>
     public void Reset()
     {
@@ -311,11 +316,12 @@ public sealed class MusicPulse
         Array.Clear(_bands);
         Array.Clear(_rawBands);
         _fluxes.Clear();
-        (_bassDb, _midDb, _trebleDb, _slowBass, _lastFlux, _bassRaw) = (double.NaN, double.NaN, double.NaN, double.NaN, 0, 0);
-        _peakFlux = 0;
+        (_slowBass, _lastFlux, _peakFlux) = (double.NaN, 0, 0);
+        (_bassRaw, _midRaw, _trebleRaw, _bassPower, _midPower, _treblePower) = (0, 0, 0, 0, 0, 0);
+        (_bassBefore, _midBefore, _trebleBefore) = (0, 0, 0);
         (_sinceBeat, _sinceDrop, _musicFor, _busy, _detected, _primed) = (10, 10, 0, 0, 0, false);
         (_bass, _mid, _treble, _loudness, _punch) = (0, 0, 0, 0, 0);
-        (RawLoudness, LongLoudness, BeatStrength, Pitch, Build) = (0, 0, 0, 0, 0);
+        (RawLoudness, BeatStrength, Pitch, Build) = (0, 0, 0, 0);
         (Beat, Filled, Drop, Beats) = (false, false, false, 0);
     }
 
@@ -368,30 +374,26 @@ public sealed class MusicPulse
     private void Levels(ReadOnlySpan<float> mono, int sampleRate, double dt)
     {
         var window = Math.Max(64, (int)(sampleRate * Window));
-        _bassPower = _bassBand.Power(mono, sampleRate, window, (int)(sampleRate * 0.06));
-        _midPower = _midBand.Power(mono, sampleRate, window);
-        _treblePower = _trebleBand.Power(mono, sampleRate, window);
+        var lag = (int)(sampleRate * RiseSpan);
+        _bassPower = _bassBand.Power(mono, sampleRate, window, (int)(sampleRate * 0.06), lag);
+        _midPower = _midBand.Power(mono, sampleRate, window, lag: lag);
+        _treblePower = _trebleBand.Power(mono, sampleRate, window, lag: lag);
         var whole = AdaptiveRange.Decibels(_wholeBand.Power(mono, sampleRate, window));
         (_bassRaw, _midRaw, _trebleRaw) = (AdaptiveRange.Decibels(_bassPower), AdaptiveRange.Decibels(_midPower), AdaptiveRange.Decibels(_treblePower));
+        (_bassBefore, _midBefore, _trebleBefore) = (AdaptiveRange.Decibels(_bassBand.Earlier), AdaptiveRange.Decibels(_midBand.Earlier), AdaptiveRange.Decibels(_trebleBand.Earlier));
 
         RawLoudness = (float)Math.Clamp((whole + 60) / 60, 0, 1);
-        // Leave room above ordinary bass notes for the full punch of a detected kick,
-        // including when the mix keeps a constant bass line underneath.
-        _bass = Envelope(_bass, 0.38f * _bassRange.Map(_bassRaw, dt), dt, 0.065);
+        _bass = Envelope(_bass, BetweenKicks * _bassRange.Map(_bassRaw, dt), dt, 0.065);
         _mid = Envelope(_mid, _midRange.Map(_midRaw, dt), dt, 0.12);
         _treble = Envelope(_treble, _trebleRange.Map(_trebleRaw, dt), dt, 0.06);
-        // Keep the background mix responsive without letting its continuous level
-        // conceal a kick in the visualisations; the kick itself reaches full scale.
-        _loudness = Envelope(_loudness, 0.38f * _loudnessRange.Map(whole, dt), dt, 0.09);
-        LongLoudness += (_loudness - LongLoudness) * (float)Math.Min(1, dt / 4);
-
+        _loudness = Envelope(_loudness, BetweenKicks * _loudnessRange.Map(whole, dt), dt, 0.09);
     }
 
     /// <summary>
     /// The punch: while the bass is rising, how far it stands above where it has been over the last
     /// half second; a kick heard sets it at least to its strength. Either way it then falls away.
     /// </summary>
-    private void Punching(double dt, double before)
+    private void Punching(double dt)
     {
         if (_bassRaw < AdaptiveRange.Gate)
         {
@@ -400,7 +402,7 @@ public sealed class MusicPulse
             return;
         }
 
-        var rising = !double.IsNaN(before) && _bassRaw > before;
+        var rising = _bassRaw > _bassBefore;
         var above = double.IsNaN(_slowBass) ? 0 : _bassRaw - _slowBass;
         var hit = _kick.Hit ? 0.75f + (0.25f * _kick.Strength) : 0;
         _punch = Envelope(_punch, Math.Max(hit, rising ? (float)Math.Clamp((above - 2) / 8, 0, 1) : 0), dt, 0.09);
@@ -414,14 +416,9 @@ public sealed class MusicPulse
         return level < 0.002f ? 0 : level;
     }
 
-    /// <summary>How far a band's level rose since the last frame, in decibels; nothing from silence.</summary>
-    private static double Rise(ref double last, double now)
-    {
-        now = Math.Max(now, AdaptiveRange.Gate);
-        var rise = double.IsNaN(last) ? 0 : Math.Max(0, now - last);
-        last = now;
-        return rise;
-    }
+    /// <summary>How far a band's level rose over <see cref="RiseSpan"/>, in decibels; silence counts as the gate.</summary>
+    private static double Rise(double before, double now) =>
+        Math.Max(0, Math.Max(now, AdaptiveRange.Gate) - Math.Max(before, AdaptiveRange.Gate));
 
     /// <summary>
     /// The onset strength: how much the spectrum below 5 kHz rose since the last frame, each bin on a
