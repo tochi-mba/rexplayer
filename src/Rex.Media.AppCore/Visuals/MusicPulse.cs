@@ -228,7 +228,7 @@ public sealed class MusicPulse
         // The tempo is found mostly from the kicks, which carry the beat; the whole spectrum's rise,
         // busy with shakers and log drums between the beats, counts for a little.
         var peak = Math.Max(_peakFlux, 1e-6);
-        _clock.Advance(dt, (_kick.Hit ? _kick.Strength : 0) + (float)(0.25 * Math.Min(1, flux / peak)), age);
+        _clock.Advance(dt, (_kick.Hit ? _kick.Strength : 0) + (float)(0.1 * Math.Min(1, flux / peak)), age);
         if (!_primed)
         {
             // The first frame rises from nothing: it is no beat.

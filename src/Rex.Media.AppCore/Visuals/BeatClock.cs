@@ -237,11 +237,11 @@ public sealed class BeatClock
     /// <summary>
     /// The seconds a beat at which the onsets of late line up best: for each tempo from the slowest
     /// to the fastest, in steps of a quarter beat a minute, how tightly the onsets cluster at one
-    /// place in the beat (the length of the mean of their phases, each a unit arrow weighed by its
-    /// strength), weighed a little toward the preferred tempo. Onsets on every beat cancel at half
-    /// that tempo, and rhythms of three against two (dotted beats, a 3-3-2 bass) never cluster at
-    /// four-thirds or two-thirds of it, as they would line up with themselves there. 0 when nothing
-    /// lines up.
+    /// place in the beat and at one place in each half of it (the lengths of the means of their
+    /// phases at the tempo and at twice it, each onset a unit arrow weighed by its strength),
+    /// weighed a little toward the preferred tempo. Onsets on every beat cancel at half that tempo,
+    /// and rhythms of three against two (dotted beats, a 3-3-2 bass) never cluster at four-thirds
+    /// or two-thirds of it, as they would line up with themselves there. 0 when nothing lines up.
     /// </summary>
     internal double EstimatePeriod()
     {
@@ -274,14 +274,18 @@ public sealed class BeatClock
         {
             var bpm = Slowest + (step * Step);
             var turn = Math.Tau * bpm / 60 / EnvelopeRate;
-            var (x, y, total) = (0.0, 0.0, 0.0);
+            var (x, y, x2, y2, total) = (0.0, 0.0, 0.0, 0.0, 0.0);
             for (var k = 0; k < count; k++)
             {
-                var angle = turn * _onsetAt[k];
-                (x, y, total) = (x + (_onsetWeight[k] * Math.Cos(angle)), y + (_onsetWeight[k] * Math.Sin(angle)), total + _onsetWeight[k]);
+                var (angle, weight) = (turn * _onsetAt[k], _onsetWeight[k]);
+                (x, y) = (x + (weight * Math.Cos(angle)), y + (weight * Math.Sin(angle)));
+                (x2, y2) = (x2 + (weight * Math.Cos(2 * angle)), y2 + (weight * Math.Sin(2 * angle)));
+                total += weight;
             }
 
-            _scores[step] = Math.Sqrt((x * x) + (y * y)) / total;
+            // On the beat, and on the beat and its half together: a bass hit halfway through every
+            // beat cancels the first, but lines up with the beat in the second.
+            _scores[step] = (Math.Sqrt((x * x) + (y * y)) + Math.Sqrt((x2 * x2) + (y2 * y2))) / total;
             var octaves = Math.Log2(bpm / Preferred);
             var weighted = _scores[step] * Math.Exp(-0.5 * octaves * octaves);
             if (weighted > bestWeighted)
@@ -291,7 +295,7 @@ public sealed class BeatClock
         }
 
         // A clear cluster, or nothing is sure.
-        if (best < 0 || _scores[best] < 0.3)
+        if (best < 0 || _scores[best] < 0.6)
         {
             return 0;
         }
