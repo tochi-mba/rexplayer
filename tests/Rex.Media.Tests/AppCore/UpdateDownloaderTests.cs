@@ -329,7 +329,11 @@ public sealed class UpdateDownloaderTests : IDisposable
             UpdateDownloader.Clean(_folder, Pending());
         }
 
-        Assert.Equal([Name, Name + ".part", Name + ".sha256", "rexupdate.exe"], Directory.GetFiles(_folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        // Windows keeps an exclusively opened helper; Unix permits unlinking an open file.
+        string[] expected = OperatingSystem.IsWindows()
+            ? [Name, Name + ".part", Name + ".sha256", "rexupdate.exe"]
+            : [Name, Name + ".part", Name + ".sha256"];
+        Assert.Equal(expected, Directory.GetFiles(_folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
 
         UpdateDownloader.Clean(_folder, null);
         Assert.Empty(Directory.GetFiles(_folder));
