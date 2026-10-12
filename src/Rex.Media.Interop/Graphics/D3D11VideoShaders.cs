@@ -542,7 +542,7 @@ internal static class D3D11VideoShaders
                 else if (extras.y > 1.5 && extras.y < 2.5)
                     heat = lerp(float3(0.01, 0.07, 0.18), float3(0.82, 1, 0.93), temperature);
                 else if (extras.y > 2.5)
-                    heat = temperature.xxx;
+                    heat = float3(temperature, temperature, temperature);
                 float edges = length(pictureGradient(uv, isYuv));
                 heat = saturate(heat + edges * (pointer.w - 0.25) * 0.20);
                 colour = lerp(colour, heat, effect.y);
