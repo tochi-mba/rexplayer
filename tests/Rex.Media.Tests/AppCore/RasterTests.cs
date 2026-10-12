@@ -43,7 +43,8 @@ public sealed class RasterTests
         canvas.Fill(1, 1, 1, 1, Red, 0.25f);
         Assert.Equal(new Rgb(0.5f, 0, 0), canvas[1, 1]);
         Assert.Equal(new Rgb(0.25f, 0, 0), canvas[0, 0]);
-        canvas.Fade(0.5f);
+        canvas.Feedback(0.5f, 1, 0, 0, 0);
+        canvas.Settle();
         Assert.Equal(new Rgb(0.25f, 0, 0), canvas[1, 1]);
 
         var pixels = new byte[4 * 4 * 4];
