@@ -1,3 +1,5 @@
+using Rex.Media.AppCore.Library;
+using Rex.Media.Engine;
 using Rex.Media.Library;
 
 namespace Rex.Media.AppCore.Player;
@@ -38,6 +40,51 @@ public sealed partial class PlayerController
         }
     }
 
+    /// <summary>
+    /// Puts <paramref name="items"/> right after what is playing, so they play next; when nothing
+    /// plays, they go to the top and the first starts.
+    /// </summary>
+    public void PlayNext(IEnumerable<PlaylistItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var added = items.ToList();
+        if (added.Count == 0)
+        {
+            return;
+        }
+
+        var at = Playlist.CurrentIndex + 1;
+        Playlist.Insert(at, added);
+        _log.Info(LogSource, $"{added.Count} item(s) play next, from {added[0].Location}.");
+        if (_session is null || State is SessionState.Idle or SessionState.Ended or SessionState.Faulted)
+        {
+            Start(Playlist.JumpTo(at));
+            return;
+        }
+
+        Say(added.Count == 1 ? "Playing next: " + added[0].Title : $"Playing {added.Count} items next");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Puts <paramref name="entries"/> right after what is playing, as <see cref="PlayNext(IEnumerable{PlaylistItem})"/>.</summary>
+    public void PlayNextFromLibrary(IEnumerable<LibraryEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        PlayNext(entries.Select(ItemOf));
+    }
+
+    /// <summary>
+    /// Pauses what is playing where it is; nothing happens when nothing plays or it is paused
+    /// already, so a paused item is never restarted and its position is untouched.
+    /// </summary>
+    public void Pause()
+    {
+        if (_session is not null && State is SessionState.Playing or SessionState.Buffering)
+        {
+            _ = Observe(_session.PauseAsync());
+        }
+    }
+
     /// <summary>A library entry as a playlist item, with the title and artist the library read.</summary>
     public static PlaylistItem ItemOf(LibraryEntry entry)
     {
@@ -47,6 +94,88 @@ public sealed partial class PlayerController
 
     /// <summary>Where the library's <paramref name="path"/> was left, for "Continue watching".</summary>
     public TimeSpan? LeftAt(string path) => Memory.ResumePoint(path);
+
+    /// <summary>How far the library's <paramref name="entry"/> has been watched or played.</summary>
+    public WatchState WatchStateOf(LibraryEntry entry) => LibraryArrangement.StateOf(entry, LeftAt);
+
+    /// <summary>Marks <paramref name="paths"/> as watched through: nowhere to go back to, and played at least once.</summary>
+    public void MarkWatched(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        foreach (var path in paths)
+        {
+            Memory.Forget(path);
+        }
+
+        Library?.MarkPlayed(paths);
+        Say(paths.Count == 1 ? "Marked as watched" : $"Marked {paths.Count} items as watched");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Marks <paramref name="paths"/> as never watched: nowhere to go back to, and no plays.</summary>
+    public void MarkUnwatched(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        foreach (var path in paths)
+        {
+            Memory.Forget(path);
+        }
+
+        Library?.ResetPlays(paths);
+        Say(paths.Count == 1 ? "Marked as unwatched" : $"Marked {paths.Count} items as unwatched");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Forgets where <paramref name="paths"/> were left, so they start from the top; plays stay counted.</summary>
+    public void ResetProgress(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var forgotten = paths.Count(Memory.Forget);
+        Say(forgotten == 0 ? "Nothing was left part-way" : forgotten == 1 ? "It starts from the top next time" : $"{forgotten} items start from the top next time");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Removes <paramref name="paths"/> from the library; the files stay where they are.</summary>
+    public void RemoveFromLibrary(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var removed = Library?.Hide(paths) ?? 0;
+        _log.Info(LogSource, $"Removed {removed} item(s) from the library at the user's asking; the files stay.");
+        Say(removed == 1 ? "Removed from the library" : $"Removed {removed} items from the library");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// After <paramref name="paths"/> were deleted from the disk: the library forgets them, where
+    /// they were left is forgotten, and they leave the playlist (what plays stops if it was one).
+    /// </summary>
+    public void ForgetDeleted(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var gone = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+        foreach (var path in gone)
+        {
+            Memory.Forget(path);
+        }
+
+        Library?.Forget(gone);
+        if (Item is { } playing && gone.Contains(playing.Location))
+        {
+            Stop();
+        }
+
+        for (var index = Playlist.Items.Count - 1; index >= 0; index--)
+        {
+            if (gone.Contains(Playlist.Items[index].Location))
+            {
+                Playlist.RemoveAt(index);
+            }
+        }
+
+        _log.Info(LogSource, $"{gone.Count} file(s) were deleted at the user's asking and are forgotten.");
+        Say(gone.Count == 1 ? "Deleted to the Recycle Bin" : $"Deleted {gone.Count} files to the Recycle Bin");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Counts a play of what opened in the library, unless history is not kept.</summary>
     private void CountPlay(PlaylistItem item)
