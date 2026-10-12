@@ -238,10 +238,13 @@
           <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                         VerticalScrollMode="Enabled">
             <StackPanel Spacing="8" Padding="12,10,12,12">
-              <Grid ColumnSpacing="6">
+              <Grid ColumnSpacing="6" RowSpacing="8">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="4" VerticalAlignment="Center">
@@ -252,14 +255,15 @@
                                AutomationProperties.AutomationId="SubjectConfidenceText"
                                AutomationProperties.Name="Tracking state"
                                AutomationProperties.LiveSetting="Polite"
-                               Text="Waiting for selection" />
+                               TextWrapping="Wrap" Text="Waiting for selection" />
                   </Border>
                 </StackPanel>
-                <Button x:Name="SubjectSelectButton" Grid.Column="1" Content="Select" MinWidth="72"
+                <Button x:Name="SubjectSelectButton" Grid.Row="1" Grid.ColumnSpan="2" Content="Select" HorizontalAlignment="Stretch"
                         Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Top"
                         Click="OnSubjectSelect" AutomationProperties.AutomationId="SubjectSelect"
                         AutomationProperties.Name="Select an object in the picture" />
-                <Button Grid.Column="2" Content="Close" VerticalAlignment="Top" Click="OnSubjectClose"
+                <Button Grid.Column="1" Content="Close" VerticalAlignment="Top" Click="OnSubjectClose"
+                        ToolTipService.ToolTip="Close Subject Lock (Escape)"
                         AutomationProperties.AutomationId="SubjectClose"
                         AutomationProperties.Name="Close Subject Lock" />
               </Grid>
@@ -267,9 +271,12 @@
                          AutomationProperties.AutomationId="SubjectStatusText"
                          AutomationProperties.LiveSetting="Polite"
                          Text="Click the object you want to follow, or drag a box around it." />
-              <Grid ColumnSpacing="6">
+              <Grid ColumnSpacing="6" RowSpacing="6">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
@@ -280,7 +287,7 @@
                         AutomationProperties.AutomationId="SubjectCenter"
                         AutomationProperties.Name="Lock visible centre of picture"
                         ToolTipService.ToolTip="Locks the middle of the visible picture, for the keyboard" />
-                <Button x:Name="SubjectMoveButton" Grid.Column="2" Content="Move left" HorizontalAlignment="Stretch"
+                <Button x:Name="SubjectMoveButton" Grid.Row="1" Grid.ColumnSpan="2" Content="Move left" HorizontalAlignment="Stretch"
                         Click="OnSubjectMove" AutomationProperties.AutomationId="SubjectMove"
                         AutomationProperties.Name="Move the panel to the other side" />
               </Grid>

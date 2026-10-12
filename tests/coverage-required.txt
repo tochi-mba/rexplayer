@@ -170,6 +170,7 @@ SessionEvents.cs
 SessionState.cs
 SettingsStore.cs
 ShortcutEditing.cs
+ShortcutRouting.cs
 SilentAudio.cs
 SilhouetteMask.cs
 SilhouetteScene.cs
