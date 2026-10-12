@@ -254,6 +254,9 @@ public sealed partial class PlayerController
                 FindPresentation(Item, opened.Info);
                 AddEmbeddedSubtitles(opened.Info);
                 Changed?.Invoke(this, EventArgs.Empty);
+                // A paused restore has no playback position tick: publish the newly
+                // known duration so the seek bar updates without waiting for Play.
+                PositionChanged?.Invoke(this, EventArgs.Empty);
                 if (Settings.TitleSeconds > 0)
                 {
                     Say(Title);
