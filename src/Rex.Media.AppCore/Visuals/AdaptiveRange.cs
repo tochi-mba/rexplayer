@@ -47,9 +47,11 @@ public sealed class AdaptiveRange(double span = 10, double floorSeconds = 1.5, d
             (_floor, _ceiling) = (decibels - span, decibels);
         }
 
-        _floor = decibels < _floor ? decibels : _floor + ((decibels - _floor) * (1 - Math.Exp(-dt / floorSeconds)));
+        // Track new quiet immediately, but do not creep the floor into the quietest
+        // observed level: a steady note still needs its full span below it.
+        _floor = decibels < _floor ? decibels : _floor + (Math.Max(0, decibels - span - _floor) * (1 - Math.Exp(-dt / floorSeconds)));
         _ceiling = decibels > _ceiling ? decibels : _ceiling + ((decibels - _ceiling) * (1 - Math.Exp(-dt / ceilingSeconds)));
-        _floor = Math.Max(Gate, Math.Min(_floor, _ceiling - span));
+        _floor = Math.Max(Gate, _floor);
         _ceiling = Math.Max(_ceiling, _floor + span);
         var share = Math.Clamp((decibels - _floor) / (_ceiling - _floor), 0, 1);
         return Value = (float)Math.Pow(share, gamma);
