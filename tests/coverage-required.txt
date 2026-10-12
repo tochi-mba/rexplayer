@@ -169,6 +169,7 @@ PngWriter.cs
 PromptedMaskTracker.cs
 Raster.cs
 Rational.cs
+RemovalPanel.cs
 Resampler.cs
 ResonanceScene.cs
 ResumeMarker.cs
@@ -199,6 +200,11 @@ SpectrumAnalyzer.cs
 StatsText.cs
 StrobeScene.cs
 SubjectPanel.cs
+SubjectRemoval.cs
+SubjectRemovalFill.cs
+SubjectRemovalMatte.cs
+SubjectRemovalMotion.cs
+SubjectRemovalPlate.cs
 SubRip.cs
 SubtitleCue.cs
 SubtitleFile.cs
