@@ -71,7 +71,7 @@ public sealed class MusicPulse
     private readonly BandEnergy _midBand = new(150, 2000);
     private readonly BandEnergy _trebleBand = new(2000, 0);
     private readonly BandEnergy _wholeBand = new(0, 0);
-    private readonly AdaptiveRange _bassRange = new();
+    private readonly AdaptiveRange _bassRange = new(gamma: 1.8);
     private readonly AdaptiveRange _midRange = new();
     private readonly AdaptiveRange _trebleRange = new();
     private readonly AdaptiveRange _loudnessRange = new(12, 2, 4);
@@ -256,7 +256,7 @@ public sealed class MusicPulse
                 BeatStrength = Math.Max(BeatStrength, strength);
             }
         }
-        else if (_clock.Locked && sinceGrid >= FillWait && sinceGrid - dt < FillWait && _sinceBeat > sinceGrid + FillWait && RawLoudness > Quiet)
+        else if (_clock.Locked && _detected >= 8 && sinceGrid >= FillWait && sinceGrid - dt < FillWait && _sinceBeat > sinceGrid + FillWait && RawLoudness > Quiet)
         {
             // The clock's beat came and went with nothing heard near it: the mix hid it, so it is stood in for.
             Land(0.5f, filled: true);
