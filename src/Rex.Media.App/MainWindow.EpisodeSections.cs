@@ -5,7 +5,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
-using Rex.Media.AppCore;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
 using Windows.Storage.Streams;

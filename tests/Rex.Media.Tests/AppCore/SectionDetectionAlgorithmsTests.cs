@@ -16,7 +16,7 @@ public sealed class SectionDetectionAlgorithmsTests
         IReadOnlyList<CreditFrameSample>? frames = null) =>
         new(path, "12345:678", EpisodeLength, Hits(300 + openOffset), Hits(75000 + closeOffset, hashes: 50_000), frames ?? []);
 
-    private static CreditFrameSample Frame(int second, double dark = 0.90, double bright = 0.07, double strokes = 0.2) =>
+    private static CreditFrameSample Frame(int second, double dark = 0.95, double bright = 0.07, double strokes = 0.2) =>
         new(TimeSpan.FromSeconds(second), 0.11, dark, bright, Enumerable.Repeat(0.1f, CreditFrameEvidence.Bands).ToArray(), strokes);
 
     [Fact]
@@ -288,6 +288,12 @@ public sealed class SectionDetectionAlgorithmsTests
         var run = Assert.Single(CreditFrameEvidence.Runs(cards, EpisodeLength));
         Assert.Equal(TimeSpan.FromSeconds(end - 60.5), run.Start);
 
+        // A fade to black a second at a time before the first card starts the credits, but black
+        // further back than ten seconds is the end of the story, not the credits.
+        var fade = Enumerable.Range(0, 15).Select(i => Black(end - 75 + i)).ToArray();
+        var faded = Assert.Single(CreditFrameEvidence.Runs([Frame(end - 76, dark: 0.2), .. fade, .. cards], EpisodeLength));
+        Assert.Equal(TimeSpan.FromSeconds(end - 70.5), faded.Start);
+
         var apart = new[] { Frame(end - 200), Frame(end - 199), Frame(end - 192), Frame(end - 150), Frame(end - 149), Frame(end - 141) };
         Assert.Equal(2, CreditFrameEvidence.Runs(apart, EpisodeLength).Count);
     }
@@ -316,7 +322,7 @@ public sealed class SectionDetectionAlgorithmsTests
         var start = TimeSpan.FromSeconds(2220);
         var keys = new[] { Frame(2230, dark: 0.2), Frame(2240, dark: 0.2), Frame(2490, dark: 0.2), Frame(2500), Frame(2510), Frame(2520) };
         var windows = CreditFrameEvidence.RefinementWindows(keys, start, TimeSpan.FromSeconds(2580));
-        Assert.Equal([(TimeSpan.FromSeconds(2490), TimeSpan.FromSeconds(2500)), (TimeSpan.FromSeconds(2563), TimeSpan.FromSeconds(2580))], windows);
+        Assert.Equal([(TimeSpan.FromSeconds(2490), TimeSpan.FromSeconds(2500)), (TimeSpan.FromSeconds(2558), TimeSpan.FromSeconds(2580))], windows);
 
         // Credits running to the last keyframe close to the end: the gap to the end is decoded.
         var late = new[] { Frame(2560, dark: 0.2), Frame(2575) };
@@ -348,7 +354,7 @@ public sealed class SectionDetectionAlgorithmsTests
         var duplicates = SectionDetector.Detect(own, [sibling, sibling with { Path = "Series.S01E03.copy.mkv" }]);
         Assert.Equal(single.Candidates, duplicates.Candidates);
         Assert.All(single.Candidates, candidate => Assert.Equal("shared audio", candidate.Source));
-        Assert.All(single.Candidates, candidate => Assert.Contains("2 episodes", candidate.Reason));
+        Assert.All(single.Candidates, candidate => Assert.Contains("1 of 1 other episode", candidate.Reason));
     }
 
     [Fact]
