@@ -19,7 +19,7 @@ public sealed class ArchitectureTests
         "Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Codecs.MediaFoundation",
         "Audio", "Audio.Wasapi", "Video", "Video.D3D11", "Subtitles", "Subtitles.DirectWrite", "Engine",
         "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Discs.Device", "Extensibility",
-        "AppCore", "Updater", "Interop",
+        "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML",
     ];
 
     private static readonly Dictionary<string, (string Framework, string[] Allowed)> Graph = new(StringComparer.Ordinal)
@@ -34,7 +34,11 @@ public sealed class ArchitectureTests
         ["Audio"] = (Portable, ["Primitives", "Diagnostics", "IO"]),
         ["Audio.Wasapi"] = (Windows, ["Primitives", "Diagnostics", "Audio", "Interop"]),
         ["Video"] = (Portable, ["Primitives", "Diagnostics"]),
-        ["Video.D3D11"] = (Windows, ["Primitives", "Diagnostics", "Video", "Interop"]),
+        ["Video.D3D11"] = (Windows, ["Primitives", "Diagnostics", "Video", "Interop", "Vision"]),
+        // ADR-0019: optional downloaded models. The pure half holds the catalogue, the installer and
+        // the interfaces Subject Lock calls; the Windows ML half only runs the models.
+        ["Vision"] = (Portable, ["Primitives", "Diagnostics"]),
+        ["Vision.WindowsML"] = (WindowsApp, ["Primitives", "Diagnostics", "Vision"]),
         ["Subtitles"] = (Portable, ["Primitives", "Diagnostics", "IO"]),
         ["Subtitles.DirectWrite"] = (Windows, ["Primitives", "Subtitles", "Interop"]),
         ["Engine"] = (Portable, ["Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Audio", "Video", "Subtitles"]),

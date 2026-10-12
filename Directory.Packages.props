@@ -7,9 +7,14 @@
 
   <!-- Product. The runtime closure of rexplayer is the .NET base library and the Windows App SDK,
        nothing else (ADR-002). CsWin32 is a compile-time source generator; it ships no code of its
-       own. RepositoryTests fail if this group gains an entry the ADR does not list. -->
+       own. Microsoft.WindowsAppSDK.ML is the Windows ML part of the same SDK (ONNX Runtime and
+       DirectML), named so the vision adapter compiles against it without the whole SDK; ADR-0019
+       allows it to run user-downloaded model weights only. Keep its version the one
+       Microsoft.WindowsAppSDK depends on. RepositoryTests fail if this group gains an entry the
+       ADRs do not list. -->
   <ItemGroup Label="Product">
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" />
     <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.360" />
   </ItemGroup>
 
