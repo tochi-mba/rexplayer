@@ -34,8 +34,6 @@ public sealed class BeatEditScene : VisualScene
     private double _subjectPanY;
     private double _subjectZoom;
 
-    public override bool UsesCamera => true;
-
     /// <summary>How many flashes the edit has made: what its tests count.</summary>
     public long Flashes => _flashes;
 
@@ -65,7 +63,13 @@ public sealed class BeatEditScene : VisualScene
 
             if (tricks.Freeze && kick.Count % 8 == 0)
             {
-                _frozen = source with { Bgra = (byte[])source.Bgra.Clone() };
+                // The frame is copied, as the camera's picture will have moved on by the time it thaws.
+                if (_frozen is null || _frozen.Width != source.Width || _frozen.Height != source.Height)
+                {
+                    _frozen = new VisualPicture(new byte[source.Width * source.Height * 4], source.Width, source.Height);
+                }
+
+                source.Bgra.AsSpan(0, _frozen.Bgra.Length).CopyTo(_frozen.Bgra);
                 _freeze = beatSeconds / 2;
             }
 
@@ -346,22 +350,28 @@ public sealed class BeatEditScene : VisualScene
     /// <summary>What each style plays, and how hard.</summary>
     private sealed record Tricks(double Punch, double Shake, double Rgb, double Slices, double Echo, bool Split, bool Freeze, bool Drift, double Flash, int[] Grades)
     {
+        // Velocity: punch-ins, freeze frames, black and white cuts, white flashes.
+        private static readonly Tricks Velocity = new(1.1, 0.3, 0.8, 0.0, 0.15, false, true, false, 1.0, [0, 1, 5, 1]);
+
+        // Glitch: colour split and slices, posterised and duotone grades.
+        private static readonly Tricks Glitch = new(0.5, 0.4, 2.2, 0.7, 0.1, false, false, false, 0.5, [2, 4, 0, 2, 6]);
+
+        // Hype: hard punches and shakes, a grade every cut, four screens on the drop.
+        private static readonly Tricks Hype = new(1.0, 1.0, 1.0, 0.25, 0.0, true, false, false, 0.8, [0, 2, 4, 1, 3]);
+
+        // Dreamy: slow drift and long echoes, warm and teal grades, no shaking.
+        private static readonly Tricks Dreamy = new(0.35, 0.0, 0.5, 0.0, 0.6, false, false, true, 0.0, [5, 3, 0]);
+
+        // A bit of everything.
+        private static readonly Tricks Everything = new(0.8, 0.6, 1.2, 0.35, 0.25, true, true, true, 0.6, [0, 1, 2, 3, 4, 5]);
+
         public static Tricks For(int style) => style switch
         {
-            // Glitch: colour split and slices, posterised and duotone grades.
-            1 => new(0.5, 0.4, 2.2, 0.7, 0.1, false, false, false, 0.5, [2, 4, 0, 2, 6]),
-
-            // Hype: hard punches and shakes, a grade every cut, four screens on the drop.
-            2 => new(1.0, 1.0, 1.0, 0.25, 0.0, true, false, false, 0.8, [0, 2, 4, 1, 3]),
-
-            // Dreamy: slow drift and long echoes, warm and teal grades, no shaking.
-            3 => new(0.35, 0.0, 0.5, 0.0, 0.6, false, false, true, 0.0, [5, 3, 0]),
-
-            // A bit of everything.
-            4 => new(0.8, 0.6, 1.2, 0.35, 0.25, true, true, true, 0.6, [0, 1, 2, 3, 4, 5]),
-
-            // Velocity: punch-ins, freeze frames, black and white cuts, white flashes.
-            _ => new(1.1, 0.3, 0.8, 0.0, 0.15, false, true, false, 1.0, [0, 1, 5, 1]),
+            1 => Glitch,
+            2 => Hype,
+            3 => Dreamy,
+            4 => Everything,
+            _ => Velocity,
         };
     }
 }

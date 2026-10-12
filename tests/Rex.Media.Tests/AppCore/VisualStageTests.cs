@@ -243,7 +243,7 @@ public sealed class VisualStageTests
         }
 
         Assert.True(frames.Count > 0);
-        Assert.True(VisualScene.For(VisualizerChoice.BeatEdit)!.UsesCamera);
+        Assert.NotNull(VisualScene.For(VisualizerChoice.BeatEdit));
     }
 
     [Fact]
@@ -317,27 +317,23 @@ public sealed class VisualStageTests
     public void TheStageFitsTheWindowAndOnlyDrawsItsOwnScenes()
     {
         Assert.Equal((16, 9), VisualStage.SizeFor(0, double.NaN));
-        Assert.Equal((800, 450), VisualStage.SizeFor(1920, 1080));
-        Assert.Equal((450, 800), VisualStage.SizeFor(1080, 1920));
-        Assert.Equal((2, 800), VisualStage.SizeFor(2, 1000000));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(1920, 1080));
+        Assert.Equal((1080, 1920), VisualStage.SizeFor(1080, 1920));
+        Assert.Equal((2, 1920), VisualStage.SizeFor(2, 1000000));
         Assert.Equal((16, 9), VisualStage.SizeFor(double.PositiveInfinity, 1080));
         Assert.Equal((16, 9), VisualStage.SizeFor(1920, double.PositiveInfinity));
-        Assert.Equal((800, 450), VisualStage.SizeFor(1920, 1080, double.NaN));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(1920, 1080, double.NaN));
         Assert.Equal((320, 180), VisualStage.SizeFor(320, 180));
-        Assert.False(VisualStage.Draws(VisualizerChoice.Spectrum));
-        Assert.True(VisualStage.Draws(VisualizerChoice.BeatEdit));
+        Assert.False(VisualScene.Draws(VisualizerChoice.Spectrum));
+        Assert.True(VisualScene.Draws(VisualizerChoice.BeatEdit));
 
         var stage = Stage(32, 18);
         var (left, right) = new SyntheticMusic(120, 1).At(10);
-        Assert.False(stage.UsesCamera);
         Assert.False(stage.Draw(VisualizerChoice.Spectrum, Defaults, left, right, 48_000, TimeSpan.Zero));
         Assert.True(stage.Draw(VisualizerChoice.Silhouette, Defaults, left, right, 48_000, TimeSpan.Zero));
-        Assert.True(stage.UsesCamera);
         Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, left, right, 48_000, TimeSpan.Zero));
-        Assert.False(stage.UsesCamera);
         Assert.Same(stage.Pulse, stage.Context.Pulse);
         stage.Reset();
-        Assert.False(stage.UsesCamera);
         Assert.Throws<ArgumentNullException>(() => stage.Draw(VisualizerChoice.Vinyl, null!, left, right, 48_000, TimeSpan.Zero));
         Assert.Throws<ArgumentException>(() => stage.Draw(VisualizerChoice.Vinyl, Defaults, [0], right, 48_000, TimeSpan.Zero));
         Assert.Throws<ArgumentException>(() => stage.Draw(VisualizerChoice.Vinyl, Defaults, left, [0], 48_000, TimeSpan.Zero));
@@ -345,6 +341,49 @@ public sealed class VisualStageTests
         Assert.Throws<ArgumentNullException>(() => new VisualContext(new Raster(2, 2), null!));
         Assert.Null(VisualScene.For(VisualizerChoice.Meters));
         Assert.All(Scenes.Select(row => VisualScene.For(row.Data)!), scene => Assert.Throws<ArgumentNullException>(() => scene.Draw(null!)));
+    }
+
+    [Fact]
+    public void TheSoftwareStageMatchesScreenDensityAndAdaptsToItsFrameBudget()
+    {
+        Assert.Equal((1200, 675), VisualStage.SizeFor(800, 450, scale: 1.5));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(3840, 2160));
+        Assert.Equal((768, 432), VisualStage.SizeFor(3840, 2160, quality: 0.4));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(1280, 720, scale: 1.5));
+        Assert.Equal((800, 450), VisualStage.SizeFor(800, 450, scale: 0));
+        Assert.Equal((800, 450), VisualStage.SizeFor(800, 450, scale: double.NaN));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(3840, 2160, quality: double.NaN));
+        Assert.Equal((768, 432), VisualStage.SizeFor(3840, 2160, quality: -100));
+
+        var stage = Stage(96, 54);
+        Assert.Equal(1, stage.Quality);
+        Assert.False(stage.WantsResize);
+        stage.Took(50);
+        Assert.True(stage.Quality < 1);
+        Assert.True(stage.WantsResize);
+        Assert.True(stage.DrawMilliseconds > 0);
+        var reduced = stage.Quality;
+        stage.Resize(96, 54);
+        Assert.False(stage.WantsResize);
+        for (var i = 0; i < 80; i++)
+        {
+            stage.Took(100);
+        }
+
+        Assert.Equal(VisualStage.LowestQuality, stage.Quality, 8);
+        for (var i = 0; i < 80; i++)
+        {
+            stage.Took(1);
+        }
+
+        Assert.True(stage.Quality > reduced);
+        Assert.True(stage.Quality <= 1);
+        stage.Resize(120, 68);
+        Assert.Equal((120, 68), (stage.Canvas.Width, stage.Canvas.Height));
+        Assert.Equal(120 * 68 * 4, stage.Pixels.Length);
+        Assert.False(stage.WantsResize);
+        stage.Took(17);
+        Assert.InRange(stage.DrawMilliseconds, 0, 30);
     }
 
     [Fact]

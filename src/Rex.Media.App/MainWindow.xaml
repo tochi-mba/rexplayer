@@ -228,64 +228,136 @@
           <Border x:Name="SubjectOutline" BorderBrush="#FF45ECD2" BorderThickness="2" CornerRadius="3"
                   Background="#2045ECD2" Width="1" Height="1" />
         </Canvas>
-        <!-- The compact card stays inside the stage. Its content scrolls on short windows,
-             instead of letting a horizontal action row clip the last buttons. -->
+        <!-- The Subject Lock panel: a header with the state and the primary action, then
+             collapsible sections. It docks to a side of the stage so it never covers the middle
+             of the picture, and its content scrolls on short windows. -->
         <Border x:Name="SubjectToolbar" Visibility="Collapsed" VerticalAlignment="Top"
                 HorizontalAlignment="Right" Margin="12" Width="320" CornerRadius="12"
-                Padding="12" Background="#F0121822" BorderBrush="#605FFFFF" BorderThickness="1"
-                AutomationProperties.AutomationId="SubjectToolbar">
+                Background="#F0121822" BorderBrush="#605FFFFF" BorderThickness="1" RequestedTheme="Dark"
+                AutomationProperties.AutomationId="SubjectToolbar" AutomationProperties.Name="Subject Lock">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                         VerticalScrollMode="Enabled">
-            <StackPanel Spacing="9">
-              <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="White" FontSize="16" />
-              <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap"
+            <StackPanel Spacing="8" Padding="12,10,12,12">
+              <Grid ColumnSpacing="6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4" VerticalAlignment="Center">
+                  <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="White" FontSize="15" />
+                  <Border x:Name="SubjectStatePill" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left"
+                          Background="#3045ECD2" AutomationProperties.AutomationId="SubjectStatePill">
+                    <TextBlock x:Name="SubjectConfidenceText" Foreground="#FF45ECD2" FontSize="12"
+                               AutomationProperties.AutomationId="SubjectConfidenceText"
+                               AutomationProperties.Name="Tracking state"
+                               AutomationProperties.LiveSetting="Polite"
+                               Text="Waiting for selection" />
+                  </Border>
+                </StackPanel>
+                <Button x:Name="SubjectSelectButton" Grid.Column="1" Content="Select" MinWidth="72"
+                        Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Top"
+                        Click="OnSubjectSelect" AutomationProperties.AutomationId="SubjectSelect"
+                        AutomationProperties.Name="Select an object in the picture" />
+                <Button Grid.Column="2" Content="Close" VerticalAlignment="Top" Click="OnSubjectClose"
+                        AutomationProperties.AutomationId="SubjectClose"
+                        AutomationProperties.Name="Close Subject Lock" />
+              </Grid>
+              <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap" FontSize="13"
                          AutomationProperties.AutomationId="SubjectStatusText"
                          AutomationProperties.LiveSetting="Polite"
-                         Text="Drag around an object, accessory or body part to select its visible area." />
-              <TextBlock x:Name="SubjectConfidenceText" Foreground="#FF45ECD2" FontSize="12"
-                         AutomationProperties.AutomationId="SubjectConfidenceText"
-                         Text="Waiting for selection" />
-              <Grid ColumnSpacing="6" RowSpacing="6">
+                         Text="Click the object you want to follow, or drag a box around it." />
+              <Grid ColumnSpacing="6">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Button x:Name="SubjectSelectButton" Grid.Column="0" Content="Select again"
-                        HorizontalAlignment="Stretch" Click="OnSubjectSelect"
-                        AutomationProperties.AutomationId="SubjectSelect" />
-                <Button Grid.Column="1" Content="Close" HorizontalAlignment="Stretch"
-                        Click="OnSubjectClose" AutomationProperties.AutomationId="SubjectClose" />
-                <Button x:Name="SubjectEraseButton" Grid.Row="1" Content="Preview removal"
-                        HorizontalAlignment="Stretch" Click="OnSubjectErase" IsEnabled="False"
-                        AutomationProperties.AutomationId="SubjectErase" />
-                <Button Grid.Row="1" Grid.Column="1" Content="Reset" HorizontalAlignment="Stretch"
-                        Click="OnSubjectReset" AutomationProperties.AutomationId="SubjectReset" />
+                <Button Grid.Column="0" Content="Reset" HorizontalAlignment="Stretch" Click="OnSubjectReset"
+                        AutomationProperties.AutomationId="SubjectReset"
+                        AutomationProperties.Name="Reset the selection" />
+                <Button Grid.Column="1" Content="Lock centre" HorizontalAlignment="Stretch" Click="OnSubjectCenter"
+                        AutomationProperties.AutomationId="SubjectCenter"
+                        AutomationProperties.Name="Lock visible centre of picture"
+                        ToolTipService.ToolTip="Locks the middle of the visible picture, for the keyboard" />
+                <Button x:Name="SubjectMoveButton" Grid.Column="2" Content="Move left" HorizontalAlignment="Stretch"
+                        Click="OnSubjectMove" AutomationProperties.AutomationId="SubjectMove"
+                        AutomationProperties.Name="Move the panel to the other side" />
               </Grid>
-              <Button Content="Lock visible centre (keyboard)" Click="OnSubjectCenter"
-                      HorizontalAlignment="Stretch" AutomationProperties.AutomationId="SubjectCenter"
-                      AutomationProperties.Name="Lock visible centre of picture" />
-              <ToggleSwitch x:Name="SubjectFollow" Header="Auto-follow (widen on loss)" IsOn="True"
-                            Toggled="OnSubjectFollowChanged" AutomationProperties.AutomationId="SubjectFollow"
-                            AutomationProperties.Name="Automatically follow selected object with a gentle zoom" />
-              <ToggleSwitch x:Name="SubjectShowBox" Header="Show tracking box" IsOn="True"
-                            Toggled="OnSubjectShowBoxChanged" AutomationProperties.AutomationId="SubjectShowBox"
-                            AutomationProperties.Name="Show tracking outline; tracking continues when hidden" />
-              <StackPanel Spacing="2">
-                <TextBlock Text="Removal edge softness" Foreground="#FFE0EAF0" />
-                <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
-                        ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather"
-                        AutomationProperties.Name="Removal edge softness" />
-                <TextBlock Text="Removal colour tolerance" Foreground="#FFE0EAF0" />
-                <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
-                        ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance"
-                        AutomationProperties.Name="Removal mask colour tolerance" />
-              </StackPanel>
-              <TextBlock Text="Tracking and the camera view are non-destructive. A returning target is followed only when its visible texture matches unambiguously. Removed areas that were never visible are estimates."
-                         Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
+              <ToggleSwitch x:Name="SubjectClickToLock" Header="Selection" IsOn="True"
+                            OnContent="Click to lock" OffContent="Draw a box"
+                            Toggled="OnSubjectModeChanged" AutomationProperties.AutomationId="SubjectClickToLock"
+                            AutomationProperties.Name="Click to lock; off to draw a box instead" />
+
+              <Expander x:Name="SubjectFollowingSection" Header="Following" IsExpanded="True"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
+                        AutomationProperties.AutomationId="SubjectFollowingSection"
+                        AutomationProperties.Name="Following">
+                <StackPanel Spacing="4">
+                  <ToggleSwitch x:Name="SubjectFollow" Header="Auto-follow" IsOn="True"
+                                OnContent="Gentle zoom, at most 1.85x" OffContent="View stays where you put it"
+                                Toggled="OnSubjectFollowChanged" AutomationProperties.AutomationId="SubjectFollow"
+                                AutomationProperties.Name="Automatically follow the selected object with a gentle zoom" />
+                  <ToggleSwitch x:Name="SubjectShowBox" Header="Tracking box" IsOn="True"
+                                OnContent="Shown" OffContent="Hidden; tracking continues"
+                                Toggled="OnSubjectShowBoxChanged" AutomationProperties.AutomationId="SubjectShowBox"
+                                AutomationProperties.Name="Show the tracking box; tracking continues when hidden" />
+                  <TextBlock Text="Zooming or panning by hand switches auto-follow off until you turn it on again."
+                             Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+              </Expander>
+
+              <Expander x:Name="SubjectRemovalSection" Header="Removal preview" IsExpanded="True"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
+                        AutomationProperties.AutomationId="SubjectRemovalSection"
+                        AutomationProperties.Name="Removal preview">
+                <StackPanel Spacing="4">
+                  <Button x:Name="SubjectEraseButton" Content="Preview removal" HorizontalAlignment="Stretch"
+                          Click="OnSubjectErase" IsEnabled="False"
+                          AutomationProperties.AutomationId="SubjectErase"
+                          AutomationProperties.Name="Preview removing the subject; the file is not changed" />
+                  <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Edge softness" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
+                    <TextBlock x:Name="SubjectFeatherText" Grid.Column="1" Text="3 px" Foreground="#FF45ECD2" FontSize="13"
+                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectFeatherText"
+                               AutomationProperties.Name="Edge softness value" />
+                  </Grid>
+                  <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
+                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather"
+                          AutomationProperties.Name="Removal edge softness" />
+                  <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Colour tolerance" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
+                    <TextBlock x:Name="SubjectToleranceText" Grid.Column="1" Text="50%" Foreground="#FF45ECD2" FontSize="13"
+                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectToleranceText"
+                               AutomationProperties.Name="Colour tolerance value" />
+                  </Grid>
+                  <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
+                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance"
+                          AutomationProperties.Name="Removal mask colour tolerance" />
+                  <TextBlock Text="A preview only: the file is never changed. Areas that were never visible are estimates."
+                             Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+              </Expander>
+
+              <Expander x:Name="SubjectHelpSection" Header="Help" IsExpanded="False"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
+                        AutomationProperties.AutomationId="SubjectHelpSection"
+                        AutomationProperties.Name="Help">
+                <TextBlock x:Name="SubjectHelpText" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap"
+                           AutomationProperties.AutomationId="SubjectHelpText"
+                           AutomationProperties.Name="Subject Lock help" />
+              </Expander>
             </StackPanel>
           </ScrollViewer>
         </Border>

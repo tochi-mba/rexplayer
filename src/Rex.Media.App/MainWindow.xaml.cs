@@ -239,6 +239,8 @@ public sealed partial class MainWindow : Window
 
                 presenter.SetEffect(_settings.VideoEffect, power,
                     VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[1]));
+                var (third, fourth) = VideoStyleOptions.Extras(_settings.VideoStyleValues, effectOptions);
+                presenter.SetEffectExtras(third, fourth);
                 presenter.Redraw();
             });
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
@@ -408,7 +410,9 @@ public sealed partial class MainWindow : Window
         SeekBar.Maximum = Math.Max(1, duration.TotalSeconds);
         if (!_scrubbing)
         {
-            SeekBar.Value = Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
+            // Until the length is known the thumb has no place to be but the start: clamping a
+            // position of minutes into a one-second rail would show it at the end.
+            SeekBar.Value = duration <= TimeSpan.Zero ? 0 : Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
         }
 
         _updatingControls = false;

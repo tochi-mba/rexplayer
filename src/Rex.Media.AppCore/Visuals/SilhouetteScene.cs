@@ -15,8 +15,6 @@ public sealed class SilhouetteScene : VisualScene
     private float[] _soft = [];
     private double _flash;
 
-    public override bool UsesCamera => true;
-
     public override void Draw(VisualContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

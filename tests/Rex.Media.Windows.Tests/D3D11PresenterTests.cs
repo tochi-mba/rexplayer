@@ -187,6 +187,57 @@ public sealed class D3D11PresenterTests
     }
 
     [Fact]
+    public void AllPictureShadersCompileAndDrawWithEveryEffectOption()
+    {
+        // Creating an offscreen presenter compiles both full shaders. Exercise every
+        // effect index with its own default extra options, including temporal styles.
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 96, 64);
+        for (var y = 0; y < picture.Height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < picture.Width; x++)
+            {
+                var at = x * 4;
+                row[at] = (byte)((x * 7 + y * 3) & 255);
+                row[at + 1] = (byte)((x * 5 + y * 9) & 255);
+                row[at + 2] = (byte)((x * 11 + y * 2) & 255);
+                row[at + 3] = 255;
+            }
+        }
+
+        using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
+        picture.Pts = MediaTime.FromSeconds(1);
+        presenter.Present(picture);
+        foreach (var effect in Enum.GetValues<VideoEffect>())
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            var (third, fourth) = VideoStyleOptions.Extras(null, options);
+            presenter.SetEffect(effect, options[0].Default, options[1].Default);
+            if (effect == VideoEffect.GhostwireMotion)
+            {
+                presenter.SetMotionOptions(third, fourth);
+            }
+
+            presenter.SetEffectExtras(third, fourth);
+            if (VideoEffects.UsesPointer(effect))
+            {
+                presenter.SetPointer(0.5f, 0.5f, true);
+            }
+
+            picture.Pts = MediaTime.FromSeconds(1.04);
+            presenter.Present(picture);
+            using var drawn = presenter.ReadBack();
+            Assert.Equal((picture.Width, picture.Height), (drawn.Width, drawn.Height));
+        }
+
+        presenter.SetEffect(VideoEffect.Off, 0);
+        presenter.SetEffectExtras(0, 0);
+        presenter.Redraw();
+        using var clear = presenter.ReadBack();
+        Assert.Equal((picture.Width, picture.Height), (clear.Width, clear.Height));
+    }
+
+    [Fact]
     public void ImageAwareEffectsAreDrivenByFrameStructureAndLookControlsAreIndependent()
     {
         using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 80, 64);

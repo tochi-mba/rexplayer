@@ -2,6 +2,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Rex.Media.AppCore.Player;
+using Rex.Media.Settings;
 using Rex.Media.Primitives;
 using Rex.Media.Video;
 using Windows.Foundation;
@@ -23,6 +25,8 @@ public sealed partial class MainWindow
     private PictureView _viewBeforeSubjectFollow;
     private bool _subjectAutoFollowing;
     private long _subjectRevision;
+    // Wired to SubjectEditSession.SelectAround when it lands; a null handler uses a bounded selection box.
+    private Func<float, float, bool> _subjectSelectAround = static (_, _) => false;
 
     private void WireSubjectTools()
     {
@@ -68,16 +72,21 @@ public sealed partial class MainWindow
         _subjectOpen = true;
         _selectingSubject = true;
         _subjectErase = false;
+        SubjectClickToLock.IsOn = _settings.SubjectSelection == SubjectSelectionMode.Click;
+        SubjectFollowingSection.IsExpanded = _settings.SubjectFollowingOpen;
+        SubjectRemovalSection.IsExpanded = _settings.SubjectRemovalOpen;
+        SubjectHelpSection.IsExpanded = _settings.SubjectHelpOpen;
+        UpdateSubjectPanelHelp();
+        SubjectFeatherText.Text = SubjectPanel.FeatherText((int)SubjectFeather.Value);
+        SubjectToleranceText.Text = SubjectPanel.ToleranceText((int)SubjectTolerance.Value);
         SubjectCanvas.Visibility = Visibility.Visible;
         SubjectToolbar.Visibility = Visibility.Visible;
         SizeSubjectToolbar();
-        SubjectConfidenceText.Text = "Waiting for selection";
-        SubjectSelectButton.Content = "Select again";
+        SubjectConfidenceText.Text = SubjectPanel.Pill(SubjectState.Waiting, 0);
+        SubjectSelectButton.Content = SubjectPanel.SelectText(false);
         SubjectEraseButton.IsEnabled = false;
-        SubjectEraseButton.Content = "Preview removal";
-        SubjectStatusText.Text = SubjectFollow.IsOn
-            ? "Drag around the object you want to follow. If it leaves the picture, auto-follow widens the view and keeps looking for it."
-            : "Drag around the object you want to follow. If it leaves the picture, Subject Lock keeps looking for it; auto-follow is off.";
+        SubjectEraseButton.Content = SubjectPanel.EraseText(false);
+        SubjectStatusText.Text = SubjectPanel.Instruction(_settings.SubjectSelection, SubjectFollow.IsOn);
         _subjectTimer?.Start();
         Stage.Focus(FocusState.Programmatic);
     }
@@ -87,7 +96,7 @@ public sealed partial class MainWindow
         // The previous subject must stop tracking immediately, including when the preview
         // was enabled. Otherwise a drag to replace it can continue erasing the old target.
         OnSubjectReset(sender, e);
-        SubjectStatusText.Text = "Drag across the picture to select the visible object again.";
+        SubjectStatusText.Text = SubjectPanel.Instruction(_settings.SubjectSelection, SubjectFollow.IsOn);
     }
 
     private void OnSubjectReset(object sender, RoutedEventArgs e)
@@ -99,8 +108,9 @@ public sealed partial class MainWindow
         _subjectErase = false;
         SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
-        SubjectStatusText.Text = "Selection reset. Drag to choose another object.";
-        SubjectConfidenceText.Text = "Waiting for selection";
+        SubjectStatusText.Text = SubjectPanel.Instruction(_settings.SubjectSelection, SubjectFollow.IsOn);
+        SubjectConfidenceText.Text = SubjectPanel.Pill(SubjectState.Waiting, 0);
+        SubjectSelectButton.Content = SubjectPanel.SelectText(false);
         SubjectOutline.Visibility = Visibility.Collapsed;
         var redraw = !_player.IsPlaying;
         OnPresenterThread(p =>
@@ -142,9 +152,58 @@ public sealed partial class MainWindow
     {
         // WinUI's layout is constrained by the available stage, not by a hard-coded
         // desktop resolution. The inner ScrollViewer keeps every control reachable.
-        SubjectToolbar.Width = Math.Max(140, Math.Min(336, Stage.ActualWidth - 24));
-        SubjectToolbar.MaxHeight = Math.Max(48, Stage.ActualHeight - 24);
+        SubjectToolbar.Width = SubjectPanel.Width(Stage.ActualWidth);
+        SubjectToolbar.MaxHeight = SubjectPanel.MaxHeight(Stage.ActualHeight);
+        SubjectToolbar.HorizontalAlignment = _settings.SubjectPanelSide == PanelSide.Left
+            ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        SubjectMoveButton.Content = SubjectPanel.MoveText(_settings.SubjectPanelSide);
     }
+
+    private void OnSubjectMove(object sender, RoutedEventArgs e)
+    {
+        _settings = _settings with { SubjectPanelSide = SubjectPanel.Opposite(_settings.SubjectPanelSide) };
+        SaveSettings();
+        SizeSubjectToolbar();
+    }
+
+    private void OnSubjectModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_subjectOpen || _closed)
+        {
+            return;
+        }
+
+        _settings = _settings with { SubjectSelection = SubjectClickToLock.IsOn ? SubjectSelectionMode.Click : SubjectSelectionMode.Draw };
+        SaveSettings();
+        UpdateSubjectPanelHelp();
+        if (_selectingSubject)
+        {
+            SubjectStatusText.Text = SubjectPanel.Instruction(_settings.SubjectSelection, SubjectFollow.IsOn);
+        }
+    }
+
+    private void OnSubjectExpanding(Expander sender, ExpanderExpandingEventArgs e) => SetSubjectSectionOpen(sender, true);
+
+    private void OnSubjectCollapsed(Expander sender, ExpanderCollapsedEventArgs e) => SetSubjectSectionOpen(sender, false);
+
+    private void SetSubjectSectionOpen(Expander sender, bool open)
+    {
+        if (!_subjectOpen || _closed)
+        {
+            return;
+        }
+
+        _settings = _settings with
+        {
+            SubjectFollowingOpen = sender == SubjectFollowingSection ? open : _settings.SubjectFollowingOpen,
+            SubjectRemovalOpen = sender == SubjectRemovalSection ? open : _settings.SubjectRemovalOpen,
+            SubjectHelpOpen = sender == SubjectHelpSection ? open : _settings.SubjectHelpOpen,
+        };
+        SaveSettings();
+    }
+
+    private void UpdateSubjectPanelHelp() =>
+        SubjectHelpText.Text = string.Join("\n\n", SubjectPanel.Help(_settings.SubjectSelection));
 
     private void RestoreSubjectFollowView()
     {
@@ -172,6 +231,11 @@ public sealed partial class MainWindow
         {
             PollSubjectOverlay();
         }
+
+        if (_selectingSubject)
+        {
+            SubjectStatusText.Text = SubjectPanel.Instruction(_settings.SubjectSelection, SubjectFollow.IsOn);
+        }
     }
 
     private void OnSubjectShowBoxChanged(object sender, RoutedEventArgs e)
@@ -194,13 +258,20 @@ public sealed partial class MainWindow
     private void OnSubjectMaskChanged(object sender,
         Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
-        if (!_subjectOpen || _closed || _presenter is null)
+        if (!_subjectOpen || _closed)
         {
             return;
         }
 
         var feather = (int)SubjectFeather.Value;
         var tolerance = (int)SubjectTolerance.Value;
+        SubjectFeatherText.Text = SubjectPanel.FeatherText(feather);
+        SubjectToleranceText.Text = SubjectPanel.ToleranceText(tolerance);
+        if (_presenter is null)
+        {
+            return;
+        }
+
         var redraw = _subjectErase && !_player.IsPlaying;
         OnPresenterThread(p =>
         {
@@ -274,7 +345,7 @@ public sealed partial class MainWindow
         var last = e.GetCurrentPoint(Stage).Position;
         var start = OnPicture(first);
         var end = OnPicture(last);
-        if (start is null || end is null || PictureShape() is not { } || _player.Info?.FirstTrack(MediaKind.Video)?.Video is not { } video)
+        if (start is null || end is null || PictureShape() is not { } shape || _player.Info?.FirstTrack(MediaKind.Video)?.Video is not { } video)
         {
             SubjectStatusText.Text = "Selection was outside the picture. Try again.";
             e.Handled = true;
@@ -284,6 +355,28 @@ public sealed partial class MainWindow
         // Map from picture coordinates *through* zoom and source crop to decoded video pixels.
         var (source, _, _) = VideoGeometry.Shape(video.Width, video.Height, video.PixelAspect, _aspect.Ratio, _crop.Ratio);
         var visible = _view.Within(source);
+        if (SubjectPanel.IsClick(_settings.SubjectSelection, last.X - first.X, last.Y - first.Y))
+        {
+            // Wired to SubjectEditSession.SelectAround when it lands; use the bounded box until then.
+            if (_subjectSelectAround((float)start.Value.X, (float)start.Value.Y))
+            {
+                _selectingSubject = false;
+                SubjectOutline.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+                return;
+            }
+
+            var box = SubjectPanel.ClickBox(start.Value.X, start.Value.Y, shape.Across, shape.Down);
+            LockSubjectRegion(
+                visible.Left + (float)box.Left * (visible.Right - visible.Left),
+                visible.Top + (float)box.Top * (visible.Bottom - visible.Top),
+                (float)box.Width * (visible.Right - visible.Left),
+                (float)box.Height * (visible.Bottom - visible.Top));
+            SubjectOutline.Visibility = Visibility.Collapsed;
+            e.Handled = true;
+            return;
+        }
+
         var sx = visible.Left + (float)start.Value.X * (visible.Right - visible.Left);
         var sy = visible.Top + (float)start.Value.Y * (visible.Bottom - visible.Top);
         var ex = visible.Left + (float)end.Value.X * (visible.Right - visible.Left);
@@ -343,7 +436,8 @@ public sealed partial class MainWindow
         SubjectEraseButton.IsEnabled = false;
         SubjectEraseButton.Content = "Preview removal";
         SubjectStatusText.Text = "Acquiring selected texture. If its identity is ambiguous, tracking stops.";
-        SubjectConfidenceText.Text = "Acquiring target";
+        SubjectConfidenceText.Text = SubjectPanel.Pill(SubjectState.Acquiring, 0);
+        SubjectSelectButton.Content = SubjectPanel.SelectText(true);
         var feather = (int)SubjectFeather.Value;
         var tolerance = (int)SubjectTolerance.Value;
         OnPresenterThread(p =>
@@ -406,9 +500,12 @@ public sealed partial class MainWindow
                 }
 
                 SubjectStatusText.Text = snapshot.Status;
-                SubjectConfidenceText.Text = snapshot.Tracking
-                    ? $"Match confidence {snapshot.Confidence:P0}" + (SubjectShowBox.IsOn ? "" : ", outline hidden")
-                    : snapshot.Locked ? "Searching original pattern · Wide view" : "Waiting for selection";
+                var state = SubjectPanel.State(snapshot.Locked, snapshot.Tracking, snapshot.Status);
+                SubjectConfidenceText.Text = SubjectPanel.Pill(state, snapshot.Confidence);
+                var tint = SubjectPanel.PillColour(state);
+                SubjectConfidenceText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(
+                    (byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)tint));
+                SubjectSelectButton.Content = SubjectPanel.SelectText(snapshot.Locked);
                 SubjectEraseButton.IsEnabled = snapshot.Tracking;
                 if (!snapshot.Tracking)
                 {

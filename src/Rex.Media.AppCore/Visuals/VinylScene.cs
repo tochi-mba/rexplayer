@@ -24,6 +24,9 @@ public sealed class VinylScene : VisualScene
     private static readonly double[] TrackGaps = [0.5, 0.63, 0.77, 0.88];
 
     private readonly float[] _groove = new float[Angles * Rings];
+    private readonly Rgb[] _ringColors = new Rgb[Rings];
+    private readonly List<(double, double)> _outer = [];
+    private readonly List<(double, double)> _inner = [];
     private double _turned = double.NaN;
     private Disc? _disc;
 
@@ -102,14 +105,15 @@ public sealed class VinylScene : VisualScene
     private static double Wrap(double angle) => ((angle % Math.Tau) + Math.Tau) % Math.Tau;
 
     /// <summary>The newest sound as a ring of light round the platter, mirrored left to right.</summary>
-    private static void Waveform(VisualContext context, double cx, double cy, double radius)
+    private void Waveform(VisualContext context, double cx, double cy, double radius)
     {
         var wave = context.Pulse.Wave;
         const int Points = 180;
         var reach = radius * 1.17;
         var depth = radius * 0.2 * context.Number("depth");
-        var outer = new List<(double, double)>(Points + 1);
-        var inner = new List<(double, double)>(Points + 1);
+        var (outer, inner) = (_outer, _inner);
+        outer.Clear();
+        inner.Clear();
         for (var p = 0; p <= Points; p++)
         {
             var share = p <= Points / 2 ? (double)p / (Points / 2) : (double)(Points - p) / (Points / 2);
@@ -156,7 +160,7 @@ public sealed class VinylScene : VisualScene
         var depth = (float)context.Number("depth") * 2.6f;
         var label = context.Toggle("label") ? context.Cover : null;
         var (labelColor, labelInk) = (context.Paint(0.15), context.Paint(0.85));
-        var colors = new Rgb[Rings];
+        var colors = _ringColors;
         for (var ring = 0; ring < Rings; ring++)
         {
             colors[ring] = context.Paint((double)ring / Rings);

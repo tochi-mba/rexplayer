@@ -19,14 +19,17 @@ namespace Rex.Media.App;
 /// ones (spectrum bars, an oscilloscope, level meters and a spectrogram) are drawn here with shapes;
 /// the rest (vinyl, halo, mirror wave, aurora, embers, ripples, strobe, the camera silhouette and the
 /// beat edit) are drawn in software by AppCore's <see cref="VisualStage"/>, about thirty times a
-/// second, and shown scaled up to fill the stage. Each has its own settings
+/// second, on a canvas the size of the stage in the screen's own pixels (so a high-DPI screen gets
+/// every pixel it shows, up to <see cref="VisualStage.MaxSide"/>), smaller only while a slow
+/// computer cannot keep up. Each has its own settings
 /// (<see cref="VisualizerOptions"/>). The camera is asked for once, started only while a
 /// visualisation that uses it shows, and stopped as soon as none does.
 /// </summary>
 public sealed partial class MainWindow
 {
+    /// <summary>The spectrogram's picture: a column a frame (about ten seconds across), a row for each of as many bands.</summary>
     private const int SpectrogramColumns = 320;
-    private const int SpectrogramRows = 128;
+    private const int SpectrogramRows = 256;
 
     /// <summary>How long a camera that failed to start is left before it is tried again.</summary>
     private static readonly TimeSpan CameraRetry = TimeSpan.FromSeconds(4);
@@ -43,7 +46,7 @@ public sealed partial class MainWindow
     private readonly List<Rectangle> _barShapes = [];
     private readonly List<Rectangle> _peakShapes = [];
     private readonly Rectangle[] _meterShapes = new Rectangle[6];
-    private readonly byte[] _cameraPicture = new byte[CameraFeed.PictureWidth * CameraFeed.PictureHeight * 4];
+    private readonly VisualPicture _cameraPicture = new(new byte[CameraFeed.PictureWidth * CameraFeed.PictureHeight * 4], CameraFeed.PictureWidth, CameraFeed.PictureHeight);
     private readonly byte[] _cameraMask = new byte[CameraFeed.MaskWidth * CameraFeed.MaskHeight];
     private SpectrumAnalyzer _bands = new(48);
     private Polyline? _wave;
@@ -267,9 +270,9 @@ public sealed partial class MainWindow
         _peakShapes.Clear();
         (_wave, _visualNote) = (null, null);
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
-        if (VisualStage.Draws(_settings.Visualizer))
+        if (VisualScene.Draws(_settings.Visualizer))
         {
-            BuildStage(width, height);
+            BuildStage(height);
             return;
         }
 
@@ -332,11 +335,17 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>How many of the screen's pixels a layout unit of the stage is: its canvas is drawn one to one with them.</summary>
+    private double StageScale() => Visualizer.XamlRoot?.RasterizationScale ?? 1;
+
+    /// <summary>The canvas size the stage wants now: its size on screen, at the quality the stage can keep up.</summary>
+    private (int Width, int Height) StageSize(VisualStage? stage) => VisualStage.SizeFor(Visualizer.ActualWidth, Visualizer.ActualHeight, stage?.Quality ?? 1, StageScale());
+
     /// <summary>The software stage, filling the picture area edge to edge, and a note for the camera's news.</summary>
-    private void BuildStage(double width, double height)
+    private void BuildStage(double height)
     {
         Visualizer.Margin = new Thickness(0);
-        var (across, down) = VisualStage.SizeFor(width, height, _visualStage?.Quality ?? 1);
+        var (across, down) = StageSize(_visualStage);
         if (_visualStage is null)
         {
             _visualStage = new VisualStage(across, down);
@@ -474,7 +483,7 @@ public sealed partial class MainWindow
         }
 
         var rate = Math.Max(1, _player.SoundSampleRate);
-        if (_visualStage is { } stage && _visualBitmap is not null && _builtFor is { } choice && VisualStage.Draws(choice))
+        if (_visualStage is { } stage && _visualBitmap is not null && _builtFor is { } choice && VisualScene.Draws(choice))
         {
             DrawStage(stage, _visualBitmap, choice, rate, elapsed);
             return;
@@ -548,11 +557,7 @@ public sealed partial class MainWindow
         }
         else if (_stageWork is { IsCompletedSuccessfully: true } && bitmap.PixelWidth == stage.Canvas.Width && bitmap.PixelHeight == stage.Canvas.Height)
         {
-            using (var stream = bitmap.PixelBuffer.AsStream())
-            {
-                stream.Write(stage.Pixels);
-            }
-
+            stage.Pixels.CopyTo(0, bitmap.PixelBuffer, 0, stage.Pixels.Length);
             bitmap.Invalidate();
         }
         else if (_stageWork is { IsFaulted: true } work && !_stageFailed)
@@ -561,8 +566,9 @@ public sealed partial class MainWindow
             App.Log.Error(LogSource, "The visualisation could not be drawn: " + work.Exception?.InnerException?.Message);
         }
 
-        // Resized, or drawing at a new quality to keep up: the canvas is made again between frames.
-        if (stage.WantsResize || (stage.Canvas.Width, stage.Canvas.Height) != VisualStage.SizeFor(Visualizer.ActualWidth, Visualizer.ActualHeight, stage.Quality))
+        // Resized, moved to a screen of another scale, or drawing at a new quality to keep up: the
+        // canvas is made again between frames.
+        if (stage.WantsResize || (stage.Canvas.Width, stage.Canvas.Height) != StageSize(stage))
         {
             BuildVisualizer();
             return;
@@ -580,9 +586,9 @@ public sealed partial class MainWindow
             var camera = _camera;
             if (camera is { Problem: null, HasPicture: true })
             {
-                camera.CopyPicture(_cameraPicture);
+                camera.CopyPicture(_cameraPicture.Bgra);
                 camera.CopyMask(_cameraMask);
-                context.Camera = new VisualPicture(_cameraPicture, CameraFeed.PictureWidth, CameraFeed.PictureHeight);
+                context.Camera = _cameraPicture;
                 if (!camera.IsLearning)
                 {
                     (context.Mask, context.MaskWidth, context.MaskHeight) = (_cameraMask, CameraFeed.MaskWidth, CameraFeed.MaskHeight);
@@ -605,9 +611,9 @@ public sealed partial class MainWindow
         var options = _settings.VisualOptions;
         _stageWork = Task.Run(() =>
         {
-            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
             stage.Draw(choice, options, _stageLeft, _stageRight, rate, elapsed);
-            stage.Took(clock.Elapsed.TotalMilliseconds);
+            stage.Took(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         });
     }
 

@@ -58,17 +58,12 @@ public sealed class SilhouetteMask
     public bool IsLearning => _seen < LearningPictures;
 
     /// <summary>
-    /// Takes the next picture's brightness (<see cref="Width"/> by <see cref="Height"/>) and marks
-    /// what differs from the room by more than <paramref name="threshold"/> (0 to 1); gives the share
-    /// of the picture marked.
-    /// </summary>
-    public double Update(ReadOnlySpan<byte> brightness, double threshold) =>
-        UpdateCore(brightness, threshold, colour: false);
-
-    /// <summary>
-    /// Convert a BGRA camera frame into area-averaged luminance and two signed colour
-    /// differences. Unlike brightness-only subtraction, this distinguishes similarly bright
-    /// clothing and walls. Mirroring applies to the camera mask, not the source image.
+    /// Takes the next camera picture (BGRA, <paramref name="sourceWidth"/> by <paramref name="sourceHeight"/>),
+    /// shrunk to <see cref="Width"/> by <see cref="Height"/> as area-averaged luminance and two signed
+    /// colour differences, and marks what differs from the room by more than
+    /// <paramref name="threshold"/> (0 to 1); gives the share of the picture marked. Unlike
+    /// brightness-only subtraction, the colour differences tell similarly bright clothing and walls
+    /// apart. Mirroring applies to the mask, not the source image.
     /// </summary>
     public double UpdateColour(ReadOnlySpan<byte> bgra, int sourceWidth, int sourceHeight,
         double threshold, bool mirror)
@@ -115,16 +110,12 @@ public sealed class SilhouetteMask
             }
         }
 
-        return UpdateCore(_currentLuma, threshold, colour: true);
+        return Mark(_currentLuma, threshold);
     }
 
-    private double UpdateCore(ReadOnlySpan<byte> brightness, double threshold, bool colour)
+    /// <summary>Marks what differs from the room in the shrunk picture <see cref="UpdateColour"/> made.</summary>
+    private double Mark(ReadOnlySpan<byte> brightness, double threshold)
     {
-        if (brightness.Length != _room.Length)
-        {
-            throw new ArgumentException($"A picture of {Width}x{Height} has {_room.Length} pixels, not {brightness.Length}.", nameof(brightness));
-        }
-
         var limit = (float)(Math.Clamp(double.IsFinite(threshold) ? threshold : 0.12, 0.01, 1) * 255);
         if (IsLearning)
         {
@@ -133,11 +124,8 @@ public sealed class SilhouetteMask
             for (var i = 0; i < _room.Length; i++)
             {
                 _room[i] += (brightness[i] - _room[i]) / _seen;
-                if (colour)
-                {
-                    _roomBlue[i] += (_currentBlue[i] - _roomBlue[i]) / _seen;
-                    _roomRed[i] += (_currentRed[i] - _roomRed[i]) / _seen;
-                }
+                _roomBlue[i] += (_currentBlue[i] - _roomBlue[i]) / _seen;
+                _roomRed[i] += (_currentRed[i] - _roomRed[i]) / _seen;
             }
 
             Array.Clear(Mask);
@@ -179,17 +167,13 @@ public sealed class SilhouetteMask
             // A weak threshold for last frame's confirmed mask preserves slender limbs
             // that would flicker around the edge. The preceding frame is still intact.
             var cutoff = Mask[i] != 0 ? limit * 0.78f : limit;
-            var chroma = colour && MathF.Abs(_currentBlue[i] - _roomBlue[i])
-                + MathF.Abs(_currentRed[i] - _roomRed[i]) > cutoff * 0.85f;
+            var chroma = MathF.Abs(_currentBlue[i] - _roomBlue[i]) + MathF.Abs(_currentRed[i] - _roomRed[i]) > cutoff * 0.85f;
             var foreground = Math.Abs(difference) > cutoff || chroma;
             _raw[i] = foreground ? (byte)1 : (byte)0;
             var rate = foreground ? PersonRate : RoomRate;
             _room[i] += (brightness[i] - _room[i]) * rate;
-            if (colour)
-            {
-                _roomBlue[i] += (_currentBlue[i] - _roomBlue[i]) * rate;
-                _roomRed[i] += (_currentRed[i] - _roomRed[i]) * rate;
-            }
+            _roomBlue[i] += (_currentBlue[i] - _roomBlue[i]) * rate;
+            _roomRed[i] += (_currentRed[i] - _roomRed[i]) * rate;
         }
 
         // Morphological closing preserves connected thin limbs and fills tiny gaps, unlike a
@@ -310,18 +294,6 @@ public sealed class SilhouetteMask
         return (double)marked / Mask.Length;
     }
 
-    /// <summary>Whether a marked pixel of <paramref name="mask"/> is on the person's edge: one of the four beside it is not marked.</summary>
-    public static bool IsEdge(ReadOnlySpan<byte> mask, int width, int height, int x, int y)
-    {
-        if (mask[(y * width) + x] == 0)
-        {
-            return false;
-        }
-
-        return x == 0 || y == 0 || x == width - 1 || y == height - 1
-            || mask[(y * width) + x - 1] == 0 || mask[(y * width) + x + 1] == 0 || mask[((y - 1) * width) + x] == 0 || mask[((y + 1) * width) + x] == 0;
-    }
-
     /// <summary>Forgets the room and watches it again (the camera moved, say).</summary>
     public void Reset()
     {
@@ -333,36 +305,5 @@ public sealed class SilhouetteMask
         Array.Clear(_currentBlue);
         Array.Clear(_currentRed);
         Array.Clear(Mask);
-    }
-
-    /// <summary>
-    /// The brightness of a BGRA picture, shrunk to <paramref name="width"/> by <paramref name="height"/>
-    /// (each pixel the nearest of the original), mirrored left for right when asked.
-    /// </summary>
-    public static byte[] Brightness(ReadOnlySpan<byte> bgra, int sourceWidth, int sourceHeight, int stride, int width, int height, bool mirror)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(sourceWidth, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(sourceHeight, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(stride, sourceWidth * 4);
-        if (bgra.Length < ((sourceHeight - 1) * stride) + (sourceWidth * 4))
-        {
-            throw new ArgumentException("The picture is shorter than its size says.", nameof(bgra));
-        }
-
-        var output = new byte[width * height];
-        for (var y = 0; y < height; y++)
-        {
-            var row = Math.Min(sourceHeight - 1, y * sourceHeight / height) * stride;
-            for (var x = 0; x < width; x++)
-            {
-                var column = Math.Min(sourceWidth - 1, (mirror ? width - 1 - x : x) * sourceWidth / width) * 4;
-                var (b, g, r) = (bgra[row + column], bgra[row + column + 1], bgra[row + column + 2]);
-
-                // Rec. 601 weights, in whole numbers.
-                output[(y * width) + x] = (byte)(((r * 77) + (g * 150) + (b * 29)) >> 8);
-            }
-        }
-
-        return output;
     }
 }

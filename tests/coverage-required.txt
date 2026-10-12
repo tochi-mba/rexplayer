@@ -167,6 +167,7 @@ SoundSettings.cs
 SpectrumAnalyzer.cs
 StatsText.cs
 StrobeScene.cs
+SubjectPanel.cs
 SubRip.cs
 SubtitleCue.cs
 SubtitleFile.cs

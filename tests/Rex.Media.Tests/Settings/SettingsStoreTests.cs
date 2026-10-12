@@ -105,6 +105,47 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void AdditionalVideoEffectsKeepIndependentOptionsAndHistoryPolicy()
+    {
+        var newEffects = new[]
+        {
+            VideoEffect.Halftone, VideoEffect.ChromaticRift, VideoEffect.OilPaint,
+            VideoEffect.GlyphMosaic, VideoEffect.ThermalMap, VideoEffect.TapeWear,
+            VideoEffect.PixelSort, VideoEffect.MotionSmear,
+        };
+        foreach (var effect in newEffects)
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            Assert.Equal(4, options.Count);
+            Assert.All(options, option => Assert.InRange(option.Default, option.Min, option.Max));
+            Assert.NotEqual("Essentials", VideoEffects.Category(effect));
+            var extras = VideoStyleOptions.Extras(null, options);
+            Assert.Equal((options[2].Default, options[3].Default), extras);
+            var values = VideoStyleOptions.With(null, options[2], options[2].Max);
+            values = VideoStyleOptions.With(values, options[3], options[3].Min);
+            Assert.Equal((options[2].Max, options[3].Min), VideoStyleOptions.Extras(values, options));
+            Assert.All(VideoStyleOptions.ModeNames(effect), name => Assert.False(string.IsNullOrWhiteSpace(name)));
+        }
+
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 30));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 2));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 1));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 3));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100));
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.Halftone));
+        Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GlyphMosaic).Count);
+        Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.ThermalMap).Count);
+        Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.PixelSort).Count);
+        Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GhostwireMotion).Count);
+        Assert.Equal((0, 0), VideoStyleOptions.Extras(null, VideoStyleOptions.ForEffect(VideoEffect.Off)));
+        Assert.Throws<ArgumentNullException>(() => VideoStyleOptions.Extras(null, null!));
+    }
+
+    [Fact]
     public void EveryPictureStyleSavesIndependentControlsAndCanResetOnlyItself()
     {
         IReadOnlyDictionary<string, int> values = new Dictionary<string, int>();
@@ -124,7 +165,9 @@ public sealed class SettingsStoreTests : IDisposable
         foreach (var effect in Enum.GetValues<VideoEffect>())
         {
             var options = VideoStyleOptions.ForEffect(effect);
-            Assert.Equal(effect == VideoEffect.GhostwireMotion ? 4 : 2, options.Count);
+            Assert.Equal(effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
+                or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.TapeWear
+                or VideoEffect.PixelSort or VideoEffect.MotionSmear ? 4 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);

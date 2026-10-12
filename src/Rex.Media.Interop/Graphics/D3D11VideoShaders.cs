@@ -7,7 +7,7 @@ namespace Rex.Media.Interop.Graphics;
 internal static class D3D11VideoShaders
 {
     public const string Source = """
-        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; float4 motion; };
+        cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; float4 motion; float4 extras; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
         Texture2D priorLuma : register(t2);
@@ -437,6 +437,169 @@ internal static class D3D11VideoShaders
                 else
                     ink += moving;
                 colour = lerp(colour, saturate(ink), effect.y);
+            }
+
+            // The eight additional styles stay single-pass. Extra options arrive in extras.xy,
+            // independently of the global strength (effect.y) and detail (pointer.w).
+            if (effect.x > 17.5 && effect.x < 18.5 && effect.y > 0) // Halftone
+            {
+                float3 coverage = 1 - saturate(colour);
+                float3 ink = 0;
+                float grid = lerp(180, 42, saturate((pointer.w - 0.25) / 1.5));
+                float2 p = (uv - 0.5) * float2(effect.w, 1) * grid;
+                [unroll] for (int channel = 0; channel < 3; channel++)
+                {
+                    float angle = (extras.x + channel * 30) * 0.01745329252;
+                    float cs = cos(angle), sn = sin(angle);
+                    float2 rotated = float2(p.x * cs - p.y * sn, p.x * sn + p.y * cs);
+                    float radius = sqrt(coverage[channel]) * (0.40 + extras.y * 0.001);
+                    float circle = 1 - smoothstep(radius - 0.07, radius + 0.07, length(frac(rotated) - 0.5));
+                    ink[channel] = circle;
+                }
+                colour = lerp(colour, 1 - ink, effect.y);
+            }
+            if (effect.x > 18.5 && effect.x < 19.5 && effect.y > 0) // Chromatic rift
+            {
+                float angle = extras.x * 0.01745329252;
+                float2 axis = float2(cos(angle), sin(angle));
+                float drive = 1;
+                if (extras.y > 0 && motion.y > 0.5)
+                {
+                    drive += saturate(length(colour - readPrior(uv, isYuv)) * 3) * extras.y * 0.025;
+                }
+                float2 shift = axis * effect.y * drive * 0.012 * pointer.w / float2(effect.w, 1);
+                float3 red = readColour(uv + shift, isYuv);
+                float3 blue = readColour(uv - shift, isYuv);
+                colour = float3(red.r, colour.g, blue.b);
+            }
+            if (effect.x > 19.5 && effect.x < 20.5 && effect.y > 0) // Oil-paint sectors
+            {
+                // Three samples in each radial sector plus the centre. Pick the lowest
+                // luminance variance, retaining locally consistent colour. At most 24 taps.
+                int count = (int)clamp(extras.x, 4, 8);
+                float2 texel = max(fwidth(uv), float2(0.00018, 0.00018));
+                float radius = 1 + pointer.w * 5;
+                float sharpness = 0.8 + extras.y * 0.03;
+                float bestScore = 1e9;
+                float3 chosen = colour;
+                float luma0 = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                [loop] for (int sector = 0; sector < 8; sector++)
+                {
+                    if (sector >= count) break;
+                    float angle = (sector + 0.5) * 6.28318530718 / count;
+                    float2 ray = float2(cos(angle), sin(angle)) * texel * radius;
+                    float2 crossRay = float2(-ray.y, ray.x);
+                    float3 a = readColour(uv + ray * 0.4, isYuv);
+                    float3 b = readColour(uv + ray + crossRay * 0.3, isYuv);
+                    float3 d = readColour(uv + ray - crossRay * 0.3, isYuv);
+                    float3 mean = (colour + a + b + d) * 0.25;
+                    float3 weight = float3(0.2126, 0.7152, 0.0722);
+                    float l1 = dot(a, weight), l2 = dot(b, weight), l3 = dot(d, weight);
+                    float average = (luma0 + l1 + l2 + l3) * 0.25;
+                    float variance = (luma0 * luma0 + l1 * l1 + l2 * l2 + l3 * l3) * 0.25 - average * average;
+                    float score = variance * sharpness + abs(average - luma0) * 0.02;
+                    if (score < bestScore)
+                    {
+                        bestScore = score;
+                        chosen = mean;
+                    }
+                }
+                colour = lerp(colour, chosen, effect.y);
+            }
+            if (effect.x > 20.5 && effect.x < 21.5 && effect.y > 0) // Procedural glyph mosaic
+            {
+                float rows = lerp(110, 23, saturate((pointer.w - 0.25) / 1.5));
+                float2 cells = float2(rows * effect.w * 0.54, rows);
+                float2 cellId = floor(uv * cells);
+                float2 local = frac(uv * cells);
+                float3 sampled = readColour((cellId + 0.5) / cells, isYuv);
+                float grey = dot(sampled, float3(0.2126, 0.7152, 0.0722));
+                float vertical = 1 - smoothstep(0.08, 0.15, abs(local.x - 0.5));
+                float cross = 1 - smoothstep(0.08, 0.15, abs(local.y - 0.5));
+                float diagonal = 1 - smoothstep(0.08, 0.15, abs(local.x - local.y));
+                float rim = 1 - smoothstep(0.07, 0.13,
+                    min(min(local.x, 1 - local.x), min(local.y, 1 - local.y)));
+                float glyph = grey < 0.20 ? rim : grey < 0.45 ? max(vertical, cross)
+                    : grey < 0.70 ? diagonal : grey < 0.89 ? vertical : 0;
+                glyph = saturate(glyph * (0.7 + extras.x * 0.006));
+                float3 palette = extras.y < 0.5 ? float3(0.28, 1, 0.48)
+                    : extras.y < 1.5 ? float3(1, 0.72, 0.27)
+                    : extras.y < 2.5 ? float3(0.18, 0.16, 0.13) : sampled;
+                float3 paper = extras.y > 1.5 && extras.y < 2.5 ? float3(0.94, 0.91, 0.80) : float3(0.025, 0.03, 0.045);
+                colour = lerp(colour, lerp(paper, palette, glyph), effect.y);
+            }
+            if (effect.x > 21.5 && effect.x < 22.5 && effect.y > 0) // Thermal mapping
+            {
+                float temperature = saturate(dot(colour, float3(0.2126, 0.7152, 0.0722))
+                    * (extras.x * 0.01) + (1 - extras.x * 0.01) * 0.5);
+                float3 heat = temperature < 0.33
+                    ? lerp(float3(0.02, 0.01, 0.08), float3(0.43, 0.03, 0.42), temperature / 0.33)
+                    : temperature < 0.66
+                    ? lerp(float3(0.43, 0.03, 0.42), float3(1, 0.40, 0.05), (temperature - 0.33) / 0.33)
+                    : lerp(float3(1, 0.40, 0.05), float3(1, 1, 0.82), (temperature - 0.66) / 0.34);
+                if (extras.y > 0.5 && extras.y < 1.5)
+                    heat = 0.5 + 0.5 * cos((1 - temperature) * 6.2831853 + float3(0, 2.094, 4.189));
+                else if (extras.y > 1.5 && extras.y < 2.5)
+                    heat = lerp(float3(0.01, 0.07, 0.18), float3(0.82, 1, 0.93), temperature);
+                else if (extras.y > 2.5)
+                    heat = float3(temperature, temperature, temperature);
+                float edges = length(pictureGradient(uv, isYuv));
+                heat = saturate(heat + edges * (pointer.w - 0.25) * 0.20);
+                colour = lerp(colour, heat, effect.y);
+            }
+            if (effect.x > 22.5 && effect.x < 23.5 && effect.y > 0) // Tape wear
+            {
+                float row = floor(uv.y * 480);
+                float epoch = floor(effect.z * 23);
+                float noise = frac(sin(row * 19.13 + epoch * 7.13) * 43758.545);
+                float tracking = (noise * 2 - 1) * effect.y * pointer.w * 0.018;
+                float2 shifted = saturate(uv + float2(tracking, 0));
+                float3 shiftedColour = readColour(shifted, isYuv);
+                float bleed = extras.x * 0.00008 * effect.y;
+                float3 neighbour = readColour(shifted + float2(bleed, 0), isYuv);
+                float head = 1 - smoothstep(0.001, 0.018,
+                    abs(uv.y - (0.94 + 0.03 * sin(effect.z * 1.5)))) ;
+                float speckle = frac(sin(dot(uv * 1900 + epoch, float2(12.9898, 78.233))) * 43758.5453);
+                float3 worn = float3(neighbour.r, shiftedColour.g, shiftedColour.b)
+                    * (1 - head * extras.y * 0.006) + (speckle - 0.5) * effect.y * 0.08;
+                colour = lerp(colour, saturate(worn), effect.y);
+            }
+            if (effect.x > 23.5 && effect.x < 24.5 && effect.y > 0) // Bounded pixel sort
+            {
+                float2 direction = extras.y < 0.5 ? float2(0, 1)
+                    : extras.y < 1.5 ? float2(0, -1)
+                    : extras.y < 2.5 ? float2(1, 0) : float2(-1, 0);
+                float2 pixel = max(fwidth(uv), float2(0.00018, 0.00018));
+                float threshold = saturate(pointer.w * 0.45);
+                float bestBrightness = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                float3 best = colour;
+                [unroll] for (int i = 1; i <= 8; i++)
+                {
+                    float2 target = uv + direction * pixel * (i * extras.x * 0.018);
+                    float3 sampleColour = readColour(target, isYuv);
+                    float lum = dot(sampleColour, float3(0.2126, 0.7152, 0.0722));
+                    if (lum > threshold && lum > bestBrightness)
+                    {
+                        best = sampleColour;
+                        bestBrightness = lum;
+                    }
+                }
+                colour = lerp(colour, best, effect.y);
+            }
+            if (effect.x > 24.5 && effect.x < 25.5 && effect.y > 0) // Motion smear
+            {
+                if (motion.y > 0.5)
+                {
+                    float2 blocks = float2(14 + extras.y * 0.45, 10 + extras.y * 0.25);
+                    float2 tile = floor(uv * blocks);
+                    float epoch = floor(effect.z * 12);
+                    float random = frac(sin(dot(tile + epoch, float2(12.9898, 78.233))) * 43758.5453);
+                    float2 offset = float2((random - 0.5) * 0.065 * effect.y, 0);
+                    float3 previous = readPrior(uv + offset, isYuv);
+                    float delta = length(colour - previous);
+                    float gate = smoothstep(0.03 * pointer.w, 0.20 * pointer.w, delta);
+                    colour = lerp(colour, previous, gate * effect.y * extras.x * 0.01);
+                }
             }
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {
