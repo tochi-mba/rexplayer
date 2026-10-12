@@ -370,6 +370,10 @@ public sealed class VisualStageTests
         Assert.Equal((800, 450), VisualStage.SizeFor(800, 450, scale: double.NaN));
         Assert.Equal((1920, 1080), VisualStage.SizeFor(3840, 2160, quality: double.NaN));
         Assert.Equal((768, 432), VisualStage.SizeFor(3840, 2160, quality: -100));
+        Assert.Equal((400, 225), VisualStage.SizeFor(800, 450, quality: 0.5));
+        Assert.Equal((600, 338), VisualStage.SizeFor(800, 450, quality: 0.5, scale: 1.5));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(800, 450, scale: double.MaxValue));
+        Assert.Equal((1920, 960), VisualStage.SizeFor(double.MaxValue, double.MaxValue / 2, scale: 2));
 
         var stage = Stage(96, 54);
         Assert.Equal(1, stage.Quality);

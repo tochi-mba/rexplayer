@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.16.0 - 2026-10-12
+
+### Added
+
+- **Updates without the waiting.** rexplayer looks for a new version by itself every day,
+  downloads it quietly in the background and checks it against its published checksum.
+  An update bar then offers Restart now (you come back paused at the same place), Install
+  when I close rexplayer, Install tonight, Remind me later or Skip this version, with what's
+  new. It never appears over full-screen playback.
+- **Choose how updates install.** Preferences, Updates: install by itself when rexplayer is
+  not in use, download and ask, or only tell me. Preferences also shows the update's
+  progress and what the last update brought. A cancelled install reopens rexplayer where
+  you were.
+
+### Improved
+
+- **Library.** The selection survives sorting, filtering and scans; an opened show, season
+  or album never shows stale items; reversed orders keep ties in order; Open containing
+  folder works for every selected item.
+- **Keyboard.** Arrow, Enter, Delete and selection keys work inside a focused library or
+  playlist instead of seeking or changing the volume, while Space still plays and pauses.
+  Escape closes the Subject Lock panel, and input inside the panel no longer moves the
+  picture.
+- **Episode sections.** An unreadable episode no longer stops analysis of the others, and
+  duplicate copies of one episode no longer count as separate evidence.
+- **Visualisations and effects.** Adaptive quality now works at every window size, and an
+  effect at zero strength stops keeping a copy of the previous frame.
+
 ## 0.15.11 - 2026-10-12
 
 ### Added

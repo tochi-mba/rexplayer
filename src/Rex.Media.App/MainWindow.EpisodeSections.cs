@@ -136,6 +136,7 @@ public sealed partial class MainWindow
             return;
         }
 
+        var editingItem = _player.Item;
         var confirmed = _player.CurrentSections;
         var proposed = _player.CurrentProposals?.Best(kind, _player.Duration);
         var start = kind == EpisodeSectionKind.Intro ? confirmed.IntroStart : confirmed.CreditsStart;
@@ -179,7 +180,15 @@ public sealed partial class MainWindow
         });
         if (await Ask("Adjust " + label.ToLowerInvariant(), panel, "Save boundaries", "Cancel"))
         {
-            if (!_player.SetSectionBounds(kind, TimeSpan.FromSeconds(startInput.Value),
+            if (!ReferenceEquals(editingItem, _player.Item))
+            {
+                return;
+            }
+
+            if (!double.IsFinite(startInput.Value) || !double.IsFinite(endInput.Value) ||
+                startInput.Value < 0 || startInput.Value > _player.Duration.TotalSeconds ||
+                endInput.Value < 0 || endInput.Value > _player.Duration.TotalSeconds ||
+                !_player.SetSectionBounds(kind, TimeSpan.FromSeconds(startInput.Value),
                     TimeSpan.FromSeconds(endInput.Value)))
             {
                 Say("The end must follow the start by at least two seconds and stay inside the video.");
@@ -192,6 +201,7 @@ public sealed partial class MainWindow
     /// <summary>Chapter names are hints only. The viewer approves the actual intervals before saving.</summary>
     private async Task ConfirmChapterSuggestionsAsync()
     {
+        var editingItem = _player.Item;
         if (_player.ChapterSectionSuggestions is not { } found)
         {
             Say("No unambiguous intro or credits chapters were found. You can mark the sections manually.");
@@ -211,7 +221,8 @@ public sealed partial class MainWindow
                 "These are suggestions from chapter labels in this file, not scene analysis. Existing markers remain unchanged. Nothing is skipped automatically.",
             TextWrapping = TextWrapping.Wrap,
         };
-        if (await Ask("Save the suggested section markers?", description, "Save markers", "Cancel"))
+        if (await Ask("Save the suggested section markers?", description, "Save markers", "Cancel") &&
+            ReferenceEquals(editingItem, _player.Item))
         {
             _player.ApplyChapterSectionSuggestions();
             ShowEpisodeSkip();

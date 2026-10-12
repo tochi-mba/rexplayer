@@ -19,7 +19,8 @@ public static class SectionDetector
 
         var related = siblings.Where(other => other.Path != episode.Path &&
             EpisodeGrouping.Identify(other.Path) is { } match &&
-            match.Season == identity.Season && match.Show == identity.Show).ToArray();
+            match.Season == identity.Season && match.Show == identity.Show && match.Episode != identity.Episode)
+            .DistinctBy(other => EpisodeGrouping.Identify(other.Path)!.Episode).ToArray();
         var result = new List<SectionCandidate>();
         var intros = new List<LandmarkMatch>();
         var endings = new List<LandmarkMatch>();
@@ -52,15 +53,17 @@ public static class SectionDetector
         {
             var score = ending.Confidence;
             var end = ending.End;
+            var source = "shared audio";
             if (video is { } visual && Overlap(ending.Start, ending.End, visual.Start, visual.End) >= 0.45)
             {
                 score = Math.Min(0.99, score + 0.08);
+                source = "shared audio + frames";
                 // Preserve a post-credit scene; only refine the end inside the actual evidence.
                 end = TimeSpan.FromTicks(Math.Min(ending.End.Ticks, visual.End.Ticks));
             }
 
             result.Add(new SectionCandidate(EpisodeSectionKind.Credits, ending.Start, end,
-                score, $"Shared ending audio across {ending.Support + 1} episodes", "shared audio + frames"));
+                score, $"Shared ending audio across {ending.Support + 1} episodes", source));
         }
         else if (video is { } visual && visual.Confidence >= SectionProposals.OfferThreshold)
         {

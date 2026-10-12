@@ -68,15 +68,15 @@ public static class VideoEffects
     /// Whether the effect, with its fourth option at this value, reads the previous frame. Only
     /// then does the renderer keep a copy of the last picture on the graphics card: Ghostwire
     /// motion in its hybrid and motion modes, Motion smear always, and Chromatic rift only while
-    /// its motion drive is above zero.
+    /// its motion drive is above zero. A zero normalized strength disables history entirely.
     /// </summary>
-    public static bool UsesHistory(VideoEffect effect, int fourth) => effect switch
+    public static bool UsesHistory(VideoEffect effect, int fourth, float strength = 1) => strength > 0 && (effect switch
     {
         VideoEffect.GhostwireMotion => fourth is 0 or 2,
         VideoEffect.MotionSmear => true,
         VideoEffect.ChromaticRift => fourth > 0,
         _ => false,
-    };
+    });
 
     public static int Strength(int percent) => Math.Clamp(percent, 0, 100);
 }

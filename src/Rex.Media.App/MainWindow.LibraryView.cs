@@ -58,6 +58,7 @@ public sealed partial class MainWindow
     private string _libraryViewKey = "";
     private string _shownLook = "";
     private string _shownHero = "";
+    private string _selectionView = "";
     private long _heroRequest;
     private bool _settingCardSize;
 
@@ -105,6 +106,11 @@ public sealed partial class MainWindow
 
         var entries = _library.Entries;
         var search = LibrarySearch.Text.Trim();
+        var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
+        var selected = selectionView == _selectionView
+            ? SelectedLibraryRows().Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : [];
+        _selectionView = selectionView;
         var source = search.Length > 0 ? (LibrarySource?)null : _librarySource;
         _libraryViewKey = ViewKey(search.Length > 0);
         var choice = ViewChoice(_libraryViewKey);
@@ -137,27 +143,27 @@ public sealed partial class MainWindow
         else if (_libraryGroup is { } opened)
         {
             // The group again, as the library has it now.
-            var fresh = Groups(_librarySource, entries).FirstOrDefault(g => g.Name == opened.Name && g.Detail == opened.Detail);
+            var fresh = LibraryViews.RefreshGroup(Groups(_librarySource, entries), opened, _librarySource == LibrarySource.Albums);
             _libraryGroup = fresh;
             kicker = _librarySource switch { LibrarySource.Albums => "ALBUM", LibrarySource.Artists => "ARTIST", LibrarySource.TvShows when _librarySeason is not null => "SEASON", LibrarySource.TvShows => "TV SHOW", _ => "GENRE" };
-            title = fresh?.Name ?? opened.Name;
-            var members = fresh?.Entries ?? [];
+            title = fresh.Name;
+            var members = fresh.Entries;
             if (_librarySource == LibrarySource.TvShows)
             {
                 kind = LibraryKind.Video;
                 if (_librarySeason is { } openedSeason)
                 {
-                    var season = LibraryViews.TvSeasons(fresh ?? opened).FirstOrDefault(item => item.Name == openedSeason.Name);
+                    var season = LibraryViews.RefreshGroup(LibraryViews.TvSeasons(fresh), openedSeason);
                     _librarySeason = season;
-                    title = season is null ? title : title + " · " + season.Name;
-                    subtitle = season?.Detail ?? "No episodes";
-                    sections = EntrySections(season?.Entries ?? [], choice);
+                    title += " · " + season.Name;
+                    subtitle = Count(season.Entries.Count, "episode");
+                    sections = EntrySections(season.Entries, choice);
                 }
                 else
                 {
-                    var seasons = LibraryViews.TvSeasons(fresh ?? opened);
+                    var seasons = LibraryViews.TvSeasons(fresh);
                     sections = [new LibraryRowGroup("", seasons.Select(GroupRow))];
-                    subtitle = fresh?.Detail ?? "No seasons";
+                    subtitle = Count(seasons.Count, "season");
                     groupsView = true;
                 }
             }
@@ -242,6 +248,7 @@ public sealed partial class MainWindow
             LibraryList.ItemsSource = null;
             LibraryList.GroupStyle.Clear();
             LibraryCollage.ItemsSource = _libraryRows;
+            RestoreLibrarySelection(selected, collage: true);
             return;
         }
 
@@ -255,6 +262,38 @@ public sealed partial class MainWindow
         else
         {
             LibraryList.ItemsSource = _libraryRows;
+        }
+
+        RestoreLibrarySelection(selected, collage: false);
+    }
+
+    private string SelectionIdentity(LibraryRow row) => row.Item switch
+    {
+        LibraryEntry entry => "file:" + entry.Path,
+        LibraryGroup group => "group:" + group.Name + "\n" + (_librarySource == LibrarySource.Albums ? group.Detail : null),
+        Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
+        _ => "folder:" + row.Item,
+    };
+
+    /// <summary>Sorting, layout changes and scan refreshes retain the selection of surviving items.</summary>
+    private void RestoreLibrarySelection(HashSet<string> selected, bool collage)
+    {
+        for (var index = 0; index < _libraryRows.Count; index++)
+        {
+            var row = _libraryRows[index];
+            if (!selected.Contains(SelectionIdentity(row)))
+            {
+                continue;
+            }
+
+            if (collage)
+            {
+                LibraryCollage.Select(index);
+            }
+            else
+            {
+                LibraryList.SelectedItems.Add(row);
+            }
         }
     }
 

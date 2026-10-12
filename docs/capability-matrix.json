@@ -2745,7 +2745,7 @@
       "id": "TOOL-09",
       "area": "Tools, interfaces, extensions & CLI",
       "name": "Updater",
-      "details": "Weekly check (off / daily / weekly), in-window notice, download + sha256 verify, install on consent at exit, release notes shown",
+      "details": "Automatic check (off / daily / weekly), background resumable download + sha256 verify, install automatically, on close, tonight or now with the session restored paused, remind / skip, release notes shown",
       "milestone": "M4",
       "priority": "should",
       "oracles": "NET (FakeOrigin)",

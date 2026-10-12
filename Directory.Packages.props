@@ -10,7 +10,7 @@
        own. RepositoryTests fail if this group gains an entry the ADR does not list. -->
   <ItemGroup Label="Product">
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
-    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.346" />
+    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.360" />
   </ItemGroup>
 
   <!-- Tests and developer tools. None of these reach the installer. -->
