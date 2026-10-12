@@ -128,6 +128,21 @@ public sealed class LibraryControllerActionsTests
     }
 
     [Fact]
+    public void ForgettingAnActivelyPlayingFileStopsTheSessionAndRemovesQueueReferences()
+    {
+        using var test = Harness(autoPlay: true);
+        var controller = test.Controller;
+        controller.Open(["a.wav", "b.wav"]);
+        test.PumpUntil(c => c.State == SessionState.Playing && c.Item?.Location == "a.wav");
+        Assert.Equal(2, controller.Playlist.Items.Count);
+        controller.ForgetDeleted(["a.wav"]);
+        Assert.Null(controller.Item);
+        Assert.NotEqual(SessionState.Playing, controller.State);
+        Assert.DoesNotContain(controller.Playlist.Items, item => item.Location == "a.wav");
+        Assert.Single(controller.Playlist.Items);
+    }
+
+    [Fact]
     public void PausingAnActiveItemDoesNotRestartItOrChangeItsPosition()
     {
         using var test = Harness(autoPlay: true);
