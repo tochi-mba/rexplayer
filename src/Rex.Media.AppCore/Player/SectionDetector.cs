@@ -47,7 +47,8 @@ public static class SectionDetector
         var related = siblings.Where(other => other.Path != episode.Path &&
             EpisodeGrouping.Identify(other.Path) is { } match &&
             match.Season == identity.Season && match.Show == identity.Show &&
-            match.Episode != identity.Episode).ToArray();
+            match.Episode != identity.Episode)
+            .DistinctBy(other => EpisodeGrouping.Identify(other.Path)!.Episode).ToArray();
         var intros = new List<(int Sibling, LandmarkMatch Match)>();
         var endings = new List<(int Sibling, LandmarkMatch Match)>();
         var openingSpan = SectionAnalysis.OpeningSpan(episode.Duration);
