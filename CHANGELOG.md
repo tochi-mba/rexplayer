@@ -1,8 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.18.0 - 2026-10-12
+
+### Added
+
+- **Episode skip controls.** Dedicated Next episode and Cancel automatic skip actions, markers
+  for detected intros and credits on the seek bar, and ways to review, correct or reject a
+  proposed boundary.
+- **Rebuilt Subject Lock removal.** A subject matte, motion-compensated background plate and
+  texture-aware reconstruction remove selected regions while preserving the original source.
 
 ### Improved
+
+- **Episode section detection.** Intro and credits analysis now handles cold opens, recaps,
+  shortened titles, sparse keyframes, end-credit gags and post-credits scenes more carefully.
+  Background analysis cancels safely when a different episode opens.
+- **Subject Lock removal refinement.** Mask tolerance, edge growth and feathering are adjustable;
+  previews retain the observed background without treating a repeated frame as new evidence.
 
 - **Contour effects find subtle outlines.** Neon contours, Ink trace, Chromatic contours and
   the three Ghostwire styles now measure edges against the picture's own noise, at three scales
