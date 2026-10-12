@@ -216,7 +216,7 @@ public sealed class MusicPulse
         _kick.Hear(Rise(ref _bassDb, _bassRaw), _bassPower, dt, listening);
         if (_kick.Hit)
         {
-            _bass = 1;
+            (_bass, _loudness) = (1, 1);
         }
 
         Punching(dt, bassBefore);
@@ -380,7 +380,9 @@ public sealed class MusicPulse
         _bass = Envelope(_bass, 0.38f * _bassRange.Map(_bassRaw, dt), dt, 0.065);
         _mid = Envelope(_mid, _midRange.Map(_midRaw, dt), dt, 0.12);
         _treble = Envelope(_treble, _trebleRange.Map(_trebleRaw, dt), dt, 0.06);
-        _loudness = Envelope(_loudness, _loudnessRange.Map(whole, dt), dt, 0.09);
+        // Keep the background mix responsive without letting its continuous level
+        // conceal a kick in the visualisations; the kick itself reaches full scale.
+        _loudness = Envelope(_loudness, 0.38f * _loudnessRange.Map(whole, dt), dt, 0.09);
         LongLoudness += (_loudness - LongLoudness) * (float)Math.Min(1, dt / 4);
 
     }
