@@ -26,6 +26,7 @@ public sealed partial class MainWindow
     [
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
+            CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
             CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
             CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
