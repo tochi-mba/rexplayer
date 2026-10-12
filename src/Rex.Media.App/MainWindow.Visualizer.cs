@@ -34,11 +34,18 @@ public sealed partial class MainWindow
     /// <summary>How long a camera that failed to start is left before it is tried again.</summary>
     private static readonly TimeSpan CameraRetry = TimeSpan.FromSeconds(4);
 
-    private readonly float[] _soundLeft = new float[SpectrumAnalyzer.Size];
-    private readonly float[] _soundRight = new float[SpectrumAnalyzer.Size];
+    /// <summary>
+    /// How long after a frame is begun it is on screen, beyond the frame itself: the window's
+    /// composition, and the middle of the few milliseconds the levels are measured over. The sound
+    /// is read that far ahead, so the picture moves with what is heard as it shows.
+    /// </summary>
+    private static readonly TimeSpan ShownAfter = TimeSpan.FromMilliseconds(16 + (MusicPulse.Window * 1000 / 2));
+
+    private readonly float[] _soundLeft = new float[VisualStage.SoundSize];
+    private readonly float[] _soundRight = new float[VisualStage.SoundSize];
     private readonly float[] _soundMono = new float[SpectrumAnalyzer.Size];
-    private readonly float[] _stageLeft = new float[SpectrumAnalyzer.Size];
-    private readonly float[] _stageRight = new float[SpectrumAnalyzer.Size];
+    private readonly float[] _stageLeft = new float[VisualStage.SoundSize];
+    private readonly float[] _stageRight = new float[VisualStage.SoundSize];
     private readonly SpectrumAnalyzer _spectrogramBands = new(SpectrogramRows);
     private readonly LevelMeter _meterLeft = new();
     private readonly LevelMeter _meterRight = new();
@@ -466,17 +473,20 @@ public sealed partial class MainWindow
             return;
         }
 
-        // About thirty pictures a second is smooth for this, and spares the processor.
+        // Sixty pictures a second while the stage draws quickly, so a beat shows within a frame of
+        // being heard; thirty otherwise, and for the shapes, which spares the processor.
         var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
         var elapsed = now - _lastDrawn;
-        if (elapsed < TimeSpan.FromMilliseconds(30) && elapsed >= TimeSpan.Zero)
+        var fast = _visualStage is { DrawMilliseconds: < 12 } && _builtFor is { } built && VisualScene.Draws(built);
+        var interval = TimeSpan.FromMilliseconds(fast ? 15 : 30);
+        if (elapsed < interval && elapsed >= TimeSpan.Zero)
         {
             return;
         }
 
         _lastDrawn = now;
-        elapsed = elapsed < TimeSpan.Zero || elapsed > TimeSpan.FromSeconds(1) ? TimeSpan.FromMilliseconds(30) : elapsed;
-        if (!_player.ReadSound(_soundLeft, _soundRight))
+        elapsed = elapsed < TimeSpan.Zero || elapsed > TimeSpan.FromSeconds(1) ? interval : elapsed;
+        if (!_player.ReadSound(_soundLeft, _soundRight, interval + ShownAfter))
         {
             Array.Clear(_soundLeft);
             Array.Clear(_soundRight);
@@ -489,13 +499,13 @@ public sealed partial class MainWindow
             return;
         }
 
-        // Sensitivity: quiet music can fill the picture, loud music can be calmed.
+        // Sensitivity: quiet music can fill the picture, loud music can be calmed. The shapes draw
+        // the newest of the sound read.
         var gain = (float)Option(VisualizerOptions.Sensitivity);
+        var skip = _soundLeft.Length - _soundMono.Length;
         for (var i = 0; i < _soundMono.Length; i++)
         {
-            _soundLeft[i] = Math.Clamp(_soundLeft[i] * gain, -1, 1);
-            _soundRight[i] = Math.Clamp(_soundRight[i] * gain, -1, 1);
-            _soundMono[i] = (_soundLeft[i] + _soundRight[i]) / 2;
+            _soundMono[i] = (Math.Clamp(_soundLeft[skip + i] * gain, -1, 1) + Math.Clamp(_soundRight[skip + i] * gain, -1, 1)) / 2;
         }
 
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
@@ -519,7 +529,13 @@ public sealed partial class MainWindow
                 break;
             case VisualizerChoice.Meters:
                 // A meter shows what has just been heard: the newest twentieth of a second.
-                var recent = Math.Min(_soundLeft.Length, Math.Max(64, rate / 20));
+                var recent = Math.Min(_soundMono.Length, Math.Max(64, rate / 20));
+                for (var i = _soundLeft.Length - recent; i < _soundLeft.Length; i++)
+                {
+                    _soundLeft[i] = Math.Clamp(_soundLeft[i] * gain, -1, 1);
+                    _soundRight[i] = Math.Clamp(_soundRight[i] * gain, -1, 1);
+                }
+
                 _meterLeft.Update(_soundLeft.AsSpan(^recent..), elapsed);
                 _meterRight.Update(_soundRight.AsSpan(^recent..), elapsed);
                 foreach (var (meter, at) in new[] { (_meterLeft, 0), (_meterRight, 3) })

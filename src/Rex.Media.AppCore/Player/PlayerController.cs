@@ -177,8 +177,11 @@ public sealed partial class PlayerController : IDisposable
     /// <summary>The sample rate of the sound <see cref="ReadSound"/> gives, or 0 before any has played.</summary>
     public int SoundSampleRate => _session?.Scope.SampleRate ?? 0;
 
-    /// <summary>The sound being heard now, newest samples last, for visualisations; false when there is none.</summary>
-    public bool ReadSound(Span<float> left, Span<float> right) => _session?.ReadSound(left, right) ?? false;
+    /// <summary>
+    /// The sound being heard now, or <paramref name="lead"/> from now, newest samples last, for
+    /// visualisations; false when there is none.
+    /// </summary>
+    public bool ReadSound(Span<float> left, Span<float> right, TimeSpan lead = default) => _session?.ReadSound(left, right, lead) ?? false;
 
     /// <summary>The engine's counters for what is playing, or null when nothing is.</summary>
     public Task<SessionStats?> StatsAsync() =>

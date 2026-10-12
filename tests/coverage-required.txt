@@ -1,6 +1,7 @@
 # Source files that must keep 100 % line coverage in the pure suite (tests/Rex.Media.Tests).
 # Every .cs file in a portable project is listed; RepositoryTests fail if one is missing.
 AacConfig.cs
+AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
 Ass.cs
@@ -16,6 +17,9 @@ AudioScope.cs
 AuroraScene.cs
 AutomationPipe.cs
 AvcConfig.cs
+BandEnergy.cs
+BandLayout.cs
+BeatClock.cs
 BeatEditScene.cs
 BitReader.cs
 BitWriter.cs

@@ -1,7 +1,8 @@
 namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
-/// A colour strobe (AU-18): light that flashes on the beat in a pattern (the whole stage, halves
+/// A colour strobe (AU-18): light that flashes on the beat (heard, or kept by the beat clock where
+/// the mix hides it, so it strobes in time) in a pattern (the whole stage, halves
 /// that trade places, bars that step along, rays from the middle, or a chequerboard that swaps),
 /// coloured by the pitch or stepping through the palette beat by beat, fading between flashes to a
 /// glow that follows the loudness. It never flashes more often than its setting allows (three a
@@ -24,9 +25,9 @@ public sealed class StrobeScene : VisualScene
         var dt = context.Dt;
         _sinceFlash += dt;
         _flash = Math.Max(0, _flash - (dt / context.Number("fade")));
-        if ((pulse.Kick.Hit || (pulse.Snare.Hit && pulse.Snare.Strength > 0.7f)) && _sinceFlash >= 1 / context.Number("flashes"))
+        if ((pulse.Beat || (pulse.Snare.Hit && pulse.Snare.Strength > 0.7f)) && _sinceFlash >= 1 / context.Number("flashes"))
         {
-            _flash = 1;
+            _flash = pulse.Beat ? 0.55 + (0.45 * pulse.BeatStrength) : 0.8;
             _sinceFlash = 0;
             _flashes++;
         }

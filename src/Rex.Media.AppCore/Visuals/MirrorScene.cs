@@ -16,7 +16,7 @@ public sealed class MirrorScene : VisualScene
         var canvas = context.Canvas;
         var (w, h) = (canvas.Width, canvas.Height);
         var mid = h / 2.0;
-        canvas.Feedback((float)context.Number("trails"), 1.0 + (context.Pulse.Bass * 0.02), 0, 0, 0);
+        canvas.Feedback((float)context.Number("trails"), 1.0 + (context.Pulse.Bass * 0.01) + (context.Pulse.Punch * 0.03), 0, 0, 0);
         var columns = (int)context.Number("columns");
         var stereo = context.Toggle("stereo");
         var (top, bottom) = (_top, _bottom);
@@ -41,7 +41,8 @@ public sealed class MirrorScene : VisualScene
         var edge = context.Paint(context.Pulse.Pitch);
         canvas.Path(top, context.Number("thickness"), edge, 0.9f, 1.5);
         canvas.Path(bottom, context.Number("thickness"), edge, 0.9f, 1.5);
-        canvas.Line(0, mid, w, mid, 1 + (3 * context.Pulse.Kick.Level), edge, 0.15f + (context.Pulse.Kick.Level * 0.8f), 3);
+        var punch = Math.Max(context.Pulse.Kick.Level, context.Pulse.Punch);
+        canvas.Line(0, mid, w, mid, 1 + (h * 0.02 * punch), edge, 0.15f + (punch * 1.2f), 3);
         canvas.Bloom(0.4f, 0.7f, 4);
     }
 

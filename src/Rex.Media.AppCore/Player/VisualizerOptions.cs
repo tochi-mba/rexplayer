@@ -59,6 +59,9 @@ public static class VisualizerOptions
     public const string Color = "color";
     public const string Sensitivity = "sensitivity";
 
+    /// <summary>The beat meter along the bottom of the visualisations drawn in software.</summary>
+    public const string Meter = "meter";
+
     private static readonly string[] PaletteNames = ["Windows' accent", "Follow the pitch", "A rainbow", "Warm", "Cool", "One colour", "Neon", "Fire", "Aurora", "Ocean", "Sunset"];
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<VisualizerChoice, IReadOnlyList<VisualOption>> Made = new();
@@ -74,6 +77,11 @@ public static class VisualizerOptions
             new(Color, "Its own colour (with One colour)", VisualOptionKind.Color, 0xFF3B30),
             new(Sensitivity, "Sensitivity", VisualOptionKind.Number, 1, 0.25, 4),
         ];
+        if (Visuals.VisualScene.Draws(choice))
+        {
+            options.Add(new(Meter, "Show the beat meter (what the music is heard as)", VisualOptionKind.Toggle, 0));
+        }
+
         options.AddRange(choice switch
         {
             VisualizerChoice.Spectrum =>

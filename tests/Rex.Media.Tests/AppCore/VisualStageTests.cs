@@ -35,7 +35,7 @@ public sealed class VisualStageTests
     public void NonFiniteAudioCannotPoisonTheStage(int sampleRate)
     {
         var stage = Stage();
-        var samples = Enumerable.Repeat(float.NaN, Rex.Media.Audio.SpectrumAnalyzer.Size).ToArray();
+        var samples = Enumerable.Repeat(float.NaN, VisualStage.SoundSize).ToArray();
         samples[0] = float.PositiveInfinity;
         samples[1] = float.NegativeInfinity;
         for (var i = 0; i < 5; i++)
@@ -203,6 +203,22 @@ public sealed class VisualStageTests
         }
 
         Assert.True(r > g && r > b, $"{choice} drew red {r}, green {g}, blue {b}.");
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void ResonanceRingsExpireAfterTheDrumsStop()
+    {
+        var stage = Stage();
+        Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 2));
+        var scene = Assert.IsType<ResonanceScene>(SceneOf(stage));
+        var waves = (System.Collections.ICollection)typeof(ResonanceScene)
+            .GetField("_waves", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(scene)!;
+        Assert.True(waves.Count > 0);
+
+        Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 5, silence: true));
+        Assert.Empty(waves);
     }
 
     [Fact]
