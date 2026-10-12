@@ -155,6 +155,11 @@ public sealed class SectionDetectionControllerTests
         var maybeSkip = typeof(PlayerController).GetMethod("MaybeSkipAutomatically",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
         maybeSkip.Invoke(player, null);
+        // An automatic skip counts down first, never past a second before the section ends.
+        Assert.Equal(TimeSpan.FromSeconds(1), player.Position);
+        Assert.Equal(1, player.SkipPrompt!.AutomaticInSeconds);
+        player.Seek(TimeSpan.FromSeconds(2.5));
+        maybeSkip.Invoke(player, null);
         Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
         Assert.False(player.Settings.SkipCreditsAutomatically);
         player.Seek(TimeSpan.FromSeconds(7));

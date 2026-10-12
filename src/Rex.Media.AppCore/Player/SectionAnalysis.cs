@@ -13,12 +13,29 @@ namespace Rex.Media.AppCore.Player;
 /// </summary>
 public static class SectionAnalysis
 {
+    /// <summary>
+    /// The version of the features and of the detector that reads them. It is part of every
+    /// signature, so a newer rexplayer analyses again instead of trusting an older cache.
+    /// </summary>
+    public const int FeatureVersion = 2;
+
     /// <summary>Content identity for invalidating a cached recording after it changes on disk.</summary>
     public static string SignatureOf(string path)
     {
         var info = new FileInfo(path);
-        return string.Create(CultureInfo.InvariantCulture, $"{info.Length}:{info.LastWriteTimeUtc.Ticks}");
+        return string.Create(CultureInfo.InvariantCulture, $"v{FeatureVersion}:{info.Length}:{info.LastWriteTimeUtc.Ticks}");
     }
+
+    /// <summary>
+    /// How much of the start is searched for a title sequence: twelve minutes, so a long cold open
+    /// still leaves the intro inside, but never more than 35 % of a short episode.
+    /// </summary>
+    public static TimeSpan OpeningSpan(TimeSpan duration) =>
+        TimeSpan.FromTicks(Math.Min(TimeSpan.FromMinutes(12).Ticks, duration.Ticks / 100 * 35));
+
+    /// <summary>How much of the end is searched for credits: six minutes, at most 40 % of the file.</summary>
+    public static TimeSpan ClosingSpan(TimeSpan duration) =>
+        TimeSpan.FromTicks(Math.Min(TimeSpan.FromMinutes(6).Ticks, duration.Ticks / 10 * 4));
 
     public static EpisodeAnalysis Analyze(string path, DecoderRegistry decoders, CancellationToken cancellationToken)
     {
@@ -34,9 +51,8 @@ public static class SectionAnalysis
             return new EpisodeAnalysis(path, signature, duration, [], [], []);
         }
 
-        var opening = FingerprintWindow(path, decoders, TimeSpan.Zero,
-            TimeSpan.FromMinutes(8), cancellationToken);
-        var endStart = duration > TimeSpan.FromMinutes(6) ? duration - TimeSpan.FromMinutes(6) : TimeSpan.Zero;
+        var opening = FingerprintWindow(path, decoders, TimeSpan.Zero, OpeningSpan(duration), cancellationToken);
+        var endStart = duration - ClosingSpan(duration);
         var closing = FingerprintWindow(path, decoders, endStart, duration, cancellationToken);
         var frames = FramesNearEnd(path, decoders, endStart, duration, cancellationToken);
         return new EpisodeAnalysis(path, signature, duration, opening, closing, frames);
@@ -158,20 +174,40 @@ public static class SectionAnalysis
         return done;
     }
 
+    /// <summary>
+    /// Keyframes across the closing window, then one picture a second only where the evidence
+    /// changes between keyframes (<see cref="CreditFrameEvidence.RefinementWindows"/>). Decoding every
+    /// picture of six minutes of 10-bit HEVC in software took about seven minutes an episode;
+    /// keyframes and a few short windows take a fraction of that.
+    /// </summary>
     private static IReadOnlyList<CreditFrameSample> FramesNearEnd(string path, DecoderRegistry decoders,
         TimeSpan start, TimeSpan end, CancellationToken token)
     {
+        var keyframes = Pictures(path, decoders, start, end, keyframesOnly: true, token);
+        var samples = new List<CreditFrameSample>(keyframes);
+        foreach (var (from, to) in CreditFrameEvidence.RefinementWindows(keyframes, start, end))
+        {
+            samples.AddRange(Pictures(path, decoders, from, to, keyframesOnly: false, token));
+        }
+
+        return [.. samples.GroupBy(sample => sample.At).Select(group => group.First()).OrderBy(sample => sample.At)];
+    }
+
+    private static List<CreditFrameSample> Pictures(string path, DecoderRegistry decoders,
+        TimeSpan start, TimeSpan end, bool keyframesOnly, CancellationToken token)
+    {
         using var source = new FileByteSource(path);
         using var demuxer = MediaRegistries.Demuxers().Open(source, token);
+        var output = new List<CreditFrameSample>();
         if (demuxer.Info.FirstTrack(MediaKind.Video) is not { } track)
         {
-            return [];
+            return output;
         }
 
         using var decoder = decoders.CreateVideo(track).Decoder;
         if (decoder is null)
         {
-            return [];
+            return output;
         }
 
         if (start > TimeSpan.Zero && demuxer.Info.IsSeekable)
@@ -179,40 +215,36 @@ public static class SectionAnalysis
             demuxer.Seek(new MediaTime(start.Ticks), token);
         }
 
-        var output = new List<CreditFrameSample>();
         var frames = new List<VideoFrame>();
         var next = start;
+        var done = false;
         try
         {
-            while (next < end && demuxer.ReadPacket(token) is { } packet)
+            while (!done && demuxer.ReadPacket(token) is { } packet)
             {
                 using (packet)
                 {
-                    if (packet.TrackId == track.Id)
+                    if (packet.TrackId != track.Id)
+                    {
+                        continue;
+                    }
+
+                    if (!keyframesOnly)
                     {
                         decoder.Decode(packet, frames);
+                        done = Take(frames, output, ref next, end);
                     }
-                }
-
-                foreach (var frame in frames)
-                {
-                    using (frame)
+                    else if (packet.IsKeyframe && packet.Pts.IsKnown)
                     {
-                        if (!frame.Pts.IsKnown || frame.Pts.ToTimeSpan() < next || frame.Surface is not null)
+                        var at = packet.Pts.ToTimeSpan();
+                        done = at >= end;
+                        if (!done && at >= start)
                         {
-                            continue;
-                        }
-
-                        var at = frame.Pts.ToTimeSpan();
-                        if (at < end)
-                        {
-                            output.Add(CreditFrameEvidence.Measure(frame, at));
-                            next = at + TimeSpan.FromSeconds(1);
+                            output.AddRange(Keyframe(decoders, track, packet, frames, at));
                         }
                     }
                 }
 
-                frames.Clear();
                 token.ThrowIfCancellationRequested();
             }
         }
@@ -222,5 +254,62 @@ public static class SectionAnalysis
         }
 
         return output;
+    }
+
+    /// <summary>
+    /// Decodes one keyframe with a decoder of its own, drained at once, so the one picture that comes
+    /// out is that keyframe and carries the packet's time. Measured on Windows' HEVC decoder: fed
+    /// keyframes alone, one decoder held every picture to the end and stamped some with the wrong
+    /// time; drained after each, it gave no picture after the first. A fresh decoder costs about
+    /// 50 ms a keyframe.
+    /// </summary>
+    private static IEnumerable<CreditFrameSample> Keyframe(DecoderRegistry decoders, TrackInfo track, Packet packet,
+        List<VideoFrame> frames, TimeSpan at)
+    {
+        using var decoder = decoders.CreateVideo(track).Decoder!;
+        decoder.Decode(packet, frames);
+        // A decoder that holds pictures back asks to be called again until it is empty.
+        var drained = false;
+        while (!drained)
+        {
+            drained = decoder.Drain(frames);
+        }
+
+        var measured = frames.FirstOrDefault(frame => frame.Surface is null) is { } picture
+            ? CreditFrameEvidence.Measure(picture, at) : null;
+        frames.ForEach(frame => frame.Dispose());
+        frames.Clear();
+        return measured is null ? [] : [measured];
+    }
+
+    /// <summary>Measures the pictures due in [next, end); true once one at or after the end shows up.</summary>
+    private static bool Take(List<VideoFrame> frames, List<CreditFrameSample> output, ref TimeSpan next,
+        TimeSpan end)
+    {
+        var done = false;
+        foreach (var frame in frames)
+        {
+            using (frame)
+            {
+                if (!frame.Pts.IsKnown || frame.Surface is not null)
+                {
+                    continue;
+                }
+
+                var at = frame.Pts.ToTimeSpan();
+                if (at >= end)
+                {
+                    done = true;
+                }
+                else if (at >= next)
+                {
+                    output.Add(CreditFrameEvidence.Measure(frame, at));
+                    next = at + TimeSpan.FromSeconds(1);
+                }
+            }
+        }
+
+        frames.Clear();
+        return done;
     }
 }

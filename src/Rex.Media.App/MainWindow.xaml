@@ -407,14 +407,27 @@
           </Canvas>
         </Grid>
 
-        <!-- The detection affordance stays next to Skip; adjustments never obstruct the video. -->
+        <!-- Skip intro / Skip credits / Next episode, bottom right above the controls. The options
+             button beside them confirms, adjusts or rejects the section; Cancel shows only while an
+             opted-in automatic skip counts down. -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Margin="0,0,24,90" Spacing="8">
-          <DropDownButton x:Name="EpisodeSkipOptions" Content="⋯" Visibility="Collapsed"
+          <DropDownButton x:Name="EpisodeSkipOptions" Visibility="Collapsed"
                           Padding="10,10" CornerRadius="12"
                           AutomationProperties.AutomationId="EpisodeSkipOptions"
-                          AutomationProperties.Name="Review and adjust episode skip boundaries"
-                          ToolTipService.ToolTip="Confirm, adjust or reject the detected section" />
+                          AutomationProperties.Name="Review the detected section"
+                          ToolTipService.ToolTip="Save, adjust or reject this section">
+            <FontIcon Glyph="&#xE712;" FontSize="14" />
+          </DropDownButton>
+          <Button x:Name="EpisodeSkipCancel" Content="Cancel" Visibility="Collapsed"
+                  Padding="16,10" CornerRadius="12" Click="OnCancelAutomaticSkip"
+                  AutomationProperties.AutomationId="EpisodeSkipCancel"
+                  AutomationProperties.Name="Cancel the automatic skip"
+                  ToolTipService.ToolTip="Keep watching; do not skip this time" />
+          <Button x:Name="EpisodeNextButton" Content="Next episode" Visibility="Collapsed"
+                  Padding="16,10" CornerRadius="12" Click="OnNextEpisode"
+                  AutomationProperties.AutomationId="EpisodeNextButton"
+                  AutomationProperties.Name="Next episode" />
           <Button x:Name="EpisodeSkipButton" Content="Skip intro" Visibility="Collapsed"
                   Padding="20,10" CornerRadius="12" Style="{ThemeResource AccentButtonStyle}"
                   Click="OnSkipEpisodeSection" AutomationProperties.AutomationId="EpisodeSkipButton"
@@ -619,6 +632,9 @@
             PointerMoved="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
+        <!-- Intro and credits as bands on the rail: filled when saved, outlined when detected. -->
+        <Canvas x:Name="SectionMarkers" Height="28" VerticalAlignment="Center" IsHitTestVisible="False"
+                AutomationProperties.AutomationId="SectionMarkers" AutomationProperties.Name="No intro or credits marked" />
         <!-- Bookmark buttons sit above the rail. Their transparent 16-pixel hit targets are much
              easier to point at than their precise 3-pixel marks. -->
         <Canvas x:Name="BookmarkMarkers" Height="28" VerticalAlignment="Center" AutomationProperties.AutomationId="BookmarkMarkers"
