@@ -136,6 +136,10 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 1));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 3));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 30, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70, 0.01f));
         Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.Halftone));
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GlyphMosaic).Count);
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.ThermalMap).Count);
