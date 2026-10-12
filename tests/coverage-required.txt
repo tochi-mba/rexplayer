@@ -123,6 +123,7 @@ OpusHeaders.cs
 Packet.cs
 Particles.cs
 PcmDecoder.cs
+PendingUpdate.cs
 PictureBlock.cs
 PictureDemuxer.cs
 PictureFormats.cs
@@ -197,6 +198,8 @@ TimeStretch.cs
 TimeText.cs
 TrackInfo.cs
 UpdateCheck.cs
+UpdateDownloader.cs
+UpdateFlow.cs
 VideoEffect.cs
 VideoFrame.cs
 VideoGeometry.cs

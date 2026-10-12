@@ -36,6 +36,13 @@ public sealed partial class MainWindow
     /// </summary>
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        _lastInputTick = Environment.TickCount64;
+        if (e.Key == VirtualKey.Escape && !e.Handled && EscapeFromUpdateBar())
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (!e.Handled && _subjectOpen && e.Key == VirtualKey.Escape)
         {
             CloseSubjectTools();

@@ -25,9 +25,10 @@ window to watch and listen in, and a command line made for scripts.
    installs for you only, with no administrator prompt, adds rexplayer to the Start menu and to
    Explorer's **Open with** for every file it plays, and puts `rexplay` on your PATH. To make it the
    default player, tick the last box of the installer, or choose it in Windows Settings, Default apps.
-2. Updates come to you: rexplayer looks for a new version weekly (or daily, or only from Help, Check
-   for updates), installs it only when you say so and only if it matches its published checksum,
-   then opens again where you left off.
+2. Updates come to you: rexplayer looks for a new version daily (or weekly, or only from Help, Check
+   for updates) and downloads it in the background. You choose when it installs: now, when you
+   close rexplayer, tonight, or by itself whenever rexplayer is not in use, never while something
+   plays. It installs only if it matches its published checksum, then opens again where you left off.
 3. The installer is not signed yet, so Windows may say "Windows protected your PC". Choose
    **More info**, then **Run anyway**.
 4. Prefer no installer? Each release has a portable zip and a `.sha256` file to check it against.
