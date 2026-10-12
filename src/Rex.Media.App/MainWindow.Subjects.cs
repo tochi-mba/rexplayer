@@ -182,11 +182,11 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnSubjectSectionToggled(Expander sender, ExpanderExpandingEventArgs e) => StoreSubjectSections();
+    private void OnSubjectExpanding(Expander sender, ExpanderExpandingEventArgs e) => SetSubjectSectionOpen(sender, true);
 
-    private void OnSubjectSectionToggled(Expander sender, ExpanderCollapsedEventArgs e) => StoreSubjectSections();
+    private void OnSubjectCollapsed(Expander sender, ExpanderCollapsedEventArgs e) => SetSubjectSectionOpen(sender, false);
 
-    private void StoreSubjectSections()
+    private void SetSubjectSectionOpen(Expander sender, bool open)
     {
         if (!_subjectOpen || _closed)
         {
@@ -195,9 +195,9 @@ public sealed partial class MainWindow
 
         _settings = _settings with
         {
-            SubjectFollowingOpen = SubjectFollowingSection.IsExpanded,
-            SubjectRemovalOpen = SubjectRemovalSection.IsExpanded,
-            SubjectHelpOpen = SubjectHelpSection.IsExpanded,
+            SubjectFollowingOpen = sender == SubjectFollowingSection ? open : _settings.SubjectFollowingOpen,
+            SubjectRemovalOpen = sender == SubjectRemovalSection ? open : _settings.SubjectRemovalOpen,
+            SubjectHelpOpen = sender == SubjectHelpSection ? open : _settings.SubjectHelpOpen,
         };
         SaveSettings();
     }
