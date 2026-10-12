@@ -129,7 +129,7 @@ public static class SubjectPanel
     {
         var select = mode == SubjectSelectionMode.Draw
             ? "Drag a box around the object you want to follow."
-            : "Click the object you want to follow, or drag a box around it.";
+            : "Drag a box around the object, or click it to select a region automatically.";
         var leave = follow
             ? "If it leaves the picture, auto-follow widens the view and keeps looking for it."
             : "If it leaves the picture, Subject Lock keeps looking for it; auto-follow is off.";
