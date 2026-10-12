@@ -292,7 +292,7 @@
 
               <Expander x:Name="SubjectFollowingSection" Header="Following" IsExpanded="True"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                        Expanding="OnSubjectSectionToggled" Collapsed="OnSubjectSectionToggled"
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
                         AutomationProperties.AutomationId="SubjectFollowingSection"
                         AutomationProperties.Name="Following">
                 <StackPanel Spacing="4">
@@ -311,7 +311,7 @@
 
               <Expander x:Name="SubjectRemovalSection" Header="Removal preview" IsExpanded="True"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                        Expanding="OnSubjectSectionToggled" Collapsed="OnSubjectSectionToggled"
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
                         AutomationProperties.AutomationId="SubjectRemovalSection"
                         AutomationProperties.Name="Removal preview">
                 <StackPanel Spacing="4">
@@ -352,7 +352,7 @@
 
               <Expander x:Name="SubjectHelpSection" Header="Help" IsExpanded="False"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                        Expanding="OnSubjectSectionToggled" Collapsed="OnSubjectSectionToggled"
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
                         AutomationProperties.AutomationId="SubjectHelpSection"
                         AutomationProperties.Name="Help">
                 <TextBlock x:Name="SubjectHelpText" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap"
