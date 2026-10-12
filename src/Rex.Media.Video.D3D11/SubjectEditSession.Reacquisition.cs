@@ -21,13 +21,18 @@ public sealed partial class SubjectEditSession
 {
     // Accepting the subject back.
     private const double ReturnSubject = 0.655;
-    private const double ReturnRelative = 0.56;
+    // Unrelated surfaces already score around a half on this similarity, so a subject that has
+    // turned or moved into shade rarely beats the remembered background by much. Asking only
+    // that it be no less like itself than like the background keeps the comparison honest; the
+    // absolute threshold, the rival margin and the second sighting carry the safety.
+    private const double ReturnRelative = 0.50;
     // How far ahead of the best rival elsewhere in the picture the winner must be. Two people in
     // the same coat land within this margin of each other, and that is reported as ambiguous.
     private const double RivalMargin = 0.035;
 
     private const int ScanExtent = 480;
     private const int PlacesPerSize = 4;
+    private const int ScanPositions = 12000;
     private const int Verifiable = 24;
     private const int Settleable = 4;
     private byte[]? _scan;
@@ -80,7 +85,11 @@ public sealed partial class SubjectEditSession
                 rows[Samples + i] = Math.Min(height - 1, (i * 4 + 3) * height / (Samples * 4));
             }
 
-            var step = Math.Max(2, Math.Min(width, height) / 10);
+            // A tenth of the subject keeps the peak within reach of the full-resolution check,
+            // but a small subject on a large picture would be read at hundreds of thousands of
+            // places. Bounding the count per size bounds how late a return can be noticed.
+            var step = Math.Max(Math.Max(2, Math.Min(width, height) / 10),
+                (int)Math.Sqrt((double)_scanWidth * _scanHeight / ScanPositions));
             // Several places per size, each a different part of the picture. Keeping only the
             // single best would throw away the true subject whenever some other surface happened
             // to score fractionally higher at that size; neighbouring offsets, on the other hand,
@@ -443,32 +452,56 @@ public sealed partial class SubjectEditSession
         for (var i = 0; i < histogram.Length; i++) histogram[i] /= 16;
         return Math.Max(Intersection(histogram, _lightRed, _lightGreen, anchor),
             Intersection(histogram, _lightRed, _lightGreen, recent));
+    }
 
-        // The shortlist has to allow for a change of light as well, or a subject walking back in
-        // under a different lamp never reaches the full-resolution check that would recognise it.
-        static double Intersection(ReadOnlySpan<float> histogram, float red, float green, Patch view)
+    /// <summary>
+    /// A sixteen-sample chromaticity reading of a rectangle of the full picture, compared with
+    /// the subject's anchor and newest views. The local search's counterpart of
+    /// <see cref="ScanColour"/>: cheap enough to run at every coarse position.
+    /// </summary>
+    private double QuickColour(VideoFrame frame, int left, int top, int width, int height)
+    {
+        Span<float> histogram = stackalloc float[ChromaBins * ChromaBins];
+        histogram.Clear();
+        for (var y = 0; y < 4; y++)
         {
-            var alongRed = Math.Clamp((int)Math.Round(view.Red - red), -MaxCast, MaxCast);
-            var alongGreen = Math.Clamp((int)Math.Round(view.Green - green), -MaxCast, MaxCast);
-            var direct = 0d;
-            var shifted = 0d;
-            for (var i = 0; i < ChromaBins; i++)
+            var row = frame.Row(0, Math.Clamp(top + (y * 2 + 1) * height / 8, 0, frame.Height - 1));
+            for (var x = 0; x < 4; x++)
             {
-                for (var j = 0; j < ChromaBins; j++)
+                var at = Math.Clamp(left + (x * 2 + 1) * width / 8, 0, frame.Width - 1) * 4;
+                Accumulate(histogram, row[at], row[at + 1], row[at + 2]);
+            }
+        }
+
+        for (var i = 0; i < histogram.Length; i++) histogram[i] /= 16;
+        var colour = Intersection(histogram, _lightRed, _lightGreen, _positive[0]);
+        return _positive.Count > 1 ? Math.Max(colour, Intersection(histogram, _lightRed, _lightGreen, _positive[^1])) : colour;
+    }
+
+    // A coarse reading has to allow for a change of light as well, or a subject walking back in
+    // under a different lamp never reaches the full-resolution check that would recognise it.
+    private static double Intersection(ReadOnlySpan<float> histogram, float red, float green, Patch view)
+    {
+        var alongRed = Math.Clamp((int)Math.Round(view.Red - red), -MaxCast, MaxCast);
+        var alongGreen = Math.Clamp((int)Math.Round(view.Green - green), -MaxCast, MaxCast);
+        var direct = 0d;
+        var shifted = 0d;
+        for (var i = 0; i < ChromaBins; i++)
+        {
+            for (var j = 0; j < ChromaBins; j++)
+            {
+                var count = histogram[i * ChromaBins + j];
+                direct += Math.Min(count, view.Colour[i * ChromaBins + j]);
+                var toRed = i + alongRed;
+                var toGreen = j + alongGreen;
+                if ((uint)toRed < ChromaBins && (uint)toGreen < ChromaBins)
                 {
-                    var count = histogram[i * ChromaBins + j];
-                    direct += Math.Min(count, view.Colour[i * ChromaBins + j]);
-                    var toRed = i + alongRed;
-                    var toGreen = j + alongGreen;
-                    if ((uint)toRed < ChromaBins && (uint)toGreen < ChromaBins)
-                    {
-                        shifted += Math.Min(count, view.Colour[toRed * ChromaBins + toGreen]);
-                    }
+                    shifted += Math.Min(count, view.Colour[toRed * ChromaBins + toGreen]);
                 }
             }
-
-            return Math.Max(direct, shifted - CastPenalty * (Math.Abs(alongRed) + Math.Abs(alongGreen)));
         }
+
+        return Math.Max(direct, shifted - CastPenalty * (Math.Abs(alongRed) + Math.Abs(alongGreen)));
     }
 
     private static double Correlation(ReadOnlySpan<float> a, ReadOnlySpan<float> b)

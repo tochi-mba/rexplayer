@@ -53,6 +53,7 @@ public sealed partial class SubjectEditSession
     // The first positive view is the user's own selection and is never forgotten: it anchors the
     // model so that slow drift through accepted updates cannot migrate the lock onto something
     // else. Later views are replaced oldest-first, except for that anchor.
+    private const double Lookalike = 0.72;
     private const int MaxPositive = 12;
     private const int MaxNegative = 24;
     private readonly List<Patch> _positive = new(MaxPositive);
@@ -104,8 +105,40 @@ public sealed partial class SubjectEditSession
         var chroma = Chroma(a, b);
         var luma = 0d;
         for (var i = ChromaBins * ChromaBins; i < ColourLength; i++) luma += Math.Min(a.Colour[i], b.Colour[i]);
-        return 0.55 * structure + 0.31 * chroma + 0.14 * luma;
+        // Agreement on colour is evidence only when the remembered view has a colour to agree
+        // on. A grey car, a black box, a shadowed doorway or any monochrome footage puts every
+        // patch in the same neutral bins, and treating that as agreement hands nearly half the
+        // score to anything at all; what colour cannot tell apart, shape has to.
+        var weight = 0.31 * (1 - Neutrality(b));
+        return (0.86 - weight) * structure + weight * chroma + 0.14 * luma;
     }
+
+    /// <summary>
+    /// How much of a view's colour sits where grey sits: the share of its pixels in the bins
+    /// around equal red, green and blue, plus those too dark to have a colour at all.
+    /// </summary>
+    private static double Neutrality(Patch patch)
+    {
+        var neutral = 0d;
+        var coloured = 0d;
+        for (var i = 0; i < ChromaBins; i++)
+        {
+            for (var j = 0; j < ChromaBins; j++)
+            {
+                var count = patch.Colour[i * ChromaBins + j];
+                coloured += count;
+                var away = Math.Max(Math.Abs(i - GreyBin), Math.Abs(j - GreyBin));
+                if (away == 0) neutral += count;
+                else if (away == 1) neutral += count * 0.5;
+            }
+        }
+
+        // Pixels below the chromaticity floor were never counted; they are dark, so neutral.
+        return Math.Clamp(neutral + (1 - coloured), 0, 1);
+    }
+
+    // Where equal red, green and blue land: r * 8 / (3r * 3 / 5 + 1) is 4.4 for any bright r.
+    private const int GreyBin = 4;
 
     // How far a patch's colours may be assumed to have been moved by the light falling on it,
     // in chromaticity bins, and what assuming it costs. Beyond this a red coat could be read as
@@ -355,9 +388,21 @@ public sealed partial class SubjectEditSession
         _positive.Add(Copy(view));
     }
 
-    private void RememberOther(Patch view)
+    /// <summary>
+    /// Remember a view of something that is not the subject. Only a view taken while the user's
+    /// own selection was on screen is <paramref name="trusted"/>: at that moment everything
+    /// outside the box is certainly not the subject, look-alikes included, and those are the
+    /// most valuable background views there are. Later, the box can sit a little off the subject
+    /// while still reporting confidence, and from there the subject itself is "nearby and
+    /// similar". Learned as background once, it is rejected on every frame after, which is how a
+    /// lock becomes permanently unrecoverable. So an untrusted view that looks much like the
+    /// original selection is not learned; the rival check at recovery reports such a thing as
+    /// ambiguous rather than guessing.
+    /// </summary>
+    private void RememberOther(Patch view, bool trusted = false)
     {
         if (view.IsFlat) return;
+        if (!trusted && _positive.Count > 0 && Similarity(view, _positive[0]) >= Lookalike) return;
         if (_negative.Count > 0 && Compare(view).ToOthers > 0.94) return;
         if (_negative.Count >= MaxNegative) _negative.RemoveAt(0);
         _negative.Add(Copy(view));
@@ -385,7 +430,7 @@ public sealed partial class SubjectEditSession
                 if (left < box.Right && left + width > box.Left
                     && top < box.Bottom && top + height > box.Top) continue;
                 Describe(frame, left, top, width, height, _probe);
-                RememberOther(_probe);
+                RememberOther(_probe, trusted: true);
                 if (_negative.Count >= MaxNegative) return;
             }
         }

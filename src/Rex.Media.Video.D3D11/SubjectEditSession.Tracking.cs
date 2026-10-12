@@ -31,13 +31,14 @@ public sealed partial class SubjectEditSession
         var best = new Match(double.MinValue, 0, 0, Region.Width, Region.Height);
 
         var shape = Math.Log((double)_identityWidth / Math.Max(1, _identityHeight));
-        void TryMatch(int dx, int dy, float width, float height)
+        // Returns how much the place resembles the subject, or nothing when it is not a place.
+        double TryMatch(int dx, int dy, float width, float height)
         {
             var left = Region.Left + (float)dx / frame.Width;
             var top = Region.Top + (float)dy / frame.Height;
-            if (left < 0 || top < 0 || left + width > 1 || top + height > 1) return;
+            if (left < 0 || top < 0 || left + width > 1 || top + height > 1) return double.MinValue;
             if (Distortion((int)Math.Round(width * frame.Width),
-                (int)Math.Round(height * frame.Height)) > MaxDistortion) return;
+                (int)Math.Round(height * frame.Height)) > MaxDistortion) return double.MinValue;
             Describe(frame, (int)Math.Round(left * frame.Width), (int)Math.Round(top * frame.Height),
                 Math.Max(2, (int)Math.Round(width * frame.Width)),
                 Math.Max(2, (int)Math.Round(height * frame.Height)), _probe);
@@ -47,7 +48,8 @@ public sealed partial class SubjectEditSession
             // Measured against the subject's own size, so the same preference applies whether it
             // fills the picture or sits far away: a thing does not usually move its own width
             // between two frames a fortieth of a second apart.
-            var score = Resembles(_probe)
+            var alike = Resembles(_probe);
+            var score = alike
                 - (_reacquiredFrames > 0 ? 0.02 : 0.10) * Math.Sqrt((double)dx * dx + (double)dy * dy) / Math.Max(1, span)
                 - 0.015 * Math.Abs(Math.Log(width / Region.Width))
                 // Size may change freely as the subject approaches or recedes, but its shape may
@@ -55,16 +57,58 @@ public sealed partial class SubjectEditSession
                 // matches best - a pair of trousers rather than the person - and once it has,
                 // every learned view reinforces the smaller thing.
                 - 0.06 * Math.Abs(Math.Log(width * frame.Width / (height * frame.Height)) - shape);
-            if (score > best.Score) best = new Match(score, dx, dy, width, height);
+            if (score > best.Score) best = new Match(score, dx, dy, width, height, alike);
+            return alike;
         }
 
-        TryMatch(0, 0, Region.Width, Region.Height);
+        // The coarse grid is the bulk of the work and nearly all of it is rejected, so it is
+        // ranked on shape plus a sixteen-sample colour reading, which together cost about half
+        // a full reading. Only the few places that could be the subject are then read fully,
+        // and the choice between them is made on the full comparison. Several places are kept
+        // rather than one because a repeating pattern or a shadow can put a coarse peak a
+        // little way from the real subject.
+        Span<Match> leads = stackalloc Match[Leads];
+        leads.Fill(new Match(double.MinValue, 0, 0, Region.Width, Region.Height));
+        var boxLeft = (int)Math.Round(Region.Left * frame.Width);
+        var boxTop = (int)Math.Round(Region.Top * frame.Height);
+        var boxWidth = Math.Max(2, (int)Math.Round(Region.Width * frame.Width));
+        var boxHeight = Math.Max(2, (int)Math.Round(Region.Height * frame.Height));
+        var nearPenalty = (_reacquiredFrames > 0 ? 0.02 : 0.10) / Math.Max(1, span);
         for (var dy = -radius; dy <= radius; dy += coarse)
         {
+            if (boxTop + dy < 0 || boxTop + dy + boxHeight > frame.Height) continue;
             for (var dx = -radius; dx <= radius; dx += coarse)
             {
-                TryMatch(dx, dy, Region.Width, Region.Height);
+                if (boxLeft + dx < 0 || boxLeft + dx + boxWidth > frame.Width) continue;
+                DescribeStructure(frame, boxLeft + dx, boxTop + dy, boxWidth, boxHeight, _spare);
+                var score = 0.55 * StructuralResemblance(_spare)
+                    + 0.45 * QuickColour(frame, boxLeft + dx, boxTop + dy, boxWidth, boxHeight)
+                    - nearPenalty * Math.Sqrt((double)dx * dx + (double)dy * dy);
+                Lead(leads, score, dx, dy, coarse * 2);
             }
+        }
+
+        // The full comparison decides between the leads. Two leads a box apart that both look
+        // like the subject within the rival margin are two things the model cannot tell apart,
+        // and following either is a guess: a lock that quietly slides onto a team-mate in the
+        // same strip. Reporting the ambiguity costs a few frames of tracking; guessing costs the
+        // subject, because every view learned from then on teaches the model the wrong thing.
+        TryMatch(0, 0, Region.Width, Region.Height);
+        Span<double> alike = stackalloc double[Leads];
+        for (var i = 0; i < Leads; i++)
+        {
+            alike[i] = double.MinValue;
+            if (leads[i].Score == double.MinValue) continue;
+            alike[i] = TryMatch(leads[i].Dx, leads[i].Dy, Region.Width, Region.Height);
+        }
+
+        for (var i = 0; i < Leads; i++)
+        {
+            if (alike[i] < HoldSubject) continue;
+            if (Math.Abs(leads[i].Dx - best.Dx) < boxWidth * 0.7 && Math.Abs(leads[i].Dy - best.Dy) < boxHeight * 0.7) continue;
+            if (alike[i] <= best.Alike - RivalMargin) continue;
+            LoseTracking("Similar-looking regions: watching for a clear match. Select again if necessary.");
+            return;
         }
 
         for (var step = coarse; step > 1;)
@@ -162,7 +206,32 @@ public sealed partial class SubjectEditSession
         if (_reacquiredFrames > 0) _reacquiredFrames--;
     }
 
-    private readonly record struct Match(double Score, int Dx, int Dy, float Width, float Height);
+    /// <summary>A place tried by the local search: its penalised score and its raw resemblance.</summary>
+    private readonly record struct Match(double Score, int Dx, int Dy, float Width, float Height, double Alike = 0);
+
+    // How many shape-only peaks are read in colour before the position is chosen.
+    private const int Leads = 4;
+
+    /// <summary>
+    /// Keep the best few places, counting offsets within <paramref name="apart"/> of each other as
+    /// one place: neighbouring offsets describe the same physical thing and only one is worth a lead.
+    /// </summary>
+    private static void Lead(Span<Match> leads, double score, int dx, int dy, int apart)
+    {
+        var lowest = 0;
+        for (var i = 0; i < leads.Length; i++)
+        {
+            if (Math.Abs(leads[i].Dx - dx) < apart && Math.Abs(leads[i].Dy - dy) < apart && leads[i].Score > double.MinValue)
+            {
+                if (score > leads[i].Score) leads[i] = leads[i] with { Score = score, Dx = dx, Dy = dy };
+                return;
+            }
+
+            if (leads[i].Score < leads[lowest].Score) lowest = i;
+        }
+
+        if (score > leads[lowest].Score) leads[lowest] = leads[lowest] with { Score = score, Dx = dx, Dy = dy };
+    }
 
     private const int RememberInterval = 12;
     private int _untilRemember = RememberInterval;
@@ -206,12 +275,19 @@ public sealed partial class SubjectEditSession
         var width = Math.Max(8, box.Right - box.Left);
         var height = Math.Max(8, box.Bottom - box.Top);
         var found = 0;
-        for (var top = 0; top + height <= frame.Height && found < 2; top += Math.Max(8, height / 2))
+        // This runs on the presenting thread between two frames. A small subject on a large
+        // picture would otherwise be compared at thousands of places; a bounded grid read on
+        // shape first keeps it to a hundred cheap readings and a handful of full ones.
+        var stepX = Math.Max(Math.Max(8, width / 2), frame.Width / 10);
+        var stepY = Math.Max(Math.Max(8, height / 2), frame.Height / 10);
+        for (var top = 0; top + height <= frame.Height && found < 2; top += stepY)
         {
-            for (var left = 0; left + width <= frame.Width && found < 2; left += Math.Max(8, width / 2))
+            for (var left = 0; left + width <= frame.Width && found < 2; left += stepX)
             {
                 if (left < box.Right && left + width > box.Left
                     && top < box.Bottom && top + height > box.Top) continue;
+                DescribeStructure(frame, left, top, width, height, _spare);
+                if (StructuralResemblance(_spare) < 0.6) continue;
                 Describe(frame, left, top, width, height, _spare);
                 if (Resembles(_spare) < 0.7) continue;
                 RememberOther(_spare);
