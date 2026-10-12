@@ -7,6 +7,8 @@ using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Windows.ApplicationModel.DataTransfer;
+using Microsoft.VisualBasic.FileIO;
 using Windows.Storage.Pickers;
 using Launcher = Windows.System.Launcher;
 using VirtualKey = Windows.System.VirtualKey;
@@ -477,6 +479,10 @@ public sealed partial class MainWindow
                 OnLibraryBack(sender, e);
                 e.Handled = true;
                 break;
+            case VirtualKey.Delete when EntriesOf(SelectedLibraryRows()).Count > 0:
+                _ = ChooseLibraryDeletionAsync();
+                e.Handled = true;
+                break;
         }
     }
 
@@ -621,8 +627,11 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", PlayChosen));
         }
 
-        menu.Items.Add(MenuItem("Add to the end of the playlist", "LibraryMenuEnqueue", EnqueueChosen));
-        var items = EntriesOf(chosen).Select(PlayerController.ItemOf).ToList();
+        var selectedEntries = EntriesOf(chosen).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
+        menu.Items.Add(MenuItem(LibraryActions.MenuText("Play", selectedEntries.Count, tail: "next"), "LibraryMenuPlayNext",
+            () => _player.PlayNextFromLibrary(selectedEntries)));
+        menu.Items.Add(MenuItem(LibraryActions.MenuText("Add", selectedEntries.Count, tail: "to queue"), "LibraryMenuEnqueue", EnqueueChosen));
+        var items = selectedEntries.Select(PlayerController.ItemOf).ToList();
         var addTo = new MenuFlyoutSubItem { Text = "Add to a playlist" };
         AutomationProperties.SetAutomationId(addTo, "LibraryMenuAddTo");
         foreach (var named in _player.NamedPlaylists)
@@ -638,10 +647,127 @@ public sealed partial class MainWindow
 
         addTo.Items.Add(MenuItem("New playlist...", "LibraryMenuAddToNew", () => _ = NewPlaylistAsync(items)));
         menu.Items.Add(addTo);
-        if (chosen is [{ Item: LibraryEntry entry }])
+        if (selectedEntries.Count > 0)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(MenuItem("Show in its folder", null, () => _ = Launcher.LaunchFolderPathAsync(Path.GetDirectoryName(entry.Path)!)));
+            menu.Items.Add(MenuItem(LibraryActions.MenuText("Mark", selectedEntries.Count, tail: "as watched"), "LibraryMenuMarkWatched",
+                () => _player.MarkWatched(selectedEntries.Select(entry => entry.Path).ToList())));
+            menu.Items.Add(MenuItem(LibraryActions.MenuText("Mark", selectedEntries.Count, tail: "as unwatched"), "LibraryMenuMarkUnwatched",
+                () => _player.MarkUnwatched(selectedEntries.Select(entry => entry.Path).ToList())));
+            menu.Items.Add(MenuItem(LibraryActions.MenuText("Reset", selectedEntries.Count, tail: "progress"), "LibraryMenuResetProgress",
+                () => _player.ResetProgress(selectedEntries.Select(entry => entry.Path).ToList())));
+            menu.Items.Add(MenuItem(LibraryActions.MenuText("Copy", selectedEntries.Count, tail: "paths"), "LibraryMenuCopyPath",
+                () => CopyLibraryPaths(selectedEntries)));
+            menu.Items.Add(MenuItem("Open containing folder", "LibraryMenuOpenFolder",
+                () => _ = Launcher.LaunchFolderPathAsync(Path.GetDirectoryName(selectedEntries[0].Path)!)));
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
+                () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
+            menu.Items.Add(MenuItem(LibraryActions.MenuText("Delete", selectedEntries.Count, tail: "to Recycle Bin..."), "LibraryMenuDelete",
+                () => _ = DeleteLibraryEntriesAsync(selectedEntries)));
+        }
+    }
+
+    /// <summary>Copies the selected file locations in view order.</summary>
+    private void CopyLibraryPaths(IReadOnlyList<LibraryEntry> entries)
+    {
+        var package = new DataPackage();
+        package.SetText(string.Join(Environment.NewLine, entries.Select(entry => entry.Path)));
+        Clipboard.SetContent(package);
+        Say(entries.Count == 1 ? "Copied the file path" : $"Copied {entries.Count} file paths");
+    }
+
+    /// <summary>Asks which deletion the keyboard means, never taking either destructive action silently.</summary>
+    private async Task ChooseLibraryDeletionAsync()
+    {
+        var entries = EntriesOf(SelectedLibraryRows()).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "What should happen to the selected files?",
+            Content = new TextBlock
+            {
+                Text = "Remove from the library keeps the files. Move to Recycle Bin moves the files off disk.",
+                TextWrapping = TextWrapping.Wrap,
+            },
+            PrimaryButtonText = "Remove from library",
+            SecondaryButtonText = "Move to Recycle Bin",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        switch (await ShowDialogAsync(dialog))
+        {
+            case ContentDialogResult.Primary:
+                await RemoveLibraryEntriesAsync(entries);
+                break;
+            case ContentDialogResult.Secondary:
+                await DeleteLibraryEntriesAsync(entries);
+                break;
+        }
+    }
+
+    private async Task RemoveLibraryEntriesAsync(IReadOnlyList<LibraryEntry> entries)
+    {
+        var paths = entries.Select(entry => entry.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        var prompt = LibraryActions.RemovePrompt(paths.Select(Path.GetFileName).ToList());
+        if (await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Remove", "Cancel"))
+        {
+            _player.RemoveFromLibrary(paths);
+        }
+    }
+
+    /// <summary>Moves files through the OS Recycle Bin only, then forgets successful moves.</summary>
+    private async Task DeleteLibraryEntriesAsync(IReadOnlyList<LibraryEntry> entries)
+    {
+        var paths = entries.Select(entry => entry.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        var prompt = LibraryActions.DeletePrompt(paths.Select(Path.GetFileName).ToList());
+        if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Move to Recycle Bin", "Cancel"))
+        {
+            return;
+        }
+
+        var moved = new List<string>();
+        var failed = new List<string>();
+        await Task.Run(() =>
+        {
+            foreach (var path in paths)
+            {
+                try
+                {
+                    FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin,
+                        UICancelOption.ThrowException);
+                    moved.Add(path);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                    or NotSupportedException or OperationCanceledException)
+                {
+                    failed.Add(Path.GetFileName(path) + ": " + ex.Message);
+                }
+            }
+        });
+
+        if (moved.Count > 0)
+        {
+            _player.ForgetDeleted(moved);
+        }
+
+        if (failed.Count > 0)
+        {
+            Say($"{failed.Count} file(s) could not be moved to the Recycle Bin: " + string.Join("; ", failed.Take(3)));
         }
     }
 
