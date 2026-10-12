@@ -7,6 +7,11 @@ namespace Rex.Media.Interop.Graphics;
 internal static class D3D11VideoShaders
 {
     public const string Source = """
+        // Each effect is compiled as its own variant (EFFECT_ONLY is its index; 0 is no effect),
+        // so the shader for any one effect stays small however many effects exist.
+        #ifndef EFFECT_ONLY
+        #define EFFECT_ONLY 0
+        #endif
         cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; float4 motion; float4 extras; };
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
@@ -33,12 +38,14 @@ internal static class D3D11VideoShaders
         {
             return x - y * floor(x / y);
         }
-        static const float3 BrickPalette[16] =
+        static const float3 BrickPalette[24] =
         {
             float3(0.95, 0.95, 0.93), float3(0.63, 0.65, 0.65), float3(0.33, 0.35, 0.37), float3(0.11, 0.11, 0.12),
             float3(0.79, 0.10, 0.11), float3(0.45, 0.08, 0.10), float3(0.96, 0.50, 0.10), float3(0.98, 0.80, 0.10),
             float3(0.85, 0.76, 0.56), float3(0.40, 0.24, 0.14), float3(0.14, 0.50, 0.22), float3(0.60, 0.77, 0.20),
             float3(0.05, 0.34, 0.70), float3(0.35, 0.65, 0.88), float3(0.06, 0.15, 0.33), float3(0.93, 0.55, 0.70),
+            float3(0.08, 0.30, 0.16), float3(0.42, 0.47, 0.18), float3(0.80, 0.88, 0.35), float3(0.55, 0.45, 0.30),
+            float3(0.66, 0.33, 0.12), float3(0.42, 0.24, 0.55), float3(0.45, 0.70, 0.62), float3(0.98, 0.93, 0.55),
         };
         static const float3 CubePalette[6] =
         {
@@ -52,14 +59,23 @@ internal static class D3D11VideoShaders
             float3(0.00, 0.00, 0.00), float3(0.33, 1.00, 1.00), float3(1.00, 0.33, 1.00), float3(1.00, 1.00, 1.00),
         };
         static const float Bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+        // Palette matching compares brightness and two colour-difference axes separately, so a
+        // bright green finds a green rather than the grey of the same brightness.
+        float colourDistance(float3 a, float3 b)
+        {
+            float3 d = a - b;
+            float luma = dot(d, float3(0.299, 0.587, 0.114));
+            float orange = d.r - d.b;
+            float green = d.g - (d.r + d.b) * 0.5;
+            return luma * luma * 2 + orange * orange + green * green;
+        }
         float3 nearestBrick(float3 c)
         {
             float best = 1e9;
             float3 chosen = c;
-            [loop] for (int i = 0; i < 16; i++)
+            [loop] for (int i = 0; i < 24; i++)
             {
-                float3 d = c - BrickPalette[i];
-                float error = dot(d * d, float3(0.3, 0.59, 0.11));
+                float error = colourDistance(c, BrickPalette[i]);
                 if (error < best) { best = error; chosen = BrickPalette[i]; }
             }
             return chosen;
@@ -70,8 +86,7 @@ internal static class D3D11VideoShaders
             float3 chosen = c;
             [loop] for (int i = 0; i < 6; i++)
             {
-                float3 d = c - CubePalette[i];
-                float error = dot(d * d, float3(0.3, 0.59, 0.11));
+                float error = colourDistance(c, CubePalette[i]);
                 if (error < best) { best = error; chosen = CubePalette[i]; }
             }
             return chosen;
@@ -154,12 +169,17 @@ internal static class D3D11VideoShaders
             if (effect.x < 0.5 || effect.y <= 0) return uv;
             float intensity = effect.y;
             float time = effect.z * max(pointer.w, 0.25);
+        #if EFFECT_ONLY == 1
             if (effect.x < 1.5)
             {
                 float2 wave = float2(sin(uv.y * 26 + time * 1.7), cos(uv.x * 18 - time * 1.1));
                 return saturate(uv + wave * (0.019 * intensity));
             }
+        #endif
+        #if EFFECT_ONLY == 2
             if (effect.x < 2.5) return uv;
+        #endif
+        #if EFFECT_ONLY == 3
             if (effect.x < 3.5)
             {
                 float scale = lerp(150, 16, intensity) * max(pointer.w, 0.25);
@@ -167,7 +187,9 @@ internal static class D3D11VideoShaders
                 float stagger = sin(floor(uv.y * grid.y) * 0.8 + time * 2) * 0.013 * intensity;
                 return saturate((floor((uv + float2(stagger, 0)) * grid) + 0.5) / grid);
             }
+        #endif
 
+        #if EFFECT_ONLY == 4
             if (effect.x < 4.5)
             {
                 float2 p = (uv - 0.5) * float2(effect.w, 1);
@@ -179,8 +201,12 @@ internal static class D3D11VideoShaders
                 float2 kaleido = saturate(0.5 + transformed / float2(effect.w, 1));
                 return lerp(uv, kaleido, intensity);
             }
+        #endif
             // 5-7 are contours and operate on colour, so they do not warp the sample location.
+        #if EFFECT_ONLY >= 5 && EFFECT_ONLY <= 7
             if (effect.x < 7.5) return uv;
+        #endif
+        #if EFFECT_ONLY == 8
             if (effect.x < 8.5) // Liquid glass: interference between crossing sine fields
             {
                 float2 displacement = float2(
@@ -188,6 +214,8 @@ internal static class D3D11VideoShaders
                     cos(uv.x * 29 - time * 1.1) + sin((uv.x - uv.y) * 19 + time * 0.9));
                 return saturate(uv + displacement * (0.013 * intensity));
             }
+        #endif
+        #if EFFECT_ONLY == 9
             if (effect.x < 9.5) // Slice shift: moving, hashed bands rather than regular pixels
             {
                 float band = floor(uv.y * 29);
@@ -195,6 +223,8 @@ internal static class D3D11VideoShaders
                 float displacement = frac(sin(band * 37.719 + epoch * 11.13) * 43758.5453) * 2 - 1;
                 return saturate(uv + float2(displacement * 0.12 * intensity, 0));
             }
+        #endif
+        #if EFFECT_ONLY == 10
             if (effect.x < 10.5) // Vortex: bounded polar displacement with a steady centre
             {
                 float2 delta = (uv - 0.5) * float2(effect.w, 1);
@@ -204,8 +234,10 @@ internal static class D3D11VideoShaders
                 float2 rotated = float2(cs * delta.x - sn * delta.y, sn * delta.x + cs * delta.y);
                 return saturate(0.5 + rotated / float2(effect.w, 1));
             }
+        #endif
             // Cursor lens works only under a pointer. The following image-aware effect has
             // no global UV warp; it samples its original gradients in effected() instead.
+        #if EFFECT_ONLY == 11
             if (effect.x < 11.5 && pointer.z > 0.5)
             {
                 float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
@@ -214,6 +246,7 @@ internal static class D3D11VideoShaders
                 float inside = 1 - smoothstep(radius * 0.72, radius, distance);
                 return saturate(uv - delta / float2(effect.w, 1) * (0.55 * intensity * inside));
             }
+        #endif
             return uv;
         }
         float3 readColour(float2 uv, bool isYuv)
@@ -356,12 +389,15 @@ internal static class D3D11VideoShaders
         {
             float2 warped = effectUv(uv);
             float3 colour = readColour(warped, isYuv);
+        #if EFFECT_ONLY == 1
             if (effect.y > 0 && effect.x > 0.5 && effect.x < 1.5)
             {
                 float2 fringe = float2(0.005, 0.0015) * effect.y;
                 colour.r = readColour(warped + fringe, isYuv).r;
                 colour.b = readColour(warped - fringe, isYuv).b;
             }
+        #endif
+        #if EFFECT_ONLY == 2
             if (effect.y > 0 && effect.x > 1.5 && effect.x < 2.5)
             {
                 float detail = max(pointer.w, 0.25);
@@ -370,7 +406,9 @@ internal static class D3D11VideoShaders
                 float3 ink = colour * 0.22 + edge * float3(0.12, 0.95, 1);
                 colour = lerp(colour, ink, effect.y);
             }
+        #endif
 
+        #if EFFECT_ONLY >= 5 && EFFECT_ONLY <= 7
             if (effect.y > 0 && effect.x > 4.5 && effect.x < 7.5)
             {
                 float3 structure = contourDetail(uv, isYuv);
@@ -401,6 +439,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = lerp(colour, styled, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 12
             if (effect.x > 11.5 && effect.x < 12.5 && effect.y > 0)
             {
                 // Edge Gravity: derive a normal from gradients in the *current video frame*.
@@ -417,6 +457,8 @@ internal static class D3D11VideoShaders
                 // Shimmer hugs edges; untextured backgrounds never illuminate.
                 colour = saturate(colour + edge * (0.11 * effect.y) * float3(0.11, 0.65, 0.98));
             }
+        #endif
+        #if EFFECT_ONLY == 13
             if (effect.x > 12.5 && effect.x < 13.5 && effect.y > 0)
             {
                 // Ghostwire: capture weak internal folds, fine recorded texture and
@@ -449,6 +491,8 @@ internal static class D3D11VideoShaders
                 phantom += fineLine * (1 - ridge) * float3(0.055, 0.075, 0.10);
                 colour = lerp(colour, saturate(phantom), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 14
             if (effect.x > 13.5 && effect.x < 14.5 && effect.y > 0 && pointer.z > 0.5)
             {
                 // Colour spotlight: the pointer chooses a *pixel colour*, not an object.
@@ -464,6 +508,8 @@ internal static class D3D11VideoShaders
                     + similarity * effect.y * float3(0.03, 0.11, 0.17));
                 colour = lerp(muted, vivid, similarity);
             }
+        #endif
+        #if EFFECT_ONLY == 15
             if (effect.x > 14.5 && effect.x < 15.5 && effect.y > 0)
             {
                 // Relief etch: light falls across the *image gradient*. It is an
@@ -476,6 +522,8 @@ internal static class D3D11VideoShaders
                     + edge * (directional - 0.5) * float3(0.21, 0.24, 0.22));
                 colour = lerp(colour, relief, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 16
             if (effect.x > 15.5 && effect.x < 16.5 && effect.y > 0)
             {
                 // Ghostwire Mask Mode: a dim visual layer with detailed contours
@@ -501,6 +549,8 @@ internal static class D3D11VideoShaders
                 maskColour += luminance * float3(0.009, 0.022, 0.035);
                 colour = lerp(colour, saturate(maskColour), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 17
             if (effect.x > 16.5 && effect.x < 17.5 && effect.y > 0)
             {
                 // Ghostwire Motion: fine recorded contours + conservative two-frame
@@ -557,9 +607,11 @@ internal static class D3D11VideoShaders
                     ink += moving;
                 colour = lerp(colour, saturate(ink), effect.y);
             }
+        #endif
 
             // The eight additional styles stay single-pass. Extra options arrive in extras.xy,
             // independently of the global strength (effect.y) and detail (pointer.w).
+        #if EFFECT_ONLY == 18
             if (effect.x > 17.5 && effect.x < 18.5 && effect.y > 0) // Halftone
             {
                 float3 coverage = 1 - saturate(colour);
@@ -577,6 +629,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = lerp(colour, 1 - ink, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 19
             if (effect.x > 18.5 && effect.x < 19.5 && effect.y > 0) // Chromatic rift
             {
                 float angle = extras.x * 0.01745329252;
@@ -591,6 +645,8 @@ internal static class D3D11VideoShaders
                 float3 blue = readColour(uv - shift, isYuv);
                 colour = float3(red.r, colour.g, blue.b);
             }
+        #endif
+        #if EFFECT_ONLY == 20
             if (effect.x > 19.5 && effect.x < 20.5 && effect.y > 0) // Oil-paint sectors
             {
                 // Three samples in each radial sector plus the centre. Pick the lowest
@@ -625,6 +681,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = lerp(colour, chosen, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 21
             if (effect.x > 20.5 && effect.x < 21.5 && effect.y > 0) // Procedural glyph mosaic
             {
                 float rows = lerp(110, 23, saturate((pointer.w - 0.25) / 1.5));
@@ -647,6 +705,8 @@ internal static class D3D11VideoShaders
                 float3 paper = extras.y > 1.5 && extras.y < 2.5 ? float3(0.94, 0.91, 0.80) : float3(0.025, 0.03, 0.045);
                 colour = lerp(colour, lerp(paper, palette, glyph), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 22
             if (effect.x > 21.5 && effect.x < 22.5 && effect.y > 0) // Thermal mapping
             {
                 float temperature = saturate(dot(colour, float3(0.2126, 0.7152, 0.0722))
@@ -666,6 +726,8 @@ internal static class D3D11VideoShaders
                 heat = saturate(heat + edges * (pointer.w - 0.25) * 0.20);
                 colour = lerp(colour, heat, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 23
             if (effect.x > 22.5 && effect.x < 23.5 && effect.y > 0) // Tape wear
             {
                 float row = floor(uv.y * 480);
@@ -683,6 +745,8 @@ internal static class D3D11VideoShaders
                     * (1 - head * extras.y * 0.006) + (speckle - 0.5) * effect.y * 0.08;
                 colour = lerp(colour, saturate(worn), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 24
             if (effect.x > 23.5 && effect.x < 24.5 && effect.y > 0) // Bounded pixel sort
             {
                 float2 direction = extras.y < 0.5 ? float2(0, 1)
@@ -705,6 +769,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = lerp(colour, best, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 25
             if (effect.x > 24.5 && effect.x < 25.5 && effect.y > 0) // Motion smear
             {
                 if (motion.y > 0.5)
@@ -720,6 +786,8 @@ internal static class D3D11VideoShaders
                     colour = lerp(colour, previous, gate * effect.y * extras.x * 0.01);
                 }
             }
+        #endif
+        #if EFFECT_ONLY == 26
             if (effect.x > 25.5 && effect.x < 26.5 && effect.y > 0) // Lumen weave
             {
                 // A short line integral along the edge tangent, in both directions. Strength
@@ -778,6 +846,8 @@ internal static class D3D11VideoShaders
                     + tint * thread * (pulse * 1.15 + thread * 0.4);
                 colour = lerp(colour, saturate(woven), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 27
             if (effect.x > 26.5 && effect.x < 27.5 && effect.y > 0) // Depth haze
             {
                 // A depth guess from what is visible: fine, sharp texture reads as near;
@@ -799,6 +869,8 @@ internal static class D3D11VideoShaders
                 hazed = lerp(hazed, saturate((hazed - 0.5) * 1.12 + 0.5), 1 - far);
                 colour = lerp(colour, hazed, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 28
             if (effect.x > 27.5 && effect.x < 28.5 && effect.y > 0 && motion.y > 0.5) // Particle veil
             {
                 // Each grid cell may hold one spark, born where the picture changed since the
@@ -836,6 +908,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = saturate(colour + sparks * effect.y * 1.6);
             }
+        #endif
+        #if EFFECT_ONLY == 29
             if (effect.x > 28.5 && effect.x < 29.5 && effect.y > 0) // Lens bloom
             {
                 // Anamorphic streaks: only highlights above the threshold contribute, spread
@@ -863,6 +937,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = saturate(colour + (streak * 0.25 + glow * 0.09) * effect.y * 1.4);
             }
+        #endif
+        #if EFFECT_ONLY == 30
             if (effect.x > 29.5 && effect.x < 30.5 && effect.y > 0) // Stipple engrave
             {
                 // Engraver's hatching: the first family of lines runs along the local edge
@@ -897,6 +973,8 @@ internal static class D3D11VideoShaders
                     : extras.y < 2.5 ? float3(0.93, 0.93, 0.90) : float3(0.28, 0.16, 0.08);
                 colour = lerp(colour, lerp(paper, pen, ink), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 31
             if (effect.x > 30.5 && effect.x < 31.5 && effect.y > 0 && motion.y > 0.5) // Time echo
             {
                 // Estimate which way this pixel's content moved by finding the nearby shift of
@@ -925,13 +1003,15 @@ internal static class D3D11VideoShaders
                     readColour(uv - reach, isYuv).b);
                 colour = lerp(colour, saturate(echo * 1.08), gate * effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 32
             if (effect.x > 31.5 && effect.x < 32.5 && effect.y > 0) // Brick build
             {
                 // Two-stud bricks in a running bond, seen from above. Each brick takes one
                 // colour from the picture under it; each stud is lit from the top left and
                 // casts a short shadow.
                 float3 weights = float3(0.2126, 0.7152, 0.0722);
-                float rows = mosaicRows(96, 18);
+                float rows = mosaicRows(64, 12);
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
@@ -959,6 +1039,8 @@ internal static class D3D11VideoShaders
                 float3 built = lerp(brick * shading * (1 - shadow), studColour, stud);
                 colour = lerp(colour, saturate(built * (1 - seam * 0.6)), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 33
             if (effect.x > 32.5 && effect.x < 33.5 && effect.y > 0) // Stained glass
             {
                 // Irregular panes from a jittered cell pattern: each pane takes the colour under
@@ -992,6 +1074,8 @@ internal static class D3D11VideoShaders
                 float3 leadColour = float3(0.06, 0.06, 0.065) + (1 - smoothstep(0, width, border)) * 0.10;
                 colour = lerp(colour, saturate(lerp(glass, leadColour, lead)), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 34
             if (effect.x > 33.5 && effect.x < 34.5 && effect.y > 0) // Cross-stitch
             {
                 // Counted cross-stitch: one X of thread per cell, its colour the picture's
@@ -1021,6 +1105,8 @@ internal static class D3D11VideoShaders
                 float3 result = lerp(cloth, lowerThread, lower * stitched);
                 colour = lerp(colour, saturate(lerp(result, upperThread, upper * stitched)), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 35
             if (effect.x > 34.5 && effect.x < 35.5 && effect.y > 0) // LED wall
             {
                 // A wall of light-emitting diodes on a black panel, each cell lit by the picture
@@ -1060,6 +1146,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = lerp(colour, saturate(float3(0.012, 0.012, 0.016) + sampled * glow * 0.06 + lit), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 36
             if (effect.x > 35.5 && effect.x < 36.5 && effect.y > 0) // Digital rain
             {
                 // Columns of procedural glyphs fall at their own speeds, a bright head leading
@@ -1097,6 +1185,8 @@ internal static class D3D11VideoShaders
                 float3 rain = tint * intensity + head * glyph * float3(0.8, 1, 0.85) * 0.9 + tint * 0.015;
                 colour = lerp(colour, saturate(rain), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 37
             if (effect.x > 36.5 && effect.x < 37.5 && effect.y > 0) // Dice mosaic
             {
                 // Every cell is a die showing the face that matches the brightness under it:
@@ -1130,6 +1220,8 @@ internal static class D3D11VideoShaders
                 float3 die = lerp(face * shade, pipColour, pip);
                 colour = lerp(colour, saturate(lerp(float3(0.04, 0.04, 0.045), die, body)), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 38
             if (effect.x > 37.5 && effect.x < 38.5 && effect.y > 0) // Cube mosaic
             {
                 // Puzzle cubes, each face a 3x3 grid of stickers. Every sticker takes the cube
@@ -1155,6 +1247,8 @@ internal static class D3D11VideoShaders
                 float3 result = lerp(float3(0.03, 0.03, 0.035), tile * (0.95 + gloss) + gloss, shape * (1 - frame));
                 colour = lerp(colour, saturate(result), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 39
             if (effect.x > 38.5 && effect.x < 39.5 && effect.y > 0) // Hex tiles
             {
                 // Hexagonal tiles in a honeycomb lattice. Each takes the colour under its centre,
@@ -1193,6 +1287,8 @@ internal static class D3D11VideoShaders
                 }
                 colour = lerp(colour, saturate(lerp(tile, groutColour, grout)), effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 40
             if (effect.x > 39.5 && effect.x < 40.5 && effect.y > 0) // Retro pixels
             {
                 // Big pixels with ordered (Bayer) dithering into a small fixed palette, the way
@@ -1220,6 +1316,8 @@ internal static class D3D11VideoShaders
                 float grid = 1 - 0.10 * (1 - smoothstep(0, 0.08, min(min(local.x, 1 - local.x), min(local.y, 1 - local.y))));
                 colour = lerp(colour, pixel * grid, effect.y);
             }
+        #endif
+        #if EFFECT_ONLY == 11
             if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
             {
                 // A fine highlight at the actual lens boundary communicates where the cursor is.
@@ -1228,6 +1326,7 @@ internal static class D3D11VideoShaders
                 float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23 / max(pointer.w, 0.25)));
                 colour = saturate(colour + float3(0.23, 0.48, 0.57) * rim * effect.y);
             }
+        #endif
             return styledLook(saturate(colour));
         }
         float4 yuv(Vertex input) : SV_Target

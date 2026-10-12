@@ -151,6 +151,15 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.DepthHaze)]
     [InlineData(VideoEffect.LensBloom)]
     [InlineData(VideoEffect.StippleEngrave)]
+    [InlineData(VideoEffect.BrickBuild)]
+    [InlineData(VideoEffect.StainedGlass)]
+    [InlineData(VideoEffect.CrossStitch)]
+    [InlineData(VideoEffect.LedWall)]
+    [InlineData(VideoEffect.DigitalRain)]
+    [InlineData(VideoEffect.DiceMosaic)]
+    [InlineData(VideoEffect.CubeMosaic)]
+    [InlineData(VideoEffect.HexTiles)]
+    [InlineData(VideoEffect.RetroPixels)]
     public void EachSpatialEffectChangesTheImageButCanBeFullyDisabled(VideoEffect effect)
     {
         using var picture = DecodedPicture();
