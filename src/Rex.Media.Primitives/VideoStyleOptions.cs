@@ -48,6 +48,16 @@ public static class VideoStyleOptions
             VideoEffect.LensBloom => "Bloom sensitivity (%)",
             VideoEffect.StippleEngrave => "Line weight (%)",
             VideoEffect.TimeEcho => "Echo threshold (%)",
+            VideoEffect.BrickBuild => "Brick size (%)",
+            VideoEffect.StainedGlass => "Pane size (%)",
+            VideoEffect.CrossStitch => "Stitch size (%)",
+            VideoEffect.LedWall => "LED size (%)",
+            VideoEffect.DigitalRain => "Glyph size (%)",
+            VideoEffect.DiceMosaic => "Die size (%)",
+            VideoEffect.CubeMosaic => "Cube size (%)",
+            VideoEffect.HexTiles => "Tile size (%)",
+            VideoEffect.RetroPixels => "Pixel size (%)",
+            VideoEffect.MotionAmplify => "Motion reach (%)",
             _ => animated ? "Movement (%)" : "Fine detail (%)",
         };
         var options = new List<VideoStyleOption>
@@ -125,6 +135,46 @@ public static class VideoStyleOptions
                 options.Add(new($"effect.{name}.separation", "Echo distance (%)", 50, 0, 100));
                 options.Add(new($"effect.{name}.hold", "Echo persistence (%)", 40, 0, 100));
                 break;
+            case VideoEffect.BrickBuild:
+                options.Add(new($"effect.{name}.studs", "Stud height (%)", 60, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3));
+                break;
+            case VideoEffect.StainedGlass:
+                options.Add(new($"effect.{name}.lead", "Lead width (%)", 40, 0, 100));
+                options.Add(new($"effect.{name}.glow", "Back light (%)", 60, 0, 100));
+                break;
+            case VideoEffect.CrossStitch:
+                options.Add(new($"effect.{name}.thread", "Thread thickness (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Fabric", 0, 0, 3));
+                break;
+            case VideoEffect.LedWall:
+                options.Add(new($"effect.{name}.glow", "Glow (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Diodes", 0, 0, 3));
+                break;
+            case VideoEffect.DigitalRain:
+                options.Add(new($"effect.{name}.speed", "Rain speed (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Colour", 0, 0, 3));
+                break;
+            case VideoEffect.DiceMosaic:
+                options.Add(new($"effect.{name}.pips", "Pip size (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Dice", 0, 0, 3));
+                break;
+            case VideoEffect.CubeMosaic:
+                options.Add(new($"effect.{name}.gap", "Sticker gap (%)", 40, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Stickers", 0, 0, 3));
+                break;
+            case VideoEffect.HexTiles:
+                options.Add(new($"effect.{name}.grout", "Grout width (%)", 40, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Finish", 0, 0, 3));
+                break;
+            case VideoEffect.MotionAmplify:
+                options.Add(new($"effect.{name}.gain", "Amplification (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.steadiness", "Steadiness (%)", 50, 0, 100));
+                break;
+            case VideoEffect.RetroPixels:
+                options.Add(new($"effect.{name}.dither", "Dither (%)", 70, 0, 100));
+                options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3));
+                break;
             default:
                 break;
         }
@@ -144,6 +194,14 @@ public static class VideoStyleOptions
         VideoEffect.ParticleVeil => ["Embers", "Ice", "Source colour", "White"],
         VideoEffect.LensBloom => ["Blue", "Warm", "Neutral", "Source colour"],
         VideoEffect.StippleEngrave => ["Copperplate", "Blue ink", "White on black", "Sepia"],
+        VideoEffect.BrickBuild => ["Toy bricks", "Source colour", "Greyscale", "Pastel"],
+        VideoEffect.CrossStitch => ["Cream", "Black", "Linen", "Denim"],
+        VideoEffect.LedWall => ["RGB triads", "Round", "Amber", "Square pixels"],
+        VideoEffect.DigitalRain => ["Green", "Cyan", "Amber", "Source colour"],
+        VideoEffect.DiceMosaic => ["White dice", "Black dice", "Colour dice", "Red translucent"],
+        VideoEffect.CubeMosaic => ["Six standard colours", "Greyscale", "Source colour", "Pastel"],
+        VideoEffect.HexTiles => ["Glazed ceramic", "Matte stone", "Honeycomb", "Flat colour"],
+        VideoEffect.RetroPixels => ["Handheld green", "Home computer", "Grey four-tone", "Cyan and magenta"],
         _ => [],
     };
 
