@@ -71,6 +71,10 @@ internal static class D3D11VideoShaders
         }
         float3 nearestBrick(float3 c)
         {
+            // Toy bricks are vivid: match from a livelier version of the colour so muted
+            // foliage finds a green rather than a grey.
+            float grey = dot(c, float3(0.2126, 0.7152, 0.0722));
+            c = saturate(lerp(grey.xxx, c, 1.6));
             float best = 1e9;
             float3 chosen = c;
             [loop] for (int i = 0; i < 24; i++)
@@ -1080,12 +1084,13 @@ internal static class D3D11VideoShaders
             {
                 // Counted cross-stitch: one X of thread per cell, its colour the picture's
                 // snapped to a limited set of skeins. Cells close to the fabric stay bare.
-                float rows = mosaicRows(120, 26);
+                float rows = mosaicRows(72, 18);
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
                 float3 sampled = readColour((cell + 0.5) / cells, isYuv);
-                float3 thread = floor(sampled * 6 + 0.5) / 6;
+                float threadGrey = dot(sampled, float3(0.2126, 0.7152, 0.0722));
+                float3 thread = floor(saturate(lerp(threadGrey.xxx, sampled, 1.3)) * 6 + 0.5) / 6;
                 float3 fabric = extras.y < 0.5 ? float3(0.93, 0.90, 0.82)
                     : extras.y < 1.5 ? float3(0.08, 0.08, 0.09)
                     : extras.y < 2.5 ? float3(0.82, 0.76, 0.66) : float3(0.25, 0.35, 0.52);
@@ -1315,6 +1320,42 @@ internal static class D3D11VideoShaders
                 }
                 float grid = 1 - 0.10 * (1 - smoothstep(0, 0.08, min(min(local.x, 1 - local.x), min(local.y, 1 - local.y))));
                 colour = lerp(colour, pixel * grid, effect.y);
+            }
+        #endif
+        #if EFFECT_ONLY == 41
+            if (effect.x > 40.5 && effect.x < 41.5 && effect.y > 0 && motion.y > 0.5) // Motion amplify
+            {
+                // Estimate how this part of the picture moved since the previous frame: the shift
+                // of the previous frame whose small patch best matches the current one. Then draw
+                // the picture further along that motion. Pixels without a clearly better match
+                // than standing still do not move, so a still or paused picture is unchanged.
+                float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                float reach = 1 + pointer.w * 3;
+                float3 centre = readColourAt(uv, isYuv);
+                float3 east = readColourAt(uv + float2(px.x * 2, 0), isYuv);
+                float3 west = readColourAt(uv - float2(px.x * 2, 0), isYuv);
+                float3 south = readColourAt(uv + float2(0, px.y * 2), isYuv);
+                float3 north = readColourAt(uv - float2(0, px.y * 2), isYuv);
+                float stillError = 0;
+                float2 moved = 0;
+                float bestError = 1e9;
+                [loop] for (int k = 0; k < 9; k++)
+                {
+                    float2 shift = k == 8 ? float2(0, 0)
+                        : float2(cos(k * 0.78539816), sin(k * 0.78539816)) * px * reach;
+                    float2 at = uv - shift;
+                    float error = length(centre - readPriorAt(at, isYuv))
+                        + length(east - readPriorAt(at + float2(px.x * 2, 0), isYuv))
+                        + length(west - readPriorAt(at - float2(px.x * 2, 0), isYuv))
+                        + length(south - readPriorAt(at + float2(0, px.y * 2), isYuv))
+                        + length(north - readPriorAt(at - float2(0, px.y * 2), isYuv));
+                    if (k == 8) stillError = error;
+                    else if (error < bestError) { bestError = error; moved = shift; }
+                }
+                float margin = 0.02 + extras.y * 0.0012;
+                float confidence = smoothstep(margin, margin * 3, stillError - bestError);
+                float2 pushed = uv - moved * confidence * (extras.x * 0.04);
+                colour = lerp(colour, readColour(pushed, isYuv), effect.y);
             }
         #endif
         #if EFFECT_ONLY == 11

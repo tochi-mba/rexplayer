@@ -57,6 +57,7 @@ public static class VideoStyleOptions
             VideoEffect.CubeMosaic => "Cube size (%)",
             VideoEffect.HexTiles => "Tile size (%)",
             VideoEffect.RetroPixels => "Pixel size (%)",
+            VideoEffect.MotionAmplify => "Motion reach (%)",
             _ => animated ? "Movement (%)" : "Fine detail (%)",
         };
         var options = new List<VideoStyleOption>
@@ -165,6 +166,10 @@ public static class VideoStyleOptions
             case VideoEffect.HexTiles:
                 options.Add(new($"effect.{name}.grout", "Grout width (%)", 40, 0, 100));
                 options.Add(new($"effect.{name}.mode", "Finish", 0, 0, 3));
+                break;
+            case VideoEffect.MotionAmplify:
+                options.Add(new($"effect.{name}.gain", "Amplification (%)", 50, 0, 100));
+                options.Add(new($"effect.{name}.steadiness", "Steadiness (%)", 50, 0, 100));
                 break;
             case VideoEffect.RetroPixels:
                 options.Add(new($"effect.{name}.dither", "Dither (%)", 70, 0, 100));

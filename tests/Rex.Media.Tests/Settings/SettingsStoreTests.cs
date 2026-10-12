@@ -192,6 +192,10 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.True(VideoEffects.UsesHistory(VideoEffect.ParticleVeil, 0));
         Assert.True(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionAmplify, 50));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.MotionAmplify));
+        Assert.Equal("Motion amplify", VideoEffects.Name(VideoEffect.MotionAmplify));
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.MotionAmplify));
         foreach (var effect in new[] { VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.LensBloom, VideoEffect.StippleEngrave })
         {
             Assert.False(VideoEffects.UsesHistory(effect, 3));
@@ -252,7 +256,8 @@ public sealed class SettingsStoreTests : IDisposable
             Assert.Equal((effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
                 or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.TapeWear
                 or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.LumenWeave or VideoEffect.DepthHaze
-                or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho)
+                or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho
+                or VideoEffect.MotionAmplify)
                 || VideoEffects.Category(effect) == "Mosaics" ? 4 : 2, options.Count);
             foreach (var option in options)
             {

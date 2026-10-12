@@ -651,6 +651,7 @@ public sealed class D3D11PresenterTests
     [Theory]
     [InlineData(VideoEffect.ParticleVeil)]
     [InlineData(VideoEffect.TimeEcho)]
+    [InlineData(VideoEffect.MotionAmplify)]
     public void TemporalEffectsLeaveStillPicturesAloneAndReactToMovement(VideoEffect effect)
     {
         using var presenter = D3D11Presenter.Offscreen(144, 96);

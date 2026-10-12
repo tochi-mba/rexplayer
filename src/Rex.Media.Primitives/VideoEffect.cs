@@ -47,6 +47,7 @@ public enum VideoEffect
     CubeMosaic,
     HexTiles,
     RetroPixels,
+    MotionAmplify,
 }
 
 /// <summary>Names, categories and safe bounds for the optional effects.</summary>
@@ -62,7 +63,7 @@ public static class VideoEffects
         "Tape wear", "Pixel sort", "Motion smear",
         "Lumen weave", "Depth haze", "Particle veil", "Lens bloom", "Stipple engrave", "Time echo",
         "Brick build", "Stained glass", "Cross-stitch", "LED wall", "Digital rain", "Dice mosaic",
-        "Cube mosaic", "Hex tiles", "Retro pixels",
+        "Cube mosaic", "Hex tiles", "Retro pixels", "Motion amplify",
     ];
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
@@ -71,7 +72,8 @@ public static class VideoEffects
     public static string Category(VideoEffect effect) => effect switch
     {
         VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave => "Contours",
-        VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.TimeEcho => "Motion & geometry",
+        VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.TimeEcho
+            or VideoEffect.MotionAmplify => "Motion & geometry",
         VideoEffect.CursorLens or VideoEffect.ColourSpotlight => "Interactive",
         VideoEffect.EdgeGravity or VideoEffect.ReliefEtch or VideoEffect.ThermalMap or VideoEffect.DepthHaze => "Image-aware",
         VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.StippleEngrave => "Print & texture",
@@ -88,14 +90,14 @@ public static class VideoEffects
     /// <summary>
     /// Whether the effect, with its fourth option at this value, reads the previous frame. Only
     /// then does the renderer keep a copy of the last picture on the graphics card: Ghostwire
-    /// motion in its hybrid and motion modes, Motion smear, Particle veil and Time echo always,
+    /// motion in its hybrid and motion modes, Motion smear, Particle veil, Time echo and Motion amplify always,
     /// and Chromatic rift only while its motion drive is above zero. A zero normalized strength
     /// disables history entirely.
     /// </summary>
     public static bool UsesHistory(VideoEffect effect, int fourth, float strength = 1) => strength > 0 && (effect switch
     {
         VideoEffect.GhostwireMotion => fourth is 0 or 2,
-        VideoEffect.MotionSmear or VideoEffect.ParticleVeil or VideoEffect.TimeEcho => true,
+        VideoEffect.MotionSmear or VideoEffect.ParticleVeil or VideoEffect.TimeEcho or VideoEffect.MotionAmplify => true,
         VideoEffect.ChromaticRift => fourth > 0,
         _ => false,
     });
