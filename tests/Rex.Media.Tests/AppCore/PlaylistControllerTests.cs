@@ -228,6 +228,40 @@ public sealed class PlaylistControllerTests
     }
 
     [Fact]
+    [Capability("PLF-04")]
+    public void ATruncatedFinalCuePartEndsItsSessionAfterTheSeamlessHandoff()
+    {
+        // The third cue track supplies the second part's end marker; deleting it from the
+        // playlist leaves a finite final part inside the original recording.
+        using var harness = new ControllerHarness(settings: new PlayerSettings { TitleSeconds = 3 });
+        harness.Files["album.wav"] = Count(0, 8000);
+        harness.Files["album.cue"] = Text("""
+            FILE "album.wav" WAVE
+              TRACK 01 AUDIO
+                TITLE "First"
+                INDEX 01 00:00:00
+              TRACK 02 AUDIO
+                TITLE "Second"
+                INDEX 01 00:00:20
+              TRACK 03 AUDIO
+                TITLE "Omitted"
+                INDEX 01 00:00:40
+            """);
+        var controller = harness.Controller;
+        var changes = new List<string>();
+        controller.Changed += (_, _) => changes.Add(controller.Title);
+        controller.Open(["album.cue"]);
+        controller.Playlist.RemoveAt(2);
+        harness.PumpUntil(c => EndedOn(c, "Second"));
+
+        Assert.Single(harness.Sinks);
+        Assert.Contains("First", changes);
+        Assert.Contains("Second", changes);
+        Assert.True(controller.Position > TimeSpan.Zero);
+        Assert.Equal(SessionState.Ended, controller.State);
+    }
+
+    [Fact]
     public void APartAtTheEndOfThePlaylistEndsThePlaying()
     {
         using var harness = new ControllerHarness(settings: Quiet);
