@@ -506,7 +506,7 @@ public sealed class SubjectRemovalMotion
     }
 
     /// <summary>Follows a coarse shift down the pyramid, searching the cell either side on each finer level.</summary>
-    private (int X, int Y, float Mean, float FractionX, float FractionY)? Descend(
+    internal (int X, int Y, float Mean, float FractionX, float FractionY)? Descend(
         (int Left, int Top, int Right, int Bottom) exclude, int x, int y)
     {
         Span<float> scores = stackalloc float[9];
@@ -529,7 +529,7 @@ public sealed class SubjectRemovalMotion
     /// window's edge is searched around again, at most twice; if it is still on an edge it has no
     /// fraction.
     /// </summary>
-    private (int X, int Y, float Mean, float FractionX, float FractionY)? Finest(
+    internal (int X, int Y, float Mean, float FractionX, float FractionY)? Finest(
         (int Left, int Top, int Right, int Bottom) exclude, int cx, int cy, int reach)
     {
         Span<float> scores = stackalloc float[25];
