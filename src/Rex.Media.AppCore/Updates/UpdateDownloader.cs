@@ -42,10 +42,15 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
 
     private const int ErrorSharingViolation = 32;
     private const int ErrorLockViolation = 33;
-    // Unix reports an exclusive file-share conflict as EAGAIN, rather than Win32 error 32.
-    private const int ErrorUnixWouldBlock = 11;
     private const int ErrorHandleDiskFull = 39;
     private const int ErrorDiskFull = 112;
+
+    /// <summary>
+    /// How Linux reports a file another process holds exclusively (EWOULDBLOCK): the error number
+    /// itself, with none of the bits of a Windows error code, which is how the two are told apart.
+    /// Windows' error 11 is a bad format, nothing to do with sharing.
+    /// </summary>
+    private const int UnixWouldBlock = 11;
 
     /// <summary>Whether something is playing; while it is, the download keeps to <see cref="BusyBytesPerSecond"/>.</summary>
     public Func<bool> Busy { get; init; } = () => false;
@@ -141,11 +146,11 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
     public static DownloadReport Classify(IOException error)
     {
         ArgumentNullException.ThrowIfNull(error);
-        return (error.HResult & 0xFFFF) switch
+        var busy = new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it");
+        return error.HResult == UnixWouldBlock ? busy : (error.HResult & 0xFFFF) switch
         {
             ErrorDiskFull or ErrorHandleDiskFull => new DownloadReport(DownloadOutcome.NoSpace, "the disk is full"),
-            ErrorSharingViolation or ErrorLockViolation => new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it"),
-            ErrorUnixWouldBlock => new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it"),
+            ErrorSharingViolation or ErrorLockViolation => busy,
             _ => new DownloadReport(DownloadOutcome.Failed, error.Message),
         };
     }

@@ -1,7 +1,7 @@
 namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
-/// A woven soundscape: each of the spectrum's 64 bands bends a glowing filament. The low end
+/// A woven soundscape (AU-18): each of the spectrum's 64 bands bends a glowing filament. The low end
 /// rolls the whole field, midrange shapes the folds, treble picks out fine ridges, and drum onsets
 /// launch concentric pressure waves. Unlike Embers, this is a continuous, spectrally mapped field,
 /// not independent particles. All motion comes from local audio analysis and elapsed time.
@@ -11,6 +11,9 @@ public sealed class ResonanceScene : VisualScene
     private readonly List<(double Radius, double X, double Y, float Strength)> _waves = [];
     private double _phase;
     private float _surge;
+
+    /// <summary>The pressure waves spreading now: what its tests count.</summary>
+    internal int Waves => _waves.Count;
 
     public override void Draw(VisualContext context)
     {

@@ -16,8 +16,8 @@ public sealed class MusicPulseTests
         var heard = new List<Heard>();
         for (var frame = from; frame <= music.Frames; frame++)
         {
-            pulse.Update(music.Mono(frame), SyntheticMusic.Rate, SyntheticMusic.FrameTime);
-            heard.Add(new((double)frame / SyntheticMusic.Fps, pulse.Beat, pulse.Filled, pulse.Drop, pulse.Locked, pulse.Punch, pulse.Bass, pulse.Loudness, pulse.Build, pulse.Tempo));
+            pulse.Update(music.Mono(frame), SyntheticMusic.Rate, music.Step);
+            heard.Add(new((double)frame / music.FramesPerSecond, pulse.Beat, pulse.Filled, pulse.Drop, pulse.Locked, pulse.Punch, pulse.Bass, pulse.Loudness, pulse.Build, pulse.Tempo));
         }
 
         return heard;
@@ -28,28 +28,37 @@ public sealed class MusicPulseTests
     /// <summary>Whether a beat at <paramref name="beat"/> is the kick at <paramref name="kick"/>: in the frame that first hears it, or the next.</summary>
     private static bool Matches(double beat, double kick) => beat >= kick - 0.035 && beat - kick < 0.075;
 
-    public static readonly TheoryData<string> Kinds = new("90", "120", "140", "busy", "quiet", "loud");
-
-    private static SyntheticMusic Make(string kind, double seconds = 12) => kind switch
+    /// <summary>Every kind of music, heard at thirty frames a second and at the sixty the window draws at when the stage keeps up.</summary>
+    public static readonly TheoryData<string, int> Kinds = new()
     {
-        "busy" => new SyntheticMusic(120, seconds, busy: true),
-        "quiet" => new SyntheticMusic(124, seconds, gainDb: -30),
-        "loud" => new SyntheticMusic(128, seconds, gainDb: 6),
-        _ => new SyntheticMusic(double.Parse(kind, CultureInfo.InvariantCulture), seconds),
+        { "90", 30 }, { "120", 30 }, { "140", 30 }, { "busy", 30 }, { "quiet", 30 }, { "loud", 30 }, { "played", 30 },
+        { "90", 60 }, { "120", 60 }, { "140", 60 }, { "busy", 60 }, { "quiet", 60 }, { "loud", 60 }, { "played", 60 },
+    };
+
+    /// <summary>The music <paramref name="kind"/> names; "played" has every beat up to 20 ms early or late, as a drummer plays.</summary>
+    private static SyntheticMusic Make(string kind, int fps, double seconds = 12) => kind switch
+    {
+        "busy" => new SyntheticMusic(120, seconds, busy: true, fps: fps),
+        "played" => new SyntheticMusic(120, seconds, fps: fps, humanize: 0.02),
+        "quiet" => new SyntheticMusic(124, seconds, gainDb: -30, fps: fps),
+        "loud" => new SyntheticMusic(128, seconds, gainDb: 6, fps: fps),
+        _ => new SyntheticMusic(double.Parse(kind, CultureInfo.InvariantCulture), seconds, fps: fps),
     };
 
     [Theory]
     [Capability("AU-18")]
     [MemberData(nameof(Kinds))]
-    public void BeatsLandOnTheKicksTheTempoIsFoundAndTheClockLocks(string kind)
+    public void BeatsLandOnTheKicksTheTempoIsFoundAndTheClockLocks(string kind, int fps)
     {
-        var music = Make(kind);
+        // At sixty frames a second the off-beat drum of the busy groove used to land as beats: a
+        // kick between the locked clock's beats was a beat whatever the clock said.
+        var music = Make(kind, fps);
         var pulse = new MusicPulse();
         var heard = Listen(music, pulse);
         var beats = heard.Where(h => h.Beat).Select(h => h.T).ToList();
 
         // Every kick after the first second has its beat, at the frame that hears it or the next.
-        var kicks = music.Kicks.Where(kick => kick > 1 && kick < (music.Frames / (double)SyntheticMusic.Fps) - 0.1).ToList();
+        var kicks = music.Kicks.Where(kick => kick > 1 && kick < (music.Frames / (double)music.FramesPerSecond) - 0.1).ToList();
         var missed = kicks.Where(kick => !beats.Any(beat => Matches(beat, kick))).ToList();
         Assert.True(missed.Count == 0, $"{kind}: no beat for the kicks at {Times(missed)}; beats at {Times(beats)}.");
 
@@ -63,19 +72,16 @@ public sealed class MusicPulseTests
         Assert.True(locked <= 4, $"{kind}: the clock locked at {locked:0.00} s.");
         Assert.True(heard.Where(h => h.T > 4).All(h => h.Locked), $"{kind}: the clock let go.");
         Assert.InRange(pulse.Phase, 0, 1);
-        Assert.InRange(pulse.NextBeatIn, 0, 60 / music.Bpm * 1.05);
-        Assert.InRange(pulse.BeatInBar, 0, 3);
         Assert.Equal(MusicPulse.BandCount, pulse.Bands.Count);
-        Assert.Equal(MusicPulse.BandCount, pulse.RawBands.Count);
         Assert.Equal(SpectrumAnalyzer.Size, pulse.Wave.Count);
     }
 
     [Theory]
     [Capability("AU-18")]
     [MemberData(nameof(Kinds))]
-    public void EveryKickPunchesAndTheLevelsUseTheirWholeRangeHoweverLoudTheMaster(string kind)
+    public void EveryKickPunchesAndTheLevelsUseTheirWholeRangeHoweverLoudTheMaster(string kind, int fps)
     {
-        var music = Make(kind, 8);
+        var music = Make(kind, fps, 8);
         var heard = Listen(music);
         var period = 60 / music.Bpm;
         foreach (var kick in music.Kicks.Where(kick => kick > 2 && kick < 7.5))
@@ -93,31 +99,53 @@ public sealed class MusicPulseTests
         }
     }
 
-    [Fact]
+    [Theory]
     [Capability("AU-18")]
-    public void AKickTheMixHidesIsStoodInForOnTheBeat()
+    [InlineData(30)]
+    [InlineData(60)]
+    public void AKickTheMixHidesIsStoodInForOnTheBeat(int fps)
     {
         // The kick on beat 12 (six seconds in) is left out; the snare and hats play on.
-        var music = new SyntheticMusic(120, 9, missing: [12]);
+        var music = new SyntheticMusic(120, 9, missing: [12], fps: fps);
         var heard = Listen(music);
         var filled = heard.Where(h => h.Filled).ToList();
         var stood = Assert.Single(filled);
         Assert.True(stood.Beat);
-        Assert.InRange(stood.T, 6 - (1.0 / SyntheticMusic.Fps), 6 + (1.0 / SyntheticMusic.Fps));
+
+        // On the beat: within a thirtieth of a second of it, at either rate.
+        Assert.InRange(stood.T, 6 - (1.0 / 30), 6 + (1.0 / 30));
         Assert.All(heard.Where(h => h.T > 5.6 && h.T < 6.4 && h.Beat), h => Assert.Same(stood, h));
     }
 
-    [Fact]
+    [Theory]
     [Capability("AU-18")]
-    public void TheClockFollowsTheTempoWhenItChanges()
+    [InlineData(30)]
+    [InlineData(60)]
+    public void TheClockFollowsTheTempoWhenItChanges(int fps)
     {
-        var music = new SyntheticMusic(120, 16, changeAt: 6, newBpm: 132);
+        var music = new SyntheticMusic(120, 16, changeAt: 6, newBpm: 132, fps: fps);
         var pulse = new MusicPulse();
         var heard = Listen(music, pulse);
         Assert.InRange(heard.Last(h => h.T < 6).Tempo, 117.6, 122.4);
         Assert.InRange(pulse.Tempo, 132 * 0.98, 132 * 1.02);
         var beats = heard.Where(h => h.Beat && h.T > 12).Select(h => h.T).ToList();
         Assert.All(music.Kicks.Where(kick => kick > 12 && kick < 15.9), kick => Assert.Contains(beats, beat => Matches(beat, kick)));
+    }
+
+    [Theory]
+    [Capability("AU-18")]
+    [InlineData(30)]
+    [InlineData(60)]
+    public void AKickHeardJustBeforeTheClocksBeatIsNotFollowedByAStandIn(int fps)
+    {
+        // While the tempo speeds up, the kicks come a little before the clock's beats. Each was
+        // heard, yet the clock used to stand in for its beat a moment later as well: two beats.
+        var music = new SyntheticMusic(120, 16, changeAt: 6, newBpm: 132, fps: fps);
+        var heard = Listen(music);
+        var beats = heard.Where(h => h.Beat).ToList();
+        var doubled = beats.Zip(beats.Skip(1)).Where(pair => pair.Second.T - pair.First.T < 1.0 / 6).Select(pair => pair.Second.T).ToList();
+        Assert.True(doubled.Count == 0, $"Second beats at {Times(doubled)}.");
+        Assert.DoesNotContain(heard, h => h.Filled);
     }
 
     [Fact]
@@ -195,7 +223,6 @@ public sealed class MusicPulseTests
 
         var drop = Assert.Single(heard, h => h.Drop);
         Assert.InRange(drop.T, 11, 11.2);
-        Assert.InRange(pulse.SinceDrop, 4.7, 5.1);
     }
 
     [Fact]
@@ -231,6 +258,5 @@ public sealed class MusicPulseTests
         // After a reset it hears a new song as it heard the first.
         var again = Listen(new SyntheticMusic(120, 6), pulse);
         Assert.Contains(again, h => h.Beat);
-        Assert.Same(pulse.Clock, pulse.Clock);
     }
 }

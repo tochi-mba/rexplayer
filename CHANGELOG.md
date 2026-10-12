@@ -1,5 +1,8 @@
 # Changelog
 
+Every version of rexplayer that reaches users, newest first. A version is published by the CI
+pipeline the moment its number reaches `main`.
+
 ## 0.17.0 - 2026-10-12
 
 ### Added
@@ -152,9 +155,6 @@
   occlusions or similar-looking subjects. The flower-dress and grey-outfit
   footage still need an annotated, repeatable accuracy and frame-time benchmark
   before claiming reliable recovery under all real-world conditions.
-
-Every version of rexplayer that reaches users, newest first. A version is published by the CI
-pipeline the moment its number reaches `main`.
 
 ## 0.15.8 - 2026-10-11
 
