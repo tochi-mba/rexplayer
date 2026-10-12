@@ -42,7 +42,8 @@ public sealed partial class MainWindow
     [
         (LibrarySort.Natural, "Natural order"), (LibrarySort.Title, "Title"), (LibrarySort.Artist, "Artist"), (LibrarySort.Album, "Album"),
         (LibrarySort.Year, "Year"), (LibrarySort.Added, "Date added"), (LibrarySort.Played, "Last played"), (LibrarySort.MostPlayed, "Most played"),
-        (LibrarySort.Length, "Length"),
+        (LibrarySort.Length, "Duration"), (LibrarySort.Modified, "Date modified"),
+        (LibrarySort.Size, "File size"), (LibrarySort.Path, "Folder and path"),
     ];
 
     private static readonly (LibraryGrouping Grouping, string Name)[] GroupingNames =
@@ -108,6 +109,10 @@ public sealed partial class MainWindow
         _libraryViewKey = ViewKey(search.Length > 0);
         var choice = ViewChoice(_libraryViewKey);
         var home = source == LibrarySource.Home;
+        if (!home)
+        {
+            entries = LibraryArrangement.Filter(entries, choice, null, _player.LeftAt);
+        }
         LibraryHome.Visibility = home ? Visibility.Visible : Visibility.Collapsed;
         LibraryList.Visibility = home ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
@@ -299,7 +304,7 @@ public sealed partial class MainWindow
     /// <summary>The layout, order and grouping menus, each ticking the choice in use, and the card size.</summary>
     private void ShowViewOptions(bool shown, LibraryViewChoice choice, bool groupsView, LibraryKind kind)
     {
-        foreach (var control in new FrameworkElement[] { LibraryLookButton, LibrarySortButton, LibraryGroupButton, LibrarySizePanel })
+        foreach (var control in new FrameworkElement[] { LibraryLookButton, LibrarySortButton, LibraryGroupButton, LibraryFilterButton, LibrarySizePanel })
         {
             control.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -319,8 +324,8 @@ public sealed partial class MainWindow
             ? new[] { LibrarySort.Natural, LibrarySort.Title, LibrarySort.Artist, LibrarySort.Year, LibrarySort.Added, LibrarySort.Played, LibrarySort.MostPlayed, LibrarySort.Length }
             : kind switch
             {
-                LibraryKind.Picture => [LibrarySort.Natural, LibrarySort.Title, LibrarySort.Added],
-                LibraryKind.Video => [LibrarySort.Natural, LibrarySort.Title, LibrarySort.Added, LibrarySort.Played, LibrarySort.MostPlayed, LibrarySort.Length],
+                LibraryKind.Picture => [LibrarySort.Natural, LibrarySort.Title, LibrarySort.Added, LibrarySort.Modified, LibrarySort.Size, LibrarySort.Path],
+                LibraryKind.Video => [LibrarySort.Natural, LibrarySort.Title, LibrarySort.Added, LibrarySort.Modified, LibrarySort.Size, LibrarySort.Path, LibrarySort.Played, LibrarySort.MostPlayed, LibrarySort.Length],
                 _ => SortNames.Select(pair => pair.Sort).ToArray(),
             };
         var groupings = groupsView
@@ -343,10 +348,68 @@ public sealed partial class MainWindow
         LibraryGroupButton.Content = GroupingNames.First(pair => pair.Grouping == choice.Grouping).Name;
         LibraryGroupButton.Flyout = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping,
             grouping => KeepViewChoice(choice with { Grouping = grouping, Look = grouping != LibraryGrouping.None && choice.Look == LibraryLook.Collage ? LibraryLook.Grid : choice.Look }));
+
+        var filterMenu = new MenuFlyout();
+        filterMenu.Items.Add(FilterGroup("Progress", "LibraryFilterProgress",
+            [(LibraryFilter.All, "All progress"), (LibraryFilter.Unwatched, "Unwatched"),
+                (LibraryFilter.InProgress, "In progress"), (LibraryFilter.Finished, "Finished")],
+            choice.Filter, value => KeepViewChoice(choice with { Filter = value })));
+        filterMenu.Items.Add(FilterGroup("Media type", "LibraryFilterKind",
+            [(LibraryKindFilter.Any, "All media"), (LibraryKindFilter.Video, "Video"),
+                (LibraryKindFilter.Music, "Audio"), (LibraryKindFilter.Picture, "Pictures")],
+            choice.Kinds, value => KeepViewChoice(choice with { Kinds = value })));
+        var folders = new MenuFlyoutSubItem { Text = "Folder" };
+        var allFolders = new RadioMenuFlyoutItem { Text = "All folders", GroupName = "LibraryFilterFolder", IsChecked = choice.Folder is null };
+        AutomationProperties.SetAutomationId(allFolders, "LibraryFilterFolder-All");
+        allFolders.Click += (_, _) => KeepViewChoice(choice with { Folder = null });
+        folders.Items.Add(allFolders);
+        if (_library is not null)
+        {
+            var index = 0;
+            foreach (var folder in _library.Folders)
+            {
+                var selected = folder;
+                var item = new RadioMenuFlyoutItem
+                {
+                    Text = selected,
+                    GroupName = "LibraryFilterFolder",
+                    IsChecked = string.Equals(selected, choice.Folder, StringComparison.OrdinalIgnoreCase),
+                };
+                AutomationProperties.SetAutomationId(item, "LibraryFilterFolder-" + index++);
+                item.Click += (_, _) => KeepViewChoice(choice with { Folder = selected });
+                folders.Items.Add(item);
+            }
+        }
+
+        filterMenu.Items.Add(folders);
+        filterMenu.Items.Add(new MenuFlyoutSeparator());
+        var resetFilters = new MenuFlyoutItem { Text = "Clear filters", IsEnabled = choice.IsFiltered };
+        AutomationProperties.SetAutomationId(resetFilters, "LibraryFilterClear");
+        resetFilters.Click += (_, _) => KeepViewChoice(choice.Unfiltered());
+        filterMenu.Items.Add(resetFilters);
+        LibraryFilterButton.Content = LibraryArrangement.FilterLabel(choice);
+        LibraryFilterButton.Flyout = filterMenu;
+
         LibrarySizePanel.Visibility = choice.Look == LibraryLook.List ? Visibility.Collapsed : Visibility.Visible;
         _settingCardSize = true;
         LibraryCardSize.Value = choice.CardSize;
         _settingCardSize = false;
+    }
+
+    /// <summary>Builds a quick-filter submenu with the current value ticked.</summary>
+    private static MenuFlyoutSubItem FilterGroup<T>(string label, string id, IReadOnlyList<(T Value, string Name)> choices, T current, Action<T> chosen)
+        where T : struct, Enum
+    {
+        var group = new MenuFlyoutSubItem { Text = label };
+        foreach (var (value, name) in choices)
+        {
+            var item = new RadioMenuFlyoutItem { Text = name, GroupName = id, IsChecked = EqualityComparer<T>.Default.Equals(value, current) };
+            AutomationProperties.SetAutomationId(item, id + "-" + value);
+            item.Click += (_, _) => chosen(value);
+            group.Items.Add(item);
+        }
+
+        return group;
     }
 
     /// <summary>A menu of choices, the one in use ticked; choosing one calls <paramref name="chosen"/>.</summary>
