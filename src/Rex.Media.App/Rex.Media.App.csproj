@@ -17,6 +17,9 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <Platforms>x64</Platforms>
+    <!-- Published compiled ahead of time: without it every method of the window, the engine and the
+         Windows App SDK's projections is compiled as it is first called, which was most of a launch. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
