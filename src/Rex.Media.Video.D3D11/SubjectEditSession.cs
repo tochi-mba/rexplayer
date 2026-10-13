@@ -104,6 +104,8 @@ public sealed partial class SubjectEditSession : IDisposable
         _removal.Release();
         ObservedPixels = 0;
         _click = null;
+        _glanceKnown = false;
+        _shotChanged = false;
         _scan = _scanColour = null;
         _scanWidth = _scanHeight = 0;
         _lightRed = _lightGreen = 0;

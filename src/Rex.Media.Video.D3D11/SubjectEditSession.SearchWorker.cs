@@ -57,8 +57,9 @@ public sealed partial class SubjectEditSession
             if (completed.IsCompletedSuccessfully)
             {
                 var found = completed.Result;
-                var stale = frame.Pts.IsKnown && _recoveryTime.IsKnown
-                    && frame.Pts - _recoveryTime > MediaTime.FromSeconds(0.5);
+                // A result found in a picture from before a cut describes a shot that is gone.
+                var stale = _shotChanged || (frame.Pts.IsKnown && _recoveryTime.IsKnown
+                    && frame.Pts - _recoveryTime > MediaTime.FromSeconds(0.5));
                 if (stale)
                 {
                     _returnCandidate = null;
@@ -101,6 +102,7 @@ public sealed partial class SubjectEditSession
             }
         }
 
+        ForgetSightingAcrossACut();
         var snapshot = ColorConverter.ToBgra(frame);
         var worker = new SubjectEditSession
         {
