@@ -86,7 +86,7 @@ public static class HealthyMedia
     /// <summary>The committed constant-bitrate MP3 fixture's frames repeated (its encoder-tag frame left out) to the length asked for.</summary>
     public static HealthyFile Mp3(double seconds)
     {
-        var fixture = File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"));
+        var fixture = System.IO.File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"));
         var frames = new List<(int Start, int Length)>();
         for (var at = 0; at + MpegAudioHeader.Size <= fixture.Length;)
         {
@@ -299,7 +299,7 @@ public static class HealthyMedia
     /// <summary>The committed Vorbis fixture's sound pages repeated (positions and sequence numbers carried on, CRCs recomputed) to the length asked for.</summary>
     public static HealthyFile Ogg(double seconds)
     {
-        var fixture = File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "ogg", "vorbis.ogg"));
+        var fixture = System.IO.File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "ogg", "vorbis.ogg"));
         var pages = OggPages.Split(fixture);
         var headers = pages.TakeWhile(page => page.Granule == 0).ToList();
         var sound = pages.Skip(headers.Count).ToList();
