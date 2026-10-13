@@ -1,6 +1,6 @@
 namespace Rex.Media.AppCore.Player;
 
-/// <summary>Two user-confirmed, episode-specific sections. No scene detector guesses these times.</summary>
+/// <summary>The two sections of an episode that can be skipped.</summary>
 public enum EpisodeSectionKind
 {
     Intro,
@@ -11,9 +11,10 @@ public enum EpisodeSectionKind
 public sealed record EpisodeSkip(EpisodeSectionKind Kind, TimeSpan End);
 
 /// <summary>
-/// Explicit boundaries for one media item. Partially entered or reversed boundaries are retained
-/// for editing but can never skip anything. Credits have an explicit end because scenes sometimes
-/// follow them. Nothing is ever skipped without a deliberate click.
+/// The boundaries the viewer saved for one file. Partly entered or reversed boundaries are kept for
+/// editing but skip nothing, with one exception: credits marked with a start alone run to the end
+/// of the file, which is where credits usually end. An end marked before the end of the file keeps
+/// a scene that follows the credits.
 /// </summary>
 public sealed record EpisodeSections(
     TimeSpan? IntroStart = null,
@@ -43,7 +44,7 @@ public sealed record EpisodeSections(
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
-    /// <summary>Only trustworthy saved boundaries create a skip offer, never inferred timestamps.</summary>
+    /// <summary>What playback at <paramref name="position"/> can skip by the saved boundaries, or null.</summary>
     public EpisodeSkip? Offer(TimeSpan position, TimeSpan duration)
     {
         if (duration <= TimeSpan.Zero || position < TimeSpan.Zero || position >= duration)
@@ -52,14 +53,29 @@ public sealed record EpisodeSections(
         }
 
         return InRange(EpisodeSectionKind.Intro, IntroStart, IntroEnd, position, duration)
-            ?? InRange(EpisodeSectionKind.Credits, CreditsStart, CreditsEnd, position, duration);
+            ?? InRange(EpisodeSectionKind.Credits, CreditsStart, CreditsEnd ?? (CreditsStart is null ? null : duration), position, duration);
     }
+
+    /// <summary>The span the saved boundaries of <paramref name="kind"/> skip, or null when they skip nothing.</summary>
+    public (TimeSpan Start, TimeSpan End)? Span(EpisodeSectionKind kind, TimeSpan duration)
+    {
+        var (start, end) = kind switch
+        {
+            EpisodeSectionKind.Intro => (IntroStart, IntroEnd),
+            EpisodeSectionKind.Credits => (CreditsStart, CreditsEnd ?? (CreditsStart is null ? null : duration)),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+        return start is { } from && end is { } to && Valid(from, to, duration) ? (from, to) : null;
+    }
+
+    /// <summary>Whether any boundary of <paramref name="kind"/> is saved, complete or not.</summary>
+    public bool Has(EpisodeSectionKind kind) => kind == EpisodeSectionKind.Intro
+        ? IntroStart is not null || IntroEnd is not null
+        : CreditsStart is not null || CreditsEnd is not null;
 
     private static EpisodeSkip? InRange(EpisodeSectionKind kind, TimeSpan? start, TimeSpan? end, TimeSpan position, TimeSpan duration)
     {
-        if (start is not { } from || end is not { } to ||
-            from < TimeSpan.Zero || from >= to || to > duration ||
-            to - from < TimeSpan.FromSeconds(2) ||
+        if (start is not { } from || end is not { } to || !Valid(from, to, duration) ||
             position < from || position >= to - TimeSpan.FromMilliseconds(250))
         {
             return null;
@@ -67,4 +83,7 @@ public sealed record EpisodeSections(
 
         return new EpisodeSkip(kind, to);
     }
+
+    private static bool Valid(TimeSpan from, TimeSpan to, TimeSpan duration) =>
+        from >= TimeSpan.Zero && to <= duration && to - from >= TimeSpan.FromSeconds(2);
 }

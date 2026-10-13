@@ -13,13 +13,13 @@ namespace Rex.Media.App;
 
 /// <summary>
 /// Intro and credits: the skip button beside the picture, its options, the sections drawn on the
-/// timeline and the boundary editor. Every decision is the controller's (<see cref="EpisodeSkipPrompt"/>);
-/// this only shows it.
+/// timeline and the boundary editor. Every decision is made in AppCore (<see cref="EpisodeSkipPrompt"/>,
+/// <see cref="EpisodeSectionView"/>); this only shows it.
 /// </summary>
 public sealed partial class MainWindow
 {
-    private readonly List<MenuFlyoutItem> _episodeMarkerCommands = [];
-    private readonly List<(ToggleMenuFlyoutItem Item, EpisodeSectionKind Kind)> _showSkipToggles = [];
+    /// <summary>The section commands in the menus, and how each is brought up to date.</summary>
+    private readonly List<Action> _sectionMenuUpdates = [];
     private readonly List<(Rectangle Mark, TimeSpan Start, TimeSpan End)> _sectionMarks = [];
     private string _shownSkip = "";
     private string _shownSectionMarks = "";
@@ -28,76 +28,88 @@ public sealed partial class MainWindow
     {
         var menu = new MenuFlyoutSubItem { Text = "Intro and credits" };
         AutomationProperties.SetAutomationId(menu, prefix + "EpisodeSections");
-        void Add(string title, string id, Action action)
+        void Add(string title, string id, Action action, Func<bool> enabled)
         {
-            var item = new MenuFlyoutItem { Text = title, IsEnabled = _player.CanMarkEpisodeSections };
-            AutomationProperties.SetAutomationId(item, prefix + id);
-            item.Click += (_, _) => action();
-            menu.Items.Add(item);
-            _episodeMarkerCommands.Add(item);
-        }
-
-        void Toggle(string title, string id, EpisodeSectionKind kind)
-        {
-            var item = new ToggleMenuFlyoutItem { Text = title, IsEnabled = _player.CurrentEpisode is not null };
+            var item = new MenuFlyoutItem { Text = title, IsEnabled = enabled() };
             AutomationProperties.SetAutomationId(item, prefix + id);
             item.Click += (_, _) =>
             {
-                _player.SetShowSkipping(kind, item.IsChecked);
+                action();
                 ShowEpisodeSkip();
             };
             menu.Items.Add(item);
-            _showSkipToggles.Add((item, kind));
+            _sectionMenuUpdates.Add(() => item.IsEnabled = enabled());
         }
 
-        Add("Mark intro start here", "IntroStart", () => _player.MarkEpisodeSection(EpisodeSectionKind.Intro, true));
-        Add("Mark intro end here", "IntroEnd", () => _player.MarkEpisodeSection(EpisodeSectionKind.Intro, false));
-        Add("Adjust intro...", "IntroAdjust", () => _ = AdjustEpisodeSectionAsync(EpisodeSectionKind.Intro));
-        Add("Clear intro markers", "IntroClear", () => _player.ClearEpisodeSection(EpisodeSectionKind.Intro));
+        void Toggle(string title, string id, Action<bool> action, Func<bool> enabled, Func<bool> chosen)
+        {
+            var item = new ToggleMenuFlyoutItem { Text = title, IsEnabled = enabled(), IsChecked = chosen() };
+            AutomationProperties.SetAutomationId(item, prefix + id);
+            item.Click += (_, _) =>
+            {
+                action(item.IsChecked);
+                ShowEpisodeSkip();
+            };
+            menu.Items.Add(item);
+            _sectionMenuUpdates.Add(() =>
+            {
+                item.IsEnabled = enabled();
+                item.IsChecked = chosen();
+            });
+        }
+
+        bool Video() => _player.CanMarkEpisodeSections;
+        EpisodeSectionView? View(EpisodeSectionKind kind) => _player.SectionViews.FirstOrDefault(view => view.Kind == kind);
+        bool Episode() => Video() && _player.CurrentEpisode is not null;
+        foreach (var kind in new[] { EpisodeSectionKind.Intro, EpisodeSectionKind.Credits })
+        {
+            var (name, noun) = kind == EpisodeSectionKind.Intro ? ("Intro", "intro") : ("Credits", "credits");
+            Add($"Mark {noun} start here", name + "Start", () => _player.MarkEpisodeSection(kind, true), Video);
+            Add($"Mark {noun} end here", name + "End", () => _player.MarkEpisodeSection(kind, false), Video);
+        }
+
         menu.Items.Add(new MenuFlyoutSeparator());
-        Add("Mark credits start here", "CreditsStart", () => _player.MarkEpisodeSection(EpisodeSectionKind.Credits, true));
-        Add("Mark credits end here", "CreditsEnd", () => _player.MarkEpisodeSection(EpisodeSectionKind.Credits, false));
-        Add("End credits at end of video", "CreditsVideoEnd", () => _player.MarkEpisodeSection(EpisodeSectionKind.Credits, false, atVideoEnd: true));
-        Add("Adjust credits...", "CreditsAdjust", () => _ = AdjustEpisodeSectionAsync(EpisodeSectionKind.Credits));
-        Add("Clear credits markers", "CreditsClear", () => _player.ClearEpisodeSection(EpisodeSectionKind.Credits));
+        foreach (var kind in new[] { EpisodeSectionKind.Intro, EpisodeSectionKind.Credits })
+        {
+            var (name, noun) = kind == EpisodeSectionKind.Intro ? ("Intro", "intro") : ("Credits", "credits");
+            Add($"Edit {noun} times...", name + "Adjust", () => _ = AdjustEpisodeSectionAsync(kind), Video);
+            Add($"Clear saved {noun}", name + "Clear", () => _player.ClearEpisodeSection(kind), () => View(kind)?.HasSavedBoundary == true);
+        }
+
         menu.Items.Add(new MenuFlyoutSeparator());
-        Add("Not an intro (hide the detected one)", "IntroReject", () => ChangeProposalFeedback(EpisodeSectionKind.Intro, true));
-        Add("Not credits (hide the detected ones)", "CreditsReject", () => ChangeProposalFeedback(EpisodeSectionKind.Credits, true));
-        Add("Show the detected intro again", "IntroRestore", () => ChangeProposalFeedback(EpisodeSectionKind.Intro, false));
-        Add("Show the detected credits again", "CreditsRestore", () => ChangeProposalFeedback(EpisodeSectionKind.Credits, false));
-        Add("Suggest sections from labeled chapters...", "DetectChapters", () => _ = ConfirmChapterSuggestionsAsync());
+        foreach (var kind in new[] { EpisodeSectionKind.Intro, EpisodeSectionKind.Credits })
+        {
+            var (name, noun) = kind == EpisodeSectionKind.Intro ? ("Intro", "intro") : ("Credits", "credits");
+            Toggle($"Hide the detected {noun}", name + "Hide", hide => ChangeProposalFeedback(kind, hide),
+                () => View(kind) is { } view && (view.CanHide || view.Hidden), () => View(kind)?.Hidden == true);
+        }
+
+        Add("Save intro and credits from chapter names...", "DetectChapters", () => _ = ConfirmChapterSuggestionsAsync(), Video);
         menu.Items.Add(new MenuFlyoutSeparator());
-        Toggle("Always skip intros for this show", "ShowSkipIntros", EpisodeSectionKind.Intro);
-        Toggle("Always skip credits for this show", "ShowSkipCredits", EpisodeSectionKind.Credits);
-        Add("Skip settings for every show...", "SkipPreferences", () => _ = ShowPreferencesAsync());
+        Toggle("Always skip intros for this show", "ShowSkipIntros", skip => _player.SetShowSkipping(EpisodeSectionKind.Intro, skip),
+            Episode, () => _player.CurrentShowSkipping.Intros);
+        Toggle("Always skip credits for this show", "ShowSkipCredits", skip => _player.SetShowSkipping(EpisodeSectionKind.Credits, skip),
+            Episode, () => _player.CurrentShowSkipping.Credits);
+        Add("Skip settings for every show...", "SkipPreferences", () => _ = ShowPreferencesAsync(), () => true);
         items.Add(new MenuFlyoutSeparator());
         items.Add(menu);
     }
 
     /// <summary>
-    /// Brings the skip buttons and the timeline marks in line with the player. Called on every
-    /// position change, so it only rebuilds what changed.
+    /// Brings the skip buttons, the menus and the timeline marks in line with the player. Called on
+    /// every position change, so it only rebuilds what changed.
     /// </summary>
     private void ShowEpisodeSkip()
     {
-        var allowed = _player.CanMarkEpisodeSections;
-        foreach (var action in _episodeMarkerCommands)
+        foreach (var update in _sectionMenuUpdates)
         {
-            action.IsEnabled = allowed;
-        }
-
-        var episode = _player.CurrentEpisode is not null && allowed;
-        var skipping = _player.CurrentShowSkipping;
-        foreach (var (item, kind) in _showSkipToggles)
-        {
-            item.IsEnabled = episode;
-            item.IsChecked = kind == EpisodeSectionKind.Intro ? skipping.Intros : skipping.Credits;
+            update();
         }
 
         ShowSectionMarks();
         var prompt = LibraryPane.Visibility == Visibility.Visible ? null : _player.SkipPrompt;
-        var shown = prompt is null ? "" : string.Join("|", prompt.Kind, prompt.PrimaryText, prompt.Secondary,
-            prompt.Detected, prompt.Target.Ticks, _player.NextEpisode, _keymap.Label(CommandCatalog.SkipSection));
+        var key = _keymap.Label(CommandCatalog.SkipSection);
+        var shown = prompt is null ? "" : string.Join("|", prompt, _player.NextEpisode, key);
         if (shown == _shownSkip)
         {
             return;
@@ -113,18 +125,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        var key = _keymap.Label(CommandCatalog.SkipSection);
         var nextTitle = _player.NextEpisode is { } next ? PlaylistItem.TitleOf(next) : null;
         EpisodeSkipButton.Content = prompt.PrimaryText;
         AutomationProperties.SetName(EpisodeSkipButton, prompt.PrimaryText);
-        ToolTipService.SetToolTip(EpisodeSkipButton, (prompt.Primary switch
-        {
-            EpisodeSkipAction.NextEpisode => "Play " + nextTitle,
-            EpisodeSkipAction.SkipCredits when prompt.Target < _player.Duration - EpisodeSkipPrompt.SceneAfterCreditsThreshold =>
-                "Go to the scene after the credits",
-            EpisodeSkipAction.SkipCredits => "Go to the end",
-            _ => "Go to where the intro ends",
-        }) + (key.Length > 0 ? $" ({key})" : ""));
+        ToolTipService.SetToolTip(EpisodeSkipButton, prompt.Hint(nextTitle, key));
         EpisodeSkipButton.Visibility = Visibility.Visible;
 
         EpisodeNextButton.Visibility = prompt.Secondary == EpisodeSkipAction.NextEpisode ? Visibility.Visible : Visibility.Collapsed;
@@ -133,67 +137,56 @@ public sealed partial class MainWindow
         EpisodeSkipCancel.Visibility = prompt.AutomaticInSeconds is null ? Visibility.Collapsed : Visibility.Visible;
 
         EpisodeSkipOptions.Visibility = Visibility.Visible;
-        var label = prompt.Kind == EpisodeSectionKind.Intro ? "intro" : "credits";
-        AutomationProperties.SetName(EpisodeSkipOptions, (prompt.Detected ? "Review the detected " : "Adjust the saved ") + label);
-        ToolTipService.SetToolTip(EpisodeSkipOptions, prompt.Detected
-            ? "Save, adjust or reject the detected " + label
-            : "Adjust or clear the saved " + label);
+        var noun = prompt.Kind == EpisodeSectionKind.Intro ? "intro" : "credits";
+        var options = (prompt.Detected ? "Check the detected " : "Edit the saved ") + noun;
+        AutomationProperties.SetName(EpisodeSkipOptions, options);
+        ToolTipService.SetToolTip(EpisodeSkipOptions, options);
         EpisodeSkipOptions.Flyout = SkipOptions(prompt);
     }
 
+    /// <summary>The options beside the skip button: keep, edit or reject what was found, and automatic skipping.</summary>
     private MenuFlyout SkipOptions(EpisodeSkipPrompt prompt)
     {
         var kind = prompt.Kind;
         var menu = new MenuFlyout();
-        var label = kind == EpisodeSectionKind.Intro ? "intro" : "credits";
-        var candidate = _player.CurrentProposals?.Best(kind, _player.Duration);
+        var view = _player.SectionViews.First(view => view.Kind == kind);
         MenuFlyoutItem Command(string title, string id, Action action)
         {
             var item = new MenuFlyoutItem { Text = title };
             AutomationProperties.SetAutomationId(item, "EpisodeSkip" + id);
-            item.Click += (_, _) => action();
+            item.Click += (_, _) =>
+            {
+                action();
+                ShowEpisodeSkip();
+            };
             menu.Items.Add(item);
             return item;
         }
 
-        if (prompt.Detected && candidate is not null)
+        if (view.Start is { } start && view.End is { } end)
         {
-            menu.Items.Add(new MenuFlyoutItem
+            var text = view.Saved ? "Saved: " + Span(start, end)
+                : string.Create(CultureInfo.InvariantCulture, $"Found: {Span(start, end)} ({view.Detected!.Confidence:P0} sure)");
+            menu.Items.Add(new MenuFlyoutItem { Text = text, IsEnabled = false });
+            if (!view.Saved)
             {
-                Text = string.Create(CultureInfo.InvariantCulture,
-                    $"Found automatically, {candidate.Confidence:P0} sure: {Span(candidate.Start, candidate.End)}"),
-                IsEnabled = false,
-            });
-            menu.Items.Add(new MenuFlyoutItem { Text = candidate.Reason, IsEnabled = false });
-            Command("Looks right: save it for this episode", "Confirm", () =>
-            {
-                _player.ConfirmDetectedSection(kind);
-                ShowEpisodeSkip();
-            });
-        }
-        else
-        {
-            var saved = _player.CurrentSections;
-            var (start, end) = kind == EpisodeSectionKind.Intro ? (saved.IntroStart, saved.IntroEnd) : (saved.CreditsStart, saved.CreditsEnd);
-            menu.Items.Add(new MenuFlyoutItem
-            {
-                Text = start is { } from && end is { } to ? "Saved by you: " + Span(from, to) : "Saved by you",
-                IsEnabled = false,
-            });
+                menu.Items.Add(new MenuFlyoutItem { Text = view.Detected!.Reason, IsEnabled = false });
+            }
         }
 
-        Command("Adjust start and end...", "Adjust", () => _ = AdjustEpisodeSectionAsync(kind));
-        if (prompt.Detected)
+        if (!view.Saved)
         {
-            Command(kind == EpisodeSectionKind.Intro ? "Not an intro" : "Not credits", "Reject", () => ChangeProposalFeedback(kind, true));
+            Command("Keep these times", "Confirm", () => _player.ConfirmDetectedSection(kind));
+        }
+
+        Command("Edit times...", "Adjust", () => _ = AdjustEpisodeSectionAsync(kind));
+        if (view.Saved)
+        {
+            Command("Clear the saved " + view.Noun, "Clear", () => _player.ClearEpisodeSection(kind));
         }
         else
         {
-            Command("Clear the saved " + label, "Clear", () =>
-            {
-                _player.ClearEpisodeSection(kind);
-                ShowEpisodeSkip();
-            });
+            Command(kind == EpisodeSectionKind.Intro ? "Not the intro" : "Not the credits", "Reject", () => ChangeProposalFeedback(kind, true));
         }
 
         menu.Items.Add(new MenuFlyoutSeparator());
@@ -219,31 +212,13 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// The intro and credits as bands on the timeline: filled for sections the viewer saved,
-    /// outlined for detected ones, so the two never look alike.
+    /// outlined and dashed for detected ones, so the two never look alike.
     /// </summary>
     private void ShowSectionMarks()
     {
         var duration = _player.Duration;
-        var marks = new List<(EpisodeSectionKind Kind, TimeSpan Start, TimeSpan End, bool Saved)>();
-        if (_player.CanMarkEpisodeSections && duration > TimeSpan.Zero)
-        {
-            var saved = _player.CurrentSections;
-            var proposals = _player.CurrentProposals;
-            foreach (var kind in new[] { EpisodeSectionKind.Intro, EpisodeSectionKind.Credits })
-            {
-                var (start, end) = kind == EpisodeSectionKind.Intro ? (saved.IntroStart, saved.IntroEnd) : (saved.CreditsStart, saved.CreditsEnd);
-                if (start is { } from && end is { } to && to > from)
-                {
-                    marks.Add((kind, from, to, true));
-                }
-                else if (start is null && end is null && proposals?.Best(kind, duration) is { } candidate)
-                {
-                    marks.Add((kind, candidate.Start, candidate.End, false));
-                }
-            }
-        }
-
-        var shown = duration.Ticks + ";" + string.Join(";", marks.Select(mark => $"{mark.Kind}{mark.Start.Ticks}-{mark.End.Ticks}{mark.Saved}"));
+        var marks = _player.SectionViews.Where(view => view.Start is not null && view.End is not null).ToList();
+        var shown = duration.Ticks + ";" + string.Join(";", marks);
         if (shown == _shownSectionMarks)
         {
             return;
@@ -253,30 +228,32 @@ public sealed partial class MainWindow
         SectionMarkers.Children.Clear();
         _sectionMarks.Clear();
         var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
-        foreach (var (kind, start, end, saved) in marks)
+        foreach (var view in marks)
         {
+            var (start, end) = (view.Start!.Value, view.End!.Value);
             var mark = new Rectangle
             {
                 Height = 6,
                 RadiusX = 2,
                 RadiusY = 2,
-                Fill = saved ? accent : new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                Fill = view.Saved ? accent : new SolidColorBrush(Microsoft.UI.Colors.Transparent),
                 Stroke = accent,
-                StrokeThickness = saved ? 0 : 1.5,
-                StrokeDashArray = saved ? null : [2, 1.5],
-                Opacity = saved ? 0.85 : 0.95,
+                StrokeThickness = view.Saved ? 0 : 1.5,
+                StrokeDashArray = view.Saved ? null : [2, 1.5],
+                Opacity = view.Saved ? 0.85 : 0.95,
                 IsHitTestVisible = false,
             };
-            var what = kind == EpisodeSectionKind.Intro ? "Intro" : "Credits";
-            AutomationProperties.SetAutomationId(mark, "SectionMarker-" + what);
-            AutomationProperties.SetName(mark, $"{what}, {(saved ? "saved" : "detected")}, {Span(start, end)}");
+            AutomationProperties.SetAutomationId(mark, "SectionMarker-" + (view.Kind == EpisodeSectionKind.Intro ? "Intro" : "Credits"));
+            AutomationProperties.SetName(mark, Describe(view));
             SectionMarkers.Children.Add(mark);
             _sectionMarks.Add((mark, start, end));
         }
 
-        AutomationProperties.SetName(SectionMarkers, marks.Count == 0 ? "No intro or credits marked"
-            : string.Join(", ", marks.Select(mark => $"{(mark.Kind == EpisodeSectionKind.Intro ? "intro" : "credits")} {(mark.Saved ? "saved" : "detected")} {Span(mark.Start, mark.End)}")));
+        AutomationProperties.SetName(SectionMarkers, marks.Count == 0 ? "No intro or credits marked" : string.Join(", ", marks.Select(Describe)));
         PositionSectionMarks();
+
+        static string Describe(EpisodeSectionView view) =>
+            $"{view.Noun}, {(view.Saved ? "saved" : "detected")}, {Span(view.Start!.Value, view.End!.Value)}";
     }
 
     private void PositionSectionMarks()
@@ -298,18 +275,16 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Feedback is remembered independently of saved manual boundaries.</summary>
+    /// <summary>Hides a detected section for this episode, or shows it again; saved boundaries are untouched.</summary>
     private void ChangeProposalFeedback(EpisodeSectionKind kind, bool reject)
     {
         if (!_player.RejectDetectedSection(kind, reject))
         {
-            Say("There is no detected section to change.");
+            Say("Nothing was detected here to hide.");
             return;
         }
 
-        Say(reject ? "Hidden for this episode. It will not be offered again." :
-            "Detection shown again. Sections you saved still come first.");
-        ShowEpisodeSkip();
+        Say(reject ? "Hidden for this episode. It will not be offered again." : "The detected section is shown again.");
     }
 
     private void OnSkipEpisodeSection(object sender, RoutedEventArgs args)

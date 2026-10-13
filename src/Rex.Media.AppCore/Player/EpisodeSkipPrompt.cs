@@ -11,6 +11,7 @@ public enum EpisodeSkipAction
 /// <summary>
 /// The skip offer the window shows: one main action, an optional second one, where skipping goes,
 /// whether the section was detected or saved by the viewer, and the countdown to an automatic skip.
+/// <see cref="SceneAfter"/> is true when something worth watching follows the credits.
 /// </summary>
 public sealed record EpisodeSkipPrompt(
     EpisodeSectionKind Kind,
@@ -19,7 +20,8 @@ public sealed record EpisodeSkipPrompt(
     TimeSpan Target,
     bool Detected,
     double? Confidence,
-    int? AutomaticInSeconds)
+    int? AutomaticInSeconds,
+    bool SceneAfter = false)
 {
     /// <summary>
     /// Credits that end this close to the end of the file have nothing after them worth watching
@@ -27,9 +29,6 @@ public sealed record EpisodeSkipPrompt(
     /// remainder is a scene after the credits or a preview of the next episode.
     /// </summary>
     public static readonly TimeSpan SceneAfterCreditsThreshold = TimeSpan.FromSeconds(20);
-
-    /// <summary>How long an opted-in automatic skip waits, in playback time, so it can be cancelled.</summary>
-    public static readonly TimeSpan AutomaticDelay = TimeSpan.FromSeconds(5);
 
     /// <summary>The words on a button; short, and true for every case the action covers.</summary>
     public static string Label(EpisodeSkipAction action) => action switch
@@ -47,6 +46,22 @@ public sealed record EpisodeSkipPrompt(
         EpisodeSkipAction.SkipCredits => $"Skipping credits in {seconds}",
         _ => $"Next episode in {seconds}",
     };
+
+    /// <summary>
+    /// The main button's tooltip: where it goes, then its shortcut, such as "Play Show S01E03 (Shift+N)".
+    /// <paramref name="next"/> names the next episode; an empty <paramref name="shortcut"/> is left out.
+    /// </summary>
+    public string Hint(string? next, string shortcut)
+    {
+        var where = Primary switch
+        {
+            EpisodeSkipAction.NextEpisode => "Play " + next,
+            EpisodeSkipAction.SkipCredits when SceneAfter => "Go to the scene after the credits",
+            EpisodeSkipAction.SkipCredits => "Go to the end",
+            _ => "Go to where the intro ends",
+        };
+        return string.IsNullOrEmpty(shortcut) ? where : $"{where} ({shortcut})";
+    }
 
     /// <summary>
     /// The offer for <paramref name="skip"/>. At credits with a following episode, "Next episode"
@@ -77,6 +92,6 @@ public sealed record EpisodeSkipPrompt(
             _ => (EpisodeSkipAction.SkipCredits, null),
         };
         return new EpisodeSkipPrompt(skip.Kind, primary, secondary, skip.End, confidence is not null,
-            confidence, countdown);
+            confidence, countdown, sceneAfter);
     }
 }
