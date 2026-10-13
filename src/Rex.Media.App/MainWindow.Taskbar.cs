@@ -405,10 +405,10 @@ public sealed partial class MainWindow
         }
 
         _shellPictureCancel = new CancellationTokenSource();
-        _ = LoadShellPictureAsync(item, kind, _settings, _shellPictureCancel.Token);
+        _ = LoadShellPictureAsync(item, kind, _player.Duration, _settings, _shellPictureCancel.Token);
     }
 
-    private async Task LoadShellPictureAsync(PlaylistItem item, MediaCardKind kind, Rex.Media.Settings.PlayerSettings settings, CancellationToken token)
+    private async Task LoadShellPictureAsync(PlaylistItem item, MediaCardKind kind, TimeSpan duration, Rex.Media.Settings.PlayerSettings settings, CancellationToken token)
     {
         var entered = false;
         try
@@ -429,7 +429,7 @@ public sealed partial class MainWindow
                 var key = PictureKey(path, mediaKind, settings, local);
                 if (key is null)
                 {
-                    return [];
+                    return Array.Empty<byte>();
                 }
 
                 // Windows' card accepts JPEG or PNG bytes. Use an existing local cover when it
@@ -442,7 +442,7 @@ public sealed partial class MainWindow
 
                 var cached = PictureCachePath(key);
                 return File.Exists(cached) ? File.ReadAllBytes(cached)
-                    : MakePicture(path, mediaKind, _player.Duration, key, settings, token);
+                    : MakePicture(path, mediaKind, duration, key, settings, token);
             }, token);
             token.ThrowIfCancellationRequested();
             OnWindowThread(() =>
