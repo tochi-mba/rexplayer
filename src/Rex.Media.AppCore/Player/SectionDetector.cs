@@ -44,10 +44,8 @@ public static class SectionDetector
         }
 
         // Another copy of the same episode would match from start to end; it is not a sibling.
-        var related = siblings.Where(other => other.Path != episode.Path &&
-            EpisodeGrouping.Identify(other.Path) is { } match &&
-            match.Season == identity.Season && match.Show == identity.Show &&
-            match.Episode != identity.Episode)
+        var related = siblings.Where(other => EpisodeGrouping.Identify(other.Path) is { } match &&
+                EpisodeGrouping.AreSiblings(identity, match))
             .DistinctBy(other => EpisodeGrouping.Identify(other.Path)!.Episode).ToArray();
         var intros = new List<(int Sibling, LandmarkMatch Match)>();
         var endings = new List<(int Sibling, LandmarkMatch Match)>();

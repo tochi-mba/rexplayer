@@ -179,49 +179,51 @@ public sealed class PlayerMemory(RexStore store)
         }
     }
 
-    /// <summary>Detected sections are separate from manually confirmed sections.</summary>
+    /// <summary>
+    /// The sections detected in <paramref name="location"/> as it is now (<paramref name="signature"/>),
+    /// with the viewer's rejections; kept apart from the boundaries the viewer saved.
+    /// </summary>
     public SectionProposals? Proposals(string location, string signature)
     {
         var saved = Read(ProposalsPrefix + KeyFor(location), MemoryJson.Default.SectionProposals);
         return saved?.Signature == signature ? saved : null;
     }
 
-    /// <summary>Cache a proposal while preserving the user's prior rejection flags.</summary>
-    public void SetProposals(string location, SectionProposals proposals)
+    /// <summary>
+    /// <paramref name="detected"/> with the rejections the viewer made for <paramref name="location"/>,
+    /// even against an earlier analysis: a rejected section stays hidden until the viewer restores it.
+    /// </summary>
+    public SectionProposals WithRejections(string location, SectionProposals detected)
     {
-        ArgumentNullException.ThrowIfNull(proposals);
-        var key = ProposalsPrefix + KeyFor(location);
-        var earlier = Read(key, MemoryJson.Default.SectionProposals);
-        var merged = proposals with
+        ArgumentNullException.ThrowIfNull(detected);
+        var earlier = Read(ProposalsPrefix + KeyFor(location), MemoryJson.Default.SectionProposals);
+        return detected with
         {
-            IntroRejected = earlier?.IntroRejected == true || proposals.IntroRejected,
-            CreditsRejected = earlier?.CreditsRejected == true || proposals.CreditsRejected,
+            IntroRejected = earlier?.IntroRejected == true || detected.IntroRejected,
+            CreditsRejected = earlier?.CreditsRejected == true || detected.CreditsRejected,
         };
-        Write(key, merged, MemoryJson.Default.SectionProposals);
     }
 
-    /// <summary>Update feedback without rereading or rescanning the media.</summary>
+    /// <summary>Keeps what was detected in <paramref name="location"/>, and the viewer's rejections.</summary>
+    public void SetProposals(string location, SectionProposals proposals) =>
+        Write(ProposalsPrefix + KeyFor(location), WithRejections(location, proposals), MemoryJson.Default.SectionProposals);
+
+    /// <summary>
+    /// Hides (or shows again) the detected <paramref name="kind"/> of <paramref name="location"/>. It
+    /// is remembered even while the analysis is still running and nothing has been kept yet.
+    /// </summary>
     public void RejectProposal(string location, EpisodeSectionKind kind, bool reject)
     {
         var key = ProposalsPrefix + KeyFor(location);
-        if (Read(key, MemoryJson.Default.SectionProposals) is { } saved)
-        {
-            Write(key, saved.Reject(kind, reject), MemoryJson.Default.SectionProposals);
-        }
+        var saved = Read(key, MemoryJson.Default.SectionProposals) ?? new SectionProposals("", []);
+        Write(key, saved.Reject(kind, reject), MemoryJson.Default.SectionProposals);
     }
 
-    /// <summary>A re-usable signature-bound analysis of one media file, independent of sibling files.</summary>
-    public EpisodeAnalysis? Analysis(string location, string signature)
-    {
-        var saved = Read(AnalysesPrefix + KeyFor(location), MemoryJson.Default.EpisodeAnalysis);
-        return saved?.Signature == signature ? saved : null;
-    }
-
-    public void SetAnalysis(EpisodeAnalysis analysis)
-    {
-        ArgumentNullException.ThrowIfNull(analysis);
-        Write(AnalysesPrefix + KeyFor(analysis.Path), analysis, MemoryJson.Default.EpisodeAnalysis);
-    }
+    /// <summary>
+    /// Forgets the episode analyses that versions before 0.19.1 kept in the store, about 12 MB each;
+    /// they now live in <see cref="SectionAnalysisCache"/>. Returns how many there were.
+    /// </summary>
+    public int ForgetStoredAnalyses() => Store.RemovePrefix(AnalysesPrefix);
 
     /// <summary>The automatic skipping chosen for one show, known by its normalised name.</summary>
     public ShowSkipping ShowSkips(string show) =>
@@ -337,7 +339,6 @@ public sealed class PlayerMemory(RexStore store)
 [JsonSerializable(typeof(List<Bookmark>), TypeInfoPropertyName = "ListBookmark")]
 [JsonSerializable(typeof(EpisodeSections))]
 [JsonSerializable(typeof(SectionProposals))]
-[JsonSerializable(typeof(EpisodeAnalysis))]
 [JsonSerializable(typeof(ShowSkipping))]
 [JsonSerializable(typeof(QuickSlot))]
 [JsonSerializable(typeof(QueueSnapshot))]
