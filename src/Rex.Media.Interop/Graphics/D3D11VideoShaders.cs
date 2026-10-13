@@ -731,7 +731,7 @@ internal static class D3D11VideoShaders
                 // not detect, remove or reveal anything.
                 float luminance = lumaOf(colour);
                 float tone = floor(saturate(luminance * 1.15) * 3.999) / 3;
-                float3 maskColour = lerp(float3(0.03, 0.02, 0.07), float3(0.22, 0.15, 0.34), tone);
+                float3 maskColour = lerp(float3(0.16, 0.08, 0.26), float3(0.56, 0.32, 0.71), tone);
                 float inner = saturate(field.y - outline.x * outline.y);
                 float dots = 1 - smoothstep(0.3, 0.45, length(frac(screen / 3.5) - 0.5));
                 maskColour += outline.x * outline.y * float3(0.92, 0.86, 1);
