@@ -317,6 +317,7 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
+        Reach("start");
         startAt = BeforeStart(item, startAt, audioTrack);
         _log.Info(LogSource, $"Starting \"{item.Title}\" ({item.Location})"
             + (item.IsPart ? $", the part from {TimeText.Format(item.Start, TimeSpan.Zero)}{(item.End is { } partEnd ? " to " + TimeText.Format(partEnd, TimeSpan.Zero) : "")}" : "")

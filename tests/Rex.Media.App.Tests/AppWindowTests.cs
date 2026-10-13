@@ -839,11 +839,13 @@ public sealed class AppWindowTests : IDisposable
     {
         using var app = AppProcess.Start();
 
+        Wait.For(() => app.LogText.Contains("[INFO] app: rexplayer", StringComparison.Ordinal),
+            "the startup message to reach the live log");
         app.Run(CommandCatalog.ShowLog);
         var log = ((ValuePattern)app.Find("LogText").GetCurrentPattern(ValuePattern.Pattern)).Current.Value;
         app.Press("CloseButton");
 
-        Assert.Contains("[INFO] app: rexplayer", log, StringComparison.Ordinal);
+        Assert.Contains("[INFO] timing: app at ", log, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 

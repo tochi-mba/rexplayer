@@ -18,6 +18,7 @@ public partial class App : Application
 
     public App()
     {
+        Milestones.Reach("app");
         InitializeComponent();
         UnhandledException += (_, e) => Log.Critical("app", ExceptionDiagnostics.Summary(e.Exception));
 
@@ -54,13 +55,24 @@ public partial class App : Application
     /// </summary>
     public static RexLog Log { get; } = new(new RexLogOptions { Directory = LogFolder, FileName = "rexplayer.log", Minimum = LogLevel.Debug, MaxBytes = 8 * 1024 * 1024, KeepFiles = 5 });
 
+    /// <summary>
+    /// The timing lines of the log: how long since the process started each moment of the launch
+    /// and of opening media came. REXPLAYER_EXIT_AFTER names one ("first-frame", or "first-frame*2"
+    /// for the second) to exit at, which is how scripts/measure-startup.ps1 measures a launch.
+    /// </summary>
+    public static Milestones Milestones { get; } = new(Log, LaunchedAt, Environment.GetEnvironmentVariable("REXPLAYER_EXIT_AFTER"), () => Environment.Exit(0));
+
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         Log.Info("app", $"rexplayer {MainWindow.Version} starting on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}), .NET {Environment.Version}, data in {DataRoot}.");
+        Milestones.Reach("launched");
         Log.Debug("app", "Command line: " + string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(arg => "\"" + arg + "\"")));
         var files = Environment.GetCommandLineArgs().Skip(1).Select(Located).ToList();
         var settings = SettingsStore.Load(SettingsPath);
         var pipe = AutomationPipe.NameForCurrentUser;
+        var closing = new CancellationTokenSource();
+        var readyWindow = new TaskCompletionSource<MainWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var servingHere = false;
         if (settings.SingleInstance)
         {
             if (OperatingSystem.IsWindows())
@@ -68,27 +80,47 @@ public partial class App : Application
                 Foreground.AllowAnyProcess();
             }
 
-            var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }, FindRunningPlayer);
-            if (reply is { Ok: true })
+            // Claim the pipe before constructing the window. The first launch no longer waits
+            // through a connection timeout when there is no running instance. A second launch
+            // can hand off even while the first is still loading XAML.
+            try
             {
-                Log.Info("app", "Handed over to the player that was already running.");
-                Exit();
-                return;
+                _ = AutomationPipe.ServeAsync(pipe, async request =>
+                    await (await readyWindow.Task.ConfigureAwait(false)).AnswerAsync(request).ConfigureAwait(false), closing.Token);
+                servingHere = true;
+            }
+            catch (IOException)
+            {
+                var reply = await AutomationPipe.SendAsync(pipe,
+                    new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt },
+                    FindRunningPlayer);
+                if (reply is { Ok: true })
+                {
+                    Log.Info("app", "Handed over to the player that was already running.");
+                    closing.Dispose();
+                    Exit();
+                    return;
+                }
             }
         }
 
+        Milestones.Reach("handed-over-checked");
         var window = new MainWindow(files);
-        var closing = new CancellationTokenSource();
         window.Closed += (_, _) => closing.Cancel();
+        readyWindow.SetResult(window);
         window.Activate();
-        try
+        Milestones.Reach("activated");
+        if (!servingHere)
         {
-            _ = AutomationPipe.ServeAsync(pipe, window.AnswerAsync, closing.Token);
-        }
-        catch (IOException ex)
-        {
-            // Another player owns the pipe (one window was turned off): this one simply has no pipe.
-            Log.Info("app", "Another player answers the automation pipe: " + ex.Message);
+            try
+            {
+                _ = AutomationPipe.ServeAsync(pipe, window.AnswerAsync, closing.Token);
+            }
+            catch (IOException ex)
+            {
+                // Another player owns the pipe (one window was turned off): this one simply has no pipe.
+                Log.Info("app", "Another player answers the automation pipe: " + ex.Message);
+            }
         }
     }
 

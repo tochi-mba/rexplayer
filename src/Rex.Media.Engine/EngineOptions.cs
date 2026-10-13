@@ -18,6 +18,12 @@ public sealed class EngineOptions
 
     public RexLog Log { get; init; } = RexLog.InMemory();
 
+    /// <summary>
+    /// Where the session marks how long opening, the first sound and the first picture took (the
+    /// timing lines of the log); null marks nothing.
+    /// </summary>
+    public Milestones? Milestones { get; init; }
+
     public TimeProvider Time { get; init; } = TimeProvider.System;
 
     public ResamplerQuality ResamplerQuality { get; init; } = ResamplerQuality.Normal;
