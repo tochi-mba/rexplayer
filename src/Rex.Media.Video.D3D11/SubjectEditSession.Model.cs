@@ -62,6 +62,111 @@ public sealed partial class SubjectEditSession
     private readonly List<Patch> _positive = new(MaxPositive);
     private readonly List<Patch> _negative = new(MaxNegative);
     private readonly Patch _probe = new();
+
+    // How much each of the 16 by 16 cells counts as the subject: chosen once, at selection, and
+    // shared by every view so that views stay comparable. All 1 until then.
+    private readonly float[] _weights = Uniform();
+    private float _weightTotal = Samples * Samples;
+
+    private static float[] Uniform()
+    {
+        var weights = new float[Samples * Samples];
+        Array.Fill(weights, 1f);
+        return weights;
+    }
+
+    // Cells that look like the surroundings still count this much, because the edge between the
+    // subject and its background is part of what makes it recognisable.
+    private const float BackgroundWeight = 0.2f;
+    private const int WeightLevels = 4;
+    private const int WeightBins = WeightLevels * WeightLevels * WeightLevels;
+
+    /// <summary>
+    /// Weigh each cell of the selected rectangle by how much it looks like the subject rather than
+    /// what surrounds it. A rectangle drawn around a person also holds some wall, and a rectangle
+    /// around a plain jacket next to a speckled pillar holds mostly pillar texture: left equal,
+    /// the pillar's texture is what the tracker would learn and follow. Each cell's colour is
+    /// compared with a ring around the rectangle, and colours the ring also shows count for less,
+    /// the background-weighted histogram of Comaniciu, Ramesh and Meer ("Kernel-Based Object
+    /// Tracking", IEEE TPAMI 25(5), 2003), with a gentle preference for the middle of the
+    /// rectangle in place of their kernel.
+    /// </summary>
+    private void Weigh(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box)
+    {
+        var width = Math.Max(2, box.Right - box.Left);
+        var height = Math.Max(2, box.Bottom - box.Top);
+        Span<int> columns = stackalloc int[Samples * 2];
+        Span<int> rows = stackalloc int[Samples * 2];
+        Taps(frame, box.Left, box.Top, width, height, columns, rows);
+        Span<int> bins = stackalloc int[Samples * Samples];
+        Span<float> inside = stackalloc float[WeightBins];
+        Span<float> around = stackalloc float[WeightBins];
+        inside.Clear();
+        around.Clear();
+        var i = 0;
+        for (var y = 0; y < Samples; y++)
+        {
+            var upper = frame.Row(0, rows[y]);
+            var lower = frame.Row(0, rows[Samples + y]);
+            for (var x = 0; x < Samples; x++)
+            {
+                var near = columns[x];
+                var far = columns[Samples + x];
+                var bin = WeightBin((upper[near] + upper[far] + lower[near] + lower[far]) / 4,
+                    (upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) / 4,
+                    (upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) / 4);
+                bins[i++] = bin;
+                inside[bin]++;
+            }
+        }
+
+        var marginX = Math.Max(4, width / 3);
+        var marginY = Math.Max(4, height / 3);
+        var (outerLeft, outerTop) = (Math.Max(0, box.Left - marginX), Math.Max(0, box.Top - marginY));
+        var (outerRight, outerBottom) = (Math.Min(frame.Width, box.Right + marginX), Math.Min(frame.Height, box.Bottom + marginY));
+        var stepX = Math.Max(1, (outerRight - outerLeft) / 48);
+        var stepY = Math.Max(1, (outerBottom - outerTop) / 48);
+        var counted = 0;
+        for (var y = outerTop; y < outerBottom; y += stepY)
+        {
+            var row = frame.Row(0, y);
+            var within = y >= box.Top && y < box.Bottom;
+            for (var x = outerLeft; x < outerRight; x += stepX)
+            {
+                if (within && x >= box.Left && x < box.Right) continue;
+                var at = x * 4;
+                around[WeightBin(row[at], row[at + 1], row[at + 2])]++;
+                counted++;
+            }
+        }
+
+        // A rectangle that fills the picture has no surroundings to compare with.
+        if (counted < 64) return;
+        var total = 0f;
+        for (i = 0; i < bins.Length; i++)
+        {
+            var share = inside[bins[i]] / bins.Length;
+            var likeness = share / (share + (around[bins[i]] / counted));
+            var dx = ((i % Samples) + 0.5f) / Samples * 2 - 1;
+            var dy = ((i / Samples) + 0.5f) / Samples * 2 - 1;
+            var middle = Math.Max(0, 1 - (0.5f * ((dx * dx) + (dy * dy))));
+            var weight = BackgroundWeight + ((1 - BackgroundWeight) * likeness * (0.4f + (0.6f * middle)));
+            _weights[i] = weight;
+            total += weight;
+        }
+
+        _weightTotal = total;
+    }
+
+    /// <summary>A coarse colour cube of four levels a channel, enough to tell a jacket from a wall.</summary>
+    private static int WeightBin(int b, int g, int r) =>
+        ((b * WeightLevels / 256) * WeightLevels * WeightLevels) + ((g * WeightLevels / 256) * WeightLevels) + (r * WeightLevels / 256);
+
+    private void ForgetWeights()
+    {
+        Array.Fill(_weights, 1f);
+        _weightTotal = Samples * Samples;
+    }
     private readonly Patch _spare = new();
 
     /// <summary>Resemblance to the subject, to everything else, and the two combined as a ratio.</summary>
@@ -363,7 +468,6 @@ public sealed partial class SubjectEditSession
         Span<float> luma = stackalloc float[Samples * Samples];
         var colour = patch.Colour;
         Array.Clear(colour);
-        var total = 0f;
         var i = 0;
         for (var y = 0; y < Samples; y++)
         {
@@ -377,17 +481,17 @@ public sealed partial class SubjectEditSession
                 var g = (upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) / 4;
                 var r = (upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) / 4;
                 var value = ((b * 29) + (g * 150) + (r * 77)) / 256f;
+                var share = _weights[i];
                 luma[i++] = value;
-                total += value;
-                Accumulate(colour, b, g, r);
-                colour[(ChromaBins * ChromaBins) + Math.Clamp((b + g + r) / 96, 0, 7)]++;
+                Accumulate(colour, b, g, r, share);
+                colour[(ChromaBins * ChromaBins) + Math.Clamp((b + g + r) / 96, 0, 7)] += share;
             }
         }
 
-        Normalize(luma, total, patch);
+        Normalize(luma, _weights, patch);
         patch.Red = _lightRed;
         patch.Green = _lightGreen;
-        var weight = 1f / (Samples * Samples);
+        var weight = 1f / _weightTotal;
         for (var bin = 0; bin < ColourLength; bin++) colour[bin] *= weight;
     }
 
@@ -431,7 +535,7 @@ public sealed partial class SubjectEditSession
     /// distributions for every one of those costs two divisions per pixel and decides nothing:
     /// the places worth considering are found by shape first and judged on colour afterwards.
     /// </summary>
-    private static void DescribeStructure(VideoFrame frame, int left, int top, int width, int height, Patch patch)
+    private void DescribeStructure(VideoFrame frame, int left, int top, int width, int height, Patch patch)
     {
         Span<int> columns = stackalloc int[Samples * 2];
         Span<int> rows = stackalloc int[Samples * 2];
@@ -444,11 +548,10 @@ public sealed partial class SubjectEditSession
     /// <paramref name="top"/>). The taps must stay inside the picture; a search that moves a
     /// rectangle about inside the picture keeps them there.
     /// </summary>
-    private static void ReadStructure(VideoFrame frame, ReadOnlySpan<int> columns, ReadOnlySpan<int> rows,
+    private void ReadStructure(VideoFrame frame, ReadOnlySpan<int> columns, ReadOnlySpan<int> rows,
         int left, int top, Patch patch)
     {
         Span<float> luma = stackalloc float[Samples * Samples];
-        var total = 0f;
         var i = 0;
         var across = left * 4;
         for (var y = 0; y < Samples; y++)
@@ -463,11 +566,10 @@ public sealed partial class SubjectEditSession
                     + ((upper[near + 1] + upper[far + 1] + lower[near + 1] + lower[far + 1]) * 150)
                     + ((upper[near + 2] + upper[far + 2] + lower[near + 2] + lower[far + 2]) * 77)) / 1024f;
                 luma[i++] = value;
-                total += value;
             }
         }
 
-        Normalize(luma, total, patch);
+        Normalize(luma, _weights, patch);
     }
 
     /// <summary>
@@ -475,7 +577,9 @@ public sealed partial class SubjectEditSession
     /// depends on its colour and not on how much light reached it. Near-black pixels have no
     /// reliable chromaticity, so they are counted only in the coarse luma bins.
     /// </summary>
-    private static void Accumulate(Span<float> chroma, int b, int g, int r)
+    private static void Accumulate(Span<float> chroma, int b, int g, int r) => Accumulate(chroma, b, g, r, 1);
+
+    private static void Accumulate(Span<float> chroma, int b, int g, int r, float amount)
     {
         var sum = b + g + r;
         // Near-black pixels have no reliable chromaticity: dividing by a total close to zero
@@ -485,22 +589,38 @@ public sealed partial class SubjectEditSession
         // bins over the lower three fifths keeps that cluster from collapsing into one bin.
         var red = Math.Clamp(r * ChromaBins / (sum * 3 / 5 + 1), 0, ChromaBins - 1);
         var green = Math.Clamp(g * ChromaBins / (sum * 3 / 5 + 1), 0, ChromaBins - 1);
-        chroma[red * ChromaBins + green]++;
+        chroma[red * ChromaBins + green] += amount;
     }
 
-    private static void Normalize(ReadOnlySpan<float> luma, float total, Patch patch)
+    /// <summary>
+    /// Centre the luma on its weighted mean and scale each cell by the square root of its weight,
+    /// so the dot product of two unit-length patches is their weighted correlation. With every
+    /// weight 1 this is the plain correlation.
+    /// </summary>
+    private static void Normalize(ReadOnlySpan<float> luma, ReadOnlySpan<float> weights, Patch patch)
     {
-        var mean = total / luma.Length;
+        var weighted = 0f;
+        var mass = 0f;
+        for (var i = 0; i < luma.Length; i++)
+        {
+            weighted += weights[i] * luma[i];
+            mass += weights[i];
+        }
+
+        var mean = weighted / mass;
         var square = 0f;
+        var spread = 0f;
         var structure = patch.Structure;
         for (var i = 0; i < luma.Length; i++)
         {
             var centred = luma[i] - mean;
+            spread += weights[i] * centred * centred;
+            centred *= MathF.Sqrt(weights[i]);
             structure[i] = centred;
             square += centred * centred;
         }
 
-        var deviation = MathF.Sqrt(square / luma.Length);
+        var deviation = MathF.Sqrt(spread / mass);
         patch.Deviation = deviation;
         patch.Neutral = double.NaN;
         // Unit length makes the dot product of two patches their correlation directly, so a
