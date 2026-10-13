@@ -42,3 +42,18 @@ Read from the authors' own pages on 2026-10-13.
 | Whisper.net, Whisper.net.Runtime | MIT | [LICENSE](https://github.com/sandrohanea/whisper.net/blob/main/LICENSE) |
 | whisper.cpp (the runtime inside) | MIT | [LICENSE](https://github.com/ggerganov/whisper.cpp/blob/master/LICENSE) |
 | Whisper models (tiny.en, base.en, small.en as ggml) | MIT | [openai/whisper LICENSE](https://github.com/openai/whisper/blob/main/LICENSE), [model page](https://huggingface.co/ggerganov/whisper.cpp) |
+
+## Progressive transcription
+
+Library transcription and transcription of what is playing use the same optional offline model.
+The pure AppCore worker plans bounded audio chunks, prioritises the current playhead, and
+merges recognised words into a transcript keyed to the file's signature and model. It saves
+partial progress between runs, retries failed work with backoff, and publishes subtitle cue
+replacements and a seek-bar coverage range as each chunk completes. Library work is off by
+default and respects playback, battery, folder exclusion and model availability settings.
+
+Only the speech adapter invokes the speech runtime. An audio reader turns each bounded range
+into 16 kHz mono samples before the model hears it. The window merely displays progress and
+cues, accepts the user preferences, and does not decide chunk order or retries. The user's
+media and recognised words remain on the machine; a model is downloaded only under the
+conditions set out above, and the user can clear retained transcripts in Preferences.
