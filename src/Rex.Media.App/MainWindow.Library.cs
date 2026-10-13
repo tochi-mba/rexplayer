@@ -334,7 +334,7 @@ public sealed partial class MainWindow
     };
 
     private static LibraryRow GroupRow(LibraryGroup group) => new(group.Name, group.Detail,
-        Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
+        LibraryActions.Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
         group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
 
     private List<LibraryRow> EntryRows(IEnumerable<LibraryEntry> entries) => [.. entries.Select(EntryRow)];
@@ -365,7 +365,6 @@ public sealed partial class MainWindow
         return new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress);
     }
 
-    private static string Count(int count, string what) => count == 1 ? "1 " + what : count.ToString(CultureInfo.CurrentCulture) + " " + what + "s";
 
     /// <summary>A visible media line asks for its picture once; recycled, off-screen rows ask for nothing.</summary>
     private void OnLibraryRowShown(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -490,7 +489,7 @@ public sealed partial class MainWindow
                 _ = RenamePlaylistAsync(playlist.Id);
                 e.Handled = true;
                 break;
-            case VirtualKey.Delete when EntriesOf(SelectedLibraryRows()).Count > 0:
+            case VirtualKey.Delete when SelectedLibraryRows() is { Count: > 0 } lines && lines.All(line => LibraryActions.DeletesFiles(line.Item)) && EntriesOf(lines).Count > 0:
                 _ = ChooseLibraryDeletionAsync();
                 e.Handled = true;
                 break;
@@ -563,7 +562,7 @@ public sealed partial class MainWindow
         if (entries.Count > 0)
         {
             _player.EnqueueFromLibrary(entries);
-            Say($"Added {Count(entries.Count, "item")} to the playlist");
+            Say($"Added {LibraryActions.Count(entries.Count, "item")} to the playlist");
         }
     }
 
@@ -630,7 +629,7 @@ public sealed partial class MainWindow
             && LibraryViews.AutoplayVideos(_library!.Entries, video) is { Count: > 1 } season
             && LibraryViews.EpisodeOf(video) is { } episode)
         {
-            menu.Items.Add(MenuItem($"Play season {episode.Season} from here ({Count(season.Count, "episode")})", "LibraryMenuPlay", PlayChosen));
+            menu.Items.Add(MenuItem($"Play season {episode.Season} from here ({LibraryActions.Count(season.Count, "episode")})", "LibraryMenuPlay", PlayChosen));
             menu.Items.Add(MenuItem("Play only this episode", null, () => Play([video], 0)));
         }
         else
@@ -890,7 +889,7 @@ public sealed partial class MainWindow
             WatchLibraryFolders();
             _scanner!.Request();
             App.Log.Info(LogSource, $"Brought back {file.Path}: {summary}.");
-            Say($"Brought back {Count(summary.Folders, "folder")}, {Count(summary.Entries, "file")} and {Count(summary.Playlists, "playlist")}");
+            Say($"Brought back {LibraryActions.Count(summary.Folders, "folder")}, {LibraryActions.Count(summary.Entries, "file")} and {LibraryActions.Count(summary.Playlists, "playlist")}");
         }
         catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
         {

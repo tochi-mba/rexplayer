@@ -2,8 +2,9 @@ namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
 /// One drum's hits (AU-18): the rise of its band, taken as a hit when it jumps well above its own
-/// recent run (the median of the last second and a half, plus three times its spread, and never
-/// less than <c>minimum</c>), no sooner than <c>gap</c> after the last. The median, not the mean,
+/// recent run (the median of the last <see cref="History"/> seconds, plus three times its spread,
+/// and never less than <c>minimum</c>: a <see cref="MovingMedian"/>), no sooner than <c>gap</c>
+/// after the last. The median, not the mean,
 /// because busy percussion makes a few large rises that would otherwise lift the bar over the very
 /// hits it is for. A hit's strength is its energy against the hardest hits of late, so an accented
 /// downbeat is strong and the beats between are softer. Each hit sets <see cref="Level"/> to its
@@ -12,10 +13,13 @@ namespace Rex.Media.AppCore.Visuals;
 /// </summary>
 public sealed class Onset(double gap, double decay, double minimum = 0.003)
 {
-    private const int History = 45;
+    /// <summary>Seconds of rises a hit is measured against.</summary>
+    public const double History = 1.5;
 
-    private readonly Queue<double> _rises = new();
-    private readonly double[] _sorted = new double[History];
+    /// <summary>Seconds of rises heard before any can be a hit.</summary>
+    private const double Warmup = 0.08;
+
+    private readonly MovingMedian _rises = new(History);
     private double _since = 10;
     private double _hardest;
 
@@ -47,9 +51,9 @@ public sealed class Onset(double gap, double decay, double minimum = 0.003)
         // The hardest of late fades over some seconds, so a song that gets quieter keeps its accents.
         _hardest *= Math.Exp(-dt / 4);
         Level = (float)Math.Max(0, Level - (Strength * dt / decay));
-        if (listening && _rises.Count >= 4)
+        if (listening && _rises.Span >= Warmup)
         {
-            var (median, spread) = Robust(_rises, _sorted);
+            var (median, spread) = _rises.Measure();
             if (rise > median + Math.Max(3 * spread, minimum) && _since >= gap)
             {
                 Hit = true;
@@ -61,53 +65,13 @@ public sealed class Onset(double gap, double decay, double minimum = 0.003)
             }
         }
 
-        _rises.Enqueue(rise);
-        while (_rises.Count > History)
-        {
-            _rises.Dequeue();
-        }
+        _rises.Add(rise, dt);
     }
 
+    /// <summary>Forgets every hit and rise, as when another song starts.</summary>
     public void Reset()
     {
         _rises.Clear();
         (Hit, Strength, Level, Count, _since, _hardest) = (false, 0, 0, 0, 10, 0);
-    }
-
-    /// <summary>
-    /// The median of <paramref name="values"/> and their spread about it (the median absolute
-    /// difference, scaled to match a standard deviation), using <paramref name="scratch"/> (at least
-    /// as long as there are values) to sort in; (0, 0) when there are none.
-    /// </summary>
-    public static (double Median, double Spread) Robust(IReadOnlyCollection<double> values, double[] scratch)
-    {
-        ArgumentNullException.ThrowIfNull(values);
-        ArgumentNullException.ThrowIfNull(scratch);
-        var count = values.Count;
-        if (count == 0)
-        {
-            return (0, 0);
-        }
-
-        var at = 0;
-        foreach (var value in values)
-        {
-            scratch[at++] = value;
-        }
-
-        var median = Median(scratch.AsSpan(0, count));
-        for (var i = 0; i < count; i++)
-        {
-            scratch[i] = Math.Abs(scratch[i] - median);
-        }
-
-        return (median, 1.4826 * Median(scratch.AsSpan(0, count)));
-    }
-
-    private static double Median(Span<double> values)
-    {
-        values.Sort();
-        var middle = values.Length / 2;
-        return values.Length % 2 == 1 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
     }
 }
