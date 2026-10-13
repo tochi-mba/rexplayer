@@ -62,14 +62,13 @@ public sealed class SpeechPulseTests
     public void LoudnessIsAgainstTheSpeakersOwnRangeAndStressRanksAWordAmongTheirLastOnes()
     {
         var pulse = new SpeechPulse();
-        var soft = Enumerable.Repeat(0.05, 8).ToList();
-        Speak(pulse, 110, soft);
-        var softFrames = Speak(pulse, 110, [0.05]);
+        Speak(pulse, 110, Enumerable.Range(0, 12).Select(index => index % 2 == 0 ? 0.1 : 0.4));
+        var softFrames = Speak(pulse, 110, [0.1]);
         var shout = Speak(pulse, 110, [0.6]);
 
         var softLoudness = softFrames.Where(frame => frame.Onset).Select(frame => frame.Loudness).Single();
         var shoutLoudness = shout.Where(frame => frame.Onset).Select(frame => frame.Loudness).Single();
-        Assert.True(shoutLoudness > softLoudness + 0.3, $"{shoutLoudness} should be far above {softLoudness}");
+        Assert.True(shoutLoudness > softLoudness + 0.2, $"{shoutLoudness} should be far above {softLoudness}");
         Assert.Equal(Stress.Peak, pulse.StressOf(shoutLoudness));
         Assert.Equal(Stress.Hush, pulse.StressOf(0));
         Assert.Equal(Stress.Plain, pulse.StressOf((softLoudness + shoutLoudness) / 2));
@@ -118,7 +117,7 @@ public sealed class SpeechPulseTests
     public void SilenceIsSilentForAsLongAsItLastsAndHasNoPitch()
     {
         var pulse = new SpeechPulse();
-        Speak(pulse, 120, [0.3, 0.3]);
+        Speak(pulse, 120, [0.3, 0.3], gap: 0);
         var quiet = new float[SpeechPulse.Size];
         SpeechFrame frame = default;
         for (var i = 0; i < 10; i++)

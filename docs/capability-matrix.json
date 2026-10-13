@@ -1029,7 +1029,7 @@
       "milestone": "M16",
       "priority": "should",
       "oracles": "",
-      "status": "built"
+      "status": "planned"
     },
     {
       "id": "PLF-01",
@@ -1869,7 +1869,7 @@
       "milestone": "M16",
       "priority": "should",
       "oracles": "PIX",
-      "status": "built"
+      "status": "planned"
     },
     {
       "id": "NET-01",
