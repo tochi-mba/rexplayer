@@ -252,6 +252,9 @@ public enum VisualizerChoice
 
     /// <summary>The last seconds of the music scrolling by: its spectrum, the beat grid and every drum hit.</summary>
     Groove,
+
+    /// <summary>A flight down a tunnel of light rings that pass on the beat.</summary>
+    Flight,
 }
 
 /// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>
