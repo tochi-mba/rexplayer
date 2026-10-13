@@ -186,6 +186,9 @@ public sealed partial class PlayerController : IDisposable
     public bool ReadSound(Span<float> left, Span<float> right, TimeSpan lead = default) => _session?.ReadSound(left, right, lead) ?? false;
 
     /// <summary>The engine's counters for what is playing, or null when nothing is.</summary>
+    /// <summary>Starts the figures for how steadily pictures are presented afresh, as a measurement begins.</summary>
+    public Task ClearCadenceAsync() => _session?.ClearCadenceAsync() ?? Task.CompletedTask;
+
     public Task<SessionStats?> StatsAsync() =>
         _session is { } session ? session.GetStatsAsync().ContinueWith(stats => stats.IsCompletedSuccessfully ? stats.Result : null, TaskScheduler.Default) : Task.FromResult<SessionStats?>(null);
 

@@ -39,6 +39,27 @@ public sealed class AutomationPipeTests
     }
 
     [Fact]
+    public async Task AScriptCanAskWhereToSeekAndReadTheFiguresBack()
+    {
+        var pipe = NewPipe();
+        using var stop = new CancellationTokenSource();
+        AutomationRequest? seen = null;
+        var serving = AutomationPipe.ServeAsync(pipe, request =>
+        {
+            seen = request;
+            return Task.FromResult(new AutomationReply { Ok = true, Metrics = new Dictionary<string, double> { ["cpu-ms"] = 12.5, ["frames-dropped"] = 0 } });
+        }, stop.Token);
+
+        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "seek", To = 61.5 }, Connect, TestContext.Current.CancellationToken);
+        await stop.CancelAsync();
+        await serving;
+
+        Assert.Equal(("seek", 61.5), (seen!.Command, seen.To));
+        Assert.Equal(12.5, reply!.Metrics!["cpu-ms"]);
+        Assert.Equal(0, reply.Metrics["frames-dropped"]);
+    }
+
+    [Fact]
     public async Task ASecondLaunchCanWaitWhileTheFirstWindowIsBeingBuilt()
     {
         var pipe = NewPipe();

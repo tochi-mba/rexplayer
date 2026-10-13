@@ -38,7 +38,7 @@ internal sealed class LaunchWarmup
                         // The shaders every renderer starts with come side by side, then a surface of
                         // one pixel: the window resizes it once it knows its own size.
                         D3D11VideoRenderer.PrepareShaders();
-                        var presenter = D3D11Presenter.ForComposition(1, 1, out var swapChain);
+                        var presenter = D3D11Presenter.ForComposition(1, 1, out var swapChain, App.SoftwareGraphics);
                         return (presenter, swapChain);
                     });
                     break;
