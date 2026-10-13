@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A developer tool for finding intro and credits boundaries by eye; not part of the solution or
+       the product. Build it with: dotnet build scripts/sections/FrameSheet -c Release -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+    <ProjectReference Include="..\..\..\src\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
+  </ItemGroup>
+
+</Project>

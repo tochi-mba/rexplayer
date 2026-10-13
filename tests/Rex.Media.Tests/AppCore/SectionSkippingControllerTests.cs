@@ -1,4 +1,3 @@
-using System.Reflection;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Containers.Matroska;
@@ -33,9 +32,6 @@ public sealed class SectionSkippingControllerTests
             MatroskaCraftedTests.Cluster(0,
                 [.. Enumerable.Range(0, 100).Select(i => MatroskaCraftedTests.Simple(2, (short)(i * 100), true, (byte)i))]));
     }
-
-    private static readonly MethodInfo MaybeSkip = typeof(PlayerController).GetMethod("MaybeSkipAutomatically",
-        BindingFlags.Instance | BindingFlags.NonPublic)!;
 
     private sealed class Season : IDisposable
     {
@@ -102,6 +98,54 @@ public sealed class SectionSkippingControllerTests
     }
 
     [Fact]
+    public void AfterASeasonsLastEpisodeTheNextSeasonFolderIsLookedIn()
+    {
+        var show = Directory.CreateTempSubdirectory("rexplayer-show-").FullName;
+        try
+        {
+            var bytes = TenSeconds();
+            string Episode(string folder, string name)
+            {
+                Directory.CreateDirectory(Path.Combine(show, folder));
+                var path = Path.Combine(show, folder, name);
+                File.WriteAllBytes(path, bytes);
+                return path;
+            }
+
+            var last = Episode("Season 1", "Show.S01E06.mkv");
+            var first = Episode("Season 2", "Show.S02E01.mkv");
+            Episode("Season 2", "Show.S02E02.mkv");
+            Episode("Extras", "Show.S02E01.Featurette.mkv");
+            File.WriteAllText(Path.Combine(show, "Season 2", "notes.txt"), "");
+            using var harness = new ControllerHarness(autoPlay: false, pictures: true);
+            harness.Files[last] = bytes;
+            harness.Files[first] = bytes;
+            harness.Controller.Open([last]);
+            harness.PumpUntil(player => player.State == SessionState.Ready && player.NextEpisode == first);
+
+            // A season folder alone, with nothing beside it: no next episode.
+            var lone = Directory.CreateTempSubdirectory("rexplayer-lone-").FullName;
+            try
+            {
+                var only = Path.Combine(lone, "Show.S01E01.mkv");
+                File.WriteAllBytes(only, bytes);
+                harness.Files[only] = bytes;
+                harness.Controller.Open([only]);
+                harness.PumpUntil(player => player.State == SessionState.Ready && player.Item?.Location == only);
+                Assert.Null(harness.Controller.NextEpisode);
+            }
+            finally
+            {
+                Directory.Delete(lone, recursive: true);
+            }
+        }
+        finally
+        {
+            Directory.Delete(show, recursive: true);
+        }
+    }
+
+    [Fact]
     public void TheNextEpisodeAlreadyQueuedIsPlayedInsteadOfAddedAgain()
     {
         using var season = new Season("Show.S01E01.mkv", "Show.S01E02.mkv");
@@ -120,7 +164,7 @@ public sealed class SectionSkippingControllerTests
         Assert.True(season.Player.Execute(CommandCatalog.SkipSection));
         Assert.Contains("There is no intro or credits to skip here.", season.Harness.Messages);
         Assert.True(season.Player.Execute(CommandCatalog.NextEpisode));
-        Assert.Contains("There is no next episode in this folder.", season.Harness.Messages);
+        Assert.Contains("There is no next episode.", season.Harness.Messages);
 
         new PlayerMemory(season.Store).SetSections(season.Paths[0], new EpisodeSections(TimeSpan.Zero, TimeSpan.FromSeconds(4)));
         season.Player.Seek(TimeSpan.FromSeconds(1));
@@ -145,12 +189,12 @@ public sealed class SectionSkippingControllerTests
 
         // Off: inside the intro nothing counts down.
         player.Seek(TimeSpan.FromSeconds(1));
-        MaybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Null(player.SkipPrompt!.AutomaticInSeconds);
 
         Assert.True(player.SetShowSkipping(EpisodeSectionKind.Intro, true));
         Assert.Equal(new ShowSkipping(true, false), new PlayerMemory(season.Store).ShowSkips("SHOW"));
-        MaybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         // The countdown never runs past the section: due at 3 s, a second before the intro ends.
         Assert.Equal(2, player.SkipPrompt!.AutomaticInSeconds);
         Assert.Equal(TimeSpan.FromSeconds(1), player.Position);
@@ -158,22 +202,22 @@ public sealed class SectionSkippingControllerTests
         Assert.Contains("Automatic skip cancelled.", season.Harness.Messages);
         Assert.Null(player.SkipPrompt!.AutomaticInSeconds);
         player.Seek(TimeSpan.FromSeconds(3.5));
-        MaybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(TimeSpan.FromSeconds(3.5), player.Position);
 
         // Outside every section a pending countdown is forgotten.
         Assert.True(player.SetShowSkipping(EpisodeSectionKind.Credits, true));
         player.Seek(TimeSpan.FromSeconds(6.5));
-        MaybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(3, player.SkipPrompt!.AutomaticInSeconds);
         player.Seek(TimeSpan.FromSeconds(5));
-        MaybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         player.Seek(TimeSpan.FromSeconds(8.5));
-        MaybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(1, player.SkipPrompt!.AutomaticInSeconds);
         season.Harness.PumpUntil(p => p.NextEpisode is not null);
         player.Seek(TimeSpan.FromSeconds(9.2));
-        MaybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         season.Harness.PumpUntil(p => p.Item?.Location == season.Paths[1]);
 
         Assert.True(player.SetShowSkipping(EpisodeSectionKind.Credits, false));
@@ -201,9 +245,9 @@ public sealed class SectionSkippingControllerTests
             Assert.Null(player.CurrentEpisode);
             Assert.False(player.SetShowSkipping(EpisodeSectionKind.Intro, true));
             player.Seek(TimeSpan.FromSeconds(1.5));
-            MaybeSkip.Invoke(player, null);
+            player.MaybeSkipAutomatically();
             player.Seek(TimeSpan.FromSeconds(4.2));
-            MaybeSkip.Invoke(player, null);
+            player.MaybeSkipAutomatically();
             Assert.Equal(TimeSpan.FromSeconds(5), player.Position);
         }
         finally
