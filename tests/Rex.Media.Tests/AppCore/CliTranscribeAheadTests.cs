@@ -11,6 +11,12 @@ public sealed class CliTranscribeAheadTests : IDisposable
 {
     private readonly string _directory = Directory.CreateTempSubdirectory("rexplayer-transcribe-ahead-").FullName;
 
+    [Fact]
+    public void HearingRemainsUnavailableUnlessTheHostProvidesAnAdapter()
+    {
+        Assert.Null(new CliHost().Hearer("any-model-file"));
+    }
+
     public void Dispose() => Directory.Delete(_directory, recursive: true);
 
     /// <summary>Hears one word at the start of every piece.</summary>
