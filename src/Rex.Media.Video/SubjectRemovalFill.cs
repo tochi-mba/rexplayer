@@ -2,19 +2,26 @@ namespace Rex.Media.Video;
 
 /// <summary>
 /// Synthesises the background that was never seen, on a small grid, by copying texture from the
-/// pixels around the hole so that every small patch of the result looks like a patch of the picture.
+/// cells around the hole so that every small patch of the result looks like a patch of the picture.
 /// <para>
-/// Method: patch-based completion by expectation-maximisation (Wexler, Shechtman and Irani,
-/// "Space-Time Completion of Video", IEEE TPAMI 29(3), 2007): each hole cell is given the source
-/// patch that best matches the patch around it, and each hole colour is then the weighted vote of
-/// every chosen patch that covers it. Matches are found with PatchMatch (Barnes, Shechtman,
-/// Finkelstein and Goldman, "PatchMatch: A Randomized Correspondence Algorithm for Structural Image
-/// Editing", SIGGRAPH 2009): good matches propagate to neighbours, and a random search at shrinking
-/// radii improves them. The hole is solved coarse to fine, starting from a pull-push fill (Gortler,
-/// Grzeszczuk, Szeliski and Cohen, "The Lumigraph", SIGGRAPH 1996). A match suggested for a cell,
-/// such as the one the previous picture used at the same place in the scene, competes with the
-/// search's own, so a fill that was good stays put instead of boiling from frame to frame.
+/// Method: exemplar-based region filling (Criminisi, Perez and Toyama, "Region Filling and Object
+/// Removal by Exemplar-Based Image Inpainting", IEEE TIP 13(9), 2004). The hole is filled from its
+/// edge inwards, cells whose patch is mostly known first and, among those, cells where an edge meets
+/// the hole, so lines such as a skirting board or a horizon are carried across before the flat
+/// areas either side close over them. Each cell takes the colour of the known patch that best
+/// matches what is already known around it (Efros and Leung, "Texture Synthesis by Non-parametric
+/// Sampling", ICCV 1999). The candidates are the continuation of each filled neighbour's match
+/// (Ashikhmin, "Synthesizing Natural Textures", I3D 2001), which copies whole stretches of texture
+/// rather than a mosaic of single cells; a match suggested for the cell, such as the one the
+/// previous picture used at the same place in the scene, which keeps the fill still from picture
+/// to picture; and a random search near the hole that narrows around the best so far, as in
+/// PatchMatch (Barnes et al., SIGGRAPH 2009). Sources are searched near the hole and nearer ones
+/// are preferred, so the grass beside a person continues into the hole rather than the gravel
+/// further away. A last pass matches every filled cell again against its now complete patch,
+/// which removes the seams where fronts from different sides met.
 /// </para>
+/// When no whole patch is known anywhere, the hole is blended in from its edges instead, by
+/// Gortler et al.'s pull-push ("The Lumigraph", SIGGRAPH 1996).
 /// </summary>
 public sealed class SubjectRemovalFill
 {
@@ -27,44 +34,50 @@ public sealed class SubjectRemovalFill
     /// <summary>Patches are this many cells either side of their centre.</summary>
     public const int Radius = 2;
 
-    private const int MaximumLevels = 5;
+    private const int Side = 2 * Radius + 1;
+    // Random candidates tried for every cell, spread over the search window.
+    private const int Samples = 12;
+    // How strongly a far source is penalised, relative to a typical patch difference.
+    private const float Nearness = 0.15f;
 
-    private readonly Level[] _levels = new Level[MaximumLevels];
+    private byte[] _colour = [];
+    private byte[] _state = [];
+    private int[] _guess = [];
+    private int[] _source = [];
+    private bool[] _sourceOk = [];
+    private float[] _confidence = [];
+    private float[] _edge = [];
+    private int[] _sums = [];
+    private int[] _heapCells = [];
+    private float[] _heapKeys = [];
+    private int _heapCount;
     private float[] _pullColour = [];
     private float[] _pullWeight = [];
     private readonly int[] _pullOffsets = new int[32];
     private readonly int[] _pullSizes = new int[64];
-    private float[] _vote = [];
     private uint _random = 2463534242;
+    private int _window;
 
-    public SubjectRemovalFill()
-    {
-        for (var i = 0; i < MaximumLevels; i++)
-        {
-            _levels[i] = new Level();
-        }
-    }
-
-    /// <summary>The finest grid's width in cells.</summary>
+    /// <summary>The grid's width in cells.</summary>
     public int Width { get; private set; }
 
-    /// <summary>The finest grid's height in cells.</summary>
+    /// <summary>The grid's height in cells.</summary>
     public int Height { get; private set; }
 
     /// <summary>Three bytes a cell, blue, green and red: the picture where known, the fill after <see cref="Solve"/>.</summary>
-    public Span<byte> Colour => _levels[0].Colour.AsSpan(0, Width * Height * 3);
+    public Span<byte> Colour => _colour.AsSpan(0, Width * Height * 3);
 
     /// <summary>Each cell's state: <see cref="Known"/> or <see cref="Missing"/>.</summary>
-    public Span<byte> State => _levels[0].State.AsSpan(0, Width * Height);
+    public Span<byte> State => _state.AsSpan(0, Width * Height);
 
     /// <summary>For hole cells, a suggested source cell (an index), or -1 for none.</summary>
-    public Span<int> Guess => _levels[0].Guess.AsSpan(0, Width * Height);
+    public Span<int> Guess => _guess.AsSpan(0, Width * Height);
 
     /// <summary>For hole cells after <see cref="Solve"/>, the centre of the patch copied there, or -1.</summary>
-    public ReadOnlySpan<int> Source => _levels[0].Source.AsSpan(0, Width * Height);
+    public ReadOnlySpan<int> Source => _source.AsSpan(0, Width * Height);
 
-    /// <summary>How many coarse-to-fine levels the last solve used; 0 when it only blended from the edges.</summary>
-    public int LevelsUsed { get; private set; }
+    /// <summary>Whether the last solve could only blend the hole in from its edges, having nothing whole to copy.</summary>
+    public bool Blended { get; private set; }
 
     /// <summary>Set the grid's size; the caller then fills <see cref="Colour"/>, <see cref="State"/> and <see cref="Guess"/>.</summary>
     public void Prepare(int width, int height)
@@ -72,140 +85,363 @@ public sealed class SubjectRemovalFill
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
         (Width, Height) = (width, height);
-        _levels[0].Reserve(width, height);
+        var cells = width * height;
+        SubjectRemovalMatte.Ensure(ref _colour, cells * 3);
+        SubjectRemovalMatte.Ensure(ref _state, cells);
+        SubjectRemovalMatte.Ensure(ref _guess, cells);
+        SubjectRemovalMatte.Ensure(ref _source, cells);
+        SubjectRemovalMatte.Ensure(ref _sourceOk, cells);
+        SubjectRemovalMatte.Ensure(ref _confidence, cells);
+        SubjectRemovalMatte.Ensure(ref _edge, cells);
+        SubjectRemovalMatte.Ensure(ref _sums, (width + 1) * (height + 1));
+        // A cell enters the queue when it first borders the fill and again each time a neighbour is filled.
+        SubjectRemovalMatte.Ensure(ref _heapCells, cells * 9);
+        SubjectRemovalMatte.Ensure(ref _heapKeys, cells * 9);
     }
 
     /// <summary>Fill every hole cell. <paramref name="seed"/> makes the random search repeatable.</summary>
     public void Solve(uint seed)
     {
         _random = seed | 1;
-        var top = _levels[0];
         var cells = Width * Height;
-        var holes = 0;
-        int left = Width, right = -1, upper = Height, lower = -1;
+        int holes = 0, left = Width, right = -1, upper = Height, lower = -1;
         for (var cell = 0; cell < cells; cell++)
         {
-            top.Source[cell] = -1;
-            var hole = top.State[cell] != Known;
-            top.Hole[cell] = hole;
-            if (!hole)
+            _source[cell] = -1;
+            var hole = _state[cell] != Known;
+            _confidence[cell] = hole ? 0 : 1;
+            if (hole)
             {
-                continue;
+                holes++;
+                var (x, y) = (cell % Width, cell / Width);
+                (left, right, upper, lower) = (Math.Min(left, x), Math.Max(right, x), Math.Min(upper, y), Math.Max(lower, y));
             }
-
-            holes++;
-            var (x, y) = (cell % Width, cell / Width);
-            (left, right, upper, lower) = (Math.Min(left, x), Math.Max(right, x), Math.Min(upper, y), Math.Max(lower, y));
         }
 
-        LevelsUsed = 0;
+        Blended = false;
         if (holes == 0)
         {
             return;
         }
 
-        if (!top.FindSources())
+        if (!FindSources())
         {
-            // Nothing around the hole is big enough to copy from: blend in from its edges instead.
-            PullPush(top);
+            PullPush();
+            Blended = true;
             return;
         }
 
-        var extent = Math.Max(right - left, lower - upper) + 1;
-        var count = 1;
-        while (count < MaximumLevels && extent >> count > 12
-            && Math.Min(_levels[count - 1].Width, _levels[count - 1].Height) / 2 >= 4 * Radius + 2)
+        // Sources are looked for within about the hole's own size of the cell being filled.
+        _window = Math.Max(Math.Max(right - left, lower - upper) + 1, 3 * Side);
+        MeasureEdges();
+        _heapCount = 0;
+        for (var cell = 0; cell < cells; cell++)
         {
-            _levels[count].Shrink(_levels[count - 1]);
-            if (!_levels[count].FindSources())
+            if (_state[cell] != Known && Borders(cell))
             {
-                break;
+                Push(cell, Priority(cell));
             }
-
-            count++;
         }
 
-        LevelsUsed = count;
-        var coarsest = _levels[count - 1];
-        PullPush(coarsest);
-        for (var cell = 0; cell < coarsest.Width * coarsest.Height; cell++)
+        while (_heapCount > 0)
         {
-            if (!coarsest.Hole[cell])
+            var cell = Pop();
+            if (_source[cell] >= 0)
             {
                 continue;
             }
 
-            var guess = count == 1 ? coarsest.Guess[cell] : -1;
-            coarsest.Source[cell] = guess >= 0 && coarsest.SourceOk[guess] ? guess : RandomSource(coarsest);
-            coarsest.Distance[cell] = Patch(coarsest, cell, coarsest.Source[cell], float.MaxValue);
-        }
-
-        Iterate(coarsest, 4, wide: true);
-        for (var level = count - 2; level >= 0; level--)
-        {
-            var fine = _levels[level];
-            Upsample(_levels[level + 1], fine, useGuess: level == 0);
-            Iterate(fine, 2, wide: true);
-        }
-    }
-
-    /// <summary>Carries a coarse level's matches to the next finer level, doubling every offset.</summary>
-    private void Upsample(Level coarse, Level fine, bool useGuess)
-    {
-        for (var cell = 0; cell < fine.Width * fine.Height; cell++)
-        {
-            fine.Source[cell] = -1;
-            if (!fine.Hole[cell])
+            FillCell(cell);
+            var (x, y) = (cell % Width, cell / Width);
+            for (var dy = -1; dy <= 1; dy++)
             {
-                continue;
-            }
-
-            var (x, y) = (cell % fine.Width, cell / fine.Width);
-            var parent = Math.Min(y / 2, coarse.Height - 1) * coarse.Width + Math.Min(x / 2, coarse.Width - 1);
-            var candidate = -1;
-            if (coarse.Source[parent] >= 0)
-            {
-                var source = coarse.Source[parent];
-                var sx = Math.Clamp(source % coarse.Width * 2 + (x & 1), 0, fine.Width - 1);
-                var sy = Math.Clamp(source / coarse.Width * 2 + (y & 1), 0, fine.Height - 1);
-                candidate = sy * fine.Width + sx;
-            }
-
-            fine.Source[cell] = candidate >= 0 && fine.SourceOk[candidate] ? candidate : RandomSource(fine);
-            fine.Distance[cell] = 0;
-        }
-
-        // The patch distances need the fine level's colours, which the vote below sets from these
-        // matches; the guess from the previous picture competes once they are known.
-        Vote(fine);
-        for (var cell = 0; cell < fine.Width * fine.Height; cell++)
-        {
-            if (!fine.Hole[cell])
-            {
-                continue;
-            }
-
-            fine.Distance[cell] = Patch(fine, cell, fine.Source[cell], float.MaxValue);
-            var guess = useGuess ? fine.Guess[cell] : -1;
-            if (guess >= 0 && fine.SourceOk[guess])
-            {
-                var distance = Patch(fine, cell, guess, fine.Distance[cell]);
-                if (distance < fine.Distance[cell])
+                for (var dx = -1; dx <= 1; dx++)
                 {
-                    (fine.Source[cell], fine.Distance[cell]) = (guess, distance);
+                    var (nx, ny) = (x + dx, y + dy);
+                    if (nx >= 0 && ny >= 0 && nx < Width && ny < Height && _state[ny * Width + nx] != Known && _source[ny * Width + nx] < 0)
+                    {
+                        Push(ny * Width + nx, Priority(ny * Width + nx));
+                    }
                 }
             }
         }
+
+        Polish(forward: true);
+        Polish(forward: false);
     }
 
-    private int RandomSource(Level level)
+    /// <summary>Whether a hole cell touches a known or filled cell.</summary>
+    private bool Borders(int cell)
     {
-        while (true)
+        var (x, y) = (cell % Width, cell / Width);
+        for (var dy = -1; dy <= 1; dy++)
         {
-            var cell = (int)(Next() % (uint)(level.Width * level.Height));
-            if (level.SourceOk[cell])
+            for (var dx = -1; dx <= 1; dx++)
             {
-                return cell;
+                var (nx, ny) = (x + dx, y + dy);
+                if (nx >= 0 && ny >= 0 && nx < Width && ny < Height && _confidence[ny * Width + nx] > 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Criminisi's priority: how much of the cell's patch is already known, its confidence term, raised
+    /// where a strong edge in the known part runs into the hole, its data term.
+    /// </summary>
+    private float Priority(int cell)
+    {
+        var (confidence, edge) = Surroundings(cell);
+        return confidence / (Side * Side) * (0.25f + edge);
+    }
+
+    /// <summary>The summed confidence of a cell's patch, and the strongest edge in its known part.</summary>
+    private (float Confidence, float Edge) Surroundings(int cell)
+    {
+        var (x, y) = (cell % Width, cell / Width);
+        float confidence = 0, edge = 0;
+        for (var dy = -Radius; dy <= Radius; dy++)
+        {
+            var py = y + dy;
+            if (py < 0 || py >= Height)
+            {
+                continue;
+            }
+
+            for (var dx = -Radius; dx <= Radius; dx++)
+            {
+                var px = x + dx;
+                if (px < 0 || px >= Width)
+                {
+                    continue;
+                }
+
+                var at = py * Width + px;
+                confidence += _confidence[at];
+                if (_state[at] == Known)
+                {
+                    edge = Math.Max(edge, _edge[at]);
+                }
+            }
+        }
+
+        return (confidence, edge);
+    }
+
+    /// <summary>Each known cell's edge strength, from 0 (flat) to 1 (a strong edge), from its brightness steps.</summary>
+    private void MeasureEdges()
+    {
+        for (var cell = 0; cell < Width * Height; cell++)
+        {
+            _edge[cell] = 0;
+            if (_state[cell] != Known)
+            {
+                continue;
+            }
+
+            var (x, y) = (cell % Width, cell / Width);
+            var here = Grey(cell);
+            var step = 0;
+            if (x + 1 < Width && _state[cell + 1] == Known)
+            {
+                step = Math.Max(step, Math.Abs(Grey(cell + 1) - here));
+            }
+
+            if (y + 1 < Height && _state[cell + Width] == Known)
+            {
+                step = Math.Max(step, Math.Abs(Grey(cell + Width) - here));
+            }
+
+            _edge[cell] = Math.Min(1, step / 48f);
+        }
+    }
+
+    private int Grey(int cell) => (_colour[cell * 3] + 2 * _colour[cell * 3 + 1] + _colour[cell * 3 + 2]) >> 2;
+
+    /// <summary>Gives a hole cell the colour of the best of its candidate sources.</summary>
+    private void FillCell(int cell)
+    {
+        var (x, y) = (cell % Width, cell / Width);
+        var best = -1;
+        var bestCost = float.MaxValue;
+        var known = Surroundings(cell).Confidence;
+        void Consider(int candidate, float discount)
+        {
+            if (candidate < 0 || candidate == best || !_sourceOk[candidate])
+            {
+                return;
+            }
+
+            var cost = Cost(cell, candidate, known, bestCost / discount) * discount;
+            if (cost < bestCost)
+            {
+                (best, bestCost) = (candidate, cost);
+            }
+        }
+
+        Consider(_guess[cell], 0.85f);
+        // Continuing a neighbour's match copies whole stretches of texture.
+        for (var dy = -1; dy <= 1; dy++)
+        {
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                var (nx, ny) = (x + dx, y + dy);
+                if ((dx | dy) == 0 || nx < 0 || ny < 0 || nx >= Width || ny >= Height)
+                {
+                    continue;
+                }
+
+                var source = _source[ny * Width + nx];
+                if (source >= 0)
+                {
+                    var (sx, sy) = (source % Width - dx, source / Width - dy);
+                    if (sx >= 0 && sy >= 0 && sx < Width && sy < Height)
+                    {
+                        Consider(sy * Width + sx, 0.9f);
+                    }
+                }
+            }
+        }
+
+        for (var sample = 0; sample < Samples; sample++)
+        {
+            Consider(Near(x, y, _window), 1);
+        }
+
+        // PatchMatch's search: around the best so far at halving radii.
+        for (var radius = _window / 2; radius >= 1 && best >= 0; radius /= 2)
+        {
+            Consider(Near(best % Width, best / Width, radius), 1);
+        }
+
+        if (best < 0)
+        {
+            // Every candidate drawn missed the sources; any source will do as a start.
+            for (var candidate = 0; best < 0; candidate++)
+            {
+                best = _sourceOk[candidate] ? candidate : -1;
+            }
+        }
+
+        _source[cell] = best;
+        // Criminisi's confidence: a filled cell is as sure as the patch it was matched on.
+        _confidence[cell] = Math.Max(0.05f, known / (Side * Side));
+        CopyColour(cell, best);
+    }
+
+    private void CopyColour(int cell, int source)
+    {
+        _colour[cell * 3] = _colour[source * 3];
+        _colour[cell * 3 + 1] = _colour[source * 3 + 1];
+        _colour[cell * 3 + 2] = _colour[source * 3 + 2];
+    }
+
+    /// <summary>A random cell within <paramref name="reach"/> of (x, y), kept inside the grid.</summary>
+    private int Near(int x, int y, int reach)
+    {
+        var sx = Math.Clamp(x + (int)(Next() % (uint)(2 * reach + 1)) - reach, 0, Width - 1);
+        var sy = Math.Clamp(y + (int)(Next() % (uint)(2 * reach + 1)) - reach, 0, Height - 1);
+        return sy * Width + sx;
+    }
+
+    /// <summary>
+    /// The mean squared colour difference between the known and filled cells of a cell's patch and the
+    /// same places around a source, weighted by how sure each is, plus a cost for a far source; stops
+    /// early once past <paramref name="limit"/>. <paramref name="weight"/> is the patch's summed
+    /// confidence, which bounds the mean from below while the sum is still being added up.
+    /// </summary>
+    private float Cost(int cell, int source, float weight, float limit)
+    {
+        var (x, y) = (cell % Width, cell / Width);
+        var offset = source - cell;
+        float total = 0;
+        weight = Math.Max(weight, 1e-3f);
+        for (var dy = -Radius; dy <= Radius; dy++)
+        {
+            var py = y + dy;
+            if (py < 0 || py >= Height)
+            {
+                continue;
+            }
+
+            for (var dx = -Radius; dx <= Radius; dx++)
+            {
+                var px = x + dx;
+                var at = py * Width + px;
+                if (px < 0 || px >= Width || _confidence[at] <= 0)
+                {
+                    continue;
+                }
+
+                var c = at * 3;
+                var s = (at + offset) * 3;
+                var b = _colour[c] - _colour[s];
+                var g = _colour[c + 1] - _colour[s + 1];
+                var r = _colour[c + 2] - _colour[s + 2];
+                total += _confidence[at] * (b * b + g * g + r * r);
+            }
+
+            if (total / weight > limit)
+            {
+                return float.MaxValue;
+            }
+        }
+
+        var (sx, sy) = (source % Width - x, source / Width - y);
+        var distance = (sx * sx + sy * sy) / (float)(_window * _window);
+        return total / weight * (1 + Nearness * distance) + 40 * distance;
+    }
+
+    /// <summary>One sweep matching every filled cell again over its whole patch, keeping a neighbour's continuation when it fits better.</summary>
+    private void Polish(bool forward)
+    {
+        var cells = Width * Height;
+        for (var n = 0; n < cells; n++)
+        {
+            var cell = forward ? n : cells - 1 - n;
+            var current = _source[cell];
+            if (current < 0)
+            {
+                continue;
+            }
+
+            var (x, y) = (cell % Width, cell / Width);
+            var best = current;
+            var known = Surroundings(cell).Confidence;
+            var bestCost = Cost(cell, current, known, float.MaxValue);
+            for (var dy = -1; dy <= 1; dy++)
+            {
+                for (var dx = -1; dx <= 1; dx++)
+                {
+                    var (nx, ny) = (x + dx, y + dy);
+                    if ((dx | dy) == 0 || nx < 0 || ny < 0 || nx >= Width || ny >= Height || _source[ny * Width + nx] < 0)
+                    {
+                        continue;
+                    }
+
+                    var source = _source[ny * Width + nx];
+                    var (sx, sy) = (source % Width - dx, source / Width - dy);
+                    if (sx < 0 || sy < 0 || sx >= Width || sy >= Height || !_sourceOk[sy * Width + sx] || sy * Width + sx == best)
+                    {
+                        continue;
+                    }
+
+                    var cost = Cost(cell, sy * Width + sx, known, bestCost);
+                    if (cost < bestCost)
+                    {
+                        (best, bestCost) = (sy * Width + sx, cost);
+                    }
+                }
+            }
+
+            if (best != current)
+            {
+                _source[cell] = best;
+                CopyColour(cell, best);
             }
         }
     }
@@ -219,201 +455,99 @@ public sealed class SubjectRemovalFill
         return _random;
     }
 
-    private void Iterate(Level level, int passes, bool wide)
+    private void Push(int cell, float key)
     {
-        var (w, h) = (level.Width, level.Height);
-        for (var pass = 0; pass < passes; pass++)
+        var at = _heapCount++;
+        while (at > 0)
         {
-            var forward = pass % 2 == 0;
-            var step = forward ? 1 : -1;
-            for (var n = 0; n < w * h; n++)
+            var parent = (at - 1) / 2;
+            if (_heapKeys[parent] >= key)
             {
-                var cell = forward ? n : w * h - 1 - n;
-                if (!level.Hole[cell])
-                {
-                    continue;
-                }
-
-                var (x, y) = (cell % w, cell / w);
-                // Propagation: the neighbour already visited this pass suggests its own match, moved along.
-                Try(level, cell, x - step, y, step, 0);
-                Try(level, cell, x, y - step, 0, step);
-                // Random search around the best match at halving radii, then once anywhere.
-                var best = level.Source[cell];
-                for (var radius = wide ? Math.Max(w, h) : 4; radius >= 1; radius /= 2)
-                {
-                    var sx = best % w + (int)(Next() % (uint)(2 * radius + 1)) - radius;
-                    var sy = best / w + (int)(Next() % (uint)(2 * radius + 1)) - radius;
-                    if (sx >= 0 && sy >= 0 && sx < w && sy < h)
-                    {
-                        Consider(level, cell, sy * w + sx);
-                        best = level.Source[cell];
-                    }
-                }
-
-                Consider(level, cell, (int)(Next() % (uint)(w * h)));
+                break;
             }
 
-            Vote(level);
+            (_heapCells[at], _heapKeys[at]) = (_heapCells[parent], _heapKeys[parent]);
+            at = parent;
         }
+
+        (_heapCells[at], _heapKeys[at]) = (cell, key);
     }
 
-    private static void Try(Level level, int cell, int nx, int ny, int dx, int dy)
+    private int Pop()
     {
-        var (w, h) = (level.Width, level.Height);
-        if (nx < 0 || ny < 0 || nx >= w || ny >= h)
+        var top = _heapCells[0];
+        var (cell, key) = (_heapCells[--_heapCount], _heapKeys[_heapCount]);
+        var at = 0;
+        while (true)
         {
-            return;
+            var child = at * 2 + 1;
+            if (child >= _heapCount)
+            {
+                break;
+            }
+
+            if (child + 1 < _heapCount && _heapKeys[child + 1] > _heapKeys[child])
+            {
+                child++;
+            }
+
+            if (_heapKeys[child] <= key)
+            {
+                break;
+            }
+
+            (_heapCells[at], _heapKeys[at]) = (_heapCells[child], _heapKeys[child]);
+            at = child;
         }
 
-        var neighbour = ny * w + nx;
-        var source = level.Source[neighbour];
-        if (source < 0)
+        if (_heapCount > 0)
         {
-            return;
+            (_heapCells[at], _heapKeys[at]) = (cell, key);
         }
 
-        var sx = source % w + dx;
-        var sy = source / w + dy;
-        if (sx >= 0 && sy >= 0 && sx < w && sy < h)
-        {
-            Consider(level, cell, sy * w + sx);
-        }
+        return top;
     }
 
-    private static void Consider(Level level, int cell, int candidate)
+    /// <summary>Marks the cells whose whole patch is known and inside the grid; false when there are none.</summary>
+    private bool FindSources()
     {
-        if (!level.SourceOk[candidate] || candidate == level.Source[cell])
+        var stride = Width + 1;
+        // The buffer may be reused at another width, so the zero row and column are set each time.
+        Array.Clear(_sums, 0, stride);
+        for (var y = 0; y < Height; y++)
         {
-            return;
+            _sums[(y + 1) * stride] = 0;
+            var run = 0;
+            for (var x = 0; x < Width; x++)
+            {
+                run += _state[y * Width + x] != Known ? 1 : 0;
+                _sums[(y + 1) * stride + x + 1] = _sums[y * stride + x + 1] + run;
+            }
         }
 
-        var distance = Patch(level, cell, candidate, level.Distance[cell]);
-        if (distance < level.Distance[cell])
+        var any = false;
+        for (var y = 0; y < Height; y++)
         {
-            (level.Source[cell], level.Distance[cell]) = (candidate, distance);
+            for (var x = 0; x < Width; x++)
+            {
+                var ok = x >= Radius && y >= Radius && x + Radius < Width && y + Radius < Height
+                    && _sums[(y + Radius + 1) * stride + x + Radius + 1] - _sums[(y - Radius) * stride + x + Radius + 1]
+                        - _sums[(y + Radius + 1) * stride + x - Radius] + _sums[(y - Radius) * stride + x - Radius] == 0;
+                _sourceOk[y * Width + x] = ok;
+                any |= ok;
+            }
         }
+
+        return any;
     }
-
-    /// <summary>Sum of squared colour differences between the patches at two cells, stopping once past <paramref name="limit"/>.</summary>
-    private static float Patch(Level level, int cell, int source, float limit)
-    {
-        var (w, h) = (level.Width, level.Height);
-        var (x, y) = (cell % w, cell / w);
-        var offset = (source - cell) * 3;
-        var colour = level.Colour;
-        var total = 0;
-        for (var dy = -Radius; dy <= Radius; dy++)
-        {
-            var py = y + dy;
-            if (py < 0 || py >= h)
-            {
-                continue;
-            }
-
-            for (var dx = -Radius; dx <= Radius; dx++)
-            {
-                var px = x + dx;
-                if (px < 0 || px >= w)
-                {
-                    continue;
-                }
-
-                var at = (py * w + px) * 3;
-                var b = colour[at] - colour[at + offset];
-                var g = colour[at + 1] - colour[at + offset + 1];
-                var r = colour[at + 2] - colour[at + offset + 2];
-                total += b * b + g * g + r * r;
-            }
-
-            if (total > limit)
-            {
-                return total;
-            }
-        }
-
-        return total;
-    }
-
-    /// <summary>Each hole colour becomes the weighted mean of what every match covering it would put there.</summary>
-    private void Vote(Level level)
-    {
-        var (w, h) = (level.Width, level.Height);
-        var cells = w * h;
-        MatteEnsure(ref _vote, cells * 3);
-        var spread = 0.0;
-        var count = 0;
-        for (var cell = 0; cell < cells; cell++)
-        {
-            if (level.Hole[cell])
-            {
-                spread += level.Distance[cell];
-                count++;
-            }
-        }
-
-        // Wexler's weights favour the closer matches, on the scale of a typical match's distance.
-        var scale = (float)(spread / Math.Max(1, count)) + 1;
-        for (var cell = 0; cell < cells; cell++)
-        {
-            if (!level.Hole[cell])
-            {
-                continue;
-            }
-
-            var (x, y) = (cell % w, cell / w);
-            float blue = 0, green = 0, red = 0, total = 0;
-            for (var dy = -Radius; dy <= Radius; dy++)
-            {
-                for (var dx = -Radius; dx <= Radius; dx++)
-                {
-                    var (qx, qy) = (x + dx, y + dy);
-                    if (qx < 0 || qy < 0 || qx >= w || qy >= h)
-                    {
-                        continue;
-                    }
-
-                    var q = qy * w + qx;
-                    var source = level.Source[q];
-                    if (!level.Hole[q] || source < 0)
-                    {
-                        continue;
-                    }
-
-                    var at = (source - dy * w - dx) * 3;
-                    var weight = MathF.Exp(-Math.Min(30, level.Distance[q] / scale));
-                    blue += weight * level.Colour[at];
-                    green += weight * level.Colour[at + 1];
-                    red += weight * level.Colour[at + 2];
-                    total += weight;
-                }
-            }
-
-            _vote[cell * 3] = blue / total;
-            _vote[cell * 3 + 1] = green / total;
-            _vote[cell * 3 + 2] = red / total;
-        }
-
-        for (var cell = 0; cell < cells; cell++)
-        {
-            if (level.Hole[cell])
-            {
-                level.Colour[cell * 3] = (byte)(_vote[cell * 3] + 0.5f);
-                level.Colour[cell * 3 + 1] = (byte)(_vote[cell * 3 + 1] + 0.5f);
-                level.Colour[cell * 3 + 2] = (byte)(_vote[cell * 3 + 2] + 0.5f);
-            }
-        }
-    }
-
-    private static void MatteEnsure(ref float[] buffer, int length) => SubjectRemovalMatte.Ensure(ref buffer, length);
 
     /// <summary>
     /// Gortler's pull-push: known colours are averaged up a pyramid to the top, then pushed back down
     /// into every cell with too little weight of its own, giving a smooth fill with no gaps.
     /// </summary>
-    private void PullPush(Level level)
+    private void PullPush()
     {
-        var (w, h) = (level.Width, level.Height);
+        var (w, h) = (Width, Height);
         var levels = 0;
         var total = 0;
         for (var (lw, lh) = (w, h); ; (lw, lh) = ((lw + 1) / 2, (lh + 1) / 2))
@@ -428,15 +562,15 @@ public sealed class SubjectRemovalFill
             }
         }
 
-        MatteEnsure(ref _pullColour, total * 3);
-        MatteEnsure(ref _pullWeight, total);
+        SubjectRemovalMatte.Ensure(ref _pullColour, total * 3);
+        SubjectRemovalMatte.Ensure(ref _pullWeight, total);
         for (var cell = 0; cell < w * h; cell++)
         {
-            var known = !level.Hole[cell];
+            var known = _state[cell] == Known;
             _pullWeight[cell] = known ? 1 : 0;
             for (var c = 0; c < 3; c++)
             {
-                _pullColour[cell * 3 + c] = known ? level.Colour[cell * 3 + c] : 0;
+                _pullColour[cell * 3 + c] = known ? _colour[cell * 3 + c] : 0;
             }
         }
 
@@ -514,106 +648,13 @@ public sealed class SubjectRemovalFill
 
         for (var cell = 0; cell < w * h; cell++)
         {
-            if (level.Hole[cell])
+            if (_state[cell] != Known)
             {
                 for (var c = 0; c < 3; c++)
                 {
-                    level.Colour[cell * 3 + c] = (byte)Math.Clamp(_pullColour[cell * 3 + c] + 0.5f, 0, 255);
+                    _colour[cell * 3 + c] = (byte)Math.Clamp(_pullColour[cell * 3 + c] + 0.5f, 0, 255);
                 }
             }
-        }
-    }
-
-    /// <summary>One level of the coarse-to-fine pyramid.</summary>
-    private sealed class Level
-    {
-        public int Width;
-        public int Height;
-        public byte[] Colour = [];
-        public byte[] State = [];
-        public bool[] Hole = [];
-        public bool[] SourceOk = [];
-        public int[] Guess = [];
-        public int[] Source = [];
-        public float[] Distance = [];
-        private int[] _unknown = [];
-
-        public void Reserve(int width, int height)
-        {
-            (Width, Height) = (width, height);
-            var cells = width * height;
-            SubjectRemovalMatte.Ensure(ref Colour, cells * 3);
-            SubjectRemovalMatte.Ensure(ref State, cells);
-            SubjectRemovalMatte.Ensure(ref Hole, cells);
-            SubjectRemovalMatte.Ensure(ref SourceOk, cells);
-            SubjectRemovalMatte.Ensure(ref Guess, cells);
-            SubjectRemovalMatte.Ensure(ref Source, cells);
-            SubjectRemovalMatte.Ensure(ref Distance, cells);
-            SubjectRemovalMatte.Ensure(ref _unknown, (width + 1) * (height + 1));
-        }
-
-        /// <summary>Half the size of <paramref name="fine"/>: a cell is a hole if any of its four is.</summary>
-        public void Shrink(Level fine)
-        {
-            Reserve(fine.Width / 2, fine.Height / 2);
-            for (var y = 0; y < Height; y++)
-            {
-                for (var x = 0; x < Width; x++)
-                {
-                    var cell = y * Width + x;
-                    int blue = 0, green = 0, red = 0;
-                    var hole = false;
-                    for (var dy = 0; dy < 2; dy++)
-                    {
-                        for (var dx = 0; dx < 2; dx++)
-                        {
-                            var child = (y * 2 + dy) * fine.Width + x * 2 + dx;
-                            hole |= fine.Hole[child];
-                            blue += fine.Colour[child * 3];
-                            green += fine.Colour[child * 3 + 1];
-                            red += fine.Colour[child * 3 + 2];
-                        }
-                    }
-
-                    Hole[cell] = hole;
-                    State[cell] = hole ? Missing : Known;
-                    Source[cell] = -1;
-                    (Colour[cell * 3], Colour[cell * 3 + 1], Colour[cell * 3 + 2]) = ((byte)(blue / 4), (byte)(green / 4), (byte)(red / 4));
-                }
-            }
-        }
-
-        /// <summary>Marks the cells whose whole patch is known and inside the grid; false when there are none.</summary>
-        public bool FindSources()
-        {
-            var stride = Width + 1;
-            // The buffer may be reused at another width, so the zero row and column are set each time.
-            Array.Clear(_unknown, 0, stride);
-            for (var y = 0; y < Height; y++)
-            {
-                _unknown[(y + 1) * stride] = 0;
-                var run = 0;
-                for (var x = 0; x < Width; x++)
-                {
-                    run += Hole[y * Width + x] ? 1 : 0;
-                    _unknown[(y + 1) * stride + x + 1] = _unknown[y * stride + x + 1] + run;
-                }
-            }
-
-            var any = false;
-            for (var y = 0; y < Height; y++)
-            {
-                for (var x = 0; x < Width; x++)
-                {
-                    var ok = x >= Radius && y >= Radius && x + Radius < Width && y + Radius < Height
-                        && _unknown[(y + Radius + 1) * stride + x + Radius + 1] - _unknown[(y - Radius) * stride + x + Radius + 1]
-                            - _unknown[(y + Radius + 1) * stride + x - Radius] + _unknown[(y - Radius) * stride + x - Radius] == 0;
-                    SourceOk[y * Width + x] = ok;
-                    any |= ok;
-                }
-            }
-
-            return any;
         }
     }
 }
