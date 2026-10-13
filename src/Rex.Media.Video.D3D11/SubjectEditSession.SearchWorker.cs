@@ -57,8 +57,9 @@ public sealed partial class SubjectEditSession
             if (completed.IsCompletedSuccessfully)
             {
                 var found = completed.Result;
-                var stale = frame.Pts.IsKnown && _recoveryTime.IsKnown
-                    && frame.Pts - _recoveryTime > MediaTime.FromSeconds(0.5);
+                // A result found in a picture from before a cut describes a shot that is gone.
+                var stale = _shotChanged || (frame.Pts.IsKnown && _recoveryTime.IsKnown
+                    && frame.Pts - _recoveryTime > MediaTime.FromSeconds(0.5));
                 if (stale)
                 {
                     _returnCandidate = null;
@@ -69,6 +70,7 @@ public sealed partial class SubjectEditSession
                     _returnCandidate = found._returnCandidate;
                     _returnConfirmations = found._returnConfirmations;
                     LastSearchComparisons = found.LastSearchComparisons;
+                    LastReturn = found.LastReturn;
                     if (found.Tracking)
                     {
                         // A result describes its captured frame, not today's pixels.
@@ -101,6 +103,7 @@ public sealed partial class SubjectEditSession
             }
         }
 
+        ForgetSightingAcrossACut();
         var snapshot = ColorConverter.ToBgra(frame);
         var worker = new SubjectEditSession
         {

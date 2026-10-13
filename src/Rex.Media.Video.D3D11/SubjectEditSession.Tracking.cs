@@ -19,6 +19,17 @@ public sealed partial class SubjectEditSession
     private void Track(VideoFrame frame)
     {
         if (_positive.Count == 0) return;
+        // A cut to another shot breaks the one thing this search assumes: that the subject is
+        // near where it was a moment ago. Whatever now sits under the box belongs to a different
+        // picture, and following it is how a lock ends up on a shelf, or on the other person in a
+        // conversation filmed shot and reverse shot. The subject may well be in the new shot too,
+        // somewhere else or at another size; finding it there is the re-detection search's job,
+        // with its stricter evidence and its second sighting.
+        if (PictureChange >= CutChange)
+        {
+            LoseTracking("The shot changed. Looking for the selected subject in the new picture.");
+            return;
+        }
 
         // A subject that just returned may be moving quickly, and the box that recovery produced
         // is only approximately placed, so widen the window for the first few frames afterwards.
@@ -31,17 +42,35 @@ public sealed partial class SubjectEditSession
         var best = new Match(double.MinValue, 0, 0, Region.Width, Region.Height);
 
         var shape = Math.Log((double)_identityWidth / Math.Max(1, _identityHeight));
+        var boxLeft = (int)Math.Round(Region.Left * frame.Width);
+        var boxTop = (int)Math.Round(Region.Top * frame.Height);
+        var boxWidth = Math.Max(2, (int)Math.Round(Region.Width * frame.Width));
+        var boxHeight = Math.Max(2, (int)Math.Round(Region.Height * frame.Height));
+        _tried = 0;
+
         // Returns how much the place resembles the subject, or nothing when it is not a place.
         double TryMatch(int dx, int dy, float width, float height)
         {
             var left = Region.Left + (float)dx / frame.Width;
             var top = Region.Top + (float)dy / frame.Height;
             if (left < 0 || top < 0 || left + width > 1 || top + height > 1) return double.MinValue;
+            var pixelWidth = Math.Max(2, (int)Math.Round(width * frame.Width));
+            var pixelHeight = Math.Max(2, (int)Math.Round(height * frame.Height));
             if (Distortion((int)Math.Round(width * frame.Width),
                 (int)Math.Round(height * frame.Height)) > MaxDistortion) return double.MinValue;
-            Describe(frame, (int)Math.Round(left * frame.Width), (int)Math.Round(top * frame.Height),
-                Math.Max(2, (int)Math.Round(width * frame.Width)),
-                Math.Max(2, (int)Math.Round(height * frame.Height)), _probe);
+            var pixelLeft = (int)Math.Round(left * frame.Width);
+            var pixelTop = (int)Math.Round(top * frame.Height);
+            // Refinement revisits places it has already tried, the centre of each finer grid most
+            // of all. A place tried once this frame scores the same again and cannot become a new
+            // best, so it is answered from memory instead of being read twice.
+            var place = ((long)dx << 32) + (uint)dy;
+            var size = ((long)BitConverter.SingleToInt32Bits(width) << 32) + (uint)BitConverter.SingleToInt32Bits(height);
+            for (var i = 0; i < _tried; i++)
+            {
+                if (_triedPlaces[i] == place && _triedSizes[i] == size) return _triedAlike[i];
+            }
+
+            Describe(frame, pixelLeft, pixelTop, pixelWidth, pixelHeight, _probe);
             // A repeating pattern - railings, paving, a row of identical seats - matches equally
             // well in many places. Preferring the nearest of those keeps the box on the subject
             // instead of letting it slide along the repetition.
@@ -58,6 +87,13 @@ public sealed partial class SubjectEditSession
                 // every learned view reinforces the smaller thing.
                 - 0.06 * Math.Abs(Math.Log(width * frame.Width / (height * frame.Height)) - shape);
             if (score > best.Score) best = new Match(score, dx, dy, width, height, alike);
+            if (_tried < _triedPlaces.Length)
+            {
+                _triedPlaces[_tried] = place;
+                _triedSizes[_tried] = size;
+                _triedAlike[_tried++] = alike;
+            }
+
             return alike;
         }
 
@@ -69,23 +105,39 @@ public sealed partial class SubjectEditSession
         // little way from the real subject.
         Span<Match> leads = stackalloc Match[Leads];
         leads.Fill(new Match(double.MinValue, 0, 0, Region.Width, Region.Height));
-        var boxLeft = (int)Math.Round(Region.Left * frame.Width);
-        var boxTop = (int)Math.Round(Region.Top * frame.Height);
-        var boxWidth = Math.Max(2, (int)Math.Round(Region.Width * frame.Width));
-        var boxHeight = Math.Max(2, (int)Math.Round(Region.Height * frame.Height));
         var nearPenalty = (_reacquiredFrames > 0 ? 0.02 : 0.10) / Math.Max(1, span);
+        double sum = 0, square = 0, highest = double.MinValue;
+        var read = 0;
+        // Every place on the grid is a rectangle of the same size, so where its taps fall relative
+        // to its corner is worked out once here rather than at each of the hundreds of places.
+        Span<int> columns = stackalloc int[Samples * 2];
+        Span<int> rows = stackalloc int[Samples * 2];
+        RelativeTaps(boxWidth, boxHeight, columns, rows);
+        Span<int> colourColumns = stackalloc int[4];
+        Span<int> colourRows = stackalloc int[4];
+        RelativeColourTaps(boxWidth, boxHeight, colourColumns, colourRows);
         for (var dy = -radius; dy <= radius; dy += coarse)
         {
             if (boxTop + dy < 0 || boxTop + dy + boxHeight > frame.Height) continue;
             for (var dx = -radius; dx <= radius; dx += coarse)
             {
                 if (boxLeft + dx < 0 || boxLeft + dx + boxWidth > frame.Width) continue;
-                DescribeStructure(frame, boxLeft + dx, boxTop + dy, boxWidth, boxHeight, _spare);
-                var score = 0.55 * StructuralResemblance(_spare)
-                    + 0.45 * QuickColour(frame, boxLeft + dx, boxTop + dy, boxWidth, boxHeight)
-                    - nearPenalty * Math.Sqrt((double)dx * dx + (double)dy * dy);
-                Lead(leads, score, dx, dy, coarse * 2);
+                ReadStructure(frame, columns, rows, boxLeft + dx, boxTop + dy, _spare);
+                var raw = 0.55 * StructuralResemblance(_spare)
+                    + 0.45 * QuickColour(frame, colourColumns, colourRows, boxLeft + dx, boxTop + dy);
+                sum += raw;
+                square += raw * raw;
+                highest = Math.Max(highest, raw);
+                read++;
+                Lead(leads, raw - nearPenalty * Math.Sqrt((double)dx * dx + (double)dy * dy), dx, dy, coarse * 2);
             }
+        }
+
+        if (read > 1)
+        {
+            var mean = sum / read;
+            var deviation = Math.Sqrt(Math.Max(0, square / read - mean * mean));
+            LastPeak = deviation > 0 ? (highest - mean) / deviation : 0;
         }
 
         // The full comparison decides between the leads. Two leads a box apart that both look
@@ -174,6 +226,7 @@ public sealed partial class SubjectEditSession
         // subject is the force that opposes that, and it costs four readings a frame.
         // No allowance is given here: a box nudged outwards forty times a second on a reading
         // that merely held would swallow the background just as surely as it shrank.
+        var (settledLeft, settledTop, settledWidth, settledHeight) = (placed.Left, placed.Top, placed.Width, placed.Height);
         Extend(frame, ref placed, OutlineRounds, OutlineStep, 0, MaxDistortion);
         var resemblance = placed.Resemblance;
         Confidence = Math.Clamp((resemblance.ToSubject - 0.5) / 0.42, 0, 1);
@@ -188,7 +241,11 @@ public sealed partial class SubjectEditSession
         var left = (float)placed.Left / frame.Width;
         var top = (float)placed.Top / frame.Height;
         Region = (left, top, (float)placed.Width / frame.Width, (float)placed.Height / frame.Height);
-        Describe(frame, placed.Left, placed.Top, placed.Width, placed.Height, _probe);
+        // The reading of the settled box is still in hand unless the push outwards moved it.
+        if ((placed.Left, placed.Top, placed.Width, placed.Height) != (settledLeft, settledTop, settledWidth, settledHeight))
+        {
+            Describe(frame, placed.Left, placed.Top, placed.Width, placed.Height, _probe);
+        }
         // Only a confident, settled view is worth remembering, and only one view every so often:
         // learning from every frame turns the memory into twelve copies of the last second.
         if (_reacquiredFrames == 0 && resemblance.ToSubject > 0.78
@@ -211,6 +268,19 @@ public sealed partial class SubjectEditSession
 
     // How many shape-only peaks are read in colour before the position is chosen.
     private const int Leads = 4;
+
+    // The share of the picture outside the subject that has to change at once to count as a cut.
+    private const double CutChange = 2;
+
+    /// <summary>How far the best coarse reading stood above the rest, in standard deviations.</summary>
+    internal double LastPeak { get; private set; }
+
+    // The places the local search has read this frame and how alike each was, so a place visited
+    // again by a finer grid is answered without being read twice. Allocated once per session.
+    private readonly long[] _triedPlaces = new long[256];
+    private readonly long[] _triedSizes = new long[256];
+    private readonly double[] _triedAlike = new double[256];
+    private int _tried;
 
     /// <summary>
     /// Keep the best few places, counting offsets within <paramref name="apart"/> of each other as
