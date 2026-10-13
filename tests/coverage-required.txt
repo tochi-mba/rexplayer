@@ -201,6 +201,7 @@ SpectrumAnalyzer.cs
 StatsText.cs
 StrobeScene.cs
 SubjectPanel.cs
+SubjectProposals.cs
 SubjectRemoval.cs
 SubjectRemovalFill.cs
 SubjectRemovalMatte.cs
