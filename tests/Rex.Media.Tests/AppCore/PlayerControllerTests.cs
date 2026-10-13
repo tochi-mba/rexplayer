@@ -22,7 +22,7 @@ public sealed class PlayerControllerTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void DisposingWaitsForTheMediaThreadEvenWhenItsSessionWasAlreadyStopped(bool stopFirst)
+    public async Task DisposingWaitsForTheMediaThreadEvenWhenItsSessionWasAlreadyStopped(bool stopFirst)
     {
         using var writing = new ManualResetEventSlim();
         using var releaseWrite = new ManualResetEventSlim();
@@ -31,11 +31,11 @@ public sealed class PlayerControllerTests
         {
             writing.Set();
             // Model a video or audio adapter still inside a native call during shutdown.
-            releaseWrite.Wait(ControllerHarness.Patience);
+            releaseWrite.Wait(ControllerHarness.Patience, CancellationToken.None);
         });
         harness.Files["a.wav"] = Count(0, 8000);
         harness.Controller.Open(["a.wav"]);
-        Assert.True(writing.Wait(ControllerHarness.Patience));
+        Assert.True(writing.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
 
         if (stopFirst)
         {
@@ -47,19 +47,19 @@ public sealed class PlayerControllerTests
         {
             disposalStarted.Set();
             harness.Controller.Dispose();
-        });
+        }, TestContext.Current.CancellationToken);
         try
         {
-            Assert.True(disposalStarted.Wait(ControllerHarness.Patience));
-            Assert.False(disposing.Wait(TimeSpan.FromMilliseconds(200)),
-                "Disposing the controller returned while a media thread was still using its resources.");
+            Assert.True(disposalStarted.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
+            Assert.NotSame(disposing, await Task.WhenAny(disposing,
+                Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken)));
         }
         finally
         {
             releaseWrite.Set();
         }
 
-        Assert.True(disposing.Wait(ControllerHarness.Patience));
+        await disposing.WaitAsync(ControllerHarness.Patience, TestContext.Current.CancellationToken);
         Assert.True(Assert.Single(harness.Sinks).Disposed);
     }
 
