@@ -231,14 +231,7 @@ public sealed partial class MainWindow
                 };
                 _shellTaskbar.SetOverlay(_shellHandle, badge is { } glyph ? _shellIcons[glyph] : null,
                     view.Badge == TransportBadge.Paused ? "Paused" : view.Badge == TransportBadge.Failed ? "Could not play" : "");
-                var progress = TaskbarProgress.Choose(null, null, false);
-                var progressKind = progress.State switch
-                {
-                    TaskbarProgressState.Normal => TaskbarProgressKind.Normal,
-                    TaskbarProgressState.Paused => TaskbarProgressKind.Paused,
-                    _ => TaskbarProgressKind.None,
-                };
-                _shellTaskbar.SetProgress(_shellHandle, progressKind, progress.Percent);
+
             }
             catch (Exception ex) when (ShellUnavailable(ex))
             {
@@ -291,7 +284,35 @@ public sealed partial class MainWindow
 
         _shellView = view;
         ShowTaskbarPosition();
+        ShowTaskbarProgress();
         RefreshJumpList();
+    }
+
+    /// <summary>Show background download progress, never media playback position.</summary>
+    private void ShowTaskbarProgress()
+    {
+        if (_closing || !_settings.ShellMediaControls || !_shellTaskbarReady || _shellTaskbar is null)
+        {
+            return;
+        }
+
+        var progress = TaskbarProgress.Choose(null,
+            _updateDownload is null ? null : _updateTransfer?.Fraction,
+            _updateDownload is not null && _updatePlaying);
+        var state = progress.State switch
+        {
+            TaskbarProgressState.Normal => TaskbarProgressKind.Normal,
+            TaskbarProgressState.Paused => TaskbarProgressKind.Paused,
+            _ => TaskbarProgressKind.None,
+        };
+        try
+        {
+            _shellTaskbar.SetProgress(_shellHandle, state, progress.Percent);
+        }
+        catch (Exception ex) when (ShellUnavailable(ex))
+        {
+            App.Log.Info(LogSource, "Taskbar could not show download progress: " + ex.Message);
+        }
     }
 
     private ThumbnailButton ShellButton(int id, TransportButton button, TaskbarGlyph glyph) =>
