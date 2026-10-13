@@ -23,7 +23,7 @@ public static partial class CliApplication
             throw new CliException("The season folder does not exist: " + folder);
         }
 
-        var siblingPaths = EpisodeGrouping.Siblings(path, Directory.EnumerateFiles(folder), SectionDetector.SiblingsCompared);
+        var siblingPaths = EpisodeGrouping.Siblings(path, Directory.EnumerateFiles(folder));
         var decoders = MediaRegistries.Decoders([.. host.ExtraDecoders]);
         EpisodeAnalysis Analysis(string file)
         {
