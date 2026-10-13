@@ -54,6 +54,7 @@ CollageLayout.cs
 ColorConverter.cs
 ColorInfo.cs
 CommandCatalog.cs
+CompiledShaderCache.cs
 ConstellationScene.cs
 Crc.cs
 CreditFrameEvidence.cs
@@ -78,6 +79,7 @@ ExifOrientation.cs
 Fft.cs
 FileByteSource.cs
 FireworksScene.cs
+FirstPicture.cs
 FlacDecoder.cs
 FlacDemuxer.cs
 FlacFrameHeader.cs
@@ -106,6 +108,7 @@ Keymap.cs
 KineticCaptionSettings.cs
 LandmarkMatcher.cs
 Languages.cs
+LaunchPlan.cs
 LavaScene.cs
 Layer3Huffman.cs
 Layer3SideInfo.cs
@@ -133,6 +136,7 @@ MediaFiles.cs
 MediaFormatException.cs
 MediaInfo.cs
 MediaLibrary.cs
+MediaPrefetch.cs
 MediaRegistries.cs
 MediaSession.Commands.cs
 MediaSession.cs

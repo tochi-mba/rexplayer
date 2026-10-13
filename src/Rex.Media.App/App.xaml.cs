@@ -19,6 +19,16 @@ public partial class App : Application
     public App()
     {
         Milestones.Reach("app");
+
+        // Compiling the picture shaders takes seconds; they are kept between runs.
+        Rex.Media.Interop.Graphics.D3D11VideoRenderer.CompiledShaders = new Rex.Media.Video.CompiledShaderCache(Path.Combine(DataRoot, "cache", "shaders")).GetOrCompile;
+
+        // A launch that will hand its files to a running player has nothing to warm up.
+        if (!AutomationPipe.IsServed(AutomationPipe.NameForCurrentUser))
+        {
+            Warmup = LaunchWarmup.Start(Environment.GetCommandLineArgs().Length > 1, Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") != "1");
+        }
+
         InitializeComponent();
         UnhandledException += (_, e) => Log.Critical("app", ExceptionDiagnostics.Summary(e.Exception));
 
@@ -62,6 +72,9 @@ public partial class App : Application
     /// </summary>
     public static Milestones Milestones { get; } = new(Log, LaunchedAt, Environment.GetEnvironmentVariable("REXPLAYER_EXIT_AFTER"), () => Environment.Exit(0));
 
+    /// <summary>The slow parts of this launch, started in the background before the window is built; null when it hands over.</summary>
+    internal static LaunchWarmup? Warmup { get; private set; }
+
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         Log.Info("app", $"rexplayer {MainWindow.Version} starting on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}), .NET {Environment.Version}, data in {DataRoot}.");
@@ -70,58 +83,58 @@ public partial class App : Application
         var files = Environment.GetCommandLineArgs().Skip(1).Select(Located).ToList();
         var settings = SettingsStore.Load(SettingsPath);
         var pipe = AutomationPipe.NameForCurrentUser;
-        var closing = new CancellationTokenSource();
-        var readyWindow = new TaskCompletionSource<MainWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var servingHere = false;
-        if (settings.SingleInstance)
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                Foreground.AllowAnyProcess();
-            }
 
-            // Claim the pipe before constructing the window. The first launch no longer waits
-            // through a connection timeout when there is no running instance. A second launch
-            // can hand off even while the first is still loading XAML.
-            try
-            {
-                _ = AutomationPipe.ServeAsync(pipe, async request =>
-                    await (await readyWindow.Task.ConfigureAwait(false)).AnswerAsync(request).ConfigureAwait(false), closing.Token);
-                servingHere = true;
-            }
-            catch (IOException)
-            {
-                var reply = await AutomationPipe.SendAsync(pipe,
-                    new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt },
-                    FindRunningPlayer);
-                if (reply is { Ok: true })
-                {
-                    Log.Info("app", "Handed over to the player that was already running.");
-                    closing.Dispose();
-                    Exit();
-                    return;
-                }
-            }
+        // Only a player that is there can be handed to: with none, there is nothing to wait for.
+        if (settings.SingleInstance && AutomationPipe.IsServed(pipe) && await HandOverAsync(pipe, files, settings))
+        {
+            Exit();
+            return;
         }
 
         Milestones.Reach("handed-over-checked");
-        var window = new MainWindow(files);
+        var closing = new CancellationTokenSource();
+        var answering = new TaskCompletionSource<MainWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            // Served before the window is built, so a launch a moment after this one finds the pipe
+            // and hands its files over; they are answered once the window has opened its own.
+            _ = AutomationPipe.ServeAsync(pipe, async request => await (await answering.Task).AnswerWhenReadyAsync(request), closing.Token);
+        }
+        catch (IOException ex)
+        {
+            // Another launch began serving after this one looked; or one window was turned off.
+            if (settings.SingleInstance && await HandOverAsync(pipe, files, settings))
+            {
+                Exit();
+                return;
+            }
+
+            Log.Info("app", "Another player answers the automation pipe: " + ex.Message);
+        }
+
+        var window = new MainWindow(files, settings);
         window.Closed += (_, _) => closing.Cancel();
-        readyWindow.SetResult(window);
+        answering.SetResult(window);
         window.Activate();
         Milestones.Reach("activated");
-        if (!servingHere)
+    }
+
+    /// <summary>Gives the files to the player already running; false when it does not take them.</summary>
+    private static async Task<bool> HandOverAsync(string pipe, List<string> files, PlayerSettings settings)
+    {
+        if (OperatingSystem.IsWindows())
         {
-            try
-            {
-                _ = AutomationPipe.ServeAsync(pipe, window.AnswerAsync, closing.Token);
-            }
-            catch (IOException ex)
-            {
-                // Another player owns the pipe (one window was turned off): this one simply has no pipe.
-                Log.Info("app", "Another player answers the automation pipe: " + ex.Message);
-            }
+            Foreground.AllowAnyProcess();
         }
+
+        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }, FindRunningPlayer);
+        if (reply is not { Ok: true })
+        {
+            return false;
+        }
+
+        Log.Info("app", "Handed over to the player that was already running.");
+        return true;
     }
 
     /// <summary>A path given relative to where the launch happened, made absolute so another process can open it.</summary>
