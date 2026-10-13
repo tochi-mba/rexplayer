@@ -82,15 +82,21 @@ public sealed class D3D11ContourTests
         using var first = Scene(seed: 1, grain: 3, seconds: 1);
         using var second = Scene(seed: 2, grain: 3, seconds: 1);
         var grainAlone = MeanDifference(first, second);
+        var unstable = new List<string>();
         foreach (var effect in Family)
         {
             using var a = Draw(first, effect);
             using var b = Draw(second, effect);
             var changed = MeanDifference(a, b);
 
-            // Lines that shimmer with grain change far more than the grain itself does.
-            Assert.True(changed < grainAlone * 2.5, $"{effect} changed by {changed:F2} levels where the grain changed by {grainAlone:F2}");
+            // Check every member before reporting, so a single CI pass names all weak contours.
+            if (changed >= grainAlone * 2.5)
+            {
+                unstable.Add($"{effect}: {changed:F2} levels (grain: {grainAlone:F2})");
+            }
         }
+
+        Assert.True(unstable.Count == 0, string.Join("; ", unstable));
     }
 
     [Fact]
@@ -100,14 +106,20 @@ public sealed class D3D11ContourTests
         var drawn = Family.Select(effect => (effect, picture: Draw(scene, effect))).ToList();
         try
         {
+            var similar = new List<string>();
             foreach (var (effect, picture) in drawn)
             {
                 foreach (var (other, otherPicture) in drawn.Where(pair => pair.effect > effect))
                 {
                     var apart = MeanDifference(picture, otherPicture);
-                    Assert.True(apart > 18, $"{effect} and {other} differ by only {apart:F1} levels on average");
+                    if (apart <= 18)
+                    {
+                        similar.Add($"{effect} vs {other}: {apart:F1} levels");
+                    }
                 }
             }
+
+            Assert.True(similar.Count == 0, string.Join("; ", similar));
         }
         finally
         {
