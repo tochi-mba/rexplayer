@@ -39,13 +39,13 @@ public sealed class SectionDetectionControllerTests
             new PlayerMemory(store).SetProposals(fileA,
                 new SectionProposals(SectionAnalysis.SignatureOf(fileA), []));
             var analyzed = 0;
-            var cacheFolder = Path.Combine(folder, "analysis-cache");
+            var cache = new SectionAnalysisCache();
             using (var harness = new ControllerHarness(autoPlay: false, pictures: true, store: store))
             {
+                harness.Controller.SectionCache = cache;
                 harness.Files[fileA] = bytes;
                 harness.Files[fileB] = bytes;
                 var controller = harness.Controller;
-                controller.SectionCache = new SectionAnalysisCache(cacheFolder);
                 controller.SectionAnalyzer = (path, token) =>
                 {
                     token.ThrowIfCancellationRequested();
@@ -66,13 +66,12 @@ public sealed class SectionDetectionControllerTests
                 harness.PumpUntil(x => x.State == SessionState.Ready && x.Info is not null);
                 harness.PumpUntil(x => x.CurrentProposals is { Candidates.Count: > 0 });
                 Assert.Equal(2, analyzed);
-                Assert.NotNull(new SectionAnalysisCache(cacheFolder).Get(fileB, SectionAnalysis.SignatureOf(fileB)));
+                Assert.NotNull(cache.Get(fileB, SectionAnalysis.SignatureOf(fileB)));
                 Assert.NotNull(controller.CurrentProposals!.Best(EpisodeSectionKind.Intro, TimeSpan.FromMinutes(43)));
             }
 
             using var again = new ControllerHarness(autoPlay: false, pictures: true, store: store);
             again.Files[fileA] = bytes;
-            again.Controller.SectionCache = new SectionAnalysisCache(cacheFolder);
             again.Controller.SectionAnalyzer = (_, _) => throw new InvalidOperationException(
                 "A signature-matched proposal must load without decoding");
             again.Controller.Open([fileA]);
@@ -162,20 +161,17 @@ public sealed class SectionDetectionControllerTests
         player.Open(["scene.mkv"]);
         test.PumpUntil(p => p.State == SessionState.Ready);
         player.Seek(TimeSpan.FromSeconds(1));
-        // Playback position notifications are intentionally not produced by a paused
-        // session. Drive the position policy directly, without racing the renderer.
-        var maybeSkip = typeof(PlayerController).GetMethod("MaybeSkipAutomatically",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        maybeSkip.Invoke(player, null);
+        // A paused session reports no positions; the position policy is driven directly.
+        player.MaybeSkipAutomatically();
         // An automatic skip counts down first, never past a second before the section ends.
         Assert.Equal(TimeSpan.FromSeconds(1), player.Position);
         Assert.Equal(1, player.SkipPrompt!.AutomaticInSeconds);
         player.Seek(TimeSpan.FromSeconds(2.5));
-        maybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
         Assert.False(player.Settings.SkipCreditsAutomatically);
         player.Seek(TimeSpan.FromSeconds(7));
-        maybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(TimeSpan.FromSeconds(7), player.Position);
     }
 

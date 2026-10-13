@@ -125,7 +125,7 @@ public sealed class SectionDetectionEdgeCaseTests
         // A distributor's seven-second sting opens every episode: repeated, but not worth a button.
         const uint Sting = 50_000;
         var episodes = Enumerable.Range(1, 4).Select(n => Episode(n, [.. Sound(Sting, 0, 7), .. Unique(n, 8, 300)])).ToArray();
-        Assert.NotNull(LandmarkMatcher.Match(episodes[0].Opening, episodes[1].Opening));
+        Assert.NotEmpty(LandmarkMatcher.MatchAll(episodes[0].Opening, episodes[1].Opening));
         Assert.Null(Intro(episodes[0], episodes[1..]));
     }
 
@@ -245,6 +245,33 @@ public sealed class SectionDetectionEdgeCaseTests
         Assert.Null(Intro(episode, Stray("Show.S00E01.mkv"), Stray("Featurettes/Show.S01E05.mkv"),
             Stray("Show.S01E06.Behind.The.Scenes.mkv"), Stray("Other.S01E04.mkv"), Stray("Show.S02E01.mkv"), Stray("Show sample.mkv")));
         Assert.NotNull(Intro(episode, Stray("Show.S01E05.mkv")));
+    }
+
+    [Fact]
+    public void AnIntroWhoseEndingVariesIsSkippedOnlyAsFarAsItIsShared()
+    {
+        // The same 30 s of titles, then 20 s arranged differently in every episode: skipping
+        // stops where the episodes stop agreeing, never inside material only this one has.
+        var episodes = Enumerable.Range(1, 4).Select(n => Episode(n,
+            [.. Unique(n, 0, 20 * n), .. Sound(Theme, 20 * n, 30), .. Unique(n + 20, 20 * n + 30, 20), .. Unique(n, 20 * n + 50, 100)])).ToArray();
+        var intro = Assert.IsType<SectionCandidate>(Intro(episodes[2], [episodes[0], episodes[1], episodes[3]]));
+        Near(60, intro.Start);
+        Near(90, intro.End);
+    }
+
+    [Fact]
+    public void ACardOnBlackInsideTheLastSceneIsNotTheCredits()
+    {
+        // A ten-second epigraph on black two minutes before the end, the last scene, then credits:
+        // the credits are offered from where they start, and the card is never skipped to.
+        CreditFrameSample[] frames = [.. Pictures(End - 300, End - 130, Picture), .. Pictures(End - 130, End - 120, Text),
+            .. Pictures(End - 120, End - 50, Picture), .. Pictures(End - 50, End, Text)];
+        var credits = Assert.IsType<SectionCandidate>(Credits(Episode(1, Unique(1, 0, 300), frames: frames)));
+        Near(End - 50, credits.Start);
+        Assert.Equal(Length, credits.End);
+        var runs = CreditFrameEvidence.Runs(frames, Length);
+        Assert.Equal(2, runs.Count);
+        Assert.True(runs[0].Confidence < SectionProposals.OfferThreshold);
     }
 
     [Fact]
