@@ -28,6 +28,7 @@ public sealed class VinylScene : VisualScene
     private readonly List<(double, double)> _outer = [];
     private readonly List<(double, double)> _inner = [];
     private double _turned = double.NaN;
+    private float[] _wave = [];
     private Disc? _disc;
 
     public override void Draw(VisualContext context)
@@ -71,7 +72,7 @@ public sealed class VinylScene : VisualScene
     private void Cut(VisualContext context, double turned, double needleAngle)
     {
         var ring = Math.Clamp((int)((Needle(context.Progress) - Inner) / (Outer - Inner) * Rings), 0, Rings - 1);
-        var wave = context.Pulse.Wave;
+        var wave = Wave(context);
         var from = double.IsNaN(_turned) || Math.Abs(turned - _turned) > Math.Tau ? turned - 0.05 : _turned;
         _turned = turned;
         var steps = Math.Max(1, (int)Math.Ceiling(Math.Abs(turned - from) / Math.Tau * Angles));
@@ -99,6 +100,23 @@ public sealed class VinylScene : VisualScene
         }
     }
 
+    /// <summary>The newest sound, both channels as one, with the sensitivity applied.</summary>
+    private IReadOnlyList<float> Wave(VisualContext context)
+    {
+        var (left, right) = (context.Left, context.Right);
+        if (_wave.Length != Math.Max(1, left.Length))
+        {
+            _wave = new float[Math.Max(1, left.Length)];
+        }
+
+        for (var i = 0; i < left.Length; i++)
+        {
+            _wave[i] = (left[i] + (i < right.Length ? right[i] : 0)) / 2;
+        }
+
+        return _wave;
+    }
+
     /// <summary>How far out the needle is, from the outside in as the song goes on.</summary>
     private static double Needle(double progress) => Outer - 0.02 - ((Outer - Inner - 0.04) * Math.Clamp(double.IsFinite(progress) ? progress : 0, 0, 1));
 
@@ -107,7 +125,7 @@ public sealed class VinylScene : VisualScene
     /// <summary>The newest sound as a ring of light round the platter, mirrored left to right.</summary>
     private void Waveform(VisualContext context, double cx, double cy, double radius)
     {
-        var wave = context.Pulse.Wave;
+        var wave = Wave(context);
         const int Points = 180;
         var reach = radius * 1.17;
         var depth = radius * 0.2 * context.Number("depth");

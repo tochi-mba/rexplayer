@@ -403,8 +403,9 @@ public sealed class MediaLibrary
     private void WriteHidden() => Store.Set(HiddenKey, JsonSerializer.Serialize(_hidden.Order(StringComparer.OrdinalIgnoreCase).ToList(), LibraryJson.Default.ListString));
 
     /// <summary>
-    /// Brings in entries from a backup (LIB-10): ones not known are added as they were; for ones
-    /// known, the higher play count and the later last play win. Gives how many were added.
+    /// Brings in entries from a backup (LIB-10): ones not known are added as they were, unless they
+    /// were removed from the library (a scan would not bring them back either); for ones known, the
+    /// higher play count and the later last play win. Gives how many were added.
     /// </summary>
     public int Restore(IEnumerable<LibraryEntry> entries)
     {
@@ -415,6 +416,11 @@ public sealed class MediaLibrary
             var written = new List<LibraryEntry>();
             foreach (var entry in entries.DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase))
             {
+                if (_hidden.Contains(entry.Path))
+                {
+                    continue;
+                }
+
                 if (!_entries.TryGetValue(entry.Path, out var known))
                 {
                     written.Add(entry);

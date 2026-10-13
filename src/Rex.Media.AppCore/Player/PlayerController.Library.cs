@@ -54,7 +54,7 @@ public sealed partial class PlayerController
         }
 
         var at = Playlist.CurrentIndex + 1;
-        Playlist.Insert(at, added);
+        Playlist.InsertNext(at, added);
         _log.Info(LogSource, $"{added.Count} item(s) play next, from {added[0].Location}.");
         if (_session is null || State is SessionState.Idle or SessionState.Ended or SessionState.Faulted)
         {
@@ -153,16 +153,18 @@ public sealed partial class PlayerController
     {
         ArgumentNullException.ThrowIfNull(paths);
         var gone = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+        // Stop can save the current resume point, so do it before forgetting deleted files.
+        if (Item is { } playing && gone.Contains(playing.Location))
+        {
+            Stop();
+        }
+
         foreach (var path in gone)
         {
             Memory.Forget(path);
         }
 
         Library?.Forget(gone);
-        if (Item is { } playing && gone.Contains(playing.Location))
-        {
-            Stop();
-        }
 
         for (var index = Playlist.Items.Count - 1; index >= 0; index--)
         {

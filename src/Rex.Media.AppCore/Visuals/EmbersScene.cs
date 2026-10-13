@@ -7,8 +7,15 @@ namespace Rex.Media.AppCore.Visuals;
 /// </summary>
 public sealed class EmbersScene : VisualScene
 {
+    /// <summary>The most of a beat the swirl moves on in one frame, so a phase starting again never throws it round.</summary>
+    private const double MostAFrame = 0.2;
+
     private readonly Particles _embers = new(600);
     private double _owed;
+    private double _phase;
+
+    /// <summary>How far the swirl has turned, in radians: half a turn a beat, never stepping back.</summary>
+    internal double Turn { get; private set; }
 
     public override void Draw(VisualContext context)
     {
@@ -19,7 +26,7 @@ public sealed class EmbersScene : VisualScene
         var speed = context.Number("speed");
         var wind = context.Number("wind");
         var size = Math.Min(w, h);
-        canvas.Feedback((float)context.Number("smoke"), 1.0, 0, wind * 0.4, -0.7 * speed);
+        context.Trail(context.Number("smoke"), 1.0, 0, wind * 0.4, -0.7 * speed);
 
         // A steady stream that thickens with the loudness, and a burst on each beat.
         var amount = context.Number("amount");
@@ -47,8 +54,14 @@ public sealed class EmbersScene : VisualScene
             }
         }
 
-        // The swirl turns over once a beat.
-        var turn = (pulse.Beats + pulse.Phase) * Math.PI;
+        // The swirl turns over once a beat, moving on with the beat's phase. Counted from the beats
+        // and the phase together it jumped half a turn and back whenever a beat landed a little
+        // before or after the clock's, reversing every ember for a frame. A phase that starts again
+        // early (a beat heard before the grid's) moves it on a fifth of a beat at most.
+        var step = pulse.Phase - _phase;
+        _phase = pulse.Phase;
+        Turn += Math.Min(step < 0 ? step + 1 : step, MostAFrame) * Math.PI;
+        var turn = Turn;
         _embers.Step(context.Dt, wind * size * 0.2, -size * 0.15 * speed, 0.6, (x, y) => Math.Sin((y * 0.025) + turn + (x * 0.01)) * size * 0.5);
         canvas.Glow(w / 2.0, h + (size * 0.1), size * (0.45 + (0.3 * pulse.Bass) + (0.25 * pulse.Punch)), context.Paint(0.05), 0.15f + (0.4f * pulse.Bass) + (1.1f * pulse.Punch));
         _embers.Draw(context, 0.85f, 0.03);

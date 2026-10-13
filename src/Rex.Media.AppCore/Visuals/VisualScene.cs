@@ -107,6 +107,24 @@ public sealed class VisualContext
         }
     }
 
+    /// <summary>
+    /// The frame rate the scenes' trails were made at: <see cref="Trail"/> takes its fade, zoom, turn
+    /// and shift as one frame at this rate does them.
+    /// </summary>
+    public const double TrailRate = 30;
+
+    /// <summary>
+    /// Starts a frame with trails (<see cref="Raster.Feedback"/>): <paramref name="keep"/>,
+    /// <paramref name="zoom"/>, <paramref name="turn"/> and the shift are what a thirtieth of a second
+    /// does, applied for <see cref="Dt"/>, so trails last as long and drift as fast at sixty frames a
+    /// second, or 144, as at thirty.
+    /// </summary>
+    public void Trail(double keep, double zoom, double turn, double shiftX, double shiftY)
+    {
+        var frames = (double.IsFinite(Dt) ? Math.Clamp(Dt, 0, 0.25) : 0) * TrailRate;
+        Canvas.Feedback((float)Math.Pow(Math.Clamp(keep, 0, 1), frames), Math.Pow(zoom > 0.01 ? zoom : 1, frames), turn * frames, shiftX * frames, shiftY * frames);
+    }
+
     /// <summary>The visualisation's colour <paramref name="share"/> (0 to 1) along its palette, from the table <see cref="Prepare"/> made.</summary>
     public Rgb Paint(double share) => _paints[double.IsFinite(share) ? (int)Math.Round(Math.Clamp(share, 0, 1) * 255) : 0];
 }

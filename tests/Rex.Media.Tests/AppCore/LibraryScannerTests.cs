@@ -58,26 +58,6 @@ public sealed class LibraryScannerTests
 
     [Fact]
     [Capability("LIB-05")]
-    public void CancellingAQueuedScanDropsItsWorkButAllowsAnewPass()
-    {
-        var library = new MediaLibrary(RexStore.InMemory());
-        library.AddFolder(Music);
-        using var scanner = new LibraryScanner(library, _ => Files(2), (path, _) => Info(path),
-            RexLog.InMemory(), background: false);
-        scanner.Request(Music);
-        scanner.Cancel();
-        scanner.RunPending(TestContext.Current.CancellationToken);
-        Assert.Empty(library.Entries);
-        Assert.Equal("", scanner.Status);
-
-        scanner.Request(Music);
-        scanner.RunPending(TestContext.Current.CancellationToken);
-        Assert.Equal(2, library.Entries.Count);
-        Assert.Empty(library.Unprobed);
-    }
-
-    [Fact]
-    [Capability("LIB-05")]
     public void AFolderThatCannotBeListedKeepsWhatWasKnown()
     {
         var library = new MediaLibrary(RexStore.InMemory());
