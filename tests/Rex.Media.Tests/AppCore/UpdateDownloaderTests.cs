@@ -216,7 +216,7 @@ public sealed class UpdateDownloaderTests : IDisposable
         // downloads, rather than looking finished from the first byte.
         Dispose();
         progress.Clear();
-        var unsized = Origin(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new MemoryStream(_installer)) });
+        var unsized = Origin(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new UnsizedStream(_installer)) });
         Assert.Equal(DownloadOutcome.Ready, Downloader(unsized).Download(Pending(size: 0), (done, total) => progress.Add((done, total)), CancellationToken.None).Outcome);
         Assert.All(progress.SkipLast(1), step => Assert.Equal(0, step.Total));
         Assert.Equal((_installer.Length, _installer.Length), progress[^1]);
@@ -386,6 +386,34 @@ public sealed class UpdateDownloaderTests : IDisposable
     }
 
     /// <summary>A body that never arrives: reads wait until the stream is disposed.</summary>
+    /// <summary>A body whose length cannot be known in advance, as a host streaming without a length sends.</summary>
+    private sealed class UnsizedStream(byte[] data) : Stream
+    {
+        private readonly MemoryStream _data = new(data);
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) => _data.Read(buffer, offset, count);
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     private sealed class BlockingStream : Stream
     {
         private readonly ManualResetEventSlim _disposed = new();
