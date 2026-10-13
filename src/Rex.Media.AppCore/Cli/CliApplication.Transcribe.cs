@@ -86,9 +86,16 @@ public static partial class CliApplication
             throw new CliException($"The {model.Name} model ({model.Size}) is not downloaded; run 'rexplay models --get {model.Id}' first.");
         }
 
-        var threads = arguments.Option("--threads") is { } text
-            ? int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var count) && count is > 0 and <= 64 ? count : throw new CliException($"--threads takes a number from 1 to 64, not '{text}'.")
-            : TranscriptionConditions.Plan(new TranscriptionSettings(), new TranscriptionMoment(true, false, false, true), Environment.ProcessorCount).PlayingThreads;
+        var threads = TranscriptionConditions.Plan(new TranscriptionSettings(), new TranscriptionMoment(true, false, false, true), Environment.ProcessorCount).PlayingThreads;
+        if (arguments.Option("--threads") is { } text)
+        {
+            if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count is <= 0 or > 64)
+            {
+                throw new CliException($"--threads takes a number from 1 to 64, not '{text}'.");
+            }
+
+            threads = count;
+        }
         var cache = new TranscriptCache(TranscriptCache.DefaultRoot(DataRoot(host)));
         if (arguments.Option("--again") is not null)
         {
