@@ -332,7 +332,7 @@ public static class VideoStyleOptions
     private static int DefaultIntensity(VideoEffect effect) => effect switch
     {
         VideoEffect.Ghostwire or VideoEffect.GhostwireMask => 96,
-        VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.ChromaticContours or VideoEffect.GhostwireMotion
+        VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.ChromaticContours or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave
             or VideoEffect.Halftone or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.OilPaint => 90,
         _ => 65,
     };

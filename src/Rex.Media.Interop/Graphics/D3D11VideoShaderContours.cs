@@ -180,6 +180,21 @@ internal static class D3D11VideoShaderContours
             outline = float4(strong, crest, soft, relative * coherent);
             return float4(max(edge, soft * 0.7), max(edge * crest, soft * 0.4), normal);
         }
+        // 1 inside black bars recorded into the picture (letterbox, pillarbox or a film gate): a black
+        // pixel from which the way to the nearest side or end of the picture is black all along.
+        // A black coat or a night sky has picture between it and the border, so it is not a bar.
+        float inRecordedBar(float2 uv, bool isYuv)
+        {
+            const float black = 0.03;
+            if (readLuma(uv, isYuv) >= black) return 0;
+            float side = uv.x < 0.5 ? 0.0005 : 0.9995;
+            float end = uv.y < 0.5 ? 0.0005 : 0.9995;
+            float across = max(max(readLuma(float2(lerp(uv.x, side, 0.5), uv.y), isYuv),
+                readLuma(float2(side, uv.y), isYuv)), readLuma(float2(lerp(uv.x, side, 0.85), uv.y), isYuv));
+            float down = max(max(readLuma(float2(uv.x, lerp(uv.y, end, 0.5)), isYuv),
+                readLuma(float2(uv.x, end), isYuv)), readLuma(float2(uv.x, lerp(uv.y, end, 0.85)), isYuv));
+            return min(across, down) < black ? 1 : 0;
+        }
         // Steady isolines of smoothed luma and gentle relief from the visible shading: the surface
         // view of Ghostwire motion, which needs no previous picture and holds still when paused.
         float3 surfaceContours(float2 uv, float2 pixel, bool isYuv, float3 colour, float detail, float fineEdge)

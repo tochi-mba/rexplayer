@@ -12,6 +12,11 @@ internal static class D3D11VideoShaders
         #ifndef EFFECT_ONLY
         #define EFFECT_ONLY 0
         #endif
+        // The contour family (Neon, Ink trace, Topographic, Chromatic, the three Ghostwire styles)
+        // measures brightness steadied by the previous picture; see readLuma.
+        #if EFFECT_ONLY == 2 || (EFFECT_ONLY >= 5 && EFFECT_ONLY <= 7) || EFFECT_ONLY == 13 || EFFECT_ONLY == 16 || EFFECT_ONLY == 17
+        #define STEADY_CONTOURS 1
+        #endif
         cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; float4 motion; float4 extras; };
         // crop: xy the part of the texture the picture fills, zw one texel of the texture.
         // effect: x the effect, y its strength (0-1), z the picture's time in seconds, w the shown
@@ -168,10 +173,22 @@ internal static class D3D11VideoShaders
         // Luma alone in one fetch: the matrix's luma gain makes its differences match readColour's.
         float readLuma(float2 uv, bool isYuv)
         {
-            float2 t = pictureUv(uv);
+            float2 t = insideLuma(pictureUv(uv));
             // Green from luma with neutral colour is luma itself, offset included.
-            if (isYuv) return dot(rowG, float4(luma.SampleLevel(linearClamp, insideLuma(t), 0).r, 0.5, 0.5, 1));
-            return lumaOf(luma.SampleLevel(linearClamp, insideLuma(t), 0).rgb);
+            float now = isYuv ? dot(rowG, float4(luma.SampleLevel(linearClamp, t, 0).r, 0.5, 0.5, 1))
+                : lumaOf(luma.SampleLevel(linearClamp, t, 0).rgb);
+        #if STEADY_CONTOURS
+            // Where the picture held still since the previous one, the two are averaged: that
+            // halves the grain the contour measurement sees, so lines stop shimmering on a still
+            // shot. Anything that moved is measured from the current picture alone.
+            [branch] if (motion.y > 0.5)
+            {
+                float before = isYuv ? dot(rowG, float4(priorLuma.SampleLevel(linearClamp, t, 0).r, 0.5, 0.5, 1))
+                    : lumaOf(priorLuma.SampleLevel(linearClamp, t, 0).rgb);
+                now = lerp((now + before) * 0.5, now, smoothstep(0.015, 0.05, abs(now - before)));
+            }
+        #endif
+            return now;
         }
         // The previous picture, decoded on the card exactly as the current one is.
         float3 readPrior(float2 uv, bool isYuv)
@@ -366,17 +383,22 @@ internal static class D3D11VideoShaders
             [branch] if ((effect.x > 1.5 && effect.x < 2.5) || (effect.x > 4.5 && effect.x < 5.5) || (effect.x > 6.5 && effect.x < 7.5)
                 || (effect.x > 12.5 && effect.x < 13.5) || (effect.x > 15.5 && effect.x < 17.5))
             {
-                // Neon contours looks at a coarser picture, so texture averages away and only
+                // Neon contours looks at a picture four times coarser, so texture averages away and only
                 // silhouettes and big shapes light up, as tubes a few pixels wide.
                 float2 fieldPixel = pixel;
         #if EFFECT_ONLY == 2
-                fieldPixel = pixel * 2.5;
+                fieldPixel = pixel * 4;
         #endif
                 field = contourField(uv, fieldPixel, isYuv, detail, outline);
             }
         #endif
             // Pixel position on screen, for patterns that stay one size whatever the picture's size.
             float2 screen = uv / pixel;
+        #if STEADY_CONTOURS
+            // Black bars recorded into the video stay black rather than turning into paper, glass or
+            // a map's sea.
+            strength *= 1 - inRecordedBar(uv, isYuv);
+        #endif
         #if EFFECT_ONLY == 1
             if (effect.x < 1.5) // Prism flow's colour fringe
             {
@@ -443,9 +465,9 @@ internal static class D3D11VideoShaders
                     }
                     lum /= 9;
                     float height = pow(saturate((lum - 0.025) / 0.975), 0.55) * levels;
-                    // Tints blend between elevation bands, so a slight change of grain never flips a
+                    // Each band has its own tint, blended over the middle of the step, so a slight change of grain never flips a
                     // whole pixel from one band's colour to the next.
-                    float layer = saturate(height / max(levels - 1, 1));
+                    float layer = saturate((floor(height) + smoothstep(0.3, 0.7, frac(height))) / max(levels - 1, 1));
                     float3 tint = layer < 0.25 ? lerp(float3(0.07, 0.20, 0.36), float3(0.16, 0.42, 0.40), layer * 4)
                         : layer < 0.5 ? lerp(float3(0.16, 0.42, 0.40), float3(0.45, 0.62, 0.30), layer * 4 - 1)
                         : layer < 0.75 ? lerp(float3(0.45, 0.62, 0.30), float3(0.78, 0.66, 0.38), layer * 4 - 2)
@@ -455,7 +477,7 @@ internal static class D3D11VideoShaders
                     // About one pixel wide: the level's change across one pixel.
                     float width = length(measured.xy) * 0.5 * levels * 0.55 * pow(max(lum - 0.025, 0.02), -0.45) + 0.002;
                     float isoline = 1 - smoothstep(width * 0.5, width * 1.5, abs(frac(height + 0.5) - 0.5));
-                    styled = saturate(tint * shade * (1 - isoline * 0.23));
+                    styled = saturate(tint * shade * (1 - isoline * 0.55));
                 }
                 colour = lerp(colour, styled, strength);
             }
@@ -618,7 +640,10 @@ internal static class D3D11VideoShaders
                 float3 ink = 0;
                 float cells = 1 / (max(pixel.y, 1e-5) * lerp(5, 22, saturate((detail - 0.25) / 1.5)));
                 float2 p = (uv - 0.5) * shape * cells;
-                float spread = lerp(0.62, 0.74, saturate(extras.y * 0.01));
+                // A dot of radius sqrt(coverage) * 0.564 covers exactly its share of the cell, so 0 % dot gain
+                // keeps the picture's tones; the default 60 % darkens them by about a quarter, as ink spreading
+                // into paper does.
+                float spread = lerp(0.564, 0.68, saturate(extras.y * 0.01));
                 float softness = max(length(pixel * shape) * cells * 0.75, 0.02);
                 [unroll] for (int channel = 0; channel < 3; channel++)
                 {
