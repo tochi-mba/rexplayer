@@ -230,7 +230,9 @@ public sealed class MusicPulse
         // up to a sixtieth of a second late and drew the grid after them.
         var span = Math.Max(dt, RiseSpan);
         var age = _kick.Hit ? Math.Min(span, _bassBand.RiseAge()) : span / 2;
-        _clock.Advance(dt, (float)flux);
+        // The tempo is found mostly from the kicks, which carry the beat; the whole spectrum's rise,
+        // busy with shakers and log drums between the beats, counts for a little.
+        _clock.Advance(dt, (_kick.Hit ? _kick.Strength : 0) + (float)(0.1 * Math.Min(1, flux / Math.Max(_peakFlux, 1e-6))));
         if (!_primed)
         {
             // The first frame rises from nothing: it is no beat.

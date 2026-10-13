@@ -7,6 +7,9 @@ pipeline the moment its number reaches `main`.
 
 ### Fixed
 
+- **The beat of syncopated music.** The beat is found where the kicks fall in time, not how the
+  rhythm repeats, so Amapiano and other music with a 3-3-2 bass no longer reads at four-thirds or
+  two-thirds of its tempo, and its beats land evenly.
 - **Subject Lock removal looks right on real footage.** The removed area is now filled from
   the edge inwards with the texture actually around it (grass continues as grass, a gravel band
   or a skirting board runs straight through), and shading is blended so no seam shows where the
@@ -35,6 +38,10 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **Fifteen new visualisations**, each moved by the music its own way: Groove (the last seconds
+  scrolling by as spectrum, beat grid and drum lanes), Flight (a tunnel of light rings that pass on
+  the beat), Cymatics, Ridgelines, Synthwave, Fireworks, Lightning, Lava lamp, Constellation,
+  Galaxy, Kaleidoscope, Murmuration, Ink, Skyline and Mandala.
 - **Thirteen more picture effects.** A new Weather & light group: Snow settle piles snow on
   ledges, Thunderstorm flashes lightning through driving rain, Aurora turns the scene to night
   under rippling curtains, Stage lights sweep coloured beams through haze. Tiny planet wraps the
@@ -56,7 +63,6 @@ pipeline the moment its number reaches `main`.
 - **The object effects, tuned from rendered previews.** Fireflies no longer hide the picture,
   Electric edges arc only on strong outlines, Jigsaw pieces have proper tabs and sockets, and
   Confetti, Bokeh, Melt and Motion outline are easier to see and steadier.
-
 
 ## 0.21.0 - 2026-10-13
 
