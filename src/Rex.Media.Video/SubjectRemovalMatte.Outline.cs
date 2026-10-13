@@ -94,7 +94,7 @@ public sealed partial class SubjectRemovalMatte
 
     /// <summary>Whether a cell differs from the background seen there before or, where none was seen, from every colour the outer ring shows.</summary>
     private bool Unlike(int cell, float rare) =>
-        _observed[cell] ? _cue[cell] > 0.5f : _ringHistogram[_bin[cell]] < rare;
+        _observed[cell] ? _cue[cell] > 2f : _ringHistogram[_bin[cell]] < rare;
 
     /// <summary>Keeps only what joins the middle of the box and fills holes enclosed by the subject.</summary>
     private void KeepConnected()
