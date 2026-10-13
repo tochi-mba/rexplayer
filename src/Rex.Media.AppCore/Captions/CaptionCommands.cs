@@ -59,6 +59,8 @@ public static class CaptionCommands
         CaptionLayoutChoice.Centre => "centred",
         CaptionLayoutChoice.Left => "a block at the left",
         CaptionLayoutChoice.Confetti => "confetti",
+        CaptionLayoutChoice.Ticker => "a news ticker",
+        CaptionLayoutChoice.Stairs => "stairs",
         _ => "scattered",
     };
 

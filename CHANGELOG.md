@@ -3,6 +3,38 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.23.0 - 2026-10-13
+
+### Added
+
+- **Kinetic captions.** Words come in one at a time as they are spoken, and how each word was
+  said decides how it looks: a quiet run of words is small and lower case, a stressed word lands
+  big and bold in capitals, a word said with a lift in the voice turns gold and italic, and a
+  shout flashes and shakes. A pause clears the words and the next ones start somewhere new.
+  Ctrl+Shift+V turns them on; they work with any subtitle file or with a transcript.
+- **Captions that stay off faces.** The picture is read ahead of what plays, with Windows' own
+  face detector, and words go where they cover no face, no text already in the picture and
+  nothing that moves. A word gets a dark plate wherever the picture behind it is too bright or
+  busy for white text to read.
+- **Seventeen caption looks.** Creator cut, sing-along, typewriter, neon sign, headline, comic,
+  minimal, rave, classic with the spoken word lit, glitch, news ticker, ghosts, rubber stamp,
+  pills, marker pen, stairs and wire, each its own kind of motion, type and placement, plus a
+  custom look of your own (Ctrl+Shift+K moves through them). Whatever the look, every word has
+  an outline or a plate keeping it readable over the picture.
+- **Transcripts.** rexplayer can hear a film's speech on this computer, word by word with the
+  moment each is said, using an open speech model downloaded once on request. The transcript
+  becomes a subtitle track, is kept for next time, and can be saved as SRT or WebVTT; with a
+  subtitle file as well, its words are put at the moments the transcript heard them.
+- **rexplay captions, transcribe and models.** Kinetic captions frame by frame as JSON, the
+  speech of a file as a transcript, and the speech models listed, fetched or removed.
+
+### Fixed
+
+- Kinetic captions from a subtitle file and a transcript now take the transcript's timing, so
+  each word lands on its syllable; before, the subtitle file's own cue times were used.
+- Words in confetti and plated looks no longer overlap: widths follow the typeface and case,
+  and each confetti word lands clear of the others.
+
 ## 0.22.0 - 2026-10-13
 
 ### Fixed

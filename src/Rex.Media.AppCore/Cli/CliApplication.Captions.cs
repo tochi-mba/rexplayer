@@ -122,7 +122,7 @@ public static partial class CliApplication
             kinetic = kinetic with
             {
                 Layout = Enum.TryParse<CaptionLayoutChoice>(layoutText, ignoreCase: true, out var layout) ? layout
-                    : throw new CliException($"--layout takes scatter, stack, centre, left or confetti, not '{layoutText}'."),
+                    : throw new CliException($"--layout takes scatter, stack, centre, left, confetti, ticker or stairs, not '{layoutText}'."),
             };
         }
 
@@ -316,6 +316,8 @@ public static partial class CliApplication
         ["lit"] = word.Lit,
         ["plateLight"] = word.PlateLight,
         ["split"] = word.Split,
+        ["plateTint"] = word.PlateTint,
+        ["hollow"] = word.Hollow,
         ["outline"] = Round(word.Backing.Outline),
         ["plate"] = Round(word.Backing.Plate),
     };
