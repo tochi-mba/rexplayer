@@ -88,6 +88,17 @@ public sealed class VideoEffectsTests
         Assert.Equal("Mood", VideoLooks.Category(VideoLook.Dusk));
         Assert.Equal("Stylised", VideoLooks.Category(VideoLook.Chrome));
         Assert.Equal("Essentials", VideoLooks.Category(VideoLook.Vivid));
+
+        VideoEffect[] weather = [VideoEffect.SnowSettle, VideoEffect.Thunderstorm, VideoEffect.StageLights, VideoEffect.Aurora];
+        Assert.Equal(weather, Enum.GetValues<VideoEffect>().Where(effect => VideoEffects.Category(effect) == "Weather & light"));
+        VideoEffect[] steered = [VideoEffect.StageLights, VideoEffect.Droste, VideoEffect.Disintegrate, VideoEffect.PageCurl,
+            VideoEffect.Bubbles, VideoEffect.TinyPlanet];
+        Assert.All(steered, effect => Assert.True(VideoEffects.UsesPointer(effect), effect.ToString()));
+        Assert.All(Enum.GetValues<VideoEffect>().Where(effect => effect >= VideoEffect.SnowSettle),
+            effect => Assert.False(VideoEffects.UsesHistory(effect, 100, 50, 1), effect.ToString()));
+        Assert.Equal("Print & texture", VideoEffects.Category(VideoEffect.StencilGraffiti));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.TinyPlanet));
+        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.Hologram));
     }
 
     [Fact]
