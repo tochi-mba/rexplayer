@@ -81,7 +81,7 @@ public sealed class EpisodeSectionsTests
         Assert.Null(proposals.Offer(none, duration, duration));
 
         // A threshold failure or a user rejection must never create a skip offer.
-        var uncertain = proposals.Adjust(intro with { Confidence = SectionProposals.OfferThreshold - 0.01 });
+        var uncertain = proposals with { Candidates = [intro with { Confidence = SectionProposals.OfferThreshold - 0.01 }] };
         Assert.Null(uncertain.Offer(none, TimeSpan.FromSeconds(90), duration));
         Assert.Null(proposals.Reject(EpisodeSectionKind.Intro).Offer(none, TimeSpan.FromSeconds(90), duration));
         Assert.NotNull(proposals.Reject(EpisodeSectionKind.Intro).Reject(EpisodeSectionKind.Intro, false)
@@ -197,7 +197,8 @@ public sealed class EpisodeSectionsTests
 
         player.Seek(TimeSpan.FromSeconds(5));
         Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, true));
-        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, false, atVideoEnd: true));
+        player.Seek(player.Duration);
+        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, false));
         Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Credits, TimeSpan.FromSeconds(10)),
             player.AvailableEpisodeSkip);
         Assert.True(player.ClearEpisodeSection(EpisodeSectionKind.Intro));
