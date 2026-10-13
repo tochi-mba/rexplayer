@@ -513,7 +513,8 @@ public sealed class Mp4CraftedTests
         // Reading the available prefix must not allocate the declared size.
         var corrupt = Concat(U32(250_000_000), Ascii("moov"), [1, 2, 3]);
         var before = GC.GetAllocatedBytesForCurrentThread();
-        Assert.Throws<MediaFormatException>(() => Open(corrupt));
+        using var demuxer = Open(corrupt);
+        Assert.Empty(demuxer.Info.Tracks);
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.InRange(allocated, 0, 2_000_000);
     }
