@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 using Rex.Media.Video.D3D11;
 
 namespace Rex.Media.Windows.Tests;
@@ -74,9 +75,16 @@ public sealed class SubjectEditSessionTests
         var initiallyEstimated = tracker.EstimatedPixels;
         Assert.True(initiallyEstimated > 0);
 
+        // Background counts as seen once it has looked the same for a few pictures in a row.
+        for (var i = 1; i < SubjectRemovalPlate.Confirmations; i++)
+        {
+            using var still = Picture(30, 20, 1 + i * 0.04);
+            using var shown = tracker.Process(still);
+        }
+
         // The moving object exposes its old location; only the still-occluded area
         // should need inference. Original frames remain byte-for-byte unchanged.
-        using var later = Picture(40, 20, 1.04);
+        using var later = Picture(40, 20, 1 + SubjectRemovalPlate.Confirmations * 0.04);
         using var recovered = tracker.Process(later);
         Assert.True(tracker.Tracking);
         Assert.NotNull(recovered);
@@ -533,12 +541,20 @@ public sealed class SubjectEditSessionTests
         for (var i = 0; i < 24; i++)
         {
             using var returned = Picture(65, 25, 5.84 + i * 0.04, size: 24, lighting: 25);
-            Assert.Null(tracker.Process(returned));
+            using var shown = tracker.Process(returned);
         }
 
         Assert.True(tracker.Tracking);
         Assert.InRange(tracker.Region.Width * 128, 20, 28);
-        Assert.False(tracker.Erase);
+        // The preview asked for before the target went resumes once it is followed steadily again.
+        Assert.True(tracker.RemovalWanted);
+        for (var i = 0; i < 14; i++)
+        {
+            using var steady = Picture(65, 25, 6.8 + i * 0.04, size: 24, lighting: 25);
+            using var shown = tracker.Process(steady);
+        }
+
+        Assert.True(tracker.Erase, tracker.Status);
     }
 
     [Fact]
