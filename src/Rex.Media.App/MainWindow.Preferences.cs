@@ -58,9 +58,10 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "PreferencesUpdateChecks");
         var updateMode = Choice("When a new version is found", ["Install it by itself when rexplayer is closed or not in use", "Download it, then ask me when to install", "Only tell me about it"], (int)s.UpdateMode);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updateMode, "PreferencesUpdateMode");
-        var updateStatus = new TextBlock { Text = Status(), TextWrapping = TextWrapping.Wrap };
+        // Not a live region: it changes with every step of a download, and the updater announces
+        // its changes of state itself.
+        var updateStatus = new TextBlock { Text = UpdatePanelNow().Line, TextWrapping = TextWrapping.Wrap };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updateStatus, "PreferencesUpdateStatus");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(updateStatus, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
         var checkNow = new Button { Content = "Check for updates now" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(checkNow, "PreferencesCheckUpdates");
         checkNow.Click += (_, _) => _ = CheckForUpdatesAsync(asked: true);
@@ -202,6 +203,7 @@ public sealed partial class MainWindow
         finally
         {
             _updateStatusText = null;
+            ShowUpdates();
         }
 
         if (!saved)

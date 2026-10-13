@@ -396,6 +396,22 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void APendingUpdateSavedBeforePauseAndCancelReadsAsNeitherPausedNorCancelled()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(File)!);
+        System.IO.File.WriteAllText(File, """
+            { "schema": 3, "pendingUpdate": { "version": "0.17.0", "installerName": "rexplayer-Setup-0.17.0.exe",
+              "installerUrl": "https://example.com/a.exe", "checksumUrl": "https://example.com/a.exe.sha256",
+              "notes": "What's Changed\n\u2022 Six picture effects", "stage": "Downloading" } }
+            """);
+        var pending = SettingsStore.Load(File).PendingUpdate!;
+
+        Assert.Equal((UpdateStage.Downloading, false, false, false), (pending.Stage, pending.Paused, pending.Declined, pending.InstallCancelled));
+        Assert.Equal([new Rex.Media.AppCore.Updates.NoteBlock(Rex.Media.AppCore.Updates.NoteKind.Bullet, "Six picture effects")],
+            Rex.Media.AppCore.Updates.ReleaseNotes.Blocks(pending.Notes));
+    }
+
+    [Fact]
     public void AFileFromBeforeUpdateModesReadsAsNothingPendingAndMigrates()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(File)!);
@@ -421,6 +437,9 @@ public sealed class SettingsStoreTests : IDisposable
             Stage = UpdateStage.Ready,
             Timing = UpdateTiming.Scheduled,
             Approved = true,
+            Paused = true,
+            Declined = true,
+            InstallCancelled = true,
             RemindAt = new DateTimeOffset(2026, 10, 13, 9, 0, 0, TimeSpan.Zero),
             InstallAt = new DateTimeOffset(2026, 10, 13, 3, 0, 0, TimeSpan.Zero),
             DownloadFailures = 2,

@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Updates;
 using Rex.Media.Engine;
@@ -13,9 +11,10 @@ using Windows.Networking.Connectivity;
 namespace Rex.Media.App;
 
 /// <summary>
-/// The updater's wiring (TOOL-09): automatic checks, the background download on a low-priority
-/// thread, the update bar, and the hand-off to the installer. Every decision is
-/// <see cref="UpdateFlow"/>'s; this file keeps the clocks and does the network and process work.
+/// The updater's wiring (TOOL-09): the clock, the connection, the check, the background download
+/// on a low-priority thread, and the hand-off to the installer. Every decision is
+/// <see cref="UpdateFlow"/>'s and every word <see cref="UpdateView"/>'s; this file does the
+/// network and process work, and MainWindow.UpdateView.cs draws.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -26,26 +25,28 @@ public sealed partial class MainWindow
     private bool _updatesStarted;
     private bool _updateChecking;
     private bool _updateAsked;
-    private bool _showingUpdateProgress;
-    private UpdatePrompt _shownPrompt;
-    private string? _shownVersion;
     private CancellationTokenSource? _updateDownload;
     private string? _updateDownloadVersion;
-    private double? _updatePercent;
+    private TransferProgress? _updateTransfer;
     private DateTimeOffset? _lastCheckFailure;
     private int _checkFailures;
+    private string? _checkProblem;
+    private (bool Online, bool Metered) _connection = (true, false);
     private long _lastInputTick = Environment.TickCount64;
     private volatile bool _updatePlaying;
-    private TextBlock? _updateStatusText;
     private bool _showUpdatedNote;
+    private UpdateNotice? _updateNotice;
 
     private PendingUpdate? Pending => _settings.PendingUpdate;
 
     /// <summary>What the last run handed over: did it install? Clears what is no longer wanted.</summary>
     private StartupOutcome ReconcileUpdate()
     {
-        var outcome = UpdateFlow.AtStartup(Pending, Version, DateTimeOffset.UtcNow);
-        if (outcome.Pending != Pending)
+        var before = Pending;
+        var end = UpdateFlow.InstallEndOf(ReadInstallRecord(), before);
+        var outcome = UpdateFlow.AtStartup(before, Version, DateTimeOffset.UtcNow, end);
+        _updateNotice = UpdateView.News(outcome.News, end, before?.Version, Version);
+        if (outcome.Pending != before)
         {
             _settings = _settings with { PendingUpdate = outcome.Pending };
             SaveSettings();
@@ -53,16 +54,29 @@ public sealed partial class MainWindow
 
         if (outcome.News != StartupNews.None)
         {
-            App.Log.Info(LogSource, $"The update handed over by the last run: {outcome.News}.");
+            App.Log.Info(LogSource, $"The update handed over by the last run: {outcome.News} ({end}).");
         }
 
-        var keep = outcome.Pending;
+        var keep = UpdateFlow.KeptFiles(outcome.Pending);
         _ = Task.Run(() =>
         {
             UpdateDownloader.Clean(UpdateFolder, keep);
             CleanOldUpdateFolders();
         });
         return outcome;
+    }
+
+    /// <summary>How the hand-off helper said the installer ended, or null when it left no record.</summary>
+    private static string? ReadInstallRecord()
+    {
+        try
+        {
+            return File.ReadAllText(Path.Combine(UpdateFolder, UpdateFlow.InstallRecordName));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Earlier versions staged updates under the temporary folder; those copies are not needed.</summary>
@@ -82,51 +96,10 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Tells the user how the update the last run handed over went.</summary>
-    private void ShowUpdateNews(StartupNews news)
-    {
-        if (UpdateFlow.NewsText(news, Pending?.Version, Version) is not { } text)
-        {
-            if (_showUpdatedNote && !Notice.IsOpen)
-            {
-                ShowUpdatedNote();
-            }
-
-            return;
-        }
-
-        Button? retry = null;
-        if (news == StartupNews.InstallFailed)
-        {
-            retry = new Button { Content = "Try again" };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retry, "UpdateRetryButton");
-            retry.Click += (_, _) =>
-            {
-                Notice.IsOpen = false;
-                _ = InstallAsync(unattended: false);
-            };
-        }
-
-        ShowNotice(text.Title, text.Message, retry, InfoBarSeverity.Warning);
-    }
-
-    /// <summary>The small note the first start of a new version shows: "Updated to X", with What's new.</summary>
-    private void ShowUpdatedNote()
-    {
-        var whatsNew = new Button { Content = "What's new" };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "UpdatedWhatsNewButton");
-        whatsNew.Click += (_, _) =>
-        {
-            Notice.IsOpen = false;
-            _ = ShowWhatsNewAsync();
-        };
-        ShowNotice($"Updated to rexplayer {Version}", "Everything you had open is as you left it.", whatsNew, InfoBarSeverity.Success);
-    }
-
     /// <summary>
     /// Starts the updater's clock: the first look waits <see cref="UpdateFlow.StartupDelay"/> so it
     /// never slows a launch or the first playback, then it looks every minute at whether a check,
-    /// a download, an install or a prompt is due. A change of network (waking from sleep, coming
+    /// a download, an install or a card is due. A change of network (waking from sleep, coming
     /// back online) looks at once.
     /// </summary>
     private void StartUpdates()
@@ -134,8 +107,10 @@ public sealed partial class MainWindow
         Root.AddHandler(UIElement.PointerMovedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => _lastInputTick = Environment.TickCount64), handledEventsToo: true);
         Root.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => _lastInputTick = Environment.TickCount64), handledEventsToo: true);
         Root.AddHandler(UIElement.PointerWheelChangedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => _lastInputTick = Environment.TickCount64), handledEventsToo: true);
-        UpdateBar.Closing += (_, _) => FocusAwayFromUpdateBar();
-        Notice.Closed += (_, _) => ConsiderUpdatePrompt();
+        Notice.Closed += (_, _) => ShowUpdates();
+        UpdateLaterButton.Flyout = LaterMenu("UpdateLater");
+        UpdateCardLater.Flyout = LaterMenu("UpdateCardLater");
+        _connection = Connection();
         _updateTimer = Timer(UpdateFlow.StartupDelay, () =>
         {
             if (!_updatesStarted)
@@ -150,24 +125,28 @@ public sealed partial class MainWindow
         });
         _updateTimer.Start();
         NetworkInformation.NetworkStatusChanged += OnNetworkChanged;
+        ShowUpdates();
     }
 
     private void OnNetworkChanged(object sender) => OnWindowThread(() =>
     {
-        if (!_updatesStarted)
-        {
-            return;
-        }
-
         // A new connection deserves a fresh try, not the wait a failure on the old one earned.
+        _connection = Connection();
         _lastCheckFailure = null;
         _checkFailures = 0;
-        if (Pending is { } pending && Connection().Online)
+        if (Pending is { } pending && _connection.Online)
         {
-            _settings = _settings with { PendingUpdate = UpdateFlow.Reconnected(pending) };
+            SetPending(UpdateFlow.Reconnected(pending));
         }
 
-        UpdateTick();
+        if (_updatesStarted)
+        {
+            UpdateTick();
+        }
+        else
+        {
+            ShowUpdates();
+        }
     });
 
     private void StopUpdates()
@@ -177,7 +156,7 @@ public sealed partial class MainWindow
         _updateDownload?.Cancel();
     }
 
-    /// <summary>One look at what is due: a check, a download (or stopping one), an install while idle, a prompt.</summary>
+    /// <summary>One look at what is due, as <see cref="UpdateFlow.Plan"/> says: a check, starting or stopping the download, an install while idle.</summary>
     private void UpdateTick()
     {
         if (_closing || !UpdateFlow.Applies(Version))
@@ -185,37 +164,45 @@ public sealed partial class MainWindow
             return;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        if (!_updateChecking && UpdateFlow.CheckDue(_settings.UpdateChecks, _settings.LastUpdateCheck, _lastCheckFailure, _checkFailures, now))
+        _connection = Connection();
+        var plan = UpdateFlow.Plan(
+            new UpdateClock(Pending, _settings.UpdateMode, _settings.UpdateChecks, _settings.LastUpdateCheck, _lastCheckFailure, _checkFailures,
+                _updateChecking, _updateDownload is not null, _connection.Online, _connection.Metered),
+            UpdateMomentNow(), DateTimeOffset.UtcNow);
+        SetPending(plan.Pending);
+        if (plan.Check)
         {
             _ = CheckForUpdatesAsync(asked: false);
             return;
         }
 
-        var (online, metered) = Connection();
-        if (_updateDownload is { } running && (!online || !UpdateFlow.MayDownload(Pending, _settings.UpdateMode, _settings.UpdateChecks, metered, now)))
+        if (plan.StopDownload)
         {
             App.Log.Info(LogSource, "The update download stops: the connection or the update settings changed.");
-            running.Cancel();
+            _updateDownload?.Cancel();
         }
 
-        StartUpdateDownload();
-        if (UpdateFlow.InstallWhileOpen(Pending, _settings.UpdateMode, UpdateMomentNow(), now))
+        if (plan.StartDownload)
+        {
+            StartUpdateDownload();
+        }
+
+        if (plan.Install)
         {
             _ = InstallAsync(unattended: true);
-            return;
         }
 
-        ConsiderUpdatePrompt();
-        ShowUpdateStatus();
+        ShowUpdates();
     }
 
     private UpdateMoment UpdateMomentNow() => new(
         _player.IsPlaying || _player.State == SessionState.Opening,
+        HasVideo,
         IsFullScreen,
         _dialog is not null,
         _subjectOpen,
         Notice.IsOpen || ResumeBar.IsOpen,
+        _updatePanelOpen,
         TimeSpan.FromMilliseconds(Environment.TickCount64 - _lastInputTick));
 
     /// <summary>Whether Windows has an internet connection, and whether it costs by the byte.</summary>
@@ -242,7 +229,7 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// Looks for a newer release (TOOL-09): automatically on the schedule the user chose, or when
-    /// they ask (Help, Check for updates), which always answers with what it found.
+    /// they ask (Help, Check for updates), which opens the update panel with the live state.
     /// </summary>
     private async Task CheckForUpdatesAsync(bool asked)
     {
@@ -256,58 +243,45 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_updateChecking)
-        {
-            if (asked)
-            {
-                Say("Already checking for updates...");
-            }
-
-            return;
-        }
-
-        var (online, metered) = Connection();
-        if (!online)
-        {
-            _lastCheckFailure = DateTimeOffset.UtcNow;
-            _checkFailures++;
-            if (asked)
-            {
-                Say("You are offline. rexplayer looks again once you are connected.");
-            }
-
-            return;
-        }
-
         if (asked)
         {
-            Say("Checking for updates...");
+            _updateAsked = true;
+            OpenUpdatePanel();
+        }
+
+        if (_updateChecking)
+        {
+            return;
+        }
+
+        _connection = Connection();
+        if (!_connection.Online)
+        {
+            CheckFailed(UpdateView.CheckProblem(online: false, null, false), "offline");
+            return;
         }
 
         _updateChecking = true;
-        ShowUpdateStatus();
+        ShowUpdates();
         string json;
         try
         {
             using var http = UpdateClient(TimeSpan.FromSeconds(20));
             json = await http.GetStringAsync(UpdateCheck.LatestRelease);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (HttpRequestException ex)
         {
-            _lastCheckFailure = DateTimeOffset.UtcNow;
-            _checkFailures++;
-            App.Log.Info(LogSource, "Could not look for updates: " + ex.Message);
-            if (asked)
-            {
-                Say("Could not reach the release page: " + ex.Message);
-            }
-
+            CheckFailed(UpdateView.CheckProblem(online: true, (int?)ex.StatusCode, false), ex.Message);
+            return;
+        }
+        catch (TaskCanceledException ex)
+        {
+            CheckFailed(UpdateView.CheckProblem(online: true, null, timedOut: true), ex.Message);
             return;
         }
         finally
         {
             _updateChecking = false;
-            ShowUpdateStatus();
         }
 
         if (_closing)
@@ -315,11 +289,9 @@ public sealed partial class MainWindow
             return;
         }
 
-        _lastCheckFailure = null;
-        _checkFailures = 0;
-        var before = Pending;
-        var outcome = UpdateFlow.AfterCheck(before, UpdateCheck.Offer(json, Version), Version,
-            asked ? null : _settings.SkippedUpdateVersion, _settings.UpdateMode, metered, asked);
+        (_lastCheckFailure, _checkFailures, _checkProblem, _updateAsked) = (null, 0, null, false);
+        var outcome = UpdateFlow.AfterCheck(Pending, UpdateCheck.Offer(json, Version), Version,
+            asked ? null : _settings.SkippedUpdateVersion, _settings.UpdateMode, _connection.Metered, asked);
         if (outcome.Discard)
         {
             if (_updateDownloadVersion != outcome.Pending?.Version)
@@ -327,7 +299,7 @@ public sealed partial class MainWindow
                 _updateDownload?.Cancel();
             }
 
-            var keep = outcome.Pending;
+            var keep = UpdateFlow.KeptFiles(outcome.Pending);
             _ = Task.Run(() => UpdateDownloader.Clean(UpdateFolder, keep));
         }
 
@@ -339,65 +311,52 @@ public sealed partial class MainWindow
         };
         SaveSettings();
         App.Log.Info(LogSource, outcome.Message);
-        if (outcome.Pending is null && _shownPrompt != UpdatePrompt.None)
-        {
-            HideUpdateBar();
-        }
+        UpdateTick();
+    }
 
-        StartUpdateDownload();
-        if (asked)
-        {
-            _updateAsked = outcome.Pending is not null;
-            Say(_updateDownload is not null ? Status() : outcome.Message);
-            if (_updateDownload is not null)
-            {
-                ShowUpdateProgress();
-            }
-            else
-            {
-                ConsiderUpdatePrompt(asked: true);
-            }
-        }
-        else
-        {
-            ConsiderUpdatePrompt();
-        }
+    private void CheckFailed(string problem, string detail)
+    {
+        (_lastCheckFailure, _checkProblem, _updateAsked) = (DateTimeOffset.UtcNow, problem, false);
+        _checkFailures++;
+        App.Log.Info(LogSource, "Could not look for updates: " + detail);
+        ShowUpdates();
     }
 
     /// <summary>
-    /// Starts the download when one is due and allowed, on a lowest-priority background thread so
-    /// it never competes with playback; while something plays it also keeps to a gentle speed.
+    /// Starts the pending download on a lowest-priority background thread so it never competes
+    /// with playback; while something plays it also keeps to a gentle speed.
     /// </summary>
     private void StartUpdateDownload()
     {
-        var (online, metered) = Connection();
-        if (_updateDownload is not null || _closing || !online || Pending is not { } pending
-            || !UpdateFlow.MayDownload(pending, _settings.UpdateMode, _settings.UpdateChecks, metered, DateTimeOffset.UtcNow))
+        if (_updateDownload is not null || _closing || Pending is not { Stage: UpdateStage.Downloading } pending)
         {
             return;
         }
 
         var cancel = new CancellationTokenSource();
-        _updateDownload = cancel;
-        _updateDownloadVersion = pending.Version;
-        _updatePercent = 0;
+        (_updateDownload, _updateDownloadVersion, _updateTransfer) = (cancel, pending.Version, null);
         App.Log.Info(LogSource, $"Downloading rexplayer {pending.Version} in the background.");
-        var shown = -1;
         var thread = new Thread(() =>
         {
+            var meter = new TransferMeter();
+            var clock = Stopwatch.StartNew();
+            var (shownPercent, shownAt) = (-1L, TimeSpan.Zero);
             DownloadReport report;
             using (var http = UpdateClient(TimeSpan.FromSeconds(30)))
             {
                 var downloader = new UpdateDownloader(http, UpdateFolder) { Busy = () => _updatePlaying };
-                report = downloader.Download(pending, fraction =>
+                report = downloader.Download(pending, (done, total) =>
                 {
-                    // One update per whole percent: the window's thread is not flooded.
-                    var percent = (int)(fraction * 100);
-                    if (percent != shown)
+                    // A whole percent, or a second, at a time: the window's thread is not flooded.
+                    var percent = total > 0 ? done * 100 / total : -1;
+                    if (percent == shownPercent && clock.Elapsed - shownAt < TransferMeter.SampleEvery && done < total)
                     {
-                        shown = percent;
-                        OnWindowThread(() => UpdateDownloadProgressed(cancel, percent));
+                        return;
                     }
+
+                    (shownPercent, shownAt) = (percent, clock.Elapsed);
+                    var progress = meter.Measure(done, total, clock.Elapsed);
+                    OnWindowThread(() => UpdateDownloadProgressed(cancel, progress));
                 }, cancel.Token);
             }
 
@@ -409,308 +368,62 @@ public sealed partial class MainWindow
             Name = "rexplayer update download",
         };
         thread.Start();
-        ShowUpdateStatus();
     }
 
-    private void UpdateDownloadProgressed(CancellationTokenSource download, int percent)
+    private void UpdateDownloadProgressed(CancellationTokenSource download, TransferProgress progress)
     {
-        if (!ReferenceEquals(download, _updateDownload))
+        if (ReferenceEquals(download, _updateDownload))
         {
-            return;
+            _updateTransfer = progress;
+            ShowUpdates();
         }
-
-        _updatePercent = percent;
-        if (_showingUpdateProgress && UpdateBar.IsOpen)
-        {
-            UpdateProgress.Value = percent;
-            UpdateBar.Message = Status();
-        }
-
-        ShowUpdateStatus();
     }
 
+    /// <summary>
+    /// A download attempt ended: verified, failed or stopped. It does not start another at once; a
+    /// failure waits its turn, a stop was asked for, and another window holding the file is left
+    /// to finish it.
+    /// </summary>
     private void UpdateDownloadFinished(CancellationTokenSource download, string version, DownloadReport report)
     {
         if (ReferenceEquals(download, _updateDownload))
         {
-            _updateDownload = null;
-            _updateDownloadVersion = null;
-            _updatePercent = null;
+            (_updateDownload, _updateDownloadVersion, _updateTransfer) = (null, null, null);
         }
 
         download.Dispose();
-        if (Pending is not { Stage: UpdateStage.Downloading } pending || pending.Version != version)
+        if (Pending is { Stage: UpdateStage.Downloading } pending && pending.Version == version)
         {
-            ShowUpdateStatus();
-            return;
-        }
-
-        var after = UpdateFlow.AfterDownload(pending, report, DateTimeOffset.UtcNow);
-        _settings = _settings with { PendingUpdate = after };
-        SaveSettings();
-        if (after.Stage == UpdateStage.Ready)
-        {
-            App.Log.Info(LogSource, $"rexplayer {version} is downloaded and verified.");
-        }
-        else if (after != pending)
-        {
-            App.Log.Warning(LogSource, $"The download of rexplayer {version} failed: {report.Reason}.");
-        }
-
-        // Stopped on purpose, or another window has it: the next look carries on. A failure shows on the bar.
-        if (_showingUpdateProgress && after.DownloadFailures > pending.DownloadFailures)
-        {
-            UpdateProgress.Visibility = Visibility.Collapsed;
-            UpdateBar.Severity = InfoBarSeverity.Warning;
-            UpdateBar.Message = Status();
-        }
-
-        ConsiderUpdatePrompt(asked: _updateAsked);
-        ShowUpdateStatus();
-    }
-
-    /// <summary>
-    /// Shows, keeps or hides the update bar as <see cref="UpdateFlow.Prompt"/> says. It hides over
-    /// full-screen playback and comes back when playing pauses or the window leaves full screen.
-    /// </summary>
-    private void ConsiderUpdatePrompt(bool asked = false)
-    {
-        if (!_updatesStarted || _closing)
-        {
-            return;
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var moment = UpdateMomentNow();
-        var prompt = UpdateFlow.Prompt(Pending, _settings.UpdateMode, moment, now, asked);
-        if (prompt == UpdatePrompt.None)
-        {
-            // A bar already showing stays while another banner or some editing comes and goes.
-            if (_shownPrompt != UpdatePrompt.None && UpdateFlow.Hides(Pending, _settings.UpdateMode, moment, now))
+            var after = UpdateFlow.AfterDownload(pending, report, DateTimeOffset.UtcNow);
+            if (after.Stage == UpdateStage.Ready)
             {
-                HideUpdateBar();
+                App.Log.Info(LogSource, $"rexplayer {version} is downloaded and verified.");
+            }
+            else if (after != pending)
+            {
+                App.Log.Warning(LogSource, $"The download of rexplayer {version} failed: {report.Reason}.");
             }
 
-            return;
+            SetPending(after);
         }
 
-        _updateAsked = false;
-        if (UpdateFlow.Redraw(prompt, Pending!, _shownPrompt, _shownVersion, UpdateBar.IsOpen))
-        {
-            ShowUpdateBar(prompt);
-        }
+        // Files this attempt held (a cancelled download, a version a check replaced) can go now.
+        var keep = UpdateFlow.KeptFiles(Pending);
+        _ = Task.Run(() => UpdateDownloader.Clean(UpdateFolder, keep));
+        ShowUpdates();
     }
 
-    private void ShowUpdateBar(UpdatePrompt prompt)
+    /// <summary>Saves a changed pending update and draws it.</summary>
+    private void SetPending(PendingUpdate? next)
     {
-        var pending = Pending!;
-        var (title, message) = UpdateFlow.PromptText(prompt, pending, Connection().Metered);
-        (_shownPrompt, _shownVersion) = (prompt, pending.Version);
-        _showingUpdateProgress = false;
-        UpdateBar.Title = title;
-        UpdateBar.Message = message;
-        UpdateBar.Severity = pending.NeedsAttention ? InfoBarSeverity.Warning : InfoBarSeverity.Informational;
-        UpdateProgress.Visibility = Visibility.Collapsed;
-        UpdateActions.Visibility = Visibility.Visible;
-        var ready = prompt == UpdatePrompt.Ready ? Visibility.Visible : Visibility.Collapsed;
-        UpdateRestartButton.Visibility = ready;
-        UpdateOnCloseButton.Visibility = ready;
-        UpdateTonightButton.Visibility = ready;
-        UpdateDownloadButton.Visibility = prompt == UpdatePrompt.Available ? Visibility.Visible : Visibility.Collapsed;
-        ShowUpdateNotes(pending);
-        UpdateBar.IsOpen = true;
-        App.Log.Info(LogSource, $"Offered rexplayer {pending.Version} ({prompt}).");
-    }
-
-    /// <summary>The bar while a download the user asked for runs: progress, nothing to answer.</summary>
-    private void ShowUpdateProgress()
-    {
-        if (Pending is not { } pending)
+        if (next == Pending)
         {
             return;
         }
 
-        (_shownPrompt, _shownVersion) = (UpdatePrompt.None, null);
-        _showingUpdateProgress = true;
-        UpdateBar.Title = $"Downloading rexplayer {pending.Version}";
-        UpdateBar.Message = Status();
-        UpdateBar.Severity = InfoBarSeverity.Informational;
-        UpdateProgress.Value = _updatePercent ?? 0;
-        UpdateProgress.Visibility = Visibility.Visible;
-        UpdateActions.Visibility = Visibility.Collapsed;
-        ShowUpdateNotes(pending);
-        UpdateBar.IsOpen = true;
-    }
-
-    private void ShowUpdateNotes(PendingUpdate pending)
-    {
-        UpdateWhatsNew.IsExpanded = pending.NeedsAttention;
-        UpdateNotesText.Text = pending.Notes.Length > 0 ? pending.Notes : "The release page lists what changed.";
-    }
-
-    private void HideUpdateBar()
-    {
-        FocusAwayFromUpdateBar();
-        (_shownPrompt, _shownVersion) = (UpdatePrompt.None, null);
-        _showingUpdateProgress = false;
-        UpdateBar.IsOpen = false;
-    }
-
-    /// <summary>A bar that closes with the keyboard inside it hands the focus to the picture, not to nowhere.</summary>
-    private void FocusAwayFromUpdateBar()
-    {
-        if (Content?.XamlRoot is { } root && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is DependencyObject focused && IsInside(focused, UpdateBar))
-        {
-            Stage.Focus(FocusState.Programmatic);
-        }
-    }
-
-    private static bool IsInside(DependencyObject element, DependencyObject container)
-    {
-        for (var node = element; node is not null; node = VisualTreeHelper.GetParent(node))
-        {
-            if (ReferenceEquals(node, container))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>Escape with the keyboard in the update bar is "Remind me later"; true when it was.</summary>
-    private bool EscapeFromUpdateBar()
-    {
-        if (!UpdateBar.IsOpen || Content?.XamlRoot is not { } root
-            || Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is not DependencyObject focused || !IsInside(focused, UpdateBar))
-        {
-            return false;
-        }
-
-        DismissUpdateBar();
-        return true;
-    }
-
-    /// <summary>Closing the bar answers "Remind me tomorrow"; a progress bar just goes.</summary>
-    private void DismissUpdateBar()
-    {
-        if (_shownPrompt != UpdatePrompt.None)
-        {
-            RemindAboutUpdate(RemindChoice.Tomorrow);
-        }
-        else
-        {
-            HideUpdateBar();
-        }
-    }
-
-    private void OnUpdateBarCloseClick(InfoBar sender, object args)
-    {
-        if (_shownPrompt != UpdatePrompt.None && Pending is { } pending)
-        {
-            _settings = _settings with { PendingUpdate = UpdateFlow.Remind(pending, RemindChoice.Tomorrow, DateTimeOffset.UtcNow) };
-            SaveSettings();
-            Say(UpdateFlow.Reminded(RemindChoice.Tomorrow, pending.Version));
-        }
-
-        (_shownPrompt, _shownVersion) = (UpdatePrompt.None, null);
-        _showingUpdateProgress = false;
-    }
-
-    private void RemindAboutUpdate(RemindChoice choice)
-    {
-        HideUpdateBar();
-        if (Pending is not { } pending)
-        {
-            return;
-        }
-
-        _settings = _settings with { PendingUpdate = UpdateFlow.Remind(pending, choice, DateTimeOffset.UtcNow) };
+        _settings = _settings with { PendingUpdate = next };
         SaveSettings();
-        Say(UpdateFlow.Reminded(choice, pending.Version));
-    }
-
-    private void OnUpdateRemindClick(SplitButton sender, SplitButtonClickEventArgs args) => RemindAboutUpdate(RemindChoice.Tomorrow);
-
-    private void OnUpdateRemindChoiceClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is MenuFlyoutItem { Tag: string tag } && Enum.TryParse<RemindChoice>(tag, out var choice))
-        {
-            RemindAboutUpdate(choice);
-        }
-    }
-
-    private void OnUpdateRestartClick(object sender, RoutedEventArgs e)
-    {
-        HideUpdateBar();
-        _ = InstallAsync(unattended: false);
-    }
-
-    private void OnUpdateDownloadClick(object sender, RoutedEventArgs e)
-    {
-        if (Pending is not { } pending)
-        {
-            return;
-        }
-
-        _settings = _settings with { PendingUpdate = UpdateFlow.Approve(pending) };
-        SaveSettings();
-        _updateAsked = true;
-        StartUpdateDownload();
-        if (_updateDownload is null)
-        {
-            HideUpdateBar();
-            Say(Connection().Online ? Status() : "You are offline. The download starts once you are connected.");
-            return;
-        }
-
-        ShowUpdateProgress();
-    }
-
-    private void OnUpdateOnCloseClick(object sender, RoutedEventArgs e)
-    {
-        HideUpdateBar();
-        if (Pending is { } pending)
-        {
-            _settings = _settings with { PendingUpdate = UpdateFlow.WhenClosed(pending) };
-            SaveSettings();
-            Say(Status());
-        }
-    }
-
-    private void OnUpdateTonightClick(object sender, RoutedEventArgs e)
-    {
-        HideUpdateBar();
-        if (Pending is { } pending)
-        {
-            _settings = _settings with { PendingUpdate = UpdateFlow.ScheduledTonight(pending, DateTimeOffset.Now) };
-            SaveSettings();
-            Say(Status());
-        }
-    }
-
-    private void OnUpdateSkipClick(object sender, RoutedEventArgs e)
-    {
-        HideUpdateBar();
-        if (Pending is not { } pending)
-        {
-            return;
-        }
-
-        _updateDownload?.Cancel();
-        _settings = _settings with { PendingUpdate = null, SkippedUpdateVersion = pending.Version };
-        SaveSettings();
-        _ = Task.Run(() => UpdateDownloader.Clean(UpdateFolder, null));
-        Say($"rexplayer {pending.Version} will not be offered again; a newer version will be.");
-        ShowUpdateStatus();
-    }
-
-    private void OnUpdateReleasePageClick(object sender, RoutedEventArgs e)
-    {
-        if (Pending is { } pending && Uri.TryCreate(pending.ReleasePage, UriKind.Absolute, out var page))
-        {
-            _ = Windows.System.Launcher.LaunchUriAsync(page);
-        }
+        ShowUpdates();
     }
 
     /// <summary>
@@ -742,10 +455,9 @@ public sealed partial class MainWindow
             if (!whole)
             {
                 App.Log.Warning(LogSource, $"The downloaded rexplayer {pending.Version} no longer matches its checksum; downloading it again.");
-                _settings = _settings with { PendingUpdate = UpdateFlow.Damaged(pending, asked: !unattended) };
-                SaveSettings();
                 Say("The downloaded update was damaged, so rexplayer is downloading it again.");
-                StartUpdateDownload();
+                SetPending(UpdateFlow.Damaged(pending, asked: !unattended));
+                UpdateTick();
                 return;
             }
 
@@ -791,6 +503,7 @@ public sealed partial class MainWindow
 
             var updater = Path.Combine(UpdateFolder, "rexupdate.exe");
             File.Copy(Path.Combine(AppContext.BaseDirectory, "rexupdate.exe"), updater, overwrite: true);
+            File.Delete(Path.Combine(UpdateFolder, UpdateFlow.InstallRecordName));
             var start = new ProcessStartInfo(updater) { UseShellExecute = false, CreateNoWindow = true };
             foreach (var argument in new[]
             {
@@ -873,21 +586,6 @@ public sealed partial class MainWindow
         if (HandOff(pending, relaunch: false))
         {
             App.Log.Info(LogSource, $"Handed rexplayer {pending.Version} to the updater to install as rexplayer closes.");
-        }
-    }
-
-    /// <summary>The updater's state in words, for Preferences and Check for updates.</summary>
-    private string Status()
-    {
-        var phase = UpdateFlow.Phase(Pending, _updateChecking, _updateDownload is not null);
-        return UpdateFlow.Status(phase, Pending, _settings.UpdateMode, Version, _updatePercent, _settings.LastUpdateCheck, DateTimeOffset.Now);
-    }
-
-    private void ShowUpdateStatus()
-    {
-        if (_updateStatusText is { } text)
-        {
-            text.Text = Status();
         }
     }
 
