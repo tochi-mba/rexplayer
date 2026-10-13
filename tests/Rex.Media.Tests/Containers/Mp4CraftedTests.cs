@@ -226,6 +226,14 @@ public sealed class Mp4CraftedTests
         { Full("esds", 0, 0, Descriptor(0x03, [0, 1, 0, 0x09, 0])), CodecId.Aac, 48_000, 6 },
     };
 
+    [Fact]
+    public void ShortElementaryStreamDescriptorReportsFormatDamage()
+    {
+        // The ES descriptor announces itself but does not contain the two-byte id and flags.
+        var shortDescriptor = Full("esds", 0, 0, Descriptor(0x03, [0, 1]));
+        Assert.Throws<MediaFormatException>(() => Track(File([Audio(AudioEntry("mp4a", 2, 16, 48_000, shortDescriptor))])));
+    }
+
     [Theory]
     [MemberData(nameof(ElementaryStreams))]
     public void TheElementaryStreamDescriptorNamesTheCodecAndConfiguresAac(byte[] esds, CodecId codec, int rate, int channels)
