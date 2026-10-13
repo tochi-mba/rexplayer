@@ -258,7 +258,9 @@ public sealed class SubjectRemoval
     private (int Left, int Top, int Right, int Bottom) Interest(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box)
     {
         var pan = Math.Max(Math.Abs(_cameraMotion.ShiftX), Math.Abs(_cameraMotion.ShiftY));
-        return Expand(box, 0.15f, 0.08f, 28 + 2 * (int)Math.Max(pan, _boxSpeed), frame);
+        // Record far enough ahead of the moving silhouette for three confirmed sightings before
+        // it passes over a pixel, including the guard around the feathered outline.
+        return Expand(box, 0.15f, 0.08f, 44 + 2 * (int)Math.Max(pan, _boxSpeed), frame);
     }
 
     private void Record(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box, bool hasMatte, int feather)
