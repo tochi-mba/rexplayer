@@ -100,7 +100,7 @@ public sealed class SubjectRemovalMatte
     /// How far beyond the subject's outline, in pixels, the removal stays fully opaque: enough to take
     /// the subject's blurred edge and the grid's own coarseness with it.
     /// </summary>
-    public float Grow => 4 + 0.5f * Scale;
+    public float Grow => 3 + 0.5f * Scale;
 
     /// <summary>The share of the box found to be subject, from 0 to 1.</summary>
     public float Coverage { get; private set; }
@@ -520,7 +520,7 @@ public sealed class SubjectRemovalMatte
         {
             _label[cell] = (byte)(_region[cell] == Beyond ? 0
                 : wholeBox && _region[cell] == Inside ? 1
-                : _probability[cell] > 0.48f ? 1 : 0);
+                : _probability[cell] > 0.5f ? 1 : 0);
         }
     }
 
