@@ -55,7 +55,7 @@ public sealed class SubjectRemovalFillTests
         Assert.Throws<ArgumentOutOfRangeException>(() => fill.Prepare(3, 0));
         fill = Prepare(20, 20, (0, 0, 0, 0));
         fill.Solve(1);
-        Assert.Equal(0, fill.LevelsUsed);
+        Assert.False(fill.Blended);
         Assert.All(fill.Source.ToArray(), source => Assert.Equal(-1, source));
     }
 
@@ -65,7 +65,7 @@ public sealed class SubjectRemovalFillTests
         var hole = (20, 14, 30, 24);
         var fill = Prepare(48, 40, hole);
         fill.Solve(7);
-        Assert.Equal(1, fill.LevelsUsed);
+        Assert.False(fill.Blended);
         Assert.True(MeanError(fill, hole) < 12, $"error {MeanError(fill, hole)}");
         Assert.True(fill.Source[18 * 48 + 24] >= 0);
         Assert.Equal(-1, fill.Source[2 * 48 + 2]);
@@ -77,7 +77,7 @@ public sealed class SubjectRemovalFillTests
         var hole = (40, 30, 80, 70);
         var fill = Prepare(120, 100, hole);
         fill.Solve(11);
-        Assert.True(fill.LevelsUsed >= 2);
+        Assert.False(fill.Blended);
         Assert.True(MeanError(fill, hole) < 25, $"error {MeanError(fill, hole)}");
     }
 
@@ -118,7 +118,7 @@ public sealed class SubjectRemovalFillTests
         }
 
         fill.Solve(3);
-        Assert.Equal(0, fill.LevelsUsed);
+        Assert.True(fill.Blended);
         Assert.InRange(fill.Colour[(4 * 9 + 4) * 3], 120, 180);
         Assert.InRange(fill.Colour[(4 * 9 + 2) * 3], 95, 150);
         Assert.InRange(fill.Colour[(4 * 9 + 6) * 3], 150, 205);
@@ -131,7 +131,7 @@ public sealed class SubjectRemovalFillTests
         var hole = (7, 7, 33, 33);
         var fill = Prepare(40, 40, hole);
         fill.Solve(9);
-        Assert.Equal(1, fill.LevelsUsed);
+        Assert.False(fill.Blended);
         Assert.True(MeanError(fill, hole) < 40, $"error {MeanError(fill, hole)}");
     }
 }

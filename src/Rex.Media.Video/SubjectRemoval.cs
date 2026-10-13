@@ -44,6 +44,8 @@ public sealed class SubjectRemoval
     private bool _hasPreviousSource;
     private (int Left, int Top, int Right, int Bottom)? _previousBox;
     private CameraMotion _cameraMotion = CameraMotion.Still;
+    private byte[]? _shape;
+    private (int Width, int Height, MediaTime Pts) _shapePicture;
     private MediaTime _lastPts = MediaTime.Unknown;
     private uint _pictures;
     private int _boxSpeed;
@@ -72,11 +74,65 @@ public sealed class SubjectRemoval
             && _matte.Distance[(y - area.Top) * (area.Right - area.Left) + x - area.Left] <= 0;
     }
 
+    /// <summary>Whether the last preview's never-seen pixels came from a given estimate rather than this class's own synthesis.</summary>
+    public bool UsedEstimate { get; private set; }
+
+    /// <summary>
+    /// The subject's exact outline in one picture (one byte a pixel, non-zero inside), drawn by a
+    /// segmentation model: every preview of that picture uses it as the matte, and the pictures after
+    /// it start from it. The outline is copied.
+    /// </summary>
+    public void UseShape(ReadOnlySpan<byte> outline, int width, int height, MediaTime pts)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        if (outline.Length != width * height)
+        {
+            throw new ArgumentException("An outline has one value for each pixel of its picture.", nameof(outline));
+        }
+
+        _shape = outline.ToArray();
+        _shapePicture = (width, height, pts);
+    }
+
     /// <summary>Forget everything learnt and the memory it used.</summary>
     public void Release()
     {
         _plate.Release();
+        _shape = null;
         Forget();
+    }
+
+    /// <summary>
+    /// Marks, in <paramref name="hole"/> (one byte a pixel of the picture), every pixel the last
+    /// preview replaced with an estimate rather than with background the video showed: 255 there, 0
+    /// elsewhere. Returns how many there are. This is the hole an inpainting model is asked to fill.
+    /// </summary>
+    public int EstimatedHole(Span<byte> hole, int width)
+    {
+        hole.Clear();
+        if (_matte.IsEmpty)
+        {
+            return 0;
+        }
+
+        var area = _matte.Area;
+        var areaWidth = area.Right - area.Left;
+        var count = 0;
+        for (var y = area.Top; y < area.Bottom; y++)
+        {
+            for (var x = area.Left; x < area.Right; x++)
+            {
+                var kind = _kind[(y - area.Top) * areaWidth + x - area.Left];
+                if (kind is Seeded or Unseen)
+                {
+                    hole[y * width + x] = 255;
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     private void Forget()
@@ -96,20 +152,24 @@ public sealed class SubjectRemoval
     /// <paramref name="advance"/> it is a new picture: the camera's motion is followed and the
     /// background it shows is recorded. With <paramref name="output"/> the preview is drawn there
     /// (the same size as the picture): <paramref name="feather"/> is the soft edge in pixels, and
-    /// <paramref name="coverage"/> (0 to 100) how much of the box counts as the subject. Returns
-    /// whether any pixel was replaced. The picture itself is never changed.
+    /// <paramref name="coverage"/> (0 to 100) how much of the box counts as the subject. With
+    /// <paramref name="estimate"/> (the picture's size, such as an inpainting model's fill of
+    /// <see cref="EstimatedHole"/>), pixels never seen take its colours instead of being
+    /// synthesised. Returns whether any pixel was replaced. The picture itself is never changed.
     /// </summary>
     public bool Apply(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box, bool advance,
-        int feather, int coverage, VideoFrame? output)
+        int feather, int coverage, VideoFrame? output, VideoFrame? estimate = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        if (output is not null && (output.Width != frame.Width || output.Height != frame.Height))
+        if ((output is not null && (output.Width != frame.Width || output.Height != frame.Height))
+            || (estimate is not null && (estimate.Width != frame.Width || estimate.Height != frame.Height)))
         {
-            throw new ArgumentException("The preview must be the picture's size.", nameof(output));
+            throw new ArgumentException("The preview and the estimate must be the picture's size.", nameof(output));
         }
 
         feather = Math.Clamp(feather, 0, SubjectRemovalMatte.MaximumFeather);
         ObservedPixels = EstimatedPixels = 0;
+        UsedEstimate = false;
         if (_plate.Width != frame.Width || _plate.Height != frame.Height)
         {
             _plate.Prepare(frame.Width, frame.Height);
@@ -123,7 +183,8 @@ public sealed class SubjectRemoval
 
         if (output is not null)
         {
-            _matte.Compute(frame, box, _plate, coverage, remember: advance);
+            var shaped = _shape is not null && _shapePicture == (frame.Width, frame.Height, frame.Pts);
+            _matte.Compute(frame, box, _plate, coverage, remember: advance, shaped ? _shape : default);
         }
 
         if (advance)
@@ -144,7 +205,11 @@ public sealed class SubjectRemoval
         }
 
         var hole = Classify(frame, feather);
-        if (hole.Right > hole.Left)
+        if (estimate is not null)
+        {
+            TakeEstimate(estimate);
+        }
+        else if (hole.Right > hole.Left)
         {
             Synthesise(frame, hole, advance);
         }
@@ -305,6 +370,33 @@ public sealed class SubjectRemoval
         }
 
         return (left, top, right, bottom);
+    }
+
+    /// <summary>
+    /// Every estimated pixel takes the given estimate's colour, which is also kept on the plate as
+    /// this place's estimate, so the fill does not change when the video plays on from here.
+    /// </summary>
+    private void TakeEstimate(VideoFrame estimate)
+    {
+        var area = _matte.Area;
+        var width = area.Right - area.Left;
+        var pixels = MemoryMarshal.Cast<byte, uint>(estimate.Plane(0));
+        var stride = estimate.Stride(0) / 4;
+        for (var y = area.Top; y < area.Bottom; y++)
+        {
+            for (var x = area.Left; x < area.Right; x++)
+            {
+                var at = (y - area.Top) * width + x - area.Left;
+                if (_kind[at] is Seeded or Unseen)
+                {
+                    var colour = pixels[y * stride + x] & 0xFFFFFF;
+                    _colour[at] = colour;
+                    _plate.Estimate(x, y, colour);
+                }
+            }
+        }
+
+        UsedEstimate = true;
     }
 
     /// <summary>Whether the background at the picture's pixel (x, y) is known, seen or estimated before, and its colour if so.</summary>

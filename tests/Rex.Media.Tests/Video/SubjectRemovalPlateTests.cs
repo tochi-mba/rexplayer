@@ -26,6 +26,31 @@ public sealed class SubjectRemovalPlateTests
 
     private static (int B, int G, int R) Split(uint colour) => ((int)(colour & 0xFF), (int)((colour >> 8) & 0xFF), (int)((colour >> 16) & 0xFF));
 
+    /// <summary>Observe a stable background enough times to distinguish it from a passer-by.</summary>
+    private static void Confirm(SubjectRemovalPlate plate, VideoFrame frame,
+        (int Left, int Top, int Right, int Bottom) area,
+        (int Left, int Top, int Right, int Bottom) guard, ReadOnlySpan<short> distance, int clearance)
+    {
+        for (var sighting = 0; sighting < SubjectRemovalPlate.Confirmations; sighting++)
+        {
+            plate.Learn(frame, area, guard, distance, clearance);
+        }
+    }
+
+    [Fact]
+    public void APassingSingleFrameIsNotRecordedAsBackground()
+    {
+        var plate = new SubjectRemovalPlate();
+        plate.Prepare(64, 48);
+        using var frame = Gradient();
+        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(10, 10, out _));
+        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(10, 10, out _));
+        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(10, 10, out _));
+    }
+
     [Fact]
     public void ASizeMustBePositiveAndANewSizeStartsEmpty()
     {
@@ -34,14 +59,14 @@ public sealed class SubjectRemovalPlateTests
         Assert.Throws<ArgumentOutOfRangeException>(() => plate.Prepare(4, 0));
         plate.Prepare(64, 48);
         using var frame = Gradient();
-        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        Confirm(plate, frame, (0, 0, 64, 48), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(10, 10, out _));
         plate.Prepare(64, 48);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(10, 10, out _));
         plate.Release();
         Assert.Equal((0, 0), (plate.Width, plate.Height));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(0, 0, out _));
-        Assert.Throws<ArgumentNullException>(() => plate.Learn(null!, (0, 0, 1, 1), Nothing, default, 0));
+        Assert.Throws<ArgumentNullException>(() => Confirm(plate, null!, (0, 0, 1, 1), Nothing, default, 0));
     }
 
     [Fact]
@@ -51,7 +76,7 @@ public sealed class SubjectRemovalPlateTests
         plate.Prepare(64, 48);
         using var frame = Gradient();
         // Without distances the guard is left alone entirely.
-        plate.Learn(frame, (-5, -5, 70, 60), (20, 10, 30, 20), default, 0);
+        Confirm(plate, frame, (-5, -5, 70, 60), (20, 10, 30, 20), default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(40, 30, out var seen));
         Assert.Equal((120, 120, 90), Split(seen));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(25, 15, out _));
@@ -67,7 +92,7 @@ public sealed class SubjectRemovalPlateTests
             }
         }
 
-        plate.Learn(frame, (0, 0, 64, 48), (20, 10, 30, 20), distance, 50);
+        Confirm(plate, frame, (0, 0, 64, 48), (20, 10, 30, 20), distance, 50);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(22, 15, out _));
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(27, 15, out var cleared));
         Assert.Equal((81, 60, 90), Split(cleared));
@@ -79,7 +104,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(64, 48);
         using var first = Gradient();
-        plate.Learn(first, (0, 0, 64, 48), Nothing, default, 0);
+        Confirm(plate, first, (0, 0, 64, 48), Nothing, default, 0);
         // The camera moved: what is at (x, y) now was at (x + 2.5, y + 1.25) before.
         plate.Advance(new CameraMotion(1, 2.5f, 1.25f));
         Assert.Equal((1f, 2.5f, 1.25f), plate.Mapping);
@@ -91,7 +116,7 @@ public sealed class SubjectRemovalPlateTests
 
         // Recording the new picture puts each pixel at its own scene point, blended between cells.
         using var second = Gradient(red: 200);
-        plate.Learn(second, (0, 0, 64, 48), Nothing, default, 0);
+        Confirm(plate, second, (0, 0, 64, 48), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(10, 10, out var fresh));
         var (fb, fg, fr) = Split(fresh);
         Assert.InRange(fb, 29, 31);
@@ -105,7 +130,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(64, 48);
         using var frame = Gradient();
-        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        Confirm(plate, frame, (0, 0, 64, 48), Nothing, default, 0);
         plate.Advance(new CameraMotion(1.05f, -1, -1));
         Assert.Equal(1.05f, plate.Mapping.Scale, 3);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(20, 20, out var zoomed));
@@ -113,7 +138,7 @@ public sealed class SubjectRemovalPlateTests
         Assert.InRange(b, 59, 61);
 
         // Recording through a zoom reads each cell's scene point from the picture.
-        plate.Learn(frame, (-4, -4, 70, 52), Nothing, default, 0);
+        Confirm(plate, frame, (-4, -4, 70, 52), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(20, 20, out var again));
         Assert.InRange(Split(again).B, 59, 61);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(-30, 20, out _));
@@ -129,7 +154,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(64, 48);
         using var frame = Gradient();
-        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        Confirm(plate, frame, (0, 0, 64, 48), Nothing, default, 0);
         plate.Keep((10, 10, 30, 30));
         Assert.Equal((1f, 0f, 0f), plate.Mapping);
 
@@ -162,7 +187,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(8, 8);
         using var frame = Gradient(8, 8);
-        plate.Learn(frame, (0, 0, 8, 4), Nothing, default, 0);
+        Confirm(plate, frame, (0, 0, 8, 4), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(9, 0, out _));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(0, 9, out _));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(-1, 0, out _));

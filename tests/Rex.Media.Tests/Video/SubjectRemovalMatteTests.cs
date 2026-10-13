@@ -39,7 +39,7 @@ public sealed class SubjectRemovalMatteTests
         // The loose box's corner is wall, a few pixels clear of the outline.
         Assert.True(At(matte, box.Left + 1, box.Top + 1) > 3 * SubjectRemovalMatte.DistanceUnit);
         Assert.Equal(2, matte.Scale);
-        Assert.InRange(matte.Grow, 2, 3);
+        Assert.InRange(matte.Grow, 3, 5);
         Assert.Throws<ArgumentNullException>(() => matte.Compute(null!, box, null, 50, true));
     }
 
@@ -72,7 +72,10 @@ public sealed class SubjectRemovalMatteTests
         using var picture = scene.Render(0, wall, opacity);
         var plate = new SubjectRemovalPlate();
         plate.Prepare(320, 180);
-        plate.Learn(wall, (0, 0, 320, 180), (0, 0, 0, 0), default, 0);
+        for (var i = 0; i < SubjectRemovalPlate.Confirmations; i++)
+        {
+            plate.Learn(wall, (0, 0, 320, 180), (0, 0, 0, 0), default, 0);
+        }
         var matte = new SubjectRemovalMatte();
         matte.Compute(picture, scene.Box(0, loose: 14), plate: null, coverage: 50, remember: false);
         var colourOnly = Overlap(matte, opacity, 320, 180);

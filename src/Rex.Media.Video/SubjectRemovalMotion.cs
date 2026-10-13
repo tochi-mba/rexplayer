@@ -222,6 +222,13 @@ public sealed class SubjectRemovalMotion
             for (var x = 0; x < w; x++)
             {
                 var a = (left + x * step) * 4;
+                if (far == 0)
+                {
+                    // One pixel a sample: the four reads below would all be the same one.
+                    detail[y * w + x] = Grey(plane, row0 + a);
+                    continue;
+                }
+
                 var b = (left + x * step + far) * 4;
                 detail[y * w + x] = (Grey(plane, row0 + a) + Grey(plane, row0 + b)
                     + Grey(plane, row1 + a) + Grey(plane, row1 + b)) * 0.25f;
