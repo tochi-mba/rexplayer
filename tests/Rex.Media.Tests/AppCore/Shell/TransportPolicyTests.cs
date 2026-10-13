@@ -2,6 +2,9 @@ using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Shell;
 using Rex.Media.Engine;
+using Rex.Media.IO;
+using Rex.Media.TestKit;
+using Rex.Media.TestKit.Damage;
 
 namespace Rex.Media.Tests.AppCore.Shell;
 
@@ -12,6 +15,96 @@ public sealed class TransportPolicyTests
         TransportMedia media = TransportMedia.Video, string? previous = "Earlier",
         string? following = "Later", string? episode = null, bool restarts = false) =>
         new(state, playing, true, media, "Current", previous, following, episode, restarts);
+
+    [Fact]
+    public void RealPlayerTransportAndMediaCardFollowTheCurrentPlaylistItem()
+    {
+        using var harness = new ControllerHarness(autoPlay: false);
+        var player = harness.Controller;
+        Assert.Throws<ArgumentNullException>(() => TransportAvailability.Read(null!));
+        Assert.Throws<ArgumentNullException>(() => TransportAvailability.MediaOf(null!));
+        Assert.Throws<ArgumentNullException>(() => MediaCard.For(null!));
+        Assert.Equal(TransportMedia.None, TransportAvailability.MediaOf(player));
+        Assert.Equal(TransportAvailability.Nothing, TransportAvailability.Decide(TransportAvailability.Read(player)));
+        Assert.Null(MediaCard.For(player));
+
+        harness.Files["first.wav"] = ControllerHarness.Count(0, 4000);
+        harness.Files["second.wav"] = ControllerHarness.Count(3000, 4000);
+        player.Open(["first.wav", "second.wav"]);
+        harness.PumpUntil(c => c.Item?.Location == "first.wav" && c.State == SessionState.Ready);
+
+        var first = TransportAvailability.Read(player);
+        Assert.True(first.HasQueue);
+        Assert.Equal(TransportMedia.Audio, first.Media);
+        Assert.Equal("second", first.FollowingTitle);
+        Assert.Null(first.EarlierTitle);
+        Assert.Equal("first", MediaCard.For(player)!.Title);
+        Assert.Equal(MediaCardKind.Music, MediaCard.For(player)!.Kind);
+
+        player.Execute(CommandCatalog.Next);
+        harness.PumpUntil(c => c.Item?.Location == "second.wav" && c.State == SessionState.Ready);
+        var second = TransportAvailability.Read(player);
+        Assert.Equal("first", second.EarlierTitle);
+        Assert.Null(second.FollowingTitle);
+        Assert.Equal(TransportMedia.Audio, second.Media);
+
+        player.Stop();
+        harness.Pump();
+        Assert.Equal(TransportMedia.None, TransportAvailability.MediaOf(player));
+    }
+
+    [Fact]
+    public void OpeningPictureAndNonSeekableMediaUsesTheRightKind()
+    {
+        using (var pictures = new ControllerHarness(autoPlay: false))
+        {
+            pictures.Files["poster.png"] = ControllerHarness.Count(0, 1200);
+            pictures.Controller.Open(["poster.png"]);
+            Assert.Equal(TransportMedia.Picture, TransportAvailability.MediaOf(pictures.Controller));
+            Assert.Equal(MediaCardKind.Image, MediaCard.For(pictures.Controller)!.Kind);
+        }
+
+        using (var stream = new ControllerHarness(autoPlay: false, openSource: path =>
+            new ForwardOnlySource(ControllerHarness.Count(0, 4000), path)))
+        {
+            stream.Controller.Open(["live.wav"]);
+            stream.PumpUntil(c => c.State == SessionState.Ready);
+            Assert.Equal(TransportMedia.Stream, TransportAvailability.MediaOf(stream.Controller));
+            Assert.Equal(MediaCardKind.Music, MediaCard.For(stream.Controller)!.Kind);
+        }
+
+        using (var video = new ControllerHarness(autoPlay: false, pictures: true))
+        {
+            video.Files["film.mkv"] = HealthyMedia.Matroska(2).Bytes;
+            video.Controller.Open(["film.mkv"]);
+            video.PumpUntil(c => c.State == SessionState.Ready);
+            Assert.Equal(TransportMedia.Video, TransportAvailability.MediaOf(video.Controller));
+            Assert.Equal(MediaCardKind.Video, MediaCard.For(video.Controller)!.Kind);
+        }
+    }
+
+    private sealed class ForwardOnlySource(byte[] data, string name) : IByteSource
+    {
+        public string Name => name;
+        public long? Length => null;
+        public bool CanSeek => false;
+        public int Read(long position, Span<byte> destination, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (position < 0 || position >= data.Length)
+            {
+                return 0;
+            }
+
+            var count = Math.Min(destination.Length, data.Length - (int)position);
+            data.AsSpan((int)position, count).CopyTo(destination);
+            return count;
+        }
+
+        public void Dispose()
+        {
+        }
+    }
 
     [Fact]
     public void EmptyTransportHasNoActionsAndAnItemExposesOnlyUsefulCommands()
@@ -45,6 +138,7 @@ public sealed class TransportPolicyTests
         Assert.Null(TransportAvailability.CommandFor(TransportRequest.Pause, stopped));
         Assert.Null(TransportAvailability.CommandFor(TransportRequest.Stop, stopped));
         Assert.Null(TransportAvailability.CommandFor(TransportRequest.Next, stopped));
+        Assert.Null(TransportAvailability.CommandFor((TransportRequest)999, stopped));
         Assert.Null(TransportAvailability.CommandFor(TransportRequest.Previous, stopped));
     }
 
@@ -200,5 +294,8 @@ public sealed class TransportPolicyTests
         Assert.Throws<ArgumentNullException>(() => MediaCard.Shown(null!));
         Assert.Throws<ArgumentNullException>(() => MediaCard.TrackNumberOf(null!));
         Assert.Throws<ArgumentNullException>(() => MediaCard.Describe(TransportMedia.Audio, null!, null, null, null, false));
+        Assert.Equal("SHOW, season 2, episode 3", MediaCard.Episode(new EpisodeIdentity("SHOW", 2, 3)));
+        Assert.Equal("SHOW, season 2, episodes 3 to 4", MediaCard.Episode(new EpisodeIdentity("SHOW", 2, 3, 4)));
+        Assert.Throws<ArgumentNullException>(() => MediaCard.Episode(null!));
     }
 }
