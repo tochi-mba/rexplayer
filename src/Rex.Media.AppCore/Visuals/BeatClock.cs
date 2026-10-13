@@ -42,7 +42,9 @@ public sealed class BeatClock
     /// <summary>The newest beat of the grid an onset confirmed, and the one confirmed before it.</summary>
     private long _matched = -1;
     private long _matchedBefore = -1;
-    private int _disagree;
+    // Seconds of sustained contradictory tempo, independent of how often frames arrive.
+    private double _disagree;
+    private double _frameSeconds;
     private int _halfVotes;
 
     /// <summary>Seconds a beat, or 0 before the tempo is known.</summary>
@@ -76,6 +78,7 @@ public sealed class BeatClock
     public bool Advance(double dt, float strength)
     {
         dt = double.IsFinite(dt) ? Math.Clamp(dt, 0, 0.5) : 0;
+        _frameSeconds = dt;
         Record(float.IsFinite(strength) ? Math.Max(0, strength) : 0, dt);
         SinceOnset += dt;
         SinceStrong += dt;
@@ -193,7 +196,7 @@ public sealed class BeatClock
             // Twice or half the beat: the same music counted another way, not a new tempo.
             _disagree = 0;
         }
-        else if (++_disagree >= 8)
+        else if ((_disagree += _frameSeconds) >= 8.0 / 30)
         {
             Adopt(period, Confidence * 0.5);
         }
@@ -204,7 +207,7 @@ public sealed class BeatClock
     {
         Array.Clear(_envelope);
         (_envelopeTime, _envelopeAt, _position, _matched, _matchedBefore, _disagree, _halfVotes) = (0, 0, 0, -1, -1, 0, 0);
-        (Period, Confidence, SinceOnset, SinceStrong) = (0, 0, 10, 10);
+        (Period, Confidence, SinceOnset, SinceStrong, _frameSeconds) = (0, 0, 10, 10, 0);
     }
 
     /// <summary>A new tempo, with the grid's beat on the last kick, or the last onset when there has been no kick of late.</summary>
