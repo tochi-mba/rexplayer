@@ -134,6 +134,13 @@ public static class VisualizerOptions
                 new("mirror", "Reflect frequencies across the screen", VisualOptionKind.Toggle, 1),
                 new("rings", "Pressure waves on drum hits", VisualOptionKind.Toggle, 1),
             ],
+            VisualizerChoice.Groove =>
+            [
+                new("seconds", "Seconds shown", VisualOptionKind.Number, 4, 2, 10),
+                new("spectrum", "The spectrum underneath", VisualOptionKind.Toggle, 1),
+                new("grid", "The beat grid", VisualOptionKind.Toggle, 1),
+                new("lanes", "The kick, snare and hi-hat lanes", VisualOptionKind.Toggle, 1),
+            ],
             VisualizerChoice.Embers =>
             [
                 new("amount", "How many sparks", VisualOptionKind.Number, 90, 20, 300),
@@ -191,6 +198,7 @@ public static class VisualizerOptions
         VisualizerChoice.Halo or VisualizerChoice.Silhouette or VisualizerChoice.BeatEdit => VisualPalette.Neon,
         VisualizerChoice.Aurora => VisualPalette.Aurora,
         VisualizerChoice.Resonance => VisualPalette.Ocean,
+        VisualizerChoice.Groove => VisualPalette.Neon,
         VisualizerChoice.Embers => VisualPalette.Fire,
         VisualizerChoice.Ripples => VisualPalette.Ocean,
         _ => VisualPalette.Accent,

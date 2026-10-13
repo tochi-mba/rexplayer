@@ -249,6 +249,9 @@ public enum VisualizerChoice
 
     /// <summary>Continuous, spectrally driven light filaments and drum pressure waves.</summary>
     Resonance,
+
+    /// <summary>The last seconds of the music scrolling by: its spectrum, the beat grid and every drum hit.</summary>
+    Groove,
 }
 
 /// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>

@@ -232,7 +232,9 @@ public sealed class MusicPulse
         _sinceDrop += dt;
         // Where in the frame the kick struck, so the clock keeps finer time than the frames do.
         var age = _kick.Hit ? Math.Min(dt, _bassBand.RiseAge()) : dt / 2;
-        _clock.Advance(dt, (float)flux);
+        // The tempo is found mostly from the kicks, which carry the beat; the whole spectrum's rise,
+        // busy with shakers and log drums between the beats, counts for a little.
+        _clock.Advance(dt, (_kick.Hit ? _kick.Strength : 0) + (float)(0.1 * Math.Min(1, flux / Math.Max(_peakFlux, 1e-6))));
         if (!_primed)
         {
             // The first frame rises from nothing: it is no beat.
