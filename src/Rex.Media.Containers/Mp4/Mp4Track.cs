@@ -525,9 +525,18 @@ internal sealed class Mp4Track
         var chunks = ReadChunkOffsets(moov, stbl);
         var perChunk = ReadSampleToChunk(moov, stbl);
         var sample = 0;
+
+        // The sample-to-chunk runs are walked once alongside the chunks: looking each chunk's run up
+        // from the start cost chunks times runs, seconds for an hour of audio in thousands of runs.
+        var chunkRun = -1;
         for (var chunk = 0; chunk < chunks.Count && sample < count; chunk++)
         {
-            var samples = SamplesInChunk(perChunk, chunk + 1);
+            while (chunkRun + 1 < perChunk.Count && perChunk[chunkRun + 1].FirstChunk <= chunk + 1)
+            {
+                chunkRun++;
+            }
+
+            long samples = chunkRun < 0 ? 0 : perChunk[chunkRun].Samples;
             var offset = chunks[chunk];
             for (var i = 0; i < samples && sample < count; i++, sample++)
             {
@@ -690,21 +699,5 @@ internal sealed class Mp4Track
         }
 
         return runs;
-    }
-
-    private static long SamplesInChunk(List<(uint FirstChunk, uint Samples)> runs, int chunk)
-    {
-        long samples = 0;
-        foreach (var (first, count) in runs)
-        {
-            if (first > chunk)
-            {
-                break;
-            }
-
-            samples = count;
-        }
-
-        return samples;
     }
 }
