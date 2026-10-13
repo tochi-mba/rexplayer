@@ -69,6 +69,18 @@ public static class AutomationPipe
             : "rexplayer-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Environment.UserDomainName + "\\" + Environment.UserName)))[..16].ToLowerInvariant();
 
     /// <summary>
+    /// Whether a player serves <paramref name="pipeName"/> now, found without connecting: when none
+    /// does, a launch need not wait for one to answer before opening its own window.
+    /// </summary>
+    public static bool IsServed(string pipeName)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(pipeName);
+        return OperatingSystem.IsWindows()
+            ? Directory.EnumerateFiles(@"\\.\pipe\", pipeName).Any()
+            : File.Exists(Path.Combine(Path.GetTempPath(), "CoreFxPipe_" + pipeName));
+    }
+
+    /// <summary>
     /// Sends <paramref name="request"/> to the player listening on <paramref name="pipeName"/>; null
     /// when no player answers within <paramref name="connectTimeout"/>. A connection dropped before
     /// any answer is tried again twice: on Linux a pipe is a socket, and connections still queued

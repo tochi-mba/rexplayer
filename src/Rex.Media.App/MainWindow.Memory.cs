@@ -21,7 +21,7 @@ public sealed partial class MainWindow
     private readonly List<(Button Button, Bookmark Bookmark)> _bookmarkMarkerButtons = [];
 
     /// <summary>The store beside the settings; when it cannot be read, one in memory, so playing still works.</summary>
-    private static RexStore OpenStore()
+    internal static RexStore OpenStore()
     {
         var path = Path.Combine(App.DataRoot, "store.log");
         try
