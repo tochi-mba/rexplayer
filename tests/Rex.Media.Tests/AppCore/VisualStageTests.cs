@@ -39,7 +39,19 @@ public sealed class VisualStageTests
         VisualizerChoice.Murmuration,
         VisualizerChoice.Ink,
         VisualizerChoice.Skyline,
-        VisualizerChoice.Mandala);
+        VisualizerChoice.Mandala,
+        VisualizerChoice.Clones,
+        VisualizerChoice.TimeWarp,
+        VisualizerChoice.Aura,
+        VisualizerChoice.LedWall,
+        VisualizerChoice.Stardust,
+        VisualizerChoice.HallOfMirrors,
+        VisualizerChoice.LightPainting,
+        VisualizerChoice.Scanner,
+        VisualizerChoice.Shatter,
+        VisualizerChoice.Spotlight,
+        VisualizerChoice.InfinityMirror,
+        VisualizerChoice.Water);
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 

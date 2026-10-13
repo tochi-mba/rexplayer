@@ -216,6 +216,83 @@ public static class VisualizerOptions
                 new("layers", "Rings", VisualOptionKind.Number, 3, 1, 5),
                 new("step", "Change the petals each bar", VisualOptionKind.Toggle, 1),
             ],
+            VisualizerChoice.Clones =>
+            [
+                new("clones", "Clones kept", VisualOptionKind.Number, 6, 3, 12),
+                new("drift", "How far they drift", VisualOptionKind.Number, 1, 0, 2),
+            ],
+            VisualizerChoice.TimeWarp =>
+            [
+                new("depth", "Frames back", VisualOptionKind.Number, 30, 10, 60),
+                new("direction", "Time runs", VisualOptionKind.Choice, 0, Choices: ["Down the picture", "Across it", "Out from the middle"]),
+                new("tint", "Colour the past", VisualOptionKind.Number, 0.35, 0, 1),
+            ],
+            VisualizerChoice.Aura =>
+            [
+                new("glow", "Glow", VisualOptionKind.Number, 1, 0.3, 2),
+                new("rings", "Shockwaves on the kick", VisualOptionKind.Toggle, 1),
+                new("heat", "Draw me as heat (else a dark figure)", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.LedWall =>
+            [
+                new("tiles", "Lights across", VisualOptionKind.Number, 48, 16, 96),
+                new("gate", "How much the spectrum gates the lights", VisualOptionKind.Number, 0.65, 0, 1),
+                new("colour", "Colours", VisualOptionKind.Choice, 0, Choices: ["By brightness", "Across the wall"]),
+            ],
+            VisualizerChoice.Stardust =>
+            [
+                new("particles", "Motes", VisualOptionKind.Number, 2500, 500, 5000),
+                new("blast", "How hard the kick blasts them", VisualOptionKind.Number, 1, 0.3, 2),
+                new("trails", "Trails", VisualOptionKind.Number, 0.55, 0, 0.9),
+            ],
+            VisualizerChoice.HallOfMirrors =>
+            [
+                new("mirrors", "Mirrors", VisualOptionKind.Number, 6, 2, 12),
+                new("zoom", "How far the bass draws it in", VisualOptionKind.Number, 1, 0, 2),
+                new("turn", "Turn and change mirrors with the music", VisualOptionKind.Toggle, 1),
+                new("colour", "Colours", VisualOptionKind.Choice, 0, Choices: ["The palette", "The camera's own"]),
+            ],
+            VisualizerChoice.LightPainting =>
+            [
+                new("brush", "Brush size", VisualOptionKind.Number, 1, 0.4, 3),
+                new("fade", "How long the strokes last", VisualOptionKind.Number, 0.94, 0.8, 0.985),
+                new("body", "Show my body faintly", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.Scanner =>
+            [
+                new("direction", "Sweeps", VisualOptionKind.Choice, 0, Choices: ["Down", "Across"]),
+                new("width", "Bar width", VisualOptionKind.Number, 1, 0.3, 3),
+                new("hold", "How long the trace holds", VisualOptionKind.Number, 0.93, 0.8, 0.985),
+                new("colour", "Colours", VisualOptionKind.Choice, 0, Choices: ["The palette", "The camera's own"]),
+            ],
+            VisualizerChoice.Shatter =>
+            [
+                new("tiles", "Tiles across", VisualOptionKind.Number, 14, 6, 28),
+                new("blast", "How hard the kick blasts them", VisualOptionKind.Number, 1, 0.3, 2),
+                new("spin", "Tiles spin", VisualOptionKind.Toggle, 1),
+                new("colour", "Colours", VisualOptionKind.Choice, 0, Choices: ["The palette", "The camera's own"]),
+            ],
+            VisualizerChoice.Spotlight =>
+            [
+                new("lights", "Lights", VisualOptionKind.Number, 3, 1, 5),
+                new("beam", "Beam width", VisualOptionKind.Number, 1, 0.4, 2.5),
+                new("haze", "Haze", VisualOptionKind.Number, 1, 0, 2),
+                new("colour", "Colours", VisualOptionKind.Choice, 0, Choices: ["The palette", "The camera's own"]),
+            ],
+            VisualizerChoice.InfinityMirror =>
+            [
+                new("levels", "Levels", VisualOptionKind.Number, 5, 2, 9),
+                new("shrink", "How much smaller each level is", VisualOptionKind.Number, 0.72, 0.5, 0.9),
+                new("turn", "Turn a step on each beat", VisualOptionKind.Toggle, 1),
+                new("colour", "Colours", VisualOptionKind.Choice, 0, Choices: ["The palette", "The camera's own"]),
+            ],
+            VisualizerChoice.Water =>
+            [
+                new("depth", "How deeply the ripples bend the picture", VisualOptionKind.Number, 1, 0.2, 3),
+                new("lifetime", "Ripple lifetime", VisualOptionKind.Number, 2, 0.5, 5),
+                new("shimmer", "Shimmer on the hi-hats", VisualOptionKind.Toggle, 1),
+                new("colour", "Colours", VisualOptionKind.Choice, 0, Choices: ["The palette", "The camera's own"]),
+            ],
             VisualizerChoice.Flight =>
             [
                 new("ahead", "Beats each ring takes to reach you", VisualOptionKind.Number, 8, 2, 16),
@@ -295,6 +372,18 @@ public static class VisualizerOptions
         VisualizerChoice.Ink => VisualPalette.Neon,
         VisualizerChoice.Skyline => VisualPalette.Neon,
         VisualizerChoice.Mandala => VisualPalette.Sunset,
+        VisualizerChoice.Clones => VisualPalette.Neon,
+        VisualizerChoice.TimeWarp => VisualPalette.Aurora,
+        VisualizerChoice.Aura => VisualPalette.Fire,
+        VisualizerChoice.LedWall => VisualPalette.Rainbow,
+        VisualizerChoice.Stardust => VisualPalette.Ocean,
+        VisualizerChoice.HallOfMirrors => VisualPalette.Neon,
+        VisualizerChoice.LightPainting => VisualPalette.Rainbow,
+        VisualizerChoice.Scanner => VisualPalette.Cool,
+        VisualizerChoice.Shatter => VisualPalette.Fire,
+        VisualizerChoice.Spotlight => VisualPalette.Sunset,
+        VisualizerChoice.InfinityMirror => VisualPalette.Aurora,
+        VisualizerChoice.Water => VisualPalette.Ocean,
         VisualizerChoice.Embers => VisualPalette.Fire,
         VisualizerChoice.Ripples => VisualPalette.Ocean,
         _ => VisualPalette.Accent,

@@ -177,7 +177,10 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Whether <paramref name="choice"/> uses the camera.</summary>
-    private bool UsesCamera(VisualizerChoice choice) => choice == VisualizerChoice.Silhouette
+    private bool UsesCamera(VisualizerChoice choice) => choice is VisualizerChoice.Silhouette
+        or VisualizerChoice.Clones or VisualizerChoice.TimeWarp or VisualizerChoice.Aura or VisualizerChoice.LedWall or VisualizerChoice.Stardust
+        or VisualizerChoice.HallOfMirrors or VisualizerChoice.LightPainting or VisualizerChoice.Scanner or VisualizerChoice.Shatter
+        or VisualizerChoice.Spotlight or VisualizerChoice.InfinityMirror or VisualizerChoice.Water
         || (choice == VisualizerChoice.BeatEdit && VisualizerOptions.Choice(_settings.VisualOptions, choice, "source") == 0);
 
     /// <summary>Asks once whether the camera may be used; true when it may.</summary>

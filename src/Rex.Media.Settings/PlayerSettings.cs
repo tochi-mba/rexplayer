@@ -294,6 +294,42 @@ public enum VisualizerChoice
 
     /// <summary>Rings of petals the spectrum opens, turning a step on each beat.</summary>
     Mandala,
+
+    /// <summary>The listener's outline frozen on every beat, the clones drifting away behind them.</summary>
+    Clones,
+
+    /// <summary>The camera as a slit-scan mirror, each part of the picture a different moment, deepened by the bass.</summary>
+    TimeWarp,
+
+    /// <summary>A glow round the listener that breathes with the bass, with shockwaves on each kick.</summary>
+    Aura,
+
+    /// <summary>The camera's picture on a wall of lights, each column gated by its part of the spectrum.</summary>
+    LedWall,
+
+    /// <summary>The listener made of motes that blast apart on each kick and re-form between.</summary>
+    Stardust,
+
+    /// <summary>The camera's picture folded into mirrors that turn on the beat.</summary>
+    HallOfMirrors,
+
+    /// <summary>Strokes of light wherever the listener's outline moves, flaring on the kick.</summary>
+    LightPainting,
+
+    /// <summary>A bar of light that sweeps the picture once a beat, the picture fading behind it.</summary>
+    Scanner,
+
+    /// <summary>The picture in tiles that the kick blasts apart and that mend between beats.</summary>
+    Shatter,
+
+    /// <summary>Spotlights that follow the listener and change colour on the kick.</summary>
+    Spotlight,
+
+    /// <summary>The picture inside itself, level by level, each a beat further back.</summary>
+    InfinityMirror,
+
+    /// <summary>The picture bent through ripples each kick drops at the listener.</summary>
+    Water,
 }
 
 /// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>

@@ -14,6 +14,7 @@ AudioFrame.cs
 AudioLandmarks.cs
 AudioPipeline.cs
 AudioScope.cs
+AuraScene.cs
 AuroraScene.cs
 AutomaticSkip.cs
 AutomationPipe.cs
@@ -28,6 +29,7 @@ BlockPacketizer.cs
 BorrowedPresenter.cs
 BoundedQueue.cs
 ByteCursor.cs
+CameraSight.cs
 CaptionChoreography.cs
 CaptionCommands.cs
 CaptionDirector.cs
@@ -36,16 +38,17 @@ CaptionPresets.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
-CliApplication.cs
 CliApplication.Captions.cs
+CliApplication.cs
 CliApplication.Pulse.cs
 CliApplication.Sections.cs
 CliApplication.Snapshot.cs
-CliApplication.Transcribe.cs
 CliApplication.System.cs
+CliApplication.Transcribe.cs
 CliArguments.cs
 CliHost.cs
 CliReference.cs
+ClonesScene.cs
 CodecId.cs
 CollageLayout.cs
 ColorConverter.cs
@@ -88,10 +91,12 @@ GifDecoder.cs
 GifDemuxer.cs
 GrooveScene.cs
 H264Sps.cs
+HallOfMirrorsScene.cs
 HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
 Id3v2.cs
+InfinityMirrorScene.cs
 InkScene.cs
 InpaintTensors.cs
 InstallStateMachine.cs
@@ -106,6 +111,7 @@ Layer3Huffman.cs
 Layer3SideInfo.cs
 Layer3Synthesis.cs
 Layer3Tables.cs
+LedWallScene.cs
 LevelMeter.cs
 LibraryActions.cs
 LibraryArrangement.cs
@@ -114,6 +120,7 @@ LibraryOpening.cs
 LibraryScanner.cs
 LibraryViews.cs
 LightningScene.cs
+LightPaintingScene.cs
 Lyrics.cs
 M3u.cs
 MachineEnvelope.cs
@@ -209,6 +216,7 @@ RidgelinesScene.cs
 RipplesScene.cs
 Sami.cs
 SampleConverter.cs
+ScannerScene.cs
 ScanWindow.cs
 SectionAnalysis.cs
 SectionAnalysisCache.cs
@@ -220,6 +228,7 @@ SessionEvents.cs
 SessionState.cs
 SettingsStore.cs
 SharedModels.cs
+ShatterScene.cs
 ShortcutEditing.cs
 ShortcutRouting.cs
 SilentAudio.cs
@@ -233,6 +242,8 @@ SpectrumAnalyzer.cs
 SpeechAudio.cs
 SpeechModels.cs
 SpeechPulse.cs
+SpotlightScene.cs
+StardustScene.cs
 StatsText.cs
 StrobeScene.cs
 SubjectModelPolicy.cs
@@ -259,6 +270,7 @@ SystemReport.cs
 ThreadLoop.cs
 TimeStretch.cs
 TimeText.cs
+TimeWarpScene.cs
 TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
@@ -289,6 +301,7 @@ VorbisComments.cs
 VorbisDecoder.cs
 VorbisMdct.cs
 VorbisSetup.cs
+WaterScene.cs
 WavDemuxer.cs
 WaveFormat.cs
 WavFileSink.cs
