@@ -151,7 +151,7 @@ public sealed partial class PlayerController
                 return;
             }
 
-            var siblings = EpisodeGrouping.Siblings(path, files, SectionDetector.SiblingsCompared);
+            var siblings = EpisodeGrouping.Siblings(path, files).Take(24);
             EpisodeAnalysis? main = null;
             var others = new List<EpisodeAnalysis>();
             foreach (var candidate in siblings.Prepend(path))
