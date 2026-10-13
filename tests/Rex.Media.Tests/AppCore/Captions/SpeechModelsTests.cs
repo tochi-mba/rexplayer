@@ -168,4 +168,14 @@ public sealed class SpeechModelsTests : IDisposable
     }
 
     private static byte[] PngWriterTestBytes() => [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A];
+
+    [Fact]
+    public async Task ADefaultHttpHandlerHonoursACancelledDownloadBeforeContactingTheNetwork()
+    {
+        var store = new SpeechModelStore(Path.Combine(_directory, "cancelled-default"));
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => store.DownloadAsync(Model([1, 2, 3]), null, cancelled.Token));
+    }
 }
