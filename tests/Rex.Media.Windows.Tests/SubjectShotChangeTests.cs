@@ -42,9 +42,17 @@ public sealed class SubjectShotChangeTests
                 else
                 {
                     var tone = Noise((x + pan) / 6, y / 6, scene);
-                    (b, g, r) = scene == 0
-                        ? (90 + tone / 2, 110 + tone / 3, 40 + tone / 5)
-                        : (30 + tone / 5, 90 + tone / 3, 120 + tone / 2);
+                    if (scene == 0)
+                    {
+                        (b, g, r) = (90 + tone / 2, 110 + tone / 3, 40 + tone / 5);
+                    }
+                    else
+                    {
+                        // Another place: large light and dark shapes, as a different room or a
+                        // different angle shows, not a reshuffle of the same fine texture.
+                        var light = ((x / 48) + (y / 36)) % 2 == 0;
+                        (b, g, r) = light ? (200 + tone / 8, 190 + tone / 8, 170 + tone / 8) : (30 + tone / 8, 40 + tone / 8, 60 + tone / 8);
+                    }
                 }
 
                 row[i] = (byte)Math.Clamp(b + lighting, 0, 255);

@@ -98,6 +98,29 @@ public sealed class PlaylistControllerTests
 
     [Fact]
     [Capability("PLF-04")]
+    public void AContinuousCuePartAnnouncesTheNextTitleWhenTitlesAreEnabled()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 3 });
+        harness.Files["album.wav"] = Count(0, 8000);
+        harness.Files["album.cue"] = Text("""
+            FILE "album.wav" WAVE
+              TRACK 01 AUDIO
+                TITLE "First"
+                INDEX 01 00:00:00
+              TRACK 02 AUDIO
+                TITLE "Second"
+                INDEX 01 00:00:30
+            """);
+        var controller = harness.Controller;
+        controller.Open(["album.cue"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "First");
+        controller.ReachedEndOfPart(TimeSpan.FromSeconds(0.31));
+        Assert.Equal("Second", controller.Item?.Title);
+        Assert.Contains("Second", harness.Messages);
+    }
+
+    [Fact]
+    [Capability("PLF-04")]
     public void ATrackPartWayThroughAFileStartsAtItsIndexAndSeeksWithinItself()
     {
         using var harness = new ControllerHarness(autoPlay: false, settings: Quiet);

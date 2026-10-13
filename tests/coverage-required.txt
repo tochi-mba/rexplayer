@@ -114,12 +114,14 @@ MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
 MicroDvd.cs
+Milestones.cs
 MirrorScene.cs
 ModelCatalogue.cs
 ModelDownloader.cs
 ModelDownloadText.cs
 ModelSet.cs
 ModelStore.cs
+MovingMedian.cs
 Mp3Decoder.cs
 Mp4Boxes.cs
 Mp4Demuxer.cs
@@ -160,6 +162,7 @@ PlayerController.Presentation.cs
 PlayerController.SectionDetection.cs
 PlayerController.Subtitles.cs
 PlayerController.Timers.cs
+PlayerController.Timing.cs
 PlayerMemory.cs
 PlayerSettings.cs
 Playlist.cs
@@ -172,6 +175,7 @@ PngWriter.cs
 PromptedMaskTracker.cs
 Raster.cs
 Rational.cs
+ReleaseNotes.cs
 RemovalPanel.cs
 Resampler.cs
 ResonanceScene.cs
@@ -227,9 +231,11 @@ ThreadLoop.cs
 TimeStretch.cs
 TimeText.cs
 TrackInfo.cs
+TransferMeter.cs
 UpdateCheck.cs
 UpdateDownloader.cs
 UpdateFlow.cs
+UpdateView.cs
 VideoEffect.cs
 VideoFrame.cs
 VideoGeometry.cs

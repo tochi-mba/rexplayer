@@ -39,6 +39,28 @@ public sealed class AutomationPipeTests
     }
 
     [Fact]
+    public async Task ASecondLaunchCanWaitWhileTheFirstWindowIsBeingBuilt()
+    {
+        var pipe = NewPipe();
+        using var stop = new CancellationTokenSource();
+        var windowReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var serving = AutomationPipe.ServeAsync(pipe, async _ =>
+        {
+            await windowReady.Task;
+            return new AutomationReply { Ok = true, State = "Ready" };
+        }, stop.Token);
+
+        var secondLaunch = AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open" },
+            Connect, TestContext.Current.CancellationToken);
+        windowReady.SetResult(true);
+        var reply = await secondLaunch;
+        await stop.CancelAsync();
+        await serving;
+
+        Assert.Equal("Ready", reply!.State);
+    }
+
+    [Fact]
     public async Task AClientThatHangsUpWithoutAWordLeavesThePipeWorking()
     {
         var pipe = NewPipe();

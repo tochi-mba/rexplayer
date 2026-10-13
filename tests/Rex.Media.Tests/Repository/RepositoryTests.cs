@@ -27,6 +27,8 @@ public sealed partial class RepositoryTests
         "scripts/check_site.py",
         "scripts/make-fixtures.ps1",
         "scripts/make-icon.ps1",
+        "scripts/measure-beats.ps1",
+        "scripts/measure-startup.ps1",
         "site/app.js",
         "tests/site/app.test.mjs",
         "tests/site/pages.spec.js",
@@ -240,6 +242,18 @@ public sealed partial class RepositoryTests
         Assert.Equal(version, headings[0].Groups["version"].Value);
         var versions = headings.Select(h => Version.Parse(h.Groups["version"].Value)).ToList();
         Assert.Equal(versions.OrderDescending(), versions);
+    }
+
+    [Fact]
+    public void TheChangelogsOpeningWordsStayAboveEveryVersion()
+    {
+        // A version's section is its release notes and its "What's new": the changelog's own
+        // opening words, once pushed down by a new section, were showing in 0.18.0's.
+        var lines = File.ReadAllLines(RepoPaths.Combine("CHANGELOG.md"));
+        var opening = Array.FindIndex(lines, line => line.StartsWith("Every version of rexplayer", StringComparison.Ordinal));
+        var firstVersion = Array.FindIndex(lines, line => line.StartsWith("## ", StringComparison.Ordinal));
+
+        Assert.InRange(opening, 1, firstVersion);
     }
 
     [Fact]

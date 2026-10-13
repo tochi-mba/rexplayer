@@ -18,7 +18,7 @@ public static class CliReference
         new("play", "rexplay play <file> [more files] [options]", "Plays the files one after another without gaps, then exits.", MachineReadable: true),
         new("snapshot", "rexplay snapshot <file> [--at <time>] [--out <png>]", "Saves the picture a video shows at a moment as a PNG.", MachineReadable: true),
         new("sections", "rexplay sections <file> [--season-folder <dir>] [--json]", "Finds repeat-based intro and credits suggestions without skipping media.", MachineReadable: true),
-        new("pulse", "rexplay pulse <file> [--start <time>] [--stop <time>] [--json]", "Hears a file as the visualisations do: its tempo, every beat, and how strongly it moves them.", MachineReadable: true),
+        new("pulse", "rexplay pulse <file> [--start <time>] [--stop <time>] [--fps <frames>] [--json]", "Hears a file as the visualisations do: its tempo, every beat, and how strongly it moves them.", MachineReadable: true),
         new("probe", "rexplay probe <file> | --system", "Describes a file's format, tracks and tags without playing it, or with --system what this PC can decode and show.", MachineReadable: true),
         new("version", "rexplay version", "Prints the version.", MachineReadable: true),
         new("help", "rexplay help [command]", "Explains the commands.", MachineReadable: false),
@@ -36,7 +36,8 @@ public static class CliReference
         new("--window", string.Empty, "Shows the pictures in a window while playing; closing it stops playback."),
         new("--at", "<time>", "The moment a snapshot shows (default 0)."),
         new("--out", "<path>", "Where a snapshot is saved (default: beside the video, with its name and .png)."),
-        new("--season-folder", "<dir>", "Folder containing other episodes of this show and season.")
+        new("--season-folder", "<dir>", "Folder containing other episodes of this show and season."),
+        new("--fps", "<frames>", "With pulse: how many frames a second the music is heard at, as a window drawing that fast hears it (default 30)."),
     ];
 
     public static CliCommand? Find(string name) =>

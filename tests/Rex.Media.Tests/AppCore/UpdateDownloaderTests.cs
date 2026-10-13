@@ -50,6 +50,12 @@ public sealed class UpdateDownloaderTests : IDisposable
             Task.FromResult(Send(request, cancellationToken));
     }
 
+    /// <summary>A body that cannot advertise a Content-Length like a chunked release server.</summary>
+    private sealed class UnmeasuredStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public override bool CanSeek => false;
+    }
+
     private FakeOrigin Origin(Func<HttpRequestMessage, HttpResponseMessage>? installer = null, string? checksum = null) => new(request =>
         request.RequestUri!.AbsolutePath.EndsWith(".sha256", StringComparison.Ordinal)
             ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(checksum ?? Checksum) }
@@ -74,15 +80,19 @@ public sealed class UpdateDownloaderTests : IDisposable
     [Capability("TOOL-09")]
     public void ADownloadIsKeptOnlyWhenItMatchesItsChecksumAndReportsItsProgress()
     {
-        var progress = new List<double>();
-        var report = Downloader(Origin()).Download(Pending(), progress.Add, CancellationToken.None);
+        var progress = new List<(long Done, long Total)>();
+        var report = Downloader(Origin()).Download(Pending(), (done, total) => progress.Add((done, total)), CancellationToken.None);
 
         Assert.Equal(new DownloadReport(DownloadOutcome.Ready), report);
         Assert.Equal(_installer, File.ReadAllBytes(Installer));
         Assert.Equal(Checksum, File.ReadAllText(Installer + ".sha256"));
         Assert.False(File.Exists(Installer + ".part"));
-        Assert.Equal(1, progress[^1]);
+
+        // Bytes as they arrive, then every byte once more as the checksum is checked.
         Assert.True(progress.Count > 2);
+        Assert.All(progress, step => Assert.Equal(_installer.Length, step.Total));
+        Assert.Equal((_installer.Length, _installer.Length), progress[^1]);
+        Assert.Equal(progress.Select(step => step.Done).Order(), progress.Select(step => step.Done));
         Assert.True(UpdateDownloader.IsReady(_folder, Pending()));
         Assert.Throws<ArgumentNullException>(() => Downloader(Origin()).Download(null!, null, CancellationToken.None));
     }
@@ -204,13 +214,18 @@ public sealed class UpdateDownloaderTests : IDisposable
     [Fact]
     public void AnUnstatedSizeIsTakenFromTheResponseAndAMissingOneStillWorks()
     {
-        var progress = new List<double>();
-        Assert.Equal(DownloadOutcome.Ready, Downloader(Origin()).Download(Pending(size: 0), progress.Add, CancellationToken.None).Outcome);
-        Assert.Equal(1, progress[^1]);
+        var progress = new List<(long Done, long Total)>();
+        Assert.Equal(DownloadOutcome.Ready, Downloader(Origin()).Download(Pending(size: 0), (done, total) => progress.Add((done, total)), CancellationToken.None).Outcome);
+        Assert.Equal((_installer.Length, _installer.Length), progress[^1]);
 
+        // A host that does not say how long the file is: the total stays unknown (0) while it
+        // downloads, rather than looking finished from the first byte.
         Dispose();
-        var unsized = Origin(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new MemoryStream(_installer)) });
-        Assert.Equal(DownloadOutcome.Ready, Downloader(unsized).Download(Pending(size: 0), null, CancellationToken.None).Outcome);
+        progress.Clear();
+        var unsized = Origin(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new UnmeasuredStream(_installer)) });
+        Assert.Equal(DownloadOutcome.Ready, Downloader(unsized).Download(Pending(size: 0), (done, total) => progress.Add((done, total)), CancellationToken.None).Outcome);
+        Assert.All(progress.SkipLast(1), step => Assert.Equal(0, step.Total));
+        Assert.Equal((_installer.Length, _installer.Length), progress[^1]);
     }
 
     [Fact]
@@ -219,6 +234,19 @@ public sealed class UpdateDownloaderTests : IDisposable
         var downloader = new UpdateDownloader(new HttpClient(Origin()), _folder) { FreeSpace = _ => UpdateDownloader.SpareBytes };
         Assert.Equal(new DownloadReport(DownloadOutcome.NoSpace, "there is not enough free disk space"), downloader.Download(Pending(), null, CancellationToken.None));
         Assert.Equal(0, new FileInfo(Installer + ".part").Length);
+    }
+
+    [Fact]
+    public void ADriveThatCannotSayItsFreeSpaceDoesNotStopTheDownload()
+    {
+        // A data folder on a network share: the free space cannot be read. The download used to
+        // throw past its error handling, out of the download thread, and close rexplayer.
+        foreach (var error in new Exception[] { new ArgumentException("not a drive"), new IOException("no answer"), new UnauthorizedAccessException("denied") })
+        {
+            Dispose();
+            var downloader = new UpdateDownloader(new HttpClient(Origin()), _folder) { FreeSpace = _ => throw error };
+            Assert.Equal(DownloadOutcome.Ready, downloader.Download(Pending(), null, CancellationToken.None).Outcome);
+        }
     }
 
     [Fact]
@@ -255,11 +283,12 @@ public sealed class UpdateDownloaderTests : IDisposable
     [Fact]
     public void OfflineOrAMissingChecksumIsAFailureToRetry()
     {
-        var offline = new FakeOrigin(_ => throw new HttpRequestException("No such host is known."));
-        Assert.Equal(new DownloadReport(DownloadOutcome.Failed, "No such host is known."), Downloader(offline).Download(Pending(), null, CancellationToken.None));
+        // In plain words, not the network library's.
+        var offline = new FakeOrigin(_ => throw new HttpRequestException("No such host is known. (example.com:443)"));
+        Assert.Equal(new DownloadReport(DownloadOutcome.Failed, "the download server could not be reached"), Downloader(offline).Download(Pending(), null, CancellationToken.None));
 
         var missing = new FakeOrigin(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-        Assert.Equal(DownloadOutcome.Failed, Downloader(missing).Download(Pending(), null, CancellationToken.None).Outcome);
+        Assert.Equal(new DownloadReport(DownloadOutcome.Failed, "the server answered 404"), Downloader(missing).Download(Pending(), null, CancellationToken.None));
     }
 
     [Fact]

@@ -16,7 +16,7 @@ public sealed class MirrorScene : VisualScene
         var canvas = context.Canvas;
         var (w, h) = (canvas.Width, canvas.Height);
         var mid = h / 2.0;
-        canvas.Feedback((float)context.Number("trails"), 1.0 + (context.Pulse.Bass * 0.01) + (context.Pulse.Punch * 0.03), 0, 0, 0);
+        context.Trail(context.Number("trails"), 1.0 + (context.Pulse.Bass * 0.01) + (context.Pulse.Punch * 0.03), 0, 0, 0);
         var columns = (int)context.Number("columns");
         var stereo = context.Toggle("stereo");
         var (top, bottom) = (_top, _bottom);
