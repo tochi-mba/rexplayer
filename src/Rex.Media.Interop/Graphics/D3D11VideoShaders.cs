@@ -112,33 +112,7 @@ internal static class D3D11VideoShaders
         }
         static const float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
         float lumaOf(float3 c) { return dot(c, lumaWeights); }
-        float3 basePictureLook(float3 c)
-        {
-            if (look.x < 0.5) return c;
-            float l = lumaOf(c);
-            float3 grey = float3(l, l, l);
-            if (look.x < 1.5)
-                return saturate((lerp(grey, c, 0.94) - 0.5) * 1.13 + 0.5 + float3(0.025, 0.004, -0.017));
-            if (look.x < 2.5)
-                return saturate((lerp(grey, c, 1.08) - 0.5) * 1.09 + 0.5);
-            if (look.x < 3.5)
-                return saturate(lerp(grey, c, 1.12) + float3(0.065, 0.022, -0.043));
-            if (look.x < 4.5)
-                return saturate(lerp(grey, c, 1.07) + float3(-0.025, 0.015, 0.069));
-            if (look.x < 5.5)
-                return grey;
-            if (look.x < 6.5)
-            {
-                float3 sepia = float3(
-                    dot(c, float3(0.393, 0.769, 0.189)),
-                    dot(c, float3(0.349, 0.686, 0.168)),
-                    dot(c, float3(0.272, 0.534, 0.131)));
-                return saturate((lerp(c, sepia, 0.85) - 0.5) * 0.94 + 0.5);
-            }
-            if (look.x < 7.5)
-                return saturate((lerp(grey, c, 1.7) - 0.5) * 1.14 + 0.5 + float3(0.013, -0.008, 0.035));
-            return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
-        }
+        """ + "\n" + D3D11VideoShaderLooks.Source + "\n" + """
         float3 styledLook(float3 original)
         {
             float3 styled = basePictureLook(original);

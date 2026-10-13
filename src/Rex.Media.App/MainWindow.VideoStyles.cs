@@ -15,6 +15,7 @@ public sealed partial class MainWindow
     {
         var looks = new MenuFlyoutSubItem { Text = "Picture look" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(looks, prefix + "Menu");
+        var groups = new Dictionary<string, MenuFlyoutSubItem>(StringComparer.Ordinal);
         foreach (var look in Enum.GetValues<VideoLook>())
         {
             var name = VideoLooks.Name(look);
@@ -27,7 +28,22 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + look);
             item.Click += (_, _) => ChooseVideoLook(look);
             _videoLookItems.Add((item, look));
-            looks.Items.Add(item);
+            var category = VideoLooks.Category(look);
+            if (category == "Essentials")
+            {
+                looks.Items.Add(item);
+                continue;
+            }
+
+            if (!groups.TryGetValue(category, out var group))
+            {
+                group = new MenuFlyoutSubItem { Text = category };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(group, prefix + "Group-" + category);
+                groups.Add(category, group);
+                looks.Items.Add(group);
+            }
+
+            group.Items.Add(item);
         }
 
         var customize = new MenuFlyoutItem { Text = "Customize current look..." };
