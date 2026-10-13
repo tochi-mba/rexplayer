@@ -255,6 +255,45 @@ public enum VisualizerChoice
 
     /// <summary>A flight down a tunnel of light rings that pass on the beat.</summary>
     Flight,
+
+    /// <summary>Sand gathering into the figures a vibrating plate sings, the mode set by the pitch.</summary>
+    Cymatics,
+
+    /// <summary>The spectrum laid down as ridges, each new one at the front, the old climbing away.</summary>
+    Ridgelines,
+
+    /// <summary>A drive over a neon grid toward a striped sun, the spectrum raising the mountains.</summary>
+    Synthwave,
+
+    /// <summary>Shells launched by the kick and burst by the snare.</summary>
+    Fireworks,
+
+    /// <summary>A storm whose bolts strike on the kick and crack on the snare.</summary>
+    Lightning,
+
+    /// <summary>Blobs that swell with their part of the spectrum and melt together on the kick.</summary>
+    Lava,
+
+    /// <summary>Each beat lights the star of its pitch, drawing the tune as a constellation.</summary>
+    Constellation,
+
+    /// <summary>A spiral galaxy turning on the beat, its arms lit by the spectrum.</summary>
+    Galaxy,
+
+    /// <summary>Shards of the spectrum in turning mirrors that click round on the beat.</summary>
+    Kaleidoscope,
+
+    /// <summary>A flock wheeling as one, led by the melody and drawn tight by the kick.</summary>
+    Murmuration,
+
+    /// <summary>Drops of ink let fall by the drums and carried in a current the bass stirs.</summary>
+    Ink,
+
+    /// <summary>A night city whose towers are the spectrum and whose searchlights cross on the beat.</summary>
+    Skyline,
+
+    /// <summary>Rings of petals the spectrum opens, turning a step on each beat.</summary>
+    Mandala,
 }
 
 /// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>

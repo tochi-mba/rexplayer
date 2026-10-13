@@ -26,7 +26,20 @@ public sealed class VisualStageTests
         VisualizerChoice.BeatEdit,
         VisualizerChoice.Resonance,
         VisualizerChoice.Groove,
-        VisualizerChoice.Flight);
+        VisualizerChoice.Flight,
+        VisualizerChoice.Cymatics,
+        VisualizerChoice.Ridgelines,
+        VisualizerChoice.Synthwave,
+        VisualizerChoice.Fireworks,
+        VisualizerChoice.Lightning,
+        VisualizerChoice.Lava,
+        VisualizerChoice.Constellation,
+        VisualizerChoice.Galaxy,
+        VisualizerChoice.Kaleidoscope,
+        VisualizerChoice.Murmuration,
+        VisualizerChoice.Ink,
+        VisualizerChoice.Skyline,
+        VisualizerChoice.Mandala);
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 

@@ -311,6 +311,19 @@ public sealed class AppWindowTests : IDisposable
     [InlineData("Resonance")]
     [InlineData("Groove")]
     [InlineData("Flight")]
+    [InlineData("Cymatics")]
+    [InlineData("Ridgelines")]
+    [InlineData("Synthwave")]
+    [InlineData("Fireworks")]
+    [InlineData("Lightning")]
+    [InlineData("Lava")]
+    [InlineData("Constellation")]
+    [InlineData("Galaxy")]
+    [InlineData("Kaleidoscope")]
+    [InlineData("Murmuration")]
+    [InlineData("Ink")]
+    [InlineData("Skyline")]
+    [InlineData("Mandala")]
     public void EachVisualisationLightsTheStageAndMovesWithTheMusic(string visualisation)
     {
         using var app = AppProcess.Start([Music(30)], RootShowing(visualisation));
