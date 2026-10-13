@@ -285,9 +285,16 @@ public sealed partial class SubjectEditSession
     // How far a grid point's luma must move, beyond the picture's overall shift, to count as changed.
     private const int ChangedLuma = 28;
 
-    // The share of the picture outside the subject that must change, beyond its overall brightness,
-    // for a difference the camera's motion cannot explain to be a cut.
-    private const double CutChange = 0.3;
+    // Both bars were measured on two minutes each of two series: 5,878 pictures and 52 cuts, the
+    // borderline ones checked by eye, replayed by SubjectShotChangeFootageTests. After aligning the
+    // camera's motion, ordinary pictures leave a mean grey difference under 8 and cuts from about
+    // 18, while an arm sweeping close past the lens leaves up to 19. Removal's own bar (24) is set
+    // for a different purpose and misses cuts between two angles of one room. What separates the
+    // sweeping arm is how much of the picture changed: cuts change from 30 % of the points outside
+    // the subject, the arm at most 18 %, other motion at most 22 %. A wrong cut here costs only a
+    // re-detection a moment later.
+    private const float CutResidual = 16;
+    private const double CutChange = 0.25;
 
     // The camera's motion between pictures, measured only to notice a cut from one shot to another.
     private readonly SubjectRemovalMotion _shots = new();
@@ -322,10 +329,7 @@ public sealed partial class SubjectEditSession
         // refinement is given a token area and costs next to nothing.
         _shots.Estimate(frame, exclude, (0, 0, 2, 2));
         CutEvidence = (_shots.Residual, changed, _shots.Cut);
-        // The coarse-grid motion residual has quantization error near its hard 24-level cutoff.
-        // Only this shot detector allows a two-level margin, and only when the independently
-        // measured changed-picture share also agrees. Removal keeps its original cutoff.
-        IsCut = _shots.Residual >= SubjectRemovalMotion.CutResidual - 2 && changed >= CutChange;
+        IsCut = _shots.Residual > CutResidual && changed >= CutChange;
         _shotChanged |= IsCut;
     }
 
