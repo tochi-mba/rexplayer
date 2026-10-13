@@ -252,6 +252,28 @@ public sealed class PulsePartsTests
     }
 
     [Fact]
+    public void OnsetsAtNoCommonTempoGiveNoTempo()
+    {
+        // Eighty onsets scattered over eight seconds: they line up at no tempo, so none is claimed.
+        var times = Enumerable.Range(0, 80).Select(n => Noise.Hash(n * 7) * 8).Order().ToList();
+        var clock = new BeatClock();
+        var next = 0;
+        for (var frame = 1; frame <= 400; frame++)
+        {
+            var t = frame * 0.02;
+            var hit = next < times.Count && times[next] <= t;
+            while (next < times.Count && times[next] <= t)
+            {
+                next++;
+            }
+
+            clock.Advance(0.02, hit ? 1 : 0);
+        }
+
+        Assert.Equal(0, clock.EstimatePeriod());
+    }
+
+    [Fact]
     public void AnOnsetJustBeforeTheGridsBeatConfirmsItAndKeepsTheBeatBefore()
     {
         var clock = new BeatClock();
