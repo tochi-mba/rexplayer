@@ -71,6 +71,7 @@ public sealed partial class SubjectEditSession
                     _returnCandidate = found._returnCandidate;
                     _returnConfirmations = found._returnConfirmations;
                     LastSearchComparisons = found.LastSearchComparisons;
+                    LastReturn = found.LastReturn;
                     if (found.Tracking)
                     {
                         // A result describes its captured frame, not today's pixels.
