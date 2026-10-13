@@ -60,7 +60,7 @@ public static class TranscriptionStatus
     {
         if (working)
         {
-            return new(TranscriptBadge.Working, Glyph(0xE895), string.Create(CultureInfo.InvariantCulture, $"Transcribing, {share:P0} done"));
+            return new(TranscriptBadge.Working, Glyph(0xE895), string.Create(CultureInfo.InvariantCulture, $"Transcribing, {Percent(share)} done"));
         }
 
         return record?.State switch
@@ -72,9 +72,9 @@ public static class TranscriptionStatus
                 ? string.Create(CultureInfo.InvariantCulture, $"It is tried again in {About(next - now)}.")
                 : record.NextTry is null ? "Choose Retry transcription to try again." : "It is tried again soon.")),
             _ when queued => new(TranscriptBadge.Queued, Glyph(0xE823), record?.State == TranscriptState.Partial
-                ? string.Create(CultureInfo.InvariantCulture, $"Waiting to be transcribed, {record.Share:P0} done")
+                ? string.Create(CultureInfo.InvariantCulture, $"Waiting to be transcribed, {Percent(record.Share)} done")
                 : "Waiting to be transcribed"),
-            TranscriptState.Partial => new(TranscriptBadge.Partial, Glyph(0xE7F0), string.Create(CultureInfo.InvariantCulture, $"Partly transcribed, {record.Share:P0} done")),
+            TranscriptState.Partial => new(TranscriptBadge.Partial, Glyph(0xE7F0), string.Create(CultureInfo.InvariantCulture, $"Partly transcribed, {Percent(record.Share)} done")),
             _ when skip is TranscriptionSkip.TooShort or TranscriptionSkip.NoSound => new(TranscriptBadge.NotEligible, Glyph(0xE733), TranscriptionEligibility.Describe(skip)),
             _ => BadgeView.Nothing,
         };
@@ -96,7 +96,7 @@ public static class TranscriptionStatus
             return "Transcription: everything chosen is transcribed";
         }
 
-        var line = string.Create(CultureInfo.InvariantCulture, $"Transcribing {Math.Clamp(position, 1, count)} of {count}: {current} ({share:P0})");
+        var line = string.Create(CultureInfo.InvariantCulture, $"Transcribing {Math.Clamp(position, 1, count)} of {count}: {current} ({Percent(share)})");
         return left is { } time ? line + ", about " + About(time) + " left" : line;
     }
 
@@ -119,6 +119,9 @@ public static class TranscriptionStatus
         : Count((int)Math.Round(time.TotalHours), "hour");
 
     private static string Count(int n, string unit) => string.Create(CultureInfo.InvariantCulture, $"{n} {unit}{(n == 1 ? "" : "s")}");
+
+    /// <summary>A share as a whole percentage, "40%".</summary>
+    public static string Percent(double share) => string.Create(CultureInfo.InvariantCulture, $"{Math.Round(Math.Clamp(share, 0, 1) * 100):0}%");
 
     private static string Glyph(int code) => ((char)code).ToString();
 }
