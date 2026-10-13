@@ -46,6 +46,7 @@ public sealed partial class SubjectEditSession
     {
         LastSearchComparisons = 0;
         _searchUncertainty = 1;
+        ForgetSightingAcrossACut();
         if (_positive.Count == 0 || _identityWidth <= 0 || _identityHeight <= 0) return false;
 
         // A search on a worker holds a picture of its own, so it reads the light for itself.
@@ -216,6 +217,15 @@ public sealed partial class SubjectEditSession
         Confidence = Math.Clamp((best.Resemblance.ToSubject - 0.5) / 0.42, 0, 1);
         Status = "Original visual texture found again. Tracking resumed.";
         return true;
+    }
+
+    /// <summary>A sighting from before a cut and one from after it are not two sightings of one thing.</summary>
+    private void ForgetSightingAcrossACut()
+    {
+        if (!_shotChanged) return;
+        _shotChanged = false;
+        _returnCandidate = null;
+        _returnConfirmations = 0;
     }
 
     private double Preference(Reading candidate) =>
@@ -459,16 +469,16 @@ public sealed partial class SubjectEditSession
     /// the subject's anchor and newest views. The local search's counterpart of
     /// <see cref="ScanColour"/>: cheap enough to run at every coarse position.
     /// </summary>
-    private double QuickColour(VideoFrame frame, int left, int top, int width, int height)
+    private double QuickColour(VideoFrame frame, ReadOnlySpan<int> columns, ReadOnlySpan<int> rows, int left, int top)
     {
         Span<float> histogram = stackalloc float[ChromaBins * ChromaBins];
         histogram.Clear();
         for (var y = 0; y < 4; y++)
         {
-            var row = frame.Row(0, Math.Clamp(top + (y * 2 + 1) * height / 8, 0, frame.Height - 1));
+            var row = frame.Row(0, top + rows[y]);
             for (var x = 0; x < 4; x++)
             {
-                var at = Math.Clamp(left + (x * 2 + 1) * width / 8, 0, frame.Width - 1) * 4;
+                var at = (left * 4) + columns[x];
                 Accumulate(histogram, row[at], row[at + 1], row[at + 2]);
             }
         }
@@ -476,6 +486,19 @@ public sealed partial class SubjectEditSession
         for (var i = 0; i < histogram.Length; i++) histogram[i] /= 16;
         var colour = Intersection(histogram, _lightRed, _lightGreen, _positive[0]);
         return _positive.Count > 1 ? Math.Max(colour, Intersection(histogram, _lightRed, _lightGreen, _positive[^1])) : colour;
+    }
+
+    /// <summary>
+    /// Where <see cref="QuickColour"/> reads a rectangle of a given size, relative to its corner,
+    /// at the middle of each sixteenth: columns as byte offsets into a row.
+    /// </summary>
+    private static void RelativeColourTaps(int width, int height, Span<int> columns, Span<int> rows)
+    {
+        for (var i = 0; i < 4; i++)
+        {
+            columns[i] = ((i * 2) + 1) * width / 8 * 4;
+            rows[i] = ((i * 2) + 1) * height / 8;
+        }
     }
 
     // A coarse reading has to allow for a change of light as well, or a subject walking back in
