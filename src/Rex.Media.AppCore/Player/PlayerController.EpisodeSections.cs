@@ -13,12 +13,16 @@ public sealed partial class PlayerController
     public EpisodeSections CurrentSections =>
         Item is { } item ? Memory.Sections(MemoryKey(item)) : new EpisodeSections();
 
-    /// <summary>One-click skip offered from confirmed boundaries or sufficiently confident detection, without asking for confirmation.</summary>
+    /// <summary>What playback can skip here: the saved boundaries first, then a confident detection.</summary>
     public EpisodeSkip? AvailableEpisodeSkip =>
         CanMarkEpisodeSections ? (CurrentSections.Offer(Position, Duration) ?? _activeProposals?.Offer(CurrentSections, Position, Duration)) : null;
 
-    /// <summary>Record an exact start or end at the current frame, or the explicit file end.</summary>
-    public bool MarkEpisodeSection(EpisodeSectionKind kind, bool start, bool atVideoEnd = false)
+    /// <summary>The intro and the credits as the window shows them: on the timeline and in the menus.</summary>
+    public IReadOnlyList<EpisodeSectionView> SectionViews =>
+        CanMarkEpisodeSections && Duration > TimeSpan.Zero ? EpisodeSectionView.For(CurrentSections, _activeProposals, Duration) : [];
+
+    /// <summary>Saves a start or an end at the current position.</summary>
+    public bool MarkEpisodeSection(EpisodeSectionKind kind, bool start)
     {
         if (!CanMarkEpisodeSections || Item is not { } item)
         {
@@ -26,7 +30,7 @@ public sealed partial class PlayerController
             return false;
         }
 
-        var position = atVideoEnd ? Duration : Position;
+        var position = Position;
         var updated = CurrentSections.Mark(kind, start, position);
         Memory.SetSections(MemoryKey(item), updated);
         var label = kind == EpisodeSectionKind.Intro ? "Intro" : "Credits";
@@ -44,7 +48,7 @@ public sealed partial class PlayerController
         }
 
         Memory.SetSections(MemoryKey(item), CurrentSections.Clear(kind));
-        Say((kind == EpisodeSectionKind.Intro ? "Intro" : "Credits") + " markers cleared.");
+        Say((kind == EpisodeSectionKind.Intro ? "Saved intro" : "Saved credits") + " cleared.");
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -75,7 +79,7 @@ public sealed partial class PlayerController
         }
 
         Memory.SetSections(MemoryKey(item), updated);
-        Say("Chapter section markers saved. Playback will never skip them without a click.");
+        Say("Intro and credits saved from the chapter names.");
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }

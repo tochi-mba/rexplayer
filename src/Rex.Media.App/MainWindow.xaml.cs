@@ -77,6 +77,7 @@ public sealed partial class MainWindow : Window
         _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log);
         _player.SectionAnalyzer = (path, cancellation) => SectionAnalysis.Analyze(path,
             MediaRegistries.Decoders(new MfDecoderFactory()), cancellation);
+        _player.SectionCache = new SectionAnalysisCache(Path.Combine(App.DataRoot, "cache", "sections"));
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.PositionChanged += (_, _) => ShowLyricLine();

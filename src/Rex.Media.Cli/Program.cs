@@ -22,6 +22,10 @@ Console.CancelKeyPress += (_, e) =>
     cancellation.Cancel();
 };
 
+// The player's data folder (REXPLAYER_ROOT in tests), whose section cache the window shares.
+var dataRoot = Environment.GetEnvironmentVariable("REXPLAYER_ROOT") is { Length: > 0 } root
+    ? root
+    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "REX", "rexplayer");
 var version = typeof(CliApplication).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
 var host = new CliHost
 {
@@ -33,6 +37,7 @@ var host = new CliHost
     VideoWindow = OpenWindow,
     SystemReport = Describe,
     Cancellation = cancellation.Token,
+    SectionCache = new Rex.Media.AppCore.Player.SectionAnalysisCache(Path.Combine(dataRoot, "cache", "sections")),
 };
 
 return CliApplication.Run(args, host);

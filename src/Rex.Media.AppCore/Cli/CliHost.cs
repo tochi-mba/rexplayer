@@ -35,6 +35,12 @@ public sealed class CliHost
 
     public RexLog Log { get; init; } = RexLog.InMemory(LogLevel.Warning);
 
+    /// <summary>
+    /// Where <c>sections</c> keeps each episode's analysis: the player's own cache in the real
+    /// executable, so the command line and the window decode each episode once between them.
+    /// </summary>
+    public Player.SectionAnalysisCache SectionCache { get; init; } = new();
+
     public TimeProvider Time { get; init; } = TimeProvider.System;
 
     /// <summary>Cancelled when the user presses Ctrl+C.</summary>
