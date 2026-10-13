@@ -33,6 +33,7 @@ public static class Visualizers
         VisualizerChoice.Embers => "Embers",
         VisualizerChoice.Resonance => "Resonance",
         VisualizerChoice.Groove => "Groove",
+        VisualizerChoice.Flight => "Flight",
         VisualizerChoice.Ripples => "Ripples",
         VisualizerChoice.Strobe => "Strobe",
         VisualizerChoice.Silhouette => "Camera silhouette",

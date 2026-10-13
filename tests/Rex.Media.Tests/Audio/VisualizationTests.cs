@@ -181,11 +181,12 @@ public sealed class VisualizationTests
         Assert.Equal(VisualizerChoice.BeatEdit, Visualizers.Next(VisualizerChoice.Silhouette));
         Assert.Equal(VisualizerChoice.Resonance, Visualizers.Next(VisualizerChoice.BeatEdit));
         Assert.Equal(VisualizerChoice.Groove, Visualizers.Next(VisualizerChoice.Resonance));
-        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Groove));
+        Assert.Equal(VisualizerChoice.Flight, Visualizers.Next(VisualizerChoice.Groove));
+        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Flight));
         Assert.Equal(VisualizerChoice.Spectrum, Visualizers.Next(VisualizerChoice.Off));
         Assert.Equal(VisualizerChoice.Off, Visualizers.Next((VisualizerChoice)42));
         Assert.Equal(
-            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove"],
+            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight"],
             Enum.GetValues<VisualizerChoice>().Select(Visualizers.Name));
         Assert.Equal(VisualizerChoice.Spectrum, new PlayerSettings { Visualizer = (VisualizerChoice)99 }.Normalize().Visualizer);
 

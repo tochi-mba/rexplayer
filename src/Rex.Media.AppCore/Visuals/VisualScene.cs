@@ -124,6 +124,7 @@ public abstract class VisualScene
         [VisualizerChoice.Embers] = () => new EmbersScene(),
         [VisualizerChoice.Resonance] = () => new ResonanceScene(),
         [VisualizerChoice.Groove] = () => new GrooveScene(),
+        [VisualizerChoice.Flight] = () => new FlightScene(),
         [VisualizerChoice.Ripples] = () => new RipplesScene(),
         [VisualizerChoice.Strobe] = () => new StrobeScene(),
         [VisualizerChoice.Silhouette] = () => new SilhouetteScene(),

@@ -8,6 +8,10 @@
   time with the bass at the bottom, the beat grid with every bar marked, and each kick, snare
   and hi-hat placed where it struck, sized by how hard. The edge where now is flares with
   every kick. Choose how many seconds show and which layers draw.
+- **Flight visualisation.** Fly down a tunnel of light in time with the music. Every beat
+  sends a ring ahead, shaped by the sound of that moment, and it reaches you on a beat, every
+  bar's ring brighter. Each kick lunges you forward, the bass breathes light at the end of
+  the tunnel, and stars stream past, glinting with the hi-hats.
 
 ### Improved
 
