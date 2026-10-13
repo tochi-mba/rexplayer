@@ -499,6 +499,26 @@ public sealed class Mp4CraftedTests
     }
 
     [Fact]
+    public void EmptyMovieHeaderReportsDamagedMediaInsteadOfAnIndexFailure()
+    {
+        var corrupt = Concat(Box("ftyp", Ascii("isom"), U32(0)), Box("moov", Box("mvhd")));
+        var failure = Assert.Throws<MediaFormatException>(() => Open(corrupt));
+        Assert.Contains("ends before", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ClaimedMovieBodyUsesOnlyBytesThatExist()
+    {
+        // A broken box size may claim hundreds of megabytes after an eight-byte header.
+        // Reading the available prefix must not allocate the declared size.
+        var corrupt = Concat(U32(250_000_000), Ascii("moov"), [1, 2, 3]);
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        Assert.Throws<MediaFormatException>(() => Open(corrupt));
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.InRange(allocated, 0, 2_000_000);
+    }
+
+    [Fact]
     public void BrokenFilesAreRejectedOrEndCleanly()
     {
         var track = Audio(AudioEntry("sowt", 1, 16, 8000), Samples(2, 2));
