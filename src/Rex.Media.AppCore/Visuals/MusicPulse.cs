@@ -283,7 +283,9 @@ public sealed class MusicPulse
 
         // The build: music without the kick, busy with snares and hats, for a while.
         _busy = (_busy * Math.Exp(-dt / 1.0)) + (_snare.Hit || _hat.Hit ? 1 : 0);
-        var building = RawLoudness > Quiet && _kick.Since > 1.5 && _busy > 2;
+        // One recent snare or hat can establish a build when kicks have stayed away; requiring
+        // several simultaneous hits missed sparse rhythmic fills at slower frame rates.
+        var building = RawLoudness > Quiet && _kick.Since > 1.5 && _busy > 0.8;
         Build = Drop || _kick.Hit ? 0 : (float)Math.Clamp(Build + (building ? dt / 6 : -dt), 0, 1);
 
         _musicFor = RawLoudness > Quiet ? _musicFor + dt : 0;
@@ -374,7 +376,7 @@ public sealed class MusicPulse
     private void Levels(ReadOnlySpan<float> mono, int sampleRate, double dt)
     {
         var window = Math.Max(64, (int)(sampleRate * Window));
-        var lag = (int)(sampleRate * RiseSpan);
+        var lag = (int)(sampleRate * Math.Max(RiseSpan, dt));
         _bassPower = _bassBand.Power(mono, sampleRate, window, (int)(sampleRate * 0.06), lag);
         _midPower = _midBand.Power(mono, sampleRate, window, lag: lag);
         _treblePower = _trebleBand.Power(mono, sampleRate, window, lag: lag);
