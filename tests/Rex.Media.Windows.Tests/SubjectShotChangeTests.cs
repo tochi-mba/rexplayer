@@ -6,8 +6,8 @@ namespace Rex.Media.Windows.Tests;
 
 /// <summary>
 /// A cut to another shot ends local tracking; a camera pan, a moving subject or a light coming on
-/// does not. Pixel difference alone cannot tell a pan from a cut, so the picture's histogram must
-/// move as well.
+/// does not. A cut needs an unexplained camera-motion residual and a large change
+/// beyond an overall brightness shift.
 /// </summary>
 [SupportedOSPlatform("windows8.0")]
 public sealed class SubjectShotChangeTests
@@ -111,7 +111,7 @@ public sealed class SubjectShotChangeTests
         // The reverse shot: another place entirely, and the subject is not in it.
         using var cut = Shot(2, scene: 1, subject: false);
         session.Process(cut)?.Dispose();
-        Assert.True(session.IsCut, session.Status);
+        Assert.True(session.IsCut, $"{session.Status}: residual {session.CutEvidence.Residual:F1}, changed {session.CutEvidence.ChangedShare:P1}, motion cut {session.CutEvidence.MotionCut}");
         Assert.False(session.Tracking);
         Assert.True(session.Locked, "A cut keeps the selection so the subject can be found again.");
         Assert.Contains("shot changed", session.Status, StringComparison.OrdinalIgnoreCase);
@@ -123,7 +123,7 @@ public sealed class SubjectShotChangeTests
         using var session = Locked();
         using var cut = Shot(1, scene: 1, subject: false);
         session.Process(cut)?.Dispose();
-        Assert.True(session.IsCut);
+        Assert.True(session.IsCut, $"Residual {session.CutEvidence.Residual:F1}, changed {session.CutEvidence.ChangedShare:P1}, motion cut {session.CutEvidence.MotionCut}");
 
         session.Select(SubjectLeft / (float)Width, SubjectTop / (float)Height,
             SubjectSize / (float)Width, SubjectSize / (float)Height);
