@@ -92,7 +92,7 @@ public sealed partial class PlayerController
             return false;
         }
 
-        _automaticSkip = null;
+        _automaticSkip.Finish(prompt.Kind);
         if (prompt.Primary == EpisodeSkipAction.NextEpisode && PlayNextEpisode())
         {
             return true;
