@@ -8,7 +8,7 @@ namespace Rex.Media.Tests.AppCore;
 /// <summary>The beat, tempo, levels, punch and drop the visualisations move to (AU-18).</summary>
 public sealed class MusicPulseTests
 {
-    private sealed record Heard(double T, bool Beat, bool Filled, bool Drop, bool Locked, float Punch, float Bass, float Loudness, float Build, double Tempo);
+    private sealed record Heard(double T, bool Beat, bool Filled, bool Drop, bool Locked, float Punch, float Bass, float Loudness, float Build, double Tempo, bool Kick, double SinceKick);
 
     private static List<Heard> Listen(SyntheticMusic music, MusicPulse? pulse = null, int from = 1)
     {
@@ -17,7 +17,7 @@ public sealed class MusicPulseTests
         for (var frame = from; frame <= music.Frames; frame++)
         {
             pulse.Update(music.Mono(frame), SyntheticMusic.Rate, music.Step);
-            heard.Add(new((double)frame / music.FramesPerSecond, pulse.Beat, pulse.Filled, pulse.Drop, pulse.Locked, pulse.Punch, pulse.Bass, pulse.Loudness, pulse.Build, pulse.Tempo));
+            heard.Add(new((double)frame / music.FramesPerSecond, pulse.Beat, pulse.Filled, pulse.Drop, pulse.Locked, pulse.Punch, pulse.Bass, pulse.Loudness, pulse.Build, pulse.Tempo, pulse.Kick.Hit, pulse.Kick.Since));
         }
 
         return heard;
@@ -109,7 +109,7 @@ public sealed class MusicPulseTests
             // The frame that hears the kick, or the next, punches; halfway to the next kick it is gone.
             var on = heard.Where(h => Matches(h.T, kick, fps)).Max(h => h.Punch);
             var between = heard.Where(h => Math.Abs(h.T - (kick + (period / 2))) < Math.Max(0.02, 0.5 / fps)).Max(h => h.Punch);
-            Assert.True(on >= 0.8f, $"{kind}: the kick at {kick:0.000} punches only {on:0.00}.");
+            Assert.True(on >= 0.8f, $"{kind}: the kick at {kick:0.000} punches only {on:0.00}; frames {string.Join(", ", heard.Where(h => Math.Abs(h.T - kick) < 0.12).Select(h => $"{h.T:0.000} punch {h.Punch:0.00} kick {h.Kick} since {h.SinceKick:0.000}"))}.");
             Assert.True(between <= 0.25f, $"{kind}: still {between:0.00} punch halfway after the kick at {kick:0.000}.");
 
             // Over each beat the bass and the loudness swing across most of their range.
