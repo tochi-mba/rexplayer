@@ -63,6 +63,27 @@ public sealed partial class PlayerController
         return true;
     }
 
+    /// <summary>A track made in memory (a transcript) joins the list, first; shown when <paramref name="show"/>.</summary>
+    public void AddSubtitles(SubtitleTrack track, bool show)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        _subtitleTracks.RemoveAll(existing => existing.Name == track.Name);
+        if (SecondarySubtitles?.Name == track.Name)
+        {
+            SecondarySubtitles = null;
+        }
+
+        _subtitleTracks.Insert(0, track);
+        if (show || Subtitles?.Name == track.Name)
+        {
+            ShowSubtitles(track);
+        }
+        else
+        {
+            SubtitlesChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     /// <summary>
     /// What was dropped on the window: media opens as <see cref="Open"/> would, and subtitle files
     /// join what is then playing, so a film dropped with its subtitles plays with them (SUB-16).

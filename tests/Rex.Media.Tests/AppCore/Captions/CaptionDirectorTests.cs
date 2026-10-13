@@ -145,6 +145,21 @@ public sealed class CaptionDirectorTests
     }
 
     [Fact]
+    [Capability("OSD-11")]
+    public void AnUnfilledLineShowsWholeAndLightsWordByWord()
+    {
+        var director = new CaptionDirector(CaptionPresets.Style(CaptionPreset.Classic, CaptionStyle.Default));
+        var frames = Play(director, [Cue(0, 2, "lonely at the top")], 0, 1.9);
+        var start = frames.First(frame => frame.At >= 0.05).Words;
+        Assert.Equal(4, start.Count);
+        Assert.All(start, word => Assert.False(word.Lit));
+        var half = frames.First(frame => frame.At >= 1.0).Words;
+        Assert.Equal(4, half.Count);
+        Assert.True(half.Count(word => word.Lit) is >= 1 and <= 3, $"{half.Count(word => word.Lit)}");
+        Assert.All(frames[^1].Words, word => Assert.True(word.Lit));
+    }
+
+    [Fact]
     public void ACueGapOrAQuietCueAloneStillReads()
     {
         var director = new CaptionDirector(CaptionStyle.Default);

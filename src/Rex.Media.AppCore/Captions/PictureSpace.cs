@@ -2,6 +2,9 @@ using Rex.Media.AppCore.Player;
 
 namespace Rex.Media.AppCore.Captions;
 
+/// <summary>Finds the faces in a BGRA picture, as shares of its width and height.</summary>
+public delegate IReadOnlyList<Area> FaceSpotter(ReadOnlySpan<byte> bgra, int width, int height, int stride);
+
 /// <summary>How a word is kept readable over the picture behind it: an outline's strength (0 to 1) and a dark plate's opacity (0 for none).</summary>
 public readonly record struct Backing(double Outline, double Plate);
 
@@ -21,6 +24,9 @@ public sealed class PictureSpace
     public const int Columns = 32;
 
     private const double Margin = 0.04;
+
+    /// <summary>Importance at or above this is a face or the followed subject: never covered.</summary>
+    public const float Forbidden = 0.95f;
 
     private readonly float[] _luma;
     private readonly float[] _busy;
@@ -56,9 +62,10 @@ public sealed class PictureSpace
     /// Reads a BGRA picture <paramref name="width"/> by <paramref name="height"/>, its rows
     /// <paramref name="stride"/> bytes apart. <paramref name="before"/>, the picture read before,
     /// gives the motion; <paramref name="subject"/>, as shares of the picture, is what Subject
-    /// Lock follows.
+    /// Lock follows; <paramref name="faces"/>, as shares, are what a face detector found, and when
+    /// they are given they stand in for the guess from skin colour.
     /// </summary>
-    public static PictureSpace Read(ReadOnlySpan<byte> bgra, int width, int height, int stride, PictureSpace? before = null, Area? subject = null)
+    public static PictureSpace Read(ReadOnlySpan<byte> bgra, int width, int height, int stride, PictureSpace? before = null, Area? subject = null, IReadOnlyList<Area>? faces = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
@@ -86,7 +93,7 @@ public sealed class PictureSpace
             }
         }
 
-        space.Weigh(subject);
+        space.Weigh(subject, faces);
         return space;
     }
 
@@ -140,7 +147,8 @@ public sealed class PictureSpace
                 var x = Margin + ((1 - (2 * Margin) - width) * sx / Steps);
                 var (mean, most) = Under(x, y, width, height, _importance);
                 var distance = Math.Sqrt(Math.Pow(x - target.X, 2) + Math.Pow(y - target.Y, 2));
-                var cost = (4 * mean) + (2 * most) + (0.6 * distance);
+                // A face is never covered while there is anywhere else at all.
+                var cost = (4 * mean) + (2 * most) + (0.6 * distance) + (most >= Forbidden ? 100 : 0);
                 if (cost < bestCost - 1e-9)
                 {
                     (bestCost, best) = (cost, (x, y));
@@ -253,31 +261,46 @@ public sealed class PictureSpace
         return (luma, cb, cr);
     }
 
-    private void Weigh(Area? subject)
+    private void Weigh(Area? subject, IReadOnlyList<Area>? faces)
     {
+        // A found face is widened by a third all round, for the hair, the chin and a turn of the head.
+        var found = faces?.Select(face => new Area(face.X - (face.Width / 3), face.Y - (face.Height / 3), face.Width * 5 / 3, face.Height * 5 / 3)).ToList();
         for (var row = 0; row < RowCount; row++)
         {
             for (var column = 0; column < ColumnCount; column++)
             {
                 var cell = (row * ColumnCount) + column;
                 var face = 0.0;
-                for (var dy = -1; dy <= 1; dy++)
+                if (found is null)
                 {
-                    for (var dx = -1; dx <= 1; dx++)
+                    for (var dy = -1; dy <= 1; dy++)
                     {
-                        var (r, c) = (row + dy, column + dx);
-                        if (r >= 0 && r < RowCount && c >= 0 && c < ColumnCount && _skin[(r * ColumnCount) + c] >= 0.35)
+                        for (var dx = -1; dx <= 1; dx++)
                         {
-                            face = dx == 0 && dy == 0 ? 1 : Math.Max(face, 0.8);
+                            var (r, c) = (row + dy, column + dx);
+                            if (r >= 0 && r < RowCount && c >= 0 && c < ColumnCount && _skin[(r * ColumnCount) + c] >= 0.35)
+                            {
+                                face = dx == 0 && dy == 0 ? 1 : Math.Max(face, 0.8);
+                            }
                         }
                     }
                 }
+                else if (found.Any(box => Touches(column, row, box)))
+                {
+                    face = 1;
+                }
 
-                var held = subject is { } box
-                    && (column + 1.0) / ColumnCount > box.X && (double)column / ColumnCount < box.X + box.Width
-                    && (row + 1.0) / RowCount > box.Y && (double)row / RowCount < box.Y + box.Height ? 1 : 0;
+                var held = subject is { } held_ && Touches(column, row, held_) ? 1 : 0;
                 _importance[cell] = (float)Math.Max(Math.Max(face, held), Math.Max(_text[cell] * 0.9, Math.Max(_busy[cell] * 0.5, _motion[cell] * 0.6)));
             }
         }
     }
+
+    /// <summary>Whether a cell overlaps <paramref name="box"/> (shares of the picture).</summary>
+    private bool Touches(int column, int row, Area box) =>
+        (column + 1.0) / ColumnCount > box.X && (double)column / ColumnCount < box.X + box.Width
+        && (row + 1.0) / RowCount > box.Y && (double)row / RowCount < box.Y + box.Height;
+
+    /// <summary>Whether a box (shares of the picture) lies over a face or the followed subject.</summary>
+    public bool CoversAFace(double x, double y, double width, double height) => Under(x, y, width, height, _importance).Most >= Forbidden;
 }

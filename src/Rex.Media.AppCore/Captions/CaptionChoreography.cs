@@ -14,6 +14,12 @@ public enum CaptionLayout
 
     /// <summary>Centred rows in the middle of the picture.</summary>
     Centre,
+
+    /// <summary>A block at the lower left, lines starting at the same edge, as a terminal prints.</summary>
+    Left,
+
+    /// <summary>Every word somewhere of its own on the picture, like confetti.</summary>
+    Confetti,
 }
 
 /// <summary>The kind of typeface words are set in.</summary>
@@ -62,7 +68,13 @@ public enum CaptionMotion
 /// one of <see cref="CaptionPresets"/>. <see cref="Highlight"/> keeps only the newest word bright,
 /// as a sing-along does; <see cref="Flicker"/> makes a peak flicker as it lands;
 /// <see cref="Tilt"/> scales how far words are turned; <see cref="Outline"/> scales the outline;
-/// <see cref="PlateAlways"/> puts a dark plate behind every word, not only where the picture needs it.
+/// <see cref="PlateAlways"/> puts a dark plate behind every word, not only where the picture needs it,
+/// and <see cref="PlateLight"/> makes the plates white (the text is then dark). <see cref="Prefill"/>
+/// shows a cue's whole line at once, dim, and lights each word as it is said; <see cref="OneAtATime"/>
+/// shows only the word being said; <see cref="Flat"/> sizes and colours every word alike, whatever the
+/// voice did; <see cref="Cursor"/> blinks a cursor after the last word typed; <see cref="Split"/> draws
+/// the word's red and cyan apart, as a broken feed; <see cref="Jitter"/> keeps every word trembling, in
+/// base font sizes.
 /// </summary>
 public sealed record CaptionStyle(
     Argb Text,
@@ -80,7 +92,14 @@ public sealed record CaptionStyle(
     bool Flicker = false,
     double Tilt = 1,
     double Outline = 1,
-    bool PlateAlways = false)
+    bool PlateAlways = false,
+    bool PlateLight = false,
+    bool Prefill = false,
+    bool OneAtATime = false,
+    bool Flat = false,
+    bool Cursor = false,
+    bool Split = false,
+    double Jitter = 0)
 {
     /// <summary>White text, a gold accent, warm stress colours, full energy, scattered, with glyphs, shouts in capitals, clear of what matters.</summary>
     public static CaptionStyle Default { get; } = new(new Argb(255, 255, 255, 255), new Argb(255, 255, 180, 0), VisualPalette.Warm, 1, CaptionLayout.Scatter, true, true);
@@ -92,7 +111,9 @@ public sealed record CaptionStyle(
 /// is, and what keeps it readable. <see cref="Settled"/> is its size once it has popped in, so
 /// the window lays the text out once and scales it for the pop; <see cref="OffsetX"/> and
 /// <see cref="OffsetY"/> move it from its place, in base font sizes, as it arrives; a typewriter's
-/// <see cref="Text"/> grows letter by letter. <see cref="Flash"/> is the white burst behind a peak, 1 at the
+/// <see cref="Text"/> grows letter by letter. <see cref="Lit"/> is false while a word waits, dim, to be
+/// said; <see cref="PlateLight"/> asks for a white plate and <see cref="Split"/> for the red and cyan
+/// drawn apart. <see cref="Flash"/> is the white burst behind a peak, 1 at the
 /// peak fading to 0; <see cref="Shake"/> is how far off its place it is shaken, in base font sizes.
 /// </summary>
 public sealed record CaptionWord(
@@ -116,7 +137,10 @@ public sealed record CaptionWord(
     double Settled,
     CaptionFont Font = CaptionFont.Sans,
     double OffsetX = 0,
-    double OffsetY = 0);
+    double OffsetY = 0,
+    bool Lit = true,
+    bool PlateLight = false,
+    bool Split = false);
 
 /// <summary>
 /// Turns the words as they come in, with how each was said, into where and how they show
@@ -169,6 +193,9 @@ public sealed class CaptionChoreography
     private int _nextId;
     private int _clusters;
     private (double X, double Y)? _anchor;
+    private (double X, double Y) _shown;
+    private (double Width, double Height) _reserve;
+    private double _lastScene = double.NaN;
     private double _lastReveal = double.NegativeInfinity;
     private double _meanGap = 0.3;
 
@@ -191,15 +218,35 @@ public sealed class CaptionChoreography
     /// A word just spoken at <paramref name="seconds"/>, with the voice's <paramref name="frame"/> and
     /// its <paramref name="stress"/> among the speaker's words.
     /// </summary>
-    public void Reveal(SubtitleWord word, SpeechFrame frame, Stress stress, double seconds)
+    public int Reveal(SubtitleWord word, SpeechFrame frame, Stress stress, double seconds) => Reveal(word, frame, stress, seconds, lit: true);
+
+    /// <summary>
+    /// A word of the line, shown dim and unsaid (<paramref name="lit"/> false) for a look that shows
+    /// the whole line first, or said; the word's id, for <see cref="Light"/>.
+    /// </summary>
+    public int Reveal(SubtitleWord word, SpeechFrame frame, Stress stress, double seconds, bool lit)
     {
         ArgumentNullException.ThrowIfNull(word);
+        if (_style.Flat)
+        {
+            stress = Stress.Plain;
+        }
+
         if (!IsOpen)
         {
             // A fading cluster leaves at once when the next begins, so words never pile up.
             _words.Clear();
             _clusters++;
             _anchor = null;
+        }
+
+        if (_style.OneAtATime)
+        {
+            // The word before fades as this one lands; the cluster, and its place, go on.
+            foreach (var other in _words.Where(w => w.Died is null))
+            {
+                other.Died = seconds;
+            }
         }
 
         var gap = seconds - _lastReveal;
@@ -211,7 +258,7 @@ public sealed class CaptionChoreography
 
         _lastReveal = seconds;
 
-        var lilt = stress is Stress.Plain && frame.Pitch >= 0.72;
+        var lilt = !_style.Flat && stress is Stress.Plain && frame.Pitch >= 0.72;
         var size = stress switch
         {
             Stress.Hush => 0.8,
@@ -239,16 +286,30 @@ public sealed class CaptionChoreography
             : lilt ? _style.Accent
             : _style.Text;
 
-        _words.Add(new Placed(_nextId++, text, stress, lilt, stretched, seconds, widthEm, size, color, glyph, word.Style.Italic || lilt, lilt, word.Style.Bold || own, own));
+        var placed = new Placed(_nextId++, text, stress, lilt, stretched, seconds, widthEm, size, color, glyph, word.Style.Italic || lilt, lilt, word.Style.Bold || own, own) { Lit = lit };
+        _words.Add(placed);
 
-        // The cluster is full: its oldest words leave together.
+        // The cluster is full: its oldest words leave together (a line shown whole stays whole).
         var living = _words.Where(w => w.Died is null).ToList();
-        if (living.Count > MostWords)
+        if (living.Count > MostWords && !_style.Prefill)
         {
             foreach (var old in living.Take(living.Count - MostWords + 4))
             {
                 old.Died = seconds;
             }
+        }
+
+        return placed.Id;
+    }
+
+    /// <summary>The word <paramref name="id"/>, shown dim before, is said now: it lights, in the accent colour, and pops again.</summary>
+    public void Light(int id, double seconds)
+    {
+        if (_words.FirstOrDefault(word => word.Id == id) is { Lit: false } word)
+        {
+            word.Lit = true;
+            word.Born = seconds;
+            word.Color = _style.Accent;
         }
     }
 
@@ -265,7 +326,7 @@ public sealed class CaptionChoreography
     public void Reset()
     {
         _words.Clear();
-        (_anchor, _lastReveal, _meanGap) = (null, double.NegativeInfinity, 0.3);
+        (_anchor, _lastReveal, _meanGap, _lastScene) = (null, double.NegativeInfinity, 0.3, double.NaN);
     }
 
     /// <summary>
@@ -285,6 +346,11 @@ public sealed class CaptionChoreography
         var em = Math.Max(Math.Max(1, fontSize), area.Height * SmallestShare / 0.8);
         var tight = Math.Clamp((pace - 3) / 4, 0, 1);
         var rowGap = 1.2 - (0.25 * tight);
+        if (_style.Layout == CaptionLayout.Confetti)
+        {
+            return Confetti(seconds, area, em, picture);
+        }
+
         var rows = Flow(em, area.Width * RowShare);
         var widths = rows.Select(row => row.Sum(word => word.Width + word.Space) - row[^1].Space).ToList();
         var heights = rows.Select(row => row.Max(word => word.Size) * rowGap * em).ToList();
@@ -292,16 +358,31 @@ public sealed class CaptionChoreography
 
         // The cluster's place is chosen once, when it is first drawn, so it never jumps; it is chosen
         // for a little more room than it starts with, as more words will come.
+        var dt = double.IsNaN(_lastScene) ? 1 : Math.Clamp(seconds - _lastScene, 0, 0.5);
+        _lastScene = seconds;
         if (_anchor is null)
         {
             var preferred = Preferred();
-            var reserve = (Width: Math.Max(boxWidth, area.Width * 0.5) / area.Width, Height: Math.Max(boxHeight, 2.6 * rowGap * em) / area.Height);
+            _reserve = (Math.Max(boxWidth, area.Width * 0.5) / area.Width, Math.Max(boxHeight, 2.6 * rowGap * em) / area.Height);
             _anchor = _style.AvoidPicture && picture is not null
-                ? picture.Place(reserve.Width, reserve.Height, (preferred.X - (Centred ? reserve.Width / 2 : 0), preferred.Y))
-                : (preferred.X - (Centred ? reserve.Width / 2 : 0), preferred.Y);
+                ? picture.Place(_reserve.Width, _reserve.Height, (preferred.X - (Centred ? _reserve.Width / 2 : 0), preferred.Y))
+                : (preferred.X - (Centred ? _reserve.Width / 2 : 0), preferred.Y);
+            _shown = _anchor.Value;
+        }
+        else if (_style.AvoidPicture && picture is not null && picture.CoversAFace(_anchor.Value.X, _anchor.Value.Y, _reserve.Width, _reserve.Height))
+        {
+            // A face has come under the cluster: it moves off, to the nearest clear place.
+            var moved = picture.Place(_reserve.Width, _reserve.Height, _anchor.Value);
+            if (!picture.CoversAFace(moved.X, moved.Y, _reserve.Width, _reserve.Height))
+            {
+                _anchor = moved;
+            }
         }
 
-        var (anchorX, anchorY) = _anchor.Value;
+        // The cluster eases to a new place over about a sixth of a second, never jumping.
+        var ease = Math.Min(1, dt * 6);
+        _shown = (_shown.X + ((_anchor.Value.X - _shown.X) * ease), _shown.Y + ((_anchor.Value.Y - _shown.Y) * ease));
+        var (anchorX, anchorY) = _shown;
         var top = Math.Clamp(anchorY * area.Height, 0, Math.Max(0, area.Height - boxHeight));
         var reservedWidth = Math.Max(boxWidth, area.Width * 0.5);
         var scene = new List<CaptionWord>(_words.Count);
@@ -310,6 +391,11 @@ public sealed class CaptionChoreography
         {
             var stagger = _style.Layout == CaptionLayout.Scatter && r % 2 == 1 ? 1.5 * em : 0;
             var left = (anchorX * area.Width) + (Centred ? (reservedWidth - widths[r]) / 2 : stagger);
+            if (_style.Layout == CaptionLayout.Left)
+            {
+                left = anchorX * area.Width;
+            }
+
             left = Math.Clamp(left, 0, Math.Max(0, area.Width - widths[r]));
             var x = left;
             foreach (var slot in rows[r])
@@ -336,16 +422,59 @@ public sealed class CaptionChoreography
         return t < 0.5 ? 0.6 + ((1.35 - 0.6) * (t / 0.5)) : 1.35 - ((1.35 - 1) * ((t - 0.5) / 0.5));
     }
 
-    private bool Centred => _style.Layout != CaptionLayout.Scatter;
+    private bool Centred => _style.Layout is CaptionLayout.Stack or CaptionLayout.Centre;
+
+    /// <summary>Every word at a spot of its own, chosen when it arrives and kept, clear of faces where the picture is read; each in its own hue.</summary>
+    private IReadOnlyList<CaptionWord> Confetti(double seconds, Area area, double em, PictureSpace? picture)
+    {
+        var scene = new List<CaptionWord>(_words.Count);
+        foreach (var word in _words)
+        {
+            var size = Math.Min(word.Size, area.Width * 0.8 / Math.Max(1e-9, word.WidthEm * em));
+            var (width, height) = (word.WidthEm * size * em, size * em * 1.2);
+            if (word.Spot is null)
+            {
+                // Somewhere of its own, by its number, kept off what matters when the picture is read.
+                var seed = (word.Id * 2654435761u) % 1000 / 1000.0;
+                var seed2 = (word.Id * 40503u + 7919u) % 1000 / 1000.0;
+                var preferred = (X: 0.08 + (seed * (0.84 - (width / area.Width))), Y: 0.08 + (seed2 * (0.84 - (height / area.Height))));
+                word.Spot = _style.AvoidPicture && picture is not null ? picture.Place(width / area.Width, height / area.Height, preferred) : preferred;
+            }
+
+            var slot = new Slot(word, size, width, 0);
+            var left = word.Spot.Value.X * area.Width;
+            var centreY = (word.Spot.Value.Y * area.Height) + (height / 2);
+            var drawn = Draw(slot, left, centreY, seconds, em, area, picture);
+            scene.Add(drawn with { Color = Visualizers.PaletteColor(_style.Palette, (word.Id % 7) / 7.0, seconds, _style.Accent, 0) });
+        }
+
+        return scene;
+    }
 
     private CaptionWord Draw(Slot slot, double left, double centreY, double seconds, double em, Area area, PictureSpace? picture)
     {
         var word = slot.Word;
         var age = seconds - word.Born;
         var arriving = Math.Clamp(age / (word.Stretched ? PopSeconds * 2.5 : PopSeconds), 0, 1);
-        var (scale, offsetX, offsetY, text) = Arrive(_style.Motion, arriving, word.Text, age);
+        var (scale, offsetX, offsetY, text) = Arrive(word.Lit ? _style.Motion : CaptionMotion.Pop, word.Lit ? arriving : 1, word.Text, age);
+        if (_style.Cursor && word.Died is null && word == _words.Last(w => w.Died is null))
+        {
+            text += (seconds * 2) % 1 < 0.5 ? "\u258C" : "\u2007";
+        }
+
         var opacity = word.Died is { } died ? Math.Clamp(1 - ((seconds - died) / FadeSeconds), 0, 1) : 1;
         opacity *= word.Stress is Stress.Hush ? 0.8 : 1;
+        if (!word.Lit)
+        {
+            opacity *= 0.4;
+        }
+
+        if (_style.Jitter > 0)
+        {
+            offsetX += _style.Jitter * Math.Sin((seconds * 53) + word.Id);
+            offsetY += _style.Jitter * Math.Cos((seconds * 41) + (word.Id * 3));
+        }
+
         if (_style.Motion is CaptionMotion.Slide or CaptionMotion.Drop)
         {
             opacity *= arriving;
@@ -366,7 +495,7 @@ public sealed class CaptionChoreography
         var rotation = _style.Tilt * (word.Own ? ((word.Id % 5) - 2) * 1.5 : word.Lilt ? -2 : 0);
         var height = slot.Size * em;
         var behind = picture?.Behind(left / area.Width, (centreY - (height / 2)) / area.Height, slot.Width / area.Width, height / area.Height) ?? new Backing(0.6, 0);
-        var backing = new Backing(Math.Clamp(behind.Outline * _style.Outline, 0, 2), _style.PlateAlways ? Math.Max(behind.Plate, 0.55) : behind.Plate);
+        var backing = new Backing(Math.Clamp(behind.Outline * _style.Outline, 0, 2), _style.PlateAlways ? Math.Max(behind.Plate, _style.PlateLight ? 0.92 : 0.55) : behind.Plate);
         return new CaptionWord(
             word.Id,
             text,
@@ -388,7 +517,10 @@ public sealed class CaptionChoreography
             slot.Size,
             _style.Font,
             offsetX,
-            offsetY);
+            offsetY,
+            word.Lit,
+            _style.PlateLight,
+            _style.Split);
     }
 
     /// <summary>
@@ -449,6 +581,7 @@ public sealed class CaptionChoreography
     {
         CaptionLayout.Scatter => Scatter[(_clusters + Scatter.Length - 1) % Scatter.Length],
         CaptionLayout.Centre => (0.5, 0.4),
+        CaptionLayout.Left => (0.06, 0.62),
         _ => (0.5, 0.72),
     };
 
@@ -466,15 +599,19 @@ public sealed class CaptionChoreography
 
         public bool Stretched { get; } = stretched;
 
-        public double Born { get; } = born;
+        public double Born { get; set; } = born;
 
         public double? Died { get; set; }
+
+        public bool Lit { get; set; } = true;
+
+        public (double X, double Y)? Spot { get; set; }
 
         public double WidthEm { get; } = widthEm;
 
         public double Size { get; } = size;
 
-        public Argb Color { get; } = color;
+        public Argb Color { get; set; } = color;
 
         public string? Glyph { get; } = glyph;
 

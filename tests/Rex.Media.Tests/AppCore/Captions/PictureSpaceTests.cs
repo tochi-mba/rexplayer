@@ -101,6 +101,26 @@ public sealed class PictureSpaceTests
     }
 
     [Fact]
+    [Capability("OSD-11")]
+    public void FacesADetectorFoundStandInForTheSkinGuessAndAreNeverCovered()
+    {
+        // Skin colour over the left, but the detector says the face is on the right: the detector wins.
+        var bgra = Picture((x, y) => x < 100 ? Skin : Grey);
+        var space = PictureSpace.Read(bgra, Width, Height, Width * 4, faces: [new Area(0.7, 0.3, 0.2, 0.3)]);
+
+        Assert.Equal(0, space.Importance[(9 * 32) + 2]);
+        Assert.Equal(1, space.Importance[(8 * 32) + 25]);
+        // Widened by a third of the face all round.
+        Assert.Equal(1, space.Importance[(4 * 32) + 20]);
+        Assert.True(space.CoversAFace(0.65, 0.25, 0.2, 0.2));
+        Assert.False(space.CoversAFace(0.05, 0.05, 0.3, 0.2));
+
+        // Asked for the very spot, the caption still goes anywhere but the face.
+        var (x, y) = space.Place(0.25, 0.3, (0.7, 0.3));
+        Assert.False(space.CoversAFace(x, y, 0.25, 0.3));
+    }
+
+    [Fact]
     public void MostTakesTheGreatestOfEveryReadingOfTheSameShape()
     {
         var left = PictureSpace.Read(Picture((x, y) => x < 40 && y < 40 ? Skin : Grey), Width, Height, Width * 4);

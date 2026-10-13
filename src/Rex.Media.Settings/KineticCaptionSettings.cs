@@ -66,6 +66,8 @@ public enum CaptionLayoutChoice
     Scatter,
     Stack,
     Centre,
+    Left,
+    Confetti,
 }
 
 /// <summary>The colours stressed words run through.</summary>
@@ -129,6 +131,24 @@ public sealed record KineticCaptionSettings
     /// <summary>A dark plate behind every word, not only where the picture needs one.</summary>
     public bool PlateAlways { get; init; }
 
+    /// <summary>White plates with dark text, as print.</summary>
+    public bool PlateLight { get; init; }
+
+    /// <summary>The whole line shows at once, dim, and each word lights as it is said.</summary>
+    public bool Prefill { get; init; }
+
+    /// <summary>Only the word being said shows.</summary>
+    public bool OneAtATime { get; init; }
+
+    /// <summary>Every word the same size and colour, whatever the voice did.</summary>
+    public bool Flat { get; init; }
+
+    /// <summary>The red and cyan of each word drawn apart, as a broken feed.</summary>
+    public bool Split { get; init; }
+
+    /// <summary>How much every word trembles, in percent of the font size (0 to 20).</summary>
+    public int Jitter { get; init; }
+
     public CaptionWordSource Words { get; init; } = CaptionWordSource.Automatic;
 
     /// <summary>How far the voice moves the words, in percent (25 to 300).</summary>
@@ -166,6 +186,7 @@ public sealed record KineticCaptionSettings
         Case = Enum.IsDefined(Case) ? Case : CaptionCaseChoice.AsSaid,
         Motion = Enum.IsDefined(Motion) ? Motion : CaptionMotionChoice.Pop,
         Tilt = Math.Clamp(Tilt, 0, 300),
+        Jitter = Math.Clamp(Jitter, 0, 20),
         Outline = Math.Clamp(Outline, 0, 200),
         Words = Enum.IsDefined(Words) ? Words : CaptionWordSource.Automatic,
         Energy = Math.Clamp(Energy, LeastEnergy, MostEnergy),

@@ -36,6 +36,7 @@ public sealed class CaptionDirector
     private double _last = double.NaN;
     private double _lastShout = double.NegativeInfinity;
     private double _clusterBegan = double.NaN;
+    private readonly List<int> _lineIds = [];
 
     public CaptionDirector(CaptionStyle style)
     {
@@ -116,7 +117,14 @@ public sealed class CaptionDirector
                     _clusterBegan = now;
                 }
 
-                _choreography.Reveal(word, heard, stress, now);
+                if (Style.Prefill && i < _lineIds.Count)
+                {
+                    _choreography.Light(_lineIds[i], now);
+                }
+                else
+                {
+                    _choreography.Reveal(word, heard, stress, now);
+                }
             }
 
             // A cluster that has run on for a while gives way, so the picture is never buried.
@@ -159,6 +167,8 @@ public sealed class CaptionDirector
             {
                 CaptionLayoutChoice.Stack => CaptionLayout.Stack,
                 CaptionLayoutChoice.Centre => CaptionLayout.Centre,
+                CaptionLayoutChoice.Left => CaptionLayout.Left,
+                CaptionLayoutChoice.Confetti => CaptionLayout.Confetti,
                 _ => CaptionLayout.Scatter,
             },
             kinetic.Glyphs,
@@ -171,7 +181,14 @@ public sealed class CaptionDirector
             kinetic.Flicker,
             kinetic.Tilt / 100.0,
             kinetic.Outline / 100.0,
-            kinetic.PlateAlways);
+            kinetic.PlateAlways,
+            kinetic.PlateLight,
+            kinetic.Prefill,
+            kinetic.OneAtATime,
+            kinetic.Flat,
+            kinetic.Motion == CaptionMotionChoice.Typewriter,
+            kinetic.Split,
+            kinetic.Jitter / 100.0);
         return CaptionPresets.Style(kinetic.Preset, own);
     }
 
@@ -189,9 +206,24 @@ public sealed class CaptionDirector
 
         _lastCue = _cue ?? _lastCue;
         _cue = cue;
+        _lineIds.Clear();
         if (cue is not null)
         {
             _aligner.Begin(cue);
+            if (Style.Prefill)
+            {
+                // The whole line first, dim; each word lights as it is said.
+                if (_choreography.IsOpen)
+                {
+                    _choreography.Clear(now);
+                }
+
+                var quiet = new SpeechFrame(0.5f, 0.5f, false, 0, false, 0);
+                foreach (var word in _aligner.Words)
+                {
+                    _lineIds.Add(_choreography.Reveal(word, quiet, Stress.Plain, now, lit: false));
+                }
+            }
         }
     }
 

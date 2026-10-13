@@ -29,7 +29,7 @@ public static partial class CliApplication
         var stop = ParseTime(arguments.Option("--stop"), "--stop")?.ToTimeSpan();
         var fps = ParseFps(arguments.Option("--fps"));
         var settings = CaptionSettings(arguments);
-        var track = LoadCaptionWords(path, arguments.Option("--subtitles"), host);
+        var track = CaptionWords(path, arguments, host);
         var (mono, rate) = DecodeMono(path, host);
         var (width, height, pictures) = ReadPictures(path, start, stop, settings.KineticCaptions.AvoidPicture, host);
         var length = rate > 0 ? mono.Length / (double)rate : 0;
@@ -86,6 +86,7 @@ public static partial class CliApplication
                 ["seconds"] = Round(last - start.TotalSeconds),
                 ["cues"] = track.Count,
                 ["picturesRead"] = pictures?.Count ?? 0,
+                ["facesFound"] = host.Faces is not null,
                 ["words"] = revealed,
                 ["frames"] = frames,
             }));
@@ -121,7 +122,7 @@ public static partial class CliApplication
             kinetic = kinetic with
             {
                 Layout = Enum.TryParse<CaptionLayoutChoice>(layoutText, ignoreCase: true, out var layout) ? layout
-                    : throw new CliException($"--layout takes scatter, stack or centre, not '{layoutText}'."),
+                    : throw new CliException($"--layout takes scatter, stack, centre, left or confetti, not '{layoutText}'."),
             };
         }
 
@@ -140,6 +141,34 @@ public static partial class CliApplication
         }
 
         return new PlayerSettings { KineticCaptions = kinetic };
+    }
+
+    /// <summary>
+    /// The words as --words asks: the subtitles (the file given, or the first beside the media), the
+    /// transcript kept for the file, or the subtitles timed by that transcript.
+    /// </summary>
+    private static SubtitleTrack CaptionWords(string path, CliArguments arguments, CliHost host)
+    {
+        var words = arguments.Option("--words") ?? "subtitles";
+        if (words is not ("subtitles" or "transcript" or "timed"))
+        {
+            throw new CliException($"--words takes subtitles, transcript or timed, not '{words}'.");
+        }
+
+        if (words == "subtitles")
+        {
+            return LoadCaptionWords(path, arguments.Option("--subtitles"), host);
+        }
+
+        var model = ParseModel(arguments.Option("--model"));
+        var transcript = new TranscriptCache(TranscriptCache.DefaultRoot(DataRoot(host))).Load(path, model.Id)
+            ?? throw new CliException($"There is no transcript of {Path.GetFileName(path)} by {model.Id}; run 'rexplay transcribe' first.");
+        if (words == "transcript")
+        {
+            return transcript.ToTrack("Transcript (" + model.Id + ")");
+        }
+
+        return TranscriptAlignment.Time(LoadCaptionWords(path, arguments.Option("--subtitles"), host), transcript);
     }
 
     /// <summary>The subtitle file asked for, or the first beside the media.</summary>
@@ -229,7 +258,8 @@ public static partial class CliApplication
                         }
 
                         using var bgra = ColorConverter.ToBgra(frame);
-                        var space = PictureSpace.Read(bgra.Plane(0), bgra.Width, bgra.Height, bgra.Stride(0), before);
+                        var faces = host.Faces?.Invoke(bgra.Plane(0), bgra.Width, bgra.Height, bgra.Stride(0));
+                        var space = PictureSpace.Read(bgra.Plane(0), bgra.Width, bgra.Height, bgra.Stride(0), before, faces: faces);
                         pictures.Add(at, space);
                         (before, next) = (space, at + (1 / CaptionPicturesPerSecond));
                     }
@@ -283,6 +313,9 @@ public static partial class CliApplication
         ["font"] = word.Font.ToString().ToLowerInvariant(),
         ["offsetX"] = Round(word.OffsetX),
         ["offsetY"] = Round(word.OffsetY),
+        ["lit"] = word.Lit,
+        ["plateLight"] = word.PlateLight,
+        ["split"] = word.Split,
         ["outline"] = Round(word.Backing.Outline),
         ["plate"] = Round(word.Backing.Plate),
     };

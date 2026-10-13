@@ -36,6 +36,8 @@ public static partial class CliApplication
                 "sections" => Sections(arguments, machine, host),
                 "pulse" => Pulse(arguments, machine, host),
                 "captions" => Captions(arguments, machine, host),
+                "transcribe" => Transcribe(arguments, machine, host),
+                "models" => Models(arguments, machine, host),
                 _ => throw new CliException($"'{command}' is not a rexplay command. Run 'rexplay help' to see them."),
             };
         }

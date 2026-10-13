@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 155 planned, 42 built, 95 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -130,6 +130,8 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built |
 | SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified |
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned |
+| SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified |
+| SUB-19 | Local transcription | A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as "Transcript", cached per file, exportable as SRT/VTT | M16 | should | planned |
 
 ## Formats: Playlists
 
@@ -238,6 +240,7 @@ Totals: 153 planned, 42 built, 94 verified, 1 verified-hardware, 27 post-1.0.
 | OSD-08 | Forced-only mode | Show only forced subtitles (DVD/BD/PGS/flagged tracks) | M7 | should | planned |
 | OSD-09 | Complex scripts & RTL | DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi | M5 | must | built |
 | OSD-10 | Bitmap subtitle scaling | Scale or recolour PGS/VobSub | M11 | could | planned |
+| OSD-11 | Kinetic captions | Words land one at a time as they are spoken, sized, coloured, placed and moved by how they were said: loudness, pitch, pace and pauses read from the sound; words from the subtitle track, the transcript, or both; energy, accent, palette, layout and glyphs settable | M16 | should | planned |
 
 ## Network input, discovery & casting
 

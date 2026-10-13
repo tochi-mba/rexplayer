@@ -36,14 +36,14 @@ public sealed class CaptionPresetsTests
     {
         var own = CaptionStyle.Default with { Energy = 2, Glyphs = false, AvoidPicture = false, Font = CaptionFont.Mono, Tilt = 3 };
         var comic = CaptionPresets.Style(CaptionPreset.Comic, own);
-        Assert.Equal((CaptionFont.Display, 2.6, false, false, 2.5), (comic.Font, comic.Energy, comic.Glyphs, comic.AvoidPicture, comic.Tilt));
+        Assert.Equal((CaptionFont.Display, 2.6, false, false, 2.5, true), (comic.Font, comic.Energy, comic.Glyphs, comic.AvoidPicture, comic.Tilt, comic.PlateLight));
         Assert.Same(own, CaptionPresets.Style(CaptionPreset.Custom, own));
         Assert.Equal(CaptionStyle.Default with { Energy = 2, Glyphs = false, AvoidPicture = false }, CaptionPresets.Style((CaptionPreset)99, own));
         Assert.Throws<ArgumentNullException>(() => CaptionPresets.Style(CaptionPreset.Neon, null!));
 
         var settings = new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Typewriter, Energy = 50 } };
         var style = CaptionDirector.StyleFor(settings);
-        Assert.Equal((CaptionMotion.Typewriter, CaptionCase.Lower, 0.4), (style.Motion, style.Case, style.Energy));
+        Assert.Equal((CaptionMotion.Typewriter, CaptionCase.Lower, 0.3), (style.Motion, style.Case, style.Energy));
         var custom = CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Font = CaptionFontChoice.Rounded, Case = CaptionCaseChoice.Upper, Motion = CaptionMotionChoice.Drop, Highlight = true, Flicker = true, Tilt = 250, Outline = 40, PlateAlways = true } });
         Assert.Equal((CaptionFont.Rounded, CaptionCase.Upper, CaptionMotion.Drop, true, true, 2.5, 0.4, true), (custom.Font, custom.Case, custom.Motion, custom.Highlight, custom.Flicker, custom.Tilt, custom.Outline, custom.PlateAlways));
         var damaged = new KineticCaptionSettings { Preset = (CaptionPreset)77, Font = (CaptionFontChoice)77, Case = (CaptionCaseChoice)77, Motion = (CaptionMotionChoice)77, Tilt = -5, Outline = 900 }.Normalize();
@@ -79,17 +79,71 @@ public sealed class CaptionPresetsTests
 
     [Fact]
     [Capability("OSD-11")]
-    public void ASingAlongLightsOnlyTheWordBeingSungAndPlatesEveryWord()
+    public void ASingAlongShowsTheWholeLineDimAndLightsEachWordAsItIsSung()
     {
         var choreography = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Karaoke, CaptionStyle.Default));
-        choreography.Reveal(Word("lonely"), Plain, Stress.Plain, 0);
-        choreography.Reveal(Word("at"), Plain, Stress.Hush, 0.3);
-        choreography.Reveal(Word("the"), Plain, Stress.Plain, 0.6);
-        var scene = choreography.Scene(2, Area, 60);
-        Assert.Equal(["LONELY", "AT", "THE"], scene.Select(word => word.Text));
-        Assert.Equal([0.55, 0.44, 1.0], scene.Select(word => Math.Round(word.Opacity, 3)));
-        Assert.All(scene, word => Assert.True(word.Backing.Plate >= 0.55));
-        Assert.All(scene, word => Assert.Equal((CaptionFont.Rounded, 0.0), (word.Font, word.Rotation)));
+        var ids = new[] { "lonely", "at", "the" }.Select(text => choreography.Reveal(Word(text), Plain, Stress.Shout, 0, lit: false)).ToList();
+        var waiting = choreography.Scene(0.5, Area, 60);
+        // Flat: a shout is no bigger; dim until sung; rounded capitals on a plate, level.
+        Assert.Equal(["LONELY", "AT", "THE"], waiting.Select(word => word.Text));
+        Assert.All(waiting, word => Assert.Equal((1.0, 0.4, false, CaptionFont.Rounded, 0.0), (word.Size, Math.Round(word.Opacity, 3), word.Lit, word.Font, word.Rotation)));
+        Assert.All(waiting, word => Assert.True(word.Backing.Plate >= 0.55));
+
+        choreography.Light(ids[0], 1);
+        var sung = choreography.Scene(1 + CaptionChoreography.PopSeconds, Area, 60);
+        Assert.Equal((true, 1.0, new Argb(255, 0xFF, 0x4F, 0xA3)), (sung[0].Lit, Math.Round(sung[0].Opacity, 3), sung[0].Color));
+        Assert.False(sung[1].Lit);
+        // Lighting a word twice, or one that is not there, changes nothing.
+        choreography.Light(ids[0], 2);
+        choreography.Light(999, 2);
+        Assert.Equal(sung[0].Color, choreography.Scene(2.5, Area, 60)[0].Color);
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void ANeonSignShowsOneWordAtATimeAndARaveScattersEveryWordInItsOwnHue()
+    {
+        var neon = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Neon, CaptionStyle.Default));
+        neon.Reveal(Word("first"), Plain, Stress.Plain, 0);
+        neon.Reveal(Word("second"), Plain, Stress.Plain, 0.3);
+        var both = neon.Scene(0.31, Area, 60);
+        Assert.Equal(2, both.Count);
+        Assert.True(both[0].Opacity < 1 && both[1].Opacity <= 1);
+        Assert.Equal("SECOND", Assert.Single(neon.Scene(0.3 + CaptionChoreography.FadeSeconds, Area, 60)).Text);
+
+        var rave = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Rave, CaptionStyle.Default));
+        for (var i = 0; i < 6; i++)
+        {
+            rave.Reveal(Word("word" + i), Plain, Stress.Plain, i * 0.1);
+        }
+
+        var confetti = rave.Scene(1, Area, 60);
+        var again = rave.Scene(1.1, Area, 60);
+        Assert.Equal(6, confetti.Select(word => (Math.Round(word.X), Math.Round(word.Y))).Distinct().Count());
+        Assert.True(confetti.Select(word => word.Color).Distinct().Count() >= 5);
+        // Each keeps its spot (the jitter aside), inside the picture.
+        Assert.All(confetti.Zip(again), pair => Assert.True(Math.Abs(pair.First.X - pair.Second.X) < 1 && pair.First.OffsetX != pair.Second.OffsetX));
+        Assert.All(confetti, word => Assert.InRange(word.X, 0, Area.Width));
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void ATypewriterTypesIntoACornerBlockBehindACursorAndHeadlinesAreInkOnWhite()
+    {
+        var typewriter = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Typewriter, CaptionStyle.Default));
+        typewriter.Reveal(Word("HELLO"), Plain, Stress.Shout, 0);
+        var typing = Assert.Single(typewriter.Scene(0.04, Area, 60));
+        Assert.StartsWith("he", typing.Text, StringComparison.Ordinal);
+        Assert.Equal(3, typing.Text.Length);
+        var typed = Assert.Single(typewriter.Scene(1, Area, 60));
+        Assert.StartsWith("hello", typed.Text, StringComparison.Ordinal);
+        Assert.Equal(1.0, typed.Size);
+        Assert.True(typed.X < Area.Width * 0.4 && typed.Y > Area.Height * 0.5, $"{typed.X}, {typed.Y}");
+
+        var headline = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Headline, CaptionStyle.Default));
+        headline.Reveal(Word("Extra"), Plain with { Loudness = 1 }, Stress.Peak, 0);
+        var word = Assert.Single(headline.Scene(1, Area, 60));
+        Assert.True(word.PlateLight && word.Backing.Plate >= 0.9 && word.Font == CaptionFont.Serif, $"{word}");
     }
 
     [Fact]
@@ -104,7 +158,8 @@ public sealed class CaptionPresetsTests
         Assert.Contains(flickers, opacity => opacity < 0.5);
         Assert.Contains(flickers, opacity => opacity > 0.9);
         var settled = Assert.Single(choreography.Scene(1, Area, 60));
-        Assert.Equal(("NOW", 0.0, 1.0), (settled.Text, settled.OffsetY, settled.Opacity));
+        Assert.Equal(("NOW", 1.0), (settled.Text, settled.Opacity));
+        Assert.InRange(settled.OffsetY, -0.03, 0.03);
         Assert.NotEqual(0, settled.Rotation);
     }
 
@@ -113,12 +168,20 @@ public sealed class CaptionPresetsTests
     {
         var typewriter = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Typewriter, CaptionStyle.Default));
         typewriter.Reveal(Word("HELLO"), Plain, Stress.Shout, 0);
-        Assert.Equal("he", Assert.Single(typewriter.Scene(0.04, Area, 60)).Text);
-        Assert.Equal("hello", Assert.Single(typewriter.Scene(1, Area, 60)).Text);
+        // The cursor blinks after the letters typed so far.
+        Assert.Equal("he\u258C", Assert.Single(typewriter.Scene(0.04, Area, 60)).Text);
+        Assert.Equal("hello\u2007", Assert.Single(typewriter.Scene(0.75, Area, 60)).Text);
 
         var minimal = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Minimal, CaptionStyle.Default));
         minimal.Reveal(Word("Hi"), Plain, Stress.Plain, 0);
         var sliding = Assert.Single(minimal.Scene(CaptionChoreography.PopSeconds / 2, Area, 60));
         Assert.True(sliding.OffsetX < 0 && sliding.Opacity < 1 && sliding.Text == "hi", $"{sliding}");
+        minimal.Reveal(Word("LOUD"), Plain with { Loudness = 1 }, Stress.Peak, 1);
+        var flat = minimal.Scene(2, Area, 60)[^1];
+        Assert.Equal(("loud", 1.0, 0.0, CaptionStyle.Default.Text), (flat.Text, flat.Size, flat.Flash, flat.Color));
+
+        var glitch = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Glitch, CaptionStyle.Default));
+        glitch.Reveal(Word("feed"), Plain, Stress.Plain, 0);
+        Assert.True(Assert.Single(glitch.Scene(1, Area, 60)).Split);
     }
 }

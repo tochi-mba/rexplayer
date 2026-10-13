@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Rex.Media.Speech</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Whisper.net (MIT) runs the open Whisper speech models on this computer, offline, through the
+         whisper.cpp runtime it carries for Windows x64 (ADR-0020). Referenced here alone; the app
+         and the command line reach it through this adapter. -->
+    <PackageReference Include="Whisper.net" />
+    <PackageReference Include="Whisper.net.Runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
+    <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+  </ItemGroup>
+
+</Project>

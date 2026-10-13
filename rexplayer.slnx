@@ -19,6 +19,8 @@
     <Project Path="src/Rex.Media.Updater/Rex.Media.Updater.csproj" />
     <Project Path="src/Rex.Media.Vision/Rex.Media.Vision.csproj" />
     <Project Path="src/Rex.Media.Vision.WindowsML/Rex.Media.Vision.WindowsML.csproj" />
+    <Project Path="src/Rex.Media.Faces/Rex.Media.Faces.csproj" />
+    <Project Path="src/Rex.Media.Speech/Rex.Media.Speech.csproj" />
     <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />
     <Project Path="src/Rex.Media.Cli/Rex.Media.Cli.csproj" />
     <Project Path="src/Rex.Media.App/Rex.Media.App.csproj" />

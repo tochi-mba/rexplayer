@@ -192,7 +192,7 @@ public sealed class CliCaptionsTests : IDisposable
         Assert.Contains("--energy takes a percentage", energyError, StringComparison.Ordinal);
         var (layout, _, layoutError) = Run("captions", alone, "--subtitles", srt, "--layout", "sideways");
         Assert.Equal(1, layout);
-        Assert.Contains("--layout takes scatter, stack or centre", layoutError, StringComparison.Ordinal);
+        Assert.Contains("--layout takes scatter, stack, centre, left or confetti", layoutError, StringComparison.Ordinal);
         var (late, _, lateError) = Run("captions", alone, "--subtitles", srt, "--start", "5");
         Assert.Equal(1, late);
         Assert.Contains("nothing to caption", lateError, StringComparison.Ordinal);

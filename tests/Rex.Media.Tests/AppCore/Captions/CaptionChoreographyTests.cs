@@ -111,6 +111,32 @@ public sealed class CaptionChoreographyTests
 
     [Fact]
     [Capability("OSD-11")]
+    public void AFaceComingUnderTheClusterMovesItOffWithoutAJump()
+    {
+        var clear = PictureSpace.Empty();
+        var choreography = new CaptionChoreography(CaptionStyle.Default);
+        choreography.Reveal(Word("stay"), Plain, Stress.Plain, 0);
+        choreography.Reveal(Word("here"), Plain, Stress.Plain, 0.2);
+        var before = choreography.Scene(1, Area, Font, picture: clear);
+        var at = (before[0].X, before[0].Y);
+
+        // A face arrives exactly where the cluster sits.
+        var face = PictureSpace.Read(
+            PictureSpaceTests.Picture((x, y) => ((byte)40, (byte)40, (byte)48), 320, 180),
+            320, 180, 1280,
+            faces: [new Area(Math.Max(0, (at.X / Area.Width) - 0.1), Math.Max(0, (at.Y / Area.Height) - 0.1), 0.45, 0.25)]);
+        var soon = choreography.Scene(1.02, Area, Font, picture: face);
+        var later = choreography.Scene(1.6, Area, Font, picture: face);
+
+        // It starts moving at once, by a little, and is well away soon after.
+        var moved = Math.Abs(soon[0].X - at.X) + Math.Abs(soon[0].Y - at.Y);
+        var gone = Math.Abs(later[0].X - at.X) + Math.Abs(later[0].Y - at.Y);
+        Assert.True(moved > 0 && moved < gone / 3, $"{moved} then {gone}");
+        Assert.False(face.CoversAFace(Math.Min(later[0].X, later[1].X) / Area.Width, (later[0].Y - (Font / 2)) / Area.Height, 0.2, 0.05));
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
     public void WordsWrapToReadableRowsShrinkToFitAndAreNeverTooSmall()
     {
         var narrow = new Area(0, 0, 400, 800);

@@ -43,7 +43,7 @@ public sealed class CaptionCommandsTests
             settings = next;
         }
 
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < 5; i++)
         {
             var (next, message) = CaptionCommands.Apply(CommandCatalog.CycleCaptionLayout, settings)!.Value;
             layouts.Add(message);
@@ -58,7 +58,7 @@ public sealed class CaptionCommandsTests
                 "Kinetic caption words: automatic",
             ],
             words);
-        Assert.Equal(["Kinetic captions: stacked at the bottom", "Kinetic captions: centred", "Kinetic captions: scattered"], layouts);
+        Assert.Equal(["Kinetic captions: stacked at the bottom", "Kinetic captions: centred", "Kinetic captions: a block at the left", "Kinetic captions: confetti", "Kinetic captions: scattered"], layouts);
         Assert.True(settings.On);
 
         var looks = new List<string>();

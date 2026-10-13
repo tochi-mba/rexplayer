@@ -34,6 +34,11 @@ var host = new CliHost
     Version = version,
     DefaultAudioSink = () => new WasapiAudioSink(),
     ExtraDecoders = [new MfDecoderFactory(), new WicDecoderFactory()],
+    Faces = Rex.Media.Faces.FaceFinder.Create() is { } faces
+        ? (bgra, width, height, stride) => [.. faces.Find(bgra, width, height, stride).Select(face => new Rex.Media.AppCore.Player.Area(face.X, face.Y, face.Width, face.Height))]
+        : null,
+    Transcriber = (modelPath, modelName) => new Rex.Media.Speech.WhisperTranscriber(modelPath, modelName, Rex.Media.AppCore.MediaRegistries.Decoders([new MfDecoderFactory(), new WicDecoderFactory()])),
+    DataRoot = dataRoot,
     VideoWindow = OpenWindow,
     SystemReport = Describe,
     Cancellation = cancellation.Token,

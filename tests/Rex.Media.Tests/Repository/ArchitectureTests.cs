@@ -19,7 +19,7 @@ public sealed class ArchitectureTests
         "Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Codecs.MediaFoundation",
         "Audio", "Audio.Wasapi", "Video", "Video.D3D11", "Subtitles", "Subtitles.DirectWrite", "Engine",
         "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Discs.Device", "Extensibility",
-        "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML",
+        "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML", "Faces", "Speech",
     ];
 
     private static readonly Dictionary<string, (string Framework, string[] Allowed)> Graph = new(StringComparer.Ordinal)
@@ -52,8 +52,14 @@ public sealed class ArchitectureTests
         ["Extensibility"] = (Portable, ["Primitives", "Diagnostics"]),
         ["AppCore"] = (Portable, ["Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Audio", "Video", "Subtitles", "Engine", "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Extensibility"]),
         ["Updater"] = (Windows, ["Primitives", "Diagnostics", "IO", "Settings"]),
+        // Windows' own face detector, for keeping captions off faces (OSD-11); a Windows 10 API, so
+        // the command line that uses it names the platform version as the app does.
+        ["Faces"] = (WindowsApp, []),
+        // ADR-0020: speech models through Whisper.net. The transcript's shape, cache and catalogue
+        // are AppCore's; this adapter only decodes the sound and runs the model.
+        ["Speech"] = (Windows, ["Primitives", "Diagnostics", "AppCore"]),
         ["Interop"] = (Windows, []),
-        ["Cli"] = (Windows, Everything),
+        ["Cli"] = (WindowsApp, Everything),
         ["App"] = (WindowsApp, Everything),
     };
 

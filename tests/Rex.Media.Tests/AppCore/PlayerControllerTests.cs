@@ -608,6 +608,23 @@ public sealed class PlayerControllerTests
         Assert.Equal("missing.srt is not a subtitle file rexplayer can read.", harness.Messages[^1]);
         Assert.True(changes > 8);
         Assert.Throws<ArgumentNullException>(() => controller.AddSubtitles(null!));
+
+        // A track made in memory (a transcript) joins first; the same name again replaces it; shown only when asked or already showing.
+        var transcript = new Rex.Media.Subtitles.SubtitleTrack("Transcript (base.en)");
+        transcript.Add(new Rex.Media.Subtitles.SubtitleCue(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), [new Rex.Media.Subtitles.SubtitleLine([new Rex.Media.Subtitles.SubtitleRun("heard")])]));
+        controller.AddSubtitles(transcript, show: false);
+        Assert.Equal(["Transcript (base.en)", "extra.srt", "a.srt"], controller.SubtitleTracks.Select(track => track.Name));
+        Assert.Equal("extra.srt", controller.Subtitles!.Name);
+        controller.ShowSecondarySubtitles(transcript);
+        var again = new Rex.Media.Subtitles.SubtitleTrack("Transcript (base.en)");
+        controller.AddSubtitles(again, show: true);
+        Assert.Equal(3, controller.SubtitleTracks.Count);
+        Assert.Same(again, controller.Subtitles);
+        Assert.Null(controller.SecondarySubtitles);
+        controller.AddSubtitles(new Rex.Media.Subtitles.SubtitleTrack("Transcript (base.en)"), show: false);
+        Assert.Equal("Transcript (base.en)", controller.Subtitles!.Name);
+        Assert.NotSame(again, controller.Subtitles);
+        Assert.Throws<ArgumentNullException>(() => controller.AddSubtitles(null!, show: true));
     }
 
     [Fact]

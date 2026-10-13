@@ -57,6 +57,8 @@ public static class CaptionCommands
     {
         CaptionLayoutChoice.Stack => "stacked at the bottom",
         CaptionLayoutChoice.Centre => "centred",
+        CaptionLayoutChoice.Left => "a block at the left",
+        CaptionLayoutChoice.Confetti => "confetti",
         _ => "scattered",
     };
 

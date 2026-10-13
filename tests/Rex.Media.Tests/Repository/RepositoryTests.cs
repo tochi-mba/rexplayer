@@ -279,8 +279,16 @@ public sealed partial class RepositoryTests
             .Select(element => (string)element.Attribute("Include")!)
             .Order(StringComparer.Ordinal);
 
-        // ADR-0019 adds Windows ML, the part of the Windows App SDK that runs downloaded model weights.
-        Assert.Equal(["Microsoft.Windows.CsWin32", "Microsoft.WindowsAppSDK", "Microsoft.WindowsAppSDK.ML"], product);
+        // ADR-0019 adds Windows ML, the part of the Windows App SDK that runs downloaded model weights;
+        // ADR-0020 adds Whisper.net, which runs downloaded speech models.
+        Assert.Equal(["Microsoft.Windows.CsWin32", "Microsoft.WindowsAppSDK", "Microsoft.WindowsAppSDK.ML", "Whisper.net", "Whisper.net.Runtime"], product);
+
+        // Whisper.net is referenced by the speech adapter alone.
+        var whisperUsers = RepoPaths.SourceFiles()
+            .Where(path => path.StartsWith("src/", StringComparison.Ordinal) && path.EndsWith(".csproj", StringComparison.Ordinal))
+            .Where(path => XDocument.Load(RepoPaths.Combine(path)).Descendants("PackageReference").Any(reference => ((string?)reference.Attribute("Include"))?.StartsWith("Whisper.net", StringComparison.Ordinal) == true))
+            .ToList();
+        Assert.Equal(["src/Rex.Media.Speech/Rex.Media.Speech.csproj"], whisperUsers);
 
         // Windows ML is referenced by the vision adapter alone; the app reaches it through the SDK.
         var mlUsers = RepoPaths.SourceFiles()

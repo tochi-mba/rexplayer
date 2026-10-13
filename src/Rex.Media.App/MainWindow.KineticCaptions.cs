@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -11,6 +10,7 @@ using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.Engine;
+using Rex.Media.Faces;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
@@ -71,9 +71,14 @@ public sealed partial class MainWindow
         if (item != _captionItem)
         {
             _captionItem = item;
-            (_transcript, _toldNoWords) = (null, false);
+            (_transcript, _heard, _toldNoWords) = (null, null, false);
             StopPictureScan();
+            StopTranscribing();
             _pictures.Clear();
+            if (item is not null && File.Exists(item))
+            {
+                LoadKeptTranscript(item);
+            }
         }
 
         var words = HasCaptionWords();
@@ -210,7 +215,7 @@ public sealed partial class MainWindow
         {
             seen.Add(word.Id);
             var fontSize = Math.Max(8, look.FontSize * word.Settled);
-            if (!_captionViews.TryGetValue(word.Id, out var view) || Math.Abs(view.FontSize - fontSize) > fontSize * 0.02 || view.Text != word.Text)
+            if (!_captionViews.TryGetValue(word.Id, out var view) || Math.Abs(view.FontSize - fontSize) > fontSize * 0.02 || view.Shown != word.Text)
             {
                 if (view is not null)
                 {
@@ -273,6 +278,7 @@ public sealed partial class MainWindow
         var opened = MediaRegistries.Decoders(new MfDecoderFactory(), new WicDecoderFactory()).CreateVideo(track);
         using var decoder = opened.Decoder ?? throw new NotSupportedException(opened.Reason);
         var frames = new List<VideoFrame>();
+        using var faces = FaceFinder.Create();
         PictureSpace? before = null;
         var next = double.NegativeInfinity;
         var from = double.NaN;
@@ -319,7 +325,8 @@ public sealed partial class MainWindow
                     }
 
                     using var bgra = ColorConverter.ToBgra(frame);
-                    var space = PictureSpace.Read(bgra.Plane(0), bgra.Width, bgra.Height, bgra.Stride(0), before);
+                    var found = faces?.Find(bgra.Plane(0), bgra.Width, bgra.Height, bgra.Stride(0)).Select(face => new Area(face.X, face.Y, face.Width, face.Height)).ToList();
+                    var space = PictureSpace.Read(bgra.Plane(0), bgra.Width, bgra.Height, bgra.Stride(0), before, faces: found);
                     _pictures.Add(at, space);
                     (before, next) = (space, at + (1 / PicturesPerSecond));
                 }
@@ -480,7 +487,7 @@ public sealed partial class MainWindow
 
         private CaptionView(Grid root, Border plate, Ellipse flash, double fontSize, string text)
         {
-            (Root, _plate, _flash, FontSize, Text) = (root, plate, flash, fontSize, text);
+            (Root, _plate, _flash, FontSize, Shown) = (root, plate, flash, fontSize, text);
             Root.RenderTransform = _transform;
             _plate.Background = _plateBrush;
         }
@@ -489,7 +496,7 @@ public sealed partial class MainWindow
 
         public double FontSize { get; }
 
-        public string Text { get; }
+        public string Shown { get; }
 
         public static CaptionView Build(CaptionWord word, double fontSize, string font)
         {
@@ -502,7 +509,17 @@ public sealed partial class MainWindow
                 AddCopies(text, word, fontSize, family, weight, word.Color with { A = (byte)(80 * word.Glow) }, outline * 2.4);
             }
 
-            AddCopies(text, word, fontSize, family, weight, new Argb(230, 0, 0, 0), outline);
+            if (word.Split)
+            {
+                text.Children.Add(Text(word, fontSize, family, weight, new Argb(200, 255, 40, 40), -fontSize * 0.06, 0));
+                text.Children.Add(Text(word, fontSize, family, weight, new Argb(200, 40, 240, 255), fontSize * 0.06, 0));
+            }
+
+            if (word.Backing.Outline > 0)
+            {
+                AddCopies(text, word, fontSize, family, weight, word.PlateLight ? new Argb(60, 0, 0, 0) : new Argb(230, 0, 0, 0), outline);
+            }
+
             text.Children.Add(Text(word, fontSize, family, weight, word.Color, 0, 0));
             var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = fontSize * 0.2 };
             line.Children.Add(text);
@@ -511,7 +528,7 @@ public sealed partial class MainWindow
                 line.Children.Add(new TextBlock { Text = glyph, FontSize = fontSize * 0.9, FontFamily = new FontFamily("Segoe UI Emoji"), VerticalAlignment = VerticalAlignment.Center, IsTextScaleFactorEnabled = false });
             }
 
-            var plate = new Border { CornerRadius = new CornerRadius(fontSize * 0.18), Padding = new Thickness(fontSize * 0.14, 0, fontSize * 0.14, fontSize * 0.04), Child = line };
+            var plate = new Border { CornerRadius = new CornerRadius(fontSize * (word.PlateLight ? 0.3 : 0.18)), Padding = new Thickness(fontSize * 0.14, 0, fontSize * 0.14, fontSize * 0.04), Child = line };
             var flash = new Ellipse { Fill = new SolidColorBrush(Microsoft.UI.Colors.White), Opacity = 0, IsHitTestVisible = false };
             var root = new Grid();
             root.Children.Add(flash);
@@ -519,7 +536,9 @@ public sealed partial class MainWindow
             root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             var size = root.DesiredSize;
             flash.Margin = new Thickness(-size.Width * 0.25, -size.Height * 0.45, -size.Width * 0.25, -size.Height * 0.45);
-            return new CaptionView(root, plate, flash, fontSize, word.Text);
+            var view = new CaptionView(root, plate, flash, fontSize, word.Text);
+            view._plateBrush.Color = word.PlateLight ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
+            return view;
         }
 
         /// <summary>Places, scales, turns, shakes and fades the word as <paramref name="word"/> says, over <paramref name="picture"/>.</summary>
@@ -563,8 +582,4 @@ public sealed partial class MainWindow
         };
     }
 
-    private void RunTranscriptCommand(string command) =>
-        Say(command == CommandCatalog.Transcribe
-            ? "Transcription arrives in the next part of this change."
-            : string.Create(CultureInfo.InvariantCulture, $"There is no transcript to save yet."));
 }
