@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
     private Keymap _keymap;
     private D3D11Presenter? _presenter;
     private IReadOnlyList<string>? _startupFiles;
+    private readonly string? _startupCommand;
     private Task _presenterWork = Task.CompletedTask;
     private bool _updatingControls;
     private bool _showRemaining = true;
@@ -62,12 +63,13 @@ public sealed partial class MainWindow : Window
 
     /// <param name="files">What the launch was asked to open.</param>
     /// <param name="settings">The settings the launch has already read; read again when null.</param>
-    public MainWindow(IReadOnlyList<string> files, PlayerSettings? settings = null)
+    public MainWindow(IReadOnlyList<string> files, PlayerSettings? settings = null, string? startupCommand = null)
     {
         App.Milestones.Reach("window");
         InitializeComponent();
         App.Milestones.Reach("xaml");
         _settings = settings ?? SettingsStore.Load(SettingsPath);
+        _startupCommand = startupCommand;
 
         // Read before this run writes its own: a marker here is the last run's, which did not close cleanly.
         _crashed = ResumeMarker.Read(ResumePath);
@@ -268,6 +270,10 @@ public sealed partial class MainWindow : Window
     {
         await GreetAsync();
         AfterGreeting(_crashed, openedSomething);
+        if (_startupCommand is { } command)
+        {
+            Run(command);
+        }
     }
 
     private (int Width, int Height) VideoPixels() =>
