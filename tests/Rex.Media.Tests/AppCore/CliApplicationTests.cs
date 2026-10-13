@@ -119,6 +119,23 @@ public sealed class CliApplicationTests : IDisposable
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("chapterHints").ValueKind);
         Assert.NotEmpty(payload.GetProperty("signature").GetString()!);
 
+        // The same host caches the analysis for subsequent CLI requests, so nothing needs
+        // decoding a second time when the user inspects the same season again.
+        using (var cachedOutput = new StringWriter())
+        {
+            var cachedHost = new CliHost
+            {
+                Out = cachedOutput,
+                Error = TextWriter.Null,
+                Version = "9.9.9",
+                SectionCache = new SectionAnalysisCache(),
+            };
+            Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
+            cachedOutput.GetStringBuilder().Clear();
+            Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
+            Assert.True(Single(cachedOutput.ToString()).GetProperty("ok").GetBoolean());
+        }
+
         var human = Run(null, "sections", episode);
         Assert.Equal(0, human.Exit);
         Assert.Contains("compared with 1 episodes", human.Out, StringComparison.Ordinal);
