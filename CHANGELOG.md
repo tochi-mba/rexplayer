@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.20.0 - 2026-10-13
+
+### Added
+
+- **Thirteen more picture effects.** Interactive: Ripple touch, Torchlight, Gravity well,
+  Scan sweep, Shatter, Parallax, Rain on glass and Zoom burst follow the pointer and fall back
+  to the centre or to time when it is away. Motion: Flow field draws the picture's own movement
+  as coloured streaks and Motion isolate keeps colour only on what moves. Image-aware: Cel shade
+  and Terrain mesh. Mosaics: Low poly. Each has four controls with named modes where they fit.
+- **Thirteen more picture looks, now in groups.** Film: Slide film, Faded print, Noir. Mood:
+  Moonlight, Desert, Forest, Pastel. Stylised: Cyberpunk, Solarize, Posterize, Duotone,
+  Cyanotype. Essentials: Negative. The Picture look menu groups every look as the effects menu
+  does, and each look has a one-line description in its settings.
+
+### Fixed
+
+- **Five looks rendered as Night vision.** Teal & orange, Golden film, Bleach bypass, Cross
+  process and Infrared had lost their shader code; they draw again.
+- **Mosaic effects tuned from rendered previews.** Larger, readable cells for Dice, Cube, LED,
+  Cross-stitch and Digital rain; brick and cube colours now match by hue, so foliage comes out
+  green rather than grey; Lumen weave, Lens bloom and Stipple engrave are stronger and cleaner.
+
 ## 0.19.0 - 2026-10-13
 
 ### Added
