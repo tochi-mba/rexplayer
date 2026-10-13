@@ -67,7 +67,8 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void EveryPictureLookIsNamedSavedAndNormalized()
     {
-        Assert.Equal(27, VideoLooks.Names.Count);
+        Assert.Equal(40, VideoLooks.Names.Count);
+        Assert.Equal("Vivid", VideoLooks.Name(VideoLook.Vivid));
         Assert.Equal("Cyanotype", VideoLooks.Name(VideoLook.Cyanotype));
         Assert.Equal("Teal & orange", VideoLooks.Name(VideoLook.TealOrange));
         Assert.Equal("Infrared", VideoLooks.Name(VideoLook.Infrared));

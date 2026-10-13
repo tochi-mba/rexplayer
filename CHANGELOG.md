@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.21.0 - 2026-10-13
+
+### Added
+
+- **Thirteen more picture effects, with objects that react to the picture.** Pinball sends a
+  ball bouncing round the frame that squashes on outlines and pushes the picture aside;
+  Fireflies gather on highlights; Jigsaw pieces lift under the pointer; Colour magnet pulls
+  whatever matches the colour under the pointer; Ink spill floods the dark areas first;
+  Confetti is blown aside by the pointer. Electric edges, Time lens and Sonar ping follow the
+  pointer too. Motion outline draws marching ants around whatever moves. Bokeh, Heat haze and
+  Melt read the picture itself.
+- **Thirteen more picture looks.** Film: Technicolor, Silver gelatin, Super 8. Mood: Autumn,
+  Candlelight, Overcast, Spring, Dusk. Stylised: Acid, Ultraviolet, Comic, Chrome. Essentials:
+  Vivid.
+
 ## 0.20.0 - 2026-10-13
 
 ### Added

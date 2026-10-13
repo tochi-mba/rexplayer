@@ -62,6 +62,19 @@ public enum VideoEffect
     RainGlass,
     ZoomBurst,
     LowPoly,
+    Pinball,
+    Fireflies,
+    ElectricEdges,
+    TimeLens,
+    Melt,
+    Jigsaw,
+    ColourMagnet,
+    SonarPing,
+    Bokeh,
+    InkSpill,
+    MotionOutline,
+    HeatHaze,
+    Confetti,
 }
 
 /// <summary>Names, categories, descriptions and safe bounds for the optional effects.</summary>
@@ -83,6 +96,8 @@ public static class VideoEffects
         "Cube mosaic", "Hex tiles", "Retro pixels", "Motion amplify",
         "Flow field", "Ripple touch", "Torchlight", "Motion isolate", "Cel shade", "Terrain mesh", "Gravity well",
         "Scan sweep", "Shatter", "Parallax", "Rain on glass", "Zoom burst", "Low poly",
+        "Pinball", "Fireflies", "Electric edges", "Time lens", "Melt", "Jigsaw", "Colour magnet",
+        "Sonar ping", "Bokeh", "Ink spill", "Motion outline", "Heat haze", "Confetti",
     ];
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
@@ -92,16 +107,17 @@ public static class VideoEffects
     {
         VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave => "Contours",
         VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.TimeEcho
-            or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate => "Motion & geometry",
+            or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate or VideoEffect.MotionOutline => "Motion & geometry",
         VideoEffect.CursorLens or VideoEffect.ColourSpotlight or VideoEffect.RippleTouch or VideoEffect.Torchlight
             or VideoEffect.GravityWell or VideoEffect.ScanSweep or VideoEffect.Shatter or VideoEffect.Parallax
-            or VideoEffect.RainGlass or VideoEffect.ZoomBurst => "Interactive",
-        VideoEffect.EdgeGravity or VideoEffect.ReliefEtch or VideoEffect.ThermalMap or VideoEffect.DepthHaze or VideoEffect.CelShade or VideoEffect.TerrainMesh => "Image-aware",
+            or VideoEffect.RainGlass or VideoEffect.ZoomBurst or VideoEffect.Pinball or VideoEffect.ElectricEdges or VideoEffect.TimeLens
+            or VideoEffect.Jigsaw or VideoEffect.ColourMagnet or VideoEffect.SonarPing or VideoEffect.InkSpill => "Interactive",
+        VideoEffect.EdgeGravity or VideoEffect.ReliefEtch or VideoEffect.ThermalMap or VideoEffect.DepthHaze or VideoEffect.CelShade or VideoEffect.TerrainMesh or VideoEffect.Fireflies or VideoEffect.Bokeh or VideoEffect.HeatHaze => "Image-aware",
         VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.StippleEngrave => "Print & texture",
         VideoEffect.GlyphMosaic or VideoEffect.BrickBuild or VideoEffect.StainedGlass or VideoEffect.CrossStitch
             or VideoEffect.LedWall or VideoEffect.DigitalRain or VideoEffect.DiceMosaic or VideoEffect.CubeMosaic
             or VideoEffect.HexTiles or VideoEffect.RetroPixels or VideoEffect.LowPoly => "Mosaics",
-        VideoEffect.ChromaticRift or VideoEffect.TapeWear or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.ParticleVeil => "Playful",
+        VideoEffect.ChromaticRift or VideoEffect.TapeWear or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.ParticleVeil or VideoEffect.Melt or VideoEffect.Confetti => "Playful",
         _ => "Essentials",
     };
 
@@ -166,13 +182,28 @@ public static class VideoEffects
         VideoEffect.RainGlass => "Drops run down a fogged pane in front of the picture; the pointer wipes the fog clear.",
         VideoEffect.ZoomBurst => "Streaks race outward from the pointer, longer further out, like a zoom pulled mid exposure.",
         VideoEffect.LowPoly => "The picture as a mesh of flat triangles, each lit as a facet.",
+        VideoEffect.Pinball => "A glowing ball bounces around the frame, squashing and flaring when it crosses a strong outline, pushing the picture aside and leaving a trail. The pointer is a bumper.",
+        VideoEffect.Fireflies => "Lights drift toward the brightest nearby spot, so over time they gather on highlights while the picture dims to dusk.",
+        VideoEffect.ElectricEdges => "Arcs crawl along the outlines nearest the pointer and the picture dims around them.",
+        VideoEffect.TimeLens => "A round window at the pointer shows the picture a moment ago, so moving things lag inside it and the rim glows where they differ.",
+        VideoEffect.Melt => "The picture runs downward like wax, each column at its own pace, bright areas furthest.",
+        VideoEffect.Jigsaw => "The picture cut into jigsaw pieces; pieces near the pointer lift off the board with a shadow.",
+        VideoEffect.ColourMagnet => "The pointer picks the colour under it and everything of that colour is drawn toward it and glows.",
+        VideoEffect.SonarPing => "A ping spreads from the pointer; outlines light up as the ring crosses them and fade behind it.",
+        VideoEffect.Bokeh => "Soft areas go out of focus and their highlights bloom into lens discs; crisp detail stays sharp. Depth is a guess from sharpness.",
+        VideoEffect.InkSpill => "Ink spreads from the pointer and floods the darker areas first, feeling its way around bright ones.",
+        VideoEffect.MotionOutline => "Marching ants around whatever moved since the previous picture, like a live selection. A still picture shows none.",
+        VideoEffect.HeatHaze => "Air shimmers above the brightest parts of the picture.",
+        VideoEffect.Confetti => "Confetti tumbles across the picture, catching its light; near the pointer it is blown aside.",
         _ => "",
     };
 
     /// <summary>The pointer-driven effects read pointer coordinates, never persisted or recorded.</summary>
     public static bool UsesPointer(VideoEffect effect) => effect is VideoEffect.CursorLens or VideoEffect.ColourSpotlight
         or VideoEffect.RippleTouch or VideoEffect.Torchlight or VideoEffect.GravityWell or VideoEffect.ScanSweep
-        or VideoEffect.Shatter or VideoEffect.Parallax or VideoEffect.RainGlass or VideoEffect.ZoomBurst;
+        or VideoEffect.Shatter or VideoEffect.Parallax or VideoEffect.RainGlass or VideoEffect.ZoomBurst
+        or VideoEffect.Pinball or VideoEffect.ElectricEdges or VideoEffect.TimeLens or VideoEffect.Jigsaw
+        or VideoEffect.ColourMagnet or VideoEffect.SonarPing or VideoEffect.InkSpill or VideoEffect.Confetti;
 
     /// <summary>
     /// Whether the effect, at this strength and with its third and fourth controls at these values,
@@ -185,7 +216,8 @@ public static class VideoEffects
     {
         VideoEffect.GhostwireMotion => fourth is 0 or 2,
         VideoEffect.MotionSmear => third > 0,
-        VideoEffect.ParticleVeil or VideoEffect.TimeEcho or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate => true,
+        VideoEffect.ParticleVeil or VideoEffect.TimeEcho or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate
+            or VideoEffect.TimeLens or VideoEffect.MotionOutline => true,
         VideoEffect.ChromaticRift => fourth > 0,
         _ => false,
     };
