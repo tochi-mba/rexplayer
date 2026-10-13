@@ -97,6 +97,7 @@ public sealed partial class MainWindow : Window
         WireZoom();
         WireSubjectTools();
         WireSeekBar();
+        WireTaskbar();
 
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
@@ -408,6 +409,7 @@ public sealed partial class MainWindow : Window
         ShowEpisodeSkip();
         ShowNamedPlaylists();
         ShowMenuChecks();
+        ShowTaskbarState();
         RememberLater();
     }
 
@@ -427,6 +429,7 @@ public sealed partial class MainWindow : Window
 
         _updatingControls = false;
         ShowEpisodeSkip();
+        ShowTaskbarPosition();
     }
 
     /// <summary>Brings the playlist view in line, row by row, keeping its selection and scroll and the playing item in sight.</summary>
@@ -455,6 +458,8 @@ public sealed partial class MainWindow : Window
         {
             PlaylistView.ScrollIntoView(_playlistRows[current]);
         }
+
+        ShowTaskbarState();
     }
 
     /// <summary>A short message over the picture, which fades after a moment.</summary>
@@ -599,6 +604,7 @@ public sealed partial class MainWindow : Window
         SaveSettings();
         _player.SaveQueue();
         CloseLibrary();
+        DisposeShell();
         _globalHotkeys?.Dispose();
         TryClearResumeMarker();
         KeepAwake(false, false);
