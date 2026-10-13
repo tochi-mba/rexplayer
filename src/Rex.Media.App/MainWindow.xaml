@@ -411,57 +411,6 @@
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
                  AutomationProperties.AutomationId="Notice" />
 
-        <!-- A newer version (TOOL-09): never over full-screen playback; closing it, or Escape inside it, is "Remind me later". -->
-        <InfoBar x:Name="UpdateBar" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
-                 Severity="Informational" AutomationProperties.AutomationId="UpdateBar" AutomationProperties.Name="Update"
-                 AutomationProperties.LiveSetting="Polite" CloseButtonClick="OnUpdateBarCloseClick">
-          <StackPanel Spacing="8" Margin="0,0,0,12">
-            <ProgressBar x:Name="UpdateProgress" Visibility="Collapsed" Maximum="100" AutomationProperties.AutomationId="UpdateProgress"
-                         AutomationProperties.Name="Download progress" />
-            <StackPanel x:Name="UpdateActions" Spacing="8">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="UpdateRestartButton" Content="Restart now" Style="{StaticResource AccentButtonStyle}" Click="OnUpdateRestartClick"
-                        AutomationProperties.AutomationId="UpdateRestartButton"
-                        ToolTipService.ToolTip="Install now; rexplayer reopens with your queue and place, paused" />
-                <Button x:Name="UpdateDownloadButton" Content="Download" Style="{StaticResource AccentButtonStyle}" Click="OnUpdateDownloadClick"
-                        AutomationProperties.AutomationId="UpdateDownloadButton" Visibility="Collapsed"
-                        ToolTipService.ToolTip="Download in the background, then choose when to install" />
-                <Button x:Name="UpdateOnCloseButton" Content="Install when I close rexplayer" Click="OnUpdateOnCloseClick"
-                        AutomationProperties.AutomationId="UpdateOnCloseButton" />
-                <Button x:Name="UpdateTonightButton" Content="Install tonight" Click="OnUpdateTonightClick"
-                        AutomationProperties.AutomationId="UpdateTonightButton"
-                        ToolTipService.ToolTip="Installs after 3 AM once rexplayer is not in use, or when you close it" />
-              </StackPanel>
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <SplitButton x:Name="UpdateRemindButton" Content="Remind me later" Click="OnUpdateRemindClick"
-                             AutomationProperties.AutomationId="UpdateRemindButton" AutomationProperties.Name="Remind me tomorrow"
-                             ToolTipService.ToolTip="Remind me tomorrow">
-                  <SplitButton.Flyout>
-                    <MenuFlyout Placement="Top">
-                      <MenuFlyoutItem Text="In an hour" Tag="InAnHour" Click="OnUpdateRemindChoiceClick" AutomationProperties.AutomationId="UpdateRemindHour" />
-                      <MenuFlyoutItem Text="Tomorrow" Tag="Tomorrow" Click="OnUpdateRemindChoiceClick" AutomationProperties.AutomationId="UpdateRemindTomorrow" />
-                      <MenuFlyoutItem Text="Next week" Tag="NextWeek" Click="OnUpdateRemindChoiceClick" AutomationProperties.AutomationId="UpdateRemindWeek" />
-                    </MenuFlyout>
-                  </SplitButton.Flyout>
-                </SplitButton>
-                <Button x:Name="UpdateSkipButton" Content="Skip this version" Click="OnUpdateSkipClick"
-                        AutomationProperties.AutomationId="UpdateSkipButton" />
-              </StackPanel>
-            </StackPanel>
-            <Expander x:Name="UpdateWhatsNew" Header="What's new" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                      AutomationProperties.AutomationId="UpdateWhatsNew" AutomationProperties.Name="What's new">
-              <StackPanel Spacing="6">
-                <ScrollViewer MaxHeight="200">
-                  <TextBlock x:Name="UpdateNotesText" TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                             AutomationProperties.AutomationId="UpdateNotesText" />
-                </ScrollViewer>
-                <HyperlinkButton x:Name="UpdateReleasePage" Content="Open the release page" Click="OnUpdateReleasePageClick"
-                                 AutomationProperties.AutomationId="UpdateReleasePage" />
-              </StackPanel>
-            </Expander>
-          </StackPanel>
-        </InfoBar>
-
         <!-- The navigator: the presenter draws the whole picture here while zoomed; this frames it, marks the view and takes the pointer. -->
         <Grid x:Name="Navigator" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" Background="Transparent"
               BorderBrush="#E0FFFFFF" BorderThickness="1" AutomationProperties.AutomationId="Navigator" AutomationProperties.Name="Navigator">
@@ -676,6 +625,44 @@
           </ListView.ItemTemplate>
         </ListView>
       </Grid>
+      <!-- A downloaded update, or a newer version to decide about (TOOL-09): a compact card in the
+           corner, never over the middle of the picture and never while a video plays. Escape inside
+           it is "Later: tomorrow". -->
+      <Border x:Name="UpdateCard" Grid.Column="0" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+              Margin="16" MaxWidth="400" Padding="16,14" CornerRadius="8" BorderThickness="1"
+              Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
+              AutomationProperties.AutomationId="UpdateCard" AutomationProperties.Name="Update"
+              AutomationProperties.LandmarkType="Custom" AutomationProperties.LocalizedLandmarkType="Update">
+        <StackPanel Spacing="12">
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <FontIcon x:Name="UpdateCardReadyIcon" Glyph="&#xE777;" FontSize="20" VerticalAlignment="Top" Margin="0,2,0,0"
+                      Foreground="{ThemeResource SystemFillColorSuccessBrush}" AutomationProperties.AccessibilityView="Raw" />
+            <FontIcon x:Name="UpdateCardAvailableIcon" Glyph="&#xE896;" FontSize="20" VerticalAlignment="Top" Margin="0,2,0,0" Visibility="Collapsed"
+                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw" />
+            <TextBlock x:Name="UpdateCardText" Grid.Column="1" TextWrapping="Wrap" AutomationProperties.AutomationId="UpdateCardText" />
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="UpdateCardAction" Style="{StaticResource AccentButtonStyle}" Click="OnUpdateCardActionClick"
+                    AutomationProperties.AutomationId="UpdateCardAction" />
+            <DropDownButton x:Name="UpdateCardLater" Content="Later" AutomationProperties.AutomationId="UpdateCardLater"
+                            ToolTipService.ToolTip="Remind me later, install at another time, or skip this version" />
+          </StackPanel>
+          <Expander x:Name="UpdateCardWhatsNew" Header="What's new" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    AutomationProperties.AutomationId="UpdateCardWhatsNew">
+            <StackPanel Spacing="6">
+              <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                <RichTextBlock x:Name="UpdateCardNotes" IsTextSelectionEnabled="True" AutomationProperties.AutomationId="UpdateCardNotes"
+                               AutomationProperties.Name="What's new" />
+              </ScrollViewer>
+              <HyperlinkButton Content="Open the release page" Click="OnUpdateReleasePageClick" AutomationProperties.AutomationId="UpdateCardReleasePage" />
+            </StackPanel>
+          </Expander>
+        </StackPanel>
+      </Border>
     </Grid>
 
     <Grid x:Name="Controls" Grid.Row="2" Padding="12,4,12,8" ColumnSpacing="8" VerticalAlignment="Bottom">
@@ -751,6 +738,79 @@
       </StackPanel>
 
       <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
+        <!-- Updates (TOOL-09): a quiet indicator while a download runs in the background or an update
+             waits; it opens the update panel with the live state. -->
+        <Button x:Name="UpdateIndicator" Visibility="Collapsed" VerticalAlignment="Center" Padding="7,5"
+                AutomationProperties.AutomationId="UpdateIndicator" AutomationProperties.Name="Update">
+          <Grid Width="22" Height="22">
+            <ProgressRing x:Name="UpdateIndicatorRing" Width="22" Height="22" IsActive="False" IsIndeterminate="False" Maximum="100"
+                          IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+            <FontIcon x:Name="UpdateIndicatorIcon" Glyph="&#xE896;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      AutomationProperties.AccessibilityView="Raw" />
+            <InfoBadge x:Name="UpdateBadgeAttention" Style="{StaticResource AttentionDotInfoBadgeStyle}" Visibility="Collapsed"
+                       HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-4,0" AutomationProperties.AccessibilityView="Raw" />
+            <InfoBadge x:Name="UpdateBadgeSuccess" Style="{StaticResource SuccessIconInfoBadgeStyle}" Visibility="Collapsed"
+                       HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" AutomationProperties.AccessibilityView="Raw" />
+            <InfoBadge x:Name="UpdateBadgeCritical" Style="{StaticResource CriticalIconInfoBadgeStyle}" Visibility="Collapsed"
+                       HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" AutomationProperties.AccessibilityView="Raw" />
+          </Grid>
+          <Button.Flyout>
+            <Flyout x:Name="UpdateFlyout" Placement="TopEdgeAlignedRight" Opened="OnUpdateFlyoutOpened" Closed="OnUpdateFlyoutClosed">
+              <StackPanel Width="360" Spacing="10" AutomationProperties.AutomationId="UpdatePanel" AutomationProperties.Name="Update">
+                <TextBlock x:Name="UpdatePanelTitle" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"
+                           AutomationProperties.AutomationId="UpdatePanelTitle" AutomationProperties.HeadingLevel="Level1" />
+                <Grid>
+                  <Border x:Name="UpdatePanelErrorBack" Visibility="Collapsed" CornerRadius="4"
+                          Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" />
+                  <Grid x:Name="UpdatePanelStatusBox" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon x:Name="UpdatePanelErrorIcon" Visibility="Collapsed" Glyph="&#xEA39;" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"
+                              Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.AccessibilityView="Raw" />
+                    <TextBlock x:Name="UpdatePanelStatus" Grid.Column="1" TextWrapping="Wrap" AutomationProperties.AutomationId="UpdatePanelStatus" />
+                  </Grid>
+                </Grid>
+                <ProgressBar x:Name="UpdatePanelProgress" Maximum="100" Visibility="Collapsed"
+                             AutomationProperties.AutomationId="UpdatePanelProgress" AutomationProperties.Name="Download progress" />
+                <TextBlock x:Name="UpdatePanelNote" TextWrapping="Wrap" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           AutomationProperties.AutomationId="UpdatePanelNote" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="UpdateDownloadButton" Content="Download" Click="OnUpdateDownloadClick" Visibility="Collapsed"
+                          AutomationProperties.AutomationId="UpdateDownloadButton"
+                          ToolTipService.ToolTip="Download in the background, then choose when to install" />
+                  <Button x:Name="UpdateResumeButton" Content="Resume download" Click="OnUpdateResumeClick" Visibility="Collapsed"
+                          AutomationProperties.AutomationId="UpdateResumeButton" />
+                  <Button x:Name="UpdateRetryButton" Content="Retry" Click="OnUpdateResumeClick" Visibility="Collapsed"
+                          AutomationProperties.AutomationId="UpdateRetryButton" AutomationProperties.Name="Retry the download" />
+                  <Button x:Name="UpdateRestartButton" Content="Restart now" Click="OnUpdateRestartClick" Visibility="Collapsed"
+                          AutomationProperties.AutomationId="UpdateRestartButton"
+                          ToolTipService.ToolTip="Install now; rexplayer reopens with your queue and place, paused" />
+                  <Button x:Name="UpdateCheckAgainButton" Content="Check again" Click="OnUpdateCheckAgainClick" Visibility="Collapsed"
+                          AutomationProperties.AutomationId="UpdateCheckAgainButton" />
+                  <Button x:Name="UpdatePauseButton" Content="Pause download" Click="OnUpdatePauseClick" Visibility="Collapsed"
+                          AutomationProperties.AutomationId="UpdatePauseButton" />
+                  <DropDownButton x:Name="UpdateLaterButton" Content="Later" Visibility="Collapsed" AutomationProperties.AutomationId="UpdateLaterButton"
+                                  ToolTipService.ToolTip="Remind me later, install at another time, or skip this version" />
+                  <Button x:Name="UpdateCancelButton" Content="Cancel download" Click="OnUpdateCancelClick" Visibility="Collapsed"
+                          AutomationProperties.AutomationId="UpdateCancelButton" />
+                </StackPanel>
+                <Expander x:Name="UpdateWhatsNew" Header="What's new" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          AutomationProperties.AutomationId="UpdateWhatsNew">
+                  <StackPanel Spacing="6">
+                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                      <RichTextBlock x:Name="UpdateNotes" IsTextSelectionEnabled="True" AutomationProperties.AutomationId="UpdateNotes"
+                                     AutomationProperties.Name="What's new" />
+                    </ScrollViewer>
+                    <HyperlinkButton x:Name="UpdateReleasePage" Content="Open the release page" Click="OnUpdateReleasePageClick"
+                                     AutomationProperties.AutomationId="UpdateReleasePage" />
+                  </StackPanel>
+                </Expander>
+              </StackPanel>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
         <Button x:Name="SpeedButton" Content="1×" MinWidth="52" Click="OnSpeedButton" VerticalAlignment="Center"
                 AutomationProperties.AutomationId="SpeedButton" AutomationProperties.Name="Playback speed, 1×"
                 ToolTipService.ToolTip="Choose playback speed" />

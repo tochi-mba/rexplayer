@@ -215,7 +215,52 @@ public sealed partial class MainWindow
             TryClearResumeMarker();
         }
 
-        ShowUpdateNews(news.News);
+        ShowUpdateNews();
         StartUpdates();
+    }
+
+    /// <summary>
+    /// Tells the user how the update the last run handed over went: a failure in error styling with
+    /// its reason and Retry, a cancel plainly, a success as the small "Updated to" note.
+    /// </summary>
+    private void ShowUpdateNews()
+    {
+        if (_updateNotice is not { } notice)
+        {
+            if (_showUpdatedNote && !Notice.IsOpen)
+            {
+                ShowUpdatedNote();
+            }
+
+            return;
+        }
+
+        Button? retry = null;
+        if (Pending is { Stage: Rex.Media.Settings.UpdateStage.Ready })
+        {
+            retry = new Button { Content = "Retry" };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retry, "UpdateInstallRetryButton");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(retry, "Retry the update");
+            retry.Click += (_, _) =>
+            {
+                Notice.IsOpen = false;
+                _ = InstallAsync(unattended: false);
+            };
+        }
+
+        ShowNotice(notice.Title, notice.Message, retry, notice.Failure ? InfoBarSeverity.Error : InfoBarSeverity.Informational);
+    }
+
+    /// <summary>The small note the first start of a new version shows: "Updated to X", with What's new.</summary>
+    private void ShowUpdatedNote()
+    {
+        var whatsNew = new Button { Content = "What's new" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "UpdatedWhatsNewButton");
+        whatsNew.Click += (_, _) =>
+        {
+            Notice.IsOpen = false;
+            _ = ShowWhatsNewAsync();
+        };
+        ShowNotice($"Updated to rexplayer {Version}", "Everything you had open is as you left it.", whatsNew, InfoBarSeverity.Success);
     }
 }

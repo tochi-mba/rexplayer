@@ -55,7 +55,10 @@ public sealed record PendingUpdate
     /// <summary>The installer's size in bytes as the release states it; 0 when it does not say.</summary>
     public long Size { get; init; }
 
-    /// <summary>The release notes as plain text.</summary>
+    /// <summary>
+    /// The release notes, tidied: one block per line ("### Heading", "- **Label.** text", "- text"
+    /// or a paragraph). Notes saved by older versions as plain text read the same way.
+    /// </summary>
     public string Notes { get; init; } = "";
 
     /// <summary>The release asks for the user's attention, so it is never installed without asking.</summary>
@@ -67,6 +70,18 @@ public sealed record PendingUpdate
 
     /// <summary>The user asked for this download, so it goes ahead even on a metered connection.</summary>
     public bool Approved { get; init; }
+
+    /// <summary>The user paused the download; it waits, across restarts, until they resume it.</summary>
+    public bool Paused { get; init; }
+
+    /// <summary>
+    /// The user cancelled the download: the version stays on offer, but rexplayer does not download
+    /// it again by itself. A newer version clears this.
+    /// </summary>
+    public bool Declined { get; init; }
+
+    /// <summary>The user cancelled the installer once, so automatic mode asks before trying again.</summary>
+    public bool InstallCancelled { get; init; }
 
     /// <summary>Not offered again before this moment ("Remind me later").</summary>
     public DateTimeOffset? RemindAt { get; init; }

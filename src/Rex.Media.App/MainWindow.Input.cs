@@ -37,7 +37,7 @@ public sealed partial class MainWindow
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         _lastInputTick = Environment.TickCount64;
-        if (e.Key == VirtualKey.Escape && !e.Handled && EscapeFromUpdateBar())
+        if (e.Key == VirtualKey.Escape && !e.Handled && EscapeFromUpdateCard())
         {
             e.Handled = true;
             return;

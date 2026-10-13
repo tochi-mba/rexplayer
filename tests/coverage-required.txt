@@ -172,6 +172,7 @@ PngWriter.cs
 PromptedMaskTracker.cs
 Raster.cs
 Rational.cs
+ReleaseNotes.cs
 RemovalPanel.cs
 Resampler.cs
 ResonanceScene.cs
@@ -225,9 +226,11 @@ ThreadLoop.cs
 TimeStretch.cs
 TimeText.cs
 TrackInfo.cs
+TransferMeter.cs
 UpdateCheck.cs
 UpdateDownloader.cs
 UpdateFlow.cs
+UpdateView.cs
 VideoEffect.cs
 VideoFrame.cs
 VideoGeometry.cs
