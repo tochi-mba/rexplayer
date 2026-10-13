@@ -54,7 +54,6 @@ public sealed class MusicPulse
     /// <summary>Bands wholly below this come from the long transform.</summary>
     private const double LongBelowHz = 320;
 
-    private const int FluxHistory = 45;
     private const double MinimumGap = 1.0 / 6;
 
     /// <summary>How long the drums must be away for their return to be the drop.</summary>
@@ -92,8 +91,7 @@ public sealed class MusicPulse
     private readonly AdaptiveRange _midRange = new();
     private readonly AdaptiveRange _trebleRange = new();
     private readonly AdaptiveRange _loudnessRange = new(12, 2, 4);
-    private readonly Queue<double> _fluxes = new();
-    private readonly double[] _sorted = new double[FluxHistory];
+    private readonly MovingMedian _fluxes = new(Onset.History);
     private readonly Onset _kick = new(0.18, 0.15, 2.5);
     private readonly Onset _snare = new(0.15, 0.2, 2.5);
     private readonly Onset _hat = new(0.09, 0.08, 2.5);
@@ -237,12 +235,12 @@ public sealed class MusicPulse
         {
             // The first frame rises from nothing: it is no beat.
             _primed = true;
-            Remember(0);
+            Remember(0, dt);
             return;
         }
 
         // An onset of the whole spectrum, or a kick; once the clock is sure, only near its beats.
-        var (median, spread) = Onset.Robust(_fluxes, _sorted);
+        var (median, spread) = _fluxes.Measure();
         // The surge must also stand out against the strongest of late, so the hats between the beats are not beats.
         _peakFlux = Math.Max(flux, _peakFlux * Math.Exp(-dt / 3));
         var surge = flux > median + Math.Max(Math.Max(3 * spread, 0.004), 0.4 * (_peakFlux - median)) && flux >= _lastFlux;
@@ -287,7 +285,7 @@ public sealed class MusicPulse
         Build = Drop || _kick.Hit ? 0 : (float)Math.Clamp(Build + (building ? dt / 6 : -dt), 0, 1);
 
         _musicFor = RawLoudness > Quiet ? _musicFor + dt : 0;
-        Remember(flux);
+        Remember(flux, dt);
         if (_detected > 3 && _clock.SinceOnset < 2)
         {
             _clock.Estimate();
@@ -443,13 +441,9 @@ public sealed class MusicPulse
         return flux / top;
     }
 
-    private void Remember(double flux)
+    private void Remember(double flux, double dt)
     {
         _lastFlux = flux;
-        _fluxes.Enqueue(flux);
-        while (_fluxes.Count > FluxHistory)
-        {
-            _fluxes.Dequeue();
-        }
+        _fluxes.Add(flux, dt);
     }
 }
