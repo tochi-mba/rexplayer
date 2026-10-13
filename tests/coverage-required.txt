@@ -148,6 +148,8 @@ PendingUpdate.cs
 PictureBlock.cs
 PictureDemuxer.cs
 PictureFormats.cs
+PictureSpace.cs
+PictureTimeline.cs
 PictureView.cs
 PixelFormat.cs
 Playback.cs
