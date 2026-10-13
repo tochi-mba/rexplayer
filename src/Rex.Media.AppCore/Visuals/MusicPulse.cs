@@ -94,7 +94,7 @@ public sealed class MusicPulse
     private readonly AdaptiveRange _trebleRange = new();
     private readonly AdaptiveRange _loudnessRange = new(12, 2, 4);
     private readonly MovingMedian _fluxes = new(Onset.History);
-    private readonly Onset _kick = new(0.18, 0.15, 2.5);
+    private readonly Onset _kick = new(0.18, 0.15, 1.5);
     private readonly Onset _snare = new(0.15, 0.2, 2.5);
     private readonly Onset _hat = new(0.09, 0.08, 2.5);
     private readonly BeatClock _clock = new();
