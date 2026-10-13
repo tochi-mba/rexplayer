@@ -21,8 +21,6 @@ public sealed partial class SubjectEditSession : IDisposable
     private int _returnConfirmations;
     private int _reacquiredFrames;
     private bool _needsReselection;
-    private byte[]? _clean;
-    private byte[]? _known;
     private MediaTime _lastPts = MediaTime.Unknown;
     private long? _generation;
     private int _width;
@@ -52,10 +50,10 @@ public sealed partial class SubjectEditSession : IDisposable
     /// <summary>Full-template comparisons in the latest global search, for local performance diagnostics.</summary>
     public int LastSearchComparisons { get; private set; }
 
-    /// <summary>Soft-edge width in pixels, adjustable without modifying the selected media.</summary>
+    /// <summary>How far the removal fades out beyond the subject's outline, in pixels; 0 is a hard edge.</summary>
     public int Feather { get; private set; } = 3;
 
-    /// <summary>How broadly the foreground's colours are included, from 0 to 100.</summary>
+    /// <summary>How much of the box counts as the subject, from 0 (only what clearly is) to 100 (all of it); 50 is balanced.</summary>
     public int MaskTolerance { get; private set; } = 50;
 
     /// <summary>Live, bounded mask adjustments; preview and original frames remain independent.</summary>
@@ -103,7 +101,8 @@ public sealed partial class SubjectEditSession : IDisposable
         _identityWidth = _identityHeight = 0;
         _width = _height = 0;
         _needsReselection = false;
-        _clean = _known = null;
+        _removal.Release();
+        ObservedPixels = 0;
         _scan = _scanColour = null;
         _scanWidth = _scanHeight = 0;
         _lightRed = _lightGreen = 0;
@@ -117,8 +116,8 @@ public sealed partial class SubjectEditSession : IDisposable
 
     /// <summary>
     /// Analyze a BGRA video picture and, when requested, create an edited copy. Null means show
-    /// the original. Never modifies the caller's frame. A cache can use genuinely uncovered pixels
-    /// from preceding frames only if the camera appears stationary; otherwise estimates from edges.
+    /// the original. Never modifies the caller's frame. The removal shows background seen in other
+    /// frames, followed through pans and zooms, and synthesises only what was never visible.
     /// </summary>
     public VideoFrame? Process(VideoFrame frame, bool advanceTracking = true)
     {
@@ -167,8 +166,7 @@ public sealed partial class SubjectEditSession : IDisposable
             }
 
             (_width, _height) = (frame.Width, frame.Height);
-            _clean = null;
-            _known = null;
+            _removal.Release();
             _positive.Clear();
             _negative.Clear();
             _lostFrames = 0;
@@ -193,7 +191,7 @@ public sealed partial class SubjectEditSession : IDisposable
             Erase = false;
             Status = "The timeline jumped. Select the subject again to avoid following a different object.";
             Locked = false;
-            _clean = _known = null;
+            _removal.Release();
             return null;
         }
 
@@ -263,95 +261,7 @@ public sealed partial class SubjectEditSession : IDisposable
             return null;
         }
 
-        // The earliest reference is only reliable for a stationary camera. A scene cut or
-        // significant movement invalidates recovered pixels; do not paint a stale background.
-        var pixels = frame.Width * frame.Height;
-        if (_clean is null || _known is null)
-        {
-            _clean = new byte[pixels * 4];
-            _known = new byte[pixels];
-        }
-        else if (advanceTracking && CameraMoved(frame, _clean, _known))
-        {
-            Array.Clear(_known);
-        }
-
-        var box = Bounds(frame.Width, frame.Height);
-        for (var y = 0; advanceTracking && y < frame.Height; y++)
-        {
-            var row = frame.Row(0, y);
-            var rowOffset = y * frame.Width;
-            if (y < box.Top || y >= box.Bottom)
-            {
-                row.CopyTo(_clean.AsSpan(rowOffset * 4, frame.Width * 4));
-                _known.AsSpan(rowOffset, frame.Width).Fill(1);
-            }
-            else
-            {
-                row[..(box.Left * 4)].CopyTo(_clean.AsSpan(rowOffset * 4));
-                row[(box.Right * 4)..].CopyTo(_clean.AsSpan((rowOffset + box.Right) * 4));
-                _known.AsSpan(rowOffset, box.Left).Fill(1);
-                _known.AsSpan(rowOffset + box.Right, frame.Width - box.Right).Fill(1);
-            }
-        }
-
-        if (!Erase)
-        {
-            return null;
-        }
-
-        var output = ColorConverter.ToBgra(frame);
-        EstimatedPixels = 0;
-        // A roughly chosen rectangle should not automatically erase pixels resembling the
-        // surrounding backdrop. This colour-aware soft mask is deliberately conservative,
-        // not a semantic segmentation or a reconstruction of obscured anatomy.
-        var (foreground, background, difference) = CompareSubjectWithBorder(frame, box);
-        var edited = 0;
-        for (var y = box.Top; y < box.Bottom; y++)
-        {
-            var row = output.Row(0, y);
-            for (var x = box.Left; x < box.Right; x++)
-            {
-                var at = y * frame.Width + x;
-                var p = x * 4;
-                var edge = Math.Min(Math.Min(x - box.Left, box.Right - x - 1),
-                    Math.Min(y - box.Top, box.Bottom - y - 1));
-                var alpha = Feather == 0 ? 1.0 : Math.Min(1.0, (edge + 1) / (double)Feather);
-                if (difference > 60)
-                {
-                    var foregroundDistance = ColourDistance(row, p, foreground);
-                    var backgroundDistance = ColourDistance(row, p, background);
-                    alpha *= Math.Clamp((backgroundDistance - foregroundDistance + MaskTolerance) / 100.0, 0, 1);
-                }
-
-                if (alpha < 0.01)
-                {
-                    continue;
-                }
-
-                edited++;
-                var observed = _known[at] != 0;
-                if (!observed)
-                {
-                    EstimatedPixels++;
-                }
-
-                for (var c = 0; c < 3; c++)
-                {
-                    var restored = observed ? _clean[at * 4 + c]
-                        : EstimateFromBorders(frame, box, x, y, c);
-                    row[p + c] = (byte)Math.Clamp(Math.Round(
-                        row[p + c] * (1 - alpha) + restored * alpha), 0, 255);
-                }
-            }
-        }
-
-        Status = edited == 0
-            ? "Selected region blends into its surroundings. Refine the selection; original is shown."
-            : EstimatedPixels > 0
-                ? "Estimated fill: some hidden pixels were never seen in the video. Preview only."
-                : "Observed fill: using background pixels seen in other frames. Preview only.";
-        return output;
+        return Remove(frame, advanceTracking);
     }
 
     /// <summary>Reject over-budget pictures before a presenter copies a hardware surface to the CPU.</summary>
@@ -413,85 +323,9 @@ public sealed partial class SubjectEditSession : IDisposable
         return (foreground, background, difference);
     }
 
-    private static int ColourDistance(ReadOnlySpan<byte> row, int index, (int B, int G, int R) colour) =>
-        Math.Abs(row[index] - colour.B) + Math.Abs(row[index + 1] - colour.G)
-        + Math.Abs(row[index + 2] - colour.R);
-
-    /// <summary>
-    /// Smooth four-sided boundary interpolation for a never-observed area. This is a plausible
-    /// flat-surface estimate, *not* inference of the actual physically hidden object. It uses
-    /// only original pixels outside the selected area, including selections touching an edge.
-    /// </summary>
-    private static double EstimateFromBorders(VideoFrame frame,
-        (int Left, int Top, int Right, int Bottom) box, int x, int y, int channel)
-    {
-        double total = 0;
-        double weight = 0;
-        var width = box.Right - box.Left + 1;
-        var height = box.Bottom - box.Top + 1;
-        if (box.Left > 0)
-        {
-            var w = (double)(box.Right - x) / width;
-            total += w * frame.Row(0, y)[(box.Left - 1) * 4 + channel];
-            weight += w;
-        }
-
-        if (box.Right < frame.Width)
-        {
-            var w = (double)(x - box.Left + 1) / width;
-            total += w * frame.Row(0, y)[box.Right * 4 + channel];
-            weight += w;
-        }
-
-        if (box.Top > 0)
-        {
-            var w = (double)(box.Bottom - y) / height;
-            total += w * frame.Row(0, box.Top - 1)[x * 4 + channel];
-            weight += w;
-        }
-
-        if (box.Bottom < frame.Height)
-        {
-            var w = (double)(y - box.Top + 1) / height;
-            total += w * frame.Row(0, box.Bottom)[x * 4 + channel];
-            weight += w;
-        }
-
-        return weight > 0 ? total / weight : frame.Row(0, y)[x * 4 + channel];
-    }
-
     private (int Left, int Top, int Right, int Bottom) Bounds(int width, int height) =>
         (Math.Clamp((int)(Region.Left * width), 0, width - 1),
          Math.Clamp((int)(Region.Top * height), 0, height - 1),
          Math.Clamp((int)Math.Ceiling((Region.Left + Region.Width) * width), 1, width),
          Math.Clamp((int)Math.Ceiling((Region.Top + Region.Height) * height), 1, height));
-
-    private static bool CameraMoved(VideoFrame frame, byte[] history, byte[] seen)
-    {
-        var compared = 0;
-        var changed = 0;
-        for (var y = 0; y < frame.Height; y += Math.Max(1, frame.Height / 16))
-        {
-            var row = frame.Row(0, y);
-            for (var x = 0; x < frame.Width; x += Math.Max(1, frame.Width / 20))
-            {
-                var at = y * frame.Width + x;
-                if (seen[at] == 0)
-                {
-                    continue;
-                }
-
-                compared++;
-                var p = x * 4;
-                if (Math.Abs(row[p] - history[at * 4]) +
-                    Math.Abs(row[p + 1] - history[at * 4 + 1]) +
-                    Math.Abs(row[p + 2] - history[at * 4 + 2]) > 135)
-                {
-                    changed++;
-                }
-            }
-        }
-
-        return compared >= 32 && changed * 5 > compared;
-    }
 }

@@ -88,13 +88,16 @@ public sealed class MemoryControllerTests
     [Capability("PB-11")]
     public void AFileThatPlayedToTheEndStartsFromTheTop()
     {
-        using var harness = Harness(RexStore.InMemory(), autoPlay: true);
+        using var harness = Harness(RexStore.InMemory());
         harness.Files["short.wav"] = Count(0, 8000 * 12);
         var controller = harness.Controller;
+        // Seek while ready: the recording sink can consume this short file before a
+        // test thread observes Playing, especially on a busy CI worker.
         controller.Open(["short.wav"]);
-        harness.PumpUntil(c => c.State == SessionState.Playing);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
         controller.Seek(TimeSpan.FromSeconds(11));
         controller.RememberPosition();
+        Assert.True(controller.Execute(CommandCatalog.PlayPause));
         harness.PumpUntil(c => c.State == SessionState.Ended);
 
         Assert.Null(controller.Memory.ResumePoint("short.wav"));

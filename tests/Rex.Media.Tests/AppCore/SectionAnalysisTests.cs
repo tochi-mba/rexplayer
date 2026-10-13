@@ -216,10 +216,10 @@ public sealed class SectionAnalysisTests
             var frame = AudioFrame.Rent(8000, 1, 100);
             if (nearlyConsumed)
             {
-                // There are only half a sample's worth of timeline left in this frame.
+                // The closing window starts at 360 s: only half a sample of this frame overlaps it.
                 // Rounding the cut up consumes all 100 samples, without crossing the
                 // earlier strictly-before-the-window check.
-                frame.Pts = MediaTime.FromSeconds(239.9875625);
+                frame.Pts = MediaTime.FromSeconds(359.9875625);
             }
             output.Add(frame);
             if (fail)

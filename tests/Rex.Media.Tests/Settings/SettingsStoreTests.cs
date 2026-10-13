@@ -192,10 +192,45 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.True(VideoEffects.UsesHistory(VideoEffect.ParticleVeil, 0));
         Assert.True(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 40, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionAmplify, 50));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.MotionAmplify));
+        Assert.Equal("Motion amplify", VideoEffects.Name(VideoEffect.MotionAmplify));
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.MotionAmplify));
         foreach (var effect in new[] { VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.LensBloom, VideoEffect.StippleEngrave })
         {
             Assert.False(VideoEffects.UsesHistory(effect, 3));
         }
+    }
+
+    [Fact]
+    public void MosaicEffectsShareAGroupAndEachHasItsOwnNamedControls()
+    {
+        var mosaics = new[]
+        {
+            VideoEffect.GlyphMosaic, VideoEffect.BrickBuild, VideoEffect.StainedGlass, VideoEffect.CrossStitch,
+            VideoEffect.LedWall, VideoEffect.DigitalRain, VideoEffect.DiceMosaic, VideoEffect.CubeMosaic,
+            VideoEffect.HexTiles, VideoEffect.RetroPixels,
+        };
+        Assert.Equal(mosaics, Enum.GetValues<VideoEffect>().Where(effect => VideoEffects.Category(effect) == "Mosaics"));
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var effect in mosaics)
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            Assert.Equal(4, options.Count);
+            Assert.All(options, option => Assert.True(keys.Add(option.Key), option.Key));
+            Assert.All(options, option => Assert.InRange(option.Default, option.Min, option.Max));
+            Assert.EndsWith("size (%)", options[1].Label, StringComparison.Ordinal);
+            Assert.False(VideoEffects.UsesHistory(effect, options[3].Default));
+            Assert.False(VideoEffects.UsesPointer(effect));
+            if (options[3].Key.EndsWith(".mode", StringComparison.Ordinal))
+            {
+                Assert.Equal(options[3].Max + 1, VideoStyleOptions.ModeNames(effect).Count);
+            }
+        }
+
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.StainedGlass));
+        Assert.Equal("Brick build", VideoEffects.Name(VideoEffect.BrickBuild));
+        Assert.Equal("Retro pixels", VideoEffects.Name(VideoEffect.RetroPixels));
     }
 
     [Fact]
@@ -218,10 +253,12 @@ public sealed class SettingsStoreTests : IDisposable
         foreach (var effect in Enum.GetValues<VideoEffect>())
         {
             var options = VideoStyleOptions.ForEffect(effect);
-            Assert.Equal(effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
+            Assert.Equal((effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
                 or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.TapeWear
                 or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.LumenWeave or VideoEffect.DepthHaze
-                or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho ? 4 : 2, options.Count);
+                or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho
+                or VideoEffect.MotionAmplify)
+                || VideoEffects.Category(effect) == "Mosaics" ? 4 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);

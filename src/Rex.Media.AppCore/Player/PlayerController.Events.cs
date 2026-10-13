@@ -380,7 +380,7 @@ public sealed partial class PlayerController
     /// there, as a cue sheet's tracks do, it simply becomes the item, without a gap; otherwise this
     /// item is over, as if its file had ended.
     /// </summary>
-    private void ReachedEndOfPart(TimeSpan heard)
+    internal void ReachedEndOfPart(TimeSpan heard)
     {
         var current = Item!;
         Position = Duration;

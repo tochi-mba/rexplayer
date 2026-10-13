@@ -348,7 +348,7 @@ public sealed class SectionDetectionAlgorithmsTests
         var duplicates = SectionDetector.Detect(own, [sibling, sibling with { Path = "Series.S01E03.copy.mkv" }]);
         Assert.Equal(single.Candidates, duplicates.Candidates);
         Assert.All(single.Candidates, candidate => Assert.Equal("shared audio", candidate.Source));
-        Assert.All(single.Candidates, candidate => Assert.Contains("2 episodes", candidate.Reason));
+        Assert.All(single.Candidates, candidate => Assert.Contains("1 of 1 other episode", candidate.Reason));
     }
 
     [Fact]

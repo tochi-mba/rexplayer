@@ -7,6 +7,7 @@ public sealed partial class PlayerController
     private static readonly string[] EpisodeExtensions = [".mkv", ".mp4", ".m4v", ".avi", ".mov", ".webm", ".ts"];
 
     private CancellationTokenSource? _sectionStop;
+    private readonly object _sectionStopGate = new();
     private SectionProposals? _activeProposals;
     private string? _nextEpisode;
     private ShowSkipping _showSkips = new(false, false);
@@ -47,11 +48,18 @@ public sealed partial class PlayerController
         }
     }
 
+    private void CancelSectionDetection()
+    {
+        lock (_sectionStopGate)
+        {
+            _sectionStop?.Cancel();
+            _sectionStop = null;
+        }
+    }
+
     private void BeginSectionDetection()
     {
-        _sectionStop?.Cancel();
-        _sectionStop?.Dispose();
-        _sectionStop = null;
+        CancelSectionDetection();
         _activeProposals = null;
         _nextEpisode = null;
         _automaticSkip = null;
@@ -69,8 +77,32 @@ public sealed partial class PlayerController
         // Capture the token before the worker is scheduled: a rapid episode change can
         // cancel and dispose its source before the background delegate starts running.
         var token = stop.Token;
-        _sectionStop = stop;
-        var worker = new Thread(() => FindSections(path, analyzer, token))
+        lock (_sectionStopGate)
+        {
+            _sectionStop = stop;
+        }
+
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                FindSections(path, analyzer, token);
+            }
+            finally
+            {
+                // The worker owns disposal. A new episode can cancel it while a decoder is
+                // still waiting on token.WaitHandle; disposing on the UI thread breaks that wait.
+                lock (_sectionStopGate)
+                {
+                    if (ReferenceEquals(_sectionStop, stop))
+                    {
+                        _sectionStop = null;
+                    }
+
+                    stop.Dispose();
+                }
+            }
+        })
         {
             IsBackground = true,
             Priority = ThreadPriority.BelowNormal,

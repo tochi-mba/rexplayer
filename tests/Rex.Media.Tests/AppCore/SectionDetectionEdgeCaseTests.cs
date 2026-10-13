@@ -52,6 +52,18 @@ public sealed class SectionDetectionEdgeCaseTests
     private static void Near(double expected, TimeSpan actual) => Assert.InRange(actual.TotalSeconds, expected - 0.6, expected + 0.6);
 
     [Fact]
+    public void ABlackFadeImmediatelyBeforeTheFirstCreditCardBelongsToTheCredits()
+    {
+        // A one-second black transition before the text belongs to the credit sequence,
+        // but an ordinary scene before the fade must not be skipped.
+        var dark = new CreditFrameSample(TimeSpan.FromSeconds(555), 0, 1, 0,
+            Enumerable.Repeat(0f, CreditFrameEvidence.Bands).ToArray());
+        CreditFrameSample[] frames = [Picture(554), dark, .. Pictures(556, 565, Text)];
+        var run = Assert.Single(CreditFrameEvidence.Runs(frames, TimeSpan.FromMinutes(10)));
+        Assert.InRange(run.Start.TotalSeconds, 554.4, 554.6);
+    }
+
+    [Fact]
     public void AColdOpenOfAnyLengthMovesTheIntroNotTheMatch()
     {
         // Each episode opens with its own scene of a different length, then the same 50 s titles.
