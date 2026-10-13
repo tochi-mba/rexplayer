@@ -105,7 +105,7 @@ public static class VideoEffects
     /// <summary>Visual grouping for an accessible effect picker.</summary>
     public static string Category(VideoEffect effect) => effect switch
     {
-        VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave => "Contours",
+        VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave => "Contours",
         VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.TimeEcho
             or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate or VideoEffect.MotionOutline => "Motion & geometry",
         VideoEffect.CursorLens or VideoEffect.ColourSpotlight or VideoEffect.RippleTouch or VideoEffect.Torchlight

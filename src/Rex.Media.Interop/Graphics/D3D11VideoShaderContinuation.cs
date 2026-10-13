@@ -81,6 +81,9 @@ internal static class D3D11VideoShaderContinuation
                     : extras.y < 1.5 ? float3(0.80, 0.66, 0.48)
                     : extras.y < 2.5 ? float3(0.70, 0.71, 0.72) : float3(0.40, 0.62, 0.48);
                 float lum = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                // Black stays black: bars recorded into the picture and the deepest shadows are flat
+                // and would otherwise read as the farthest haze of all.
+                far *= smoothstep(0.015, 0.07, lum);
                 float3 hazed = lerp(colour, lerp(float3(lum, lum, lum), colour, 0.4), far);
                 hazed = lerp(hazed, fog, far * extras.x * 0.0085);
                 hazed = lerp(hazed, saturate((hazed - 0.5) * 1.12 + 0.5), 1 - far);

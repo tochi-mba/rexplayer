@@ -95,7 +95,7 @@ public sealed class VideoEffectsTests
         Assert.Empty(VideoStyleOptions.ForEffect(VideoEffect.Off));
         Assert.Equal(new EffectControls(0, 100, 0, 0), VideoStyleOptions.Controls(VideoEffect.Off, null, 80));
         Assert.Equal("Off", VideoEffects.PickerLabel(VideoEffect.Off));
-        Assert.Equal("Neon contours", VideoEffects.PickerLabel(VideoEffect.NeonEdges));
+        Assert.Equal("Neon contours (Contours)", VideoEffects.PickerLabel(VideoEffect.NeonEdges));
         Assert.Equal("Ghostwire (Contours)", VideoEffects.PickerLabel(VideoEffect.Ghostwire));
         Assert.Equal("Tape wear (Playful)", VideoEffects.PickerLabel(VideoEffect.TapeWear));
     }
