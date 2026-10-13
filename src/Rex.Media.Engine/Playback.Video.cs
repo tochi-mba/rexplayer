@@ -198,13 +198,15 @@ public sealed partial class MediaSession
                     using var frame = frames[next++];
                     Interlocked.Increment(ref _videoFramesDecoded);
                     var length = frame.Duration > MediaTime.Zero ? frame.Duration : DefaultLateness;
-                    if (frame.Pts.IsKnown && frame.Pts + length <= state.Target)
+                    var early = frame.Pts.IsKnown && frame.Pts + length <= state.Target;
+                    if (early && !(_sink.IsRealTime && FirstPicture.ShowOnTheWay(state.Shown, frame.Pts + length, state.Target)))
                     {
-                        // Before the target of a precise seek: decoded only to reach it.
+                        // Before the target of a precise seek: decoded only to reach it, except
+                        // the first, shown while the decoder carries on to the target.
                         continue;
                     }
 
-                    if (_sink.IsRealTime && frame.Pts.IsKnown)
+                    if (!early && _sink.IsRealTime && frame.Pts.IsKnown && !FirstPicture.ShowAtOnce(state.Shown, IsPaused, frame.Pts, VideoNow))
                     {
                         if (!WaitUntilDue(frame.Pts, state.Generation))
                         {
@@ -229,7 +231,7 @@ public sealed partial class MediaSession
                         _session.Reach("first-frame");
                     }
 
-                    if (!state.OnTarget && !(frame.Pts.IsKnown && frame.Pts + length <= state.Target))
+                    if (!state.OnTarget && !early)
                     {
                         state.OnTarget = true;
                         _session.Reach("target-frame");
