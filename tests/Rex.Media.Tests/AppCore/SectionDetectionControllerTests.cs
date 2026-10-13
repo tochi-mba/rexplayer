@@ -220,7 +220,7 @@ public sealed class SectionDetectionControllerTests
             test.Controller.SectionAnalyzer = (_, _) => throw new IOException("Decoder unavailable");
             test.Controller.Open([path]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(reported.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(reported.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             Assert.Null(test.Controller.CurrentProposals);
             Assert.Equal(SessionState.Ready, test.Controller.State);
         }
@@ -267,10 +267,10 @@ public sealed class SectionDetectionControllerTests
             };
             test.Controller.Open([first]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(started.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(started.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             test.Controller.Open([second]);
             test.PumpUntil(x => x.State == SessionState.Ready && x.Item?.Location == second);
-            Assert.True(canceled.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(canceled.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             test.PumpUntil(x => x.CurrentProposals is not null);
             Assert.Equal(second, test.Controller.Item?.Location);
             Assert.Empty(test.Controller.CurrentProposals!.Candidates);
@@ -301,7 +301,7 @@ public sealed class SectionDetectionControllerTests
             };
             test.Controller.Open([path]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(invoked.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(invoked.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             Assert.False(SpinWait.SpinUntil(() => test.Controller.Memory.Proposals(
                 path, SectionAnalysis.SignatureOf(path)) is not null,
                 TimeSpan.FromMilliseconds(50)));
