@@ -444,7 +444,12 @@ public sealed class SubjectRemoval
         var height = (grid.Bottom - grid.Top + scale - 1) / scale;
         _fill.Prepare(width, height);
         ReadGrid(frame, grid, scale, width, height);
-        GuessFromPrevious(grid, scale, width, height, advance);
+        // A paused redraw must not reuse a candidate recorded from the same frame.
+        // Each redraw starts with the same seed and known pixels as the first render.
+        if (advance)
+        {
+            GuessFromPrevious(grid, scale, width, height, advance);
+        }
         _fill.Solve(_pictures * 2654435761u);
         if (advance)
         {
