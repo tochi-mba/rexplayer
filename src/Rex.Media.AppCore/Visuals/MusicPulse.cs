@@ -83,7 +83,9 @@ public sealed class MusicPulse
     private readonly float[] _bands = new float[BandCount];
     private readonly float[] _rawBands = new float[BandCount];
     private readonly AdaptiveRange[] _bandRanges = [.. Enumerable.Range(0, BandCount).Select(_ => new AdaptiveRange(15, 2, 4))];
-    private readonly BandEnergy _bassBand = new(30, 150);
+    // Restrict kick onset timing to sub-bass; off-beat pitched percussion around 110 Hz
+    // belongs to the groove but must not move the beat grid away from the kicks.
+    private readonly BandEnergy _bassBand = new(30, 95);
     private readonly BandEnergy _midBand = new(150, 2000);
     private readonly BandEnergy _trebleBand = new(2000, 0);
     private readonly BandEnergy _wholeBand = new(0, 0);
