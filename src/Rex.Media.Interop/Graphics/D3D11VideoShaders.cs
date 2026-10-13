@@ -476,8 +476,8 @@ internal static class D3D11VideoShaders
                     float shade = 0.7 + 0.3 * dot(normal, normalize(float3(-0.5, -0.6, 0.62))) / 0.62;
                     // About one pixel wide: the level's change across one pixel.
                     float width = length(measured.xy) * 0.5 * levels * 0.55 * pow(max(lum - 0.025, 0.02), -0.45) + 0.002;
-                    float isoline = 1 - smoothstep(width * 0.5, width * 1.5, abs(frac(height + 0.5) - 0.5));
-                    styled = saturate(tint * shade * (1 - isoline * 0.4));
+                    float isoline = 1 - smoothstep(width * 0.4, width * 2.2, abs(frac(height + 0.5) - 0.5));
+                    styled = saturate(tint * shade * (1 - isoline * 0.32));
                 }
                 colour = lerp(colour, styled, strength);
             }
