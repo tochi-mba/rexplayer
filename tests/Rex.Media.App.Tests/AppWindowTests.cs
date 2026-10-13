@@ -307,6 +307,7 @@ public sealed class AppWindowTests : IDisposable
     [InlineData("Ripples")]
     [InlineData("Strobe")]
     [InlineData("Resonance")]
+    [InlineData("Groove")]
     public void EachVisualisationLightsTheStageAndMovesWithTheMusic(string visualisation)
     {
         using var app = AppProcess.Start([Music(30)], RootShowing(visualisation));

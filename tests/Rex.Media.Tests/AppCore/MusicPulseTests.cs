@@ -62,13 +62,14 @@ public sealed class MusicPulseTests
         var missed = kicks.Where(kick => !beats.Any(beat => Matches(beat, kick))).ToList();
         Assert.True(missed.Count == 0, $"{kind}: no beat for the kicks at {Times(missed)}; beats at {Times(beats)}.");
 
-        // And once the music has been heard a while, nearly every beat is a kick.
-        var later = beats.Where(beat => beat > 1.5).ToList();
+        // And once the clock is sure of the beat, nearly every beat is a kick. Before, there is no
+        // grid to tell a kick from a log drum by, and every kick-like hit is a beat.
+        var locked = heard.First(h => h.Locked).T;
+        var later = beats.Where(beat => beat > Math.Max(1.5, locked)).ToList();
         var stray = later.Where(beat => !music.Kicks.Any(kick => Matches(beat, kick))).ToList();
         Assert.True(stray.Count <= later.Count / 20, $"{kind}: beats on no kick at {Times(stray)}.");
 
         Assert.InRange(pulse.Tempo, music.Bpm * 0.98, music.Bpm * 1.02);
-        var locked = heard.First(h => h.Locked).T;
         Assert.True(locked <= 4, $"{kind}: the clock locked at {locked:0.00} s.");
         Assert.True(heard.Where(h => h.T > 4).All(h => h.Locked), $"{kind}: the clock let go.");
         Assert.InRange(pulse.Phase, 0, 1);
