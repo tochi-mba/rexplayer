@@ -32,6 +32,7 @@ public static class Visualizers
         VisualizerChoice.Aurora => "Aurora",
         VisualizerChoice.Embers => "Embers",
         VisualizerChoice.Resonance => "Resonance",
+        VisualizerChoice.Groove => "Groove",
         VisualizerChoice.Ripples => "Ripples",
         VisualizerChoice.Strobe => "Strobe",
         VisualizerChoice.Silhouette => "Camera silhouette",

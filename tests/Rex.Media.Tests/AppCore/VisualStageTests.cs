@@ -24,7 +24,8 @@ public sealed class VisualStageTests
         VisualizerChoice.Strobe,
         VisualizerChoice.Silhouette,
         VisualizerChoice.BeatEdit,
-        VisualizerChoice.Resonance);
+        VisualizerChoice.Resonance,
+        VisualizerChoice.Groove);
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 

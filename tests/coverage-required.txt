@@ -74,6 +74,7 @@ FourCC.cs
 FrameBudget.cs
 GifDecoder.cs
 GifDemuxer.cs
+GrooveScene.cs
 H264Sps.cs
 HaloScene.cs
 HevcConfig.cs
