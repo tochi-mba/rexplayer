@@ -307,6 +307,9 @@ public sealed partial class SubjectEditSession
     /// </summary>
     internal bool IsCut { get; private set; }
 
+    /// <summary>The two measured conditions behind the most recent shot decision.</summary>
+    internal (float Residual, double ChangedShare, bool MotionCut) CutEvidence { get; private set; }
+
     private void WatchForCut(VideoFrame frame, double changed)
     {
         var box = Bounds(frame.Width, frame.Height);
@@ -318,6 +321,7 @@ public sealed partial class SubjectEditSession
         // Only the shot boundary is wanted, not a fine estimate of the motion, so the detailed
         // refinement is given a token area and costs next to nothing.
         _shots.Estimate(frame, exclude, (0, 0, 2, 2));
+        CutEvidence = (_shots.Residual, changed, _shots.Cut);
         IsCut = _shots.Cut && changed >= CutChange;
         _shotChanged |= IsCut;
     }
