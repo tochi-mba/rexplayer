@@ -27,6 +27,7 @@ public sealed partial class RepositoryTests
         "scripts/check_site.py",
         "scripts/make-fixtures.ps1",
         "scripts/make-icon.ps1",
+        "scripts/measure-startup.ps1",
         "site/app.js",
         "tests/site/app.test.mjs",
         "tests/site/pages.spec.js",

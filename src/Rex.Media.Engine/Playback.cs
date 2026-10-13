@@ -476,6 +476,7 @@ public sealed partial class MediaSession
             _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate, _pipeline.Speed);
             state.AwaitingFirstFrame = true;
             state.Continuing = false;
+            state.Heard = false;
             state.NextPts = MediaTime.Unknown;
             state.PaddingSamples = 0;
         }
@@ -494,6 +495,7 @@ public sealed partial class MediaSession
                 _currentSeek = new SeekRequest(state.Generation, MediaTime.Zero, SeekMode.Precise);
                 state.AwaitingFirstFrame = true;
                 state.Continuing = true;
+                state.Heard = false;
 
                 // A run that had ended (the next item queued after it) is playing again.
                 lock (_endGate)
@@ -677,6 +679,12 @@ public sealed partial class MediaSession
                 {
                     _playGate.Wait(generationToken);
                     _sink.Write(processed, generationToken);
+                    if (!state.Heard)
+                    {
+                        state.Heard = true;
+                        _session.Reach("first-audio");
+                    }
+
                     _clock.Wrote(processed.SampleCount);
                     _session.Scope.Write(processed);
                 }
@@ -759,6 +767,9 @@ public sealed partial class MediaSession
 
             /// <summary>The next frame joins the last item's tail without a seek between them.</summary>
             public bool Continuing { get; set; }
+
+            /// <summary>Sound of this generation (or item) has reached the device (the first is a timing mark).</summary>
+            public bool Heard { get; set; }
 
             public int ConsecutiveFailures { get; set; }
 

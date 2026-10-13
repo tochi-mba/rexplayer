@@ -34,7 +34,8 @@ internal sealed class ControllerHarness : IDisposable
     /// <param name="log">Where the controller writes what it does; its own in-memory log when null.</param>
     /// <param name="pictures">Give sessions a stand-in video decoder and somewhere to show pictures.</param>
     /// <param name="beforeAudioWrite">An optional cancellable barrier before recording a frame.</param>
-    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null, TimeProvider? time = null, Rex.Media.Diagnostics.RexLog? log = null, bool pictures = false, Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null)
+    /// <param name="milestones">Where the controller and its sessions mark their timing lines; nowhere when null.</param>
+    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null, TimeProvider? time = null, Rex.Media.Diagnostics.RexLog? log = null, bool pictures = false, Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null, Rex.Media.Diagnostics.Milestones? milestones = null)
     {
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory()).Add(new Rex.Media.Containers.Matroska.MatroskaDemuxerFactory());
         var decoders = new DecoderRegistry().Add(new PcmDecoderFactory());
@@ -54,7 +55,7 @@ internal sealed class ControllerHarness : IDisposable
                 }
 
                 return new MediaSession(
-                    new EngineOptions { Demuxers = demuxers, Decoders = decoders, AudioSinkFactory = () => sink, AutoPlay = autoPlay, PositionInterval = TimeSpan.Zero, VideoPresenterFactory = pictures ? () => new RecordingVideoPresenter() : null },
+                    new EngineOptions { Demuxers = demuxers, Decoders = decoders, AudioSinkFactory = () => sink, AutoPlay = autoPlay, PositionInterval = TimeSpan.Zero, VideoPresenterFactory = pictures ? () => new RecordingVideoPresenter() : null, Milestones = milestones },
                     sessionEvent =>
                     {
                         lock (_gate)
@@ -79,6 +80,7 @@ internal sealed class ControllerHarness : IDisposable
             log,
             diskFolders ? null : folder => Files.Keys.Where(path => (Path.GetDirectoryName(path) ?? "") == folder),
             diskFolders ? null : Files.ContainsKey);
+        Controller.Milestones = milestones;
         Controller.Message += (_, text) => Messages.Add(text);
 
         // The window always listens to both.
