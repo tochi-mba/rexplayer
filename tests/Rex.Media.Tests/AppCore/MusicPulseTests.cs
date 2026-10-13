@@ -93,7 +93,6 @@ public sealed class MusicPulseTests
         Assert.True(heard.Where(h => h.T > 4).All(h => h.Locked), $"{kind}: the clock let go.");
         Assert.InRange(pulse.Phase, 0, 1);
         Assert.Equal(MusicPulse.BandCount, pulse.Bands.Count);
-        Assert.Equal(SpectrumAnalyzer.Size, pulse.Wave.Count);
     }
 
     [Theory]
@@ -268,7 +267,6 @@ public sealed class MusicPulseTests
 
         Assert.Equal((0, 0L, 0f, 0f, 0f), (pulse.Tempo, pulse.Beats, pulse.Loudness, pulse.Bass, pulse.Punch));
         Assert.False(pulse.Locked);
-        Assert.All(pulse.Wave, sample => Assert.Equal(0, sample));
         Assert.All(pulse.Bands, band => Assert.Equal(0, band));
         Assert.Throws<ArgumentOutOfRangeException>(() => pulse.Update(new float[MusicPulse.AnalysisSize], 0, TimeSpan.Zero));
         Assert.Throws<ArgumentException>(() => pulse.Update(new float[SpectrumAnalyzer.Size], 48_000, TimeSpan.Zero));

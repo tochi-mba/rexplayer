@@ -34,7 +34,7 @@ public sealed class MusicPulse
     /// <summary>Samples taken each frame: the long transform's length, about 85 ms at 48 kHz.</summary>
     public const int AnalysisSize = 4096;
 
-    /// <summary>Samples in the short transform and the <see cref="Wave"/>.</summary>
+    /// <summary>Samples in the short transform.</summary>
     public const int ShortSize = SpectrumAnalyzer.Size;
 
     /// <summary>Seconds of the newest sound the levels are measured over.</summary>
@@ -71,7 +71,6 @@ public sealed class MusicPulse
     /// </summary>
     private const float BetweenKicks = 0.38f;
 
-    private readonly float[] _wave = new float[ShortSize];
     private readonly float[] _shortMagnitudes = new float[ShortSize / 2];
     private readonly float[] _longMagnitudes = new float[AnalysisSize / 2];
     private readonly float[] _shortReal = new float[ShortSize];
@@ -113,9 +112,6 @@ public sealed class MusicPulse
 
     /// <summary>Each band's level, 0 to 1, lowest first: against its own recent range, and shaped by how loud the band is beside the rest.</summary>
     public IReadOnlyList<float> Bands => _bands;
-
-    /// <summary>The newest <see cref="ShortSize"/> samples, mono, oldest first.</summary>
-    public IReadOnlyList<float> Wave => _wave;
 
     /// <summary>
     /// How strongly everything moves: 1 as measured, more lifts each level toward 1, less holds it
@@ -207,7 +203,6 @@ public sealed class MusicPulse
 
         var dt = Math.Clamp(elapsed.TotalSeconds, 0, 0.5);
         var newest = mono[^ShortSize..];
-        newest.CopyTo(_wave);
         Fft.Magnitudes(newest, _shortMagnitudes, _shortReal, _shortImaginary);
         Fft.Magnitudes(mono, _longMagnitudes, _longReal, _longImaginary);
         Levels(mono, sampleRate, dt);
@@ -314,7 +309,6 @@ public sealed class MusicPulse
         }
 
         Array.Clear(_previous);
-        Array.Clear(_wave);
         Array.Clear(_bands);
         Array.Clear(_rawBands);
         _fluxes.Clear();
