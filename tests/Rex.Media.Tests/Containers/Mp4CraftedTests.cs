@@ -564,11 +564,30 @@ public sealed class Mp4CraftedTests
         Assert.Throws<MediaFormatException>(() => Open(tooManyEntries));
         Assert.Throws<MediaFormatException>(() => Open(tooManySamples));
         Assert.Throws<MediaFormatException>(() => Open(compact));
-        Assert.Throws<MediaFormatException>(() => Open(hugeSample).ReadPacket(CancellationToken.None));
-        Assert.Throws<MediaFormatException>(() => Open(good[..^3]).ReadPacket(CancellationToken.None));
+        Assert.Null(Open(hugeSample).ReadPacket(CancellationToken.None));
+        using (var shortened = Open(good[..^3]))
+        {
+            var found = ReadAll(shortened);
+            Assert.True(found.Count < track.Samples.Count);
+            found.ForEach(packet => packet.Dispose());
+        }
         Assert.Single(Open(truncatedHeader).Info.Tracks);
         Assert.Single(Open(tinyBox).Info.Tracks);
         Assert.Throws<ArgumentNullException>(() => new Mp4Demuxer(null!, CancellationToken.None));
+    }
+
+    [Fact]
+    public void AnOversizedSampleIsSkippedAndTheFollowingSampleStillPlays()
+    {
+        var bytes = File([Audio(AudioEntry("Opus", 1, 16, 8000), Samples(3, 3))]);
+        var stsz = Encoding.Latin1.GetString(bytes).IndexOf("stsz", StringComparison.Ordinal);
+        U32(100_000_000).CopyTo(bytes, stsz + 16);
+        using var demuxer = Open(bytes);
+        using var packet = demuxer.ReadPacket(CancellationToken.None);
+        Assert.NotNull(packet);
+        Assert.Equal(3, packet.Data.Length);
+        Assert.Equal((byte)2, packet.Data.Span[0]);
+        Assert.Null(demuxer.ReadPacket(CancellationToken.None));
     }
 
     [Fact]
