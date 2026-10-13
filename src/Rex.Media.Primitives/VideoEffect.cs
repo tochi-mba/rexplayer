@@ -208,13 +208,14 @@ public static class VideoEffects
     /// <summary>
     /// Whether the effect, at this strength and with its third and fourth controls at these values,
     /// reads the previous frame. Only then does the renderer keep a copy of the last picture on the
-    /// graphics card: Ghostwire motion in its hybrid and motion modes, Motion smear while its amount
-    /// is above zero, and Chromatic rift only while its motion boost is above zero. Nothing at zero
-    /// strength reads anything.
+    /// graphics card: the contour family (which averages still parts of two pictures so its lines
+    /// hold steady), Motion smear while its amount is above zero, Chromatic rift only while its
+    /// motion boost is above zero, and the motion effects. Nothing at zero strength reads anything.
     /// </summary>
     public static bool UsesHistory(VideoEffect effect, int strength, int third, int fourth) => strength > 0 && effect switch
     {
-        VideoEffect.GhostwireMotion => fourth is 0 or 2,
+        VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours
+            or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion => true,
         VideoEffect.MotionSmear => third > 0,
         VideoEffect.ParticleVeil or VideoEffect.TimeEcho or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate
             or VideoEffect.TimeLens or VideoEffect.MotionOutline => true,
