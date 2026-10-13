@@ -375,8 +375,8 @@ public sealed partial class MainWindow
             ApplyAlwaysOnTop();
         }
 
-        // An update bar waits out full-screen playback and comes back on leaving it.
-        ConsiderUpdatePrompt();
+        // The update card waits out full-screen playback and comes back on leaving it.
+        ShowUpdates();
     }
 
     private void ShowFullScreenControls()

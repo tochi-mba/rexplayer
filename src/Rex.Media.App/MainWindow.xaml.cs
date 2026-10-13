@@ -377,7 +377,7 @@ public sealed partial class MainWindow : Window
 
         RestoreUpdatedPictureView();
         _updatePlaying = playing;
-        ConsiderUpdatePrompt();
+        ShowUpdates();
         KeepAwake(playing && HasVideo, playing);
         LayOutSubtitles();
         ShowPresentation();

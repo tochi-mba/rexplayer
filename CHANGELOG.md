@@ -1,5 +1,8 @@
 # Changelog
 
+Every version of rexplayer that reaches users, newest first. A version is published by the CI
+pipeline the moment its number reaches `main`.
+
 ## 0.19.0 - 2026-10-13
 
 ### Added
@@ -74,9 +77,6 @@
 - Reset puts an effect's intensity back to its own default.
 - Effects that compare with the previous picture keep it only while they need it (not at
   zero strength, nor with Motion smear's amount at 0).
-
-Every version of rexplayer that reaches users, newest first. A version is published by the CI
-pipeline the moment its number reaches `main`.
 
 ## 0.17.0 - 2026-10-12
 
