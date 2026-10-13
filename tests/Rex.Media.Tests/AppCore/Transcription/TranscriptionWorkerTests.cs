@@ -328,6 +328,11 @@ public sealed class TranscriptionWorkerTests : IDisposable
         await hearing.Task.WaitAsync(TimeSpan.FromSeconds(30), Token);
         worker.Dispose();
         await released.Task.WaitAsync(TimeSpan.FromSeconds(30), Token);
+        // Disposal signals the worker but intentionally does not join on the UI thread.
+        // The test must wait until its background cleanup has actually completed.
+        var field = typeof(TranscriptionWorker).GetField("_thread", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var thread = (Thread)field.GetValue(worker)!;
+        Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "The transcription thread did not stop.");
         FakeHearer.Created = null;
     }
 
