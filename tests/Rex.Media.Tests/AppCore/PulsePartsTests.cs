@@ -328,15 +328,73 @@ public sealed class PulsePartsTests
     }
 
     [Fact]
-    public void TheMedianAndSpreadIgnoreAFewLargeValues()
+    public void TheMedianAndSpreadIgnoreAFewLargeValuesAndKeepOnlyTheirSeconds()
     {
-        var scratch = new double[8];
-        Assert.Equal((0.0, 0.0), Onset.Robust([], scratch));
-        var (median, spread) = Onset.Robust([1, 1, 2, 2, 100], scratch);
+        var run = new MovingMedian(1.5);
+        Assert.Equal((0.0, 0.0), run.Measure());
+        Assert.Equal(0, run.Span);
+        foreach (var value in new double[] { 1, 1, 2, 2, 100 })
+        {
+            run.Add(value, 0.1);
+        }
+
+        var (median, spread) = run.Measure();
         Assert.Equal(2, median);
         Assert.Equal(1.4826, spread, 6);
-        Assert.Equal(1.5, Onset.Robust([1, 2], scratch).Median);
-        Assert.Throws<ArgumentNullException>(() => Onset.Robust(null!, scratch));
-        Assert.Throws<ArgumentNullException>(() => Onset.Robust([1], null!));
+        Assert.Equal(0.4, run.Span, 9);
+
+        // Kept by time: two seconds on, only the newest second and a half is measured.
+        for (var i = 0; i < 20; i++)
+        {
+            run.Add(i < 10 ? 50 : 3, 0.1);
+        }
+
+        Assert.Equal(16, run.Count);
+        Assert.Equal(3, run.Measure().Median);
+
+        // An even count's median is halfway; a time that is not a number moves nothing on.
+        run.Clear();
+        run.Add(1, double.NaN);
+        run.Add(2, -1);
+        Assert.Equal((1.5, 0.0), (run.Measure().Median, run.Span));
+
+        // However fast the values come, no more than the most are kept.
+        for (var i = 0; i < MovingMedian.Most + 10; i++)
+        {
+            run.Add(i, 0);
+        }
+
+        Assert.Equal(MovingMedian.Most, run.Count);
+    }
+
+    [Theory]
+    [InlineData(24)]
+    [InlineData(60)]
+    [InlineData(144)]
+    public void ADrumHitsAtTheSameMomentsWhateverTheFrameRate(int fps)
+    {
+        // A second of loud rises (a busy fill), then quiet ones, then one a little above the fill's
+        // level. Against the last second and a half the fill is still the norm and it is no hit; the
+        // run used to be the last 45 frames, a second and a half only at thirty frames a second,
+        // a third of a second at 144, by when the fill was forgotten and it was a hit.
+        static List<double> Hits(int rate)
+        {
+            var drum = new Onset(0.18, 0.15);
+            var hits = new List<double>();
+            for (var frame = 1; frame <= rate * 3; frame++)
+            {
+                var t = (double)frame / rate;
+                var rise = t < 1 ? 6 + (frame % 2) : t < 1.6 ? 1 + (0.1 * (frame % 3)) : t < 1.6 + (1.0 / rate) ? 5 : 1;
+                drum.Hear(rise, 1, 1.0 / rate, listening: true);
+                if (drum.Hit && t > 0.5)
+                {
+                    hits.Add(Math.Round(t, 1));
+                }
+            }
+
+            return hits;
+        }
+
+        Assert.Equal(Hits(30), Hits(fps));
     }
 }

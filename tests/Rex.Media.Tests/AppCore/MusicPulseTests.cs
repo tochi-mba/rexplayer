@@ -25,15 +25,35 @@ public sealed class MusicPulseTests
 
     private static string Times(IEnumerable<double> times) => string.Join(", ", times.Select(t => t.ToString("0.000", CultureInfo.InvariantCulture)));
 
-    /// <summary>Whether a beat at <paramref name="beat"/> is the kick at <paramref name="kick"/>: in the frame that first hears it, or the next.</summary>
-    private static bool Matches(double beat, double kick) => beat >= kick - 0.035 && beat - kick < 0.075;
+    /// <summary>
+    /// Whether a beat at <paramref name="beat"/> is the kick at <paramref name="kick"/>: in the frame
+    /// that first hears it, or the next, at <paramref name="fps"/> frames a second.
+    /// </summary>
+    private static bool Matches(double beat, double kick, int fps) => beat >= kick - 0.035 && beat - kick < Math.Max(0.075, 2.0 / fps);
 
-    /// <summary>Every kind of music, heard at thirty frames a second and at the sixty the window draws at when the stage keeps up.</summary>
-    public static readonly TheoryData<string, int> Kinds = new()
+    /// <summary>The frame rates the beat must keep at: a slow computer, the usual, the stage drawing quickly, and a fast screen.</summary>
+    private static readonly int[] Rates = [24, 30, 60, 144];
+
+    /// <summary>Every kind of music, heard at every one of <see cref="Rates"/>.</summary>
+    public static TheoryData<string, int> Kinds
     {
-        { "90", 30 }, { "120", 30 }, { "140", 30 }, { "busy", 30 }, { "quiet", 30 }, { "loud", 30 }, { "played", 30 },
-        { "90", 60 }, { "120", 60 }, { "140", 60 }, { "busy", 60 }, { "quiet", 60 }, { "loud", 60 }, { "played", 60 },
-    };
+        get
+        {
+            var kinds = new TheoryData<string, int>();
+            foreach (var fps in Rates)
+            {
+                foreach (var kind in new[] { "90", "120", "140", "busy", "quiet", "loud", "played" })
+                {
+                    kinds.Add(kind, fps);
+                }
+            }
+
+            return kinds;
+        }
+    }
+
+    /// <summary>Each of <see cref="Rates"/>.</summary>
+    public static TheoryData<int> FrameRates => new(Rates);
 
     /// <summary>The music <paramref name="kind"/> names; "played" has every beat up to 20 ms early or late, as a drummer plays.</summary>
     private static SyntheticMusic Make(string kind, int fps, double seconds = 12) => kind switch
@@ -59,12 +79,12 @@ public sealed class MusicPulseTests
 
         // Every kick after the first second has its beat, at the frame that hears it or the next.
         var kicks = music.Kicks.Where(kick => kick > 1 && kick < (music.Frames / (double)music.FramesPerSecond) - 0.1).ToList();
-        var missed = kicks.Where(kick => !beats.Any(beat => Matches(beat, kick))).ToList();
+        var missed = kicks.Where(kick => !beats.Any(beat => Matches(beat, kick, fps))).ToList();
         Assert.True(missed.Count == 0, $"{kind}: no beat for the kicks at {Times(missed)}; beats at {Times(beats)}.");
 
         // And once the music has been heard a while, nearly every beat is a kick.
         var later = beats.Where(beat => beat > 1.5).ToList();
-        var stray = later.Where(beat => !music.Kicks.Any(kick => Matches(beat, kick))).ToList();
+        var stray = later.Where(beat => !music.Kicks.Any(kick => Matches(beat, kick, fps))).ToList();
         Assert.True(stray.Count <= later.Count / 20, $"{kind}: beats on no kick at {Times(stray)}.");
 
         Assert.InRange(pulse.Tempo, music.Bpm * 0.98, music.Bpm * 1.02);
@@ -87,8 +107,8 @@ public sealed class MusicPulseTests
         foreach (var kick in music.Kicks.Where(kick => kick > 2 && kick < 7.5))
         {
             // The frame that hears the kick, or the next, punches; halfway to the next kick it is gone.
-            var on = heard.Where(h => Matches(h.T, kick)).Max(h => h.Punch);
-            var between = heard.Where(h => Math.Abs(h.T - (kick + (period / 2))) < 0.02).Max(h => h.Punch);
+            var on = heard.Where(h => Matches(h.T, kick, fps)).Max(h => h.Punch);
+            var between = heard.Where(h => Math.Abs(h.T - (kick + (period / 2))) < Math.Max(0.02, 0.5 / fps)).Max(h => h.Punch);
             Assert.True(on >= 0.8f, $"{kind}: the kick at {kick:0.000} punches only {on:0.00}.");
             Assert.True(between <= 0.25f, $"{kind}: still {between:0.00} punch halfway after the kick at {kick:0.000}.");
 
@@ -101,8 +121,7 @@ public sealed class MusicPulseTests
 
     [Theory]
     [Capability("AU-18")]
-    [InlineData(30)]
-    [InlineData(60)]
+    [MemberData(nameof(FrameRates))]
     public void AKickTheMixHidesIsStoodInForOnTheBeat(int fps)
     {
         // The kick on beat 12 (six seconds in) is left out; the snare and hats play on.
@@ -112,15 +131,15 @@ public sealed class MusicPulseTests
         var stood = Assert.Single(filled);
         Assert.True(stood.Beat);
 
-        // On the beat: within a thirtieth of a second of it, at either rate.
-        Assert.InRange(stood.T, 6 - (1.0 / 30), 6 + (1.0 / 30));
+        // On the beat: within a thirtieth of a second of it, or a frame when the frames come slower.
+        var frame = Math.Max(1.0 / 30, 1.0 / fps) + 1e-9;
+        Assert.InRange(stood.T, 6 - frame, 6 + frame);
         Assert.All(heard.Where(h => h.T > 5.6 && h.T < 6.4 && h.Beat), h => Assert.Same(stood, h));
     }
 
     [Theory]
     [Capability("AU-18")]
-    [InlineData(30)]
-    [InlineData(60)]
+    [MemberData(nameof(FrameRates))]
     public void TheClockFollowsTheTempoWhenItChanges(int fps)
     {
         var music = new SyntheticMusic(120, 16, changeAt: 6, newBpm: 132, fps: fps);
@@ -129,13 +148,12 @@ public sealed class MusicPulseTests
         Assert.InRange(heard.Last(h => h.T < 6).Tempo, 117.6, 122.4);
         Assert.InRange(pulse.Tempo, 132 * 0.98, 132 * 1.02);
         var beats = heard.Where(h => h.Beat && h.T > 12).Select(h => h.T).ToList();
-        Assert.All(music.Kicks.Where(kick => kick > 12 && kick < 15.9), kick => Assert.Contains(beats, beat => Matches(beat, kick)));
+        Assert.All(music.Kicks.Where(kick => kick > 12 && kick < 15.9), kick => Assert.Contains(beats, beat => Matches(beat, kick, fps)));
     }
 
     [Theory]
     [Capability("AU-18")]
-    [InlineData(30)]
-    [InlineData(60)]
+    [MemberData(nameof(FrameRates))]
     public void AKickHeardJustBeforeTheClocksBeatIsNotFollowedByAStandIn(int fps)
     {
         // While the tempo speeds up, the kicks come a little before the clock's beats. Each was
