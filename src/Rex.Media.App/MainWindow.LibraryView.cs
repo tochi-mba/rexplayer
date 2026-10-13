@@ -117,7 +117,7 @@ public sealed partial class MainWindow
         var home = source == LibrarySource.Home;
         if (!home)
         {
-            entries = LibraryArrangement.Filter(entries, choice, null, _player.LeftAt);
+            entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
         }
         LibraryHome.Visibility = home ? Visibility.Visible : Visibility.Collapsed;
         LibraryList.Visibility = home ? Visibility.Collapsed : Visibility.Visible;

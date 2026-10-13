@@ -193,6 +193,7 @@ public sealed class LibraryArrangementTests
         Assert.Equal(["Big", "Later", "Empty"], LibraryArrangement.Sort(albums, LibrarySort.Modified, false).Select(group => group.Name));
         Assert.Equal(["Big", "Later", "Empty"], LibraryArrangement.Sort(albums, LibrarySort.Size, false).Select(group => group.Name));
         Assert.Equal(["Empty", "Big", "Later"], LibraryArrangement.Sort(albums, LibrarySort.Path, false).Select(group => group.Name));
+        Assert.Equal("Empty", LibraryArrangement.Sort(albums, LibrarySort.Added, false)[^1].Name);
     }
 
     [Fact]
@@ -210,29 +211,15 @@ public sealed class LibraryArrangementTests
         Assert.Equal(WatchState.Unwatched, LibraryArrangement.StateOf(video, LeftAt));
 
         var all = new LibraryViewChoice();
-        Assert.Same(entries, LibraryArrangement.Filter(entries, all, "  ", LeftAt));
-        Assert.Equal(["Episode", "Beach", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Unwatched }, null, LeftAt)));
-        Assert.Equal(["Film"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.InProgress }, null, LeftAt)));
-        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Finished }, null, LeftAt)));
-        Assert.Equal(["Episode", "Film"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video }, null, LeftAt)));
-        Assert.Equal(["Sungba", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Music }, null, LeftAt)));
-        Assert.Equal(["Beach"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Picture }, null, LeftAt)));
-        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Folder = Path.GetDirectoryName(video.Path) }, null, LeftAt)));
-        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video, Filter = LibraryFilter.Unwatched }, null, LeftAt)));
-
-        // Typed words match the title, the tags or the path, however cased or accented; every word must be found.
-        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all, "asáke sung", LeftAt)));
-        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all, "shows", LeftAt)));
-        Assert.Empty(LibraryArrangement.Filter(entries, all, "shows film", LeftAt));
-
-        var groups = LibraryViews.Albums(Asake);
-        Assert.Same(groups, LibraryArrangement.Filter(groups, ""));
-        Assert.Equal(["Work Of Art"], LibraryArrangement.Filter(groups, "work").Select(group => group.Name));
-        Assert.Equal(["Mr Money With The Vibe", "Work Of Art"], LibraryArrangement.Filter(groups, "asake").Select(group => group.Name));
-        Assert.Equal(["Mr Money With The Vibe"], LibraryArrangement.Filter(groups, "joha").Select(group => group.Name));
-        Assert.True(LibraryArrangement.NameMatches("My playlist", "PLAY"));
-        Assert.True(LibraryArrangement.NameMatches("My playlist", null));
-        Assert.False(LibraryArrangement.NameMatches("My playlist", "road"));
+        Assert.Same(entries, LibraryArrangement.Filter(entries, all, LeftAt));
+        Assert.Equal(["Episode", "Beach", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Unwatched }, LeftAt)));
+        Assert.Equal(["Film"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.InProgress }, LeftAt)));
+        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Finished }, LeftAt)));
+        Assert.Equal(["Episode", "Film"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video }, LeftAt)));
+        Assert.Equal(["Sungba", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Music }, LeftAt)));
+        Assert.Equal(["Beach"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Picture }, LeftAt)));
+        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Folder = Path.GetDirectoryName(video.Path) }, LeftAt)));
+        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video, Filter = LibraryFilter.Unwatched }, LeftAt)));
 
         Assert.Equal("Filter", LibraryArrangement.FilterLabel(all));
         Assert.Equal("Unwatched \u00B7 Videos \u00B7 Shows", LibraryArrangement.FilterLabel(all with { Filter = LibraryFilter.Unwatched, Kinds = LibraryKindFilter.Video, Folder = Path.GetDirectoryName(video.Path) }));
@@ -243,11 +230,9 @@ public sealed class LibraryArrangementTests
 
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.StateOf(null!, LeftAt));
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.StateOf(video, null!));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(null!, all, "", LeftAt));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, null!, "", LeftAt));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, all, "", null!));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter((IReadOnlyList<LibraryGroup>)null!, ""));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.NameMatches(null!, ""));
+        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(null!, all, LeftAt));
+        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, null!, LeftAt));
+        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, all, null!));
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.FilterLabel(null!));
     }
 
