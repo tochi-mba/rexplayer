@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.19.0 - 2026-10-13
+
+### Added
+
+- **Click to lock picks the right box.** One click on a person, a face or an object now
+  selects the box around it that Subject Lock can follow best, judged by how it stands out
+  from its surroundings, where its outline runs and how much detail it holds. A click on sky,
+  a plain wall or a repeating pattern is refused with a reason instead of locking a patch of
+  background, and the chosen box is outlined for a moment so you can see what was selected.
+
+### Improved
+
+- **Subject Lock and cuts.** When the film cuts to another shot, Subject Lock stops following
+  whatever is now under the box and searches for the subject in the new shot instead. Camera
+  pans and changes of light are not mistaken for cuts.
+- **Faster tracking.** Following a visible subject does less repeated work each picture.
+
 ## 0.18.0 - 2026-10-12
 
 ### Added
