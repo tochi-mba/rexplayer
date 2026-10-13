@@ -17,7 +17,6 @@ pipeline the moment its number reaches `main`.
   with it.
 - **Removal no longer switches off for good when the subject is lost.** The preview pauses and
   says so, and resumes once the subject is found again and followed steadily.
-
 - **The beat keeps time at any frame rate.** The visualisations' beat is judged against the last
   second and a half of the music however many frames a second the window draws, and the tempo is
   only replaced after nearly half a second of doubt, not after eight frames. On a fast screen the beat
