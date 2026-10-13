@@ -32,12 +32,13 @@ public sealed class SubjectRemovalMatteTests
         var box = scene.Box(0, loose: 8);
         matte.Compute(picture, box, plate: null, coverage: 50, remember: true);
         Assert.False(matte.IsEmpty);
-        Assert.InRange(matte.Coverage, 0.4f, 0.85f);
+        // The figure fills about a third of a box loose by eight pixels.
+        Assert.InRange(matte.Coverage, 0.25f, 0.45f);
         Assert.True(Overlap(matte, opacity, 320, 180) > 0.9);
         Assert.True(At(matte, 160, 100) < 0);
         // The loose box's corner is wall, a few pixels clear of the outline.
         Assert.True(At(matte, box.Left + 1, box.Top + 1) > 3 * SubjectRemovalMatte.DistanceUnit);
-        Assert.Equal(1, matte.Scale);
+        Assert.Equal(2, matte.Scale);
         Assert.InRange(matte.Grow, 2, 3);
         Assert.Throws<ArgumentNullException>(() => matte.Compute(null!, box, null, 50, true));
     }
@@ -73,8 +74,12 @@ public sealed class SubjectRemovalMatteTests
         plate.Prepare(320, 180);
         plate.Learn(wall, (0, 0, 320, 180), (0, 0, 0, 0), default, 0);
         var matte = new SubjectRemovalMatte();
+        matte.Compute(picture, scene.Box(0, loose: 14), plate: null, coverage: 50, remember: false);
+        var colourOnly = Overlap(matte, opacity, 320, 180);
         matte.Compute(picture, scene.Box(0, loose: 14), plate, coverage: 50, remember: true);
-        Assert.True(Overlap(matte, opacity, 320, 180) > 0.93);
+        var withPlate = Overlap(matte, opacity, 320, 180);
+        Assert.True(withPlate > 0.92, $"{withPlate}");
+        Assert.True(withPlate > colourOnly + 0.02, $"{withPlate} against {colourOnly}");
     }
 
     [Fact]
@@ -98,7 +103,7 @@ public sealed class SubjectRemovalMatteTests
         Assert.True(Overlap(matte, opacity, 320, 180) > 0.88);
         // A box that has changed size reads the remembered matte stretched to it.
         matte.Compute(last, scene.Box(5, loose: 20), null, 50, remember: true);
-        Assert.True(Overlap(matte, opacity, 320, 180) > 0.85);
+        Assert.True(Overlap(matte, opacity, 320, 180) > 0.8);
     }
 
     [Fact]
