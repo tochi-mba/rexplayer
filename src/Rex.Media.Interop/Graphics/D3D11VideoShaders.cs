@@ -572,7 +572,7 @@ internal static class D3D11VideoShaders
                 float major = smoothstep(0.14 / detail, 0.4 / detail, outline.w);
                 float core = max(outline.x, field.x) * outline.y * major;
                 float bloom = smoothstep(0.1 / detail, 0.8, outline.w) * major;
-                float3 neon = colour * 0.14 + bloom * 0.7 * hum * float3(1, 0.16, 0.62)
+                float3 neon = colour * 0.03 + bloom * 0.7 * hum * float3(1, 0.16, 0.62)
                     + core * float3(1, 0.86, 0.95);
                 colour = lerp(colour, saturate(neon), strength);
             }
@@ -609,7 +609,18 @@ internal static class D3D11VideoShaders
                     // compression noise never break a level line into specks.
                     float levels = 12 * detail;
                     float4 measured = lumaSlope(uv, measureStep(pixel) * 2, isYuv);
-                    float lum = measured.z;
+                    // A spatial average suppresses changing grain before mapping brightness to
+                    // discrete contour heights. The slope remains measured at the same footprint.
+                    float2 sampleStep = measureStep(pixel);
+                    float lum = 0;
+                    [unroll] for (int yy = -1; yy <= 1; yy++)
+                    {
+                        [unroll] for (int xx = -1; xx <= 1; xx++)
+                        {
+                            lum += readLuma(uv + float2(xx, yy) * sampleStep, isYuv);
+                        }
+                    }
+                    lum /= 9;
                     float height = pow(saturate((lum - 0.025) / 0.975), 0.55) * levels;
                     // Blend tint continuously between elevation bands; a tiny grain change must not flip an entire pixel's colour.
                     float layer = saturate(height / max(levels - 1, 1));
