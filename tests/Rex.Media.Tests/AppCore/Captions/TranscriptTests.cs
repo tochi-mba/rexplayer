@@ -62,7 +62,7 @@ public sealed class TranscriptTests : IDisposable
         Assert.Equal(3, SubtitleFile.Parse(srt).Cues.Count);
 
         var vtt = Speech.ToWebVtt();
-        Assert.StartsWith("WEBVTT\n\n00:00:01.000 --> 00:00:02.700\nLonely <00:00:01.500>at <00:00:01.650>the <00:00:01.900>top.\n\n", vtt, StringComparison.Ordinal);
+        Assert.StartsWith("WEBVTT\n\n00:00:01.000 --> 00:00:02.700\n<00:00:01.000>Lonely <00:00:01.500>at <00:00:01.650>the <00:00:01.900>top.\n\n", vtt, StringComparison.Ordinal);
         var read = SubtitleFile.Parse(vtt).Cues;
         Assert.Equal(3, read.Count);
         Assert.Equal([S(0), S(0.5), S(0.65), S(0.9)], read[0].Lines[0].Runs.Select(run => run.At!.Value));
@@ -143,7 +143,7 @@ public sealed class TranscriptTests : IDisposable
         var runs = second.Lines[0].Runs.Concat(second.Lines[1].Runs).ToList();
         Assert.Null(runs.Single(run => run.Text == "single ").At);
         Assert.Equal(2.15, runs.Single(run => run.Text == "videos, ").At!.Value.TotalSeconds, 3);
-        Assert.Equal(3.6, runs.Single(run => run.Text == "day").At!.Value.TotalSeconds, 3);
+        Assert.Equal(3.1, runs.Single(run => run.Text == "day").At!.Value.TotalSeconds, 3);
         // A cue the transcript heard nothing near is untouched.
         var third = timed.At(S(21))[0];
         Assert.Equal(subtitles.At(S(21))[0], third);

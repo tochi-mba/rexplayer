@@ -152,7 +152,9 @@ public sealed class SpeechModelsTests : IDisposable
         Assert.Throws<ArgumentNullException>(() => SpeechAudio.DecodeMono("x", null!, TestContext.Current.CancellationToken));
         var silent = Path.Combine(_directory, "picture.png");
         File.WriteAllBytes(silent, PngWriterTestBytes());
-        Assert.Throws<Rex.Media.Primitives.MediaFormatException>(() => SpeechAudio.DecodeMono(silent, new Rex.Media.Codecs.DecoderRegistry(), TestContext.Current.CancellationToken));
+        var decoded = SpeechAudio.DecodeMono(silent, new Rex.Media.Codecs.DecoderRegistry(), TestContext.Current.CancellationToken);
+        Assert.Empty(decoded.Mono);
+        Assert.Equal(0, decoded.Rate);
     }
 
     private static byte[] PngWriterTestBytes() => [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A];

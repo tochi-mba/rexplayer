@@ -48,7 +48,7 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
             if (cue.Count > 0)
             {
                 var last = cue[^1];
-                var ends = EndsSentence(last.Text) || word.Start - last.End > Breath || cue.Count >= MostWordsInACue || word.End - cue[0].Start > LongestCue;
+                var ends = EndsSentence(last.Text) || word.Start - last.End > Breath || cue.Count >= MostWordsInACue || word.Start - cue[0].Start > LongestCue;
                 if (ends)
                 {
                     cues.Add(Cue(cue, word.Start));
@@ -95,16 +95,14 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
         foreach (var cue in ToCues())
         {
             text.Append(CultureInfo.InvariantCulture, $"{Stamp(cue.Start, '.')} --> {Stamp(cue.End, '.')}\n");
-            var first = true;
             foreach (var run in cue.Lines[0].Runs)
             {
-                if (run.At is { } at && !first)
+                if (run.At is { } at)
                 {
                     text.Append(CultureInfo.InvariantCulture, $"<{Stamp(cue.Start + at, '.')}>");
                 }
 
                 text.Append(run.Text);
-                first = false;
             }
 
             text.Append("\n\n");

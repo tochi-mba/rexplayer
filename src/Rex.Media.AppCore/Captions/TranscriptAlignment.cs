@@ -70,7 +70,7 @@ public static class TranscriptAlignment
                         }
                     }
 
-                    runs.Add(run with { Text = piece, At = at ?? (runs.Count == 0 && pieces.Count == 1 ? run.At : null) });
+                    runs.Add(run with { Text = piece, At = at ?? (pieces.Count == 1 ? run.At : null) });
                 }
             }
 
