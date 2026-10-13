@@ -88,6 +88,24 @@ public sealed class AutomationPipeTests
     }
 
     [Fact]
+    public async Task ALaunchCanTellWhetherAPlayerServesThePipeWithoutConnecting()
+    {
+        var pipe = NewPipe();
+        Assert.False(AutomationPipe.IsServed(pipe));
+        using var stop = new CancellationTokenSource();
+        var answered = 0;
+        var serving = AutomationPipe.ServeAsync(pipe, _ => Task.FromResult(new AutomationReply { Ok = answered++ >= 0 }), stop.Token);
+
+        Assert.True(AutomationPipe.IsServed(pipe));
+        Assert.True((await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "status" }, Connect, TestContext.Current.CancellationToken))!.Ok);
+        Assert.Equal(1, answered);
+        Assert.Throws<ArgumentException>(() => AutomationPipe.IsServed(""));
+
+        await stop.CancelAsync();
+        await serving;
+    }
+
+    [Fact]
     public async Task OnlyOnePlayerCanOwnThePipe()
     {
         var pipe = NewPipe();

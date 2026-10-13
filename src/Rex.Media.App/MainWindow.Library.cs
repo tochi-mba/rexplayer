@@ -61,7 +61,7 @@ public sealed partial class MainWindow
     private bool LibraryOpen => LibraryPane.Visibility == Visibility.Visible;
 
     /// <summary>The library's own store beside the other; when it cannot be read, one in memory.</summary>
-    private static RexStore OpenLibraryStore()
+    internal static RexStore OpenLibraryStore()
     {
         var path = Path.Combine(App.DataRoot, "library.log");
         try
@@ -77,7 +77,7 @@ public sealed partial class MainWindow
 
     private void WireLibrary()
     {
-        _library = new MediaLibrary(OpenLibraryStore());
+        _library = App.Warmup?.TakeLibrary() ?? new MediaLibrary(OpenLibraryStore());
         _player.Library = _library;
         _scanner = new LibraryScanner(_library, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, App.Log);
         _scanner.StatusChanged += (_, _) => OnWindowThread(ShowLibraryStatus);
@@ -110,7 +110,13 @@ public sealed partial class MainWindow
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();
-        _scanner.Request();
+        // Looked through once the launch has settled: a large library's scan reads every folder
+        // and competes with the first picture and sound for the disk and the processor.
+        var firstScan = DispatcherQueue.CreateTimer();
+        firstScan.Interval = Rex.Media.AppCore.LaunchPlan.FirstLibraryScan;
+        firstScan.IsRepeating = false;
+        firstScan.Tick += (_, _) => _scanner?.Request();
+        firstScan.Start();
         App.Log.Info(LogSource, $"The library watches {_library.Folders.Count} folder(s) and knows {_library.Entries.Count} file(s).");
     }
 
