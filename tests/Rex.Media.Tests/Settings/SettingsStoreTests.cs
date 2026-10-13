@@ -319,7 +319,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.ColourSpotlight));
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.EdgeGravity));
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.ReliefEtch));
-        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.NeonEdges));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.NeonEdges));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.CursorLens));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.ColourSpotlight));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));

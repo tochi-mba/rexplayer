@@ -73,7 +73,7 @@ public static class VideoStyleOptions
             VideoEffect.DiceMosaic => ("Die size (%)", "The size of each die: higher gives fewer, bigger dice."),
             VideoEffect.CubeMosaic => ("Cube size (%)", "The size of each cube of nine stickers."),
             VideoEffect.HexTiles => ("Tile size (%)", "The size of each hexagonal tile."),
-            VideoEffect.RetroPixels => ("Pixel size (%)", "Adjusts Pixel size (%)"),
+            VideoEffect.RetroPixels => ("Pixel size (%)", "The size of each big pixel."),
             VideoEffect.MotionAmplify => ("Motion reach (%)", "How far the previous picture is searched for each patch."),
             VideoEffect.FlowField => ("Match reach (%)", "How far the previous picture is searched for each patch: higher follows faster motion."),
             VideoEffect.RippleTouch => ("Ring spacing (%)", "Higher packs the rings closer together."),

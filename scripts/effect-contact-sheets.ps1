@@ -8,8 +8,8 @@
 # top and bottom, as a letterboxed recording has) or "|crop=x,y" (draw at the picture's own size
 # and show the part around x,y, each 0 to 1, one screen pixel per picture pixel).
 # -Only takes effect names (VideoEffect members) separated by commas; -Extremes draws each effect
-# at the ends of every control. Sheets go to artifacts/effect-sheets (ignored by git): never commit
-# them or the frames.
+# at the ends of every control; -Scale draws each picture that many times larger and averages it down,
+# so a 480x270 tile at -Scale 4 shows a 1920x1080 picture shrunk. Sheets go to artifacts/effect-sheets (ignored by git): never commit them or the frames.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -18,6 +18,7 @@ param(
     [string]$Only = "",
     [switch]$Extremes,
     [string]$Tile = "480x270",
+    [int]$Scale = 4,
     [string]$Configuration = "Release"
 )
 
@@ -34,6 +35,7 @@ $env:REXPLAYER_EFFECT_SOURCES = $Sources
 $env:REXPLAYER_EFFECT_ONLY = $Only
 $env:REXPLAYER_EFFECT_EXTREMES = if ($Extremes) { "1" } else { "" }
 $env:REXPLAYER_EFFECT_TILE = $Tile
+$env:REXPLAYER_EFFECT_SCALE = $Scale
 $tests = Get-ChildItem "tests/Rex.Media.Windows.Tests/bin/$Configuration" -Recurse -Filter Rex.Media.Windows.Tests.exe | Select-Object -First 1
 & $tests.FullName --filter-method "*DrawEveryEffectOverRealPictures*"
 if ($LASTEXITCODE -ne 0) { throw "Drawing the contact sheets failed." }
