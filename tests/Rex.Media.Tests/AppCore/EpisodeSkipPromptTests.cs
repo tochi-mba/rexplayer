@@ -68,8 +68,8 @@ public sealed class EpisodeSkipPromptTests
     {
         var skip = new EpisodeSkip(EpisodeSectionKind.Intro, TimeSpan.FromSeconds(140));
         var at = TimeSpan.FromSeconds(100);
-        Assert.Equal(5, EpisodeSkipPrompt.For(skip, null, Length, at, false, at + EpisodeSkipPrompt.AutomaticDelay).AutomaticInSeconds);
-        var soon = EpisodeSkipPrompt.For(skip, null, Length, at + TimeSpan.FromSeconds(3.2), false, at + EpisodeSkipPrompt.AutomaticDelay);
+        Assert.Equal(5, EpisodeSkipPrompt.For(skip, null, Length, at, false, at + AutomaticSkip.Delay).AutomaticInSeconds);
+        var soon = EpisodeSkipPrompt.For(skip, null, Length, at + TimeSpan.FromSeconds(3.2), false, at + AutomaticSkip.Delay);
         Assert.Equal(2, soon.AutomaticInSeconds);
         Assert.Equal("Skipping intro in 2", soon.PrimaryText);
         Assert.Equal(1, EpisodeSkipPrompt.For(skip, null, Length, at + TimeSpan.FromSeconds(9), false, at).AutomaticInSeconds);
