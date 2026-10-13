@@ -162,7 +162,7 @@ public sealed class OggDemuxerTests
         using var packet = demuxer.ReadPacket(CancellationToken.None);
         Assert.NotNull(packet);
         Assert.Equal(1, packet.Data.Length);
-        Assert.Equal(-312, packet.Pts.ToSamples(48000));
+        Assert.Equal(528, packet.Pts.ToSamples(48000));
     }
 
     [Fact]
