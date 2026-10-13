@@ -5,6 +5,7 @@ using Rex.Media.Codecs;
 using Rex.Media.Containers;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Windows.Tests.Perf;
