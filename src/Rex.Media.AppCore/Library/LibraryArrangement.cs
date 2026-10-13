@@ -24,8 +24,8 @@ public enum WatchState
 /// <summary>
 /// Orders, filters and groups a library view as the user asks (LIB-05): by title, artist, album,
 /// year, when it was added, changed or last played, how often, how long, how big, or where it is;
-/// keeping only what is unwatched, part-way or finished, of one kind, in one folder, or matching
-/// typed words; under its first letter, artist, album, genre, year, decade, folder, when it was
+/// keeping only what is unwatched, part-way or finished, of one kind, or in one folder; under its
+/// first letter, artist, album, genre, year, decade, folder, when it was
 /// added, or its length. Sorting keeps ties in the view's own order; headings come in the order
 /// that reads naturally (A to Z, newest first, shortest first), and what falls under no heading
 /// ("Unknown year") comes last.
@@ -33,7 +33,6 @@ public enum WatchState
 public static class LibraryArrangement
 {
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
-    private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
 
     /// <summary>How far <paramref name="entry"/> has been watched: <paramref name="leftAt"/> knows where it was left.</summary>
     public static WatchState StateOf(LibraryEntry entry, Func<string, TimeSpan?> leftAt)
@@ -45,44 +44,14 @@ public static class LibraryArrangement
 
     /// <summary>
     /// The entries of <paramref name="entries"/> that <paramref name="choice"/>'s quick filters keep
-    /// (watched state, kind and folder) and that every word of <paramref name="text"/> is found in
-    /// (title, artist, album, genre or path, whatever the case or accents), in their order.
+    /// (watched state, kind and folder), in their order.
     /// </summary>
-    public static IReadOnlyList<LibraryEntry> Filter(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, string? text, Func<string, TimeSpan?> leftAt)
+    public static IReadOnlyList<LibraryEntry> Filter(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, Func<string, TimeSpan?> leftAt)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(choice);
         ArgumentNullException.ThrowIfNull(leftAt);
-        var words = Words(text);
-        if (!choice.IsFiltered && words.Length == 0)
-        {
-            return entries;
-        }
-
-        return [.. entries.Where(entry => Keeps(entry, choice, leftAt) && words.All(word => Matches(entry, word)))];
-    }
-
-    /// <summary>
-    /// The groups of <paramref name="groups"/> whose name or detail every word of <paramref name="text"/>
-    /// is found in, or that hold an entry it is found in; each group keeps all its entries.
-    /// </summary>
-    public static IReadOnlyList<LibraryGroup> Filter(IReadOnlyList<LibraryGroup> groups, string? text)
-    {
-        ArgumentNullException.ThrowIfNull(groups);
-        var words = Words(text);
-        if (words.Length == 0)
-        {
-            return groups;
-        }
-
-        return [.. groups.Where(group => words.All(word => Contains(group.Name, word) || Contains(group.Detail, word)) || group.Entries.Any(entry => words.All(word => Matches(entry, word))))];
-    }
-
-    /// <summary>Whether every word of <paramref name="text"/> is found in <paramref name="name"/>; true for no words.</summary>
-    public static bool NameMatches(string name, string? text)
-    {
-        ArgumentNullException.ThrowIfNull(name);
-        return Words(text).All(word => Contains(name, word));
+        return choice.IsFiltered ? [.. entries.Where(entry => Keeps(entry, choice, leftAt))] : entries;
     }
 
     /// <summary>The quick filters in use, as the window's button says them: "Filter", or "Unwatched · Videos · Music".</summary>
@@ -108,8 +77,6 @@ public static class LibraryArrangement
         return parts.Count == 0 ? "Filter" : string.Join(" \u00B7 ", parts);
     }
 
-    private static string[] Words(string? text) => (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
     private static bool Keeps(LibraryEntry entry, LibraryViewChoice choice, Func<string, TimeSpan?> leftAt)
     {
         if (choice.Kinds != LibraryKindFilter.Any && entry.Kind != choice.Kinds switch { LibraryKindFilter.Music => LibraryKind.Music, LibraryKindFilter.Video => LibraryKind.Video, _ => LibraryKind.Picture })
@@ -128,15 +95,6 @@ public static class LibraryArrangement
             LibraryFilter.InProgress => WatchState.InProgress,
             _ => WatchState.Finished,
         };
-    }
-
-    private static bool Matches(LibraryEntry entry, string word) =>
-        Contains(entry.Title, word) || Contains(entry.Artist, word) || Contains(entry.AlbumArtist, word) || Contains(entry.Album, word) || Contains(entry.Genre, word) || Contains(entry.Path, word);
-
-    private static bool Contains(string? field, string word)
-    {
-        const CompareOptions Loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
-        return field is not null && Compare.IndexOf(field, word, Loose) >= 0;
     }
 
     /// <summary><paramref name="entries"/> in the order <paramref name="sort"/> gives, reversed when <paramref name="descending"/>.</summary>
@@ -263,7 +221,7 @@ public static class LibraryArrangement
             LibrarySort.Title or LibrarySort.Album => order.OrderBy(pair => pair.Group.Name, NaturalOrder.Instance),
             LibrarySort.Artist => order.OrderBy(pair => pair.Group.Detail is null).ThenBy(pair => pair.Group.Detail ?? pair.Group.Name, ByName),
             LibrarySort.Year => order.OrderBy(pair => pair.Group.Entries.Max(entry => entry.Year) is null).ThenBy(pair => pair.Group.Entries.Max(entry => entry.Year) ?? 0),
-            LibrarySort.Added => order.OrderByDescending(pair => pair.Group.Entries.Max(entry => entry.Added)),
+            LibrarySort.Added => order.OrderByDescending(pair => pair.Group.Entries.Select(entry => entry.Added).DefaultIfEmpty().Max()),
             LibrarySort.Played => order.OrderByDescending(pair => pair.Group.Entries.Max(entry => entry.LastPlayed) ?? default),
             LibrarySort.MostPlayed => order.OrderByDescending(pair => pair.Group.Entries.Sum(entry => entry.Plays)),
             LibrarySort.Length => order.OrderBy(pair => pair.Group.Entries.Sum(entry => entry.Duration?.Ticks ?? 0)),
