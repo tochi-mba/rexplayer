@@ -56,7 +56,7 @@ public static class TaskbarGlyphs
         ArgumentOutOfRangeException.ThrowIfLessThan(size, 8);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(size, 256);
         var u = size / (double)Grid;
-        var layers = glyph switch
+        Layer[] layers = glyph switch
         {
             TaskbarGlyph.Play => [new Layer(ink, [Triangle(4.5, 2.5, 4.5, 13.5, 13, 8, u)])],
             TaskbarGlyph.Pause => [new Layer(ink, [Bar(4, 2.5, 7, 13.5, u), Bar(9, 2.5, 12, 13.5, u)])],

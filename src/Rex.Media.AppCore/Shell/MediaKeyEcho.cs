@@ -18,7 +18,7 @@ public sealed class MediaKeyEcho
     private readonly (TransportRequest? Request, TimeSpan At)[] _pressed = new (TransportRequest?, TimeSpan)[8];
     private int _next;
 
-    /// <summary>The media key for <paramref name="request"/>, or null for any other key; by its virtual-key code.</summary>
+    /// <summary>The media key for <paramref name="virtualKey"/>, or null for any other key; by its virtual-key code.</summary>
     public static TransportRequest? RequestOfKey(int virtualKey) => virtualKey switch
     {
         0xB0 => TransportRequest.Next,
