@@ -164,6 +164,30 @@ public sealed class SubjectRemovalMatteTests
     }
 
     [Fact]
+    public void APieceLikeTheSubjectButApartFromItIsLeftAlone()
+    {
+        // A red post in the middle of a wide box and a red patch in its far corner, wall between:
+        // the patch looks like the subject but does not join it, so it is not removed.
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 240, 160);
+        for (var y = 0; y < 160; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < 240; x++)
+            {
+                var grey = (byte)(112 + (x * 5 + y * 11) % 9);
+                var post = x >= 110 && x < 130 && y >= 50 && y < 120;
+                var patch = x >= 62 && x < 76 && y >= 104 && y < 118;
+                (row[x * 4], row[x * 4 + 1], row[x * 4 + 2], row[x * 4 + 3]) = post || patch ? ((byte)40, (byte)40, (byte)210, (byte)255) : (grey, grey, grey, (byte)255);
+            }
+        }
+
+        var matte = new SubjectRemovalMatte();
+        matte.Compute(picture, (60, 46, 180, 122), null, 50, remember: false);
+        Assert.True(At(matte, 120, 85) < 0, "the post");
+        Assert.True(At(matte, 69, 111) > 0, "the patch");
+    }
+
+    [Fact]
     public void AModelsOutlineIsTakenAsTheMatteWidenedByCoverageAndLearntFrom()
     {
         var scene = Still();
