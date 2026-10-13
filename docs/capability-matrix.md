@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 155 planned, 42 built, 95 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 151 planned, 46 built, 95 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
