@@ -266,6 +266,16 @@ public sealed class CaptionPresetsTests
 
         var tall = stairs.Scene(5.5, Area, 60);
         Assert.All(tall.Where(word => word.Opacity > 0.99), word => Assert.True(word.Y > 0));
+        // On a short picture only a few steps fit: the oldest leave as new ones climb.
+        var low = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Stairs, CaptionStyle.Default));
+        foreach (var (text, i) in new[] { "one", "two", "three", "four" }.Select((text, i) => (text, i)))
+        {
+            low.Reveal(Word(text), Plain, Stress.Plain, i * 0.2);
+        }
+
+        var few = low.Scene(1, new Area(0, 0, 1080, 300), 60);
+        Assert.Equal(2, few.Count(word => word.Opacity > 0.99));
+        Assert.True(few.Count(word => word.Opacity < 0.99) >= 1);
 
         var ghosts = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Ghost, CaptionStyle.Default));
         ghosts.Reveal(Word("Boo"), Plain, Stress.Peak, 0);
@@ -305,6 +315,10 @@ public sealed class CaptionPresetsTests
         var wires = wire.Scene(1, Area, 60);
         Assert.True(wires[0].Hollow);
         Assert.False(wires[1].Hollow);
+        // Over a light, flat picture the hollow word gets a plate it would otherwise lack.
+        var light = PictureSpace.Read(PictureSpaceTests.Picture((x, y) => ((byte)160, (byte)160, (byte)160)), 320, 180, 1280);
+        var plated = wire.Scene(1, Area, 60, picture: light);
+        Assert.Equal(0.4, plated[0].Backing.Plate, 3);
     }
 
     [Fact]
