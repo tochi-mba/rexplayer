@@ -202,7 +202,7 @@ public static class VisualizerOptions
             [
                 new("drops", "Drop size", VisualOptionKind.Number, 1, 0.5, 2),
                 new("current", "Current", VisualOptionKind.Number, 1, 0, 2.5),
-                new("fade", "How long the ink lasts", VisualOptionKind.Number, 0.97, 0.9, 0.995),
+                new("fade", "How long the ink lasts", VisualOptionKind.Number, 0.985, 0.9, 0.997),
             ],
             VisualizerChoice.Skyline =>
             [

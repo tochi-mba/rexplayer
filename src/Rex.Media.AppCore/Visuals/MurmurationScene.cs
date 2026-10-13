@@ -10,6 +10,7 @@ public sealed class MurmurationScene : VisualScene
     private (double X, double Y, double Vx, double Vy)[] _birds = [];
     private double _time;
     private (double X, double Y) _lead;
+    private Raster? _shadow;
 
     public override void Draw(VisualContext context)
     {
@@ -49,10 +50,20 @@ public sealed class MurmurationScene : VisualScene
             canvas.Clear(Rgb.Black);
         }
 
+        // The music is the flock's energy: in silence it hangs, drifting; with the music it surges.
+        var energy = 0.2 + (0.8 * Math.Max(pulse.Loudness, Math.Max(pulse.Punch, pulse.Bass)));
         var pull = context.Number("tightness") * (1.2 + (6 * pulse.Punch));
         var scatter = size * (0.05 + (0.6 * pulse.Treble));
-        var bird = context.Toggle("sky") ? Rgb.Black : context.Paint(0.5);
-        var glow = context.Toggle("sky") ? 1f : 0.8f;
+        // Against the sky a bird is a dark shape: the birds are drawn as a shadow, and the sky darkened by it.
+        var dusk = context.Toggle("sky");
+        if (dusk && (_shadow is null || _shadow.Width != w || _shadow.Height != h))
+        {
+            _shadow = new Raster(w, h);
+        }
+
+        _shadow?.Clear(Rgb.Black);
+        var target = dusk ? _shadow! : canvas;
+        var bird = dusk ? Rgb.White : context.Paint(0.5);
         for (var b = 0; b < count; b++)
         {
             var (x, y, vx, vy) = _birds[b];
@@ -61,7 +72,7 @@ public sealed class MurmurationScene : VisualScene
             var (fx, fy) = (x / size * 3, y / size * 3);
             var flowX = Math.Sin((fy * 1.7) + _time) + Math.Cos((fx * 0.9) - (_time * 1.3));
             var flowY = Math.Cos((fx * 1.3) - _time) - Math.Sin((fy * 1.1) + (_time * 0.7));
-            var (ax, ay) = ((flowX * size * 0.6) + ((_lead.X - x) * pull), (flowY * size * 0.6) + ((_lead.Y - y) * pull));
+            var (ax, ay) = (((flowX * size * 1.5) + ((_lead.X - x) * pull)) * energy, ((flowY * size * 1.5) + ((_lead.Y - y) * pull)) * energy);
             ax += (Noise.Hash((b * 2) + (long)(_time * 8)) - 0.5) * scatter * 4;
             ay += (Noise.Hash((b * 2) + 1 + (long)(_time * 8)) - 0.5) * scatter * 4;
             (vx, vy) = ((vx + (ax * dt)) * Math.Exp(-dt * 2), (vy + (ay * dt)) * Math.Exp(-dt * 2));
@@ -70,11 +81,20 @@ public sealed class MurmurationScene : VisualScene
 
             // A bird: a dash along its way, wings a little apart.
             var speed = Math.Max(1e-6, Math.Sqrt((vx * vx) + (vy * vy)));
-            var (ux, uy) = (vx / speed * size * 0.006, vy / speed * size * 0.006);
-            canvas.Line(x - ux, y - uy, x + ux, y + uy, Math.Max(1, size * 0.004), bird, glow);
+            var (ux, uy) = (vx / speed * size * 0.012, vy / speed * size * 0.012);
+            target.Line(x - ux, y - uy, x + ux, y + uy, Math.Max(1.5, size * 0.006), bird, 0.8f);
         }
 
-        if (!context.Toggle("sky"))
+        if (dusk)
+        {
+            var shadow = _shadow!;
+            for (var i = 0; i < canvas.R.Length; i++)
+            {
+                var keep = 1 - Math.Min(0.92f, shadow.R[i]);
+                (canvas.R[i], canvas.G[i], canvas.B[i]) = (canvas.R[i] * keep, canvas.G[i] * keep, canvas.B[i] * keep);
+            }
+        }
+        else
         {
             canvas.Bloom(0.3f, 0.7f, 3);
         }

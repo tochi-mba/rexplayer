@@ -73,11 +73,12 @@ public sealed class SkylineScene : VisualScene
             // Its windows: a grid, each lit as the hats' count and its own luck say.
             if (windows)
             {
-                var pane = Math.Max(2, (int)(size * 0.012));
+                var pane = Math.Max(1, (int)(size * 0.012));
+                var inset = width > pane * 3 ? pane : 0;
                 var color = context.Paint(0.15 + (0.7 * (1 - from)));
                 for (var y = top + pane; y < h - pane; y += pane * 2)
                 {
-                    for (var x = left + pane; x < left + width - pane; x += pane * 2)
+                    for (var x = left + inset; x + pane <= left + width - inset; x += pane * 2)
                     {
                         var luck = Noise.Hash((b * 7919) + (y * 31) + x + (pulse.Hat.Count * 104729));
                         if (luck < 0.25 + (0.5 * pulse.Treble))

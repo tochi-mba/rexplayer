@@ -59,7 +59,7 @@ public sealed class InkScene : VisualScene
 
         (_r, _r2, _g, _g2, _b, _b2) = (_r2, _r, _g2, _g, _b2, _b);
         var drops = context.Number("drops");
-        foreach (var (onset, height, reach) in new[] { (pulse.Kick, 0.7, 0.09), (pulse.Snare, 0.45, 0.06), (pulse.Hat, 0.2, 0.025) })
+        foreach (var (onset, height, reach) in new[] { (pulse.Kick, 0.7, 0.16), (pulse.Snare, 0.45, 0.1), (pulse.Hat, 0.2, 0.04) })
         {
             if (onset.Hit)
             {
@@ -89,7 +89,7 @@ public sealed class InkScene : VisualScene
                 if (near > 0)
                 {
                     var i = (y * w) + x;
-                    var ink = (float)(near * near);
+                    var ink = (float)(near * near) * 1.6f;
                     (_r[i], _g[i], _b[i]) = (_r[i] + (color.R * ink), _g[i] + (color.G * ink), _b[i] + (color.B * ink));
                 }
             }
