@@ -9,6 +9,7 @@ public sealed partial class D3D11PresenterTests
     [Theory]
     [InlineData(VideoEffect.FlowField)]
     [InlineData(VideoEffect.MotionIsolate)]
+    [InlineData(VideoEffect.MotionOutline)]
     public void MotionStylesHoldSteadyOnAStillPictureAndHighlightMovement(VideoEffect effect)
     {
         // These restyle the whole picture, so a still one changes too, but it must look the same
