@@ -47,7 +47,7 @@ public sealed class PlayerControllerTests
         {
             disposalStarted.Set();
             harness.Controller.Dispose();
-        });
+        }, TestContext.Current.CancellationToken);
         try
         {
             Assert.True(disposalStarted.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
