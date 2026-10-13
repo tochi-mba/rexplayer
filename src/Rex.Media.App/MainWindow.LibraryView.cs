@@ -395,8 +395,8 @@ public sealed partial class MainWindow
                 (LibraryFilter.InProgress, "In progress"), (LibraryFilter.Finished, "Finished")],
             choice.Filter, value => KeepViewChoice(choice with { Filter = value })));
         filterMenu.Items.Add(FilterGroup("Media type", "LibraryFilterKind",
-            [(LibraryKindFilter.Any, "All media"), (LibraryKindFilter.Video, "Video"),
-                (LibraryKindFilter.Music, "Audio"), (LibraryKindFilter.Picture, "Pictures")],
+            [(LibraryKindFilter.Any, "All media"), (LibraryKindFilter.Video, "Videos"),
+                (LibraryKindFilter.Music, "Music"), (LibraryKindFilter.Picture, "Pictures")],
             choice.Kinds, value => KeepViewChoice(choice with { Kinds = value })));
         var folders = new MenuFlyoutSubItem { Text = "Folder" };
         var allFolders = new RadioMenuFlyoutItem { Text = "All folders", GroupName = "LibraryFilterFolder", IsChecked = choice.Folder is null };
