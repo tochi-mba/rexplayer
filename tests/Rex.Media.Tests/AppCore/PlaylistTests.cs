@@ -114,6 +114,36 @@ public sealed class PlaylistTests
     }
 
     [Fact]
+    public void PlayNextStaysImmediatelyNextAndInSelectionOrderEvenWithShuffle()
+    {
+        var playlist = With(4, new Random(19));
+        playlist.Shuffle = true;
+        var first = playlist.Next(automatic: false)!;
+        var selected = new[]
+        {
+            new PlaylistItem("C:\\Music\\special-a.flac"),
+            new PlaylistItem("C:\\Music\\special-b.flac"),
+        };
+
+        playlist.InsertNext(playlist.CurrentIndex + 1, selected);
+        Assert.Same(first, playlist.Current);
+        Assert.Same(selected[0], playlist.PeekNext(automatic: false));
+        Assert.Same(selected[0], playlist.Next(automatic: false));
+        Assert.Same(selected[1], playlist.Next(automatic: false));
+        Assert.Throws<ArgumentNullException>(() => playlist.InsertNext(0, null!));
+        playlist.InsertNext(0, []);
+        var remaining = new List<PlaylistItem>();
+        for (var item = playlist.Next(automatic: false); item is not null; item = playlist.Next(automatic: false))
+        {
+            remaining.Add(item);
+        }
+
+        Assert.Equal(3, remaining.Count);
+        Assert.DoesNotContain(selected[0], remaining);
+        Assert.DoesNotContain(selected[1], remaining);
+    }
+
+    [Fact]
     public void ItemsAddedWhileShufflingJoinThePartStillToPlay()
     {
         var playlist = With(3, new Random(2));
