@@ -217,8 +217,6 @@ public sealed partial class SubjectEditSession
         }
 
         var glance = _glanceNext;
-        var tones = _tonesNext;
-        Array.Clear(tones);
         var i = 0;
         for (var y = 0; y < frame.Height; y += down)
         {
@@ -227,95 +225,30 @@ public sealed partial class SubjectEditSession
             {
                 var at = x * 4;
                 Accumulate(histogram, row[at], row[at + 1], row[at + 2]);
-                var luma = ((row[at] * 29) + (row[at + 1] * 150) + (row[at + 2] * 77)) >> 8;
-                glance[i++] = (byte)luma;
-                tones[luma >> 4]++;
+                glance[i++] = (byte)(((row[at] * 29) + (row[at + 1] * 150) + (row[at + 2] * 77)) >> 8);
             }
         }
 
-        histogram.CopyTo(tones.AsSpan(ToneBins));
         Locate(histogram, out _lightRed, out _lightGreen);
-        PictureChange = _glanceKnown ? Change(frame, down, across) : 0;
-        HistogramChange = _glanceKnown ? 1 - Overlap(_tones, tones) : 0;
-        _shotChanged |= IsCut;
+        var changed = _glanceKnown ? Changed(frame, down, across) : 0;
+        WatchForCut(frame, changed);
         (_glance, _glanceNext) = (_glanceNext, _glance);
-        (_tones, _tonesNext) = (_tonesNext, _tones);
         _glanceKnown = true;
     }
 
-    // Sixteen steps of brightness, then the chromaticity bins, for the whole picture.
-    private const int ToneBins = 16;
-    private float[] _tones = new float[ToneBins + (ChromaBins * ChromaBins)];
-    private float[] _tonesNext = new float[ToneBins + (ChromaBins * ChromaBins)];
-
-    /// <summary>
-    /// How much the whole picture's distribution of brightness and colour moved since the previous
-    /// picture, from 0 to 1: one minus the intersection of the two normalised histograms (Swain and
-    /// Ballard, "Color indexing", IJCV 7(1), 1991). The histogram comparison of Zhang, Kankanhalli
-    /// and Smoliar, used beside the pixel difference because it barely moves when the camera pans
-    /// or a subject crosses the picture, which is exactly when the pixel difference is large.
-    /// </summary>
-    internal double HistogramChange { get; private set; }
-
-    /// <summary>
-    /// Whether this picture starts a new shot. Both measures must agree: most of the picture
-    /// outside the subject changed, and the picture's colours and brightness changed with it. A
-    /// pan changes pixels but keeps the histogram; a light coming on is allowed for by the pixel
-    /// measure's overall shift.
-    /// </summary>
-    internal bool IsCut => PictureChange >= CutChange && HistogramChange >= CutHistogram;
-
-    // How far the picture's histogram must move, with its pixels, to count as a cut.
-    private const double CutHistogram = 0.25;
-
-    // Brightness and colour are normalised separately: near-black points carry no colour, so the
-    // two parts do not hold the same number of points. Each part counts for half.
-    private static double Overlap(float[] earlier, float[] later) =>
-        (0.5 * Shared(earlier, later, 0, ToneBins)) + (0.5 * Shared(earlier, later, ToneBins, earlier.Length));
-
-    private static double Shared(float[] earlier, float[] later, int start, int end)
-    {
-        double totalEarlier = 0, totalLater = 0;
-        for (var k = start; k < end; k++)
-        {
-            totalEarlier += earlier[k];
-            totalLater += later[k];
-        }
-
-        // A part with nothing in it, such as colour in a black picture, says nothing changed.
-        if (totalEarlier <= 0 || totalLater <= 0) return 1;
-        double shared = 0;
-        for (var k = start; k < end; k++)
-        {
-            shared += Math.Min(earlier[k] / totalEarlier, later[k] / totalLater);
-        }
-
-        return shared;
-    }
-
-    // The previous picture's luma on the same coarse grid, to notice a cut from one shot to another.
+    // The previous picture's luma on the same coarse grid.
     private byte[] _glance = [];
     private byte[] _glanceNext = [];
     private bool _glanceKnown;
 
-    // Whether a cut has happened since the re-detection search last looked: a sighting from before
-    // a cut and one from after it are not two sightings of one thing.
-    private bool _shotChanged;
-
     /// <summary>
     /// The share of the picture around the subject that changed since the previous picture, from
-    /// 0 to 1, once any change of overall brightness is allowed for. A cut from one shot to another
-    /// changes nearly all of it at once; a subject moving, the camera drifting or a light coming on
-    /// changes little of it. The subject's own box, with room around it, is left out: it is
-    /// expected to change, and a large subject would otherwise look like a cut every time it moved.
-    /// This is the pixel-difference measure of shot-boundary detection, as compared in H. J. Zhang,
-    /// A. Kankanhalli and S. W. Smoliar, "Automatic partitioning of full-motion video" (Multimedia
-    /// Systems 1(1), 1993), counted over a sparse grid with a per-point threshold so that motion
-    /// confined to part of the picture cannot add up to a cut.
+    /// 0 to 1, once any change of overall brightness is allowed for: the pixel-difference measure
+    /// of shot-boundary detection compared in Zhang, Kankanhalli and Smoliar, "Automatic
+    /// partitioning of full-motion video" (Multimedia Systems 1(1), 1993), counted over a sparse
+    /// grid with a per-point threshold. The subject's own box, with room around it, is left out.
     /// </summary>
-    internal double PictureChange { get; private set; }
-
-    private double Change(VideoFrame frame, int down, int across)
+    private double Changed(VideoFrame frame, int down, int across)
     {
         var (left, top, right, bottom) = Bounds(frame.Width, frame.Height);
         var spareX = (right - left) / 4;
@@ -351,6 +284,43 @@ public sealed partial class SubjectEditSession
 
     // How far a grid point's luma must move, beyond the picture's overall shift, to count as changed.
     private const int ChangedLuma = 28;
+
+    // The share of the picture outside the subject that must change, beyond its overall brightness,
+    // for a difference the camera's motion cannot explain to be a cut.
+    private const double CutChange = 0.3;
+
+    // The camera's motion between pictures, measured only to notice a cut from one shot to another.
+    private readonly SubjectRemovalMotion _shots = new();
+
+    // Whether a cut has happened since the re-detection search last looked: a sighting from before
+    // a cut and one from after it are not two sightings of one thing.
+    private bool _shotChanged;
+
+    /// <summary>
+    /// Whether this picture starts a new shot. Two measures must agree, each covering the other's
+    /// blind spot. The pictures are aligned with the camera-motion estimate of
+    /// <see cref="SubjectRemovalMotion"/> (Bergen, Anandan, Hanna and Hingorani 1992), leaving the
+    /// subject's box and a margin out, and the difference must survive that alignment, so a pan or
+    /// a zoom is not a cut; and much of the picture must have changed once its overall brightness
+    /// is allowed for, so a light coming on is not one. A picture's histogram was tried and
+    /// rejected: two angles of one room, the commonest cut in a conversation, share it.
+    /// </summary>
+    internal bool IsCut { get; private set; }
+
+    private void WatchForCut(VideoFrame frame, double changed)
+    {
+        var box = Bounds(frame.Width, frame.Height);
+        var spareX = (box.Right - box.Left) / 4;
+        var spareY = (box.Bottom - box.Top) / 4;
+        var exclude = Locked
+            ? (box.Left - spareX, box.Top - spareY, box.Right + spareX, box.Bottom + spareY)
+            : (0, 0, 0, 0);
+        // Only the shot boundary is wanted, not a fine estimate of the motion, so the detailed
+        // refinement is given a token area and costs next to nothing.
+        _shots.Estimate(frame, exclude, (0, 0, 2, 2));
+        IsCut = _shots.Cut && changed >= CutChange;
+        _shotChanged |= IsCut;
+    }
 
     /// <summary>Where a chromaticity histogram's weight sits, in bins, along each axis.</summary>
     private static void Locate(ReadOnlySpan<float> histogram, out float red, out float green)

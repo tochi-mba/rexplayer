@@ -86,7 +86,7 @@ public sealed class SubjectShotChangeTests
         {
             using var frame = Shot(index, pan: index * 7);
             session.Process(frame)?.Dispose();
-            Assert.False(session.IsCut, $"Picture {index}: pan read as a cut ({session.PictureChange:F2}, {session.HistogramChange:F2}).");
+            Assert.False(session.IsCut, $"Picture {index}: pan read as a cut.");
             Assert.True(session.Tracking, $"Picture {index}: {session.Status}");
         }
     }
@@ -97,7 +97,7 @@ public sealed class SubjectShotChangeTests
         using var session = Locked();
         using var brighter = Shot(1, lighting: 45);
         session.Process(brighter)?.Dispose();
-        Assert.False(session.IsCut, $"{session.PictureChange:F2}, {session.HistogramChange:F2}");
+        Assert.False(session.IsCut, session.Status);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class SubjectShotChangeTests
         // The reverse shot: another place entirely, and the subject is not in it.
         using var cut = Shot(2, scene: 1, subject: false);
         session.Process(cut)?.Dispose();
-        Assert.True(session.IsCut, $"{session.PictureChange:F2}, {session.HistogramChange:F2}");
+        Assert.True(session.IsCut, session.Status);
         Assert.False(session.Tracking);
         Assert.True(session.Locked, "A cut keeps the selection so the subject can be found again.");
         Assert.Contains("shot changed", session.Status, StringComparison.OrdinalIgnoreCase);
