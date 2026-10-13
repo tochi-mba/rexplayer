@@ -18,7 +18,10 @@ namespace Rex.Media.Tests.AppCore;
 /// </summary>
 internal sealed class ControllerHarness : IDisposable
 {
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
+    // A ceiling, not a delay: a healthy run returns as soon as the condition holds. Background
+    // work such as episode analysis runs at the lowest thread priority on purpose, so on a
+    // machine busy with builds it can wait well past a few seconds before it is scheduled.
+    internal static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
     private readonly object _gate = new();
     private readonly Queue<Action> _pending = new();
