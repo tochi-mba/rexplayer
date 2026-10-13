@@ -400,12 +400,13 @@ public sealed class SectionDetectionAlgorithmsTests
         Assert.True(memory.Proposals(episode.Path, "signature-2")!.IntroRejected);
         memory.RejectProposal(episode.Path, EpisodeSectionKind.Intro, false);
         Assert.False(memory.Proposals(episode.Path, "signature-2")!.IntroRejected);
-        memory.SetAnalysis(episode);
-        Assert.Equal(episode.Signature, memory.Analysis(episode.Path, episode.Signature)!.Signature);
-        Assert.Equal(episode.Opening, memory.Analysis(episode.Path, episode.Signature)!.Opening);
-        Assert.Null(memory.Analysis(episode.Path, "new-signature"));
+        var cache = new SectionAnalysisCache();
+        cache.Set(episode);
+        Assert.Equal(episode.Signature, cache.Get(episode.Path, episode.Signature)!.Signature);
+        Assert.Equal(episode.Opening, cache.Get(episode.Path, episode.Signature)!.Opening);
+        Assert.Null(cache.Get(episode.Path, "new-signature"));
         Assert.Throws<ArgumentNullException>(() => memory.SetProposals(episode.Path, null!));
-        Assert.Throws<ArgumentNullException>(() => memory.SetAnalysis(null!));
+        Assert.Throws<ArgumentNullException>(() => cache.Set(null!));
         memory.RejectProposal("no such file", EpisodeSectionKind.Credits, true);
         Assert.Equal(proposal.Candidates.Count, memory.Proposals(episode.Path, "signature-2")!.Candidates.Count);
     }
