@@ -292,7 +292,4 @@ internal sealed class ModelWork<T>
 
     /// <summary>Drops the work; the worker sees the cancellation if it has not started the model yet.</summary>
     public void Cancel() => _cancelled = true;
-
-    /// <summary>Waits for the worker, so tests can settle its answer.</summary>
-    internal void Wait() => _task.Wait();
 }
