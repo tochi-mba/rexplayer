@@ -128,6 +128,20 @@ public sealed class LibraryControllerActionsTests
     }
 
     [Fact]
+    public void DeletingAPlayingFileDoesNotRecreateItsResumePoint()
+    {
+        using var test = Harness();
+        var controller = test.Controller;
+        controller.Open(["a.wav"]);
+        test.PumpUntil(c => c.State == SessionState.Ready && c.CanSeek);
+        controller.Seek(TimeSpan.FromSeconds(15));
+        test.PumpUntil(c => c.Position >= TimeSpan.FromSeconds(10));
+        controller.ForgetDeleted(["a.wav"]);
+        Assert.Null(controller.LeftAt("a.wav"));
+        Assert.Equal(SessionState.Idle, controller.State);
+    }
+
+    [Fact]
     public void ForgettingAnActivelyPlayingFileStopsTheSessionAndRemovesQueueReferences()
     {
         using var test = Harness(autoPlay: true);
