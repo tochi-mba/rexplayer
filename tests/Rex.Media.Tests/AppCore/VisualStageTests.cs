@@ -90,7 +90,7 @@ public sealed class VisualStageTests
     {
         var stage = Stage(24, 16);
         // The mirror remembers sixteen beats. More than sixteen must exercise frame eviction.
-        var frames = Play(stage, VisualizerChoice.InfinityMirror, new SyntheticMusic(120, 12));
+        var frames = Play(stage, VisualizerChoice.InfinityMirror, new SyntheticMusic(120, 22));
         Assert.True(Brightness(frames[^1]) > 0);
     }
 
