@@ -123,7 +123,7 @@ public sealed partial class MediaSession
             return (null, null);
         }
 
-        var decoded = _options.Decoders.CreateVideo(track, shown.Gpu);
+        var decoded = _options.Decoders.CreateVideo(track, _options.GraphicsCardDecoding ? shown.Gpu : null);
         Reach("video-decoder");
         if (decoded.Decoder is null)
         {

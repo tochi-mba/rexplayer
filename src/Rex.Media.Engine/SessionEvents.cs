@@ -70,6 +70,9 @@ public sealed record SessionStats
 
     /// <summary>Where pictures are decoded: rexplayer's own code, Windows in software, or the graphics card.</summary>
     public DecoderSource? VideoDecoderSource { get; init; }
+
+    /// <summary>How steadily the newest pictures were presented: the spread of their intervals and lateness.</summary>
+    public FrameCadenceStats Cadence { get; init; }
 }
 
 /// <summary>
