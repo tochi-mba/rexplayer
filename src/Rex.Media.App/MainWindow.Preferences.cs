@@ -40,7 +40,7 @@ public sealed partial class MainWindow
             _dialog?.Hide();
             DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: true));
         };
-        var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera", "A live beat edit", "Resonance light field", "The groove, scrolling by", "A flight through the music"], (int)s.Visualizer);
+        var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera", "A live beat edit", "Resonance light field", "The groove, scrolling by", "A flight through the music", "Sand on a singing plate", "Ridgelines of sound", "A synthwave drive", "Fireworks", "A lightning storm", "A lava lamp", "The melody in the stars", "A spiral galaxy", "A kaleidoscope", "A murmuration of starlings", "Ink in water", "A city at night", "A mandala"], (int)s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
         var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
         var artworkColor = Number("Artwork colour (%)", s.AudioArtworkColor, 0, 200);

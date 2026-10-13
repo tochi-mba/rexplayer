@@ -44,9 +44,11 @@ CollageLayout.cs
 ColorConverter.cs
 ColorInfo.cs
 CommandCatalog.cs
+ConstellationScene.cs
 Crc.cs
 CreditFrameEvidence.cs
 Cue.cs
+CymaticsScene.cs
 Decoders.cs
 DemuxerRegistry.cs
 DeviceFormatPolicy.cs
@@ -65,6 +67,7 @@ ExecutionPolicy.cs
 ExifOrientation.cs
 Fft.cs
 FileByteSource.cs
+FireworksScene.cs
 FlacDecoder.cs
 FlacDemuxer.cs
 FlacFrameHeader.cs
@@ -73,6 +76,7 @@ FlightScene.cs
 FolderArt.cs
 FourCC.cs
 FrameBudget.cs
+GalaxyScene.cs
 GifDecoder.cs
 GifDemuxer.cs
 GrooveScene.cs
@@ -81,12 +85,15 @@ HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
 Id3v2.cs
+InkScene.cs
 InpaintTensors.cs
 InstallStateMachine.cs
+KaleidoscopeScene.cs
 KeyChord.cs
 Keymap.cs
 LandmarkMatcher.cs
 Languages.cs
+LavaScene.cs
 Layer3Huffman.cs
 Layer3SideInfo.cs
 Layer3Synthesis.cs
@@ -98,9 +105,11 @@ LibraryBackup.cs
 LibraryOpening.cs
 LibraryScanner.cs
 LibraryViews.cs
+LightningScene.cs
 Lyrics.cs
 M3u.cs
 MachineEnvelope.cs
+MandalaScene.cs
 MatroskaDemuxer.cs
 MatroskaHeaders.cs
 MediaBuffer.cs
@@ -132,6 +141,7 @@ MpegAudioDemuxer.cs
 MpegAudioHeader.cs
 MpegInfoTag.cs
 Mpl2.cs
+MurmurationScene.cs
 MusicPulse.cs
 NalUnits.cs
 NaturalOrder.cs
@@ -184,6 +194,7 @@ ResumeMarker.cs
 RetryPolicy.cs
 RexLog.cs
 RexStore.cs
+RidgelinesScene.cs
 RipplesScene.cs
 Sami.cs
 SampleConverter.cs
@@ -202,6 +213,7 @@ ShortcutRouting.cs
 SilentAudio.cs
 SilhouetteMask.cs
 SilhouetteScene.cs
+SkylineScene.cs
 SlotPool.cs
 Snapshot.cs
 SoundSettings.cs
@@ -225,6 +237,7 @@ SubtitleSidecars.cs
 SubtitleText.cs
 SubtitleTrack.cs
 SubViewer.cs
+SynthwaveScene.cs
 SystemReport.cs
 ThreadLoop.cs
 TimeStretch.cs

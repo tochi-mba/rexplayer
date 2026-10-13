@@ -52,6 +52,24 @@ pipeline the moment its number reaches `main`.
   sends a ring ahead, shaped by the sound of that moment, and it reaches you on a beat, every
   bar's ring brighter. Each kick lunges you forward, the bass breathes light at the end of
   the tunnel, and stars stream past, glinting with the hi-hats.
+- **Thirteen more visualisations**, each moved by the music in its own way:
+  - **Cymatics.** Sand gathers into the figures a vibrating plate sings, and each beat
+    throws it into the figure of the pitch.
+  - **Ridgelines.** The spectrum is laid down as a range of ridges climbing away up the stage.
+  - **Synthwave.** A drive over a neon grid toward a striped sun, with the cross lines
+    passing at the tempo.
+  - **Fireworks.** The kick launches shells, the snare bursts them, and a drop fires a volley.
+  - **Lightning.** Forked bolts strike on the kick and crack cloud to cloud on the snare, in
+    rain that falls on the beat.
+  - **Lava lamp.** Blobs swell with their part of the spectrum and melt together on every kick.
+  - **Constellation.** Each beat lights the star of its pitch, drawing the melody in the sky.
+  - **Galaxy.** A spiral galaxy turns a step each beat, and hard kicks set off supernovas.
+  - **Kaleidoscope.** Spectral shards in mirrors that click round on the beat and change each bar.
+  - **Murmuration.** A flock of starlings follows the melody and pulls tight on every kick.
+  - **Ink.** Every drum lets fall a drop of ink into water the bass stirs.
+  - **Skyline.** A night city whose towers are the spectrum, its windows flickering with the
+    hi-hats, its searchlights crossing on the beat.
+  - **Mandala.** Rings of petals that open with the music and turn a step on each beat.
 
 ### Improved
 
