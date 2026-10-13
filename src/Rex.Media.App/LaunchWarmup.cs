@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Rex.Media.AppCore;
 using Rex.Media.Interop.Audio;
+using Rex.Media.Interop.Graphics;
 using Rex.Media.Interop.MediaFoundation;
 using Rex.Media.Library;
 using Rex.Media.Video.D3D11;
@@ -32,8 +33,14 @@ internal sealed class LaunchWarmup
             switch (work)
             {
                 case LaunchWork.Pictures when OperatingSystem.IsWindowsVersionAtLeast(10):
-                    // A surface of one pixel: the window resizes it once it knows its own size.
-                    warmup._pictures = Task.Run(() => (D3D11Presenter.ForComposition(1, 1, out var swapChain), swapChain));
+                    warmup._pictures = Task.Run(() =>
+                    {
+                        // The shaders every renderer starts with come side by side, then a surface of
+                        // one pixel: the window resizes it once it knows its own size.
+                        D3D11VideoRenderer.PrepareShaders();
+                        var presenter = D3D11Presenter.ForComposition(1, 1, out var swapChain);
+                        return (presenter, swapChain);
+                    });
                     break;
                 case LaunchWork.Decoders when OperatingSystem.IsWindowsVersionAtLeast(6, 1):
                     Quietly("Media Foundation", () => _ = MfTransform.IsAvailable);
@@ -71,7 +78,7 @@ internal sealed class LaunchWarmup
         {
             return pictures?.GetAwaiter().GetResult();
         }
-        catch (Exception ex) when (ex is InvalidOperationException or COMException)
+        catch (Exception ex) when (ex is InvalidOperationException or COMException or AggregateException)
         {
             App.Log.Warning("app", "The picture surface made at launch failed, so it is made again: " + ex.Message);
             return null;

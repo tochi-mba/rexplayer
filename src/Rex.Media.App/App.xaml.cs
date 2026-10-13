@@ -20,6 +20,9 @@ public partial class App : Application
     {
         Milestones.Reach("app");
 
+        // Compiling the picture shaders takes seconds; they are kept between runs.
+        Rex.Media.Interop.Graphics.D3D11VideoRenderer.CompiledShaders = new Rex.Media.Video.CompiledShaderCache(Path.Combine(DataRoot, "cache", "shaders")).GetOrCompile;
+
         // A launch that will hand its files to a running player has nothing to warm up.
         if (!AutomationPipe.IsServed(AutomationPipe.NameForCurrentUser))
         {

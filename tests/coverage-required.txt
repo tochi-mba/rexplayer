@@ -44,6 +44,7 @@ CollageLayout.cs
 ColorConverter.cs
 ColorInfo.cs
 CommandCatalog.cs
+CompiledShaderCache.cs
 Crc.cs
 CreditFrameEvidence.cs
 Cue.cs
