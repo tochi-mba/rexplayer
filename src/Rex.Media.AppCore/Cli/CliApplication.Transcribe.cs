@@ -111,7 +111,10 @@ public static partial class CliApplication
             file => new SpeechAudioReader(file, decoders, host.Cancellation),
             () => Interlocked.Exchange(ref loaded, null) ?? host.Hearer(store.PathOf(model))!,
             model.Id,
-            host.Time) { Language = string.IsNullOrEmpty(language) ? null : language };
+            host.Time)
+        {
+            Language = string.IsNullOrEmpty(language) ? null : language,
+        };
         worker.SetPlan(new TranscriptionPlan(true, false, threads, threads, null));
         worker.SetPlaying(path, wanted: true, from);
         var clock = host.Time.GetTimestamp();
