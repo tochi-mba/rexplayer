@@ -19,9 +19,10 @@ namespace Rex.Media.AppCore.Visuals;
 /// Beats are onsets: a drum's band rising sharply above its own run, or the spectrum as a whole
 /// rising well above the median of the last second and a half plus a multiple of its spread (a
 /// moving-median threshold, as in J. P. Bello et al., "A tutorial on onset detection in music
-/// signals", IEEE Transactions on Speech and Audio Processing 13(5), 2005). The spectrum's rise is its log-compressed spectral flux, each bin against the strongest of itself and its
-/// neighbours a frame ago so a sliding note is no onset (S. Böck and G. Widmer, "Maximum filter
-/// vibrato suppression for onset detection", DAFx 2013). Once the <see cref="BeatClock"/> is
+/// signals", IEEE Transactions on Speech and Audio Processing 13(5), 2005). The spectrum's rise is
+/// its log-compressed spectral flux, each bin against the strongest of itself and its neighbours
+/// <see cref="RiseSpan"/> earlier, so a sliding note is no onset (S. Böck and G. Widmer,
+/// "Maximum filter vibrato suppression for onset detection", DAFx 2013). Once the <see cref="BeatClock"/> is
 /// locked, onsets between its beats are not beats (a kick there still counts toward moving its
 /// grid half a beat), and a beat it expects that the music does not show is stood in for.
 /// </para>
@@ -60,7 +61,7 @@ public sealed class MusicPulse
     private const double DropGap = 2.5;
 
     /// <summary>How long past the beat the clock expected a stand-in waits for the music to show it.</summary>
-    private const double FillWait = 0.006;
+    private const double FillWait = 0.015;
 
     /// <summary>The raw loudness under which nothing is a beat.</summary>
     private const float Quiet = 0.15f;
@@ -82,9 +83,7 @@ public sealed class MusicPulse
     private readonly float[] _bands = new float[BandCount];
     private readonly float[] _rawBands = new float[BandCount];
     private readonly AdaptiveRange[] _bandRanges = [.. Enumerable.Range(0, BandCount).Select(_ => new AdaptiveRange(15, 2, 4))];
-    // Restrict kick onset timing to sub-bass; off-beat pitched percussion around 110 Hz
-    // belongs to the groove but must not move the beat grid away from the kicks.
-    private readonly BandEnergy _bassBand = new(30, 95);
+    private readonly BandEnergy _bassBand = new(30, 150);
     private readonly BandEnergy _midBand = new(150, 2000);
     private readonly BandEnergy _trebleBand = new(2000, 0);
     private readonly BandEnergy _wholeBand = new(0, 0);
@@ -93,7 +92,7 @@ public sealed class MusicPulse
     private readonly AdaptiveRange _trebleRange = new();
     private readonly AdaptiveRange _loudnessRange = new(12, 2, 4);
     private readonly MovingMedian _fluxes = new(Onset.History);
-    private readonly Onset _kick = new(0.18, 0.15, 1.5);
+    private readonly Onset _kick = new(0.18, 0.15, 2.5);
     private readonly Onset _snare = new(0.15, 0.2, 2.5);
     private readonly Onset _hat = new(0.09, 0.08, 2.5);
     private readonly BeatClock _clock = new();
@@ -248,7 +247,10 @@ public sealed class MusicPulse
         {
             var strength = _kick.Hit ? _kick.Strength : (float)Math.Clamp((flux - median) / Math.Max(spread * 8, 1e-4), 0.25, 1);
             _detected++;
-            _clock.Onset(_kick.Hit, age);
+            _clock.Onset(_kick.Hit, age, _kick.Hit ? _kick.Strength : 0);
+
+            // A kick that moved the grid half a beat onto itself is that grid's beat.
+            onBeat = onBeat || (_kick.Hit && _clock.Near(age));
 
             // A kick between the locked clock's beats (a syncopation, an off-beat drum) counts
             // toward moving the grid half a beat, but it is no beat.
@@ -278,9 +280,7 @@ public sealed class MusicPulse
 
         // The build: music without the kick, busy with snares and hats, for a while.
         _busy = (_busy * Math.Exp(-dt / 1.0)) + (_snare.Hit || _hat.Hit ? 1 : 0);
-        // One recent snare or hat can establish a build when kicks have stayed away; requiring
-        // several simultaneous hits missed sparse rhythmic fills at slower frame rates.
-        var building = RawLoudness > Quiet && _kick.Count > 0 && _kick.Since > 1.5 && _busy > 0.8;
+        var building = RawLoudness > Quiet && _kick.Since > 1.5 && _busy > 2;
         Build = Drop || _kick.Hit ? 0 : (float)Math.Clamp(Build + (building ? dt / 6 : -dt), 0, 1);
 
         _musicFor = RawLoudness > Quiet ? _musicFor + dt : 0;
@@ -417,8 +417,9 @@ public sealed class MusicPulse
         Math.Max(0, Math.Max(now, AdaptiveRange.Gate) - Math.Max(before, AdaptiveRange.Gate));
 
     /// <summary>
-    /// The onset strength: how much the spectrum below 5 kHz rose since the last frame, each bin on a
-    /// log scale against the strongest of itself and its neighbours a frame ago, the bass weighing more.
+    /// The onset strength: how much the spectrum below 5 kHz rose over <see cref="RiseSpan"/>, each bin
+    /// on a log scale against the strongest of itself and its neighbours in the window that long
+    /// before, from the same samples, so it means the same at any frame rate; the bass weighs more.
     /// </summary>
     private double Flux(ReadOnlySpan<float> mono, int sampleRate)
     {

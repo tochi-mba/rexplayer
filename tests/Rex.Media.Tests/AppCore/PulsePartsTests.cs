@@ -215,6 +215,47 @@ public sealed class PulsePartsTests
 
     [Theory]
     [InlineData(30)]
+    [InlineData(144)]
+    public void TheBeatGoesToTheHardestLowDrumWhenTwoAlternate(int fps)
+    {
+        // A busy groove: a kick on the beat and a pitched drum on every off-beat, both heard as kicks
+        // when the frames come fast. Locked onto the off-beat drum, the clock used to stay there:
+        // every kick on its beats cancelled the votes to move. The beat is where the harder one falls.
+        var clock = new BeatClock();
+        var events = new List<(double At, double Accent)>();
+        for (var n = 0; n < 32; n++)
+        {
+            events.Add((0.25 + (n * 0.5), 0.3));
+            if (n >= 16)
+            {
+                events.Add((n * 0.5, 1));
+            }
+        }
+
+        var due = new Queue<(double At, double Accent)>(events.OrderBy(e => e.At));
+        var crossings = new List<double>();
+        for (var frame = 1; frame <= fps * 16; frame++)
+        {
+            var t = (double)frame / fps;
+            var hit = due.Count > 0 && due.Peek().At <= t ? due.Dequeue() : ((double At, double Accent)?)null;
+            if (clock.Advance(1.0 / fps, hit is null ? 0 : 1) && t > 13)
+            {
+                crossings.Add(t % 0.5);
+            }
+
+            if (hit is { } onset)
+            {
+                clock.Onset(strong: true, t - onset.At, onset.Accent);
+                clock.Estimate();
+            }
+        }
+
+        Assert.NotEmpty(crossings);
+        Assert.All(crossings, at => Assert.True(at < 0.08 || at > 0.45, $"A beat crossed {at:0.000} s after the kick."));
+    }
+
+    [Theory]
+    [InlineData(30)]
     [InlineData(48)]
     [InlineData(60)]
     [InlineData(144)]
