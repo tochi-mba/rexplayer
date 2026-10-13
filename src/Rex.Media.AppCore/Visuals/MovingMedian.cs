@@ -27,7 +27,7 @@ public sealed class MovingMedian(double seconds)
     {
         _now += double.IsFinite(dt) ? Math.Max(0, dt) : 0;
         _values.Enqueue((_now, value));
-        while (_values.Count > Most || _now - _values.Peek().At > seconds)
+        while (_values.Count > Most || _now - _values.Peek().At > seconds + 1e-9)
         {
             _values.Dequeue();
         }
