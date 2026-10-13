@@ -149,12 +149,12 @@ function Invoke-Run([string]$kind, [string]$file) {
     $data = New-DataRoot
     $program = Get-ProgramCopy
     $audioOnly = $file -and ($audioExtensions -contains [IO.Path]::GetExtension($file).ToLowerInvariant())
-    $played = if ($audioOnly) { 'first-audio' } else { 'first-frame+first-audio' }
+    $played = if ($audioOnly) { 'first-audio' } else { 'target-frame+first-audio' }
     $exitAfter = switch ($kind) {
         'launch' { 'interactive' }
         'play' { $played }
         'open' { $played }
-        default { if ($audioOnly) { 'first-audio*2' } else { 'first-frame*2+first-audio*2' } }
+        default { if ($audioOnly) { 'first-audio*2' } else { 'target-frame*2+first-audio*2' } }
     }
 
     $info = [Diagnostics.ProcessStartInfo]::new($program)
@@ -211,13 +211,12 @@ function Invoke-Run([string]$kind, [string]$file) {
             $seek = Find-Moment $moments 'seek'
             foreach ($name in @('first-frame', 'target-frame', 'first-audio')) {
                 $at = Find-Moment $moments $name 2
-                if ($null -eq $at -and $name -eq 'target-frame') { $at = Find-Moment $moments $name 1 }
                 if ($null -ne $at -and $null -ne $seek -and $at -ge $seek) { $result["seek>$name"] = $at - $seek }
             }
         }
         'next' {
             $start = Find-Moment $moments 'start' 2
-            foreach ($name in @('open', 'opened', 'first-frame', 'first-audio')) {
+            foreach ($name in @('open', 'opened', 'first-frame', 'target-frame', 'first-audio')) {
                 $at = Find-Moment $moments $name 2
                 if ($null -ne $at -and $null -ne $start) { $result["next>$name"] = $at - $start }
             }
@@ -239,7 +238,9 @@ function Get-Median([double[]]$values) {
 $report = [ordered]@{}
 try {
     foreach ($kind in $Scenario) {
-        $targets = if ($kind -eq 'launch') { @($null) } else { $Media }
+        # A launch opens nothing: one target with no file (an empty array would run nothing).
+        $targets = $Media
+        if ($kind -eq 'launch') { $targets = @('') }
         foreach ($file in $targets) {
             $label = if ($file) { "$kind $(Split-Path -Leaf $file)" } else { $kind }
             $results = [Collections.Generic.List[object]]::new()
