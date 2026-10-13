@@ -67,6 +67,59 @@ public sealed class SubtitleFileTests
         Assert.Equal(SubtitleFormat.WebVtt, document.Format);
         Assert.Equal(["At the top", "Middle timed", "Bottom", "Unplaced"], document.Cues.Select(cue => cue.Text));
         Assert.Equal([SubtitlePlacement.Top, SubtitlePlacement.Middle, SubtitlePlacement.Bottom, SubtitlePlacement.Bottom], document.Cues.Select(cue => cue.Placement));
+        Assert.Equal([new SubtitleRun("Middle "), new SubtitleRun("timed", At: S(0.5))], document.Cues[1].Lines[0].Runs);
+    }
+
+    [Fact]
+    [Capability("SUB-18")]
+    public void WebVttCueTimestampsTimeTheRunsFromTheCueStart()
+    {
+        var document = SubtitleFile.Parse("""
+            WEBVTT
+
+            00:00:10.000 --> 00:00:14.000
+            <00:00:09.000>Early <00:00:11.250>on <i><00:00:12.000>time</i> <00:00:13.500>late
+            """);
+
+        var runs = Assert.Single(document.Cues).Lines[0].Runs;
+        Assert.Equal(
+            [
+                new SubtitleRun("Early ", At: TimeSpan.Zero),
+                new SubtitleRun("on ", At: S(1.25)),
+                new SubtitleRun("time", Italic: true, At: S(2)),
+                new SubtitleRun(" ", Italic: false, At: S(2)),
+                new SubtitleRun("late", At: S(3.5)),
+            ],
+            runs);
+        Assert.True(SubtitleWords.IsTimed(document.Cues[0]));
+    }
+
+    [Fact]
+    [Capability("SUB-18")]
+    public void AssKaraokeTagsTimeEachSyllableByAddingUpTheHolds()
+    {
+        var document = SubtitleFile.Parse("""
+            [Script Info]
+
+            [V4+ Styles]
+            Format: Name, Fontname, Fontsize, PrimaryColour, Bold, Italic, Alignment
+            Style: Default,Arial,20,&H00FFFFFF,0,0,2
+
+            [Events]
+            Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+            Dialogue: 0,0:00:01.00,0:00:04.00,Default,,0,0,0,,{\k50}Lone{\K25}ly {\kf100}at {\ko30}the {\b1\k80}top{\kx}!
+            """);
+
+        var runs = Assert.Single(document.Cues).Lines[0].Runs;
+        Assert.Equal(
+            [
+                new SubtitleRun("Lone", At: TimeSpan.Zero),
+                new SubtitleRun("ly ", At: S(0.5)),
+                new SubtitleRun("at ", At: S(0.75)),
+                new SubtitleRun("the ", At: S(1.75)),
+                new SubtitleRun("top!", Bold: true, At: S(2.05)),
+            ],
+            runs);
     }
 
     [Fact]

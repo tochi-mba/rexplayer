@@ -86,6 +86,7 @@ public sealed partial class MainWindow : Window
         _player.Message += (_, text) => Say(text);
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
+        WireKineticCaptions();
         WireVisualizer();
         WireMemory();
         WireLibrary();
@@ -388,6 +389,7 @@ public sealed partial class MainWindow : Window
         LayOutSubtitles();
         ShowPresentation();
         ApplyVisualizer();
+        ApplyKineticCaptions();
         ShowMemory();
         ShowEpisodeSkip();
         ShowNamedPlaylists();

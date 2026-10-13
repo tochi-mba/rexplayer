@@ -11,8 +11,13 @@ namespace Rex.Media.Subtitles;
 /// </summary>
 public static class SubtitleMarkup
 {
-    /// <summary>The lines of <paramref name="text"/>, and the placement an ASS \an tag asked for, if any.</summary>
-    public static (IReadOnlyList<SubtitleLine> Lines, SubtitlePlacement? Placement) Parse(string text)
+    /// <summary>
+    /// The lines of <paramref name="text"/>, and the placement an ASS \an tag asked for, if any.
+    /// Runs the file times (a WebVTT cue timestamp, measured against <paramref name="start"/>, the
+    /// cue's start; or an ASS karaoke tag, whose durations add up from the cue's start) carry when
+    /// they are spoken.
+    /// </summary>
+    public static (IReadOnlyList<SubtitleLine> Lines, SubtitlePlacement? Placement) Parse(string text, TimeSpan start = default)
     {
         ArgumentNullException.ThrowIfNull(text);
         var lines = new List<SubtitleLine>();
@@ -20,6 +25,7 @@ public static class SubtitleMarkup
         var current = new StringBuilder();
         var style = new SubtitleRun("");
         var colors = new Stack<int?>();
+        var karaoke = TimeSpan.Zero;
         SubtitlePlacement? placement = null;
 
         void Flush()
@@ -83,6 +89,14 @@ public static class SubtitleMarkup
             {
                 foreach (var code in text[(i + 1)..close].Split('\\', StringSplitOptions.RemoveEmptyEntries))
                 {
+                    if (Karaoke(code) is { } held)
+                    {
+                        // The syllable after the tag starts when the ones before it have been held.
+                        Restyle(style with { At = karaoke });
+                        karaoke += held;
+                        continue;
+                    }
+
                     (style, placement) = Override(code, style, placement, Restyle);
                 }
 
@@ -110,6 +124,10 @@ public static class SubtitleMarkup
                         break;
                     case "font":
                         Restyle(style with { Color = colors.Count > 0 ? colors.Pop() : null });
+                        break;
+                    case "time" when SubtitleFile.Time(value!) is { } time:
+                        // A timestamp before the cue's start is the start.
+                        Restyle(style with { At = time > start ? time - start : TimeSpan.Zero });
                         break;
                 }
 
@@ -171,8 +189,8 @@ public static class SubtitleMarkup
         var name = new string([.. body.TakeWhile(char.IsAsciiLetter)]).ToLowerInvariant();
         if (name.Length == 0)
         {
-            // A WebVTT timestamp tag (<00:01.000>) is a tag too; anything else is text.
-            return body.Length > 0 && char.IsAsciiDigit(body[0]) ? (closing, "time", null) : null;
+            // A WebVTT timestamp tag (<00:01.000>) is a tag too, carrying its time; anything else is text.
+            return body.Length > 0 && char.IsAsciiDigit(body[0]) ? (closing, "time", body) : null;
         }
 
         if (name is not ("b" or "i" or "u" or "font" or "c" or "v" or "lang" or "ruby" or "rt" or "span"))
@@ -184,6 +202,23 @@ public static class SubtitleMarkup
             ? body[(at + 5)..].TrimStart(' ', '=', '"', '\'').Split('"', '\'', ' ', '>')[0]
             : null;
         return (closing, name, color);
+    }
+
+    /// <summary>
+    /// How long an ASS karaoke tag holds its syllable: \k, \K, \kf and \ko followed by a count of
+    /// centiseconds; null for any other code.
+    /// </summary>
+    private static TimeSpan? Karaoke(string code)
+    {
+        var digits = code switch
+        {
+            ['k' or 'K', .. var rest] when rest.Length > 0 && !char.IsAsciiLetter(rest[0]) => rest,
+            ['k', 'f' or 'o', .. var rest] => rest,
+            _ => "",
+        };
+        return digits.Length > 0 && int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var centiseconds)
+            ? TimeSpan.FromMilliseconds(centiseconds * 10)
+            : null;
     }
 
     /// <summary>"#RRGGBB" or a few colour names, as 0xRRGGBB.</summary>

@@ -54,6 +54,15 @@ public sealed class SubtitleTrack(string name)
         }
     }
 
+    /// <summary>Every cue, in start order, as they are now.</summary>
+    public IReadOnlyList<SubtitleCue> All()
+    {
+        lock (_gate)
+        {
+            return [.. _cues];
+        }
+    }
+
     /// <summary>
     /// The cues on screen at <paramref name="position"/> in the media, when the subtitles are shown
     /// <paramref name="delay"/> later than they were made for (negative: sooner).

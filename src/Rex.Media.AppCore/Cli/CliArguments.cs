@@ -7,7 +7,7 @@ namespace Rex.Media.AppCore.Cli;
 /// </summary>
 public sealed class CliArguments
 {
-    private static readonly HashSet<string> Flags = new(StringComparer.Ordinal) { "--json", "--window", "--system" };
+    private static readonly HashSet<string> Flags = new(StringComparer.Ordinal) { "--json", "--window", "--system", "--no-avoid", "--again", "--download" };
 
     private readonly Dictionary<string, string> _options = new(StringComparer.Ordinal);
     private readonly List<string> _positional = [];

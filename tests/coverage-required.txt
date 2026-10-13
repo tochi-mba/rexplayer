@@ -28,13 +28,20 @@ BlockPacketizer.cs
 BorrowedPresenter.cs
 BoundedQueue.cs
 ByteCursor.cs
+CaptionChoreography.cs
+CaptionCommands.cs
+CaptionDirector.cs
+CaptionGlyphs.cs
+CaptionPresets.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
 CliApplication.cs
+CliApplication.Captions.cs
 CliApplication.Pulse.cs
 CliApplication.Sections.cs
 CliApplication.Snapshot.cs
+CliApplication.Transcribe.cs
 CliApplication.System.cs
 CliArguments.cs
 CliHost.cs
@@ -91,6 +98,7 @@ InstallStateMachine.cs
 KaleidoscopeScene.cs
 KeyChord.cs
 Keymap.cs
+KineticCaptionSettings.cs
 LandmarkMatcher.cs
 Languages.cs
 LavaScene.cs
@@ -158,6 +166,8 @@ PendingUpdate.cs
 PictureBlock.cs
 PictureDemuxer.cs
 PictureFormats.cs
+PictureSpace.cs
+PictureTimeline.cs
 PictureView.cs
 PixelFormat.cs
 Playback.cs
@@ -220,6 +230,9 @@ SlotPool.cs
 Snapshot.cs
 SoundSettings.cs
 SpectrumAnalyzer.cs
+SpeechAudio.cs
+SpeechModels.cs
+SpeechPulse.cs
 StatsText.cs
 StrobeScene.cs
 SubjectModelPolicy.cs
@@ -239,6 +252,7 @@ SubtitlePackets.cs
 SubtitleSidecars.cs
 SubtitleText.cs
 SubtitleTrack.cs
+SubtitleWords.cs
 SubViewer.cs
 SynthwaveScene.cs
 SystemReport.cs
@@ -246,6 +260,9 @@ ThreadLoop.cs
 TimeStretch.cs
 TimeText.cs
 TrackInfo.cs
+Transcript.cs
+TranscriptAlignment.cs
+TranscriptCache.cs
 TransferMeter.cs
 UpdateCheck.cs
 UpdateDownloader.cs
@@ -277,6 +294,7 @@ WaveFormat.cs
 WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
+WordAligner.cs
 Wpl.cs
 Xspf.cs
 YuvTransform.cs

@@ -113,7 +113,7 @@ public static partial class SubtitleFile
             return null;
         }
 
-        var (lines, asked) = SubtitleMarkup.Parse(text.Trim('\r', '\n'));
+        var (lines, asked) = SubtitleMarkup.Parse(text.Trim('\r', '\n'), start);
         return new SubtitleCue(start, end, lines, asked ?? placement);
     }
 
