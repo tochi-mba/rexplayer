@@ -33,6 +33,9 @@ public sealed class SubjectRemoval
     // The fill's grid holds at most this many cells, and its hole at most a quarter as many.
     private const int FillBudget = 8_000;
     private const int HoleBudget = 2_500;
+    // Around a subject this large (in pixels of the area recorded), the background is recorded half
+    // the rows at a time, alternately, which keeps a big subject within a frame's time.
+    private const long LargeArea = 300_000;
     // A picture this long after the previous one is not its neighbour; nothing carries across.
     private const double LongestGap = 0.5;
 
@@ -302,15 +305,17 @@ public sealed class SubjectRemoval
     private void Record(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box, bool hasMatte, int feather)
     {
         var interest = Interest(frame, box);
+        var rows = (long)(interest.Right - interest.Left) * (interest.Bottom - interest.Top) > LargeArea ? 2 : 1;
+        var phase = (int)(_pictures % 2);
         if (hasMatte)
         {
             // Only background clear of the subject's soft edge is recorded, so its blur never is.
             var clearance = (int)((_matte.Grow + Math.Max(feather, 4) + 2) * SubjectRemovalMatte.DistanceUnit);
-            _plate.Learn(frame, interest, _matte.Area, _matte.Distance, clearance);
+            _plate.Learn(frame, interest, _matte.Area, _matte.Distance, clearance, rows, phase);
         }
         else
         {
-            _plate.Learn(frame, interest, Expand(box, 0.1f, 0.05f, 4, frame), default, 0);
+            _plate.Learn(frame, interest, Expand(box, 0.1f, 0.05f, 4, frame), default, 0, rows, phase);
         }
     }
 

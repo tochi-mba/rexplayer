@@ -232,6 +232,34 @@ public sealed class SubjectRemovalPlateTests
         Assert.Equal(250, Split(changed).R);
     }
 
+    [Fact]
+    public void ALargeAreaIsRecordedInAlternateRows()
+    {
+        foreach (var zoom in new[] { 1f, 1.05f })
+        {
+            var plate = new SubjectRemovalPlate();
+            plate.Prepare(64, 48);
+            plate.Advance(new CameraMotion(zoom, 0, 0));
+            using var frame = Gradient();
+            for (var i = 0; i < SubjectRemovalPlate.Confirmations; i++)
+            {
+                plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0, rowStep: 2, rowPhase: 0);
+            }
+
+            // Even plate rows were seen three times; odd ones not at all yet.
+            var (u, v) = plate.Locate(20, 20);
+            var even = (int)MathF.Round(v) % 2 == 0;
+            Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(20, even ? 21 : 20, out _));
+            for (var i = 0; i < SubjectRemovalPlate.Confirmations; i++)
+            {
+                plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0, rowStep: 2, rowPhase: 1);
+            }
+
+            Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(30, 30, out _));
+            Assert.True(u >= 0);
+        }
+    }
+
     [Theory]
     [InlineData(0, 0, 0x102030u)]
     [InlineData(256, 0, 0x405060u)]

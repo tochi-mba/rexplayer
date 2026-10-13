@@ -178,12 +178,17 @@ public sealed class SubjectRemovalPlate
     /// Record the background pixels of <paramref name="frame"/> (BGRA) inside <paramref name="area"/>.
     /// Inside <paramref name="guard"/> a pixel is recorded only where <paramref name="distance"/> (one
     /// value a pixel across the guard, in eighths of a pixel from the subject) exceeds
-    /// <paramref name="clearance"/>; with no distances the whole guard is left alone.
+    /// <paramref name="clearance"/>; with no distances the whole guard is left alone. With a
+    /// <paramref name="rowStep"/> above one, only every so many plate rows are recorded, those whose
+    /// index plus <paramref name="rowPhase"/> it divides: a large area is recorded in turns over a few
+    /// pictures instead of all at once.
     /// </summary>
     public void Learn(VideoFrame frame, (int Left, int Top, int Right, int Bottom) area,
-        (int Left, int Top, int Right, int Bottom) guard, ReadOnlySpan<short> distance, int clearance)
+        (int Left, int Top, int Right, int Bottom) guard, ReadOnlySpan<short> distance, int clearance,
+        int rowStep = 1, int rowPhase = 0)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        rowStep = Math.Max(1, rowStep);
         var pixels = MemoryMarshal.Cast<byte, uint>(frame.Plane(0));
         var stride = frame.Stride(0) / 4;
         var (left, top) = (Math.Max(0, area.Left), Math.Max(0, area.Top));
@@ -196,13 +201,18 @@ public sealed class SubjectRemovalPlate
         var guardWidth = guard.Right - guard.Left;
         if (_unzoomed)
         {
-            LearnUnzoomed(pixels, stride, frame.Width, (left, top, right, bottom), guard, distance, clearance);
+            LearnUnzoomed(pixels, stride, frame.Width, (left, top, right, bottom), guard, distance, clearance, rowStep, rowPhase);
             return;
         }
 
         var inverse = 1 / _scale;
         for (var v = v0; v < v1; v++)
         {
+            if ((v + rowPhase) % rowStep != 0)
+            {
+                continue;
+            }
+
             var y = Math.Clamp((v - _offsetY) * inverse, top, bottom - 1);
             var y0 = (int)y;
             var wy = (int)((y - y0) * 256);
@@ -240,7 +250,7 @@ public sealed class SubjectRemovalPlate
     /// </summary>
     private void LearnUnzoomed(ReadOnlySpan<uint> pixels, int stride, int pictureWidth,
         (int Left, int Top, int Right, int Bottom) area, (int Left, int Top, int Right, int Bottom) guard,
-        ReadOnlySpan<short> distance, int clearance)
+        ReadOnlySpan<short> distance, int clearance, int rowStep, int rowPhase)
     {
         // Cell u shows the picture at x = u - offset: x0 = u - baseX, blended towards x0 + 1 by wx.
         var (wx, wy) = (_fractionX == 0 ? 0 : 256 - _fractionX, _fractionY == 0 ? 0 : 256 - _fractionY);
@@ -257,6 +267,11 @@ public sealed class SubjectRemovalPlate
         var guardWidth = guard.Right - guard.Left;
         for (var v = v0; v < v1; v++)
         {
+            if ((v + rowPhase) % rowStep != 0)
+            {
+                continue;
+            }
+
             var y0 = v - baseY;
             var nearestY = y0 + nearY;
             var guarded = nearestY >= guard.Top && nearestY < guard.Bottom;
