@@ -105,6 +105,40 @@ public sealed class RexStoreTests : IDisposable
     }
 
     [Fact]
+    public void ALogEditedByHandIsStillReadLineByLine()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
+        string Line(string json) => Crc.Crc32.Compute(Encoding.UTF8.GetBytes(json)).ToString("X8", CultureInfo.InvariantCulture) + " " + json;
+        var text = "\uFEFF" + Line("{\"k\":\"a\",\"v\":\"\u00E9t\u00E9\"}") + "\r\n"
+            + Line("{\"x\":{\"k\":\"inner\"},\"k\":\"b\",\"extra\":[1,2],\"v\":\"two\"}") + "\r\n\r\n"
+            + Line("{\"k\":\"c\",\"v\":\"3\"} trailing") + "\n"
+            + Line("{\"k\":\"d\",\"v\":\"4\"") + "\n"
+            + Line("{\"v\":\"no key\"}");
+        File.WriteAllText(StorePath, text, new UTF8Encoding(false));
+
+        var store = RexStore.Open(StorePath);
+
+        Assert.Equal(("\u00E9t\u00E9", "two"), (store.Get("a"), store.Get("b")));
+        Assert.Null(store.Get("inner"));
+        Assert.Equal((2, 3), (store.Count, store.Skipped));
+    }
+
+    [Fact]
+    public void AValueOfManyMegabytesIsKeptWhole()
+    {
+        var big = new string('x', 3 * 1024 * 1024) + "\"\\\n\u00E9";
+        var store = RexStore.Open(StorePath);
+        store.Set("big", big);
+        store.Set("small", "s");
+
+        var again = RexStore.Open(StorePath);
+
+        Assert.Equal(big, again.Get("big"));
+        Assert.Equal("s", again.Get("small"));
+        Assert.Equal(0, again.Skipped);
+    }
+
+    [Fact]
     [Capability("LIB-11")]
     public void ALogOfMostlyOldChangesIsRewrittenAsJustTheValues()
     {
