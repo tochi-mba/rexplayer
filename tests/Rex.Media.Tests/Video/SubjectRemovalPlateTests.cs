@@ -127,7 +127,7 @@ public sealed class SubjectRemovalPlateTests
         Assert.InRange(Split(again).B, 59, 61);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(-30, 20, out _));
 
-        plate.Advance(new CameraMotion(1.3f, 0, 0));
+        plate.Advance(new CameraMotion(1.6f, 0, 0));
         Assert.Equal((1f, 0f, 0f), plate.Mapping);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(20, 20, out _));
     }

@@ -65,6 +65,7 @@ public sealed class SubjectRemoval
     private int _guard;
     private RemovalMode _mode;
     private byte[]? _shape;
+    private (MediaTime Pts, int Width, int Height, (int, int, int, int) Box, int Coverage, bool Shaped) _matteKey;
     private (int Width, int Height, MediaTime Pts) _shapePicture;
     private MediaTime _lastPts = MediaTime.Unknown;
     private uint _pictures;
@@ -159,6 +160,7 @@ public sealed class SubjectRemoval
     {
         _motion.Reset();
         _matte.Reset();
+        _matteKey = default;
         _hasPreviousSource = false;
         _previousBox = null;
         _boxSpeed = 0;
@@ -207,7 +209,14 @@ public sealed class SubjectRemoval
         if (output is not null)
         {
             var shaped = _shape is not null && _shapePicture == (frame.Width, frame.Height, frame.Pts);
-            _matte.Compute(frame, box, _plate, coverage, remember: advance, shaped ? _shape : default);
+            var key = (frame.Pts, frame.Width, frame.Height, box, coverage, shaped);
+            // A paused redraw with the same settings shows the matte it showed; computing it again
+            // would read colour models and a remembered matte that this very picture just updated.
+            if (advance || key != _matteKey)
+            {
+                _matte.Compute(frame, box, _plate, coverage, remember: advance, shaped ? _shape : default);
+                _matteKey = key;
+            }
         }
 
         if (advance)
