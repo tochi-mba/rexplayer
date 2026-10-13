@@ -25,8 +25,9 @@ public sealed class ConstellationScene : VisualScene
         var memory = context.Number("memory");
         if (_stars.Length != count)
         {
-            // Stars by height of note: placed left to right, at heights the hash scatters.
-            _stars = [.. Enumerable.Range(0, count).Select(n => (w * (0.05 + (0.9 * (n + Noise.Hash(n * 3)) / count)), h * (0.1 + (0.8 * Noise.Hash((n * 3) + 1))), Noise.Hash((n * 3) + 2)))];
+            // Stars by height of note: placed left to right, at heights the hash scatters, as shares
+            // of the stage, so they stay put when it is resized.
+            _stars = [.. Enumerable.Range(0, count).Select(n => (0.05 + (0.9 * (n + Noise.Hash(n * 3)) / count), 0.1 + (0.8 * Noise.Hash((n * 3) + 1)), Noise.Hash((n * 3) + 2)))];
             _links.Clear();
             _last = -1;
         }
@@ -34,8 +35,8 @@ public sealed class ConstellationScene : VisualScene
         if (pulse.Beat)
         {
             // The star nearest the pitch, high or low as the treble is against the bass.
-            var target = (pulse.Pitch * w * 0.9) + (w * 0.05);
-            var lift = h * (0.85 - (0.7 * Math.Clamp(0.5 + pulse.Treble - pulse.Bass, 0, 1)));
+            var target = (pulse.Pitch * 0.9) + 0.05;
+            var lift = 0.85 - (0.7 * Math.Clamp(0.5 + pulse.Treble - pulse.Bass, 0, 1));
             var best = 0;
             for (var s = 1; s < count; s++)
             {
@@ -64,13 +65,14 @@ public sealed class ConstellationScene : VisualScene
             _links[l] = (from, to, age + context.Dt);
             var light = (float)Math.Max(0, 1 - (age / memory));
             var ((x0, y0, _), (x1, y1, _)) = (_stars[from], _stars[to]);
-            canvas.Line(x0, y0, x1, y1, 1.3, context.Paint(x1 / w), light * 0.7f, 2);
+            canvas.Line(x0 * w, y0 * h, x1 * w, y1 * h, Math.Max(1.3, size * 0.003), context.Paint(x1), light * 0.7f, 2);
         }
 
         _links.RemoveAll(link => link.Age > memory);
         for (var s = 0; s < count; s++)
         {
             var (x, y, star) = _stars[s];
+            (x, y) = (x * w, y * h);
             var light = (float)(0.25 + (0.4 * star) + (_twinkle * 0.5 * Noise.Hash(s + (pulse.Hat.Count * 101)))) + (s == _last ? _flare * 2 : 0);
             canvas.Glow(x, y, size * (0.008 + (0.01 * star) + (s == _last ? 0.04 * _flare : 0)), context.Paint(x / w), light);
         }

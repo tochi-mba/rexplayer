@@ -29,7 +29,7 @@ public sealed class GalaxyScene : VisualScene
         _turnTo += (context.Dt * 0.03 * spin) + (pulse.Beat ? 0.06 * spin : 0);
         _turn += (_turnTo - _turn) * (1 - Math.Exp(-context.Dt / 0.12));
         canvas.Feedback(0.4f, 1, 0, 0, 0);
-        canvas.Glow(cx, cy, size * (0.12 + (0.12 * pulse.Bass)), context.Paint(0.1), 0.6f + (1.2f * pulse.Bass) + pulse.Punch);
+        canvas.Glow(cx, cy, size * (0.06 + (0.06 * pulse.Bass)), context.Paint(0.1), 0.25f + (0.5f * pulse.Bass) + (0.5f * pulse.Punch));
 
         for (var s = 0; s < stars; s++)
         {

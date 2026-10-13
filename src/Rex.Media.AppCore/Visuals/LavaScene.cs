@@ -35,7 +35,7 @@ public sealed class LavaScene : VisualScene
             var rise = (Noise.Fractal((_time * 0.7) + (b * 5.1) + 40, 3) - 0.5) * 1.2;
             var x = (w / 2.0) + (wander * w * 0.4 * (1 - _gather));
             var y = (h * (0.75 - (0.5 * share))) + (rise * h * 0.3 * (1 - _gather)) - ((h * (0.75 - (0.5 * share)) - (h / 2.0)) * _gather);
-            _blobs[b] = (x, y, size * (0.06 + (0.14 * band) + (0.03 * (1 - share))), (float)share);
+            _blobs[b] = (x, y, size * (0.04 + (0.09 * band) + (0.02 * (1 - share))), (float)share);
         }
 
         var glow = (float)context.Number("glow");
