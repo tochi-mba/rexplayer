@@ -50,6 +50,12 @@ public sealed class UpdateDownloaderTests : IDisposable
             Task.FromResult(Send(request, cancellationToken));
     }
 
+    /// <summary>A body that cannot advertise a Content-Length like a chunked release server.</summary>
+    private sealed class UnmeasuredStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public override bool CanSeek => false;
+    }
+
     private FakeOrigin Origin(Func<HttpRequestMessage, HttpResponseMessage>? installer = null, string? checksum = null) => new(request =>
         request.RequestUri!.AbsolutePath.EndsWith(".sha256", StringComparison.Ordinal)
             ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(checksum ?? Checksum) }
@@ -216,7 +222,7 @@ public sealed class UpdateDownloaderTests : IDisposable
         // downloads, rather than looking finished from the first byte.
         Dispose();
         progress.Clear();
-        var unsized = Origin(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new MemoryStream(_installer)) });
+        var unsized = Origin(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new UnmeasuredStream(_installer)) });
         Assert.Equal(DownloadOutcome.Ready, Downloader(unsized).Download(Pending(size: 0), (done, total) => progress.Add((done, total)), CancellationToken.None).Outcome);
         Assert.All(progress.SkipLast(1), step => Assert.Equal(0, step.Total));
         Assert.Equal((_installer.Length, _installer.Length), progress[^1]);
