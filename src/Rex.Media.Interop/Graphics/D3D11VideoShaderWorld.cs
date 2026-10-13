@@ -25,11 +25,11 @@ internal static class D3D11VideoShaderWorld
                     flakes += step(0.55, hash(cell + layer * 13.1)) * (1 - smoothstep(size * 0.5, size, length(frac(p) - 0.5 - offset))) * (1 - layer * 0.25);
                 }
                 float depth = 0.25 + 0.75 * saturate(frac(t * 0.02 * (0.5 + extras.y * 0.01)) * 1.2);
-                float3 here = contourGradient(uv, isYuv, 1.5);
-                float3 below = contourGradient(uv + float2(0, 0.004 + 0.012 * depth), isYuv, 1.5);
-                float flat = smoothstep(0.3, 0.8, abs(below.y) / (abs(below.x) + abs(below.y) + 0.0001));
-                float ledge = max(smoothstep(0.03, 0.15, abs(here.y)) * step(abs(here.x), abs(here.y)),
-                                  smoothstep(0.03, 0.15, abs(below.y)) * flat);
+                float3 here = contourGradient(uv, isYuv, 3.0);
+                float3 below = contourGradient(uv + float2(0, 0.004 + 0.012 * depth), isYuv, 3.0);
+                float flat = smoothstep(0.55, 0.9, abs(below.y) / (abs(below.x) + abs(below.y) + 0.0001));
+                float flatHere = smoothstep(0.55, 0.9, abs(here.y) / (abs(here.x) + abs(here.y) + 0.0001));
+                float ledge = max(smoothstep(0.1, 0.3, abs(here.y)) * flatHere, smoothstep(0.1, 0.3, abs(below.y)) * flat);
                 float settle = saturate(ledge * depth * (0.7 + 0.3 * hash(floor(uv * float2(300 * effect.w, 300)))) * 1.5);
                 float3 cold = colour * float3(0.85, 0.9, 1.0) * 0.9;
                 colour = lerp(colour, saturate(lerp(cold, float3(0.96, 0.97, 1), settle) + flakes * 0.9), effect.y);
@@ -190,11 +190,11 @@ internal static class D3D11VideoShaderWorld
                 float t = effect.z * (0.1 + extras.x * 0.003);
                 float3 night = colour * float3(0.3, 0.38, 0.55);
                 float smooth = 1 - smoothstep(0.03, 0.12, contourDetail(uv, isYuv).z);
-                float sky = smooth * (1 - smoothstep(0.35, 0.8, uv.y));
+                float sky = (0.35 + 0.65 * smooth) * (1 - smoothstep(0.35, 0.8, uv.y));
                 float x = uv.x * effect.w;
                 float bandY = 0.25 + sin(x * 6 + t * 2 + sin(x * 3 - t) * 1.5) * 0.08;
                 float curtain = uv.y < bandY ? exp(-(bandY - uv.y) * 6) : exp(-(uv.y - bandY) * 60);
-                float rays = 0.6 + 0.4 * sin(x * 90 * pointer.w + sin(x * 7 + t * 3) * 4);
+                float rays = 0.7 + 0.18 * sin(x * 37 * pointer.w + sin(x * 5 + t * 2) * 3) + 0.12 * sin(x * 83 * pointer.w - t * 1.3);
                 float3 glow = lerp(float3(0.2, 1, 0.5), float3(0.6, 0.3, 1), saturate((bandY - uv.y) * 4));
                 float intensity = curtain * rays * (0.6 + extras.y * 0.008);
                 colour = lerp(colour, saturate(night + glow * intensity * sky + glow * intensity * 0.05), effect.y);
@@ -281,7 +281,7 @@ internal static class D3D11VideoShaderWorld
             {
                 // The picture sprayed through a stencil onto a brick wall: flat paint tones with fuzzy
                 // spray edges, and the wall showing through where there is no paint.
-                float l = lumaOf(colour) + (hash(floor(uv * float2(700 * effect.w, 700))) - 0.5) * 0.12 * pointer.w;
+                float l = smoothstep(0.08, 0.75, lumaOf(colour)) + (hash(floor(uv * float2(700 * effect.w, 700))) - 0.5) * 0.12 * pointer.w;
                 float2 bricks = float2(9 * effect.w, 18);
                 float2 b = uv * bricks;
                 b.x += step(1, fmod(floor(b.y), 2)) * 0.5;
@@ -292,7 +292,7 @@ internal static class D3D11VideoShaderWorld
                 float3 dark = extras.x < 0.5 ? float3(0.05, 0.05, 0.06) : extras.x < 1.5 ? float3(0.05, 0.05, 0.06) : extras.x < 2.5 ? float3(0.08, 0.1, 0.3) : float3(0.1, 0.0, 0.2);
                 float3 mid = extras.x < 0.5 ? wall : extras.x < 1.5 ? float3(0.8, 0.1, 0.12) : extras.x < 2.5 ? float3(0.95, 0.85, 0.2) : float3(1.0, 0.1, 0.7);
                 float3 light = extras.x < 2.5 ? wall : float3(0.2, 1.0, 0.9);
-                float3 painted = l < 0.35 ? dark : l < 0.62 ? mid : light;
+                float3 painted = l < 0.3 ? dark : l < 0.6 ? mid : light;
                 colour = lerp(colour, painted, effect.y);
             }
         #endif
