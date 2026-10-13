@@ -299,7 +299,7 @@ public sealed partial class PlayerController : IDisposable
 
     public void Dispose()
     {
-        _sectionStop?.Cancel();
+        CancelSectionDetection();
         RememberPosition();
         EndSession();
     }

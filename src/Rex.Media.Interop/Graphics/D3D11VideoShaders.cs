@@ -303,7 +303,7 @@ internal static class D3D11VideoShaders
             float4 broad = lumaStructure(uv, stepUv * 2.5, isYuv);
             // The control's 100 % is the setting that looked cleanest across grainy, dark and
             // compressed test footage; 175 % reaches fine texture, 25 % keeps only bold shapes.
-            float s = 0.3 * clamp(sensitivity, 0.25, 1.75);
+            float s = 0.55 * clamp(sensitivity, 0.25, 1.75);
             float floorEnergy = (0.0042 / s) * (0.0042 / s);
             float2 normal = fine.z * (broad.z + 4 * broad.w + 1e-7) >= 0.16 * broad.z * (fine.z + 4 * fine.w + 1e-7)
                 ? fine.xy : broad.xy;
@@ -323,28 +323,30 @@ internal static class D3D11VideoShaders
             float fineConfidence = fine.z / (fine.z + k * noise + floorEnergy);
             float broadConfidence = broad.z / (broad.z + k * max(noise, broad.w) + floorEnergy * 2);
             float confidence = max(fineConfidence, broadConfidence * 0.92);
-            // Clear outlines (real contrast, well above the noise) always count; fainter responses
-            // need neighbours along the edge unless they stand far above the noise.
+            // Bold outlines count directly; faint ones need spatial continuity.
             float contrast = sqrt(max(fine.z, broad.z * 0.4));
             float strong = smoothstep(0.035 / s, 0.10 / s, contrast) * smoothstep(0.35, 0.6, confidence);
-            // Linking compares the edge's strength either side along it with its strength here, so a
-            // soft edge links as well as a sharp one, and a lone speck (strong here, nothing beside
-            // it) does not.
-            float centreLuma = max(fineLuma * fine.z, 1e-12);
-            float linked = smoothstep(0.15, 0.55, min(t1.x, t2.x) / centreLuma);
-            linked = lerp(linked, 1, 1 - fineLuma);
-            float weak = smoothstep(0.45, 0.75, confidence) * max(linked, smoothstep(0.85, 0.95, confidence));
+            // Eleven signed, edge-aligned contrasts cancel random grain while retaining lines.
+            // Colour-only boundaries use colour confidence instead of luma.
+            float continuity = 1;
+            [branch] if (fineLuma >= 0.55 && confidence > 0.20)
+            {
+                float across = 0;
+                [loop] for (int pointIndex = -5; pointIndex <= 5; pointIndex++)
+                {
+                    float2 offset = tangent * stepUv * (pointIndex * 1.5);
+                    across += readLuma(uv + offset + normal * stepUv, isYuv)
+                        - readLuma(uv + offset - normal * stepUv, isYuv);
+                }
+                continuity = smoothstep(0.007, 0.013, abs(across / 11));
+            }
+            float weak = smoothstep(0.33, 0.67, confidence) * continuity;
             float edge = max(strong, weak);
-            // Thin the edge to its crest (soft non-maximum suppression across it). Colour-only
-            // boundaries have no luma crest to find, so they keep their width.
+            // Suppress off-crest edges; colour-only boundaries retain their width.
             float centre = fineLuma * fine.z;
             float crest = smoothstep(0.5, 0.95, centre / max(max(n1.x, n2.x), 1e-12));
             crest = lerp(1, crest, fineLuma * fineLuma);
-            // A third, wide scale finds soft boundaries (a blurred background, a shape in deep shadow)
-            // that are too gradual for the other two. Contrast is measured against the local
-            // brightness, so a dark scene's edges count as much as a bright one's, while gentle shading
-            // across a face stays below it. Where the brightness curve turns (the middle of the soft
-            // edge) a soft line is drawn.
+            // A wide scale catches soft boundaries in dark scenes without tracing gentle shading.
             float2 wideStep = stepUv * 8;
             float4 wide = lumaSlope(uv, wideStep, isYuv);
             float wideSlope = length(wide.xy);
@@ -811,7 +813,7 @@ internal static class D3D11VideoShaders
                     float2 rotated = float2(p.x * cs - p.y * sn, p.x * sn + p.y * cs);
                     float radius = sqrt(coverage[channel]) * spread;
                     float dist = length(frac(rotated) - 0.5);
-                    ink[channel] = saturate((radius - dist) / softness + 0.5) * saturate(radius / softness);
+                    ink[channel] = coverage[channel] >= 0.995 ? 1 : saturate((radius - dist) / softness + 0.5) * saturate(radius / softness);
                 }
                 colour = lerp(colour, 1 - ink, strength);
             }

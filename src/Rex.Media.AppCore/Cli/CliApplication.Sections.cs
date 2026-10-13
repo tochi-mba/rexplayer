@@ -51,6 +51,7 @@ public static partial class CliApplication
                 ["start"] = proposal.Start.TotalSeconds,
                 ["end"] = proposal.End.TotalSeconds,
                 ["confidence"] = proposal.Confidence,
+                ["offered"] = proposal.Confidence >= SectionProposals.OfferThreshold,
                 ["reason"] = proposal.Reason,
                 ["source"] = proposal.Source,
             });
@@ -80,7 +81,8 @@ public static partial class CliApplication
             host.Out.WriteLine($"{Path.GetFileName(path)}: compared with {companions.Count} episodes.");
             foreach (var proposal in result.Candidates)
             {
-                host.Out.WriteLine($"{proposal.Kind}: {proposal.Start:c} – {proposal.End:c} ({proposal.Confidence:P0}; {proposal.Reason})");
+                host.Out.WriteLine($"{proposal.Kind}: {proposal.Start:c} to {proposal.End:c} ({proposal.Confidence:P0}; {proposal.Reason})" +
+                    (proposal.Confidence >= SectionProposals.OfferThreshold ? "" : "; too unsure to offer"));
             }
 
             if (result.Candidates.Count == 0)

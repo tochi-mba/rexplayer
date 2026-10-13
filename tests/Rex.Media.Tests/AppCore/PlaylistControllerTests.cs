@@ -158,6 +158,38 @@ public sealed class PlaylistControllerTests
     }
 
     [Fact]
+    [Capability("PLF-04")]
+    public void AFinishedCuePartStartsAnUnrelatedNextFileEvenWithoutTimedPlayback()
+    {
+        // Drive the part boundary directly to make this handoff independent of audio
+        // scheduling and cover the path that starts the next file from a part boundary.
+        using var harness = new ControllerHarness(autoPlay: false, settings: Quiet);
+        harness.Files["album.wav"] = Count(0, 8000);
+        harness.Files["other.wav"] = Count(9000, 400);
+        harness.Files["album.cue"] = Text("""
+            FILE "album.wav" WAVE
+              TRACK 01 AUDIO
+                TITLE "First"
+                INDEX 01 00:00:00
+              TRACK 02 AUDIO
+                TITLE "Second"
+                INDEX 01 00:00:30
+            FILE "other.wav" WAVE
+              TRACK 03 AUDIO
+                TITLE "Other"
+                INDEX 01 00:00:00
+            """);
+        var controller = harness.Controller;
+        controller.Open(["album.cue"]);
+        controller.Playlist.RemoveAt(1);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "First");
+
+        controller.ReachedEndOfPart(TimeSpan.FromSeconds(0.4));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "Other");
+        Assert.Equal("other.wav", controller.Item!.Location);
+    }
+
+    [Fact]
     [Capability("LIB-03")]
     public void ThePlaylistIsSavedInTheFormatItsNameAsksFor()
     {

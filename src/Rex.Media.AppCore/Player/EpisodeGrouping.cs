@@ -2,15 +2,29 @@ using System.Text.RegularExpressions;
 
 namespace Rex.Media.AppCore.Player;
 
-/// <summary>The show and season that qualify an episode for comparison with its siblings.</summary>
-public sealed record EpisodeIdentity(string Show, int Season, int Episode);
+/// <summary>
+/// The show and season that qualify an episode for comparison with its siblings. A double episode
+/// ("S01E01E02", "S01E01-E02", "S01E01-02") runs from <see cref="Episode"/> through <see cref="Through"/>.
+/// </summary>
+public sealed record EpisodeIdentity(string Show, int Season, int Episode, int? Through = null)
+{
+    /// <summary>The last episode number this file holds.</summary>
+    public int Last => Through ?? Episode;
+}
 
-/// <summary>Conservatively groups numbered series episodes and excludes specials, samples and extras.</summary>
+/// <summary>
+/// Conservatively groups numbered series episodes and excludes specials (season 0), samples and
+/// extras, whether the file or its folder says so.
+/// </summary>
 public static class EpisodeGrouping
 {
     private static readonly Regex EpisodeName = new(
-        @"(?i)(?:^|[\s._-])(?:s(?<season>\d{1,2})e(?<episode>\d{1,3})|(?<season>\d{1,2})x(?<episode>\d{1,3}))(?:[\s._-]|$)",
+        @"(?i)(?:^|[\s._-])(?:s(?<season>\d{1,2})e(?<episode>\d{1,3})(?:-?e(?<through>\d{1,3})|-(?<through>\d{1,3}))?|(?<season>\d{1,2})x(?<episode>\d{1,3})(?:-?x(?<through>\d{1,3}))?)(?:[\s._-]|$)",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+
+    private static readonly Regex ExtraName = new(
+        @"(?i)(?:^|[. _-])(sample|trailer|extras?|specials?|featurettes?|bonus|deleted[. _-]scenes?|behind[. _-]the[. _-]scenes|interviews?|making[. _-]of)(?:[. _-]|$)",
+        RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     public static EpisodeIdentity? Identify(string path)
     {
@@ -18,15 +32,17 @@ public static class EpisodeGrouping
         var filename = Path.GetFileNameWithoutExtension(path);
         var match = EpisodeName.Match(filename);
         if (!match.Success || !int.TryParse(match.Groups["season"].Value, out var season) ||
-            !int.TryParse(match.Groups["episode"].Value, out var episode) || episode == 0 || season > 99)
+            !int.TryParse(match.Groups["episode"].Value, out var episode) || episode == 0 || season is 0 or > 99)
         {
             return null;
         }
 
+        int? through = int.TryParse(match.Groups["through"].Value, out var last) && last > episode ? last : null;
+        var folder = Path.GetFileName(Path.GetDirectoryName(path)) ?? "";
         var title = filename[..match.Index].Replace('.', ' ').Replace('_', ' ').Trim(' ', '-', '_');
         if (string.IsNullOrWhiteSpace(title))
         {
-            title = Path.GetFileName(Path.GetDirectoryName(path)) ?? "";
+            title = folder;
             // A season directory alone does not establish the identity of a show.
             if (Regex.IsMatch(title, @"(?i)^season\s*\d+", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)))
             {
@@ -35,13 +51,12 @@ public static class EpisodeGrouping
         }
 
         title = Regex.Replace(title, @"\s+", " ").Trim();
-        if (title.Length < 2 || Regex.IsMatch(filename, @"(?i)(?:^|[. _-])(sample|trailer|extra|special)(?:[. _-]|$)",
-            RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)))
+        if (title.Length < 2 || ExtraName.IsMatch(filename) || ExtraName.IsMatch(folder))
         {
             return null;
         }
 
-        return new EpisodeIdentity(title.ToUpperInvariant(), season, episode);
+        return new EpisodeIdentity(title.ToUpperInvariant(), season, episode, through);
     }
 
     public static IReadOnlyList<string> Siblings(string target, IEnumerable<string> candidates)
@@ -58,5 +73,24 @@ public static class EpisodeGrouping
                 other.Episode != identity.Episode &&
                 string.Equals(other.Show, identity.Show, StringComparison.Ordinal))
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>
+    /// The episode that follows <paramref name="target"/> among <paramref name="candidates"/>: the
+    /// same show and season, the lowest number after the target's last. Null when there is none.
+    /// </summary>
+    public static string? Next(string target, IEnumerable<string> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+        if (Identify(target) is not { } identity)
+        {
+            return null;
+        }
+
+        return candidates.Select(path => (Path: path, Identity: Identify(path)))
+            .Where(item => item.Identity is { } other && other.Season == identity.Season &&
+                other.Episode > identity.Last && string.Equals(other.Show, identity.Show, StringComparison.Ordinal))
+            .OrderBy(item => item.Identity!.Episode).ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(item => item.Path).FirstOrDefault();
     }
 }

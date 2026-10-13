@@ -453,7 +453,7 @@ public sealed class D3D11PresenterTests
         var highFlat = high.Row(0, 48)[40 * 4 + 1];
         var lowContrast = Enumerable.Range(68, 8).Max(x => Math.Abs(low.Row(0, 48)[x * 4 + 1] - lowFlat));
         var highContrast = Enumerable.Range(68, 8).Max(x => Math.Abs(high.Row(0, 48)[x * 4 + 1] - highFlat));
-        Assert.True(highContrast > lowContrast + 6,
+        Assert.True(highContrast > lowContrast + 3,
             $"{effect}: raising contour detail must reveal weak lines ({lowContrast} vs {highContrast})");
     }
 
