@@ -39,11 +39,13 @@ public sealed class SectionDetectionControllerTests
             new PlayerMemory(store).SetProposals(fileA,
                 new SectionProposals(SectionAnalysis.SignatureOf(fileA), []));
             var analyzed = 0;
+            var cacheFolder = Path.Combine(folder, "analysis-cache");
             using (var harness = new ControllerHarness(autoPlay: false, pictures: true, store: store))
             {
                 harness.Files[fileA] = bytes;
                 harness.Files[fileB] = bytes;
                 var controller = harness.Controller;
+                controller.SectionCache = new SectionAnalysisCache(cacheFolder);
                 controller.SectionAnalyzer = (path, token) =>
                 {
                     token.ThrowIfCancellationRequested();
@@ -64,12 +66,13 @@ public sealed class SectionDetectionControllerTests
                 harness.PumpUntil(x => x.State == SessionState.Ready && x.Info is not null);
                 harness.PumpUntil(x => x.CurrentProposals is { Candidates.Count: > 0 });
                 Assert.Equal(2, analyzed);
-                Assert.NotNull(new PlayerMemory(store).Analysis(fileB, SectionAnalysis.SignatureOf(fileB)));
+                Assert.NotNull(new SectionAnalysisCache(cacheFolder).Get(fileB, SectionAnalysis.SignatureOf(fileB)));
                 Assert.NotNull(controller.CurrentProposals!.Best(EpisodeSectionKind.Intro, TimeSpan.FromMinutes(43)));
             }
 
             using var again = new ControllerHarness(autoPlay: false, pictures: true, store: store);
             again.Files[fileA] = bytes;
+            again.Controller.SectionCache = new SectionAnalysisCache(cacheFolder);
             again.Controller.SectionAnalyzer = (_, _) => throw new InvalidOperationException(
                 "A signature-matched proposal must load without decoding");
             again.Controller.Open([fileA]);
