@@ -174,7 +174,7 @@ public sealed partial class MainWindow
     /// <summary>Used by the foreground key handler before Windows sends its matching media event.</summary>
     private bool HandleShellMediaKey(int key)
     {
-        if (MediaKeyEcho.RequestOfKey(key) is not { } request)
+        if (!_settings.ShellMediaControls || MediaKeyEcho.RequestOfKey(key) is not { } request)
         {
             return false;
         }
@@ -232,7 +232,13 @@ public sealed partial class MainWindow
                 _shellTaskbar.SetOverlay(_shellHandle, badge is { } glyph ? _shellIcons[glyph] : null,
                     view.Badge == TransportBadge.Paused ? "Paused" : view.Badge == TransportBadge.Failed ? "Could not play" : "");
                 var progress = TaskbarProgress.Choose(null, null, false);
-                _shellTaskbar.SetProgress(_shellHandle, (TaskbarProgressKind)progress.State, progress.Percent);
+                var progressKind = progress.State switch
+                {
+                    TaskbarProgressState.Normal => TaskbarProgressKind.Normal,
+                    TaskbarProgressState.Paused => TaskbarProgressKind.Paused,
+                    _ => TaskbarProgressKind.None,
+                };
+                _shellTaskbar.SetProgress(_shellHandle, progressKind, progress.Percent);
             }
             catch (Exception ex) when (ShellUnavailable(ex))
             {
