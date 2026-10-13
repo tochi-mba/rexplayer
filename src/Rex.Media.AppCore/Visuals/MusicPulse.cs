@@ -60,7 +60,7 @@ public sealed class MusicPulse
     private const double DropGap = 2.5;
 
     /// <summary>How long past the beat the clock expected a stand-in waits for the music to show it.</summary>
-    private const double FillWait = 0.015;
+    private const double FillWait = 0.006;
 
     /// <summary>The raw loudness under which nothing is a beat.</summary>
     private const float Quiet = 0.15f;
