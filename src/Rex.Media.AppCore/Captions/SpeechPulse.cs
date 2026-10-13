@@ -54,7 +54,7 @@ public sealed class SpeechPulse
     private const float Quiet = 0.04f;
 
     private readonly AdaptiveRange _range = new(span: 18, floorSeconds: 2.5, ceilingSeconds: 4, gamma: 1);
-    private readonly Onset _onset = new(OnsetGap, 0.15, minimum: 0.0005);
+    private readonly Onset _onset = new(OnsetGap, 0.15, minimum: 0.001);
     private readonly Queue<double> _onsetTimes = new();
     private readonly List<float> _onsetLoudness = [];
     private readonly float[] _sorted = new float[Remembered];

@@ -126,7 +126,10 @@ public sealed class PictureSpace
     {
         width = Math.Clamp(double.IsFinite(width) ? width : 0, 0, 1 - (2 * Margin));
         height = Math.Clamp(double.IsFinite(height) ? height : 0, 0, 1 - (2 * Margin));
-        var best = (X: Math.Clamp(preferred.X, Margin, 1 - Margin - width), Y: Math.Clamp(preferred.Y, Margin, 1 - Margin - height));
+        var maxX = Math.Max(Margin, 1 - Margin - width);
+        var maxY = Math.Max(Margin, 1 - Margin - height);
+        var target = (X: Math.Clamp(preferred.X, Margin, maxX), Y: Math.Clamp(preferred.Y, Margin, maxY));
+        var best = target;
         var bestCost = double.MaxValue;
         const int Steps = 24;
         for (var sy = 0; sy <= Steps; sy++)
@@ -136,7 +139,7 @@ public sealed class PictureSpace
             {
                 var x = Margin + ((1 - (2 * Margin) - width) * sx / Steps);
                 var (mean, most) = Under(x, y, width, height, _importance);
-                var distance = Math.Sqrt(Math.Pow(x - best.X, 2) + Math.Pow(y - best.Y, 2));
+                var distance = Math.Sqrt(Math.Pow(x - target.X, 2) + Math.Pow(y - target.Y, 2));
                 var cost = (4 * mean) + (2 * most) + (0.6 * distance);
                 if (cost < bestCost - 1e-9)
                 {
