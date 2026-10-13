@@ -211,7 +211,7 @@ public sealed class MusicPulse
         Levels(mono, sampleRate, dt);
         Spectrum(sampleRate, dt);
 
-        var flux = Flux(sampleRate);
+        var flux = Flux(mono, sampleRate);
         var listening = _primed && RawLoudness > Quiet;
         var kickGap = _kick.Since;
         _kick.Hear(Rise(_bassBefore, _bassRaw), _bassPower, dt, listening);
@@ -229,7 +229,7 @@ public sealed class MusicPulse
         _sinceBeat += dt;
         _sinceDrop += dt;
         // Where in the frame the kick struck, so the clock keeps finer time than the frames do.
-        var age = _kick.Hit ? Math.Min(dt, _bassBand.RiseAge()) : dt / 2;
+        var age = _kick.Hit ? Math.Min(Math.Max(dt, RiseSpan), _bassBand.RiseAge()) : dt / 2;
         _clock.Advance(dt, (float)flux);
         if (!_primed)
         {
@@ -422,12 +422,16 @@ public sealed class MusicPulse
     /// The onset strength: how much the spectrum below 5 kHz rose since the last frame, each bin on a
     /// log scale against the strongest of itself and its neighbours a frame ago, the bass weighing more.
     /// </summary>
-    private double Flux(int sampleRate)
+    private double Flux(ReadOnlySpan<float> mono, int sampleRate)
     {
+        // Compare two windows separated by a fixed time, rather than consecutive draw frames.
+        var lag = Math.Clamp((int)(sampleRate * RiseSpan), 1, mono.Length - ShortSize);
+        Fft.Magnitudes(mono.Slice(mono.Length - ShortSize - lag, ShortSize), _previous, _shortReal, _shortImaginary);
         var top = Math.Clamp(5000 * ShortSize / sampleRate, 2, _shortMagnitudes.Length - 1);
         for (var bin = 0; bin < _now.Length; bin++)
         {
             _now[bin] = MathF.Log(1 + (_shortMagnitudes[bin] * 100));
+            _previous[bin] = MathF.Log(1 + (_previous[bin] * 100));
         }
 
         double flux = 0;
@@ -437,7 +441,6 @@ public sealed class MusicPulse
             flux += Math.Max(0, _now[bin] - before) * (bin < top / 8 ? 3 : 1);
         }
 
-        Array.Copy(_now, _previous, _now.Length);
         return flux / top;
     }
 
