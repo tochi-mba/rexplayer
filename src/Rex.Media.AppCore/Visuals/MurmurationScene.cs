@@ -3,7 +3,8 @@ namespace Rex.Media.AppCore.Visuals;
 /// <summary>
 /// A murmuration of starlings over a dusk sky (AU-18): a great flock wheeling as one, each bird
 /// following the turning air and the flock's lead. The melody leads, the flock swinging toward
-/// the pitch; each kick draws it tight, so it pulses on the beat; the treble scatters its edges.
+/// the pitch; it hangs loose between the kicks and each kick draws it tight, the dusk light
+/// swelling with it; the treble scatters its edges.
 /// </summary>
 public sealed class MurmurationScene : VisualScene
 {
@@ -31,7 +32,7 @@ public sealed class MurmurationScene : VisualScene
         _time += dt * (0.3 + (0.7 * pulse.Loudness));
 
         // The lead: drifting where the melody goes, the flock behind it.
-        var goal = (w * (0.2 + (0.6 * pulse.Pitch)) + (Math.Sin(_time * 0.9) * w * 0.12), h * (0.4 + (0.15 * Math.Sin(_time * 0.6))));
+        var goal = (w * (0.2 + (0.6 * pulse.Pitch)) + (Math.Sin(_time * 0.9) * w * 0.12), h * (0.62 + (0.1 * Math.Sin(_time * 0.6))));
         _lead = (_lead.X + ((goal.Item1 - _lead.X) * Math.Min(1, dt * 1.2)), _lead.Y + ((goal.Item2 - _lead.Y) * Math.Min(1, dt * 1.2)));
 
         if (context.Toggle("sky"))
@@ -39,7 +40,7 @@ public sealed class MurmurationScene : VisualScene
             for (var y = 0; y < h; y++)
             {
                 var down = (float)y / h;
-                var sky = context.Paint(0.85 - (0.6 * down)).Times(0.08f + (0.4f * down * down));
+                var sky = context.Paint(0.85 - (0.6 * down)).Times((0.12f + (0.45f * down)) * (1 + (0.6f * pulse.Punch)));
                 Array.Fill(canvas.R, sky.R, y * w, w);
                 Array.Fill(canvas.G, sky.G, y * w, w);
                 Array.Fill(canvas.B, sky.B, y * w, w);
@@ -52,7 +53,8 @@ public sealed class MurmurationScene : VisualScene
 
         // The music is the flock's energy: in silence it hangs, drifting; with the music it surges.
         var energy = 0.2 + (0.8 * Math.Max(pulse.Loudness, Math.Max(pulse.Punch, pulse.Bass)));
-        var pull = context.Number("tightness") * (1.2 + (6 * pulse.Punch));
+        // Loose between the kicks, the flock spreading on the air; each kick draws it tight.
+        var pull = context.Number("tightness") * (0.3 + (8 * pulse.Punch));
         var scatter = size * (0.05 + (0.6 * pulse.Treble));
         // Against the sky a bird is a dark shape: the birds are drawn as a shadow, and the sky darkened by it.
         var dusk = context.Toggle("sky");
@@ -73,6 +75,9 @@ public sealed class MurmurationScene : VisualScene
             var flowX = Math.Sin((fy * 1.7) + _time) + Math.Cos((fx * 0.9) - (_time * 1.3));
             var flowY = Math.Cos((fx * 1.3) - _time) - Math.Sin((fy * 1.1) + (_time * 0.7));
             var (ax, ay) = (((flowX * size * 1.5) + ((_lead.X - x) * pull)) * energy, ((flowY * size * 1.5) + ((_lead.Y - y) * pull)) * energy);
+            // The edges of the sky turn the flock back, softly.
+            ay += (Math.Max(0, (h * 0.3) - y) - Math.Max(0, y - (h * 0.9))) * 40;
+            ax += (Math.Max(0, (w * 0.05) - x) - Math.Max(0, x - (w * 0.95))) * 40;
             ax += (Noise.Hash((b * 2) + (long)(_time * 8)) - 0.5) * scatter * 4;
             ay += (Noise.Hash((b * 2) + 1 + (long)(_time * 8)) - 0.5) * scatter * 4;
             (vx, vy) = ((vx + (ax * dt)) * Math.Exp(-dt * 2), (vy + (ay * dt)) * Math.Exp(-dt * 2));
@@ -81,8 +86,9 @@ public sealed class MurmurationScene : VisualScene
 
             // A bird: a dash along its way, wings a little apart.
             var speed = Math.Max(1e-6, Math.Sqrt((vx * vx) + (vy * vy)));
-            var (ux, uy) = (vx / speed * size * 0.012, vy / speed * size * 0.012);
-            target.Line(x - ux, y - uy, x + ux, y + uy, Math.Max(1.5, size * 0.006), bird, 0.8f);
+            var reach = Math.Max(1.5, size * 0.012);
+            var (ux, uy) = (vx / speed * reach, vy / speed * reach);
+            target.Line(x - ux, y - uy, x + ux, y + uy, Math.Max(2, size * 0.006), bird, 0.8f);
         }
 
         if (dusk)
