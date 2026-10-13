@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.22.0 - 2026-10-13
+
+### Added
+
+- **Fifteen new visualisations**, each moved by the music in its own way:
+  - **Groove.** The last few seconds of the music scroll by: the spectrum in time, the beat
+    grid with every bar marked, and each kick, snare and hi-hat placed where it struck.
+  - **Flight.** Fly down a tunnel of light. Every beat sends a ring ahead, shaped by the sound
+    of that moment, that reaches you on a beat; each kick lunges you forward.
+  - **Cymatics.** Sand gathers into the figures a vibrating plate sings, and each beat throws
+    it into the figure of the pitch.
+  - **Ridgelines.** The spectrum is laid down as a range of ridges climbing away up the stage.
+  - **Synthwave.** A drive over a neon grid toward a striped sun, the cross lines passing at
+    the tempo.
+  - **Fireworks.** The kick launches shells, the snare bursts them, and a drop fires a volley.
+  - **Lightning.** Forked bolts strike on the kick and crack cloud to cloud on the snare, in
+    rain that falls on the beat.
+  - **Lava lamp.** Blobs swell with their part of the spectrum and melt together on every kick.
+  - **Constellation.** Each beat lights the star of its pitch, drawing the melody in the sky.
+  - **Galaxy.** A spiral galaxy turns a step each beat, and hard kicks set off supernovas.
+  - **Kaleidoscope.** Spectral shards in mirrors that click round on the beat and change each
+    bar.
+  - **Murmuration.** A flock of starlings follows the melody and pulls tight on every kick.
+  - **Ink.** Every drum lets fall a drop of ink into water the bass stirs.
+  - **Skyline.** A night city whose towers are the spectrum, its windows flickering with the
+    hi-hats, its searchlights crossing on the beat.
+  - **Mandala.** Rings of petals that open with the music and turn a step on each beat.
+
+### Improved
+
+- **The beat on syncopated music.** The visualisations find the beat by where the kicks fall
+  in time, not by how the rhythm repeats. Amapiano and other music with a 3-3-2 bass or a log
+  drum between the kicks no longer reads at four-thirds or two-thirds of its tempo, and its
+  beats land evenly.
+
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
