@@ -427,6 +427,9 @@ public sealed record PlayerSettings
     /// <summary>Whether the panel's Removal preview section is open.</summary>
     public bool SubjectRemovalOpen { get; init; } = true;
 
+    /// <summary>How the removal preview hides the selection: show what is behind it, or blend it into the surface around it.</summary>
+    public RemovalMode SubjectRemoval { get; init; } = RemovalMode.Remove;
+
     /// <summary>Whether the panel's Help section is open.</summary>
     public bool SubjectHelpOpen { get; init; }
 
@@ -665,6 +668,7 @@ public sealed record PlayerSettings
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
             SubjectPanelSide = Enum.IsDefined(SubjectPanelSide) ? SubjectPanelSide : PanelSide.Right,
             SubjectSelection = Enum.IsDefined(SubjectSelection) ? SubjectSelection : SubjectSelectionMode.Click,
+            SubjectRemoval = Enum.IsDefined(SubjectRemoval) ? SubjectRemoval : RemovalMode.Remove,
             VideoLook = Enum.IsDefined(VideoLook) ? VideoLook : Rex.Media.Primitives.VideoLook.Original,
             VideoEffect = Enum.IsDefined(VideoEffect) ? VideoEffect : Rex.Media.Primitives.VideoEffect.Off,
             VideoEffectStrength = VideoEffects.Strength(VideoEffectStrength),

@@ -62,7 +62,8 @@ public static class SubjectPanel
             return SubjectState.Waiting;
         }
 
-        return status is not null && status.StartsWith("Acquiring", StringComparison.Ordinal)
+        // A model outlining a clicked object is part of acquiring it.
+        return status is not null && (status.StartsWith("Acquiring", StringComparison.Ordinal) || status.StartsWith("Finding", StringComparison.Ordinal))
             ? SubjectState.Acquiring
             : SubjectState.Searching;
     }

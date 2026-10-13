@@ -7,6 +7,17 @@ pipeline the moment its number reaches `main`.
 
 ### Fixed
 
+- **Subject Lock removal looks right on real footage.** The removed area is now filled from
+  the edge inwards with the texture actually around it (grass continues as grass, a gravel band
+  or a skirting board runs straight through), and shading is blended so no seam shows where the
+  fill meets the picture. Nothing is ever copied from the subject itself, so shoes and trouser
+  legs no longer reappear inside the hole, and background is trusted as seen only once it has
+  looked the same for a few frames, so a person walking past is not pasted back in. A head
+  above a dark coat, a hand and other parts unlike the scene around the subject are removed
+  with it.
+- **Removal no longer switches off for good when the subject is lost.** The preview pauses and
+  says so, and resumes once the subject is found again and followed steadily.
+
 - **The beat keeps time at any frame rate.** The visualisations' beat is judged against the last
   second and a half of the music however many frames a second the window draws, and the tempo is
   only replaced after nearly half a second of doubt, not after eight frames. On a fast screen the beat
@@ -32,6 +43,14 @@ pipeline the moment its number reaches `main`.
   part into water. Page curl, Bubbles and Disintegrate answer the pointer. Hologram, Paper layers
   and Stencil graffiti remake the picture in light, paper and spray paint.
 - `rexplay pulse --fps` hears a file at the frame rate asked, to check the beat at any of them.
+- **Blend, a second removal mode.** In Subject Lock's Removal preview, Blend covers the
+  selection with the surface just around it, as a retouching brush hides a logo or a stain on a
+  shirt, instead of showing what is behind it. The choice is remembered.
+- **Enhanced Subject Lock works on paused pictures.** With the optional models installed, a
+  click on a paused picture outlines the whole object ("Finding the object..."), and the removal
+  preview of a paused picture is painted by the inpainting model, with the status saying so.
+  Models run in the background, any new picture or click cancels them, and without them, or
+  when they are unsure, Subject Lock uses its own methods as before.
 
 ### Improved
 

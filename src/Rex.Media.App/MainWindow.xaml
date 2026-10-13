@@ -321,6 +321,13 @@
                         AutomationProperties.AutomationId="SubjectRemovalSection"
                         AutomationProperties.Name="Removal preview">
                 <StackPanel Spacing="4">
+                  <RadioButtons x:Name="SubjectRemovalMode" MaxColumns="2" SelectionChanged="OnSubjectRemovalModeChanged"
+                                AutomationProperties.AutomationId="SubjectRemovalMode" AutomationProperties.Name="Removal mode">
+                    <RadioButton x:Name="SubjectRemovalModeRemove" Content="Remove" Foreground="#FFE0EAF0"
+                                 AutomationProperties.AutomationId="SubjectRemovalModeRemove" />
+                    <RadioButton x:Name="SubjectRemovalModeBlend" Content="Blend" Foreground="#FFE0EAF0"
+                                 AutomationProperties.AutomationId="SubjectRemovalModeBlend" />
+                  </RadioButtons>
                   <TextBlock x:Name="SubjectRemovalDescription" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap"
                              AutomationProperties.AutomationId="SubjectRemovalDescription" />
                   <Button x:Name="SubjectEraseButton" Content="Preview removal" HorizontalAlignment="Stretch"
