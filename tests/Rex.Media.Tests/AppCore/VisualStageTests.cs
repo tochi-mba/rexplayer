@@ -522,27 +522,36 @@ public sealed class VisualStageTests
     {
         // The trails were faded, zoomed and moved once a frame: at sixty frames a second a ripple's
         // trail was gone twice as fast as at thirty, and the window draws at sixty when it can.
-        static (float Light, float Moved) Trailed(int rate)
+        static (float Light, double Moved) Trailed(int rate)
         {
-            var canvas = new Raster(41, 41);
-            var context = new VisualContext(canvas, new MusicPulse()) { Dt = 1.0 / rate };
-            canvas.R[(20 * 41) + 20] = 1;
-            canvas.G[(20 * 41) + 10] = 1;
-            for (var frame = 0; frame < rate / 5; frame++)
+            // A lit pixel left to fade, and a lit column left to drift right.
+            var (fading, drifting) = (new Raster(41, 41), new Raster(41, 41));
+            var frames = (int)Math.Round(rate / 5.0);
+            var (fade, drift) = (new VisualContext(fading, new MusicPulse()) { Dt = 0.2 / frames }, new VisualContext(drifting, new MusicPulse()) { Dt = 0.2 / frames });
+            fading.R[(20 * 41) + 20] = 1;
+            for (var y = 0; y < 41; y++)
             {
-                context.Trail(0.6, 1, 0, 0.5, 0);
-                canvas.Settle();
+                drifting.G[(y * 41) + 10] = 1;
             }
 
-            // Moved a pixel and a bit to the right in a fifth of a second (half a pixel a thirtieth).
-            return (canvas.R.Max(), canvas.G[(20 * 41) + 13]);
+            for (var frame = 0; frame < frames; frame++)
+            {
+                fade.Trail(0.6, 1, 0, 0, 0);
+                fading.Settle();
+                drift.Trail(1, 1, 0, 0.5, 0);
+                drifting.Settle();
+            }
+
+            // Where the column's light is now, along the middle row.
+            var row = Enumerable.Range(0, 41).Select(x => (double)drifting.G[(20 * 41) + x]).ToList();
+            return (fading.R[(20 * 41) + 20], row.Select((g, x) => g * x).Sum() / row.Sum());
         }
 
         var (light, moved) = Trailed(30);
         var (lightAt, movedAt) = Trailed(fps);
-        Assert.InRange(lightAt, light * 0.9f, light * 1.1f);
-        Assert.InRange(movedAt, moved * 0.8f, moved * 1.25f);
-        Assert.True(moved > 0);
+        Assert.InRange(lightAt, light * 0.95f, light * 1.05f);
+        Assert.InRange(movedAt, moved - 0.1, moved + 0.1);
+        Assert.InRange(moved, 12.9, 13.1);
     }
 
     [Fact]
