@@ -193,7 +193,9 @@ public sealed class Mp4Demuxer : IDemuxer
     public Packet? ReadPacket(CancellationToken cancellationToken)
     {
         _stream.CancellationToken = cancellationToken;
-        var best = -1;
+        while (true)
+        {
+            var best = -1;
         for (var t = 0; t < _tracks.Count; t++)
         {
             if (_next[t] < _tracks[t].SampleCount && (best < 0 || _tracks[t].Offsets[_next[t]] < _tracks[best].Offsets[_next[best]]))
@@ -202,10 +204,10 @@ public sealed class Mp4Demuxer : IDemuxer
             }
         }
 
-        if (best < 0)
-        {
-            return null;
-        }
+            if (best < 0)
+            {
+                return null;
+            }
 
         var track = _tracks[best];
         var first = _next[best];
@@ -223,18 +225,22 @@ public sealed class Mp4Demuxer : IDemuxer
         }
 
         _next[best] = last + 1;
-        if (bytes > MaxSampleBytes)
+        // A damaged size or offset invalidates this sample, not every other track.
+        // Advancing _next before skipping guarantees that no corrupt entry can loop forever.
+        var offset = track.Offsets[first];
+        if (bytes <= 0 || bytes > MaxSampleBytes || offset < 0 ||
+            _stream.Length is { } length && (offset > length || bytes > length - offset))
         {
-            throw new MediaFormatException("An MP4 sample is larger than rexplayer accepts.");
+            continue;
         }
 
-        _stream.Seek(track.Offsets[first]);
+        _stream.Seek(offset);
         var buffer = MediaBuffer.Rent((int)bytes);
         var read = _stream.Read(buffer.Span);
         if (read < bytes)
         {
             buffer.Dispose();
-            throw new MediaFormatException("An MP4 sample lies beyond the end of the file.");
+            continue;
         }
 
         var end = last + 1 < track.SampleCount ? track.Dts[last + 1] : Math.Max(track.NextDts, track.Dts[last]);
@@ -242,6 +248,7 @@ public sealed class Mp4Demuxer : IDemuxer
         var dts = Time(track, track.Dts[first] - track.EditOffset);
         var packet = Packet.Create(track.Id, buffer, pts, dts, Time(track, end - track.Dts[first]), track.IsSync(first));
         return packet;
+        }
     }
 
     public void Seek(MediaTime target, CancellationToken cancellationToken)
