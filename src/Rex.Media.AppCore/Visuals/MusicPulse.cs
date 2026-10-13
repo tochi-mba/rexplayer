@@ -224,8 +224,12 @@ public sealed class MusicPulse
         BeatStrength = Math.Max(0, BeatStrength - (float)(dt * 4));
         _sinceBeat += dt;
         _sinceDrop += dt;
-        // Where in the frame the kick struck, so the clock keeps finer time than the frames do.
-        var age = _kick.Hit ? Math.Min(Math.Max(dt, RiseSpan), _bassBand.RiseAge()) : dt / 2;
+        // When the onset was, so the clock keeps finer time than the frames do: a kick where its band
+        // rose most steeply; a rise of the whole spectrum, measured over RiseSpan (or the frame, when
+        // longer), half that ago on average. Taken as half a frame, a fast screen's surges were placed
+        // up to a sixtieth of a second late and drew the grid after them.
+        var span = Math.Max(dt, RiseSpan);
+        var age = _kick.Hit ? Math.Min(span, _bassBand.RiseAge()) : span / 2;
         _clock.Advance(dt, (float)flux);
         if (!_primed)
         {
