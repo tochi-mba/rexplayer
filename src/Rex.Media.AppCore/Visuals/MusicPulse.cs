@@ -285,7 +285,7 @@ public sealed class MusicPulse
         _busy = (_busy * Math.Exp(-dt / 1.0)) + (_snare.Hit || _hat.Hit ? 1 : 0);
         // One recent snare or hat can establish a build when kicks have stayed away; requiring
         // several simultaneous hits missed sparse rhythmic fills at slower frame rates.
-        var building = RawLoudness > Quiet && _kick.Since > 1.5 && _busy > 0.8;
+        var building = RawLoudness > Quiet && _kick.Count > 0 && _kick.Since > 1.5 && _busy > 0.8;
         Build = Drop || _kick.Hit ? 0 : (float)Math.Clamp(Build + (building ? dt / 6 : -dt), 0, 1);
 
         _musicFor = RawLoudness > Quiet ? _musicFor + dt : 0;
