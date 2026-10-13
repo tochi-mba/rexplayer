@@ -3,6 +3,30 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## Unreleased
+
+### Fixed
+
+- **The beat keeps time at any frame rate.** The visualisations' beat is judged against the last
+  second and a half of the music however many frames a second the window draws, and the tempo is
+  only replaced after nearly half a second of doubt, not after eight frames. On a fast screen the beat
+  used to settle on the off-beat of a busy groove.
+- Trails, tunnels and smoke in the visualisations last as long and move as fast at sixty frames a
+  second as at thirty; they used to fade twice as fast whenever the window drew quickly.
+- The silhouette's dimmed room no longer streaks across the bars beside the camera's picture.
+- The vinyl record's groove and sound ring follow the Sensitivity setting again.
+- The embers' swirl no longer jerks back and forth around each beat.
+- The beat meter's beat light shows on small visualisations and goes out when the song changes.
+- Deleting the file that is playing no longer leaves it in Continue watching.
+- Play next plays next even with shuffle on.
+- The Delete key on a watched folder in the library no longer offers to delete every file in it.
+- Restoring a library backup no longer brings back files removed from the library.
+- The library's delete and remove confirmations read correctly for several files.
+
+### Added
+
+- `rexplay pulse --fps` hears a file at the frame rate asked, to check the beat at any of them.
+
 ## 0.21.0 - 2026-10-13
 
 ### Added

@@ -121,6 +121,7 @@ ModelDownloader.cs
 ModelDownloadText.cs
 ModelSet.cs
 ModelStore.cs
+MovingMedian.cs
 Mp3Decoder.cs
 Mp4Boxes.cs
 Mp4Demuxer.cs

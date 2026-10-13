@@ -292,7 +292,7 @@ public sealed class BeatEditScene : VisualScene
 
         var (cos, sin) = (Math.Cos(tilt) / zoom, Math.Sin(tilt) / zoom);
         var flash = (float)_flash;
-        var keep = (float)echo;
+        var keep = (float)Math.Pow(echo, Math.Clamp(context.Dt, 0, 0.25) * VisualContext.TrailRate);
         Raster.Rows(h, y =>
         {
             var slice = glitched ? _sliceShift[y * _sliceShift.Length / h] : 0;

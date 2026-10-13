@@ -28,6 +28,7 @@ public sealed partial class RepositoryTests
         "scripts/effect-contact-sheets.ps1",
         "scripts/make-fixtures.ps1",
         "scripts/make-icon.ps1",
+        "scripts/measure-beats.ps1",
         "scripts/measure-startup.ps1",
         "site/app.js",
         "tests/site/app.test.mjs",

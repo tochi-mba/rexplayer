@@ -9,7 +9,8 @@ namespace Rex.Media.AppCore.Cli;
 
 /// <summary>
 /// What the visualisations hear in a file (AU-18): its sound decoded, as fast as it decodes, and
-/// heard by <see cref="MusicPulse"/> thirty frames a second, as the window hears it while playing.
+/// heard by <see cref="MusicPulse"/> thirty frames a second (or as many as <c>--fps</c> asks), as the
+/// window hears it while playing.
 /// </summary>
 public static partial class CliApplication
 {
@@ -21,10 +22,11 @@ public static partial class CliApplication
         var path = Path.GetFullPath(RequireFile(arguments));
         var start = ParseTime(arguments.Option("--start"), "--start")?.ToTimeSpan() ?? TimeSpan.Zero;
         var stop = ParseTime(arguments.Option("--stop"), "--stop")?.ToTimeSpan();
+        var fps = ParseFps(arguments.Option("--fps"));
         var (mono, rate) = DecodeMono(path, host);
         var first = (int)Math.Min(mono.Length, start.TotalSeconds * rate);
         var last = (int)Math.Min(mono.Length, stop is { } end ? end.TotalSeconds * rate : mono.Length);
-        if (last - first < rate / PulseFps || rate == 0)
+        if (last - first < rate / fps || rate == 0)
         {
             throw new CliException($"There is no sound to hear in {Path.GetFileName(path)} at those times.");
         }
@@ -37,19 +39,19 @@ public static partial class CliApplication
         var (bass, punch, loudness, times) = (new List<double>(), new List<double>(), new List<double>(), new List<double>());
         double? lockedAt = null;
         var (heard, filled) = (0, 0);
-        var frames = (int)((long)(last - first) * PulseFps / rate);
+        var frames = (int)((long)(last - first) * fps / rate);
         for (var frame = 1; frame <= frames; frame++)
         {
             host.Cancellation.ThrowIfCancellationRequested();
-            var endSample = first + (int)((long)frame * rate / PulseFps);
+            var endSample = first + (int)((long)frame * rate / fps);
             for (var i = 0; i < window.Length; i++)
             {
                 var at = endSample - window.Length + i;
                 window[i] = at >= first ? mono[at] : 0;
             }
 
-            pulse.Update(window, rate, TimeSpan.FromSeconds(1.0 / PulseFps));
-            var t = (start.TotalSeconds + ((double)frame / PulseFps));
+            pulse.Update(window, rate, TimeSpan.FromSeconds(1.0 / fps));
+            var t = start.TotalSeconds + ((double)frame / fps);
             bass.Add(pulse.Bass);
             punch.Add(pulse.Punch);
             loudness.Add(pulse.Loudness);
@@ -66,7 +68,7 @@ public static partial class CliApplication
                 beats.Add(new JsonObject { ["at"] = Round(t), ["strength"] = Round(pulse.BeatStrength), ["filled"] = pulse.Filled });
             }
 
-            if (frame % (PulseFps * 5) == 0)
+            if (frame % (fps * 5) == 0)
             {
                 tempos.Add(new JsonObject { ["at"] = Round(t), ["bpm"] = Round(pulse.Tempo), ["locked"] = pulse.Locked });
             }
@@ -80,6 +82,7 @@ public static partial class CliApplication
         {
             ["file"] = path,
             ["sampleRate"] = rate,
+            ["fps"] = fps,
             ["from"] = Round(start.TotalSeconds),
             ["seconds"] = Round((double)(last - first) / rate),
             ["tempo"] = Round(pulse.Tempo),
@@ -155,6 +158,11 @@ public static partial class CliApplication
         Take();
         return ([.. mono], rate);
     }
+
+    /// <summary>The frames a second <c>--fps</c> asks for: a whole number from 1 to 1000, or thirty when it is not given.</summary>
+    private static int ParseFps(string? text) => text is null ? PulseFps
+        : int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var fps) && fps is >= 1 and <= 1000 ? fps
+        : throw new CliException($"--fps takes a whole number of frames a second from 1 to 1000, not '{text}'.");
 
     private static JsonObject Percentiles(List<double> values)
     {

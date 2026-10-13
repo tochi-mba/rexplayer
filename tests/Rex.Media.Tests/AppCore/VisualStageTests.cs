@@ -138,7 +138,7 @@ public sealed class VisualStageTests
             scene.Draw(context);
         }
 
-        Assert.NotNull(canvas);
+        Assert.Equal(3, scene.Waves);
     }
 
     [Theory]
@@ -322,8 +322,6 @@ public sealed class VisualStageTests
             var drawn = Play(stage, VisualizerChoice.Silhouette, new SyntheticMusic(120, 2), VisualizerOptions.With(VisualizerOptions.With(Defaults, VisualizerChoice.Silhouette, "style", style), VisualizerChoice.Silhouette, "background", 1));
             Assert.True(Brightness(drawn[^1]) > 0.005, $"Style {style} draws the listener.");
         }
-
-        Assert.Equal((2.0, 0.0, -10.0), SilhouetteScene.Cover(80, 40, 40, 30));
     }
 
     [Fact]
@@ -514,5 +512,131 @@ public sealed class VisualStageTests
         }
 
         return mask;
+    }
+
+    [Theory]
+    [Capability("AU-18")]
+    [InlineData(60)]
+    [InlineData(144)]
+    public void TrailsLastAsLongAndDriftAsFarAtAnyFrameRate(int fps)
+    {
+        // The trails were faded, zoomed and moved once a frame: at sixty frames a second a ripple's
+        // trail was gone twice as fast as at thirty, and the window draws at sixty when it can.
+        static (float Light, double Moved) Trailed(int rate)
+        {
+            // A lit pixel left to fade, and a lit column left to drift right.
+            var (fading, drifting) = (new Raster(41, 41), new Raster(41, 41));
+            var frames = (int)Math.Round(rate / 5.0);
+            var (fade, drift) = (new VisualContext(fading, new MusicPulse()) { Dt = 0.2 / frames }, new VisualContext(drifting, new MusicPulse()) { Dt = 0.2 / frames });
+            fading.R[(20 * 41) + 20] = 1;
+            for (var y = 0; y < 41; y++)
+            {
+                drifting.G[(y * 41) + 10] = 1;
+            }
+
+            for (var frame = 0; frame < frames; frame++)
+            {
+                fade.Trail(0.6, 1, 0, 0, 0);
+                fading.Settle();
+                drift.Trail(1, 1, 0, 0.5, 0);
+                drifting.Settle();
+            }
+
+            // Where the column's light is now, along the middle row.
+            var row = Enumerable.Range(0, 41).Select(x => (double)drifting.G[(20 * 41) + x]).ToList();
+            return (fading.R[(20 * 41) + 20], row.Select((g, x) => g * x).Sum() / row.Sum());
+        }
+
+        var (light, moved) = Trailed(30);
+        var (lightAt, movedAt) = Trailed(fps);
+        Assert.InRange(lightAt, light * 0.95f, light * 1.05f);
+        Assert.InRange(movedAt, moved - 0.1, moved + 0.1);
+        Assert.InRange(moved, 12.9, 13.1);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheRoomBehindTheSilhouetteIsOnlyWhereTheCameraSees()
+    {
+        // A 4:3 camera fitted to a wide stage leaves bars either side. The room was sampled there
+        // from the picture's edge, drawing its edge column out across each bar.
+        var stage = Stage(160, 90);
+        var room = new byte[40 * 30 * 4];
+        for (var y = 0; y < 30; y++)
+        {
+            room[(y * 40 * 4) + 0] = room[(y * 40 * 4) + 1] = room[(y * 40 * 4) + 2] = 255;
+        }
+
+        stage.Context.Camera = new VisualPicture(room, 40, 30);
+        Play(stage, VisualizerChoice.Silhouette, new SyntheticMusic(120, 1), VisualizerOptions.With(Defaults, VisualizerChoice.Silhouette, "background", 1), frames: 3);
+        var bar = ((45 * 160) + 5) * 4;
+        Assert.True(stage.Pixels[bar] + stage.Pixels[bar + 1] + stage.Pixels[bar + 2] < 6, "The bar beside the picture is dark.");
+        var edge = ((45 * 160) + 21) * 4;
+        Assert.True(stage.Pixels[edge + 1] > 0, "The picture's own edge column shows.");
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheRecordsGrooveAndWaveFollowTheSensitivity()
+    {
+        // Vinyl drew the sound as heard, before the sensitivity: turning it up or down did nothing.
+        double Drawn(double sensitivity)
+        {
+            var stage = Stage();
+            var options = VisualizerOptions.With(Defaults, VisualizerChoice.Vinyl, VisualizerOptions.Sensitivity, sensitivity);
+            return Brightness(Play(stage, VisualizerChoice.Vinyl, new SyntheticMusic(120, 2), options)[^1]);
+        }
+
+        Assert.True(Drawn(3) > Drawn(0.3) * 1.02, $"{Drawn(0.3):0.0000} against {Drawn(3):0.0000}.");
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheEmbersSwirlTurnsOnSmoothlyThroughTheBeats()
+    {
+        // The swirl's turn was the beats counted plus the phase of the clock: a beat landing a little
+        // before the clock's own counted it early, and the swirl jumped half a turn and back.
+        var music = new SyntheticMusic(120, 8, humanize: 0.02);
+        var pulse = new MusicPulse();
+        var context = new VisualContext(new Raster(64, 36), pulse) { Choice = VisualizerChoice.Embers, Dt = 1.0 / SyntheticMusic.Fps, Random = new Random(3) };
+        var scene = new EmbersScene();
+        var (last, largest) = (0.0, 0.0);
+        for (var frame = 1; frame <= music.Frames; frame++)
+        {
+            pulse.Update(music.Mono(frame), SyntheticMusic.Rate, music.Step);
+            context.Prepare();
+            scene.Draw(context);
+            largest = frame > 1 ? Math.Max(largest, Math.Abs(scene.Turn - last)) : 0;
+            last = scene.Turn;
+        }
+
+        Assert.True(pulse.Locked);
+        Assert.True(largest < Math.PI / 4, $"The swirl turned {largest:0.00} radians in a frame.");
+        Assert.InRange(scene.Turn, Math.PI * 12, Math.PI * 17);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheBeatMetersSquareShowsOnANarrowStageAndGoesOutOnReset()
+    {
+        var stage = Stage(48, 27);
+        var options = VisualizerOptions.With(Defaults, VisualizerChoice.Halo, VisualizerOptions.Meter, 1);
+        var music = new SyntheticMusic(120, 4);
+        var square = ((22 * 48) + 46) * 4;
+        var lit = false;
+        for (var frame = 1; frame <= music.Frames && !lit; frame++)
+        {
+            var (left, right) = music.At(frame);
+            stage.Draw(VisualizerChoice.Halo, options, left, right, SyntheticMusic.Rate, music.Step);
+            lit = stage.Pulse.Beat && stage.Pixels[square] > 200;
+        }
+
+        Assert.True(lit, "A beat lights the square even 48 pixels across.");
+
+        // After a reset the square is dim again at once, not still lit by the last song's beat.
+        stage.Reset();
+        var silence = new float[VisualStage.SoundSize];
+        stage.Draw(VisualizerChoice.Halo, options, silence, silence, SyntheticMusic.Rate, TimeSpan.Zero);
+        Assert.InRange(stage.Pixels[square], (byte)1, (byte)60);
     }
 }
