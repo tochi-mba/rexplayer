@@ -34,8 +34,14 @@ public sealed partial class SubjectRemovalMatte
             }
             else if (_region[cell] == Beyond)
             {
-                _ringHistogram[_bin[cell]] += 1;
-                ring++;
+                // Only the outer edge of the analysis area is a background sample. The
+                // nearer Beyond cells may still contain an outstretched hand or shoe.
+                var (x, y) = (cell % w, cell / w);
+                if (x < 3 || x >= w - 3 || y < 3 || y >= h - 3)
+                {
+                    _ringHistogram[_bin[cell]] += 1;
+                    ring++;
+                }
             }
         }
 
