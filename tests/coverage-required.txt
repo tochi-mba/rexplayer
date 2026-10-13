@@ -65,6 +65,7 @@ ExecutionPolicy.cs
 ExifOrientation.cs
 Fft.cs
 FileByteSource.cs
+FirstPicture.cs
 FlacDecoder.cs
 FlacDemuxer.cs
 FlacFrameHeader.cs
