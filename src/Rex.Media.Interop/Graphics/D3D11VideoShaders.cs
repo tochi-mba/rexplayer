@@ -647,7 +647,7 @@ internal static class D3D11VideoShaders
                     float3 rainbow = 0.5 + 0.5 * cos(angle + float3(0, 2.094, 4.189));
                     // Retain a little of the picture's original hue so the fine direction-coloured lines
                     // do not resemble the dark silhouette-only Neon effect.
-                    styled = saturate(colour * 0.27 + field.y * 1.25 * (0.2 + 0.8 * rainbow));
+                    styled = saturate(colour * 0.55 + field.y * 1.25 * (0.2 + 0.8 * rainbow));
                 }
                 colour = lerp(colour, styled, strength);
             }
