@@ -211,7 +211,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var next = (s with
+        var next = (_settings with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,
