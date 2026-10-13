@@ -103,6 +103,7 @@ public sealed partial class SubjectEditSession : IDisposable
         _needsReselection = false;
         _removal.Release();
         ObservedPixels = 0;
+        _click = null;
         _scan = _scanColour = null;
         _scanWidth = _scanHeight = 0;
         _lightRed = _lightGreen = 0;
@@ -143,6 +144,18 @@ public sealed partial class SubjectEditSession : IDisposable
         }
 
         _generation = frame.Generation;
+        if (_click is not null)
+        {
+            // A click is settled on the first picture after it, paused or playing, and that
+            // picture is then the selection's first observation.
+            if (!SettleClick(frame))
+            {
+                return null;
+            }
+
+            advanceTracking = true;
+        }
+
         // A paused redraw changes only the preview, not the evidence for identity.
         if (!advanceTracking && !Tracking)
         {
