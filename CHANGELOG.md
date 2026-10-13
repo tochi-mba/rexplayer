@@ -3,7 +3,7 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
-## Unreleased
+## 0.22.0 - 2026-10-13
 
 ### Fixed
 
@@ -38,6 +38,11 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **Kinetic captions and offline speech transcription.** Words can arrive with the music,
+  grow, move and highlight according to the voice, with ten ready-made looks and custom
+  controls. Subtitle timing can be aligned to locally generated transcripts; speech models
+  are downloaded only when requested. The `rexplay captions`, `transcribe` and `models`
+  commands make the same features available from scripts.
 - **Five camera visualisations** that put you in the music: Clones (your dance frozen on each
   beat), Time warp (a slit-scan mirror the bass deepens), Aura (a glow with shockwaves on the
   kick), LED wall (you as a spectrum-gated wall of lights) and Stardust (you in motes that the kick
@@ -69,6 +74,12 @@ pipeline the moment its number reaches `main`.
 
 ### Improved
 
+- **Faster starts and first pictures.** The app warms up storage, decoding, sound and its
+  picture surface as the window loads; it reads ahead for the next item, keeps compiled
+  shaders available and can show the first available picture sooner after a seek.
+- **Subject Lock reacquisition diagnostics.** The search retains the best candidate's
+  match evidence, relative resemblance and closest rival for more reliable investigation
+  when a lost subject is found again.
 - **The object effects, tuned from rendered previews.** Fireflies no longer hide the picture,
   Electric edges arc only on strong outlines, Jigsaw pieces have proper tabs and sockets, and
   Confetti, Bokeh, Melt and Motion outline are easier to see and steadier.
