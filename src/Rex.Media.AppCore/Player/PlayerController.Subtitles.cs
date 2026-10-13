@@ -180,13 +180,10 @@ public sealed partial class PlayerController
             return;
         }
 
-        foreach (var sidecar in _sidecars(item.Location))
-        {
-            if (LoadSubtitles(sidecar.Path, Path.GetFileName(sidecar.Path), sidecar.Language) is { } track)
-            {
-                _subtitleTracks.Add(track);
-            }
-        }
+        // Decode a folder's sidecars concurrently while preserving their deterministic order.
+        _subtitleTracks.AddRange(_sidecars(item.Location).AsParallel().AsOrdered()
+            .Select(sidecar => LoadSubtitles(sidecar.Path, Path.GetFileName(sidecar.Path), sidecar.Language))
+            .OfType<SubtitleTrack>());
 
         Subtitles = PreferredSubtitles(original: null) ?? _subtitleTracks.FirstOrDefault();
         SubtitlesChanged?.Invoke(this, EventArgs.Empty);

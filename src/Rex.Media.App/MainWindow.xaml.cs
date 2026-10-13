@@ -60,12 +60,14 @@ public sealed partial class MainWindow : Window
     private bool _scrubbing;
     private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
 
-    public MainWindow(IReadOnlyList<string> files)
+    /// <param name="files">What the launch was asked to open.</param>
+    /// <param name="settings">The settings the launch has already read; read again when null.</param>
+    public MainWindow(IReadOnlyList<string> files, PlayerSettings? settings = null)
     {
         App.Milestones.Reach("window");
         InitializeComponent();
         App.Milestones.Reach("xaml");
-        _settings = SettingsStore.Load(SettingsPath);
+        _settings = settings ?? SettingsStore.Load(SettingsPath);
 
         // Read before this run writes its own: a marker here is the last run's, which did not close cleanly.
         _crashed = ResumeMarker.Read(ResumePath);
@@ -76,7 +78,7 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "rexplayer.ico"));
         ExtendsContentIntoTitleBar = false;
 
-        _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log) { Milestones = App.Milestones };
+        _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: App.Warmup?.TakeMemory() ?? OpenStore(), log: App.Log) { Milestones = App.Milestones };
         _player.SectionAnalyzer = (path, cancellation) => SectionAnalysis.Analyze(path,
             MediaRegistries.Decoders(new MfDecoderFactory()), cancellation);
         _player.SectionCache = new SectionAnalysisCache(Path.Combine(App.DataRoot, "cache", "sections"));
@@ -137,7 +139,7 @@ public sealed partial class MainWindow : Window
 
         // Opened once the picture panel is ready, so the first item has somewhere to show its pictures.
         _startupFiles = files;
-        MarkFirstPaint();
+        WireLaunch();
     }
 
     public static string Version { get; } = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
@@ -200,6 +202,7 @@ public sealed partial class MainWindow : Window
 
         if (_startupFiles is { } started)
         {
+            _ready.TrySetResult();
             _startupFiles = null;
             _ = GreetThenRecoverAsync(started.Count > 0);
         }
@@ -214,7 +217,17 @@ public sealed partial class MainWindow : Window
             // Made on a thread-pool thread: the window's thread is a single-threaded COM apartment,
             // and Direct3D objects made there cannot be used by the engine's threads.
             nint swapChain = 0;
-            _presenter = Task.Run(() => D3D11Presenter.ForComposition(width, height, out swapChain)).GetAwaiter().GetResult();
+            if (App.Warmup?.TakePictures() is { } made)
+            {
+                // Made while the window loaded; it only needs this panel's size.
+                (_presenter, swapChain) = made;
+                made.Presenter.Resize(width, height);
+            }
+            else
+            {
+                _presenter = Task.Run(() => D3D11Presenter.ForComposition(width, height, out swapChain)).GetAwaiter().GetResult();
+            }
+
             var panel = WinRT.MarshalInspectable<object>.FromManaged(Video);
             try
             {

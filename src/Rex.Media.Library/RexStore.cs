@@ -52,9 +52,18 @@ public sealed class RexStore
             return store;
         }
 
-        foreach (var line in File.ReadAllLines(path, Encoding.UTF8))
+        // Read as bytes and checked line by line where they lie: a store can hold records of many
+        // megabytes, and decoding each line to text only to encode it again for its checksum
+        // doubled the work of every launch.
+        ReadOnlySpan<byte> rest = File.ReadAllBytes(path);
+        rest = rest.StartsWith(Utf8Bom) ? rest[Utf8Bom.Length..] : rest;
+        while (!rest.IsEmpty)
         {
-            if (line.Length == 0)
+            var end = rest.IndexOf((byte)'\n');
+            var line = end < 0 ? rest : rest[..end];
+            rest = end < 0 ? [] : rest[(end + 1)..];
+            line = line.EndsWith((byte)'\r') ? line[..^1] : line;
+            if (line.IsEmpty)
             {
                 continue;
             }
@@ -249,14 +258,20 @@ public sealed class RexStore
         return Crc.Crc32.Compute(buffer.WrittenSpan).ToString("x8", CultureInfo.InvariantCulture) + " " + Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
-    private static (string Key, string? Value)? Parse(string line)
+    private static ReadOnlySpan<byte> Utf8Bom => [0xEF, 0xBB, 0xBF];
+
+    /// <summary>
+    /// One line's record: its key and value (null forgets the key); null when the line is damaged
+    /// or is not a record. The JSON is read in one pass, without building a document of it.
+    /// </summary>
+    private static (string Key, string? Value)? Parse(ReadOnlySpan<byte> line)
     {
-        if (line.Length < 10 || line[8] != ' ' || !uint.TryParse(line.AsSpan(0, 8), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var checksum))
+        if (line.Length < 10 || line[8] != (byte)' ' || !uint.TryParse(line[..8], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var checksum))
         {
             return null;
         }
 
-        var json = Encoding.UTF8.GetBytes(line[9..]);
+        var json = line[9..];
         if (Crc.Crc32.Compute(json) != checksum)
         {
             return null;
@@ -264,15 +279,36 @@ public sealed class RexStore
 
         try
         {
-            using var document = JsonDocument.Parse(json);
-            var root = document.RootElement;
-            return root.ValueKind == JsonValueKind.Object && root.TryGetProperty("k", out var key) && key.ValueKind == JsonValueKind.String
-                ? (key.GetString()!, root.TryGetProperty("v", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null)
-                : null;
+            return ReadRecord(json);
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    /// <summary>An object with a text "k" and, unless it forgets the key, a text "v"; anything else in it is ignored.</summary>
+    private static (string Key, string? Value)? ReadRecord(ReadOnlySpan<byte> json)
+    {
+        var reader = new Utf8JsonReader(json);
+        if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+        {
+            return null;
+        }
+
+        string? key = null;
+        string? value = null;
+        while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
+        {
+            var name = reader.ValueTextEquals("k"u8) ? 'k' : reader.ValueTextEquals("v"u8) ? 'v' : ' ';
+            reader.Read();
+            var text = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
+            (key, value) = name switch { 'k' => (text, value), 'v' => (key, text), _ => (key, value) };
+            reader.Skip();
+        }
+
+        // Nothing may follow the object: the reader throws on anything after it.
+        _ = reader.Read();
+        return key is null ? null : (key, value);
     }
 }

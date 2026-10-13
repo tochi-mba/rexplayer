@@ -656,10 +656,28 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         return wrapped;
     }
 
+    /// <summary>
+    /// Where compiled shaders come from: given the source, the entry point, the profile and a way to
+    /// compile them, the bytecode. The host sets it once to keep compiled shaders between runs
+    /// (compiling the whole shader source takes seconds); by default each process compiles its own.
+    /// </summary>
+    public static Func<string, string, string, Func<byte[]>, byte[]>? CompiledShaders { get; set; }
+
+    /// <summary>Compiles (or fetches) the shaders every renderer starts with, side by side, before the first renderer needs them.</summary>
+    public static void PrepareShaders() => Parallel.Invoke(
+        () => Code("vs", "vs_4_0", 0),
+        () => Code("yuv", "ps_4_0", 0),
+        () => Code("bgra", "ps_4_0", 0));
+
     /// <summary>Compiles one entry point of <see cref="Shaders"/>, for one effect, with the compiler Windows ships.</summary>
     private static byte[] Compile(string entry, string profile, int effect)
     {
         var source = $"#define EFFECT_ONLY {effect.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n" + Shaders;
+        return CompiledShaders is { } compiled ? compiled(source, entry, profile, () => CompileNow(source, entry, profile)) : CompileNow(source, entry, profile);
+    }
+
+    private static byte[] CompileNow(string source, string entry, string profile)
+    {
         var result = PInvoke.D3DCompile(Encoding.ASCII.GetBytes(source), "rexplayer.hlsl", null, null, entry, profile, 0, 0, out var code, out var errors);
         try
         {

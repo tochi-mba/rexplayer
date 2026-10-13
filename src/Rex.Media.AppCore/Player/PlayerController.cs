@@ -366,6 +366,7 @@ public sealed partial class PlayerController : IDisposable
         // A failure to open arrives as the session's move to Faulted, in order with its other events.
         var from = item.Start + startAt;
         _ = Observe(session.OpenAsync(source, from > TimeSpan.Zero ? new MediaTime(from.Ticks) : null));
+
     }
 
     private void EndSession()
