@@ -203,7 +203,14 @@ public sealed partial class SubjectRemovalMatte
         Label(wholeBox);
         Tidy();
         KeepConnected();
-        Extend();
+        // Growing by rare colours is useful before any wall is known, but after the background
+        // plate has reliable samples, its evidence is stronger than an outer-ring histogram.
+        // An observed wall moving behind the subject must not turn into a larger foreground.
+        if (!_observed.AsSpan(0, cells).Contains(true))
+        {
+            Extend();
+        }
+
         MeasureDistances(0);
     }
 
