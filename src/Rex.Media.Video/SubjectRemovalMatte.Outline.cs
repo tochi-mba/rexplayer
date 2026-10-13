@@ -75,7 +75,10 @@ public sealed partial class SubjectRemovalMatte
                     }
 
                     var next = y * w + x;
-                    if (reached > depth || _label[next] != 0 || !Unlike(next, rare))
+                    // Grow only beyond the chosen rectangle: the normal matte has already
+                    // settled the pixels inside it. Relabelling those pixels here weakens
+                    // its background-model evidence and worsens the moving-picture mask.
+                    if (reached > depth || _region[next] == Inside || _label[next] != 0 || !Unlike(next, rare))
                     {
                         continue;
                     }
