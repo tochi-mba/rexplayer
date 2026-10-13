@@ -141,6 +141,81 @@ public static class VisualizerOptions
                 new("grid", "The beat grid", VisualOptionKind.Toggle, 1),
                 new("lanes", "The kick, snare and hi-hat lanes", VisualOptionKind.Toggle, 1),
             ],
+            VisualizerChoice.Cymatics =>
+            [
+                new("detail", "How fine the figures get", VisualOptionKind.Number, 1, 0.5, 1.5),
+                new("plate", "Plate", VisualOptionKind.Choice, 0, Choices: ["Square", "Round"]),
+                new("glow", "Glow", VisualOptionKind.Number, 1, 0.3, 2),
+            ],
+            VisualizerChoice.Ridgelines =>
+            [
+                new("lines", "Ridges", VisualOptionKind.Number, 36, 12, 72),
+                new("height", "Ridge height", VisualOptionKind.Number, 1, 0.4, 2),
+            ],
+            VisualizerChoice.Synthwave =>
+            [
+                new("speed", "Grid lines a beat", VisualOptionKind.Number, 2, 1, 4),
+                new("sun", "The sun", VisualOptionKind.Toggle, 1),
+                new("mountains", "The mountains", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.Fireworks =>
+            [
+                new("gravity", "Gravity", VisualOptionKind.Number, 1, 0.4, 2),
+                new("trails", "Trails", VisualOptionKind.Number, 0.75, 0, 0.92),
+            ],
+            VisualizerChoice.Lightning =>
+            [
+                new("branches", "Forks in each bolt", VisualOptionKind.Number, 3, 0, 6),
+                new("flash", "How brightly the sky flashes", VisualOptionKind.Number, 0.6, 0, 1),
+                new("rain", "Rain", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.Lava =>
+            [
+                new("blobs", "Blobs", VisualOptionKind.Number, 7, 3, 12),
+                new("glow", "Glow", VisualOptionKind.Number, 1, 0, 2),
+                new("merge", "Gather on the kick", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.Constellation =>
+            [
+                new("stars", "Stars", VisualOptionKind.Number, 70, 30, 160),
+                new("memory", "How long the lines last (seconds)", VisualOptionKind.Number, 8, 2, 20),
+            ],
+            VisualizerChoice.Galaxy =>
+            [
+                new("arms", "Arms", VisualOptionKind.Number, 3, 2, 6),
+                new("stars", "Stars", VisualOptionKind.Number, 2000, 500, 4000),
+                new("spin", "How far it turns", VisualOptionKind.Number, 1, 0, 2.5),
+            ],
+            VisualizerChoice.Kaleidoscope =>
+            [
+                new("mirrors", "Mirrors", VisualOptionKind.Number, 6, 3, 12),
+                new("shards", "Shards", VisualOptionKind.Number, 6, 3, 10),
+                new("turn", "Turn and change mirrors with the music", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.Murmuration =>
+            [
+                new("birds", "Birds", VisualOptionKind.Number, 700, 200, 1500),
+                new("tightness", "How tight the flock keeps", VisualOptionKind.Number, 1, 0.3, 2),
+                new("sky", "Dusk sky (else glowing birds in the dark)", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.Ink =>
+            [
+                new("drops", "Drop size", VisualOptionKind.Number, 1, 0.5, 2),
+                new("current", "Current", VisualOptionKind.Number, 1, 0, 2.5),
+                new("fade", "How long the ink lasts", VisualOptionKind.Number, 0.97, 0.9, 0.995),
+            ],
+            VisualizerChoice.Skyline =>
+            [
+                new("buildings", "Towers", VisualOptionKind.Number, 24, 10, 48),
+                new("lights", "Searchlights", VisualOptionKind.Toggle, 1),
+                new("windows", "Lit windows", VisualOptionKind.Toggle, 1),
+            ],
+            VisualizerChoice.Mandala =>
+            [
+                new("petals", "Petals", VisualOptionKind.Number, 8, 4, 16),
+                new("layers", "Rings", VisualOptionKind.Number, 3, 1, 5),
+                new("step", "Change the petals each bar", VisualOptionKind.Toggle, 1),
+            ],
             VisualizerChoice.Flight =>
             [
                 new("ahead", "Beats each ring takes to reach you", VisualOptionKind.Number, 8, 2, 16),
@@ -207,6 +282,19 @@ public static class VisualizerOptions
         VisualizerChoice.Resonance => VisualPalette.Ocean,
         VisualizerChoice.Groove => VisualPalette.Neon,
         VisualizerChoice.Flight => VisualPalette.Sunset,
+        VisualizerChoice.Cymatics => VisualPalette.Ocean,
+        VisualizerChoice.Ridgelines => VisualPalette.Aurora,
+        VisualizerChoice.Synthwave => VisualPalette.Sunset,
+        VisualizerChoice.Fireworks => VisualPalette.Rainbow,
+        VisualizerChoice.Lightning => VisualPalette.Cool,
+        VisualizerChoice.Lava => VisualPalette.Fire,
+        VisualizerChoice.Constellation => VisualPalette.Cool,
+        VisualizerChoice.Galaxy => VisualPalette.Aurora,
+        VisualizerChoice.Kaleidoscope => VisualPalette.Rainbow,
+        VisualizerChoice.Murmuration => VisualPalette.Sunset,
+        VisualizerChoice.Ink => VisualPalette.Neon,
+        VisualizerChoice.Skyline => VisualPalette.Neon,
+        VisualizerChoice.Mandala => VisualPalette.Sunset,
         VisualizerChoice.Embers => VisualPalette.Fire,
         VisualizerChoice.Ripples => VisualPalette.Ocean,
         _ => VisualPalette.Accent,
