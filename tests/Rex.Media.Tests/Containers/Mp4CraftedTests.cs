@@ -564,7 +564,7 @@ public sealed class Mp4CraftedTests
         Assert.Throws<MediaFormatException>(() => Open(tooManyEntries));
         Assert.Throws<MediaFormatException>(() => Open(tooManySamples));
         Assert.Throws<MediaFormatException>(() => Open(compact));
-        Assert.Null(Open(hugeSample).ReadPacket(CancellationToken.None));
+        Assert.Throws<MediaFormatException>(() => Open(hugeSample));
         using (var shortened = Open(good[..^3]))
         {
             var found = ReadAll(shortened);
@@ -579,7 +579,7 @@ public sealed class Mp4CraftedTests
     [Fact]
     public void AnOversizedSampleIsSkippedAndTheFollowingSampleStillPlays()
     {
-        var bytes = File([Audio(AudioEntry("Opus", 1, 16, 8000), Samples(3, 3))]);
+        var bytes = File([new Mp4TrackSpec { SampleEntry = AudioEntry("Opus", 1, 16, 8000), Samples = Samples(3, 3), SamplesPerChunk = 1 }]);
         var stsz = Encoding.Latin1.GetString(bytes).IndexOf("stsz", StringComparison.Ordinal);
         U32(100_000_000).CopyTo(bytes, stsz + 16);
         using var demuxer = Open(bytes);
