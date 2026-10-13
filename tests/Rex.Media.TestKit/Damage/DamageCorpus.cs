@@ -63,7 +63,7 @@ public static class DamageCorpus
             }
 
             var modified = (byte[])original.Clone();
-            modified.AsSpan(offset, Math.Min(length, Math.Min(64, original.Length - offset))).Fill(0);
+            modified.AsSpan(offset, Math.Min(length, Math.Min(64, original.Length - offset))).Clear();
             cases.Add(new DamagedMedia(healthy.Format, "broken-" + kind, modified, healthy.Extension));
         }
 
