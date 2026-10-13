@@ -128,8 +128,9 @@ internal sealed class Mp4Track
 
     private void ReadTrackHeader(ReadOnlySpan<byte> body)
     {
-        var version = body[0];
-        Enabled = (body[3] & 1) != 0;
+        var flags = Mp4Boxes.U32(body, 0);
+        var version = flags >> 24;
+        Enabled = (flags & 1) != 0;
         Id = (int)Mp4Boxes.U32(body, version == 1 ? 20 : 12);
         var matrix = version == 1 ? 52 : 40;
         if (body.Length >= matrix + 36)
@@ -148,7 +149,7 @@ internal sealed class Mp4Track
 
     private void ReadMediaHeader(ReadOnlySpan<byte> body)
     {
-        var version = body[0];
+        var version = Mp4Boxes.U32(body, 0) >> 24;
         var at = version == 1 ? 20 : 12;
         Timescale = Math.Max(1, Mp4Boxes.U32(body, at));
         MediaDuration = version == 1 ? (long)Math.Min(Mp4Boxes.U64(body, at + 4), long.MaxValue) : Mp4Boxes.U32(body, at + 4);
@@ -160,7 +161,7 @@ internal sealed class Mp4Track
     /// <summary>The first edit that shows media sets where the presentation starts and, if shorter, how long it lasts.</summary>
     private void ReadEditList(ReadOnlySpan<byte> body, uint movieTimescale)
     {
-        var version = body[0];
+        var version = Mp4Boxes.U32(body, 0) >> 24;
         var count = Mp4Boxes.U32(body, 4);
         var entry = version == 1 ? 20 : 12;
         for (var i = 0; i < count && 8 + ((i + 1) * entry) <= body.Length; i++)
@@ -346,6 +347,11 @@ internal sealed class Mp4Track
 
         // After the ES_ID and flags come, in this order, the stream it depends on, a URL and the
         // OCR stream, each present only when its flag is set.
+        if (at + 3 > esEnd || at + 3 > body.Length)
+        {
+            throw Mp4Boxes.Truncated();
+        }
+
         var flags = body[at + 2];
         at += 3 + ((flags & 0x80) != 0 ? 2 : 0);
         if ((flags & 0x40) != 0 && at < esEnd)
@@ -573,7 +579,7 @@ internal sealed class Mp4Track
         if (Mp4Boxes.Path(moov, stbl, "ctts") is { } ctts)
         {
             var body = Mp4Boxes.Body(moov, ctts);
-            var signed = body[0] == 1;
+            var signed = (Mp4Boxes.U32(body, 0) >> 24) == 1;
             var entries = Mp4Boxes.U32(body, 4);
             for (var e = 0; e < entries && 8 + (e * 8) + 8 <= body.Length && CompositionOffsets.Count < SampleCount; e++)
             {
@@ -637,7 +643,7 @@ internal sealed class Mp4Track
         if (Mp4Boxes.Path(moov, stbl, "stz2") is { } stz2)
         {
             var body = Mp4Boxes.Body(moov, stz2);
-            var field = body[7];
+            var field = (byte)Mp4Boxes.U32(body, 4);
             var count = CheckedCount(Mp4Boxes.U32(body, 8));
             if (field is not (4 or 8 or 16) || 12 + ((long)count * field / 8) > body.Length)
             {
