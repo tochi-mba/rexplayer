@@ -28,7 +28,7 @@ public sealed class HaloScene : VisualScene
 
         // The kick thumps it all outward; the tunnel of trails rushes with it.
         var thump = 1 + (0.1 * pulse.Punch);
-        canvas.Feedback((float)context.Number("trails"), 1.003 + (pulse.Punch * 0.025), context.Toggle("spin") ? 0.002 : 0, 0, 0);
+        context.Trail(context.Number("trails"), 1.003 + (pulse.Punch * 0.025), context.Toggle("spin") ? 0.002 : 0, 0, 0);
         var inner = size * (0.13 + (pulse.Bass * 0.1)) * thump;
         var reach = size * 0.32 * thump;
         var rays = (int)context.Number("rays");
