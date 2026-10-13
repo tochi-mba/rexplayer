@@ -138,6 +138,8 @@ public sealed class CaptionDirectorTests
             [VisualPalette.Warm, VisualPalette.Fire, VisualPalette.Neon, VisualPalette.Sunset, VisualPalette.Ocean, VisualPalette.Rainbow, VisualPalette.Accent],
             Enum.GetValues<CaptionColors>().Select(colors => CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Colors = colors } }).Palette));
         Assert.Equal(CaptionLayout.Stack, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Stack } }).Layout);
+        Assert.Equal(CaptionLayout.Left, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Left } }).Layout);
+        Assert.Equal(CaptionLayout.Confetti, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Confetti } }).Layout);
         Assert.Throws<ArgumentNullException>(() => CaptionDirector.StyleFor(null!));
         Assert.Throws<ArgumentNullException>(() => director.Restyle(null!));
         Assert.Throws<ArgumentNullException>(() => new CaptionDirector(null!));
@@ -191,5 +193,33 @@ public sealed class CaptionDirectorTests
         classic.Frame(S(0), [], 0, Frame, [first], Area, 40);
         var next = classic.Frame(S(1.1), [], 0, Frame, [second], Area, 40);
         Assert.Contains(next, word => word.Text == "three");
+    }
+
+    [Fact]
+    public void AContinuousCueClearsAnOldClusterWithoutBeingTreatedAsASeek()
+    {
+        var director = new CaptionDirector(CaptionStyle.Default);
+        var cue = Cue(0, 10, "one two three four five six seven eight nine ten");
+        var frames = Play(director, [cue], 0, 6);
+        Assert.Contains(frames, frame => frame.Words.Count > 0);
+        Assert.True(director.Progress.Revealed > 0);
+    }
+
+    [Fact]
+    public void AVoiceThatStaysSilentClosesAFullyRevealedTimedCue()
+    {
+        var director = new CaptionDirector(CaptionStyle.Default);
+        var cue = new SubtitleCue(S(0), S(2), [new SubtitleLine([new SubtitleRun("quiet", At: TimeSpan.Zero)])]);
+        var quiet = new float[SpeechPulse.Size];
+        var hadWords = false;
+        IReadOnlyList<CaptionWord> last = [];
+        for (var i = 0; i < 35; i++)
+        {
+            last = director.Frame(S(i * Frame.TotalSeconds), quiet, Rate, Frame, [cue], Area, 40);
+            hadWords |= last.Count > 0;
+        }
+
+        Assert.True(hadWords);
+        Assert.Empty(last);
     }
 }
