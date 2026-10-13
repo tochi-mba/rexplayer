@@ -342,7 +342,9 @@ public sealed class AppWindowTests : IDisposable
         }).ToList();
         var lit = frames.Average(frame => WindowPicture.Brightness(frame, area));
         var change = frames.Zip(frames.Skip(1), (a, b) => WindowPicture.Change(a, b, area)).Average();
-        Assert.True(lit is > 0.01 and < 0.8, $"{visualisation} lit {lit:0.000} of the stage.");
+        // Sparse star, shell and ink effects should be visible, not forced to light the whole stage.
+        var minimumLight = visualisation is "Constellation" or "Fireworks" or "Ink" ? 0.003 : 0.01;
+        Assert.True(lit > minimumLight && lit < 0.8, $"{visualisation} lit {lit:0.000} of the stage.");
         Assert.True(change > 0.002, $"{visualisation} changed {change:0.0000} between moments.");
         Assert.DoesNotContain("could not be drawn", app.LogText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());

@@ -195,11 +195,23 @@ public sealed class VisualizationTests
         Assert.Equal(VisualizerChoice.Ink, Visualizers.Next(VisualizerChoice.Murmuration));
         Assert.Equal(VisualizerChoice.Skyline, Visualizers.Next(VisualizerChoice.Ink));
         Assert.Equal(VisualizerChoice.Mandala, Visualizers.Next(VisualizerChoice.Skyline));
-        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Mandala));
+        Assert.Equal(VisualizerChoice.Clones, Visualizers.Next(VisualizerChoice.Mandala));
+        Assert.Equal(VisualizerChoice.TimeWarp, Visualizers.Next(VisualizerChoice.Clones));
+        Assert.Equal(VisualizerChoice.Aura, Visualizers.Next(VisualizerChoice.TimeWarp));
+        Assert.Equal(VisualizerChoice.LedWall, Visualizers.Next(VisualizerChoice.Aura));
+        Assert.Equal(VisualizerChoice.Stardust, Visualizers.Next(VisualizerChoice.LedWall));
+        Assert.Equal(VisualizerChoice.HallOfMirrors, Visualizers.Next(VisualizerChoice.Stardust));
+        Assert.Equal(VisualizerChoice.LightPainting, Visualizers.Next(VisualizerChoice.HallOfMirrors));
+        Assert.Equal(VisualizerChoice.Scanner, Visualizers.Next(VisualizerChoice.LightPainting));
+        Assert.Equal(VisualizerChoice.Shatter, Visualizers.Next(VisualizerChoice.Scanner));
+        Assert.Equal(VisualizerChoice.Spotlight, Visualizers.Next(VisualizerChoice.Shatter));
+        Assert.Equal(VisualizerChoice.InfinityMirror, Visualizers.Next(VisualizerChoice.Spotlight));
+        Assert.Equal(VisualizerChoice.Water, Visualizers.Next(VisualizerChoice.InfinityMirror));
+        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Water));
         Assert.Equal(VisualizerChoice.Spectrum, Visualizers.Next(VisualizerChoice.Off));
         Assert.Equal(VisualizerChoice.Off, Visualizers.Next((VisualizerChoice)42));
         Assert.Equal(
-            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight", "Cymatics", "Ridgelines", "Synthwave", "Fireworks", "Lightning", "Lava lamp", "Constellation", "Galaxy", "Kaleidoscope", "Murmuration", "Ink", "Skyline", "Mandala"],
+            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight", "Cymatics", "Ridgelines", "Synthwave", "Fireworks", "Lightning", "Lava lamp", "Constellation", "Galaxy", "Kaleidoscope", "Murmuration", "Ink", "Skyline", "Mandala", "Clones", "Time warp", "Aura", "LED wall", "Stardust", "Hall of mirrors", "Light painting", "Scanner", "Shatter", "Spotlight", "Infinity mirror", "Water"],
             Enum.GetValues<VisualizerChoice>().Select(Visualizers.Name));
         Assert.Equal(VisualizerChoice.Spectrum, new PlayerSettings { Visualizer = (VisualizerChoice)99 }.Normalize().Visualizer);
 

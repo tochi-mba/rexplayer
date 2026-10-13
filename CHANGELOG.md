@@ -38,6 +38,15 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **Five camera visualisations** that put you in the music: Clones (your dance frozen on each
+  beat), Time warp (a slit-scan mirror the bass deepens), Aura (a glow with shockwaves on the
+  kick), LED wall (you as a spectrum-gated wall of lights) and Stardust (you in motes that the kick
+  blasts apart).
+- **Seven more camera visualisations:** Hall of mirrors (you folded into mirrors that turn on the
+  beat), Light painting (strokes of light wherever you move), Scanner (a bar that sweeps you once a
+  beat), Shatter (your picture in tiles the kick blasts apart), Spotlight (stage lights that follow
+  you and change on the kick), Infinity mirror (you inside yourself, each level a beat behind) and
+  Water (you through ripples each kick drops).
 - **Fifteen new visualisations**, each moved by the music its own way: Groove (the last seconds
   scrolling by as spectrum, beat grid and drum lanes), Flight (a tunnel of light rings that pass on
   the beat), Cymatics, Ridgelines, Synthwave, Fireworks, Lightning, Lava lamp, Constellation,

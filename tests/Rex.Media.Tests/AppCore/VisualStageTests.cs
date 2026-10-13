@@ -39,7 +39,60 @@ public sealed class VisualStageTests
         VisualizerChoice.Murmuration,
         VisualizerChoice.Ink,
         VisualizerChoice.Skyline,
-        VisualizerChoice.Mandala);
+        VisualizerChoice.Mandala,
+        VisualizerChoice.Clones,
+        VisualizerChoice.TimeWarp,
+        VisualizerChoice.Aura,
+        VisualizerChoice.LedWall,
+        VisualizerChoice.Stardust,
+        VisualizerChoice.HallOfMirrors,
+        VisualizerChoice.LightPainting,
+        VisualizerChoice.Scanner,
+        VisualizerChoice.Shatter,
+        VisualizerChoice.Spotlight,
+        VisualizerChoice.InfinityMirror,
+        VisualizerChoice.Water);
+
+    public static readonly TheoryData<VisualizerChoice> CameraScenes = new(
+        VisualizerChoice.Clones,
+        VisualizerChoice.TimeWarp,
+        VisualizerChoice.Aura,
+        VisualizerChoice.LedWall,
+        VisualizerChoice.Stardust,
+        VisualizerChoice.HallOfMirrors,
+        VisualizerChoice.LightPainting,
+        VisualizerChoice.Scanner,
+        VisualizerChoice.Shatter,
+        VisualizerChoice.Spotlight,
+        VisualizerChoice.InfinityMirror,
+        VisualizerChoice.Water);
+
+    [Theory]
+    [MemberData(nameof(CameraScenes))]
+    public void CameraVisualisationsShowTheWaitingAnimationUntilPicturesAndMasksArrive(VisualizerChoice choice)
+    {
+        var stage = Stage(48, 30);
+        // An absent picture is valid during camera warm-up; the stage must still draw something.
+        stage.Context.Camera = null;
+        stage.Context.Mask = null;
+        var waiting = Play(stage, choice, new SyntheticMusic(120, 1), frames: 8);
+        Assert.True(Brightness(waiting[^1]) > 0, $"{choice} should show its waiting animation.");
+
+        // A picture can become available before an outline; this is another waiting state.
+        stage = Stage(48, 30);
+        stage.Context.Mask = null;
+        var withoutOutline = Play(stage, choice, new SyntheticMusic(120, 1), frames: 8);
+        Assert.True(Brightness(withoutOutline[^1]) > 0, $"{choice} should tolerate an absent outline.");
+    }
+
+    [Fact]
+    public void TheInfinityMirrorRecyclesItsOldestBeatWithoutGrowingUnbounded()
+    {
+        var stage = Stage(24, 16);
+        // The mirror remembers sixteen beats. More than sixteen must exercise frame eviction.
+        var frames = Play(stage, VisualizerChoice.InfinityMirror, new SyntheticMusic(120, 22));
+        Assert.True(Brightness(frames[^1]) > 0);
+    }
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 
