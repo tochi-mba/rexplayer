@@ -1,6 +1,5 @@
 using System.Runtime.Versioning;
 using Rex.Media.Primitives;
-using Rex.Media.Video;
 using Rex.Media.Video.D3D11;
 
 namespace Rex.Media.Windows.Tests;
