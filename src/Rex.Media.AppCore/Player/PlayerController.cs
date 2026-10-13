@@ -330,7 +330,6 @@ public sealed partial class PlayerController : IDisposable
         Item = item;
         Info = null;
         AudioTrack = null;
-        FindSubtitles(item);
         Failure = null;
         Position = startAt;
         Duration = TimeSpan.Zero;
@@ -359,6 +358,7 @@ public sealed partial class PlayerController : IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
+            FindSubtitles(item);
             OnFailed(item, ex.Message);
             return;
         }
@@ -366,6 +366,9 @@ public sealed partial class PlayerController : IDisposable
         // A failure to open arrives as the session's move to Faulted, in order with its other events.
         var from = item.Start + startAt;
         _ = Observe(session.OpenAsync(source, from > TimeSpan.Zero ? new MediaTime(from.Ticks) : null));
+
+        // Read while the session opens the media: its events reach this thread only after this.
+        FindSubtitles(item);
     }
 
     private void EndSession()
