@@ -528,6 +528,17 @@ public sealed class Mp4CraftedTests
     }
 
     [Fact]
+    public void FixedSizePacketCountCannotExceedFileLength()
+    {
+        var media = File([new Mp4TrackSpec { SampleEntry = AudioEntry("sowt", 1, 16, 8000), Samples = Samples(2), FixedSize = true }]);
+        var stsz = Encoding.Latin1.GetString(media).IndexOf("stsz", StringComparison.Ordinal);
+        Assert.True(stsz >= 0);
+        U32(1_000_000).CopyTo(media, stsz + 12);
+        var error = Assert.Throws<MediaFormatException>(() => Open(media));
+        Assert.Contains("more data", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BrokenFilesAreRejectedOrEndCleanly()
     {
         var track = Audio(AudioEntry("sowt", 1, 16, 8000), Samples(2, 2));
