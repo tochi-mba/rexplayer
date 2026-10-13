@@ -41,12 +41,12 @@ public sealed class LightningScene : VisualScene
         _flash = Math.Max(0, _flash - (context.Dt * 4));
 
         // The sky lit by the last strike, and the clouds, lit from within.
-        var sky = context.Paint(0.6).Times((float)(0.02 + (0.5 * _flash)));
+        var sky = context.Paint(0.6).Times((float)(0.05 + (0.5 * _flash)));
         canvas.Fill(0, 0, w, h, sky);
         for (var c = 0; c < 9; c++)
         {
             var cx = w * ((c + 0.5) / 9) + (Math.Sin((c * 1.7) + (context.Seconds * 0.1)) * w * 0.03);
-            var inside = (float)((0.12 * pulse.Bass) + (0.25 * _flicker * Noise.Hash((c * 13) + pulse.Hat.Count)) + (0.4 * _flash) + 0.04);
+            var inside = (float)((0.12 * pulse.Bass) + (0.25 * _flicker * Noise.Hash((c * 13) + pulse.Hat.Count)) + (0.4 * _flash) + 0.09);
             canvas.Glow(cx, h * 0.06, w * 0.12, context.Paint(0.45 + (0.1 * Noise.Hash(c))), inside);
         }
 

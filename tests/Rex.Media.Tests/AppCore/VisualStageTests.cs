@@ -234,6 +234,17 @@ public sealed class VisualStageTests
     }
 
     [Fact]
+    public void TheRidgelinesKeepOnlyAsManyRidgesAsAsked()
+    {
+        // Twelve ridges, laid three a second: after six seconds the oldest have gone.
+        var stage = Stage();
+        Play(stage, VisualizerChoice.Ridgelines, new SyntheticMusic(120, 6), VisualizerOptions.With(Defaults, VisualizerChoice.Ridgelines, "lines", 12));
+        var scene = SceneOf(stage);
+        var ridges = (System.Collections.ICollection)scene.GetType().GetField("_ridges", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(scene)!;
+        Assert.Equal(12, ridges.Count);
+    }
+
+    [Fact]
     [Capability("AU-18")]
     public void TheStrobeNeverFlashesFasterThanItsLimit()
     {
