@@ -213,6 +213,7 @@ public sealed partial class MediaSession
             VideoFramesDropped = Interlocked.Read(ref _videoFramesDropped),
             VideoDecoder = Volatile.Read(ref _videoItem).VideoDecoder?.Name,
             VideoDecoderSource = Volatile.Read(ref _videoItem).VideoDecoder?.Source,
+            Cadence = _cadence.Snapshot(),
         };
 
         public void Dispose()
