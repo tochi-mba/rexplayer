@@ -406,9 +406,10 @@ public sealed partial class D3D11PresenterTests
         Assert.Equal(0, MaxDifference(restored, original));
     }
 
+    // Neon contours keeps to silhouettes and big shapes by design, so it is not among these.
     [Theory]
-    [InlineData(VideoEffect.NeonEdges)]
     [InlineData(VideoEffect.InkTrace)]
+    [InlineData(VideoEffect.TopographicContours)]
     [InlineData(VideoEffect.ChromaticContours)]
     [InlineData(VideoEffect.Ghostwire)]
     [InlineData(VideoEffect.GhostwireMask)]

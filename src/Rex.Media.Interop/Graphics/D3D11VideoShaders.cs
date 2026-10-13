@@ -395,7 +395,7 @@ internal static class D3D11VideoShaders
                 float major = smoothstep(0.14 / detail, 0.4 / detail, outline.w);
                 float core = max(outline.x, field.x) * outline.y * major;
                 float bloom = smoothstep(0.1 / detail, 0.8, outline.w) * major;
-                float3 neon = colour * 0.14 + bloom * 0.7 * hum * float3(1, 0.16, 0.62)
+                float3 neon = colour * 0.03 + bloom * 0.7 * hum * float3(1, 0.16, 0.62)
                     + core * float3(1, 0.86, 0.95);
                 colour = lerp(colour, saturate(neon), strength);
             }
@@ -432,9 +432,20 @@ internal static class D3D11VideoShaders
                     // compression noise never break a level line into specks.
                     float levels = 12 * detail;
                     float4 measured = lumaSlope(uv, measureStep(pixel) * 2, isYuv);
-                    float lum = lerp(lumaOf(colour), measured.z, 0.8);
+                    float2 sampleStep = measureStep(pixel);
+                    float lum = 0;
+                    [unroll] for (int yy = -1; yy <= 1; yy++)
+                    {
+                        [unroll] for (int xx = -1; xx <= 1; xx++)
+                        {
+                            lum += readLuma(uv + float2(xx, yy) * sampleStep, isYuv);
+                        }
+                    }
+                    lum /= 9;
                     float height = pow(saturate((lum - 0.025) / 0.975), 0.55) * levels;
-                    float layer = saturate(floor(height) / max(levels - 1, 1));
+                    // Tints blend between elevation bands, so a slight change of grain never flips a
+                    // whole pixel from one band's colour to the next.
+                    float layer = saturate(height / max(levels - 1, 1));
                     float3 tint = layer < 0.25 ? lerp(float3(0.07, 0.20, 0.36), float3(0.16, 0.42, 0.40), layer * 4)
                         : layer < 0.5 ? lerp(float3(0.16, 0.42, 0.40), float3(0.45, 0.62, 0.30), layer * 4 - 1)
                         : layer < 0.75 ? lerp(float3(0.45, 0.62, 0.30), float3(0.78, 0.66, 0.38), layer * 4 - 2)
@@ -444,7 +455,7 @@ internal static class D3D11VideoShaders
                     // About one pixel wide: the level's change across one pixel.
                     float width = length(measured.xy) * 0.5 * levels * 0.55 * pow(max(lum - 0.025, 0.02), -0.45) + 0.002;
                     float isoline = 1 - smoothstep(width * 0.5, width * 1.5, abs(frac(height + 0.5) - 0.5));
-                    styled = saturate(tint * shade * (1 - isoline * 0.7));
+                    styled = saturate(tint * shade * (1 - isoline * 0.23));
                 }
                 colour = lerp(colour, styled, strength);
             }
@@ -456,8 +467,10 @@ internal static class D3D11VideoShaders
                 {
                     float angle = atan2(field.w, field.z);
                     float3 rainbow = 0.5 + 0.5 * cos(angle + float3(0, 2.094, 4.189));
-                    float line = saturate(field.y - outline.z * 0.4);
-                    styled = saturate(line * 1.3 * (0.2 + 0.8 * rainbow));
+                    // Thin lines only, over the picture at half brightness, so the direction colours sit
+                    // on the scene rather than on the black of Neon contours and Ghostwire.
+                    float thin = saturate(field.y - outline.z * 0.4);
+                    styled = saturate(colour * 0.55 + thin * 1.3 * (0.2 + 0.8 * rainbow));
                 }
                 colour = lerp(colour, styled, strength);
             }
@@ -497,9 +510,9 @@ internal static class D3D11VideoShaders
                 float2 ghostUv = mirrored(uv + field.zw * measureStep(pixel) * (2.5 + 0.6 * sin(effect.z * 0.7)));
                 float ghostLuma = lumaOf(readColour(ghostUv, isYuv));
                 float glass = luminance * 0.6 + ghostLuma * 0.4;
-                float3 phantom = float3(0.010, 0.016, 0.028) + float3(0.10, 0.17, 0.22) * glass;
+                float3 phantom = float3(0.05, 0.11, 0.18) + float3(0.10, 0.17, 0.22) * glass;
                 float filament = smoothstep(0.3, 0.85, field.y);
-                phantom += filament * float3(0.21, 0.96, 0.91);
+                phantom += filament * float3(0.10, 1.18, 0.62);
                 phantom += smoothstep(0.3, 0.9, field.x - field.y) * float3(0.03, 0.10, 0.11);
                 colour = lerp(colour, saturate(phantom), strength);
             }
@@ -542,7 +555,7 @@ internal static class D3D11VideoShaders
                 // not detect, remove or reveal anything.
                 float luminance = lumaOf(colour);
                 float tone = floor(saturate(luminance * 1.15) * 3.999) / 3;
-                float3 maskColour = lerp(float3(0.03, 0.02, 0.07), float3(0.22, 0.15, 0.34), tone);
+                float3 maskColour = lerp(float3(0.16, 0.08, 0.26), float3(0.56, 0.32, 0.71), tone);
                 float inner = saturate(field.y - outline.x * outline.y);
                 float dots = 1 - smoothstep(0.3, 0.45, length(frac(screen / 3.5) - 0.5));
                 maskColour += outline.x * outline.y * float3(0.92, 0.86, 1);
