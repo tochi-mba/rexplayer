@@ -84,7 +84,7 @@ internal sealed class Mp4Track
     public long Presentation(int index) => Dts[index] + CompositionOffsets[index] - EditOffset;
 
     /// <summary>Reads a trak box. Returns null for a track with no usable sample description.</summary>
-    public static Mp4Track? Parse(ReadOnlySpan<byte> moov, Mp4Box trak, uint movieTimescale)
+    public static Mp4Track? Parse(ReadOnlySpan<byte> moov, Mp4Box trak, uint movieTimescale, long? fileLength = null)
     {
         var track = new Mp4Track();
         if (Mp4Boxes.Path(moov, trak, "tkhd") is { } tkhd)
@@ -122,7 +122,7 @@ internal sealed class Mp4Track
         }
 
         track.ReadSampleDescription(Mp4Boxes.Body(moov, stsd));
-        track.ReadSampleTables(moov, stbl);
+        track.ReadSampleTables(moov, stbl, fileLength);
         return track;
     }
 
@@ -509,9 +509,9 @@ internal sealed class Mp4Track
         }
     }
 
-    private void ReadSampleTables(ReadOnlySpan<byte> moov, Mp4Box stbl)
+    private void ReadSampleTables(ReadOnlySpan<byte> moov, Mp4Box stbl, long? fileLength)
     {
-        var sizes = ReadSizes(moov, stbl);
+        var sizes = ReadSizes(moov, stbl, fileLength);
         if (sizes is null)
         {
             return;
@@ -614,7 +614,7 @@ internal sealed class Mp4Track
         }
     }
 
-    private static int[]? ReadSizes(ReadOnlySpan<byte> moov, Mp4Box stbl)
+    private static int[]? ReadSizes(ReadOnlySpan<byte> moov, Mp4Box stbl, long? fileLength)
     {
         if (Mp4Boxes.Path(moov, stbl, "stsz") is { } stsz)
         {
@@ -623,6 +623,13 @@ internal sealed class Mp4Track
             var count = CheckedCount(Mp4Boxes.U32(body, 8));
             if (fixedSize != 0)
             {
+                // A corrupt header can claim fifty million fixed-size packets despite only
+                // a few bytes existing. Reject it before allocating sample tables.
+                if (fileLength is { } length && count > length / fixedSize)
+                {
+                    throw new MediaFormatException("An MP4 sample table claims more data than the file contains.");
+                }
+
                 return [.. Enumerable.Repeat((int)Math.Min(fixedSize, int.MaxValue), count)];
             }
 
