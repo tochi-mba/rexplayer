@@ -88,8 +88,7 @@ public sealed partial class SubjectEditSession
     /// the pillar's texture is what the tracker would learn and follow. Each cell's colour is
     /// compared with a ring around the rectangle, and colours the ring also shows count for less,
     /// the background-weighted histogram of Comaniciu, Ramesh and Meer ("Kernel-Based Object
-    /// Tracking", IEEE TPAMI 25(5), 2003), with a gentle preference for the middle of the
-    /// rectangle in place of their kernel.
+    /// Tracking", IEEE TPAMI 25(5), 2003).
     /// </summary>
     private void Weigh(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box)
     {
@@ -147,10 +146,7 @@ public sealed partial class SubjectEditSession
         {
             var share = inside[bins[i]] / bins.Length;
             var likeness = share / (share + (around[bins[i]] / counted));
-            var dx = ((i % Samples) + 0.5f) / Samples * 2 - 1;
-            var dy = ((i / Samples) + 0.5f) / Samples * 2 - 1;
-            var middle = Math.Max(0, 1 - (0.5f * ((dx * dx) + (dy * dy))));
-            var weight = BackgroundWeight + ((1 - BackgroundWeight) * likeness * (0.4f + (0.6f * middle)));
+            var weight = BackgroundWeight + ((1 - BackgroundWeight) * likeness);
             _weights[i] = weight;
             total += weight;
         }
