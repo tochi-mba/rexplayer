@@ -59,20 +59,37 @@ public static class EpisodeGrouping
         return new EpisodeIdentity(title.ToUpperInvariant(), season, episode, through);
     }
 
-    public static IReadOnlyList<string> Siblings(string target, IEnumerable<string> candidates)
+    /// <summary>Whether <paramref name="other"/> is another episode of the same show and season.</summary>
+    public static bool AreSiblings(EpisodeIdentity episode, EpisodeIdentity other)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        ArgumentNullException.ThrowIfNull(other);
+        return other.Season == episode.Season && other.Episode != episode.Episode &&
+            string.Equals(other.Show, episode.Show, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The other episodes of <paramref name="target"/>'s show and season among <paramref name="candidates"/>,
+    /// nearest first (neighbours share a season's title sequence most reliably), one file per episode,
+    /// at most <paramref name="limit"/> of them.
+    /// </summary>
+    public static IReadOnlyList<string> Siblings(string target, IEnumerable<string> candidates, int limit = int.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(candidates);
-        var identity = Identify(target);
-        if (identity is null)
+        ArgumentOutOfRangeException.ThrowIfNegative(limit);
+        if (Identify(target) is not { } identity)
         {
             return [];
         }
 
-        return candidates.Where(path => Identify(path) is { } other &&
-                other.Season == identity.Season &&
-                other.Episode != identity.Episode &&
-                string.Equals(other.Show, identity.Show, StringComparison.Ordinal))
-            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+        return candidates.Select(path => (Path: path, Identity: Identify(path)))
+            .Where(item => item.Identity is { } other && AreSiblings(identity, other))
+            .OrderBy(item => Math.Abs(item.Identity!.Episode - identity.Episode))
+            .ThenBy(item => item.Identity!.Episode)
+            .ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+            .DistinctBy(item => item.Identity!.Episode)
+            .Take(limit)
+            .Select(item => item.Path).ToList();
     }
 
     /// <summary>

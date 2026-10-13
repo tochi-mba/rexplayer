@@ -82,6 +82,7 @@ public sealed partial class PlayerController : IDisposable
         _time = time ?? TimeProvider.System;
         _log = log ?? RexLog.InMemory();
         Memory = new PlayerMemory(store ?? Rex.Media.Library.RexStore.InMemory());
+        Memory.ForgetStoredAnalyses();
         _writeFile = writeFile ?? ((path, bytes) => AtomicFile.Write(path, bytes));
         _sidecars = sidecars ?? (media => SubtitleSidecars.Find(media));
         _readFile = readFile ?? File.ReadAllBytes;
