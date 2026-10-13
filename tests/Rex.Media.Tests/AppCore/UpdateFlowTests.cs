@@ -9,20 +9,33 @@ public sealed class UpdateFlowTests
     private static readonly DateTimeOffset Now = new(2026, 10, 12, 14, 0, 0, TimeSpan.Zero);
 
     /// <summary>The window as it is when nothing stands in the way: windowed, paused, untouched for an hour.</summary>
-    private static readonly UpdateMoment Quiet = new(false, false, false, false, false, TimeSpan.FromHours(1));
+    internal static readonly UpdateMoment Quiet = new(false, false, false, false, false, false, false, TimeSpan.FromHours(1));
 
-    private static UpdateOffer Offer(string version = "0.16.0", bool attention = false) =>
+    internal static UpdateOffer Offer(string version = "0.16.0", bool attention = false) =>
         new(Version.Parse(version), new Uri($"https://example.com/rexplayer-Setup-{version}.exe"),
             new Uri($"https://example.com/rexplayer-Setup-{version}.exe.sha256"),
             new Uri($"https://example.com/releases/v{version}"), $"rexplayer-Setup-{version}.exe")
         {
             Size = 1234,
-            Notes = "• Faster",
+            Notes = "- Faster",
             NeedsAttention = attention,
         };
 
-    private static PendingUpdate Pending(UpdateStage stage = UpdateStage.Ready, string version = "0.16.0") =>
+    internal static PendingUpdate Pending(UpdateStage stage = UpdateStage.Ready, string version = "0.16.0") =>
         UpdateFlow.Found(Offer(version), UpdateMode.DownloadAndAsk, metered: false, asked: false) with { Stage = stage };
+
+    private static TimeZoneInfo Fixed(double hours) =>
+        TimeZoneInfo.CreateCustomTimeZone("Fixed", TimeSpan.FromHours(hours), "Fixed", "Fixed");
+
+    /// <summary>A zone an hour ahead of UTC whose clocks go forward at 02:00 on 25 October and back at 03:00 on 1 November 2026.</summary>
+    private static TimeZoneInfo Changing(int forwardAt = 2)
+    {
+        var rule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
+            new DateTime(2026, 1, 1), new DateTime(2026, 12, 31), TimeSpan.FromHours(1),
+            TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, forwardAt, 0, 0), 10, 25),
+            TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, 3, 0, 0), 11, 1));
+        return TimeZoneInfo.CreateCustomTimeZone("Changing", TimeSpan.FromHours(1), "Changing", "Standard", "Summer", [rule]);
+    }
 
     [Fact]
     public void OnlyReleaseVersionsAreUpdated()
@@ -47,7 +60,7 @@ public sealed class UpdateFlowTests
 
         Assert.Equal(stage, found.Stage);
         Assert.Equal(asked, found.Approved);
-        Assert.Equal(("0.16.0", "rexplayer-Setup-0.16.0.exe", 1234L, "• Faster"), (found.Version, found.InstallerName, found.Size, found.Notes));
+        Assert.Equal(("0.16.0", "rexplayer-Setup-0.16.0.exe", 1234L, "- Faster"), (found.Version, found.InstallerName, found.Size, found.Notes));
         Assert.Equal("https://example.com/rexplayer-Setup-0.16.0.exe", found.InstallerUrl);
         Assert.Equal("https://example.com/rexplayer-Setup-0.16.0.exe.sha256", found.ChecksumUrl);
         Assert.Equal("https://example.com/releases/v0.16.0", found.ReleasePage);
@@ -90,9 +103,9 @@ public sealed class UpdateFlowTests
     [Fact]
     public void ANewerOrWithdrawnReleaseReplacesThePendingOne()
     {
-        var newer = UpdateFlow.AfterCheck(Pending(), Offer("0.17.0"), "0.15.11", null, UpdateMode.DownloadAndAsk, false, false);
+        var newer = UpdateFlow.AfterCheck(Pending() with { Declined = true, Paused = true }, Offer("0.17.0"), "0.15.11", null, UpdateMode.DownloadAndAsk, false, false);
         Assert.True(newer.Discard);
-        Assert.Equal(("0.17.0", UpdateStage.Downloading), (newer.Pending!.Version, newer.Pending.Stage));
+        Assert.Equal(("0.17.0", UpdateStage.Downloading, false, false), (newer.Pending!.Version, newer.Pending.Stage, newer.Pending.Declined, newer.Pending.Paused));
         Assert.Equal("Downloading rexplayer 0.17.0...", newer.Message);
 
         // 0.16.0 was withdrawn: the latest is 0.15.12 again, still newer than what runs.
@@ -114,7 +127,18 @@ public sealed class UpdateFlowTests
         Assert.Equal("rexplayer 0.16.0 is ready to install.", unasked.Message);
 
         var asked = UpdateFlow.AfterCheck(ready with { RetryAt = Now }, offer, "0.15.11", null, UpdateMode.DownloadAndAsk, false, true);
-        Assert.Equal((null, null, true), (asked.Pending!.RemindAt, asked.Pending.RetryAt, asked.Pending.Approved));
+        Assert.Equal(((DateTimeOffset?)null, true), (asked.Pending!.RetryAt, asked.Pending.Approved));
+    }
+
+    [Fact]
+    public void ACheckTheUserAsksForKeepsTheirReminder()
+    {
+        // Check for updates used to clear "Later", so the card came straight back afterwards even
+        // though the user had just put it off. The panel the check opens says everything now.
+        var reminded = Pending() with { RemindAt = Now.AddHours(3) };
+        var asked = UpdateFlow.AfterCheck(reminded, Offer(), "0.15.11", null, UpdateMode.DownloadAndAsk, false, true);
+        Assert.Equal(Now.AddHours(3), asked.Pending!.RemindAt);
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(asked.Pending, UpdateMode.DownloadAndAsk, Quiet, Now));
     }
 
     [Theory]
@@ -126,6 +150,14 @@ public sealed class UpdateFlowTests
     {
         var outcome = UpdateFlow.AfterCheck(Pending(UpdateStage.Available), Offer(), "0.15.11", null, mode, metered, asked);
         Assert.Equal(stage, outcome.Pending!.Stage);
+    }
+
+    [Fact]
+    public void ADownloadTheUserCancelledIsNotStartedAgainByACheck()
+    {
+        var cancelled = UpdateFlow.CancelDownload(Pending(UpdateStage.Downloading));
+        Assert.Equal(UpdateStage.Available, UpdateFlow.AfterCheck(cancelled, Offer(), "0.15.11", null, UpdateMode.Automatic, false, false).Pending!.Stage);
+        Assert.Equal(UpdateStage.Available, UpdateFlow.AfterCheck(cancelled, Offer(), "0.15.11", null, UpdateMode.Automatic, false, true).Pending!.Stage);
     }
 
     [Fact]
@@ -154,23 +186,62 @@ public sealed class UpdateFlowTests
     }
 
     [Fact]
-    public void ACancelledOrFailedInstallAsksAgainAndPutsTheSessionBackOnlyWhenItJustHappened()
+    public void AFailedInstallAsksAgainAndPutsTheSessionBackOnlyWhenItJustHappened()
     {
         var handed = Pending(UpdateStage.Installing) with { HandedOffAt = Now.AddMinutes(-2), Timing = UpdateTiming.Scheduled, InstallAt = Now, RemindAt = Now };
 
-        var failed = UpdateFlow.AtStartup(handed, "0.15.11", Now);
+        var failed = UpdateFlow.AtStartup(handed, "0.15.11", Now, InstallEnd.Failed);
         Assert.Equal(StartupNews.InstallFailed, failed.News);
         Assert.True(failed.RestoreSession);
         Assert.False(failed.Discard);
         Assert.Equal(Pending() with { InstallFailures = 1 }, failed.Pending);
+        Assert.Equal(failed, UpdateFlow.AtStartup(handed, "0.15.11", Now));
 
         // Long after, or a hand-off time in the future (the clock moved): not "just now".
         Assert.False(UpdateFlow.AtStartup(handed with { HandedOffAt = Now.AddHours(-1) }, "0.15.11", Now).RestoreSession);
         Assert.False(UpdateFlow.AtStartup(handed with { HandedOffAt = Now.AddHours(1) }, "0.15.11", Now).RestoreSession);
         Assert.False(UpdateFlow.AtStartup(handed with { HandedOffAt = null }, "0.15.11", Now).RestoreSession);
 
-        var third = UpdateFlow.AtStartup(handed with { InstallFailures = UpdateFlow.MostInstallFailures - 1 }, "0.15.11", Now);
+        var third = UpdateFlow.AtStartup(handed with { InstallFailures = UpdateFlow.MostInstallFailures - 1 }, "0.15.11", Now, InstallEnd.AppOpen);
         Assert.Equal(new StartupOutcome(null, StartupNews.InstallAbandoned, true, true), third);
+    }
+
+    [Fact]
+    [Capability("TOOL-09")]
+    public void ACancelledInstallIsNotAFailureButAutomaticModeAsksBeforeTryingAgain()
+    {
+        // Cancelling the installer used to count as a failure: three cancels set the update aside
+        // as "failed 3 times". It is the user's choice, so the update stays on offer, asking.
+        var handed = Pending(UpdateStage.Installing) with { HandedOffAt = Now.AddMinutes(-1), InstallFailures = UpdateFlow.MostInstallFailures - 1 };
+        var cancelled = UpdateFlow.AtStartup(handed, "0.15.11", Now, InstallEnd.Cancelled);
+
+        Assert.Equal((StartupNews.InstallCancelled, false, true), (cancelled.News, cancelled.Discard, cancelled.RestoreSession));
+        Assert.Equal((UpdateStage.Ready, UpdateTiming.Ask, UpdateFlow.MostInstallFailures - 1, true, (DateTimeOffset?)null),
+            (cancelled.Pending!.Stage, cancelled.Pending.Timing, cancelled.Pending.InstallFailures, cancelled.Pending.InstallCancelled, cancelled.Pending.HandedOffAt));
+        Assert.False(UpdateFlow.InstallsUnasked(Pending() with { InstallCancelled = true }, UpdateMode.Automatic));
+        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(Pending() with { InstallCancelled = true }, UpdateMode.Automatic, Quiet, Now));
+
+        // A newer version is a new start.
+        Assert.False(UpdateFlow.AfterCheck(cancelled.Pending, Offer("0.17.0"), "0.15.11", null, UpdateMode.Automatic, false, false).Pending!.InstallCancelled);
+    }
+
+    [Theory]
+    [InlineData("rexplayer-Setup-0.16.0.exe 2", InstallEnd.Cancelled)]
+    [InlineData("rexplayer-Setup-0.16.0.exe 5\r\n", InstallEnd.Cancelled)]
+    [InlineData("rexplayer-Setup-0.16.0.exe 7", InstallEnd.AppOpen)]
+    [InlineData("rexplayer-Setup-0.16.0.exe 8", InstallEnd.AppOpen)]
+    [InlineData("rexplayer-Setup-0.16.0.exe 4", InstallEnd.Failed)]
+    [InlineData("rexplayer-Setup-0.16.0.exe -1", InstallEnd.Failed)]
+    [InlineData("rexplayer-Setup-0.16.0.exe 0", InstallEnd.Failed)]
+    [InlineData("rexplayer-Setup-0.15.0.exe 2", InstallEnd.Unknown)]
+    [InlineData("rexplayer-Setup-0.16.0.exe", InstallEnd.Unknown)]
+    [InlineData("rexplayer-Setup-0.16.0.exe two", InstallEnd.Unknown)]
+    [InlineData("", InstallEnd.Unknown)]
+    [InlineData(null, InstallEnd.Unknown)]
+    public void TheHandOffHelpersRecordSaysHowTheInstallerEnded(string? record, InstallEnd end)
+    {
+        Assert.Equal(end, UpdateFlow.InstallEndOf(record, Pending(UpdateStage.Installing)));
+        Assert.Equal(InstallEnd.Unknown, UpdateFlow.InstallEndOf(record, null));
     }
 
     [Theory]
@@ -188,32 +259,46 @@ public sealed class UpdateFlowTests
 
     [Fact]
     [Capability("TOOL-09")]
-    public void TheBarWaitsOutFullScreenPlaybackDialogsEditingAndOtherBanners()
+    public void TheCardWaitsOutPlayingVideoDialogsEditingAndOtherBanners()
     {
         var ready = Pending();
         Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet, Now));
-        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { Playing = true }, Now));
         Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { FullScreen = true }, Now));
+        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { Video = true }, Now));
+
+        // Music playing in a window leaves the picture free: the card may show.
+        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { Playing = true }, Now));
+
+        // A video playing in a window: the card used to come up over it; only full screen held it back.
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { Playing = true, Video = true }, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { FullScreen = true, Playing = true }, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { DialogOpen = true }, Now));
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { PanelOpen = true }, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { Editing = true }, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { NoticeOpen = true }, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(null, UpdateMode.DownloadAndAsk, Quiet, Now));
         Assert.Throws<ArgumentNullException>(() => UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, null!, Now));
-
-        // Check for updates shows it over anything but a dialog.
-        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { FullScreen = true, Playing = true, Editing = true }, Now, asked: true));
-        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { DialogOpen = true }, Now, asked: true));
     }
 
     [Fact]
-    public void TheBarOffersOnlyWhatNeedsAnAnswer()
+    public void ACardAlreadyShowingOutlastsAnotherBannerAndEditingButNotWhatEndsTheOffer()
+    {
+        var ready = Pending();
+        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { NoticeOpen = true, Editing = true }, Now, showing: true));
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { DialogOpen = true }, Now, showing: true));
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(ready, UpdateMode.DownloadAndAsk, Quiet with { Playing = true, Video = true }, Now, showing: true));
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(null, UpdateMode.DownloadAndAsk, Quiet, Now, showing: true));
+    }
+
+    [Fact]
+    public void TheCardOffersOnlyWhatNeedsAnAnswer()
     {
         Assert.Equal(UpdatePrompt.Available, UpdateFlow.Prompt(Pending(UpdateStage.Available), UpdateMode.NotifyOnly, Quiet, Now));
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(UpdateFlow.CancelDownload(Pending(UpdateStage.Available)), UpdateMode.NotifyOnly, Quiet, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(Pending(UpdateStage.Downloading), UpdateMode.DownloadAndAsk, Quiet, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(Pending(UpdateStage.Installing), UpdateMode.DownloadAndAsk, Quiet, Now));
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(Pending() with { Timing = UpdateTiming.OnClose }, UpdateMode.DownloadAndAsk, Quiet, Now));
-        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(Pending() with { Timing = UpdateTiming.OnClose }, UpdateMode.DownloadAndAsk, Quiet, Now, asked: true));
+        Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(Pending() with { Timing = UpdateTiming.Scheduled }, UpdateMode.DownloadAndAsk, Quiet, Now));
 
         // Automatic mode installs by itself, unless the release asks for attention.
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(Pending(), UpdateMode.Automatic, Quiet, Now));
@@ -231,7 +316,6 @@ public sealed class UpdateFlowTests
 
         Assert.Equal(UpdatePrompt.None, UpdateFlow.Prompt(reminded, UpdateMode.DownloadAndAsk, Quiet, Now.AddHours(23)));
         Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(reminded, UpdateMode.DownloadAndAsk, Quiet, Now.AddDays(1)));
-        Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(reminded, UpdateMode.DownloadAndAsk, Quiet, Now.AddHours(1), asked: true));
 
         // The clock was put back a month: a reminder "five weeks away" is not believed.
         Assert.Equal(UpdatePrompt.Ready, UpdateFlow.Prompt(reminded, UpdateMode.DownloadAndAsk, Quiet, Now.AddDays(-30)));
@@ -244,11 +328,12 @@ public sealed class UpdateFlowTests
         Assert.Equal((UpdateTiming.OnClose, (DateTimeOffset?)null, (DateTimeOffset?)null), (onClose.Timing, onClose.RemindAt, onClose.InstallAt));
         Assert.Throws<ArgumentNullException>(() => UpdateFlow.WhenClosed(null!));
 
-        var local = new DateTimeOffset(2026, 10, 12, 22, 0, 0, TimeSpan.FromHours(1));
-        var tonight = UpdateFlow.ScheduledTonight(Pending() with { RemindAt = Now }, local);
+        var evening = new DateTimeOffset(2026, 10, 12, 22, 0, 0, TimeSpan.FromHours(1));
+        var tonight = UpdateFlow.ScheduledTonight(Pending() with { RemindAt = Now }, evening, Fixed(1));
         Assert.Equal((UpdateTiming.Scheduled, (DateTimeOffset?)null), (tonight.Timing, tonight.RemindAt));
         Assert.Equal(new DateTimeOffset(2026, 10, 13, 3, 0, 0, TimeSpan.FromHours(1)), tonight.InstallAt);
-        Assert.Throws<ArgumentNullException>(() => UpdateFlow.ScheduledTonight(null!, local));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.ScheduledTonight(null!, evening, Fixed(1)));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Tonight(evening, null!));
     }
 
     [Theory]
@@ -260,7 +345,29 @@ public sealed class UpdateFlowTests
     public void TonightIsTheNextThreeInTheMorningAtLeastHalfAnHourAway(int hour, int minute, int day)
     {
         var local = new DateTimeOffset(2026, 10, 12, hour, minute, 0, TimeSpan.FromHours(-5));
-        Assert.Equal(new DateTimeOffset(2026, 10, day, 3, 0, 0, TimeSpan.FromHours(-5)), UpdateFlow.Tonight(local));
+        Assert.Equal(new DateTimeOffset(2026, 10, day, 3, 0, 0, TimeSpan.FromHours(-5)), UpdateFlow.Tonight(local, Fixed(-5)));
+
+        // The same moment told in another offset is the same night.
+        Assert.Equal(new DateTimeOffset(2026, 10, day, 3, 0, 0, TimeSpan.FromHours(-5)), UpdateFlow.Tonight(local.ToUniversalTime(), Fixed(-5)));
+    }
+
+    [Fact]
+    [Capability("TOOL-09")]
+    public void InstallingTonightKeepsToThreeByTheClockOnTheNightTheClocksChange()
+    {
+        // Chosen at 22:00 summer time the night the clocks go back: 3:00 that night is already
+        // standard time. It used to be worked out in the evening's offset, an hour early.
+        var zone = Changing();
+        var evening = new DateTimeOffset(2026, 10, 31, 22, 0, 0, TimeSpan.FromHours(2));
+        Assert.Equal(new DateTimeOffset(2026, 11, 1, 3, 0, 0, TimeSpan.FromHours(1)), UpdateFlow.Tonight(evening, zone));
+
+        // The night they go forward, 3:00 is summer time already.
+        var spring = new DateTimeOffset(2026, 10, 24, 22, 0, 0, TimeSpan.FromHours(1));
+        Assert.Equal(new DateTimeOffset(2026, 10, 25, 3, 0, 0, TimeSpan.FromHours(2)), UpdateFlow.Tonight(spring, zone));
+
+        // A night that skips 3:00 itself installs at 4:00.
+        var skipped = Changing(forwardAt: 3);
+        Assert.Equal(new DateTimeOffset(2026, 10, 25, 4, 0, 0, TimeSpan.FromHours(2)), UpdateFlow.Tonight(spring, skipped));
     }
 
     [Fact]
@@ -276,7 +383,7 @@ public sealed class UpdateFlowTests
         foreach (var busy in new[]
         {
             Quiet with { Playing = true }, Quiet with { FullScreen = true }, Quiet with { DialogOpen = true },
-            Quiet with { Editing = true }, Quiet with { IdleFor = UpdateFlow.IdleBeforeInstall - TimeSpan.FromSeconds(1) },
+            Quiet with { Editing = true }, Quiet with { PanelOpen = true }, Quiet with { IdleFor = UpdateFlow.IdleBeforeInstall - TimeSpan.FromSeconds(1) },
         })
         {
             Assert.False(UpdateFlow.InstallWhileOpen(scheduled, UpdateMode.Automatic, busy, Now));
@@ -320,6 +427,7 @@ public sealed class UpdateFlowTests
     public void ADownloadRunsWhenApprovedOrAllowedByModeCadenceAndConnection(UpdateMode mode, UpdateCadence cadence, bool metered, bool approved, bool may)
     {
         Assert.Equal(may, UpdateFlow.MayDownload(Pending(UpdateStage.Downloading) with { Approved = approved }, mode, cadence, metered, Now));
+        Assert.False(UpdateFlow.MayDownload(Pending(UpdateStage.Downloading) with { Approved = approved, Paused = true }, mode, cadence, metered, Now));
     }
 
     [Fact]
@@ -343,8 +451,8 @@ public sealed class UpdateFlowTests
         Assert.False(UpdateFlow.MayDownload(null, UpdateMode.Automatic, UpdateCadence.Daily, false, Now));
         Assert.False(UpdateFlow.MayDownload(Pending(), UpdateMode.Automatic, UpdateCadence.Daily, false, Now));
 
-        var done = UpdateFlow.Downloaded(pending);
-        Assert.Equal((UpdateStage.Ready, 0, (DateTimeOffset?)null, (string?)null), (done.Stage, done.DownloadFailures, done.RetryAt, done.LastError));
+        var done = UpdateFlow.Downloaded(pending with { Paused = true });
+        Assert.Equal((UpdateStage.Ready, 0, (DateTimeOffset?)null, (string?)null, false), (done.Stage, done.DownloadFailures, done.RetryAt, done.LastError, done.Paused));
         Assert.Throws<ArgumentNullException>(() => UpdateFlow.DownloadFailed(null!, "x", Now));
         Assert.Throws<ArgumentNullException>(() => UpdateFlow.Downloaded(null!));
     }
@@ -370,50 +478,162 @@ public sealed class UpdateFlowTests
     }
 
     [Fact]
-    public void ThePhaseIsWhatTheUserSees()
+    [Capability("TOOL-09")]
+    public void TheSettingsAndConnectionDecideWhetherAnOfferDownloads()
     {
-        Assert.Equal(UpdatePhase.Idle, UpdateFlow.Phase(null, false, false));
-        Assert.Equal(UpdatePhase.Checking, UpdateFlow.Phase(null, true, false));
-        Assert.Equal(UpdatePhase.Downloading, UpdateFlow.Phase(Pending(UpdateStage.Downloading), true, true));
-        Assert.Equal(UpdatePhase.Downloading, UpdateFlow.Phase(Pending(UpdateStage.Downloading), false, false));
-        Assert.Equal(UpdatePhase.Failed, UpdateFlow.Phase(Pending(UpdateStage.Downloading) with { DownloadFailures = 1 }, false, false));
-        Assert.Equal(UpdatePhase.Available, UpdateFlow.Phase(Pending(UpdateStage.Available), false, false));
-        Assert.Equal(UpdatePhase.Ready, UpdateFlow.Phase(Pending(), false, false));
-        Assert.Equal(UpdatePhase.Scheduled, UpdateFlow.Phase(Pending() with { Timing = UpdateTiming.Scheduled }, false, false));
-        Assert.Equal(UpdatePhase.Installing, UpdateFlow.Phase(Pending(UpdateStage.Installing), false, false));
+        // Switching to "Only tell me", turning checks off, or a connection becoming metered used to
+        // leave a download nobody asked for "pending" with nothing running, the status saying it
+        // would download in the background. It goes back to being on offer.
+        var downloading = Pending(UpdateStage.Downloading);
+        Assert.Equal(UpdateStage.Available, UpdateFlow.Settle(downloading, UpdateMode.NotifyOnly, UpdateCadence.Daily, false).Stage);
+        Assert.Equal(UpdateStage.Available, UpdateFlow.Settle(downloading, UpdateMode.DownloadAndAsk, UpdateCadence.Off, false).Stage);
+        Assert.Equal(UpdateStage.Available, UpdateFlow.Settle(downloading, UpdateMode.Automatic, UpdateCadence.Daily, true).Stage);
+        Assert.Same(downloading, UpdateFlow.Settle(downloading, UpdateMode.DownloadAndAsk, UpdateCadence.Daily, false));
+
+        // One the user asked for keeps going.
+        var approved = downloading with { Approved = true };
+        Assert.Same(approved, UpdateFlow.Settle(approved, UpdateMode.NotifyOnly, UpdateCadence.Off, true));
+
+        // And the other way: an offer used to wait for the next daily check after the mode allowed
+        // downloading or the connection stopped being metered.
+        var available = Pending(UpdateStage.Available);
+        Assert.Equal(UpdateStage.Downloading, UpdateFlow.Settle(available, UpdateMode.DownloadAndAsk, UpdateCadence.Daily, false).Stage);
+        Assert.Same(available, UpdateFlow.Settle(available, UpdateMode.DownloadAndAsk, UpdateCadence.Daily, true));
+        Assert.Same(available, UpdateFlow.Settle(available, UpdateMode.NotifyOnly, UpdateCadence.Daily, false));
+        var declined = UpdateFlow.CancelDownload(downloading);
+        Assert.Same(declined, UpdateFlow.Settle(declined, UpdateMode.Automatic, UpdateCadence.Daily, false));
+
+        var ready = Pending();
+        Assert.Same(ready, UpdateFlow.Settle(ready, UpdateMode.NotifyOnly, UpdateCadence.Off, true));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Settle(null!, UpdateMode.Automatic, UpdateCadence.Daily, false));
+    }
+
+    [Fact]
+    public void ADownloadThatIsNotRunningSaysWhy()
+    {
+        var downloading = Pending(UpdateStage.Downloading);
+        Assert.Equal(DownloadHold.None, UpdateFlow.Hold(downloading, online: true, Now));
+        Assert.Equal(DownloadHold.Offline, UpdateFlow.Hold(downloading, online: false, Now));
+        Assert.Equal(DownloadHold.Paused, UpdateFlow.Hold(UpdateFlow.Pause(downloading), online: false, Now));
+
+        var failed = UpdateFlow.DownloadFailed(downloading, "offline", Now);
+        Assert.Equal(DownloadHold.Failed, UpdateFlow.Hold(failed, online: false, Now));
+        Assert.Equal(DownloadHold.None, UpdateFlow.Hold(failed, online: true, Now.AddMinutes(2)));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Hold(null!, true, Now));
     }
 
     [Fact]
     [Capability("TOOL-09")]
-    public void EveryPhaseHasPlainWords()
+    public void PauseResumeRetryAndCancelDoWhatTheySay()
     {
-        var local = new DateTimeOffset(2026, 10, 12, 15, 0, 0, TimeSpan.FromHours(1));
-        string Say(UpdatePhase phase, PendingUpdate? pending = null, double? percent = null, DateTimeOffset? last = null, UpdateMode mode = UpdateMode.DownloadAndAsk) =>
-            UpdateFlow.Status(phase, pending, mode, "0.15.11", percent, last, local);
+        var downloading = Pending(UpdateStage.Downloading);
+        var paused = UpdateFlow.Pause(downloading);
+        Assert.True(paused.Paused);
+        Assert.False(UpdateFlow.MayDownload(paused, UpdateMode.Automatic, UpdateCadence.Daily, false, Now));
 
-        Assert.Equal("This is rexplayer 0.15.11.", Say(UpdatePhase.Idle));
-        Assert.Equal("rexplayer 0.15.11 is up to date. Last checked today.", Say(UpdatePhase.Idle, last: Now));
-        Assert.Equal("Checking for updates...", Say(UpdatePhase.Checking));
-        Assert.Equal("rexplayer 0.16.0 is available.", Say(UpdatePhase.Available, Pending(UpdateStage.Available)));
-        Assert.Equal("Downloading rexplayer 0.16.0: 42%", Say(UpdatePhase.Downloading, Pending(UpdateStage.Downloading), 42.4));
-        Assert.Equal("Downloading rexplayer 0.16.0: 100%", Say(UpdatePhase.Downloading, Pending(UpdateStage.Downloading), 140));
-        Assert.Equal("rexplayer 0.16.0 will download in the background.", Say(UpdatePhase.Downloading, Pending(UpdateStage.Downloading)));
-        Assert.Equal("rexplayer 0.16.0 could not be downloaded: the disk is full. Trying again today at 15:05.",
-            Say(UpdatePhase.Failed, UpdateFlow.DownloadFailed(Pending(UpdateStage.Downloading), "the disk is full", Now.AddMinutes(4))));
-        Assert.Equal("rexplayer 0.15.11 could not be downloaded: unknown error. Trying again later.", Say(UpdatePhase.Failed));
-        Assert.Equal("rexplayer 0.16.0 is ready to install.", Say(UpdatePhase.Ready, Pending()));
-        Assert.Equal("rexplayer 0.16.0 will install when you close rexplayer.", Say(UpdatePhase.Ready, UpdateFlow.WhenClosed(Pending())));
-        Assert.Equal("rexplayer 0.16.0 will install when rexplayer is closed or not in use.", Say(UpdatePhase.Ready, Pending(), mode: UpdateMode.Automatic));
-        Assert.Equal("rexplayer 0.15.11 is ready to install.", Say(UpdatePhase.Ready, mode: UpdateMode.Automatic));
-        Assert.Equal("rexplayer 0.16.0 will install tomorrow at 03:00 when rexplayer is not in use, or when you close it.",
-            Say(UpdatePhase.Scheduled, UpdateFlow.ScheduledTonight(Pending(), local)));
-        Assert.Equal("rexplayer 0.16.0 will install tonight when rexplayer is not in use, or when you close it.",
-            Say(UpdatePhase.Scheduled, Pending() with { Timing = UpdateTiming.Scheduled }));
-        Assert.Equal("Installing rexplayer 0.16.0...", Say(UpdatePhase.Installing, Pending(UpdateStage.Installing)));
+        // Resuming is asking: it goes over a metered connection, and a failure's wait is dropped.
+        var resumed = UpdateFlow.Resume(UpdateFlow.DownloadFailed(paused, "offline", Now));
+        Assert.Equal((false, true, (DateTimeOffset?)null), (resumed.Paused, resumed.Approved, resumed.RetryAt));
+        Assert.True(UpdateFlow.MayDownload(resumed, UpdateMode.NotifyOnly, UpdateCadence.Off, true, Now));
+
+        var cancelled = UpdateFlow.CancelDownload(UpdateFlow.DownloadFailed(resumed, "offline", Now));
+        Assert.Equal((UpdateStage.Available, true, false, false, 0, (string?)null), (cancelled.Stage, cancelled.Declined, cancelled.Approved, cancelled.Paused, cancelled.DownloadFailures, cancelled.LastError));
+        Assert.Null(UpdateFlow.KeptFiles(cancelled));
+        Assert.Same(downloading, UpdateFlow.KeptFiles(downloading));
+        Assert.Null(UpdateFlow.KeptFiles(null));
+
+        // Download after a cancel starts it again.
+        var again = UpdateFlow.Approve(cancelled);
+        Assert.Equal((UpdateStage.Downloading, false, true), (again.Stage, again.Declined, again.Approved));
+
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Pause(null!));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Resume(null!));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.CancelDownload(null!));
     }
 
     [Fact]
-    public void DaysAreSaidTheWayPeopleSayThem()
+    [Capability("TOOL-09")]
+    public void ATickChecksWhenDueOtherwiseStartsOrStopsTheDownloadAndInstallsWhenIdle()
+    {
+        var clock = new UpdateClock(Pending(UpdateStage.Downloading), UpdateMode.DownloadAndAsk, UpdateCadence.Daily, Now.AddHours(-1), null, 0,
+            Checking: false, Downloading: false, Online: true, Metered: false);
+
+        Assert.Equal(new UpdatePlan(clock.Pending, false, false, true, false), UpdateFlow.Plan(clock, Quiet, Now));
+        Assert.Equal(new UpdatePlan(clock.Pending, false, false, false, false), UpdateFlow.Plan(clock with { Downloading = true }, Quiet, Now));
+        Assert.Equal(new UpdatePlan(clock.Pending, false, false, false, false), UpdateFlow.Plan(clock with { Online = false }, Quiet, Now));
+        Assert.Equal(new UpdatePlan(clock.Pending, false, true, false, false), UpdateFlow.Plan(clock with { Downloading = true, Online = false }, Quiet, Now));
+
+        // A metered connection: the download stops and the version goes back on offer.
+        var metered = UpdateFlow.Plan(clock with { Downloading = true, Metered = true }, Quiet, Now);
+        Assert.Equal((UpdateStage.Available, true, false), (metered.Pending!.Stage, metered.StopDownload, metered.StartDownload));
+
+        // A check that is due comes first, and alone.
+        Assert.Equal(new UpdatePlan(clock.Pending, true, false, false, false), UpdateFlow.Plan(clock with { LastCheck = Now.AddDays(-2) }, Quiet, Now));
+        Assert.False(UpdateFlow.Plan(clock with { LastCheck = Now.AddDays(-2), Checking = true }, Quiet, Now).Check);
+
+        var idle = clock with { Pending = Pending(), Mode = UpdateMode.Automatic };
+        Assert.Equal(new UpdatePlan(idle.Pending, false, false, false, true), UpdateFlow.Plan(idle, Quiet, Now));
+        Assert.False(UpdateFlow.Plan(idle, Quiet with { Playing = true }, Now).Install);
+        Assert.Equal(new UpdatePlan(null, false, false, false, false), UpdateFlow.Plan(clock with { Pending = null }, Quiet, Now));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Plan(null!, Quiet, Now));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Plan(clock, null!, Now));
+    }
+
+    [Fact]
+    [Capability("TOOL-09")]
+    public void ADamagedDownloadIsFetchedAgainOnAMeteredConnectionOnlyWhenTheUserAsked()
+    {
+        // An install rexplayer started by itself found the file damaged. It used to mark the new
+        // download approved, so it went ahead over a metered connection nobody had allowed.
+        var ready = Pending() with { Approved = false };
+        var again = UpdateFlow.Damaged(ready, asked: false);
+        Assert.Equal((UpdateStage.Downloading, false), (again.Stage, again.Approved));
+        Assert.False(UpdateFlow.MayDownload(again, UpdateMode.Automatic, UpdateCadence.Daily, metered: true, Now));
+        Assert.True(UpdateFlow.MayDownload(again, UpdateMode.Automatic, UpdateCadence.Daily, metered: false, Now));
+
+        // The user pressed Restart now: that is asking.
+        Assert.True(UpdateFlow.Damaged(ready, asked: true).Approved);
+        Assert.True(UpdateFlow.Damaged(ready with { Approved = true }, asked: false).Approved);
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Damaged(null!, false));
+    }
+
+    [Fact]
+    public void TheWindowsAnswersChangeThePendingUpdateAsTheySay()
+    {
+        var waiting = UpdateFlow.DownloadFailed(Pending(UpdateStage.Available) with { RemindAt = Now, Paused = true }, "offline", Now);
+        var approved = UpdateFlow.Approve(waiting);
+        Assert.Equal((UpdateStage.Downloading, true, false, (DateTimeOffset?)null, (DateTimeOffset?)null), (approved.Stage, approved.Approved, approved.Paused, approved.RemindAt, approved.RetryAt));
+
+        var retrying = Pending(UpdateStage.Downloading) with { RetryAt = Now.AddHours(1) };
+        Assert.Null(UpdateFlow.Reconnected(retrying).RetryAt);
+        var ready = Pending() with { RetryAt = Now };
+        Assert.Same(ready, UpdateFlow.Reconnected(ready));
+
+        var handed = UpdateFlow.HandedOff(Pending(), Now);
+        Assert.Equal((UpdateStage.Installing, (DateTimeOffset?)Now), (handed.Stage, handed.HandedOffAt));
+        Assert.Equal(StartupNews.Installed, UpdateFlow.AtStartup(handed, "0.16.0", Now).News);
+
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Approve(null!));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.Reconnected(null!));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.HandedOff(null!, Now));
+    }
+
+    [Fact]
+    public void ADownloadAttemptLeavesTheUpdateReadyAsItWasOrWaitingToTryAgain()
+    {
+        var downloading = Pending(UpdateStage.Downloading) with { DownloadFailures = 2, RetryAt = Now, LastError = "offline" };
+        Assert.Equal(UpdateFlow.Downloaded(downloading), UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Ready), Now));
+        Assert.Same(downloading, UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Cancelled), Now));
+        Assert.Same(downloading, UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Busy, "another window"), Now));
+        var failed = UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Mismatch, "it did not match"), Now);
+        Assert.Equal((3, "it did not match"), (failed.DownloadFailures, failed.LastError));
+        Assert.Equal("unknown error", UpdateFlow.AfterDownload(downloading, new DownloadReport(DownloadOutcome.Failed), Now).LastError);
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.AfterDownload(null!, new DownloadReport(DownloadOutcome.Ready), Now));
+        Assert.Throws<ArgumentNullException>(() => UpdateFlow.AfterDownload(downloading, null!, Now));
+    }
+
+    [Fact]
+    public void DaysAndTimesAreSaidTheWayPeopleSayThem()
     {
         var local = new DateTimeOffset(2026, 10, 12, 0, 30, 0, TimeSpan.FromHours(2));
         Assert.Equal("today", UpdateFlow.When(local, local));
@@ -423,22 +643,11 @@ public sealed class UpdateFlowTests
         Assert.Equal("yesterday", UpdateFlow.When(local.AddDays(-1), local));
         Assert.Equal("tomorrow", UpdateFlow.When(local.AddDays(1), local));
         Assert.Equal("on 2 Oct 2026", UpdateFlow.When(local.AddDays(-10), local));
+        Assert.Equal("01:00", UpdateFlow.Clock(new DateTimeOffset(2026, 10, 11, 23, 0, 0, TimeSpan.Zero), local));
 
         Assert.Equal("Updated to 0.16.0 yesterday.", UpdateFlow.LastUpdated("0.16.0", local.AddDays(-1), local));
         Assert.Null(UpdateFlow.LastUpdated(null, local, local));
         Assert.Null(UpdateFlow.LastUpdated("", local, local));
         Assert.Null(UpdateFlow.LastUpdated("0.16.0", null, local));
-    }
-
-    [Fact]
-    public void ThePromptSaysWhatEachAnswerKeeps()
-    {
-        Assert.Equal(("rexplayer 0.16.0 is ready to install", "Restart now and rexplayer reopens with your queue, place and view, paused."),
-            UpdateFlow.PromptText(UpdatePrompt.Ready, Pending(), false));
-        Assert.Equal(("rexplayer 0.16.0 is available", "Download it in the background and choose when to install it."),
-            UpdateFlow.PromptText(UpdatePrompt.Available, Pending(UpdateStage.Available), false));
-        Assert.Equal(("rexplayer 0.16.0 is available", "You are on a metered connection, so it has not been downloaded. This release asks you to read what's new before installing."),
-            UpdateFlow.PromptText(UpdatePrompt.Available, Pending(UpdateStage.Available) with { NeedsAttention = true }, true));
-        Assert.Throws<ArgumentNullException>(() => UpdateFlow.PromptText(UpdatePrompt.Ready, null!, false));
     }
 }

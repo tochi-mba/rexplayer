@@ -123,6 +123,34 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>
+    /// Schedule selected items immediately after what is playing, even with shuffle on.
+    /// Unlike <see cref="Insert"/>, which mixes additions into the shuffled remainder, these
+    /// items have an explicit user-requested order and are never shuffled away from next.
+    /// </summary>
+    public void InsertNext(int index, IEnumerable<PlaylistItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var added = items.ToList();
+        if (added.Count == 0)
+        {
+            return;
+        }
+
+        _items.InsertRange(Math.Clamp(index, 0, _items.Count), added);
+        _nextCycle = null;
+        if (_shuffle)
+        {
+            _order.InsertRange(Math.Clamp(_position + 1, 0, _order.Count), added);
+        }
+        else
+        {
+            Unshuffle();
+        }
+
+        Raise();
+    }
+
     /// <summary>Empties the queue.</summary>
     public void Clear()
     {

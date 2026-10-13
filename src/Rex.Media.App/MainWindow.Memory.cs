@@ -162,7 +162,11 @@ public sealed partial class MainWindow
         PositionBookmarkMarkers();
     }
 
-    private void OnSeekAreaSizeChanged(object sender, SizeChangedEventArgs e) => PositionBookmarkMarkers();
+    private void OnSeekAreaSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        PositionBookmarkMarkers();
+        PositionSectionMarks();
+    }
 
     private void PositionBookmarkMarkers()
     {

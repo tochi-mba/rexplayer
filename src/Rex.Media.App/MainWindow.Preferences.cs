@@ -25,7 +25,7 @@ public sealed partial class MainWindow
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
         var pictureLook = Choice("Default video picture look", VideoLooks.Names.ToArray(), (int)s.VideoLook);
-        var pictureEffect = Choice("Picture effects (optional)", VideoEffects.Names.ToArray(), (int)s.VideoEffect);
+        var pictureEffect = Choice("Picture effects (optional)", [.. Enum.GetValues<VideoEffect>().Select(VideoEffects.PickerLabel)], (int)s.VideoEffect);
         var lookSettings = new Button { Content = "Customize the current picture look..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(lookSettings, "PreferencesLookSettings");
         lookSettings.Click += (_, _) =>
@@ -58,9 +58,10 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "PreferencesUpdateChecks");
         var updateMode = Choice("When a new version is found", ["Install it by itself when rexplayer is closed or not in use", "Download it, then ask me when to install", "Only tell me about it"], (int)s.UpdateMode);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updateMode, "PreferencesUpdateMode");
-        var updateStatus = new TextBlock { Text = Status(), TextWrapping = TextWrapping.Wrap };
+        // Not a live region: it changes with every step of a download, and the updater announces
+        // its changes of state itself.
+        var updateStatus = new TextBlock { Text = UpdatePanelNow().Line, TextWrapping = TextWrapping.Wrap };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updateStatus, "PreferencesUpdateStatus");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(updateStatus, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
         var checkNow = new Button { Content = "Check for updates now" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(checkNow, "PreferencesCheckUpdates");
         checkNow.Click += (_, _) => _ = CheckForUpdatesAsync(asked: true);
@@ -99,8 +100,8 @@ public sealed partial class MainWindow
         keepLibraryAudio.IsEnabled = pauseLibrary.IsChecked == true;
         pauseLibrary.Checked += (_, _) => keepLibraryAudio.IsEnabled = true;
         pauseLibrary.Unchecked += (_, _) => keepLibraryAudio.IsEnabled = false;
-        var autoIntro = Check("Skip detected or confirmed intros automatically", s.SkipIntrosAutomatically);
-        var autoCredits = Check("Skip detected or confirmed credits automatically", s.SkipCreditsAutomatically);
+        var autoIntro = Check("Skip intros automatically", s.SkipIntrosAutomatically);
+        var autoCredits = Check("Skip credits automatically (plays the next episode when one follows)", s.SkipCreditsAutomatically);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(autoIntro, "PreferencesAutoSkipIntro");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(autoCredits, "PreferencesAutoSkipCredits");
         var queue = Check("Put the playlist back when rexplayer starts", s.RestoreQueue);
@@ -132,6 +133,11 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        content.Children.Add(Heading("Intros and credits"));
+        content.Children.Add(new TextBlock { Text = "While an episode's intro or credits play, a button offers to skip them. Turn these on to skip without a click; a 5 second countdown lets you cancel. To choose per show, use Always skip for this show on the button's menu.", TextWrapping = TextWrapping.Wrap });
+        content.Children.Add(autoIntro);
+        content.Children.Add(autoCredits);
+
         content.Children.Add(Heading("Video and pictures"));
         foreach (var control in new UIElement[] { pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
         {
@@ -157,11 +163,6 @@ public sealed partial class MainWindow
         content.Children.Add(Heading("Library playback"));
         content.Children.Add(pauseLibrary);
         content.Children.Add(keepLibraryAudio);
-
-        content.Children.Add(Heading("Episode sections"));
-        content.Children.Add(new TextBlock { Text = "Detected sections can be confirmed, adjusted or rejected. Automatic skipping is off until you choose it.", TextWrapping = TextWrapping.Wrap });
-        content.Children.Add(autoIntro);
-        content.Children.Add(autoCredits);
 
         content.Children.Add(Heading("Memory"));
         foreach (var control in new UIElement[] { resume, history, queue, sleep })
@@ -202,6 +203,7 @@ public sealed partial class MainWindow
         finally
         {
             _updateStatusText = null;
+            ShowUpdates();
         }
 
         if (!saved)
@@ -209,7 +211,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var next = (s with
+        var next = (_settings with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,

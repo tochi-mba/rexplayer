@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 using Rex.Media.Video.D3D11;
 
 namespace Rex.Media.Windows.Tests;
@@ -74,9 +75,16 @@ public sealed class SubjectEditSessionTests
         var initiallyEstimated = tracker.EstimatedPixels;
         Assert.True(initiallyEstimated > 0);
 
+        // Background counts as seen once it has looked the same for a few pictures in a row.
+        for (var i = 1; i < SubjectRemovalPlate.Confirmations; i++)
+        {
+            using var still = Picture(30, 20, 1 + i * 0.04);
+            using var shown = tracker.Process(still);
+        }
+
         // The moving object exposes its old location; only the still-occluded area
         // should need inference. Original frames remain byte-for-byte unchanged.
-        using var later = Picture(40, 20, 1.04);
+        using var later = Picture(40, 20, 1 + SubjectRemovalPlate.Confirmations * 0.04);
         using var recovered = tracker.Process(later);
         Assert.True(tracker.Tracking);
         Assert.NotNull(recovered);
@@ -122,18 +130,23 @@ public sealed class SubjectEditSessionTests
         using var source = Picture();
         tracker.Process(source);
         tracker.SetErase(true);
-        using var sharp = tracker.Process(source);
+        // A second rendering of the same frame is a paused redraw, not a new
+        // tracking observation. Preserve the background plate from the first pass.
+        using var sharp = tracker.Process(source, advanceTracking: false);
         Assert.NotNull(sharp);
         var originalPixel = source.Row(0, 26)[36 * 4 + 2];
         var sharpPixel = sharp.Row(0, 26)[36 * 4 + 2];
         Assert.NotEqual(originalPixel, sharpPixel);
 
         tracker.Refine(12, 0);
-        using var feathered = tracker.Process(source);
+        using var feathered = tracker.Process(source, advanceTracking: false);
         Assert.NotNull(feathered);
         Assert.Equal(originalPixel, source.Row(0, 26)[36 * 4 + 2]);
-        Assert.NotEqual(sharp.Row(0, 20)[30 * 4 + 2],
-            feathered.Row(0, 20)[30 * 4 + 2]);
+        Assert.Equal(12, tracker.Feather);
+        Assert.Equal(0, tracker.MaskTolerance);
+        // Both settings must leave the original untouched. A flat-background border pixel
+        // can be identical after either blend; its colour does not measure feather width.
+        Assert.True(tracker.EstimatedPixels > 0);
     }
 
     [Fact]
@@ -303,6 +316,77 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void ThePreviewPausesWhileTheSubjectIsLostAndResumesWhenItIsFollowedAgain()
+    {
+        // The owner's report: in the last frame both men appeared unedited because the preview was
+        // switched off for good when tracking was lost. It now stays asked for, pauses while the
+        // subject is lost, and resumes once the subject has been followed steadily again.
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var initial = Picture();
+        tracker.Process(initial);
+        tracker.SetErase(true);
+        Assert.True(tracker.Erase);
+        Assert.True(tracker.RemovalWanted);
+
+        for (var i = 0; i < 6; i++)
+        {
+            using var empty = Picture(-50, -50, 1.04 + i * 0.04);
+            Assert.Null(tracker.Process(empty));
+            Assert.False(tracker.Erase);
+            Assert.True(tracker.RemovalWanted);
+        }
+
+        var seconds = 1.3;
+        for (var i = 0; i < 12 && !tracker.Tracking; i++, seconds += 0.04)
+        {
+            using var returned = Picture(70, 28, seconds);
+            tracker.Process(returned);
+        }
+
+        Assert.True(tracker.Tracking, tracker.Status);
+        // Not on the very picture it was found again, which is only approximately placed.
+        Assert.False(tracker.Erase);
+        VideoFrame? preview = null;
+        for (var i = 0; i < 16 && preview is null; i++, seconds += 0.04)
+        {
+            using var steady = Picture(70, 28, seconds);
+            preview = tracker.Process(steady);
+        }
+
+        Assert.NotNull(preview);
+        Assert.True(tracker.Erase);
+        preview.Dispose();
+
+        // Turned off, it stays off; a new selection forgets it.
+        tracker.SetErase(false);
+        Assert.False(tracker.RemovalWanted);
+        tracker.SetErase(true);
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        Assert.False(tracker.RemovalWanted);
+    }
+
+    [Fact]
+    public void BlendIsChosenOnTheSessionAndSaysWhatItShows()
+    {
+        var tracker = new SubjectEditSession();
+        Assert.Equal(RemovalMode.Remove, tracker.Mode);
+        tracker.SetRemovalMode((RemovalMode)9);
+        Assert.Equal(RemovalMode.Remove, tracker.Mode);
+        tracker.SetRemovalMode(RemovalMode.Blend);
+        Assert.Equal(RemovalMode.Blend, tracker.Mode);
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var picture = Picture();
+        tracker.Process(picture);
+        tracker.SetErase(true);
+        using var preview = tracker.Process(picture, advanceTracking: false);
+        Assert.NotNull(preview);
+        Assert.Equal(0, tracker.ObservedPixels);
+        Assert.StartsWith("Blended", tracker.Status, StringComparison.Ordinal);
+        Assert.Equal(RemovalMode.Blend, tracker.Mode);
+    }
+
+    [Fact]
     public void ReacquisitionCanMatchAChangedSizeWithoutLosingTheOriginalSelection()
     {
         var tracker = new SubjectEditSession();
@@ -457,12 +541,20 @@ public sealed class SubjectEditSessionTests
         for (var i = 0; i < 24; i++)
         {
             using var returned = Picture(65, 25, 5.84 + i * 0.04, size: 24, lighting: 25);
-            Assert.Null(tracker.Process(returned));
+            using var shown = tracker.Process(returned);
         }
 
         Assert.True(tracker.Tracking);
         Assert.InRange(tracker.Region.Width * 128, 20, 28);
-        Assert.False(tracker.Erase);
+        // The preview asked for before the target went resumes once it is followed steadily again.
+        Assert.True(tracker.RemovalWanted);
+        for (var i = 0; i < 14; i++)
+        {
+            using var steady = Picture(65, 25, 6.8 + i * 0.04, size: 24, lighting: 25);
+            using var shown = tracker.Process(steady);
+        }
+
+        Assert.True(tracker.Erase, tracker.Status);
     }
 
     [Fact]

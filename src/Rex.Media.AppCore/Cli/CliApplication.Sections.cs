@@ -6,7 +6,11 @@ using Rex.Media.Primitives;
 
 namespace Rex.Media.AppCore.Cli;
 
-/// <summary>Machine-readable intro/credits proposals; no media playback or user confirmation.</summary>
+/// <summary>
+/// The intro and credits detected in an episode, compared with its nearest siblings in the season
+/// folder, exactly as the player detects them. Each episode is analysed once and kept in the
+/// player's cache, so running it over a whole season decodes every file once.
+/// </summary>
 public static partial class CliApplication
 {
     private static int Sections(CliArguments arguments, bool machine, CliHost host)
@@ -19,17 +23,29 @@ public static partial class CliApplication
             throw new CliException("The season folder does not exist: " + folder);
         }
 
-        var identity = EpisodeGrouping.Identify(path);
-        IReadOnlyList<string> siblingPaths = identity is null ? [] : EpisodeGrouping.Siblings(path, Directory.EnumerateFiles(folder));
+        var siblingPaths = EpisodeGrouping.Siblings(path, Directory.EnumerateFiles(folder), SectionDetector.SiblingsCompared);
         var decoders = MediaRegistries.Decoders([.. host.ExtraDecoders]);
-        var own = SectionAnalysis.Analyze(path, decoders, host.Cancellation);
+        EpisodeAnalysis Analysis(string file)
+        {
+            var signature = SectionAnalysis.SignatureOf(file);
+            if (host.SectionCache.Get(file, signature) is { } kept)
+            {
+                return kept;
+            }
+
+            var made = SectionAnalysis.Analyze(file, decoders, host.Cancellation);
+            host.SectionCache.Set(made);
+            return made;
+        }
+
+        var own = Analysis(path);
         var companions = new List<EpisodeAnalysis>();
-        foreach (var sibling in siblingPaths.Take(12))
+        foreach (var sibling in siblingPaths)
         {
             host.Cancellation.ThrowIfCancellationRequested();
             try
             {
-                companions.Add(SectionAnalysis.Analyze(sibling, decoders, host.Cancellation));
+                companions.Add(Analysis(sibling));
             }
             catch (Exception ex) when (ex is IOException or MediaFormatException or NotSupportedException)
             {
@@ -51,6 +67,7 @@ public static partial class CliApplication
                 ["start"] = proposal.Start.TotalSeconds,
                 ["end"] = proposal.End.TotalSeconds,
                 ["confidence"] = proposal.Confidence,
+                ["offered"] = proposal.Confidence >= SectionProposals.OfferThreshold,
                 ["reason"] = proposal.Reason,
                 ["source"] = proposal.Source,
             });
@@ -80,7 +97,8 @@ public static partial class CliApplication
             host.Out.WriteLine($"{Path.GetFileName(path)}: compared with {companions.Count} episodes.");
             foreach (var proposal in result.Candidates)
             {
-                host.Out.WriteLine($"{proposal.Kind}: {proposal.Start:c} – {proposal.End:c} ({proposal.Confidence:P0}; {proposal.Reason})");
+                host.Out.WriteLine($"{proposal.Kind}: {proposal.Start:c} to {proposal.End:c} ({proposal.Confidence:P0}; {proposal.Reason})" +
+                    (proposal.Confidence >= SectionProposals.OfferThreshold ? "" : "; too unsure to offer"));
             }
 
             if (result.Candidates.Count == 0)

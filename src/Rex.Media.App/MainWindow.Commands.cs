@@ -26,6 +26,7 @@ public sealed partial class MainWindow
     [
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
+            CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
             CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
             CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
@@ -107,7 +108,7 @@ public sealed partial class MainWindow
         _menuChecks.Clear();
         _videoLookItems.Clear();
         _videoEffectItems.Clear();
-        _episodeMarkerCommands.Clear();
+        _sectionMenuUpdates.Clear();
         foreach (var (title, commands) in MenuLayout)
         {
             var menu = Menu.Items.First(item => item.Title == title);
@@ -374,8 +375,8 @@ public sealed partial class MainWindow
             ApplyAlwaysOnTop();
         }
 
-        // An update bar waits out full-screen playback and comes back on leaving it.
-        ConsiderUpdatePrompt();
+        // The update card waits out full-screen playback and comes back on leaving it.
+        ShowUpdates();
     }
 
     private void ShowFullScreenControls()

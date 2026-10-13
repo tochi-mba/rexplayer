@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Updates;
@@ -12,7 +11,7 @@ public sealed record UpdateOffer(Version Version, Uri Installer, Uri Checksum, U
     /// <summary>The installer's size in bytes as the release states it; 0 when it does not say.</summary>
     public long Size { get; init; }
 
-    /// <summary>The release notes as plain text.</summary>
+    /// <summary>The release notes, tidied by <see cref="ReleaseNotes.Clean"/>.</summary>
     public string Notes { get; init; } = "";
 
     /// <summary>The notes say this release changes something the user should hear about before it installs.</summary>
@@ -24,7 +23,7 @@ public sealed record UpdateOffer(Version Version, Uri Installer, Uri Checksum, U
 /// latest release offers, and whether a downloaded installer is the one the release published. The
 /// app does the network and process work; nothing here touches either.
 /// </summary>
-public static partial class UpdateCheck
+public static class UpdateCheck
 {
     /// <summary>The release the updater asks about: this repository's latest, never a pre-release.</summary>
     public static readonly Uri LatestRelease = new("https://api.github.com/repos/tochi-mba/rexplayer/releases/latest");
@@ -88,7 +87,7 @@ public static partial class UpdateCheck
             var page = root.TryGetProperty("html_url", out var html) && Uri.TryCreate(html.GetString(), UriKind.Absolute, out var htmlUri)
                 ? htmlUri
                 : new Uri("https://github.com/tochi-mba/rexplayer/releases/latest");
-            var notes = root.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String ? PlainNotes(body.GetString()!) : "";
+            var notes = root.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String ? ReleaseNotes.Clean(body.GetString()!, latest.ToString()) : "";
             return installer is null || checksum is null ? null : new UpdateOffer(latest, installer, checksum, page, installerName)
             {
                 Size = size,
@@ -129,35 +128,6 @@ public static partial class UpdateCheck
     }
 
     /// <summary>
-    /// Release notes in Markdown as plain text: headings lose their marks, list items become
-    /// bullets, emphasis and link syntax go, and a generated "Full Changelog" line is dropped.
-    /// </summary>
-    public static string PlainNotes(string markdown)
-    {
-        ArgumentNullException.ThrowIfNull(markdown);
-        var lines = new List<string>();
-        foreach (var raw in markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
-        {
-            var line = raw.Trim();
-            if (line.Length == 0 || line.StartsWith("**Full Changelog**", StringComparison.Ordinal) || line.StartsWith("<!--", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            line = line.TrimStart('#').Trim();
-            if (line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal))
-            {
-                line = "\u2022 " + line[2..].Trim();
-            }
-
-            line = Credit().Replace(Link().Replace(line, "$1"), "");
-            lines.Add(line.Replace("**", "", StringComparison.Ordinal).Replace("`", "", StringComparison.Ordinal));
-        }
-
-        return string.Join("\n", lines);
-    }
-
-    /// <summary>
     /// Whether release notes ask for the user's attention before installing: a release that says it
     /// has a breaking change or needs action is never installed without asking.
     /// </summary>
@@ -168,13 +138,6 @@ public static partial class UpdateCheck
     }
 
     private static readonly string[] AttentionWords = ["breaking change", "requires attention", "action required", "[attention]"];
-
-    [GeneratedRegex(@"\[([^\]]+)\]\(https?://[^)]*\)")]
-    private static partial Regex Link();
-
-    /// <summary>The "by @someone in (link)" generated notes put after each change.</summary>
-    [GeneratedRegex(@" by @\S+ in https?://\S+$")]
-    private static partial Regex Credit();
 
     internal static bool TryVersion(string? text, out Version version)
     {

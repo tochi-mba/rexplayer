@@ -1,4 +1,6 @@
 using Rex.Media.AppCore.Library;
+using Rex.Media.AppCore.Player;
+using Rex.Media.Library;
 using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
@@ -57,13 +59,13 @@ public sealed class LibraryActionsTests
 
         var many = LibraryActions.DeletePrompt(["a", "b", "c", "d", "e", "f", "g"]);
         Assert.Equal("Delete 7 files?", many.Title);
-        Assert.Equal("a\nb\nc\nd\ne\nand 2 more\n\nThey go to the Recycle Bin, where it can be brought back, and the library forgets them.", many.Body);
-        Assert.Equal("a\nb\n\nThey go to the Recycle Bin, where it can be brought back, and the library forgets them.", LibraryActions.DeletePrompt(["a", "b"]).Body);
+        Assert.Equal("a\nb\nc\nd\ne\nand 2 more\n\nThey go to the Recycle Bin, where they can be brought back, and the library forgets them.", many.Body);
+        Assert.Equal("a\nb\n\nThey go to the Recycle Bin, where they can be brought back, and the library forgets them.", LibraryActions.DeletePrompt(["a", "b"]).Body);
 
         Assert.Equal("Remove Sungba.mp3 from the library?", LibraryActions.RemovePrompt(["Sungba.mp3"]).Title);
-        Assert.Equal("The file stays where it is; the library stops showing it until the folder is added again.", LibraryActions.RemovePrompt(["Sungba.mp3"]).Body);
+        Assert.Equal("The file stays where it is; the library stops showing it until its folder is taken out of the library and added again.", LibraryActions.RemovePrompt(["Sungba.mp3"]).Body);
         Assert.Equal("Remove 2 items from the library?", LibraryActions.RemovePrompt(["a", "b"]).Title);
-        Assert.Equal("a\nb\n\nThe files stay where they are; the library stops showing them until the folder is added again.", LibraryActions.RemovePrompt(["a", "b"]).Body);
+        Assert.Equal("a\nb\n\nThe files stay where they are; the library stops showing them until their folders are taken out of the library and added again.", LibraryActions.RemovePrompt(["a", "b"]).Body);
 
         Assert.Equal(new Prompt("Delete Mix?", "The playlist goes; the files in it stay where they are."), LibraryActions.DeletePlaylistPrompt(["Mix"]));
         Assert.Equal(new Prompt("Delete 2 playlists?", "Mix\nRoad\n\nThe playlists go; the files in them stay where they are."), LibraryActions.DeletePlaylistPrompt(["Mix", "Road"]));
@@ -71,5 +73,19 @@ public sealed class LibraryActionsTests
         Assert.Throws<ArgumentNullException>(() => LibraryActions.DeletePrompt(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.RemovePrompt(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.DeletePlaylistPrompt(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void TheDeleteKeyDeletesOnlyTheFilesALinesMenuWouldDelete()
+    {
+        // Delete on a watched folder's line used to offer to delete every file under the folder,
+        // where its menu only stops watching it.
+        var song = new LibraryEntry { Path = Path.Combine(Path.GetTempPath(), "Sungba.mp3"), Kind = LibraryKind.Music, Title = "Sungba" };
+        Assert.True(LibraryActions.DeletesFiles(song));
+        Assert.True(LibraryActions.DeletesFiles(new LibraryGroup("Work Of Art", null, [song])));
+        Assert.False(LibraryActions.DeletesFiles(Path.GetTempPath()));
+        Assert.False(LibraryActions.DeletesFiles(new NamedPlaylist("1", "Mix", [])));
+        Assert.False(LibraryActions.DeletesFiles(null));
     }
 }

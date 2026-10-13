@@ -17,6 +17,8 @@
     <Project Path="src/Rex.Media.Library/Rex.Media.Library.csproj" />
     <Project Path="src/Rex.Media.AppCore/Rex.Media.AppCore.csproj" />
     <Project Path="src/Rex.Media.Updater/Rex.Media.Updater.csproj" />
+    <Project Path="src/Rex.Media.Vision/Rex.Media.Vision.csproj" />
+    <Project Path="src/Rex.Media.Vision.WindowsML/Rex.Media.Vision.WindowsML.csproj" />
     <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />
     <Project Path="src/Rex.Media.Cli/Rex.Media.Cli.csproj" />
     <Project Path="src/Rex.Media.App/Rex.Media.App.csproj" />
@@ -25,6 +27,7 @@
     <Project Path="tests/Rex.Media.TestKit/Rex.Media.TestKit.csproj" />
     <Project Path="tests/Rex.Media.Tests/Rex.Media.Tests.csproj" />
     <Project Path="tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj" />
+    <Project Path="tests/Rex.Media.Vision.Windows.Tests/Rex.Media.Vision.Windows.Tests.csproj" />
     <Project Path="tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj" />
     <Project Path="tests/Rex.Fuzz/Rex.Fuzz.csproj" />
   </Folder>

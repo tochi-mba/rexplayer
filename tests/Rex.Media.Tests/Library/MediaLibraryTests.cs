@@ -92,6 +92,7 @@ public sealed class MediaLibraryTests
         library.AddFolder(Music);
         Assert.Empty(library.Hidden);
         library.Scan(Music, [File(a), File(b)], KindOf);
+        var backedUp = library.Entry(a)!;
         Assert.Equal(0, library.Hide([]));
         Assert.Equal(1, library.Hide([a, a, "", " "]));
         Assert.Equal([a], library.Hidden);
@@ -101,6 +102,10 @@ public sealed class MediaLibraryTests
         var again = new MediaLibrary(store);
         Assert.Equal([a], again.Hidden);
         Assert.False(again.Scan(Music, [File(a), File(b)], KindOf).Any);
+        Assert.Null(again.Entry(a));
+
+        // A backup taken before it was removed does not bring it back either; restoring used to.
+        Assert.Equal(0, again.Restore([backedUp]));
         Assert.Null(again.Entry(a));
         Assert.Equal(1, again.Hide([b]));
         Assert.Equal(0, again.Hide([b]));

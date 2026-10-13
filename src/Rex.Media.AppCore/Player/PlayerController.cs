@@ -82,6 +82,7 @@ public sealed partial class PlayerController : IDisposable
         _time = time ?? TimeProvider.System;
         _log = log ?? RexLog.InMemory();
         Memory = new PlayerMemory(store ?? Rex.Media.Library.RexStore.InMemory());
+        Memory.ForgetStoredAnalyses();
         _writeFile = writeFile ?? ((path, bytes) => AtomicFile.Write(path, bytes));
         _sidecars = sidecars ?? (media => SubtitleSidecars.Find(media));
         _readFile = readFile ?? File.ReadAllBytes;
@@ -299,7 +300,7 @@ public sealed partial class PlayerController : IDisposable
 
     public void Dispose()
     {
-        _sectionStop?.Cancel();
+        CancelSectionDetection();
         RememberPosition();
         EndSession();
     }
@@ -316,6 +317,7 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
+        Reach("start");
         startAt = BeforeStart(item, startAt, audioTrack);
         _log.Info(LogSource, $"Starting \"{item.Title}\" ({item.Location})"
             + (item.IsPart ? $", the part from {TimeText.Format(item.Start, TimeSpan.Zero)}{(item.End is { } partEnd ? " to " + TimeText.Format(partEnd, TimeSpan.Zero) : "")}" : "")

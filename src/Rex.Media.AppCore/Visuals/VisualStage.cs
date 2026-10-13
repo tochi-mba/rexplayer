@@ -177,7 +177,8 @@ public sealed class VisualStage
             Shade((int)(band * across / bands.Count), h - 1 - tall, Math.Max(1, (int)(across / bands.Count) - 1), tall, Context.Paint((double)band / bands.Count), 1);
         }
 
-        float[] levels = [_pulse.Bass, _pulse.Mid, _pulse.Treble, _pulse.Punch, _pulse.Loudness];
+        var levels = _levels;
+        (levels[0], levels[1], levels[2], levels[3], levels[4]) = (_pulse.Bass, _pulse.Mid, _pulse.Treble, _pulse.Punch, _pulse.Loudness);
         var block = w * 0.05;
         for (var i = 0; i < levels.Length; i++)
         {
@@ -186,8 +187,9 @@ public sealed class VisualStage
         }
 
         _beatLight = _pulse.Beat ? (_pulse.Filled ? 0.5f : 1) : Math.Max(0, _beatLight - (float)(Context.Dt * 6));
-        var left = (int)(across + (levels.Length * block) + 6);
-        var side = Math.Min(strip - 4, w - left - 4);
+        // The square keeps a few pixels even on a stage too narrow for all of it.
+        var side = Math.Max(3, Math.Min(strip - 4, (int)(w - (across + (levels.Length * block) + 6) - 4)));
+        var left = Math.Min((int)(across + (levels.Length * block) + 6), w - side);
         Shade(left, top + 2, side, side, Rgb.White, Math.Min(1, 0.12f + _beatLight));
         Shade(left, h - 3, (int)(side * _pulse.Phase), 2, _pulse.Locked ? Rgb.White : new Rgb(0.5f, 0.5f, 0.5f), 1);
     }
@@ -209,6 +211,7 @@ public sealed class VisualStage
         }
     }
 
+    private readonly float[] _levels = new float[5];
     private float _beatLight;
 
     /// <summary>
@@ -233,6 +236,7 @@ public sealed class VisualStage
     {
         _pulse.Reset();
         _scene = null;
+        _beatLight = 0;
         Canvas.Clear(Rgb.Black);
     }
 }

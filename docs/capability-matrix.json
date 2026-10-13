@@ -1365,7 +1365,7 @@
       "id": "AU-18",
       "area": "Audio",
       "name": "Visualisations",
-      "details": "Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, ripples, strobe, camera silhouette and live beat edit, all moving to a beat clock that locks to the kicks and levels measured against each song's own range; per-effect colours, sensitivity, motion and composition controls, and a beat meter",
+      "details": "Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette and live beat edit, moving to levels measured against each song's own range, the beat-driven ones (vinyl, halo, embers, ripples, strobe and beat edit) to a beat clock that locks to the kicks at any frame rate; per-effect colours, sensitivity, motion and composition controls, and a beat meter",
       "milestone": "M5/M11",
       "priority": "should",
       "oracles": "PIX",

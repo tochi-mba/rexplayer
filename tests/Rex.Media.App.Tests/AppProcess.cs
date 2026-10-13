@@ -60,9 +60,31 @@ internal sealed class AppProcess : IDisposable
         }
     }
 
-    public string LogText => File.Exists(Path.Combine(Root, "logs", "rexplayer.log"))
-        ? File.ReadAllText(Path.Combine(Root, "logs", "rexplayer.log"))
-        : "";
+    public string LogText
+    {
+        get
+        {
+            var path = Path.Combine(Root, "logs", "rexplayer.log");
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    if (!File.Exists(path))
+                    {
+                        return "";
+                    }
+
+                    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    using var reader = new StreamReader(stream);
+                    return reader.ReadToEnd();
+                }
+                catch (IOException) when (attempt < 20)
+                {
+                    Thread.Sleep(50);
+                }
+            }
+        }
+    }
 
     /// <summary>The built app; the suite needs it built first (./dev.ps1 build or the CI step that does).</summary>
     public static string Executable => RepoPaths.Combine("src", "Rex.Media.App", "bin", RepoPaths.Configuration, "net10.0-windows10.0.22621.0", "win-x64", "rexplayer.exe");

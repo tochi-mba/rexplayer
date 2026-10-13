@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 
 namespace Rex.Media.App;
@@ -187,7 +188,8 @@ public sealed partial class MainWindow
     private async Task DeletePlaylistAsync(string id)
     {
         if (_player.NamedPlaylists.FirstOrDefault(p => p.Id == id) is { } playlist
-            && await Ask($"Delete {playlist.Name}?", new TextBlock { Text = "The playlist goes; the files in it stay where they are.", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap }, "Delete"))
+            && LibraryActions.DeletePlaylistPrompt([playlist.Name]) is var prompt
+            && await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap }, "Delete"))
         {
             _player.DeletePlaylist(id);
         }

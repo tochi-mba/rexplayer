@@ -49,6 +49,20 @@ public sealed partial class PlayerController
             case CommandCatalog.Next:
                 Start(Playlist.Next(automatic: false));
                 break;
+            case CommandCatalog.SkipSection:
+                if (!SkipEpisodeSection())
+                {
+                    Say("There is no intro or credits to skip here.");
+                }
+
+                break;
+            case CommandCatalog.NextEpisode:
+                if (!PlayNextEpisode())
+                {
+                    Say("There is no next episode.");
+                }
+
+                break;
             case CommandCatalog.Previous:
                 if (_session is not null && CanSeek && Position > RestartThreshold)
                 {
@@ -366,7 +380,7 @@ public sealed partial class PlayerController
     /// there, as a cue sheet's tracks do, it simply becomes the item, without a gap; otherwise this
     /// item is over, as if its file had ended.
     /// </summary>
-    private void ReachedEndOfPart(TimeSpan heard)
+    internal void ReachedEndOfPart(TimeSpan heard)
     {
         var current = Item!;
         Position = Duration;

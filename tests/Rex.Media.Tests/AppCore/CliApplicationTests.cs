@@ -45,6 +45,40 @@ public sealed class CliApplicationTests : IDisposable
     }
 
     [Fact]
+    [Capability("AU-18")]
+    public void PulseHearsAFileAsTheVisualisationsDo()
+    {
+        var song = Fixture("song.wav", new SyntheticMusic(120, 12).Wav());
+        var (exit, output, _) = Run(null, "pulse", song, "--json");
+        Assert.Equal(0, exit);
+        var data = Single(output).GetProperty("data");
+        Assert.InRange(data.GetProperty("tempo").GetDouble(), 118, 122);
+        Assert.InRange(data.GetProperty("lockedAt").GetDouble(), 0.5, 4);
+        Assert.InRange(data.GetProperty("beatsHeard").GetInt32(), 20, 26);
+        Assert.Equal(0, data.GetProperty("beatsFilled").GetInt32());
+        Assert.InRange(data.GetProperty("beatGapSpread").GetDouble(), 0, 0.08);
+        Assert.Equal(48_000, data.GetProperty("sampleRate").GetInt32());
+        Assert.InRange(data.GetProperty("levels").GetProperty("punch").GetProperty("p95").GetDouble(), 0.8, 1);
+        Assert.InRange(data.GetProperty("levels").GetProperty("bass").GetProperty("p5").GetDouble(), 0, 0.1);
+        Assert.Equal(2, data.GetProperty("tempoOverTime").GetArrayLength());
+        Assert.False(data.GetProperty("beats")[5].GetProperty("filled").GetBoolean());
+
+        // Part of it, in words.
+        (exit, output, _) = Run(null, "pulse", song, "--start", "4", "--stop", "10");
+        Assert.Equal(0, exit);
+        Assert.Contains("beats a minute, locked at", output, StringComparison.Ordinal);
+
+        // A held tone has no beat to lock to; past the end there is nothing to hear.
+        var tone = Fixture("tone.wav", Pcm.SineWav(440, 8000, 1, 2.0));
+        (exit, output, _) = Run(null, "pulse", tone);
+        Assert.Equal(0, exit);
+        Assert.Contains("never locked", output, StringComparison.Ordinal);
+        (exit, output, _) = Run(null, "pulse", tone, "--start", "5", "--json");
+        Assert.Equal(1, exit);
+        Assert.Contains("no sound to hear", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     [Capability("TOOL-02")]
     public void CapabilitiesIsOneJsonLineDescribingTheBuild()
     {
@@ -84,6 +118,18 @@ public sealed class CliApplicationTests : IDisposable
         Assert.False(payload.GetProperty("autoSkipEnabled").GetBoolean());
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("chapterHints").ValueKind);
         Assert.NotEmpty(payload.GetProperty("signature").GetString()!);
+
+        // One host keeps each analysis, so inspecting the season again decodes nothing.
+        var cache = new SectionAnalysisCache();
+        using (var cachedOutput = new StringWriter())
+        {
+            var cachedHost = new CliHost { Out = cachedOutput, Error = TextWriter.Null, Version = "9.9.9", SectionCache = cache };
+            Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
+            Assert.NotNull(cache.Get(episode, SectionAnalysis.SignatureOf(episode)));
+            cachedOutput.GetStringBuilder().Clear();
+            Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
+            Assert.True(Single(cachedOutput.ToString()).GetProperty("ok").GetBoolean());
+        }
 
         var human = Run(null, "sections", episode);
         Assert.Equal(0, human.Exit);

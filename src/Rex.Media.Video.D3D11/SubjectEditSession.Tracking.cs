@@ -25,7 +25,7 @@ public sealed partial class SubjectEditSession
         // conversation filmed shot and reverse shot. The subject may well be in the new shot too,
         // somewhere else or at another size; finding it there is the re-detection search's job,
         // with its stricter evidence and its second sighting.
-        if (PictureChange >= CutChange)
+        if (IsCut)
         {
             LoseTracking("The shot changed. Looking for the selected subject in the new picture.");
             return;
@@ -268,9 +268,6 @@ public sealed partial class SubjectEditSession
 
     // How many shape-only peaks are read in colour before the position is chosen.
     private const int Leads = 4;
-
-    // The share of the picture outside the subject that has to change at once to count as a cut.
-    private const double CutChange = 2;
 
     /// <summary>How far the best coarse reading stood above the rest, in standard deviations.</summary>
     internal double LastPeak { get; private set; }

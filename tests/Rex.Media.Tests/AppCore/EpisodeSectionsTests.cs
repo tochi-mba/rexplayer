@@ -81,7 +81,7 @@ public sealed class EpisodeSectionsTests
         Assert.Null(proposals.Offer(none, duration, duration));
 
         // A threshold failure or a user rejection must never create a skip offer.
-        var uncertain = proposals.Adjust(intro with { Confidence = SectionProposals.OfferThreshold - 0.01 });
+        var uncertain = proposals with { Candidates = [intro with { Confidence = SectionProposals.OfferThreshold - 0.01 }, credits] };
         Assert.Null(uncertain.Offer(none, TimeSpan.FromSeconds(90), duration));
         Assert.Null(proposals.Reject(EpisodeSectionKind.Intro).Offer(none, TimeSpan.FromSeconds(90), duration));
         Assert.NotNull(proposals.Reject(EpisodeSectionKind.Intro).Reject(EpisodeSectionKind.Intro, false)
@@ -196,9 +196,15 @@ public sealed class EpisodeSectionsTests
         Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
 
         player.Seek(TimeSpan.FromSeconds(5));
+        // Credits marked with a start alone run to the end of the video.
         Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, true));
-        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, false, atVideoEnd: true));
         Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Credits, TimeSpan.FromSeconds(10)),
+            player.AvailableEpisodeSkip);
+        Assert.Equal(TimeSpan.FromSeconds(5), player.SectionViews[1].Start);
+        player.Seek(TimeSpan.FromSeconds(8));
+        Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, false));
+        player.Seek(TimeSpan.FromSeconds(6));
+        Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Credits, TimeSpan.FromSeconds(8)),
             player.AvailableEpisodeSkip);
         Assert.True(player.ClearEpisodeSection(EpisodeSectionKind.Intro));
         Assert.Null(player.CurrentSections.IntroStart);
@@ -226,6 +232,7 @@ public sealed class EpisodeSectionsTests
         player.Open(["song.wav"]);
         harness.PumpUntil(c => c.State == SessionState.Ready);
         Assert.False(player.CanMarkEpisodeSections);
+        Assert.Empty(player.SectionViews);
         Assert.False(player.MarkEpisodeSection(EpisodeSectionKind.Credits, true));
         Assert.False(player.ClearEpisodeSection(EpisodeSectionKind.Intro));
         Assert.False(player.SkipEpisodeSection());

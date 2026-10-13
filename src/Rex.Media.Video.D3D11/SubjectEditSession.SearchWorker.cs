@@ -1,4 +1,5 @@
 using Rex.Media.Primitives;
+using Rex.Media.Vision;
 
 namespace Rex.Media.Video.D3D11;
 
@@ -119,6 +120,10 @@ public sealed partial class SubjectEditSession
         _recoveryTime = frame.Pts;
         _recoveryCancellation = new CancellationTokenSource();
         var cancellation = _recoveryCancellation.Token;
+        // A model confirms the return only where it answers within the interactive budget here.
+        var secondOpinion = SubjectModelPolicy.SecondOpinion(_maskTracker is not null, _segmentBudget, FramesPerSecond(frame))
+            ? _maskTracker
+            : null;
         // No queue: one immutable snapshot is owned by one worker. New video frames
         // keep presenting and the next search captures the latest available picture.
         _recoveryTask = Task.Factory.StartNew(() =>
@@ -128,6 +133,10 @@ public sealed partial class SubjectEditSession
                 try
                 {
                     worker.TryReacquire(snapshot, cancellation);
+                    if (secondOpinion is not null && worker.Tracking)
+                    {
+                        worker.Tracking = Confirms(secondOpinion, snapshot, worker.Region);
+                    }
                 }
                 catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
                 {
@@ -142,4 +151,30 @@ public sealed partial class SubjectEditSession
         }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _recoveryScheduler);
         return false;
     }
+
+    /// <summary>
+    /// The model's second opinion on a return the hand-written search found: the object it outlines
+    /// in the proposed box must overlap that box by at least a third (intersection over union).
+    /// </summary>
+    private static bool Confirms(IMaskTracker tracker, VideoFrame snapshot, (float Left, float Top, float Width, float Height) region)
+    {
+        var (w, h) = (snapshot.Width, snapshot.Height);
+        var box = new PixelBox((int)(region.Left * w), (int)(region.Top * h), Math.Max(1, (int)(region.Width * w)), Math.Max(1, (int)(region.Height * h)));
+        var picture = new BgraPicture(snapshot.Plane(0), w, h, snapshot.Stride(0));
+        var answer = tracker.Reacquire(picture, new PictureKey(snapshot.Generation, snapshot.Pts.IsKnown ? snapshot.Pts.Ticks : 0), box);
+        if (answer is not { Outcome: TrackOutcome.Tracked, Mask: { } mask })
+        {
+            return false;
+        }
+
+        var found = mask.Bounds;
+        var across = Math.Max(0, Math.Min(found.Right, box.Right) - Math.Max(found.Left, box.Left));
+        var down = Math.Max(0, Math.Min(found.Bottom, box.Bottom) - Math.Max(found.Top, box.Top));
+        var both = (double)across * down;
+        return both / ((double)found.Width * found.Height + (double)box.Width * box.Height - both) >= 1 / 3d;
+    }
+
+    /// <summary>The video's frame rate from a picture's duration, or 24 when it does not say.</summary>
+    private static double FramesPerSecond(VideoFrame frame) =>
+        frame.Duration.IsKnown && frame.Duration.TotalSeconds > 0 ? 1 / frame.Duration.TotalSeconds : 24;
 }

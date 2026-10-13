@@ -25,8 +25,14 @@ public sealed partial class RepositoryTests
         "installer/prepare-upgrade.ps1",
         "installer/update-test.ps1",
         "scripts/check_site.py",
+        "scripts/effect-contact-sheets.ps1",
         "scripts/make-fixtures.ps1",
         "scripts/make-icon.ps1",
+        "scripts/measure-beats.ps1",
+        "scripts/measure-startup.ps1",
+        "scripts/sections/compare.py",
+        "scripts/sections/compose_sheet.py",
+        "scripts/sections/find_boundaries.py",
         "site/app.js",
         "tests/site/app.test.mjs",
         "tests/site/pages.spec.js",
@@ -224,8 +230,14 @@ public sealed partial class RepositoryTests
     public void TheNewestChangelogEntryIsTheBuildVersion()
     {
         var version = XDocument.Load(RepoPaths.Combine("Directory.Build.props")).Descendants("Version").Single().Value;
-        var headings = File.ReadAllLines(RepoPaths.Combine("CHANGELOG.md"))
+        // Changes not yet released collect under one "## Unreleased" heading at the top, which the
+        // release renames to its version.
+        var lines = File.ReadAllLines(RepoPaths.Combine("CHANGELOG.md"))
             .Where(line => line.StartsWith("## ", StringComparison.Ordinal))
+            .ToList();
+        Assert.DoesNotContain("## Unreleased", lines.Skip(1));
+        var headings = lines
+            .SkipWhile(line => line == "## Unreleased")
             .Select(line => ChangelogHeading().Match(line))
             .ToList();
 
@@ -234,6 +246,18 @@ public sealed partial class RepositoryTests
         Assert.Equal(version, headings[0].Groups["version"].Value);
         var versions = headings.Select(h => Version.Parse(h.Groups["version"].Value)).ToList();
         Assert.Equal(versions.OrderDescending(), versions);
+    }
+
+    [Fact]
+    public void TheChangelogsOpeningWordsStayAboveEveryVersion()
+    {
+        // A version's section is its release notes and its "What's new": the changelog's own
+        // opening words, once pushed down by a new section, were showing in 0.18.0's.
+        var lines = File.ReadAllLines(RepoPaths.Combine("CHANGELOG.md"));
+        var opening = Array.FindIndex(lines, line => line.StartsWith("Every version of rexplayer", StringComparison.Ordinal));
+        var firstVersion = Array.FindIndex(lines, line => line.StartsWith("## ", StringComparison.Ordinal));
+
+        Assert.InRange(opening, 1, firstVersion);
     }
 
     [Fact]
@@ -258,7 +282,15 @@ public sealed partial class RepositoryTests
             .Select(element => (string)element.Attribute("Include")!)
             .Order(StringComparer.Ordinal);
 
-        Assert.Equal(["Microsoft.Windows.CsWin32", "Microsoft.WindowsAppSDK"], product);
+        // ADR-0019 adds Windows ML, the part of the Windows App SDK that runs downloaded model weights.
+        Assert.Equal(["Microsoft.Windows.CsWin32", "Microsoft.WindowsAppSDK", "Microsoft.WindowsAppSDK.ML"], product);
+
+        // Windows ML is referenced by the vision adapter alone; the app reaches it through the SDK.
+        var mlUsers = RepoPaths.SourceFiles()
+            .Where(path => path.StartsWith("src/", StringComparison.Ordinal) && path.EndsWith(".csproj", StringComparison.Ordinal))
+            .Where(path => XDocument.Load(RepoPaths.Combine(path)).Descendants("PackageReference").Any(reference => (string?)reference.Attribute("Include") == "Microsoft.WindowsAppSDK.ML"))
+            .ToList();
+        Assert.Equal(["src/Rex.Media.Vision.WindowsML/Rex.Media.Vision.WindowsML.csproj"], mlUsers);
 
         var testOnly = packages.Descendants("ItemGroup")
             .Single(group => (string?)group.Attribute("Label") == "Test")

@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Markup;
 using Rex.Media.AppCore.Library;
+using static Rex.Media.AppCore.Library.LibraryActions;
 using Rex.Media.Library;
 using Rex.Media.Settings;
 
@@ -117,7 +118,7 @@ public sealed partial class MainWindow
         var home = source == LibrarySource.Home;
         if (!home)
         {
-            entries = LibraryArrangement.Filter(entries, choice, null, _player.LeftAt);
+            entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
         }
         LibraryHome.Visibility = home ? Visibility.Visible : Visibility.Collapsed;
         LibraryList.Visibility = home ? Visibility.Collapsed : Visibility.Visible;
@@ -394,8 +395,8 @@ public sealed partial class MainWindow
                 (LibraryFilter.InProgress, "In progress"), (LibraryFilter.Finished, "Finished")],
             choice.Filter, value => KeepViewChoice(choice with { Filter = value })));
         filterMenu.Items.Add(FilterGroup("Media type", "LibraryFilterKind",
-            [(LibraryKindFilter.Any, "All media"), (LibraryKindFilter.Video, "Video"),
-                (LibraryKindFilter.Music, "Audio"), (LibraryKindFilter.Picture, "Pictures")],
+            [(LibraryKindFilter.Any, "All media"), (LibraryKindFilter.Video, "Videos"),
+                (LibraryKindFilter.Music, "Music"), (LibraryKindFilter.Picture, "Pictures")],
             choice.Kinds, value => KeepViewChoice(choice with { Kinds = value })));
         var folders = new MenuFlyoutSubItem { Text = "Folder" };
         var allFolders = new RadioMenuFlyoutItem { Text = "All folders", GroupName = "LibraryFilterFolder", IsChecked = choice.Folder is null };

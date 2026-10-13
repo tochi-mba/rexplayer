@@ -32,7 +32,7 @@ public sealed class PulsePartsTests
             Assert.InRange(range.Ceiling - range.Floor, 10, 11);
         }
 
-        // A level held steady sits low, never swinging from nothing to everything.
+        // A level held steady sits at the top of a range the span wide, never swinging from nothing to everything.
         range.Reset();
         for (var frame = 0; frame < 300; frame++)
         {
@@ -88,9 +88,15 @@ public sealed class PulsePartsTests
     {
         var whole = new BandEnergy(0, 0);
         Assert.Equal(0, whole.RiseAge()); // No analysed samples yet.
-        Assert.Equal(0, whole.RiseAge()); // No analysed samples yet.
         Assert.Equal(1, whole.Power(Enumerable.Repeat(1f, 100).ToArray(), 48_000, 1000), 6);
         Assert.Equal(0.25, whole.Power([0, 0, 0.5f, 0.5f], 48_000, 2), 6);
+        Assert.Equal(0, whole.Earlier);
+
+        // Looking back: the window as long, ending that many samples before the newest.
+        Assert.Equal(0, whole.Power([0.5f, 0.5f, 0, 0], 48_000, 2, lag: 2), 6);
+        Assert.Equal(0.25, whole.Earlier, 6);
+        Assert.Equal(0.25, whole.Power([0.5f, 0.5f, 0, 0, 0.5f], 48_000, 1, lag: 9), 6);
+        Assert.Equal(0.25, whole.Earlier, 6);
 
         // A corner above the rate's limit is left out rather than made unstable.
         var high = new BandEnergy(2000, 20000);
@@ -169,7 +175,7 @@ public sealed class PulsePartsTests
     public void TheClockFindsTheTempoLocksAndKeepsTimeThroughAGap(double bpm)
     {
         var clock = new BeatClock();
-        Assert.Equal((0.0, 0.0, false), (clock.Tempo, clock.NextBeatIn, clock.Locked));
+        Assert.Equal((0.0, 0.0, false), (clock.Tempo, clock.Period, clock.Locked));
 
         // Ten seconds of beats, then three beats with none heard: the grid crosses them on time.
         var onsets = Beats(bpm, 0, 10).ToList();
@@ -201,12 +207,127 @@ public sealed class PulsePartsTests
 
         // The music turns round half a beat: weak onsets there are ignored, three kicks move the grid.
         Run(clock, 2, Beats(120, 8.25, 10), start: 8, strong: false);
-        var phaseBefore = clock.Phase;
         Run(clock, 4, Beats(120, 10.25, 14), start: 10);
         Assert.True(clock.Confidence > 0.5);
         var crossings = Run(clock, 2, Beats(120, 14.25, 16), start: 14).Where(frame => frame.Crossed).Select(frame => frame.T % 0.5).ToList();
         Assert.All(crossings, at => Assert.InRange(at, 0.2, 0.33));
-        Assert.InRange(phaseBefore, 0, 1);
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(144)]
+    public void TheBeatGoesToTheHardestLowDrumWhenTwoAlternate(int fps)
+    {
+        // A busy groove: a kick on the beat and a pitched drum on every off-beat, both heard as kicks
+        // when the frames come fast. Locked onto the off-beat drum, the clock used to stay there:
+        // every kick on its beats cancelled the votes to move. The beat is where the harder one falls.
+        var clock = new BeatClock();
+        var events = new List<(double At, double Accent)>();
+        for (var n = 0; n < 32; n++)
+        {
+            events.Add((0.25 + (n * 0.5), 0.3));
+            if (n >= 16)
+            {
+                events.Add((n * 0.5, 1));
+            }
+        }
+
+        var due = new Queue<(double At, double Accent)>(events.OrderBy(e => e.At));
+        var crossings = new List<double>();
+        for (var frame = 1; frame <= fps * 16; frame++)
+        {
+            var t = (double)frame / fps;
+            var hit = due.Count > 0 && due.Peek().At <= t ? due.Dequeue() : ((double At, double Accent)?)null;
+            if (clock.Advance(1.0 / fps, hit is null ? 0 : 1) && t > 13)
+            {
+                crossings.Add(t % 0.5);
+            }
+
+            if (hit is { } onset)
+            {
+                clock.Onset(strong: true, t - onset.At, onset.Accent);
+                clock.Estimate();
+            }
+        }
+
+        Assert.NotEmpty(crossings);
+        Assert.All(crossings, at => Assert.True(at < 0.08 || at > 0.45, $"A beat crossed {at:0.000} s after the kick."));
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(48)]
+    [InlineData(60)]
+    [InlineData(144)]
+    public void ASteadyStrengthHasNoTempoWhateverTheFrameRate(int fps)
+    {
+        // The envelope used to add up the frames that fell in each of its samples: at sixty frames
+        // a second against fifty samples every fifth sample held two, and a steady strength read
+        // as a beat at 120 a minute.
+        var clock = new BeatClock();
+        for (var frame = 0; frame < fps * 10; frame++)
+        {
+            clock.Advance(1.0 / fps, 1);
+        }
+
+        Assert.Equal(0, clock.EstimatePeriod());
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(60)]
+    public void TheClockFindsTheTempoOfOnsetsHeardAtTheWindowsFrameRates(int fps)
+    {
+        // Onsets on a busy floor of steady strength, as the spectral flux of a full mix is.
+        var clock = new BeatClock();
+        var next = 0.0;
+        for (var frame = 1; frame <= fps * 8; frame++)
+        {
+            var t = (double)frame / fps;
+            var hit = t >= next;
+            next = hit ? next + 0.56 : next;
+            clock.Advance(1.0 / fps, hit ? 3 : 1);
+        }
+
+        Assert.InRange(clock.EstimatePeriod(), 0.55, 0.57);
+    }
+
+    [Fact]
+    public void AnOnsetJustBeforeTheGridsBeatConfirmsItAndKeepsTheBeatBefore()
+    {
+        var clock = new BeatClock();
+        Run(clock, 8, Beats(120, 0, 8));
+        Assert.True(clock.Locked);
+
+        // The next beat is heard as it comes, so the one under test has a confirmed beat before it.
+        while (!clock.Advance(0.005, 0))
+        {
+        }
+
+        clock.Onset(strong: true);
+        Assert.True(clock.Heard);
+        Assert.Equal(1, clock.Confidence, 6);
+
+        // A kick a tenth of a beat before the grid's next beat.
+        while (clock.Phase < 0.9)
+        {
+            clock.Advance(0.005, 0);
+        }
+
+        Assert.False(clock.Near(0.25 * 0.5));
+        Assert.True(clock.Near(0));
+        clock.Onset(strong: true);
+        var crossed = false;
+        while (!crossed)
+        {
+            crossed = clock.Advance(0.005, 0);
+        }
+
+        // The beat before was heard and so was this one: the clock is as sure as it was, where it
+        // used to forget the beat before and lose a step of confidence.
+        Assert.True(clock.Heard);
+        Assert.Equal(1, clock.Confidence, 6);
+        Assert.True(new BeatClock().Near(0.1));
     }
 
     [Fact]
@@ -248,15 +369,73 @@ public sealed class PulsePartsTests
     }
 
     [Fact]
-    public void TheMedianAndSpreadIgnoreAFewLargeValues()
+    public void TheMedianAndSpreadIgnoreAFewLargeValuesAndKeepOnlyTheirSeconds()
     {
-        var scratch = new double[8];
-        Assert.Equal((0.0, 0.0), Onset.Robust([], scratch));
-        var (median, spread) = Onset.Robust([1, 1, 2, 2, 100], scratch);
+        var run = new MovingMedian(1.5);
+        Assert.Equal((0.0, 0.0), run.Measure());
+        Assert.Equal(0, run.Span);
+        foreach (var value in new double[] { 1, 1, 2, 2, 100 })
+        {
+            run.Add(value, 0.1);
+        }
+
+        var (median, spread) = run.Measure();
         Assert.Equal(2, median);
         Assert.Equal(1.4826, spread, 6);
-        Assert.Equal(1.5, Onset.Robust([1, 2], scratch).Median);
-        Assert.Throws<ArgumentNullException>(() => Onset.Robust(null!, scratch));
-        Assert.Throws<ArgumentNullException>(() => Onset.Robust([1], null!));
+        Assert.Equal(0.4, run.Span, 9);
+
+        // Kept by time: two seconds on, only the newest second and a half is measured.
+        for (var i = 0; i < 20; i++)
+        {
+            run.Add(i < 10 ? 50 : 3, 0.1);
+        }
+
+        Assert.Equal(16, run.Count);
+        Assert.Equal(3, run.Measure().Median);
+
+        // An even count's median is halfway; a time that is not a number moves nothing on.
+        run.Clear();
+        run.Add(1, double.NaN);
+        run.Add(2, -1);
+        Assert.Equal((1.5, 0.0), (run.Measure().Median, run.Span));
+
+        // However fast the values come, no more than the most are kept.
+        for (var i = 0; i < MovingMedian.Most + 10; i++)
+        {
+            run.Add(i, 0);
+        }
+
+        Assert.Equal(MovingMedian.Most, run.Count);
+    }
+
+    [Theory]
+    [InlineData(24)]
+    [InlineData(60)]
+    [InlineData(144)]
+    public void ADrumHitsAtTheSameMomentsWhateverTheFrameRate(int fps)
+    {
+        // A second of loud rises (a busy fill), then quiet ones, then one a little above the fill's
+        // level. Against the last second and a half the fill is still the norm and it is no hit; the
+        // run used to be the last 45 frames, a second and a half only at thirty frames a second,
+        // a third of a second at 144, by when the fill was forgotten and it was a hit.
+        static List<double> Hits(int rate)
+        {
+            var drum = new Onset(0.18, 0.15);
+            var hits = new List<double>();
+            for (var frame = 1; frame <= rate * 3; frame++)
+            {
+                var t = (double)frame / rate;
+                var rise = t < 1 ? 6 + (frame % 2) : t < 1.6 ? 1 + (0.1 * (frame % 3)) : t < 1.6 + (1.0 / rate) ? 5 : 1;
+                drum.Hear(rise, 1, 1.0 / rate, listening: true);
+                if (drum.Hit && t > 0.5)
+                {
+                    hits.Add(Math.Round(t, 1));
+                }
+            }
+
+            return hits;
+        }
+
+        Assert.Equal(Hits(30), Hits(fps));
     }
 }

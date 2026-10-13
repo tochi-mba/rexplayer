@@ -98,6 +98,29 @@ public sealed class PlaylistControllerTests
 
     [Fact]
     [Capability("PLF-04")]
+    public void AContinuousCuePartAnnouncesTheNextTitleWhenTitlesAreEnabled()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 3 });
+        harness.Files["album.wav"] = Count(0, 8000);
+        harness.Files["album.cue"] = Text("""
+            FILE "album.wav" WAVE
+              TRACK 01 AUDIO
+                TITLE "First"
+                INDEX 01 00:00:00
+              TRACK 02 AUDIO
+                TITLE "Second"
+                INDEX 01 00:00:30
+            """);
+        var controller = harness.Controller;
+        controller.Open(["album.cue"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "First");
+        controller.ReachedEndOfPart(TimeSpan.FromSeconds(0.31));
+        Assert.Equal("Second", controller.Item?.Title);
+        Assert.Contains("Second", harness.Messages);
+    }
+
+    [Fact]
+    [Capability("PLF-04")]
     public void ATrackPartWayThroughAFileStartsAtItsIndexAndSeeksWithinItself()
     {
         using var harness = new ControllerHarness(autoPlay: false, settings: Quiet);
@@ -155,6 +178,38 @@ public sealed class PlaylistControllerTests
         Assert.InRange(first.Length, 3200, 8000);
         Assert.Equal(Expected((0, first.Length)), first);
         Assert.Equal(Expected((9000, 400)), harness.Sinks[1].Channel(0).ToArray());
+    }
+
+    [Fact]
+    [Capability("PLF-04")]
+    public void AFinishedCuePartStartsAnUnrelatedNextFileEvenWithoutTimedPlayback()
+    {
+        // Drive the part boundary directly to make this handoff independent of audio
+        // scheduling and cover the path that starts the next file from a part boundary.
+        using var harness = new ControllerHarness(autoPlay: false, settings: Quiet);
+        harness.Files["album.wav"] = Count(0, 8000);
+        harness.Files["other.wav"] = Count(9000, 400);
+        harness.Files["album.cue"] = Text("""
+            FILE "album.wav" WAVE
+              TRACK 01 AUDIO
+                TITLE "First"
+                INDEX 01 00:00:00
+              TRACK 02 AUDIO
+                TITLE "Second"
+                INDEX 01 00:00:30
+            FILE "other.wav" WAVE
+              TRACK 03 AUDIO
+                TITLE "Other"
+                INDEX 01 00:00:00
+            """);
+        var controller = harness.Controller;
+        controller.Open(["album.cue"]);
+        controller.Playlist.RemoveAt(1);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "First");
+
+        controller.ReachedEndOfPart(TimeSpan.FromSeconds(0.4));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "Other");
+        Assert.Equal("other.wav", controller.Item!.Location);
     }
 
     [Fact]

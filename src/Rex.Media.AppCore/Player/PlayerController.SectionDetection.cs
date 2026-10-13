@@ -1,146 +1,318 @@
 namespace Rex.Media.AppCore.Player;
 
-/// <summary>Background proposal scanning. No decoder or filesystem lookup runs on the playback thread.</summary>
+/// <summary>
+/// Finding the intro and credits in the background, and acting on them: the skip offer, opted-in
+/// automatic skipping and the next episode. Nothing here runs a decoder or touches the disk on the
+/// window's thread, and the analysis never touches the playback session.
+/// </summary>
 public sealed partial class PlayerController
 {
-    private CancellationTokenSource? _sectionStop;
-    private SectionProposals? _activeProposals;
-    private readonly HashSet<EpisodeSectionKind> _automaticallySkipped = [];
+    /// <summary>The files a season folder is searched for, for siblings and the next episode.</summary>
+    private static readonly string[] EpisodeExtensions = [".mkv", ".mp4", ".m4v", ".avi", ".mov", ".webm", ".ts"];
 
-    /// <summary>Host-supplied analysis decoder: production uses MediaRegistries with Windows codecs.</summary>
+    private CancellationTokenSource? _sectionStop;
+    private readonly object _sectionStopGate = new();
+    private SectionProposals? _activeProposals;
+    private string? _nextEpisode;
+    private ShowSkipping _showSkips = new(false, false);
+    private readonly AutomaticSkip _automaticSkip = new();
+
+    /// <summary>Analyses one episode (production decodes with Windows' decoders); null leaves detection off.</summary>
     public Func<string, CancellationToken, EpisodeAnalysis>? SectionAnalyzer { get; set; }
+
+    /// <summary>Where analyses are kept between runs, so each episode of a season is decoded once.</summary>
+    public SectionAnalysisCache SectionCache { get; set; } = new();
 
     public SectionProposals? CurrentProposals => _activeProposals;
 
+    /// <summary>The file of the episode after this one in its folder, once the background lookup has found it.</summary>
+    public string? NextEpisode => _nextEpisode;
+
+    /// <summary>The show and season of the current item, or null for anything that is not an episode.</summary>
+    public EpisodeIdentity? CurrentEpisode =>
+        Item is { } item && !string.IsNullOrWhiteSpace(item.Location) ? EpisodeGrouping.Identify(item.Location) : null;
+
+    /// <summary>Whether this show's intros and credits are skipped without a click.</summary>
+    public ShowSkipping CurrentShowSkipping => _showSkips;
+
+    /// <summary>
+    /// What the window offers while playback is inside a section: the main action, a second one,
+    /// and the countdown of an automatic skip. Null outside every section.
+    /// </summary>
+    public EpisodeSkipPrompt? SkipPrompt
+    {
+        get
+        {
+            if (AvailableEpisodeSkip is not { } skip)
+            {
+                return null;
+            }
+
+            var detected = CurrentSections.Offer(Position, Duration) is null ? _activeProposals?.Best(skip.Kind, Duration) : null;
+            TimeSpan? due = _automaticSkip.Pending is { } pending && pending.Kind == skip.Kind ? pending.Due : null;
+            return EpisodeSkipPrompt.For(skip, detected, Duration, Position, _nextEpisode is not null, due);
+        }
+    }
+
+    private void CancelSectionDetection()
+    {
+        lock (_sectionStopGate)
+        {
+            _sectionStop?.Cancel();
+            _sectionStop = null;
+        }
+    }
+
     private void BeginSectionDetection()
     {
-        _sectionStop?.Cancel();
-        _sectionStop?.Dispose();
-        _sectionStop = null;
+        CancelSectionDetection();
         _activeProposals = null;
-        _automaticallySkipped.Clear();
-        // Only local files are analysed; the file system itself is touched on the worker.
-        if (!CanMarkEpisodeSections || Item is not { } current || !Path.IsPathFullyQualified(current.Location) ||
-            EpisodeGrouping.Identify(current.Location) is null || SectionAnalyzer is null)
+        _nextEpisode = null;
+        _automaticSkip.Reset();
+        if (!CanMarkEpisodeSections || CurrentEpisode is not { } identity || !Path.IsPathFullyQualified(Item!.Location))
         {
+            _showSkips = new ShowSkipping(false, false);
             return;
         }
 
-        var path = current.Location;
+        _showSkips = Memory.ShowSkips(identity.Show);
+        var path = Item.Location;
         var analyzer = SectionAnalyzer;
+        var cache = SectionCache;
         var stop = new CancellationTokenSource();
         // Capture the token before the worker is scheduled: a rapid episode change can
         // cancel and dispose its source before the background delegate starts running.
         var token = stop.Token;
-        _sectionStop = stop;
+        lock (_sectionStopGate)
+        {
+            _sectionStop = stop;
+        }
+
         var worker = new Thread(() =>
         {
             try
             {
-                var signature = SectionAnalysis.SignatureOf(path);
-                var cached = Memory.Proposals(path, signature);
-                if (cached is { Candidates.Count: > 0 })
-                {
-                    Publish(cached);
-                    return;
-                }
-
-                // Sibling features are cached independently: adding an episode doesn't rescan
-                // previously decoded recordings, only the across-episode match is repeated.
-                var identity = EpisodeGrouping.Identify(path)!;
-                var folder = Path.GetDirectoryName(path)!;
-                var siblingPaths = EpisodeGrouping.Siblings(path, Directory.EnumerateFiles(folder)
-                    .Where(file => Path.GetExtension(file).ToLowerInvariant() is ".mkv" or ".mp4" or ".m4v" or ".avi"));
-                var targets = new[] { path }.Concat(siblingPaths.Take(24)).ToArray();
-                var analyses = new List<EpisodeAnalysis>();
-                foreach (var candidate in targets)
-                {
-                    token.ThrowIfCancellationRequested();
-                    if (EpisodeGrouping.Identify(candidate) is not { } match ||
-                        match.Show != identity.Show || match.Season != identity.Season)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        var stamp = SectionAnalysis.SignatureOf(candidate);
-                        var analysis = Memory.Analysis(candidate, stamp);
-                        if (analysis is null)
-                        {
-                            analysis = analyzer(candidate, token);
-                            token.ThrowIfCancellationRequested();
-                            Memory.SetAnalysis(analysis);
-                        }
-
-                        analyses.Add(analysis);
-                    }
-                    catch (Exception ex) when (candidate != path &&
-                        ex is IOException or UnauthorizedAccessException or NotSupportedException or
-                            Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
-                    {
-                        _log.Warning("sections", "Could not analyse sibling " + candidate + ": " + ex.Message);
-                    }
-                }
-
-                token.ThrowIfCancellationRequested();
-                var main = analyses.FirstOrDefault(item => item.Path == path);
-                if (main is null)
-                {
-                    return;
-                }
-
-                var proposed = SectionDetector.Detect(main, analyses.Where(item => item.Path != path).ToArray());
-                token.ThrowIfCancellationRequested();
-                Memory.SetProposals(path, proposed);
-                Publish(Memory.Proposals(path, signature));
+                FindSections(path, analyzer, cache, token);
             }
-            catch (OperationCanceledException)
+            finally
             {
-                // A different episode opened: never publish stale results.
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or
-                Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
-            {
-                _log.Warning("sections", "Background analysis unavailable: " + ex.Message);
-            }
-
-            void Publish(SectionProposals? remembered)
-            {
-                _dispatch(() =>
+                // The worker owns disposal. A new episode can cancel it while a decoder is
+                // still waiting on token.WaitHandle; disposing on the UI thread breaks that wait.
+                lock (_sectionStopGate)
                 {
-                    if (!token.IsCancellationRequested && Item?.Location == path)
+                    if (ReferenceEquals(_sectionStop, stop))
                     {
-                        _activeProposals = remembered;
-                        Changed?.Invoke(this, EventArgs.Empty);
-                        PositionChanged?.Invoke(this, EventArgs.Empty);
+                        _sectionStop = null;
                     }
-                });
+
+                    stop.Dispose();
+                }
             }
         })
         {
             IsBackground = true,
+            // Analysis yields to playback, which shares the processor with it.
             Priority = ThreadPriority.BelowNormal,
             Name = "rexplayer section detection",
         };
         worker.Start();
     }
 
-    private void MaybeSkipAutomatically()
+    /// <summary>
+    /// Finds the next episode, then (unless the proposals were cached) analyses this episode and
+    /// its nearest siblings, each once: analyses are cached per file, so opening the next episode
+    /// decodes only what is new. Results are shown as they firm up: credits from this episode's
+    /// pictures at once, then both sections once two siblings agree (one sibling alone cannot tell
+    /// a title sequence from a recap), and finally from every sibling compared.
+    /// </summary>
+    private void FindSections(string path, Func<string, CancellationToken, EpisodeAnalysis>? analyzer,
+        SectionAnalysisCache cache, CancellationToken token)
     {
-        if (!CanMarkEpisodeSections || AvailableEpisodeSkip is not { } available ||
-            _automaticallySkipped.Contains(available.Kind) ||
-            !(available.Kind == EpisodeSectionKind.Intro
-                ? Settings.SkipIntrosAutomatically : Settings.SkipCreditsAutomatically))
+        try
         {
-            return;
-        }
+            var signature = SectionAnalysis.SignatureOf(path);
+            var cached = Memory.Proposals(path, signature);
+            Publish(path, cached, token);
+            var folder = Path.GetDirectoryName(path)!;
+            var files = Directory.EnumerateFiles(folder)
+                .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                .ToArray();
+            var next = EpisodeGrouping.Next(path, files) ?? NextSeason(path, folder);
+            _dispatch(() =>
+            {
+                if (!token.IsCancellationRequested && Item?.Location == path && next is not null)
+                {
+                    _nextEpisode = next;
+                    Changed?.Invoke(this, EventArgs.Empty);
+                }
+            });
+            if (analyzer is null || cached is { Candidates.Count: > 0 })
+            {
+                return;
+            }
 
-        _automaticallySkipped.Add(available.Kind);
-        SkipEpisodeSection();
+            var siblings = EpisodeGrouping.Siblings(path, files, SectionDetector.SiblingsCompared);
+            EpisodeAnalysis? main = null;
+            var others = new List<EpisodeAnalysis>();
+            foreach (var candidate in siblings.Prepend(path))
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    var stamp = SectionAnalysis.SignatureOf(candidate);
+                    var analysis = cache.Get(candidate, stamp);
+                    if (analysis is null)
+                    {
+                        analysis = analyzer(candidate, token);
+                        token.ThrowIfCancellationRequested();
+                        cache.Set(analysis);
+                    }
+
+                    if (candidate == path)
+                    {
+                        main = analysis.Path == path ? analysis : null;
+                    }
+                    else
+                    {
+                        others.Add(analysis);
+                    }
+                }
+                catch (Exception ex) when (candidate != path &&
+                    ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                        Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
+                {
+                    _log.Warning("sections", "Could not analyse sibling " + candidate + ": " + ex.Message);
+                }
+
+                if (main is null)
+                {
+                    return;
+                }
+
+                if (others.Count != 1 && candidate != siblings.LastOrDefault())
+                {
+                    Publish(path, SectionDetector.Detect(main, others), token);
+                }
+            }
+
+            token.ThrowIfCancellationRequested();
+            var proposals = SectionDetector.Detect(main!, others);
+            Memory.SetProposals(path, proposals);
+            Publish(path, proposals, token);
+        }
+        catch (OperationCanceledException)
+        {
+            // A different episode opened: never publish stale results.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or
+            Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
+        {
+            _log.Warning("sections", "Background analysis unavailable: " + ex.Message);
+        }
     }
 
-    /// <summary>Reject only this kind of machine suggestion, without touching manual markers.</summary>
+    /// <summary>After a season's last episode in a "Season 1" folder, the first episode in the folder of the next season.</summary>
+    private static string? NextSeason(string path, string folder)
+    {
+        if (!EpisodeGrouping.IsSeasonFolder(Path.GetFileName(folder)) || Path.GetDirectoryName(folder) is not { } show)
+        {
+            return null;
+        }
+
+        var files = Directory.EnumerateDirectories(show)
+            .Where(other => other != folder && EpisodeGrouping.IsSeasonFolder(Path.GetFileName(other)))
+            .SelectMany(Directory.EnumerateFiles)
+            .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
+        return EpisodeGrouping.Next(path, files);
+    }
+
+    /// <summary>Shows <paramref name="proposals"/> if this episode is still the one playing.</summary>
+    private void Publish(string path, SectionProposals? proposals, CancellationToken token) => _dispatch(() =>
+    {
+        if (!token.IsCancellationRequested && Item?.Location == path)
+        {
+            // Rejections stay made, including those made while the analysis ran.
+            _activeProposals = proposals is null ? null : Memory.WithRejections(path, proposals);
+            Changed?.Invoke(this, EventArgs.Empty);
+            PositionChanged?.Invoke(this, EventArgs.Empty);
+        }
+    });
+
+    /// <summary>
+    /// Counts down and performs an opted-in automatic skip (<see cref="AutomaticSkip"/>); called on
+    /// every position report.
+    /// </summary>
+    internal void MaybeSkipAutomatically()
+    {
+        var available = CanMarkEpisodeSections ? AvailableEpisodeSkip : null;
+        if (_automaticSkip.Advance(available, available is not null && SkipsAutomatically(available.Kind), Position))
+        {
+            SkipEpisodeSection();
+        }
+    }
+
+    private bool SkipsAutomatically(EpisodeSectionKind kind) => kind == EpisodeSectionKind.Intro
+        ? Settings.SkipIntrosAutomatically || _showSkips.Intros
+        : Settings.SkipCreditsAutomatically || _showSkips.Credits;
+
+    /// <summary>Stops a counting-down automatic skip; the section plays on and is not skipped again.</summary>
+    public bool CancelAutomaticSkip()
+    {
+        if (!_automaticSkip.Cancel())
+        {
+            return false;
+        }
+
+        Say("Automatic skip cancelled.");
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>Skip this show's intros or credits automatically ("Always skip for this show"), or stop.</summary>
+    public bool SetShowSkipping(EpisodeSectionKind kind, bool skip)
+    {
+        if (CurrentEpisode is not { } identity)
+        {
+            return false;
+        }
+
+        _showSkips = kind switch
+        {
+            EpisodeSectionKind.Intro => _showSkips with { Intros = skip },
+            EpisodeSectionKind.Credits => _showSkips with { Credits = skip },
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+        Memory.SetShowSkips(identity.Show, _showSkips);
+        var what = kind == EpisodeSectionKind.Intro ? "intros" : "credits";
+        Say(skip ? $"This show's {what} will be skipped automatically." : $"This show's {what} will no longer be skipped automatically.");
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>
+    /// Plays the next episode of this folder: the playlist's next item when it is that episode,
+    /// otherwise the episode is put right after this one and started.
+    /// </summary>
+    public bool PlayNextEpisode()
+    {
+        if (_nextEpisode is not { } next)
+        {
+            return false;
+        }
+
+        if (string.Equals(Playlist.PeekNext(automatic: false)?.Location, next, StringComparison.OrdinalIgnoreCase))
+        {
+            Start(Playlist.Next(automatic: false));
+            return true;
+        }
+
+        var at = Playlist.CurrentIndex + 1;
+        Playlist.Insert(at, [new PlaylistItem(next)]);
+        Start(Playlist.JumpTo(at));
+        return true;
+    }
+
+    /// <summary>Hides this kind of detected section for this episode (or shows it again); saved boundaries are untouched.</summary>
     public bool RejectDetectedSection(EpisodeSectionKind kind, bool reject = true)
     {
         if (Item is not { } item || _activeProposals is null)
@@ -154,14 +326,14 @@ public sealed partial class PlayerController
         return true;
     }
 
-    /// <summary>Save the selected proposal as explicitly user-approved playback markers.</summary>
+    /// <summary>Saves the detected section as this episode's own boundaries.</summary>
     public bool ConfirmDetectedSection(EpisodeSectionKind kind)
     {
         return _activeProposals?.Best(kind, Duration) is { } candidate &&
             SetSectionBounds(kind, candidate.Start, candidate.End);
     }
 
-    /// <summary>Adjust one bound exactly without moving or clearing the other section.</summary>
+    /// <summary>Sets both boundaries of one section exactly, leaving the other section alone.</summary>
     public bool SetSectionBounds(EpisodeSectionKind kind, TimeSpan start, TimeSpan end)
     {
         if (!CanMarkEpisodeSections || Item is not { } item || start < TimeSpan.Zero ||
@@ -178,8 +350,7 @@ public sealed partial class PlayerController
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         Memory.SetSections(MemoryKey(item), changed);
-        Say((kind == EpisodeSectionKind.Intro ? "Intro" : "Credits") +
-            " boundaries saved. You can adjust or clear them at any time.");
+        Say((kind == EpisodeSectionKind.Intro ? "Intro" : "Credits") + " saved for this episode.");
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }

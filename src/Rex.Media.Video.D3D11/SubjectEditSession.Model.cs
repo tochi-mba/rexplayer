@@ -230,35 +230,25 @@ public sealed partial class SubjectEditSession
         }
 
         Locate(histogram, out _lightRed, out _lightGreen);
-        PictureChange = _glanceKnown ? Change(frame, down, across) : 0;
-        _shotChanged |= PictureChange >= CutChange;
+        var changed = _glanceKnown ? Changed(frame, down, across) : 0;
+        WatchForCut(frame, changed);
         (_glance, _glanceNext) = (_glanceNext, _glance);
         _glanceKnown = true;
     }
 
-    // The previous picture's luma on the same coarse grid, to notice a cut from one shot to another.
+    // The previous picture's luma on the same coarse grid.
     private byte[] _glance = [];
     private byte[] _glanceNext = [];
     private bool _glanceKnown;
 
-    // Whether a cut has happened since the re-detection search last looked: a sighting from before
-    // a cut and one from after it are not two sightings of one thing.
-    private bool _shotChanged;
-
     /// <summary>
     /// The share of the picture around the subject that changed since the previous picture, from
-    /// 0 to 1, once any change of overall brightness is allowed for. A cut from one shot to another
-    /// changes nearly all of it at once; a subject moving, the camera drifting or a light coming on
-    /// changes little of it. The subject's own box, with room around it, is left out: it is
-    /// expected to change, and a large subject would otherwise look like a cut every time it moved.
-    /// This is the pixel-difference measure of shot-boundary detection, as compared in H. J. Zhang,
-    /// A. Kankanhalli and S. W. Smoliar, "Automatic partitioning of full-motion video" (Multimedia
-    /// Systems 1(1), 1993), counted over a sparse grid with a per-point threshold so that motion
-    /// confined to part of the picture cannot add up to a cut.
+    /// 0 to 1, once any change of overall brightness is allowed for: the pixel-difference measure
+    /// of shot-boundary detection compared in Zhang, Kankanhalli and Smoliar, "Automatic
+    /// partitioning of full-motion video" (Multimedia Systems 1(1), 1993), counted over a sparse
+    /// grid with a per-point threshold. The subject's own box, with room around it, is left out.
     /// </summary>
-    internal double PictureChange { get; private set; }
-
-    private double Change(VideoFrame frame, int down, int across)
+    private double Changed(VideoFrame frame, int down, int across)
     {
         var (left, top, right, bottom) = Bounds(frame.Width, frame.Height);
         var spareX = (right - left) / 4;
@@ -294,6 +284,54 @@ public sealed partial class SubjectEditSession
 
     // How far a grid point's luma must move, beyond the picture's overall shift, to count as changed.
     private const int ChangedLuma = 28;
+
+    // Both bars were measured on two minutes each of two series: 5,878 pictures and 52 cuts, the
+    // borderline ones checked by eye, replayed by SubjectShotChangeFootageTests. After aligning the
+    // camera's motion, ordinary pictures leave a mean grey difference under 8 and cuts from about
+    // 18, while an arm sweeping close past the lens leaves up to 19. Removal's own bar (24) is set
+    // for a different purpose and misses cuts between two angles of one room. What separates the
+    // sweeping arm is how much of the picture changed: cuts change from 30 % of the points outside
+    // the subject, the arm at most 18 %, other motion at most 22 %. A wrong cut here costs only a
+    // re-detection a moment later.
+    private const float CutResidual = 16;
+    private const double CutChange = 0.25;
+
+    // The camera's motion between pictures, measured only to notice a cut from one shot to another.
+    private readonly SubjectRemovalMotion _shots = new();
+
+    // Whether a cut has happened since the re-detection search last looked: a sighting from before
+    // a cut and one from after it are not two sightings of one thing.
+    private bool _shotChanged;
+
+    /// <summary>
+    /// Whether this picture starts a new shot. Two measures must agree, each covering the other's
+    /// blind spot. The pictures are aligned with the camera-motion estimate of
+    /// <see cref="SubjectRemovalMotion"/> (Bergen, Anandan, Hanna and Hingorani 1992), leaving the
+    /// subject's box and a margin out, and the difference must survive that alignment, so a pan or
+    /// a zoom is not a cut; and much of the picture must have changed once its overall brightness
+    /// is allowed for, so a light coming on is not one. A picture's histogram was tried and
+    /// rejected: two angles of one room, the commonest cut in a conversation, share it.
+    /// </summary>
+    internal bool IsCut { get; private set; }
+
+    /// <summary>The two measured conditions behind the most recent shot decision.</summary>
+    internal (float Residual, double ChangedShare, bool MotionCut) CutEvidence { get; private set; }
+
+    private void WatchForCut(VideoFrame frame, double changed)
+    {
+        var box = Bounds(frame.Width, frame.Height);
+        var spareX = (box.Right - box.Left) / 4;
+        var spareY = (box.Bottom - box.Top) / 4;
+        var exclude = Locked
+            ? (box.Left - spareX, box.Top - spareY, box.Right + spareX, box.Bottom + spareY)
+            : (0, 0, 0, 0);
+        // Only the shot boundary is wanted, not a fine estimate of the motion, so the detailed
+        // refinement is given a token area and costs next to nothing.
+        _shots.Estimate(frame, exclude, (0, 0, 2, 2));
+        CutEvidence = (_shots.Residual, changed, _shots.Cut);
+        IsCut = _shots.Residual > CutResidual && changed >= CutChange;
+        _shotChanged |= IsCut;
+    }
 
     /// <summary>Where a chromaticity histogram's weight sits, in bins, along each axis.</summary>
     private static void Locate(ReadOnlySpan<float> histogram, out float red, out float green)

@@ -116,6 +116,8 @@ public sealed class AppWindowTests : IDisposable
         menu.Expand();
         var effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         effects.Expand();
+        // Neon contours sits in the Contours group.
+        ((ExpandCollapsePattern)app.Find("VideoEffect-Group-Contours").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
         app.Press("VideoEffect-NeonEdges");
         Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.NeonEdges, "the effect choice to be saved");
         Assert.Equal(VideoLook.Original, app.SavedSettings.VideoLook);
@@ -839,11 +841,13 @@ public sealed class AppWindowTests : IDisposable
     {
         using var app = AppProcess.Start();
 
+        Wait.For(() => app.LogText.Contains("[INFO] app: rexplayer", StringComparison.Ordinal),
+            "the startup message to reach the live log");
         app.Run(CommandCatalog.ShowLog);
         var log = ((ValuePattern)app.Find("LogText").GetCurrentPattern(ValuePattern.Pattern)).Current.Value;
         app.Press("CloseButton");
 
-        Assert.Contains("[INFO] app: rexplayer", log, StringComparison.Ordinal);
+        Assert.Contains("[INFO] timing: app at ", log, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 

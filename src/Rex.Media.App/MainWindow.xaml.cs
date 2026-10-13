@@ -62,7 +62,9 @@ public sealed partial class MainWindow : Window
 
     public MainWindow(IReadOnlyList<string> files)
     {
+        App.Milestones.Reach("window");
         InitializeComponent();
+        App.Milestones.Reach("xaml");
         _settings = SettingsStore.Load(SettingsPath);
 
         // Read before this run writes its own: a marker here is the last run's, which did not close cleanly.
@@ -74,9 +76,10 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "rexplayer.ico"));
         ExtendsContentIntoTitleBar = false;
 
-        _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log);
+        _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log) { Milestones = App.Milestones };
         _player.SectionAnalyzer = (path, cancellation) => SectionAnalysis.Analyze(path,
             MediaRegistries.Decoders(new MfDecoderFactory()), cancellation);
+        _player.SectionCache = new SectionAnalysisCache(Path.Combine(App.DataRoot, "cache", "sections"));
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.PositionChanged += (_, _) => ShowLyricLine();
@@ -133,6 +136,7 @@ public sealed partial class MainWindow : Window
 
         // Opened once the picture panel is ready, so the first item has somewhere to show its pictures.
         _startupFiles = files;
+        MarkFirstPaint();
     }
 
     public static string Version { get; } = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
@@ -162,6 +166,7 @@ public sealed partial class MainWindow : Window
             AudioSinkFactory = NewAudioSink,
             VideoPresenterFactory = () => _presenter is { } presenter ? new BorrowedPresenter(presenter) : null!,
             Log = App.Log,
+            Milestones = App.Milestones,
         },
         listener);
 
@@ -228,21 +233,10 @@ public sealed partial class MainWindow : Window
                 presenter.SetLook(_settings.VideoLook,
                     VideoStyleOptions.Read(_settings.VideoStyleValues, lookOptions[0]),
                     VideoStyleOptions.Read(_settings.VideoStyleValues, lookOptions[1]));
-                var effectOptions = VideoStyleOptions.ForEffect(_settings.VideoEffect);
-                var power = _settings.VideoStyleValues.ContainsKey(effectOptions[0].Key)
-                    ? VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[0])
-                    : _settings.VideoEffectStrength;
-                if (_settings.VideoEffect == VideoEffect.GhostwireMotion)
-                {
-                    presenter.SetMotionOptions(
-                        VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[2]),
-                        VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[3]));
-                }
-
-                presenter.SetEffect(_settings.VideoEffect, power,
-                    VideoStyleOptions.Read(_settings.VideoStyleValues, effectOptions[1]));
+                ConfigureEffect(presenter, _settings.VideoEffect, _settings.VideoStyleValues, _settings.VideoEffectStrength);
                 presenter.Redraw();
             });
+            App.Milestones.Reach("presenter");
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or COMException)
@@ -389,7 +383,7 @@ public sealed partial class MainWindow : Window
 
         RestoreUpdatedPictureView();
         _updatePlaying = playing;
-        ConsiderUpdatePrompt();
+        ShowUpdates();
         KeepAwake(playing && HasVideo, playing);
         LayOutSubtitles();
         ShowPresentation();
@@ -581,6 +575,7 @@ public sealed partial class MainWindow : Window
         // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
         HideSeekPreview();
         _subjectTimer?.Stop();
+        _ = CloseSubjectModels();
         StopVisualizing();
         InstallAsWeClose();
         SaveSettings();

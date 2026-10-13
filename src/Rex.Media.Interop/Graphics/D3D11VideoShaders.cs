@@ -1,13 +1,28 @@
 namespace Rex.Media.Interop.Graphics;
 
 /// <summary>
-/// The Direct3D shader program kept apart from device lifecycle and COM interop.
-/// Gradients and line styles operate exclusively on decoded video pixels.
+/// The Direct3D shader program kept apart from device lifecycle and COM interop. Effects operate
+/// on decoded video pixels only, inside the picture, before the colour look.
 /// </summary>
 internal static class D3D11VideoShaders
 {
     public const string Source = """
+        // Each effect is compiled as its own variant (EFFECT_ONLY is its index; 0 is no effect),
+        // so the shader for any one effect stays small however many effects exist.
+        #ifndef EFFECT_ONLY
+        #define EFFECT_ONLY 0
+        #endif
+        // The contour family (Neon, Ink trace, Topographic, Chromatic, the three Ghostwire styles)
+        // measures brightness steadied by the previous picture; see readLuma.
+        #if EFFECT_ONLY == 2 || (EFFECT_ONLY >= 5 && EFFECT_ONLY <= 7) || EFFECT_ONLY == 13 || EFFECT_ONLY == 16 || EFFECT_ONLY == 17
+        #define STEADY_CONTOURS 1
+        #endif
         cbuffer Colour : register(b0) { float4 rowR; float4 rowG; float4 rowB; float4 crop; float4 source; float4 look; float4 effect; float4 pointer; float4 motion; float4 extras; };
+        // crop: xy the part of the texture the picture fills, zw one texel of the texture.
+        // effect: x the effect, y its strength (0-1), z the picture's time in seconds, w the shown
+        // width over height. pointer: xy where the pointer is, z 1 while it is over the picture,
+        // w the effect's detail control (0.25-1.75). motion: y 1 while a previous picture is held.
+        // extras: the effect's third and fourth controls as saved.
         Texture2D luma : register(t0);
         Texture2D chroma : register(t1);
         Texture2D priorLuma : register(t2);
@@ -23,37 +38,95 @@ internal static class D3D11VideoShaders
             output.position = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
             return output;
         }
-        float3 basePictureLook(float3 c)
+        // Shared by the mosaic effects: a random number for any coordinate, made from its bits so
+        // it is the same on every graphics card and shows none of the banding a sine hash does at
+        // large coordinates; a modulo that stays positive for negative coordinates; and
+        // nearest-colour palette snapping.
+        float hash12(float2 p)
         {
-            if (look.x < 0.5) return c;
-            float l = dot(c, float3(0.2126, 0.7152, 0.0722));
-            float3 grey = float3(l, l, l);
-            if (look.x < 1.5)
-                return saturate((lerp(grey, c, 0.94) - 0.5) * 1.13 + 0.5 + float3(0.025, 0.004, -0.017));
-            if (look.x < 2.5)
-                return saturate((lerp(grey, c, 1.08) - 0.5) * 1.09 + 0.5);
-            if (look.x < 3.5)
-                return saturate(lerp(grey, c, 1.12) + float3(0.065, 0.022, -0.043));
-            if (look.x < 4.5)
-                return saturate(lerp(grey, c, 1.07) + float3(-0.025, 0.015, 0.069));
-            if (look.x < 5.5)
-                return grey;
-            if (look.x < 6.5)
-            {
-                float3 sepia = float3(
-                    dot(c, float3(0.393, 0.769, 0.189)),
-                    dot(c, float3(0.349, 0.686, 0.168)),
-                    dot(c, float3(0.272, 0.534, 0.131)));
-                return saturate((lerp(c, sepia, 0.85) - 0.5) * 0.94 + 0.5);
-            }
-            if (look.x < 7.5)
-                return saturate((lerp(grey, c, 1.7) - 0.5) * 1.14 + 0.5 + float3(0.013, -0.008, 0.035));
-            return saturate(float3(l * 0.07, l * 1.23, l * 0.17));
+            uint2 q = asuint(p);
+            uint h = q.x * 0x8da6b343u ^ (q.y * 0xd8163841u + 0x9e3779b9u);
+            h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; h *= 0x846ca68bu; h ^= h >> 16;
+            return h * (1.0 / 4294967296.0);
         }
+        float2 positiveMod(float2 x, float2 y)
+        {
+            return x - y * floor(x / y);
+        }
+        static const float3 BrickPalette[24] =
+        {
+            float3(0.95, 0.95, 0.93), float3(0.63, 0.65, 0.65), float3(0.33, 0.35, 0.37), float3(0.11, 0.11, 0.12),
+            float3(0.79, 0.10, 0.11), float3(0.45, 0.08, 0.10), float3(0.96, 0.50, 0.10), float3(0.98, 0.80, 0.10),
+            float3(0.85, 0.76, 0.56), float3(0.40, 0.24, 0.14), float3(0.14, 0.50, 0.22), float3(0.60, 0.77, 0.20),
+            float3(0.05, 0.34, 0.70), float3(0.35, 0.65, 0.88), float3(0.06, 0.15, 0.33), float3(0.93, 0.55, 0.70),
+            float3(0.08, 0.30, 0.16), float3(0.42, 0.47, 0.18), float3(0.80, 0.88, 0.35), float3(0.55, 0.45, 0.30),
+            float3(0.66, 0.33, 0.12), float3(0.42, 0.24, 0.55), float3(0.45, 0.70, 0.62), float3(0.98, 0.93, 0.55),
+        };
+        static const float3 CubePalette[6] =
+        {
+            float3(0.95, 0.95, 0.95), float3(1.00, 0.84, 0.00), float3(0.78, 0.05, 0.10),
+            float3(1.00, 0.45, 0.00), float3(0.00, 0.27, 0.68), float3(0.00, 0.60, 0.28),
+        };
+        static const float3 RetroPalettes[12] =
+        {
+            float3(0.06, 0.22, 0.06), float3(0.19, 0.38, 0.19), float3(0.55, 0.67, 0.06), float3(0.61, 0.74, 0.06),
+            float3(0.08, 0.08, 0.08), float3(0.36, 0.36, 0.36), float3(0.68, 0.68, 0.68), float3(0.95, 0.95, 0.95),
+            float3(0.00, 0.00, 0.00), float3(0.33, 1.00, 1.00), float3(1.00, 0.33, 1.00), float3(1.00, 1.00, 1.00),
+        };
+        static const float Bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+        // Palette matching compares brightness and two colour-difference axes separately, so a
+        // bright green finds a green rather than the grey of the same brightness.
+        float colourDistance(float3 a, float3 b, float lumaWeight)
+        {
+            float3 d = a - b;
+            float luma = dot(d, float3(0.299, 0.587, 0.114));
+            float orange = d.r - d.b;
+            float green = d.g - (d.r + d.b) * 0.5;
+            return luma * luma * lumaWeight + orange * orange + green * green;
+        }
+        float3 nearestBrick(float3 c)
+        {
+            // Toy bricks are vivid: match from a livelier version of the colour so muted
+            // foliage finds a green rather than a grey.
+            float grey = dot(c, float3(0.2126, 0.7152, 0.0722));
+            c = saturate(lerp(grey.xxx, c, 1.6));
+            float best = 1e9;
+            float3 chosen = c;
+            [loop] for (int i = 0; i < 24; i++)
+            {
+                float error = colourDistance(c, BrickPalette[i], 2);
+                if (error < best) { best = error; chosen = BrickPalette[i]; }
+            }
+            return chosen;
+        }
+        float3 nearestCube(float3 c)
+        {
+            c = saturate(lerp(dot(c, float3(0.2126, 0.7152, 0.0722)).xxx, c, 2));
+            float best = 1e9;
+            float3 chosen = c;
+            [loop] for (int i = 0; i < 6; i++)
+            {
+                float error = colourDistance(c, CubePalette[i], 1);
+                if (error < best) { best = error; chosen = CubePalette[i]; }
+            }
+            return chosen;
+        }
+        float pipAt(float2 local, float2 at, float radius)
+        {
+            return 1 - smoothstep(radius - 0.015, radius, length(local - at));
+        }
+        // Mosaic cell rows from the size control: a larger value gives fewer, bigger cells.
+        float mosaicRows(float fine, float coarse)
+        {
+            return lerp(fine, coarse, saturate((pointer.w - 0.25) / 1.5));
+        }
+        static const float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
+        float lumaOf(float3 c) { return dot(c, lumaWeights); }
+        """ + "\n" + D3D11VideoShaderLooks.Source + "\n" + """
         float3 styledLook(float3 original)
         {
             float3 styled = basePictureLook(original);
-            float l = dot(styled, float3(0.2126, 0.7152, 0.0722));
+            float l = lumaOf(styled);
             styled = saturate(lerp(float3(l, l, l), styled, look.z));
             if (look.x < 0.5)
             {
@@ -61,109 +134,114 @@ internal static class D3D11VideoShaders
             }
             return saturate(lerp(original, styled, look.y));
         }
-        // All effects operate on sampled pixels, after decoding and before colour grading.
-        // Sampling geometry and spatial derivatives are GPU-local; original frames stay intact.
-        float2 effectUv(float2 uv)
+        // The effect's detail control, and the shown shape: multiplying a picture coordinate by
+        // aspect() makes one unit the same length across as down, so nothing stretches on 4:3,
+        // scope or rotated pictures.
+        float detailControl() { return clamp(pointer.w, 0.25, 1.75); }
+        float2 aspect() { return float2(max(effect.w, 0.0001), 1); }
+        // A coordinate that leaves the picture is reflected back into it, so warps near the edges
+        // mirror the picture instead of smearing its border pixels into streaks.
+        float2 mirrored(float2 uv) { return 1 - abs(1 - 2 * frac(uv * 0.5)); }
+        // A well-mixed integer hash of a lattice point, the same on every graphics card (no sine).
+        float hash(float2 cell)
         {
-            if (effect.x < 0.5 || effect.y <= 0) return uv;
-            float intensity = effect.y;
-            float time = effect.z * max(pointer.w, 0.25);
-            if (effect.x < 1.5)
-            {
-                float2 wave = float2(sin(uv.y * 26 + time * 1.7), cos(uv.x * 18 - time * 1.1));
-                return saturate(uv + wave * (0.019 * intensity));
-            }
-            if (effect.x < 2.5) return uv;
-            if (effect.x < 3.5)
-            {
-                float scale = lerp(150, 16, intensity) * max(pointer.w, 0.25);
-                float2 grid = float2(scale * effect.w, scale);
-                float stagger = sin(floor(uv.y * grid.y) * 0.8 + time * 2) * 0.013 * intensity;
-                return saturate((floor((uv + float2(stagger, 0)) * grid) + 0.5) / grid);
-            }
-
-            if (effect.x < 4.5)
-            {
-                float2 p = (uv - 0.5) * float2(effect.w, 1);
-                float r = length(p);
-                float angle = atan2(p.y, p.x);
-                float section = 1.0471975512; // pi / 3: six mirrored sectors
-                float folded = abs(fmod(angle + 6.2831853072, section * 2) - section);
-                float2 transformed = float2(cos(folded + time * 0.05), sin(folded + time * 0.05)) * r;
-                float2 kaleido = saturate(0.5 + transformed / float2(effect.w, 1));
-                return lerp(uv, kaleido, intensity);
-            }
-            // 5-7 are contours and operate on colour, so they do not warp the sample location.
-            if (effect.x < 7.5) return uv;
-            if (effect.x < 8.5) // Liquid glass: interference between crossing sine fields
-            {
-                float2 displacement = float2(
-                    sin(uv.y * 35 + time * 1.3) + sin((uv.x + uv.y) * 23 - time * 0.8),
-                    cos(uv.x * 29 - time * 1.1) + sin((uv.x - uv.y) * 19 + time * 0.9));
-                return saturate(uv + displacement * (0.013 * intensity));
-            }
-            if (effect.x < 9.5) // Slice shift: moving, hashed bands rather than regular pixels
-            {
-                float band = floor(uv.y * 29);
-                float epoch = floor(time * 6);
-                float displacement = frac(sin(band * 37.719 + epoch * 11.13) * 43758.5453) * 2 - 1;
-                return saturate(uv + float2(displacement * 0.12 * intensity, 0));
-            }
-            if (effect.x < 10.5) // Vortex: bounded polar displacement with a steady centre
-            {
-                float2 delta = (uv - 0.5) * float2(effect.w, 1);
-                float radius = length(delta);
-                float turn = intensity * 4 * exp(-radius * 3.3) + time * 0.11 * intensity;
-                float cs = cos(turn), sn = sin(turn);
-                float2 rotated = float2(cs * delta.x - sn * delta.y, sn * delta.x + cs * delta.y);
-                return saturate(0.5 + rotated / float2(effect.w, 1));
-            }
-            // Cursor lens works only under a pointer. The following image-aware effect has
-            // no global UV warp; it samples its original gradients in effected() instead.
-            if (effect.x < 11.5 && pointer.z > 0.5)
-            {
-                float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
-                float distance = length(delta);
-                float radius = 0.23 / max(pointer.w, 0.25);
-                float inside = 1 - smoothstep(radius * 0.72, radius, distance);
-                return saturate(uv - delta / float2(effect.w, 1) * (0.55 * intensity * inside));
-            }
-            return uv;
+            uint2 q = (uint2)(int2)floor(cell);
+            uint h = q.x * 73856093u ^ q.y * 19349663u;
+            h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; h *= 0x846ca68bu; h ^= h >> 16;
+            return h * (1.0 / 4294967296.0);
         }
+        // Where a picture coordinate falls in the texture, kept half a texel inside the picture so a
+        // decoder's padding rows and columns never bleed into the edges.
+        float2 pictureUv(float2 uv) { return (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy; }
+        float2 insideLuma(float2 t) { return clamp(t, crop.zw * 0.5, crop.xy - crop.zw * 0.5); }
+        float2 insideChroma(float2 t) { return clamp(t, crop.zw, crop.xy - crop.zw); }
+        float3 decodeYuv(float y, float2 cbcr)
+        {
+            float4 samples = float4(y, cbcr, 1);
+            return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
+        }
+        // No texture has mip levels, so level 0 is exact; sampling without implicit derivatives lets
+        // every effect's branch be skipped by the pixels of every other effect.
         float3 readColour(float2 uv, bool isYuv)
         {
-            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
+            float2 t = pictureUv(uv);
             if (isYuv)
-            {
-                float4 samples = float4(luma.Sample(linearClamp, mapped).r, chroma.Sample(chromaSampler, mapped).rg, 1);
-                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
-            }
-            return luma.Sample(linearClamp, mapped).rgb;
+                return decodeYuv(luma.SampleLevel(linearClamp, insideLuma(t), 0).r,
+                    chroma.SampleLevel(chromaSampler, insideChroma(t), 0).rg);
+            return luma.SampleLevel(linearClamp, insideLuma(t), 0).rgb;
         }
-        // The previous frame is sampled from separately retained GPU planes. Decode on
-        // the card as for the current image; never read back video into managed memory.
+        // Luma alone in one fetch: the matrix's luma gain makes its differences match readColour's.
+        float readLuma(float2 uv, bool isYuv)
+        {
+            float2 t = insideLuma(pictureUv(uv));
+            // Green from luma with neutral colour is luma itself, offset included.
+            float now = isYuv ? dot(rowG, float4(luma.SampleLevel(linearClamp, t, 0).r, 0.5, 0.5, 1))
+                : lumaOf(luma.SampleLevel(linearClamp, t, 0).rgb);
+        #if STEADY_CONTOURS
+            // Where the picture held still since the previous one, the two are averaged: that
+            // halves the grain the contour measurement sees, so lines stop shimmering on a still
+            // shot. Anything that moved is measured from the current picture alone.
+            [branch] if (motion.y > 0.5)
+            {
+                float before = isYuv ? dot(rowG, float4(priorLuma.SampleLevel(linearClamp, t, 0).r, 0.5, 0.5, 1))
+                    : lumaOf(priorLuma.SampleLevel(linearClamp, t, 0).rgb);
+                now = lerp((now + before) * 0.5, now, smoothstep(0.015, 0.05, abs(now - before)));
+            }
+        #endif
+            return now;
+        }
+        // The previous picture, decoded on the card exactly as the current one is.
         float3 readPrior(float2 uv, bool isYuv)
         {
-            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
+            float2 t = pictureUv(uv);
             if (isYuv)
-            {
-                float4 samples = float4(priorLuma.Sample(linearClamp, mapped).r,
-                    priorChroma.Sample(chromaSampler, mapped).rg, 1);
-                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
-            }
-            return priorLuma.Sample(linearClamp, mapped).rgb;
+                return decodeYuv(priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).r,
+                    priorChroma.SampleLevel(chromaSampler, insideChroma(t), 0).rg);
+            return priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).rgb;
         }
-        // A four-neighbour spatial gradient, measured in real output-pixel units.
-        // Derivatives adapt across window sizes, avoiding a permanently chunky outline.
-        float2 pictureGradient(float2 uv, bool isYuv)
+        // The previous picture's brightness alone, in one read.
+        float readPriorLuma(float2 uv, bool isYuv)
         {
-            float2 stepUv = max(fwidth(uv), float2(0.001, 0.001)) / max(pointer.w, 0.25);
-            float3 weights = float3(0.2126, 0.7152, 0.0722);
-            float left = dot(readColour(uv - float2(stepUv.x, 0), isYuv), weights);
-            float right = dot(readColour(uv + float2(stepUv.x, 0), isYuv), weights);
-            float above = dot(readColour(uv - float2(0, stepUv.y), isYuv), weights);
-            float below = dot(readColour(uv + float2(0, stepUv.y), isYuv), weights);
-            return float2(right - left, below - above);
+            float2 t = pictureUv(uv);
+            if (isYuv) return dot(rowG, float4(priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).r, 0.5, 0.5, 1));
+            return lumaOf(priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).rgb);
+        }
+        // A cell's colour for the mosaics: the centre and four places around it, so a tile keeps
+        // its colour from one picture to the next instead of flickering with grain. halfCell is
+        // half the cell's size; the outer taps sit half way to its edges.
+        float3 cellColour(float2 centre, float2 halfCell, bool isYuv)
+        {
+            float3 sum = readColour(centre, isYuv) * 2;
+            sum += readColour(centre + float2(-0.5, -0.5) * halfCell, isYuv);
+            sum += readColour(centre + float2(0.5, -0.5) * halfCell, isYuv);
+            sum += readColour(centre + float2(-0.5, 0.5) * halfCell, isYuv);
+            sum += readColour(centre + float2(0.5, 0.5) * halfCell, isYuv);
+            return sum / 6;
+        }
+        // One recorded pixel in picture coordinates.
+        float2 pictureTexel()
+        {
+            float2 span = max(abs(source.zw - source.xy) * crop.xy, 0.000001);
+            return max(crop.zw, 0.0000001) / span;
+        }
+        // Measuring steps follow the recorded pixels, or the shown ones when the picture is drawn
+        // smaller, so detection sees the same detail at every window size and zoom.
+        float2 measureStep(float2 pixel) { return max(pictureTexel(), pixel); }
+        """ + "\n" + D3D11VideoShaderContours.Source + "\n" + """
+        // The readers the walking effects use: the same clamped reads as readColour and readPrior,
+        // so a decoder's padding rows and columns never bleed into the picture's edges.
+        float3 readColourAt(float2 uv, bool isYuv) { return readColour(uv, isYuv); }
+        float3 readPriorAt(float2 uv, bool isYuv) { return readPrior(uv, isYuv); }
+        // The contourGradient signal at a given pixel footprint, for the steps of a walk along an
+        // edge: from brightness alone (one read a tap rather than two), as the walk only needs to
+        // know that the edge carries on and which way it turns. The colour term contourGradient
+        // adds is approximated from the brightness slope (grey edges have one about 1.7 times as
+        // long), so strengths compare with the first step's.
+        float3 contourGradientAt(float2 uv, bool isYuv, float2 pixel)
+        {
+            float2 direction = float2(readLuma(uv + float2(pixel.x, 0), isYuv) - readLuma(uv - float2(pixel.x, 0), isYuv),
+                readLuma(uv + float2(0, pixel.y), isYuv) - readLuma(uv - float2(0, pixel.y), isYuv));
+            return float3(direction, length(direction) * 1.55);
         }
         // Fine texture inside low-contrast regions needs a different signal from the
         // outer silhouette. Read RGB deltas as well as luminance so equal-brightness
@@ -171,8 +249,7 @@ internal static class D3D11VideoShaders
         // The sample footprint stays tied to display pixels (and source zoom).
         float3 contourGradient(float2 uv, bool isYuv, float scale)
         {
-            float2 pixel = max(fwidth(uv) * scale, float2(0.00018, 0.00018))
-                / max(pointer.w, 0.25);
+            float2 pixel = max(fwidth(uv), pictureTexel()) * scale / max(pointer.w, 0.25);
             float3 dx = readColour(uv + float2(pixel.x, 0), isYuv)
                 - readColour(uv - float2(pixel.x, 0), isYuv);
             float3 dy = readColour(uv + float2(0, pixel.y), isYuv)
@@ -197,427 +274,560 @@ internal static class D3D11VideoShaders
             return float3(dot(fine.xy, fine.xy) > 0.000001 ? fine.xy : broad.xy,
                 max(fine.z, broad.z * 0.62));
         }
-        // Stationary surface view: image-derived isolines on smoothed luminance
-        // plus local gradient relief. Broad sampling resolves softly shaded
-        // rounded forms without requiring a moving target or previous frames.
-        // Flat untextured pixels have zero contour confidence.
-        float3 surfaceContours(float2 uv, bool isYuv, float3 colour, float detail,
-            float fineEdge)
+        float2 effectUv(float2 uv)
         {
-            float2 stepUv = max(fwidth(uv) * 3.0, float2(0.0005, 0.0005))
-                / max(detail, 0.25);
-            float3 weights = float3(0.2126, 0.7152, 0.0722);
-            float centre = dot(colour, weights);
-            float left = dot(readColour(uv - float2(stepUv.x, 0), isYuv), weights);
-            float right = dot(readColour(uv + float2(stepUv.x, 0), isYuv), weights);
-            float top = dot(readColour(uv - float2(0, stepUv.y), isYuv), weights);
-            float bottom = dot(readColour(uv + float2(0, stepUv.y), isYuv), weights);
-            float luma = (centre * 4 + left + right + top + bottom) * 0.125;
-            float2 slope = float2(right - left, bottom - top);
-            float slopeSize = length(slope) * 0.5;
-            float visibleSurface = smoothstep(0.0045 / detail, 0.068 / detail, slopeSize);
-            float contours = 1 - smoothstep(0.025, 0.11,
-                abs(frac(luma * (18 * detail)) - 0.5));
-            float3 normal = normalize(float3(-slope.x * 6, -slope.y * 6, 0.6));
-            float light = 0.6 + 0.4 * dot(normal, normalize(float3(-0.45, -0.5, 0.74)));
-            // Compress bright areas while lifting real low-light surface gradients.
-            // This local monotone mapping does not infer any hidden geometry.
-            float3 lifted = colour / (colour + float3(0.20, 0.20, 0.20));
-            float3 base = lerp(colour, lifted, 0.68)
-                * (0.62 + 0.25 * saturate(light))
-                + float3(0.012, 0.017, 0.031);
-            // Neither band nor "relief" invents anatomy: both are driven by
-            // variation that can be read from the recorded picture itself.
-            base += contours * visibleSurface * float3(0.10, 0.68, 0.75);
-            base += visibleSurface * (1 - contours) * float3(0.045, 0.095, 0.125);
-            base += fineEdge * float3(0.17, 0.70, 0.82);
-            return saturate(base);
+            float intensity = effect.y;
+            float time = effect.z;
+            float movement = time * detailControl();
+            float2 shape = aspect();
+        #if EFFECT_ONLY == 1
+            if (effect.x < 1.5) // Prism flow: two slow waves, the same size across as down
+            {
+                float2 p = uv * shape;
+                float2 wave = float2(sin(p.y * 26 + movement * 1.7), cos(p.x * 10.1 - movement * 1.1));
+                return mirrored(uv + wave * (0.019 * intensity) / shape);
+            }
+        #endif
+        #if EFFECT_ONLY == 2
+            if (effect.x < 2.5) return uv;
+        #endif
+        #if EFFECT_ONLY == 3
+            if (effect.x < 3.5) // Pixel drift: square blocks whose rows sway with time
+            {
+                float rows = lerp(150, 16, intensity);
+                float2 grid = float2(rows * shape.x, rows);
+                float stagger = sin(floor(uv.y * grid.y) * 0.8 + movement * 2) * 0.013 * intensity;
+                return saturate((floor((uv + float2(stagger, 0)) * grid) + 0.5) / grid);
+            }
+        #endif
+        #if EFFECT_ONLY == 4
+            if (effect.x < 4.5) // Kaleidoscope: mirrored wedges inside a circle that grows with strength
+            {
+                float2 p = (uv - 0.5) * shape;
+                float r = length(p);
+                float folds = clamp(round(extras.x), 2, 12);
+                float wedge = 3.14159265 / folds;
+                float turn = time * extras.y * 0.006;
+                float angle = atan2(p.y, p.x) + 6.28318531;
+                float folded = abs(fmod(angle, wedge * 2) - wedge) + turn;
+                // Each wedge shows the middle of the picture at twice its size (the mirror zoom
+                // control scales that), so the subject rather than the background repeats.
+                float2 inside = 0.5 + float2(cos(folded), sin(folded)) * (r * 0.5 / detailControl()) / shape;
+                float reach = lerp(0.12, 1.25, intensity);
+                float blend = 1 - smoothstep(reach * 0.6, reach, r);
+                return mirrored(lerp(uv, inside, blend));
+            }
+        #endif
+        #if EFFECT_ONLY == 8
+            if (effect.x < 8.5) // Liquid glass: interference between crossing sine fields
+            {
+                float2 p = uv * shape;
+                float2 displacement = float2(
+                    sin(p.y * 35 + movement * 1.3) + sin((p.x + p.y) * 17 - movement * 0.8),
+                    cos(p.x * 16.3 - movement * 1.1) + sin((p.x - p.y) * 14 + movement * 0.9));
+                return mirrored(uv + displacement * (0.013 * intensity) / shape);
+            }
+        #endif
+        #if EFFECT_ONLY == 9
+            if (effect.x < 9.5) // Slice shift: hashed bands that move six times a second
+            {
+                float band = floor(uv.y * 29);
+                float epoch = floor(movement * 6);
+                float displacement = hash(float2(band, epoch)) * 2 - 1;
+                return mirrored(uv + float2(displacement * 0.12 * intensity, 0));
+            }
+        #endif
+        #if EFFECT_ONLY == 10
+            if (effect.x < 10.5) // Vortex: a swirl that breathes at the centre and leaves the edges still
+            {
+                float2 delta = (uv - 0.5) * shape;
+                float radius = length(delta);
+                float turn = intensity * exp(-radius * 3.3) * (4 + 1.4 * sin(movement * 0.6));
+                float cs = cos(turn), sn = sin(turn);
+                float2 rotated = float2(cs * delta.x - sn * delta.y, sn * delta.x + cs * delta.y);
+                return mirrored(0.5 + rotated / shape);
+            }
+        #endif
+        #if EFFECT_ONLY == 11
+            if (effect.x < 11.5 && pointer.z > 0.5) // Cursor lens: magnifies under the pointer only
+            {
+                float2 delta = (uv - pointer.xy) * shape;
+                float distance = length(delta);
+                float radius = 0.23 * detailControl();
+                float inside = 1 - smoothstep(radius * 0.72, radius, distance);
+                return saturate(uv - delta / shape * (0.55 * intensity * inside));
+            }
+        #endif
+            return uv;
         }
-        float3 effected(float2 uv, bool isYuv)
+        // The chosen effect at strength above zero; pixel is one shown pixel in picture coordinates.
+        // A ball bouncing inside the frame: triangle-wave paths with different periods per axis.
+        float2 bouncePath(float t, float2 speed, float2 margin)
         {
+            float2 phase = frac(t * speed);
+            float2 tri = abs(phase * 2 - 1);
+            return margin + tri * (1 - margin * 2);
+        }
+        float3 effectColour(float2 uv, float2 pixel, bool isYuv)
+        {
+            float strength = effect.y;
             float2 warped = effectUv(uv);
             float3 colour = readColour(warped, isYuv);
-            if (effect.y > 0 && effect.x > 0.5 && effect.x < 1.5)
+            float detail = detailControl();
+            float2 shape = aspect();
+            // Every outline effect shares one contour measurement (Topographic draws brightness
+            // levels instead, so it does not need one).
+            float4 field = float4(0, 0, 1, 0);
+            float4 outline = 0;
+        #if EFFECT_ONLY == 2 || EFFECT_ONLY == 5 || EFFECT_ONLY == 7 || EFFECT_ONLY == 13 || EFFECT_ONLY == 16 || EFFECT_ONLY == 17
+            [branch] if ((effect.x > 1.5 && effect.x < 2.5) || (effect.x > 4.5 && effect.x < 5.5) || (effect.x > 6.5 && effect.x < 7.5)
+                || (effect.x > 12.5 && effect.x < 13.5) || (effect.x > 15.5 && effect.x < 17.5))
             {
-                float2 fringe = float2(0.005, 0.0015) * effect.y;
-                colour.r = readColour(warped + fringe, isYuv).r;
-                colour.b = readColour(warped - fringe, isYuv).b;
+                // Neon contours looks at a picture four times coarser, so texture averages away and only
+                // silhouettes and big shapes light up, as tubes a few pixels wide.
+                float2 fieldPixel = pixel;
+        #if EFFECT_ONLY == 2
+                fieldPixel = pixel * 4;
+        #endif
+                field = contourField(uv, fieldPixel, isYuv, detail, outline);
             }
-            if (effect.y > 0 && effect.x > 1.5 && effect.x < 2.5)
+        #endif
+            // Pixel position on screen, for patterns that stay one size whatever the picture's size.
+            float2 screen = uv / pixel;
+        #if STEADY_CONTOURS
+            // Black bars recorded into the video stay black rather than turning into paper, glass or
+            // a map's sea.
+            strength *= 1 - inRecordedBar(uv, isYuv);
+        #endif
+        #if EFFECT_ONLY == 1
+            if (effect.x < 1.5) // Prism flow's colour fringe
             {
-                float detail = max(pointer.w, 0.25);
-                float3 structure = contourDetail(uv, isYuv);
-                float edge = smoothstep(0.007 / detail, 0.18 / detail, structure.z);
-                float3 ink = colour * 0.22 + edge * float3(0.12, 0.95, 1);
-                colour = lerp(colour, ink, effect.y);
+                float2 fringe = float2(0.005, 0.0015) * strength;
+                colour.r = readColour(mirrored(warped + fringe), isYuv).r;
+                colour.b = readColour(mirrored(warped - fringe), isYuv).b;
             }
-
-            if (effect.y > 0 && effect.x > 4.5 && effect.x < 7.5)
+        #endif
+        #if EFFECT_ONLY == 2
+            if (effect.x < 2.5) // Neon contours
             {
-                float3 structure = contourDetail(uv, isYuv);
-                float2 gradient = structure.xy;
-                float detail = max(pointer.w, 0.25);
-                float edge = smoothstep(0.006 / detail, 0.16 / detail, structure.z);
-                float lum = dot(colour, float3(0.2126, 0.7152, 0.0722));
-                float3 styled = colour;
-                if (effect.x < 5.5) // Ink trace: paper-coloured rendering with dark outlines
+                // Glowing tubes on the main outlines only (silhouettes and big shapes, which stay
+                // strong at the widest scale; not texture or small features): a white-hot core inside
+                // a pink bloom that spreads several pixels, over a darkened picture, humming with time.
+                float hum = 0.9 + 0.1 * sin(effect.z * 3.1);
+                float major = smoothstep(0.14 / detail, 0.4 / detail, outline.w);
+                float core = max(outline.x, field.x) * outline.y * major;
+                float bloom = smoothstep(0.1 / detail, 0.8, outline.w) * major;
+                float3 neon = colour * 0.03 + bloom * 0.7 * hum * float3(1, 0.16, 0.62)
+                    + core * float3(1, 0.86, 0.95);
+                colour = lerp(colour, saturate(neon), strength);
+            }
+        #endif
+        #if EFFECT_ONLY == 5
+            if (effect.x > 4.5 && effect.x < 5.5) // Ink trace: a pen sketch on paper
+            {
+                float lum = lumaOf(colour);
+                float3 styled;
                 {
-                    float ink = smoothstep(0.025, 0.50, edge);
-                    styled = saturate(float3(0.96, 0.935, 0.86) - ink * 0.9 - (1 - lum) * 0.12);
+                    // Strokes taper: clear outlines are drawn broad, faint ones as hairlines, and
+                    // shadows are cross-hatched (one direction in the shade, both in the dark).
+                    float stroke = max(smoothstep(0.3, 0.85, field.y) * 0.8, outline.x * smoothstep(0.2, 0.9, outline.y));
+                    float hatchA = 1 - smoothstep(0.1, 0.22, abs(frac((screen.x + screen.y) / 7) - 0.5));
+                    float hatchB = 1 - smoothstep(0.1, 0.22, abs(frac((screen.x - screen.y) / 7) - 0.5));
+                    float hatch = hatchA * (1 - smoothstep(0.14, 0.26, lum)) + hatchB * (1 - smoothstep(0.04, 0.11, lum));
+                    float ink = saturate(max(stroke, hatch * 0.3));
+                    styled = float3(0.96, 0.935, 0.86) * (1 - ink * 0.86);
                 }
-                else if (effect.x < 6.5) // Topographic: isolines of actual pixel luminance
+                colour = lerp(colour, styled, strength);
+            }
+        #endif
+        #if EFFECT_ONLY == 6
+            if (effect.x > 5.5 && effect.x < 6.5) // Topographic: a relief map of the picture's brightness
+            {
+                float3 styled;
                 {
-                    float iso = 1 - smoothstep(0.025, 0.12,
-                        abs(frac(lum * 20 * detail) - 0.5));
-                    float slopes = smoothstep(0.015, 0.28, edge);
-                    float ridge = iso * slopes;
-                    styled = saturate(colour * float3(0.23, 0.35, 0.48)
-                        + ridge * float3(0.25, 0.92, 0.78) + edge * 0.12);
+                    // Brightness becomes height: tinted layers like a map's elevation colours,
+                    // hill shading from the slope, and a thin contour line at every level.
+                    // Heights follow a curve that gives the shadows as many levels as the highlights,
+                    // so dark scenes are mapped too; it starts a little above black, so compression
+                    // blocks in near-black never become shapes.
+                    // Heights come from the brightness smoothed over a few pixels, so grain and
+                    // compression noise never break a level line into specks.
+                    float levels = 12 * detail;
+                    float4 measured = lumaSlope(uv, measureStep(pixel) * 2, isYuv);
+                    float2 sampleStep = measureStep(pixel) * 2;
+                    float lum = 0;
+                    [unroll] for (int yy = -1; yy <= 1; yy++)
+                    {
+                        [unroll] for (int xx = -1; xx <= 1; xx++)
+                        {
+                            lum += readLuma(uv + float2(xx, yy) * sampleStep, isYuv);
+                        }
+                    }
+                    lum /= 9;
+                    float height = pow(saturate((lum - 0.025) / 0.975), 0.55) * levels;
+                    // The tint follows height continuously and the level lines mark the bands, so a slight
+                    // change of grain never flips a whole pixel from one band's colour to the next.
+                    float layer = saturate(height / max(levels - 1, 1));
+                    float3 tint = layer < 0.25 ? lerp(float3(0.07, 0.20, 0.36), float3(0.16, 0.42, 0.40), layer * 4)
+                        : layer < 0.5 ? lerp(float3(0.16, 0.42, 0.40), float3(0.45, 0.62, 0.30), layer * 4 - 1)
+                        : layer < 0.75 ? lerp(float3(0.45, 0.62, 0.30), float3(0.78, 0.66, 0.38), layer * 4 - 2)
+                        : lerp(float3(0.78, 0.66, 0.38), float3(0.97, 0.95, 0.90), layer * 4 - 3);
+                    float3 normal = normalize(float3(-measured.xy * 12, 1));
+                    float shade = 0.7 + 0.3 * dot(normal, normalize(float3(-0.5, -0.6, 0.62))) / 0.62;
+                    // About one pixel wide: the level's change across one pixel.
+                    float width = length(measured.xy) * 0.5 * levels * 0.55 * pow(max(lum - 0.025, 0.02), -0.45) + 0.002;
+                    float isoline = 1 - smoothstep(width * 0.4, width * 2.2, abs(frac(height + 0.5) - 0.5));
+                    styled = saturate(tint * shade * (1 - isoline * 0.32));
                 }
-                else // Chromatic contours: gradient orientation chooses the edge colour
+                colour = lerp(colour, styled, strength);
+            }
+        #endif
+        #if EFFECT_ONLY == 7
+            if (effect.x > 6.5 && effect.x < 7.5) // Chromatic contours: every fine line, coloured by the direction it faces
+            {
+                float3 styled;
                 {
-                    float angle = atan2(gradient.y, gradient.x);
+                    float angle = atan2(field.w, field.z);
                     float3 rainbow = 0.5 + 0.5 * cos(angle + float3(0, 2.094, 4.189));
-                    styled = saturate(colour * 0.1 + edge * (0.3 + 0.7 * rainbow));
+                    // Thin lines only, over the picture at half brightness, so the direction colours sit
+                    // on the scene rather than on the black of Neon contours and Ghostwire.
+                    float thin = saturate(field.y - outline.z * 0.4);
+                    styled = saturate(colour * 0.55 + thin * 1.3 * (0.2 + 0.8 * rainbow));
                 }
-                colour = lerp(colour, styled, effect.y);
+                colour = lerp(colour, styled, strength);
             }
-            if (effect.x > 11.5 && effect.x < 12.5 && effect.y > 0)
+        #endif
+        #if EFFECT_ONLY == 11
+            if (effect.x > 10.5 && effect.x < 11.5) // Cursor lens rim
             {
-                // Edge Gravity: derive a normal from gradients in the *current video frame*.
-                // Flat regions stay still; high-contrast outlines become elastic folds that
-                // pulse along their own normals. No fictional semantic/object tracking.
-                float2 gradient = pictureGradient(uv, isYuv);
+                if (pointer.z > 0.5)
+                {
+                    float dist = length((uv - pointer.xy) * shape);
+                    float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23 * detail));
+                    colour = saturate(colour + float3(0.23, 0.48, 0.57) * rim * strength);
+                }
+            }
+        #endif
+        #if EFFECT_ONLY == 12
+            if (effect.x > 11.5 && effect.x < 12.5) // Edge gravity
+            {
+                // Outlines in the current picture become elastic folds along their own normals;
+                // flat regions stay still.
+                float2 gradient = lumaSlope(uv, measureStep(pixel), isYuv).xy;
                 float gradientSize = length(gradient);
                 float edge = smoothstep(0.045, 0.28, gradientSize);
                 float2 normal = gradient / max(gradientSize, 0.0001);
-                float phase = sin(effect.z * 1.7 * max(pointer.w, 0.25) + uv.x * 12 + uv.y * 9);
-                float2 warped = saturate(uv + normal * (0.028 * effect.y * edge * phase));
-                float3 refracted = readColour(warped, isYuv);
-                colour = lerp(colour, refracted, edge * effect.y);
-                // Shimmer hugs edges; untextured backgrounds never illuminate.
-                colour = saturate(colour + edge * (0.11 * effect.y) * float3(0.11, 0.65, 0.98));
+                float phase = sin(effect.z * 1.7 * detail + uv.x * 12 + uv.y * 9);
+                float2 pulled = mirrored(uv + normal / shape * (0.028 * strength * edge * phase));
+                colour = lerp(colour, readColour(pulled, isYuv), edge * strength);
+                colour = saturate(colour + edge * (0.11 * strength) * float3(0.11, 0.65, 0.98));
             }
-            if (effect.x > 12.5 && effect.x < 13.5 && effect.y > 0)
+        #endif
+        #if EFFECT_ONLY == 13
+            if (effect.x > 12.5 && effect.x < 13.5) // Ghostwire
             {
-                // Ghostwire: capture weak internal folds, fine recorded texture and
-                // high-contrast outlines as luminous filaments. Not an x-ray.
-                float detail = max(pointer.w, 0.25);
-                float3 structure = contourDetail(uv, isYuv);
-                float2 direction = normalize(structure.xy + float2(0.000001, 0));
-                float2 stepUv = max(fwidth(uv), float2(0.00025, 0.00025))
-                    / detail;
-                float2 offsetUv = direction * stepUv;
-                float originalEnergy = contourGradient(uv, isYuv, 0.75).z;
-                float prior = contourGradient(saturate(uv - offsetUv), isYuv, 0.75).z;
-                float later = contourGradient(saturate(uv + offsetUv), isYuv, 0.75).z;
-                float ridge = (originalEnergy >= prior && originalEnergy >= later) ? 1 : 0;
-                float fineLine = smoothstep(0.006 / detail, 0.085 / detail, structure.z);
-                float boldLine = smoothstep(0.035 / detail, 0.20 / detail, structure.z);
-                // NMS thins strong boundaries, but a faint secondary trace preserves
-                // subtle gradients that otherwise vanished inside grey objects.
-                float thread = ridge * max(boldLine, fineLine * 0.78)
-                    + (1 - ridge) * fineLine * 0.18;
-                float luminance = dot(colour, float3(0.2126, 0.7152, 0.0722));
-                float2 ghostUv = saturate(uv + direction * stepUv
-                    * (1.1 + 0.25 * sin(effect.z * 0.7)));
-                float3 ghostColour = readColour(ghostUv, isYuv);
-                float ghostLuma = dot(ghostColour, float3(0.2126, 0.7152, 0.0722));
-                float3 phantom = float3(0.012, 0.018, 0.034)
-                    + float3(luminance, luminance, luminance) * 0.055
-                    + float3(0.06, 0.09, 0.14) * ghostLuma * 0.16;
-                phantom += thread * float3(0.21, 0.96, 0.91);
-                phantom += fineLine * (1 - ridge) * float3(0.055, 0.075, 0.10);
-                colour = lerp(colour, saturate(phantom), effect.y);
+                // Visible outlines, faint folds and fine texture become luminous filaments over a
+                // dark glass picture. It shows edges in the recording, nothing hidden.
+                float luminance = lumaOf(colour);
+                float2 ghostUv = mirrored(uv + field.zw * measureStep(pixel) * (2.5 + 0.6 * sin(effect.z * 0.7)));
+                float ghostLuma = lumaOf(readColour(ghostUv, isYuv));
+                float glass = luminance * 0.6 + ghostLuma * 0.4;
+                float3 phantom = float3(0.05, 0.11, 0.18) + float3(0.10, 0.17, 0.22) * glass;
+                float filament = smoothstep(0.3, 0.85, field.y);
+                phantom += filament * float3(0.10, 1.18, 0.62);
+                phantom += smoothstep(0.3, 0.9, field.x - field.y) * float3(0.03, 0.10, 0.11);
+                colour = lerp(colour, saturate(phantom), strength);
             }
-            if (effect.x > 13.5 && effect.x < 14.5 && effect.y > 0 && pointer.z > 0.5)
+        #endif
+        #if EFFECT_ONLY == 14
+            if (effect.x > 13.5 && effect.x < 14.5) // Colour spotlight
             {
-                // Colour spotlight: the pointer chooses a *pixel colour*, not an object.
-                // Similar colours are highlighted anywhere in the current picture.
-                // With no pointer there is no modification and no stale selection.
-                float3 chosen = readColour(pointer.xy, isYuv);
-                float deviation = length(colour - chosen);
-                float similarity = 1 - smoothstep(0.07 / max(pointer.w, 0.25),
-                    0.38 / max(pointer.w, 0.25), deviation);
-                float grey = dot(colour, float3(0.2126, 0.7152, 0.0722));
-                float3 muted = lerp(colour, float3(grey, grey, grey) * 0.7, 0.82 * effect.y);
-                float3 vivid = saturate(colour * (1 + effect.y * 0.24)
-                    + similarity * effect.y * float3(0.03, 0.11, 0.17));
-                colour = lerp(muted, vivid, similarity);
+                // The pointer chooses a colour, not an object; with no pointer nothing changes.
+                if (pointer.z > 0.5)
+                {
+                    float3 chosen = readColour(pointer.xy, isYuv);
+                    float deviation = length(colour - chosen);
+                    float similarity = 1 - smoothstep(0.07 / detail, 0.38 / detail, deviation);
+                    float grey = lumaOf(colour);
+                    float3 muted = lerp(colour, float3(grey, grey, grey) * 0.7, 0.82 * strength);
+                    float3 vivid = saturate(colour * (1 + strength * 0.24)
+                        + similarity * strength * float3(0.03, 0.11, 0.17));
+                    colour = lerp(muted, vivid, similarity);
+                }
             }
-            if (effect.x > 14.5 && effect.x < 15.5 && effect.y > 0)
+        #endif
+        #if EFFECT_ONLY == 15
+            if (effect.x > 14.5 && effect.x < 15.5) // Relief etch
             {
-                // Relief etch: light falls across the *image gradient*. It is an
-                // artistic surface-relief illusion, not an estimated depth map.
-                float2 slope = pictureGradient(uv, isYuv) * (5 * max(pointer.w, 0.25));
+                // Light falls across the picture's slope: a relief illusion, not a depth map.
+                float2 slope = lumaSlope(uv, measureStep(pixel), isYuv).xy * (5 * detail);
                 float3 normal = normalize(float3(-slope.x, -slope.y, 0.65));
                 float directional = saturate(dot(normal, normalize(float3(-0.55, -0.4, 0.75))));
                 float edge = smoothstep(0.04, 0.35, length(slope));
                 float3 relief = saturate(colour * (0.35 + 0.95 * directional)
                     + edge * (directional - 0.5) * float3(0.21, 0.24, 0.22));
-                colour = lerp(colour, relief, effect.y);
+                colour = lerp(colour, relief, strength);
             }
-            if (effect.x > 15.5 && effect.x < 16.5 && effect.y > 0)
+        #endif
+        #if EFFECT_ONLY == 16
+            if (effect.x > 15.5 && effect.x < 16.5) // Ghostwire mask mode
             {
-                // Ghostwire Mask Mode: a dim visual layer with detailed contours
-                // from the same recorded frame. Grey surface structure is still
-                // visible even when there is no strong outer silhouette.
-                float detail = max(pointer.w, 0.25);
-                float3 structure = contourDetail(uv, isYuv);
-                float edge = smoothstep(0.007 / detail, 0.16 / detail, structure.z);
-                float2 normal = normalize(structure.xy + float2(0.000001, 0));
-                float2 pixel = max(fwidth(uv), float2(0.00025, 0.00025)) / detail;
-                float narrow = contourGradient(uv, isYuv, 0.75).z;
-                float prior = contourGradient(saturate(uv - normal * pixel), isYuv, 0.75).z;
-                float later = contourGradient(saturate(uv + normal * pixel), isYuv, 0.75).z;
-                float ridge = (narrow >= prior && narrow >= later) ? 1 : 0;
-                float filament = edge * (ridge ? 1 : 0.24);
-                float luminance = dot(colour, float3(0.2126, 0.7152, 0.0722));
-                float2 weave = uv * float2(250 * detail, 220 * detail);
-                float fabricPattern = sin(weave.x) * sin(weave.y);
-                float haze = (0.02 + luminance * 0.06) * (0.92 + 0.08 * fabricPattern);
-                float3 maskColour = float3(0.012, 0.019, 0.032)
-                    + colour * (0.07 + haze) + edge * float3(0.04, 0.15, 0.17);
-                maskColour += filament * float3(0.22, 0.93, 0.96);
-                maskColour += luminance * float3(0.009, 0.022, 0.035);
-                colour = lerp(colour, saturate(maskColour), effect.y);
+                // A dim mask of the picture: flat shapes in four tones from its brightness, solid
+                // bright outlines around them and the finer contours inside as dotted lines. It does
+                // not detect, remove or reveal anything.
+                float luminance = lumaOf(colour);
+                float tone = floor(saturate(luminance * 1.15) * 3.999) / 3;
+                float3 maskColour = lerp(float3(0.16, 0.08, 0.26), float3(0.56, 0.32, 0.71), tone);
+                float inner = saturate(field.y - outline.x * outline.y);
+                float dots = 1 - smoothstep(0.3, 0.45, length(frac(screen / 3.5) - 0.5));
+                maskColour += outline.x * outline.y * float3(0.92, 0.86, 1);
+                maskColour += inner * dots * float3(0.62, 0.48, 0.90);
+                colour = lerp(colour, saturate(maskColour), strength);
             }
-            if (effect.x > 16.5 && effect.x < 17.5 && effect.y > 0)
+        #endif
+        #if EFFECT_ONLY == 17
+            if (effect.x > 16.5 && effect.x < 17.5) // Ghostwire motion
             {
-                // Ghostwire Motion: fine recorded contours + conservative two-frame
-                // motion residuals. Matching the previous image at nearby texels rejects
-                // slight pans and camera shake; it is not a semantic motion detector.
-                float3 structure = contourDetail(uv, isYuv);
-                float sensitivity = max(pointer.w, 0.25);
-                float edge = smoothstep(0.006 / sensitivity, 0.16 / sensitivity, structure.z);
+                // Contours plus a conservative two-picture motion residual: matching the previous
+                // picture at nearby places rejects slight pans and shake. Mode (extras.y): 0 hybrid,
+                // 1 contours, 2 motion, 3 surface shape (no previous picture needed).
+                float edge = field.y;
+                float mode = extras.y;
+                float trails = saturate(extras.x * 0.01);
                 float activity = 0;
                 float oldEdge = 0;
                 float previousDifference = 0;
-                if (motion.y > 0.5 && (motion.z < 0.5 || (motion.z > 1.5 && motion.z < 2.5)))
+                if (motion.y > 0.5 && (mode < 0.5 || (mode > 1.5 && mode < 2.5)))
                 {
-                    float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                    float2 px = pixel;
                     float3 old = readPrior(uv, isYuv);
+                    float3 oldRight = readPrior(uv + float2(px.x, 0), isYuv);
+                    float3 oldLeft = readPrior(uv - float2(px.x, 0), isYuv);
+                    float3 oldDown = readPrior(uv + float2(0, px.y), isYuv);
+                    float3 oldUp = readPrior(uv - float2(0, px.y), isYuv);
                     previousDifference = length(colour - old);
-                    // A small correspondence search suppresses a one-pixel global shift
-                    // and flicker from sampling while preserving larger local deformation.
-                    float mismatch = length(colour - old);
-                    mismatch = min(mismatch, length(colour - readPrior(uv + float2(px.x, 0), isYuv)));
-                    mismatch = min(mismatch, length(colour - readPrior(uv - float2(px.x, 0), isYuv)));
-                    mismatch = min(mismatch, length(colour - readPrior(uv + float2(0, px.y), isYuv)));
-                    mismatch = min(mismatch, length(colour - readPrior(uv - float2(0, px.y), isYuv)));
-                    float3 oldDx = readPrior(uv + float2(px.x, 0), isYuv)
-                        - readPrior(uv - float2(px.x, 0), isYuv);
-                    float3 oldDy = readPrior(uv + float2(0, px.y), isYuv)
-                        - readPrior(uv - float2(0, px.y), isYuv);
-                    oldEdge = smoothstep(0.01 / sensitivity, 0.22 / sensitivity,
-                        sqrt(dot(oldDx, oldDx) + dot(oldDy, oldDy)));
-                    // Spatial-edge gating keeps global brightness changes from
-                    // illuminating uniform picture regions.
-                    activity = smoothstep(0.028, 0.21, mismatch)
-                        * max(edge, oldEdge);
+                    float mismatch = min(min(previousDifference, length(colour - oldRight)),
+                        min(min(length(colour - oldLeft), length(colour - oldDown)), length(colour - oldUp)));
+                    float3 oldDx = oldRight - oldLeft;
+                    float3 oldDy = oldDown - oldUp;
+                    oldEdge = smoothstep(0.05 / detail, 0.25 / detail, sqrt(dot(oldDx, oldDx) + dot(oldDy, oldDy)));
+                    // Gating by edges keeps a global brightness change from lighting flat regions.
+                    activity = smoothstep(0.045, 0.22, mismatch) * max(field.y, oldEdge);
                 }
                 float3 ink = float3(0.013, 0.02, 0.033) + colour * 0.055;
-                float3 stationary = edge * float3(0.12, 0.78, 0.81);
-                // The previous-frame rim is a faint blue afterimage at its
-                // actual prior position, not just a second glow on the new rim.
-                float trail = motion.x * (oldEdge
-                    * smoothstep(0.025, 0.18, previousDifference) + activity * 0.6)
+                // Still outlines are a pale periwinkle so the magenta of movement stands out.
+                float3 stationary = edge * float3(0.50, 0.58, 0.92);
+                float trail = trails * (oldEdge * smoothstep(0.025, 0.18, previousDifference) + activity * 0.6)
                     * (1 - edge * 0.35);
-                float3 moving = activity * float3(0.60, 0.18, 0.37)
-                    + trail * float3(0.10, 0.40, 0.78);
-                // Mode: 0 hybrid, 1 contours, 2 motion, 3 stationary
-                // surface shape. Surface mode needs no previous frame, and
-                // works just as well when paused or on a photograph.
-                if (motion.z > 2.5)
-                    ink = surfaceContours(uv, isYuv, colour, sensitivity, edge);
-                else if (motion.z < 0.5)
+                float3 moving = activity * float3(0.60, 0.18, 0.37) + trail * float3(0.10, 0.40, 0.78);
+                if (mode > 2.5)
+                    ink = surfaceContours(uv, pixel, isYuv, colour, detail, edge);
+                else if (mode < 0.5)
                     ink += stationary + moving;
-                else if (motion.z < 1.5)
+                else if (mode < 1.5)
                     ink += stationary;
                 else
                     ink += moving;
-                colour = lerp(colour, saturate(ink), effect.y);
+                colour = lerp(colour, saturate(ink), strength);
             }
-
-            // The eight additional styles stay single-pass. Extra options arrive in extras.xy,
-            // independently of the global strength (effect.y) and detail (pointer.w).
-            if (effect.x > 17.5 && effect.x < 18.5 && effect.y > 0) // Halftone
+        #endif
+        #if EFFECT_ONLY == 18
+            if (effect.x > 17.5 && effect.x < 18.5) // Halftone print
             {
+                // Three screens of round dots, one for each printing ink, whose areas follow the ink
+                // each colour needs. White paper stays clean; full coverage closes up solid.
                 float3 coverage = 1 - saturate(colour);
                 float3 ink = 0;
-                float grid = lerp(180, 42, saturate((pointer.w - 0.25) / 1.5));
-                float2 p = (uv - 0.5) * float2(effect.w, 1) * grid;
+                float cells = 1 / (max(pixel.y, 1e-5) * lerp(5, 22, saturate((detail - 0.25) / 1.5)));
+                float2 p = (uv - 0.5) * shape * cells;
+                // A dot of radius sqrt(coverage) * 0.564 covers exactly its share of the cell, so 0 % dot gain
+                // keeps the picture's tones; the default 60 % darkens them by about a quarter, as ink spreading
+                // into paper does.
+                float spread = lerp(0.564, 0.68, saturate(extras.y * 0.01));
+                float softness = max(length(pixel * shape) * cells * 0.75, 0.02);
                 [unroll] for (int channel = 0; channel < 3; channel++)
                 {
                     float angle = (extras.x + channel * 30) * 0.01745329252;
                     float cs = cos(angle), sn = sin(angle);
                     float2 rotated = float2(p.x * cs - p.y * sn, p.x * sn + p.y * cs);
-                    float radius = sqrt(coverage[channel]) * (0.40 + extras.y * 0.001);
-                    float circle = 1 - smoothstep(radius - 0.07, radius + 0.07, length(frac(rotated) - 0.5));
-                    ink[channel] = circle;
+                    float radius = sqrt(coverage[channel]) * spread;
+                    float dist = length(frac(rotated) - 0.5);
+                    ink[channel] = coverage[channel] >= 0.995 ? 1 : saturate((radius - dist) / softness + 0.5) * saturate(radius / softness);
                 }
-                colour = lerp(colour, 1 - ink, effect.y);
+                colour = lerp(colour, 1 - ink, strength);
             }
-            if (effect.x > 18.5 && effect.x < 19.5 && effect.y > 0) // Chromatic rift
+        #endif
+        #if EFFECT_ONLY == 19
+            if (effect.x > 18.5 && effect.x < 19.5) // Chromatic rift
             {
                 float angle = extras.x * 0.01745329252;
                 float2 axis = float2(cos(angle), sin(angle));
                 float drive = 1;
                 if (extras.y > 0 && motion.y > 0.5)
-                {
                     drive += saturate(length(colour - readPrior(uv, isYuv)) * 3) * extras.y * 0.025;
-                }
-                float2 shift = axis * effect.y * drive * 0.012 * pointer.w / float2(effect.w, 1);
-                float3 red = readColour(uv + shift, isYuv);
-                float3 blue = readColour(uv - shift, isYuv);
+                float2 shift = axis * strength * drive * 0.012 * detail / shape;
+                float3 red = readColour(mirrored(uv + shift), isYuv);
+                float3 blue = readColour(mirrored(uv - shift), isYuv);
                 colour = float3(red.r, colour.g, blue.b);
             }
-            if (effect.x > 19.5 && effect.x < 20.5 && effect.y > 0) // Oil-paint sectors
+        #endif
+        #if EFFECT_ONLY == 20
+            if (effect.x > 19.5 && effect.x < 20.5) // Oil paint
             {
-                // Three samples in each radial sector plus the centre. Pick the lowest
-                // luminance variance, retaining locally consistent colour. At most 24 taps.
-                int count = (int)clamp(extras.x, 4, 8);
-                float2 texel = max(fwidth(uv), float2(0.00018, 0.00018));
-                float radius = 1 + pointer.w * 5;
-                float sharpness = 0.8 + extras.y * 0.03;
-                float bestScore = 1e9;
-                float3 chosen = colour;
-                float luma0 = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                // Sector filter: each wedge around the pixel is averaged, and wedges that vary less
+                // weigh more, so strokes follow edges instead of blurring them (sharpness sets how
+                // strongly the calmest wedge wins).
+                int count = (int)clamp(round(extras.x), 4, 8);
+                float2 texel = measureStep(pixel);
+                float radius = 2 + detail * 6;
+                float sharpness = 1 + saturate(extras.y * 0.01) * 7;
+                float3 sum = 0;
+                float weights = 0;
                 [loop] for (int sector = 0; sector < 8; sector++)
                 {
                     if (sector >= count) break;
                     float angle = (sector + 0.5) * 6.28318530718 / count;
-                    float2 ray = float2(cos(angle), sin(angle)) * texel * radius;
-                    float2 crossRay = float2(-ray.y, ray.x);
-                    float3 a = readColour(uv + ray * 0.4, isYuv);
-                    float3 b = readColour(uv + ray + crossRay * 0.3, isYuv);
-                    float3 d = readColour(uv + ray - crossRay * 0.3, isYuv);
+                    float2 ray = float2(cos(angle), sin(angle)) * radius;
+                    float2 side = float2(-ray.y, ray.x) * (3.14159265 / count);
+                    float3 a = readColour(uv + ray * 0.35 * texel, isYuv);
+                    float3 b = readColour(uv + (ray * 0.8 + side * 0.45) * texel, isYuv);
+                    float3 d = readColour(uv + (ray * 0.8 - side * 0.45) * texel, isYuv);
                     float3 mean = (colour + a + b + d) * 0.25;
-                    float3 weight = float3(0.2126, 0.7152, 0.0722);
-                    float l1 = dot(a, weight), l2 = dot(b, weight), l3 = dot(d, weight);
-                    float average = (luma0 + l1 + l2 + l3) * 0.25;
-                    float variance = (luma0 * luma0 + l1 * l1 + l2 * l2 + l3 * l3) * 0.25 - average * average;
-                    float score = variance * sharpness + abs(average - luma0) * 0.02;
-                    if (score < bestScore)
-                    {
-                        bestScore = score;
-                        chosen = mean;
-                    }
+                    float3 spreadColour = (colour * colour + a * a + b * b + d * d) * 0.25 - mean * mean;
+                    float variance = dot(max(spreadColour, 0), float3(1, 1, 1));
+                    float weight = 1 / (1 + pow(variance * 400, sharpness * 0.5));
+                    sum += mean * weight;
+                    weights += weight;
                 }
-                colour = lerp(colour, chosen, effect.y);
+                colour = lerp(colour, sum / max(weights, 1e-6), strength);
             }
-            if (effect.x > 20.5 && effect.x < 21.5 && effect.y > 0) // Procedural glyph mosaic
+        #endif
+        #if EFFECT_ONLY == 21
+            if (effect.x > 20.5 && effect.x < 21.5) // Glyph mosaic
             {
-                float rows = lerp(110, 23, saturate((pointer.w - 0.25) / 1.5));
-                float2 cells = float2(rows * effect.w * 0.54, rows);
+                float rows = lerp(110, 23, saturate((detail - 0.25) / 1.5));
+                float2 cells = float2(rows * shape.x * 0.54, rows);
                 float2 cellId = floor(uv * cells);
-                float2 local = frac(uv * cells);
-                float3 sampled = readColour((cellId + 0.5) / cells, isYuv);
-                float grey = dot(sampled, float3(0.2126, 0.7152, 0.0722));
-                float vertical = 1 - smoothstep(0.08, 0.15, abs(local.x - 0.5));
-                float cross = 1 - smoothstep(0.08, 0.15, abs(local.y - 0.5));
-                float diagonal = 1 - smoothstep(0.08, 0.15, abs(local.x - local.y));
-                float rim = 1 - smoothstep(0.07, 0.13,
-                    min(min(local.x, 1 - local.x), min(local.y, 1 - local.y)));
-                float glyph = grey < 0.20 ? rim : grey < 0.45 ? max(vertical, cross)
-                    : grey < 0.70 ? diagonal : grey < 0.89 ? vertical : 0;
-                glyph = saturate(glyph * (0.7 + extras.x * 0.006));
-                float3 palette = extras.y < 0.5 ? float3(0.28, 1, 0.48)
-                    : extras.y < 1.5 ? float3(1, 0.72, 0.27)
-                    : extras.y < 2.5 ? float3(0.18, 0.16, 0.13) : sampled;
-                float3 paper = extras.y > 1.5 && extras.y < 2.5 ? float3(0.94, 0.91, 0.80) : float3(0.025, 0.03, 0.045);
-                colour = lerp(colour, lerp(paper, palette, glyph), effect.y);
+                // Each character sits inside its cell with a margin, so glyphs read as separate
+                // characters rather than joining into a grid.
+                float2 local = (frac(uv * cells) - 0.15) / 0.7;
+                float inCell = all(local > 0) && all(local < 1) ? 1 : 0;
+                float3 sampled = cellColour((cellId + 0.5) / cells, 0.5 / cells, isYuv);
+                float grey = lumaOf(sampled);
+                float mode = extras.y;
+                bool paperMode = mode > 1.5 && mode < 2.5;
+                // Light glyphs on a dark screen are densest where the picture is brightest; dark ink
+                // on paper is densest where it is darkest.
+                float density = paperMode ? 1 - grey : grey;
+                float stroke = 0.08;
+                float vertical = 1 - smoothstep(stroke, stroke + 0.07, abs(local.x - 0.5));
+                float across = 1 - smoothstep(stroke, stroke + 0.07, abs(local.y - 0.5));
+                float diagonal = 1 - smoothstep(stroke, stroke + 0.07, abs(local.x - local.y));
+                float rim = 1 - smoothstep(0.07, 0.13, min(min(local.x, 1 - local.x), min(local.y, 1 - local.y)));
+                float glyph = density > 0.80 ? max(rim, max(vertical, across)) : density > 0.55 ? max(vertical, across)
+                    : density > 0.30 ? diagonal : density > 0.11 ? vertical : 0;
+                glyph = saturate(glyph * inCell * (0.7 + extras.x * 0.006));
+                float3 palette = mode < 0.5 ? float3(0.28, 1, 0.48)
+                    : mode < 1.5 ? float3(1, 0.72, 0.27)
+                    : mode < 2.5 ? float3(0.18, 0.16, 0.13) : sampled;
+                float3 paper = paperMode ? float3(0.94, 0.91, 0.80) : float3(0.025, 0.03, 0.045);
+                colour = lerp(colour, lerp(paper, palette, glyph), strength);
             }
-            if (effect.x > 21.5 && effect.x < 22.5 && effect.y > 0) // Thermal mapping
+        #endif
+        #if EFFECT_ONLY == 22
+            if (effect.x > 21.5 && effect.x < 22.5) // Thermal map
             {
-                float temperature = saturate(dot(colour, float3(0.2126, 0.7152, 0.0722))
-                    * (extras.x * 0.01) + (1 - extras.x * 0.01) * 0.5);
-                float3 heat = temperature < 0.33
-                    ? lerp(float3(0.02, 0.01, 0.08), float3(0.43, 0.03, 0.42), temperature / 0.33)
-                    : temperature < 0.66
-                    ? lerp(float3(0.43, 0.03, 0.42), float3(1, 0.40, 0.05), (temperature - 0.33) / 0.33)
-                    : lerp(float3(1, 0.40, 0.05), float3(1, 1, 0.82), (temperature - 0.66) / 0.34);
-                if (extras.y > 0.5 && extras.y < 1.5)
-                    heat = 0.5 + 0.5 * cos((1 - temperature) * 6.2831853 + float3(0, 2.094, 4.189));
-                else if (extras.y > 1.5 && extras.y < 2.5)
+                float range = extras.x * 0.01;
+                float temperature = saturate(lumaOf(colour) * range + (1 - range) * 0.5);
+                float mode = extras.y;
+                float3 heat;
+                if (mode < 0.5) // Iron: black, violet, orange, white
+                    heat = temperature < 0.33
+                        ? lerp(float3(0.02, 0.01, 0.08), float3(0.43, 0.03, 0.42), temperature / 0.33)
+                        : temperature < 0.66
+                        ? lerp(float3(0.43, 0.03, 0.42), float3(1, 0.40, 0.05), (temperature - 0.33) / 0.33)
+                        : lerp(float3(1, 0.40, 0.05), float3(1, 1, 0.82), (temperature - 0.66) / 0.34);
+                else if (mode < 1.5) // Rainbow: blue when cold through to red when hot, never wrapping
+                    heat = saturate(0.5 + 0.5 * cos(6.2831853 * ((1 - temperature) * 0.67 - float3(0, 0.3333, 0.6667))));
+                else if (mode < 2.5)
                     heat = lerp(float3(0.01, 0.07, 0.18), float3(0.82, 1, 0.93), temperature);
-                else if (extras.y > 2.5)
+                else
                     heat = float3(temperature, temperature, temperature);
-                float edges = length(pictureGradient(uv, isYuv));
-                heat = saturate(heat + edges * (pointer.w - 0.25) * 0.20);
-                colour = lerp(colour, heat, effect.y);
+                float edges = length(lumaSlope(uv, measureStep(pixel), isYuv).xy);
+                heat = saturate(heat + edges * (detail - 0.25) * 0.3);
+                colour = lerp(colour, heat, strength);
             }
-            if (effect.x > 22.5 && effect.x < 23.5 && effect.y > 0) // Tape wear
+        #endif
+        #if EFFECT_ONLY == 23
+            if (effect.x > 22.5 && effect.x < 23.5) // Tape wear
             {
+                // Lines that wobble together in bands, colour that bleeds to the right, a noisy
+                // head-switching band near the bottom and light speckle, all following picture time.
                 float row = floor(uv.y * 480);
-                float epoch = floor(effect.z * 23);
-                float noise = frac(sin(row * 19.13 + epoch * 7.13) * 43758.545);
-                float tracking = (noise * 2 - 1) * effect.y * pointer.w * 0.018;
-                float2 shifted = saturate(uv + float2(tracking, 0));
-                float3 shiftedColour = readColour(shifted, isYuv);
-                float bleed = extras.x * 0.00008 * effect.y;
-                float3 neighbour = readColour(shifted + float2(bleed, 0), isYuv);
-                float head = 1 - smoothstep(0.001, 0.018,
-                    abs(uv.y - (0.94 + 0.03 * sin(effect.z * 1.5)))) ;
-                float speckle = frac(sin(dot(uv * 1900 + epoch, float2(12.9898, 78.233))) * 43758.5453);
-                float3 worn = float3(neighbour.r, shiftedColour.g, shiftedColour.b)
-                    * (1 - head * extras.y * 0.006) + (speckle - 0.5) * effect.y * 0.08;
-                colour = lerp(colour, saturate(worn), effect.y);
+                float epoch = floor(effect.z * 24);
+                float wobble = (hash(float2(floor(row / 6), epoch)) * 2 - 1) * 0.6
+                    + sin(uv.y * 9 + effect.z * 2.3) * 0.4;
+                float tracking = wobble * strength * detail * 0.012 / shape.x;
+                float2 shifted = mirrored(uv + float2(tracking, 0));
+                float3 base = readColour(shifted, isYuv);
+                float bleed = saturate(extras.x * 0.01) * 0.006 * strength / shape.x;
+                float3 smeared = (readColour(mirrored(shifted + float2(bleed, 0)), isYuv)
+                    + readColour(mirrored(shifted + float2(bleed * 2, 0)), isYuv)) * 0.5;
+                float y = lumaOf(base);
+                float3 chromaPart = lerp(base, smeared, 0.8) - lumaOf(lerp(base, smeared, 0.8));
+                float3 worn = y + chromaPart;
+                float headBand = smoothstep(0.93, 0.95, uv.y) * saturate(extras.y * 0.01);
+                float headShift = (hash(float2(row, epoch + 7)) * 2 - 1) * 0.03 * headBand;
+                worn = lerp(worn, readColour(mirrored(shifted + float2(headShift, 0)), isYuv) * 0.75, headBand);
+                float speckle = hash(float2(floor(uv.x * 640) + row * 640, epoch));
+                worn += (speckle > 0.9993 ? 0.5 : (speckle - 0.5) * 0.05) * strength;
+                colour = lerp(colour, saturate(worn), strength);
             }
-            if (effect.x > 23.5 && effect.x < 24.5 && effect.y > 0) // Bounded pixel sort
+        #endif
+        #if EFFECT_ONLY == 24
+            if (effect.x > 23.5 && effect.x < 24.5) // Pixel sort
             {
-                float2 direction = extras.y < 0.5 ? float2(0, 1)
-                    : extras.y < 1.5 ? float2(0, -1)
-                    : extras.y < 2.5 ? float2(1, 0) : float2(-1, 0);
-                float2 pixel = max(fwidth(uv), float2(0.00018, 0.00018));
-                float threshold = saturate(pointer.w * 0.45);
-                float bestBrightness = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                // Bright pixels run in the chosen direction: each pixel takes the brightest pixel
+                // above its threshold from a span behind it, fading with distance.
+                float mode = extras.y;
+                float2 direction = mode < 0.5 ? float2(0, 1)
+                    : mode < 1.5 ? float2(0, -1)
+                    : mode < 2.5 ? float2(1, 0) : float2(-1, 0);
+                float span = saturate(extras.x * 0.01) * 0.14;
+                float threshold = saturate(detail * 0.45);
+                float bestScore = lumaOf(colour);
                 float3 best = colour;
-                [unroll] for (int i = 1; i <= 8; i++)
+                [unroll] for (int i = 1; i <= 10; i++)
                 {
-                    float2 target = uv + direction * pixel * (i * extras.x * 0.018);
-                    float3 sampleColour = readColour(target, isYuv);
-                    float lum = dot(sampleColour, float3(0.2126, 0.7152, 0.0722));
-                    if (lum > threshold && lum > bestBrightness)
+                    float2 target = uv - direction / shape * span * (i / 10.0);
+                    float3 sampleColour = readColour(saturate(target), isYuv);
+                    float lum = lumaOf(sampleColour);
+                    float score = lum - i * 0.018;
+                    if (lum > threshold && score > bestScore)
                     {
                         best = sampleColour;
-                        bestBrightness = lum;
+                        bestScore = score;
                     }
                 }
-                colour = lerp(colour, best, effect.y);
+                colour = lerp(colour, best, strength);
             }
-            if (effect.x > 24.5 && effect.x < 25.5 && effect.y > 0) // Motion smear
+        #endif
+        #if EFFECT_ONLY == 25
+            if (effect.x > 24.5 && effect.x < 25.5) // Motion smear
             {
                 if (motion.y > 0.5)
                 {
                     float2 blocks = float2(14 + extras.y * 0.45, 10 + extras.y * 0.25);
                     float2 tile = floor(uv * blocks);
                     float epoch = floor(effect.z * 12);
-                    float random = frac(sin(dot(tile + epoch, float2(12.9898, 78.233))) * 43758.5453);
-                    float2 offset = float2((random - 0.5) * 0.065 * effect.y, 0);
-                    float3 previous = readPrior(uv + offset, isYuv);
+                    float random = hash(tile + float2(epoch * 31, epoch * 17));
+                    float2 offset = float2((random - 0.5) * 0.065 * strength, 0);
+                    float3 previous = readPrior(mirrored(uv + offset), isYuv);
                     float delta = length(colour - previous);
-                    float gate = smoothstep(0.03 * pointer.w, 0.20 * pointer.w, delta);
-                    colour = lerp(colour, previous, gate * effect.y * extras.x * 0.01);
+                    float gate = smoothstep(0.03 * detail, 0.20 * detail, delta);
+                    colour = lerp(colour, previous, gate * strength * extras.x * 0.01);
                 }
             }
-            if (effect.x > 10.5 && effect.x < 11.5 && pointer.z > 0.5 && effect.y > 0)
-            {
-                // A fine highlight at the actual lens boundary communicates where the cursor is.
-                float2 delta = (uv - pointer.xy) * float2(effect.w, 1);
-                float dist = length(delta);
-                float rim = 1 - smoothstep(0.003, 0.011, abs(dist - 0.23 / max(pointer.w, 0.25)));
-                colour = saturate(colour + float3(0.23, 0.48, 0.57) * rim * effect.y);
-            }
-            return styledLook(saturate(colour));
-        }
-        float4 yuv(Vertex input) : SV_Target
-        {
-            return float4(effected(input.uv, true), 1);
-        }
-        float4 bgra(Vertex input) : SV_Target
-        {
-            return float4(effected(input.uv, false), 1);
-        }
-        """;
+        #endif
+        """ + "\n" + D3D11VideoShaderContinuation.Source;
 }

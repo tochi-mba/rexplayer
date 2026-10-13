@@ -39,8 +39,10 @@ public sealed class SectionDetectionControllerTests
             new PlayerMemory(store).SetProposals(fileA,
                 new SectionProposals(SectionAnalysis.SignatureOf(fileA), []));
             var analyzed = 0;
+            var cache = new SectionAnalysisCache();
             using (var harness = new ControllerHarness(autoPlay: false, pictures: true, store: store))
             {
+                harness.Controller.SectionCache = cache;
                 harness.Files[fileA] = bytes;
                 harness.Files[fileB] = bytes;
                 var controller = harness.Controller;
@@ -64,7 +66,7 @@ public sealed class SectionDetectionControllerTests
                 harness.PumpUntil(x => x.State == SessionState.Ready && x.Info is not null);
                 harness.PumpUntil(x => x.CurrentProposals is { Candidates.Count: > 0 });
                 Assert.Equal(2, analyzed);
-                Assert.NotNull(new PlayerMemory(store).Analysis(fileB, SectionAnalysis.SignatureOf(fileB)));
+                Assert.NotNull(cache.Get(fileB, SectionAnalysis.SignatureOf(fileB)));
                 Assert.NotNull(controller.CurrentProposals!.Best(EpisodeSectionKind.Intro, TimeSpan.FromMinutes(43)));
             }
 
@@ -159,15 +161,17 @@ public sealed class SectionDetectionControllerTests
         player.Open(["scene.mkv"]);
         test.PumpUntil(p => p.State == SessionState.Ready);
         player.Seek(TimeSpan.FromSeconds(1));
-        // Playback position notifications are intentionally not produced by a paused
-        // session. Drive the position policy directly, without racing the renderer.
-        var maybeSkip = typeof(PlayerController).GetMethod("MaybeSkipAutomatically",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        maybeSkip.Invoke(player, null);
+        // A paused session reports no positions; the position policy is driven directly.
+        player.MaybeSkipAutomatically();
+        // An automatic skip counts down first, never past a second before the section ends.
+        Assert.Equal(TimeSpan.FromSeconds(1), player.Position);
+        Assert.Equal(1, player.SkipPrompt!.AutomaticInSeconds);
+        player.Seek(TimeSpan.FromSeconds(2.5));
+        player.MaybeSkipAutomatically();
         Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
         Assert.False(player.Settings.SkipCreditsAutomatically);
         player.Seek(TimeSpan.FromSeconds(7));
-        maybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(TimeSpan.FromSeconds(7), player.Position);
     }
 
@@ -212,7 +216,7 @@ public sealed class SectionDetectionControllerTests
             test.Controller.SectionAnalyzer = (_, _) => throw new IOException("Decoder unavailable");
             test.Controller.Open([path]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(reported.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(reported.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             Assert.Null(test.Controller.CurrentProposals);
             Assert.Equal(SessionState.Ready, test.Controller.State);
         }
@@ -259,10 +263,10 @@ public sealed class SectionDetectionControllerTests
             };
             test.Controller.Open([first]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(started.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(started.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             test.Controller.Open([second]);
             test.PumpUntil(x => x.State == SessionState.Ready && x.Item?.Location == second);
-            Assert.True(canceled.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(canceled.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             test.PumpUntil(x => x.CurrentProposals is not null);
             Assert.Equal(second, test.Controller.Item?.Location);
             Assert.Empty(test.Controller.CurrentProposals!.Candidates);
@@ -293,7 +297,7 @@ public sealed class SectionDetectionControllerTests
             };
             test.Controller.Open([path]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(invoked.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(invoked.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             Assert.False(SpinWait.SpinUntil(() => test.Controller.Memory.Proposals(
                 path, SectionAnalysis.SignatureOf(path)) is not null,
                 TimeSpan.FromMilliseconds(50)));

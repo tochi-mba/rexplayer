@@ -67,7 +67,11 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void EveryPictureLookIsNamedSavedAndNormalized()
     {
-        Assert.Equal(9, VideoLooks.Names.Count);
+        Assert.Equal(40, VideoLooks.Names.Count);
+        Assert.Equal("Vivid", VideoLooks.Name(VideoLook.Vivid));
+        Assert.Equal("Cyanotype", VideoLooks.Name(VideoLook.Cyanotype));
+        Assert.Equal("Teal & orange", VideoLooks.Name(VideoLook.TealOrange));
+        Assert.Equal("Infrared", VideoLooks.Name(VideoLook.Infrared));
         Assert.Equal("Original", VideoLooks.Name(VideoLook.Original));
         Assert.Equal("Original", VideoLooks.Name((VideoLook)1_000));
         foreach (var look in Enum.GetValues<VideoLook>())
@@ -78,6 +82,19 @@ public sealed class SettingsStoreTests : IDisposable
         }
 
         Assert.Equal(VideoLook.Original, new PlayerSettings { VideoLook = (VideoLook)999 }.Normalize().VideoLook);
+    }
+
+    [Fact]
+    public void TheRemovalModeIsSavedAndAnUnknownOneRemoves()
+    {
+        Assert.Equal(RemovalMode.Remove, new PlayerSettings().SubjectRemoval);
+        foreach (var mode in Enum.GetValues<RemovalMode>())
+        {
+            SettingsStore.Save(File, new PlayerSettings { SubjectRemoval = mode });
+            Assert.Equal(mode, SettingsStore.Load(File).SubjectRemoval);
+        }
+
+        Assert.Equal(RemovalMode.Remove, new PlayerSettings { SubjectRemoval = (RemovalMode)7 }.Normalize().SubjectRemoval);
     }
 
     [Fact]
@@ -129,19 +146,16 @@ public sealed class SettingsStoreTests : IDisposable
             Assert.All(VideoStyleOptions.ModeNames(effect), name => Assert.False(string.IsNullOrWhiteSpace(name)));
         }
 
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 0));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 30));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 0));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 2));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 1));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 3));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70, 0));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 30, 0));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0, 0));
-        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 70, 0.01f));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 65, 60, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.MotionSmear, 65, 0, 70));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 65, 0, 30));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 65, 90, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 2));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 1));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 3));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0, 35, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100, 100, 100));
         Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.Halftone));
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GlyphMosaic).Count);
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.ThermalMap).Count);
@@ -149,6 +163,86 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(4, VideoStyleOptions.ModeNames(VideoEffect.GhostwireMotion).Count);
         Assert.Equal((0, 0), VideoStyleOptions.Extras(null, VideoStyleOptions.ForEffect(VideoEffect.Off)));
         Assert.Throws<ArgumentNullException>(() => VideoStyleOptions.Extras(null, null!));
+    }
+
+    [Fact]
+    public void SixthEffectSetHasNamedOptionsCategoriesAndHistoryPolicy()
+    {
+        var withModes = new[]
+        {
+            VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.ParticleVeil,
+            VideoEffect.LensBloom, VideoEffect.StippleEngrave,
+        };
+        foreach (var effect in withModes.Append(VideoEffect.TimeEcho))
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            Assert.Equal(4, options.Count);
+            Assert.All(options, option => Assert.InRange(option.Default, option.Min, option.Max));
+            Assert.Equal(options.Count, options.Select(option => option.Key).Distinct().Count());
+            Assert.DoesNotContain("Fine detail", options[1].Label, StringComparison.Ordinal);
+            Assert.Equal((options[2].Default, options[3].Default), VideoStyleOptions.Extras(null, options));
+        }
+
+        foreach (var effect in withModes)
+        {
+            var modes = VideoStyleOptions.ModeNames(effect);
+            Assert.Equal(4, modes.Count);
+            Assert.Equal(modes.Count - 1, VideoStyleOptions.ForEffect(effect)[3].Max);
+            Assert.EndsWith(".mode", VideoStyleOptions.ForEffect(effect)[3].Key, StringComparison.Ordinal);
+        }
+
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.TimeEcho));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.LumenWeave));
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.DepthHaze));
+        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.ParticleVeil));
+        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.LensBloom));
+        Assert.Equal("Print & texture", VideoEffects.Category(VideoEffect.StippleEngrave));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.TimeEcho));
+        Assert.Equal("Lumen weave", VideoEffects.Name(VideoEffect.LumenWeave));
+        Assert.Equal("Time echo", VideoEffects.Name(VideoEffect.TimeEcho));
+
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.ParticleVeil, 65, 0, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 65, 50, 40));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 0, 50, 40));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionAmplify, 65, 50, 50));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.MotionAmplify));
+        Assert.Equal("Motion amplify", VideoEffects.Name(VideoEffect.MotionAmplify));
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.MotionAmplify));
+        foreach (var effect in new[] { VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.LensBloom, VideoEffect.StippleEngrave })
+        {
+            Assert.False(VideoEffects.UsesHistory(effect, 65, 50, 3));
+        }
+    }
+
+    [Fact]
+    public void MosaicEffectsShareAGroupAndEachHasItsOwnNamedControls()
+    {
+        var mosaics = new[]
+        {
+            VideoEffect.GlyphMosaic, VideoEffect.BrickBuild, VideoEffect.StainedGlass, VideoEffect.CrossStitch,
+            VideoEffect.LedWall, VideoEffect.DigitalRain, VideoEffect.DiceMosaic, VideoEffect.CubeMosaic,
+            VideoEffect.HexTiles, VideoEffect.RetroPixels, VideoEffect.LowPoly,
+        };
+        Assert.Equal(mosaics, Enum.GetValues<VideoEffect>().Where(effect => VideoEffects.Category(effect) == "Mosaics"));
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var effect in mosaics)
+        {
+            var options = VideoStyleOptions.ForEffect(effect);
+            Assert.Equal(4, options.Count);
+            Assert.All(options, option => Assert.True(keys.Add(option.Key), option.Key));
+            Assert.All(options, option => Assert.InRange(option.Default, option.Min, option.Max));
+            Assert.EndsWith("size (%)", options[1].Label, StringComparison.Ordinal);
+            Assert.False(VideoEffects.UsesHistory(effect, 65, options[2].Default, options[3].Default));
+            Assert.False(VideoEffects.UsesPointer(effect));
+            if (options[3].Key.EndsWith(".mode", StringComparison.Ordinal))
+            {
+                Assert.Equal(options[3].Max + 1, VideoStyleOptions.ModeNames(effect).Count);
+            }
+        }
+
+        Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.StainedGlass));
+        Assert.Equal("Brick build", VideoEffects.Name(VideoEffect.BrickBuild));
+        Assert.Equal("Retro pixels", VideoEffects.Name(VideoEffect.RetroPixels));
     }
 
     [Fact]
@@ -171,9 +265,12 @@ public sealed class SettingsStoreTests : IDisposable
         foreach (var effect in Enum.GetValues<VideoEffect>())
         {
             var options = VideoStyleOptions.ForEffect(effect);
-            Assert.Equal(effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
+            Assert.Equal((effect is VideoEffect.GhostwireMotion or VideoEffect.Kaleidoscope or VideoEffect.Halftone or VideoEffect.ChromaticRift
                 or VideoEffect.OilPaint or VideoEffect.GlyphMosaic or VideoEffect.ThermalMap or VideoEffect.TapeWear
-                or VideoEffect.PixelSort or VideoEffect.MotionSmear ? 4 : 2, options.Count);
+                or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.LumenWeave or VideoEffect.DepthHaze
+                or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho
+                or VideoEffect.MotionAmplify)
+                || VideoEffects.Category(effect) == "Mosaics" || effect > VideoEffect.MotionAmplify ? 4 : effect == VideoEffect.Off ? 0 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);
@@ -185,7 +282,7 @@ public sealed class SettingsStoreTests : IDisposable
         }
 
         var motion = VideoStyleOptions.ForEffect(VideoEffect.GhostwireMotion);
-        Assert.Equal("Motion emphasis (%)", motion[0].Label);
+        Assert.Equal("Effect intensity (%)", motion[0].Label);
         Assert.Equal("Contour sensitivity (%)", motion[1].Label);
         Assert.Equal("Motion trail length (%)", motion[2].Label);
         Assert.Equal(35, motion[2].Default);
@@ -200,7 +297,8 @@ public sealed class SettingsStoreTests : IDisposable
         var resetOptions = VideoStyleOptions.ForEffect(VideoEffect.CursorLens);
         var reset = VideoStyleOptions.Reset(values, resetOptions);
         Assert.Equal(resetOptions[0].Default, VideoStyleOptions.Read(reset, resetOptions[0]));
-        Assert.False(reset.ContainsKey(resetOptions[0].Key));
+        Assert.Equal(resetOptions[0].Default, reset[resetOptions[0].Key]);
+        Assert.False(reset.ContainsKey(resetOptions[1].Key));
         Assert.True(reset.ContainsKey(VideoStyleOptions.ForEffect(VideoEffect.EdgeGravity)[0].Key));
 
         SettingsStore.Save(File, new PlayerSettings { VideoStyleValues = values });
@@ -234,13 +332,13 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.ColourSpotlight));
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.EdgeGravity));
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.ReliefEtch));
-        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.NeonEdges));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.NeonEdges));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.CursorLens));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.ColourSpotlight));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.Ghostwire));
         Assert.Equal(100, VideoStyleOptions.Read(null, VideoStyleOptions.ForLook((VideoLook)1000)[0]));
-        Assert.Equal(0, VideoStyleOptions.Read(null, VideoStyleOptions.ForEffect((VideoEffect)1000)[0]));
+        Assert.Empty(VideoStyleOptions.ForEffect((VideoEffect)1000));
     }
 
     [Fact]
@@ -311,6 +409,22 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void APendingUpdateSavedBeforePauseAndCancelReadsAsNeitherPausedNorCancelled()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(File)!);
+        System.IO.File.WriteAllText(File, """
+            { "schema": 3, "pendingUpdate": { "version": "0.17.0", "installerName": "rexplayer-Setup-0.17.0.exe",
+              "installerUrl": "https://example.com/a.exe", "checksumUrl": "https://example.com/a.exe.sha256",
+              "notes": "What's Changed\n\u2022 Six picture effects", "stage": "Downloading" } }
+            """);
+        var pending = SettingsStore.Load(File).PendingUpdate!;
+
+        Assert.Equal((UpdateStage.Downloading, false, false, false), (pending.Stage, pending.Paused, pending.Declined, pending.InstallCancelled));
+        Assert.Equal([new Rex.Media.AppCore.Updates.NoteBlock(Rex.Media.AppCore.Updates.NoteKind.Bullet, "Six picture effects")],
+            Rex.Media.AppCore.Updates.ReleaseNotes.Blocks(pending.Notes));
+    }
+
+    [Fact]
     public void AFileFromBeforeUpdateModesReadsAsNothingPendingAndMigrates()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(File)!);
@@ -336,6 +450,9 @@ public sealed class SettingsStoreTests : IDisposable
             Stage = UpdateStage.Ready,
             Timing = UpdateTiming.Scheduled,
             Approved = true,
+            Paused = true,
+            Declined = true,
+            InstallCancelled = true,
             RemindAt = new DateTimeOffset(2026, 10, 13, 9, 0, 0, TimeSpan.Zero),
             InstallAt = new DateTimeOffset(2026, 10, 13, 3, 0, 0, TimeSpan.Zero),
             DownloadFailures = 2,

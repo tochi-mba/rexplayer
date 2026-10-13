@@ -1,4 +1,5 @@
 using System.Globalization;
+using Rex.Media.Library;
 
 namespace Rex.Media.AppCore.Library;
 
@@ -36,7 +37,7 @@ public static class LibraryActions
     {
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Delete {names[0]}?" : $"Delete {Count(names.Count, "file")}?";
-        return new Prompt(title, Named(names) + (names.Count == 1 ? "It goes" : "They go") + " to the Recycle Bin, where it can be brought back, and the library forgets " + (names.Count == 1 ? "it." : "them."));
+        return new Prompt(title, Named(names) + (names.Count == 1 ? "It goes" : "They go") + " to the Recycle Bin, where " + (names.Count == 1 ? "it" : "they") + " can be brought back, and the library forgets " + (names.Count == 1 ? "it." : "them."));
     }
 
     /// <summary>The confirmation before the library stops showing files that stay on the disk.</summary>
@@ -44,7 +45,7 @@ public static class LibraryActions
     {
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Remove {names[0]} from the library?" : $"Remove {Count(names.Count, "item")} from the library?";
-        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + " until the folder is added again.");
+        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + " until " + (names.Count == 1 ? "its folder is" : "their folders are") + " taken out of the library and added again.");
     }
 
     /// <summary>The confirmation before named playlists go.</summary>
@@ -54,6 +55,13 @@ public static class LibraryActions
         var title = names.Count == 1 ? $"Delete {names[0]}?" : $"Delete {Count(names.Count, "playlist")}?";
         return new Prompt(title, Named(names) + (names.Count == 1 ? "The playlist goes" : "The playlists go") + "; the files in " + (names.Count == 1 ? "it stay" : "them stay") + " where they are.");
     }
+
+    /// <summary>
+    /// Whether the Delete key on a library line offers to delete files, as its menu does: a song, a
+    /// video, a picture or a group of them. A watched folder's line only stops being watched and a
+    /// playlist's line is deleted as a playlist, both from their menus, so Delete leaves them be.
+    /// </summary>
+    public static bool DeletesFiles(object? line) => line is LibraryEntry or LibraryGroup;
 
     /// <summary>The first few names, one a line, then "and N more"; nothing for one name (the title has it).</summary>
     private static string Named(IReadOnlyList<string> names)

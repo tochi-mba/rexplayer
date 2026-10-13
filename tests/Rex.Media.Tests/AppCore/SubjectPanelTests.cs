@@ -9,6 +9,7 @@ public sealed class SubjectPanelTests
     [InlineData(false, false, "Select a region in the picture.", SubjectState.Waiting)]
     [InlineData(false, false, null, SubjectState.Waiting)]
     [InlineData(true, false, "Acquiring the selected region...", SubjectState.Acquiring)]
+    [InlineData(true, false, "Finding the object...", SubjectState.Acquiring)]
     [InlineData(true, true, "Selected region locked. Tracking uses its visible texture, not a person recognizer.", SubjectState.Tracking)]
     [InlineData(true, false, "Tracking uncertain: looking for the selected object to return.", SubjectState.Searching)]
     [InlineData(true, false, null, SubjectState.Searching)]
@@ -39,12 +40,8 @@ public sealed class SubjectPanelTests
     }
 
     [Fact]
-    public void TheSliderReadoutsAreShortAndInvariant()
+    public void TheSliderDefaultsMatchTheSession()
     {
-        Assert.Equal("Off", SubjectPanel.FeatherText(0));
-        Assert.Equal("3 px", SubjectPanel.FeatherText(3));
-        Assert.Equal("50%", SubjectPanel.ToleranceText(50));
-        Assert.Equal("100%", SubjectPanel.ToleranceText(140));
         Assert.Equal(3, SubjectPanel.DefaultFeather);
         Assert.Equal(50, SubjectPanel.DefaultTolerance);
     }
@@ -111,27 +108,6 @@ public sealed class SubjectPanelTests
         Assert.False(SubjectPanel.IsClick(SubjectSelectionMode.Click, 8, 0));
         Assert.False(SubjectPanel.IsClick(SubjectSelectionMode.Click, 0, -9));
         Assert.False(SubjectPanel.IsClick(SubjectSelectionMode.Draw, 0, 0));
-    }
-
-    [Fact]
-    public void AClickStandsForASquareOnTheShorterSideKeptInsideThePicture()
-    {
-        // A 16:9 picture: the square is 12 % of the height, so narrower across.
-        var (left, top, width, height) = SubjectPanel.ClickBox(0.5, 0.5, 16, 9);
-        Assert.Equal(0.12, height, 9);
-        Assert.Equal(0.12 * 9 / 16, width, 9);
-        Assert.Equal(0.5 - width / 2, left, 9);
-        Assert.Equal(0.44, top, 9);
-
-        // Near a corner the square moves inwards rather than leaving the picture.
-        var corner = SubjectPanel.ClickBox(1, 0, 9, 16);
-        Assert.Equal((1 - 0.12, 0.0), (corner.Left, corner.Top));
-        Assert.Equal(0.12, corner.Width, 9);
-        Assert.Equal(0.12 * 9 / 16, corner.Height, 9);
-
-        // A degenerate shape is treated as square instead of dividing by zero.
-        var square = SubjectPanel.ClickBox(0.5, 0.5, 0, -3);
-        Assert.Equal((0.12, 0.12), (square.Width, square.Height));
     }
 
     [Fact]
