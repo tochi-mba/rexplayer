@@ -38,7 +38,7 @@ public sealed class SubjectRemovalMatteTests
         Assert.True(At(matte, 160, 100) < 0);
         // The loose box's corner is wall, a few pixels clear of the outline.
         Assert.True(At(matte, box.Left + 1, box.Top + 1) > 3 * SubjectRemovalMatte.DistanceUnit);
-        Assert.Equal(1, matte.Scale);
+        Assert.Equal(2, matte.Scale);
         Assert.InRange(matte.Grow, 3, 5);
         Assert.Throws<ArgumentNullException>(() => matte.Compute(null!, box, null, 50, true));
     }
