@@ -51,8 +51,9 @@ public sealed class SharedModelsTests
     }
 
     [Fact]
-    public void ASharedSegmenterRunsOneCallAtATimeAndDisposalWaitsForIt()
+    public async Task ASharedSegmenterRunsOneCallAtATimeAndDisposalWaitsForIt()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         Assert.Throws<ArgumentNullException>(() => new SharedSegmenter(null!));
         var model = new SlowModel();
         var shared = new SharedSegmenter(model);
@@ -60,17 +61,26 @@ public sealed class SharedModelsTests
         Assert.Equal(TimeSpan.FromSeconds(4), shared.LastEncode);
         Assert.Equal(TimeSpan.FromSeconds(1), shared.LastDecode);
 
-        var calls = Enumerable.Range(0, 3).Select(_ => Task.Run(() => shared.Segment(Picture, new PictureKey(1, 1), SegmentPrompt.At(1, 1)))).ToArray();
-        Assert.True(model.Started.Wait(TimeSpan.FromSeconds(10)));
-        var disposal = Task.Run(shared.Dispose);
-        Assert.False(disposal.Wait(TimeSpan.FromMilliseconds(100)));
+        var calls = Enumerable.Range(0, 3).Select(_ => Task.Run(() => shared.Segment(Picture, new PictureKey(1, 1), SegmentPrompt.At(1, 1)), cancellationToken)).ToArray();
+        Assert.True(await Task.Run(() => model.Started.Wait(TimeSpan.FromSeconds(10), cancellationToken), cancellationToken));
+        var disposal = Task.Run(shared.Dispose, cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+        Assert.False(disposal.IsCompleted);
         Assert.False(model.Disposed);
         model.Release.Set();
-        Assert.True(disposal.Wait(TimeSpan.FromSeconds(10)));
+        await disposal.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
         Assert.True(model.Disposed);
         Assert.Equal(1, model.MostAtOnce);
 
         // Calls that had not started when it was disposed find it gone; disposing again does nothing.
+        try
+        {
+            await Task.WhenAll(calls);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
         var refused = calls.Count(call => call.Exception?.InnerException is ObjectDisposedException);
         Assert.True(refused <= 2);
         Assert.Throws<ObjectDisposedException>(() => shared.Segment(Picture, new PictureKey(1, 1), SegmentPrompt.At(1, 1)));
@@ -78,8 +88,9 @@ public sealed class SharedModelsTests
     }
 
     [Fact]
-    public void ASharedInpainterRunsOneFillAtATimeAndDisposalWaitsForIt()
+    public async Task ASharedInpainterRunsOneFillAtATimeAndDisposalWaitsForIt()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         Assert.Throws<ArgumentNullException>(() => new SharedInpainter(null!));
         var model = new SlowModel();
         var shared = new SharedInpainter(model);
@@ -87,13 +98,14 @@ public sealed class SharedModelsTests
         Assert.Equal(TimeSpan.FromSeconds(3), shared.LastFill);
         var hole = new PictureMask(new byte[8 * 6], 8, 6, 1);
 
-        var fill = Task.Run(() => shared.Fill(Picture, hole, new byte[Pixels.Length]));
-        Assert.True(model.Started.Wait(TimeSpan.FromSeconds(10)));
-        var disposal = Task.Run(shared.Dispose);
-        Assert.False(disposal.Wait(TimeSpan.FromMilliseconds(100)));
+        var fill = Task.Run(() => shared.Fill(Picture, hole, new byte[Pixels.Length]), cancellationToken);
+        Assert.True(await Task.Run(() => model.Started.Wait(TimeSpan.FromSeconds(10), cancellationToken), cancellationToken));
+        var disposal = Task.Run(shared.Dispose, cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+        Assert.False(disposal.IsCompleted);
         model.Release.Set();
-        Assert.True(disposal.Wait(TimeSpan.FromSeconds(10)));
-        Assert.True(fill.Wait(TimeSpan.FromSeconds(10)));
+        await disposal.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        await fill.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
         Assert.True(model.Disposed);
         Assert.Throws<ObjectDisposedException>(() => shared.Fill(Picture, hole, new byte[Pixels.Length]));
         shared.Dispose();
