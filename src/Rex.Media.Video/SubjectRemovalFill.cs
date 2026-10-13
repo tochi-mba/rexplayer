@@ -36,7 +36,7 @@ public sealed class SubjectRemovalFill
 
     private const int Side = 2 * Radius + 1;
     // Random candidates tried for every cell, spread over the search window.
-    private const int Samples = 12;
+    private const int Samples = 18;
     // How strongly a far source is penalised, relative to a typical patch difference.
     private const float Nearness = 0.15f;
 
@@ -170,6 +170,7 @@ public sealed class SubjectRemovalFill
 
         Polish(forward: true);
         Polish(forward: false);
+        Polish(forward: true);
     }
 
     /// <summary>Whether a hole cell touches a known or filled cell.</summary>
