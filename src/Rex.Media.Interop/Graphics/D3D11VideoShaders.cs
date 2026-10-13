@@ -33,11 +33,16 @@ internal static class D3D11VideoShaders
             output.position = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
             return output;
         }
-        // Shared by the mosaic effects: a stable per-cell random number, a modulo that
-        // stays positive for negative coordinates, and nearest-colour palette snapping.
+        // Shared by the mosaic effects: a random number for any coordinate, made from its bits so
+        // it is the same on every graphics card and shows none of the banding a sine hash does at
+        // large coordinates; a modulo that stays positive for negative coordinates; and
+        // nearest-colour palette snapping.
         float hash12(float2 p)
         {
-            return frac(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+            uint2 q = asuint(p);
+            uint h = q.x * 0x8da6b343u ^ (q.y * 0xd8163841u + 0x9e3779b9u);
+            h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; h *= 0x846ca68bu; h ^= h >> 16;
+            return h * (1.0 / 4294967296.0);
         }
         float2 positiveMod(float2 x, float2 y)
         {
@@ -176,6 +181,18 @@ internal static class D3D11VideoShaders
                 return decodeYuv(priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).r,
                     priorChroma.SampleLevel(chromaSampler, insideChroma(t), 0).rg);
             return priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).rgb;
+        }
+        // A cell's colour for the mosaics: the centre and four places around it, so a tile keeps
+        // its colour from one picture to the next instead of flickering with grain. halfCell is
+        // half the cell's size; the outer taps sit half way to its edges.
+        float3 cellColour(float2 centre, float2 halfCell, bool isYuv)
+        {
+            float3 sum = readColour(centre, isYuv) * 2;
+            sum += readColour(centre + float2(-0.5, -0.5) * halfCell, isYuv);
+            sum += readColour(centre + float2(0.5, -0.5) * halfCell, isYuv);
+            sum += readColour(centre + float2(-0.5, 0.5) * halfCell, isYuv);
+            sum += readColour(centre + float2(0.5, 0.5) * halfCell, isYuv);
+            return sum / 6;
         }
         // One recorded pixel in picture coordinates.
         float2 pictureTexel()
@@ -381,31 +398,10 @@ internal static class D3D11VideoShaders
             base += fineEdge * float3(0.18, 0.62, 0.72);
             return saturate(base);
         }
-        // Geometry effects move where the picture is read from. Everything else reads in place.
-        // Level-zero reads for real (not unrolled) loops: they need no screen-space
-        // derivatives, so long walks compile in a moment instead of inlining every step.
-        float3 readColourAt(float2 uv, bool isYuv)
-        {
-            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
-            if (isYuv)
-            {
-                float4 samples = float4(luma.SampleLevel(linearClamp, mapped, 0).r,
-                    chroma.SampleLevel(chromaSampler, mapped, 0).rg, 1);
-                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
-            }
-            return luma.SampleLevel(linearClamp, mapped, 0).rgb;
-        }
-        float3 readPriorAt(float2 uv, bool isYuv)
-        {
-            float2 mapped = (source.xy + saturate(uv) * (source.zw - source.xy)) * crop.xy;
-            if (isYuv)
-            {
-                float4 samples = float4(priorLuma.SampleLevel(linearClamp, mapped, 0).r,
-                    priorChroma.SampleLevel(chromaSampler, mapped, 0).rg, 1);
-                return saturate(float3(dot(rowR, samples), dot(rowG, samples), dot(rowB, samples)));
-            }
-            return priorLuma.SampleLevel(linearClamp, mapped, 0).rgb;
-        }
+        // The readers the walking effects use: the same clamped reads as readColour and readPrior,
+        // so a decoder's padding rows and columns never bleed into the picture's edges.
+        float3 readColourAt(float2 uv, bool isYuv) { return readColour(uv, isYuv); }
+        float3 readPriorAt(float2 uv, bool isYuv) { return readPrior(uv, isYuv); }
         // The contourGradient signal at a given pixel footprint, for use inside loops.
         float3 contourGradientAt(float2 uv, bool isYuv, float2 pixel)
         {
@@ -415,26 +411,13 @@ internal static class D3D11VideoShaders
             float2 direction = float2(dot(dx, weights), dot(dy, weights));
             return float3(direction, length(direction) + sqrt(dot(dx, dx) + dot(dy, dy)) * 0.32);
         }
-        // A four-neighbour spatial gradient, measured in real output-pixel units.
-        // Derivatives adapt across window sizes, avoiding a permanently chunky outline.
-        float2 pictureGradient(float2 uv, bool isYuv)
-        {
-            float2 stepUv = max(fwidth(uv), float2(0.001, 0.001)) / max(pointer.w, 0.25);
-            float3 weights = float3(0.2126, 0.7152, 0.0722);
-            float left = dot(readColour(uv - float2(stepUv.x, 0), isYuv), weights);
-            float right = dot(readColour(uv + float2(stepUv.x, 0), isYuv), weights);
-            float above = dot(readColour(uv - float2(0, stepUv.y), isYuv), weights);
-            float below = dot(readColour(uv + float2(0, stepUv.y), isYuv), weights);
-            return float2(right - left, below - above);
-        }
         // Fine texture inside low-contrast regions needs a different signal from the
         // outer silhouette. Read RGB deltas as well as luminance so equal-brightness
         // colours and shallow grey folds still create true, recorded contours.
         // The sample footprint stays tied to display pixels (and source zoom).
         float3 contourGradient(float2 uv, bool isYuv, float scale)
         {
-            float2 pixel = max(fwidth(uv) * scale, float2(0.00018, 0.00018))
-                / max(pointer.w, 0.25);
+            float2 pixel = max(fwidth(uv), pictureTexel()) * scale / max(pointer.w, 0.25);
             float3 dx = readColour(uv + float2(pixel.x, 0), isYuv)
                 - readColour(uv - float2(pixel.x, 0), isYuv);
             float3 dy = readColour(uv + float2(0, pixel.y), isYuv)
@@ -502,9 +485,6 @@ internal static class D3D11VideoShaders
                 float blend = 1 - smoothstep(reach * 0.6, reach, r);
                 return mirrored(lerp(uv, inside, blend));
             }
-        #endif
-        #if EFFECT_ONLY >= 5 && EFFECT_ONLY <= 7
-            if (effect.x < 7.5) return uv; // 5-7 are contours
         #endif
         #if EFFECT_ONLY == 8
             if (effect.x < 8.5) // Liquid glass: interference between crossing sine fields
@@ -597,12 +577,11 @@ internal static class D3D11VideoShaders
                 colour = lerp(colour, saturate(neon), strength);
             }
         #endif
-        #if EFFECT_ONLY >= 5 && EFFECT_ONLY <= 7
-            if (effect.x > 4.5 && effect.x < 7.5)
+        #if EFFECT_ONLY == 5
+            if (effect.x > 4.5 && effect.x < 5.5) // Ink trace: a pen sketch on paper
             {
                 float lum = lumaOf(colour);
                 float3 styled;
-                if (effect.x < 5.5) // Ink trace: a pen sketch on paper
                 {
                     // Strokes taper: clear outlines are drawn broad, faint ones as hairlines, and
                     // shadows are cross-hatched (one direction in the shade, both in the dark).
@@ -613,16 +592,25 @@ internal static class D3D11VideoShaders
                     float ink = saturate(max(stroke, hatch * 0.3));
                     styled = float3(0.96, 0.935, 0.86) * (1 - ink * 0.86);
                 }
-                else if (effect.x < 6.5) // Topographic: a relief map of the picture's brightness
+                colour = lerp(colour, styled, strength);
+            }
+        #endif
+        #if EFFECT_ONLY == 6
+            if (effect.x > 5.5 && effect.x < 6.5) // Topographic: a relief map of the picture's brightness
+            {
+                float3 styled;
                 {
                     // Brightness becomes height: tinted layers like a map's elevation colours,
                     // hill shading from the slope, and a thin contour line at every level.
                     // Heights follow a curve that gives the shadows as many levels as the highlights,
                     // so dark scenes are mapped too; it starts a little above black, so compression
                     // blocks in near-black never become shapes.
+                    // Heights come from the brightness smoothed over a few pixels, so grain and
+                    // compression noise never break a level line into specks.
                     float levels = 12 * detail;
-                    float height = pow(saturate((lum - 0.025) / 0.975), 0.55) * levels;
                     float4 measured = lumaSlope(uv, measureStep(pixel) * 2, isYuv);
+                    float lum = lerp(lumaOf(colour), measured.z, 0.8);
+                    float height = pow(saturate((lum - 0.025) / 0.975), 0.55) * levels;
                     float layer = saturate(floor(height) / max(levels - 1, 1));
                     float3 tint = layer < 0.25 ? lerp(float3(0.07, 0.20, 0.36), float3(0.16, 0.42, 0.40), layer * 4)
                         : layer < 0.5 ? lerp(float3(0.16, 0.42, 0.40), float3(0.45, 0.62, 0.30), layer * 4 - 1)
@@ -635,7 +623,13 @@ internal static class D3D11VideoShaders
                     float isoline = 1 - smoothstep(width * 0.5, width * 1.5, abs(frac(height + 0.5) - 0.5));
                     styled = saturate(tint * shade * (1 - isoline * 0.7));
                 }
-                else // Chromatic contours: every fine line, coloured by the direction it faces
+                colour = lerp(colour, styled, strength);
+            }
+        #endif
+        #if EFFECT_ONLY == 7
+            if (effect.x > 6.5 && effect.x < 7.5) // Chromatic contours: every fine line, coloured by the direction it faces
+            {
+                float3 styled;
                 {
                     float angle = atan2(field.w, field.z);
                     float3 rainbow = 0.5 + 0.5 * cos(angle + float3(0, 2.094, 4.189));
@@ -855,7 +849,7 @@ internal static class D3D11VideoShaders
                 // characters rather than joining into a grid.
                 float2 local = (frac(uv * cells) - 0.15) / 0.7;
                 float inCell = all(local > 0) && all(local < 1) ? 1 : 0;
-                float3 sampled = readColour((cellId + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cellId + 0.5) / cells, 0.5 / cells, isYuv);
                 float grey = lumaOf(sampled);
                 float mode = extras.y;
                 bool paperMode = mode > 1.5 && mode < 2.5;
