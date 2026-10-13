@@ -42,6 +42,7 @@ public sealed partial class PlayerController : IDisposable
     public static readonly TimeSpan HandOverBurst = TimeSpan.FromMilliseconds(600);
     private readonly Action<Action> _dispatch;
     private MediaSession? _session;
+    private readonly List<Task> _sessionsClosing = [];
     private bool _openedInSession;
     private PlaylistItem? _queued;
     private bool _queueTried;
@@ -303,6 +304,9 @@ public sealed partial class PlayerController : IDisposable
         CancelSectionDetection();
         RememberPosition();
         EndSession();
+        // Each session's video thread borrows the window's presenter. Do not let the window
+        // release that presenter while any current or previous session is still drawing.
+        Task.WhenAll(_sessionsClosing).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -378,8 +382,10 @@ public sealed partial class PlayerController : IDisposable
             _queued = null;
             _queueTried = false;
 
-            // Stopping joins the session's threads, which can take a moment: never on the window's thread.
-            _ = Task.Run(old.Dispose);
+            // Switching media must not block the window. Remember every background shutdown so
+            // the final Dispose can join them all before the window releases its presenter.
+            _sessionsClosing.RemoveAll(task => task.IsCompletedSuccessfully);
+            _sessionsClosing.Add(Task.Run(old.Dispose));
         }
     }
 

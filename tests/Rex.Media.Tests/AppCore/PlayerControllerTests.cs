@@ -19,6 +19,50 @@ public sealed class PlayerControllerTests
     private static bool EndedOn(PlayerController controller, string title) =>
         controller.State == SessionState.Ended && controller.Item?.Title == title && controller.Playlist.Current is null;
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DisposingWaitsForTheMediaThreadEvenWhenItsSessionWasAlreadyStopped(bool stopFirst)
+    {
+        using var writing = new ManualResetEventSlim();
+        using var releaseWrite = new ManualResetEventSlim();
+        using var disposalStarted = new ManualResetEventSlim();
+        using var harness = new ControllerHarness(beforeAudioWrite: (_, _) =>
+        {
+            writing.Set();
+            // Model a video or audio adapter still inside a native call during shutdown.
+            releaseWrite.Wait(ControllerHarness.Patience);
+        });
+        harness.Files["a.wav"] = Count(0, 8000);
+        harness.Controller.Open(["a.wav"]);
+        Assert.True(writing.Wait(ControllerHarness.Patience));
+
+        if (stopFirst)
+        {
+            // Stop starts a background shutdown, but does not wait for the media thread.
+            harness.Controller.Stop();
+        }
+
+        var disposing = Task.Run(() =>
+        {
+            disposalStarted.Set();
+            harness.Controller.Dispose();
+        });
+        try
+        {
+            Assert.True(disposalStarted.Wait(ControllerHarness.Patience));
+            Assert.False(disposing.Wait(TimeSpan.FromMilliseconds(200)),
+                "Disposing the controller returned while a media thread was still using its resources.");
+        }
+        finally
+        {
+            releaseWrite.Set();
+        }
+
+        Assert.True(disposing.Wait(ControllerHarness.Patience));
+        Assert.True(Assert.Single(harness.Sinks).Disposed);
+    }
+
     [Fact]
     [Capability("PB-14")]
     [Capability("VID-26")]
