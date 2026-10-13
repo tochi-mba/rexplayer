@@ -33,10 +33,6 @@ public static class LandmarkMatcher
     /// <summary>How many of the strongest offsets are examined for runs.</summary>
     private const int Candidates = 16;
 
-    /// <summary>The strongest shared run, or null.</summary>
-    public static LandmarkMatch? Match(IReadOnlyList<AudioLandmark> first, IReadOnlyList<AudioLandmark> second) =>
-        MatchAll(first, second, 1) is [var best, ..] ? best : null;
-
     /// <summary>
     /// Up to <paramref name="limit"/> shared runs, strongest first, none overlapping another in
     /// either episode. Two episodes can share more than one thing (a recap of the previous episode

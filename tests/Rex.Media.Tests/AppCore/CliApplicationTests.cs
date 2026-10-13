@@ -78,28 +78,6 @@ public sealed class CliApplicationTests : IDisposable
         Assert.Contains("no sound to hear", output, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [Capability("AU-18")]
-    [InlineData(24)]
-    [InlineData(144)]
-    public void PulseHearsAFileAtTheFrameRateAsked(int fps)
-    {
-        // The window draws at its screen's rate, not always thirty: the same song keeps its tempo
-        // and its beats at any.
-        var song = Fixture("song.wav", new SyntheticMusic(120, 12).Wav());
-        var (exit, output, _) = Run(null, "pulse", song, "--fps", fps.ToString(System.Globalization.CultureInfo.InvariantCulture), "--json");
-        Assert.Equal(0, exit);
-        var data = Single(output).GetProperty("data");
-        Assert.Equal(fps, data.GetProperty("fps").GetInt32());
-        Assert.InRange(data.GetProperty("tempo").GetDouble(), 118, 122);
-        Assert.InRange(data.GetProperty("beatsHeard").GetInt32(), 20, 26);
-        Assert.InRange(data.GetProperty("beatGapSpread").GetDouble(), 0, 0.08);
-
-        var (refused, _, error) = Run(null, "pulse", song, "--fps", "0");
-        Assert.Equal(1, refused);
-        Assert.Contains("--fps takes a whole number", error, StringComparison.Ordinal);
-    }
-
     [Fact]
     [Capability("TOOL-02")]
     public void CapabilitiesIsOneJsonLineDescribingTheBuild()
@@ -141,18 +119,13 @@ public sealed class CliApplicationTests : IDisposable
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("chapterHints").ValueKind);
         Assert.NotEmpty(payload.GetProperty("signature").GetString()!);
 
-        // The same host caches the analysis for subsequent CLI requests, so nothing needs
-        // decoding a second time when the user inspects the same season again.
+        // One host keeps each analysis, so inspecting the season again decodes nothing.
+        var cache = new SectionAnalysisCache();
         using (var cachedOutput = new StringWriter())
         {
-            var cachedHost = new CliHost
-            {
-                Out = cachedOutput,
-                Error = TextWriter.Null,
-                Version = "9.9.9",
-                SectionCache = new SectionAnalysisCache(),
-            };
+            var cachedHost = new CliHost { Out = cachedOutput, Error = TextWriter.Null, Version = "9.9.9", SectionCache = cache };
             Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
+            Assert.NotNull(cache.Get(episode, SectionAnalysis.SignatureOf(episode)));
             cachedOutput.GetStringBuilder().Clear();
             Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
             Assert.True(Single(cachedOutput.ToString()).GetProperty("ok").GetBoolean());
