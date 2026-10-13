@@ -116,6 +116,8 @@ void Bench(string video, double start, int count)
     using var demuxer = Open(video);
     var pictures = Decode(demuxer, start, count);
     var (w, h) = (pictures[0].Width, pictures[0].Height);
+    // Stage times, when a build of the removal keeps them (a local measuring build only).
+    var profile = typeof(SubjectRemoval).GetField("ProfileTicks", BindingFlags.Static | BindingFlags.Public)?.GetValue(null) as long[];
     foreach (var (label, share) in new[] { ("small", 0.06), ("medium", 0.16), ("large", 0.35), ("huge", 0.55) })
     {
         var bw = (int)(w * share * 0.6);
@@ -126,6 +128,8 @@ void Bench(string video, double start, int count)
         var matte = new SubjectRemovalMatte();
         using var preview = VideoFrame.Rent(PixelFormat.Bgra32, w, h);
         List<double> previews = [], records = [], motions = [], mattes = [];
+        var stages = new double[8];
+        var allocated = 0L;
         for (var i = 0; i < pictures.Count; i++)
         {
             // The box drifts as a walking subject's would.
@@ -133,13 +137,29 @@ void Bench(string video, double start, int count)
             var top = (h - bh) / 2;
             var box = (left, top, left + bw, top + bh);
             var detail = (Math.Max(0, left - 60), Math.Max(0, top - 60), Math.Min(w, left + bw + 60), Math.Min(h, top + bh + 60));
+            var ticks = profile?.ToArray();
+            var bytes = GC.GetAllocatedBytesForCurrentThread();
             Time(previews, i, () => removal.Apply(pictures[i], box, advance: true, feather: 3, coverage: 50, preview));
+            if (i >= 3)
+            {
+                allocated += GC.GetAllocatedBytesForCurrentThread() - bytes;
+                for (var s = 0; profile is not null && s < stages.Length; s++)
+                {
+                    stages[s] += (profile[s] - ticks![s]) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                }
+            }
+
             Time(records, i, () => recorder.Apply(pictures[i], box, advance: true, 3, 50, null));
             Time(motions, i, () => motion.Estimate(pictures[i], box, detail));
             Time(mattes, i, () => matte.Compute(pictures[i], box, null, 50, true));
         }
 
-        Console.WriteLine($"{label} box {bw}x{bh} (CPU ms): preview {Summary(previews)}; recording only {Summary(records)}; motion {Summary(motions)}; matte {Summary(mattes)}");
+        Console.WriteLine($"{label} box {bw}x{bh} (CPU ms): preview {Summary(previews)}; recording only {Summary(records)}; motion {Summary(motions)}; matte {Summary(mattes)}; preview allocated {allocated} bytes");
+        if (profile is not null)
+        {
+            var n = pictures.Count - 3;
+            Console.WriteLine("  stages (wall ms a picture): " + string.Join(", ", stages.Select((t, s) => string.Create(culture, $"{s}:{t / n:F1}"))));
+        }
     }
 
     foreach (var picture in pictures)
@@ -162,7 +182,7 @@ static void Time(List<double> times, int index, Action work)
 static string Summary(List<double> times)
 {
     times.Sort();
-    return string.Create(CultureInfo.InvariantCulture, $"median {times[times.Count / 2]:F1}, p90 {times[(int)(times.Count * 0.9)]:F1}");
+    return string.Create(CultureInfo.InvariantCulture, $"median {times[times.Count / 2]:F1}, p95 {times[Math.Min(times.Count - 1, (int)(times.Count * 0.95))]:F1}");
 }
 
 void Erase(string video, string folder, double start, double end, float[] region, double every)
@@ -240,7 +260,7 @@ void Erase(string video, string folder, double start, double end, float[] region
     times.Sort();
     if (times.Count > 0)
     {
-        Console.WriteLine(string.Create(culture, $"{times.Count} previews (CPU ms, tracking included): median {times[times.Count / 2]:F1}, p90 {times[(int)(times.Count * 0.9)]:F1}, max {times[^1]:F1}"));
+        Console.WriteLine(string.Create(culture, $"{times.Count} previews (CPU ms, tracking included): median {times[times.Count / 2]:F1}, p95 {times[Math.Min(times.Count - 1, (int)(times.Count * 0.95))]:F1}, max {times[^1]:F1}"));
     }
 
     Console.WriteLine("Last status: " + session.Status);

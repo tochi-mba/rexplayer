@@ -255,6 +255,117 @@ public sealed class SubjectRemovalTests
         Assert.Equal((byte)expected, SubjectRemoval.Opacity(distance, grow, feather));
 
     [Fact]
+    public void ALargeSubjectIsRemovedAtHalfSizeAndDrawnBackAtFullSize()
+    {
+        // The walking figure filmed four times closer: its box holds about 58,000 pixels, so the
+        // removal works on a half-size copy and draws the result back at full size.
+        var scene = new RemovalScene(1280, 720, _ => (0, 0), i => (70 + 2.5f * i, 92), zoom: 4);
+        var removal = new SubjectRemoval();
+        using var preview = Preview(scene);
+        using var wall = VideoFrame.Rent(PixelFormat.Bgra32, 1280, 720);
+        var opacity = new float[1280 * 720];
+        double error = 0;
+        var count = 0;
+        long both = 0, either = 0;
+        for (var i = 0; i < 14; i++)
+        {
+            using var picture = scene.Render(i, wall, opacity);
+            Assert.True(removal.Apply(picture, scene.Box(i, loose: 30), advance: true, 3, 50, preview));
+            Assert.Equal(2, removal.WorkingScale);
+            if (i >= 8)
+            {
+                var (e, n) = RemovalScore.FillError(preview, wall, opacity);
+                (error, count) = (error + e, count + n);
+                var (b, u) = RemovalScore.Overlap(removal.IsSubject, opacity, 1280, 720);
+                (both, either) = (both + b, either + u);
+            }
+        }
+
+        Assert.True(RemovalScore.Psnr(error, count) > 26, $"{RemovalScore.Psnr(error, count)}");
+        Assert.True(both / (double)either > 0.85, $"{both / (double)either}");
+        Assert.False(removal.IsSubject(-1, 300));
+
+        // The hole a model would fill is marked at full size, two by two for each half-size pixel.
+        var hole = new byte[1280 * 720];
+        Assert.Equal(removal.EstimatedPixels, removal.EstimatedHole(hole, 1280));
+        Assert.True(removal.EstimatedPixels > 0);
+
+        // A model's fill of this paused picture shows at full size, its own pixels.
+        using (var picture = scene.Render(13))
+        using (var estimate = Preview(scene))
+        {
+            new Random(5).NextBytes(estimate.Plane(0));
+            removal.Apply(picture, scene.Box(13, loose: 30), advance: false, 3, 50, preview, estimate);
+            Assert.True(removal.UsedEstimate);
+            var marked = Array.IndexOf(hole, (byte)255);
+            var (x, y) = (marked % 1280, marked / 1280);
+            Assert.Equal(estimate.Row(0, y).Slice(x * 4, 3).ToArray(), preview.Row(0, y).Slice(x * 4, 3).ToArray());
+
+            // A model's outline of the picture is halved with it.
+            var shape = new byte[1280 * 720];
+            scene.Render(13, opacity: opacity).Dispose();
+            for (var at = 0; at < shape.Length; at++)
+            {
+                shape[at] = (byte)(opacity[at] >= 0.5f ? 255 : 0);
+            }
+
+            removal.UseShape(shape, 1280, 720, picture.Pts);
+            removal.Apply(picture, scene.Box(13, loose: 30), advance: false, 3, 50, preview);
+            removal.Apply(picture, scene.Box(13, loose: 30), advance: false, 3, 60, preview);
+            var (b, u) = RemovalScore.Overlap(removal.IsSubject, opacity, 1280, 720);
+            Assert.True(b / (double)u > 0.9, $"{b / (double)u}");
+        }
+
+        // A box between the two thresholds keeps the size in use; a small one goes back to full
+        // size, and what was recorded at half size is dropped.
+        using (var picture = scene.Render(14))
+        {
+            var box = scene.Box(14, loose: 12);
+            removal.Apply(picture, box, advance: true, 3, 50, preview);
+            Assert.Equal(2, removal.WorkingScale);
+            var (cx, cy) = ((box.Left + box.Right) / 2, (box.Top + box.Bottom) / 2);
+            removal.Apply(picture, (cx - 40, cy - 80, cx + 40, cy + 80), advance: true, 3, 50, preview);
+            Assert.Equal(1, removal.WorkingScale);
+            Assert.Equal(0, removal.ObservedPixels);
+        }
+
+        removal.Release();
+        Assert.Equal(1, removal.WorkingScale);
+    }
+
+    [Fact]
+    public void ASteadyHalfSizePreviewAllocatesNothing()
+    {
+        var scene = new RemovalScene(1280, 720, i => (1.5f * i, 0.25f * i), i => (100 + 1f * i, 92), zoom: 4);
+        var removal = new SubjectRemoval();
+        using var preview = Preview(scene);
+        var pictures = Enumerable.Range(0, 16).Select(i => scene.Render(i)).ToArray();
+        try
+        {
+            for (var i = 0; i < 8; i++)
+            {
+                removal.Apply(pictures[i], scene.Box(i, loose: 30), true, 3, 50, preview);
+            }
+
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (var i = 8; i < 16; i++)
+            {
+                removal.Apply(pictures[i], scene.Box(i, loose: 30), true, 3, 50, preview);
+            }
+
+            Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+            Assert.Equal(2, removal.WorkingScale);
+        }
+        finally
+        {
+            foreach (var picture in pictures)
+            {
+                picture.Dispose();
+            }
+        }
+    }
+
+    [Fact]
     public void ASteadyPreviewAllocatesNothing()
     {
         var scene = new RemovalScene(320, 180, i => (1.5f * i, 0.25f * i), i => (100 + 1f * i, 96));

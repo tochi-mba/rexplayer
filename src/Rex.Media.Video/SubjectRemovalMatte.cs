@@ -23,7 +23,7 @@ namespace Rex.Media.Video;
 /// All of this runs on a grid of at most <see cref="GridBudget"/> cells, so its cost does not
 /// grow with the size of the picture or of the subject.
 /// </summary>
-public sealed class SubjectRemovalMatte
+public sealed partial class SubjectRemovalMatte
 {
     /// <summary>The most cells the analysis grid has, whatever the area's size.</summary>
     public const int GridBudget = 10_000;
@@ -47,6 +47,10 @@ public sealed class SubjectRemovalMatte
     private const byte Inside = 0;
     private const byte Band = 1;
     private const byte Beyond = 2;
+    // Growth needs this many cells of the outer ring to know what the background looks like.
+    private const int MinimumRing = 12;
+    // A colour holding less than this many of the ring's cells' worth of its histogram is rare there.
+    private const float RareInRing = 0.25f;
 
     private readonly float[] _subjectHistogram = new float[BinCount];
     private readonly float[] _backgroundHistogram = new float[BinCount];
@@ -54,6 +58,7 @@ public sealed class SubjectRemovalMatte
     private readonly float[] _backgroundMemory = new float[BinCount];
     private readonly float[] _scratch = new float[BinCount];
     private readonly float[] _ratio = new float[BinCount];
+    private readonly float[] _ringHistogram = new float[BinCount];
     private bool _hasModels;
 
     private byte[] _colour = [];
@@ -62,6 +67,7 @@ public sealed class SubjectRemovalMatte
     private byte[] _region = [];
     private bool[] _middle = [];
     private float[] _cue = [];
+    private bool[] _observed = [];
     private float[] _prior = [];
     private float[] _unary = [];
     private float[] _probability = [];
@@ -91,6 +97,9 @@ public sealed class SubjectRemovalMatte
 
     private int _gridWidth;
     private int _gridHeight;
+    // How many cells the outline may grow outwards.
+    private int _growth;
+    private (int Width, int Height) _picture;
 
     /// <summary>The picture area the matte covers; the subject can extend past the box into it.</summary>
     public (int Left, int Top, int Right, int Bottom) Area { get; private set; }
@@ -160,6 +169,8 @@ public sealed class SubjectRemovalMatte
         _gridHeight = (areaHeight + Scale - 1) / Scale;
         var cells = _gridWidth * _gridHeight;
         Reserve(cells, areaWidth * areaHeight);
+        _growth = (Math.Max(reachX, reachY) + MaximumFeather) / Scale + 1;
+        _picture = (frame.Width, frame.Height);
 
         Read(frame, box, reachX, reachY, plate);
         if (!shape.IsEmpty)
@@ -192,6 +203,7 @@ public sealed class SubjectRemovalMatte
         Label(wholeBox);
         Tidy();
         KeepConnected();
+        Extend();
         MeasureDistances(0);
     }
 
@@ -243,6 +255,7 @@ public sealed class SubjectRemovalMatte
         Ensure(ref _region, cells);
         Ensure(ref _middle, cells);
         Ensure(ref _cue, cells);
+        Ensure(ref _observed, cells);
         Ensure(ref _prior, cells);
         Ensure(ref _unary, cells);
         Ensure(ref _probability, cells);
@@ -324,9 +337,10 @@ public sealed class SubjectRemovalMatte
                     _prior[cell] = outside == 0 ? 0.9f : -0.4f;
                 }
                 _cue[cell] = 0;
-                if (plate is not null && outside <= 1
-                    && plate.Sample(x0, y0, out var seen) == SubjectRemovalPlate.Observed)
+                _observed[cell] = false;
+                if (plate is not null && plate.Sample(x0, y0, out var seen) == SubjectRemovalPlate.Observed)
                 {
+                    _observed[cell] = true;
                     // Background subtraction: a pixel that looks as the background did is background.
                     var difference = (Math.Abs((int)(seen & 0xFF) - b) + Math.Abs((int)((seen >> 8) & 0xFF) - g)
                         + Math.Abs((int)((seen >> 16) & 0xFF) - r)) / 3f;
@@ -726,195 +740,6 @@ public sealed class SubjectRemovalMatte
         for (var cell = 0; cell < w * h; cell++)
         {
             _label[cell] = (byte)_next[cell];
-        }
-    }
-
-    /// <summary>Keeps only what joins the middle of the box and fills holes enclosed by the subject.</summary>
-    private void KeepConnected()
-    {
-        var (w, h) = (_gridWidth, _gridHeight);
-        var cells = w * h;
-        var count = 0;
-        for (var pass = 0; pass < 2 && count == 0; pass++)
-        {
-            for (var cell = 0; cell < cells; cell++)
-            {
-                if (_label[cell] == 1 && _region[cell] == Inside && (pass == 1 || _middle[cell]))
-                {
-                    _label[cell] = 2;
-                    _queue[count++] = cell;
-                }
-            }
-        }
-
-        Flood(count, from: 1, to: 2, diagonal: true);
-        // Everything still marked 1 was not reached from the middle: background that looked alike.
-        count = 0;
-        for (var cell = 0; cell < cells; cell++)
-        {
-            if (_label[cell] == 1)
-            {
-                _label[cell] = 0;
-            }
-
-            var (i, j) = (cell % w, cell / w);
-            if (_label[cell] == 0 && (i == 0 || j == 0 || i == w - 1 || j == h - 1))
-            {
-                _label[cell] = 3;
-                _queue[count++] = cell;
-            }
-        }
-
-        Flood(count, from: 0, to: 3, diagonal: false);
-        var inside = 0;
-        var subject = 0;
-        for (var cell = 0; cell < cells; cell++)
-        {
-            // Background reached from the edge is background; any left unreached is a hole inside
-            // the subject and is removed with it.
-            _label[cell] = (byte)(_label[cell] == 3 ? 0 : 1);
-            if (_region[cell] == Inside)
-            {
-                inside++;
-                subject += _label[cell];
-            }
-        }
-
-        Coverage = inside > 0 ? subject / (float)inside : 0;
-        IsEmpty = subject == 0;
-    }
-
-    private void Flood(int count, byte from, byte to, bool diagonal)
-    {
-        var (w, h) = (_gridWidth, _gridHeight);
-        for (var head = 0; head < count; head++)
-        {
-            var cell = _queue[head];
-            var (i, j) = (cell % w, cell / w);
-            for (var dy = -1; dy <= 1; dy++)
-            {
-                for (var dx = -1; dx <= 1; dx++)
-                {
-                    if ((dx == 0 && dy == 0) || (!diagonal && dx != 0 && dy != 0))
-                    {
-                        continue;
-                    }
-
-                    var (x, y) = (i + dx, j + dy);
-                    if (x < 0 || y < 0 || x >= w || y >= h || _label[y * w + x] != from)
-                    {
-                        continue;
-                    }
-
-                    _label[y * w + x] = to;
-                    _queue[count++] = y * w + x;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Chamfer distances on the grid (Borgefors, "Distance Transformations in Digital Images",
-    /// CVGIP 34, 1986), turned into a signed distance and interpolated to every pixel of the area. The
-    /// outline is moved <paramref name="widen"/> pixels outwards (inwards when negative).
-    /// </summary>
-    private void MeasureDistances(float widen)
-    {
-        var (w, h) = (_gridWidth, _gridHeight);
-        Chamfer(_outside, subject: true);
-        Chamfer(_inside, subject: false);
-        var cells = w * h;
-        for (var cell = 0; cell < cells; cell++)
-        {
-            // The outline lies halfway between a subject cell and its background neighbour.
-            _next[cell] = (_label[cell] == 1 ? 0.5f - _inside[cell] : _outside[cell] - 0.5f) * Scale - widen;
-        }
-
-        var areaWidth = Area.Right - Area.Left;
-        var areaHeight = Area.Bottom - Area.Top;
-        Ensure(ref _columns, areaWidth);
-        Ensure(ref _fractions, areaWidth);
-        Ensure(ref _blend, w + 1);
-        for (var x = 0; x < areaWidth; x++)
-        {
-            var gx = Math.Clamp((x + 0.5f) / Scale - 0.5f, 0, w - 1);
-            _columns[x] = (int)gx;
-            _fractions[x] = gx - (int)gx;
-        }
-
-        for (var y = 0; y < areaHeight; y++)
-        {
-            var gy = Math.Clamp((y + 0.5f) / Scale - 0.5f, 0, h - 1);
-            var y0 = (int)gy;
-            var y1 = Math.Min(y0 + 1, h - 1);
-            var fy = gy - y0;
-            // Blend the two grid rows once, then each pixel only blends two neighbours of that row.
-            for (var i = 0; i < w; i++)
-            {
-                _blend[i] = (_next[y0 * w + i] + (_next[y1 * w + i] - _next[y0 * w + i]) * fy) * DistanceUnit;
-            }
-
-            _blend[w] = _blend[w - 1];
-            var row = _distance.AsSpan(y * areaWidth, areaWidth);
-            var x = 0;
-            for (var i = 0; i < w && x < areaWidth; i++)
-            {
-                // Between two cells both well inside the subject or both far outside it, every pixel
-                // gets the same far value: only the band around the outline needs interpolating.
-                var end = i + 1 < w ? Math.Min(areaWidth, (int)((i + 1.5f) * Scale)) : areaWidth;
-                var (a, b) = (_blend[i], _blend[i + 1]);
-                if ((a > Saturated && b > Saturated) || (a < -Saturated && b < -Saturated))
-                {
-                    row[x..end].Fill(a > 0 ? (short)Saturated : (short)-Saturated);
-                    x = end;
-                    continue;
-                }
-
-                for (; x < end; x++)
-                {
-                    var c = _columns[x];
-                    row[x] = (short)Math.Clamp(_blend[c] + (_blend[c + 1] - _blend[c]) * _fractions[x], -Saturated, Saturated);
-                }
-            }
-        }
-    }
-
-    /// <summary>Distance, in cells, from each cell to the nearest cell whose label is not <paramref name="subject"/>'s opposite.</summary>
-    private void Chamfer(float[] distance, bool subject)
-    {
-        var (w, h) = (_gridWidth, _gridHeight);
-        const float Diagonal = 1.4142f;
-        for (var cell = 0; cell < w * h; cell++)
-        {
-            distance[cell] = (_label[cell] == 1) == subject ? 0 : Far;
-        }
-
-        for (var j = 0; j < h; j++)
-        {
-            for (var i = 0; i < w; i++)
-            {
-                var cell = j * w + i;
-                var d = distance[cell];
-                if (i > 0) d = Math.Min(d, distance[cell - 1] + 1);
-                if (j > 0) d = Math.Min(d, distance[cell - w] + 1);
-                if (i > 0 && j > 0) d = Math.Min(d, distance[cell - w - 1] + Diagonal);
-                if (i + 1 < w && j > 0) d = Math.Min(d, distance[cell - w + 1] + Diagonal);
-                distance[cell] = d;
-            }
-        }
-
-        for (var j = h - 1; j >= 0; j--)
-        {
-            for (var i = w - 1; i >= 0; i--)
-            {
-                var cell = j * w + i;
-                var d = distance[cell];
-                if (i + 1 < w) d = Math.Min(d, distance[cell + 1] + 1);
-                if (j + 1 < h) d = Math.Min(d, distance[cell + w] + 1);
-                if (i + 1 < w && j + 1 < h) d = Math.Min(d, distance[cell + w + 1] + Diagonal);
-                if (i > 0 && j + 1 < h) d = Math.Min(d, distance[cell + w - 1] + Diagonal);
-                distance[cell] = d;
-            }
         }
     }
 }
