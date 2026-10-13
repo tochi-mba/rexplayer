@@ -66,13 +66,13 @@ internal static class D3D11VideoShaders
         static const float Bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
         // Palette matching compares brightness and two colour-difference axes separately, so a
         // bright green finds a green rather than the grey of the same brightness.
-        float colourDistance(float3 a, float3 b)
+        float colourDistance(float3 a, float3 b, float lumaWeight)
         {
             float3 d = a - b;
             float luma = dot(d, float3(0.299, 0.587, 0.114));
             float orange = d.r - d.b;
             float green = d.g - (d.r + d.b) * 0.5;
-            return luma * luma * 2 + orange * orange + green * green;
+            return luma * luma * lumaWeight + orange * orange + green * green;
         }
         float3 nearestBrick(float3 c)
         {
@@ -84,18 +84,19 @@ internal static class D3D11VideoShaders
             float3 chosen = c;
             [loop] for (int i = 0; i < 24; i++)
             {
-                float error = colourDistance(c, BrickPalette[i]);
+                float error = colourDistance(c, BrickPalette[i], 2);
                 if (error < best) { best = error; chosen = BrickPalette[i]; }
             }
             return chosen;
         }
         float3 nearestCube(float3 c)
         {
+            c = saturate(lerp(dot(c, float3(0.2126, 0.7152, 0.0722)).xxx, c, 2));
             float best = 1e9;
             float3 chosen = c;
             [loop] for (int i = 0; i < 6; i++)
             {
-                float error = colourDistance(c, CubePalette[i]);
+                float error = colourDistance(c, CubePalette[i], 1);
                 if (error < best) { best = error; chosen = CubePalette[i]; }
             }
             return chosen;
