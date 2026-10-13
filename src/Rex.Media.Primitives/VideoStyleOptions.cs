@@ -88,6 +88,19 @@ public static class VideoStyleOptions
             VideoEffect.RainGlass => ("Drop size (%)", "Higher makes smaller, more numerous drops."),
             VideoEffect.ZoomBurst => ("Sharp island (%)", "Higher keeps a larger sharp area around the origin."),
             VideoEffect.LowPoly => ("Triangle size (%)", "Higher makes bigger triangles."),
+            VideoEffect.Pinball => ("Ball size (%)", "How big the ball is."),
+            VideoEffect.Fireflies => ("Swarm density (%)", "How many fireflies share the picture."),
+            VideoEffect.ElectricEdges => ("Reach (%)", "How far from the pointer the arcs reach."),
+            VideoEffect.TimeLens => ("Lens size (%)", "How wide the window into the past is."),
+            VideoEffect.Melt => ("Run width (%)", "Higher makes narrower, more numerous runs."),
+            VideoEffect.Jigsaw => ("Piece size (%)", "Higher makes smaller pieces."),
+            VideoEffect.ColourMagnet => ("Colour tolerance (%)", "How close a colour must be to the one under the pointer to be pulled."),
+            VideoEffect.SonarPing => ("Edge sensitivity (%)", "How faint an outline the ping still lights."),
+            VideoEffect.Bokeh => ("Depth sensitivity (%)", "How much fine detail counts as near and stays sharp."),
+            VideoEffect.InkSpill => ("Bright resistance (%)", "How strongly bright areas hold the ink back."),
+            VideoEffect.MotionOutline => ("Outline thickness (%)", "How wide the band of ants is."),
+            VideoEffect.HeatHaze => ("Haze strength (%)", "How much the air above bright areas wobbles."),
+            VideoEffect.Confetti => ("Piece density (%)", "How many pieces are in the air."),
             _ => ("Movement (%)", "How fast the effect moves with the video's time."),
         };
         var options = new List<VideoStyleOption>
@@ -253,6 +266,58 @@ public static class VideoStyleOptions
                 options.Add(new($"effect.{name}.wire", "Wireframe (%)", 20, 0, 100, "How visible the triangle edges are."));
                 options.Add(new($"effect.{name}.facets", "Facet lighting (%)", 40, 0, 100, "How much neighbouring triangles differ in brightness."));
                 break;
+            case VideoEffect.Pinball:
+                options.Add(new($"effect.{name}.speed", "Ball speed (%)", 50, 0, 100, "How fast the ball travels."));
+                options.Add(new($"effect.{name}.trail", "Trail length (%)", 50, 0, 100, "How long the glowing trail is."));
+                break;
+            case VideoEffect.Fireflies:
+                options.Add(new($"effect.{name}.speed", "Drift speed (%)", 40, 0, 100, "How quickly the swarm moves."));
+                options.Add(new($"effect.{name}.dusk", "Dusk brightness (%)", 50, 0, 100, "How much of the picture shows under the swarm."));
+                break;
+            case VideoEffect.ElectricEdges:
+                options.Add(new($"effect.{name}.flicker", "Flicker rate (%)", 50, 0, 100, "How fast the arcs crawl."));
+                options.Add(new($"effect.{name}.density", "Arc density (%)", 50, 0, 100, "How much of each outline carries an arc."));
+                break;
+            case VideoEffect.TimeLens:
+                options.Add(new($"effect.{name}.dim", "Window dimming (%)", 20, 0, 100, "How much darker the window into the past is."));
+                options.Add(new($"effect.{name}.mode", "Window tint", 0, 0, 2, "The cast given to the past."));
+                break;
+            case VideoEffect.Melt:
+                options.Add(new($"effect.{name}.speed", "Melt speed (%)", 50, 0, 100, "How fast the picture runs."));
+                options.Add(new($"effect.{name}.distance", "Run distance (%)", 50, 0, 100, "How far the picture runs before it resets."));
+                break;
+            case VideoEffect.Jigsaw:
+                options.Add(new($"effect.{name}.reach", "Lift reach (%)", 50, 0, 100, "How far from the pointer pieces lift."));
+                options.Add(new($"effect.{name}.slide", "Piece slide (%)", 50, 0, 100, "How far lifted pieces slip aside."));
+                break;
+            case VideoEffect.ColourMagnet:
+                options.Add(new($"effect.{name}.pull", "Pull strength (%)", 50, 0, 100, "How far matching colour is drawn in."));
+                options.Add(new($"effect.{name}.glow", "Glow (%)", 50, 0, 100, "How brightly matching colour glows."));
+                break;
+            case VideoEffect.SonarPing:
+                options.Add(new($"effect.{name}.period", "Ping interval (%)", 50, 0, 100, "How long between pings."));
+                options.Add(new($"effect.{name}.fade", "Afterglow fade (%)", 40, 0, 100, "How quickly lit outlines fade behind the ring."));
+                break;
+            case VideoEffect.Bokeh:
+                options.Add(new($"effect.{name}.size", "Disc size (%)", 50, 0, 100, "How large the out-of-focus discs grow."));
+                options.Add(new($"effect.{name}.highlights", "Highlight bloom (%)", 50, 0, 100, "How much brighter spots dominate the discs."));
+                break;
+            case VideoEffect.InkSpill:
+                options.Add(new($"effect.{name}.spread", "Spread (%)", 50, 0, 100, "How far the ink reaches."));
+                options.Add(new($"effect.{name}.mode", "Ink", 0, 0, 3, "The ink colour."));
+                break;
+            case VideoEffect.MotionOutline:
+                options.Add(new($"effect.{name}.march", "March speed (%)", 50, 0, 100, "How fast the ants march."));
+                options.Add(new($"effect.{name}.mode", "Ants", 0, 0, 2, "The ant colours."));
+                break;
+            case VideoEffect.HeatHaze:
+                options.Add(new($"effect.{name}.speed", "Shimmer speed (%)", 50, 0, 100, "How fast the air moves."));
+                options.Add(new($"effect.{name}.amount", "Shimmer size (%)", 50, 0, 100, "How far the shimmer displaces the picture."));
+                break;
+            case VideoEffect.Confetti:
+                options.Add(new($"effect.{name}.speed", "Fall speed (%)", 50, 0, 100, "How fast the pieces fall."));
+                options.Add(new($"effect.{name}.blow", "Pointer gust (%)", 60, 0, 100, "How hard the pointer blows pieces aside."));
+                break;
             case VideoEffect.RetroPixels:
                 options.Add(new($"effect.{name}.dither", "Dither (%)", 70, 0, 100, "Adjusts dither."));
                 options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3, "Adjusts palette."));
@@ -296,6 +361,9 @@ public static class VideoStyleOptions
         VideoEffect.CelShade => ["Black", "Brown", "Navy", "Darker picture"],
         VideoEffect.ScanSweep => ["Heat", "Edges", "Negative (right side)", "X-ray style"],
         VideoEffect.ZoomBurst => ["Outward", "Inward", "Outward with glow"],
+        VideoEffect.TimeLens => ["Cool", "Warm", "None"],
+        VideoEffect.InkSpill => ["Black", "Blue", "Red", "White"],
+        VideoEffect.MotionOutline => ["Black and white", "Navy and gold", "Red"],
         _ => [],
     };
 

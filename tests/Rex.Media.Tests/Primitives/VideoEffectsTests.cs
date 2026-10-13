@@ -72,6 +72,21 @@ public sealed class VideoEffectsTests
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.TerrainMesh));
         Assert.Equal("Mosaics", VideoEffects.Category(VideoEffect.LowPoly));
         Assert.Equal("Low poly (Mosaics)", VideoEffects.PickerLabel(VideoEffect.LowPoly));
+
+        VideoEffect[] objects = [VideoEffect.Pinball, VideoEffect.ElectricEdges, VideoEffect.TimeLens, VideoEffect.Jigsaw,
+            VideoEffect.ColourMagnet, VideoEffect.SonarPing, VideoEffect.InkSpill, VideoEffect.Confetti];
+        Assert.All(objects, effect => Assert.True(VideoEffects.UsesPointer(effect), effect.ToString()));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.TimeLens, 100, 20, 0));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionOutline, 100, 50, 0));
+        Assert.False(VideoEffects.UsesHistory(VideoEffect.Pinball, 100, 50, 50));
+        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.Confetti));
+        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.Melt));
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.Fireflies));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.MotionOutline));
+        Assert.Equal("Film", VideoLooks.Category(VideoLook.Technicolor));
+        Assert.Equal("Mood", VideoLooks.Category(VideoLook.Dusk));
+        Assert.Equal("Stylised", VideoLooks.Category(VideoLook.Chrome));
+        Assert.Equal("Essentials", VideoLooks.Category(VideoLook.Vivid));
     }
 
     [Fact]

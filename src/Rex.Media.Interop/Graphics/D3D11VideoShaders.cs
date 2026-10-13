@@ -549,6 +549,13 @@ internal static class D3D11VideoShaders
             return uv;
         }
         // The chosen effect at strength above zero; pixel is one shown pixel in picture coordinates.
+        // A ball bouncing inside the frame: triangle-wave paths with different periods per axis.
+        float2 bouncePath(float t, float2 speed, float2 margin)
+        {
+            float2 phase = frac(t * speed);
+            float2 tri = abs(phase * 2 - 1);
+            return margin + tri * (1 - margin * 2);
+        }
         float3 effectColour(float2 uv, float2 pixel, bool isYuv)
         {
             float strength = effect.y;

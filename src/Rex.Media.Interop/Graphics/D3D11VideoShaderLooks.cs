@@ -104,8 +104,64 @@ internal static class D3D11VideoShaderLooks
                 return floor(c * 4.999) / 4;
             if (look.x < 25.5) // Duotone: deep purple shadows, warm orange highlights
                 return lerp(float3(0.22, 0.05, 0.38), float3(1.0, 0.72, 0.35), smoothstep(0.05, 0.95, l));
-            // Cyanotype: Prussian blue shadows on paper-white highlights, like a sun print
-            return lerp(float3(0.04, 0.16, 0.42), float3(0.93, 0.95, 0.98), smoothstep(0.05, 0.95, l));
+            if (look.x < 26.5) // Cyanotype: Prussian blue shadows on paper-white highlights, like a sun print
+                return lerp(float3(0.04, 0.16, 0.42), float3(0.93, 0.95, 0.98), smoothstep(0.05, 0.95, l));
+            if (look.x < 27.5) // Technicolor: three-strip dye separation, each primary pushed apart
+            {
+                float3 strip = float3(c.r * 1.25 - (c.g + c.b) * 0.12, c.g * 1.18 - (c.r + c.b) * 0.09, c.b * 1.2 - (c.r + c.g) * 0.1);
+                return saturate(filmCurve(saturate(strip), 0.4) + float3(0.02, 0, 0));
+            }
+            if (look.x < 28.5) // Silver gelatin: warm-toned black and white with soft, open highlights
+            {
+                float silver = pow(l, 0.9);
+                return saturate(lerp(float3(0.03, 0.025, 0.02), float3(0.98, 0.95, 0.88), silver) + silver * silver * 0.03);
+            }
+            if (look.x < 29.5) // Super 8: soft, warm, low contrast with a green-magenta tilt
+            {
+                float3 soft = (lerp(grey, c, 0.85) - 0.5) * 0.85 + 0.5;
+                return saturate(soft * float3(1.08, 0.98, 0.88) + float3(0.03, 0.0, 0.04) * (1 - abs(l - 0.5) * 2));
+            }
+            if (look.x < 30.5) // Autumn: greens turn amber, reds deepen, warm light
+            {
+                float3 turned = float3(c.r + c.g * 0.25, c.g * 0.72 + c.r * 0.12, c.b * 0.7);
+                return saturate(lerp(grey, turned, 1.15) + float3(0.04, 0.01, -0.03));
+            }
+            if (look.x < 31.5) // Candlelight: dark, warm, orange highlights, blue drained from shadows
+            {
+                float3 warm = c * float3(1.15, 0.85, 0.55) * 0.8;
+                return saturate(splitTone(warm, l, float3(-0.02, -0.03, -0.06), float3(0.12, 0.05, -0.02)));
+            }
+            if (look.x < 32.5) // Overcast: flat cool light, no deep shadows or bright highlights
+                return saturate((lerp(grey, c, 0.8) - 0.5) * 0.8 + 0.5 + float3(-0.03, 0.0, 0.05));
+            if (look.x < 33.5) // Spring: fresh lifted greens and bright, airy light
+            {
+                float3 fresh = float3(c.r * 0.95, c.g * 1.12 + 0.02, c.b * 0.95);
+                return saturate(lerp(grey, fresh, 1.1) * 1.05 + 0.03);
+            }
+            if (look.x < 34.5) // Dusk: violet shadows, pink highlights, a little haze
+            {
+                float3 haze = lerp(grey, c, 0.9) * 0.92 + 0.04;
+                return saturate(splitTone(haze, l, float3(0.04, -0.03, 0.12), float3(0.12, 0.02, 0.06)));
+            }
+            if (look.x < 35.5) // Acid: every hue turned a third of the way round the wheel
+                return saturate(lerp(grey, c.gbr, 1.3));
+            if (look.x < 36.5) // Ultraviolet: violet shadows, glowing white highlights, like a black light
+            {
+                float3 uvTone = lerp(float3(0.12, 0.02, 0.3), float3(0.75, 0.55, 1.0), smoothstep(0.1, 0.7, l));
+                return saturate(lerp(uvTone, float3(1, 1, 1), smoothstep(0.7, 1, l)) + (c - grey) * 0.5);
+            }
+            if (look.x < 37.5) // Comic: hard contrast and strong colour, close to a printed page
+            {
+                float3 hard = saturate((lerp(grey, c, 1.6) - 0.5) * 1.6 + 0.5);
+                return floor(hard * 6.999) / 6;
+            }
+            if (look.x < 38.5) // Chrome: polished metal, grey with a cool sheen and bright reflections
+            {
+                float sheen = smoothstep(0.3, 0.95, l);
+                return saturate(lerp(float3(0.04, 0.05, 0.08), float3(0.9, 0.95, 1.0), pow(l, 1.3)) + sheen * sheen * 0.15 + (c - grey) * 0.15);
+            }
+            // Vivid: more colour and a touch more contrast, nothing stylised
+            return saturate((lerp(grey, c, 1.4) - 0.5) * 1.08 + 0.5);
         }
         """;
 }

@@ -572,7 +572,7 @@ internal static class D3D11VideoShaderContinuation
                 colour = lerp(colour, readColour(pushed, isYuv), effect.y);
             }
         #endif
-        """ + "\n" + D3D11VideoShaderInteractive.Source + "\n" + """
+        """ + "\n" + D3D11VideoShaderInteractive.Source + "\n" + D3D11VideoShaderObjects.Source + "\n" + """
             return colour;
         }
         // Effects work on the decoded picture, before the colour look. Off (or no strength) reads
