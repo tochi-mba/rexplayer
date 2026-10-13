@@ -51,6 +51,15 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
 
     public IVideoDecoder CreateVideo(TrackInfo track) => new Decoder(this);
 
+    /// <summary>The graphics device the last decoder was offered, or null.</summary>
+    public object? OfferedGpu { get; private set; }
+
+    public IVideoDecoder CreateVideo(TrackInfo track, object? gpu)
+    {
+        OfferedGpu = gpu;
+        return CreateVideo(track);
+    }
+
     private sealed class Decoder(FakeVideoDecoderFactory factory) : IVideoDecoder
     {
         private readonly List<VideoFrame> _held = [];
@@ -131,6 +140,9 @@ public sealed class RecordingVideoPresenter : IVideoPresenter
     }
 
     public string Name => "recording";
+
+    /// <summary>The device offered to decoders, as a presenter on a graphics card offers its own.</summary>
+    public object? Gpu { get; init; }
 
     public bool Disposed { get; private set; }
 
