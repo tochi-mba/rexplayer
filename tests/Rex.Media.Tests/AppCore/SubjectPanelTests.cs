@@ -9,6 +9,7 @@ public sealed class SubjectPanelTests
     [InlineData(false, false, "Select a region in the picture.", SubjectState.Waiting)]
     [InlineData(false, false, null, SubjectState.Waiting)]
     [InlineData(true, false, "Acquiring the selected region...", SubjectState.Acquiring)]
+    [InlineData(true, false, "Finding the object...", SubjectState.Acquiring)]
     [InlineData(true, true, "Selected region locked. Tracking uses its visible texture, not a person recognizer.", SubjectState.Tracking)]
     [InlineData(true, false, "Tracking uncertain: looking for the selected object to return.", SubjectState.Searching)]
     [InlineData(true, false, null, SubjectState.Searching)]

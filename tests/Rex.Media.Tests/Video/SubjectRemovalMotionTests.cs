@@ -15,7 +15,7 @@ public sealed class SubjectRemovalMotionTests
     public void ThePanBetweenTwoPicturesIsMeasuredToAFractionOfAPixel()
     {
         // A picture large enough that the detailed stage reads a reduced copy, then a small area read whole.
-        foreach (var (width, height, detail) in new[] { (640, 360, (0, 0, 640, 360)), (320, 180, (60, 40, 260, 140)) })
+        foreach (var (width, height, detail) in new[] { (960, 540, (0, 0, 960, 540)), (320, 180, (60, 40, 260, 140)) })
         {
             var scene = Wall(width, height, i => (2.6f * i, -1.3f * i));
             var motion = new SubjectRemovalMotion();

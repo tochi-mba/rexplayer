@@ -42,6 +42,7 @@
     <ProjectReference Include="..\Rex.Media.Interop\Rex.Media.Interop.csproj" />
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
     <ProjectReference Include="..\Rex.Media.Vision\Rex.Media.Vision.csproj" />
+    <ProjectReference Include="..\Rex.Media.Vision.WindowsML\Rex.Media.Vision.WindowsML.csproj" />
   </ItemGroup>
   <!-- Publishing an unpackaged WinUI app leaves out the app's resource index and compiled XAML,
        without which the window cannot start (0xC000027B). Copy them from the build output. -->

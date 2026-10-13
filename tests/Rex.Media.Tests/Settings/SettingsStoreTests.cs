@@ -85,6 +85,19 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void TheRemovalModeIsSavedAndAnUnknownOneRemoves()
+    {
+        Assert.Equal(RemovalMode.Remove, new PlayerSettings().SubjectRemoval);
+        foreach (var mode in Enum.GetValues<RemovalMode>())
+        {
+            SettingsStore.Save(File, new PlayerSettings { SubjectRemoval = mode });
+            Assert.Equal(mode, SettingsStore.Load(File).SubjectRemoval);
+        }
+
+        Assert.Equal(RemovalMode.Remove, new PlayerSettings { SubjectRemoval = (RemovalMode)7 }.Normalize().SubjectRemoval);
+    }
+
+    [Fact]
     public void SpatialVideoEffectsHaveStableNamesAndSafeSettings()
     {
         Assert.Equal(Enum.GetValues<VideoEffect>().Length, VideoEffects.Names.Count);

@@ -30,10 +30,21 @@ public sealed class SubjectRemovalPlate
     /// <summary>The cell holds a background pixel the video showed.</summary>
     public const byte Observed = 255;
 
-    // A zoom this far from where the scene was first recorded makes old cells too coarse to use.
-    private const float MaximumZoom = 0.2f;
+    /// <summary>How many sightings in a row must agree before a cell counts as observed background.</summary>
+    public const int Confirmations = 3;
+
+    // Two sightings agree when their colours differ by at most this much, summed over the channels:
+    // a little more than compression noise and a fraction of a pixel's misalignment leave.
+    private const int Agreement = 42;
+
+    // A zoom this far from where the scene was first recorded makes old cells too coarse to use. Up
+    // to it a cell read back is a little soft, which is far less noticeable than the whole fill
+    // turning into estimates at once.
+    private const float MaximumZoom = 0.4f;
 
     private uint[] _cells = [];
+    // Each cell's latest sighting, with how many sightings in a row agreed with it in the top byte.
+    private uint[] _sightings = [];
     private float _scale = 1;
     private float _offsetX;
     private float _offsetY;
@@ -63,6 +74,7 @@ public sealed class SubjectRemovalPlate
         {
             (Width, Height) = (width, height);
             _cells = new uint[width * height];
+            _sightings = new uint[width * height];
         }
 
         Clear();
@@ -72,6 +84,7 @@ public sealed class SubjectRemovalPlate
     public void Release()
     {
         _cells = [];
+        _sightings = [];
         Width = Height = 0;
         Map(1, 0, 0);
     }
@@ -80,6 +93,7 @@ public sealed class SubjectRemovalPlate
     public void Clear()
     {
         Array.Clear(_cells);
+        Array.Clear(_sightings);
         Map(1, 0, 0);
     }
 
@@ -124,19 +138,20 @@ public sealed class SubjectRemovalPlate
 
         var dx = (int)MathF.Round(Width / 2f - (left + right) / 2);
         var dy = (int)MathF.Round(Height / 2f - (top + bottom) / 2);
-        Shift(dx, dy);
+        Shift(_cells, dx, dy);
+        Shift(_sightings, dx, dy);
         Map(_scale, _offsetX + dx, _offsetY + dy);
     }
 
-    private void Shift(int dx, int dy)
+    private void Shift(uint[] plate, int dx, int dy)
     {
         if (Math.Abs(dx) >= Width || Math.Abs(dy) >= Height)
         {
-            Array.Clear(_cells);
+            Array.Clear(plate);
             return;
         }
 
-        var cells = _cells.AsSpan();
+        var cells = plate.AsSpan();
         var width = Width;
         var kept = width - Math.Abs(dx);
         var from = Math.Max(0, -dx);
@@ -163,12 +178,17 @@ public sealed class SubjectRemovalPlate
     /// Record the background pixels of <paramref name="frame"/> (BGRA) inside <paramref name="area"/>.
     /// Inside <paramref name="guard"/> a pixel is recorded only where <paramref name="distance"/> (one
     /// value a pixel across the guard, in eighths of a pixel from the subject) exceeds
-    /// <paramref name="clearance"/>; with no distances the whole guard is left alone.
+    /// <paramref name="clearance"/>; with no distances the whole guard is left alone. With a
+    /// <paramref name="rowStep"/> above one, only every so many plate rows are recorded, those whose
+    /// index plus <paramref name="rowPhase"/> it divides: a large area is recorded in turns over a few
+    /// pictures instead of all at once.
     /// </summary>
     public void Learn(VideoFrame frame, (int Left, int Top, int Right, int Bottom) area,
-        (int Left, int Top, int Right, int Bottom) guard, ReadOnlySpan<short> distance, int clearance)
+        (int Left, int Top, int Right, int Bottom) guard, ReadOnlySpan<short> distance, int clearance,
+        int rowStep = 1, int rowPhase = 0)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        rowStep = Math.Max(1, rowStep);
         var pixels = MemoryMarshal.Cast<byte, uint>(frame.Plane(0));
         var stride = frame.Stride(0) / 4;
         var (left, top) = (Math.Max(0, area.Left), Math.Max(0, area.Top));
@@ -181,13 +201,18 @@ public sealed class SubjectRemovalPlate
         var guardWidth = guard.Right - guard.Left;
         if (_unzoomed)
         {
-            LearnUnzoomed(pixels, stride, frame.Width, (left, top, right, bottom), guard, distance, clearance);
+            LearnUnzoomed(pixels, stride, frame.Width, (left, top, right, bottom), guard, distance, clearance, rowStep, rowPhase);
             return;
         }
 
         var inverse = 1 / _scale;
         for (var v = v0; v < v1; v++)
         {
+            if ((v + rowPhase) % rowStep != 0)
+            {
+                continue;
+            }
+
             var y = Math.Clamp((v - _offsetY) * inverse, top, bottom - 1);
             var y0 = (int)y;
             var wy = (int)((y - y0) * 256);
@@ -200,6 +225,7 @@ public sealed class SubjectRemovalPlate
             var row0 = pixels.Slice(y0 * stride, frame.Width);
             var row1 = pixels.Slice(y1 * stride, frame.Width);
             var plate = _cells.AsSpan(v * Width, Width);
+            var sightings = _sightings.AsSpan(v * Width, Width);
             for (var u = u0; u < u1; u++)
             {
                 var x = Math.Clamp((u - _offsetX) * inverse, left, right - 1);
@@ -213,9 +239,7 @@ public sealed class SubjectRemovalPlate
                     continue;
                 }
 
-                plate[u] = (wx | wy) == 0
-                    ? row0[x0] | ((uint)Observed << 24)
-                    : Mix(row0[x0], row0[x1], row1[x0], row1[x1], wx, wy) | ((uint)Observed << 24);
+                See(ref plate[u], ref sightings[u], (wx | wy) == 0 ? row0[x0] : Mix(row0[x0], row0[x1], row1[x0], row1[x1], wx, wy));
             }
         }
     }
@@ -226,7 +250,7 @@ public sealed class SubjectRemovalPlate
     /// </summary>
     private void LearnUnzoomed(ReadOnlySpan<uint> pixels, int stride, int pictureWidth,
         (int Left, int Top, int Right, int Bottom) area, (int Left, int Top, int Right, int Bottom) guard,
-        ReadOnlySpan<short> distance, int clearance)
+        ReadOnlySpan<short> distance, int clearance, int rowStep, int rowPhase)
     {
         // Cell u shows the picture at x = u - offset: x0 = u - baseX, blended towards x0 + 1 by wx.
         var (wx, wy) = (_fractionX == 0 ? 0 : 256 - _fractionX, _fractionY == 0 ? 0 : 256 - _fractionY);
@@ -243,6 +267,11 @@ public sealed class SubjectRemovalPlate
         var guardWidth = guard.Right - guard.Left;
         for (var v = v0; v < v1; v++)
         {
+            if ((v + rowPhase) % rowStep != 0)
+            {
+                continue;
+            }
+
             var y0 = v - baseY;
             var nearestY = y0 + nearY;
             var guarded = nearestY >= guard.Top && nearestY < guard.Bottom;
@@ -252,6 +281,7 @@ public sealed class SubjectRemovalPlate
             var row0 = pixels.Slice(y0 * stride, pictureWidth);
             var row1 = pixels.Slice((y0 + stepY) * stride, pictureWidth);
             var plate = _cells.AsSpan(v * Width, Width);
+            var sightings = _sightings.AsSpan(v * Width, Width);
             for (var u = u0; u < u1; u++)
             {
                 var x0 = u - baseX;
@@ -262,12 +292,33 @@ public sealed class SubjectRemovalPlate
                     continue;
                 }
 
-                plate[u] = (wx | wy) == 0
-                    ? row0[x0] | ((uint)Observed << 24)
-                    : Mix(row0[x0], row0[x0 + stepX], row1[x0], row1[x0 + stepX], wx, wy) | ((uint)Observed << 24);
+                See(ref plate[u], ref sightings[u], (wx | wy) == 0 ? row0[x0] : Mix(row0[x0], row0[x0 + stepX], row1[x0], row1[x0 + stepX], wx, wy));
             }
         }
     }
+
+    /// <summary>
+    /// Counts a sighting of a cell's background. Only when <see cref="Confirmations"/> sightings in a
+    /// row agree does the cell become observed, so a person or a car passing through the area for a
+    /// moment is never recorded as background (Granados et al. likewise trust only background that
+    /// stays consistent over time); once observed, the cell follows the latest agreeing sightings, so
+    /// a slow change of light is followed too.
+    /// </summary>
+    private static void See(ref uint cell, ref uint sighting, uint colour)
+    {
+        colour &= 0xFFFFFF;
+        var count = sighting >> 24;
+        count = count > 0 && Agrees(sighting, colour) ? Math.Min(count + 1, (uint)Confirmations) : 1;
+        sighting = colour | (count << 24);
+        if (count >= Confirmations)
+        {
+            cell = colour | ((uint)Observed << 24);
+        }
+    }
+
+    private static bool Agrees(uint a, uint b) =>
+        Math.Abs((int)(a & 0xFF) - (int)(b & 0xFF)) + Math.Abs((int)((a >> 8) & 0xFF) - (int)((b >> 8) & 0xFF))
+            + Math.Abs((int)((a >> 16) & 0xFF) - (int)((b >> 16) & 0xFF)) <= Agreement;
 
     /// <summary>
     /// Bilinear blend of the colour of four packed BGRA pixels (alpha dropped), with weights in

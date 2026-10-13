@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The removal audit: Subject Lock's removal run on real episodes, with pictures to judge by eye
+       and the cost of each preview. A tool for the owner's machine, not part of the product or of
+       the solution; see Program.cs for how to run it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <!-- A measuring tool: it reads its own thread's cycle count through one kernel call. -->
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Video.D3D11\Rex.Media.Video.D3D11.csproj" />
+  </ItemGroup>
+
+</Project>

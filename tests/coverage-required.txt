@@ -196,6 +196,7 @@ SequenceInfo.cs
 SessionEvents.cs
 SessionState.cs
 SettingsStore.cs
+SharedModels.cs
 ShortcutEditing.cs
 ShortcutRouting.cs
 SilentAudio.cs
@@ -207,6 +208,7 @@ SoundSettings.cs
 SpectrumAnalyzer.cs
 StatsText.cs
 StrobeScene.cs
+SubjectModelPolicy.cs
 SubjectPanel.cs
 SubjectProposals.cs
 SubjectRemoval.cs

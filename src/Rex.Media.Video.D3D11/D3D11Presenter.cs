@@ -197,12 +197,42 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
-    /// <summary>Select the best box around a click, settled on the next picture drawn or redrawn.</summary>
-    public bool SelectSubjectAround(float x, float y)
+    /// <summary>
+    /// Select the object around a click, settled on the next picture drawn or redrawn; on a
+    /// <paramref name="paused"/> picture an installed segmentation model may outline it first.
+    /// </summary>
+    public bool SelectSubjectAround(float x, float y, bool paused = false)
     {
         lock (_gate)
         {
-            return _subjectEdit.SelectAround(x, y);
+            return _subjectEdit.SelectAround(x, y, paused);
+        }
+    }
+
+    /// <summary>The optional models Subject Lock may use on paused pictures (ADR-0019); null for none. The caller owns them.</summary>
+    public void UseSubjectModels(Rex.Media.Vision.IPromptSegmenter? segmenter, Rex.Media.Vision.IInpainter? inpainter, Rex.Media.Vision.IMaskTracker? tracker)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.UseModels(segmenter, inpainter, tracker);
+        }
+    }
+
+    /// <summary>
+    /// Shows a model's answer for the paused picture once it has come: the picture is processed
+    /// again, which applies it. True when it redrew.
+    /// </summary>
+    public bool RefreshSubject()
+    {
+        lock (_gate)
+        {
+            if (!_subjectEdit.HasModelAnswer || _originalForEditing is null)
+            {
+                return false;
+            }
+
+            Redraw();
+            return true;
         }
     }
 
@@ -212,6 +242,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _subjectEdit.SetErase(enabled);
+        }
+    }
+
+    /// <summary>How the removal preview hides the selection, from the next picture drawn.</summary>
+    public void SetSubjectRemovalMode(RemovalMode mode)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.SetRemovalMode(mode);
         }
     }
 
@@ -254,18 +293,19 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             var region = _subjectEdit.Region;
-            return (_subjectEdit.Locked, _subjectEdit.Tracking, _subjectEdit.Erase,
+            // The preview asked for, which stays asked for while a lost subject is looked for.
+            return (_subjectEdit.Locked, _subjectEdit.Tracking, _subjectEdit.RemovalWanted,
                 region.Left, region.Top, region.Width, region.Height,
                 _subjectEdit.Confidence, _subjectEdit.EstimatedPixels, _subjectEdit.Status);
         }
     }
 
     /// <summary>Where the removal preview's last fill came from: pixels the video showed, and pixels synthesised.</summary>
-    public (bool Erase, int ObservedPixels, int EstimatedPixels) SubjectFill()
+    public (bool Erase, int ObservedPixels, int EstimatedPixels, RemovalFillSource Source, RemovalMode Mode) SubjectFill()
     {
         lock (_gate)
         {
-            return (_subjectEdit.Erase, _subjectEdit.ObservedPixels, _subjectEdit.EstimatedPixels);
+            return (_subjectEdit.RemovalWanted, _subjectEdit.ObservedPixels, _subjectEdit.EstimatedPixels, _subjectEdit.FillSource, _subjectEdit.Mode);
         }
     }
 
