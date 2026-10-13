@@ -257,9 +257,6 @@ public sealed partial class SubjectEditSession
     // How many shape-only peaks are read in colour before the position is chosen.
     private const int Leads = 4;
 
-    // The share of the picture outside the subject that has to change at once to count as a cut.
-    private const double CutChange = 0.3;
-
     // The places the local search has read this frame and how alike each was, so a place visited
     // again by a finer grid is answered without being read twice. Allocated once per session.
     private readonly long[] _triedPlaces = new long[256];
