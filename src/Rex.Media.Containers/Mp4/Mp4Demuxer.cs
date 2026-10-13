@@ -196,58 +196,58 @@ public sealed class Mp4Demuxer : IDemuxer
         while (true)
         {
             var best = -1;
-        for (var t = 0; t < _tracks.Count; t++)
-        {
-            if (_next[t] < _tracks[t].SampleCount && (best < 0 || _tracks[t].Offsets[_next[t]] < _tracks[best].Offsets[_next[best]]))
+            for (var t = 0; t < _tracks.Count; t++)
             {
-                best = t;
+                if (_next[t] < _tracks[t].SampleCount && (best < 0 || _tracks[t].Offsets[_next[t]] < _tracks[best].Offsets[_next[best]]))
+                {
+                    best = t;
+                }
             }
-        }
 
             if (best < 0)
             {
                 return null;
             }
 
-        var track = _tracks[best];
-        var first = _next[best];
-        var last = first;
-        long bytes = track.Sizes[first];
-        if (track.Codec == CodecId.Pcm)
-        {
-            // PCM files store one sample per audio frame; contiguous ones travel together.
-            while (last + 1 < track.SampleCount && last + 1 - first < PcmFramesPerPacket
-                && track.Offsets[last + 1] == track.Offsets[last] + track.Sizes[last])
+            var track = _tracks[best];
+            var first = _next[best];
+            var last = first;
+            long bytes = track.Sizes[first];
+            if (track.Codec == CodecId.Pcm)
             {
-                last++;
-                bytes += track.Sizes[last];
+                // PCM files store one sample per audio frame; contiguous ones travel together.
+                while (last + 1 < track.SampleCount && last + 1 - first < PcmFramesPerPacket
+                    && track.Offsets[last + 1] == track.Offsets[last] + track.Sizes[last])
+                {
+                    last++;
+                    bytes += track.Sizes[last];
+                }
             }
-        }
 
-        _next[best] = last + 1;
-        // A damaged size or offset invalidates this sample, not every other track.
-        // Advancing _next before skipping guarantees that no corrupt entry can loop forever.
-        var offset = track.Offsets[first];
-        if (bytes <= 0 || bytes > MaxSampleBytes || offset < 0 ||
-            _stream.Length is { } length && (offset > length || bytes > length - offset))
-        {
-            continue;
-        }
+            _next[best] = last + 1;
+            // A damaged size or offset invalidates this sample, not every other track.
+            // Advancing _next before skipping guarantees that no corrupt entry can loop forever.
+            var offset = track.Offsets[first];
+            if (bytes <= 0 || bytes > MaxSampleBytes || offset < 0
+                || _stream.Length is { } length && (offset > length || bytes > length - offset))
+            {
+                continue;
+            }
 
-        _stream.Seek(offset);
-        var buffer = MediaBuffer.Rent((int)bytes);
-        var read = _stream.Read(buffer.Span);
-        if (read < bytes)
-        {
-            buffer.Dispose();
-            continue;
-        }
+            _stream.Seek(offset);
+            var buffer = MediaBuffer.Rent((int)bytes);
+            var read = _stream.Read(buffer.Span);
+            if (read < bytes)
+            {
+                buffer.Dispose();
+                continue;
+            }
 
-        var end = last + 1 < track.SampleCount ? track.Dts[last + 1] : Math.Max(track.NextDts, track.Dts[last]);
-        var pts = Time(track, track.Presentation(first));
-        var dts = Time(track, track.Dts[first] - track.EditOffset);
-        var packet = Packet.Create(track.Id, buffer, pts, dts, Time(track, end - track.Dts[first]), track.IsSync(first));
-        return packet;
+            var end = last + 1 < track.SampleCount ? track.Dts[last + 1] : Math.Max(track.NextDts, track.Dts[last]);
+            var pts = Time(track, track.Presentation(first));
+            var dts = Time(track, track.Dts[first] - track.EditOffset);
+            var packet = Packet.Create(track.Id, buffer, pts, dts, Time(track, end - track.Dts[first]), track.IsSync(first));
+            return packet;
         }
     }
 
