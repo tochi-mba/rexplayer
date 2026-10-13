@@ -633,7 +633,7 @@ internal static class D3D11VideoShaders
                     // About one pixel wide: the level's change across one pixel.
                     float width = length(measured.xy) * 0.5 * levels * 0.55 * pow(max(lum - 0.025, 0.02), -0.45) + 0.002;
                     float isoline = 1 - smoothstep(width * 0.5, width * 1.5, abs(frac(height + 0.5) - 0.5));
-                    styled = saturate(tint * shade * (1 - isoline * 0.7));
+                    styled = saturate(tint * shade * (1 - isoline * 0.23));
                 }
                 colour = lerp(colour, styled, strength);
             }
@@ -686,9 +686,9 @@ internal static class D3D11VideoShaders
                 float luminance = lumaOf(colour);
                 float2 ghostUv = mirrored(uv + field.zw * measureStep(pixel) * (1.1 + 0.25 * sin(effect.z * 0.7)));
                 float ghostLuma = lumaOf(readColour(ghostUv, isYuv));
-                float3 phantom = float3(0.012, 0.018, 0.034) + luminance * 0.055
+                float3 phantom = float3(0.05, 0.11, 0.18) + luminance * 0.17
                     + float3(0.06, 0.09, 0.14) * ghostLuma * 0.16;
-                phantom += field.y * float3(0.21, 0.96, 0.91);
+                phantom += field.y * float3(0.10, 1.18, 0.62);
                 phantom += (field.x - field.y) * float3(0.05, 0.16, 0.17);
                 colour = lerp(colour, saturate(phantom), strength);
             }
