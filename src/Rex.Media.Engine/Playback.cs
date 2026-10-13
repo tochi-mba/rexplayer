@@ -655,7 +655,8 @@ public sealed partial class MediaSession
         {
             using (processed)
             {
-                if (state.AwaitingFirstFrame)
+                var first = state.AwaitingFirstFrame;
+                if (first)
                 {
                     state.AwaitingFirstFrame = false;
                     if (state.Continuing)
@@ -677,6 +678,11 @@ public sealed partial class MediaSession
                 {
                     _playGate.Wait(generationToken);
                     _sink.Write(processed, generationToken);
+                    if (first)
+                    {
+                        _session.Reach("first-audio");
+                    }
+
                     _clock.Wrote(processed.SampleCount);
                     _session.Scope.Write(processed);
                 }

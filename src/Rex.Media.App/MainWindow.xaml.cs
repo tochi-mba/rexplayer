@@ -62,7 +62,9 @@ public sealed partial class MainWindow : Window
 
     public MainWindow(IReadOnlyList<string> files)
     {
+        App.Milestones.Reach("window");
         InitializeComponent();
+        App.Milestones.Reach("xaml");
         _settings = SettingsStore.Load(SettingsPath);
 
         // Read before this run writes its own: a marker here is the last run's, which did not close cleanly.
@@ -74,7 +76,7 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "rexplayer.ico"));
         ExtendsContentIntoTitleBar = false;
 
-        _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log);
+        _player = new PlayerController(NewSession, OpenSource, OnWindowThread, _settings, store: OpenStore(), log: App.Log) { Milestones = App.Milestones };
         _player.SectionAnalyzer = (path, cancellation) => SectionAnalysis.Analyze(path,
             MediaRegistries.Decoders(new MfDecoderFactory()), cancellation);
         _player.Changed += (_, _) => ShowState();
@@ -133,6 +135,7 @@ public sealed partial class MainWindow : Window
 
         // Opened once the picture panel is ready, so the first item has somewhere to show its pictures.
         _startupFiles = files;
+        MarkFirstPaint();
     }
 
     public static string Version { get; } = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
@@ -162,6 +165,7 @@ public sealed partial class MainWindow : Window
             AudioSinkFactory = NewAudioSink,
             VideoPresenterFactory = () => _presenter is { } presenter ? new BorrowedPresenter(presenter) : null!,
             Log = App.Log,
+            Milestones = App.Milestones,
         },
         listener);
 
@@ -231,6 +235,7 @@ public sealed partial class MainWindow : Window
                 ConfigureEffect(presenter, _settings.VideoEffect, _settings.VideoStyleValues, _settings.VideoEffectStrength);
                 presenter.Redraw();
             });
+            App.Milestones.Reach("presenter");
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or COMException)

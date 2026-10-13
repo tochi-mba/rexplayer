@@ -18,6 +18,7 @@ public sealed partial class MediaSession
 
         Volatile.Write(ref _finished, NewCompletion());
         _failureReason = null;
+        Reach("open");
         MoveTo(SessionState.Opening);
         MediaItem? item = null;
         IAudioSink? sink = null;
@@ -26,9 +27,11 @@ public sealed partial class MediaSession
         {
             item = OpenItem(source, () => presenter ??= _options.VideoPresenterFactory!());
             _events.Post(new MediaOpenedEvent(item.Info));
+            Reach("opened");
             sink = _options.AudioSinkFactory();
             var audio = item.AudioTrack.Audio!;
             var sinkFormat = sink.Open(new AudioFormat(audio.SampleRate, audio.Channels, SampleFormat.F32, audio.Layout));
+            Reach("audio-device");
             _log.Info(LogSource, $"Audio: {item.AudioTrack.Codec.DisplayName()} via {item.Decoder.Name} into {sink.Name} at {sinkFormat}.");
 
             if (item.VideoDecoder is null)
@@ -124,6 +127,7 @@ public sealed partial class MediaSession
 
         var duration = playback.Info.Duration;
         var clamped = MediaTime.Max(MediaTime.Zero, duration.IsKnown ? MediaTime.Min(target, duration) : target);
+        Reach("seek");
         playback.RequestSeek(clamped, mode);
         MoveTo(SessionState.Seeking);
     }
@@ -152,6 +156,9 @@ public sealed partial class MediaSession
     }
 
     private Playback RequirePlayback() => _playback ?? throw new InvalidOperationException("Nothing is open.");
+
+    /// <summary>Marks a moment of opening or playing in the log's timing lines, when the host asked for them.</summary>
+    private void Reach(string milestone) => _options.Milestones?.Reach(milestone);
 
     /// <summary>Reports from the pipeline threads, applied on the mailbox thread.</summary>
     private void OnSeekCompleted(Playback playback, long generation, MediaTime position)

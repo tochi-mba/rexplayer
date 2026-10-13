@@ -125,6 +125,7 @@ public sealed partial class MediaSession
                     state.Generation = item.Generation;
                     var seek = SeekFor(item.Generation);
                     state.Target = seek.Mode == SeekMode.Precise ? seek.Target : MediaTime.Zero;
+                    (state.Shown, state.OnTarget) = (false, false);
                     _videoItem.VideoDecoder?.Flush();
                 }
 
@@ -134,6 +135,7 @@ public sealed partial class MediaSession
                     DrainAndShow(_videoItem.VideoDecoder, state);
                     Volatile.Write(ref _videoItem, owner);
                     state.Target = MediaTime.Zero;
+                    (state.Shown, state.OnTarget) = (false, false);
                     lock (_endGate)
                     {
                         _videoEndedGeneration = -1;
@@ -221,6 +223,17 @@ public sealed partial class MediaSession
                     frame.Generation = state.Generation;
                     _presenter!.Present(frame);
                     Interlocked.Increment(ref _videoFramesPresented);
+                    if (!state.Shown)
+                    {
+                        state.Shown = true;
+                        _session.Reach("first-frame");
+                    }
+
+                    if (!state.OnTarget && !(frame.Pts.IsKnown && frame.Pts + length <= state.Target))
+                    {
+                        state.OnTarget = true;
+                        _session.Reach("target-frame");
+                    }
                 }
             }
             finally
@@ -257,6 +270,12 @@ public sealed partial class MediaSession
 
             /// <summary>Pictures that end before this are skipped: the target of the current precise seek.</summary>
             public MediaTime Target { get; set; } = MediaTime.Zero;
+
+            /// <summary>A picture of this generation has been shown (the first one is a timing mark).</summary>
+            public bool Shown { get; set; }
+
+            /// <summary>A picture at or after the seek's target has been shown (a timing mark too).</summary>
+            public bool OnTarget { get; set; }
 
             public List<VideoFrame> Decoded { get; } = [];
         }

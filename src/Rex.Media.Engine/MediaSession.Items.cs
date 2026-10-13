@@ -56,6 +56,7 @@ public sealed partial class MediaSession
         {
             demuxer = _options.Demuxers.Open(source, CancellationToken.None);
             var info = demuxer.Info;
+            Reach("demuxer");
             _log.Info(LogSource, $"Opened {source.Name} as {info.FormatName} with {info.Tracks.Count} track(s).");
             if (ChooseAudioTrack(info, PreferredAudioTrack, AudioLanguages) is not { } audioTrack)
             {
@@ -63,6 +64,7 @@ public sealed partial class MediaSession
             }
 
             var decoded = _options.Decoders.CreateAudio(audioTrack);
+            Reach("audio-decoder");
             if (decoded.Decoder is null)
             {
                 _log.Warning(LogSource, $"Audio track {audioTrack.Id} ({audioTrack.Codec.DisplayName()}) cannot be decoded: {decoded.Reason}");
@@ -122,6 +124,7 @@ public sealed partial class MediaSession
         }
 
         var decoded = _options.Decoders.CreateVideo(track, shown.Gpu);
+        Reach("video-decoder");
         if (decoded.Decoder is null)
         {
             _log.Warning(LogSource, $"Video track {track.Id} ({track.Codec.DisplayName()}) cannot be shown: {decoded.Reason}");

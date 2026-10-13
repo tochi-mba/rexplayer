@@ -18,6 +18,7 @@ public partial class App : Application
 
     public App()
     {
+        Milestones.Reach("app");
         InitializeComponent();
         UnhandledException += (_, e) => Log.Critical("app", ExceptionDiagnostics.Summary(e.Exception));
 
@@ -54,9 +55,17 @@ public partial class App : Application
     /// </summary>
     public static RexLog Log { get; } = new(new RexLogOptions { Directory = LogFolder, FileName = "rexplayer.log", Minimum = LogLevel.Debug, MaxBytes = 8 * 1024 * 1024, KeepFiles = 5 });
 
+    /// <summary>
+    /// The timing lines of the log: how long since the process started each moment of the launch
+    /// and of opening media came. REXPLAYER_EXIT_AFTER names one ("first-frame", or "first-frame*2"
+    /// for the second) to exit at, which is how scripts/measure-startup.ps1 measures a launch.
+    /// </summary>
+    public static Milestones Milestones { get; } = new(Log, LaunchedAt, Environment.GetEnvironmentVariable("REXPLAYER_EXIT_AFTER"), () => Environment.Exit(0));
+
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         Log.Info("app", $"rexplayer {MainWindow.Version} starting on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}), .NET {Environment.Version}, data in {DataRoot}.");
+        Milestones.Reach("launched");
         Log.Debug("app", "Command line: " + string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(arg => "\"" + arg + "\"")));
         var files = Environment.GetCommandLineArgs().Skip(1).Select(Located).ToList();
         var settings = SettingsStore.Load(SettingsPath);
@@ -77,10 +86,12 @@ public partial class App : Application
             }
         }
 
+        Milestones.Reach("handed-over-checked");
         var window = new MainWindow(files);
         var closing = new CancellationTokenSource();
         window.Closed += (_, _) => closing.Cancel();
         window.Activate();
+        Milestones.Reach("activated");
         try
         {
             _ = AutomationPipe.ServeAsync(pipe, window.AnswerAsync, closing.Token);
