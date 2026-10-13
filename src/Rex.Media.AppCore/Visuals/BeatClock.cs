@@ -50,7 +50,10 @@ public sealed class BeatClock
     /// <summary>How hard the kicks on the grid's beats have been of late, and those halfway between.</summary>
     private double _onAccent, _halfAccent;
 
-    /// <summary>Seconds since the hardest kick of late, and how hard it was (fading over a second).</summary>
+    /// <summary>
+    /// Seconds since the hardest kick of late, and how hard it was, fading over some seconds as the
+    /// drums' own hardest do, so the softer kicks between the accents do not take its place.
+    /// </summary>
     private double _sinceHardest = 10, _hardest;
 
     /// <summary>Seconds a beat, or 0 before the tempo is known.</summary>
@@ -89,7 +92,7 @@ public sealed class BeatClock
         SinceOnset += dt;
         SinceStrong += dt;
         _sinceHardest += dt;
-        _hardest *= Math.Exp(-dt);
+        _hardest *= Math.Exp(-dt / 4);
         if (Period <= 0)
         {
             return false;
