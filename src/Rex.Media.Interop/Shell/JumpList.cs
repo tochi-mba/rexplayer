@@ -100,6 +100,7 @@ public static unsafe class JumpList
         {
             objects.GetCount(out var count);
             var iid = ShellLinkIid;
+            var buffer = stackalloc char[1024];
             for (uint i = 0; i < count; i++)
             {
                 objects.GetAt(i, &iid, out var linkPointer);
@@ -107,7 +108,7 @@ public static unsafe class JumpList
                 Marshal.Release((nint)linkPointer);
                 try
                 {
-                    var buffer = stackalloc char[1024];
+                    buffer[0] = '\0';
                     link.GetArguments(buffer, 1024);
                     found.Add(new string(buffer));
                 }

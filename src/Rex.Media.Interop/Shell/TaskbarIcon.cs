@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -49,7 +48,7 @@ public sealed unsafe class TaskbarIcon : IDisposable
         var color = PInvoke.CreateDIBSection(default, (BITMAPINFO*)&header, DIB_USAGE.DIB_RGB_COLORS, &bits, default, 0);
         if (color.IsNull)
         {
-            throw new COMException("Windows could not make the icon's picture.");
+            throw new InvalidOperationException("Windows could not make the icon's picture.");
         }
 
         // The mask is unused for an icon with alpha, but an icon must have one.
@@ -59,7 +58,7 @@ public sealed unsafe class TaskbarIcon : IDisposable
             pixels.CopyTo(new Span<byte>(bits, pixels.Length));
             var info = new ICONINFO { fIcon = true, hbmColor = color, hbmMask = mask };
             var icon = PInvoke.CreateIconIndirect(&info);
-            return icon.IsNull ? throw new COMException("Windows could not make the icon.") : new TaskbarIcon(icon, size);
+            return icon.IsNull ? throw new InvalidOperationException("Windows could not make the icon.") : new TaskbarIcon(icon, size);
         }
         finally
         {

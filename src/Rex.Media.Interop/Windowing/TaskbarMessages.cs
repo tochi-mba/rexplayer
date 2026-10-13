@@ -46,6 +46,7 @@ public sealed class TaskbarMessages : IDisposable
     public event EventHandler? AppearanceChanged;
 
     /// <summary>The small-icon size at the window's scale, which the thumbnail buttons and the badge use.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows10.0.14393")]
     public static int IconSize(nint window)
     {
         var dpi = PInvoke.GetDpiForWindow((HWND)window);

@@ -78,8 +78,13 @@ public sealed class Taskbar : IDisposable
     }
 
     /// <summary>Puts <paramref name="icon"/> over the window's taskbar button, described for screen readers; null takes it away.</summary>
-    public void SetOverlay(nint window, TaskbarIcon? icon, string description) =>
-        List.SetOverlayIcon((HWND)window, icon is null ? default : (HICON)icon.Handle, description);
+    public unsafe void SetOverlay(nint window, TaskbarIcon? icon, string description)
+    {
+        fixed (char* text = description)
+        {
+            List.SetOverlayIcon((HWND)window, icon is null ? default : (HICON)icon.Handle, text);
+        }
+    }
 
     /// <summary>Shows <paramref name="percent"/> on the taskbar button in <paramref name="kind"/>'s colour, or nothing.</summary>
     public void SetProgress(nint window, TaskbarProgressKind kind, int percent)

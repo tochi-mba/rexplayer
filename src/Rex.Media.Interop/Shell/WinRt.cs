@@ -11,6 +11,7 @@ namespace Rex.Media.Interop.Shell;
 /// Each interface's methods are numbered as Windows' metadata (C:\Windows\System32\WinMetadata) lists
 /// them, after the six of IInspectable.
 /// </summary>
+[System.Runtime.Versioning.SupportedOSPlatform("windows8.0")]
 internal static unsafe class WinRt
 {
     public static readonly Guid IUnknown = new("00000000-0000-0000-C000-000000000046");

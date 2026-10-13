@@ -26,12 +26,12 @@ public enum MediaControlButton
 /// and what is pressed; what to show is decided elsewhere. Made and used on one thread; button
 /// presses and position requests arrive on Windows' threads.
 /// </summary>
+[System.Runtime.Versioning.SupportedOSPlatform("windows10.0.10240")]
 public sealed unsafe class MediaTransportControls : IDisposable
 {
     private static readonly Guid InteropIid = new("DDB0472D-C911-4A1F-86D9-DC3D71A95F5A");
     private static readonly Guid ControlsIid = new("99FA3FF4-1742-42A6-902E-087D41F965EC");
     private static readonly Guid Controls2Iid = new("EA98D2F6-7F3C-4AF2-A586-72889808EFB1");
-    private static readonly Guid MusicIid = new("6BBF0C59-D0A0-4D26-92A0-F978E1D18E7B");
     private static readonly Guid Music2Iid = new("00368462-97D3-44B9-B00F-008AFCEFAF18");
     private static readonly Guid VideoIid = new("5609FDB1-5D2D-4872-8170-45DEE5BC2F5C");
     private static readonly Guid ImageIid = new("CD0BC7EF-54E7-411F-9933-F0E98B0A96D2");
@@ -264,7 +264,7 @@ public sealed unsafe class MediaTransportControls : IDisposable
     /// <summary>A thumbnail from encoded picture bytes, through a stream Windows reads when it draws the card.</summary>
     private void SetThumbnail(ReadOnlySpan<byte> encoded)
     {
-        var memory = PInvoke.SHCreateMemStream(encoded) ?? throw new COMException("Windows could not hold the thumbnail.");
+        var memory = PInvoke.SHCreateMemStream(encoded) ?? throw new InvalidOperationException("Windows could not hold the thumbnail.");
         nint stream = 0;
         nint statics = 0;
         nint reference = 0;
