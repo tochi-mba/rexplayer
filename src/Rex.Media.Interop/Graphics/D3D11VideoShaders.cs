@@ -465,9 +465,9 @@ internal static class D3D11VideoShaders
                     }
                     lum /= 9;
                     float height = pow(saturate((lum - 0.025) / 0.975), 0.55) * levels;
-                    // Each band has its own tint, blended over the middle of the step, so a slight change of grain never flips a
-                    // whole pixel from one band's colour to the next.
-                    float layer = saturate((floor(height) + smoothstep(0.2, 0.8, frac(height))) / max(levels - 1, 1));
+                    // The tint follows height continuously and the level lines mark the bands, so a slight
+                    // change of grain never flips a whole pixel from one band's colour to the next.
+                    float layer = saturate(height / max(levels - 1, 1));
                     float3 tint = layer < 0.25 ? lerp(float3(0.07, 0.20, 0.36), float3(0.16, 0.42, 0.40), layer * 4)
                         : layer < 0.5 ? lerp(float3(0.16, 0.42, 0.40), float3(0.45, 0.62, 0.30), layer * 4 - 1)
                         : layer < 0.75 ? lerp(float3(0.45, 0.62, 0.30), float3(0.78, 0.66, 0.38), layer * 4 - 2)
@@ -477,7 +477,7 @@ internal static class D3D11VideoShaders
                     // About one pixel wide: the level's change across one pixel.
                     float width = length(measured.xy) * 0.5 * levels * 0.55 * pow(max(lum - 0.025, 0.02), -0.45) + 0.002;
                     float isoline = 1 - smoothstep(width * 0.5, width * 1.5, abs(frac(height + 0.5) - 0.5));
-                    styled = saturate(tint * shade * (1 - isoline * 0.45));
+                    styled = saturate(tint * shade * (1 - isoline * 0.4));
                 }
                 colour = lerp(colour, styled, strength);
             }
