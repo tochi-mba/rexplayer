@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Markup;
 using Rex.Media.AppCore.Library;
+using static Rex.Media.AppCore.Library.LibraryActions;
 using Rex.Media.Library;
 using Rex.Media.Settings;
 
