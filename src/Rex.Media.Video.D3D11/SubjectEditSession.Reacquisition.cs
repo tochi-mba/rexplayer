@@ -45,6 +45,7 @@ public sealed partial class SubjectEditSession
     private bool TryReacquire(VideoFrame frame, CancellationToken cancellation = default)
     {
         LastSearchComparisons = 0;
+        LastReturn = default;
         _searchUncertainty = 1;
         ForgetSightingAcrossACut();
         if (_positive.Count == 0 || _identityWidth <= 0 || _identityHeight <= 0) return false;
@@ -149,6 +150,7 @@ public sealed partial class SubjectEditSession
 
         verified.RemoveAll(candidate => Distortion(candidate.Width, candidate.Height) > MaxDistortion);
         verified.Sort((a, b) => Preference(b).CompareTo(Preference(a)));
+        if (verified.Count > 0) LastReturn = (verified[0].Resemblance.ToSubject, verified[0].Resemblance.Relative, 0);
         // Settling is the most expensive reading in the search, so only the few readings that
         // could still be accepted are put through it; the rest are already out on their score.
         var best = default(Reading);
@@ -175,6 +177,7 @@ public sealed partial class SubjectEditSession
             Math.Abs(other.Left + other.Width / 2 - best.Left - best.Width / 2) >= Math.Max(other.Width, best.Width) * 0.7 ||
             Math.Abs(other.Top + other.Height / 2 - best.Top - best.Height / 2) >= Math.Max(other.Height, best.Height) * 0.7)
             .OrderByDescending(other => other.Resemblance.ToSubject).FirstOrDefault();
+        LastReturn = (best.Resemblance.ToSubject, best.Resemblance.Relative, rival.Resemblance.ToSubject);
         if (rival.Width > 0 && rival.Resemblance.ToSubject > best.Resemblance.ToSubject - RivalMargin)
         {
             // Two places in this picture look equally like the subject. Guessing between them is
@@ -218,6 +221,9 @@ public sealed partial class SubjectEditSession
         Status = "Original visual texture found again. Tracking resumed.";
         return true;
     }
+
+    /// <summary>The latest search's best candidate: resemblance to the subject, relative resemblance, and its closest rival.</summary>
+    internal (double Subject, double Relative, double Rival) LastReturn { get; private set; }
 
     /// <summary>A sighting from before a cut and one from after it are not two sightings of one thing.</summary>
     private void ForgetSightingAcrossACut()
