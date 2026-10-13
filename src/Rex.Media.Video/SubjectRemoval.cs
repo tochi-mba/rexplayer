@@ -325,8 +325,7 @@ public sealed class SubjectRemoval
         SubjectRemovalMatte.Ensure(ref _kind, pixels);
         SubjectRemovalMatte.Ensure(ref _colour, pixels);
         var distance = _matte.Distance;
-        // Keep the soft fringe, but do not replace pixels well outside the confirmed silhouette.
-        var grow = _matte.Grow - 0.3f;
+        var grow = _matte.Grow;
         // Distances are capped, so every opacity there can be is worked out once per picture.
         for (var d = 0; d < _opacities.Length; d++)
         {
