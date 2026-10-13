@@ -80,7 +80,7 @@ public sealed class TransportPolicyTests
         var cut = TransportAvailability.Fit(text);
         Assert.False(char.IsHighSurrogate(cut[^4]));
 
-        var privateTitle = TransportAvailability.Decide(Input(previous: @"C:\Private\film.mp4"));
+        var privateTitle = TransportAvailability.Decide(Input(previous: Path.GetFullPath("private/film.mp4")));
         Assert.Equal("Previous", privateTitle.Previous.Tooltip);
     }
 
@@ -157,7 +157,7 @@ public sealed class TransportPolicyTests
         Assert.Null(JumpListPlan.QuoteArgument("relative.mkv"));
         Assert.Null(JumpListPlan.QuoteArgument("file\"bad.mkv"));
         Assert.Null(JumpListPlan.QuoteArgument("bad\nfile.mkv"));
-        Assert.EndsWith(@"\\\"", JumpListPlan.QuoteArgument(@"C:\Video\")!);
+        Assert.EndsWith(new string((char)92, 2) + "\"", JumpListPlan.QuoteArgument(@"C:\Video\")!);
         Assert.NotNull(JumpListPlan.QuoteArgument(@"\\host\share\film.mkv"));
         Assert.Throws<ArgumentNullException>(() => JumpListPlan.QuoteArgument(null!));
         Assert.Throws<ArgumentNullException>(() => JumpListPlan.Plan(null!, true, removed, 3, _ => true));
@@ -189,7 +189,7 @@ public sealed class TransportPolicyTests
         Assert.Equal(MediaCardKind.Image, MediaCard.Describe(TransportMedia.Picture, "Picture", "", null, null, false)!.Kind);
         Assert.Equal(MediaCardKind.Video, MediaCard.Describe(TransportMedia.Stream, "Stream", "", null, null, true)!.Kind);
         Assert.Equal(MediaCardKind.Music, MediaCard.Describe(TransportMedia.Stream, "Stream", "", null, null, false)!.Kind);
-        Assert.Equal("", MediaCard.Shown(@"C:\Secret\file.mp4"));
+        Assert.Equal("", MediaCard.Shown(Path.GetFullPath("Secret/file.mp4")));
         Assert.Equal("", MediaCard.Shown(@"\\host\share\file.mp4"));
         Assert.Equal("", MediaCard.Shown("https://example.test/stream"));
         Assert.Equal("Name", MediaCard.Shown(" Name "));
