@@ -29,6 +29,8 @@ BorrowedPresenter.cs
 BoundedQueue.cs
 ByteCursor.cs
 CaptionChoreography.cs
+CaptionCommands.cs
+CaptionDirector.cs
 CaptionGlyphs.cs
 Changelog.cs
 ChannelLayout.cs
@@ -85,6 +87,7 @@ InpaintTensors.cs
 InstallStateMachine.cs
 KeyChord.cs
 Keymap.cs
+KineticCaptionSettings.cs
 LandmarkMatcher.cs
 Languages.cs
 Layer3Huffman.cs

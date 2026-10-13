@@ -75,6 +75,14 @@ public static class CommandCatalog
     public const string SubtitlesBigger = "subtitles-bigger";
     public const string SubtitlesSmaller = "subtitles-smaller";
     public const string ResetSubtitleSize = "reset-subtitle-size";
+    public const string ToggleKineticCaptions = "toggle-kinetic-captions";
+    public const string KineticCaptionsLivelier = "kinetic-captions-livelier";
+    public const string KineticCaptionsCalmer = "kinetic-captions-calmer";
+    public const string CycleCaptionLayout = "cycle-caption-layout";
+    public const string CycleCaptionWords = "cycle-caption-words";
+    public const string KineticCaptionSettings = "kinetic-caption-settings";
+    public const string Transcribe = "transcribe";
+    public const string SaveTranscript = "save-transcript";
     public const string ToggleFullScreen = "toggle-full-screen";
     public const string LeaveFullScreen = "leave-full-screen";
     public const string CycleAspectRatio = "cycle-aspect-ratio";
@@ -161,6 +169,14 @@ public static class CommandCatalog
         New(SubtitlesBigger, "Bigger subtitles", Subtitle, "Ctrl+Plus", "Ctrl+Equals"),
         New(SubtitlesSmaller, "Smaller subtitles", Subtitle, "Ctrl+Minus"),
         New(ResetSubtitleSize, "Subtitles at their normal size", Subtitle, "Ctrl+0"),
+        New(ToggleKineticCaptions, "Kinetic captions on or off", Subtitle, "Ctrl+Shift+V"),
+        New(KineticCaptionsLivelier, "Livelier kinetic captions", Subtitle),
+        New(KineticCaptionsCalmer, "Calmer kinetic captions", Subtitle),
+        New(CycleCaptionLayout, "Next kinetic caption layout", Subtitle, "Ctrl+Alt+V"),
+        New(CycleCaptionWords, "Kinetic captions: where the words come from", Subtitle),
+        New(KineticCaptionSettings, "Kinetic caption settings", Subtitle),
+        New(Transcribe, "Transcribe the speech", Subtitle),
+        New(SaveTranscript, "Save the transcript", Subtitle),
         New(ToggleFullScreen, "Full screen", Video, "F", "F11"),
         New(LeaveFullScreen, "Leave full screen", Video, "Escape"),
         New(CycleAspectRatio, "Next aspect ratio", Video, "A"),

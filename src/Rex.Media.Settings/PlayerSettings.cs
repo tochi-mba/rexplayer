@@ -516,6 +516,9 @@ public sealed record PlayerSettings
     /// <summary>The languages to show subtitles in, best first, such as "en, fr"; empty to show files beside the media first.</summary>
     public string SubtitleLanguages { get; init; } = "";
 
+    /// <summary>Words that come in as they are spoken and move the way they were said (OSD-11).</summary>
+    public KineticCaptionSettings KineticCaptions { get; init; } = new();
+
     // Window
 
     public WindowPlacement? Window { get; init; }
@@ -692,6 +695,7 @@ public sealed record PlayerSettings
             SubtitleBoxOpacity = Math.Clamp(SubtitleBoxOpacity, 0, 100),
             SubtitleMargin = Math.Clamp(SubtitleMargin, 0, 40),
             SubtitleStyles = Enum.IsDefined(SubtitleStyles) ? SubtitleStyles : SubtitleStyleChoice.Respect,
+            KineticCaptions = (KineticCaptions ?? new KineticCaptionSettings()).Normalize(),
         };
     }
 }
