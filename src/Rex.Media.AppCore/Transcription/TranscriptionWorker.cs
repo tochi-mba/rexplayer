@@ -249,7 +249,7 @@ public sealed class TranscriptionWorker : IDisposable
     public void Dispose()
     {
         _stop.Cancel();
-        _wake.Set();
+        Wake();
         if (_thread is null)
         {
             Close(save: true);
@@ -290,10 +290,10 @@ public sealed class TranscriptionWorker : IDisposable
         }
         finally
         {
+            // The stop source stays: the window may still be cancelling it.
             Close(save: true);
             Unload();
             _wake.Dispose();
-            _stop.Dispose();
         }
     }
 

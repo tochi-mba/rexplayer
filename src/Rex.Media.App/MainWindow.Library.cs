@@ -368,7 +368,10 @@ public sealed partial class MainWindow
         };
         var placeholder = entry.Kind switch { LibraryKind.Music => "♪", LibraryKind.Video => "▶", _ => "▧" };
         var progress = entry.Kind == LibraryKind.Video && _player.LeftAt(entry.Path) is { } left && entry.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(left / length, 0, 1) : 0;
-        return new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress);
+        var row = new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress);
+        var (glyph, text) = TranscriptBadgeOf(entry);
+        row.SetTranscript(glyph, text);
+        return row;
     }
 
 
@@ -613,10 +616,11 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (chosen[0].Item is string)
+        if (chosen[0].Item is string folder)
         {
             menu.Items.Add(MenuItem("Play everything in it", "LibraryMenuPlay", PlayChosen));
             menu.Items.Add(MenuItem("Stop watching", "LibraryMenuRemoveFolder", RemoveChosenFolders));
+            AddTranscriptionMenuItems(menu, EntriesOf([chosen[0]]), folder);
             return;
         }
 
@@ -676,6 +680,7 @@ public sealed partial class MainWindow
                 () => CopyLibraryPaths(selectedEntries)));
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => _ = OpenLibraryFoldersAsync(selectedEntries)));
+            AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));

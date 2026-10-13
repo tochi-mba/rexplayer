@@ -87,6 +87,18 @@ public sealed class TranscriptionLedger
         return System.IO.Path.Combine(dataRoot, "cache", "transcription.json");
     }
 
+    /// <summary>Whether the records have been read, so the window can ask without touching the disk.</summary>
+    public bool Loaded
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _records is not null;
+            }
+        }
+    }
+
     /// <summary>Every record, in no order.</summary>
     public IReadOnlyList<TranscriptRecord> All
     {

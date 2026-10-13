@@ -166,6 +166,7 @@ public sealed partial class MainWindow
     {
         PositionBookmarkMarkers();
         PositionSectionMarks();
+        PositionSubtitleBuffer();
     }
 
     private void PositionBookmarkMarkers()

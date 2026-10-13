@@ -19,6 +19,8 @@ public sealed partial class LibraryRow(
     double progress = 0) : INotifyPropertyChanged
 {
     private ImageSource? _picture;
+    private string _transcriptGlyph = "";
+    private string _transcriptText = "";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -49,6 +51,14 @@ public sealed partial class LibraryRow(
 
     public Visibility ProgressVisibility => Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>The transcription badge's icon (SUB-20), or empty for none.</summary>
+    public string TranscriptGlyph => _transcriptGlyph;
+
+    /// <summary>What the transcription badge says: its tooltip, and the line's help text for a screen reader.</summary>
+    public string TranscriptText => _transcriptText;
+
+    public Visibility TranscriptVisibility => _transcriptGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
     /// <summary>Whether loading the picture has been started, so it is asked for once.</summary>
     public bool PictureAsked { get; set; }
 
@@ -60,6 +70,20 @@ public sealed partial class LibraryRow(
             _picture = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Picture)));
         }
+    }
+
+    /// <summary>Shows a transcription badge; nothing is raised when it is the one shown already.</summary>
+    public void SetTranscript(string glyph, string text)
+    {
+        if (glyph == _transcriptGlyph && text == _transcriptText)
+        {
+            return;
+        }
+
+        (_transcriptGlyph, _transcriptText) = (glyph, text);
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptGlyph)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptVisibility)));
     }
 
     /// <summary>What a screen reader says for the line, and what the window tests find it by.</summary>

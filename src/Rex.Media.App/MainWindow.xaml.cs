@@ -89,6 +89,7 @@ public sealed partial class MainWindow : Window
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
         WireKineticCaptions();
+        WireTranscription();
         WireVisualizer();
         WireMemory();
         WireLibrary();
@@ -595,6 +596,7 @@ public sealed partial class MainWindow : Window
         InstallAsWeClose();
         SaveSettings();
         _player.SaveQueue();
+        CloseTranscription();
         CloseLibrary();
         _globalHotkeys?.Dispose();
         TryClearResumeMarker();

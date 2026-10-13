@@ -95,6 +95,13 @@ public static class SubtitleBuffer
         return new BufferView(spans, state, label, tip);
     }
 
+    /// <summary>What the timeline preview says under the pointer at <paramref name="at"/>: whether subtitles are ready there.</summary>
+    public static string HintAt(TimeRanges done, TimeSpan at)
+    {
+        ArgumentNullException.ThrowIfNull(done);
+        return done.At(at) is null ? "No subtitles here yet" : "Subtitles ready here";
+    }
+
     /// <summary>
     /// Whether to hold or release playback for the subtitles: held, when the user allows it, while
     /// what plays is being heard and the playhead has run out of subtitles; released once they are

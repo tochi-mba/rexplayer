@@ -32,6 +32,7 @@ public sealed partial class MainWindow
         var left = Math.Clamp(x - (SeekPreview.Width / 2), 0, Math.Max(0, SeekArea.ActualWidth - SeekPreview.Width));
         SeekPreview.Margin = new Thickness(left, 0, 0, 30);
         SeekPreviewTime.Text = TimeText.Format(at, _player.Duration);
+        ShowSeekPreviewSubtitles(at);
         SeekPreview.Visibility = Visibility.Visible;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SeekPreview, $"Timeline preview at {SeekPreviewTime.Text}");
 

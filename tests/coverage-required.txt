@@ -38,6 +38,7 @@ CaptionPresets.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
+ChunkPlanner.cs
 CliApplication.Captions.cs
 CliApplication.cs
 CliApplication.Pulse.cs
@@ -205,6 +206,7 @@ PlaylistPaths.cs
 PlaylistText.cs
 Pls.cs
 PngWriter.cs
+ProgressiveTranscript.cs
 PromptedMaskTracker.cs
 Raster.cs
 Rational.cs
@@ -244,6 +246,7 @@ Snapshot.cs
 SoundSettings.cs
 SpectrumAnalyzer.cs
 SpeechAudio.cs
+SpeechAudioReader.cs
 SpeechModels.cs
 SpeechPulse.cs
 SpotlightScene.cs
@@ -259,6 +262,7 @@ SubjectRemovalMatte.cs
 SubjectRemovalMotion.cs
 SubjectRemovalPlate.cs
 SubRip.cs
+SubtitleBuffer.cs
 SubtitleCue.cs
 SubtitleFile.cs
 SubtitleLook.cs
@@ -272,6 +276,7 @@ SubViewer.cs
 SynthwaveScene.cs
 SystemReport.cs
 ThreadLoop.cs
+TimeRanges.cs
 TimeStretch.cs
 TimeText.cs
 TimeWarpScene.cs
@@ -279,6 +284,14 @@ TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
 TranscriptCache.cs
+TranscriptionConditions.cs
+TranscriptionEligibility.cs
+TranscriptionLedger.cs
+TranscriptionOrder.cs
+TranscriptionRetry.cs
+TranscriptionSettings.cs
+TranscriptionStatus.cs
+TranscriptionWorker.cs
 TransferMeter.cs
 UpdateCheck.cs
 UpdateDownloader.cs
