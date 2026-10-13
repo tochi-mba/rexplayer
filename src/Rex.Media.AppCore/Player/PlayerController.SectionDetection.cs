@@ -112,7 +112,7 @@ public sealed partial class PlayerController
         {
             IsBackground = true,
             // Analysis yields to playback, which shares the processor with it.
-            Priority = ThreadPriority.Lowest,
+            Priority = ThreadPriority.BelowNormal,
             Name = "rexplayer section detection",
         };
         worker.Start();
@@ -137,7 +137,7 @@ public sealed partial class PlayerController
             var files = Directory.EnumerateFiles(folder)
                 .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
                 .ToArray();
-            var next = EpisodeGrouping.Next(path, files);
+            var next = EpisodeGrouping.Next(path, files) ?? NextSeason(path, folder);
             _dispatch(() =>
             {
                 if (!token.IsCancellationRequested && Item?.Location == path && next is not null)
@@ -151,7 +151,7 @@ public sealed partial class PlayerController
                 return;
             }
 
-            var siblings = EpisodeGrouping.Siblings(path, files).Take(24);
+            var siblings = EpisodeGrouping.Siblings(path, files, SectionDetector.SiblingsCompared);
             EpisodeAnalysis? main = null;
             var others = new List<EpisodeAnalysis>();
             foreach (var candidate in siblings.Prepend(path))
@@ -209,6 +209,21 @@ public sealed partial class PlayerController
         {
             _log.Warning("sections", "Background analysis unavailable: " + ex.Message);
         }
+    }
+
+    /// <summary>After a season's last episode in a "Season 1" folder, the first episode in the folder of the next season.</summary>
+    private static string? NextSeason(string path, string folder)
+    {
+        if (!EpisodeGrouping.IsSeasonFolder(Path.GetFileName(folder)) || Path.GetDirectoryName(folder) is not { } show)
+        {
+            return null;
+        }
+
+        var files = Directory.EnumerateDirectories(show)
+            .Where(other => other != folder && EpisodeGrouping.IsSeasonFolder(Path.GetFileName(other)))
+            .SelectMany(Directory.EnumerateFiles)
+            .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
+        return EpisodeGrouping.Next(path, files);
     }
 
     /// <summary>Shows <paramref name="proposals"/> if this episode is still the one playing.</summary>

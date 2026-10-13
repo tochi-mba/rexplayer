@@ -34,6 +34,12 @@ public static class SectionDetector
     /// <summary>Repeated closing audio shorter than this is a sting, not credits.</summary>
     public static readonly TimeSpan MinimumCredits = TimeSpan.FromSeconds(8);
 
+    /// <summary>
+    /// How many of the nearest episodes an episode is compared with: enough for a majority to
+    /// outvote a recap or a one-off title sequence, few enough to analyse on a laptop.
+    /// </summary>
+    public const int SiblingsCompared = 6;
+
     public static SectionProposals Detect(EpisodeAnalysis episode, IReadOnlyList<EpisodeAnalysis> siblings)
     {
         ArgumentNullException.ThrowIfNull(episode);

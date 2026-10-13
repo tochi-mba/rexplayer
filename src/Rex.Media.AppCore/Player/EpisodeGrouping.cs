@@ -94,7 +94,8 @@ public static class EpisodeGrouping
 
     /// <summary>
     /// The episode that follows <paramref name="target"/> among <paramref name="candidates"/>: the
-    /// same show and season, the lowest number after the target's last. Null when there is none.
+    /// lowest number after the target's last in the same show and season or, after a season's last
+    /// episode, the first of the next season. Null when there is none.
     /// </summary>
     public static string? Next(string target, IEnumerable<string> candidates)
     {
@@ -105,9 +106,15 @@ public static class EpisodeGrouping
         }
 
         return candidates.Select(path => (Path: path, Identity: Identify(path)))
-            .Where(item => item.Identity is { } other && other.Season == identity.Season &&
-                other.Episode > identity.Last && string.Equals(other.Show, identity.Show, StringComparison.Ordinal))
-            .OrderBy(item => item.Identity!.Episode).ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+            .Where(item => item.Identity is { } other && string.Equals(other.Show, identity.Show, StringComparison.Ordinal) &&
+                (other.Season == identity.Season ? other.Episode > identity.Last : other.Season == identity.Season + 1))
+            .OrderBy(item => item.Identity!.Season).ThenBy(item => item.Identity!.Episode)
+            .ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
             .Select(item => item.Path).FirstOrDefault();
     }
+
+    /// <summary>Whether a folder called <paramref name="name"/> holds one season of several ("Season 2", "S02").</summary>
+    public static bool IsSeasonFolder(string name) =>
+        !string.IsNullOrWhiteSpace(name) &&
+        Regex.IsMatch(name, @"(?i)^(season\s*\d{1,2}|s\d{1,2})$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 }
