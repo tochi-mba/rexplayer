@@ -104,9 +104,9 @@ internal static class D3D11VideoShaderContinuation
                     [loop] for (int dx = -1; dx <= 1; dx++)
                     {
                         float2 cell = home + float2(dx, dy);
-                        float h1 = frac(sin(dot(cell, float2(12.9898, 78.233))) * 43758.5453);
-                        float h2 = frac(sin(dot(cell, float2(39.346, 11.135))) * 24634.6345);
-                        float h3 = frac(sin(dot(cell, float2(73.156, 52.235))) * 19341.2137);
+                        float h1 = hash12(cell);
+                        float h2 = hash12(cell + 0.5);
+                        float h3 = hash12(cell - 0.5);
                         float2 birth = (cell + float2(h1, 0.5)) / cells;
                         float3 now = readColourAt(birth, isYuv);
                         float activity = smoothstep(threshold, threshold * 6,
@@ -235,7 +235,7 @@ internal static class D3D11VideoShaderContinuation
                 float shift = positiveMod(cell, float2(2, 2)).y;
                 bool starts = positiveMod(cell + float2(shift, 0), float2(2, 2)).x < 0.5;
                 float2 brickCentre = float2(starts ? cell.x + 1 : cell.x, cell.y + 0.5) / cells;
-                float3 sampled = readColour(brickCentre, isYuv);
+                float3 sampled = cellColour(brickCentre, float2(1, 0.5) / cells, isYuv);
                 float grey = dot(sampled, weights);
                 float3 brick = extras.y < 0.5 ? nearestBrick(sampled)
                     : extras.y < 1.5 ? sampled
@@ -283,7 +283,7 @@ internal static class D3D11VideoShaderContinuation
                 float width = 0.025 + extras.x * 0.0007;
                 float border = (second - nearest) * 0.5;
                 float lead = 1 - smoothstep(width, width + 0.025, border);
-                float3 glass = readColour(site / grid, isYuv);
+                float3 glass = cellColour(site / grid, 0.35 / grid, isYuv);
                 float lum = dot(glass, weights);
                 glass = saturate(lerp(lum.xxx, glass, 1.6) * 1.05);
                 float ripple = sin(dot(p, float2(7.1, 3.3)) + hash12(site) * 6.2831853) * 0.05;
@@ -301,7 +301,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float threadGrey = dot(sampled, float3(0.2126, 0.7152, 0.0722));
                 float3 thread = floor(saturate(lerp(threadGrey.xxx, sampled, 1.3)) * 6 + 0.5) / 6;
                 float3 fabric = extras.y < 0.5 ? float3(0.93, 0.90, 0.82)
@@ -334,7 +334,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float glow = extras.x * 0.01;
                 float3 lit = 0;
                 if (extras.y < 0.5)
@@ -394,7 +394,7 @@ internal static class D3D11VideoShaderContinuation
                 float flicker = floor(time * (1.5 + hash12(cell) * 5));
                 float glyph = step(0.45, hash12(cell * 1.31 + bit * 7.17 + flicker))
                     * step(0, inner.x) * step(inner.x, 1) * step(0, inner.y) * step(inner.y, 1);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float lum = dot(sampled, weights);
                 float intensity = glyph * saturate(max(trail * (0.5 + 0.5 * lum), lum * 1.25));
                 float3 tint = extras.y < 0.5 ? float3(0.25, 1, 0.45)
@@ -414,7 +414,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float lum = dot(sampled, weights);
                 bool blackDice = extras.y > 0.5 && extras.y < 1.5;
                 float depth = pow(lum, 1.6);
@@ -452,7 +452,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 sticker = floor(uv * stickers);
                 float2 local = frac(uv * stickers);
                 float2 cubeLocal = frac(uv * cubes);
-                float3 sampled = readColour((sticker + 0.5) / stickers, isYuv);
+                float3 sampled = cellColour((sticker + 0.5) / stickers, 0.5 / stickers, isYuv);
                 float lum = dot(sampled, weights);
                 float3 tile = extras.y < 0.5 ? nearestCube(sampled)
                     : extras.y < 1.5 ? (floor(lum * 4 + 0.5) / 4).xxx
@@ -482,7 +482,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 gv = dot(a, a) < dot(b, b) ? a : b;
                 float2 q = abs(gv);
                 float edge = 0.5 - max(dot(q, float2(0.5, 0.8660254)), q.x);
-                float3 sampled = readColour((p - gv) / scale + 0.5, isYuv);
+                float3 sampled = cellColour((p - gv) / scale + 0.5, 0.45 / scale, isYuv);
                 float lum = dot(sampled, weights);
                 float groutWidth = 0.012 + extras.x * 0.0006;
                 float grout = 1 - smoothstep(groutWidth, groutWidth + 0.018, edge);
@@ -517,7 +517,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float2 m = positiveMod(cell, float2(4, 4));
                 float threshold = (Bayer[(int)(m.y * 4 + m.x)] + 0.5) / 16 - 0.5;
                 float dither = extras.x * 0.01 / 3;
