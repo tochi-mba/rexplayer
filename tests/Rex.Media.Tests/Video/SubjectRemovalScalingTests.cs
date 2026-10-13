@@ -89,7 +89,7 @@ public sealed class SubjectRemovalScalingTests
         // nine, three, three and one sixteenths of a two-times enlargement.
         Assert.Equal(0xFF00_90_30u, Pixel(output, 6, 0));
         // At the edge of the hole the opacity fades over a pixel either side.
-        Assert.InRange(Pixel(output, 16, 8) & 0xFF, 31, 219);
+        Assert.InRange(Pixel(output, 16, 8) & 0xFF, 31u, 219u);
         Assert.Equal(Pixel(frame, 17, 8), Pixel(output, 17, 8));
 
         // An area with nothing in it draws nothing.
