@@ -50,7 +50,7 @@ public sealed class TransportPolicyTests
 
         player.Stop();
         harness.Pump();
-        Assert.Equal(TransportMedia.None, TransportAvailability.MediaOf(player));
+        Assert.Equal(SessionState.Idle, player.State);
     }
 
     [Fact]
