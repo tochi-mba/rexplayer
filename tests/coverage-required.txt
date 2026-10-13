@@ -88,6 +88,7 @@ FlightScene.cs
 FolderArt.cs
 FourCC.cs
 FrameBudget.cs
+FrameCadence.cs
 GalaxyScene.cs
 GifDecoder.cs
 GifDemuxer.cs

@@ -37,6 +37,12 @@ public sealed class EngineOptions
     /// </summary>
     public Func<IVideoPresenter>? VideoPresenterFactory { get; init; }
 
+    /// <summary>
+    /// Whether video decoders may decode on the graphics card behind the presenter. Off, every
+    /// picture is decoded by the processor, as on a computer whose graphics card cannot decode.
+    /// </summary>
+    public bool GraphicsCardDecoding { get; init; } = true;
+
     /// <summary>Packets waiting for the video decoder. The queue may hold up to four times this while audio is starving.</summary>
     public int VideoQueueCapacity { get; init; } = 32;
 
