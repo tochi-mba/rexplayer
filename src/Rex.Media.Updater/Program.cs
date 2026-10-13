@@ -12,6 +12,9 @@ namespace Rex.Media.Updater;
 /// "relaunch" (the default) installs with a progress window and opens rexplayer again where it was;
 /// if the installer fails or is cancelled it opens the installed rexplayer instead, so the user is
 /// never left without it. "quiet" installs with no window and opens nothing: rexplayer was closing.
+/// Either way it records how the installer ended ("installer-name exit-code", in
+/// install-result.txt beside the installer) before reopening anything, so the next start can tell
+/// a cancelled install from a failed one (UpdateFlow.InstallEndOf reads it).
 /// </remarks>
 internal static class Program
 {
@@ -55,12 +58,14 @@ internal static class Program
             using var process = Process.Start(start);
             if (process is null)
             {
+                Record(installer, -1);
                 Reopen(log, quiet, app);
                 return 4;
             }
 
             process.WaitForExit();
             Append(log, $"The installer finished with exit code {process.ExitCode}.");
+            Record(installer, process.ExitCode);
             if (process.ExitCode != 0)
             {
                 Reopen(log, quiet, app);
@@ -73,6 +78,7 @@ internal static class Program
             try
             {
                 Append(log, "Update hand-off failed: " + ex.Message);
+                Record(installer, -1);
                 Reopen(log, quiet, app);
             }
             catch (Exception logError) when (logError is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException)
@@ -93,6 +99,18 @@ internal static class Program
 
         Append(log, "Opening the installed rexplayer again.");
         using var reopened = Process.Start(new ProcessStartInfo(app) { UseShellExecute = false });
+    }
+
+    /// <summary>Notes how the installer ended, for the next start of rexplayer; a record that cannot be written only loses the detail.</summary>
+    private static void Record(string installer, int exitCode)
+    {
+        try
+        {
+            File.WriteAllText(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(installer))!, "install-result.txt"), $"{Path.GetFileName(installer)} {exitCode}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     private static void Append(string path, string message)

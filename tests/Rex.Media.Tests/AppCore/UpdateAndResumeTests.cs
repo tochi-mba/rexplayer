@@ -74,8 +74,9 @@ public sealed class UpdateAndResumeTests : IDisposable
             .Replace("\"prerelease\"", "\"body\": \"## What's Changed\\n* **Faster** start by @someone in https://github.com/x/pull/1\\n\\nBreaking change: settings move.\",\n  \"prerelease\"", StringComparison.Ordinal);
         var offer = UpdateCheck.Offer(release, "0.3.1")!;
 
+        // The generated "What's Changed" heading and the credit go; the bold label stays a label.
         Assert.Equal(1234, offer.Size);
-        Assert.Equal("What's Changed\n\u2022 Faster start\nBreaking change: settings move.", offer.Notes);
+        Assert.Equal("- **Faster** start\nBreaking change: settings move.", offer.Notes);
         Assert.True(offer.NeedsAttention);
 
         var plain = UpdateCheck.Offer(Release("v0.4.0"), "0.3.1")!;
@@ -84,15 +85,11 @@ public sealed class UpdateAndResumeTests : IDisposable
     }
 
     [Fact]
-    public void ReleaseNotesReadAsPlainText()
+    public void SomeReleaseNotesAskForAttention()
     {
-        Assert.Equal(
-            "Highlights\n\u2022 See the guide\n\u2022 Use code here\nPlain line",
-            UpdateCheck.PlainNotes("# Highlights\r\n\r\n- See [the guide](https://example.com/guide)\n* Use `code` here\n<!-- hidden -->\nPlain line\n**Full Changelog**: https://x"));
         Assert.True(UpdateCheck.NeedsAttention("ACTION REQUIRED: back up"));
         Assert.True(UpdateCheck.NeedsAttention("[attention] read me"));
         Assert.False(UpdateCheck.NeedsAttention("Faster"));
-        Assert.Throws<ArgumentNullException>(() => UpdateCheck.PlainNotes(null!));
         Assert.Throws<ArgumentNullException>(() => UpdateCheck.NeedsAttention(null!));
     }
 

@@ -3,32 +3,19 @@ using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Updates;
 
-/// <summary>Where the updater is, as the user sees it.</summary>
-public enum UpdatePhase
-{
-    Idle,
-    Checking,
-    Available,
-    Downloading,
-    Ready,
-    Scheduled,
-    Installing,
-    Failed,
-}
-
-/// <summary>What the update bar offers, if anything.</summary>
+/// <summary>What the update card offers, if anything.</summary>
 public enum UpdatePrompt
 {
     None,
 
-    /// <summary>A newer version that has not been downloaded: Download, remind or skip.</summary>
+    /// <summary>A newer version that has not been downloaded: download it, later, or skip it.</summary>
     Available,
 
-    /// <summary>A downloaded, verified version: when to install it.</summary>
+    /// <summary>A downloaded, verified version: restart now, or later.</summary>
     Ready,
 }
 
-/// <summary>How long "Remind me later" waits.</summary>
+/// <summary>How long "Later" waits before reminding.</summary>
 public enum RemindChoice
 {
     InAnHour,
@@ -44,21 +31,55 @@ public enum StartupNews
     /// <summary>The handed-over version is the one now running.</summary>
     Installed,
 
-    /// <summary>The installer was cancelled or failed; the update is still on offer.</summary>
+    /// <summary>The installer failed; the update is still on offer.</summary>
     InstallFailed,
+
+    /// <summary>The user cancelled the installer; the update is still on offer.</summary>
+    InstallCancelled,
 
     /// <summary>The installer failed too often; the download is given up until a later check.</summary>
     InstallAbandoned,
 }
 
+/// <summary>How the installer ended, as the hand-off helper recorded it.</summary>
+public enum InstallEnd
+{
+    /// <summary>Nothing was recorded (the helper or the PC stopped first).</summary>
+    Unknown,
+
+    /// <summary>The user cancelled it.</summary>
+    Cancelled,
+
+    /// <summary>It could not close a running rexplayer.</summary>
+    AppOpen,
+
+    Failed,
+}
+
+/// <summary>Why a download that is due is not running.</summary>
+public enum DownloadHold
+{
+    None,
+
+    /// <summary>The user paused it.</summary>
+    Paused,
+
+    /// <summary>The last attempt failed; the next waits a while.</summary>
+    Failed,
+
+    Offline,
+}
+
 /// <summary>The window at this moment, as far as the updater cares.</summary>
 /// <param name="Playing">Something is playing or opening.</param>
+/// <param name="Video">What is open has pictures.</param>
 /// <param name="FullScreen">The window fills the screen.</param>
 /// <param name="DialogOpen">A dialog is open.</param>
 /// <param name="Editing">The user is part-way through something, such as Subject Lock.</param>
 /// <param name="NoticeOpen">Another banner (crash recovery, a message) is showing.</param>
+/// <param name="PanelOpen">The update panel is open, so it says everything the card would.</param>
 /// <param name="IdleFor">How long since the user last touched the window.</param>
-public sealed record UpdateMoment(bool Playing, bool FullScreen, bool DialogOpen, bool Editing, bool NoticeOpen, TimeSpan IdleFor);
+public sealed record UpdateMoment(bool Playing, bool Video, bool FullScreen, bool DialogOpen, bool Editing, bool NoticeOpen, bool PanelOpen, TimeSpan IdleFor);
 
 /// <summary>The pending update after a check, and whether the files of the one before go.</summary>
 public sealed record CheckOutcome(PendingUpdate? Pending, bool Discard, string Message);
@@ -73,10 +94,29 @@ public sealed record CheckOutcome(PendingUpdate? Pending, bool Discard, string M
 /// </param>
 public sealed record StartupOutcome(PendingUpdate? Pending, StartupNews News, bool Discard, bool RestoreSession);
 
+/// <summary>What the updater's clock knows at a tick.</summary>
+/// <param name="Pending">The pending update.</param>
+/// <param name="Mode">What the user chose to happen with a new version.</param>
+/// <param name="Cadence">How often to look.</param>
+/// <param name="LastCheck">The last successful check.</param>
+/// <param name="LastCheckFailure">The last failed check since then.</param>
+/// <param name="CheckFailures">Failed checks in a row.</param>
+/// <param name="Checking">A check is running.</param>
+/// <param name="Downloading">A download is running.</param>
+/// <param name="Online">Windows has an internet connection.</param>
+/// <param name="Metered">The connection costs by the byte.</param>
+public sealed record UpdateClock(
+    PendingUpdate? Pending, UpdateMode Mode, UpdateCadence Cadence, DateTimeOffset? LastCheck, DateTimeOffset? LastCheckFailure,
+    int CheckFailures, bool Checking, bool Downloading, bool Online, bool Metered);
+
+/// <summary>What a tick does: the pending update as the settings now allow it, and the work to start or stop.</summary>
+public sealed record UpdatePlan(PendingUpdate? Pending, bool Check, bool StopDownload, bool StartDownload, bool Install);
+
 /// <summary>
 /// Every decision of the update flow (TOOL-09): what a check changes, when to download, when the
-/// update bar may show, when installing may happen without asking, what a restart learns, and the
-/// words for each state. The window keeps the clocks and does the network and process work.
+/// update card may show, when installing may happen without asking, and what a restart learns.
+/// The window keeps the clocks and does the network and process work; <see cref="UpdateView"/>
+/// words it.
 /// </summary>
 public static class UpdateFlow
 {
@@ -94,6 +134,9 @@ public static class UpdateFlow
 
     /// <summary>Install attempts after which the download is given up until a later check.</summary>
     public const int MostInstallFailures = 3;
+
+    /// <summary>The hand-off helper's record of how the installer ended, beside the installer.</summary>
+    public const string InstallRecordName = "install-result.txt";
 
     private static readonly TimeSpan[] DownloadWaits =
     [
@@ -131,7 +174,8 @@ public static class UpdateFlow
     /// <summary>
     /// What a successful check changes. The latest release is the truth: a pending version it no
     /// longer offers (withdrawn, superseded, or already running) goes, and a newer one replaces it.
-    /// A version the user skipped is not offered again unless they ask.
+    /// A version the user skipped is not offered again unless they ask, and a download they
+    /// cancelled does not start again by itself.
     /// </summary>
     public static CheckOutcome AfterCheck(PendingUpdate? pending, UpdateOffer? offer, string current, string? skipped, UpdateMode mode, bool metered, bool asked)
     {
@@ -157,7 +201,7 @@ public static class UpdateFlow
             return new CheckOutcome(found, pending is not null, Announce(found));
         }
 
-        var promote = pending.Stage == UpdateStage.Available && (asked || (mode != UpdateMode.NotifyOnly && !metered));
+        var promote = pending is { Stage: UpdateStage.Available, Declined: false } && (asked || (mode != UpdateMode.NotifyOnly && !metered));
         var kept = pending with
         {
             InstallerUrl = offer.Installer.ToString(),
@@ -168,7 +212,6 @@ public static class UpdateFlow
             NeedsAttention = offer.NeedsAttention,
             Approved = pending.Approved || asked,
             Stage = promote ? UpdateStage.Downloading : pending.Stage,
-            RemindAt = asked ? null : pending.RemindAt,
             RetryAt = asked ? null : pending.RetryAt,
         };
         return new CheckOutcome(kept, false, Announce(kept));
@@ -183,11 +226,15 @@ public static class UpdateFlow
 
     /// <summary>
     /// What a start learns. A handed-over version now running installed; one still newer than this
-    /// version was cancelled or failed, and is offered again (asking, even in automatic mode) until
-    /// it has failed <see cref="MostInstallFailures"/> times. A pending version this build already
-    /// has or passes (installed some other way) goes.
+    /// version was cancelled or failed. A cancelled one is offered again, asking first; a failed one
+    /// too, until it has failed <see cref="MostInstallFailures"/> times. A pending version this
+    /// build already has or passes (installed some other way) goes.
     /// </summary>
-    public static StartupOutcome AtStartup(PendingUpdate? pending, string current, DateTimeOffset now)
+    /// <param name="pending">What the last run left pending.</param>
+    /// <param name="current">The running version.</param>
+    /// <param name="now">Now.</param>
+    /// <param name="end">How the installer ended, from <see cref="InstallEndOf"/>.</param>
+    public static StartupOutcome AtStartup(PendingUpdate? pending, string current, DateTimeOffset now, InstallEnd end = InstallEnd.Unknown)
     {
         if (pending is null || !UpdateCheck.TryVersion(current, out var running) || !UpdateCheck.TryVersion(pending.Version, out var target))
         {
@@ -205,72 +252,94 @@ public static class UpdateFlow
         }
 
         var recent = pending.HandedOffAt is { } handed && handed <= now.AddMinutes(5) && now - handed <= HandOffGrace;
-        var failures = pending.InstallFailures + 1;
-        if (failures >= MostInstallFailures)
-        {
-            return new StartupOutcome(null, StartupNews.InstallAbandoned, true, recent);
-        }
-
         var again = pending with
         {
             Stage = UpdateStage.Ready,
             Timing = UpdateTiming.Ask,
-            InstallFailures = failures,
             HandedOffAt = null,
             InstallAt = null,
             RemindAt = null,
         };
-        return new StartupOutcome(again, StartupNews.InstallFailed, false, recent);
+        if (end == InstallEnd.Cancelled)
+        {
+            return new StartupOutcome(again with { InstallCancelled = true }, StartupNews.InstallCancelled, false, recent);
+        }
+
+        var failures = pending.InstallFailures + 1;
+        return failures >= MostInstallFailures
+            ? new StartupOutcome(null, StartupNews.InstallAbandoned, true, recent)
+            : new StartupOutcome(again with { InstallFailures = failures }, StartupNews.InstallFailed, false, recent);
+    }
+
+    /// <summary>
+    /// How the installer for <paramref name="pending"/> ended, from the hand-off helper's record
+    /// ("installer-name exit-code"). A record for another installer, or none, says nothing.
+    /// </summary>
+    public static InstallEnd InstallEndOf(string? record, PendingUpdate? pending)
+    {
+        var parts = record?.Trim().Split(' ', 2) ?? [];
+        if (pending is null || parts.Length != 2 || parts[0] != pending.InstallerName
+            || !int.TryParse(parts[1], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var code))
+        {
+            return InstallEnd.Unknown;
+        }
+
+        // The installer's own exit codes: 2 and 5 are a cancel before or during installing, 7 and 8
+        // mean it could not prepare (rexplayer would not close).
+        return code switch
+        {
+            2 or 5 => InstallEnd.Cancelled,
+            7 or 8 => InstallEnd.AppOpen,
+            _ => InstallEnd.Failed,
+        };
     }
 
     /// <summary>
     /// Whether automatic mode installs <paramref name="pending"/> without asking: never a release
-    /// that asks for attention, and never again after an install failed.
+    /// that asks for attention, and never again after an install failed or was cancelled.
     /// </summary>
     public static bool InstallsUnasked(PendingUpdate pending, UpdateMode mode)
     {
         ArgumentNullException.ThrowIfNull(pending);
-        return mode == UpdateMode.Automatic && pending.Timing == UpdateTiming.Ask && !pending.NeedsAttention && pending.InstallFailures == 0;
+        return mode == UpdateMode.Automatic && pending.Timing == UpdateTiming.Ask && !pending.NeedsAttention
+            && pending.InstallFailures == 0 && !pending.InstallCancelled;
     }
 
     /// <summary>
-    /// What the update bar may offer now. Never over full-screen playback, a dialog, unfinished
-    /// editing or another banner, and not before a reminder is due (a reminder further away than
-    /// the longest one means the clock went back, so it is due). A version that will install by
-    /// itself, on close or on schedule, is not offered. <paramref name="asked"/> (Check for updates)
-    /// shows it regardless, except over a dialog.
+    /// What the update card may offer now. Never over a dialog or the open update panel, never while
+    /// a video plays or anything plays full screen, and not before a reminder is due (a reminder
+    /// further away than the longest one means the clock went back, so it is due). Another banner or
+    /// unfinished editing keeps a card from appearing but not one already <paramref name="showing"/>.
+    /// A version that will install by itself, on close or on schedule, is not offered, nor is one
+    /// whose download the user cancelled.
     /// </summary>
-    public static UpdatePrompt Prompt(PendingUpdate? pending, UpdateMode mode, UpdateMoment moment, DateTimeOffset now, bool asked = false)
+    public static UpdatePrompt Prompt(PendingUpdate? pending, UpdateMode mode, UpdateMoment moment, DateTimeOffset now, bool showing = false)
     {
         ArgumentNullException.ThrowIfNull(moment);
-        if (pending is null || moment.DialogOpen)
+        if (pending is null || moment.DialogOpen || moment.PanelOpen || (moment.Playing && (moment.Video || moment.FullScreen))
+            || (!showing && (moment.Editing || moment.NoticeOpen)) || Waiting(pending.RemindAt, now, LongestReminder))
         {
             return UpdatePrompt.None;
         }
 
-        if (!asked && ((moment.FullScreen && moment.Playing) || moment.Editing || moment.NoticeOpen || Waiting(pending.RemindAt, now, LongestReminder)))
+        return pending switch
         {
-            return UpdatePrompt.None;
-        }
-
-        return pending.Stage switch
-        {
-            UpdateStage.Available => UpdatePrompt.Available,
-            UpdateStage.Ready when asked || (pending.Timing == UpdateTiming.Ask && !InstallsUnasked(pending, mode)) => UpdatePrompt.Ready,
+            { Stage: UpdateStage.Available, Declined: false } => UpdatePrompt.Available,
+            { Stage: UpdateStage.Ready, Timing: UpdateTiming.Ask } when !InstallsUnasked(pending, mode) => UpdatePrompt.Ready,
             _ => UpdatePrompt.None,
         };
     }
 
     /// <summary>
     /// Whether to install while rexplayer is open: a scheduled time has come, or automatic mode
-    /// allows it, and rexplayer is idle (nothing playing, not full screen, no dialog or editing,
-    /// untouched for <see cref="IdleBeforeInstall"/>). It then reopens where it was, paused.
+    /// allows it, and rexplayer is idle (nothing playing, not full screen, no dialog, editing or
+    /// update panel, untouched for <see cref="IdleBeforeInstall"/>). It then reopens where it was, paused.
     /// </summary>
     public static bool InstallWhileOpen(PendingUpdate? pending, UpdateMode mode, UpdateMoment moment, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(moment);
         if (pending is not { Stage: UpdateStage.Ready }
-            || moment.Playing || moment.FullScreen || moment.DialogOpen || moment.Editing || moment.IdleFor < IdleBeforeInstall)
+            || moment.Playing || moment.FullScreen || moment.DialogOpen || moment.Editing || moment.PanelOpen || moment.IdleFor < IdleBeforeInstall)
         {
             return false;
         }
@@ -297,16 +366,6 @@ public static class UpdateFlow
     }
 
     /// <summary>
-    /// Whether an update bar already showing goes: when it would not be offered even without
-    /// another banner or some editing, which only keep a new bar from appearing.
-    /// </summary>
-    public static bool Hides(PendingUpdate? pending, UpdateMode mode, UpdateMoment moment, DateTimeOffset now)
-    {
-        ArgumentNullException.ThrowIfNull(moment);
-        return Prompt(pending, mode, moment with { NoticeOpen = false, Editing = false }, now) == UpdatePrompt.None;
-    }
-
-    /// <summary>
     /// The pending update after a download attempt: verified, it is ready; stopped on purpose or
     /// left to another window, it is as it was; otherwise the attempt failed and waits to try again.
     /// </summary>
@@ -322,23 +381,48 @@ public static class UpdateFlow
         };
     }
 
-    /// <summary>
-    /// Whether the update bar must be drawn again to offer <paramref name="prompt"/> for
-    /// <paramref name="pending"/>: it is closed, offers something else, or offers another version
-    /// (a newer release found while it was open).
-    /// </summary>
-    public static bool Redraw(UpdatePrompt prompt, PendingUpdate pending, UpdatePrompt shown, string? shownVersion, bool open)
-    {
-        ArgumentNullException.ThrowIfNull(pending);
-        return !open || prompt != shown || pending.Version != shownVersion;
-    }
-
-    /// <summary>The user chose Download: it goes ahead now, whatever the connection, and any reminder or wait is dropped.</summary>
+    /// <summary>The user chose Download: it goes ahead now, whatever the connection, and any reminder, pause or wait is dropped.</summary>
     public static PendingUpdate Approve(PendingUpdate pending)
     {
         ArgumentNullException.ThrowIfNull(pending);
-        return pending with { Stage = UpdateStage.Downloading, Approved = true, RemindAt = null, RetryAt = null };
+        return pending with { Stage = UpdateStage.Downloading, Approved = true, Paused = false, Declined = false, RemindAt = null, RetryAt = null };
     }
+
+    /// <summary>The user paused the download: it waits until they resume it, even across restarts.</summary>
+    public static PendingUpdate Pause(PendingUpdate pending)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending with { Paused = true };
+    }
+
+    /// <summary>The user resumed the download, or asked to try a failed one again: it goes now, whatever the connection.</summary>
+    public static PendingUpdate Resume(PendingUpdate pending)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending with { Paused = false, Approved = true, RetryAt = null };
+    }
+
+    /// <summary>
+    /// The user cancelled the download: the version is still on offer, its partial file goes, and
+    /// rexplayer does not download it again by itself.
+    /// </summary>
+    public static PendingUpdate CancelDownload(PendingUpdate pending)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending with
+        {
+            Stage = UpdateStage.Available,
+            Declined = true,
+            Approved = false,
+            Paused = false,
+            RetryAt = null,
+            DownloadFailures = 0,
+            LastError = null,
+        };
+    }
+
+    /// <summary>The update whose files stay in the updates folder: none once the user cancelled its download.</summary>
+    public static PendingUpdate? KeptFiles(PendingUpdate? pending) => pending is { Declined: true } ? null : pending;
 
     /// <summary>
     /// A downloaded installer that no longer matches its checksum is downloaded again. It is
@@ -365,27 +449,6 @@ public static class UpdateFlow
         return pending with { Stage = UpdateStage.Installing, HandedOffAt = now };
     }
 
-    /// <summary>What "Remind me later" says once chosen.</summary>
-    public static string Reminded(RemindChoice choice, string version) => choice switch
-    {
-        RemindChoice.InAnHour => $"rexplayer reminds you about {version} in an hour.",
-        RemindChoice.NextWeek => $"rexplayer reminds you about {version} next week.",
-        _ => $"rexplayer reminds you about {version} tomorrow.",
-    };
-
-    /// <summary>The notice for what a start learned (its title and message), or null when there is none.</summary>
-    /// <param name="news">From <see cref="AtStartup"/>.</param>
-    /// <param name="version">The version that did not install.</param>
-    /// <param name="current">The running version.</param>
-    public static (string Title, string Message)? NewsText(StartupNews news, string? version, string current) => news switch
-    {
-        StartupNews.InstallFailed => ($"rexplayer {version} did not install",
-            $"The installer was cancelled or stopped, so rexplayer {current} is still here and nothing was lost. The log (Help, Open the log folder) has the details."),
-        StartupNews.InstallAbandoned => ("The update could not be installed",
-            $"It failed {MostInstallFailures} times, so rexplayer {current} set it aside. A later check offers it again; the log has the details."),
-        _ => null,
-    };
-
     /// <summary>Not offered again until <paramref name="choice"/>'s time.</summary>
     public static PendingUpdate Remind(PendingUpdate pending, RemindChoice choice, DateTimeOffset now)
     {
@@ -411,24 +474,85 @@ public static class UpdateFlow
     }
 
     /// <summary>Installs tonight (<see cref="Tonight"/>) once rexplayer is idle, or as it closes if that is sooner.</summary>
-    public static PendingUpdate ScheduledTonight(PendingUpdate pending, DateTimeOffset localNow)
+    public static PendingUpdate ScheduledTonight(PendingUpdate pending, DateTimeOffset now, TimeZoneInfo zone)
     {
         ArgumentNullException.ThrowIfNull(pending);
-        return pending with { Timing = UpdateTiming.Scheduled, InstallAt = Tonight(localNow), RemindAt = null };
+        return pending with { Timing = UpdateTiming.Scheduled, InstallAt = Tonight(now, zone), RemindAt = null };
     }
 
-    /// <summary>The next 3 o'clock in the morning, local time, at least half an hour away.</summary>
-    public static DateTimeOffset Tonight(DateTimeOffset localNow)
+    /// <summary>
+    /// The next 3 o'clock in the morning in <paramref name="zone"/>, at least half an hour away,
+    /// with that night's own offset: a night when the clocks change installs at 3 by the clock,
+    /// not an hour early or late. A 3 o'clock the change skips becomes the hour after.
+    /// </summary>
+    public static DateTimeOffset Tonight(DateTimeOffset now, TimeZoneInfo zone)
     {
-        var at = new DateTimeOffset(localNow.Date.AddHours(3), localNow.Offset);
-        return at <= localNow.AddMinutes(30) ? at.AddDays(1) : at;
+        ArgumentNullException.ThrowIfNull(zone);
+        var today = TimeZoneInfo.ConvertTime(now, zone).Date;
+        var at = AtThree(today, zone);
+        return at > now.AddMinutes(30) ? at : AtThree(today.AddDays(1), zone);
     }
 
-    /// <summary>Whether a download may run now: approved, or allowed by the mode, the cadence and the connection, and not waiting to retry.</summary>
+    private static DateTimeOffset AtThree(DateTime day, TimeZoneInfo zone)
+    {
+        var wall = DateTime.SpecifyKind(day.AddHours(3), DateTimeKind.Unspecified);
+        wall = zone.IsInvalidTime(wall) ? wall.AddHours(1) : wall;
+        return new DateTimeOffset(wall, zone.GetUtcOffset(wall));
+    }
+
+    /// <summary>
+    /// The pending update as the settings and connection now have it: one on offer starts
+    /// downloading once the mode, the cadence and an unmetered connection allow it (unless the
+    /// user cancelled its download), and a download nobody asked for goes back to being on offer
+    /// when the user chose only to be told, turned checks off, or the connection became metered.
+    /// </summary>
+    public static PendingUpdate Settle(PendingUpdate pending, UpdateMode mode, UpdateCadence cadence, bool metered)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        var allowed = mode != UpdateMode.NotifyOnly && cadence != UpdateCadence.Off && !metered;
+        return pending switch
+        {
+            { Stage: UpdateStage.Available, Declined: false } when allowed => pending with { Stage = UpdateStage.Downloading },
+            { Stage: UpdateStage.Downloading, Approved: false } when !allowed => pending with { Stage = UpdateStage.Available },
+            _ => pending,
+        };
+    }
+
+    /// <summary>Why a download of <paramref name="pending"/> is not running now, or <see cref="DownloadHold.None"/>.</summary>
+    public static DownloadHold Hold(PendingUpdate pending, bool online, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        return pending.Paused ? DownloadHold.Paused
+            : pending.DownloadFailures > 0 && Waiting(pending.RetryAt, now, DownloadWaits[^1]) ? DownloadHold.Failed
+            : online ? DownloadHold.None
+            : DownloadHold.Offline;
+    }
+
+    /// <summary>Whether a download may run now: approved, or allowed by the mode, the cadence and the connection, and neither paused nor waiting to retry.</summary>
     public static bool MayDownload(PendingUpdate? pending, UpdateMode mode, UpdateCadence cadence, bool metered, DateTimeOffset now) =>
-        pending is { Stage: UpdateStage.Downloading }
+        pending is { Stage: UpdateStage.Downloading, Paused: false }
         && (pending.Approved || (mode != UpdateMode.NotifyOnly && cadence != UpdateCadence.Off && !metered))
         && !Waiting(pending.RetryAt, now, DownloadWaits[^1]);
+
+    /// <summary>
+    /// One tick of the updater's clock: a check when one is due (and nothing else that tick, since
+    /// it may change what is pending); otherwise the download started or stopped as allowed, and an
+    /// install while rexplayer is idle.
+    /// </summary>
+    public static UpdatePlan Plan(UpdateClock clock, UpdateMoment moment, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(moment);
+        var pending = clock.Pending is { } found ? Settle(found, clock.Mode, clock.Cadence, clock.Metered) : null;
+        if (!clock.Checking && CheckDue(clock.Cadence, clock.LastCheck, clock.LastCheckFailure, clock.CheckFailures, now))
+        {
+            return new UpdatePlan(pending, true, false, false, false);
+        }
+
+        var may = clock.Online && MayDownload(pending, clock.Mode, clock.Cadence, clock.Metered, now);
+        return new UpdatePlan(pending, false, clock.Downloading && !may, !clock.Downloading && may,
+            !clock.Downloading && InstallWhileOpen(pending, clock.Mode, moment, now));
+    }
 
     /// <summary>A failed download: the next attempt waits longer each time, up to 12 hours.</summary>
     public static PendingUpdate DownloadFailed(PendingUpdate pending, string reason, DateTimeOffset now)
@@ -447,7 +571,7 @@ public static class UpdateFlow
     public static PendingUpdate Downloaded(PendingUpdate pending)
     {
         ArgumentNullException.ThrowIfNull(pending);
-        return pending with { Stage = UpdateStage.Ready, DownloadFailures = 0, RetryAt = null, LastError = null };
+        return pending with { Stage = UpdateStage.Ready, DownloadFailures = 0, RetryAt = null, LastError = null, Paused = false };
     }
 
     /// <summary>
@@ -459,67 +583,9 @@ public static class UpdateFlow
         && (lastFailure is not { } failed || failures <= 0 || failed > now
             || now - failed >= CheckWaits[Math.Min(failures, CheckWaits.Length) - 1]);
 
-    /// <summary>The phase the user sees.</summary>
-    public static UpdatePhase Phase(PendingUpdate? pending, bool checking, bool downloading) =>
-        downloading ? UpdatePhase.Downloading
-        : checking ? UpdatePhase.Checking
-        : pending?.Stage switch
-        {
-            UpdateStage.Available => UpdatePhase.Available,
-            UpdateStage.Downloading => pending.DownloadFailures > 0 ? UpdatePhase.Failed : UpdatePhase.Downloading,
-            UpdateStage.Ready => pending.Timing == UpdateTiming.Scheduled ? UpdatePhase.Scheduled : UpdatePhase.Ready,
-            UpdateStage.Installing => UpdatePhase.Installing,
-            _ => UpdatePhase.Idle,
-        };
-
-    /// <summary>One line for Preferences and for "Check for updates".</summary>
-    /// <param name="phase">From <see cref="Phase"/>.</param>
-    /// <param name="pending">The pending update, if any.</param>
-    /// <param name="mode">The update mode.</param>
-    /// <param name="current">The running version.</param>
-    /// <param name="percent">How much of an active download is done.</param>
-    /// <param name="lastCheck">The last successful check.</param>
-    /// <param name="now">Now, with the local offset, for times and days.</param>
-    public static string Status(UpdatePhase phase, PendingUpdate? pending, UpdateMode mode, string current, double? percent, DateTimeOffset? lastCheck, DateTimeOffset now)
-    {
-        var version = pending?.Version ?? current;
-        return phase switch
-        {
-            UpdatePhase.Checking => "Checking for updates...",
-            UpdatePhase.Available => $"rexplayer {version} is available.",
-            UpdatePhase.Downloading => percent is { } done
-                ? string.Create(CultureInfo.InvariantCulture, $"Downloading rexplayer {version}: {Math.Clamp(done, 0, 100):0}%")
-                : $"rexplayer {version} will download in the background.",
-            UpdatePhase.Failed => $"rexplayer {version} could not be downloaded: {pending?.LastError ?? "unknown error"}. "
-                + (pending?.RetryAt is { } retry ? $"Trying again {When(retry, now)} at {Clock(retry, now)}." : "Trying again later."),
-            UpdatePhase.Ready => pending?.Timing == UpdateTiming.OnClose ? $"rexplayer {version} will install when you close rexplayer."
-                : pending is not null && InstallsUnasked(pending, mode) ? $"rexplayer {version} will install when rexplayer is closed or not in use."
-                : $"rexplayer {version} is ready to install.",
-            UpdatePhase.Scheduled => $"rexplayer {version} will install "
-                + (pending?.InstallAt is { } at ? $"{When(at, now)} at {Clock(at, now)}" : "tonight")
-                + " when rexplayer is not in use, or when you close it.",
-            UpdatePhase.Installing => $"Installing rexplayer {version}...",
-            _ => lastCheck is { } last
-                ? $"rexplayer {current} is up to date. Last checked {When(last, now)}."
-                : $"This is rexplayer {current}.",
-        };
-    }
-
     /// <summary>"Updated to 0.16.0 yesterday.", or null when no update is known.</summary>
     public static string? LastUpdated(string? version, DateTimeOffset? at, DateTimeOffset now) =>
         version is { Length: > 0 } && at is { } when ? $"Updated to {version} {When(when, now)}." : null;
-
-    /// <summary>The words for a prompt: its title and message.</summary>
-    public static (string Title, string Message) PromptText(UpdatePrompt prompt, PendingUpdate pending, bool metered)
-    {
-        ArgumentNullException.ThrowIfNull(pending);
-        var attention = pending.NeedsAttention ? " This release asks you to read what's new before installing." : "";
-        return prompt == UpdatePrompt.Available
-            ? ($"rexplayer {pending.Version} is available",
-                (metered ? "You are on a metered connection, so it has not been downloaded." : "Download it in the background and choose when to install it.") + attention)
-            : ($"rexplayer {pending.Version} is ready to install",
-                "Restart now and rexplayer reopens with your queue, place and view, paused." + attention);
-    }
 
     /// <summary>"today", "yesterday", "tomorrow", or "on 12 Oct 2026", in the offset of <paramref name="now"/>.</summary>
     public static string When(DateTimeOffset at, DateTimeOffset now)
@@ -534,7 +600,8 @@ public static class UpdateFlow
         };
     }
 
-    private static string Clock(DateTimeOffset at, DateTimeOffset now) =>
+    /// <summary>"15:05", in the offset of <paramref name="now"/>.</summary>
+    public static string Clock(DateTimeOffset at, DateTimeOffset now) =>
         at.ToOffset(now.Offset).ToString("HH:mm", CultureInfo.InvariantCulture);
 
     /// <summary>Whether <paramref name="until"/> is still ahead, believing no wait longer than <paramref name="longest"/>.</summary>
