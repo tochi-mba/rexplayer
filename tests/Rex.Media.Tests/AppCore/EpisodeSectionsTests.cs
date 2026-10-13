@@ -199,6 +199,7 @@ public sealed class EpisodeSectionsTests
         Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, true));
         player.Seek(player.Duration);
         Assert.True(player.MarkEpisodeSection(EpisodeSectionKind.Credits, false));
+        player.Seek(TimeSpan.FromSeconds(6));
         Assert.Equal(new EpisodeSkip(EpisodeSectionKind.Credits, TimeSpan.FromSeconds(10)),
             player.AvailableEpisodeSkip);
         Assert.True(player.ClearEpisodeSection(EpisodeSectionKind.Intro));
