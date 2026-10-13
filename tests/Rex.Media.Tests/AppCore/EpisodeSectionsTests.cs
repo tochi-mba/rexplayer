@@ -182,6 +182,7 @@ public sealed class EpisodeSectionsTests
         player.Open(["pilot.mkv"]);
         harness.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null);
         Assert.True(player.CanMarkEpisodeSections);
+        Assert.Equal(2, player.SectionViews.Count);
         Assert.Equal(TimeSpan.FromSeconds(10), player.Duration);
         Assert.Null(player.AvailableEpisodeSkip);
         Assert.False(player.SkipEpisodeSection());
