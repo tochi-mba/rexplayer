@@ -63,6 +63,7 @@ public sealed partial class MainWindow : Window
 
     /// <param name="files">What the launch was asked to open.</param>
     /// <param name="settings">The settings the launch has already read; read again when null.</param>
+    /// <param name="startupCommand">A safe jump-list task to run after initial activation, or null.</param>
     public MainWindow(IReadOnlyList<string> files, PlayerSettings? settings = null, string? startupCommand = null)
     {
         App.Milestones.Reach("window");
