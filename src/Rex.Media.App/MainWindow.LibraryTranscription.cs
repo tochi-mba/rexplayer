@@ -604,7 +604,7 @@ public sealed partial class MainWindow
     /// <summary>The stretches ready, drawn under the rail only when they change: one mark a stretch.</summary>
     private void ShowSubtitleBuffer()
     {
-        var view = SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
+        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
         var key = string.Join(";", view.Spans);
         if (key != _shownBuffer)
         {
@@ -630,7 +630,7 @@ public sealed partial class MainWindow
 
     private void PositionSubtitleBuffer()
     {
-        var view = SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
+        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
         var width = SubtitleBuffer.ActualWidth;
         for (var i = 0; i < view.Spans.Count && i < _bufferMarks.Count; i++)
         {
@@ -644,7 +644,7 @@ public sealed partial class MainWindow
     /// <summary>The small words beside the seek bar, and its tooltip; changed only with the state.</summary>
     private void ShowSubtitleBufferState()
     {
-        var view = SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
+        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
         if (SubtitleBufferState.Text != view.Label)
         {
             SubtitleBufferState.Text = view.Label;
@@ -665,7 +665,7 @@ public sealed partial class MainWindow
         SeekPreviewSubtitles.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (show)
         {
-            SeekPreviewSubtitles.Text = SubtitleBuffer.HintAt(_bufferDone!, at);
+            SeekPreviewSubtitles.Text = Rex.Media.AppCore.Transcription.SubtitleBuffer.HintAt(_bufferDone!, at);
         }
     }
 
@@ -684,7 +684,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        switch (SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles, _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration))
+        switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles, _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration))
         {
             case HoldAction.Hold:
                 _holdingForSubtitles = true;

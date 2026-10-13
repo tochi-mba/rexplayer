@@ -171,6 +171,7 @@ public sealed partial class MainWindow : Window
             VideoPresenterFactory = () => _presenter is { } presenter ? new BorrowedPresenter(presenter) : null!,
             Log = App.Log,
             Milestones = App.Milestones,
+            GraphicsCardDecoding = App.GraphicsCardDecoding,
         },
         listener);
 
@@ -226,7 +227,7 @@ public sealed partial class MainWindow : Window
             }
             else
             {
-                _presenter = Task.Run(() => D3D11Presenter.ForComposition(width, height, out swapChain)).GetAwaiter().GetResult();
+                _presenter = Task.Run(() => D3D11Presenter.ForComposition(width, height, out swapChain, App.SoftwareGraphics)).GetAwaiter().GetResult();
             }
 
             var panel = WinRT.MarshalInspectable<object>.FromManaged(Video);
@@ -587,6 +588,8 @@ public sealed partial class MainWindow : Window
         _saveTimer.Stop();
         _resumeTimer.Stop();
         _sleepTimer.Stop();
+        _probe?.Dispose();
+        _probe = null;
         // The seek area can still see the pointer leave while the window goes, so its work is
         // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
         HideSeekPreview();

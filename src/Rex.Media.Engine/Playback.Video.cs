@@ -31,6 +31,10 @@ public sealed partial class MediaSession
         private long _videoFramesDecoded;
         private long _videoFramesPresented;
         private long _videoFramesDropped;
+        private readonly FrameCadence _cadence = new();
+
+        /// <summary>Forgets how steadily pictures have been presented so far, so the figures cover only what follows.</summary>
+        public void ClearCadence() => _cadence.Clear();
 
         private int VideoHardCapacity => _session._options.VideoQueueCapacity * 4;
 
@@ -127,6 +131,7 @@ public sealed partial class MediaSession
                     state.Target = seek.Mode == SeekMode.Precise ? seek.Target : MediaTime.Zero;
                     (state.Shown, state.OnTarget) = (false, false);
                     _videoItem.VideoDecoder?.Flush();
+                    _cadence.Restart();
                 }
 
                 if (item.Owner is MediaItem owner && !ReferenceEquals(owner, _videoItem))
@@ -206,7 +211,8 @@ public sealed partial class MediaSession
                         continue;
                     }
 
-                    if (!early && _sink.IsRealTime && frame.Pts.IsKnown && !FirstPicture.ShowAtOnce(state.Shown, IsPaused, frame.Pts, VideoNow))
+                    var paced = !early && _sink.IsRealTime && frame.Pts.IsKnown && !FirstPicture.ShowAtOnce(state.Shown, IsPaused, frame.Pts, VideoNow);
+                    if (paced)
                     {
                         if (!WaitUntilDue(frame.Pts, state.Generation))
                         {
@@ -225,6 +231,7 @@ public sealed partial class MediaSession
                     frame.Generation = state.Generation;
                     _presenter!.Present(frame);
                     Interlocked.Increment(ref _videoFramesPresented);
+                    RecordCadence(paced, frame.Pts, length);
                     if (!state.Shown)
                     {
                         state.Shown = true;
@@ -247,6 +254,25 @@ public sealed partial class MediaSession
 
                 frames.Clear();
             }
+        }
+
+        /// <summary>
+        /// Notes when a picture that waited for its time reached the screen and how late it was; one
+        /// shown at once (the first, or paused) starts the cadence afresh instead.
+        /// </summary>
+        private void RecordCadence(bool paced, MediaTime pts, MediaTime length)
+        {
+            if (!paced)
+            {
+                _cadence.Restart();
+                return;
+            }
+
+            var time = _session._options.Time;
+            _cadence.Presented(
+                time.GetTimestamp() * 1000.0 / time.TimestampFrequency,
+                (VideoNow - pts).TotalSeconds * 1000,
+                length.TotalSeconds * 1000);
         }
 
         /// <summary>Waits until the clock reaches <paramref name="due"/>; false when a seek or the end of the session cut the wait short.</summary>

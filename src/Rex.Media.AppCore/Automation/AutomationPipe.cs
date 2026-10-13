@@ -9,7 +9,8 @@ namespace Rex.Media.AppCore.Automation;
 /// <summary>
 /// What a second launch or a script asks the running player (TOOL-03): <c>open</c> media (with
 /// <see cref="Paths"/>, joining the playlist when <see cref="Enqueue"/>), <c>run</c> the command
-/// <see cref="Id"/>, or tell its <c>status</c>. A request that leaves out its protocol version (a
+/// <see cref="Id"/>, <c>seek</c> <see cref="To"/> a time, tell its <c>status</c>, report its <c>metrics</c>,
+/// or <c>measure</c> how long something named by <see cref="Id"/> takes (scripts/measure-startup.ps1). A request that leaves out its protocol version (a
 /// script written by hand) is taken to speak the current one.
 /// </summary>
 public sealed record AutomationRequest
@@ -26,6 +27,9 @@ public sealed record AutomationRequest
 
     /// <summary>When the launch sending files started; launches moments apart are one choice in Explorer.</summary>
     public DateTimeOffset? LaunchedAt { get; init; }
+
+    /// <summary>For <c>seek</c>: where to go, in seconds from the start of what is playing.</summary>
+    public double? To { get; init; }
 }
 
 /// <summary>The player's answer: whether it did it, or why not, and what it is playing.</summary>
@@ -44,6 +48,9 @@ public sealed record AutomationReply
     public double? Position { get; init; }
 
     public double? Duration { get; init; }
+
+    /// <summary>For <c>metrics</c> and <c>measure</c>: what was measured, each a number under its name.</summary>
+    public IReadOnlyDictionary<string, double>? Metrics { get; init; }
 
     public static AutomationReply Failed(string error) => new() { Ok = false, Error = error };
 }

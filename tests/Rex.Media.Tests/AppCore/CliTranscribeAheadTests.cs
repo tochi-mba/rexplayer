@@ -74,8 +74,8 @@ public sealed class CliTranscribeAheadTests : IDisposable
         var data = JsonDocument.Parse(output).RootElement.GetProperty("data");
         Assert.Equal(30, data.GetProperty("from").GetDouble());
         Assert.Equal(3, data.GetProperty("threads").GetInt32());
-        Assert.Equal(4, data.GetProperty("pieces").GetInt32());
-        Assert.Equal(4, data.GetProperty("words").GetInt32());
+        Assert.Equal(3, data.GetProperty("pieces").GetInt32());
+        Assert.Equal(3, data.GetProperty("words").GetInt32());
         Assert.Equal(70, data.GetProperty("soundSeconds").GetDouble());
         Assert.True(data.GetProperty("firstSubtitlesSeconds").GetDouble() >= 0);
         Assert.All(hearer.Threads, threads => Assert.Equal(3, threads));

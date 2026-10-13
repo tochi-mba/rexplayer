@@ -211,6 +211,9 @@ public sealed partial class MediaSession : IDisposable
         return completion.Task;
     }
 
+    /// <summary>Starts the cadence figures in <see cref="SessionStats.Cadence"/> afresh, so they cover only the pictures that follow.</summary>
+    public Task ClearCadenceAsync() => Post(() => _playback?.ClearCadence());
+
     /// <summary>Completes when the current media ends, fails or is stopped.</summary>
     public Task WaitForFinishAsync() => Volatile.Read(ref _finished).Task;
 
