@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.19.0 - 2026-10-13
+
+### Added
+
+- **Groove visualisation.** The last few seconds of the music scroll by: the spectrum in
+  time with the bass at the bottom, the beat grid with every bar marked, and each kick, snare
+  and hi-hat placed where it struck, sized by how hard. The edge where now is flares with
+  every kick. Choose how many seconds show and which layers draw.
+
+### Improved
+
+- **The beat on syncopated music.** The visualisations find the beat by where the kicks fall
+  in time, not by how the rhythm repeats. Amapiano and other music with a 3-3-2 bass or a log
+  drum between the kicks no longer reads at four-thirds or two-thirds of its tempo, and its
+  beats land evenly.
+
 ## 0.18.0 - 2026-10-12
 
 ### Added
