@@ -158,7 +158,7 @@ public sealed class SectionAnalysisTests
             }
             else
             {
-                // The keyframe pass sees 450 s; the window over the last 17 s decodes 585 to 589 s
+                // The keyframe pass sees 450 s; the window over the last 22 s decodes 585 to 589 s
                 // a second apart and stops at the picture at the end.
                 Assert.Equal([450.0, 585.0, 587.0, 589.0], times);
             }
@@ -216,10 +216,11 @@ public sealed class SectionAnalysisTests
             var frame = AudioFrame.Rent(8000, 1, 100);
             if (nearlyConsumed)
             {
-                // There are only half a sample's worth of timeline left in this frame.
+                // The closing window of a ten-minute file starts at 6 min. There are only half a
+                // sample's worth of timeline left in this frame before it.
                 // Rounding the cut up consumes all 100 samples, without crossing the
                 // earlier strictly-before-the-window check.
-                frame.Pts = MediaTime.FromSeconds(239.9875625);
+                frame.Pts = MediaTime.FromSeconds(359.9875625);
             }
             output.Add(frame);
             if (fail)
