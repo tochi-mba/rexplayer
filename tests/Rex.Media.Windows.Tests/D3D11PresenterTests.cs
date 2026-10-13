@@ -14,7 +14,7 @@ namespace Rex.Media.Windows.Tests;
 /// back and compared with the CPU's conversion of the same picture.
 /// </summary>
 [SupportedOSPlatform("windows8.0")]
-public sealed class D3D11PresenterTests
+public sealed partial class D3D11PresenterTests
 {
     /// <summary>The picture of h264-aac.mp4 at 0.24 s, decoded by Windows (NV12).</summary>
     private static VideoFrame DecodedPicture()
@@ -160,6 +160,17 @@ public sealed class D3D11PresenterTests
     [InlineData(VideoEffect.CubeMosaic)]
     [InlineData(VideoEffect.HexTiles)]
     [InlineData(VideoEffect.RetroPixels)]
+    [InlineData(VideoEffect.RippleTouch)]
+    [InlineData(VideoEffect.Torchlight)]
+    [InlineData(VideoEffect.CelShade)]
+    [InlineData(VideoEffect.TerrainMesh)]
+    [InlineData(VideoEffect.GravityWell)]
+    [InlineData(VideoEffect.ScanSweep)]
+    [InlineData(VideoEffect.Shatter)]
+    [InlineData(VideoEffect.Parallax)]
+    [InlineData(VideoEffect.RainGlass)]
+    [InlineData(VideoEffect.ZoomBurst)]
+    [InlineData(VideoEffect.LowPoly)]
     [InlineData(VideoEffect.GhostwireMotion)]
     [InlineData(VideoEffect.Halftone)]
     [InlineData(VideoEffect.ChromaticRift)]

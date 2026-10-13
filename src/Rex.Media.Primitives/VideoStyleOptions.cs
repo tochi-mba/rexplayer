@@ -74,7 +74,20 @@ public static class VideoStyleOptions
             VideoEffect.CubeMosaic => ("Cube size (%)", "Adjusts Cube size (%)"),
             VideoEffect.HexTiles => ("Tile size (%)", "Adjusts Tile size (%)"),
             VideoEffect.RetroPixels => ("Pixel size (%)", "Adjusts Pixel size (%)"),
-            VideoEffect.MotionAmplify => ("Motion reach (%)", "Adjusts Motion reach (%)"),
+            VideoEffect.MotionAmplify => ("Motion reach (%)", "How far the previous picture is searched for each patch."),
+            VideoEffect.FlowField => ("Match reach (%)", "How far the previous picture is searched for each patch: higher follows faster motion."),
+            VideoEffect.RippleTouch => ("Ring spacing (%)", "Higher packs the rings closer together."),
+            VideoEffect.Torchlight => ("Beam width (%)", "How wide the lit circle is."),
+            VideoEffect.MotionIsolate => ("Shake tolerance (%)", "Higher ignores more camera shake before counting a change as movement."),
+            VideoEffect.CelShade => ("Line sensitivity (%)", "Higher inks fainter outlines."),
+            VideoEffect.TerrainMesh => ("Mesh density (%)", "How many wires cross the landscape."),
+            VideoEffect.GravityWell => ("Well radius (%)", "How far from the pointer the pull reaches."),
+            VideoEffect.ScanSweep => ("Analysis contrast (%)", "How strongly the scanned side draws its tones and outlines."),
+            VideoEffect.Shatter => ("Shard size (%)", "Higher makes smaller shards."),
+            VideoEffect.Parallax => ("Depth sensitivity (%)", "How much fine detail counts as near."),
+            VideoEffect.RainGlass => ("Drop size (%)", "Higher makes smaller, more numerous drops."),
+            VideoEffect.ZoomBurst => ("Sharp island (%)", "Higher keeps a larger sharp area around the origin."),
+            VideoEffect.LowPoly => ("Triangle size (%)", "Higher makes bigger triangles."),
             _ => ("Movement (%)", "How fast the effect moves with the video's time."),
         };
         var options = new List<VideoStyleOption>
@@ -188,6 +201,58 @@ public static class VideoStyleOptions
                 options.Add(new($"effect.{name}.gain", "Amplification (%)", 50, 0, 100, "Adjusts amplification."));
                 options.Add(new($"effect.{name}.steadiness", "Steadiness (%)", 50, 0, 100, "Adjusts steadiness."));
                 break;
+            case VideoEffect.FlowField:
+                options.Add(new($"effect.{name}.density", "Streak density (%)", 50, 0, 100, "How many streaks fill a moving area."));
+                options.Add(new($"effect.{name}.mode", "Background", 0, 0, 2, "What shows behind the streaks."));
+                break;
+            case VideoEffect.RippleTouch:
+                options.Add(new($"effect.{name}.speed", "Ripple speed (%)", 50, 0, 100, "How fast the rings travel outward."));
+                options.Add(new($"effect.{name}.reach", "Fade distance (%)", 50, 0, 100, "Higher fades the rings out sooner."));
+                break;
+            case VideoEffect.Torchlight:
+                options.Add(new($"effect.{name}.tint", "Beam colour (%)", 0, 0, 100, "Warm at 0, cool in the middle, white at 100."));
+                options.Add(new($"effect.{name}.ambient", "Room light (%)", 10, 0, 100, "How much of the picture shows outside the beam."));
+                break;
+            case VideoEffect.MotionIsolate:
+                options.Add(new($"effect.{name}.threshold", "Change needed (%)", 40, 0, 100, "How much a pixel must change to count as moving."));
+                options.Add(new($"effect.{name}.still", "Still brightness (%)", 50, 0, 101, "How bright the still scene stays; 101 keeps its colour dim instead of grey."));
+                break;
+            case VideoEffect.CelShade:
+                options.Add(new($"effect.{name}.bands", "Shading bands (%)", 40, 0, 100, "More bands give smoother shading."));
+                options.Add(new($"effect.{name}.mode", "Ink colour", 0, 0, 3, "The outline ink."));
+                break;
+            case VideoEffect.TerrainMesh:
+                options.Add(new($"effect.{name}.tilt", "View tilt (%)", 50, 0, 100, "How low the camera looks across the landscape."));
+                options.Add(new($"effect.{name}.height", "Hill height (%)", 50, 0, 100, "How far bright areas rise."));
+                break;
+            case VideoEffect.GravityWell:
+                options.Add(new($"effect.{name}.pull", "Pull (%)", 70, 0, 100, "Below 50 pushes away, above 50 pulls in."));
+                options.Add(new($"effect.{name}.spin", "Spin (%)", 40, 0, 100, "How much the picture twists around the pointer."));
+                break;
+            case VideoEffect.ScanSweep:
+                options.Add(new($"effect.{name}.speed", "Sweep speed (%)", 40, 0, 100, "How fast the line crosses when the pointer is away."));
+                options.Add(new($"effect.{name}.mode", "Behind the line", 0, 0, 3, "What the scanned side shows."));
+                break;
+            case VideoEffect.Shatter:
+                options.Add(new($"effect.{name}.spread", "Spread (%)", 50, 0, 100, "How far shards slide apart."));
+                options.Add(new($"effect.{name}.falloff", "Falloff (%)", 50, 0, 100, "How quickly the burst fades with distance from the pointer."));
+                break;
+            case VideoEffect.Parallax:
+                options.Add(new($"effect.{name}.shift", "Layer shift (%)", 50, 0, 100, "How far the layers slide."));
+                options.Add(new($"effect.{name}.fade", "Far layer fade (%)", 30, 0, 100, "How much the far layer darkens."));
+                break;
+            case VideoEffect.RainGlass:
+                options.Add(new($"effect.{name}.speed", "Rain speed (%)", 50, 0, 100, "How fast the drops run."));
+                options.Add(new($"effect.{name}.fog", "Fog (%)", 70, 0, 100, "How misted the pane is."));
+                break;
+            case VideoEffect.ZoomBurst:
+                options.Add(new($"effect.{name}.length", "Streak length (%)", 50, 0, 100, "How long the streaks grow at the edges."));
+                options.Add(new($"effect.{name}.mode", "Direction", 0, 0, 2, "Outward, inward, or outward with glowing highlights."));
+                break;
+            case VideoEffect.LowPoly:
+                options.Add(new($"effect.{name}.wire", "Wireframe (%)", 20, 0, 100, "How visible the triangle edges are."));
+                options.Add(new($"effect.{name}.facets", "Facet lighting (%)", 40, 0, 100, "How much neighbouring triangles differ in brightness."));
+                break;
             case VideoEffect.RetroPixels:
                 options.Add(new($"effect.{name}.dither", "Dither (%)", 70, 0, 100, "Adjusts dither."));
                 options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3, "Adjusts palette."));
@@ -227,6 +292,10 @@ public static class VideoStyleOptions
         VideoEffect.CubeMosaic => ["Six standard colours", "Greyscale", "Source colour", "Pastel"],
         VideoEffect.HexTiles => ["Glazed ceramic", "Matte stone", "Honeycomb", "Flat colour"],
         VideoEffect.RetroPixels => ["Handheld green", "Home computer", "Grey four-tone", "Cyan and magenta"],
+        VideoEffect.FlowField => ["Dim picture", "Full picture", "Black"],
+        VideoEffect.CelShade => ["Black", "Brown", "Navy", "Darker picture"],
+        VideoEffect.ScanSweep => ["Heat", "Edges", "Negative (right side)", "X-ray style"],
+        VideoEffect.ZoomBurst => ["Outward", "Inward", "Outward with glow"],
         _ => [],
     };
 

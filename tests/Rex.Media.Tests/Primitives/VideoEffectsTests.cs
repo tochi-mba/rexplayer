@@ -32,6 +32,49 @@ public sealed class VideoEffectsTests
     }
 
     [Fact]
+    public void EveryLookHasAGroupAndSaysWhatItDoes()
+    {
+        var groups = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var look in Enum.GetValues<VideoLook>())
+        {
+            var description = VideoLooks.Description(look);
+            Assert.False(string.IsNullOrWhiteSpace(description), $"{look} has no description");
+            Assert.EndsWith(".", description);
+            groups.Add(VideoLooks.Category(look));
+        }
+
+        Assert.Equal(["Essentials", "Film", "Mood", "Stylised"], groups.Order(StringComparer.Ordinal));
+        Assert.Equal("Essentials", VideoLooks.Category(VideoLook.Original));
+        Assert.Equal("Essentials", VideoLooks.Category((VideoLook)999));
+        Assert.Equal("", VideoLooks.Description((VideoLook)999));
+        Assert.Equal("Film", VideoLooks.Category(VideoLook.Noir));
+        Assert.Equal("Mood", VideoLooks.Category(VideoLook.Moonlight));
+        Assert.Equal("Stylised", VideoLooks.Category(VideoLook.Cyanotype));
+    }
+
+    [Fact]
+    public void InteractiveEffectsReadThePointerAndMotionEffectsReadThePreviousPicture()
+    {
+        VideoEffect[] pointer = [VideoEffect.RippleTouch, VideoEffect.Torchlight, VideoEffect.GravityWell, VideoEffect.ScanSweep,
+            VideoEffect.Shatter, VideoEffect.Parallax, VideoEffect.RainGlass, VideoEffect.ZoomBurst];
+        Assert.All(pointer, effect => Assert.True(VideoEffects.UsesPointer(effect), effect.ToString()));
+        Assert.All(pointer, effect => Assert.Equal("Interactive", VideoEffects.Category(effect)));
+        Assert.All(pointer, effect => Assert.False(VideoEffects.UsesHistory(effect, 100, 50, 1)));
+        foreach (var effect in new[] { VideoEffect.FlowField, VideoEffect.MotionIsolate })
+        {
+            Assert.True(VideoEffects.UsesHistory(effect, 100, 50, 0));
+            Assert.False(VideoEffects.UsesHistory(effect, 0, 50, 0));
+            Assert.False(VideoEffects.UsesPointer(effect));
+            Assert.Equal("Motion & geometry", VideoEffects.Category(effect));
+        }
+
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.CelShade));
+        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.TerrainMesh));
+        Assert.Equal("Mosaics", VideoEffects.Category(VideoEffect.LowPoly));
+        Assert.Equal("Low poly (Mosaics)", VideoEffects.PickerLabel(VideoEffect.LowPoly));
+    }
+
+    [Fact]
     public void OffHasNothingToCustomizeAndTheFlatPickerShowsEachGroup()
     {
         Assert.Empty(VideoStyleOptions.ForEffect(VideoEffect.Off));

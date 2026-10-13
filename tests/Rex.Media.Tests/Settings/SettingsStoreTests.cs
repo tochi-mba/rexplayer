@@ -67,7 +67,8 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void EveryPictureLookIsNamedSavedAndNormalized()
     {
-        Assert.Equal(14, VideoLooks.Names.Count);
+        Assert.Equal(27, VideoLooks.Names.Count);
+        Assert.Equal("Cyanotype", VideoLooks.Name(VideoLook.Cyanotype));
         Assert.Equal("Teal & orange", VideoLooks.Name(VideoLook.TealOrange));
         Assert.Equal("Infrared", VideoLooks.Name(VideoLook.Infrared));
         Assert.Equal("Original", VideoLooks.Name(VideoLook.Original));
@@ -206,7 +207,7 @@ public sealed class SettingsStoreTests : IDisposable
         {
             VideoEffect.GlyphMosaic, VideoEffect.BrickBuild, VideoEffect.StainedGlass, VideoEffect.CrossStitch,
             VideoEffect.LedWall, VideoEffect.DigitalRain, VideoEffect.DiceMosaic, VideoEffect.CubeMosaic,
-            VideoEffect.HexTiles, VideoEffect.RetroPixels,
+            VideoEffect.HexTiles, VideoEffect.RetroPixels, VideoEffect.LowPoly,
         };
         Assert.Equal(mosaics, Enum.GetValues<VideoEffect>().Where(effect => VideoEffects.Category(effect) == "Mosaics"));
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -255,7 +256,7 @@ public sealed class SettingsStoreTests : IDisposable
                 or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.LumenWeave or VideoEffect.DepthHaze
                 or VideoEffect.ParticleVeil or VideoEffect.LensBloom or VideoEffect.StippleEngrave or VideoEffect.TimeEcho
                 or VideoEffect.MotionAmplify)
-                || VideoEffects.Category(effect) == "Mosaics" ? 4 : effect == VideoEffect.Off ? 0 : 2, options.Count);
+                || VideoEffects.Category(effect) == "Mosaics" || effect > VideoEffect.MotionAmplify ? 4 : effect == VideoEffect.Off ? 0 : 2, options.Count);
             foreach (var option in options)
             {
                 Assert.InRange(option.Default, option.Min, option.Max);
