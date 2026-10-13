@@ -51,6 +51,20 @@ public sealed class TranscriptionWorkerTests : IDisposable
         return worker;
     }
 
+    /// <summary>The fake media is short: an unproductive worker must fail the test, not hang CI.</summary>
+    private static void Complete(TranscriptionWorker worker)
+    {
+        for (var step = 0; step < 64; step++)
+        {
+            if (!worker.Step(Token))
+            {
+                return;
+            }
+        }
+
+        Assert.Fail("Transcription did not finish within 64 bounded pieces: " + worker.Status);
+    }
+
     private TranscriptRecord? RecordOf(string path) => _ledger.Find(TranscriptSignature.Of(new FileInfo(path).Length, new FileInfo(path).LastWriteTimeUtc));
 
     [Fact]
@@ -83,9 +97,7 @@ public sealed class TranscriptionWorkerTests : IDisposable
         Assert.Null(worker.Snapshot("other.mkv"));
         Assert.NotEmpty(worker.Snapshot(film)!.Words);
 
-        while (worker.Step(Token))
-        {
-        }
+        Complete(worker);
 
         // Ahead to the end first, then the part before.
         Assert.Equal([S(118), S(144), S(170), S(0), S(24), S(50), S(76), S(102)], _sources[film].Reads.Select(range => range.Start));
@@ -225,18 +237,14 @@ public sealed class TranscriptionWorkerTests : IDisposable
         var shorter = Media("shorter.mkv", seconds: 99, declared: 300);
         using var worker = Worker();
         worker.SetQueue([new QueuedFile(unknown, default, null, 0)]);
-        while (worker.Step(Token))
-        {
-        }
+        Complete(worker);
 
         Assert.Equal((TranscriptState.Done, 1.0), (RecordOf(unknown)!.State, RecordOf(unknown)!.Share));
         Assert.Equal(_speech.Count(word => word.Start < S(40)), _cache.Load(unknown, "base.en")!.Words.Count);
 
         // Played from past where the sound really ends: the piece there is empty, and the rest is heard from the top.
         worker.SetPlaying(shorter, wanted: true, S(100));
-        while (worker.Step(Token))
-        {
-        }
+        Complete(worker);
 
         Assert.Equal(TranscriptState.Done, RecordOf(shorter)!.State);
         Assert.Equal(S(98), _sources[shorter].Reads[0].Start);
