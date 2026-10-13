@@ -58,11 +58,6 @@ public sealed partial class SubjectRemovalMatte
             var cell = _queue[head];
             var (i, j) = (cell % w, cell / w);
             var reached = _next[cell] + 1;
-            if (reached > depth)
-            {
-                continue;
-            }
-
             for (var dy = -1; dy <= 1 && budget > 0; dy++)
             {
                 for (var dx = -1; dx <= 1 && budget > 0; dx++)
@@ -74,7 +69,7 @@ public sealed partial class SubjectRemovalMatte
                     }
 
                     var next = y * w + x;
-                    if (_label[next] != 0 || !Unlike(next, rare))
+                    if (reached > depth || _label[next] != 0 || !Unlike(next, rare))
                     {
                         continue;
                     }

@@ -277,7 +277,9 @@ public sealed partial class SubjectRemovalMatte
     {
         if (buffer.Length < length)
         {
-            buffer = new T[length];
+            // A quarter more than asked for, so an area that grows a little from picture to picture
+            // as a subject moves does not allocate again each time.
+            buffer = new T[length + length / 4];
         }
     }
 

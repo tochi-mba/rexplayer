@@ -253,23 +253,26 @@ public sealed class SubjectRemovalMatteTests
         matte.Compute(cut, (134, 36, 186, 168), null, 50, remember: false);
         Assert.True(At(matte, 158, 185) < 0, "the shoe at the picture's edge");
 
-        // A red field joined to a red post spreads far past the box; growth stops a band's width
-        // beyond it rather than taking the whole field.
-        using var field = VideoFrame.Rent(PixelFormat.Bgra32, 320, 200);
+        // A red post with a tall blue panel against it, beside the box: growth takes at most half
+        // as much again as the subject, nearest first, so the panel's far end stays.
+        using var panel = VideoFrame.Rent(PixelFormat.Bgra32, 240, 200);
         for (var y = 0; y < 200; y++)
         {
-            var row = field.Row(0, y);
-            for (var x = 0; x < 320; x++)
+            var row = panel.Row(0, y);
+            for (var x = 0; x < 240; x++)
             {
                 var grey = (byte)(112 + (x * 5 + y * 11) % 9);
-                var red = (x >= 150 && x < 170 && y >= 60 && y < 140) || (x >= 170 && x < 300 && y >= 90 && y < 110);
-                (row[x * 4], row[x * 4 + 1], row[x * 4 + 2], row[x * 4 + 3]) = red ? ((byte)40, (byte)40, (byte)210, (byte)255) : (grey, grey, grey, (byte)255);
+                var red = x >= 100 && x < 116 && y >= 80 && y < 120;
+                var blue = x >= 116 && x < 124 && y >= 70 && y < 130;
+                (byte B, byte G, byte R) colour = red ? ((byte)40, (byte)40, (byte)210) : blue ? ((byte)200, (byte)60, (byte)30) : (grey, grey, grey);
+                (row[x * 4], row[x * 4 + 1], row[x * 4 + 2], row[x * 4 + 3]) = (colour.B, colour.G, colour.R, 255);
             }
         }
 
-        matte.Compute(field, (144, 56, 176, 144), null, 50, remember: false);
-        Assert.True(At(matte, 182, 100) < 0, "the field just past the box");
-        Assert.True(matte.Area.Right <= 260 || At(matte, matte.Area.Right - 1, 100) > 0, "the field's far end");
+        matte.Compute(panel, (98, 78, 118, 122), null, 50, remember: false);
+        Assert.True(At(matte, 108, 100) < 0, "the post");
+        Assert.True(At(matte, 121, 100) < 0, "the panel beside it");
+        Assert.True(At(matte, 121, 71) > 0, "the panel's far end");
 
         // A box over the whole picture leaves no ring to learn the background from: nothing grows.
         using var whole = Reaching();

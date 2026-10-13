@@ -111,79 +111,108 @@ public static class SubjectRemovalScaling
         var source = MemoryMarshal.Cast<byte, uint>(frame.Plane(0));
         var guide = MemoryMarshal.Cast<byte, uint>(half.Plane(0));
         var target = MemoryMarshal.Cast<byte, uint>(output.Plane(0));
-        var better = estimate is null ? default : MemoryMarshal.Cast<byte, uint>(estimate.Plane(0));
         var (inStride, halfStride, outStride) = (frame.Stride(0) / 4, half.Stride(0) / 4, output.Stride(0) / 4);
-        var estimateStride = estimate is null ? 0 : estimate.Stride(0) / 4;
-        var (right, bottom) = (Math.Min(frame.Width, 2 * area.Right), Math.Min(frame.Height, 2 * area.Bottom));
-        Span<int> rows = stackalloc int[2];
-        Span<int> spatial = stackalloc int[4];
-        Span<int> at = stackalloc int[4];
+        var bottom = Math.Min(frame.Height, 2 * area.Bottom);
+        var areaHeight = area.Bottom - area.Top;
         for (var y = 2 * area.Top; y < bottom; y++)
         {
             // A full-size row lies a quarter of a half-size row from the nearer of its two neighbours.
-            var near = y >> 1;
-            var far = (y & 1) == 0 ? near - 1 : near + 1;
-            rows[0] = (Math.Clamp(near, area.Top, area.Bottom - 1) - area.Top) * areaWidth;
-            rows[1] = (Math.Clamp(far, area.Top, area.Bottom - 1) - area.Top) * areaWidth;
-            var guideRows = (Math.Clamp(near, 0, half.Height - 1) * halfStride, Math.Clamp(far, 0, half.Height - 1) * halfStride);
-            for (var x = 2 * area.Left; x < right; x++)
+            var near = (y >> 1) - area.Top;
+            var far = Math.Clamp((y & 1) == 0 ? near - 1 : near + 1, 0, areaHeight - 1);
+            var rows = new Rows(alpha.Slice(near * areaWidth, areaWidth), alpha.Slice(far * areaWidth, areaWidth),
+                fill.Slice(near * areaWidth, areaWidth), fill.Slice(far * areaWidth, areaWidth),
+                guide.Slice((near + area.Top) * halfStride + area.Left, areaWidth), guide.Slice((far + area.Top) * halfStride + area.Left, areaWidth),
+                estimate is null ? default : estimated.Slice(near * areaWidth, areaWidth));
+            var picture = source.Slice(y * inStride + 2 * area.Left, Math.Min(frame.Width, 2 * area.Right) - 2 * area.Left);
+            var drawn = target.Slice(y * outStride + 2 * area.Left, picture.Length);
+            var better = estimate is null ? default : MemoryMarshal.Cast<byte, uint>(estimate.Row(0, y)).Slice(2 * area.Left, picture.Length);
+            // Only the stretch of the two rows where either hides anything, a pixel either side.
+            var (first, last) = Stretch(rows.NearAlpha, rows.FarAlpha);
+            for (var i = Math.Max(0, first - 1); i <= Math.Min(areaWidth - 1, last + 1); i++)
             {
-                var nearX = x >> 1;
-                var farX = (x & 1) == 0 ? nearX - 1 : nearX + 1;
-                var column0 = Math.Clamp(nearX, area.Left, area.Right - 1) - area.Left;
-                var column1 = Math.Clamp(farX, area.Left, area.Right - 1) - area.Left;
-                (at[0], at[1], at[2], at[3]) = (rows[0] + column0, rows[0] + column1, rows[1] + column0, rows[1] + column1);
-                var (a0, a1, a2, a3) = (alpha[at[0]], alpha[at[1]], alpha[at[2]], alpha[at[3]]);
-                if ((a0 | a1 | a2 | a3) == 0)
+                // Full-size pixel 2i lies a quarter of a pixel from half-size pixel i towards i - 1,
+                // and pixel 2i + 1 towards i + 1.
+                Draw(rows, i, Math.Max(0, i - 1), picture, drawn, better, 2 * i);
+                if (2 * i + 1 < picture.Length)
                 {
-                    continue;
+                    Draw(rows, i, Math.Min(areaWidth - 1, i + 1), picture, drawn, better, 2 * i + 1);
                 }
-
-                var original = source[y * inStride + x];
-                uint colour;
-                int opacity;
-                if ((a0 & a1 & a2 & a3) == 255)
-                {
-                    // Inside the hole: the enlarged fill, nine, three, three and one sixteenths.
-                    colour = Blend(fill[at[0]], fill[at[1]], fill[at[2]], fill[at[3]]);
-                    opacity = 256;
-                }
-                else
-                {
-                    var guideX = (Math.Clamp(nearX, 0, half.Width - 1), Math.Clamp(farX, 0, half.Width - 1));
-                    // Each neighbour's bilinear weight times how alike its colour is to this pixel's.
-                    (spatial[0], spatial[1], spatial[2], spatial[3]) = (
-                        9 * RangeWeights[Difference(original, guide[guideRows.Item1 + guideX.Item1])],
-                        3 * RangeWeights[Difference(original, guide[guideRows.Item1 + guideX.Item2])],
-                        3 * RangeWeights[Difference(original, guide[guideRows.Item2 + guideX.Item1])],
-                        RangeWeights[Difference(original, guide[guideRows.Item2 + guideX.Item2])]);
-                    long total = 0, covered = 0, blue = 0, green = 0, red = 0;
-                    for (var k = 0; k < 4; k++)
-                    {
-                        var weight = spatial[k];
-                        var share = (long)weight * alpha[at[k]];
-                        total += weight;
-                        covered += share;
-                        var value = fill[at[k]];
-                        (blue, green, red) = (blue + share * (value & 0xFF), green + share * ((value >> 8) & 0xFF), red + share * ((value >> 16) & 0xFF));
-                    }
-
-                    // At least one of the four is opaque in part and every weight is positive, so
-                    // covered is too; an opacity that rounds to nothing leaves the pixel as it was.
-                    opacity = (int)((covered * 256 / 255 + total / 2) / total);
-                    colour = (uint)((blue + covered / 2) / covered) | ((uint)((green + covered / 2) / covered) << 8)
-                        | ((uint)((red + covered / 2) / covered) << 16);
-                }
-
-                if (estimate is not null && estimated[at[0]])
-                {
-                    colour = better[y * estimateStride + x] & 0xFFFFFF;
-                }
-
-                target[y * outStride + x] = Over(original, colour, opacity);
             }
         }
     }
+
+    /// <summary>The first and last places where either row is not zero; an empty stretch when neither has any.</summary>
+    private static (int First, int Last) Stretch(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        var (fa, fb) = (a.IndexOfAnyExcept((byte)0), b.IndexOfAnyExcept((byte)0));
+        var first = fa < 0 ? fb : fb < 0 ? fa : Math.Min(fa, fb);
+        return first < 0 ? (0, -2) : (first, Math.Max(a.LastIndexOfAnyExcept((byte)0), b.LastIndexOfAnyExcept((byte)0)));
+    }
+
+    /// <summary>The two half-size rows a full-size row is drawn from: the nearer and the farther.</summary>
+    private readonly ref struct Rows(ReadOnlySpan<byte> nearAlpha, ReadOnlySpan<byte> farAlpha, ReadOnlySpan<uint> nearFill,
+        ReadOnlySpan<uint> farFill, ReadOnlySpan<uint> nearGuide, ReadOnlySpan<uint> farGuide, ReadOnlySpan<bool> estimated)
+    {
+        public readonly ReadOnlySpan<byte> NearAlpha = nearAlpha;
+        public readonly ReadOnlySpan<byte> FarAlpha = farAlpha;
+        public readonly ReadOnlySpan<uint> NearFill = nearFill;
+        public readonly ReadOnlySpan<uint> FarFill = farFill;
+        public readonly ReadOnlySpan<uint> NearGuide = nearGuide;
+        public readonly ReadOnlySpan<uint> FarGuide = farGuide;
+        public readonly ReadOnlySpan<bool> Estimated = estimated;
+    }
+
+    /// <summary>
+    /// Draws the full-size pixel <paramref name="x"/> of a row from half-size pixels <paramref name="near"/>
+    /// and <paramref name="far"/> of the nearer and farther rows, weighted nine, three, three and one.
+    /// </summary>
+    private static void Draw(in Rows rows, int near, int far, ReadOnlySpan<uint> picture, Span<uint> drawn, ReadOnlySpan<uint> better, int x)
+    {
+        var (a0, a1, a2, a3) = (rows.NearAlpha[near], rows.NearAlpha[far], rows.FarAlpha[near], rows.FarAlpha[far]);
+        if ((a0 | a1 | a2 | a3) == 0)
+        {
+            return;
+        }
+
+        var original = picture[x];
+        uint colour;
+        int opacity;
+        if ((a0 & a1 & a2 & a3) == 255)
+        {
+            // Inside the hole: the enlarged fill.
+            colour = Blend(rows.NearFill[near], rows.NearFill[far], rows.FarFill[near], rows.FarFill[far]);
+            opacity = 256;
+        }
+        else
+        {
+            // At the boundary each neighbour's bilinear weight is scaled by how alike its colour is
+            // to this pixel's, and opacity and fill are blended premultiplied.
+            var w0 = 9 * RangeWeights[Difference(original, rows.NearGuide[near])];
+            var w1 = 3 * RangeWeights[Difference(original, rows.NearGuide[far])];
+            var w2 = 3 * RangeWeights[Difference(original, rows.FarGuide[near])];
+            var w3 = RangeWeights[Difference(original, rows.FarGuide[far])];
+            var (s0, s1, s2, s3) = ((long)w0 * a0, (long)w1 * a1, (long)w2 * a2, (long)w3 * a3);
+            // At least one of the four is opaque in part and every weight is positive, so covered
+            // is too; an opacity that rounds to nothing leaves the pixel as it was.
+            var covered = s0 + s1 + s2 + s3;
+            var total = w0 + w1 + w2 + w3;
+            opacity = (int)((covered * 256 / 255 + total / 2) / total);
+            var (f0, f1, f2, f3) = (rows.NearFill[near], rows.NearFill[far], rows.FarFill[near], rows.FarFill[far]);
+            colour = Channel(f0, f1, f2, f3, s0, s1, s2, s3, covered, 0) | (Channel(f0, f1, f2, f3, s0, s1, s2, s3, covered, 8) << 8)
+                | (Channel(f0, f1, f2, f3, s0, s1, s2, s3, covered, 16) << 16);
+        }
+
+        if (!better.IsEmpty && rows.Estimated[near])
+        {
+            colour = better[x] & 0xFFFFFF;
+        }
+
+        drawn[x] = Over(original, colour, opacity);
+    }
+
+    /// <summary>One channel of four packed colours blended by the given weights, rounded.</summary>
+    private static uint Channel(uint a, uint b, uint c, uint d, long wa, long wb, long wc, long wd, long total, int shift) =>
+        (uint)((((a >> shift) & 0xFF) * wa + ((b >> shift) & 0xFF) * wb + ((c >> shift) & 0xFF) * wc + ((d >> shift) & 0xFF) * wd + total / 2) / total);
 
     /// <summary>The summed difference of two packed pixels' blue, green and red.</summary>
     private static int Difference(uint a, uint b) =>

@@ -68,7 +68,8 @@ public sealed class SubjectRemoval
     // Where the selection moved since the previous picture; a blend moves with it.
     private (float X, float Y) _boxShift;
     // Never copied from: the box and a band around the subject's outline, which may hold parts of
-    // the subject the outline missed (a shoe, a hand) or its blurred edge.
+    // the subject the outline missed (a shoe, a hand) or its blurred edge, and the ground just below
+    // the box, where its shadow and its reflection in a wet floor fall.
     private (int Left, int Top, int Right, int Bottom) _protected;
     private int _guard;
     private RemovalMode _mode;
@@ -278,6 +279,7 @@ public sealed class SubjectRemoval
 
         _guard = (int)(_matte.Grow + Math.Max(feather, 3) + 4);
         _protected = Expand(box, 0, 0, _guard, frame);
+        _protected.Bottom = Math.Min(frame.Height, _protected.Bottom + (box.Bottom - box.Top) / 6);
 
         var hole = Classify(frame, feather);
         if (estimate is not null)
