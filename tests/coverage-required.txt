@@ -15,6 +15,7 @@ AudioLandmarks.cs
 AudioPipeline.cs
 AudioScope.cs
 AuroraScene.cs
+AutomaticSkip.cs
 AutomationPipe.cs
 AvcConfig.cs
 BandEnergy.cs
@@ -56,6 +57,7 @@ EngineOptions.cs
 EpisodeGrouping.cs
 EpisodeSectionDetection.cs
 EpisodeSections.cs
+EpisodeSectionView.cs
 EpisodeSkipPrompt.cs
 Equalizer.cs
 ExceptionDiagnostics.cs
@@ -182,6 +184,7 @@ Sami.cs
 SampleConverter.cs
 ScanWindow.cs
 SectionAnalysis.cs
+SectionAnalysisCache.cs
 SectionDetector.cs
 SectionProposals.cs
 SegmentationTensors.cs
