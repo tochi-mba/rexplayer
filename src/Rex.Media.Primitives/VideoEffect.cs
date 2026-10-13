@@ -72,25 +72,45 @@ public static class VideoEffects
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
 
-    /// <summary>Visual grouping for an accessible effect picker.</summary>
+    /// <summary>The groups of the effect pickers, in the order they are shown.</summary>
+    public static IReadOnlyList<string> Categories { get; } =
+        ["Contours", "Light & colour", "Print & paint", "Mosaics", "Warps", "Motion", "Glitch", "Interactive"];
+
+    /// <summary>The effect's group in the pickers; Off (and anything unknown) belongs to none.</summary>
     public static string Category(VideoEffect effect) => effect switch
     {
-        VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave => "Contours",
-        VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.TimeEcho
-            or VideoEffect.MotionAmplify => "Motion & geometry",
-        VideoEffect.CursorLens or VideoEffect.ColourSpotlight => "Interactive",
-        VideoEffect.EdgeGravity or VideoEffect.ReliefEtch or VideoEffect.ThermalMap or VideoEffect.DepthHaze => "Image-aware",
-        VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.StippleEngrave => "Print & texture",
+        VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours
+            or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave => "Contours",
+        VideoEffect.ThermalMap or VideoEffect.LensBloom or VideoEffect.DepthHaze or VideoEffect.ReliefEtch => "Light & colour",
+        VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.StippleEngrave => "Print & paint",
         VideoEffect.GlyphMosaic or VideoEffect.BrickBuild or VideoEffect.StainedGlass or VideoEffect.CrossStitch
             or VideoEffect.LedWall or VideoEffect.DigitalRain or VideoEffect.DiceMosaic or VideoEffect.CubeMosaic
             or VideoEffect.HexTiles or VideoEffect.RetroPixels => "Mosaics",
-        VideoEffect.ChromaticRift or VideoEffect.TapeWear or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.ParticleVeil => "Playful",
-        _ => "Essentials",
+        VideoEffect.PrismFlow or VideoEffect.Kaleidoscope or VideoEffect.LiquidGlass or VideoEffect.Vortex or VideoEffect.EdgeGravity => "Warps",
+        VideoEffect.TimeEcho or VideoEffect.MotionAmplify or VideoEffect.MotionSmear or VideoEffect.ParticleVeil => "Motion",
+        VideoEffect.PixelDrift or VideoEffect.SliceShift or VideoEffect.ChromaticRift or VideoEffect.TapeWear or VideoEffect.PixelSort => "Glitch",
+        VideoEffect.CursorLens or VideoEffect.ColourSpotlight => "Interactive",
+        _ => "",
     };
 
-    /// <summary>The effect's name with its group, for a flat list: "Ghostwire (Contours)"; essentials by name alone.</summary>
+    /// <summary>A group's name as letters only, for automation identifiers: "Print &amp; paint" is "Printpaint".</summary>
+    public static string CategoryId(string category) => new([.. (category ?? "").Where(char.IsLetter)]);
+
+    /// <summary>
+    /// The order of a flat effect picker: Off, then each group in <see cref="Categories"/> order,
+    /// alphabetical within it, so the pickers in the menus and in Preferences read the same.
+    /// </summary>
+    public static IReadOnlyList<VideoEffect> PickerOrder { get; } =
+    [
+        VideoEffect.Off,
+        .. Enum.GetValues<VideoEffect>().Where(effect => effect != VideoEffect.Off)
+            .OrderBy(effect => Categories.ToList().IndexOf(Category(effect)))
+            .ThenBy(Name, StringComparer.OrdinalIgnoreCase),
+    ];
+
+    /// <summary>The effect's name with its group, for a flat list: "Ghostwire (Contours)"; Off by name alone.</summary>
     public static string PickerLabel(VideoEffect effect) =>
-        Category(effect) is var category && category == "Essentials" ? Name(effect) : $"{Name(effect)} ({category})";
+        Category(effect) is { Length: > 0 } category ? $"{Name(effect)} ({category})" : Name(effect);
 
     /// <summary>One or two plain sentences saying what the effect does, for its settings.</summary>
     public static string Description(VideoEffect effect) => effect switch

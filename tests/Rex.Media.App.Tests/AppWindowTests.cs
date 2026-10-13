@@ -116,6 +116,8 @@ public sealed class AppWindowTests : IDisposable
         menu.Expand();
         var effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         effects.Expand();
+        // Every effect sits in its group; Neon contours is one of the Contours.
+        ((ExpandCollapsePattern)app.Find("VideoEffect-Group-Contours").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
         app.Press("VideoEffect-NeonEdges");
         Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.NeonEdges, "the effect choice to be saved");
         Assert.Equal(VideoLook.Original, app.SavedSettings.VideoLook);

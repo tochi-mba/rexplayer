@@ -25,7 +25,7 @@ public sealed partial class MainWindow
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
         var pictureLook = Choice("Default video picture look", VideoLooks.Names.ToArray(), (int)s.VideoLook);
-        var pictureEffect = Choice("Picture effects (optional)", [.. Enum.GetValues<VideoEffect>().Select(VideoEffects.PickerLabel)], (int)s.VideoEffect);
+        var pictureEffect = Choice("Picture effects (optional)", [.. VideoEffects.PickerOrder.Select(VideoEffects.PickerLabel)], VideoEffects.PickerOrder.ToList().IndexOf(s.VideoEffect));
         var lookSettings = new Button { Content = "Customize the current picture look..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(lookSettings, "PreferencesLookSettings");
         lookSettings.Click += (_, _) =>
@@ -221,7 +221,7 @@ public sealed partial class MainWindow
             PictureSeconds = (int)pictures.Value,
             ShowNavigator = navigator.IsChecked == true,
             VideoLook = (VideoLook)pictureLook.SelectedIndex,
-            VideoEffect = (VideoEffect)pictureEffect.SelectedIndex,
+            VideoEffect = VideoEffects.PickerOrder[Math.Max(0, pictureEffect.SelectedIndex)],
             Visualizer = (VisualizerChoice)visualizer.SelectedIndex,
             GenerateAudioArtwork = generatedArt.IsChecked == true,
             AudioArtworkStyle = (ArtworkStyle)artworkStyle.SelectedIndex,

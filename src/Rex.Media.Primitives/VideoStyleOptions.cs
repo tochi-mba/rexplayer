@@ -59,22 +59,22 @@ public static class VideoStyleOptions
             VideoEffect.TapeWear => ("Tracking noise (%)", "How far the lines wobble sideways."),
             VideoEffect.PixelSort => ("Brightness threshold (%)", "Only pixels brighter than this start a streak."),
             VideoEffect.MotionSmear => ("Smear threshold (%)", "How much the picture must change before the previous picture lingers there."),
-            VideoEffect.LumenWeave => ("Strand sensitivity (%)", "Adjusts Strand sensitivity (%)"),
-            VideoEffect.DepthHaze => ("Depth contrast (%)", "Adjusts Depth contrast (%)"),
-            VideoEffect.ParticleVeil => ("Spark threshold (%)", "Adjusts Spark threshold (%)"),
-            VideoEffect.LensBloom => ("Bloom sensitivity (%)", "Adjusts Bloom sensitivity (%)"),
-            VideoEffect.StippleEngrave => ("Line weight (%)", "Adjusts Line weight (%)"),
-            VideoEffect.TimeEcho => ("Echo threshold (%)", "Adjusts Echo threshold (%)"),
-            VideoEffect.BrickBuild => ("Brick size (%)", "Adjusts Brick size (%)"),
-            VideoEffect.StainedGlass => ("Pane size (%)", "Adjusts Pane size (%)"),
-            VideoEffect.CrossStitch => ("Stitch size (%)", "Adjusts Stitch size (%)"),
-            VideoEffect.LedWall => ("LED size (%)", "Adjusts LED size (%)"),
-            VideoEffect.DigitalRain => ("Glyph size (%)", "Adjusts Glyph size (%)"),
-            VideoEffect.DiceMosaic => ("Die size (%)", "Adjusts Die size (%)"),
-            VideoEffect.CubeMosaic => ("Cube size (%)", "Adjusts Cube size (%)"),
-            VideoEffect.HexTiles => ("Tile size (%)", "Adjusts Tile size (%)"),
-            VideoEffect.RetroPixels => ("Pixel size (%)", "Adjusts Pixel size (%)"),
-            VideoEffect.MotionAmplify => ("Motion reach (%)", "Adjusts Motion reach (%)"),
+            VideoEffect.LumenWeave => ("Strand sensitivity (%)", "Higher turns fainter outlines into strands; lower keeps only clear ones."),
+            VideoEffect.DepthHaze => ("Near detail (%)", "Higher counts finer texture as near, so less of the picture fades into haze."),
+            VideoEffect.ParticleVeil => ("Spark threshold (%)", "How much a place must change from the previous picture before sparks rise from it."),
+            VideoEffect.LensBloom => ("Bloom sensitivity (%)", "Higher lets dimmer highlights glow; lower keeps the glow to the brightest lights."),
+            VideoEffect.StippleEngrave => ("Line weight (%)", "How thick the engraved lines are, and how readily outlines are inked."),
+            VideoEffect.TimeEcho => ("Echo threshold (%)", "How much a place must change from the previous picture before it splits into echoes."),
+            VideoEffect.BrickBuild => ("Brick size (%)", "The size of each brick: higher gives fewer, bigger bricks."),
+            VideoEffect.StainedGlass => ("Pane size (%)", "The size of each glass pane: higher gives fewer, bigger panes."),
+            VideoEffect.CrossStitch => ("Stitch size (%)", "The size of each stitch: higher gives fewer, bigger crosses."),
+            VideoEffect.LedWall => ("LED size (%)", "The size of each light: higher gives fewer, bigger lights."),
+            VideoEffect.DigitalRain => ("Glyph size (%)", "The size of each falling character."),
+            VideoEffect.DiceMosaic => ("Die size (%)", "The size of each die: higher gives fewer, bigger dice."),
+            VideoEffect.CubeMosaic => ("Cube size (%)", "The size of each cube of nine stickers."),
+            VideoEffect.HexTiles => ("Tile size (%)", "The size of each hexagonal tile."),
+            VideoEffect.RetroPixels => ("Pixel size (%)", "The size of each big pixel."),
+            VideoEffect.MotionAmplify => ("Motion reach (%)", "How far movement is looked for between two pictures; higher follows faster movement."),
             _ => ("Movement (%)", "How fast the effect moves with the video's time."),
         };
         var options = new List<VideoStyleOption>
@@ -129,68 +129,68 @@ public static class VideoStyleOptions
                 options.Add(new($"effect.{name}.blocks", "Block count (%)", 40, 0, 100, "Higher breaks the smear into more, smaller blocks."));
                 break;
             case VideoEffect.LumenWeave:
-                options.Add(new($"effect.{name}.flow", "Strand flow (%)", 40, 0, 100, "Adjusts strand flow."));
-                options.Add(new($"effect.{name}.mode", "Strand colour", 0, 0, 3, "Adjusts strand colour."));
+                options.Add(new($"effect.{name}.flow", "Strand flow (%)", 40, 0, 100, "How fast light travels along the strands; 0 holds it still."));
+                options.Add(new($"effect.{name}.mode", "Strand colour", 0, 0, 3, "How the strands are coloured: by how much they curve, by the picture, in white, or by brightness."));
                 break;
             case VideoEffect.DepthHaze:
-                options.Add(new($"effect.{name}.density", "Haze density (%)", 60, 0, 100, "Adjusts haze density."));
-                options.Add(new($"effect.{name}.mode", "Haze colour", 0, 0, 3, "Adjusts haze colour."));
+                options.Add(new($"effect.{name}.density", "Haze density (%)", 60, 0, 100, "How thickly the haze covers the far parts of the picture."));
+                options.Add(new($"effect.{name}.mode", "Haze colour", 0, 0, 3, "The colour of the haze."));
                 break;
             case VideoEffect.ParticleVeil:
-                options.Add(new($"effect.{name}.density", "Spark density (%)", 50, 0, 100, "Adjusts spark density."));
-                options.Add(new($"effect.{name}.mode", "Spark colour", 0, 0, 3, "Adjusts spark colour."));
+                options.Add(new($"effect.{name}.density", "Spark density (%)", 50, 0, 100, "How many sparks can rise at once; higher also makes them smaller."));
+                options.Add(new($"effect.{name}.mode", "Spark colour", 0, 0, 3, "The colour of the sparks."));
                 break;
             case VideoEffect.LensBloom:
-                options.Add(new($"effect.{name}.stretch", "Streak length (%)", 60, 0, 100, "Adjusts streak length."));
-                options.Add(new($"effect.{name}.mode", "Bloom tint", 0, 0, 3, "Adjusts bloom tint."));
+                options.Add(new($"effect.{name}.stretch", "Streak length (%)", 60, 0, 100, "How far the glowing streaks reach sideways from each highlight."));
+                options.Add(new($"effect.{name}.mode", "Bloom tint", 0, 0, 3, "The colour the streaks fade to."));
                 break;
             case VideoEffect.StippleEngrave:
-                options.Add(new($"effect.{name}.hatch", "Hatch density (%)", 60, 0, 100, "Adjusts hatch density."));
-                options.Add(new($"effect.{name}.mode", "Ink and paper", 0, 0, 3, "Adjusts ink and paper."));
+                options.Add(new($"effect.{name}.hatch", "Hatch density (%)", 60, 0, 100, "How close together the engraved lines are."));
+                options.Add(new($"effect.{name}.mode", "Ink and paper", 0, 0, 3, "The colours of the ink and the paper."));
                 break;
             case VideoEffect.TimeEcho:
-                options.Add(new($"effect.{name}.separation", "Echo distance (%)", 50, 0, 100, "Adjusts echo distance."));
-                options.Add(new($"effect.{name}.hold", "Echo persistence (%)", 40, 0, 100, "Adjusts echo persistence."));
+                options.Add(new($"effect.{name}.separation", "Echo distance (%)", 50, 0, 100, "How far the coloured echoes sit from what moved."));
+                options.Add(new($"effect.{name}.hold", "Echo strength (%)", 40, 0, 100, "How readily smaller changes split into echoes, and how strongly."));
                 break;
             case VideoEffect.BrickBuild:
-                options.Add(new($"effect.{name}.studs", "Stud height (%)", 60, 0, 100, "Adjusts stud height."));
-                options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3, "Adjusts palette."));
+                options.Add(new($"effect.{name}.studs", "Stud height (%)", 60, 0, 100, "How raised the studs look: the light on their rims and the shadows they cast."));
+                options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3, "The colours the bricks come in."));
                 break;
             case VideoEffect.StainedGlass:
-                options.Add(new($"effect.{name}.lead", "Lead width (%)", 40, 0, 100, "Adjusts lead width."));
-                options.Add(new($"effect.{name}.glow", "Back light (%)", 60, 0, 100, "Adjusts back light."));
+                options.Add(new($"effect.{name}.lead", "Lead width (%)", 40, 0, 100, "How wide the dark lead lines between the panes are."));
+                options.Add(new($"effect.{name}.glow", "Back light (%)", 60, 0, 100, "How brightly light shines through the middle of each pane."));
                 break;
             case VideoEffect.CrossStitch:
-                options.Add(new($"effect.{name}.thread", "Thread thickness (%)", 50, 0, 100, "Adjusts thread thickness."));
-                options.Add(new($"effect.{name}.mode", "Fabric", 0, 0, 3, "Adjusts fabric."));
+                options.Add(new($"effect.{name}.thread", "Thread thickness (%)", 50, 0, 100, "How thick each stitch of thread is."));
+                options.Add(new($"effect.{name}.mode", "Fabric", 0, 0, 3, "The cloth the picture is stitched on."));
                 break;
             case VideoEffect.LedWall:
-                options.Add(new($"effect.{name}.glow", "Glow (%)", 50, 0, 100, "Adjusts glow."));
-                options.Add(new($"effect.{name}.mode", "Diodes", 0, 0, 3, "Adjusts diodes."));
+                options.Add(new($"effect.{name}.glow", "Glow (%)", 50, 0, 100, "How far each light glows onto the panel around it."));
+                options.Add(new($"effect.{name}.mode", "Diodes", 0, 0, 3, "The kind of lights the wall is built from."));
                 break;
             case VideoEffect.DigitalRain:
-                options.Add(new($"effect.{name}.speed", "Rain speed (%)", 50, 0, 100, "Adjusts rain speed."));
-                options.Add(new($"effect.{name}.mode", "Colour", 0, 0, 3, "Adjusts colour."));
+                options.Add(new($"effect.{name}.speed", "Rain speed (%)", 50, 0, 100, "How fast the columns of characters fall."));
+                options.Add(new($"effect.{name}.mode", "Colour", 0, 0, 3, "The colour of the falling characters."));
                 break;
             case VideoEffect.DiceMosaic:
-                options.Add(new($"effect.{name}.pips", "Pip size (%)", 50, 0, 100, "Adjusts pip size."));
-                options.Add(new($"effect.{name}.mode", "Dice", 0, 0, 3, "Adjusts dice."));
+                options.Add(new($"effect.{name}.pips", "Pip size (%)", 50, 0, 100, "The size of the dots on each die."));
+                options.Add(new($"effect.{name}.mode", "Dice", 0, 0, 3, "The colour of the dice and their dots."));
                 break;
             case VideoEffect.CubeMosaic:
-                options.Add(new($"effect.{name}.gap", "Sticker gap (%)", 40, 0, 100, "Adjusts sticker gap."));
-                options.Add(new($"effect.{name}.mode", "Stickers", 0, 0, 3, "Adjusts stickers."));
+                options.Add(new($"effect.{name}.gap", "Sticker gap (%)", 40, 0, 100, "How much black plastic shows between the stickers."));
+                options.Add(new($"effect.{name}.mode", "Stickers", 0, 0, 3, "The colours the stickers come in."));
                 break;
             case VideoEffect.HexTiles:
-                options.Add(new($"effect.{name}.grout", "Grout width (%)", 40, 0, 100, "Adjusts grout width."));
-                options.Add(new($"effect.{name}.mode", "Finish", 0, 0, 3, "Adjusts finish."));
+                options.Add(new($"effect.{name}.grout", "Grout width (%)", 40, 0, 100, "How wide the grout between the tiles is."));
+                options.Add(new($"effect.{name}.mode", "Finish", 0, 0, 3, "The surface of the tiles."));
                 break;
             case VideoEffect.MotionAmplify:
-                options.Add(new($"effect.{name}.gain", "Amplification (%)", 50, 0, 100, "Adjusts amplification."));
-                options.Add(new($"effect.{name}.steadiness", "Steadiness (%)", 50, 0, 100, "Adjusts steadiness."));
+                options.Add(new($"effect.{name}.gain", "Amplification (%)", 50, 0, 100, "How much further than it really moved each moving part is drawn."));
+                options.Add(new($"effect.{name}.steadiness", "Steadiness (%)", 50, 0, 100, "Higher ignores small or uncertain movement, so grain and slight shake stay still."));
                 break;
             case VideoEffect.RetroPixels:
-                options.Add(new($"effect.{name}.dither", "Dither (%)", 70, 0, 100, "Adjusts dither."));
-                options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3, "Adjusts palette."));
+                options.Add(new($"effect.{name}.dither", "Dither (%)", 70, 0, 100, "How much a pattern of dots blends neighbouring colours; 0 gives flat bands."));
+                options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3, "The few colours the picture is drawn in."));
                 break;
             default:
                 break;

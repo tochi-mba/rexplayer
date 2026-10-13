@@ -5,23 +5,23 @@ internal static class D3D11VideoShaderContinuation
 {
     public const string Source = """
         #if EFFECT_ONLY == 26
-            if (effect.x > 25.5 && effect.x < 26.5 && effect.y > 0) // Lumen weave
+            // Lumen weave
             {
                 // A short line integral along the edge tangent, in both directions. Strength
                 // accumulates only while the gradient keeps its orientation, so speckle drops
                 // out and real outlines and folds become continuous strands. How far the
                 // tangent turns along the walk is the strand's curvature, which colours it.
                 float detail = max(pointer.w, 0.25);
-                float3 here = contourDetail(uv, isYuv);
+                float2 stepUv = measureStep(pixel);
                 float2 normal0 = here.xy / max(length(here.xy), 0.000001);
                 float2 tangent0 = float2(-normal0.y, normal0.x);
-                float2 px = max(fwidth(uv), float2(0.00022, 0.00022)) * 1.6;
+                float2 px = stepUv * 1.6;
                 float strand = smoothstep(0.006 / detail, 0.16 / detail, here.z);
                 float coherent = strand;
                 float3 silk = colour;
                 float silkWeight = 1;
                 float turning = 0;
-                float2 footprint = max(fwidth(uv) * 0.9, float2(0.00018, 0.00018)) / detail;
+                float2 footprint = stepUv * 0.9;
                 [loop] for (int side = 0; side < 2; side++)
                 {
                     float2 position = uv;
@@ -31,14 +31,14 @@ internal static class D3D11VideoShaderContinuation
                     [loop] for (int i = 1; i <= 6; i++)
                     {
                         position += tangent * px;
-                        float3 g = contourGradientAt(position, isYuv, footprint);
+                        float3 g = contourGradient(position, isYuv, footprint);
                         float2 n = g.xy / max(length(g.xy), 0.000001);
                         // Edge direction is unsigned: a flipped gradient is the same line.
                         float agreement = abs(dot(n, previousNormal));
                         alive *= smoothstep(0.55, 0.85, agreement);
                         float w = 1 - i / 7.0;
                         coherent += smoothstep(0.006 / detail, 0.16 / detail, g.z) * alive * w;
-                        silk += readColourAt(position, isYuv) * w;
+                        silk += readColour(position, isYuv) * w;
                         silkWeight += w;
                         turning += (1 - agreement) * alive;
                         n = dot(n, previousNormal) < 0 ? -n : n;
@@ -65,14 +65,14 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 27
-            if (effect.x > 26.5 && effect.x < 27.5 && effect.y > 0) // Depth haze
+            // Depth haze
             {
                 // A depth guess from what is visible: fine, sharp texture reads as near;
                 // soft, blurred or flat regions and the top of the frame read as far.
                 // It is atmosphere, not a measurement of real distance.
                 float detail = max(pointer.w, 0.25);
-                float3 fine = contourGradient(uv, isYuv, 0.75);
-                float3 broad = contourGradient(uv, isYuv, 4.0);
+                float3 fine = contourGradient(uv, isYuv, measureStep(pixel) * 0.75);
+                float3 broad = contourGradient(uv, isYuv, measureStep(pixel) * 4);
                 float sharpness = saturate(fine.z / max(broad.z, 0.004));
                 float textured = saturate((fine.z * 0.4 + broad.z * 0.6) * 6 * detail);
                 float far = smoothstep(0.15, 0.85,
@@ -88,7 +88,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 28
-            if (effect.x > 27.5 && effect.x < 28.5 && effect.y > 0 && motion.y > 0.5) // Particle veil
+            if (motion.y > 0.5) // Particle veil
             {
                 // Each grid cell may hold one spark, born where the picture changed since the
                 // previous frame and rising about one cell over its life. The 3x3 neighbourhood
@@ -104,13 +104,13 @@ internal static class D3D11VideoShaderContinuation
                     [loop] for (int dx = -1; dx <= 1; dx++)
                     {
                         float2 cell = home + float2(dx, dy);
-                        float h1 = frac(sin(dot(cell, float2(12.9898, 78.233))) * 43758.5453);
-                        float h2 = frac(sin(dot(cell, float2(39.346, 11.135))) * 24634.6345);
-                        float h3 = frac(sin(dot(cell, float2(73.156, 52.235))) * 19341.2137);
+                        float h1 = hash12(cell);
+                        float h2 = hash12(cell + 0.5);
+                        float h3 = hash12(cell - 0.5);
                         float2 birth = (cell + float2(h1, 0.5)) / cells;
-                        float3 now = readColourAt(birth, isYuv);
+                        float3 now = readColour(birth, isYuv);
                         float activity = smoothstep(threshold, threshold * 6,
-                            length(now - readPriorAt(birth, isYuv)));
+                            length(now - readPrior(birth, isYuv)));
                         float life = frac(time * 0.7 + h2);
                         float2 spark = (cell + float2(0.5 + (h1 - 0.5) * 0.8
                             + 0.25 * sin(time * 2 + h2 * 6.2831853), 0.5 - life)) / cells;
@@ -127,7 +127,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 29
-            if (effect.x > 28.5 && effect.x < 29.5 && effect.y > 0) // Lens bloom
+            // Lens bloom
             {
                 // Anamorphic streaks: only highlights above the threshold contribute, spread
                 // widely along the horizontal with tails drifting to the tint colour, plus a
@@ -140,7 +140,7 @@ internal static class D3D11VideoShaderContinuation
                 float3 streak = 0;
                 [loop] for (int i = -4; i <= 4; i++)
                 {
-                    float3 tap = readColourAt(uv + float2(i * 0.25 * reach, 0), isYuv);
+                    float3 tap = readColour(uv + float2(i * 0.25 * reach, 0), isYuv);
                     float3 bright = tap * max(dot(tap, weights) - threshold, 0) / max(1 - threshold, 0.05);
                     float3 tail = extras.y > 2.5 ? bright : lerp(bright, tint * dot(bright, weights), abs(i) * 0.25);
                     streak += tail * exp(-abs(i) * 0.45);
@@ -149,20 +149,20 @@ internal static class D3D11VideoShaderContinuation
                 [loop] for (int k = 0; k < 8; k++)
                 {
                     float angle = k * 0.78539816;
-                    float3 tap = readColourAt(uv + float2(cos(angle) / effect.w, sin(angle)) * 0.012, isYuv);
+                    float3 tap = readColour(uv + float2(cos(angle) / effect.w, sin(angle)) * 0.012, isYuv);
                     glow += tap * max(dot(tap, weights) - threshold, 0) / max(1 - threshold, 0.05);
                 }
                 colour = saturate(colour + (streak * 0.25 + glow * 0.09) * effect.y * 1.4);
             }
         #endif
         #if EFFECT_ONLY == 30
-            if (effect.x > 29.5 && effect.x < 30.5 && effect.y > 0) // Stipple engrave
+            // Stipple engrave
             {
                 // Engraver's hatching: the first family of lines runs along the local edge
                 // (from a broad gradient, so it bends smoothly), with crossing families added
                 // as the picture darkens. Flat regions fall back to a 45 degree hatch.
-                float3 structure = contourDetail(uv, isYuv);
-                float3 broad = contourGradient(uv, isYuv, 3.0);
+                float3 structure = contourDetail(uv, isYuv, measureStep(pixel));
+                float3 broad = contourGradient(uv, isYuv, measureStep(pixel) * 3);
                 float2 diagonal = float2(0.70710678, 0.70710678);
                 float2 along = float2(-broad.y, broad.x) / max(length(broad.xy), 0.000001);
                 along = dot(along, diagonal) < 0 ? -along : along;
@@ -192,12 +192,12 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 31
-            if (effect.x > 30.5 && effect.x < 31.5 && effect.y > 0 && motion.y > 0.5) // Time echo
+            if (motion.y > 0.5) // Time echo
             {
                 // Estimate which way this pixel's content moved by finding the nearby shift of
                 // the previous frame that matches it best, then split the change into channels:
                 // red where it was, green where it is, blue a step ahead. Still pixels are untouched.
-                float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                float2 px = measureStep(pixel);
                 float3 prior = readPrior(uv, isYuv);
                 float threshold = 0.03 * max(pointer.w, 0.25);
                 float gate = saturate(smoothstep(threshold, threshold * 5, length(colour - prior))
@@ -208,7 +208,7 @@ internal static class D3D11VideoShaderContinuation
                 {
                     float angle = k * 0.78539816;
                     float2 candidate = float2(cos(angle), sin(angle));
-                    float error = length(colour - readPriorAt(uv - candidate * px * 8, isYuv));
+                    float error = length(colour - readPrior(uv - candidate * px * 8, isYuv));
                     if (error < bestError)
                     {
                         bestError = error;
@@ -222,7 +222,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 32
-            if (effect.x > 31.5 && effect.x < 32.5 && effect.y > 0) // Brick build
+            // Brick build
             {
                 // Two-stud bricks in a running bond, seen from above. Each brick takes one
                 // colour from the picture under it; each stud is lit from the top left and
@@ -235,7 +235,7 @@ internal static class D3D11VideoShaderContinuation
                 float shift = positiveMod(cell, float2(2, 2)).y;
                 bool starts = positiveMod(cell + float2(shift, 0), float2(2, 2)).x < 0.5;
                 float2 brickCentre = float2(starts ? cell.x + 1 : cell.x, cell.y + 0.5) / cells;
-                float3 sampled = readColour(brickCentre, isYuv);
+                float3 sampled = cellColour(brickCentre, float2(1, 0.5) / cells, isYuv);
                 float grey = dot(sampled, weights);
                 float3 brick = extras.y < 0.5 ? nearestBrick(sampled)
                     : extras.y < 1.5 ? sampled
@@ -258,7 +258,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 33
-            if (effect.x > 32.5 && effect.x < 33.5 && effect.y > 0) // Stained glass
+            // Stained glass
             {
                 // Irregular panes from a jittered cell pattern: each pane takes the colour under
                 // its centre, deepened like coloured glass and lit from behind, framed by lead.
@@ -283,7 +283,7 @@ internal static class D3D11VideoShaderContinuation
                 float width = 0.025 + extras.x * 0.0007;
                 float border = (second - nearest) * 0.5;
                 float lead = 1 - smoothstep(width, width + 0.025, border);
-                float3 glass = readColour(site / grid, isYuv);
+                float3 glass = cellColour(site / grid, 0.35 / grid, isYuv);
                 float lum = dot(glass, weights);
                 glass = saturate(lerp(lum.xxx, glass, 1.6) * 1.05);
                 float ripple = sin(dot(p, float2(7.1, 3.3)) + hash12(site) * 6.2831853) * 0.05;
@@ -293,7 +293,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 34
-            if (effect.x > 33.5 && effect.x < 34.5 && effect.y > 0) // Cross-stitch
+            // Cross-stitch
             {
                 // Counted cross-stitch: one X of thread per cell, its colour the picture's
                 // snapped to a limited set of skeins. Cells close to the fabric stay bare.
@@ -301,7 +301,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float threadGrey = dot(sampled, float3(0.2126, 0.7152, 0.0722));
                 float3 thread = floor(saturate(lerp(threadGrey.xxx, sampled, 1.3)) * 6 + 0.5) / 6;
                 float3 fabric = extras.y < 0.5 ? float3(0.93, 0.90, 0.82)
@@ -325,7 +325,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 35
-            if (effect.x > 34.5 && effect.x < 35.5 && effect.y > 0) // LED wall
+            // LED wall
             {
                 // A wall of light-emitting diodes on a black panel, each cell lit by the picture
                 // under it: red, green and blue triads, round lamps, amber lamps or square pixels.
@@ -334,7 +334,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float glow = extras.x * 0.01;
                 float3 lit = 0;
                 if (extras.y < 0.5)
@@ -366,7 +366,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 36
-            if (effect.x > 35.5 && effect.x < 36.5 && effect.y > 0) // Digital rain
+            // Digital rain
             {
                 // Columns of procedural glyphs fall at their own speeds, a bright head leading
                 // each stream and its trail fading behind. The picture shows through as how
@@ -394,7 +394,7 @@ internal static class D3D11VideoShaderContinuation
                 float flicker = floor(time * (1.5 + hash12(cell) * 5));
                 float glyph = step(0.45, hash12(cell * 1.31 + bit * 7.17 + flicker))
                     * step(0, inner.x) * step(inner.x, 1) * step(0, inner.y) * step(inner.y, 1);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float lum = dot(sampled, weights);
                 float intensity = glyph * saturate(max(trail * (0.4 + 0.6 * lum), lum * 0.5));
                 float3 tint = extras.y < 0.5 ? float3(0.25, 1, 0.45)
@@ -405,7 +405,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 37
-            if (effect.x > 36.5 && effect.x < 37.5 && effect.y > 0) // Dice mosaic
+            // Dice mosaic
             {
                 // Every cell is a die showing the face that matches the brightness under it:
                 // on white dice a dark area shows six pips and a bright one shows one.
@@ -414,7 +414,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float lum = dot(sampled, weights);
                 bool blackDice = extras.y > 0.5 && extras.y < 1.5;
                 float value = blackDice ? clamp(floor(lum * 6) + 1, 1, 6) : clamp(6 - floor(lum * 6), 1, 6);
@@ -440,7 +440,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 38
-            if (effect.x > 37.5 && effect.x < 38.5 && effect.y > 0) // Cube mosaic
+            // Cube mosaic
             {
                 // Puzzle cubes, each face a 3x3 grid of stickers. Every sticker takes the cube
                 // colour nearest the picture under it, set in black plastic.
@@ -451,7 +451,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 sticker = floor(uv * stickers);
                 float2 local = frac(uv * stickers);
                 float2 cubeLocal = frac(uv * cubes);
-                float3 sampled = readColour((sticker + 0.5) / stickers, isYuv);
+                float3 sampled = cellColour((sticker + 0.5) / stickers, 0.5 / stickers, isYuv);
                 float lum = dot(sampled, weights);
                 float3 tile = extras.y < 0.5 ? nearestCube(sampled)
                     : extras.y < 1.5 ? (floor(lum * 4 + 0.5) / 4).xxx
@@ -467,7 +467,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 39
-            if (effect.x > 38.5 && effect.x < 39.5 && effect.y > 0) // Hex tiles
+            // Hex tiles
             {
                 // Hexagonal tiles in a honeycomb lattice. Each takes the colour under its centre,
                 // with a bevelled edge lit from the top left, set in grout.
@@ -481,7 +481,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 gv = dot(a, a) < dot(b, b) ? a : b;
                 float2 q = abs(gv);
                 float edge = 0.5 - max(dot(q, float2(0.5, 0.8660254)), q.x);
-                float3 sampled = readColour((p - gv) / scale + 0.5, isYuv);
+                float3 sampled = cellColour((p - gv) / scale + 0.5, 0.45 / scale, isYuv);
                 float lum = dot(sampled, weights);
                 float groutWidth = 0.012 + extras.x * 0.0006;
                 float grout = 1 - smoothstep(groutWidth, groutWidth + 0.018, edge);
@@ -507,7 +507,7 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 40
-            if (effect.x > 39.5 && effect.x < 40.5 && effect.y > 0) // Retro pixels
+            // Retro pixels
             {
                 // Big pixels with ordered (Bayer) dithering into a small fixed palette, the way
                 // early handheld and home-computer screens drew pictures.
@@ -516,7 +516,7 @@ internal static class D3D11VideoShaderContinuation
                 float2 cells = float2(rows * effect.w, rows);
                 float2 cell = floor(uv * cells);
                 float2 local = frac(uv * cells);
-                float3 sampled = readColour((cell + 0.5) / cells, isYuv);
+                float3 sampled = cellColour((cell + 0.5) / cells, 0.5 / cells, isYuv);
                 float2 m = positiveMod(cell, float2(4, 4));
                 float threshold = (Bayer[(int)(m.y * 4 + m.x)] + 0.5) / 16 - 0.5;
                 float dither = extras.x * 0.01 / 3;
@@ -536,19 +536,19 @@ internal static class D3D11VideoShaderContinuation
             }
         #endif
         #if EFFECT_ONLY == 41
-            if (effect.x > 40.5 && effect.x < 41.5 && effect.y > 0 && motion.y > 0.5) // Motion amplify
+            if (motion.y > 0.5) // Motion amplify
             {
                 // Estimate how this part of the picture moved since the previous frame: the shift
                 // of the previous frame whose small patch best matches the current one. Then draw
                 // the picture further along that motion. Pixels without a clearly better match
                 // than standing still do not move, so a still or paused picture is unchanged.
-                float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                float2 px = measureStep(pixel);
                 float reach = 1 + pointer.w * 3;
-                float3 centre = readColourAt(uv, isYuv);
-                float3 east = readColourAt(uv + float2(px.x * 2, 0), isYuv);
-                float3 west = readColourAt(uv - float2(px.x * 2, 0), isYuv);
-                float3 south = readColourAt(uv + float2(0, px.y * 2), isYuv);
-                float3 north = readColourAt(uv - float2(0, px.y * 2), isYuv);
+                float3 centre = readColour(uv, isYuv);
+                float3 east = readColour(uv + float2(px.x * 2, 0), isYuv);
+                float3 west = readColour(uv - float2(px.x * 2, 0), isYuv);
+                float3 south = readColour(uv + float2(0, px.y * 2), isYuv);
+                float3 north = readColour(uv - float2(0, px.y * 2), isYuv);
                 float stillError = 0;
                 float2 moved = 0;
                 float bestError = 1e9;
@@ -557,11 +557,11 @@ internal static class D3D11VideoShaderContinuation
                     float2 shift = k == 8 ? float2(0, 0)
                         : float2(cos(k * 0.78539816), sin(k * 0.78539816)) * px * reach;
                     float2 at = uv - shift;
-                    float error = length(centre - readPriorAt(at, isYuv))
-                        + length(east - readPriorAt(at + float2(px.x * 2, 0), isYuv))
-                        + length(west - readPriorAt(at - float2(px.x * 2, 0), isYuv))
-                        + length(south - readPriorAt(at + float2(0, px.y * 2), isYuv))
-                        + length(north - readPriorAt(at - float2(0, px.y * 2), isYuv));
+                    float error = length(centre - readPrior(at, isYuv))
+                        + length(east - readPrior(at + float2(px.x * 2, 0), isYuv))
+                        + length(west - readPrior(at - float2(px.x * 2, 0), isYuv))
+                        + length(south - readPrior(at + float2(0, px.y * 2), isYuv))
+                        + length(north - readPrior(at - float2(0, px.y * 2), isYuv));
                     if (k == 8) stillError = error;
                     else if (error < bestError) { bestError = error; moved = shift; }
                 }

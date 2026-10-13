@@ -37,9 +37,37 @@ public sealed class VideoEffectsTests
         Assert.Empty(VideoStyleOptions.ForEffect(VideoEffect.Off));
         Assert.Equal(new EffectControls(0, 100, 0, 0), VideoStyleOptions.Controls(VideoEffect.Off, null, 80));
         Assert.Equal("Off", VideoEffects.PickerLabel(VideoEffect.Off));
-        Assert.Equal("Neon contours", VideoEffects.PickerLabel(VideoEffect.NeonEdges));
+        Assert.Equal("Off", VideoEffects.PickerLabel((VideoEffect)999));
+        Assert.Equal("Neon contours (Contours)", VideoEffects.PickerLabel(VideoEffect.NeonEdges));
         Assert.Equal("Ghostwire (Contours)", VideoEffects.PickerLabel(VideoEffect.Ghostwire));
-        Assert.Equal("Tape wear (Playful)", VideoEffects.PickerLabel(VideoEffect.TapeWear));
+        Assert.Equal("Tape wear (Glitch)", VideoEffects.PickerLabel(VideoEffect.TapeWear));
+    }
+
+    [Fact]
+    public void EveryEffectBelongsToOneGroupAndThePickersListThemGroupByGroup()
+    {
+        Assert.Equal("", VideoEffects.Category(VideoEffect.Off));
+        foreach (var effect in Enum.GetValues<VideoEffect>().Where(effect => effect != VideoEffect.Off))
+        {
+            Assert.Contains(VideoEffects.Category(effect), VideoEffects.Categories);
+        }
+
+        // Off first, then every effect once, the groups in their order, names alphabetical within each.
+        var order = VideoEffects.PickerOrder;
+        Assert.Equal(VideoEffect.Off, order[0]);
+        Assert.Equal(Enum.GetValues<VideoEffect>().Order(), order.Order());
+        var groups = order.Skip(1).Select(VideoEffects.Category).ToList();
+        Assert.Equal(VideoEffects.Categories, groups.Distinct());
+        foreach (var group in order.Skip(1).GroupBy(VideoEffects.Category))
+        {
+            var names = group.Select(VideoEffects.Name).ToList();
+            Assert.Equal(names.Order(StringComparer.OrdinalIgnoreCase), names);
+        }
+
+        Assert.Equal("Lightcolour", VideoEffects.CategoryId("Light & colour"));
+        Assert.Equal("Contours", VideoEffects.CategoryId("Contours"));
+        Assert.Equal("", VideoEffects.CategoryId(null!));
+        Assert.Equal(8, VideoEffects.Categories.Select(VideoEffects.CategoryId).Distinct().Count());
     }
 
     [Fact]

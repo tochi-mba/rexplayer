@@ -47,7 +47,7 @@ public sealed partial class MainWindow
         var sub = new MenuFlyoutSubItem { Text = "Picture effects" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sub, prefix + "Menu");
         var groups = new Dictionary<string, MenuFlyoutSubItem>(StringComparer.Ordinal);
-        foreach (var effect in Enum.GetValues<VideoEffect>())
+        foreach (var effect in VideoEffects.PickerOrder)
         {
             var item = new RadioMenuFlyoutItem
             {
@@ -59,7 +59,7 @@ public sealed partial class MainWindow
             item.Click += (_, _) => ChooseVideoEffect(effect);
             _videoEffectItems.Add((item, effect));
             var category = VideoEffects.Category(effect);
-            if (category == "Essentials")
+            if (category.Length == 0)
             {
                 sub.Items.Add(item);
             }
@@ -68,7 +68,7 @@ public sealed partial class MainWindow
                 if (!groups.TryGetValue(category, out var group))
                 {
                     group = new MenuFlyoutSubItem { Text = category };
-                    Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(group, prefix + "Group-" + category.Replace(" ", ""));
+                    Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(group, prefix + "Group-" + VideoEffects.CategoryId(category));
                     groups.Add(category, group);
                     sub.Items.Add(group);
                 }

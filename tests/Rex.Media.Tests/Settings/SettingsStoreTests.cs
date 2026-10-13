@@ -122,7 +122,7 @@ public sealed class SettingsStoreTests : IDisposable
             var options = VideoStyleOptions.ForEffect(effect);
             Assert.Equal(4, options.Count);
             Assert.All(options, option => Assert.InRange(option.Default, option.Min, option.Max));
-            Assert.NotEqual("Essentials", VideoEffects.Category(effect));
+            Assert.NotEqual("", VideoEffects.Category(effect));
             var extras = VideoStyleOptions.Extras(null, options);
             Assert.Equal((options[2].Default, options[3].Default), extras);
             var values = VideoStyleOptions.With(null, options[2], options[2].Max);
@@ -178,11 +178,11 @@ public sealed class SettingsStoreTests : IDisposable
 
         Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.TimeEcho));
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.LumenWeave));
-        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.DepthHaze));
-        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.ParticleVeil));
-        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.LensBloom));
-        Assert.Equal("Print & texture", VideoEffects.Category(VideoEffect.StippleEngrave));
-        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.TimeEcho));
+        Assert.Equal("Light & colour", VideoEffects.Category(VideoEffect.DepthHaze));
+        Assert.Equal("Motion", VideoEffects.Category(VideoEffect.ParticleVeil));
+        Assert.Equal("Light & colour", VideoEffects.Category(VideoEffect.LensBloom));
+        Assert.Equal("Print & paint", VideoEffects.Category(VideoEffect.StippleEngrave));
+        Assert.Equal("Motion", VideoEffects.Category(VideoEffect.TimeEcho));
         Assert.Equal("Lumen weave", VideoEffects.Name(VideoEffect.LumenWeave));
         Assert.Equal("Time echo", VideoEffects.Name(VideoEffect.TimeEcho));
 
@@ -190,7 +190,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.True(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 65, 50, 40));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.TimeEcho, 0, 50, 40));
         Assert.True(VideoEffects.UsesHistory(VideoEffect.MotionAmplify, 65, 50, 50));
-        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.MotionAmplify));
+        Assert.Equal("Motion", VideoEffects.Category(VideoEffect.MotionAmplify));
         Assert.Equal("Motion amplify", VideoEffects.Name(VideoEffect.MotionAmplify));
         Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.MotionAmplify));
         foreach (var effect in new[] { VideoEffect.LumenWeave, VideoEffect.DepthHaze, VideoEffect.LensBloom, VideoEffect.StippleEngrave })
@@ -312,12 +312,12 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.TopographicContours));
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.ChromaticContours));
         Assert.Equal("Contours", VideoEffects.Category(VideoEffect.Ghostwire));
-        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.SliceShift));
+        Assert.Equal("Glitch", VideoEffects.Category(VideoEffect.SliceShift));
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.CursorLens));
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.ColourSpotlight));
-        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.EdgeGravity));
-        Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.ReliefEtch));
-        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.NeonEdges));
+        Assert.Equal("Warps", VideoEffects.Category(VideoEffect.EdgeGravity));
+        Assert.Equal("Light & colour", VideoEffects.Category(VideoEffect.ReliefEtch));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.NeonEdges));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.CursorLens));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.ColourSpotlight));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));
