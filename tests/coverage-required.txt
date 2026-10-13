@@ -28,6 +28,8 @@ BlockPacketizer.cs
 BorrowedPresenter.cs
 BoundedQueue.cs
 ByteCursor.cs
+CaptionChoreography.cs
+CaptionGlyphs.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
@@ -205,6 +207,7 @@ SlotPool.cs
 Snapshot.cs
 SoundSettings.cs
 SpectrumAnalyzer.cs
+SpeechPulse.cs
 StatsText.cs
 StrobeScene.cs
 SubjectPanel.cs
@@ -223,6 +226,7 @@ SubtitlePackets.cs
 SubtitleSidecars.cs
 SubtitleText.cs
 SubtitleTrack.cs
+SubtitleWords.cs
 SubViewer.cs
 SystemReport.cs
 ThreadLoop.cs
@@ -260,6 +264,7 @@ WaveFormat.cs
 WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
+WordAligner.cs
 Wpl.cs
 Xspf.cs
 YuvTransform.cs

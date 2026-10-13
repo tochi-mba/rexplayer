@@ -1012,6 +1012,26 @@
       "status": "planned"
     },
     {
+      "id": "SUB-18",
+      "area": "Formats: Subtitles & captions",
+      "name": "Word timing",
+      "details": "WebVTT cue timestamps and ASS karaoke tags (\\k, \\K, \\kf, \\ko) time the runs of a cue; a cue splits into words with the time each is spoken",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": "verified"
+    },
+    {
+      "id": "SUB-19",
+      "area": "Formats: Subtitles & captions",
+      "name": "Local transcription",
+      "details": "A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as \"Transcript\", cached per file, exportable as SRT/VTT",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": "built"
+    },
+    {
       "id": "PLF-01",
       "area": "Formats: Playlists",
       "name": "M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI)",
@@ -1840,6 +1860,16 @@
       "priority": "could",
       "oracles": "PIX",
       "status": "planned"
+    },
+    {
+      "id": "OSD-11",
+      "area": "Subtitle & OSD rendering",
+      "name": "Kinetic captions",
+      "details": "Words land one at a time as they are spoken, sized, coloured, placed and moved by how they were said: loudness, pitch, pace and pauses read from the sound; words from the subtitle track, the transcript, or both; energy, accent, palette, layout and glyphs settable",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": "built"
     },
     {
       "id": "NET-01",
