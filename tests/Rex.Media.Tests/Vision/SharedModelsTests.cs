@@ -43,7 +43,9 @@ public sealed class SharedModelsTests
             Assert.False(Disposed);
             MostAtOnce = Math.Max(MostAtOnce, Interlocked.Increment(ref _running));
             Started.Set();
-            Release.Wait(TimeSpan.FromSeconds(10));
+            // CI can delay the test continuation while running thousands of tests in parallel.
+            // Keep the fake model blocked long enough for the disposal assertion to run.
+            Assert.True(Release.Wait(TimeSpan.FromSeconds(60)), "The test did not release its fake model.");
             Interlocked.Decrement(ref _running);
         }
 
