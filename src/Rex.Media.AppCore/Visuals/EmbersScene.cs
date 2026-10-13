@@ -7,6 +7,9 @@ namespace Rex.Media.AppCore.Visuals;
 /// </summary>
 public sealed class EmbersScene : VisualScene
 {
+    /// <summary>The most of a beat the swirl moves on in one frame, so a phase starting again never throws it round.</summary>
+    private const double MostAFrame = 0.2;
+
     private readonly Particles _embers = new(600);
     private double _owed;
     private double _phase;
@@ -53,10 +56,11 @@ public sealed class EmbersScene : VisualScene
 
         // The swirl turns over once a beat, moving on with the beat's phase. Counted from the beats
         // and the phase together it jumped half a turn and back whenever a beat landed a little
-        // before or after the clock's, reversing every ember for a frame.
+        // before or after the clock's, reversing every ember for a frame. A phase that starts again
+        // early (a beat heard before the grid's) moves it on a fifth of a beat at most.
         var step = pulse.Phase - _phase;
         _phase = pulse.Phase;
-        Turn += (step < 0 ? step + 1 : step) * Math.PI;
+        Turn += Math.Min(step < 0 ? step + 1 : step, MostAFrame) * Math.PI;
         var turn = Turn;
         _embers.Step(context.Dt, wind * size * 0.2, -size * 0.15 * speed, 0.6, (x, y) => Math.Sin((y * 0.025) + turn + (x * 0.01)) * size * 0.5);
         canvas.Glow(w / 2.0, h + (size * 0.1), size * (0.45 + (0.3 * pulse.Bass) + (0.25 * pulse.Punch)), context.Paint(0.05), 0.15f + (0.4f * pulse.Bass) + (1.1f * pulse.Punch));
