@@ -57,7 +57,7 @@ public sealed class ThreadLoopTests
     public void UnexpectedParserErrorsFaultTheSessionInsteadOfEscapingTheThread()
     {
         var failures = new List<Exception>();
-        var broken = new NullReferenceException("bad container bytes");
+        var broken = Assert.Throws<NullReferenceException>(() => ((object?)null)!.ToString());
         ThreadLoop.Run(() => throw broken, failures.Add, CancellationToken.None);
         Assert.Same(broken, Assert.Single(failures));
         failures.Clear();
