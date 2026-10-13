@@ -28,7 +28,6 @@ public sealed class LibraryScanner : IDisposable
     private readonly object _gate = new();
     private readonly HashSet<string> _pending = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _stop = new();
-    private CancellationTokenSource _pass = new();
     private bool _everything;
     private Thread? _worker;
     private string _status = "";
@@ -112,36 +111,10 @@ public sealed class LibraryScanner : IDisposable
         _worker.Start();
     }
 
-    /// <summary>
-    /// Stops the scan under way after the file it is reading and drops what else was asked for; the
-    /// scanner stays ready for the next <see cref="Request"/>. What was found so far is kept.
-    /// </summary>
-    public void Cancel()
-    {
-        CancellationTokenSource pass;
-        lock (_gate)
-        {
-            _everything = false;
-            _pending.Clear();
-            pass = _pass;
-            _pass = new CancellationTokenSource();
-        }
-
-        // The old source is only cancelled, never disposed: a pass may still be linking to its token.
-        pass.Cancel();
-        _log.Info(LogSource, "The library scan was stopped; what it found so far stays.");
-    }
-
     /// <summary>Does all the work asked for, on the calling thread; the worker runs this.</summary>
     public void RunPending(CancellationToken cancellationToken = default)
     {
-        CancellationToken pass;
-        lock (_gate)
-        {
-            pass = _pass.Token;
-        }
-
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _stop.Token, pass);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _stop.Token);
         var token = linked.Token;
         try
         {
