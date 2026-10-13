@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using Rex.Media.AppCore.Captions;
+using Rex.Media.Codecs.Software.Pcm;
 using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
@@ -155,6 +156,15 @@ public sealed class SpeechModelsTests : IDisposable
         var decoded = SpeechAudio.DecodeMono(silent, new Rex.Media.Codecs.DecoderRegistry(), TestContext.Current.CancellationToken);
         Assert.Empty(decoded.Mono);
         Assert.Equal(0, decoded.Rate);
+
+        var wave = Path.Combine(_directory, "speech.wav");
+        File.WriteAllBytes(wave, Pcm.SineWav(220, 8000, 2, 0.2));
+        var heard = SpeechAudio.DecodeMono(wave, new Rex.Media.Codecs.DecoderRegistry().Add(new PcmDecoderFactory()), TestContext.Current.CancellationToken);
+        Assert.Equal(8000, heard.Rate);
+        Assert.NotEmpty(heard.Mono);
+
+        var defaultStore = new SpeechModelStore(Path.Combine(_directory, "default-handler"));
+        Assert.EndsWith("ggml-base.en.bin", defaultStore.PathOf(SpeechModels.BaseEnglish), StringComparison.Ordinal);
     }
 
     private static byte[] PngWriterTestBytes() => [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A];

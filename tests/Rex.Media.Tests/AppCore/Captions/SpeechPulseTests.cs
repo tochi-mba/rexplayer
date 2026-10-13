@@ -161,4 +161,12 @@ public sealed class SpeechPulseTests
         Assert.Throws<ArgumentException>(() => pulse.Update(new float[10], Rate, Dt));
         Assert.Throws<ArgumentOutOfRangeException>(() => pulse.Update(new float[SpeechPulse.Size], 0, Dt));
     }
+
+    [Fact]
+    public void ALongConversationKeepsOnlyTheRecentOnsetLevels()
+    {
+        var pulse = new SpeechPulse();
+        Speak(pulse, 120, Enumerable.Repeat(0.3, 80));
+        Assert.True(pulse.Onsets > 64, $"{pulse.Onsets}");
+    }
 }

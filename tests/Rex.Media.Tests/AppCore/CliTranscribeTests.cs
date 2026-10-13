@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Cli;
@@ -11,6 +12,12 @@ public sealed class CliTranscribeTests : IDisposable
     private readonly string _directory = Directory.CreateTempSubdirectory("rexplayer-transcribe-").FullName;
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
+
+    private sealed class RefusedHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+    }
 
     private sealed class FixedTranscriber(string modelName) : ISpeechTranscriber
     {
@@ -118,6 +125,27 @@ public sealed class CliTranscribeTests : IDisposable
         var (noModel, _, missing) = Run(new FixedTranscriber("base.en"), "transcribe", film);
         Assert.Equal(1, noModel);
         Assert.Contains("is not downloaded; run 'rexplay models --get base.en'", missing, StringComparison.Ordinal);
+
+        using var output = new StringWriter();
+        using var downloadError = new StringWriter();
+        var downloading = new CliHost
+        {
+            Out = output,
+            Error = downloadError,
+            Version = "9.9.9",
+            DataRoot = Path.Combine(_directory, "download"),
+            SpeechStore = root => new SpeechModelStore(root, () => new RefusedHandler()),
+        };
+        Assert.Equal(1, CliApplication.Run(["transcribe", film, "--download"], downloading));
+        Assert.Contains("404", downloadError.ToString(), StringComparison.Ordinal);
+        Assert.Null(downloading.Transcriber("model", "name"));
+
+        downloadError.GetStringBuilder().Clear();
+        Assert.Equal(1, CliApplication.Run(["models", "--get", "base.en"], downloading));
+        Assert.Contains("404", downloadError.ToString(), StringComparison.Ordinal);
+
+        var ordinary = new CliHost { Out = TextWriter.Null, Error = TextWriter.Null, Version = "test" };
+        Assert.EndsWith("speech", ordinary.SpeechStore(SpeechModelStore.DefaultRoot(_directory)).Root, StringComparison.Ordinal);
 
         Install("tiny.en");
         var (cannot, _, deaf) = Run(null, "transcribe", film, "--model", "tiny.en");

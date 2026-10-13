@@ -207,4 +207,17 @@ public sealed class CaptionChoreographyTests
         // A plain word has popped in fully by now; the stretched one is still on its way.
         Assert.NotEqual(1, scene[2].Size);
     }
+
+    [Fact]
+    public void HighlightDimsEveryLiveWordExceptTheNewest()
+    {
+        var choreography = new CaptionChoreography(CaptionStyle.Default with { Highlight = true });
+        choreography.Reveal(Word("first"), Plain, Stress.Plain, 0);
+        choreography.Reveal(Word("second"), Plain, Stress.Plain, 0.1);
+
+        var scene = choreography.Scene(1, Area, Font);
+
+        Assert.Equal(0.55, scene[0].Opacity, 2);
+        Assert.Equal(1, scene[1].Opacity);
+    }
 }

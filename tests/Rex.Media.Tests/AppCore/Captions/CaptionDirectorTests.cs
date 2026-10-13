@@ -168,4 +168,28 @@ public sealed class CaptionDirectorTests
         var frames = Play(director, cues, 0, 3.9);
         Assert.Equal(["there"], frames[^1].Words.Select(word => word.Text));
     }
+
+    [Fact]
+    public void LongSilentAndPrefilledClustersAreCleared()
+    {
+        var director = new CaptionDirector(CaptionStyle.Default);
+        var longCue = Cue(0, 10, "one two three four five six seven eight nine ten");
+        director.Frame(S(0), [], 0, Frame, [longCue], Area, 40);
+        director.Frame(S(CaptionDirector.LongestCluster + 0.1), [], 0, Frame, [longCue], Area, 40);
+
+        var timed = new SubtitleCue(S(10), S(12), [new SubtitleLine([new SubtitleRun("done", At: TimeSpan.Zero)])]);
+        director.Frame(S(10), [], 0, Frame, [timed], Area, 40);
+        var quiet = new float[SpeechPulse.Size];
+        for (var i = 0; i < 20; i++)
+        {
+            director.Frame(S(10 + ((i + 1) * Frame.TotalSeconds)), quiet, Rate, Frame, [timed], Area, 40);
+        }
+
+        var classic = new CaptionDirector(CaptionPresets.Style(CaptionPreset.Classic, CaptionStyle.Default));
+        var first = Cue(0, 1, "one two");
+        var second = Cue(1.1, 2, "three four");
+        classic.Frame(S(0), [], 0, Frame, [first], Area, 40);
+        var next = classic.Frame(S(1.1), [], 0, Frame, [second], Area, 40);
+        Assert.Contains(next, word => word.Text == "three");
+    }
 }

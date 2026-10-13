@@ -51,6 +51,9 @@ public sealed class TranscriptTests : IDisposable
         Assert.Equal(S(4.6), cues[0].End);
         var instant = new Transcript("en", "m", [W("blink", 2, 2)]);
         Assert.Equal(S(2.4), Assert.Single(instant.ToCues()).End);
+
+        var overlapping = new Transcript("en", "m", [W("first.", 2, 2), W("second", 1, 1.2)]);
+        Assert.Equal(S(2.1), overlapping.ToCues()[0].End);
     }
 
     [Fact]
@@ -94,8 +97,13 @@ public sealed class TranscriptTests : IDisposable
         File.WriteAllBytes(media, [1, 2, 3]);
 
         Assert.Null(cache.Load(media, "base.en"));
+
         cache.Save(media, Speech);
         Assert.Equal(Speech.Words.Count, cache.Load(media, "base.en")!.Words.Count);
+        using (new FileStream(cache.PathFor(media, "base.en"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.Null(cache.Load(media, "base.en"));
+        }
         Assert.Null(cache.Load(media, "tiny.en"));
         Assert.EndsWith(".json", cache.PathFor(media, "base.en"), StringComparison.Ordinal);
         Assert.NotEqual(cache.PathFor(media, "base.en"), cache.PathFor(media, "tiny.en"));

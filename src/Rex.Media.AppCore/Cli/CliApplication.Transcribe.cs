@@ -18,7 +18,7 @@ public static partial class CliApplication
         var path = Path.GetFullPath(RequireFile(arguments));
         var model = ParseModel(arguments.Option("--model"));
         var language = arguments.Option("--language") is { } code ? new KineticCaptionSettings { TranscriptLanguage = code }.Normalize().TranscriptLanguage : null;
-        var store = new SpeechModelStore(SpeechModelStore.DefaultRoot(DataRoot(host)));
+        var store = host.SpeechStore(SpeechModelStore.DefaultRoot(DataRoot(host)));
         var cache = new TranscriptCache(TranscriptCache.DefaultRoot(DataRoot(host)));
         var fresh = arguments.Option("--again") is not null;
         var transcript = fresh ? null : cache.Load(path, model.Id);
@@ -33,7 +33,7 @@ public static partial class CliApplication
                 }
 
                 Progress(host, machine, $"Downloading the {model.Name} model ({model.Size})");
-                store.DownloadAsync(model, Reporter(host, machine), host.Cancellation).GetAwaiter().GetResult();
+                DownloadModel(store, model, Reporter(host, machine), host.Cancellation);
             }
 
             var transcriber = host.Transcriber(store.PathOf(model), model.Id) ?? throw new CliException("This build cannot hear speech.");
@@ -69,12 +69,12 @@ public static partial class CliApplication
 
     private static int Models(CliArguments arguments, bool machine, CliHost host)
     {
-        var store = new SpeechModelStore(SpeechModelStore.DefaultRoot(DataRoot(host)));
+        var store = host.SpeechStore(SpeechModelStore.DefaultRoot(DataRoot(host)));
         if (arguments.Option("--get") is { } wanted)
         {
             var model = SpeechModels.Find(wanted) ?? throw new CliException($"There is no model '{wanted}'; the models are {string.Join(", ", SpeechModels.All.Select(m => m.Id))}.");
             Progress(host, machine, $"Downloading the {model.Name} model ({model.Size})");
-            store.DownloadAsync(model, Reporter(host, machine), host.Cancellation).GetAwaiter().GetResult();
+            DownloadModel(store, model, Reporter(host, machine), host.Cancellation);
         }
 
         if (arguments.Option("--remove") is { } unwanted)
@@ -134,6 +134,18 @@ public static partial class CliApplication
 
     private static SpeechModel ParseModel(string? text) => text is null ? SpeechModels.BaseEnglish
         : SpeechModels.Find(text) ?? throw new CliException($"--model takes {string.Join(", ", SpeechModels.All.Select(model => model.Id))}, not '{text}'.");
+
+    private static void DownloadModel(SpeechModelStore store, SpeechModel model, IProgress<double>? progress, CancellationToken cancellationToken)
+    {
+        try
+        {
+            store.DownloadAsync(model, progress, cancellationToken).GetAwaiter().GetResult();
+        }
+        catch (Exception error) when (error is HttpRequestException or InvalidDataException or IOException)
+        {
+            throw new CliException(error.Message);
+        }
+    }
 
     private static string DataRoot(CliHost host) => host.DataRoot ?? Path.Combine(Path.GetTempPath(), "rexplayer");
 

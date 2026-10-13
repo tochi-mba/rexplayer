@@ -145,7 +145,7 @@ public sealed class CliCaptionsTests : IDisposable
         var film = Film("talk.mkv", 3);
         var srt = Subtitles("talk.srt", "1\n00:00:00,000 --> 00:00:03,000\none two three four five six\n");
 
-        var (exit, output, _) = Run("captions", film, "--subtitles", srt, "--start", "1", "--stop", "2", "--fps", "10", "--energy", "200", "--layout", "centre", "--no-avoid", "--json");
+        var (exit, output, _) = Run("captions", film, "--subtitles", srt, "--start", "1", "--stop", "2", "--fps", "10", "--energy", "200", "--layout", "centre", "--style", "classic", "--no-avoid", "--json");
 
         Assert.Equal(0, exit);
         var data = Data(output);
@@ -193,6 +193,9 @@ public sealed class CliCaptionsTests : IDisposable
         var (layout, _, layoutError) = Run("captions", alone, "--subtitles", srt, "--layout", "sideways");
         Assert.Equal(1, layout);
         Assert.Contains("--layout takes scatter, stack, centre, left or confetti", layoutError, StringComparison.Ordinal);
+        var (style, _, styleError) = Run("captions", alone, "--subtitles", srt, "--style", "unknown");
+        Assert.Equal(1, style);
+        Assert.Contains("--style takes one of", styleError, StringComparison.Ordinal);
         var (late, _, lateError) = Run("captions", alone, "--subtitles", srt, "--start", "5");
         Assert.Equal(1, late);
         Assert.Contains("nothing to caption", lateError, StringComparison.Ordinal);
