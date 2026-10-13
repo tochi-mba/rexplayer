@@ -4,6 +4,7 @@ using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Shell;
 using Rex.Media.Interop.Shell;
 using Rex.Media.Interop.Windowing;
+using Rex.Media.Library;
 
 namespace Rex.Media.App;
 
@@ -24,6 +25,9 @@ public sealed partial class MainWindow
     private bool _shellButtonsAdded;
     private string? _shellRecentKey;
     private nint _shellHandle;
+    private CancellationTokenSource? _shellPictureCancel;
+    private byte[] _shellPicture = [];
+    private bool _shellPictureRequested;
 
     /// <summary>Register before the window is activated, so even its first taskbar creation is heard.</summary>
     private void WireTaskbar()
@@ -201,6 +205,11 @@ public sealed partial class MainWindow
             _shellItem = _player.Item;
             _shellCard = null;
             _shellTimeline.Reset();
+            _shellPictureCancel?.Cancel();
+            _shellPictureCancel?.Dispose();
+            _shellPictureCancel = null;
+            _shellPicture = [];
+            _shellPictureRequested = false;
         }
 
         if (_shellTaskbarReady && _shellTaskbar is not null && (!_shellButtonsAdded || _shellView != view))
@@ -270,10 +279,15 @@ public sealed partial class MainWindow
                     else
                     {
                         _shellControls.SetDisplay((int)card.Kind, card.Title, card.Subtitle,
-                            card.AlbumArtist, card.AlbumTitle, card.TrackNumber, []);
+                            card.AlbumArtist, card.AlbumTitle, card.TrackNumber, _shellPicture);
                     }
 
                     _shellCard = card;
+                }
+
+                if (card is not null && !_shellPictureRequested && _player.Item is { } item)
+                {
+                    StartShellPicture(item, card.Kind);
                 }
             }
             catch (Exception ex) when (ShellUnavailable(ex))
@@ -381,6 +395,85 @@ public sealed partial class MainWindow
         });
     }
 
+    /// <summary>Load the current item's artwork off the window thread, without delaying its first frame.</summary>
+    private void StartShellPicture(PlaylistItem item, MediaCardKind kind)
+    {
+        _shellPictureRequested = true;
+        if (!Path.IsPathFullyQualified(item.Location))
+        {
+            return;
+        }
+
+        _shellPictureCancel = new CancellationTokenSource();
+        _ = LoadShellPictureAsync(item, kind, _settings, _shellPictureCancel.Token);
+    }
+
+    private async Task LoadShellPictureAsync(PlaylistItem item, MediaCardKind kind, Rex.Media.Settings.PlayerSettings settings, CancellationToken token)
+    {
+        var entered = false;
+        try
+        {
+            await _pictureSlots.WaitAsync(token);
+            entered = true;
+            var picture = await Task.Run(() =>
+            {
+                var mediaKind = kind switch
+                {
+                    MediaCardKind.Image => LibraryKind.Picture,
+                    MediaCardKind.Video => LibraryKind.Video,
+                    _ => LibraryKind.Music,
+                };
+                var path = item.Location;
+                var local = mediaKind == LibraryKind.Video ? LocalVideoPoster(path)
+                    : mediaKind == LibraryKind.Music ? FolderArt.Find(path) : null;
+                var key = PictureKey(path, mediaKind, settings, local);
+                if (key is null)
+                {
+                    return [];
+                }
+
+                // Windows' card accepts JPEG or PNG bytes. Use an existing local cover when it
+                // is modest in size; otherwise use the same bounded artwork cache as the library.
+                if (local is { } poster && Path.GetExtension(poster).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png"
+                    && new FileInfo(poster).Length is > 0 and <= 2_000_000)
+                {
+                    return File.ReadAllBytes(poster);
+                }
+
+                var cached = PictureCachePath(key);
+                return File.Exists(cached) ? File.ReadAllBytes(cached)
+                    : MakePicture(path, mediaKind, _player.Duration, key, settings, token);
+            }, token);
+            token.ThrowIfCancellationRequested();
+            OnWindowThread(() =>
+            {
+                if (!_settings.ShellMediaControls || !ReferenceEquals(_player.Item, item) || _shellControls is null)
+                {
+                    return;
+                }
+
+                _shellPicture = picture;
+                _shellCard = null;
+                ShowTaskbarState();
+            });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+            or InvalidOperationException or NotSupportedException or Rex.Media.Primitives.MediaFormatException)
+        {
+            App.Log.Debug(LogSource, "No system media artwork: " + ex.Message);
+        }
+        finally
+        {
+            if (entered)
+            {
+                _pictureSlots.Release();
+            }
+        }
+    }
+
     private void ShowTaskbarSettingsChanged()
     {
         if (_settings.ShellMediaControls)
@@ -399,6 +492,11 @@ public sealed partial class MainWindow
     /// <summary>Releases native icons, subscriptions and COM objects before the WinUI window goes.</summary>
     private void DisposeShell()
     {
+        _shellPictureCancel?.Cancel();
+        _shellPictureCancel?.Dispose();
+        _shellPictureCancel = null;
+        _shellPicture = [];
+        _shellPictureRequested = false;
         _shellControls?.Dispose();
         _shellControls = null;
         _shellMessages?.Dispose();
