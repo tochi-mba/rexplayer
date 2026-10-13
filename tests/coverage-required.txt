@@ -32,10 +32,12 @@ CaptionChoreography.cs
 CaptionCommands.cs
 CaptionDirector.cs
 CaptionGlyphs.cs
+CaptionPresets.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
 CliApplication.cs
+CliApplication.Captions.cs
 CliApplication.Pulse.cs
 CliApplication.Sections.cs
 CliApplication.Snapshot.cs

@@ -133,25 +133,27 @@ public sealed class SpeechPulse
 
     /// <summary>
     /// How a word said as in <paramref name="frame"/> stands against the speaker's recent onsets: no
-    /// louder than one in four is a hush, at least as loud as three in four a shout, louder than all
-    /// but one in twelve, and clear of the shouts, a peak. Until enough has been heard to compare, only a word near the top of
-    /// the speaker's range is a shout.
+    /// louder than one in four is a hush, at least as loud as five in six a shout, louder than all
+    /// but one in twelve, and clear of the shouts, a peak. Until enough has been heard to compare,
+    /// every word is plain.
     /// </summary>
     public Stress StressOf(SpeechFrame frame)
     {
+        // Until a few words have been heard there is nothing to compare with: the speaker's first words are plain.
         if (_onsetLevels.Count < 6)
         {
-            return frame.Loudness >= 0.85f ? Stress.Shout : Stress.Plain;
+            return Stress.Plain;
         }
 
         var count = _onsetLevels.Count;
         _onsetLevels.CopyTo(_sorted);
         Array.Sort(_sorted, 0, count);
         var level = frame.Decibels;
-        var (hush, shout, peak) = (_sorted[count / 4], _sorted[count * 3 / 4], _sorted[Math.Min(count - 1, count * 11 / 12)]);
-        // A peak stands clear of the shouts: three decibels, about half as loud again.
-        return level >= peak && level >= shout + 3 ? Stress.Peak
-            : level >= shout ? Stress.Shout
+        var (hush, shout, peak) = (_sorted[count / 4], _sorted[Math.Min(count - 1, count * 5 / 6)], _sorted[Math.Min(count - 1, count * 11 / 12)]);
+        // A shout stands clear of the quiet words, and a peak clear of the shouts: three decibels,
+        // about half as loud again; even speech, all one level, has no shouts in it.
+        return level >= peak && level >= shout + 3 && level >= hush + 3 ? Stress.Peak
+            : level >= shout && level >= hush + 3 ? Stress.Shout
             : level <= hush ? Stress.Hush
             : Stress.Plain;
     }

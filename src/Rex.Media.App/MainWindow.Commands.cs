@@ -38,7 +38,7 @@ public sealed partial class MainWindow
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
             CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
             CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize, null,
-            CommandCatalog.ToggleKineticCaptions, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer,
+            CommandCatalog.ToggleKineticCaptions, CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer,
             CommandCatalog.KineticCaptionSettings, null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
             CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,

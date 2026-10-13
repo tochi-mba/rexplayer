@@ -16,6 +16,50 @@ public enum CaptionWordSource
     SubtitlesTimedByTranscript,
 }
 
+/// <summary>The named looks kinetic captions come in; Custom is the user's own mix.</summary>
+public enum CaptionPreset
+{
+    Creator,
+    Karaoke,
+    Typewriter,
+    Neon,
+    Headline,
+    Comic,
+    Minimal,
+    Rave,
+    Classic,
+    Glitch,
+    Custom,
+}
+
+/// <summary>The kind of typeface, for a custom look.</summary>
+public enum CaptionFontChoice
+{
+    Sans,
+    Serif,
+    Mono,
+    Display,
+    Rounded,
+}
+
+/// <summary>How words are cased, for a custom look.</summary>
+public enum CaptionCaseChoice
+{
+    AsSaid,
+    Lower,
+    Upper,
+}
+
+/// <summary>How a word arrives, for a custom look.</summary>
+public enum CaptionMotionChoice
+{
+    Pop,
+    Slide,
+    Typewriter,
+    Bounce,
+    Drop,
+}
+
 /// <summary>Where clusters of words go.</summary>
 public enum CaptionLayoutChoice
 {
@@ -59,6 +103,32 @@ public sealed record KineticCaptionSettings
 
     public bool On { get; init; }
 
+    /// <summary>The named look, or Custom for the choices below.</summary>
+    public CaptionPreset Preset { get; init; } = CaptionPreset.Creator;
+
+    // The custom look
+
+    public CaptionFontChoice Font { get; init; } = CaptionFontChoice.Sans;
+
+    public CaptionCaseChoice Case { get; init; } = CaptionCaseChoice.AsSaid;
+
+    public CaptionMotionChoice Motion { get; init; } = CaptionMotionChoice.Pop;
+
+    /// <summary>Only the word being said is bright; the rest of the cluster is dimmed.</summary>
+    public bool Highlight { get; init; }
+
+    /// <summary>A shout flickers as it lands.</summary>
+    public bool Flicker { get; init; }
+
+    /// <summary>How far words are tilted, in percent of the usual (0 to 300).</summary>
+    public int Tilt { get; init; } = 100;
+
+    /// <summary>How thick the outline is, in percent of the usual (0 to 200).</summary>
+    public int Outline { get; init; } = 100;
+
+    /// <summary>A dark plate behind every word, not only where the picture needs one.</summary>
+    public bool PlateAlways { get; init; }
+
     public CaptionWordSource Words { get; init; } = CaptionWordSource.Automatic;
 
     /// <summary>How far the voice moves the words, in percent (25 to 300).</summary>
@@ -91,6 +161,12 @@ public sealed record KineticCaptionSettings
     /// <summary>A copy with every value in its allowed range.</summary>
     public KineticCaptionSettings Normalize() => this with
     {
+        Preset = Enum.IsDefined(Preset) ? Preset : CaptionPreset.Creator,
+        Font = Enum.IsDefined(Font) ? Font : CaptionFontChoice.Sans,
+        Case = Enum.IsDefined(Case) ? Case : CaptionCaseChoice.AsSaid,
+        Motion = Enum.IsDefined(Motion) ? Motion : CaptionMotionChoice.Pop,
+        Tilt = Math.Clamp(Tilt, 0, 300),
+        Outline = Math.Clamp(Outline, 0, 200),
         Words = Enum.IsDefined(Words) ? Words : CaptionWordSource.Automatic,
         Energy = Math.Clamp(Energy, LeastEnergy, MostEnergy),
         Accent = Accent & 0xFFFFFF,

@@ -22,12 +22,20 @@ public sealed class CaptionDirector
     /// <summary>A gap between cues longer than this ends the cluster.</summary>
     public const double CueGap = 0.3;
 
+    /// <summary>The least time between two shouted words.</summary>
+    public const double ShoutGap = 1.2;
+
+    /// <summary>The longest a cluster stays before it gives way.</summary>
+    public const double LongestCluster = 4.5;
+
     private readonly SpeechPulse _pulse = new();
     private readonly WordAligner _aligner = new();
     private CaptionChoreography _choreography;
     private SubtitleCue? _cue;
     private SubtitleCue? _lastCue;
     private double _last = double.NaN;
+    private double _lastShout = double.NegativeInfinity;
+    private double _clusterBegan = double.NaN;
 
     public CaptionDirector(CaptionStyle style)
     {
@@ -90,8 +98,31 @@ public sealed class CaptionDirector
             var after = _aligner.Advance(now - spoken.Start.TotalSeconds, heard);
             for (var i = before; i < after; i++)
             {
+                var word = _aligner.Words[i];
                 var stress = _aligner.Timed && mono.Length == 0 ? Stress.Plain : _pulse.StressOf(heard);
-                _choreography.Reveal(_aligner.Words[i], heard, stress, now);
+                // A shout is one word in a breath, and never a tiny word: "a" and "in" are not what anyone stresses.
+                if (stress is Stress.Shout or Stress.Peak && (word.Text.Count(char.IsLetterOrDigit) < 3 || now - _lastShout < ShoutGap))
+                {
+                    stress = Stress.Plain;
+                }
+
+                if (stress is Stress.Shout or Stress.Peak)
+                {
+                    _lastShout = now;
+                }
+
+                if (!_choreography.IsOpen)
+                {
+                    _clusterBegan = now;
+                }
+
+                _choreography.Reveal(word, heard, stress, now);
+            }
+
+            // A cluster that has run on for a while gives way, so the picture is never buried.
+            if (_choreography.IsOpen && now - _clusterBegan > LongestCluster)
+            {
+                _choreography.Clear(now);
             }
 
             if (heard.SilentFor >= WordAligner.Pause && _aligner.Revealed == _aligner.Words.Count)
@@ -104,13 +135,13 @@ public sealed class CaptionDirector
         return _choreography.Scene(now, area, fontSize, heard.Pace, picture);
     }
 
-    /// <summary>The look for <paramref name="settings"/>: their kinetic caption choices, in the subtitle text colour.</summary>
+    /// <summary>The look for <paramref name="settings"/>: their preset with their choices over it, or their own look, in the subtitle text colour.</summary>
     public static CaptionStyle StyleFor(PlayerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings = settings.Normalize();
         var kinetic = settings.KineticCaptions;
-        return new CaptionStyle(
+        var own = new CaptionStyle(
             Argb.From(settings.SubtitleColor, settings.SubtitleOpacity),
             Argb.From(kinetic.Accent, 100),
             kinetic.Colors switch
@@ -132,7 +163,16 @@ public sealed class CaptionDirector
             },
             kinetic.Glyphs,
             kinetic.ShoutsInCapitals,
-            kinetic.AvoidPicture);
+            kinetic.AvoidPicture,
+            (CaptionFont)kinetic.Font,
+            (CaptionCase)kinetic.Case,
+            (CaptionMotion)kinetic.Motion,
+            kinetic.Highlight,
+            kinetic.Flicker,
+            kinetic.Tilt / 100.0,
+            kinetic.Outline / 100.0,
+            kinetic.PlateAlways);
+        return CaptionPresets.Style(kinetic.Preset, own);
     }
 
     private void Follow(SubtitleCue? cue, double now)
@@ -159,8 +199,9 @@ public sealed class CaptionDirector
     {
         _choreography.Reset();
         _pulse.Reset();
-        (_cue, _lastCue) = (null, null);
+        (_cue, _lastCue, _lastShout, _clusterBegan) = (null, null, double.NegativeInfinity, double.NaN);
     }
 
-    private static bool EndsSentence(SubtitleCue cue) => cue.Text.TrimEnd().TrimEnd('"', '\'', ')', '”', '’') is { Length: > 0 } text && text[^1] is '.' or '!' or '?' or '…';
+    /// <summary>A cue ending in punctuation ends its clause, and so its cluster.</summary>
+    private static bool EndsSentence(SubtitleCue cue) => cue.Text.TrimEnd().TrimEnd('"', '\'', ')', '”', '’') is { Length: > 0 } text && text[^1] is ',' or ':' or ';' or '.' or '!' or '?' or '…';
 }

@@ -48,7 +48,6 @@ public static class CaptionGlyphs
         ["faster"] = "🚀",
         ["stop"] = "🛑",
         ["question"] = "❓",
-        ["why"] = "❓",
         ["night"] = "🌙",
         ["sleep"] = "😴",
         ["bed"] = "😴",

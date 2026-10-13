@@ -79,11 +79,11 @@ public sealed class SpeechPulseTests
     }
 
     [Fact]
-    public void BeforeEnoughWordsAreHeardStressIsPlainUnlessVeryLoud()
+    public void BeforeEnoughWordsAreHeardEveryWordIsPlain()
     {
         var pulse = new SpeechPulse();
         Assert.Equal(Stress.Plain, pulse.StressOf(new SpeechFrame(0.5f, 0.5f, true, 0, false, 0)));
-        Assert.Equal(Stress.Shout, pulse.StressOf(new SpeechFrame(0.9f, 0.5f, true, 0, false, 0)));
+        Assert.Equal(Stress.Plain, pulse.StressOf(new SpeechFrame(1f, 0.5f, true, 0, false, 0, 0)));
     }
 
     [Fact]

@@ -60,6 +60,19 @@ public sealed class CaptionCommandsTests
             words);
         Assert.Equal(["Kinetic captions: stacked at the bottom", "Kinetic captions: centred", "Kinetic captions: scattered"], layouts);
         Assert.True(settings.On);
+
+        var looks = new List<string>();
+        for (var i = 0; i < Enum.GetValues<CaptionPreset>().Length; i++)
+        {
+            var (next, message) = CaptionCommands.Apply(CommandCatalog.CycleCaptionStyle, settings)!.Value;
+            looks.Add(message);
+            settings = next;
+        }
+
+        Assert.Equal("Kinetic captions: Sing-along", looks[0]);
+        Assert.Equal("Kinetic captions: Creator cut", looks[^1]);
+        Assert.Equal(looks.Count, looks.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(CaptionPreset.Creator, settings.Preset);
     }
 
     [Fact]

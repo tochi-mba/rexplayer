@@ -80,6 +80,7 @@ public static class CommandCatalog
     public const string KineticCaptionsCalmer = "kinetic-captions-calmer";
     public const string CycleCaptionLayout = "cycle-caption-layout";
     public const string CycleCaptionWords = "cycle-caption-words";
+    public const string CycleCaptionStyle = "cycle-caption-style";
     public const string KineticCaptionSettings = "kinetic-caption-settings";
     public const string Transcribe = "transcribe";
     public const string SaveTranscript = "save-transcript";
@@ -174,6 +175,7 @@ public static class CommandCatalog
         New(KineticCaptionsCalmer, "Calmer kinetic captions", Subtitle),
         New(CycleCaptionLayout, "Next kinetic caption layout", Subtitle, "Ctrl+Alt+V"),
         New(CycleCaptionWords, "Kinetic captions: where the words come from", Subtitle),
+        New(CycleCaptionStyle, "Next kinetic caption look", Subtitle, "Ctrl+Shift+K"),
         New(KineticCaptionSettings, "Kinetic caption settings", Subtitle),
         New(Transcribe, "Transcribe the speech", Subtitle),
         New(SaveTranscript, "Save the transcript", Subtitle),

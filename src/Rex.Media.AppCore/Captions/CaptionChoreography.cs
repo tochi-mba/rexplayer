@@ -16,8 +16,71 @@ public enum CaptionLayout
     Centre,
 }
 
-/// <summary>How kinetic captions look: the user's choices, as the window reads them from the settings.</summary>
-public sealed record CaptionStyle(Argb Text, Argb Accent, VisualPalette Palette, double Energy, CaptionLayout Layout, bool Glyphs, bool UpperCase, bool AvoidPicture = true)
+/// <summary>The kind of typeface words are set in.</summary>
+public enum CaptionFont
+{
+    Sans,
+    Serif,
+    Mono,
+
+    /// <summary>A heavy, condensed display face, as posters use.</summary>
+    Display,
+
+    /// <summary>A rounded, friendly face.</summary>
+    Rounded,
+}
+
+/// <summary>How words are cased: as the voice says (shouts in capitals, hushes in lower case), all lower, or all capitals.</summary>
+public enum CaptionCase
+{
+    AsSaid,
+    Lower,
+    Upper,
+}
+
+/// <summary>How a word arrives.</summary>
+public enum CaptionMotion
+{
+    /// <summary>Grows in with an overshoot.</summary>
+    Pop,
+
+    /// <summary>Slides in from the left as it fades up.</summary>
+    Slide,
+
+    /// <summary>Its letters appear one after another.</summary>
+    Typewriter,
+
+    /// <summary>Lands with two bounces.</summary>
+    Bounce,
+
+    /// <summary>Falls in from above.</summary>
+    Drop,
+}
+
+/// <summary>
+/// How kinetic captions look: the user's choices, as the window reads them from the settings, or
+/// one of <see cref="CaptionPresets"/>. <see cref="Highlight"/> keeps only the newest word bright,
+/// as a sing-along does; <see cref="Flicker"/> makes a peak flicker as it lands;
+/// <see cref="Tilt"/> scales how far words are turned; <see cref="Outline"/> scales the outline;
+/// <see cref="PlateAlways"/> puts a dark plate behind every word, not only where the picture needs it.
+/// </summary>
+public sealed record CaptionStyle(
+    Argb Text,
+    Argb Accent,
+    VisualPalette Palette,
+    double Energy,
+    CaptionLayout Layout,
+    bool Glyphs,
+    bool UpperCase,
+    bool AvoidPicture = true,
+    CaptionFont Font = CaptionFont.Sans,
+    CaptionCase Case = CaptionCase.AsSaid,
+    CaptionMotion Motion = CaptionMotion.Pop,
+    bool Highlight = false,
+    bool Flicker = false,
+    double Tilt = 1,
+    double Outline = 1,
+    bool PlateAlways = false)
 {
     /// <summary>White text, a gold accent, warm stress colours, full energy, scattered, with glyphs, shouts in capitals, clear of what matters.</summary>
     public static CaptionStyle Default { get; } = new(new Argb(255, 255, 255, 255), new Argb(255, 255, 180, 0), VisualPalette.Warm, 1, CaptionLayout.Scatter, true, true);
@@ -27,7 +90,9 @@ public sealed record CaptionStyle(Argb Text, Argb Accent, VisualPalette Palette,
 /// One word on the picture this frame: its centre (from the caption area's corner), its size as a
 /// multiple of the base font size, how it is drawn, how far through its arrival or departure it
 /// is, and what keeps it readable. <see cref="Settled"/> is its size once it has popped in, so
-/// the window lays the text out once and scales it for the pop. <see cref="Flash"/> is the white burst behind a peak, 1 at the
+/// the window lays the text out once and scales it for the pop; <see cref="OffsetX"/> and
+/// <see cref="OffsetY"/> move it from its place, in base font sizes, as it arrives; a typewriter's
+/// <see cref="Text"/> grows letter by letter. <see cref="Flash"/> is the white burst behind a peak, 1 at the
 /// peak fading to 0; <see cref="Shake"/> is how far off its place it is shaken, in base font sizes.
 /// </summary>
 public sealed record CaptionWord(
@@ -48,7 +113,10 @@ public sealed record CaptionWord(
     string? Glyph,
     Stress Stress,
     Backing Backing,
-    double Settled);
+    double Settled,
+    CaptionFont Font = CaptionFont.Sans,
+    double OffsetX = 0,
+    double OffsetY = 0);
 
 /// <summary>
 /// Turns the words as they come in, with how each was said, into where and how they show
@@ -152,15 +220,14 @@ public sealed class CaptionChoreography
             _ => lilt ? 1.4 : 1,
         };
         size = 1 + ((size - 1) * _style.Energy);
-        var text = word.Text;
-        if (_style.UpperCase && stress is Stress.Shout or Stress.Peak)
+        var text = _style.Case switch
         {
-            text = text.ToUpperInvariant();
-        }
-        else if (stress is Stress.Hush)
-        {
-            text = text.ToLowerInvariant();
-        }
+            CaptionCase.Lower => word.Text.ToLowerInvariant(),
+            CaptionCase.Upper => word.Text.ToUpperInvariant(),
+            _ when _style.UpperCase && stress is Stress.Shout or Stress.Peak => word.Text.ToUpperInvariant(),
+            _ when stress is Stress.Hush => word.Text.ToLowerInvariant(),
+            _ => word.Text,
+        };
 
         var glyph = _style.Glyphs ? CaptionGlyphs.For(word.Text) : null;
         var widthEm = (0.58 * text.Length) + (glyph is null ? 0 : 1.3);
@@ -275,20 +342,37 @@ public sealed class CaptionChoreography
     {
         var word = slot.Word;
         var age = seconds - word.Born;
-        var pop = Pop(age / (word.Stretched ? PopSeconds * 2.5 : PopSeconds));
+        var arriving = Math.Clamp(age / (word.Stretched ? PopSeconds * 2.5 : PopSeconds), 0, 1);
+        var (scale, offsetX, offsetY, text) = Arrive(_style.Motion, arriving, word.Text, age);
         var opacity = word.Died is { } died ? Math.Clamp(1 - ((seconds - died) / FadeSeconds), 0, 1) : 1;
         opacity *= word.Stress is Stress.Hush ? 0.8 : 1;
+        if (_style.Motion is CaptionMotion.Slide or CaptionMotion.Drop)
+        {
+            opacity *= arriving;
+        }
+
+        if (_style.Highlight && word.Died is null && word != _words.Last(w => w.Died is null))
+        {
+            opacity *= 0.55;
+        }
+
+        if (_style.Flicker && word.Stress is Stress.Peak && age < 0.4 && Math.Sin(age * 90) > 0.6)
+        {
+            opacity *= 0.35;
+        }
+
         var shake = word.Stress is Stress.Peak ? 0.12 * _style.Energy * Math.Max(0, 1 - (age / ShakeSeconds)) : 0;
         var flash = word.Stress is Stress.Peak ? Math.Clamp(1 - (age / FlashSeconds), 0, 1) : 0;
-        var rotation = word.Own ? ((word.Id % 5) - 2) * 1.5 : word.Lilt ? -2 : 0;
+        var rotation = _style.Tilt * (word.Own ? ((word.Id % 5) - 2) * 1.5 : word.Lilt ? -2 : 0);
         var height = slot.Size * em;
-        var backing = picture?.Behind(left / area.Width, (centreY - (height / 2)) / area.Height, slot.Width / area.Width, height / area.Height) ?? new Backing(0.6, 0);
+        var behind = picture?.Behind(left / area.Width, (centreY - (height / 2)) / area.Height, slot.Width / area.Width, height / area.Height) ?? new Backing(0.6, 0);
+        var backing = new Backing(Math.Clamp(behind.Outline * _style.Outline, 0, 2), _style.PlateAlways ? Math.Max(behind.Plate, 0.55) : behind.Plate);
         return new CaptionWord(
             word.Id,
-            word.Text,
+            text,
             left + (slot.Width / 2),
             centreY,
-            slot.Size * pop,
+            slot.Size * scale,
             rotation,
             word.Color,
             word.Bold,
@@ -301,7 +385,37 @@ public sealed class CaptionChoreography
             word.Glyph,
             word.Stress,
             backing,
-            slot.Size);
+            slot.Size,
+            _style.Font,
+            offsetX,
+            offsetY);
+    }
+
+    /// <summary>
+    /// How a word looks <paramref name="t"/> (0 to 1) of the way through arriving by
+    /// <paramref name="motion"/>, <paramref name="age"/> seconds after it began: its scale, how far it
+    /// is from its place (in base font sizes), and how much of its text shows.
+    /// </summary>
+    public static (double Scale, double OffsetX, double OffsetY, string Text) Arrive(CaptionMotion motion, double t, string text, double age)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        t = double.IsFinite(t) ? Math.Clamp(t, 0, 1) : 1;
+        switch (motion)
+        {
+            case CaptionMotion.Slide:
+                return (1, -0.8 * (1 - t) * (1 - t), 0, text);
+            case CaptionMotion.Drop:
+                return (1, 0, -1.2 * (1 - t) * (1 - t), text);
+            case CaptionMotion.Bounce:
+                // Down past its place, up, and down again, settling.
+                var bounce = t >= 1 ? 0 : Math.Abs(Math.Sin(t * Math.PI * 2.5)) * (1 - t) * 0.5;
+                return (1 + (0.25 * (1 - t)), 0, -bounce, text);
+            case CaptionMotion.Typewriter:
+                var shown = age < 0 ? 0 : Math.Min(text.Length, 1 + (int)(age / 0.035));
+                return (1, 0, 0, shown >= text.Length ? text : text[..shown]);
+            default:
+                return (Pop(t), 0, 0, text);
+        }
     }
 
     /// <summary>The words in rows no wider than <paramref name="rowWidth"/>, a shout alone on its row, every word shrunk to fit the row if it must.</summary>

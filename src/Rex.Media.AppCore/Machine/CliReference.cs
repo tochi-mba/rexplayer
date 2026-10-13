@@ -19,6 +19,7 @@ public static class CliReference
         new("snapshot", "rexplay snapshot <file> [--at <time>] [--out <png>]", "Saves the picture a video shows at a moment as a PNG.", MachineReadable: true),
         new("sections", "rexplay sections <file> [--season-folder <dir>] [--json]", "Finds repeat-based intro and credits suggestions without skipping media.", MachineReadable: true),
         new("pulse", "rexplay pulse <file> [--start <time>] [--stop <time>] [--fps <frames>] [--json]", "Hears a file as the visualisations do: its tempo, every beat, and how strongly it moves them.", MachineReadable: true),
+        new("captions", "rexplay captions <file> [--subtitles <file>] [--start <time>] [--stop <time>] [--fps <frames>] [--style <look>] [--energy <percent>] [--layout scatter|stack|centre] [--no-avoid] [--json]", "Places the words of a subtitle file as kinetic captions would show them, frame by frame: sized, coloured and moved by how they were said, clear of what matters in the picture.", MachineReadable: true),
         new("probe", "rexplay probe <file> | --system", "Describes a file's format, tracks and tags without playing it, or with --system what this PC can decode and show.", MachineReadable: true),
         new("version", "rexplay version", "Prints the version.", MachineReadable: true),
         new("help", "rexplay help [command]", "Explains the commands.", MachineReadable: false),

@@ -165,9 +165,9 @@ public sealed class PictureSpace
         var (busy, _) = Under(x, y, width, height, _busy);
         // White's contrast with the picture is (1 + 0.05) / (L + 0.05): at least 4.5 needs L at most 0.183.
         var light = Math.Max(luma, (luma + brightest) / 2);
-        var plate = Math.Clamp(((light - 0.18) / 0.5) + ((busy - 0.35) * 0.8), 0, 0.75);
+        var plate = Math.Clamp(((light - 0.3) / 0.5) + ((busy - 0.5) * 0.8), 0, 0.6);
         var outline = Math.Clamp(0.4 + busy, 0.4, 1);
-        return new Backing(outline, plate < 0.05 ? 0 : plate);
+        return new Backing(outline, plate < 0.12 ? 0 : plate);
     }
 
     private (double Mean, double Most) Under(double x, double y, double width, double height, float[] values)

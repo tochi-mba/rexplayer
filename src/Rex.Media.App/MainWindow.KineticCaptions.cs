@@ -210,14 +210,14 @@ public sealed partial class MainWindow
         {
             seen.Add(word.Id);
             var fontSize = Math.Max(8, look.FontSize * word.Settled);
-            if (!_captionViews.TryGetValue(word.Id, out var view) || Math.Abs(view.FontSize - fontSize) > fontSize * 0.02)
+            if (!_captionViews.TryGetValue(word.Id, out var view) || Math.Abs(view.FontSize - fontSize) > fontSize * 0.02 || view.Text != word.Text)
             {
                 if (view is not null)
                 {
                     KineticLayer.Children.Remove(view.Root);
                 }
 
-                view = CaptionView.Build(word, fontSize, look.Font);
+                view = CaptionView.Build(word, fontSize, FontFor(word.Font, look.Font));
                 _captionViews[word.Id] = view;
                 KineticLayer.Children.Add(view.Root);
             }
@@ -369,6 +369,18 @@ public sealed partial class MainWindow
         var before = _settings.KineticCaptions;
         var k = before with { On = true };
         var on = Check("Kinetic captions on", true);
+        var presets = Enum.GetValues<CaptionPreset>().ToList();
+        var preset = Choice("Look", [.. presets.Select(CaptionPresets.Name)], presets.IndexOf(k.Preset));
+        AutomationProperties.SetAutomationId(preset, "CaptionPreset");
+        var about = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Text = CaptionPresets.Describe(k.Preset), Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] };
+        var font = Choice("Typeface (custom look)", ["Sans", "Serif", "Monospace", "Display", "Rounded"], (int)k.Font);
+        var wordCase = Choice("Case (custom look)", ["As said", "Lower case", "Capitals"], (int)k.Case);
+        var motion = Choice("Arrival (custom look)", ["Pop", "Slide", "Typewriter", "Bounce", "Drop"], (int)k.Motion);
+        var highlight = Check("Only the word being said is bright (custom look)", k.Highlight);
+        var flicker = Check("A shout flickers as it lands (custom look)", k.Flicker);
+        var tilt = Number("Tilt (%, custom look)", k.Tilt, 0, 300);
+        var outline = Number("Outline (%, custom look)", k.Outline, 0, 200);
+        var plate = Check("A dark plate behind every word (custom look)", k.PlateAlways);
         var words = Choice("Words from", [.. Enum.GetValues<CaptionWordSource>().Select(CaptionCommands.WordsName)], (int)k.Words);
         var layout = Choice("Layout", [.. Enum.GetValues<CaptionLayoutChoice>().Select(CaptionCommands.LayoutName)], (int)k.Layout);
         var colors = Choice("Colours for loud words", [.. Enum.GetNames<CaptionColors>()], (int)k.Colors);
@@ -384,6 +396,15 @@ public sealed partial class MainWindow
         KineticCaptionSettings Read() => (before with
         {
             On = on.IsChecked == true,
+            Preset = presets[Math.Max(0, preset.SelectedIndex)],
+            Font = (CaptionFontChoice)Math.Max(0, font.SelectedIndex),
+            Case = (CaptionCaseChoice)Math.Max(0, wordCase.SelectedIndex),
+            Motion = (CaptionMotionChoice)Math.Max(0, motion.SelectedIndex),
+            Highlight = highlight.IsChecked == true,
+            Flicker = flicker.IsChecked == true,
+            Tilt = double.IsFinite(tilt.Value) ? (int)tilt.Value : before.Tilt,
+            Outline = double.IsFinite(outline.Value) ? (int)outline.Value : before.Outline,
+            PlateAlways = plate.IsChecked == true,
             Words = (CaptionWordSource)Math.Max(0, words.SelectedIndex),
             Layout = (CaptionLayoutChoice)Math.Max(0, layout.SelectedIndex),
             Colors = (CaptionColors)Math.Max(0, colors.SelectedIndex),
@@ -397,20 +418,35 @@ public sealed partial class MainWindow
             TranscriptLanguage = language.Text,
         }).Normalize();
 
-        void Preview() => SetKineticCaptions(Read());
-        foreach (var box in new[] { words, layout, colors, accent, model })
+        void Preview()
+        {
+            var chosen = presets[Math.Max(0, preset.SelectedIndex)];
+            about.Text = CaptionPresets.Describe(chosen);
+            foreach (var custom in new FrameworkElement[] { font, wordCase, motion, highlight, flicker, tilt, outline, plate, layout, colors, accent, capitals })
+            {
+                custom.Visibility = chosen == CaptionPreset.Custom ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            SetKineticCaptions(Read());
+        }
+
+        foreach (var box in new[] { preset, font, wordCase, motion, words, layout, colors, accent, model })
         {
             box.SelectionChanged += (_, _) => Preview();
         }
 
-        foreach (var check in new[] { on, avoid, glyphs, capitals, keep })
+        foreach (var check in new[] { on, highlight, flicker, plate, avoid, glyphs, capitals, keep })
         {
             check.Click += (_, _) => Preview();
         }
 
-        energy.ValueChanged += (_, _) => Preview();
+        foreach (var number in new[] { energy, tilt, outline })
+        {
+            number.ValueChanged += (_, _) => Preview();
+        }
+
         var panel = new StackPanel { Spacing = 10, MinWidth = 440 };
-        foreach (var control in new UIElement[] { on, words, layout, colors, energy, accent, avoid, glyphs, capitals, keep, model, language })
+        foreach (var control in new UIElement[] { on, preset, about, energy, words, avoid, glyphs, keep, font, wordCase, motion, layout, colors, accent, capitals, highlight, flicker, tilt, outline, plate, model, language })
         {
             panel.Children.Add(control);
         }
@@ -424,6 +460,16 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>The typeface a kind of font is set in, the user's subtitle font standing in for sans.</summary>
+    private static string FontFor(CaptionFont font, string subtitleFont) => font switch
+    {
+        CaptionFont.Serif => "Georgia",
+        CaptionFont.Mono => "Consolas",
+        CaptionFont.Display => "Impact",
+        CaptionFont.Rounded => "Bahnschrift",
+        _ => subtitleFont,
+    };
+
     /// <summary>One word's XAML: a flash behind it, a dark plate, its outline and glow copies, the text and its glyph.</summary>
     private sealed class CaptionView
     {
@@ -432,9 +478,9 @@ public sealed partial class MainWindow
         private readonly Ellipse _flash;
         private readonly SolidColorBrush _plateBrush = new(Microsoft.UI.Colors.Black);
 
-        private CaptionView(Grid root, Border plate, Ellipse flash, double fontSize)
+        private CaptionView(Grid root, Border plate, Ellipse flash, double fontSize, string text)
         {
-            (Root, _plate, _flash, FontSize) = (root, plate, flash, fontSize);
+            (Root, _plate, _flash, FontSize, Text) = (root, plate, flash, fontSize, text);
             Root.RenderTransform = _transform;
             _plate.Background = _plateBrush;
         }
@@ -442,6 +488,8 @@ public sealed partial class MainWindow
         public Grid Root { get; }
 
         public double FontSize { get; }
+
+        public string Text { get; }
 
         public static CaptionView Build(CaptionWord word, double fontSize, string font)
         {
@@ -471,7 +519,7 @@ public sealed partial class MainWindow
             root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             var size = root.DesiredSize;
             flash.Margin = new Thickness(-size.Width * 0.25, -size.Height * 0.45, -size.Width * 0.25, -size.Height * 0.45);
-            return new CaptionView(root, plate, flash, fontSize);
+            return new CaptionView(root, plate, flash, fontSize, word.Text);
         }
 
         /// <summary>Places, scales, turns, shakes and fades the word as <paramref name="word"/> says, over <paramref name="picture"/>.</summary>
@@ -479,8 +527,8 @@ public sealed partial class MainWindow
         {
             var size = Root.DesiredSize;
             var t = Environment.TickCount64 / 1000.0;
-            var shakeX = word.Shake * em * Math.Sin(t * 61);
-            var shakeY = word.Shake * em * Math.Cos(t * 47);
+            var shakeX = (word.Shake * em * Math.Sin(t * 61)) + (word.OffsetX * em);
+            var shakeY = (word.Shake * em * Math.Cos(t * 47)) + (word.OffsetY * em);
             Canvas.SetLeft(Root, picture.X + word.X - (size.Width / 2) + shakeX);
             Canvas.SetTop(Root, picture.Y + word.Y - (size.Height / 2) + shakeY);
             var scale = word.Settled > 0 ? word.Size / word.Settled : 1;

@@ -126,7 +126,7 @@ public sealed class CaptionDirectorTests
         var settings = new PlayerSettings
         {
             SubtitleColor = 0x00FF00,
-            KineticCaptions = new KineticCaptionSettings { Accent = 0x0000FF, Colors = CaptionColors.Neon, Energy = 150, Layout = CaptionLayoutChoice.Centre, Glyphs = false, ShoutsInCapitals = false, AvoidPicture = false },
+            KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Accent = 0x0000FF, Colors = CaptionColors.Neon, Energy = 150, Layout = CaptionLayoutChoice.Centre, Glyphs = false, ShoutsInCapitals = false, AvoidPicture = false },
         };
         var style = CaptionDirector.StyleFor(settings);
         Assert.Equal(new CaptionStyle(new Argb(255, 0, 255, 0), new Argb(255, 0, 0, 255), VisualPalette.Neon, 1.5, CaptionLayout.Centre, false, false, false), style);
@@ -136,8 +136,8 @@ public sealed class CaptionDirectorTests
 
         Assert.Equal(
             [VisualPalette.Warm, VisualPalette.Fire, VisualPalette.Neon, VisualPalette.Sunset, VisualPalette.Ocean, VisualPalette.Rainbow, VisualPalette.Accent],
-            Enum.GetValues<CaptionColors>().Select(colors => CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Colors = colors } }).Palette));
-        Assert.Equal(CaptionLayout.Stack, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Layout = CaptionLayoutChoice.Stack } }).Layout);
+            Enum.GetValues<CaptionColors>().Select(colors => CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Colors = colors } }).Palette));
+        Assert.Equal(CaptionLayout.Stack, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Stack } }).Layout);
         Assert.Throws<ArgumentNullException>(() => CaptionDirector.StyleFor(null!));
         Assert.Throws<ArgumentNullException>(() => director.Restyle(null!));
         Assert.Throws<ArgumentNullException>(() => new CaptionDirector(null!));

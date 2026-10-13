@@ -18,6 +18,7 @@ public static class CaptionCommands
         CommandCatalog.KineticCaptionsCalmer,
         CommandCatalog.CycleCaptionLayout,
         CommandCatalog.CycleCaptionWords,
+        CommandCatalog.CycleCaptionStyle,
     ];
 
     /// <summary>
@@ -40,6 +41,9 @@ public static class CaptionCommands
             case CommandCatalog.CycleCaptionLayout:
                 var layout = Next(settings.Layout);
                 return (settings with { On = true, Layout = layout }, "Kinetic captions: " + LayoutName(layout));
+            case CommandCatalog.CycleCaptionStyle:
+                var preset = Next(settings.Preset);
+                return (settings with { On = true, Preset = preset }, "Kinetic captions: " + CaptionPresets.Name(preset));
             case CommandCatalog.CycleCaptionWords:
                 var words = Next(settings.Words);
                 return (settings with { On = true, Words = words }, "Kinetic caption words: " + WordsName(words));
