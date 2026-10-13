@@ -322,7 +322,10 @@ public sealed partial class SubjectEditSession
         // refinement is given a token area and costs next to nothing.
         _shots.Estimate(frame, exclude, (0, 0, 2, 2));
         CutEvidence = (_shots.Residual, changed, _shots.Cut);
-        IsCut = _shots.Cut && changed >= CutChange;
+        // The coarse-grid motion residual has quantization error near its hard 24-level cutoff.
+        // Only this shot detector allows a two-level margin, and only when the independently
+        // measured changed-picture share also agrees. Removal keeps its original cutoff.
+        IsCut = _shots.Residual >= SubjectRemovalMotion.CutResidual - 2 && changed >= CutChange;
         _shotChanged |= IsCut;
     }
 
