@@ -75,6 +75,19 @@ public enum VideoEffect
     MotionOutline,
     HeatHaze,
     Confetti,
+    SnowSettle,
+    Thunderstorm,
+    StageLights,
+    Hologram,
+    PaperLayers,
+    Droste,
+    ReflectionPool,
+    Disintegrate,
+    Aurora,
+    PageCurl,
+    Bubbles,
+    TinyPlanet,
+    StencilGraffiti,
 }
 
 /// <summary>Names, categories, descriptions and safe bounds for the optional effects.</summary>
@@ -98,6 +111,8 @@ public static class VideoEffects
         "Scan sweep", "Shatter", "Parallax", "Rain on glass", "Zoom burst", "Low poly",
         "Pinball", "Fireflies", "Electric edges", "Time lens", "Melt", "Jigsaw", "Colour magnet",
         "Sonar ping", "Bokeh", "Ink spill", "Motion outline", "Heat haze", "Confetti",
+        "Snow settle", "Thunderstorm", "Stage lights", "Hologram", "Paper layers", "Droste", "Reflection pool",
+        "Disintegrate", "Aurora", "Page curl", "Bubbles", "Tiny planet", "Stencil graffiti",
     ];
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
@@ -107,17 +122,21 @@ public static class VideoEffects
     {
         VideoEffect.NeonEdges or VideoEffect.InkTrace or VideoEffect.TopographicContours or VideoEffect.ChromaticContours or VideoEffect.Ghostwire or VideoEffect.GhostwireMask or VideoEffect.GhostwireMotion or VideoEffect.LumenWeave => "Contours",
         VideoEffect.LiquidGlass or VideoEffect.SliceShift or VideoEffect.Vortex or VideoEffect.TimeEcho
-            or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate or VideoEffect.MotionOutline => "Motion & geometry",
+            or VideoEffect.MotionAmplify or VideoEffect.FlowField or VideoEffect.MotionIsolate or VideoEffect.MotionOutline
+            or VideoEffect.Droste or VideoEffect.ReflectionPool or VideoEffect.TinyPlanet => "Motion & geometry",
         VideoEffect.CursorLens or VideoEffect.ColourSpotlight or VideoEffect.RippleTouch or VideoEffect.Torchlight
             or VideoEffect.GravityWell or VideoEffect.ScanSweep or VideoEffect.Shatter or VideoEffect.Parallax
             or VideoEffect.RainGlass or VideoEffect.ZoomBurst or VideoEffect.Pinball or VideoEffect.ElectricEdges or VideoEffect.TimeLens
-            or VideoEffect.Jigsaw or VideoEffect.ColourMagnet or VideoEffect.SonarPing or VideoEffect.InkSpill => "Interactive",
+            or VideoEffect.Jigsaw or VideoEffect.ColourMagnet or VideoEffect.SonarPing or VideoEffect.InkSpill
+            or VideoEffect.Disintegrate or VideoEffect.PageCurl or VideoEffect.Bubbles => "Interactive",
         VideoEffect.EdgeGravity or VideoEffect.ReliefEtch or VideoEffect.ThermalMap or VideoEffect.DepthHaze or VideoEffect.CelShade or VideoEffect.TerrainMesh or VideoEffect.Fireflies or VideoEffect.Bokeh or VideoEffect.HeatHaze => "Image-aware",
-        VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.StippleEngrave => "Print & texture",
+        VideoEffect.Halftone or VideoEffect.OilPaint or VideoEffect.StippleEngrave or VideoEffect.PaperLayers
+            or VideoEffect.StencilGraffiti => "Print & texture",
         VideoEffect.GlyphMosaic or VideoEffect.BrickBuild or VideoEffect.StainedGlass or VideoEffect.CrossStitch
             or VideoEffect.LedWall or VideoEffect.DigitalRain or VideoEffect.DiceMosaic or VideoEffect.CubeMosaic
             or VideoEffect.HexTiles or VideoEffect.RetroPixels or VideoEffect.LowPoly => "Mosaics",
-        VideoEffect.ChromaticRift or VideoEffect.TapeWear or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.ParticleVeil or VideoEffect.Melt or VideoEffect.Confetti => "Playful",
+        VideoEffect.ChromaticRift or VideoEffect.TapeWear or VideoEffect.PixelSort or VideoEffect.MotionSmear or VideoEffect.ParticleVeil or VideoEffect.Melt or VideoEffect.Confetti or VideoEffect.Hologram => "Playful",
+        VideoEffect.SnowSettle or VideoEffect.Thunderstorm or VideoEffect.StageLights or VideoEffect.Aurora => "Weather & light",
         _ => "Essentials",
     };
 
@@ -195,6 +214,19 @@ public static class VideoEffects
         VideoEffect.MotionOutline => "Marching ants around whatever moved since the previous picture, like a live selection. A still picture shows none.",
         VideoEffect.HeatHaze => "Air shimmers above the brightest parts of the picture.",
         VideoEffect.Confetti => "Confetti tumbles across the picture, catching its light; near the pointer it is blown aside.",
+        VideoEffect.SnowSettle => "Snow falls in three depths and settles on surfaces that face up, deepening over time.",
+        VideoEffect.Thunderstorm => "The scene darkens under driving rain, and lightning now and then flashes the whole picture with a jagged bolt.",
+        VideoEffect.StageLights => "Three coloured spotlights sweep through haze across the picture; the first follows the pointer.",
+        VideoEffect.Hologram => "The picture projected as a hologram in one colour of light, with scanlines, a rolling band, flicker and the odd tear.",
+        VideoEffect.PaperLayers => "The picture cut from stacked sheets of coloured paper, each casting a soft shadow on the one below.",
+        VideoEffect.Droste => "Inside a circle round the pointer the picture repeats inward forever, twisting into a spiral and zooming slowly.",
+        VideoEffect.ReflectionPool => "Below the waterline the picture becomes still water reflecting the scene above, with ripples crossing it.",
+        VideoEffect.Disintegrate => "The picture blows away grain by grain, starting at the pointer and sweeping outward.",
+        VideoEffect.Aurora => "The scene turns to night and aurora curtains ripple across the smooth upper sky.",
+        VideoEffect.PageCurl => "The pointer peels the picture back from the corner like a page, showing its shaded back and the sheet beneath.",
+        VideoEffect.Bubbles => "Iridescent soap bubbles float up, magnifying what is behind them; the pointer pops them.",
+        VideoEffect.TinyPlanet => "The picture wrapped into a little planet, ground at the centre and sky around it; the pointer spins it.",
+        VideoEffect.StencilGraffiti => "The picture sprayed through a stencil onto a brick wall in flat paint tones.",
         _ => "",
     };
 
@@ -203,7 +235,9 @@ public static class VideoEffects
         or VideoEffect.RippleTouch or VideoEffect.Torchlight or VideoEffect.GravityWell or VideoEffect.ScanSweep
         or VideoEffect.Shatter or VideoEffect.Parallax or VideoEffect.RainGlass or VideoEffect.ZoomBurst
         or VideoEffect.Pinball or VideoEffect.ElectricEdges or VideoEffect.TimeLens or VideoEffect.Jigsaw
-        or VideoEffect.ColourMagnet or VideoEffect.SonarPing or VideoEffect.InkSpill or VideoEffect.Confetti;
+        or VideoEffect.ColourMagnet or VideoEffect.SonarPing or VideoEffect.InkSpill or VideoEffect.Confetti
+        or VideoEffect.StageLights or VideoEffect.Droste or VideoEffect.Disintegrate or VideoEffect.PageCurl
+        or VideoEffect.Bubbles or VideoEffect.TinyPlanet;
 
     /// <summary>
     /// Whether the effect, at this strength and with its third and fourth controls at these values,

@@ -49,7 +49,7 @@ internal static class D3D11VideoShaderObjects
                 // Each firefly drifts from its home cell toward the brightest nearby spot, so
                 // over time they gather on highlights and hover around lit outlines. The picture
                 // dims to dusk so their glow carries.
-                float rows = 12 + 20 * pointer.w;
+                float rows = 6 + 12 * pointer.w;
                 float2 cells = float2(rows * effect.w, rows);
                 float2 home = floor(uv * cells);
                 float t = effect.z * (0.3 + extras.x * 0.01);
@@ -72,7 +72,7 @@ internal static class D3D11VideoShaderObjects
                         float bright = lumaOf(readColourAt(fly, isYuv));
                         float pulse = 0.55 + 0.45 * sin(t * 4 + h2 * 6.28);
                         float d = length((uv - fly) * aspect() * cells.y);
-                        glow += float3(0.8, 1, 0.35) * exp(-d * d * 6) * pulse * (0.4 + bright) * step(0.25, h3);
+                        glow += float3(0.8, 1, 0.35) * exp(-d * d * 14) * pulse * (0.4 + bright) * step(0.65, h3);
                     }
                 float3 dusk = colour * (0.18 + extras.y * 0.004) * float3(0.7, 0.8, 1);
                 colour = lerp(colour, saturate(dusk + glow), effect.y);
@@ -88,10 +88,10 @@ internal static class D3D11VideoShaderObjects
                 float reach = 0.1 + 0.3 * pointer.w;
                 float near = 1 - smoothstep(reach * 0.5, reach, r);
                 float3 rim = contourDetail(uv, isYuv);
-                float edge = smoothstep(0.02, 0.15, rim.z);
+                float edge = smoothstep(0.12 / pointer.w, 0.4 / pointer.w, rim.z);
                 float crawl = hash(floor(uv * float2(90 * effect.w, 90) + floor(effect.z * (8 + extras.x * 0.3))));
-                float arc = edge * near * step(0.45 - extras.y * 0.003, crawl);
-                float3 bolt = lerp(float3(0.4, 0.6, 1), float3(1, 1, 1), crawl) * arc * 1.6;
+                float arc = edge * edge * near * step(0.8 - extras.y * 0.004, crawl);
+                float3 bolt = lerp(float3(0.35, 0.55, 1), float3(0.9, 0.95, 1), crawl) * arc * 1.3;
                 float3 dim = colour * (0.35 + near * 0.4);
                 colour = lerp(colour, saturate(dim + bolt + near * edge * float3(0.1, 0.15, 0.3)), effect.y);
             }
@@ -125,7 +125,7 @@ internal static class D3D11VideoShaderObjects
                 float pace = 0.3 + 0.7 * hash(float2(column, 1.1));
                 float t = frac(effect.z * (0.02 + extras.x * 0.001) * pace);
                 float warmth = lumaOf(readColourAt(float2(uv.x, saturate(uv.y - 0.3)), isYuv));
-                float run = t * (0.1 + extras.y * 0.004) * (0.4 + warmth);
+                float run = t * (0.15 + extras.y * 0.006) * (0.5 + warmth);
                 float2 source = float2(uv.x, uv.y - run * smoothstep(0.0, 0.6, uv.y));
                 float3 melted = readColour(saturate(source), isYuv);
                 float drip = smoothstep(0.0, 0.02, run) * (1 - smoothstep(0.0, 0.03, abs(frac(uv.y * 12 + hash(float2(column, 2.2))) - 0.5)));
@@ -163,10 +163,15 @@ internal static class D3D11VideoShaderObjects
                 float2 slide = (float2(hash(owner + 5.5), hash(owner + 6.6)) - 0.5) * lift * 0.02 * extras.y * 0.02;
                 float3 piece = readColour(saturate(uv - slide), isYuv) * (1 + lift * 0.15);
                 float seam = min(min(dR, dB), min(dL, dT));
-                float edgeLine = 1 - smoothstep(0.0, 0.02, min(min(local.x, 1 - local.x), min(local.y, 1 - local.y)));
-                edgeLine *= step(knob, seam);
-                float knobLine = 1 - smoothstep(knob - 0.02, knob, abs(seam - knob) + knob) * 0;
-                float cut = max(edgeLine, (1 - smoothstep(0.0, 0.015, abs(seam - knob))) * step(seam, knob + 0.015));
+                float width = 0.045;
+                // Straight edges, except across a knob's mouth, which the tab bridges.
+                float edgeLine = (1 - smoothstep(0.0, width, min(min(local.x, 1 - local.x), min(local.y, 1 - local.y)))) * step(knob, seam);
+                // A knob's rim is a cut only inside the piece its tab pushes into.
+                float arc = max(max(step(tabR, 0) * (1 - smoothstep(0, width, abs(dR - knob))) * step(local.x, 1),
+                                    step(tabB, 0) * (1 - smoothstep(0, width, abs(dB - knob)))),
+                                max(step(tabL, 0) * (1 - smoothstep(0, width, abs(dL - knob))),
+                                    step(tabT, 0) * (1 - smoothstep(0, width, abs(dT - knob)))));
+                float cut = max(edgeLine, arc);
                 float shadow = lift * (1 - smoothstep(0, 0.03, min(local.x, local.y))) * 0.5;
                 colour = lerp(colour, saturate(piece * (1 - cut * 0.7) * (1 - shadow)), effect.y);
             }
@@ -218,7 +223,7 @@ internal static class D3D11VideoShaderObjects
                 float3 fine = contourGradient(uv, isYuv, 0.75);
                 float3 broad = contourGradient(uv, isYuv, 3.0);
                 float near = smoothstep(0.1, 0.5, saturate(fine.z / max(broad.z, 0.004)) * saturate(fine.z * 10 * pointer.w));
-                float blurRadius = (0.006 + extras.x * 0.0002) * (1 - near);
+                float blurRadius = (0.01 + extras.x * 0.0004) * (1 - near);
                 float3 sum = 0; float weight = 0;
                 [loop] for (uint i = 0; i < 18; i++)
                 {
@@ -260,11 +265,11 @@ internal static class D3D11VideoShaderObjects
                 float here = 0, around = 0;
                 [branch] if (motion.y > 0.5)
                 {
-                    here = smoothstep(0.03, 0.1, length(colour - readPriorAt(uv, isYuv)));
+                    here = smoothstep(0.07, 0.16, length(colour - readPriorAt(uv, isYuv)));
                     [loop] for (int k = 0; k < 8; k++)
                     {
                         float2 off = float2(cos(k * 0.785398), sin(k * 0.785398)) * px;
-                        around = max(around, smoothstep(0.03, 0.1, length(readColourAt(uv + off, isYuv) - readPriorAt(uv + off, isYuv))));
+                        around = max(around, smoothstep(0.07, 0.16, length(readColourAt(uv + off, isYuv) - readPriorAt(uv + off, isYuv))));
                     }
                 }
                 float outline = saturate(around - here);
@@ -295,7 +300,7 @@ internal static class D3D11VideoShaderObjects
                 // Confetti falls across the picture, each piece tumbling; near the pointer the
                 // pieces are blown aside, and they catch the picture's light as they pass.
                 float2 origin = pointer.z > 0.5 ? pointer.xy : float2(-1, -1);
-                float rows = 10 + 16 * pointer.w;
+                float rows = 5 + 9 * pointer.w;
                 float2 cells = float2(rows * effect.w, rows);
                 float t = effect.z * (0.15 + extras.x * 0.004);
                 float3 paper = 0; float cover = 0;
@@ -312,7 +317,7 @@ internal static class D3D11VideoShaderObjects
                         float2 d = (uv - pos) * cells;
                         float spin = t * 6 + h3 * 6.28;
                         float2 rd = float2(d.x * cos(spin) - d.y * sin(spin), d.x * sin(spin) + d.y * cos(spin));
-                        float piece = step(abs(rd.x), 0.12) * step(abs(rd.y), 0.06 + 0.06 * abs(sin(spin * 0.5))) * step(0.3, h2);
+                        float piece = step(abs(rd.x), 0.22) * step(abs(rd.y), 0.08 + 0.1 * abs(sin(spin * 0.5))) * step(0.3, h2);
                         float3 tint = 0.6 + 0.4 * cos(h1 * 6.28 + float3(0, 2.094, 4.189));
                         paper = lerp(paper, tint * (0.5 + 0.5 * lumaOf(colour)), piece * (1 - cover));
                         cover = max(cover, piece);

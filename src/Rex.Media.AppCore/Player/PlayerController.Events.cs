@@ -59,7 +59,7 @@ public sealed partial class PlayerController
             case CommandCatalog.NextEpisode:
                 if (!PlayNextEpisode())
                 {
-                    Say("There is no next episode in this folder.");
+                    Say("There is no next episode.");
                 }
 
                 break;
