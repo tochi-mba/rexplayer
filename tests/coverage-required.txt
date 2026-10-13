@@ -88,6 +88,7 @@ FlightScene.cs
 FolderArt.cs
 FourCC.cs
 FrameBudget.cs
+FrameCadence.cs
 GalaxyScene.cs
 GifDecoder.cs
 GifDemuxer.cs
@@ -197,6 +198,7 @@ PlayerController.Subtitles.cs
 PlayerController.Timers.cs
 PlayerController.Timing.cs
 PlayerMemory.cs
+PlayerMetrics.cs
 PlayerSettings.cs
 Playlist.cs
 PlaylistEntry.cs
@@ -272,6 +274,7 @@ SubViewer.cs
 SynthwaveScene.cs
 SystemReport.cs
 ThreadLoop.cs
+ThreadResponsiveness.cs
 TimeStretch.cs
 TimeText.cs
 TimeWarpScene.cs

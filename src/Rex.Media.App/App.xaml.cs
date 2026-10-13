@@ -72,6 +72,18 @@ public partial class App : Application
     /// </summary>
     public static Milestones Milestones { get; } = new(Log, LaunchedAt, Environment.GetEnvironmentVariable("REXPLAYER_EXIT_AFTER"), () => Environment.Exit(0));
 
+    /// <summary>
+    /// Draws pictures in software, as a computer without a usable graphics card does, when
+    /// REXPLAYER_GRAPHICS=software: how scripts/measure-startup.ps1 -LowEnd imitates a weak computer.
+    /// </summary>
+    public static bool SoftwareGraphics { get; } = string.Equals(Environment.GetEnvironmentVariable("REXPLAYER_GRAPHICS"), "software", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether video may be decoded on the graphics card: not when REXPLAYER_HARDWARE_DECODING=off,
+    /// which imitates a graphics card with no video decoding (scripts/measure-startup.ps1 -LowEnd).
+    /// </summary>
+    public static bool GraphicsCardDecoding { get; } = !string.Equals(Environment.GetEnvironmentVariable("REXPLAYER_HARDWARE_DECODING"), "off", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The slow parts of this launch, started in the background before the window is built; null when it hands over.</summary>
     internal static LaunchWarmup? Warmup { get; private set; }
 
