@@ -93,9 +93,38 @@ every run, so these are upper bounds; the ratios between devices are the useful 
 | Fill, per picture | 2.2 to 5.0 s | 2.6 to 5.2 s |
 
 `FrameBudget` therefore rules both models out of per-frame use on such a computer, and the encoder
-and fill out of on-demand use too (over two seconds); Subject Lock keeps its own methods there.
+and fill out of interactive use while the video plays (over two seconds); there Subject Lock keeps
+its own methods and uses the models only on a paused picture, with its progress shown (below).
 On a separate graphics card the same code takes the GPU path first, and the budget is measured
 again on every computer before a model is trusted with live video.
+
+### How Subject Lock uses them
+
+`SubjectModelPolicy` holds every decision; `SubjectEditSession.UseModels` takes the models the app
+opened (each wrapped so one call runs at a time and closing waits for it), and null keeps the
+hand-written methods.
+
+- **On a paused picture only.** A picture that stays on screen can wait for a model with its
+  progress shown; a playing one cannot. A model is asked while its measured time on this computer
+  (`FrameBudget`, slowest of the recent calls) is within 30 seconds, and an unmeasured one is tried
+  once to learn its cost. Every call runs off the presenting thread; a new picture (playback
+  resumed), a new click, a reset or closing the window drops the work and its answer is never used.
+- **Click.** The segmenter outlines the object under the click while the status reads "Finding
+  the object...". The outline is accepted when the model's own quality estimate is at least 0.6
+  and it is the size of an object: at least 400 pixels and a 1/5000 share of the picture, at least
+  12 pixels either way, and at most half the picture. The region becomes the outline's bounds and
+  the outline becomes the removal's shape for that picture, from which the removal's colour models
+  and remembered matte start. Anything else, or a failure, falls back to the hand-written box
+  choice (`SubjectProposals`).
+- **Removal preview.** The hand-written preview is shown at once; the inpainter then fills the
+  pixels never seen in the video (background seen in other pictures is kept), with the hand-written
+  preview as its picture so it sees that background too. The fill is kept for that picture and
+  hole, and the status says the model painted it.
+- **Reacquisition second opinion.** When a model answers within the interactive budget (two
+  seconds), a return the hand-written search proposes is accepted only if the segmenter, prompted
+  with that box, outlines an object overlapping it by a third. On the computer measured above the
+  encoder alone takes four to nine seconds, so this never runs there; a video model with a memory
+  bank (see Reacquisition above) is the later step that would make it useful on such hardware.
 
 Quality, judged from the saved masks and fills: a click on a person's shirt selects the whole
 person when the model's whole-object outline is nearly as confident as the part (an office scene,

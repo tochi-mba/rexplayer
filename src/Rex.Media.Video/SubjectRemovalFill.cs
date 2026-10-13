@@ -38,10 +38,17 @@ public sealed class SubjectRemovalFill
     // Random candidates tried for every cell, spread over the search window.
     private const int Samples = 18;
     // How strongly a far source is penalised, relative to a typical patch difference.
-    private const float Nearness = 0.15f;
+    private const float Nearness = 1f;
+
+    // Sweeps of the fusion: enough to spread a seam's step over several cells either side.
+    private const int FusionSweeps = 40;
+    // The most the fusion moves a copied colour, so a wild boundary cannot repaint the texture.
+    private const float MostCorrection = 64;
 
     private byte[] _colour = [];
+    private float[] _fused = [];
     private byte[] _state = [];
+    private bool[] _avoid = [];
     private int[] _guess = [];
     private int[] _source = [];
     private bool[] _sourceOk = [];
@@ -71,16 +78,28 @@ public sealed class SubjectRemovalFill
     /// <summary>Each cell's state: <see cref="Known"/> or <see cref="Missing"/>.</summary>
     public Span<byte> State => _state.AsSpan(0, Width * Height);
 
+    /// <summary>
+    /// Known cells never to copy from, such as those that may hold part of the subject the outline
+    /// missed: they still guide the matching around them, but no patch containing one is a source.
+    /// </summary>
+    public Span<bool> Avoid => _avoid.AsSpan(0, Width * Height);
+
     /// <summary>For hole cells, a suggested source cell (an index), or -1 for none.</summary>
     public Span<int> Guess => _guess.AsSpan(0, Width * Height);
 
     /// <summary>For hole cells after <see cref="Solve"/>, the centre of the patch copied there, or -1.</summary>
     public ReadOnlySpan<int> Source => _source.AsSpan(0, Width * Height);
 
+    /// <summary>
+    /// For hole cells after <see cref="Solve"/>, three values a cell (blue, green, red): how far the
+    /// fusion moved the copied colour, to be added to every pixel copied from <see cref="Source"/>.
+    /// </summary>
+    public ReadOnlySpan<float> Correction => _fused.AsSpan(0, Width * Height * 3);
+
     /// <summary>Whether the last solve could only blend the hole in from its edges, having nothing whole to copy.</summary>
     public bool Blended { get; private set; }
 
-    /// <summary>Set the grid's size; the caller then fills <see cref="Colour"/>, <see cref="State"/> and <see cref="Guess"/>.</summary>
+    /// <summary>Set the grid's size; the caller then fills <see cref="Colour"/>, <see cref="State"/>, <see cref="Avoid"/> and <see cref="Guess"/>.</summary>
     public void Prepare(int width, int height)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
@@ -88,7 +107,9 @@ public sealed class SubjectRemovalFill
         (Width, Height) = (width, height);
         var cells = width * height;
         SubjectRemovalMatte.Ensure(ref _colour, cells * 3);
+        SubjectRemovalMatte.Ensure(ref _fused, cells * 3);
         SubjectRemovalMatte.Ensure(ref _state, cells);
+        SubjectRemovalMatte.Ensure(ref _avoid, cells);
         SubjectRemovalMatte.Ensure(ref _guess, cells);
         SubjectRemovalMatte.Ensure(ref _source, cells);
         SubjectRemovalMatte.Ensure(ref _sourceOk, cells);
@@ -106,6 +127,7 @@ public sealed class SubjectRemovalFill
     {
         _random = seed | 1;
         var cells = Width * Height;
+        _fused.AsSpan(0, cells * 3).Clear();
         int holes = 0, left = Width, right = -1, upper = Height, lower = -1;
         for (var cell = 0; cell < cells; cell++)
         {
@@ -171,6 +193,84 @@ public sealed class SubjectRemovalFill
         Polish(forward: true);
         Polish(forward: false);
         Polish(forward: true);
+        Fuse();
+    }
+
+    /// <summary>
+    /// Gradient-domain fusion (Perez, Gangnet and Blake, "Poisson Image Editing", SIGGRAPH 2003): the
+    /// fill is solved again so that its steps from cell to cell are the copied texture's own steps,
+    /// except where two different copies meet, where no step is wanted, and so that it meets the
+    /// known picture at the hole's edge. The copies keep their texture while a shadow or a lighting
+    /// gradient across the hole carries on through it, and the seams where fronts from either side
+    /// met fade out. Gauss-Seidel sweeps start from the copies, which are already close.
+    /// </summary>
+    private void Fuse()
+    {
+        var cells = Width * Height;
+        for (var cell = 0; cell < cells; cell++)
+        {
+            for (var c = 0; c < 3; c++)
+            {
+                _fused[cell * 3 + c] = _source[cell] >= 0 ? _colour[cell * 3 + c] : 0;
+            }
+        }
+
+        Span<int> steps = [-1, 1, -Width, Width];
+        for (var sweep = 0; sweep < FusionSweeps; sweep++)
+        {
+            for (var cell = 0; cell < cells; cell++)
+            {
+                var source = _source[cell];
+                if (source < 0)
+                {
+                    continue;
+                }
+
+                var (x, y) = (cell % Width, cell / Width);
+                float blue = 0, green = 0, red = 0;
+                var count = 0;
+                for (var k = 0; k < 4; k++)
+                {
+                    if ((k == 0 && x == 0) || (k == 1 && x == Width - 1) || (k == 2 && y == 0) || (k == 3 && y == Height - 1))
+                    {
+                        continue;
+                    }
+
+                    var neighbour = cell + steps[k];
+                    var beside = source + steps[k];
+                    // The step the copy itself takes towards this neighbour.
+                    var (sb, sg, sr) = (_colour[source * 3] - _colour[beside * 3], _colour[source * 3 + 1] - _colour[beside * 3 + 1], _colour[source * 3 + 2] - _colour[beside * 3 + 2]);
+                    if (_source[neighbour] >= 0 && _source[neighbour] != beside)
+                    {
+                        // Two different copies meet here: no step across the seam.
+                        (sb, sg, sr) = (0, 0, 0);
+                    }
+
+                    var known = _source[neighbour] < 0;
+                    blue += (known ? _colour[neighbour * 3] : _fused[neighbour * 3]) + sb;
+                    green += (known ? _colour[neighbour * 3 + 1] : _fused[neighbour * 3 + 1]) + sg;
+                    red += (known ? _colour[neighbour * 3 + 2] : _fused[neighbour * 3 + 2]) + sr;
+                    count++;
+                }
+
+                (_fused[cell * 3], _fused[cell * 3 + 1], _fused[cell * 3 + 2]) = (blue / count, green / count, red / count);
+            }
+        }
+
+        for (var cell = 0; cell < cells; cell++)
+        {
+            if (_source[cell] < 0)
+            {
+                continue;
+            }
+
+            for (var c = 0; c < 3; c++)
+            {
+                var at = cell * 3 + c;
+                _fused[at] = Math.Clamp(_fused[at] - _colour[at], -MostCorrection, MostCorrection);
+                _colour[at] = (byte)Math.Clamp(_colour[at] + _fused[at] + 0.5f, 0, 255);
+            }
+        }
     }
 
     /// <summary>Whether a hole cell touches a known or filled cell.</summary>
@@ -339,23 +439,26 @@ public sealed class SubjectRemovalFill
             }
         }
 
-        // Along-image candidates preserve a wall's mortar lines and the direction of
-        // a floor's grain. Probe a few distances on both axes before random search;
-        // random candidates alone can miss the matching side of a narrow occlusion.
+        // Along the rows and columns first, at doubling distances: a wall's mortar lines and a
+        // floor's grain continue that way, and random candidates alone can miss the matching side of
+        // a narrow hole.
         for (var distance = Side; distance <= _window; distance *= 2)
         {
             if (x - distance >= 0)
             {
                 Consider(y * Width + x - distance, 1);
             }
+
             if (x + distance < Width)
             {
                 Consider(y * Width + x + distance, 1);
             }
+
             if (y - distance >= 0)
             {
                 Consider((y - distance) * Width + x, 1);
             }
+
             if (y + distance < Height)
             {
                 Consider((y + distance) * Width + x, 1);
@@ -448,7 +551,7 @@ public sealed class SubjectRemovalFill
 
         var (sx, sy) = (source % Width - x, source / Width - y);
         var distance = (sx * sx + sy * sy) / (float)(_window * _window);
-        return total / weight * (1 + Nearness * distance) + 40 * distance;
+        return total / weight * (1 + Nearness * distance) + 150 * distance;
     }
 
     /// <summary>One sweep matching every filled cell again over its whole patch, keeping a neighbour's continuation when it fits better.</summary>
@@ -563,7 +666,7 @@ public sealed class SubjectRemovalFill
         return top;
     }
 
-    /// <summary>Marks the cells whose whole patch is known and inside the grid; false when there are none.</summary>
+    /// <summary>Marks the cells whose whole patch is known, may be copied and is inside the grid; false when there are none.</summary>
     private bool FindSources()
     {
         var stride = Width + 1;
@@ -575,7 +678,7 @@ public sealed class SubjectRemovalFill
             var run = 0;
             for (var x = 0; x < Width; x++)
             {
-                run += _state[y * Width + x] != Known ? 1 : 0;
+                run += _state[y * Width + x] != Known || _avoid[y * Width + x] ? 1 : 0;
                 _sums[(y + 1) * stride + x + 1] = _sums[y * stride + x + 1] + run;
             }
         }

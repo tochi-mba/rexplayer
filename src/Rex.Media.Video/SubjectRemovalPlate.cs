@@ -37,8 +37,10 @@ public sealed class SubjectRemovalPlate
     // a little more than compression noise and a fraction of a pixel's misalignment leave.
     private const int Agreement = 42;
 
-    // A zoom this far from where the scene was first recorded makes old cells too coarse to use.
-    private const float MaximumZoom = 0.2f;
+    // A zoom this far from where the scene was first recorded makes old cells too coarse to use. Up
+    // to it a cell read back is a little soft, which is far less noticeable than the whole fill
+    // turning into estimates at once.
+    private const float MaximumZoom = 0.4f;
 
     private uint[] _cells = [];
     // Each cell's latest sighting, with how many sightings in a row agreed with it in the top byte.

@@ -42,6 +42,8 @@ public sealed class SubjectRemovalMatte
     private const int Levels = 16;
     private const int BinCount = Levels * Levels * Levels;
     private const float Far = 4000;
+    // A background histogram bin this unlikely holds a colour the ring around the box never shows.
+    private const float Unseen = 2e-4f;
     private const byte Inside = 0;
     private const byte Band = 1;
     private const byte Beyond = 2;
@@ -312,7 +314,15 @@ public sealed class SubjectRemovalMatte
                     && Math.Abs(y0 - middleY) < (box.Bottom - box.Top) / 4f;
                 // Positional prior: the box is a hint, the band beyond it is doubtful, and beyond the
                 // band nothing is the subject.
-                _prior[cell] = outside == 0 ? (_middle[cell] ? 0.3f : 0) : outside <= 1 ? -0.6f - 1.6f * outside : -30;
+                _prior[cell] = outside == 0 ? (_middle[cell] ? 0.3f : 0) : outside <= 1 ? -1 - 2 * outside : -30;
+                // The top middle of a tracking box is nearly always the subject, a head or the roof of
+                // a car, even when its colour is shared with the background beside it; just above
+                // the box there, the doubt is smaller than elsewhere around it.
+                if (outY <= 0.5f && outX == 0 && Math.Abs(x0 - middleX) < (box.Right - box.Left) / 6f
+                    && y0 < box.Top + 0.3f * (box.Bottom - box.Top))
+                {
+                    _prior[cell] = outside == 0 ? 0.9f : -0.4f;
+                }
                 _cue[cell] = 0;
                 if (plate is not null && outside <= 1
                     && plate.Sample(x0, y0, out var seen) == SubjectRemovalPlate.Observed)
@@ -414,12 +424,22 @@ public sealed class SubjectRemovalMatte
         }
     }
 
+    /// <summary>
+    /// Each cell's evidence for being the subject. The colour models are histograms of 4096 bins, a
+    /// model with as many components as the subject has colours, so a black jacket and a face are
+    /// both the subject's. A colour the background around the box never shows is the subject's
+    /// whatever the rest of the subject looks like: a face above a dark coat, a hand, bright shoes.
+    /// </summary>
     private void Score(float bias)
     {
         var cells = _gridWidth * _gridHeight;
         for (var cell = 0; cell < cells; cell++)
         {
-            _unary[cell] = 0.8f * _ratio[_bin[cell]] + _prior[cell] + _cue[cell] + bias;
+            var bin = _bin[cell];
+            var novel = _region[cell] != Beyond && _backgroundHistogram[bin] < Unseen
+                ? (_region[cell] == Inside ? 2f : 1f)
+                : 0;
+            _unary[cell] = 0.8f * _ratio[bin] + novel + _prior[cell] + _cue[cell] + bias;
             _probability[cell] = Sigmoid(_unary[cell]);
         }
     }
@@ -537,11 +557,10 @@ public sealed class SubjectRemovalMatte
             var oldHeight = _memoryBox.Bottom - _memoryBox.Top;
             var newWidth = box.Right - box.Left;
             var newHeight = box.Bottom - box.Top;
-            // A box enlarged for reacquisition is not evidence that the person grew. When it
-            // changes size substantially, keep the matte in picture coordinates relative to
-            // the box centre; only modest changes are a plausible change of subject scale.
-            var loose = Math.Abs(newWidth - oldWidth) > oldWidth * 0.2f
-                || Math.Abs(newHeight - oldHeight) > oldHeight * 0.2f;
+            // A box enlarged for reacquisition is not evidence that the subject grew: when it changes
+            // size a lot, the remembered matte stays in picture coordinates about the box's centre;
+            // only a modest change is taken as the subject's change of scale.
+            var loose = Math.Abs(newWidth - oldWidth) > oldWidth * 0.2f || Math.Abs(newHeight - oldHeight) > oldHeight * 0.2f;
             var scaleX = loose ? 1 : oldWidth / (float)newWidth;
             var scaleY = loose ? 1 : oldHeight / (float)newHeight;
             var offsetX = loose ? (_memoryBox.Left + _memoryBox.Right - box.Left - box.Right) / 2f : 0;

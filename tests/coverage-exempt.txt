@@ -4,3 +4,4 @@ IByteSource.cs Interface only: no executable code.
 IDemuxer.cs Interfaces only: no executable code.
 IVideoPresenter.cs Interface only: no executable code.
 IVisionModels.cs Interfaces only: no executable code.
+RemovalMode.cs Enum only: no executable code.

@@ -570,6 +570,7 @@ public sealed partial class MainWindow : Window
         // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
         HideSeekPreview();
         _subjectTimer?.Stop();
+        _ = CloseSubjectModels();
         StopVisualizing();
         InstallAsWeClose();
         SaveSettings();

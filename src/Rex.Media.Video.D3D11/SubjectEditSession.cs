@@ -82,6 +82,7 @@ public sealed partial class SubjectEditSession : IDisposable
     /// <summary>Toggle the non-destructive reconstruction preview; no file is ever rewritten.</summary>
     public void SetErase(bool enabled)
     {
+        _eraseWanted = Locked && enabled;
         Erase = Locked && Tracking && enabled;
         EstimatedPixels = 0;
     }
@@ -90,6 +91,7 @@ public sealed partial class SubjectEditSession : IDisposable
     public void Reset()
     {
         CancelRecovery();
+        ResetRemoval();
         Locked = Erase = Tracking = false;
         _positive.Clear();
         _negative.Clear();

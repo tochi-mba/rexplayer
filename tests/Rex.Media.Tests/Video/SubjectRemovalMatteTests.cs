@@ -39,7 +39,7 @@ public sealed class SubjectRemovalMatteTests
         // The loose box's corner is wall, a few pixels clear of the outline.
         Assert.True(At(matte, box.Left + 1, box.Top + 1) > 3 * SubjectRemovalMatte.DistanceUnit);
         Assert.Equal(2, matte.Scale);
-        Assert.InRange(matte.Grow, 3, 5);
+        Assert.InRange(matte.Grow, 3, 4.5f);
         Assert.Throws<ArgumentNullException>(() => matte.Compute(null!, box, null, 50, true));
     }
 
@@ -127,6 +127,66 @@ public sealed class SubjectRemovalMatteTests
         Assert.True(matte.Area.Right <= 1280 && matte.Area.Bottom <= 720);
         matte.Compute(picture, (-50, -50, -20, -20), null, 50, remember: false);
         Assert.Equal(0, matte.Area.Left);
+    }
+
+    [Fact]
+    public void AHeadUnlikeTheJacketJoinsTheSubjectBecauseTheWallNeverShowsItsColour()
+    {
+        // The owner's report: a man in a black jacket in front of a grey wall lost only his jacket;
+        // the subject's colours were mostly black, so his face looked like nothing of his. A colour
+        // the background around the box never shows is the subject's, and it joins the body.
+        using var picture = VideoFrame.Rent(PixelFormat.Bgra32, 320, 200);
+        for (var y = 0; y < 200; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < 320; x++)
+            {
+                var grey = (byte)(118 + (x * 7 + y * 13) % 9);
+                var head = (x - 160) * (x - 160) + (y - 52) * (y - 52) <= 13 * 13;
+                var hand = x >= 182 && x < 192 && y >= 120 && y < 132;
+                var jacket = x >= 138 && x < 182 && y >= 64 && y < 170;
+                (byte B, byte G, byte R) colour = head || hand ? ((byte)88, (byte)118, (byte)176)
+                    : jacket ? ((byte)(26 + (y & 3)), (byte)26, (byte)30)
+                    : (grey, grey, grey);
+                (row[x * 4], row[x * 4 + 1], row[x * 4 + 2], row[x * 4 + 3]) = (colour.B, colour.G, colour.R, 255);
+            }
+        }
+
+        var matte = new SubjectRemovalMatte();
+        matte.Compute(picture, (132, 34, 196, 172), null, 50, remember: true);
+        Assert.True(At(matte, 160, 100) < 0, "the jacket");
+        Assert.True(At(matte, 160, 52) < 0, "the head");
+        Assert.True(At(matte, 160, 42) < 0, "the top of the head");
+        Assert.True(At(matte, 187, 126) < 0, "the hand");
+        Assert.True(At(matte, 120, 100) > 0, "the wall beside him");
+    }
+
+    [Fact]
+    public void AModelsOutlineIsTakenAsTheMatteWidenedByCoverageAndLearntFrom()
+    {
+        var scene = Still();
+        var opacity = new float[320 * 180];
+        using var picture = scene.Render(0, opacity: opacity);
+        var shape = opacity.Select(alpha => alpha >= 0.5f ? (byte)255 : (byte)0).ToArray();
+        var box = scene.Box(0, loose: 8);
+        var matte = new SubjectRemovalMatte();
+        matte.Compute(picture, box, null, 50, remember: true, shape);
+        Assert.True(Overlap(matte, opacity, 320, 180) > 0.93, $"{Overlap(matte, opacity, 320, 180)}");
+
+        // The body's right edge on one row: coverage moves the outline up to five pixels either way.
+        const int Row = 104;
+        var edge = Enumerable.Range(160, 40).First(x => shape[Row * 320 + x] == 0);
+        Assert.True(At(matte, edge + 3, Row) > 0);
+        matte.Compute(picture, box, null, 100, remember: false, shape);
+        Assert.True(At(matte, edge + 3, Row) <= 0);
+        matte.Compute(picture, box, null, 0, remember: false, shape);
+        Assert.True(At(matte, edge - 4, Row) > 0);
+        Assert.Throws<ArgumentException>(() => matte.Compute(picture, box, null, 50, false, new byte[10]));
+
+        // The colour models and the remembered matte came from the outline, so the next picture
+        // without one starts from it.
+        matte.Compute(picture, box, null, 50, remember: true);
+        Assert.True(Overlap(matte, opacity, 320, 180) > 0.9, $"{Overlap(matte, opacity, 320, 180)}");
     }
 
     [Fact]

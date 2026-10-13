@@ -308,6 +308,77 @@ public sealed class SubjectEditSessionTests
     }
 
     [Fact]
+    public void ThePreviewPausesWhileTheSubjectIsLostAndResumesWhenItIsFollowedAgain()
+    {
+        // The owner's report: in the last frame both men appeared unedited because the preview was
+        // switched off for good when tracking was lost. It now stays asked for, pauses while the
+        // subject is lost, and resumes once the subject has been followed steadily again.
+        var tracker = new SubjectEditSession();
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var initial = Picture();
+        tracker.Process(initial);
+        tracker.SetErase(true);
+        Assert.True(tracker.Erase);
+        Assert.True(tracker.RemovalWanted);
+
+        for (var i = 0; i < 6; i++)
+        {
+            using var empty = Picture(-50, -50, 1.04 + i * 0.04);
+            Assert.Null(tracker.Process(empty));
+            Assert.False(tracker.Erase);
+            Assert.True(tracker.RemovalWanted);
+        }
+
+        var seconds = 1.3;
+        for (var i = 0; i < 12 && !tracker.Tracking; i++, seconds += 0.04)
+        {
+            using var returned = Picture(70, 28, seconds);
+            tracker.Process(returned);
+        }
+
+        Assert.True(tracker.Tracking, tracker.Status);
+        // Not on the very picture it was found again, which is only approximately placed.
+        Assert.False(tracker.Erase);
+        VideoFrame? preview = null;
+        for (var i = 0; i < 16 && preview is null; i++, seconds += 0.04)
+        {
+            using var steady = Picture(70, 28, seconds);
+            preview = tracker.Process(steady);
+        }
+
+        Assert.NotNull(preview);
+        Assert.True(tracker.Erase);
+        preview.Dispose();
+
+        // Turned off, it stays off; a new selection forgets it.
+        tracker.SetErase(false);
+        Assert.False(tracker.RemovalWanted);
+        tracker.SetErase(true);
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        Assert.False(tracker.RemovalWanted);
+    }
+
+    [Fact]
+    public void BlendIsChosenOnTheSessionAndSaysWhatItShows()
+    {
+        var tracker = new SubjectEditSession();
+        Assert.Equal(RemovalMode.Remove, tracker.Mode);
+        tracker.SetRemovalMode((RemovalMode)9);
+        Assert.Equal(RemovalMode.Remove, tracker.Mode);
+        tracker.SetRemovalMode(RemovalMode.Blend);
+        Assert.Equal(RemovalMode.Blend, tracker.Mode);
+        tracker.Select(30 / 128f, 20 / 80f, 16 / 128f, 16 / 80f);
+        using var picture = Picture();
+        tracker.Process(picture);
+        tracker.SetErase(true);
+        using var preview = tracker.Process(picture, advanceTracking: false);
+        Assert.NotNull(preview);
+        Assert.Equal(0, tracker.ObservedPixels);
+        Assert.StartsWith("Blended", tracker.Status, StringComparison.Ordinal);
+        Assert.Equal(RemovalMode.Blend, tracker.Mode);
+    }
+
+    [Fact]
     public void ReacquisitionCanMatchAChangedSizeWithoutLosingTheOriginalSelection()
     {
         var tracker = new SubjectEditSession();

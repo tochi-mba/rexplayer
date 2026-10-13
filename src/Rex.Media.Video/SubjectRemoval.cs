@@ -3,6 +3,19 @@ using Rex.Media.Primitives;
 
 namespace Rex.Media.Video;
 
+/// <summary>Where a removal preview's estimated pixels, those never seen in the video, come from.</summary>
+public enum RemovalFillSource
+{
+    /// <summary>Synthesised from the texture around the hole by <see cref="SubjectRemovalFill"/>.</summary>
+    Synthesised,
+
+    /// <summary>Synthesised for now, while an inpainting model works on a fill of this paused picture.</summary>
+    ModelWorking,
+
+    /// <summary>Filled by an inpainting model.</summary>
+    Model,
+}
+
 /// <summary>
 /// Removes a tracked subject from the picture, as a preview: the subject's outline is found inside and
 /// around its box (<see cref="SubjectRemovalMatte"/>), what the camera saw behind it in earlier
@@ -44,6 +57,13 @@ public sealed class SubjectRemoval
     private bool _hasPreviousSource;
     private (int Left, int Top, int Right, int Bottom)? _previousBox;
     private CameraMotion _cameraMotion = CameraMotion.Still;
+    // Where the selection moved since the previous picture; a blend moves with it.
+    private (float X, float Y) _boxShift;
+    // Never copied from: the box and a band around the subject's outline, which may hold parts of
+    // the subject the outline missed (a shoe, a hand) or its blurred edge.
+    private (int Left, int Top, int Right, int Bottom) _protected;
+    private int _guard;
+    private RemovalMode _mode;
     private byte[]? _shape;
     private (int Width, int Height, MediaTime Pts) _shapePicture;
     private MediaTime _lastPts = MediaTime.Unknown;
@@ -155,10 +175,12 @@ public sealed class SubjectRemoval
     /// <paramref name="coverage"/> (0 to 100) how much of the box counts as the subject. With
     /// <paramref name="estimate"/> (the picture's size, such as an inpainting model's fill of
     /// <see cref="EstimatedHole"/>), pixels never seen take its colours instead of being
-    /// synthesised. Returns whether any pixel was replaced. The picture itself is never changed.
+    /// synthesised. In <see cref="RemovalMode.Blend"/> nothing seen behind the subject is used:
+    /// every replaced pixel is copied from the surface just around it. Returns whether any pixel was
+    /// replaced. The picture itself is never changed.
     /// </summary>
     public bool Apply(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box, bool advance,
-        int feather, int coverage, VideoFrame? output, VideoFrame? estimate = null)
+        int feather, int coverage, VideoFrame? output, VideoFrame? estimate = null, RemovalMode mode = RemovalMode.Remove)
     {
         ArgumentNullException.ThrowIfNull(frame);
         if ((output is not null && (output.Width != frame.Width || output.Height != frame.Height))
@@ -170,6 +192,7 @@ public sealed class SubjectRemoval
         feather = Math.Clamp(feather, 0, SubjectRemovalMatte.MaximumFeather);
         ObservedPixels = EstimatedPixels = 0;
         UsedEstimate = false;
+        _mode = mode;
         if (_plate.Width != frame.Width || _plate.Height != frame.Height)
         {
             _plate.Prepare(frame.Width, frame.Height);
@@ -204,6 +227,9 @@ public sealed class SubjectRemoval
             return false;
         }
 
+        _guard = (int)(_matte.Grow + Math.Max(feather, 3) + 4);
+        _protected = Expand(box, 0, 0, _guard, frame);
+
         var hole = Classify(frame, feather);
         if (estimate is not null)
         {
@@ -232,6 +258,7 @@ public sealed class SubjectRemoval
         _pictures++;
         var exclude = Expand(Union(box, _previousBox ?? box), 0.1f, 0.05f, 4, frame);
         var before = _previousBox ?? box;
+        _boxShift = ((box.Left + box.Right - before.Left - before.Right) / 2f, (box.Top + box.Bottom - before.Top - before.Bottom) / 2f);
         _boxSpeed = Math.Max(Math.Max(Math.Abs(box.Left - before.Left), Math.Abs(box.Right - before.Right)),
             Math.Max(Math.Abs(box.Top - before.Top), Math.Abs(box.Bottom - before.Bottom)));
         _previousBox = box;
@@ -258,9 +285,9 @@ public sealed class SubjectRemoval
     private (int Left, int Top, int Right, int Bottom) Interest(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box)
     {
         var pan = Math.Max(Math.Abs(_cameraMotion.ShiftX), Math.Abs(_cameraMotion.ShiftY));
-        // Record far enough ahead of the moving silhouette for three confirmed sightings before
-        // it passes over a pixel, including the guard around the feathered outline.
-        return Expand(box, 0.15f, 0.08f, 44 + 2 * (int)Math.Max(pan, _boxSpeed), frame);
+        // Record far enough ahead of the moving silhouette for its confirmed sightings before it
+        // passes over a pixel, including the guard around the feathered outline.
+        return Expand(box, 0.18f, 0.14f, 44 + 2 * (int)Math.Max(pan, _boxSpeed), frame);
     }
 
     private void Record(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box, bool hasMatte, int feather)
@@ -336,6 +363,7 @@ public sealed class SubjectRemoval
 
         var (left, top, right, bottom) = (frame.Width, frame.Height, 0, 0);
         _unseen = 0;
+        uint seen = 0;
         for (var y = area.Top; y < area.Bottom; y++)
         {
             for (var x = area.Left; x < area.Right; x++)
@@ -349,7 +377,8 @@ public sealed class SubjectRemoval
                     continue;
                 }
 
-                var state = _plate.Sample(x, y, out var seen);
+                // A blend copies only the surface around the selection, never the scene seen behind it.
+                var state = _mode == RemovalMode.Blend ? SubjectRemovalPlate.Unknown : _plate.Sample(x, y, out seen);
                 _colour[at] = seen;
                 if (state == SubjectRemovalPlate.Observed)
                 {
@@ -426,6 +455,23 @@ public sealed class SubjectRemoval
         }
     }
 
+    /// <summary>
+    /// Whether the picture's pixel (x, y) may hold the subject: inside its box, or within the guard
+    /// band beyond its outline. Fill is never copied from there, so a shoe or a hand the outline
+    /// missed cannot reappear inside the hole.
+    /// </summary>
+    private bool Guarded(int x, int y)
+    {
+        if (x >= _protected.Left && x < _protected.Right && y >= _protected.Top && y < _protected.Bottom)
+        {
+            return true;
+        }
+
+        var area = _matte.Area;
+        return x >= area.Left && y >= area.Top && x < area.Right && y < area.Bottom
+            && _matte.Distance[(y - area.Top) * (area.Right - area.Left) + x - area.Left] <= _guard * SubjectRemovalMatte.DistanceUnit;
+    }
+
     private static uint Pixel(ReadOnlySpan<byte> plane, int stride, int x, int y)
     {
         var at = y * stride + x * 4;
@@ -446,12 +492,13 @@ public sealed class SubjectRemoval
         var height = (grid.Bottom - grid.Top + scale - 1) / scale;
         _fill.Prepare(width, height);
         ReadGrid(frame, grid, scale, width, height);
-        // A paused redraw must not reuse a candidate recorded from the same frame.
-        // Each redraw starts with the same seed and known pixels as the first render.
         if (advance)
         {
+            // A paused redraw starts from the same seed and known pixels as the first render, and
+            // never from a match recorded from the very same picture, so it draws the same fill.
             GuessFromPrevious(grid, scale, width, height, advance);
         }
+
         _fill.Solve(_pictures * 2654435761u);
         if (advance)
         {
@@ -478,10 +525,12 @@ public sealed class SubjectRemoval
             {
                 long blue = 0, green = 0, red = 0;
                 int known = 0, missing = 0;
+                var guarded = false;
                 for (var y = grid.Top + j * scale; y < Math.Min(grid.Bottom, grid.Top + (j + 1) * scale); y += step)
                 {
                     for (var x = grid.Left + i * scale; x < Math.Min(grid.Right, grid.Left + (i + 1) * scale); x += step)
                     {
+                        guarded |= Guarded(x, y);
                         if (Background(plane, stride, x, y, out var value))
                         {
                             (blue, green, red) = (blue + (value & 0xFF), green + ((value >> 8) & 0xFF), red + ((value >> 16) & 0xFF));
@@ -496,6 +545,7 @@ public sealed class SubjectRemoval
 
                 var cell = j * width + i;
                 _fill.Guess[cell] = -1;
+                _fill.Avoid[cell] = guarded;
                 state[cell] = missing == 0 ? SubjectRemovalFill.Known : SubjectRemovalFill.Missing;
                 if (missing == 0)
                 {
@@ -517,7 +567,10 @@ public sealed class SubjectRemoval
             return;
         }
 
-        var motion = advance ? _cameraMotion : CameraMotion.Still;
+        // A blend is part of the selection's surface, so it moves with the selection, not the camera.
+        var motion = !advance ? CameraMotion.Still
+            : _mode == RemovalMode.Blend ? new CameraMotion(1, -_boxShift.X, -_boxShift.Y)
+            : _cameraMotion;
         var previous = _previousGrid;
         var state = _fill.State;
         for (var cell = 0; cell < width * height; cell++)
@@ -566,6 +619,7 @@ public sealed class SubjectRemoval
         var areaWidth = area.Right - area.Left;
         var colour = _fill.Colour;
         var source = _fill.Source;
+        var correction = _fill.Correction;
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
         var cells = width * height;
@@ -621,10 +675,34 @@ public sealed class SubjectRemoval
                         Copy(frame, plane, stride, x, y, _jumps[c11], Cell(colour, c11)), wx, wy);
                 }
 
+                filled = Correct(filled, correction, c00, c10, c01, c11, wx, wy);
                 _colour[at] = filled;
-                _plate.Estimate(x, y, filled);
+                if (_mode == RemovalMode.Remove)
+                {
+                    // Kept where the scene is, so the fill holds still as the subject moves on.
+                    _plate.Estimate(x, y, filled);
+                }
             }
         }
+    }
+
+    /// <summary>
+    /// A copied pixel moved by the fill's fusion, the four nearest cells' corrections blended as the
+    /// copies were, so the texture keeps its detail while its tone meets the picture around the hole.
+    /// </summary>
+    private static uint Correct(uint pixel, ReadOnlySpan<float> correction, int c00, int c10, int c01, int c11, int wx, int wy)
+    {
+        var (fx, fy) = (wx / 256f, wy / 256f);
+        var result = 0u;
+        for (var c = 0; c < 3; c++)
+        {
+            var top = correction[c00 * 3 + c] + (correction[c10 * 3 + c] - correction[c00 * 3 + c]) * fx;
+            var bottom = correction[c01 * 3 + c] + (correction[c11 * 3 + c] - correction[c01 * 3 + c]) * fx;
+            var value = (int)((pixel >> (8 * c)) & 0xFF) + (int)MathF.Round(top + (bottom - top) * fy);
+            result |= (uint)Math.Clamp(value, 0, 255) << (8 * c);
+        }
+
+        return result;
     }
 
     private const int NoJump = int.MinValue;
@@ -641,7 +719,7 @@ public sealed class SubjectRemoval
 
         var tx = x + (short)(jump & 0xFFFF);
         var ty = y + (jump >> 16);
-        return tx >= 0 && ty >= 0 && tx < frame.Width && ty < frame.Height && Background(plane, stride, tx, ty, out var value)
+        return tx >= 0 && ty >= 0 && tx < frame.Width && ty < frame.Height && !Guarded(tx, ty) && Background(plane, stride, tx, ty, out var value)
             ? value
             : fallback;
     }

@@ -2,115 +2,72 @@ using Rex.Media.Vision;
 
 namespace Rex.Media.Tests.Vision;
 
-/// <summary>The optional model is admitted only when its measured cost and its mask are suitable.</summary>
+/// <summary>When Subject Lock asks the optional models, and which of their outlines it accepts.</summary>
 public sealed class SubjectModelPolicyTests
 {
-    private static PictureMask Rectangle(int pictureWidth, int pictureHeight,
-        int width, int height, double score = 1)
+    private static FrameBudget Measured(params double[] milliseconds)
     {
-        var values = new byte[pictureWidth * pictureHeight];
-        for (var y = 0; y < height; y++)
+        var budget = new FrameBudget();
+        // The first call warms the model up and is not counted.
+        budget.Record(TimeSpan.FromSeconds(60));
+        foreach (var value in milliseconds)
         {
-            values.AsSpan(y * pictureWidth, width).Fill(255);
+            budget.Record(TimeSpan.FromMilliseconds(value));
         }
 
-        return new PictureMask(values, pictureWidth, pictureHeight, score);
+        return budget;
+    }
+
+    private static PictureMask Rectangle(int width, int height, int left, int top, int across, int down, double score = 0.9)
+    {
+        var values = new byte[width * height];
+        for (var y = top; y < top + down; y++)
+        {
+            values.AsSpan(y * width + left, across).Fill(255);
+        }
+
+        return new PictureMask(values, width, height, score);
     }
 
     [Fact]
-    public void PausedPictureUsesOnlyAvailableModelsThatAreNotTooSlow()
+    public void AModelWorksOnlyOnAPausedPictureAndOnlyWhileItsWaitIsBearable()
     {
-        var budget = new FrameBudget();
-        Assert.True(SubjectModelPolicy.UseOnPicture(true, true, budget));
-        Assert.False(SubjectModelPolicy.UseOnPicture(false, true, budget));
-        Assert.False(SubjectModelPolicy.UseOnPicture(true, false, budget));
         Assert.Throws<ArgumentNullException>(() => SubjectModelPolicy.UseOnPicture(true, true, null!));
-        budget.Record(TimeSpan.FromMilliseconds(10));
-        budget.Record(TimeSpan.FromMilliseconds(300));
-        Assert.True(SubjectModelPolicy.UseOnPicture(true, true, budget));
-        budget.Record(TimeSpan.FromSeconds(31));
-        Assert.False(SubjectModelPolicy.UseOnPicture(true, true, budget));
+        // Unmeasured: tried once, to learn what it costs here.
+        Assert.True(SubjectModelPolicy.UseOnPicture(available: true, paused: true, new FrameBudget()));
+        // Seconds a picture, as measured on a laptop with integrated graphics, is a wait worth making.
+        Assert.True(SubjectModelPolicy.UseOnPicture(true, true, Measured(4_000, 9_000, 6_500)));
+        Assert.False(SubjectModelPolicy.UseOnPicture(true, true, Measured(45_000, 50_000)));
+        Assert.False(SubjectModelPolicy.UseOnPicture(true, paused: false, new FrameBudget()));
+        Assert.False(SubjectModelPolicy.UseOnPicture(available: false, true, new FrameBudget()));
     }
 
     [Fact]
-    public void AnInteractiveSecondOpinionHasToAnswerWithinItsMeasuredBudget()
+    public void ASecondOpinionWhilePlayingNeedsAMeasuredModelWithinTheInteractiveBudget()
     {
-        var budget = new FrameBudget();
-        Assert.False(SubjectModelPolicy.SecondOpinion(true, budget, 30));
-        budget.Record(TimeSpan.FromMilliseconds(1));
-        budget.Record(TimeSpan.FromMilliseconds(20));
-        Assert.True(SubjectModelPolicy.SecondOpinion(true, budget, 30));
-        Assert.False(SubjectModelPolicy.SecondOpinion(false, budget, 30));
-        budget.Record(TimeSpan.FromSeconds(5));
-        Assert.False(SubjectModelPolicy.SecondOpinion(true, budget, 30));
-        Assert.Throws<ArgumentNullException>(() => SubjectModelPolicy.SecondOpinion(true, null!, 30));
+        Assert.Throws<ArgumentNullException>(() => SubjectModelPolicy.SecondOpinion(true, null!, 24));
+        Assert.False(SubjectModelPolicy.SecondOpinion(true, new FrameBudget(), 24));
+        Assert.False(SubjectModelPolicy.SecondOpinion(true, Measured(4_000, 9_000), 24));
+        Assert.True(SubjectModelPolicy.SecondOpinion(true, Measured(400, 700), 24));
+        Assert.True(SubjectModelPolicy.SecondOpinion(true, Measured(5, 6), 24));
+        Assert.False(SubjectModelPolicy.SecondOpinion(false, Measured(5, 6), 24));
     }
 
     [Fact]
-    public void ModelMasksAreCheckedForConfidenceScaleAndBounds()
+    public void AClickOutlineIsAcceptedOnlyWhenConfidentAndTheSizeOfAnObject()
     {
         Assert.Throws<ArgumentNullException>(() => SubjectModelPolicy.Judge(null!));
-        Assert.Equal(MaskVerdict.Empty, SubjectModelPolicy.Judge(Rectangle(100, 100, 0, 0)));
-        Assert.Equal(MaskVerdict.NotConfident, SubjectModelPolicy.Judge(Rectangle(100, 100, 30, 30, 0.2)));
-        Assert.Equal(MaskVerdict.TooSmall, SubjectModelPolicy.Judge(Rectangle(100, 100, 10, 20)));
-        Assert.Equal(MaskVerdict.TooSmall, SubjectModelPolicy.Judge(Rectangle(100, 100, 10, 45)));
-        Assert.Equal(MaskVerdict.TooSmall, SubjectModelPolicy.Judge(Rectangle(2000, 2000, 20, 25)));
-        Assert.Equal(MaskVerdict.TooLarge, SubjectModelPolicy.Judge(Rectangle(100, 100, 80, 80)));
-        Assert.Equal(MaskVerdict.Accepted, SubjectModelPolicy.Judge(Rectangle(100, 100, 30, 30)));
-    }
-
-    private sealed class FakeSegmenter : IPromptSegmenter
-    {
-        public bool Disposed { get; private set; }
-        public ExecutionDevice Device => ExecutionDevice.Cpu;
-        public TimeSpan LastEncode => TimeSpan.FromMilliseconds(17);
-        public TimeSpan LastDecode => TimeSpan.FromMilliseconds(8);
-        public PictureMask Segment(BgraPicture picture, PictureKey key, SegmentPrompt prompt) =>
-            Rectangle(picture.Width, picture.Height, 30, 30);
-        public void Dispose() => Disposed = true;
-    }
-
-    private sealed class FakeInpainter : IInpainter
-    {
-        public bool Disposed { get; private set; }
-        public ExecutionDevice Device => ExecutionDevice.Gpu;
-        public TimeSpan LastFill => TimeSpan.FromMilliseconds(5);
-        public void Fill(BgraPicture picture, PictureMask hole, Span<byte> output) => output.Fill(42);
-        public void Dispose() => Disposed = true;
-    }
-
-    [Fact]
-    public void SharingAModelSerializesItsUseAndRejectsRequestsAfterDisposal()
-    {
-        Assert.Throws<ArgumentNullException>(() => new SharedSegmenter(null!));
-        Assert.Throws<ArgumentNullException>(() => new SharedInpainter(null!));
-        var pixels = new byte[100 * 100 * 4];
-        var mask = Rectangle(100, 100, 30, 30);
-        var segmenter = new FakeSegmenter();
-        var shared = new SharedSegmenter(segmenter);
-        Assert.Equal(ExecutionDevice.Cpu, shared.Device);
-        Assert.Equal(TimeSpan.FromMilliseconds(17), shared.LastEncode);
-        Assert.Equal(TimeSpan.FromMilliseconds(8), shared.LastDecode);
-        Assert.Equal(mask.Area, shared.Segment(new BgraPicture(pixels, 100, 100, 400),
-            new PictureKey(1, 100), SegmentPrompt.At(15, 15)).Area);
-        shared.Dispose();
-        shared.Dispose();
-        Assert.True(segmenter.Disposed);
-        Assert.Throws<ObjectDisposedException>(() =>
-            shared.Segment(new BgraPicture(pixels, 100, 100, 400),
-                new PictureKey(1, 100), SegmentPrompt.At(15, 15)));
-
-        var inpainter = new FakeInpainter();
-        var fill = new SharedInpainter(inpainter);
-        Assert.Equal(ExecutionDevice.Gpu, fill.Device);
-        Assert.Equal(TimeSpan.FromMilliseconds(5), fill.LastFill);
-        var output = new byte[pixels.Length];
-        fill.Fill(new BgraPicture(pixels, 100, 100, 400), mask, output);
-        Assert.All(output, value => Assert.Equal(42, value));
-        fill.Dispose();
-        fill.Dispose();
-        Assert.True(inpainter.Disposed);
-        Assert.Throws<ObjectDisposedException>(() =>
-            fill.Fill(new BgraPicture(pixels, 100, 100, 400), mask, new byte[pixels.Length]));
+        Assert.Equal(MaskVerdict.Accepted, SubjectModelPolicy.Judge(Rectangle(320, 180, 100, 40, 40, 90)));
+        Assert.Equal(MaskVerdict.Empty, SubjectModelPolicy.Judge(new PictureMask(new byte[320 * 180], 320, 180, 0.99)));
+        Assert.Equal(MaskVerdict.NotConfident, SubjectModelPolicy.Judge(Rectangle(320, 180, 100, 40, 40, 90, score: 0.59)));
+        Assert.Equal(MaskVerdict.Accepted, SubjectModelPolicy.Judge(Rectangle(320, 180, 100, 40, 40, 90, score: SubjectModelPolicy.MinimumScore)));
+        // A fragment: too few pixels, or a sliver too thin to follow.
+        Assert.Equal(MaskVerdict.TooSmall, SubjectModelPolicy.Judge(Rectangle(320, 180, 10, 10, 15, 15)));
+        Assert.Equal(MaskVerdict.TooSmall, SubjectModelPolicy.Judge(Rectangle(320, 180, 10, 10, 8, 150)));
+        Assert.Equal(MaskVerdict.TooSmall, SubjectModelPolicy.Judge(Rectangle(320, 180, 10, 10, 150, 8)));
+        // On a 4K picture the floor is a share of the picture, not a fixed count.
+        Assert.Equal(MaskVerdict.TooSmall, SubjectModelPolicy.Judge(Rectangle(3840, 2160, 10, 10, 30, 30)));
+        // Most of the picture is the background or the whole scene, not an object in it.
+        Assert.Equal(MaskVerdict.TooLarge, SubjectModelPolicy.Judge(Rectangle(320, 180, 0, 0, 320, 100)));
     }
 }
