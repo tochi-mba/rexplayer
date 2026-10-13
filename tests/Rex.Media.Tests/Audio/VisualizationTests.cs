@@ -180,11 +180,26 @@ public sealed class VisualizationTests
         Assert.Equal(VisualizerChoice.Silhouette, Visualizers.Next(VisualizerChoice.Strobe));
         Assert.Equal(VisualizerChoice.BeatEdit, Visualizers.Next(VisualizerChoice.Silhouette));
         Assert.Equal(VisualizerChoice.Resonance, Visualizers.Next(VisualizerChoice.BeatEdit));
-        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Resonance));
+        Assert.Equal(VisualizerChoice.Groove, Visualizers.Next(VisualizerChoice.Resonance));
+        Assert.Equal(VisualizerChoice.Flight, Visualizers.Next(VisualizerChoice.Groove));
+        Assert.Equal(VisualizerChoice.Cymatics, Visualizers.Next(VisualizerChoice.Flight));
+        Assert.Equal(VisualizerChoice.Ridgelines, Visualizers.Next(VisualizerChoice.Cymatics));
+        Assert.Equal(VisualizerChoice.Synthwave, Visualizers.Next(VisualizerChoice.Ridgelines));
+        Assert.Equal(VisualizerChoice.Fireworks, Visualizers.Next(VisualizerChoice.Synthwave));
+        Assert.Equal(VisualizerChoice.Lightning, Visualizers.Next(VisualizerChoice.Fireworks));
+        Assert.Equal(VisualizerChoice.Lava, Visualizers.Next(VisualizerChoice.Lightning));
+        Assert.Equal(VisualizerChoice.Constellation, Visualizers.Next(VisualizerChoice.Lava));
+        Assert.Equal(VisualizerChoice.Galaxy, Visualizers.Next(VisualizerChoice.Constellation));
+        Assert.Equal(VisualizerChoice.Kaleidoscope, Visualizers.Next(VisualizerChoice.Galaxy));
+        Assert.Equal(VisualizerChoice.Murmuration, Visualizers.Next(VisualizerChoice.Kaleidoscope));
+        Assert.Equal(VisualizerChoice.Ink, Visualizers.Next(VisualizerChoice.Murmuration));
+        Assert.Equal(VisualizerChoice.Skyline, Visualizers.Next(VisualizerChoice.Ink));
+        Assert.Equal(VisualizerChoice.Mandala, Visualizers.Next(VisualizerChoice.Skyline));
+        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Mandala));
         Assert.Equal(VisualizerChoice.Spectrum, Visualizers.Next(VisualizerChoice.Off));
         Assert.Equal(VisualizerChoice.Off, Visualizers.Next((VisualizerChoice)42));
         Assert.Equal(
-            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance"],
+            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight", "Cymatics", "Ridgelines", "Synthwave", "Fireworks", "Lightning", "Lava lamp", "Constellation", "Galaxy", "Kaleidoscope", "Murmuration", "Ink", "Skyline", "Mandala"],
             Enum.GetValues<VisualizerChoice>().Select(Visualizers.Name));
         Assert.Equal(VisualizerChoice.Spectrum, new PlayerSettings { Visualizer = (VisualizerChoice)99 }.Normalize().Visualizer);
 

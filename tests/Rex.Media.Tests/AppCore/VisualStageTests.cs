@@ -24,7 +24,22 @@ public sealed class VisualStageTests
         VisualizerChoice.Strobe,
         VisualizerChoice.Silhouette,
         VisualizerChoice.BeatEdit,
-        VisualizerChoice.Resonance);
+        VisualizerChoice.Resonance,
+        VisualizerChoice.Groove,
+        VisualizerChoice.Flight,
+        VisualizerChoice.Cymatics,
+        VisualizerChoice.Ridgelines,
+        VisualizerChoice.Synthwave,
+        VisualizerChoice.Fireworks,
+        VisualizerChoice.Lightning,
+        VisualizerChoice.Lava,
+        VisualizerChoice.Constellation,
+        VisualizerChoice.Galaxy,
+        VisualizerChoice.Kaleidoscope,
+        VisualizerChoice.Murmuration,
+        VisualizerChoice.Ink,
+        VisualizerChoice.Skyline,
+        VisualizerChoice.Mandala);
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 
@@ -216,6 +231,17 @@ public sealed class VisualStageTests
 
         Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 5, silence: true));
         Assert.Equal(0, scene.Waves);
+    }
+
+    [Fact]
+    public void TheRidgelinesKeepOnlyAsManyRidgesAsAsked()
+    {
+        // Twelve ridges, laid three a second: after six seconds the oldest have gone.
+        var stage = Stage();
+        Play(stage, VisualizerChoice.Ridgelines, new SyntheticMusic(120, 6), VisualizerOptions.With(Defaults, VisualizerChoice.Ridgelines, "lines", 12));
+        var scene = SceneOf(stage);
+        var ridges = (System.Collections.ICollection)scene.GetType().GetField("_ridges", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(scene)!;
+        Assert.Equal(12, ridges.Count);
     }
 
     [Fact]
