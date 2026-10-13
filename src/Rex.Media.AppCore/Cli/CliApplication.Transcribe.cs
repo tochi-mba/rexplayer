@@ -151,6 +151,6 @@ public static partial class CliApplication
 
     private sealed class LineProgress(TextWriter error) : IProgress<double>
     {
-        public void Report(double share) => error.Write(string.Create(CultureInfo.InvariantCulture, $"\r{share:P0}   ");
+        public void Report(double share) => error.Write(string.Create(CultureInfo.InvariantCulture, $"\r{share:P0}   "));
     }
 }
