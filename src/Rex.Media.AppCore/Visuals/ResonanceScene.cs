@@ -36,7 +36,7 @@ public sealed class ResonanceScene : VisualScene
         _phase += dt * flow * (0.1 + (1.2 * pulse.Loudness) + (2.5 * pulse.Punch));
         var impulse = pulse.Drop ? 1f : Math.Max(pulse.Kick.Hit ? pulse.Kick.Strength * 0.6f : 0f, pulse.Punch * 0.6f);
         _surge = Math.Max(impulse, Math.Max(0, _surge - (float)(dt * 2.5)));
-        canvas.Feedback((float)(0.10 + (trails * 0.72)), 1.002, 0, 0, 0);
+        context.Trail(0.10 + (trails * 0.72), 1.002, 0, 0, 0);
 
         // A dim, spatially broad bed keeps the artwork legible in quiet sections without burning
         // out the highlights on loud material. The centre follows the dominant frequency.
