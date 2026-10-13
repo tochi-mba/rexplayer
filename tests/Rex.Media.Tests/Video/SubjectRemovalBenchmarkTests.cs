@@ -19,7 +19,7 @@ public sealed class SubjectRemovalBenchmarkTests
     private const int Width = 320;
     private const int Height = 180;
 
-    private sealed record Score(double Psnr, double Overlap, double Ghost, double Texture);
+    private sealed record Score(double Psnr, double Overlap, double Ghost, double Texture, double ObservedShare);
 
     private static (Score Old, Score New) Run(RemovalScene scene, int frames, int from = 8)
     {
@@ -28,6 +28,7 @@ public sealed class SubjectRemovalBenchmarkTests
         var opacity = new float[scene.Width * scene.Height];
         double oldError = 0, newError = 0, oldGhost = 0, newGhost = 0, energy = 0, oldTexture = 0, newTexture = 0, wallTexture = 0;
         int oldCount = 0, newCount = 0;
+        long seenPixels = 0, estimatedPixels = 0;
         long oldBoth = 0, oldEither = 0, newBoth = 0, newEither = 0;
         using var preview = VideoFrame.Rent(PixelFormat.Bgra32, scene.Width, scene.Height);
         for (var i = 0; i < frames; i++)
@@ -42,6 +43,8 @@ public sealed class SubjectRemovalBenchmarkTests
                 continue;
             }
 
+            seenPixels += removal.ObservedPixels;
+            estimatedPixels += removal.EstimatedPixels;
             var (e1, n1) = RemovalScore.FillError(old, wall, opacity);
             var (e2, n2) = RemovalScore.FillError(preview, wall, opacity);
             (oldError, oldCount, newError, newCount) = (oldError + e1, oldCount + n1, newError + e2, newCount + n2);
@@ -57,8 +60,9 @@ public sealed class SubjectRemovalBenchmarkTests
             (oldBoth, oldEither, newBoth, newEither) = (oldBoth + b1, oldEither + u1, newBoth + b2, newEither + u2);
         }
 
-        return (new Score(RemovalScore.Psnr(oldError, oldCount), oldBoth / (double)oldEither, Math.Max(0, oldGhost) / energy, oldTexture / wallTexture),
-            new Score(RemovalScore.Psnr(newError, newCount), newBoth / (double)newEither, Math.Max(0, newGhost) / energy, newTexture / wallTexture));
+        return (new Score(RemovalScore.Psnr(oldError, oldCount), oldBoth / (double)oldEither, Math.Max(0, oldGhost) / energy, oldTexture / wallTexture, -1),
+            new Score(RemovalScore.Psnr(newError, newCount), newBoth / (double)newEither, Math.Max(0, newGhost) / energy, newTexture / wallTexture,
+                seenPixels / (double)Math.Max(1, seenPixels + estimatedPixels)));
     }
 
     [Fact]
