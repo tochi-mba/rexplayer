@@ -78,13 +78,19 @@ public sealed class CaptionDirector
             Follow(cue, now);
         }
 
+        // Between cues the words stay, unless the next is a while coming.
+        if (_cue is null && _lastCue is { } last && now - last.End.TotalSeconds > CueGap)
+        {
+            _choreography.Clear(now);
+        }
+
         if (_cue is { } spoken)
         {
             var before = _aligner.Revealed;
             var after = _aligner.Advance(now - spoken.Start.TotalSeconds, heard);
             for (var i = before; i < after; i++)
             {
-                var stress = _aligner.Timed && mono.Length == 0 ? Stress.Plain : _pulse.StressOf(heard.Loudness);
+                var stress = _aligner.Timed && mono.Length == 0 ? Stress.Plain : _pulse.StressOf(heard);
                 _choreography.Reveal(_aligner.Words[i], heard, stress, now);
             }
 
@@ -132,9 +138,10 @@ public sealed class CaptionDirector
     private void Follow(SubtitleCue? cue, double now)
     {
         // The cluster ends with the sentence, or when the next words are a while coming.
-        var ends = cue is null
-            || _cue is null && (_lastCue is null || cue.Start.TotalSeconds - _lastCue.End.TotalSeconds > CueGap)
-            || _cue is { } previous && (EndsSentence(previous) || cue.Start.TotalSeconds - previous.End.TotalSeconds > CueGap);
+        var previous = _cue ?? _lastCue;
+        var ends = previous is null
+            || EndsSentence(previous)
+            || (cue is not null && cue.Start.TotalSeconds - previous.End.TotalSeconds > CueGap);
         if (ends)
         {
             _choreography.Clear(now);

@@ -55,6 +55,7 @@ public sealed class CaptionChoreographyTests
         Assert.Equal(4.2 * 0.6, first.Size, 3);
         var overshoot = Assert.Single(choreography.Scene(1 + (CaptionChoreography.PopSeconds / 2), Area, Font));
         Assert.Equal(4.2 * 1.35, overshoot.Size, 3);
+        Assert.Equal(4.2, overshoot.Settled, 3);
         Assert.Equal(4.2, Assert.Single(choreography.Scene(2, Area, Font)).Size, 3);
     }
 

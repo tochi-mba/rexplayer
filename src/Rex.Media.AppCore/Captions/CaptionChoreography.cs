@@ -26,7 +26,8 @@ public sealed record CaptionStyle(Argb Text, Argb Accent, VisualPalette Palette,
 /// <summary>
 /// One word on the picture this frame: its centre (from the caption area's corner), its size as a
 /// multiple of the base font size, how it is drawn, how far through its arrival or departure it
-/// is, and what keeps it readable. <see cref="Flash"/> is the white burst behind a peak, 1 at the
+/// is, and what keeps it readable. <see cref="Settled"/> is its size once it has popped in, so
+/// the window lays the text out once and scales it for the pop. <see cref="Flash"/> is the white burst behind a peak, 1 at the
 /// peak fading to 0; <see cref="Shake"/> is how far off its place it is shaken, in base font sizes.
 /// </summary>
 public sealed record CaptionWord(
@@ -46,7 +47,8 @@ public sealed record CaptionWord(
     double Flash,
     string? Glyph,
     Stress Stress,
-    Backing Backing);
+    Backing Backing,
+    double Settled);
 
 /// <summary>
 /// Turns the words as they come in, with how each was said, into where and how they show
@@ -298,7 +300,8 @@ public sealed class CaptionChoreography
             flash,
             word.Glyph,
             word.Stress,
-            backing);
+            backing,
+            slot.Size);
     }
 
     /// <summary>The words in rows no wider than <paramref name="rowWidth"/>, a shout alone on its row, every word shrunk to fit the row if it must.</summary>

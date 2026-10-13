@@ -14,9 +14,10 @@ public enum Stress
 /// <summary>
 /// What the voice is doing in one frame (OSD-11): how loud against the speaker's own recent quiet
 /// and loud, how high against their own usual pitch (0.5 is usual), whether a syllable began,
-/// how many have begun a second lately, whether it is silent, and for how long.
+/// how many have begun a second lately, whether it is silent, for how long, and the level itself
+/// in decibels below full scale, which <see cref="SpeechPulse.StressOf"/> ranks words by.
 /// </summary>
-public readonly record struct SpeechFrame(float Loudness, float Pitch, bool Onset, float Pace, bool Silent, double SilentFor);
+public readonly record struct SpeechFrame(float Loudness, float Pitch, bool Onset, float Pace, bool Silent, double SilentFor, double Decibels = double.NegativeInfinity);
 
 /// <summary>
 /// Reads the voice from the sound as it is heard, a frame at a time (OSD-11), for captions that
@@ -31,9 +32,10 @@ public readonly record struct SpeechFrame(float Loudness, float Pitch, bool Onse
 /// question reads as a lift whoever is speaking.
 /// </para>
 /// <para>
-/// Every onset's loudness is remembered, so <see cref="StressOf"/> can say whether a word was
-/// quieter than most of the speaker's last words (a hush), louder than three in four (a shout) or
-/// louder than nearly all (a peak).
+/// Every onset's level is remembered in decibels, not against the recent range (which tops out at
+/// 1 for every loud word), so <see cref="StressOf"/> can say whether a word was quieter than most
+/// of the speaker's last words (a hush), louder than three in four (a shout) or louder than nearly
+/// all (a peak).
 /// </para>
 /// </summary>
 public sealed class SpeechPulse
@@ -56,8 +58,8 @@ public sealed class SpeechPulse
     private readonly AdaptiveRange _range = new(span: 18, floorSeconds: 2.5, ceilingSeconds: 4, gamma: 1);
     private readonly Onset _onset = new(OnsetGap, 0.15, minimum: 0.001);
     private readonly Queue<double> _onsetTimes = new();
-    private readonly List<float> _onsetLoudness = [];
-    private readonly float[] _sorted = new float[Remembered];
+    private readonly List<double> _onsetLevels = [];
+    private readonly double[] _sorted = new double[Remembered];
     private double _seconds;
     private double _lastPower;
     private double _usualHz;
@@ -88,7 +90,8 @@ public sealed class SpeechPulse
         var dt = Math.Clamp(elapsed.TotalSeconds, 0, 0.5);
         _seconds += dt;
         var power = Power(mono);
-        var loudness = _range.Map(AdaptiveRange.Decibels(power), dt);
+        var decibels = AdaptiveRange.Decibels(power);
+        var loudness = _range.Map(decibels, dt);
         var silent = loudness < Quiet;
         _silentFor = silent ? _silentFor + dt : 0;
 
@@ -99,10 +102,10 @@ public sealed class SpeechPulse
         {
             Onsets++;
             _onsetTimes.Enqueue(_seconds);
-            _onsetLoudness.Add(loudness);
-            if (_onsetLoudness.Count > Remembered)
+            _onsetLevels.Add(decibels);
+            if (_onsetLevels.Count > Remembered)
             {
-                _onsetLoudness.RemoveAt(0);
+                _onsetLevels.RemoveAt(0);
             }
         }
 
@@ -124,29 +127,32 @@ public sealed class SpeechPulse
             _pitch = (float)(0.5 + ((_pitch - 0.5) * Math.Exp(-dt / 0.25)));
         }
 
-        Frame = new SpeechFrame(loudness, _pitch, _onset.Hit, (float)(_onsetTimes.Count / PaceWindow), silent, _silentFor);
+        Frame = new SpeechFrame(loudness, _pitch, _onset.Hit, (float)(_onsetTimes.Count / PaceWindow), silent, _silentFor, decibels);
         return Frame;
     }
 
     /// <summary>
-    /// How a word at <paramref name="loudness"/> stands against the speaker's recent onsets: quieter
-    /// than three in four is a hush, louder than three in four a shout, louder than all but one in
-    /// twelve a peak. Plain until enough has been heard to compare.
+    /// How a word said as in <paramref name="frame"/> stands against the speaker's recent onsets: no
+    /// louder than one in four is a hush, at least as loud as three in four a shout, louder than all
+    /// but one in twelve, and clear of the shouts, a peak. Until enough has been heard to compare, only a word near the top of
+    /// the speaker's range is a shout.
     /// </summary>
-    public Stress StressOf(float loudness)
+    public Stress StressOf(SpeechFrame frame)
     {
-        if (_onsetLoudness.Count < 6)
+        if (_onsetLevels.Count < 6)
         {
-            return loudness >= 0.85f ? Stress.Shout : Stress.Plain;
+            return frame.Loudness >= 0.85f ? Stress.Shout : Stress.Plain;
         }
 
-        var count = _onsetLoudness.Count;
-        _onsetLoudness.CopyTo(_sorted);
+        var count = _onsetLevels.Count;
+        _onsetLevels.CopyTo(_sorted);
         Array.Sort(_sorted, 0, count);
+        var level = frame.Decibels;
         var (hush, shout, peak) = (_sorted[count / 4], _sorted[count * 3 / 4], _sorted[Math.Min(count - 1, count * 11 / 12)]);
-        return loudness >= peak && loudness > shout ? Stress.Peak
-            : loudness >= shout ? Stress.Shout
-            : loudness <= hush ? Stress.Hush
+        // A peak stands clear of the shouts: three decibels, about half as loud again.
+        return level >= peak && level >= shout + 3 ? Stress.Peak
+            : level >= shout ? Stress.Shout
+            : level <= hush ? Stress.Hush
             : Stress.Plain;
     }
 
@@ -156,7 +162,7 @@ public sealed class SpeechPulse
         _range.Reset();
         _onset.Reset();
         _onsetTimes.Clear();
-        _onsetLoudness.Clear();
+        _onsetLevels.Clear();
         (_seconds, _lastPower, _usualHz, _silentFor, Hertz, Onsets, _pitch) = (0, 0, 0, 0, 0, 0, 0.5f);
         Frame = default;
     }

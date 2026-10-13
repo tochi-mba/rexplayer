@@ -374,6 +374,9 @@
           </ScrollViewer>
         </Border>
 
+        <!-- Kinetic captions (OSD-11): words placed and moved by MainWindow.KineticCaptions.cs. -->
+        <Canvas x:Name="KineticLayer" IsHitTestVisible="False" Visibility="Collapsed" AutomationProperties.AutomationId="KineticCaptions" />
+
         <Grid x:Name="SubtitleLayer" IsHitTestVisible="False" AutomationProperties.AutomationId="Subtitles">
           <StackPanel x:Name="SubtitlesTop" VerticalAlignment="Top" HorizontalAlignment="Center" Spacing="2" />
           <StackPanel x:Name="SubtitlesMiddle" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2" />

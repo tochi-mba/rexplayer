@@ -62,25 +62,28 @@ public sealed class SpeechPulseTests
     public void LoudnessIsAgainstTheSpeakersOwnRangeAndStressRanksAWordAmongTheirLastOnes()
     {
         var pulse = new SpeechPulse();
-        Speak(pulse, 110, Enumerable.Range(0, 12).Select(index => index % 2 == 0 ? 0.1 : 0.4));
+        var talk = Speak(pulse, 110, Enumerable.Range(0, 12).Select(index => index % 2 == 0 ? 0.1 : 0.4));
         var softFrames = Speak(pulse, 110, [0.1]);
-        var shout = Speak(pulse, 110, [0.6]);
+        var shoutFrames = Speak(pulse, 110, [0.6]);
 
-        var softLoudness = softFrames.Where(frame => frame.Onset).Select(frame => frame.Loudness).Single();
-        var shoutLoudness = shout.Where(frame => frame.Onset).Select(frame => frame.Loudness).Single();
-        Assert.True(shoutLoudness > softLoudness + 0.2, $"{shoutLoudness} should be far above {softLoudness}");
-        Assert.Equal(Stress.Peak, pulse.StressOf(shoutLoudness));
-        Assert.Equal(Stress.Hush, pulse.StressOf(0));
-        Assert.Equal(Stress.Plain, pulse.StressOf((softLoudness + shoutLoudness) / 2));
-        Assert.Equal(Stress.Shout, pulse.StressOf(shoutLoudness - 0.001f));
+        var soft = softFrames.Single(frame => frame.Onset);
+        var shout = shoutFrames.Single(frame => frame.Onset);
+        var stressed = talk.Where(frame => frame.Onset).MaxBy(frame => frame.Decibels);
+        Assert.True(shout.Loudness > soft.Loudness + 0.2, $"{shout.Loudness} should be far above {soft.Loudness}");
+        // The range tops out: the shout and the louder words before it both read near 1, but their levels differ.
+        Assert.True(shout.Decibels > stressed.Decibels + 3, $"{shout.Decibels} against {stressed.Decibels}");
+        Assert.Equal(Stress.Peak, pulse.StressOf(shout));
+        Assert.Equal(Stress.Shout, pulse.StressOf(stressed));
+        Assert.Equal(Stress.Hush, pulse.StressOf(soft));
+        Assert.Equal(Stress.Plain, pulse.StressOf(soft with { Decibels = (soft.Decibels + stressed.Decibels) / 2 }));
     }
 
     [Fact]
     public void BeforeEnoughWordsAreHeardStressIsPlainUnlessVeryLoud()
     {
         var pulse = new SpeechPulse();
-        Assert.Equal(Stress.Plain, pulse.StressOf(0.5f));
-        Assert.Equal(Stress.Shout, pulse.StressOf(0.9f));
+        Assert.Equal(Stress.Plain, pulse.StressOf(new SpeechFrame(0.5f, 0.5f, true, 0, false, 0)));
+        Assert.Equal(Stress.Shout, pulse.StressOf(new SpeechFrame(0.9f, 0.5f, true, 0, false, 0)));
     }
 
     [Fact]
