@@ -142,6 +142,30 @@ public sealed class OggDemuxerTests
     }
 
     [Fact]
+    public void AMissingVorbisSetupHeaderIsRejectedAsDamagedMedia()
+    {
+        var first = Page(7, 2, 0, 0, VorbisWriter.Identification());
+        var failure = Assert.Throws<MediaFormatException>(() => Open(first));
+        Assert.Contains("no Vorbis", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LargeGarbagePrefixIsScannedWithoutLosingLaterOggAudio()
+    {
+        var garbage = new byte[300_000];
+        var file = new List<byte>(garbage);
+        file.AddRange(Page(7, 2, 0, 0, HeadPacket()));
+        file.AddRange(Page(7, 0, 0, 1, OpusTags()));
+        file.AddRange(Page(7, 4, 960, 2, [(byte)(16 << 3)]));
+        using var demuxer = Open([.. file]);
+        Assert.Equal(CodecId.Opus, Assert.Single(demuxer.Info.Tracks).Codec);
+        using var packet = demuxer.ReadPacket(CancellationToken.None);
+        Assert.NotNull(packet);
+        Assert.Equal(1, packet.Data.Length);
+        Assert.Equal(-312, packet.Pts.ToSamples(48000));
+    }
+
+    [Fact]
     public void ADamagedPageIsSkippedAndTheRestPlays()
     {
         byte[] packet = [16 << 3, 1, 2, 3];
