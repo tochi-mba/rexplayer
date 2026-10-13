@@ -1,0 +1,23 @@
+{
+  "tolerance": 2.0,
+  "episodes": [
+    { "show": "Rehearsal", "episode": "S01E01", "introStart": null, "introEnd": null, "creditsStart": 2619.83, "creditsEnd": 2664.996 },
+    { "show": "Rehearsal", "episode": "S01E02", "introStart": null, "introEnd": null, "creditsStart": 1688.23, "creditsEnd": 1733.399 },
+    { "show": "Rehearsal", "episode": "S01E03", "introStart": null, "introEnd": null, "creditsStart": 1666.79, "creditsEnd": 1711.877 },
+    { "show": "Rehearsal", "episode": "S01E04", "introStart": null, "introEnd": null, "creditsStart": 1879.59, "creditsEnd": 1939.772 },
+    { "show": "Rehearsal", "episode": "S01E05", "introStart": null, "introEnd": null, "creditsStart": 1822.70, "creditsEnd": 1867.866 },
+    { "show": "Rehearsal", "episode": "S01E06", "introStart": null, "introEnd": null, "creditsStart": 1873.87, "creditsEnd": 1918.917 },
+    { "show": "Utopia", "episode": "S01E01", "introStart": null, "introEnd": null, "creditsStart": 3541.24, "creditsEnd": 3594.0 },
+    { "show": "Utopia", "episode": "S01E02", "introStart": null, "introEnd": null, "creditsStart": 2862.92, "creditsEnd": 2917.0 },
+    { "show": "Utopia", "episode": "S01E03", "introStart": null, "introEnd": null, "creditsStart": 2987.84, "creditsEnd": 3030.0 },
+    { "show": "Utopia", "episode": "S01E04", "introStart": null, "introEnd": null, "creditsStart": 2835.52, "creditsEnd": 2879.0 },
+    { "show": "Utopia", "episode": "S01E05", "introStart": null, "introEnd": null, "creditsStart": 2870.76, "creditsEnd": 2913.0 },
+    { "show": "Utopia", "episode": "S01E06", "introStart": null, "introEnd": null, "creditsStart": 3652.72, "creditsEnd": 3717.52 },
+    { "show": "Utopia", "episode": "S02E01", "introStart": null, "introEnd": null, "creditsStart": 3127.40, "creditsEnd": 3192.98 },
+    { "show": "Utopia", "episode": "S02E02", "introStart": null, "introEnd": null, "creditsStart": 2998.40, "creditsEnd": 3053.02 },
+    { "show": "Utopia", "episode": "S02E03", "introStart": null, "introEnd": null, "creditsStart": 2937.04, "creditsEnd": 2992.02 },
+    { "show": "Utopia", "episode": "S02E04", "introStart": null, "introEnd": null, "creditsStart": 2914.04, "creditsEnd": 2970.02 },
+    { "show": "Utopia", "episode": "S02E05", "introStart": null, "introEnd": null, "creditsStart": 2919.00, "creditsEnd": 2969.06 },
+    { "show": "Utopia", "episode": "S02E06", "introStart": null, "introEnd": null, "creditsStart": 3127.52, "creditsEnd": 3172.02 }
+  ]
+}
