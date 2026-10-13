@@ -141,6 +141,13 @@ public static class VisualizerOptions
                 new("grid", "The beat grid", VisualOptionKind.Toggle, 1),
                 new("lanes", "The kick, snare and hi-hat lanes", VisualOptionKind.Toggle, 1),
             ],
+            VisualizerChoice.Flight =>
+            [
+                new("ahead", "Beats each ring takes to reach you", VisualOptionKind.Number, 8, 2, 16),
+                new("trails", "Motion blur", VisualOptionKind.Number, 0.55, 0, 0.9),
+                new("spectrum", "Rings shaped by the spectrum", VisualOptionKind.Toggle, 1),
+                new("stars", "Stars streaming past", VisualOptionKind.Toggle, 1),
+            ],
             VisualizerChoice.Embers =>
             [
                 new("amount", "How many sparks", VisualOptionKind.Number, 90, 20, 300),
@@ -199,6 +206,7 @@ public static class VisualizerOptions
         VisualizerChoice.Aurora => VisualPalette.Aurora,
         VisualizerChoice.Resonance => VisualPalette.Ocean,
         VisualizerChoice.Groove => VisualPalette.Neon,
+        VisualizerChoice.Flight => VisualPalette.Sunset,
         VisualizerChoice.Embers => VisualPalette.Fire,
         VisualizerChoice.Ripples => VisualPalette.Ocean,
         _ => VisualPalette.Accent,

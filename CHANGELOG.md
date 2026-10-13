@@ -68,11 +68,14 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
-- **Click to lock picks the right box.** One click on a person, a face or an object now
-  selects the box around it that Subject Lock can follow best, judged by how it stands out
-  from its surroundings, where its outline runs and how much detail it holds. A click on sky,
-  a plain wall or a repeating pattern is refused with a reason instead of locking a patch of
-  background, and the chosen box is outlined for a moment so you can see what was selected.
+- **Groove visualisation.** The last few seconds of the music scroll by: the spectrum in
+  time with the bass at the bottom, the beat grid with every bar marked, and each kick, snare
+  and hi-hat placed where it struck, sized by how hard. The edge where now is flares with
+  every kick. Choose how many seconds show and which layers draw.
+- **Flight visualisation.** Fly down a tunnel of light in time with the music. Every beat
+  sends a ring ahead, shaped by the sound of that moment, and it reaches you on a beat, every
+  bar's ring brighter. Each kick lunges you forward, the bass breathes light at the end of
+  the tunnel, and stars stream past, glinting with the hi-hats.
 
 ### Improved
 
