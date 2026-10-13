@@ -104,6 +104,13 @@ public sealed class SubjectProposalsTests
         proposals.Find(picture, 0.48f, 0.47f);
         var first = proposals.Proposals.ToArray();
 
+        // JIT and thread-local caches can still initialise on a second call on a busy CI
+        // worker. Exercise the hot path repeatedly before measuring its allocations.
+        for (var warm = 0; warm < 8; warm++)
+        {
+            proposals.Find(picture, 0.48f, 0.47f);
+        }
+
         var before = GC.GetAllocatedBytesForCurrentThread();
         proposals.Find(picture, 0.48f, 0.47f);
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
