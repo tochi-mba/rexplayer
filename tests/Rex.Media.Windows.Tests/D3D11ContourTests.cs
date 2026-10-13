@@ -65,7 +65,8 @@ public sealed class D3D11ContourTests
         long sum = 0;
         for (var y = 0; y < a.Height; y++)
         {
-            var (rowA, rowB) = (a.Row(0, y), b.Row(0, y));
+            var rowA = a.Row(0, y);
+            var rowB = b.Row(0, y);
             for (var x = 0; x < a.Width * 4; x++)
             {
                 sum += x % 4 == 3 ? 0 : Math.Abs(rowA[x] - rowB[x]);

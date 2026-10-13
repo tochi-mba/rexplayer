@@ -182,6 +182,13 @@ internal static class D3D11VideoShaders
                     priorChroma.SampleLevel(chromaSampler, insideChroma(t), 0).rg);
             return priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).rgb;
         }
+        // The previous picture's brightness alone, in one read.
+        float readPriorLuma(float2 uv, bool isYuv)
+        {
+            float2 t = pictureUv(uv);
+            if (isYuv) return dot(rowG, float4(priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).r, 0.5, 0.5, 1));
+            return lumaOf(priorLuma.SampleLevel(linearClamp, insideLuma(t), 0).rgb);
+        }
         // A cell's colour for the mosaics: the centre and four places around it, so a tile keeps
         // its colour from one picture to the next instead of flickering with grain. halfCell is
         // half the cell's size; the outer taps sit half way to its edges.
@@ -402,14 +409,16 @@ internal static class D3D11VideoShaders
         // so a decoder's padding rows and columns never bleed into the picture's edges.
         float3 readColourAt(float2 uv, bool isYuv) { return readColour(uv, isYuv); }
         float3 readPriorAt(float2 uv, bool isYuv) { return readPrior(uv, isYuv); }
-        // The contourGradient signal at a given pixel footprint, for use inside loops.
+        // The contourGradient signal at a given pixel footprint, for the steps of a walk along an
+        // edge: from brightness alone (one read a tap rather than two), as the walk only needs to
+        // know that the edge carries on and which way it turns. The colour term contourGradient
+        // adds is approximated from the brightness slope (grey edges have one about 1.7 times as
+        // long), so strengths compare with the first step's.
         float3 contourGradientAt(float2 uv, bool isYuv, float2 pixel)
         {
-            float3 dx = readColourAt(uv + float2(pixel.x, 0), isYuv) - readColourAt(uv - float2(pixel.x, 0), isYuv);
-            float3 dy = readColourAt(uv + float2(0, pixel.y), isYuv) - readColourAt(uv - float2(0, pixel.y), isYuv);
-            float3 weights = float3(0.2126, 0.7152, 0.0722);
-            float2 direction = float2(dot(dx, weights), dot(dy, weights));
-            return float3(direction, length(direction) + sqrt(dot(dx, dx) + dot(dy, dy)) * 0.32);
+            float2 direction = float2(readLuma(uv + float2(pixel.x, 0), isYuv) - readLuma(uv - float2(pixel.x, 0), isYuv),
+                readLuma(uv + float2(0, pixel.y), isYuv) - readLuma(uv - float2(0, pixel.y), isYuv));
+            return float3(direction, length(direction) * 1.55);
         }
         // Fine texture inside low-contrast regions needs a different signal from the
         // outer silhouette. Read RGB deltas as well as luminance so equal-brightness

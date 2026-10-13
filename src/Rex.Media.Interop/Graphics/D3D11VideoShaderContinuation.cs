@@ -543,13 +543,15 @@ internal static class D3D11VideoShaderContinuation
                 // of the previous frame whose small patch best matches the current one. Then draw
                 // the picture further along that motion. Pixels without a clearly better match
                 // than standing still do not move, so a still or paused picture is unchanged.
-                float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                // The patches are compared by brightness alone (one read a tap, not two), scaled
+                // to match the colour distances the margins were set for.
+                float2 px = measureStep(pixel);
                 float reach = 1 + pointer.w * 3;
-                float3 centre = readColourAt(uv, isYuv);
-                float3 east = readColourAt(uv + float2(px.x * 2, 0), isYuv);
-                float3 west = readColourAt(uv - float2(px.x * 2, 0), isYuv);
-                float3 south = readColourAt(uv + float2(0, px.y * 2), isYuv);
-                float3 north = readColourAt(uv - float2(0, px.y * 2), isYuv);
+                float centre = readLuma(uv, isYuv);
+                float east = readLuma(uv + float2(px.x * 2, 0), isYuv);
+                float west = readLuma(uv - float2(px.x * 2, 0), isYuv);
+                float south = readLuma(uv + float2(0, px.y * 2), isYuv);
+                float north = readLuma(uv - float2(0, px.y * 2), isYuv);
                 float stillError = 0;
                 float2 moved = 0;
                 float bestError = 1e9;
@@ -558,11 +560,11 @@ internal static class D3D11VideoShaderContinuation
                     float2 shift = k == 8 ? float2(0, 0)
                         : float2(cos(k * 0.78539816), sin(k * 0.78539816)) * px * reach;
                     float2 at = uv - shift;
-                    float error = length(centre - readPriorAt(at, isYuv))
-                        + length(east - readPriorAt(at + float2(px.x * 2, 0), isYuv))
-                        + length(west - readPriorAt(at - float2(px.x * 2, 0), isYuv))
-                        + length(south - readPriorAt(at + float2(0, px.y * 2), isYuv))
-                        + length(north - readPriorAt(at - float2(0, px.y * 2), isYuv));
+                    float error = 1.7 * (abs(centre - readPriorLuma(at, isYuv))
+                        + abs(east - readPriorLuma(at + float2(px.x * 2, 0), isYuv))
+                        + abs(west - readPriorLuma(at - float2(px.x * 2, 0), isYuv))
+                        + abs(south - readPriorLuma(at + float2(0, px.y * 2), isYuv))
+                        + abs(north - readPriorLuma(at - float2(0, px.y * 2), isYuv)));
                     if (k == 8) stillError = error;
                     else if (error < bestError) { bestError = error; moved = shift; }
                 }
