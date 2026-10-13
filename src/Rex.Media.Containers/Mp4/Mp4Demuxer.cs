@@ -131,7 +131,7 @@ public sealed class Mp4Demuxer : IDemuxer
         {
             switch (box.Type)
             {
-                case "trak" when Mp4Track.Parse(span, box, movieTimescale) is { } track:
+                case "trak" when Mp4Track.Parse(span, box, movieTimescale, _stream.Length) is { } track:
                     _tracks.Add(track);
                     break;
                 case "mvex":
