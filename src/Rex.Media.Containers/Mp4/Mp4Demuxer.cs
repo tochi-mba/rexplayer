@@ -121,7 +121,7 @@ public sealed class Mp4Demuxer : IDemuxer
         if (Mp4Boxes.Find(span, "mvhd") is { } mvhd)
         {
             var body = Mp4Boxes.Body(span, mvhd);
-            var version = body[0];
+            var version = Mp4Boxes.U32(body, 0) >> 24;
             movieTimescale = Math.Max(1, Mp4Boxes.U32(body, version == 1 ? 20 : 12));
             movieDuration = version == 1 ? (long)Math.Min(Mp4Boxes.U64(body, 24), long.MaxValue) : Mp4Boxes.U32(body, 16);
         }
@@ -325,9 +325,16 @@ public sealed class Mp4Demuxer : IDemuxer
 
     private byte[] ReadBody(long start, long length)
     {
-        if (length > MaxMoovBytes)
+        if (length < 0 || length > MaxMoovBytes)
         {
             throw new MediaFormatException("An MP4 header box is larger than rexplayer accepts.");
+        }
+
+        // Do not allocate a claimed box size when the file ends after a few bytes.
+        // A crashed recording can have a valid prefix and a truncated final box.
+        if (_stream.Length is { } available)
+        {
+            length = Math.Min(length, Math.Max(0, available - start));
         }
 
         var body = new byte[length];
@@ -405,7 +412,7 @@ public sealed class Mp4Demuxer : IDemuxer
             if (Mp4Boxes.Find(span[..traf.End], "tfdt", traf.Start) is { } tfdt)
             {
                 var body = Mp4Boxes.Body(span, tfdt);
-                dts = body[0] == 1 ? (long)Mp4Boxes.U64(body, 4) : Mp4Boxes.U32(body, 4);
+                dts = (Mp4Boxes.U32(body, 0) >> 24) == 1 ? (long)Mp4Boxes.U64(body, 4) : Mp4Boxes.U32(body, 4);
             }
 
             var dataPosition = baseOffset;
