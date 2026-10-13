@@ -14,7 +14,7 @@ public sealed class CliTranscribeAheadTests : IDisposable
     [Fact]
     public void HearingRemainsUnavailableUnlessTheHostProvidesAnAdapter()
     {
-        Assert.Null(new CliHost().Hearer("any-model-file"));
+        Assert.Null(new CliHost { Out = TextWriter.Null, Error = TextWriter.Null, Version = "0.0.0" }.Hearer("any-model-file"));
     }
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
