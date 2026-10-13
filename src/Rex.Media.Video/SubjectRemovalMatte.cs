@@ -26,10 +26,7 @@ namespace Rex.Media.Video;
 public sealed class SubjectRemovalMatte
 {
     /// <summary>The most cells the analysis grid has, whatever the area's size.</summary>
-    public const int GridBudget = 24_000;
-
-    // A full-HD preview remains bound to the old inexpensive reduced grid; at SD sizes
-    // finer analysis prevents the one-pixel sleeve and hair edges from being lost.
+    public const int GridBudget = 10_000;
 
     /// <summary>The widest soft edge the removal draws, in pixels.</summary>
     public const int MaximumFeather = 12;
@@ -156,8 +153,7 @@ public sealed class SubjectRemovalMatte
             Math.Min(frame.Width, box.Right + reachX + margin), Math.Min(frame.Height, box.Bottom + reachY + margin));
         var areaWidth = Area.Right - Area.Left;
         var areaHeight = Area.Bottom - Area.Top;
-        var budget = frame.Width <= 640 && frame.Height <= 360 ? GridBudget : 10_000;
-        Scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((double)areaWidth * areaHeight / budget)));
+        Scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((double)areaWidth * areaHeight / GridBudget)));
         _gridWidth = (areaWidth + Scale - 1) / Scale;
         _gridHeight = (areaHeight + Scale - 1) / Scale;
         var cells = _gridWidth * _gridHeight;
