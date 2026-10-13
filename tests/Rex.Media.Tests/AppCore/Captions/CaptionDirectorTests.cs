@@ -209,7 +209,7 @@ public sealed class CaptionDirectorTests
     public void AVoiceThatStaysSilentClosesAFullyRevealedTimedCue()
     {
         var director = new CaptionDirector(CaptionStyle.Default);
-        var cue = new SubtitleCue(S(0), S(2), [new SubtitleLine([new SubtitleRun("quiet", At: TimeSpan.Zero)])]);
+        var cue = new SubtitleCue(S(0), S(2), [new SubtitleLine([new SubtitleRun("hello ", At: TimeSpan.Zero), new SubtitleRun("quiet", At: S(0.1))])]);
         var quiet = new float[SpeechPulse.Size];
         var hadWords = false;
         IReadOnlyList<CaptionWord> last = [];
