@@ -520,7 +520,7 @@ public sealed class SubjectRemovalMatte
         {
             _label[cell] = (byte)(_region[cell] == Beyond ? 0
                 : wholeBox && _region[cell] == Inside ? 1
-                : _probability[cell] > 0.5f ? 1 : 0);
+                : _probability[cell] > 0.51f ? 1 : 0);
         }
     }
 
