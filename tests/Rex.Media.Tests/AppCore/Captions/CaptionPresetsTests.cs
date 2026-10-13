@@ -275,7 +275,7 @@ public sealed class CaptionPresetsTests
 
         var few = low.Scene(1, new Area(0, 0, 1080, 300), 60);
         Assert.Equal(2, few.Count(word => word.Opacity > 0.99));
-        Assert.True(few.Count(word => word.Opacity < 0.99) >= 1);
+        Assert.Contains(few, word => word.Opacity < 0.99);
 
         var ghosts = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Ghost, CaptionStyle.Default));
         ghosts.Reveal(Word("Boo"), Plain, Stress.Peak, 0);

@@ -510,9 +510,10 @@ public sealed class CaptionChoreography
         var living = _words.Where(word => word.Died is null).ToList();
         var step = 1.3 * em;
         var most = Math.Max(2, (int)((area.Height * 0.7) / step));
-        foreach (var old in living.Take(Math.Max(0, living.Count - most)))
+        var overflow = Math.Max(0, living.Count - most);
+        for (var i = 0; i < overflow; i++)
         {
-            old.Died ??= seconds;
+            living[i].Died ??= living[i + most].Born;
         }
 
         var bottom = area.Height * 0.86;
