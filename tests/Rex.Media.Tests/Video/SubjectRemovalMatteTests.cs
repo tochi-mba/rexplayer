@@ -34,7 +34,9 @@ public sealed class SubjectRemovalMatteTests
         Assert.False(matte.IsEmpty);
         // The figure fills about a third of a box loose by eight pixels.
         Assert.InRange(matte.Coverage, 0.25f, 0.45f);
-        // The top middle of a box leans to the subject, so on a box this loose a little wall beside the\n        // head goes with it: some more fill, never a head left standing.\n        Assert.True(Overlap(matte, opacity, 320, 180) > 0.85, $"{Overlap(matte, opacity, 320, 180)}");
+        // The top middle of a box leans to the subject, so on a box this loose a little wall beside the
+        // head goes with it: some more fill, never a head left standing.
+        Assert.True(Overlap(matte, opacity, 320, 180) > 0.85, $"{Overlap(matte, opacity, 320, 180)}");
         Assert.True(At(matte, 160, 100) < 0);
         // The loose box's corner is wall, a few pixels clear of the outline.
         Assert.True(At(matte, box.Left + 1, box.Top + 1) > 3 * SubjectRemovalMatte.DistanceUnit);
