@@ -88,6 +88,9 @@ public sealed class CliTranscribeTests : IDisposable
         var data = JsonDocument.Parse(output).RootElement.GetProperty("data");
         Assert.Equal(("base.en", "en", false, srt, 4), (data.GetProperty("model").GetString(), data.GetProperty("language").GetString(), data.GetProperty("cached").GetBoolean(), data.GetProperty("out").GetString(), data.GetProperty("words").GetArrayLength()));
         Assert.Contains("Lonely at the top.", File.ReadAllText(srt), StringComparison.Ordinal);
+        var (withoutOutput, plain, plainError) = Run(transcriber, "transcribe", film);
+        Assert.Equal((0, ""), (withoutOutput, plainError));
+        Assert.Contains("4 words heard", plain, StringComparison.Ordinal);
 
         // Heard once: the second time comes from the cache, in words.
         var (again, human, progress) = Run(transcriber, "transcribe", film, "--out", Path.Combine(_directory, "talk.vtt"));
@@ -177,6 +180,10 @@ public sealed class CliTranscribeTests : IDisposable
         Assert.Equal(0, exit);
         var models = JsonDocument.Parse(output).RootElement.GetProperty("data").GetProperty("models");
         Assert.Equal(3, models.GetArrayLength());
+        // An already-installed model takes the successful download path without network access.
+        var (fetched, fetchedJson, _) = Run(null, "models", "--get", "tiny.en", "--json");
+        Assert.Equal(0, fetched);
+        Assert.True(JsonDocument.Parse(fetchedJson).RootElement.GetProperty("data").GetProperty("models")[0].GetProperty("installed").GetBoolean());
         Assert.True(models[0].GetProperty("installed").GetBoolean());
         Assert.False(models[1].GetProperty("installed").GetBoolean());
 
