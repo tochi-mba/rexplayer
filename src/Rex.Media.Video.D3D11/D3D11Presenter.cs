@@ -205,6 +205,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
+    /// <summary>Select the best box around a click, settled on the next picture drawn or redrawn.</summary>
+    public bool SelectSubjectAround(float x, float y)
+    {
+        lock (_gate)
+        {
+            return _subjectEdit.SelectAround(x, y);
+        }
+    }
+
     /// <summary>Preview erasing the selected item; the original media is never changed.</summary>
     public void SetSubjectErasure(bool enabled)
     {

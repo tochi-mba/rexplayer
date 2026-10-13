@@ -25,6 +25,10 @@ public sealed partial class MainWindow
     private PictureView _viewBeforeSubjectFollow;
     private bool _subjectAutoFollowing;
     private long _subjectRevision;
+    // A box chosen from a click is outlined for a moment even when Show box is off, so the user
+    // sees what the click selected.
+    private bool _subjectShowChosen;
+    private long _subjectChosenUntil;
 
     private bool IsInSubjectPanel(DependencyObject? element) => IsWithin(element, SubjectToolbar);
 
@@ -358,7 +362,7 @@ public sealed partial class MainWindow
         var last = e.GetCurrentPoint(Stage).Position;
         var start = OnPicture(first);
         var end = OnPicture(last);
-        if (start is null || end is null || PictureShape() is not { } shape || _player.Info?.FirstTrack(MediaKind.Video)?.Video is not { } video)
+        if (start is null || end is null || PictureShape() is null || _player.Info?.FirstTrack(MediaKind.Video)?.Video is not { } video)
         {
             SubjectStatusText.Text = "Selection was outside the picture. Try again.";
             e.Handled = true;
@@ -370,13 +374,11 @@ public sealed partial class MainWindow
         var visible = _view.Within(source);
         if (SubjectPanel.IsClick(_settings.SubjectSelection, last.X - first.X, last.Y - first.Y))
         {
-            // Click selection chooses a bounded patch; tracking still validates its texture.
-            var box = SubjectPanel.ClickBox(start.Value.X, start.Value.Y, shape.Across, shape.Down);
-            LockSubjectRegion(
-                visible.Left + (float)box.Left * (visible.Right - visible.Left),
-                visible.Top + (float)box.Top * (visible.Bottom - visible.Top),
-                (float)box.Width * (visible.Right - visible.Left),
-                (float)box.Height * (visible.Bottom - visible.Top));
+            // The tracker chooses the box around the click that it can follow best, or refuses.
+            var x = visible.Left + (float)start.Value.X * (visible.Right - visible.Left);
+            var y = visible.Top + (float)start.Value.Y * (visible.Bottom - visible.Top);
+            _subjectShowChosen = true;
+            BeginSubjectLock(p => p.SelectSubjectAround(x, y));
             SubjectOutline.Visibility = Visibility.Collapsed;
             e.Handled = true;
             return;
@@ -430,6 +432,12 @@ public sealed partial class MainWindow
             return;
         }
 
+        _subjectShowChosen = false;
+        BeginSubjectLock(p => p.SelectSubject(left, top, width, height));
+    }
+
+    private void BeginSubjectLock(Action<Rex.Media.Video.D3D11.D3D11Presenter> select)
+    {
         var revision = ++_subjectRevision;
         var item = _player.Item;
         // A still image can remain "playing" without another decoded picture arriving.
@@ -447,7 +455,7 @@ public sealed partial class MainWindow
         var tolerance = (int)SubjectTolerance.Value;
         OnPresenterThread(p =>
         {
-            p.SelectSubject(left, top, width, height);
+            select(p);
             p.RefineSubject(feather, tolerance);
             // The presenter must know the selection before the seek can decode its
             // only picture. The same applies to a playing slideshow image: no later
@@ -514,6 +522,18 @@ public sealed partial class MainWindow
                 SubjectEraseButton.IsEnabled = snapshot.Tracking;
                 _subjectErase = snapshot.Erase;
                 SubjectEraseButton.Content = SubjectPanel.EraseText(snapshot.Erase);
+                if (!snapshot.Locked)
+                {
+                    // A refused click, or a lock the tracker dropped, leaves the picture ready
+                    // for the next selection; the status above says why.
+                    _selectingSubject = true;
+                    _subjectShowChosen = false;
+                }
+                else if (_subjectShowChosen && snapshot.Tracking)
+                {
+                    _subjectShowChosen = false;
+                    _subjectChosenUntil = Environment.TickCount64 + 2000;
+                }
 
                 if (PictureShape() is not { } shape || _player.Info?.FirstTrack(MediaKind.Video)?.Video is not { } video)
                 {
@@ -576,7 +596,8 @@ public sealed partial class MainWindow
                 Canvas.SetTop(SubjectOutline, shownTop);
                 SubjectOutline.Width = Math.Max(1, shownRight - shownLeft);
                 SubjectOutline.Height = Math.Max(1, shownBottom - shownTop);
-                SubjectOutline.Visibility = snapshot.Tracking && SubjectShowBox.IsOn &&
+                SubjectOutline.Visibility = snapshot.Tracking
+                    && (SubjectShowBox.IsOn || Environment.TickCount64 < _subjectChosenUntil) &&
                     shownRight > shownLeft && shownBottom > shownTop
                     ? Visibility.Visible : Visibility.Collapsed;
             });
