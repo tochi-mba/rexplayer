@@ -343,10 +343,22 @@ public sealed class SubjectRemovalFill
         // random candidates alone can miss the matching side of a narrow occlusion.
         for (var distance = Side; distance <= _window; distance *= 2)
         {
-            if (x - distance >= 0) Consider(y * Width + x - distance, 1);
-            if (x + distance < Width) Consider(y * Width + x + distance, 1);
-            if (y - distance >= 0) Consider((y - distance) * Width + x, 1);
-            if (y + distance < Height) Consider((y + distance) * Width + x, 1);
+            if (x - distance >= 0)
+            {
+                Consider(y * Width + x - distance, 1);
+            }
+            if (x + distance < Width)
+            {
+                Consider(y * Width + x + distance, 1);
+            }
+            if (y - distance >= 0)
+            {
+                Consider((y - distance) * Width + x, 1);
+            }
+            if (y + distance < Height)
+            {
+                Consider((y + distance) * Width + x, 1);
+            }
         }
 
         for (var sample = 0; sample < Samples; sample++)
