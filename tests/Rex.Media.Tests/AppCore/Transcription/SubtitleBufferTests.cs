@@ -80,4 +80,26 @@ public sealed class SubtitleBufferTests
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(allowed: true, holding: true, hearing: true, done, S(60), S(200)));
         Assert.Throws<ArgumentNullException>(() => SubtitleBuffer.Hold(true, false, true, null!, S(1), S(2)));
     }
+
+    [Fact]
+    public void ASlowTranscriberBuildsEnoughLeadToAvoidRepeatedPauses()
+    {
+        Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(4, 1, S(10), S(200)));
+        Assert.Equal(S(57), SubtitleBuffer.ReleaseTarget(0.5, 1, S(10), S(200)));
+        Assert.Equal(S(90), SubtitleBuffer.ReleaseTarget(0.1, 2, S(10), S(500)));
+
+        var fiftySecondsAhead = TimeRanges.Of([R(0, 60)]);
+        Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true, fiftySecondsAhead, S(10), S(200), 0.5, 1));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true, TimeRanges.Of([R(0, 70)]), S(10), S(200), 0.5, 1));
+    }
+
+    [Fact]
+    public void AdaptiveLeadHandlesRateChangesEndsAndBadMeasurements()
+    {
+        Assert.Equal(S(31), SubtitleBuffer.ReleaseTarget(1, 1, S(0), S(200)));
+        Assert.Equal(S(57), SubtitleBuffer.ReleaseTarget(1, 2, S(0), S(200)));
+        Assert.Equal(S(8), SubtitleBuffer.ReleaseTarget(0.1, 2, S(42), S(50)));
+        Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(double.NaN, double.NaN, S(0), S(200)));
+        Assert.Equal(TimeSpan.Zero, SubtitleBuffer.ReleaseTarget(1, 1, S(50), S(50)));
+    }
 }

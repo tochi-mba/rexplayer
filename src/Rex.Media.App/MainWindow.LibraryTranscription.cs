@@ -698,7 +698,8 @@ public sealed partial class MainWindow
             return;
         }
 
-        switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles, _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration))
+        switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles,
+            _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.Factor, _player.Speed))
         {
             case HoldAction.Hold:
                 _holdingForSubtitles = true;
