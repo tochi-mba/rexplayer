@@ -159,9 +159,23 @@ public static class SubjectRemovalScaling
             var (first, last) = Stretch(rows.UpperAlpha, rows.LowerAlpha);
             var from = Math.Max(0, (first - 1) * scale);
             var to = Math.Min(right - left, (last + 2) * scale);
+            var upperAlpha = rows.UpperAlpha;
+            var lowerAlpha = rows.LowerAlpha;
+            var upperFill = rows.UpperFill;
+            var lowerFill = rows.LowerFill;
             for (var x = from; x < to; x++)
             {
-                Draw(rows, columns[3 * x], columns[3 * x + 1], columns[3 * x + 2], picture, drawn, better, x);
+                var (one, two, across) = (columns[3 * x], columns[3 * x + 1], columns[3 * x + 2]);
+                var all = upperAlpha[one] & upperAlpha[two] & lowerAlpha[one] & lowerAlpha[two];
+                if (all == 255 && better.IsEmpty)
+                {
+                    // Inside the hole, the usual case: the enlarged fill, the picture's alpha kept.
+                    drawn[x] = (picture[x] & 0xFF000000) | Blend(upperFill[one], upperFill[two], lowerFill[one], lowerFill[two],
+                        (16 - across) * (16 - down), across * (16 - down), (16 - across) * down, across * down);
+                    continue;
+                }
+
+                Draw(rows, one, two, across, picture, drawn, better, x);
             }
         }
     }

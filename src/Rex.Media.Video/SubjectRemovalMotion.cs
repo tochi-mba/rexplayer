@@ -46,7 +46,7 @@ public sealed class SubjectRemovalMotion
     private const int Candidates = 3;
     private const float Huber = 8;
     // The detailed stage reads at most this many pixels and fits at most this many samples.
-    private const int DetailBudget = 120_000;
+    private const int DetailBudget = 400_000;
     private const int DetailSamples = 4_000;
 
     private readonly float[][] _previous = [[], [], []];
@@ -373,9 +373,8 @@ public sealed class SubjectRemovalMotion
     }
 
     /// <summary>
-    /// Reads a grey copy, each cell the mean of an evenly spread grid of up to two by two of its
-    /// pixels, so fine texture is averaged rather than aliased; then halves it twice. The detailed
-    /// stage, not this one, sets the motion's precision, so a few pixels a cell are enough.
+    /// Reads a grey copy, each cell the mean of an evenly spread grid of up to four by four of its
+    /// pixels, so fine texture is averaged rather than aliased; then halves it twice.
     /// </summary>
     private void Shrink(VideoFrame frame)
     {
@@ -383,7 +382,7 @@ public sealed class SubjectRemovalMotion
         var stride = frame.Stride(0);
         var (w, h) = (_widths[0], _heights[0]);
         var top = _current[0];
-        var across = Math.Min(_step, 2);
+        var across = Math.Min(_step, 4);
         var spacing = _step / across;
         var first = (_step - spacing * (across - 1)) / 2;
         var weight = 1f / (across * across);
