@@ -109,13 +109,14 @@ public sealed class RexLog
                 if (!_draining)
                 {
                     _draining = true;
-                    // A busy pool can delay a second batch for seconds while tests, decoders and
-                    // other CPU workers are blocking. A short-lived dedicated background writer
-                    // guarantees that the next batch progresses without making the caller wait.
+                    // Use a dedicated background thread at normal priority. A below-normal
+                    // writer can be starved by CPU-heavy decoding or test polling, leaving log
+                    // messages unwritten for seconds even though their caller returned promptly.
+                    // It remains a background thread: only log I/O happens here.
                     var writer = new Thread(static state => ((RexLog)state!).Drain())
                     {
                         IsBackground = true,
-                        Priority = ThreadPriority.BelowNormal,
+                        Priority = ThreadPriority.Normal,
                         Name = "rexplayer log writer",
                     };
                     writer.Start(this);
