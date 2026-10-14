@@ -101,7 +101,6 @@ public sealed partial class MainWindow : Window
         WireZoom();
         WireSubjectTools();
         WireSeekBar();
-        WireTaskbar();
 
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
