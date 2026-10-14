@@ -13,7 +13,9 @@ pipeline the moment its number reaches `main`.
   It no longer resumes after an arbitrary 90-second maximum. An empty new transcript holds
   before playback rather than first running out of captions. Progress shows the target;
   playback remains manually resumable, and errors release the wait.
-
+- **Caption preparation overlay.** When playback waits for captions, a clear message over the
+  picture shows how much subtitle coverage is ready and how much is needed. **Play now** lets
+  you start immediately rather than wait for the target.
 
 ## 0.24.1 - 2026-10-14
 
