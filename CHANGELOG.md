@@ -5,6 +5,8 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+## 0.24.0 - 2026-10-14
+
 ### Added
 
 - **rexplayer fits itself to the computer.** On a slower computer it does a little less so
@@ -27,6 +29,7 @@ pipeline the moment its number reaches `main`.
 - The log is written in the background, so the window never waits for the disk to note something.
 - Subject Lock converts each picture several times faster, and decoding through Windows no longer
   makes a new copy of every picture and packet for the memory manager to clear away.
+
 ## 0.23.0 - 2026-10-14
 
 ### Added
