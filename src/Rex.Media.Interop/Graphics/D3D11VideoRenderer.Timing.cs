@@ -61,6 +61,10 @@ public sealed unsafe partial class D3D11VideoRenderer
         }
     }
 
+    /// <summary>Compiles (or fetches) the YUV shader of each effect in <paramref name="effects"/>, side by side, before a renderer draws them.</summary>
+    public static void PrepareEffects(IEnumerable<int> effects) =>
+        Parallel.ForEach(effects, effect => Code("yuv", "ps_4_0", effect));
+
     /// <summary>A new query of <paramref name="kind"/>, as a raw reference the caller releases.</summary>
     private nint Query(D3D11_QUERY kind)
     {
