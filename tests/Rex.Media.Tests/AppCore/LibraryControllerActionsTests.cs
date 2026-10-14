@@ -10,9 +10,11 @@ public sealed class LibraryControllerActionsTests
 {
     private static readonly byte[] Recording = ControllerHarness.Count(0, 8000 * 30);
 
-    private static ControllerHarness Harness(bool autoPlay = false)
+    private static ControllerHarness Harness(bool autoPlay = false,
+        Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null)
     {
-        var test = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0 });
+        var test = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0 },
+            beforeAudioWrite: beforeAudioWrite);
         test.Files["a.wav"] = Recording;
         test.Files["b.wav"] = Recording;
         test.Files["c.wav"] = Recording;
@@ -159,7 +161,10 @@ public sealed class LibraryControllerActionsTests
     [Fact]
     public void PausingAnActiveItemDoesNotRestartItOrChangeItsPosition()
     {
-        using var test = Harness(autoPlay: true);
+        // The recording sink runs much faster than real-time: without a gate it can finish the
+        // whole recording before the test observes Playing, even though pausing is correct.
+        using var audioGate = new ManualResetEventSlim(false);
+        using var test = Harness(autoPlay: true, beforeAudioWrite: (_, token) => audioGate.Wait(token));
         var controller = test.Controller;
         controller.Open(["a.wav"]);
         test.PumpUntil(c => c.State == SessionState.Playing);
@@ -170,5 +175,6 @@ public sealed class LibraryControllerActionsTests
         test.Pump();
         Assert.Equal(after, controller.Position);
         Assert.False(controller.IsPlaying);
+        audioGate.Set();
     }
 }
