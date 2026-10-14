@@ -38,6 +38,7 @@ var host = new CliHost
         ? (bgra, width, height, stride) => [.. faces.Find(bgra, width, height, stride).Select(face => new Rex.Media.AppCore.Player.Area(face.X, face.Y, face.Width, face.Height))]
         : null,
     Transcriber = (modelPath, modelName) => new Rex.Media.Speech.WhisperTranscriber(modelPath, modelName, Rex.Media.AppCore.MediaRegistries.Decoders([new MfDecoderFactory(), new WicDecoderFactory()])),
+    Hearer = modelPath => new Rex.Media.Speech.WhisperHearer(modelPath),
     DataRoot = dataRoot,
     VideoWindow = OpenWindow,
     SystemReport = Describe,

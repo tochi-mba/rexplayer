@@ -1032,6 +1032,26 @@
       "status": "verified"
     },
     {
+      "id": "SUB-20",
+      "area": "Formats: Subtitles & captions",
+      "name": "Library transcription",
+      "details": "Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": "verified"
+    },
+    {
+      "id": "SUB-21",
+      "area": "Formats: Subtitles & captions",
+      "name": "Progressive transcription from the playhead",
+      "details": "Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": "verified"
+    },
+    {
       "id": "PLF-01",
       "area": "Formats: Playlists",
       "name": "M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI)",

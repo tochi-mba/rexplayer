@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 149 planned, 46 built, 97 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -132,6 +132,8 @@ Totals: 149 planned, 46 built, 97 verified, 1 verified-hardware, 27 post-1.0.
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned |
 | SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified |
 | SUB-19 | Local transcription | A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as "Transcript", cached per file, exportable as SRT/VTT | M16 | should | verified |
+| SUB-20 | Library transcription | Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress | M16 | should | verified |
+| SUB-21 | Progressive transcription from the playhead | Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest | M16 | should | verified |
 
 ## Formats: Playlists
 

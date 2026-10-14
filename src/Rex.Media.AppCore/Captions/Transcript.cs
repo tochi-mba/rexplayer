@@ -41,19 +41,28 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
     /// </summary>
     public IReadOnlyList<SubtitleCue> ToCues()
     {
+        List<TranscriptWord> spoken = [.. Words.Where(word => word.Text.Trim().Length > 0)];
+        return CuesOf(spoken, 0, spoken.Count);
+    }
+
+    /// <summary>
+    /// The cues of <paramref name="words"/> from <paramref name="from"/> up to <paramref name="to"/>
+    /// (words with text, in time order), the last one ending by the start of the word after them.
+    /// Cues begun at a <see cref="StartsCue"/> word are the same whatever came before it, which is
+    /// what lets a transcript heard piece by piece rebuild only the cues around each piece.
+    /// </summary>
+    public static List<SubtitleCue> CuesOf(IReadOnlyList<TranscriptWord> words, int from, int to)
+    {
+        ArgumentNullException.ThrowIfNull(words);
         var cues = new List<SubtitleCue>();
         var cue = new List<TranscriptWord>();
-        foreach (var word in Words.Where(word => word.Text.Trim().Length > 0))
+        for (var i = from; i < to; i++)
         {
-            if (cue.Count > 0)
+            var word = words[i];
+            if (cue.Count > 0 && (StartsCue(words, i) || cue.Count >= MostWordsInACue || word.Start - cue[0].Start > LongestCue))
             {
-                var last = cue[^1];
-                var ends = EndsSentence(last.Text) || word.Start - last.End > Breath || cue.Count >= MostWordsInACue || word.Start - cue[0].Start > LongestCue;
-                if (ends)
-                {
-                    cues.Add(Cue(cue, word.Start));
-                    cue.Clear();
-                }
+                cues.Add(Cue(cue, word.Start));
+                cue.Clear();
             }
 
             cue.Add(word);
@@ -61,10 +70,17 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
 
         if (cue.Count > 0)
         {
-            cues.Add(Cue(cue, null));
+            cues.Add(Cue(cue, to < words.Count ? words[to].Start : null));
         }
 
         return cues;
+    }
+
+    /// <summary>Whether word <paramref name="index"/> begins a cue whatever came before it: the first word, or one after a sentence's end or a breath.</summary>
+    public static bool StartsCue(IReadOnlyList<TranscriptWord> words, int index)
+    {
+        ArgumentNullException.ThrowIfNull(words);
+        return index <= 0 || index >= words.Count || EndsSentence(words[index - 1].Text) || words[index].Start - words[index - 1].End > Breath;
     }
 
     /// <summary>The transcript as a subtitle track named <paramref name="name"/>.</summary>

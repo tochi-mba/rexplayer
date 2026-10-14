@@ -3,9 +3,16 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
-## 0.23.0 - 2026-10-13
+## 0.23.0 - 2026-10-14
 
 ### Added
+
+- Transcribe eligible library videos quietly in the background, with per-file progress, a pause
+  control, retries and folder exclusions. It is off until enabled in Preferences.
+- Hear the currently playing file ahead of the playhead, adding subtitles piece by piece and
+  showing the part already transcribed on the seek bar. The `rexplay transcribe --from` command
+  measures the same progressive speech path without opening the window.
+- Keep partial transcripts between sessions and provide controls to forget them.
 
 - **Kinetic captions.** Words come in one at a time as they are spoken, and how each word was
   said decides how it looks: a quiet run of words is small and lower case, a stressed word lands
