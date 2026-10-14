@@ -112,7 +112,6 @@ public sealed class LibrarySectionAnalysisTests
             var path = Path.Combine(folder, "Series.S01E01.mkv");
             File.WriteAllBytes(path, [1, 2, 3]);
             using var started = new ManualResetEventSlim();
-            using var cancelled = new ManualResetEventSlim();
             var calls = 0;
             var memory = new PlayerMemory(RexStore.InMemory());
             using (var worker = new LibrarySectionAnalysis(memory, new SectionAnalysisCache(), (file, token) =>
@@ -142,7 +141,6 @@ public sealed class LibrarySectionAnalysisTests
             }
 
             Assert.True(Volatile.Read(ref calls) >= 2);
-            cancelled.Set();
         }
         finally
         {
