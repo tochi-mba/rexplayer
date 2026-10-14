@@ -264,8 +264,10 @@ SubjectProposals.cs
 SubjectRemoval.cs
 SubjectRemovalFill.cs
 SubjectRemovalMatte.cs
+SubjectRemovalMatte.Outline.cs
 SubjectRemovalMotion.cs
 SubjectRemovalPlate.cs
+SubjectRemovalScaling.cs
 SubRip.cs
 SubtitleBuffer.cs
 SubtitleCue.cs
