@@ -269,7 +269,7 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "FMT-C01",
@@ -1030,6 +1030,26 @@
       "priority": "should",
       "oracles": "",
       "status": "planned"
+    },
+    {
+      "id": "SUB-20",
+      "area": "Formats: Subtitles & captions",
+      "name": "Library transcription",
+      "details": "Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": "verified"
+    },
+    {
+      "id": "SUB-21",
+      "area": "Formats: Subtitles & captions",
+      "name": "Progressive transcription from the playhead",
+      "details": "Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": "verified"
     },
     {
       "id": "PLF-01",
@@ -2869,7 +2889,7 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "WIN-06",
@@ -2879,7 +2899,7 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "UIA HW",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "WIN-07",
@@ -2889,7 +2909,7 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "STORE",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "WIN-08",

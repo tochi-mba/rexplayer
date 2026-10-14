@@ -603,6 +603,9 @@ public sealed record PlayerSettings
     /// <summary>Words that come in as they are spoken and move the way they were said (OSD-11).</summary>
     public KineticCaptionSettings KineticCaptions { get; init; } = new();
 
+    /// <summary>The library's speech heard ahead of time, and what plays heard from where it plays (SUB-20, SUB-21).</summary>
+    public TranscriptionSettings Transcription { get; init; } = new();
+
     // Window
 
     public WindowPlacement? Window { get; init; }
@@ -610,6 +613,9 @@ public sealed record PlayerSettings
     public AlwaysOnTop AlwaysOnTop { get; init; } = AlwaysOnTop.Never;
 
     public bool PlaylistVisible { get; init; }
+
+    /// <summary>Allow taskbar transport buttons, media keys, the lock-screen media card and the jump list.</summary>
+    public bool ShellMediaControls { get; init; } = true;
 
     /// <summary>Only the picture and the menus, without the controls (Ctrl+H).</summary>
     public bool MinimalInterface { get; init; }
@@ -781,6 +787,7 @@ public sealed record PlayerSettings
             SubtitleMargin = Math.Clamp(SubtitleMargin, 0, 40),
             SubtitleStyles = Enum.IsDefined(SubtitleStyles) ? SubtitleStyles : SubtitleStyleChoice.Respect,
             KineticCaptions = (KineticCaptions ?? new KineticCaptionSettings()).Normalize(),
+            Transcription = (Transcription ?? new TranscriptionSettings()).Normalize(),
         };
     }
 }

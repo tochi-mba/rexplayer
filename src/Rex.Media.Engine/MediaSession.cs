@@ -211,6 +211,9 @@ public sealed partial class MediaSession : IDisposable
         return completion.Task;
     }
 
+    /// <summary>Starts the cadence figures in <see cref="SessionStats.Cadence"/> afresh, so they cover only the pictures that follow.</summary>
+    public Task ClearCadenceAsync() => Post(() => _playback?.ClearCadence());
+
     /// <summary>Completes when the current media ends, fails or is stopped.</summary>
     public Task WaitForFinishAsync() => Volatile.Read(ref _finished).Task;
 
@@ -257,7 +260,12 @@ public sealed partial class MediaSession : IDisposable
                 command.Action();
                 command.Completion?.TrySetResult();
             }
-            catch (Exception ex) when (ex is InvalidOperationException or MediaFormatException or IOException or NotSupportedException or UnauthorizedAccessException or ArgumentException)
+            // A parser or decoder can expose an unexpected runtime exception while opening.
+            // The mailbox is the session's final thread boundary: report it on the caller's
+            // task instead of letting it terminate the process.
+#pragma warning disable CA1031 // Outermost session command boundary.
+            catch (Exception ex)
+#pragma warning restore CA1031
             {
                 _log.Error(LogSource, ExceptionDiagnostics.Summary(ex));
                 command.Completion?.TrySetException(ex);

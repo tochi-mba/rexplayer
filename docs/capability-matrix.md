@@ -3,7 +3,7 @@
 Everything rexplayer does or will do, generated from `capability-matrix.json`. A row is **verified** only while a test
 marked with its id passes; **built** means the code exists but the row is not fully proved yet.
 
-Totals: 155 planned, 42 built, 95 verified, 1 verified-hardware, 27 post-1.0.
+Totals: 151 planned, 46 built, 97 verified, 1 verified-hardware, 27 post-1.0.
 
 ## Playback core
 
@@ -35,7 +35,7 @@ Totals: 155 planned, 42 built, 95 verified, 1 verified-hardware, 27 post-1.0.
 | PB-24 | Corrupt-file resilience | Skip bad access units, keep playing other streams, rebuild a missing MP4/AVI index by scanning (with progress) | M3/M7 | must | planned |
 | PB-25 | Instant start | Cold start under 300 ms to UI; open to first frame under 500 ms on the hardware lane | M15 | must | planned |
 | PB-26 | Scrubbing preview | Seek-bar thumbnail preview generated off-thread from keyframes and cached | M11 | should | planned |
-| PB-27 | Media key / external control | SMTC, keyboard media keys, Bluetooth headset buttons (§6.13) | M15 | must | planned |
+| PB-27 | Media key / external control | SMTC, keyboard media keys, Bluetooth headset buttons (§6.13) | M15 | must | built |
 
 ## Formats: Containers / demuxers
 
@@ -132,6 +132,8 @@ Totals: 155 planned, 42 built, 95 verified, 1 verified-hardware, 27 post-1.0.
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned |
 | SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified |
 | SUB-19 | Local transcription | A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as "Transcript", cached per file, exportable as SRT/VTT | M16 | should | planned |
+| SUB-20 | Library transcription | Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress | M16 | should | verified |
+| SUB-21 | Progressive transcription from the playhead | Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest | M16 | should | verified |
 
 ## Formats: Playlists
 
@@ -375,9 +377,9 @@ Totals: 155 planned, 42 built, 95 verified, 1 verified-hardware, 27 post-1.0.
 | WIN-02 | File associations | Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps | M15 | must | built |
 | WIN-03 | Explorer verbs | "Play with rexplayer", "Add to rexplayer playlist" (classic menu, HKCU); modern top-level Windows 11 menu through a sparse package (C, post-1.0) | M15 | must | planned |
 | WIN-04 | AutoPlay handlers | Audio CD, DVD movie, Blu-ray movie, removable-media folders | M15 | should | planned |
-| WIN-05 | System Media Transport Controls | Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget | M15 | must | planned |
-| WIN-06 | Taskbar | Thumbnail toolbar (previous, play/pause, next), progress state (normal/paused/error), live thumbnail | M15 | must | planned |
-| WIN-07 | Jump list | Recent media, pinned items, tasks (open file, resume last, open network stream); classic `ICustomDestinationList` (works unpackaged) | M15 | should | planned |
+| WIN-05 | System Media Transport Controls | Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget | M15 | must | built |
+| WIN-06 | Taskbar | Thumbnail toolbar (previous, play/pause, next), progress state (normal/paused/error), live thumbnail | M15 | must | built |
+| WIN-07 | Jump list | Recent media, pinned items, tasks (open file, resume last, open network stream); classic `ICustomDestinationList` (works unpackaged) | M15 | should | built |
 | WIN-08 | Toasts on track change | Opt-in (Windows App SDK app notifications, unpackaged registration) | M15 | could | planned |
 | WIN-09 | High DPI | PerMonitorV2 everywhere incl. the OSD and subtitles; crisp on monitor moves | M4 | must | built |
 | WIN-10 | Theme & materials | Follows system light/dark live; Mica | M4 | must | built |

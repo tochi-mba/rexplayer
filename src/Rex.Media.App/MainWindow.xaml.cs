@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
     private Keymap _keymap;
     private D3D11Presenter? _presenter;
     private IReadOnlyList<string>? _startupFiles;
+    private readonly string? _startupCommand;
     private Task _presenterWork = Task.CompletedTask;
     private bool _updatingControls;
     private bool _showRemaining = true;
@@ -62,12 +63,14 @@ public sealed partial class MainWindow : Window
 
     /// <param name="files">What the launch was asked to open.</param>
     /// <param name="settings">The settings the launch has already read; read again when null.</param>
-    public MainWindow(IReadOnlyList<string> files, PlayerSettings? settings = null)
+    /// <param name="startupCommand">A safe jump-list task to run after initial activation, or null.</param>
+    public MainWindow(IReadOnlyList<string> files, PlayerSettings? settings = null, string? startupCommand = null)
     {
         App.Milestones.Reach("window");
         InitializeComponent();
         App.Milestones.Reach("xaml");
         _settings = settings ?? SettingsStore.Load(SettingsPath);
+        _startupCommand = startupCommand;
 
         // Read before this run writes its own: a marker here is the last run's, which did not close cleanly.
         _crashed = ResumeMarker.Read(ResumePath);
@@ -89,6 +92,7 @@ public sealed partial class MainWindow : Window
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
         WireKineticCaptions();
+        WireTranscription();
         WireVisualizer();
         WireMemory();
         WireLibrary();
@@ -97,6 +101,7 @@ public sealed partial class MainWindow : Window
         WireZoom();
         WireSubjectTools();
         WireSeekBar();
+        WireTaskbar();
 
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
@@ -170,6 +175,7 @@ public sealed partial class MainWindow : Window
             VideoPresenterFactory = () => _presenter is { } presenter ? new BorrowedPresenter(presenter) : null!,
             Log = App.Log,
             Milestones = App.Milestones,
+            GraphicsCardDecoding = App.GraphicsCardDecoding,
         },
         listener);
 
@@ -225,7 +231,7 @@ public sealed partial class MainWindow : Window
             }
             else
             {
-                _presenter = Task.Run(() => D3D11Presenter.ForComposition(width, height, out swapChain)).GetAwaiter().GetResult();
+                _presenter = Task.Run(() => D3D11Presenter.ForComposition(width, height, out swapChain, App.SoftwareGraphics)).GetAwaiter().GetResult();
             }
 
             var panel = WinRT.MarshalInspectable<object>.FromManaged(Video);
@@ -266,6 +272,10 @@ public sealed partial class MainWindow : Window
     {
         await GreetAsync();
         AfterGreeting(_crashed, openedSomething);
+        if (_startupCommand is { } command)
+        {
+            Run(command);
+        }
     }
 
     private (int Width, int Height) VideoPixels() =>
@@ -407,6 +417,7 @@ public sealed partial class MainWindow : Window
         ShowEpisodeSkip();
         ShowNamedPlaylists();
         ShowMenuChecks();
+        ShowTaskbarState();
         RememberLater();
     }
 
@@ -426,6 +437,7 @@ public sealed partial class MainWindow : Window
 
         _updatingControls = false;
         ShowEpisodeSkip();
+        ShowTaskbarPosition();
     }
 
     /// <summary>Brings the playlist view in line, row by row, keeping its selection and scroll and the playing item in sight.</summary>
@@ -454,6 +466,8 @@ public sealed partial class MainWindow : Window
         {
             PlaylistView.ScrollIntoView(_playlistRows[current]);
         }
+
+        ShowTaskbarState();
     }
 
     /// <summary>A short message over the picture, which fades after a moment.</summary>
@@ -586,6 +600,8 @@ public sealed partial class MainWindow : Window
         _saveTimer.Stop();
         _resumeTimer.Stop();
         _sleepTimer.Stop();
+        _probe?.Dispose();
+        _probe = null;
         // The seek area can still see the pointer leave while the window goes, so its work is
         // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
         HideSeekPreview();
@@ -595,7 +611,9 @@ public sealed partial class MainWindow : Window
         InstallAsWeClose();
         SaveSettings();
         _player.SaveQueue();
+        CloseTranscription();
         CloseLibrary();
+        DisposeShell();
         _globalHotkeys?.Dispose();
         TryClearResumeMarker();
         KeepAwake(false, false);

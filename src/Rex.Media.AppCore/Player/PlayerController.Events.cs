@@ -12,6 +12,9 @@ public sealed partial class PlayerController
     /// <summary>Within this of the start, Previous goes to the previous item; later it restarts this one.</summary>
     public static readonly TimeSpan RestartThreshold = TimeSpan.FromSeconds(3);
 
+    /// <summary>Whether Previous would go back to the start of this item rather than to the one before it.</summary>
+    public bool PreviousRestarts => _session is not null && CanSeek && Position > RestartThreshold;
+
     private const string LogSource = "player";
 
     /// <summary>What the log says about media as it opens: its container, length and every track.</summary>
@@ -64,7 +67,7 @@ public sealed partial class PlayerController
 
                 break;
             case CommandCatalog.Previous:
-                if (_session is not null && CanSeek && Position > RestartThreshold)
+                if (PreviousRestarts)
                 {
                     Seek(TimeSpan.Zero);
                 }

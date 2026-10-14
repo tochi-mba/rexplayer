@@ -155,7 +155,12 @@ public sealed class HostileInputTests
             {
                 using (packet)
                 {
-                    decoder?.Decode(packet, frames);
+                    // A multiplexed file's video and subtitle packets do not belong to
+                    // the audio decoder. Feed only packets of the selected audio track.
+                    if (packet.TrackId == track.Id)
+                    {
+                        decoder?.Decode(packet, frames);
+                    }
                 }
 
                 foreach (var frame in frames)

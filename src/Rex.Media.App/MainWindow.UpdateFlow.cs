@@ -376,6 +376,7 @@ public sealed partial class MainWindow
         {
             _updateTransfer = progress;
             ShowUpdates();
+            ShowTaskbarProgress();
         }
     }
 
@@ -392,6 +393,7 @@ public sealed partial class MainWindow
         }
 
         download.Dispose();
+        ShowTaskbarProgress();
         if (Pending is { Stage: UpdateStage.Downloading } pending && pending.Version == version)
         {
             var after = UpdateFlow.AfterDownload(pending, report, DateTimeOffset.UtcNow);

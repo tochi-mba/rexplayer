@@ -409,11 +409,13 @@ public sealed class PlayerControllerTests
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
         Assert.Equal("There are no audio tracks to choose from.", harness.Messages[^1]);
         Assert.Null(await controller.StatsAsync());
+        await controller.ClearCadenceAsync();
 
         controller.Open(["two.mkv"]);
         harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
         Assert.Equal(2, controller.AudioTracks.Count);
         Assert.NotNull(await controller.StatsAsync());
+        await controller.ClearCadenceAsync();
 
         controller.Seek(TimeSpan.FromMilliseconds(100));
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));

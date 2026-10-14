@@ -117,6 +117,8 @@ public sealed partial class SubjectEditSession
         // presenting thread can keep tracking and learning while a search is in flight.
         worker._positive.AddRange(_positive);
         worker._negative.AddRange(_negative);
+        _weights.CopyTo(worker._weights, 0);
+        worker._weightTotal = _weightTotal;
         _recoveryTime = frame.Pts;
         _recoveryCancellation = new CancellationTokenSource();
         var cancellation = _recoveryCancellation.Token;

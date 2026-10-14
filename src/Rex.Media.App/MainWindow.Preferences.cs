@@ -51,6 +51,8 @@ public sealed partial class MainWindow
         var onTop = Choice("Always on top", ["Never", "Always", "While playing"], (int)s.AlwaysOnTop);
         var hide = Number("Hide the full-screen controls after (seconds)", s.ControlsHideSeconds, 0.5, 10);
         var messages = Check("Show messages over the picture", s.OnScreenMessages);
+        var shellMedia = Check("Use Windows taskbar buttons, media controls and the jump list", s.ShellMediaControls);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(shellMedia, "PreferencesShellMediaControls");
         var title = Number("Show the title when an item starts for (seconds, 0 for never)", s.TitleSeconds, 0, 30);
         var single = Check("Use one window: open files in the player already running", s.SingleInstance);
         var enqueue = Check("Files opened that way join the playlist instead of playing", s.EnqueueFromSecondLaunch);
@@ -154,8 +156,15 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        var transcription = TranscriptionPreferences();
+        content.Children.Add(Heading("Transcription"));
+        foreach (var control in transcription.Controls)
+        {
+            content.Children.Add(control);
+        }
+
         content.Children.Add(Heading("Window"));
-        foreach (var control in new UIElement[] { theme, onTop, hide, messages, title })
+        foreach (var control in new UIElement[] { theme, onTop, hide, messages, title, shellMedia })
         {
             content.Children.Add(control);
         }
@@ -211,7 +220,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var next = (_settings with
+        var next = transcription.Apply((_settings with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,
@@ -235,6 +244,7 @@ public sealed partial class MainWindow
             AlwaysOnTop = (AlwaysOnTop)onTop.SelectedIndex,
             ControlsHideSeconds = hide.Value,
             OnScreenMessages = messages.IsChecked == true,
+            ShellMediaControls = shellMedia.IsChecked == true,
             TitleSeconds = title.Value,
             SingleInstance = single.IsChecked == true,
             EnqueueFromSecondLaunch = enqueue.IsChecked == true,
@@ -265,7 +275,7 @@ public sealed partial class MainWindow
             SubtitlesAtBottom = atBottom.IsChecked == true,
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
-        }).Normalize();
+        }).Normalize()).Normalize();
         var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
             || s.AudioArtworkStyle != next.AudioArtworkStyle
             || s.AudioArtworkColor != next.AudioArtworkColor
@@ -283,7 +293,9 @@ public sealed partial class MainWindow
         LayOutSubtitles();
         SetView(_view);
         ShowState();
+        ShowTaskbarSettingsChanged();
         SaveSettings();
+        TranscriptionSaved(s);
         Say("Preferences saved");
 
         // A changed mode or schedule may start, stop or allow a download or a prompt.
