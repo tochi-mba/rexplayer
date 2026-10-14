@@ -306,6 +306,18 @@ public sealed class TranscriptionWorkerTests : IDisposable
 
     [Fact]
     [Capability("SUB-20")]
+    public void AnIdleWorkerExitsItsLoopWhenClosed()
+    {
+        var worker = Worker();
+        worker.Start();
+        worker.Dispose();
+        var field = typeof(TranscriptionWorker).GetField("_thread", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var thread = (Thread)field.GetValue(worker)!;
+        Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "The idle transcription thread did not stop.");
+    }
+
+    [Fact]
+    [Capability("SUB-20")]
     public async Task OnItsOwnThreadItHearsWhatItIsGivenAndLetsTheModelGoWhenClosed()
     {
         var film = Media("film.mkv", seconds: 60, declared: 60);
