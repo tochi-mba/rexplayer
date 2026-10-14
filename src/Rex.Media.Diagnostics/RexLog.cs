@@ -109,7 +109,16 @@ public sealed class RexLog
                 if (!_draining)
                 {
                     _draining = true;
-                    ThreadPool.UnsafeQueueUserWorkItem(static log => log.Drain(), this, preferLocal: false);
+                    // A busy pool can delay a second batch for seconds while tests, decoders and
+                    // other CPU workers are blocking. A short-lived dedicated background writer
+                    // guarantees that the next batch progresses without making the caller wait.
+                    var writer = new Thread(static state => ((RexLog)state!).Drain())
+                    {
+                        IsBackground = true,
+                        Priority = ThreadPriority.BelowNormal,
+                        Name = "rexplayer log writer",
+                    };
+                    writer.Start(this);
                 }
             }
         }
