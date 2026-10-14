@@ -107,7 +107,9 @@ public sealed class TranscriptionWorkerTests : IDisposable
         Assert.All(opened.Track.All(), cue => Assert.InRange(cue.Start, S(120), S(146)));
         Assert.NotEmpty(opened.Track.All());
         Assert.Equal(4, _hearer!.Threads[^1]);
-        Assert.Equal(10, worker.Speed.Factor!.Value, 3);
+        // The 30-second model input includes 4 seconds of overlap; only the
+        // 26 kept seconds add new captions, and those determine playback's buffer.
+        Assert.Equal(26d / 3, worker.Speed.Factor!.Value, 3);
         Assert.Null(worker.Snapshot("other.mkv"));
         Assert.NotEmpty(worker.Snapshot(film)!.Words);
 
