@@ -137,6 +137,7 @@ public sealed partial class MainWindow : Window
 
         PlaylistView.ItemsSource = _playlistRows;
         PlaylistView.ContainerContentChanging += OnPlaylistRowShown;
+        WirePerformance();
         ApplySettingsToControls();
         ShowState();
         ShowPosition();
@@ -176,6 +177,8 @@ public sealed partial class MainWindow : Window
             Log = App.Log,
             Milestones = App.Milestones,
             GraphicsCardDecoding = App.GraphicsCardDecoding,
+            VideoQueueCapacity = _budget.VideoQueueCapacity,
+            AudioQueueCapacity = _budget.AudioQueueCapacity,
         },
         listener);
 
@@ -257,6 +260,7 @@ public sealed partial class MainWindow : Window
                 presenter.Redraw();
             });
             App.Milestones.Reach("presenter");
+            _ = CompleteFactsAsync();
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or COMException)
@@ -602,6 +606,7 @@ public sealed partial class MainWindow : Window
         _sleepTimer.Stop();
         _probe?.Dispose();
         _probe = null;
+        UnwirePerformance();
         // The seek area can still see the pointer leave while the window goes, so its work is
         // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
         HideSeekPreview();

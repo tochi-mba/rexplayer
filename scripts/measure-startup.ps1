@@ -136,18 +136,21 @@ function Get-MeasureMedia {
     $made = [ordered]@{
         'h264-1080p.mp4' = @('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30') + $tone + @('-t', '60', '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-g', '60', '-c:a', 'aac', '-b:a', '128k')
         'h264-2160p.mp4' = @('-f', 'lavfi', '-i', 'testsrc2=size=3840x2160:rate=30') + $tone + @('-t', '30', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-g', '60', '-c:a', 'aac', '-b:a', '128k')
-        'hevc10-1080p.mp4' = @('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30') + $tone + @('-t', '20', '-c:v', 'libx265', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p10le', '-tag:v', 'hvc1', '-x265-params', 'log-level=error', '-c:a', 'aac', '-b:a', '128k')
+        'hevc10-1080p.mp4' = @('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30') + $tone + @('-t', '20', '-c:v', 'hevc_qsv', '-profile:v', 'main10', '-pix_fmt', 'p010le', '-tag:v', 'hvc1', '-c:a', 'aac', '-b:a', '128k')
         'vp9-1080p.webm' = @('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30') + $tone + @('-t', '20', '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '4M', '-c:a', 'libopus')
         'music.mp3' = @('-f', 'lavfi', '-i', 'aevalsrc=0.4*sin(2*PI*(220+40*sin(t))*t)+0.6*sin(2*PI*55*t)*lt(mod(t\,0.5)\,0.06):s=44100:c=stereo', '-t', '90', '-c:a', 'libmp3lame', '-b:a', '192k')
         'music.flac' = @('-f', 'lavfi', '-i', 'aevalsrc=0.4*sin(2*PI*(220+40*sin(t))*t)+0.6*sin(2*PI*55*t)*lt(mod(t\,0.5)\,0.06):s=44100:c=stereo', '-t', '90', '-c:a', 'flac')
         'picture.jpg' = @('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=1', '-frames:v', '1', '-q:v', '3')
     }
+    # Without a graphics card that encodes HEVC, the software encoder makes it, slowly.
+    $instead = @{ 'hevc10-1080p.mp4' = @('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30') + $tone + @('-t', '20', '-c:v', 'libx265', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p10le', '-tag:v', 'hvc1', '-x265-params', 'log-level=error', '-c:a', 'aac', '-b:a', '128k') }
     foreach ($name in $made.Keys) {
         $path = Join-Path $folder $name
         if (Test-Path $path) { continue }
         Write-Host "Making $name with FFmpeg"
-        & ffmpeg -hide_banner -loglevel error -y @($made[$name]) $path
-        if ($LASTEXITCODE -ne 0) { throw "FFmpeg could not make $name." }
+        & ffmpeg -hide_banner -loglevel error -nostdin -y @($made[$name]) $path
+        if ($LASTEXITCODE -ne 0 -and $instead.Contains($name)) { & ffmpeg -hide_banner -loglevel error -nostdin -y @($instead[$name]) $path }
+        if ($LASTEXITCODE -ne 0) { Remove-Item -Force -ErrorAction SilentlyContinue $path; throw "FFmpeg could not make $name." }
     }
 
     return $folder

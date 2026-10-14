@@ -46,6 +46,8 @@ public sealed class D3D11Presenter : IVideoPresenter
     private bool _navigator;
     private readonly SubjectEditSession _subjectEdit;
     private VideoFrame? _originalForEditing;
+    private int _subjectStep = 1;
+    private (ColorInfo Color, int Bits, float[] Rows)? _matrix;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
     {
@@ -59,6 +61,19 @@ public sealed class D3D11Presenter : IVideoPresenter
     public bool SmoothChroma { get; set; } = true;
 
     public string Name => _renderer.IsSoftware ? "Direct3D 11 (software)" : "Direct3D 11";
+
+    /// <summary>Whether pictures are drawn in software, and the graphics adapter's vendor and own memory, for the device profile.</summary>
+    public (bool Software, uint VendorId, long DedicatedVideoMemory) Adapter
+    {
+        get
+        {
+            lock (_gate)
+            {
+                var (vendor, memory) = _renderer.AdapterIdentity;
+                return (_renderer.IsSoftware, vendor, memory);
+            }
+        }
+    }
 
     /// <summary>The device, so a decoder on the graphics card can leave its pictures where they are drawn.</summary>
     public object? Gpu => _renderer.Gpu;
@@ -185,6 +200,30 @@ public sealed class D3D11Presenter : IVideoPresenter
             _pointerX = float.IsFinite(x) ? Math.Clamp(x, 0, 1) : 0.5f;
             _pointerY = float.IsFinite(y) ? Math.Clamp(y, 0, 1) : 0.5f;
             _pointerActive = active;
+        }
+    }
+
+    /// <summary>
+    /// Subject Lock looks at every this-many-th sample across and down (1 or 2), from the next
+    /// picture: 2 follows the subject in a half-size copy, a quarter of the work, on a computer
+    /// that cannot spare the time (DeviceBudget.SubjectStep). A change asks for the subject again.
+    /// </summary>
+    public int SubjectStep
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _subjectStep;
+            }
+        }
+
+        set
+        {
+            lock (_gate)
+            {
+                _subjectStep = Math.Clamp(value, 1, 2);
+            }
         }
     }
 
@@ -424,7 +463,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             // doubled memory traffic on 4K hardware surfaces even when erasure was off.
             var original = frame.Surface is D3D11Surface gpu
                 ? ReadGpuFrame(frame, gpu)
-                : ColorConverter.ToBgra(frame);
+                : AnalysisConverter.ToBgra(frame, _subjectStep);
             _originalForEditing?.Dispose();
             _originalForEditing = original;
             using var edited = _subjectEdit.Process(original);
@@ -445,7 +484,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             _renderer.CopySurfacePlanes(surface, original.Width, original.Height,
                 original.Format == PixelFormat.P010, frame.Plane(0), frame.Stride(0),
                 frame.Plane(1), frame.Stride(1));
-            return ColorConverter.ToBgra(frame);
+            return AnalysisConverter.ToBgra(frame, _subjectStep);
         }
         finally
         {
@@ -476,7 +515,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         {
             var tenBit = frame.Format == PixelFormat.P010;
             _renderer.UploadSurface(surface, tenBit ? VideoPlaneFormat.P010 : VideoPlaneFormat.Nv12, frame.Width, frame.Height);
-            Draw(frame, tenBit ? YuvTransform.For(color, 10).ForShader(65535.0 / 64) : YuvTransform.For(color, 8).ForShader(255));
+            Draw(frame, Matrix(color, tenBit ? 10 : 8));
             _renderer.Present(waitForRefresh: _onScreen);
             return;
         }
@@ -485,18 +524,19 @@ public sealed class D3D11Presenter : IVideoPresenter
         {
             case PixelFormat.Nv12:
                 _renderer.Upload(VideoPlaneFormat.Nv12, frame.Width, frame.Height, frame.Plane(0), frame.Stride(0), frame.Plane(1), frame.Stride(1));
-                Draw(frame, YuvTransform.For(color, 8).ForShader(255));
+                Draw(frame, Matrix(color, 8));
                 break;
             case PixelFormat.P010:
                 _renderer.Upload(VideoPlaneFormat.P010, frame.Width, frame.Height, frame.Plane(0), frame.Stride(0), frame.Plane(1), frame.Stride(1));
-                Draw(frame, YuvTransform.For(color, 10).ForShader(65535.0 / 64));
+                Draw(frame, Matrix(color, 10));
                 break;
             case PixelFormat.Bgra32:
                 _renderer.Upload(VideoPlaneFormat.Bgra, frame.Width, frame.Height, frame.Plane(0), frame.Stride(0), default, 0);
                 Draw(frame, BgraMatrix);
                 break;
             default:
-                using (var bgra = ColorConverter.ToBgra(frame))
+                // Converted to the nearest level in fixed point: the same picture as the exact conversion to the eye, many times sooner.
+                using (var bgra = AnalysisConverter.ToBgra(frame))
                 {
                     _renderer.Upload(VideoPlaneFormat.Bgra, bgra.Width, bgra.Height, bgra.Plane(0), bgra.Stride(0), default, 0);
                     Draw(bgra, BgraMatrix);
@@ -506,6 +546,22 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
 
         _renderer.Present(waitForRefresh: _onScreen);
+    }
+
+    /// <summary>
+    /// The shader's colour matrix for pictures of <paramref name="color"/> at <paramref name="bits"/>,
+    /// made once and kept while the pictures stay alike: working it out for every picture made new
+    /// arrays a frame. The arrays are only ever read.
+    /// </summary>
+    private float[] Matrix(ColorInfo color, int bits)
+    {
+        if (_matrix is not { } known || known.Color != color || known.Bits != bits)
+        {
+            known = (color, bits, bits > 8 ? YuvTransform.For(color, 10).ForShader(65535.0 / 64) : YuvTransform.For(color, 8).ForShader(255));
+            _matrix = known;
+        }
+
+        return known.Rows;
     }
 
     /// <summary>The offscreen picture as drawn, as a BGRA frame the caller disposes.</summary>

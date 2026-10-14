@@ -242,10 +242,10 @@ public sealed partial class MainWindow
     private int OptionChoice(string key) => VisualizerOptions.Choice(_settings.VisualOptions, _settings.Visualizer, key);
 
     /// <summary>The visualisation's colour for <paramref name="share"/> (how far along the pitch, or the shapes), as its settings say.</summary>
-    private Windows.UI.Color Paint(double share)
+    private Windows.UI.Color Paint(double share, Argb? accent = null)
     {
         var palette = (VisualPalette)OptionChoice(VisualizerOptions.Colors);
-        var color = Visualizers.PaletteColor(palette, share, _player.Position.TotalSeconds, AccentArgb(), VisualizerOptions.Rgb(_settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Color));
+        var color = Visualizers.PaletteColor(palette, share, _player.Position.TotalSeconds, accent ?? AccentArgb(), VisualizerOptions.Rgb(_settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Color));
         return Windows.UI.Color.FromArgb(255, color.R, color.G, color.B);
     }
 
@@ -349,7 +349,7 @@ public sealed partial class MainWindow
     private double StageScale() => Visualizer.XamlRoot?.RasterizationScale ?? 1;
 
     /// <summary>The canvas size the stage wants now: its size on screen, at the quality the stage can keep up.</summary>
-    private (int Width, int Height) StageSize(VisualStage? stage) => VisualStage.SizeFor(Visualizer.ActualWidth, Visualizer.ActualHeight, stage?.Quality ?? 1, StageScale());
+    private (int Width, int Height) StageSize(VisualStage? stage) => VisualStage.SizeFor(Visualizer.ActualWidth, Visualizer.ActualHeight, stage?.Quality ?? 1, StageScale(), _budget.VisualMaxSide);
 
     /// <summary>The software stage, filling the picture area edge to edge, and a note for the camera's news.</summary>
     private void BuildStage(double height)
@@ -481,7 +481,7 @@ public sealed partial class MainWindow
         var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
         var elapsed = now - _lastDrawn;
         var fast = _visualStage is { DrawMilliseconds: < 12 } && _builtFor is { } built && VisualScene.Draws(built);
-        var interval = TimeSpan.FromMilliseconds(fast ? 15 : 30);
+        var interval = TimeSpan.FromMilliseconds(Math.Max(fast ? 15 : 30, _budget.VisualFrameMilliseconds));
         if (elapsed < interval && elapsed >= TimeSpan.Zero)
         {
             return;
@@ -658,6 +658,9 @@ public sealed partial class MainWindow
     {
         const int Stride = SpectrogramColumns * 4;
         var palette = (VisualPalette)OptionChoice(VisualizerOptions.Colors);
+
+        // Looked up once a column: the theme's resources were searched for every one of its rows.
+        var accent = AccentArgb();
         for (var row = 0; row < SpectrogramRows; row++)
         {
             var start = row * Stride;
@@ -671,7 +674,7 @@ public sealed partial class MainWindow
             }
             else
             {
-                var paint = Paint((double)(SpectrogramRows - 1 - row) / SpectrogramRows);
+                var paint = Paint((double)(SpectrogramRows - 1 - row) / SpectrogramRows, accent);
                 color = new Argb(255, (byte)(paint.R * level), (byte)(paint.G * level), (byte)(paint.B * level));
             }
 

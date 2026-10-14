@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 using Rex.Media.Codecs.H264;
 using Rex.Media.Codecs.Hevc;
@@ -117,10 +118,13 @@ public sealed class MfVideoDecoder : IVideoDecoder
     {
         ArgumentNullException.ThrowIfNull(packet);
         ArgumentNullException.ThrowIfNull(output);
-        var data = _lengthSize > 0
-            ? NalUnits.ToAnnexB(packet.Data.Span, _lengthSize, packet.IsKeyframe ? _parameterSets : default)
-            : packet.Data.Span.ToArray();
-        _waiting.Enqueue(new Input(data, packet.Pts.IsKnown ? packet.Pts.Ticks : long.MinValue, packet.Duration.Ticks, packet.IsKeyframe));
+        // Into a pooled buffer, handed back once the transform has taken it: a packet a frame
+        // would otherwise be a new array a frame for the collector.
+        ReadOnlySpan<byte> parameterSets = packet.IsKeyframe ? _parameterSets : default;
+        var size = _lengthSize > 0 ? NalUnits.AnnexBSize(packet.Data.Span, _lengthSize, parameterSets.Length) : packet.Data.Length;
+        var data = ArrayPool<byte>.Shared.Rent(Math.Max(1, size));
+        var length = _lengthSize > 0 ? NalUnits.ToAnnexB(packet.Data.Span, _lengthSize, parameterSets, data) : CopyInto(packet.Data.Span, data);
+        _waiting.Enqueue(new Input(data, length, packet.Pts.IsKnown ? packet.Pts.Ticks : long.MinValue, packet.Duration.Ticks, packet.IsKeyframe));
         Pump(output);
     }
 
@@ -159,12 +163,31 @@ public sealed class MfVideoDecoder : IVideoDecoder
 
     public void Flush()
     {
-        _waiting.Clear();
+        ReturnWaiting();
         _draining = false;
         _transform.Flush();
     }
 
-    public void Dispose() => _transform.Dispose();
+    public void Dispose()
+    {
+        ReturnWaiting();
+        _transform.Dispose();
+    }
+
+    private static int CopyInto(ReadOnlySpan<byte> from, byte[] to)
+    {
+        from.CopyTo(to);
+        return from.Length;
+    }
+
+    /// <summary>Hands every waiting input's buffer back to the pool and forgets the input.</summary>
+    private void ReturnWaiting()
+    {
+        while (_waiting.TryDequeue(out var input))
+        {
+            ArrayPool<byte>.Shared.Return(input.Data);
+        }
+    }
 
     /// <summary>
     /// Feeds waiting input. A decoder on the graphics card refuses input while every surface in its pool
@@ -179,9 +202,9 @@ public sealed class MfVideoDecoder : IVideoDecoder
             var stalled = TimeSpan.Zero;
             while (_waiting.TryPeek(out var input))
             {
-                if (_transform.ProcessInput(input.Data, input.Time, input.Duration, input.Keyframe, discontinuity: false))
+                if (_transform.ProcessInput(input.Data.AsSpan(0, input.Length), input.Time, input.Duration, input.Keyframe, discontinuity: false))
                 {
-                    _waiting.Dequeue();
+                    ArrayPool<byte>.Shared.Return(_waiting.Dequeue().Data);
                     stalled = TimeSpan.Zero;
                     continue;
                 }
@@ -269,7 +292,7 @@ public sealed class MfVideoDecoder : IVideoDecoder
                 var start = plane == 0 ? 0 : _stride * _codedHeight;
                 for (var row = 0; row < rows; row++)
                 {
-                    sample.Data.AsSpan(start + (row * _stride), rowBytes).CopyTo(frame.Row(plane, row));
+                    sample.Data.Span.Slice(start + (row * _stride), rowBytes).CopyTo(frame.Row(plane, row));
                 }
             }
 
@@ -287,5 +310,5 @@ public sealed class MfVideoDecoder : IVideoDecoder
     }
 
     /// <summary>A packet in the form the decoder takes, waiting for it to accept input.</summary>
-    private readonly record struct Input(byte[] Data, long Time, long Duration, bool Keyframe);
+    private readonly record struct Input(byte[] Data, int Length, long Time, long Duration, bool Keyframe);
 }

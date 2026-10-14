@@ -27,7 +27,10 @@ public partial class App : Application
         // A launch that will hand its files to a running player has nothing to warm up.
         if (!AutomationPipe.IsServed(AutomationPipe.NameForCurrentUser))
         {
-            Warmup = LaunchWarmup.Start(Environment.GetCommandLineArgs().Length > 1, Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") != "1");
+            // A weak computer warms only what an empty launch shows (DeviceBudget.LeanLaunch).
+            var facts = MainWindow.QuickFacts();
+            var lean = Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Choose(StartupSettings.Performance, facts), facts).LeanLaunch;
+            Warmup = LaunchWarmup.Start(Environment.GetCommandLineArgs().Length > 1, Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") != "1", lean);
         }
 
         InitializeComponent();
@@ -56,6 +59,11 @@ public partial class App : Application
     public static DateTimeOffset LaunchedAt { get; } = new(System.Diagnostics.Process.GetCurrentProcess().StartTime);
 
     public static string SettingsPath { get; } = Path.Combine(DataRoot, "settings.json");
+
+    /// <summary>The settings as this launch found them, read once for the warm-up and the window.</summary>
+    private static PlayerSettings StartupSettings => _startupSettings ??= SettingsStore.Load(SettingsPath);
+
+    private static PlayerSettings? _startupSettings;
 
     /// <summary>The folder the log is written in, which Help, Open the log folder shows.</summary>
     public static string LogFolder { get; } = Path.Combine(DataRoot, "logs");
@@ -95,7 +103,7 @@ public partial class App : Application
         Log.Debug("app", "Command line: " + string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(arg => "\"" + arg + "\"")));
         var (launchFiles, launchCommand) = JumpListPlan.ParseLaunch(Environment.GetCommandLineArgs().Skip(1).ToArray());
         var files = launchFiles.Select(Located).ToList();
-        var settings = SettingsStore.Load(SettingsPath);
+        var settings = StartupSettings;
         var pipe = AutomationPipe.NameForCurrentUser;
 
         // Only a player that is there can be handed to: with none, there is nothing to wait for.

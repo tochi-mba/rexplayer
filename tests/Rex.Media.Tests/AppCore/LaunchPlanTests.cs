@@ -21,6 +21,18 @@ public sealed class LaunchPlanTests
     }
 
     [Fact]
+    public void ALeanLaunchWithNothingToOpenReadsOnlyTheStores()
+    {
+        Assert.Equal([LaunchWork.Memory, LaunchWork.Library], LaunchPlan.Order(opensMedia: false, realAudio: true, lean: true));
+    }
+
+    [Fact]
+    public void ALeanLaunchThatOpensMediaStillReadiesEverythingItPlaysWith()
+    {
+        Assert.Equal(LaunchPlan.Order(opensMedia: true, realAudio: true), LaunchPlan.Order(opensMedia: true, realAudio: true, lean: true));
+    }
+
+    [Fact]
     public void TheLibraryLooksThroughItsFoldersOnlyOnceTheLaunchHasSettled()
     {
         Assert.Equal(TimeSpan.FromSeconds(10), LaunchPlan.FirstLibraryScan);

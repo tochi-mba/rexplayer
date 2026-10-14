@@ -62,7 +62,7 @@ public sealed partial class MainWindow
     private string? _workerPath;
 
     /// <summary>The model the settings name.</summary>
-    private SpeechModel TranscriptModel => SpeechModels.For(_settings.KineticCaptions.TranscriptModel);
+    private SpeechModel TranscriptModel => SpeechModels.For(_budget.SpeechModel(_settings.KineticCaptions.TranscriptModel));
 
     /// <summary>Wires transcription without touching the disk: the first look happens once the launch has settled.</summary>
     private void WireTranscription()
@@ -175,7 +175,7 @@ public sealed partial class MainWindow
 
         var model = TranscriptModel;
         _modelInstalled ??= _speechModels.IsInstalled(model);
-        var plan = TranscriptionConditions.Plan(settings, new TranscriptionMoment(_player.IsPlaying, OnBattery(), EnergySaver(), _modelInstalled.Value), Environment.ProcessorCount);
+        var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, OnBattery(), EnergySaver(), _modelInstalled.Value), Environment.ProcessorCount);
         var worker = Worker();
         worker.Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null;
         if (plan != _plannedTranscription)

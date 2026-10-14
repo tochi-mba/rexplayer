@@ -128,6 +128,23 @@ public sealed partial class MainWindow
         var codePages = SubtitleText.Fallbacks;
         var codePage = Choice("Text of older subtitle files", [.. codePages.Select(entry => entry.Name)], Math.Max(0, codePages.ToList().FindIndex(entry => entry.CodePage == s.SubtitleCodePage)));
 
+        var performance = Choice("Fit rexplayer to this computer", ["Automatic", "Best quality", "Balanced", "Fastest"], (int)s.Performance);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performance, "PreferencesPerformance");
+        var performanceNow = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceNow, "PreferencesPerformanceNow");
+        var performanceChanges = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceChanges, "PreferencesPerformanceChanges");
+        void ShowPerformance()
+        {
+            var choice = (PerformanceChoice)Math.Max(0, performance.SelectedIndex);
+            performanceNow.Text = Rex.Media.AppCore.Performance.DeviceProfile.Describe(choice, _facts);
+            var changes = Rex.Media.AppCore.Performance.DeviceProfile.Changes(Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Choose(choice, _facts), _facts));
+            performanceChanges.Text = changes.Count == 0 ? "Nothing is held back: every picture, effect and visualisation at full quality." : string.Join("\n", changes);
+        }
+
+        performance.SelectionChanged += (_, _) => ShowPerformance();
+        ShowPerformance();
+
         var content = new StackPanel { Spacing = 8, MinWidth = 460 };
         content.Children.Add(Heading("Playback"));
         foreach (var control in new UIElement[] { veryShort, shortJump, medium, longJump, step, maxVolume, seekPreview })
@@ -145,6 +162,12 @@ public sealed partial class MainWindow
         {
             content.Children.Add(control);
         }
+
+        content.Children.Add(Heading("Performance"));
+        content.Children.Add(new TextBlock { Text = "On a slower computer rexplayer can do a little less so playback stays smooth. Automatic decides from the computer and Windows' energy saver; choose a level to decide yourself.", TextWrapping = TextWrapping.Wrap });
+        content.Children.Add(performance);
+        content.Children.Add(performanceNow);
+        content.Children.Add(performanceChanges);
 
         content.Children.Add(Heading("Languages"));
         content.Children.Add(audioLanguages);
@@ -289,6 +312,7 @@ public sealed partial class MainWindow
         ApplyTheme();
         ApplyAlwaysOnTop();
         ApplyVideoLook(_settings.VideoLook);
+        ApplyBudget();
         ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
         LayOutSubtitles();
         SetView(_view);

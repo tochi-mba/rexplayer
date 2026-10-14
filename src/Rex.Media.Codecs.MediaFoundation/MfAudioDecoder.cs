@@ -159,7 +159,7 @@ public sealed class MfAudioDecoder : IAudioDecoder
             }
 
             var frame = AudioFrame.Rent(_rate, _channels, samples);
-            var interleaved = MemoryMarshal.Cast<byte, float>(sample.Data.AsSpan(0, samples * _channels * sizeof(float)));
+            var interleaved = MemoryMarshal.Cast<byte, float>(sample.Data.Span[..(samples * _channels * sizeof(float))]);
             for (var c = 0; c < _channels; c++)
             {
                 var plane = frame.Channel(c);

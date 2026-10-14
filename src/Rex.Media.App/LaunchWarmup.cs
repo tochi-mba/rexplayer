@@ -25,10 +25,10 @@ internal sealed class LaunchWarmup
     {
     }
 
-    public static LaunchWarmup Start(bool opensMedia, bool realAudio)
+    public static LaunchWarmup Start(bool opensMedia, bool realAudio, bool lean = false)
     {
         var warmup = new LaunchWarmup();
-        foreach (var work in LaunchPlan.Order(opensMedia, realAudio))
+        foreach (var work in LaunchPlan.Order(opensMedia, realAudio, lean))
         {
             switch (work)
             {

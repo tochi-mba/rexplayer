@@ -55,10 +55,17 @@ public sealed partial class MainWindow
         var token = timeout.Token;
         var lane = urgent ? _priorityPictureSlot : _pictureSlots;
         var entered = false;
+        var single = false;
         try
         {
             await lane.WaitAsync(token);
             entered = true;
+            if (!urgent && _budget.LibraryPicturesAtOnce == 1)
+            {
+                // A weak computer makes one picture at a time.
+                await _onePictureSlot.WaitAsync(token);
+                single = true;
+            }
             if (_closed)
             {
                 return;
@@ -110,6 +117,11 @@ public sealed partial class MainWindow
         }
         finally
         {
+            if (single)
+            {
+                _onePictureSlot.Release();
+            }
+
             if (entered)
             {
                 lane.Release();
@@ -198,7 +210,7 @@ public sealed partial class MainWindow
             // enormous poster. WIC scales the decoded bitmap to the size needed by the cards.
             var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
             using var stream = await file.OpenReadAsync().AsTask(token);
-            var image = new BitmapImage { DecodePixelWidth = 320 };
+            var image = new BitmapImage { DecodePixelWidth = PictureSide };
             await image.SetSourceAsync(stream).AsTask(token);
             token.ThrowIfCancellationRequested();
             return image;
@@ -342,7 +354,7 @@ public sealed partial class MainWindow
 
         token.ThrowIfCancellationRequested();
         stream.Seek(0);
-        var image = new BitmapImage { DecodePixelWidth = 320 };
+        var image = new BitmapImage { DecodePixelWidth = PictureSide };
         await image.SetSourceAsync(stream).AsTask(token);
         return image;
     }

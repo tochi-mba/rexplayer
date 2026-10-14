@@ -22,6 +22,7 @@ public sealed class PlayerMetricsTests
         Assert.Equal((42.0, 8.0), (metrics["threads"], metrics["processors"]));
         Assert.Equal((10.0, 1.0, 120.0, 12.0, 110.0), (metrics["ui-probes"], metrics["ui-hitches"], metrics["ui-blocked-ms"], metrics["ui-blocked-ms-per-second"], metrics["ui-worst-ms"]));
         Assert.False(metrics.ContainsKey("frames-presented"));
+        Assert.Equal(0, metrics["performance-tier"]);
         Assert.False(metrics.ContainsKey("visual-draw-ms"));
     }
 
@@ -40,7 +41,8 @@ public sealed class PlayerMetricsTests
             Cadence = new FrameCadenceStats(98, 97, 41.7, 1.5, 50, 3, 0.5, 6),
         };
 
-        var metrics = PlayerMetrics.Read(Process, stats, default, new VisualSample(9.5, 0.85, 1280, 720));
+        var metrics = PlayerMetrics.Read(Process, stats, default, new VisualSample(9.5, 0.85, 1280, 720), PerformanceTier.Fastest);
+        Assert.Equal(2, metrics["performance-tier"]);
 
         Assert.Equal((100.0, 98.0, 2.0, 48_000.0), (metrics["frames-decoded"], metrics["frames-presented"], metrics["frames-dropped"], metrics["audio-samples-played"]));
         Assert.Equal(onCard, metrics["decoding-on-graphics-card"]);

@@ -23,9 +23,10 @@ public enum MfOutputStatus
 
 /// <summary>
 /// A decoded sample's bytes, or for a decoder working on the graphics card its surface (the bytes are
-/// then empty), and its timing in 100-nanosecond units as Media Foundation keeps them.
+/// then empty), and its timing in 100-nanosecond units as Media Foundation keeps them. The bytes are
+/// the transform's own buffer, reused by its next output: the caller copies what it keeps first.
 /// </summary>
-public readonly record struct MfSample(byte[] Data, long Time, long Duration, bool HasTime, D3D11Surface? Surface = null);
+public readonly record struct MfSample(ReadOnlyMemory<byte> Data, long Time, long Duration, bool HasTime, D3D11Surface? Surface = null);
 
 /// <summary>
 /// A synchronous Media Foundation transform, used as a decoder. Call sequencing and COM plumbing only
@@ -46,6 +47,7 @@ public sealed unsafe class MfTransform : IDisposable
     private readonly IMFActivate _activate;
     private readonly IMFTransform _transform;
     private IMFDXGIDeviceManager? _deviceManager;
+    private byte[] _output = [];
     private bool _disposed;
 
     private MfTransform(IMFActivate activate, IMFTransform transform, string name)
@@ -361,7 +363,7 @@ public sealed unsafe class MfTransform : IDisposable
         if (OnGraphicsCard && OperatingSystem.IsWindowsVersionAtLeast(8) && Surface(owned) is { } surface)
         {
             // The sample now belongs to the surface, which releases it once the picture is shown.
-            output = new MfSample([], Time(owned, out var timed), Duration(owned), timed, surface);
+            output = new MfSample(ReadOnlyMemory<byte>.Empty, Time(owned, out var timed), Duration(owned), timed, surface);
             return MfOutputStatus.Sample;
         }
 
@@ -373,9 +375,16 @@ public sealed unsafe class MfTransform : IDisposable
                 byte* bytes;
                 uint length;
                 contiguous.Lock(&bytes, null, &length);
-                var copy = new ReadOnlySpan<byte>(bytes, (int)length).ToArray();
+                // Into one buffer the transform keeps, grown when a picture needs more: a decoded
+                // picture is megabytes, and a new array for each was garbage the collector chased.
+                if (_output.Length < length)
+                {
+                    _output = new byte[length];
+                }
+
+                new ReadOnlySpan<byte>(bytes, (int)length).CopyTo(_output);
                 contiguous.Unlock();
-                output = new MfSample(copy, Time(owned, out var timed), Duration(owned), timed);
+                output = new MfSample(_output.AsMemory(0, (int)length), Time(owned, out var timed), Duration(owned), timed);
                 return MfOutputStatus.Sample;
             }
             finally
