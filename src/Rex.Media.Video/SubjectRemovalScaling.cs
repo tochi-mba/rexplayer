@@ -204,7 +204,10 @@ public static class SubjectRemovalScaling
 
         if (!better.IsEmpty && rows.Estimated[near])
         {
+            // A model-supplied fill is defined at full resolution. Its marked pixels
+            // take the model's own colour, not a feathered mix with the old subject.
             colour = better[x] & 0xFFFFFF;
+            opacity = 256;
         }
 
         drawn[x] = Over(original, colour, opacity);

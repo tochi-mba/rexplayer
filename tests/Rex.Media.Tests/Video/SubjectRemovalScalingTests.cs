@@ -129,8 +129,11 @@ public sealed class SubjectRemovalScalingTests
         using var estimate = Noise(32, 16, 4);
         frame.Plane(0).CopyTo(output.Plane(0));
         var estimated = alpha.Select((a, at) => a == 255 && at / 16 < 4).ToArray();
+        // Even a marked edge pixel with partial matte opacity must take the model's exact full-size colour.
+        alpha[1 * 16 + 1] = 128;
         SubjectRemovalScaling.Enlarge(frame, half, output, (0, 0, 16, 8), alpha, fill, estimate, estimated);
         Assert.Equal(Pixel(estimate, 3, 2) | 0xFF000000, Pixel(output, 3, 2));
+        Assert.Equal(Pixel(estimate, 2, 2) | 0xFF000000, Pixel(output, 2, 2));
         Assert.Equal(0xFF0000C0u, Pixel(output, 3, 12));
     }
 }
