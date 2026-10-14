@@ -168,7 +168,8 @@ public static class LibraryArrangement
             case LibraryGrouping.Album:
                 return entry.Album is { } album ? (album, 0, false) : (LibraryViews.UnknownAlbum, 0, true);
             case LibraryGrouping.Genre:
-                return entry.Genre is { } genre ? (genre, 0, false) : (LibraryViews.UnknownGenre, 0, true);
+                // A list shows each song once, so a song with several genres sits under its first.
+                return GenreNames.Primary(entry.Genre) is { } genre ? (genre, 0, false) : (LibraryViews.UnknownGenre, 0, true);
             case LibraryGrouping.Year:
                 return entry.Year is { } year ? (year.ToString(CultureInfo.InvariantCulture), -year, false) : ("Unknown year", 0, true);
             case LibraryGrouping.Decade:
