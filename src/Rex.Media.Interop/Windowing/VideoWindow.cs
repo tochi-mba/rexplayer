@@ -26,10 +26,10 @@ public sealed unsafe class VideoWindow : IDisposable
     private volatile bool _closed;
     private Exception? _failure;
 
-    private VideoWindow(string title, int width, int height)
+    private VideoWindow(string title, int width, int height, bool visible)
     {
         _procedure = Procedure;
-        _thread = new Thread(() => Run(title, width, height)) { IsBackground = true, Name = "rexplayer window" };
+        _thread = new Thread(() => Run(title, width, height, visible)) { IsBackground = true, Name = "rexplayer window" };
         _thread.SetApartmentState(ApartmentState.STA);
         _thread.Start();
         if (!_ready.Wait(MessageLoopReady) || _failure is not null)
@@ -49,7 +49,10 @@ public sealed unsafe class VideoWindow : IDisposable
     public bool IsClosed => _closed;
 
     /// <summary>Opens a window whose drawing area is <paramref name="width"/> by <paramref name="height"/>.</summary>
-    public static VideoWindow Open(string title, int width, int height) => new(title, width, height);
+    public static VideoWindow Open(string title, int width, int height) => new(title, width, height, visible: true);
+
+    /// <summary>A window like <see cref="Open"/>'s that is never shown: a top-level window for tests of what Windows attaches to one.</summary>
+    public static VideoWindow OpenHidden(string title, int width, int height) => new(title, width, height, visible: false);
 
     public void Dispose()
     {
@@ -66,7 +69,7 @@ public sealed unsafe class VideoWindow : IDisposable
         _ready.Dispose();
     }
 
-    private void Run(string title, int width, int height)
+    private void Run(string title, int width, int height, bool visible)
     {
         try
         {
@@ -87,7 +90,7 @@ public sealed unsafe class VideoWindow : IDisposable
                 }
             }
 
-            var style = WINDOW_STYLE.WS_OVERLAPPEDWINDOW | WINDOW_STYLE.WS_VISIBLE;
+            var style = WINDOW_STYLE.WS_OVERLAPPEDWINDOW | (visible ? WINDOW_STYLE.WS_VISIBLE : 0);
             var frame = new RECT { right = width, bottom = height };
             PInvoke.AdjustWindowRectEx(ref frame, style, false, 0);
             _window = PInvoke.CreateWindowEx(0, _className, title, style, PInvoke.CW_USEDEFAULT, PInvoke.CW_USEDEFAULT, frame.right - frame.left, frame.bottom - frame.top, default, null, module, null);

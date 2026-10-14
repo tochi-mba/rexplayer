@@ -34,7 +34,10 @@ public static class MediaFiles
     private static readonly HashSet<string> VideoSet = new(Video, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> AudioSet = new(Audio, StringComparer.OrdinalIgnoreCase);
 
-    public static bool IsPicture(string path) => PictureSet.Contains(Path.GetExtension(path));
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> PictureLookup = PictureSet.GetAlternateLookup<ReadOnlySpan<char>>();
+
+    /// <summary>Whether a file with this name is a picture; asked as often as the position moves, so it allocates nothing.</summary>
+    public static bool IsPicture(string path) => PictureLookup.Contains(Path.GetExtension(path.AsSpan()));
 
     /// <summary>What the library files a file as, by its name; null for a file that is not media.</summary>
     public static Rex.Media.Library.LibraryKind? LibraryKindOf(string path)
