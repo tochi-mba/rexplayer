@@ -51,6 +51,9 @@ public sealed class SubjectRemoval
 
     private readonly SubjectRemovalMotion _motion = new();
     private readonly SubjectRemovalPlate _plate = new();
+    // Retain full-resolution observed pixels for the detail lost when a large subject is processed at half size.
+    private readonly SubjectRemovalPlate _detailPlate = new();
+    private short[] _detailDistance = [];
     private readonly SubjectRemovalMatte _matte = new();
     private readonly SubjectRemovalFill _fill = new();
     private readonly byte[] _opacities = new byte[2 * SubjectRemovalMatte.SaturatedDistance + 1];
@@ -139,6 +142,8 @@ public sealed class SubjectRemoval
     public void Release()
     {
         _plate.Release();
+        _detailPlate.Release();
+        _detailDistance = [];
         _shape = _halfShape = null;
         _half?.Dispose();
         _half = null;
@@ -191,6 +196,7 @@ public sealed class SubjectRemoval
     private void Forget()
     {
         _motion.Reset();
+        _detailPlate.Clear();
         _matte.Reset();
         _matteKey = default;
         _hasPreviousSource = false;
@@ -263,6 +269,10 @@ public sealed class SubjectRemoval
         if (advance)
         {
             Record(frame, box, output is not null, feather);
+            if (_scale == 2 && output is not null)
+            {
+                RecordDetail(picture, frame, box, feather);
+            }
         }
 
 
@@ -302,6 +312,7 @@ public sealed class SubjectRemoval
         {
             var area = _matte.Area;
             SubjectRemovalScaling.Enlarge(picture, frame, output, area, _alpha, _colour, estimate, _estimated);
+            RestoreDetail(output, area);
             ObservedPixels *= 4;
             EstimatedPixels *= 4;
         }
@@ -353,6 +364,73 @@ public sealed class SubjectRemoval
         // Record far enough ahead of the moving silhouette for its confirmed sightings before it
         // passes over a pixel, including the guard around the feathered outline.
         return Expand(box, 0.18f, 0.14f, 44 + 2 * (int)Math.Max(pan, _boxSpeed), frame);
+    }
+
+    /// <summary>Keep native-resolution background detail while the matte and fill run at half resolution.</summary>
+    private void RecordDetail(VideoFrame picture, VideoFrame half, (int Left, int Top, int Right, int Bottom) box, int feather)
+    {
+        if (_detailPlate.Width != picture.Width || _detailPlate.Height != picture.Height)
+        {
+            _detailPlate.Prepare(picture.Width, picture.Height);
+        }
+        else if (_motion.Cut)
+        {
+            _detailPlate.Clear();
+        }
+        else
+        {
+            _detailPlate.Advance(new CameraMotion(_cameraMotion.Scale, 2 * _cameraMotion.ShiftX, 2 * _cameraMotion.ShiftY));
+        }
+
+        var interest = Interest(half, box);
+        _detailPlate.Keep((2 * interest.Left, 2 * interest.Top, 2 * interest.Right, 2 * interest.Bottom));
+        var area = _matte.Area;
+        var width = area.Right - area.Left;
+        var height = area.Bottom - area.Top;
+        var fullWidth = width * 2;
+        SubjectRemovalMatte.Ensure(ref _detailDistance, fullWidth * height * 2);
+        var reduced = _matte.Distance;
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var value = (short)Math.Clamp((int)reduced[y * width + x] * 2, short.MinValue, short.MaxValue);
+                var at = 2 * y * fullWidth + 2 * x;
+                _detailDistance[at] = _detailDistance[at + 1] = _detailDistance[at + fullWidth] = _detailDistance[at + fullWidth + 1] = value;
+            }
+        }
+
+        var clearance = (int)((_matte.Grow + Math.Max(feather, 4) + 2) * SubjectRemovalMatte.DistanceUnit) * 2;
+        _detailPlate.Learn(picture, (2 * interest.Left, 2 * interest.Top, 2 * interest.Right, 2 * interest.Bottom),
+            (2 * area.Left, 2 * area.Top, 2 * area.Right, 2 * area.Bottom),
+            _detailDistance.AsSpan(0, fullWidth * height * 2), clearance);
+    }
+
+    /// <summary>Restore observed full-resolution texture inside the fully opaque half-size matte.</summary>
+    private void RestoreDetail(VideoFrame output, (int Left, int Top, int Right, int Bottom) area)
+    {
+        var width = area.Right - area.Left;
+        if (_detailPlate.Width != output.Width || _detailPlate.Height != output.Height)
+        {
+            return;
+        }
+
+        for (var y = 2 * area.Top; y < Math.Min(output.Height, 2 * area.Bottom); y++)
+        {
+            var row = output.Row(0, y);
+            for (var x = 2 * area.Left; x < Math.Min(output.Width, 2 * area.Right); x++)
+            {
+                var at = (y / 2 - area.Top) * width + x / 2 - area.Left;
+                if (_kind[at] != Seen || _alpha[at] != 255 || _detailPlate.Sample(x, y, out var value) != SubjectRemovalPlate.Observed)
+                {
+                    continue;
+                }
+
+                row[x * 4] = (byte)value;
+                row[x * 4 + 1] = (byte)(value >> 8);
+                row[x * 4 + 2] = (byte)(value >> 16);
+            }
+        }
     }
 
     private void Record(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box, bool hasMatte, int feather)
