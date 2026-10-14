@@ -587,16 +587,54 @@
             </StackPanel>
             <TextBlock x:Name="LibraryStatus" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus" />
-            <!-- Library transcription (SUB-20): its line, and a menu to pause, resume, stop or change it. The
-                 line changes only with the state, so a screen reader hears each change once. -->
-            <DropDownButton x:Name="LibraryTranscription" Grid.Column="6" Visibility="Collapsed" MaxWidth="320"
-                            AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription"
-                            ToolTipService.ToolTip="Transcription of the library: progress, pause, resume and settings">
+            <!-- A compact, clickable job count. Open it for the real queue, filenames and progress. -->
+            <DropDownButton x:Name="LibraryTranscription" Grid.Column="6" Visibility="Collapsed" MaxWidth="240"
+                            AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription queue"
+                            ToolTipService.ToolTip="Open transcription queue and controls">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xE7F0;" FontSize="14" />
-                <TextBlock x:Name="LibraryTranscriptionText" TextTrimming="CharacterEllipsis" MaxWidth="260"
+                <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+                <TextBlock x:Name="LibraryTranscriptionText" TextTrimming="CharacterEllipsis" MaxWidth="185"
                            AutomationProperties.AutomationId="LibraryTranscriptionText" />
               </StackPanel>
+              <DropDownButton.Flyout>
+                <Flyout x:Name="TranscriptionDetails" Placement="BottomEdgeAlignedRight"
+                        Opened="OnTranscriptionDetailsOpened" Closed="OnTranscriptionDetailsClosed">
+                  <StackPanel Width="400" Spacing="12">
+                    <Grid ColumnSpacing="8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Transcription queue" FontSize="17" FontWeight="SemiBold"
+                                 AutomationProperties.HeadingLevel="Level2" />
+                      <TextBlock x:Name="TranscriptionQueueCount" Grid.Column="1" VerticalAlignment="Center"
+                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                 AutomationProperties.AutomationId="TranscriptionQueueCount" />
+                    </Grid>
+                    <TextBlock x:Name="TranscriptionQueueSummary" TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"
+                               AutomationProperties.AutomationId="TranscriptionQueueSummary" />
+                    <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  AutomationProperties.Name="Files waiting for transcription">
+                      <StackPanel x:Name="TranscriptionQueueRows" Spacing="6"
+                                  AutomationProperties.AutomationId="TranscriptionQueueRows" />
+                    </ScrollViewer>
+                    <Grid ColumnSpacing="8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <Button x:Name="TranscriptionPauseButton" Grid.Column="0" Content="Pause"
+                              Click="OnTranscriptionPauseClick" AutomationProperties.AutomationId="TranscriptionPause" />
+                      <Button x:Name="TranscriptionStopButton" Grid.Column="1" Content="Stop"
+                              Click="OnTranscriptionStopClick" AutomationProperties.AutomationId="TranscriptionStop" />
+                      <Button Grid.Column="2" Content="Settings" HorizontalAlignment="Right"
+                              Click="OnTranscriptionSettingsClick" AutomationProperties.AutomationId="TranscriptionSettings" />
+                    </Grid>
+                  </StackPanel>
+                </Flyout>
+              </DropDownButton.Flyout>
             </DropDownButton>
             <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
@@ -717,11 +755,34 @@
                  AutomationProperties.AutomationId="Elapsed" />
       <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" SizeChanged="OnSeekAreaSizeChanged"
             PointerMoved="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
-        <!-- The subtitles ready for what plays (SUB-21), as a quiet second track under the rail. -->
-        <Canvas x:Name="SubtitleBuffer" Height="28" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"
-                AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
+        <!-- Subtitle coverage has its own track: the playback rail and its chapter/bookmark marks
+             remain untouched. When no transcript is selected the entire row disappears. -->
+        <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="14,0,14,3" ColumnSpacing="10" Visibility="Collapsed"
+              AutomationProperties.AutomationId="TranscriptRail" AutomationProperties.Name="Transcript coverage">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Text="CAPTIONS" FontSize="10" CharacterSpacing="65" VerticalAlignment="Center"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                     AutomationProperties.AccessibilityView="Raw" />
+          <Grid Grid.Column="1" Height="6" VerticalAlignment="Center" IsHitTestVisible="False">
+            <Border CornerRadius="3" Background="{ThemeResource ControlFillColorSecondaryBrush}" />
+            <Canvas x:Name="SubtitleBuffer" Height="6" IsHitTestVisible="False"
+                    AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
+          </Grid>
+          <TextBlock x:Name="SubtitleBufferState" Grid.Column="2" MinWidth="85" TextAlignment="Right"
+                     FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                     AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Off" />
+        </Grid>
         <!-- Intro and credits as bands on the rail: filled when saved, outlined when detected. -->
         <Canvas x:Name="SectionMarkers" Height="28" VerticalAlignment="Center" IsHitTestVisible="False"
                 AutomationProperties.AutomationId="SectionMarkers" AutomationProperties.Name="No intro or credits marked" />
@@ -743,9 +804,6 @@
           </StackPanel>
         </Border>
       </Grid>
-      <TextBlock x:Name="SubtitleBufferState" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-12,4,0"
-                 FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsHitTestVisible="True" Visibility="Collapsed"
-                 AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Polite" />
       <TextBlock x:Name="Remaining" Grid.Row="0" Grid.Column="2" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
                  Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
 
