@@ -117,17 +117,17 @@ public sealed class RexLog
         if (level == LogLevel.Critical || (Options.FileEnabled && !Options.WriteBehind))
         {
             // What a crash leaves must be on the disk before anything else can happen: whatever waits goes first.
-            Flush(also: entry);
+            FlushWith(entry);
         }
 
         EntryWritten?.Invoke(this, entry);
     }
 
     /// <summary>Writes every entry still waiting to be written behind; with nothing waiting it does nothing.</summary>
-    public void Flush() => Flush(also: null);
+    public void Flush() => FlushWith(null);
 
     /// <summary>Writes what waits, then <paramref name="also"/>, in one go and in order.</summary>
-    private void Flush(LogEntry? also)
+    private void FlushWith(LogEntry? also)
     {
         lock (_fileGate)
         {

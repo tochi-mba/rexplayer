@@ -83,13 +83,17 @@ public sealed partial class MediaSession
             _clock = new AudioClock(sink, first);
             _clock.Rebase(MediaTime.Zero, sinkFormat.SampleRate, _speed);
             _audioQueue = new BoundedQueue<Packet>(session._options.AudioQueueCapacity);
-            _demuxThread = new Thread(RunDemux) { IsBackground = true, Name = "rexplayer demux" };
-            _audioThread = new Thread(RunAudio) { IsBackground = true, Name = "rexplayer audio" };
+            // Playing comes before anything else the computer does at ordinary priority (the
+            // library's scan, transcription, a visualisation, other programs): on a computer with
+            // two busy cores, threads of equal priority took turns and pictures arrived late. The
+            // sound is what a person hears break first, so it goes highest.
+            _demuxThread = new Thread(RunDemux) { IsBackground = true, Name = "rexplayer demux", Priority = ThreadPriority.AboveNormal };
+            _audioThread = new Thread(RunAudio) { IsBackground = true, Name = "rexplayer audio", Priority = ThreadPriority.Highest };
             if (presenter is not null)
             {
                 _presenter = presenter;
                 _videoQueue = new BoundedQueue<Packet>(session._options.VideoQueueCapacity);
-                _videoThread = new Thread(RunVideo) { IsBackground = true, Name = "rexplayer video" };
+                _videoThread = new Thread(RunVideo) { IsBackground = true, Name = "rexplayer video", Priority = ThreadPriority.AboveNormal };
             }
         }
 
