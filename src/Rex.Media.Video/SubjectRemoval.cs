@@ -278,8 +278,10 @@ public sealed class SubjectRemoval
         }
 
         _guard = (int)(_matte.Grow + Math.Max(feather, 3) + 4);
+        // A blanket extra band below the whole box withheld genuine background from the
+        // plate, especially for large figures at half resolution. The existing outline-based
+        // guard already excludes the subject's edge and any connected shoes.
         _protected = Expand(box, 0, 0, _guard, frame);
-        _protected.Bottom = Math.Min(frame.Height, _protected.Bottom + (box.Bottom - box.Top) / 6);
 
         var hole = Classify(frame, feather);
         if (estimate is not null)
