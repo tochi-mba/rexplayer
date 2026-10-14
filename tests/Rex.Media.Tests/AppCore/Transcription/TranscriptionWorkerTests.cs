@@ -419,9 +419,11 @@ public sealed class TranscriptionWorkerTests : IDisposable
 
             Threads.Add(threads);
             During?.Invoke();
-            if (Blocks)
+            if (Blocks && !cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(10)))
             {
-                cancellationToken.WaitHandle.WaitOne();
+                // An unresponsive cancellation must fail the fixture instead of leaving the
+                // entire portable or Windows test runner blocked until CI cancels its job.
+                throw new TimeoutException("The blocked fake speech model was never cancelled.");
             }
 
             if (!IgnoresCancellation)
