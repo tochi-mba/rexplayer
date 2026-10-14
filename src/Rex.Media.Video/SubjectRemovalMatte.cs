@@ -97,6 +97,7 @@ public sealed partial class SubjectRemovalMatte
     private float[] _blend = [];
 
     private float[] _memory = [];
+    private float[] _carried = [];
     private bool _hasMemory;
     private (int Left, int Top, int Right, int Bottom) _memoryBox;
     private (int Left, int Top) _memoryOrigin;
@@ -202,12 +203,28 @@ public sealed partial class SubjectRemovalMatte
         var bias = (Math.Clamp(coverage, 0, 100) - 50) / 50f * 2.5f;
         var wholeBox = coverage >= 100;
         // GrabCut's iteration: label with models from the box and the ring, then estimate the models
-        // again from that labelling and label once more.
-        BuildModels(firstPass: true, remember);
-        Weigh();
-        Score(bias);
-        Smooth(1);
-        Label(wholeBox);
+        // again from that labelling and label once more. While the subject is followed steadily, the
+        // previous picture's matte, carried along with the box, is that first labelling: a warm
+        // start, as a video segmentation's previous result seeds the next.
+        var steady = Carried(box) && _hasModels;
+        if (steady)
+        {
+            for (var cell = 0; cell < cells; cell++)
+            {
+                _label[cell] = (byte)(_region[cell] == Beyond ? 0 : wholeBox && _region[cell] == Inside ? 1 : _carried[cell] > 0.5f ? 1 : 0);
+            }
+
+            Weigh();
+        }
+        else
+        {
+            BuildModels(firstPass: true, remember);
+            Weigh();
+            Score(bias);
+            Smooth(1);
+            Label(wholeBox);
+        }
+
         BuildModels(firstPass: false, remember);
         Score(bias);
         Smooth(3);
@@ -414,10 +431,10 @@ public sealed partial class SubjectRemovalMatte
         if (_hasModels)
         {
             // Colour models change slowly; half of each comes from the pictures before.
-            for (var bin = 0; bin < BinCount; bin++)
+            for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
             {
-                _subjectHistogram[bin] = 0.5f * (_subjectHistogram[bin] + _subjectMemory[bin]);
-                _backgroundHistogram[bin] = 0.5f * (_backgroundHistogram[bin] + _backgroundMemory[bin]);
+                ((new Vector<float>(_subjectHistogram.AsSpan(bin)) + new Vector<float>(_subjectMemory.AsSpan(bin))) * 0.5f).CopyTo(_subjectHistogram.AsSpan(bin));
+                ((new Vector<float>(_backgroundHistogram.AsSpan(bin)) + new Vector<float>(_backgroundMemory.AsSpan(bin))) * 0.5f).CopyTo(_backgroundHistogram.AsSpan(bin));
             }
         }
 
@@ -428,40 +445,63 @@ public sealed partial class SubjectRemovalMatte
             _hasModels = true;
         }
 
-        for (var bin = 0; bin < BinCount; bin++)
+        var floor = new Vector<float>(1e-4f);
+        for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
         {
-            _ratio[bin] = Math.Clamp(MathF.Log(_subjectHistogram[bin] + 1e-4f) - MathF.Log(_backgroundHistogram[bin] + 1e-4f), -6, 6);
+            var ratio = Vector.Log(new Vector<float>(_subjectHistogram.AsSpan(bin)) + floor)
+                - Vector.Log(new Vector<float>(_backgroundHistogram.AsSpan(bin)) + floor);
+            Vector.Clamp(ratio, new Vector<float>(-6), new Vector<float>(6)).CopyTo(_ratio.AsSpan(bin));
         }
     }
 
-    /// <summary>Spreads each histogram over neighbouring bins, then scales it to sum to one.</summary>
+    /// <summary>
+    /// Spreads each histogram over neighbouring bins, then scales it to sum to one. Along each axis
+    /// every bin takes a quarter of either neighbour, a run of bins at a time; the first and last
+    /// level, with a neighbour on one side only, keep that side's quarter themselves.
+    /// </summary>
     private void Normalise(float[] histogram)
     {
         for (var axis = 0; axis < 3; axis++)
         {
             var stride = 1 << (4 * axis);
-            for (var bin = 0; bin < BinCount; bin++)
+            var bin = stride;
+            for (; bin + Vector<float>.Count <= BinCount - stride; bin += Vector<float>.Count)
             {
-                var level = (bin >> (4 * axis)) & (Levels - 1);
-                var before = level > 0 ? histogram[bin - stride] : histogram[bin];
-                var after = level < Levels - 1 ? histogram[bin + stride] : histogram[bin];
-                _scratch[bin] = 0.25f * before + 0.5f * histogram[bin] + 0.25f * after;
+                (new Vector<float>(histogram.AsSpan(bin - stride)) * 0.25f + new Vector<float>(histogram.AsSpan(bin)) * 0.5f
+                    + new Vector<float>(histogram.AsSpan(bin + stride)) * 0.25f).CopyTo(_scratch.AsSpan(bin));
+            }
+
+            for (; bin < BinCount - stride; bin++)
+            {
+                _scratch[bin] = 0.25f * histogram[bin - stride] + 0.5f * histogram[bin] + 0.25f * histogram[bin + stride];
+            }
+
+            for (var block = 0; block < BinCount; block += Levels * stride)
+            {
+                for (var low = block; low < block + stride; low++)
+                {
+                    var high = low + (Levels - 1) * stride;
+                    _scratch[low] = 0.75f * histogram[low] + 0.25f * histogram[low + stride];
+                    _scratch[high] = 0.25f * histogram[high - stride] + 0.75f * histogram[high];
+                }
             }
 
             _scratch.CopyTo(histogram, 0);
         }
 
-        var total = 0f;
-        foreach (var value in histogram)
+        var sum = Vector<float>.Zero;
+        for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
         {
-            total += value;
+            sum += new Vector<float>(histogram.AsSpan(bin));
         }
 
+        var total = Vector.Sum(sum);
         if (total > 0)
         {
-            for (var bin = 0; bin < BinCount; bin++)
+            var scale = 1 / total;
+            for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
             {
-                histogram[bin] /= total;
+                (new Vector<float>(histogram.AsSpan(bin)) * scale).CopyTo(histogram.AsSpan(bin));
             }
         }
     }
@@ -666,51 +706,71 @@ public sealed partial class SubjectRemovalMatte
     }
 
     /// <summary>
-    /// Blends in the previous picture's matte, read at the same place relative to the box, which moves
-    /// with the subject; then remembers this one.
+    /// Reads the previous picture's matte at each cell, at the same place relative to the box, which
+    /// moves with the subject, into <see cref="_carried"/>; -1 where it has none. Returns whether it
+    /// was read relative to the box, as for a subject followed steadily: a box that changed size a lot
+    /// keeps the remembered matte in picture coordinates instead, or there is none.
     /// </summary>
-    private void Carry((int Left, int Top, int Right, int Bottom) box, bool remember)
+    private bool Carried((int Left, int Top, int Right, int Bottom) box)
     {
         var (w, h) = (_gridWidth, _gridHeight);
-        if (_hasMemory)
+        Ensure(ref _carried, w * h);
+        _carried.AsSpan(0, w * h).Fill(-1);
+        if (!_hasMemory)
         {
-            var oldWidth = _memoryBox.Right - _memoryBox.Left;
-            var oldHeight = _memoryBox.Bottom - _memoryBox.Top;
-            var newWidth = box.Right - box.Left;
-            var newHeight = box.Bottom - box.Top;
-            // A box enlarged for reacquisition is not evidence that the subject grew: when it changes
-            // size a lot, the remembered matte stays in picture coordinates about the box's centre;
-            // only a modest change is taken as the subject's change of scale.
-            var loose = Math.Abs(newWidth - oldWidth) > oldWidth * 0.2f || Math.Abs(newHeight - oldHeight) > oldHeight * 0.2f;
-            var scaleX = loose ? 1 : oldWidth / (float)newWidth;
-            var scaleY = loose ? 1 : oldHeight / (float)newHeight;
-            var offsetX = loose ? (_memoryBox.Left + _memoryBox.Right - box.Left - box.Right) / 2f : 0;
-            var offsetY = loose ? (_memoryBox.Top + _memoryBox.Bottom - box.Top - box.Bottom) / 2f : 0;
-            for (var j = 0; j < h; j++)
-            {
-                var y = Area.Top + (j + 0.5f) * Scale;
-                var then = loose ? y + offsetY : _memoryBox.Top + (y - box.Top) * scaleY;
-                var gy = (then - _memoryOrigin.Top) / _memoryScale - 0.5f;
-                for (var i = 0; i < w; i++)
-                {
-                    var x = Area.Left + (i + 0.5f) * Scale;
-                    var gx = ((loose ? x + offsetX : _memoryBox.Left + (x - box.Left) * scaleX) - _memoryOrigin.Left) / _memoryScale - 0.5f;
-                    if (gx < 0 || gy < 0 || gx > _memoryWidth - 1 || gy > _memoryHeight - 1)
-                    {
-                        continue;
-                    }
+            return false;
+        }
 
-                    var x0 = Math.Min((int)gx, Math.Max(0, _memoryWidth - 2));
-                    var y0 = Math.Min((int)gy, Math.Max(0, _memoryHeight - 2));
-                    var x1 = Math.Min(x0 + 1, _memoryWidth - 1);
-                    var y1 = Math.Min(y0 + 1, _memoryHeight - 1);
-                    var fx = Math.Clamp(gx - x0, 0, 1);
-                    var fy = Math.Clamp(gy - y0, 0, 1);
-                    var top = _memory[y0 * _memoryWidth + x0] * (1 - fx) + _memory[y0 * _memoryWidth + x1] * fx;
-                    var bottom = _memory[y1 * _memoryWidth + x0] * (1 - fx) + _memory[y1 * _memoryWidth + x1] * fx;
-                    var cell = j * w + i;
-                    _probability[cell] = 0.65f * _probability[cell] + 0.35f * (top + (bottom - top) * fy);
+        var oldWidth = _memoryBox.Right - _memoryBox.Left;
+        var oldHeight = _memoryBox.Bottom - _memoryBox.Top;
+        var newWidth = box.Right - box.Left;
+        var newHeight = box.Bottom - box.Top;
+        // A box enlarged for reacquisition is not evidence that the subject grew: when it changes
+        // size a lot, the remembered matte stays in picture coordinates about the box's centre;
+        // only a modest change is taken as the subject's change of scale.
+        var loose = Math.Abs(newWidth - oldWidth) > oldWidth * 0.2f || Math.Abs(newHeight - oldHeight) > oldHeight * 0.2f;
+        var scaleX = loose ? 1 : oldWidth / (float)newWidth;
+        var scaleY = loose ? 1 : oldHeight / (float)newHeight;
+        var offsetX = loose ? (_memoryBox.Left + _memoryBox.Right - box.Left - box.Right) / 2f : 0;
+        var offsetY = loose ? (_memoryBox.Top + _memoryBox.Bottom - box.Top - box.Bottom) / 2f : 0;
+        for (var j = 0; j < h; j++)
+        {
+            var y = Area.Top + (j + 0.5f) * Scale;
+            var then = loose ? y + offsetY : _memoryBox.Top + (y - box.Top) * scaleY;
+            var gy = (then - _memoryOrigin.Top) / _memoryScale - 0.5f;
+            for (var i = 0; i < w; i++)
+            {
+                var x = Area.Left + (i + 0.5f) * Scale;
+                var gx = ((loose ? x + offsetX : _memoryBox.Left + (x - box.Left) * scaleX) - _memoryOrigin.Left) / _memoryScale - 0.5f;
+                if (gx < 0 || gy < 0 || gx > _memoryWidth - 1 || gy > _memoryHeight - 1)
+                {
+                    continue;
                 }
+
+                var x0 = Math.Min((int)gx, Math.Max(0, _memoryWidth - 2));
+                var y0 = Math.Min((int)gy, Math.Max(0, _memoryHeight - 2));
+                var x1 = Math.Min(x0 + 1, _memoryWidth - 1);
+                var y1 = Math.Min(y0 + 1, _memoryHeight - 1);
+                var fx = Math.Clamp(gx - x0, 0, 1);
+                var fy = Math.Clamp(gy - y0, 0, 1);
+                var top = _memory[y0 * _memoryWidth + x0] * (1 - fx) + _memory[y0 * _memoryWidth + x1] * fx;
+                var bottom = _memory[y1 * _memoryWidth + x0] * (1 - fx) + _memory[y1 * _memoryWidth + x1] * fx;
+                _carried[j * w + i] = top + (bottom - top) * fy;
+            }
+        }
+
+        return !loose;
+    }
+
+    /// <summary>Blends in the previous picture's matte read by <see cref="Carried"/> so the matte does not flicker; then remembers this one.</summary>
+    private void Carry((int Left, int Top, int Right, int Bottom) box, bool remember)
+    {
+        var cells = _gridWidth * _gridHeight;
+        for (var cell = 0; cell < cells; cell++)
+        {
+            if (_carried[cell] >= 0)
+            {
+                _probability[cell] = 0.65f * _probability[cell] + 0.35f * _carried[cell];
             }
         }
 
