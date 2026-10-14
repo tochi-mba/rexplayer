@@ -624,8 +624,11 @@ public sealed class SubjectRemoval
         var gridArea = (double)(grid.Right - grid.Left) * (grid.Bottom - grid.Top);
         // The larger subject was already downsampled; keep its inferred texture at a
         // finer grid so repeated edges survive the additional full-size enlargement.
-        var fillBudget = _scale == 2 ? 48_000 : FillBudget;
-        var holeBudget = _scale == 2 ? 12_000 : HoleBudget;
+        // Use a denser grid while a large subject still hides much of the background.
+        // Once enough of the plate has been seen, the usual bounded grid is sufficient.
+        var largeUnobservedArea = _scale == 2 && EstimatedPixels > 3_500;
+        var fillBudget = _scale == 2 ? (largeUnobservedArea ? 48_000 : 24_000) : FillBudget;
+        var holeBudget = _scale == 2 ? (largeUnobservedArea ? 12_000 : 6_000) : HoleBudget;
         var scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(Math.Max(gridArea / fillBudget, (double)_unseen / holeBudget))));
         var width = (grid.Right - grid.Left + scale - 1) / scale;
         var height = (grid.Bottom - grid.Top + scale - 1) / scale;
