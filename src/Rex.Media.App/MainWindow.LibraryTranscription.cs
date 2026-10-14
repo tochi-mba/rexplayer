@@ -825,13 +825,13 @@ public sealed partial class MainWindow
         var label = _holdingForSubtitles && _bufferDone is not null
             ? $"Preparing captions · {Math.Round(ahead.TotalMinutes):0}/{Math.Ceiling(Rex.Media.AppCore.Transcription.SubtitleBuffer.ReleaseTarget(_worker?.Speed.SafeFactor, _player.Speed, _player.Position, duration).TotalMinutes):0} min"
             : state switch
-        {
-            BufferState.Ahead => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s ahead",
-            BufferState.CatchingUp when ahead > TimeSpan.Zero => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s remaining",
-            BufferState.CatchingUp => "Catching up",
-            BufferState.Stalled => "Not ready here",
-            BufferState.Complete => "All ready",
-            _ => "",
+            {
+                BufferState.Ahead => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s ahead",
+                BufferState.CatchingUp when ahead > TimeSpan.Zero => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s remaining",
+                BufferState.CatchingUp => "Catching up",
+                BufferState.Stalled => "Not ready here",
+                BufferState.Complete => "All ready",
+                _ => "",
         };
         if (SubtitleBufferState.Text != label)
         {
