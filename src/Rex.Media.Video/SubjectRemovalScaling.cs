@@ -40,9 +40,10 @@ public static class SubjectRemovalScaling
     /// <summary>
     /// Fills <paramref name="small"/> (BGRA, <paramref name="scale"/> times smaller than
     /// <paramref name="frame"/>, rounded down) with the rounded mean of four pixels of each block:
-    /// the whole block when it is two by two, else four spread evenly over it.
+    /// the whole block when it is two by two, else four spread evenly over it. With
+    /// <paramref name="region"/> (in the reduced picture's pixels) only that part is made.
     /// </summary>
-    public static void Reduce(VideoFrame frame, VideoFrame small, int scale)
+    public static void Reduce(VideoFrame frame, VideoFrame small, int scale, (int Left, int Top, int Right, int Bottom)? region = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(small);
@@ -54,15 +55,17 @@ public static class SubjectRemovalScaling
         var source = MemoryMarshal.Cast<byte, uint>(frame.Plane(0));
         var target = MemoryMarshal.Cast<byte, uint>(small.Plane(0));
         var (inStride, outStride) = (frame.Stride(0) / 4, small.Stride(0) / 4);
-        var width = small.Width;
+        var (first, upper, width, lower) = region ?? (0, 0, small.Width, small.Height);
+        (first, upper) = (Math.Max(0, first), Math.Max(0, upper));
+        (width, lower) = (Math.Min(small.Width, width), Math.Min(small.Height, lower));
         // The two sample offsets inside a block, along each axis: 0 and 1 for two, else a quarter in from either side.
         var (near, far) = (scale / 4, scale - 1 - scale / 4);
-        for (var y = 0; y < small.Height; y++)
+        for (var y = upper; y < lower; y++)
         {
             var top = source.Slice((scale * y + near) * inStride, frame.Width);
             var bottom = source.Slice((scale * y + far) * inStride, frame.Width);
             var row = target.Slice(y * outStride, width);
-            var x = 0;
+            var x = first;
             // Two by two, eight reduced pixels at a time: blue and red, then green and alpha, each in 16-bit lanes.
             for (; scale == 2 && Vector256.IsHardwareAccelerated && x + 8 <= width; x += 8)
             {

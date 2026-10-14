@@ -110,12 +110,15 @@ public sealed class SubjectRemovalMotion
     /// The camera's motion from the previous picture to <paramref name="frame"/> (BGRA), ignoring the
     /// pixels inside <paramref name="exclude"/> and refined in detail over <paramref name="detail"/>.
     /// The first picture, and any picture with too little visible background to measure, report a
-    /// still camera.
+    /// still camera. <paramref name="whole"/>, when given, is the same picture at a whole number of
+    /// times <paramref name="frame"/>'s size, which is then only read in the detail area: the whole
+    /// picture's pyramid is read from it.
     /// </summary>
     public CameraMotion Estimate(VideoFrame frame, (int Left, int Top, int Right, int Bottom) exclude,
-        (int Left, int Top, int Right, int Bottom) detail)
+        (int Left, int Top, int Right, int Bottom) detail, VideoFrame? whole = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        var (source, factor) = whole is null ? (frame, 1) : (whole, whole.Width / frame.Width);
         if (frame.Width != _frameWidth || frame.Height != _frameHeight)
         {
             Allocate(frame.Width, frame.Height);
@@ -133,13 +136,13 @@ public sealed class SubjectRemovalMotion
             _sincePyramid = Compose(motion, _sincePyramid);
             if (++_pyramidAge >= OldestPyramid)
             {
-                Shrink(frame);
+                Shrink(source, factor);
                 Advance();
             }
         }
         else
         {
-            Shrink(frame);
+            Shrink(source, factor);
             _settled = float.PositiveInfinity;
             if (_hasPrevious && Align(exclude) is > 0 and var count)
             {
@@ -455,17 +458,20 @@ public sealed class SubjectRemovalMotion
 
     /// <summary>
     /// Reads a grey copy, each cell the mean of an evenly spread grid of up to four by four of its
-    /// pixels, so fine texture is averaged rather than aliased; then halves it twice.
+    /// pixels, so fine texture is averaged rather than aliased; then halves it twice. The picture
+    /// read may be <paramref name="factor"/> times the size the motion is measured at.
     /// </summary>
-    private void Shrink(VideoFrame frame)
+    private void Shrink(VideoFrame frame, int factor)
     {
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
         var (w, h) = (_widths[0], _heights[0]);
         var top = _current[0];
-        var across = Math.Min(_step, 4);
-        var spacing = _step / across;
-        var first = (_step - spacing * (across - 1)) / 2;
+        // A cell of the pyramid spans this many pixels of the picture it is read from.
+        var step = _step * factor;
+        var across = Math.Min(step, 4);
+        var spacing = step / across;
+        var first = (step - spacing * (across - 1)) / 2;
         var weight = 1f / (across * across);
         for (var y = 0; y < h; y++)
         {
@@ -474,10 +480,10 @@ public sealed class SubjectRemovalMotion
                 var total = 0f;
                 for (var j = 0; j < across; j++)
                 {
-                    var row = (y * _step + first + j * spacing) * stride;
+                    var row = (y * step + first + j * spacing) * stride;
                     for (var i = 0; i < across; i++)
                     {
-                        total += Grey(plane, row + (x * _step + first + i * spacing) * 4);
+                        total += Grey(plane, row + (x * step + first + i * spacing) * 4);
                     }
                 }
 

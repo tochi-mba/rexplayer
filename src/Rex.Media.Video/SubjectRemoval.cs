@@ -42,6 +42,9 @@ public sealed class SubjectRemoval
     // pixels, at most four times smaller, which keeps every subject's cost within a frame's time.
     private const long WorkingBox = 24_000;
     private const int MostScale = 4;
+    // How much further than the recorded area a reduced copy is made, in its pixels, so a camera
+    // that speeds up between pictures still finds its area made.
+    private const int Headroom = 16;
 
     private const byte Outside = 0;
     private const byte Seen = 1;
@@ -56,9 +59,6 @@ public sealed class SubjectRemoval
     private byte[] _alpha = [];
     private byte[] _kind = [];
     private uint[] _colour = [];
-    // One row of the plate's colours and states, read a row at a time.
-    private uint[] _sampled = [];
-    private byte[] _sampledState = [];
     private int[] _previousSource = [];
     private int[] _jumps = [];
     private int[] _columns = [];
@@ -79,6 +79,9 @@ public sealed class SubjectRemoval
     // reduced copy it works on, is.
     private int _scale = 1;
     private VideoFrame? _small;
+    // The full-size picture being worked on, and the part of its reduced copy made so far.
+    private VideoFrame? _picture;
+    private (int Left, int Top, int Right, int Bottom) _reduced;
     private int[] _enlargeColumns = [];
     private bool[] _estimated = [];
     private byte[]? _shape;
@@ -239,9 +242,9 @@ public sealed class SubjectRemoval
         if (scale > 1)
         {
             // A large subject: everything below works on a reduced copy, drawn back at full size.
-            frame = Reduce(picture);
             box = (box.Left / scale, box.Top / scale, (box.Right + scale - 1) / scale, (box.Bottom + scale - 1) / scale);
             feather = (feather + scale - 1) / scale;
+            frame = Reduce(picture, box);
         }
 
         if (_plate.Width != frame.Width || _plate.Height != frame.Height)
@@ -335,7 +338,7 @@ public sealed class SubjectRemoval
         _boxSpeed = Math.Max(Math.Max(Math.Abs(box.Left - before.Left), Math.Abs(box.Right - before.Right)),
             Math.Max(Math.Abs(box.Top - before.Top), Math.Abs(box.Bottom - before.Bottom)));
         _previousBox = box;
-        _cameraMotion = _motion.Estimate(frame, exclude, Interest(frame, box));
+        _cameraMotion = _motion.Estimate(frame, exclude, Within(Interest(frame, box)), _scale > 1 ? _picture : null);
         if (_motion.Cut)
         {
             _plate.Clear();
@@ -365,7 +368,7 @@ public sealed class SubjectRemoval
 
     private void Record(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box, bool hasMatte, int feather)
     {
-        var interest = Interest(frame, box);
+        var interest = Within(Interest(frame, box));
         var rows = (long)(interest.Right - interest.Left) * (interest.Bottom - interest.Top) > LargeArea ? 2 : 1;
         var phase = (int)(_pictures % 2);
         if (hasMatte)
@@ -438,20 +441,9 @@ public sealed class SubjectRemoval
 
         var (left, top, right, bottom) = (frame.Width, frame.Height, 0, 0);
         _unseen = 0;
-        SubjectRemovalMatte.Ensure(ref _sampled, width);
-        SubjectRemovalMatte.Ensure(ref _sampledState, width);
-        var sampled = _sampled.AsSpan(0, width);
-        var states = _sampledState.AsSpan(0, width);
-        // A blend copies only the surface around the selection, never the scene seen behind it.
-        sampled.Clear();
-        states.Clear();
+        uint seen = 0;
         for (var y = area.Top; y < area.Bottom; y++)
         {
-            if (_mode != RemovalMode.Blend)
-            {
-                _plate.SampleRow(area.Left, y, sampled, states);
-            }
-
             for (var x = area.Left; x < area.Right; x++)
             {
                 var at = (y - area.Top) * width + x - area.Left;
@@ -463,8 +455,9 @@ public sealed class SubjectRemoval
                     continue;
                 }
 
-                var state = states[x - area.Left];
-                _colour[at] = sampled[x - area.Left];
+                // A blend copies only the surface around the selection, never the scene seen behind it.
+                var state = _mode == RemovalMode.Blend ? SubjectRemovalPlate.Unknown : _plate.Sample(x, y, out seen);
+                _colour[at] = seen;
                 if (state == SubjectRemovalPlate.Observed)
                 {
                     _kind[at] = Seen;
@@ -537,8 +530,12 @@ public sealed class SubjectRemoval
         return _scale;
     }
 
-    /// <summary>The reduced copy of the picture, kept from picture to picture.</summary>
-    private VideoFrame Reduce(VideoFrame picture)
+    /// <summary>
+    /// The reduced copy of the picture, kept from picture to picture. Only the part around the
+    /// subject that the removal reads is made: the area whose background is recorded, with room for
+    /// the camera to speed up; the fill reads further only when its hole needs to.
+    /// </summary>
+    private VideoFrame Reduce(VideoFrame picture, (int Left, int Top, int Right, int Bottom) box)
     {
         var (width, height) = (picture.Width / _scale, picture.Height / _scale);
         if (_small is null || _small.Width != width || _small.Height != height)
@@ -547,10 +544,17 @@ public sealed class SubjectRemoval
             _small = VideoFrame.Rent(PixelFormat.Bgra32, width, height);
         }
 
-        SubjectRemovalScaling.Reduce(picture, _small, _scale);
         _small.Pts = picture.Pts;
+        _picture = picture;
+        _reduced = Expand(Interest(_small, box), 0, 0, Headroom, _small);
+        SubjectRemovalScaling.Reduce(picture, _small, _scale, _reduced);
         return _small;
     }
+
+    /// <summary>An area of the picture worked on, kept within the part of a reduced copy made.</summary>
+    private (int Left, int Top, int Right, int Bottom) Within((int Left, int Top, int Right, int Bottom) area) =>
+        _scale == 1 ? area : (Math.Max(area.Left, _reduced.Left), Math.Max(area.Top, _reduced.Top),
+            Math.Min(area.Right, _reduced.Right), Math.Min(area.Bottom, _reduced.Bottom));
 
     /// <summary>
     /// The model's outline at the size the removal works at: in a reduced copy, a pixel is inside
@@ -660,6 +664,12 @@ public sealed class SubjectRemoval
         // hole that changes size from picture to picture never needs more memory.
         _room = fillBudget + fillBudget / 4;
         _fill.Prepare(width, height, _room);
+        if (_scale > 1 && (grid.Left < _reduced.Left || grid.Top < _reduced.Top || grid.Right > _reduced.Right || grid.Bottom > _reduced.Bottom))
+        {
+            // A wide hole reads texture beyond the part of the reduced copy made so far.
+            SubjectRemovalScaling.Reduce(_picture!, frame, _scale, grid);
+        }
+
         ReadGrid(frame, grid, scale, width, height);
         if (advance)
         {

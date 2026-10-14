@@ -197,8 +197,17 @@ public sealed class SubjectRemovalPlateTests
         plate.Advance(new CameraMotion(1, -0.5f, 0.5f));
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(2, 1, out var down));
         Assert.Equal(6, Split(down).G);
-        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(2, 3, out _));
         Assert.Equal(SubjectRemovalPlate.Estimated, plate.Sample(2, 5, out _));
+
+        // Half a cell from the last row seen, half from one never seen: the edge of what is known is
+        // estimated from the known row alone; with nothing known around it, it is unknown.
+        Assert.Equal(SubjectRemovalPlate.Estimated, plate.Sample(2, 3, out var edge));
+        plate.Advance(new CameraMotion(1, 0, -0.5f));
+        plate.Sample(2, 3, out var lastRow);
+        plate.Advance(new CameraMotion(1, 0, 0.5f));
+        Assert.Equal(lastRow, edge);
+        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(5, 6, out var nothing));
+        Assert.Equal(0u, nothing);
     }
 
     [Fact]
