@@ -255,6 +255,21 @@ public sealed class SubjectRemovalTests
         Assert.Equal((byte)expected, SubjectRemoval.Opacity(distance, grow, feather));
 
     [Fact]
+    public void VeryLargeFigureCanReadBeyondThePreparedReducedArea()
+    {
+        // A close-up whose selection is so wide that the fill's neighbourhood reaches beyond
+        // the region prepared for recording. The missing reduced pixels must be decoded on
+        // demand rather than read uninitialised (and the full-frame output remains valid).
+        var scene = new RemovalScene(3072, 2048, _ => (0, 0), _ => (48f, 32f), zoom: 32);
+        var removal = new SubjectRemoval();
+        using var picture = scene.Render(0);
+        using var preview = Preview(scene);
+        Assert.True(removal.Apply(picture, scene.Box(0, loose: 6), advance: true, 3, 50, preview));
+        Assert.Equal(4, removal.WorkingScale);
+        Assert.True(removal.EstimatedPixels > 0);
+    }
+
+    [Fact]
     public void ALargeSubjectIsRemovedAtHalfSizeAndDrawnBackAtFullSize()
     {
         // The walking figure filmed four times closer: its box holds about 58,000 pixels, so the
