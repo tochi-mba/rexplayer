@@ -32,6 +32,7 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    private const int TranscriptionQueueRowsLimit = 50;
     private readonly TranscriptionLedger _ledger = new(TranscriptionLedger.DefaultPath(App.DataRoot));
     private readonly List<string> _askedTranscripts = [];
     private readonly HashSet<string> _queuedTranscripts = new(StringComparer.OrdinalIgnoreCase);
@@ -292,8 +293,9 @@ public sealed partial class MainWindow
         {
             var full = _transcripts.Load(item, model.Id);
             var partial = full is null ? _transcripts.LoadPartial(item, model.Id) : null;
-            var wanted = full is null && (asked || settings.WhatPlays || (settings.Library && entry is not null
-                && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry))) == TranscriptionSkip.None));
+            var backgroundEligible = settings.Library && entry is not null
+                && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry))) == TranscriptionSkip.None;
+            var wanted = full is null && TranscriptionEligibility.Playing(asked, HasVideo, settings.WhatPlays, backgroundEligible);
             var track = full is not null ? full.ToTrack(TranscriptionWorker.TrackName(model.Id))
                 : !wanted && partial is not null ? partial.ToTranscript().ToTrack(TranscriptionWorker.TrackName(model.Id)) : null;
             return (full, track, partial?.Done, partial?.Duration, wanted);
@@ -651,7 +653,7 @@ public sealed partial class MainWindow
                 });
             }
 
-            for (var i = 0; i < paths.Count; i++)
+            for (var i = 0; i < Math.Min(paths.Count, TranscriptionQueueRowsLimit); i++)
             {
                 var (path, share) = paths[i];
                 var active = string.Equals(path, current, StringComparison.OrdinalIgnoreCase);
@@ -689,8 +691,27 @@ public sealed partial class MainWindow
                     Child = item,
                 };
                 AutomationProperties.SetName(back, $"{i + 1}. {name.Text}");
-                TranscriptionQueueRows.Children.Add(back);
+                var open = new Button
+                {
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    Padding = new Thickness(0),
+                    Content = back,
+                };
+                open.Click += (_, _) => OpenTranscriptionQueueItem(path);
+                ToolTipService.SetToolTip(open, $"Open {path}");
+                TranscriptionQueueRows.Children.Add(open);
                 _transcriptionQueueRows[path] = (state, bar);
+            }
+
+            if (paths.Count > TranscriptionQueueRowsLimit)
+            {
+                TranscriptionQueueRows.Children.Add(new TextBlock
+                {
+                    Text = $"{paths.Count - TranscriptionQueueRowsLimit} more files will follow.",
+                    Margin = new Thickness(10, 4, 10, 2),
+                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray),
+                });
             }
         }
 
@@ -725,6 +746,16 @@ public sealed partial class MainWindow
         TranscriptionPauseButton.Content = _settings.Transcription.Paused ? "Resume" : "Pause";
         TranscriptionStopButton.Visibility = library || _askedTranscripts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         TranscriptionStopButton.Content = library ? "Stop library" : "Cancel requests";
+    }
+
+    /// <summary>Close the queue and play the chosen file immediately.</summary>
+    private void OpenTranscriptionQueueItem(string path)
+    {
+        TranscriptionDetails.Hide();
+        if (!string.Equals(_player.Item?.Location, path, StringComparison.OrdinalIgnoreCase))
+        {
+            _player.OpenHandedOver([path], enqueue: false, App.LaunchedAt);
+        }
     }
 
     private void OnTranscriptionPauseClick(object sender, RoutedEventArgs e) =>
