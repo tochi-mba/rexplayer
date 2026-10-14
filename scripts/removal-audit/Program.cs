@@ -140,9 +140,9 @@ void Bench(string video, double start, int count)
         var matte = new SubjectRemovalMatte();
         using var preview = VideoFrame.Rent(PixelFormat.Bgra32, w, h);
         List<double> previews = [], walls = [], records = [], motions = [], mattes = [];
-        var stages = new double[8];
+        var stages = new double[12];
         var motionStages = new double[4];
-        var stageBytes = new long[8];
+        var stageBytes = new long[12];
         var matteStages = new double[12];
         var allocated = 0L;
         for (var i = 0; i < pictures.Count; i++)
