@@ -129,7 +129,7 @@ public sealed class LibrarySectionAnalysisTests
             }, RexLog.InMemory()))
             {
                 worker.SetQueue([path]);
-                Assert.True(started.Wait(TimeSpan.FromSeconds(10)), "Background worker did not start.");
+                Assert.True(started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken), "Background worker did not start.");
                 worker.SetPaused(true);
                 // Changing the queue cancels the current worker, and it must not publish stale data.
                 worker.SetQueue([path]);
