@@ -296,6 +296,29 @@ public sealed class SubjectRemovalPlateTests
         }
     }
 
+    [Fact]
+    public void ZoomedPlateRowsMatchIndividualSamplesForEveryPixel()
+    {
+        var plate = new SubjectRemovalPlate();
+        plate.Prepare(64, 48);
+        using var frame = Gradient();
+        See(plate, frame, (0, 0, 64, 24), Nothing, default, 0);
+        plate.Estimate(12, 30, 0x112233);
+        plate.Advance(new CameraMotion(1.02f, 0.5f, -0.25f));
+
+        foreach (var y in new[] { -3, 0, 1, 20, 23, 29, 47, 48, 55 })
+        {
+            var colours = new uint[80];
+            var states = new byte[80];
+            plate.SampleRow(-8, y, colours, states);
+            for (var i = 0; i < colours.Length; i++)
+            {
+                Assert.Equal(plate.Sample(i - 8, y, out var pixel), states[i]);
+                Assert.Equal(pixel, colours[i]);
+            }
+        }
+    }
+
     [Theory]
     [InlineData(0, 0, 0x102030u)]
     [InlineData(256, 0, 0x405060u)]
