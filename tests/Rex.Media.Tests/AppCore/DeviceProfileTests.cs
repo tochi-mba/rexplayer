@@ -108,10 +108,9 @@ public sealed class DeviceProfileTests
         Assert.False(budget.Allows(VideoEffect.NeonEdges));
         Assert.True(budget.Allows(VideoEffect.Halftone));
         var changes = DeviceProfile.Changes(budget);
-        Assert.Equal(9, changes.Count);
+        Assert.Equal(8, changes.Count);
         Assert.Contains("The heaviest picture effects stay off (Bokeh, Chromatic contours, Fireflies, Flow field, Ghostwire, Ghostwire mask mode, Ghostwire motion, Ink trace, Lumen weave, Neon contours). Choosing one says so.", changes);
         Assert.Contains("Transcription uses at most the Tiny speech model, and the library waits while something plays.", changes);
-        Assert.Contains("Library pictures are made at 240 pixels, one at a time.", changes);
         Assert.Contains("Subject Lock follows its subject in a half-size copy of each picture.", changes);
         Assert.Contains("The timeline shows no preview picture under the pointer.", changes);
         Assert.Contains("The window's animations are off.", changes);

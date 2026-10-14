@@ -12,20 +12,21 @@ namespace Rex.Media.App;
 /// picture surface exists (what draws the pictures) and Windows has listed its decoders (which
 /// codecs the graphics card decodes). <see cref="DeviceProfile"/> turns them and the user's choice
 /// into a <see cref="DeviceBudget"/>, applied here to the visualisations, the picture effects,
-/// Subject Lock, the library's pictures, the timeline preview, the lists' animations and the
+/// Subject Lock, the timeline preview, the lists' animations and the
 /// decode queues. A change of power (energy saver, the charger) is applied as it happens.
 /// </summary>
 public sealed partial class MainWindow
 {
     private DeviceFacts _facts = QuickFacts();
     private DeviceBudget _budget = new();
-    private readonly SemaphoreSlim _onePictureSlot = new(1, 1);
     private readonly Dictionary<Microsoft.UI.Xaml.Controls.ListViewBase, TransitionCollection> _listTransitions = [];
     private bool _powerWatched;
 
-    /// <summary>The width library pictures are decoded at (DeviceBudget.LibraryPictureSide).</summary>
-    private static volatile int PictureSide = 320;
-
+    /// <summary>
+    /// What this computer's tier allows the library's pictures: the width they are made at and how
+    /// many are made at once. The library's picture code reads it (it is not changed here).
+    /// </summary>
+    internal (int Side, int AtOnce) LibraryPictureBudget => (_budget.LibraryPictureSide, _budget.LibraryPicturesAtOnce);
     /// <summary>The facts available at once: threads and memory this process may use, power, and the switches that imitate a weak computer.</summary>
     internal static DeviceFacts QuickFacts() => new()
     {
@@ -137,7 +138,6 @@ public sealed partial class MainWindow
             ShowListAnimations(list, budget.Animations);
         }
 
-        PictureSide = budget.LibraryPictureSide;
         if (_visualizing && before.VisualMaxSide != budget.VisualMaxSide)
         {
             BuildVisualizer();

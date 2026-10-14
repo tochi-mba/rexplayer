@@ -76,7 +76,7 @@ public sealed record DeviceBudget
     /// <summary>A launch with nothing to open prepares only what its window needs, the rest when first used.</summary>
     public bool LeanLaunch { get; init; }
 
-    /// <summary>The longest side of a library picture, in pixels, and how many are made at once.</summary>
+    /// <summary>The longest side of a library picture, in pixels, and how many are made at once: for the library's picture code to read.</summary>
     public int LibraryPictureSide { get; init; } = 320;
 
     public int LibraryPicturesAtOnce { get; init; } = 2;
@@ -268,10 +268,6 @@ public static class DeviceProfile
             changes.Add("Starting with nothing to play prepares only the window; video and sound are made ready when first used.");
         }
 
-        if (budget.LibraryPictureSide < 320)
-        {
-            changes.Add(string.Create(CultureInfo.InvariantCulture, $"Library pictures are made at {budget.LibraryPictureSide} pixels, {(budget.LibraryPicturesAtOnce == 1 ? "one at a time" : $"{budget.LibraryPicturesAtOnce} at a time")}."));
-        }
 
         if (!budget.SeekPreview)
         {

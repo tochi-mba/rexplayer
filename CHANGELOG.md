@@ -11,7 +11,7 @@ pipeline the moment its number reaches `main`.
   playback stays smooth: visualisations are drawn smaller and less often, the heaviest picture
   effects stay off, Subject Lock follows its subject in a half-size copy, transcription uses a
   smaller speech model and waits while something plays, an empty launch prepares only the window,
-  library pictures are smaller, the timeline preview and list animations are off, and fewer
+  the timeline preview and list animations are off, and fewer
   pictures wait to be decoded. Windows' energy saver makes it a step lighter. Preferences has a
   new Performance section showing what was chosen and why, with Automatic, Best quality, Balanced
   and Fastest. A capable computer loses nothing.
