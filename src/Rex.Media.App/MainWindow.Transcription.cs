@@ -37,6 +37,8 @@ public sealed partial class MainWindow
         var lastTenth = -1;
         return new Progress<double>(share =>
         {
+            _hearing = share < 1 ? share : null;
+            ShowTaskbarProgress();
             var tenth = (int)(share * 10);
             if (tenth != lastTenth && share < 1)
             {

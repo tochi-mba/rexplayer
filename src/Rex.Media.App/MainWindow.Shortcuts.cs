@@ -43,6 +43,11 @@ public sealed partial class MainWindow
             var label = _keymap.Label(command);
             ToolTipService.SetToolTip(button, label.Length > 0 ? $"{text} ({label})" : text);
         }
+
+        if (_shell is not null)
+        {
+            ShowTransportTooltips();
+        }
     }
 
     /// <summary>Registers the shortcuts chosen to work everywhere; says which another program already has.</summary>
