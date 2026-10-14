@@ -464,7 +464,9 @@ public sealed class TranscriptionWorker : IDisposable
             token.ThrowIfCancellationRequested();
             var change = job.Transcript.Add(chunk, words, language);
             job.Track.Replace(change.Replaced.Start, change.Replaced.End, change.Cues);
-            Speed.Heard(heardLength, _time.GetElapsedTime(started));
+            // Two seconds of context on either side are decoded again for each piece. They
+            // cost time but produce no new subtitle coverage: count only what was kept.
+            Speed.Heard(chunk.Kept.Length, _time.GetElapsedTime(started));
             if (++job.Pieces % SaveEvery == 0)
             {
                 _cache.SavePartial(job.Path, job.Transcript);

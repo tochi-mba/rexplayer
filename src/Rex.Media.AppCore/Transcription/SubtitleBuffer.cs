@@ -70,7 +70,14 @@ public static class SubtitleBuffer
         var wanted = ReleaseAhead;
         if (transcriptionFactor is { } factor && factor > 0 && double.IsFinite(factor))
         {
-            var seconds = ChunkPlanner.Length.TotalSeconds * playbackRate / factor + Comfortable.TotalSeconds;
+            // One new chunk must be ready before the cushion drains. If recognition is slower
+            // than playback, reserve for the shortfall of another chunk as well; otherwise a
+            // near-empty buffer will pause over and over with each 26-second chunk. A bounded
+            // reservoir avoids making the user wait indefinitely on a slow computer.
+            var consumption = playbackRate / factor;
+            var next = ChunkPlanner.Length.TotalSeconds * consumption;
+            var deficit = ChunkPlanner.Length.TotalSeconds * Math.Max(0, consumption - 1) * 1.25;
+            var seconds = Comfortable.TotalSeconds + next + deficit;
             wanted = TimeSpan.FromSeconds(Math.Clamp(seconds, ReleaseAhead.TotalSeconds, MostReleaseAhead.TotalSeconds));
         }
 
