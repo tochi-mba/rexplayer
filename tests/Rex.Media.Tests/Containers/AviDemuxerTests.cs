@@ -49,6 +49,21 @@ public sealed class AviDemuxerTests
     }
 
     [Fact]
+    public void NestedRecordListsStillDeliverTheirMediaPackets()
+    {
+        // Some AVI writers wrap frame chunks in LIST 'rec ' instead of placing them
+        // directly in movi. An unindexed file must descend into those lists.
+        var header = List("hdrl", StreamList("vids", "XVID", 1, 25, 1, 0, VideoFormat()));
+        var movie = List("movi", List("rec ", Chunk("00dc", [9, 8, 7])));
+        using var avi = Open(Riff("AVI ", header, movie));
+
+        using var packet = avi.ReadPacket(CancellationToken.None)!;
+        Assert.Equal(0, packet.TrackId);
+        Assert.Equal(new byte[] { 9, 8, 7 }, packet.Data.Span.ToArray());
+        Assert.Null(avi.ReadPacket(CancellationToken.None));
+    }
+
+    [Fact]
     public void LegacyIndexMarksKeyframesAndSeekingStartsAtTheEarlierOne()
     {
         using var avi = Open(Build(indexed: true));
