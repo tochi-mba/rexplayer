@@ -34,7 +34,15 @@ public sealed class RexLogTests : IDisposable
     {
         try
         {
-            return [.. File.ReadAllLines(Path.Combine(_directory, "rexplayer.log")).Select(line => line[(line.IndexOf(": ", StringComparison.Ordinal) + 2)..])];
+            using var stream = new FileStream(
+                Path.Combine(_directory, "rexplayer.log"),
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return [.. reader.ReadToEnd()
+                .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line[(line.IndexOf(": ", StringComparison.Ordinal) + 2)..])];
         }
         catch (IOException)
         {
