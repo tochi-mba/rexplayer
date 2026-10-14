@@ -45,6 +45,8 @@ internal sealed class ShellWorker : IDisposable
 
     // The thread's own.
     private Taskbar? _taskbar;
+    private bool _taskbarFailed;
+    private bool _controlsFailed;
     private bool _buttonsAdded;
     private int _iconSize;
     private bool _light;
@@ -152,7 +154,8 @@ internal sealed class ShellWorker : IDisposable
 
             if (mediaControls is { } wanted)
             {
-                _controlsWanted = wanted;
+                // Asked again: a service that was not there may be now.
+                (_controlsWanted, _controlsFailed) = (wanted, false);
                 view ??= _view;
                 progress ??= _progress;
             }
@@ -178,15 +181,24 @@ internal sealed class ShellWorker : IDisposable
 
     private void ApplyTaskbar(bool rebuild, bool appearance, bool viewChanged, bool progressChanged)
     {
-        if (rebuild || _taskbar is null)
+        if (rebuild || (_taskbar is null && !_taskbarFailed))
         {
             _taskbar?.Dispose();
             _taskbar = null;
             _buttonsAdded = false;
             _shownBadge = null;
+
+            // Where there is no taskbar (no shell running) it is not asked again until Explorer says its button is made.
+            _taskbarFailed = true;
             _taskbar = Taskbar.Create();
+            _taskbarFailed = false;
             ReadAppearance();
             progressChanged = true;
+        }
+
+        if (_taskbar is null)
+        {
+            return;
         }
         else if (appearance)
         {
@@ -294,7 +306,15 @@ internal sealed class ShellWorker : IDisposable
 
         if (_controls is null)
         {
+            if (_controlsFailed)
+            {
+                return;
+            }
+
+            // Where Windows has no media service it is not asked again until the setting is.
+            _controlsFailed = true;
             _controls = MediaTransportControls.ForWindow(_window);
+            _controlsFailed = false;
             _controls.ButtonPressed += (_, button) => MediaButtonPressed?.Invoke(this, button);
             _controls.PositionRequested += (_, position) => MediaPositionRequested?.Invoke(this, position);
             (stateChanged, cardChanged) = (true, true);
@@ -358,9 +378,10 @@ internal sealed class ShellWorker : IDisposable
             _log.Warning(LogSource, $"Windows did not take the change to {what}: {ex.Message}");
             if (what == "the taskbar")
             {
-                // Most often Explorer restarting: start over with the next change or its message.
+                // Most often Explorer restarting: start over when it says the button is made again.
                 _taskbar?.Dispose();
                 _taskbar = null;
+                _taskbarFailed = true;
             }
         }
     }

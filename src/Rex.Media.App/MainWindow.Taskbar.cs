@@ -80,12 +80,7 @@ public sealed partial class MainWindow
 
         if (_shell is null)
         {
-            if (!_settings.ShellMediaControls)
-            {
-                // Never started: there are no buttons to hide, and the jump list is still to be emptied.
-                return;
-            }
-
+            // Started even with the setting off, so a jump list left from when it was on is emptied.
             StartShell();
         }
 
