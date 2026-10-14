@@ -42,7 +42,7 @@ public sealed class SubjectRemovalFill
 
     // Sweeps of the fusion, and how far each one moves a cell past the plain average of its
     // neighbours: over-relaxed, a sweep carries a seam's step as far as several plain ones would.
-    private const int FusionSweeps = 14;
+    private const int FusionSweeps = 10;
     private const float Relaxation = 1.8f;
     // The most the fusion moves a copied colour, so a wild boundary cannot repaint the texture.
     private const float MostCorrection = 64;
