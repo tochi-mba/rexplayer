@@ -132,6 +132,14 @@ public sealed partial class MainWindow
             _queueDirty = true;
             ShowTranscriptionStatus();
             RefreshTranscriptBadges();
+            // A failed model or file must release a held viewer rather than leave playback
+            // paused indefinitely while the worker cannot create more captions.
+            if (worker.Status.Error is not null && _holdingForSubtitles)
+            {
+                _bufferHearing = false;
+                HoldForSubtitles();
+                ShowSubtitleBuffer();
+            }
         });
         worker.Start();
         (_worker, _plannedTranscription, _toldWorker, _queueDirty) = (worker, null, null, true);
@@ -298,9 +306,14 @@ public sealed partial class MainWindow
                 ShowTranscriptTrack(track, full);
             }
 
-            // A whole transcript needs no buffer; a part shows what is ready.
-            (_bufferDone, _bufferDuration) = full is not null ? (null, null) : (done, duration);
-            (_playingTranscript, _playingWanted) = (item, wanted || _askedPlaying == item);
+            // A new transcription starts with an empty coverage rail, not with a missing
+            // buffer. If the user opted into waiting, hold before playback outruns the
+            // first recognised piece; an already-complete transcript never holds.
+            var requested = wanted || _askedPlaying == item;
+            _bufferDone = full is not null ? null : done ?? (requested ? TimeRanges.Empty : null);
+            _bufferDuration = full is not null ? null : duration ?? _player.Duration;
+            _bufferHearing = full is null && requested;
+            (_playingTranscript, _playingWanted) = (item, requested);
             ShowSubtitleBuffer();
             TranscriptionTick();
         }), TaskScheduler.Default);
@@ -808,7 +821,9 @@ public sealed partial class MainWindow
         _shownBufferState = state;
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, duration, _player.Position, _bufferHearing);
         var ahead = _bufferDone is null ? TimeSpan.Zero : Rex.Media.AppCore.Transcription.SubtitleBuffer.Ahead(_bufferDone, _player.Position);
-        var label = state switch
+        var label = _holdingForSubtitles && _bufferDone is not null
+            ? $"Preparing captions · {Math.Round(ahead.TotalMinutes):0}/{Math.Ceiling(Rex.Media.AppCore.Transcription.SubtitleBuffer.ReleaseTarget(_worker?.Speed.SafeFactor, _player.Speed, _player.Position, duration).TotalMinutes):0} min"
+            : state switch
         {
             BufferState.Ahead => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s ahead",
             BufferState.CatchingUp when ahead > TimeSpan.Zero => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s remaining",
@@ -855,13 +870,16 @@ public sealed partial class MainWindow
             return;
         }
 
+        // A missing or failed speech model cannot make more coverage. Never strand the
+        // player behind an unavailable worker; the user may still choose to play manually.
+        var hearing = _bufferHearing && _modelInstalled == true && _worker?.Status.Error is null;
         switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles,
-            _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed))
+            hearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed))
         {
             case HoldAction.Hold:
                 _holdingForSubtitles = true;
                 _player.Pause();
-                Say("Waiting a moment for the subtitles...");
+                Say("Preparing enough subtitles to play through without interruptions. This may take a while on slower computers.");
                 break;
             case HoldAction.Release:
                 _holdingForSubtitles = false;
