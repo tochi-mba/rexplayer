@@ -83,8 +83,17 @@ public static partial class LibraryViews
             .OrderBy(group => group.Name == UnknownArtist)
             .ThenBy(group => group.Name, ByName)];
 
-    /// <summary>The genres, by name, each with its songs.</summary>
-    public static IReadOnlyList<LibraryGroup> Genres(IEnumerable<LibraryEntry> entries) => GroupedBy(Songs(entries), entry => entry.Genre, UnknownGenre);
+    /// <summary>
+    /// The genres, by name, each with its songs. A song tagged with several genres ("Dance;Pop")
+    /// appears under each of them, as <see cref="GenreNames"/> reads the tag.
+    /// </summary>
+    public static IReadOnlyList<LibraryGroup> Genres(IEnumerable<LibraryEntry> entries) =>
+        [.. Songs(entries)
+            .SelectMany(entry => GenreNames.Split(entry.Genre).DefaultIfEmpty(UnknownGenre).Select(name => (Name: name, Entry: entry)))
+            .GroupBy(pair => pair.Name, ByName)
+            .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Name)), null, [.. group.Select(pair => pair.Entry).Distinct()]))
+            .OrderBy(group => group.Name == UnknownGenre)
+            .ThenBy(group => group.Name, ByName)];
 
     /// <summary>The videos, by title in natural order ("Episode 2" before "Episode 10").</summary>
     public static IReadOnlyList<LibraryEntry> Videos(IEnumerable<LibraryEntry> entries) =>
@@ -254,12 +263,6 @@ public static partial class LibraryViews
         return new[] { entry.Title, entry.Artist, entry.AlbumArtist, entry.Album, entry.Genre, Path.GetFileName(entry.Path) }
             .Any(field => field is not null && Compare.IndexOf(field, word, Loose) >= 0);
     }
-
-    private static List<LibraryGroup> GroupedBy(IReadOnlyList<LibraryEntry> songs, Func<LibraryEntry, string?> key, string unknown) =>
-        [.. songs.GroupBy(entry => key(entry) ?? unknown, ByName)
-            .Select(group => new LibraryGroup(MostSpelled(group.Select(entry => key(entry) ?? unknown)), null, [.. group]))
-            .OrderBy(group => group.Name == unknown)
-            .ThenBy(group => group.Name, ByName)];
 
     /// <summary>"Show.Name.S01E02.mkv", "Show - s1e2", "Show_S01E002": the show, then the season and episode.</summary>
     [GeneratedRegex(@"^(?<series>.+?)[ ._-]+S(?<season>\d{1,3})E(?<episode>\d{1,4})(?=[ ._-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
