@@ -63,6 +63,7 @@ public sealed partial class MainWindow
     private string _shownBuffer = "";
     private BufferState _shownBufferState;
     private bool _holdingForSubtitles;
+    private bool _subtitleHoldOverridden;
     private string? _announcedTranscription;
     private string? _workerPath;
 
@@ -265,7 +266,7 @@ public sealed partial class MainWindow
     /// </summary>
     private void OpenTranscriptOf(string? item)
     {
-        (_bufferDone, _bufferDuration, _bufferHearing, _holdingForSubtitles) = (null, null, false, false);
+        (_bufferDone, _bufferDuration, _bufferHearing, _holdingForSubtitles, _subtitleHoldOverridden) = (null, null, false, false, false);
         ShowSubtitleBuffer();
         (_playingTranscript, _playingWanted) = (null, false);
         if (_askedPlaying != item)
@@ -863,10 +864,22 @@ public sealed partial class MainWindow
             return;
         }
 
-        // Played again by the user while held: theirs to decide now.
+        // Manual Play while held is an explicit decision to watch now, even without captions.
+        // Respect that choice until the next file or until the feature is disabled/re-enabled.
+        if (!_settings.Transcription.HoldForSubtitles)
+        {
+            _subtitleHoldOverridden = false;
+        }
+
         if (_holdingForSubtitles && _player.IsPlaying)
         {
             _holdingForSubtitles = false;
+            _subtitleHoldOverridden = true;
+            return;
+        }
+
+        if (_subtitleHoldOverridden)
+        {
             return;
         }
 
