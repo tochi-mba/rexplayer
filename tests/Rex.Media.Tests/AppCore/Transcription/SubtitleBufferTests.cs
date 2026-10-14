@@ -68,12 +68,12 @@ public sealed class SubtitleBufferTests
         Assert.Equal(HoldAction.Hold, SubtitleBuffer.Hold(allowed: true, holding: false, hearing: true, done, S(50), S(200)));
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(allowed: false, holding: false, hearing: true, done, S(50), S(200)));
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(allowed: true, holding: false, hearing: false, done, S(50), S(200)));
-        Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(allowed: true, holding: false, hearing: true, done, S(40), S(200)));
+        Assert.Equal(HoldAction.Hold, SubtitleBuffer.Hold(allowed: true, holding: false, hearing: true, done, S(40), S(200)));
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(allowed: true, holding: false, hearing: true, done, S(200), S(200)));
 
-        // Held: until fifteen seconds are ready, the end is ready, hearing stops or the setting goes.
+        // Held: wait for a complete chunk without a measured rate; finish early at the end.
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(allowed: true, holding: true, hearing: true, done, S(40), S(200)));
-        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(allowed: true, holding: true, hearing: true, done, S(35), S(200)));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(allowed: true, holding: true, hearing: true, done, S(10), S(200)));
         Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(allowed: true, holding: true, hearing: true, done, S(45), S(50)));
         Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(allowed: true, holding: true, hearing: false, done, S(49), S(200)));
         Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(allowed: false, holding: true, hearing: true, done, S(49), S(200)));
@@ -85,30 +85,30 @@ public sealed class SubtitleBufferTests
     public void ASlowTranscriberBuildsEnoughLeadToAvoidRepeatedPauses()
     {
         Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(4, 1, S(10), S(200)));
-        Assert.Equal(S(89.5), SubtitleBuffer.ReleaseTarget(0.5, 1, S(10), S(200)));
-        Assert.Equal(S(90), SubtitleBuffer.ReleaseTarget(0.1, 2, S(10), S(500)));
+        Assert.Equal(S(152), SubtitleBuffer.ReleaseTarget(0.5, 1, S(10), S(200)));
+        Assert.Equal(S(490), SubtitleBuffer.ReleaseTarget(0.1, 2, S(10), S(500)));
 
         var fiftySecondsAhead = TimeRanges.Of([R(0, 60)]);
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true, fiftySecondsAhead, S(10), S(200), 0.5, 1));
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true, TimeRanges.Of([R(0, 70)]), S(10), S(200), 0.5, 1));
-        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true, TimeRanges.Of([R(0, 100)]), S(10), S(200), 0.5, 1));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true, TimeRanges.Of([R(0, 165)]), S(10), S(200), 0.5, 1));
     }
 
     [Fact]
     public void SlowerThanPlaybackUsesTheAvailableReservoirInsteadOfPausingEachChunk()
     {
-        // 26 seconds of speech takes 52 seconds to transcribe. A one-chunk lead can
-        // never stay ahead of playback; extra reservoir reduces repeated interruptions.
+        // 26 seconds of speech takes 52 seconds to transcribe. Without waiting for the
+        // entire expected remaining deficit, a 90-second cap will stall repeatedly.
         var slow = SubtitleBuffer.ReleaseTarget(0.5, 1, S(0), S(600));
-        Assert.InRange(slow.TotalSeconds, 89, 90);
+        Assert.Equal(S(357), slow);
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true,
             TimeRanges.Of([R(0, 80)]), S(0), S(600), 0.5, 1));
         Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true,
-            TimeRanges.Of([R(0, 90)]), S(0), S(600), 0.5, 1));
+            TimeRanges.Of([R(0, 360)]), S(0), S(600), 0.5, 1));
 
         // Faster recognition needs less waiting; playback speed must count.
         Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(4, 1, S(0), S(600)));
-        Assert.Equal(S(90), SubtitleBuffer.ReleaseTarget(0.5, 2, S(0), S(600)));
+        Assert.Equal(S(559), SubtitleBuffer.ReleaseTarget(0.5, 2, S(0), S(600)));
         Assert.Equal(S(6), SubtitleBuffer.ReleaseTarget(0.5, 2, S(94), S(100)));
     }
 
@@ -116,9 +116,68 @@ public sealed class SubtitleBufferTests
     public void AdaptiveLeadHandlesRateChangesEndsAndBadMeasurements()
     {
         Assert.Equal(S(31), SubtitleBuffer.ReleaseTarget(1, 1, S(0), S(200)));
-        Assert.Equal(S(89.5), SubtitleBuffer.ReleaseTarget(1, 2, S(0), S(200)));
+        Assert.Equal(S(157), SubtitleBuffer.ReleaseTarget(1, 2, S(0), S(200)));
         Assert.Equal(S(8), SubtitleBuffer.ReleaseTarget(0.1, 2, S(42), S(50)));
-        Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(double.NaN, double.NaN, S(0), S(200)));
+        Assert.Equal(S(31), SubtitleBuffer.ReleaseTarget(double.NaN, double.NaN, S(0), S(200)));
         Assert.Equal(TimeSpan.Zero, SubtitleBuffer.ReleaseTarget(1, 1, S(50), S(50)));
     }
+
+    [Theory]
+    [InlineData(600, 0.5, 1)]
+    [InlineData(1200, 0.25, 1)]
+    [InlineData(3600, 1, 1.5)]
+    [InlineData(300, 4, 1)]
+    public void AConstantRecognitionRateNeverRunsOutAfterTheInitialWait(int length, double factor, double playbackSpeed)
+    {
+        var end = S(length);
+        var lead = SubtitleBuffer.ReleaseTarget(factor, playbackSpeed, TimeSpan.Zero, end);
+        Assert.True(lead <= end);
+        // The initial user-selected hold builds that much continuous subtitle coverage.
+        Assert.Equal(HoldAction.Hold, SubtitleBuffer.Hold(true, false, true,
+            TimeRanges.Empty, TimeSpan.Zero, end, factor, playbackSpeed));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true,
+            TimeRanges.Of([R(0, lead.TotalSeconds)]), TimeSpan.Zero, end, factor, playbackSpeed));
+
+        // Time passes in wall-clock seconds. The recognizer continues ahead while the
+        // playhead moves at its chosen rate. At no point should playback need another hold.
+        for (var second = 0; second * playbackSpeed < length; second++)
+        {
+            var position = S(second * playbackSpeed);
+            var available = S(Math.Min(length, lead.TotalSeconds + factor * second));
+            var heard = TimeRanges.Of([new TimeRange(TimeSpan.Zero, available)]);
+            Assert.NotEqual(HoldAction.Hold, SubtitleBuffer.Hold(true, false, true,
+                heard, position, end, factor, playbackSpeed));
+        }
+    }
+
+    [Fact]
+    public void SlowHardwareWaitsPastNinetySecondsWhenThatIsNeededToAvoidAStall()
+    {
+        // One media second of transcription takes two seconds. For a one-hour movie,
+        // half the movie must be ready before starting, plus an uncertain next chunk.
+        var target = SubtitleBuffer.ReleaseTarget(0.5, 1, TimeSpan.Zero, S(3600));
+        Assert.Equal(S(1857), target);
+        Assert.Equal(HoldAction.Hold, SubtitleBuffer.Hold(true, false, true,
+            TimeRanges.Of([R(0, 90)]), TimeSpan.Zero, S(3600), 0.5, 1));
+        Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true,
+            TimeRanges.Of([R(0, 90)]), TimeSpan.Zero, S(3600), 0.5, 1));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true,
+            TimeRanges.Of([R(0, 1857)]), TimeSpan.Zero, S(3600), 0.5, 1));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(false, true, true,
+            TimeRanges.Empty, TimeSpan.Zero, S(3600), 0.5, 1));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, false,
+            TimeRanges.Empty, TimeSpan.Zero, S(3600), 0.5, 1));
+    }
+
+    [Fact]
+    public void NoRateYetWaitsForAFullFirstChunkAndShowsTheRemainingTail()
+    {
+        Assert.Equal(S(31), SubtitleBuffer.ReleaseTarget(null, 1, TimeSpan.Zero, S(900)));
+        Assert.Equal(S(7), SubtitleBuffer.ReleaseTarget(0.01, 1, S(893), S(900)));
+        Assert.Equal(HoldAction.Hold, SubtitleBuffer.Hold(true, false, true,
+            TimeRanges.Empty, TimeSpan.Zero, S(900), null, 1));
+        Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, false, false,
+            TimeRanges.Empty, TimeSpan.Zero, S(900), null, 1));
+    }
+
 }

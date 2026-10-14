@@ -55,34 +55,36 @@ public static class SubtitleBuffer
     /// <summary>A held playback carries on once the subtitles are this far ahead.</summary>
     public static readonly TimeSpan ReleaseAhead = TimeSpan.FromSeconds(15);
 
-    /// <summary>The largest buffer retained before playback resumes; transcription stays bounded and near the playhead.</summary>
-    public static readonly TimeSpan MostReleaseAhead = TimeSpan.FromSeconds(90);
-
     /// <summary>
-    /// How far subtitles should lead before a held player resumes. The measured transcription
-    /// factor is seconds of media heard per wall-clock second. When hearing is slower than playback,
-    /// one chunk's processing time is covered so playback does not repeatedly stop between chunks.
-    /// Unknown or invalid measurements use the conservative fixed buffer.
+    /// How far subtitles must lead before held playback may safely resume. A faster
+    /// transcriber only needs one chunk of reserve. If recognition is slower than playback,
+    /// prebuffer the predicted lifetime deficit across the entire remaining movie: the
+    /// playback rate minus the measured recognition rate, times remaining media length.
+    /// Include the cost of a complete slow chunk so transient processing delays do not
+    /// exhaust the reserve. There is deliberately no 90-second cap: on slow hardware
+    /// uninterrupted playback can require much longer startup, up to the whole transcript.
     /// </summary>
     public static TimeSpan ReleaseTarget(double? transcriptionFactor, double playbackRate, TimeSpan playhead, TimeSpan duration)
     {
-        playbackRate = double.IsFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
-        var wanted = ReleaseAhead;
-        if (transcriptionFactor is { } factor && factor > 0 && double.IsFinite(factor))
+        var remaining = duration - playhead;
+        if (remaining <= TimeSpan.Zero)
         {
-            // One new chunk must be ready before the cushion drains. If recognition is slower
-            // than playback, reserve for the shortfall of another chunk as well; otherwise a
-            // near-empty buffer will pause over and over with each 26-second chunk. A bounded
-            // reservoir avoids making the user wait indefinitely on a slow computer.
-            var consumption = playbackRate / factor;
-            var next = ChunkPlanner.Length.TotalSeconds * consumption;
-            var deficit = ChunkPlanner.Length.TotalSeconds * Math.Max(0, consumption - 1) * 1.25;
-            var seconds = Comfortable.TotalSeconds + next + deficit;
-            wanted = TimeSpan.FromSeconds(Math.Clamp(seconds, ReleaseAhead.TotalSeconds, MostReleaseAhead.TotalSeconds));
+            return TimeSpan.Zero;
         }
 
-        var remaining = duration - playhead;
-        return remaining <= TimeSpan.Zero ? TimeSpan.Zero : wanted < remaining ? wanted : remaining;
+        playbackRate = double.IsFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
+        // Without the first measurement, start with one whole completed chunk rather than
+        // guessing the model's speed from its advertised model size.
+        var wanted = ChunkPlanner.Length.TotalSeconds + Comfortable.TotalSeconds;
+        if (transcriptionFactor is { } factor && factor > 0 && double.IsFinite(factor))
+        {
+            var relative = factor / playbackRate;
+            var deficit = remaining.TotalSeconds * Math.Max(0, 1 - relative);
+            var slowChunk = ChunkPlanner.Length.TotalSeconds * playbackRate / factor;
+            wanted = Math.Max(ReleaseAhead.TotalSeconds, deficit + slowChunk + Comfortable.TotalSeconds);
+        }
+
+        return TimeSpan.FromSeconds(Math.Min(remaining.TotalSeconds, wanted));
     }
 
     /// <summary>How long ready subtitles run on past <paramref name="playhead"/> without a gap.</summary>
@@ -155,7 +157,11 @@ public static class SubtitleBuffer
     public static HoldAction Hold(bool allowed, bool holding, bool hearing, TimeRanges done, TimeSpan playhead, TimeSpan duration)
         => Hold(allowed, holding, hearing, done, playhead, duration, null, 1);
 
-    /// <summary>An adaptive hold/release policy, capped so work and memory stay near the playhead.</summary>
+    /// <summary>
+    /// Prebuffer before playback runs out: release at the predicted no-rebuffer target, but
+    /// trigger another hold below 80% of it to avoid toggling play/pause on every progress
+    /// update. The user can always manually play instead.
+    /// </summary>
     public static HoldAction Hold(bool allowed, bool holding, bool hearing, TimeRanges done, TimeSpan playhead, TimeSpan duration,
         double? transcriptionFactor, double playbackRate)
     {
@@ -167,7 +173,9 @@ public static class SubtitleBuffer
             return !allowed || !hearing || ahead >= target || (ahead > TimeSpan.Zero && playhead + ahead >= duration) ? HoldAction.Release : HoldAction.Nothing;
         }
 
-        return allowed && hearing && ahead < TimeSpan.FromSeconds(0.5) && playhead < duration ? HoldAction.Hold : HoldAction.Nothing;
+        var targetAhead = ReleaseTarget(transcriptionFactor, playbackRate, playhead, duration);
+        var lowWater = TimeSpan.FromSeconds(Math.Max(0.5, targetAhead.TotalSeconds * 0.8));
+        return allowed && hearing && ahead < lowWater && playhead < duration ? HoldAction.Hold : HoldAction.Nothing;
     }
 
     private static double Share(TimeSpan time, TimeSpan duration) => Math.Clamp(time / duration, 0, 1);
