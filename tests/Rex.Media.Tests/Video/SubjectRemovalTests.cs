@@ -267,6 +267,7 @@ public sealed class SubjectRemovalTests
         double error = 0;
         var count = 0;
         long both = 0, either = 0;
+        var frameQuality = new List<string>();
         for (var i = 0; i < 14; i++)
         {
             using var picture = scene.Render(i, wall, opacity);
@@ -278,12 +279,13 @@ public sealed class SubjectRemovalTests
                 (error, count) = (error + e, count + n);
                 var (b, u) = RemovalScore.Overlap(removal.IsSubject, opacity, 1280, 720);
                 (both, either) = (both + b, either + u);
+                frameQuality.Add($"{i}: {RemovalScore.Psnr(e, n):F2} dB, observed {removal.ObservedPixels}, estimated {removal.EstimatedPixels}, overlap {b / (double)u:F3}");
             }
         }
 
         Assert.True(RemovalScore.Psnr(error, count) > 26,
             $"PSNR {RemovalScore.Psnr(error, count)}, overlap {both / (double)either}, " +
-            $"observed {removal.ObservedPixels}, estimated {removal.EstimatedPixels}");
+            $"observed {removal.ObservedPixels}, estimated {removal.EstimatedPixels}; " + string.Join("; ", frameQuality));
         Assert.True(both / (double)either > 0.85, $"{both / (double)either}");
         Assert.False(removal.IsSubject(-1, 300));
 
