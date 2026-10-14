@@ -136,6 +136,52 @@ public sealed class CaptionChoreographyTests
     }
 
     [Fact]
+    public void TextComingUnderTheClusterMovesItOffWithoutAJump()
+    {
+        var choreography = new CaptionChoreography(CaptionStyle.Default);
+        choreography.Reveal(Word("stay"), Plain, Stress.Plain, 0);
+        choreography.Reveal(Word("readable"), Plain, Stress.Plain, 0.2);
+        var before = choreography.Scene(1, Area, Font, picture: PictureSpace.Empty());
+        var at = (X: before[0].X / Area.Width, Y: before[0].Y / Area.Height);
+        var text = PictureSpace.Read(
+            PictureSpaceTests.Picture((x, y) =>
+                Math.Abs((x / 320.0) - at.X) < 0.28 && Math.Abs((y / 180.0) - at.Y) < 0.12 && (x / 3) % 2 == 0
+                    ? ((byte)250, (byte)250, (byte)250)
+                    : ((byte)10, (byte)10, (byte)10)),
+            320, 180, 1280);
+
+        var soon = choreography.Scene(1.02, Area, Font, picture: text);
+        var later = choreography.Scene(1.6, Area, Font, picture: text);
+        var started = Math.Abs(soon[0].X - before[0].X) + Math.Abs(soon[0].Y - before[0].Y);
+        var finished = Math.Abs(later[0].X - before[0].X) + Math.Abs(later[0].Y - before[0].Y);
+
+        Assert.True(started > 0 && started < finished, $"{started} then {finished}");
+        Assert.False(text.CoversProtected(Math.Min(later[0].X, later[1].X) / Area.Width, (later[0].Y - (Font / 2)) / Area.Height, 0.3, 0.08));
+    }
+
+    [Fact]
+    public void ConfettiMovesWhenProtectedContentAppearsUnderAWord()
+    {
+        var choreography = new CaptionChoreography(CaptionStyle.Default with { Layout = CaptionLayout.Confetti });
+        choreography.Reveal(Word("clear"), Plain, Stress.Plain, 0);
+        var before = Assert.Single(choreography.Scene(1, Area, Font, picture: PictureSpace.Empty()));
+        var width = CaptionChoreography.WidthEm(before.Text, before.Font, before.Bold) * before.Settled * Font / Area.Width;
+        var height = before.Settled * Font * 1.2 / Area.Height;
+        var left = (before.X / Area.Width) - (width / 2);
+        var top = (before.Y / Area.Height) - (height / 2);
+        var face = PictureSpace.Read(
+            PictureSpaceTests.Picture((x, y) => ((byte)40, (byte)40, (byte)48), 320, 180),
+            320, 180, 1280,
+            faces: [new Area(left, top, width, height)]);
+
+        var after = Assert.Single(choreography.Scene(1.1, Area, Font, picture: face));
+        var afterLeft = (after.X / Area.Width) - (width / 2);
+        var afterTop = (after.Y / Area.Height) - (height / 2);
+        Assert.NotEqual((before.X, before.Y), (after.X, after.Y));
+        Assert.False(face.CoversProtected(afterLeft, afterTop, width, height));
+    }
+
+    [Fact]
     [Capability("OSD-11")]
     public void WordsWrapToReadableRowsShrinkToFitAndAreNeverTooSmall()
     {

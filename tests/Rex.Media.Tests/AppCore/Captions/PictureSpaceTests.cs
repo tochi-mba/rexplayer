@@ -60,6 +60,8 @@ public sealed class PictureSpaceTests
         var space = PictureSpace.Read(bgra, Width, Height, Width * 4);
 
         Assert.True(space.Importance[(16 * 32) + 16] >= 0.9f);
+        Assert.True(space.CoversProtected(0.2, 0.78, 0.6, 0.15));
+        Assert.False(space.CoversAFace(0.2, 0.78, 0.6, 0.15));
         var (_, y) = space.Place(0.6, 0.15, (0.2, 0.78));
         Assert.True(y < 0.7, $"{y}");
     }
@@ -118,6 +120,16 @@ public sealed class PictureSpaceTests
         // Asked for the very spot, the caption still goes anywhere but the face.
         var (x, y) = space.Place(0.25, 0.3, (0.7, 0.3));
         Assert.False(space.CoversAFace(x, y, 0.25, 0.3));
+    }
+
+    [Fact]
+    public void AnEmptyDetectorResultFallsBackToTheSkinGuess()
+    {
+        var bgra = Picture((x, y) => InFace(x, y) ? Skin : Grey);
+        var space = PictureSpace.Read(bgra, Width, Height, Width * 4, faces: []);
+
+        Assert.Equal(1, space.Importance[(6 * 32) + 8]);
+        Assert.True(space.CoversAFace(0.15, 0.1, 0.25, 0.45));
     }
 
     [Fact]

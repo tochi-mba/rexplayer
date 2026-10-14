@@ -267,6 +267,7 @@ public sealed class CaptionChoreography
             _words.Clear();
             _clusters++;
             _anchor = null;
+            _reserve = (0, 0);
         }
 
         if (_style.OneAtATime)
@@ -361,6 +362,7 @@ public sealed class CaptionChoreography
     {
         _words.Clear();
         (_anchor, _lastReveal, _meanGap, _lastScene) = (null, double.NegativeInfinity, 0.3, double.NaN);
+        _reserve = (0, 0);
     }
 
     /// <summary>
@@ -403,6 +405,8 @@ public sealed class CaptionChoreography
         var widths = rows.Select(row => row.Sum(word => word.Width + word.Space) - row[^1].Space).ToList();
         var heights = rows.Select(row => row.Max(word => word.Size) * rowGap * em).ToList();
         var (boxWidth, boxHeight) = (Math.Min(area.Width, widths.Max() + (1.5 * em)), Math.Min(area.Height, heights.Sum()));
+        var needed = (Width: Math.Max(boxWidth, area.Width * 0.5) / area.Width, Height: Math.Max(boxHeight, 2.6 * rowGap * em) / area.Height);
+        _reserve = (Math.Max(_reserve.Width, needed.Width), Math.Max(_reserve.Height, needed.Height));
 
         // The cluster's place is chosen once, when it is first drawn, so it never jumps; it is chosen
         // for a little more room than it starts with, as more words will come.
@@ -411,17 +415,16 @@ public sealed class CaptionChoreography
         if (_anchor is null)
         {
             var preferred = Preferred();
-            _reserve = (Math.Max(boxWidth, area.Width * 0.5) / area.Width, Math.Max(boxHeight, 2.6 * rowGap * em) / area.Height);
             _anchor = _style.AvoidPicture && picture is not null
                 ? picture.Place(_reserve.Width, _reserve.Height, (preferred.X - (Centred ? _reserve.Width / 2 : 0), preferred.Y))
                 : (preferred.X - (Centred ? _reserve.Width / 2 : 0), preferred.Y);
             _shown = _anchor.Value;
         }
-        else if (_style.AvoidPicture && picture is not null && picture.CoversAFace(_anchor.Value.X, _anchor.Value.Y, _reserve.Width, _reserve.Height))
+        else if (_style.AvoidPicture && picture is not null && picture.CoversProtected(_anchor.Value.X, _anchor.Value.Y, _reserve.Width, _reserve.Height))
         {
-            // A face has come under the cluster: it moves off, to the nearest clear place.
+            // Protected content has come under the cluster: it moves off, to the nearest clear place.
             var moved = picture.Place(_reserve.Width, _reserve.Height, _anchor.Value);
-            if (!picture.CoversAFace(moved.X, moved.Y, _reserve.Width, _reserve.Height))
+            if (!picture.CoversProtected(moved.X, moved.Y, _reserve.Width, _reserve.Height))
             {
                 _anchor = moved;
             }
@@ -546,10 +549,12 @@ public sealed class CaptionChoreography
         {
             var size = Math.Min(word.Size, area.Width * 0.8 / Math.Max(1e-9, word.WidthEm * em));
             var (width, height) = (word.WidthEm * size * em, size * em * 1.2);
-            if (word.Spot is null)
+            var widthShare = width / area.Width;
+            var heightShare = height / area.Height;
+            if (word.Spot is null || (_style.AvoidPicture && picture is not null && picture.CoversProtected(word.Spot.Value.X, word.Spot.Value.Y, widthShare, heightShare)))
             {
-                word.Spot = ConfettiSpot(word, width / area.Width, height / area.Height, picture);
-                word.SpotSize = (width / area.Width, height / area.Height);
+                word.Spot = ConfettiSpot(word, widthShare, heightShare, picture);
+                word.SpotSize = (widthShare, heightShare);
             }
 
             var slot = new Slot(word, size, width, 0);
@@ -589,7 +594,7 @@ public sealed class CaptionChoreography
                 }
 
                 var overlap = others.Sum(other => Overlap(spot, (width, height), other.Spot!.Value, other.SpotSize));
-                var covered = _style.AvoidPicture && picture is not null && picture.CoversAFace(spot.X, spot.Y, width, height) ? 1 : 0;
+                var covered = _style.AvoidPicture && picture is not null && picture.CoversProtected(spot.X, spot.Y, width, height) ? 1 : 0;
                 var distance = Math.Abs(spot.X - wish.X) + Math.Abs(spot.Y - wish.Y);
                 var cost = (overlap * 40) + covered + (distance * 0.5);
                 if (cost < least - 1e-9)

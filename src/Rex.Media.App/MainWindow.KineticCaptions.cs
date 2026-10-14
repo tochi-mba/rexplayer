@@ -45,6 +45,7 @@ public sealed partial class MainWindow
     private readonly PictureTimeline _pictures = new();
     private CaptionDirector? _captionDirector;
     private CancellationTokenSource? _pictureScan;
+    private string? _pictureScanItem;
     private string? _captionItem;
     private SubtitleTrack? _transcript;
     private SubtitleTrack? _timed;
@@ -89,6 +90,16 @@ public sealed partial class MainWindow
 
         KineticLayer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         SubtitleLayer.Visibility = show && !kinetic.KeepSubtitles ? Visibility.Collapsed : Visibility.Visible;
+        var scanPictures = show && kinetic.AvoidPicture && item is not null && File.Exists(item);
+        if (!scanPictures)
+        {
+            StopPictureScan();
+        }
+        else if (_pictureScan is null || !StringComparer.OrdinalIgnoreCase.Equals(_pictureScanItem, item))
+        {
+            StartPictureScan(item!);
+        }
+
         if (show == _captioning)
         {
             return;
@@ -99,10 +110,6 @@ public sealed partial class MainWindow
         {
             _captionDirector = new CaptionDirector(CaptionDirector.StyleFor(_settings));
             CompositionTarget.Rendering += OnCaptionRendering;
-            if (kinetic.AvoidPicture && item is not null && File.Exists(item))
-            {
-                StartPictureScan(item);
-            }
         }
         else
         {
@@ -271,6 +278,7 @@ public sealed partial class MainWindow
         StopPictureScan();
         var scan = new CancellationTokenSource();
         _pictureScan = scan;
+        _pictureScanItem = location;
         var token = scan.Token;
         _ = Task.Run(() => ScanPictures(location, token), token).ContinueWith(
             task => App.Log.Debug(LogSource, "The picture was not read for captions: " + task.Exception?.GetBaseException().Message),
@@ -284,6 +292,7 @@ public sealed partial class MainWindow
         _pictureScan?.Cancel();
         _pictureScan?.Dispose();
         _pictureScan = null;
+        _pictureScanItem = null;
     }
 
     private void ScanPictures(string location, CancellationToken token)

@@ -28,6 +28,9 @@ public sealed class PictureSpace
     /// <summary>Importance at or above this is a face or the followed subject: never covered.</summary>
     public const float Forbidden = 0.95f;
 
+    /// <summary>Importance at or above this is protected content such as a face, subject or text.</summary>
+    public const float Protected = 0.85f;
+
     private readonly float[] _luma;
     private readonly float[] _busy;
     private readonly float[] _skin;
@@ -264,7 +267,9 @@ public sealed class PictureSpace
     private void Weigh(Area? subject, IReadOnlyList<Area>? faces)
     {
         // A found face is widened by a third all round, for the hair, the chin and a turn of the head.
-        var found = faces?.Select(face => new Area(face.X - (face.Width / 3), face.Y - (face.Height / 3), face.Width * 5 / 3, face.Height * 5 / 3)).ToList();
+        var found = faces is { Count: > 0 }
+            ? faces.Select(face => new Area(face.X - (face.Width / 3), face.Y - (face.Height / 3), face.Width * 5 / 3, face.Height * 5 / 3)).ToList()
+            : null;
         for (var row = 0; row < RowCount; row++)
         {
             for (var column = 0; column < ColumnCount; column++)
@@ -303,4 +308,7 @@ public sealed class PictureSpace
 
     /// <summary>Whether a box (shares of the picture) lies over a face or the followed subject.</summary>
     public bool CoversAFace(double x, double y, double width, double height) => Under(x, y, width, height, _importance).Most >= Forbidden;
+
+    /// <summary>Whether a box lies over protected picture content such as a face, followed subject or text.</summary>
+    public bool CoversProtected(double x, double y, double width, double height) => Under(x, y, width, height, _importance).Most >= Protected;
 }
