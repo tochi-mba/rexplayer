@@ -128,7 +128,7 @@ public sealed class TranscriptionPolicyTests
         var busy = new IOException("in use");
         var first = TranscriptionRetry.Failed(record, busy, Now);
         Assert.Equal((TranscriptState.Failed, 1, Now.AddMinutes(1)), (first.State, first.Attempts, first.NextTry));
-        Assert.StartsWith("The file was busy or out of reach", first.Reason, StringComparison.Ordinal);
+        Assert.Equal("The file was busy or out of reach.", first.Reason);
         var waits = new List<DateTimeOffset?>();
         var again = first;
         for (var i = 0; i < 5; i++)
@@ -157,12 +157,18 @@ public sealed class TranscriptionPolicyTests
         Assert.Throws<ArgumentNullException>(() => TranscriptionRetry.Retry(null!));
         Assert.Throws<ArgumentNullException>(() => TranscriptionRetry.Failed(null!, busy, Now));
 
-        Assert.Equal(("The file is no longer there", true), TranscriptionRetry.Classify(new FileNotFoundException()));
+        Assert.Equal(("The file is no longer there.", true), TranscriptionRetry.Classify(new FileNotFoundException()));
         Assert.True(TranscriptionRetry.Classify(new DirectoryNotFoundException()).Passing);
         Assert.False(TranscriptionRetry.Classify(new UnauthorizedAccessException()).Passing);
-        Assert.Equal("Its sound is in a format rexplayer cannot decode", TranscriptionRetry.Classify(new NotSupportedException()).Reason);
-        Assert.StartsWith("The speech model could not hear it", TranscriptionRetry.Classify(new InvalidDataException("x")).Reason, StringComparison.Ordinal);
-        Assert.Equal(("Something went wrong: x", false), TranscriptionRetry.Classify(new InvalidOperationException("x")));
+        Assert.Equal("This file's audio is in a format rexplayer cannot decode.", TranscriptionRetry.Classify(new NotSupportedException()).Reason);
+        Assert.Equal("This file's audio could not be read.", TranscriptionRetry.Classify(new InvalidDataException("x")).Reason);
+        Assert.Equal("This file's audio could not be read.", TranscriptionRetry.Classify(new MediaFormatException("x")).Reason);
+        Assert.Equal(("Not enough memory to transcribe now.", true), TranscriptionRetry.Classify(new InsufficientMemoryException()));
+        Assert.Equal(("The speech model could not be loaded.", true), TranscriptionRetry.Classify(new DllNotFoundException("whisper")));
+        Assert.Equal(("The speech model could not be loaded.", true), TranscriptionRetry.Classify(new BadImageFormatException()));
+
+        // The exception's own words never reach the user.
+        Assert.Equal(("Transcription stopped unexpectedly.", false), TranscriptionRetry.Classify(new InvalidOperationException("Cannot dispose while processing")));
         Assert.Throws<ArgumentNullException>(() => TranscriptionRetry.Classify(null!));
     }
 
@@ -173,8 +179,8 @@ public sealed class TranscriptionPolicyTests
         var on = new TranscriptionSettings { Library = true };
         var idle = new TranscriptionMoment(Playing: false, OnBattery: false, EnergySaver: false, ModelInstalled: true);
         Assert.Equal(new TranscriptionPlan(true, true, 6, 4, null), TranscriptionConditions.Plan(on, idle, 8));
-        Assert.Equal(new TranscriptionPlan(true, false, 4, 1, "Waiting until playback stops"), TranscriptionConditions.Plan(on, idle with { Playing = true }, 8));
-        Assert.Equal(new TranscriptionPlan(true, true, 4, 1, null), TranscriptionConditions.Plan(on with { WhilePlaying = true }, idle with { Playing = true }, 8));
+        Assert.Equal(new TranscriptionPlan(true, false, 2, 1, "Waiting until playback stops"), TranscriptionConditions.Plan(on, idle with { Playing = true }, 8));
+        Assert.Equal(new TranscriptionPlan(true, true, 2, 1, null), TranscriptionConditions.Plan(on with { WhilePlaying = true }, idle with { Playing = true }, 8));
         Assert.Equal("Waiting for the charger", TranscriptionConditions.Plan(on, idle with { OnBattery = true }, 8).Waiting);
         Assert.True(TranscriptionConditions.Plan(on with { OnBattery = true }, idle with { OnBattery = true }, 8).Library);
         Assert.Equal("Waiting while energy saver is on", TranscriptionConditions.Plan(on with { OnBattery = true }, idle with { EnergySaver = true }, 8).Waiting);
@@ -189,7 +195,8 @@ public sealed class TranscriptionPolicyTests
         // A small processor still gets a thread.
         Assert.Equal(new TranscriptionPlan(true, true, 1, 1, null), TranscriptionConditions.Plan(on, idle, 1));
         Assert.Equal((1, 1), (TranscriptionConditions.Plan(on, idle with { Playing = true }, 0).PlayingThreads, TranscriptionConditions.Plan(on, idle, 0).LibraryThreads));
-        Assert.Equal(4, TranscriptionConditions.Plan(on, idle with { Playing = true }, 32).PlayingThreads);
+        Assert.Equal(2, TranscriptionConditions.Plan(on, idle with { Playing = true }, 32).PlayingThreads);
+        Assert.Equal(1, TranscriptionConditions.Plan(on, idle with { Playing = true }, 4).PlayingThreads);
         Assert.Throws<ArgumentNullException>(() => TranscriptionConditions.Plan(null!, idle, 8));
 
         // The model is fetched on a metered connection only when asked there and then.
@@ -214,9 +221,15 @@ public sealed class TranscriptionPolicyTests
         Assert.Equal((TranscriptBadge.NotEligible, "It has no sound to transcribe"), (Badge(record with { State = TranscriptState.NoSound }).Kind, Badge(record with { State = TranscriptState.NoSound }).Text));
 
         var failed = record with { State = TranscriptState.Failed, Reason = "The file could not be read.", NextTry = Now.AddMinutes(30) };
-        Assert.Equal("Transcription failed: The file could not be read. It is tried again in 30 minutes.", Badge(failed).Text);
-        Assert.Equal("Transcription failed: The file could not be read. Choose Retry transcription to try again.", Badge(failed with { NextTry = null }).Text);
-        Assert.Equal("Transcription failed: The file could not be read. It is tried again soon.", Badge(failed with { NextTry = Now }).Text);
+        Assert.Equal("Not transcribed. The file could not be read. Will try again in about 30 minutes. Choose Retry transcription to try now.", Badge(failed).Text);
+        Assert.Equal("Not transcribed. The file could not be read. Choose Retry transcription to try now.", Badge(failed with { NextTry = null }).Text);
+        Assert.Equal("Not transcribed. Will try again in a moment. Choose Retry transcription to try now.", Badge(failed with { NextTry = Now, Reason = null }).Text);
+        Assert.Equal("Will try again in about 30 minutes.", TranscriptionStatus.RetryIn(TimeSpan.FromMinutes(29)));
+        Assert.Equal("Will try again in about 30 minutes.", TranscriptionStatus.RetryIn(TimeSpan.FromMinutes(28.6)));
+        Assert.Equal("Will try again in about 4 minutes.", TranscriptionStatus.RetryIn(TimeSpan.FromMinutes(3.2)));
+        Assert.Equal("Will try again in about 1 minute.", TranscriptionStatus.RetryIn(TimeSpan.FromSeconds(60)));
+        Assert.Equal("Will try again in about 2 hours.", TranscriptionStatus.RetryIn(TimeSpan.FromMinutes(119)));
+        Assert.Equal("Will try again in a moment.", TranscriptionStatus.RetryIn(TimeSpan.FromSeconds(-5)));
         Assert.Equal(TranscriptBadge.Failed, Badge(failed, queued: true).Kind);
 
         var partial = record with { State = TranscriptState.Partial, Share = 0.5 };

@@ -118,6 +118,7 @@ public sealed partial class MainWindow
         var worker = new TranscriptionWorker(_transcripts, _ledger, file => new SpeechAudioReader(file, decoders, CancellationToken.None), () => new WhisperHearer(path), model.Id)
         {
             Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null,
+            Log = message => App.Log.Warning(LogSource, message),
         };
 
         // Only what plays crosses to the window, and only the stretches heard: its track fills by itself.

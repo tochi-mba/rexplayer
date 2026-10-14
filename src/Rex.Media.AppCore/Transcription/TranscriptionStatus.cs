@@ -68,9 +68,8 @@ public static class TranscriptionStatus
             TranscriptState.Done when record.Words > 0 => new(TranscriptBadge.Ready, Glyph(0xE7F0), string.Create(CultureInfo.InvariantCulture, $"Subtitles from its speech are ready ({record.Words} words)")),
             TranscriptState.Done => new(TranscriptBadge.NoSpeech, Glyph(0xE7F0), "Transcribed: no speech was heard"),
             TranscriptState.NoSound => new(TranscriptBadge.NotEligible, Glyph(0xE733), TranscriptionEligibility.Describe(TranscriptionSkip.NoSound)),
-            TranscriptState.Failed => new(TranscriptBadge.Failed, Glyph(0xE7BA), "Transcription failed: " + record.Reason?.TrimEnd('.') + ". " + (record.NextTry is { } next && next > now
-                ? string.Create(CultureInfo.InvariantCulture, $"It is tried again in {About(next - now)}.")
-                : record.NextTry is null ? "Choose Retry transcription to try again." : "It is tried again soon.")),
+            TranscriptState.Failed => new(TranscriptBadge.Failed, Glyph(0xE7BA), "Not transcribed. " + (record.Reason is { Length: > 0 } reason ? reason.TrimEnd('.') + ". " : "")
+                + (record.NextTry is { } next ? RetryIn(next - now) + " " : "") + "Choose Retry transcription to try now."),
             _ when queued => new(TranscriptBadge.Queued, Glyph(0xE823), record?.State == TranscriptState.Partial
                 ? string.Create(CultureInfo.InvariantCulture, $"Waiting to be transcribed, {Percent(record.Share)} done")
                 : "Waiting to be transcribed"),
@@ -113,6 +112,25 @@ public static class TranscriptionStatus
         : count == 0 ? "Transcription finished" : "Transcription idle";
 
     /// <summary>A length of time as people say it roughly: "under a minute", "about 5 minutes", "2 hours".</summary>
+    /// <summary>
+    /// When a failed file is tried again, rounded the way people say it: "Will try again in a
+    /// moment.", "in about 4 minutes", "in about 30 minutes" (to the nearest five past ten
+    /// minutes), "in about 2 hours".
+    /// </summary>
+    public static string RetryIn(TimeSpan wait)
+    {
+        if (wait < TimeSpan.FromMinutes(1))
+        {
+            return "Will try again in a moment.";
+        }
+
+        var minutes = wait.TotalMinutes;
+        var said = minutes < 10 ? Count((int)Math.Ceiling(minutes), "minute")
+            : minutes < 90 ? Count((int)(Math.Round(minutes / 5, MidpointRounding.AwayFromZero) * 5), "minute")
+            : Count((int)Math.Round(wait.TotalHours, MidpointRounding.AwayFromZero), "hour");
+        return "Will try again in about " + said + ".";
+    }
+
     public static string About(TimeSpan time) =>
         time < TimeSpan.FromMinutes(1) ? "under a minute"
         : time < TimeSpan.FromMinutes(90) ? Count((int)Math.Round(time.TotalMinutes), "minute")

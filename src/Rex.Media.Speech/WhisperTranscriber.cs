@@ -38,11 +38,15 @@ public sealed class WhisperTranscriber : ISpeechTranscriber
 
         var samples = SpeechAudio.Resample(mono, rate);
         progress?.Report(0.05);
-        return await Task.Run(() => Hear(samples, language, progress, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return await HearAsync(samples, language, progress, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The words in <paramref name="samples"/> (16 kHz mono), for a test with sound already in hand.</summary>
-    public Transcript Hear(float[] samples, string? language, IProgress<double>? progress, CancellationToken cancellationToken)
+    /// <summary>
+    /// The words in <paramref name="samples"/> (16 kHz mono), for a test with sound already in hand.
+    /// Asynchronous end to end: the processor is released with DisposeAsync, which waits for the
+    /// model to stop when hearing is cancelled part-way, so no thread is ever blocked on it.
+    /// </summary>
+    public async Task<Transcript> HearAsync(float[] samples, string? language, IProgress<double>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(samples);
         using var factory = WhisperFactory.FromPath(_modelPath);
@@ -51,10 +55,10 @@ public sealed class WhisperTranscriber : ISpeechTranscriber
             .WithTokenTimestamps()
             .WithProgressHandler(percent => progress?.Report(0.05 + (0.94 * Math.Clamp(percent, 0, 100) / 100)));
         builder = string.IsNullOrEmpty(language) ? builder.WithLanguageDetection() : builder.WithLanguage(language);
-        using var processor = builder.Build();
+        await using var processor = builder.Build();
         var words = new List<TranscriptWord>();
         var heard = language ?? "";
-        foreach (var segment in processor.ProcessAsync(samples, cancellationToken).ToBlockingEnumerable(cancellationToken))
+        await foreach (var segment in processor.ProcessAsync(samples, cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false))
         {
             heard = segment.Language is { Length: > 0 } spoken ? spoken : heard;
             words.AddRange(Words(segment));

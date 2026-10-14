@@ -19,9 +19,11 @@ public readonly record struct TranscriptionPlan(bool PlayingItem, bool Library, 
 
 /// <summary>
 /// When transcription runs and how hard (SUB-20): playback comes first, always. What plays is
-/// heard whenever it was asked for, with at most half the processor's threads (and never more
-/// than four) while it plays, so the picture and the sound keep theirs; paused, it may use all but
-/// two. The library is heard in the background only when it is on and not paused, not while
+/// heard whenever it was asked for, with a quarter of the processor's threads (never more than
+/// two) while it plays, so the picture and the sound keep theirs; paused, it may use all but two.
+/// Measured on a four-core, eight-thread laptop decoding 1080p HEVC on the processor at playback's
+/// pace: alone, 2 of 1441 pictures came more than a picture late; beside four transcription
+/// threads, 40; beside one, 3. The library is heard in the background only when it is on and not paused, not while
 /// something plays unless allowed, not on battery unless allowed, never in energy saver, and with
 /// half the threads (one while something plays).
 /// </summary>
@@ -41,7 +43,7 @@ public static class TranscriptionConditions
         return new TranscriptionPlan(
             moment.ModelInstalled,
             settings.Library && waiting is null,
-            moment.Playing ? Math.Clamp(processors / 2, 1, 4) : Math.Max(1, processors - 2),
+            moment.Playing ? Math.Clamp(processors / 4, 1, 2) : Math.Max(1, processors - 2),
             moment.Playing ? 1 : Math.Max(1, processors / 2),
             waiting);
     }

@@ -40,13 +40,27 @@ public sealed class TranscriptionWorkerTests : IDisposable
         return path;
     }
 
+    private readonly List<string> _log = [];
+
+    /// <summary>Thrown by the next model load, then cleared.</summary>
+    private Exception? _loadFails;
+
     private TranscriptionWorker Worker()
     {
         var worker = new TranscriptionWorker(_cache, _ledger, path => _sources.TryGetValue(path, out var source) ? source.Open() : throw new FileNotFoundException("gone", path), () =>
         {
+            if (_loadFails is { } fails)
+            {
+                _loadFails = null;
+                throw fails;
+            }
+
             _loads++;
             return _hearer = new FakeHearer(_speech, _time);
-        }, "base.en", _time);
+        }, "base.en", _time)
+        {
+            Log = _log.Add,
+        };
         worker.SetPlan(Everything);
         return worker;
     }
@@ -106,6 +120,14 @@ public sealed class TranscriptionWorkerTests : IDisposable
         Assert.Equal(_speech.Count, _cache.Load(film, "base.en")!.Words.Count);
         Assert.Null(_cache.LoadPartial(film, "base.en"));
         Assert.Equal((TranscriptState.Done, _speech.Count, 1.0), (RecordOf(film)!.State, RecordOf(film)!.Words, RecordOf(film)!.Share));
+
+        // The model is kept a while with nothing to hear, so the next piece needs no load; then let go.
+        Assert.False(_hearer.Disposed);
+        _time.Advance(TranscriptionWorker.KeepModel - TimeSpan.FromSeconds(1));
+        Assert.False(worker.Step(Token));
+        Assert.False(_hearer.Disposed);
+        _time.Advance(TimeSpan.FromSeconds(1));
+        Assert.False(worker.Step(Token));
         Assert.True(_hearer.Disposed);
         Assert.Same(WorkerStatus.Idle, worker.Status);
         Assert.True(changes >= 2);
@@ -172,6 +194,9 @@ public sealed class TranscriptionWorkerTests : IDisposable
         Assert.True(worker.Step(Token));
         Assert.False(worker.Step(Token));
         Assert.Null(worker.Status.Path);
+        Assert.False(_hearer.Disposed);
+        _time.Advance(TranscriptionWorker.KeepModel);
+        Assert.False(worker.Step(Token));
         Assert.True(_hearer.Disposed);
 
         // What was asked for is heard even with the library paused.
@@ -206,8 +231,11 @@ public sealed class TranscriptionWorkerTests : IDisposable
         // A file gone from the disk fails with a record of where it was.
         Assert.True(worker.Step(Token));
         var goneRecord = _ledger.All.Single(record => record.Path == gone);
-        Assert.Equal((TranscriptState.Failed, "The file is no longer there"), (goneRecord.State, goneRecord.Reason));
-        Assert.Equal("gone", error);
+        Assert.Equal((TranscriptState.Failed, "The file is no longer there."), (goneRecord.State, goneRecord.Reason));
+        Assert.Equal("The file is no longer there.", error);
+
+        // The details are the log's, never the user's.
+        Assert.Contains(_log, line => line.StartsWith("Transcribing " + gone + " failed: System.IO.FileNotFoundException: gone", StringComparison.Ordinal));
 
         // A read that fails mid-file keeps the part heard.
         Assert.True(worker.Step(Token));
@@ -302,6 +330,69 @@ public sealed class TranscriptionWorkerTests : IDisposable
         Assert.Throws<ArgumentNullException>(() => new TranscriptionWorker(_cache, _ledger, _ => null!, null!, "m"));
         Assert.Equal("base.en", worker.Model);
         Assert.Equal("Transcript (tiny.en)", TranscriptionWorker.TrackName("tiny.en"));
+    }
+
+    [Fact]
+    [Capability("SUB-21")]
+    public void AModelThatComplainsWhenItIsStoppedPartWayIsNotAFailure()
+    {
+        var film = Media("film.mkv");
+        using var worker = Worker();
+        worker.SetPlaying(film, wanted: true, S(100));
+        Assert.True(worker.Step(Token));
+        Assert.True(worker.Step(Token));
+
+        // A seek far back drops the piece; the model reports it was stopped with an error of its own.
+        _hearer!.During = () => worker.MovePlayhead(S(5));
+        _hearer.ThrowsWhenCancelled = new InvalidOperationException("Cannot dispose while processing, please use DisposeAsync instead.");
+        Assert.True(worker.Step(Token));
+        Assert.Null(worker.Status.Error);
+        Assert.NotEqual(TranscriptState.Failed, RecordOf(film)?.State);
+        Assert.Empty(_log);
+
+        // Hearing goes on from the new place.
+        (_hearer.During, _hearer.ThrowsWhenCancelled) = (null, null);
+        Assert.True(worker.Step(Token));
+        Assert.Contains(worker.Snapshot(film)!.Words, word => word.Start < S(31));
+    }
+
+    [Fact]
+    [Capability("SUB-20")]
+    public void AModelThatCannotBeLoadedFailsNoFileAndIsTriedAgainLater()
+    {
+        var film = Media("film.mkv");
+        using var worker = Worker();
+        worker.SetQueue([new QueuedFile(film, default, null, 0)]);
+        Assert.True(worker.Step(Token));
+        _loadFails = new InvalidDataException("bad model file");
+        Assert.True(worker.Step(Token));
+        Assert.Equal("The speech model could not be loaded.", worker.Status.Error);
+        Assert.Null(RecordOf(film));
+        Assert.Contains(_log, line => line.Contains("bad model file", StringComparison.Ordinal));
+
+        // Nothing is heard until it is due to be tried again; meanwhile the line says why.
+        Assert.False(worker.Step(Token));
+        Assert.Equal("The speech model could not be loaded.", worker.Status.Error);
+        _time.Advance(TranscriptionWorker.ModelRetry);
+        Assert.True(worker.Step(Token));
+        Assert.True(worker.Step(Token));
+        Assert.Null(worker.Status.Error);
+        Assert.Equal(1, _loads);
+        Assert.Equal(("The speech model could not be loaded.", true), TranscriptionRetry.Classify(new SpeechModelException(new IOException())));
+    }
+
+    [Fact]
+    [Capability("SUB-20")]
+    public void AModelThatCannotBeReleasedCleanlyIsLoggedNotThrown()
+    {
+        var film = Media("film.mkv");
+        var worker = Worker();
+        worker.SetQueue([new QueuedFile(film, default, null, 0)]);
+        Assert.True(worker.Step(Token));
+        Assert.True(worker.Step(Token));
+        _hearer!.DisposeThrows = true;
+        worker.Dispose();
+        Assert.Contains(_log, line => line.StartsWith("The speech model could not be released cleanly", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -423,9 +514,14 @@ public sealed class TranscriptionWorkerTests : IDisposable
 
         public bool IgnoresCancellation { get; set; }
 
+        /// <summary>Thrown instead of a cancellation when the piece is stopped, as a native model may.</summary>
+        public Exception? ThrowsWhenCancelled { get; set; }
+
+        public bool DisposeThrows { get; set; }
+
         public bool Disposed { get; private set; }
 
-        public (IReadOnlyList<TranscriptWord> Words, string? Language) Hear(float[] samples, string? language, int threads, CancellationToken cancellationToken)
+        public ValueTask<(IReadOnlyList<TranscriptWord> Words, string? Language)> HearAsync(float[] samples, string? language, int threads, CancellationToken cancellationToken)
         {
             Created?.Invoke(this);
 
@@ -438,6 +534,11 @@ public sealed class TranscriptionWorkerTests : IDisposable
                 throw new TimeoutException("The blocked fake speech model was never cancelled.");
             }
 
+            if (ThrowsWhenCancelled is { } complaint && cancellationToken.IsCancellationRequested)
+            {
+                throw complaint;
+            }
+
             if (!IgnoresCancellation)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -446,13 +547,14 @@ public sealed class TranscriptionWorkerTests : IDisposable
             time.Advance(TimeSpan.FromSeconds(samples.Length / (double)SpeechAudio.Rate / 10));
             var start = TimeSpan.FromSeconds(samples.Length > 0 ? samples[0] : 0);
             var end = start + TimeSpan.FromSeconds(samples.Length / (double)SpeechAudio.Rate);
-            return ([.. speech.Where(word => word.Start >= start && word.Start < end).Select(word => word with { Start = word.Start - start, End = word.End - start })], "en");
+            return ValueTask.FromResult<(IReadOnlyList<TranscriptWord>, string?)>(([.. speech.Where(word => word.Start >= start && word.Start < end).Select(word => word with { Start = word.Start - start, End = word.End - start })], "en"));
         }
 
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
             Disposed = true;
             OnDispose?.Invoke();
+            return DisposeThrows ? ValueTask.FromException(new InvalidOperationException("still processing")) : ValueTask.CompletedTask;
         }
     }
 }

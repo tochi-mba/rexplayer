@@ -6,9 +6,13 @@ namespace Rex.Media.Speech;
 
 /// <summary>
 /// A Whisper model loaded once (SUB-21, ADR-0020) and asked to hear one piece of sound after
-/// another. Each piece is heard on its own, with no text carried over from the last, so pieces
-/// heard out of order (from the playhead, then the start) agree. The processor is built again only
-/// when the threads or the language asked for change. Every decision is the worker's.
+/// another; the worker keeps one hearer, and so one loaded model, while it has work. Each piece is
+/// heard on its own, with no text carried over from the last, so pieces heard out of order (from
+/// the playhead, then the start) agree. Hearing is asynchronous end to end: the processor is
+/// enumerated with <c>await foreach</c> and released with DisposeAsync, which waits for the native
+/// model to stop when a piece is cancelled part-way. A processor that was cancelled, or that failed,
+/// is released and built afresh for the next piece; one that heard cleanly is kept and built again
+/// only when the threads or the language change. Every decision is the worker's.
 /// </summary>
 public sealed class WhisperHearer : ISpeechHearer
 {
@@ -23,12 +27,12 @@ public sealed class WhisperHearer : ISpeechHearer
         _factory = WhisperFactory.FromPath(modelPath);
     }
 
-    public (IReadOnlyList<TranscriptWord> Words, string? Language) Hear(float[] samples, string? language, int threads, CancellationToken cancellationToken)
+    public async ValueTask<(IReadOnlyList<TranscriptWord> Words, string? Language)> HearAsync(float[] samples, string? language, int threads, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(samples);
         if (_processor is null || _built != (threads, language))
         {
-            _processor?.Dispose();
+            await ReleaseProcessorAsync().ConfigureAwait(false);
             var builder = _factory.CreateBuilder().WithThreads(Math.Max(1, threads)).WithTokenTimestamps().WithNoContext();
             builder = string.IsNullOrEmpty(language) ? builder.WithLanguageDetection() : builder.WithLanguage(language);
             _processor = builder.Build();
@@ -37,18 +41,36 @@ public sealed class WhisperHearer : ISpeechHearer
 
         var words = new List<TranscriptWord>();
         string? heard = null;
-        foreach (var segment in _processor.ProcessAsync(samples, cancellationToken).ToBlockingEnumerable(cancellationToken))
+        try
         {
-            heard = segment.Language is { Length: > 0 } spoken ? spoken : heard;
-            words.AddRange(WhisperTranscriber.Words(segment));
+            await foreach (var segment in _processor.ProcessAsync(samples, cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false))
+            {
+                heard = segment.Language is { Length: > 0 } spoken ? spoken : heard;
+                words.AddRange(WhisperTranscriber.Words(segment));
+            }
+        }
+        catch
+        {
+            // Stopped part-way: let the processor finish stopping, and start the next piece afresh.
+            await ReleaseProcessorAsync().ConfigureAwait(false);
+            throw;
         }
 
         return (words, heard ?? language);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _processor?.Dispose();
+        await ReleaseProcessorAsync().ConfigureAwait(false);
         _factory.Dispose();
+    }
+
+    private async ValueTask ReleaseProcessorAsync()
+    {
+        if (_processor is { } processor)
+        {
+            _processor = null;
+            await processor.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

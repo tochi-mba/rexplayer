@@ -16,15 +16,22 @@ public interface ISpeechSource : IDisposable
     float[] Read(TimeRange range, CancellationToken cancellationToken);
 }
 
-/// <summary>A speech model, loaded once and kept while there is work.</summary>
-public interface ISpeechHearer : IDisposable
+/// <summary>
+/// A speech model, loaded once and kept while there is work. Hearing is asynchronous end to end: a
+/// cancelled piece stops the model and waits for it to let go before the hearer is used or
+/// released again, so it is let go with <see cref="IAsyncDisposable.DisposeAsync"/>.
+/// </summary>
+public interface ISpeechHearer : IAsyncDisposable
 {
     /// <summary>
     /// The words in <paramref name="samples"/> (16 kHz mono), timed from its first sample, and the
     /// language heard; on <paramref name="threads"/> threads.
     /// </summary>
-    (IReadOnlyList<TranscriptWord> Words, string? Language) Hear(float[] samples, string? language, int threads, CancellationToken cancellationToken);
+    ValueTask<(IReadOnlyList<TranscriptWord> Words, string? Language)> HearAsync(float[] samples, string? language, int threads, CancellationToken cancellationToken);
 }
+
+/// <summary>The speech model could not be loaded: no file is to blame, so none is marked as failed.</summary>
+public sealed class SpeechModelException(Exception inner) : Exception("The speech model could not be loaded.", inner);
 
 /// <summary>A file opened for hearing: its subtitle track, filled as pieces are heard.</summary>
 public sealed class HearingEventArgs(string path, SubtitleTrack track, TimeRanges done, TimeSpan? duration, bool playingItem, bool complete) : EventArgs
@@ -63,6 +70,12 @@ public sealed class TranscriptionWorker : IDisposable
     /// <summary>The part heard is written down after this many pieces, and whenever hearing stops.</summary>
     private const int SaveEvery = 4;
 
+    /// <summary>How long the model is kept with nothing to hear: loading it again costs far more than a piece.</summary>
+    public static readonly TimeSpan KeepModel = TimeSpan.FromSeconds(60);
+
+    /// <summary>How long after the model failed to load it is tried again.</summary>
+    public static readonly TimeSpan ModelRetry = TimeSpan.FromMinutes(5);
+
     private readonly object _gate = new();
     private readonly TranscriptCache _cache;
     private readonly TranscriptionLedger _ledger;
@@ -82,6 +95,8 @@ public sealed class TranscriptionWorker : IDisposable
     private SpeechChunk? _inFlight;
     private CancellationTokenSource? _piece;
     private Thread? _thread;
+    private long? _idleSince;
+    private DateTimeOffset? _modelFailed;
     private WorkerStatus _status = WorkerStatus.Idle;
 
     public TranscriptionWorker(TranscriptCache cache, TranscriptionLedger ledger, Func<string, ISpeechSource> open, Func<ISpeechHearer> load, string model, TimeProvider? time = null)
@@ -107,6 +122,9 @@ public sealed class TranscriptionWorker : IDisposable
 
     /// <summary>The language to hear in (a two-letter code), or null to let the model tell.</summary>
     public string? Language { get; set; }
+
+    /// <summary>Where details that are not the user's to read go (the log): failures and their causes.</summary>
+    public Action<string>? Log { get; set; }
 
     /// <summary>How fast pieces are being heard.</summary>
     public TranscriptionSpeed Speed { get; } = new();
@@ -220,10 +238,12 @@ public sealed class TranscriptionWorker : IDisposable
         if (Choose() is not { } target)
         {
             Close(save: true);
-            Unload();
-            Report(WorkerStatus.Idle);
+            KeepOrRelease();
+            Report(_modelFailed is null ? WorkerStatus.Idle : WorkerStatus.Idle with { Error = "The speech model could not be loaded." });
             return false;
         }
+
+        _idleSince = null;
 
         try
         {
@@ -238,13 +258,41 @@ public sealed class TranscriptionWorker : IDisposable
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // A seek, another file or a pause took over; the next step goes on from there.
+            // A seek, another file or a pause took over; the next step goes on from there. Not a
+            // failure: nothing is recorded, shown or tried again later.
+            return true;
+        }
+        catch (SpeechModelException error)
+        {
+            // No file is to blame: the queue waits, and the model is tried again later.
+            Close(save: true);
+            Log?.Invoke("The speech model could not be loaded: " + error.InnerException);
+            _modelFailed = _time.GetUtcNow();
+            Report(new WorkerStatus(null, false, 0, error.Message));
             return true;
         }
         catch (Exception error) when (error is not OperationCanceledException)
         {
             Fail(target.Path, error);
             return true;
+        }
+    }
+
+    /// <summary>
+    /// With nothing to hear, the model is kept a while (<see cref="KeepModel"/>), then let go: what
+    /// plays next, or the next file, hears at once without loading it again.
+    /// </summary>
+    private void KeepOrRelease()
+    {
+        if (_hearer is null)
+        {
+            return;
+        }
+
+        _idleSince ??= _time.GetTimestamp();
+        if (_time.GetElapsedTime(_idleSince.Value) >= KeepModel)
+        {
+            Unload();
         }
     }
 
@@ -291,8 +339,9 @@ public sealed class TranscriptionWorker : IDisposable
                 if (!Step(_stop.Token))
                 {
                     // Wait for either new work or shutdown. A wake signal alone can be
-                    // consumed by another update before shutdown reaches this wait.
-                    WaitHandle.WaitAny([_wake, _stop.Token.WaitHandle]);
+                    // consumed by another update before shutdown reaches this wait. While the
+                    // model is kept, look again when it is due to be let go.
+                    WaitHandle.WaitAny([_wake, _stop.Token.WaitHandle], _hearer is null ? Timeout.InfiniteTimeSpan : KeepModel);
                 }
             }
         }
@@ -312,6 +361,12 @@ public sealed class TranscriptionWorker : IDisposable
     /// <summary>What should be heard now: what plays when wanted and allowed, else the queue's first allowed file.</summary>
     private Target? Choose()
     {
+        if (_modelFailed is { } failed && _time.GetUtcNow() - failed < ModelRetry)
+        {
+            return null;
+        }
+
+        _modelFailed = null;
         lock (_gate)
         {
             if (_playing is { } playing && _playingWanted && _plan.PlayingItem && !_settled.Contains(playing))
@@ -376,7 +431,7 @@ public sealed class TranscriptionWorker : IDisposable
             return true;
         }
 
-        _hearer ??= _load();
+        _hearer ??= Load();
         int threads;
         CancellationToken token;
         lock (_gate)
@@ -405,7 +460,7 @@ public sealed class TranscriptionWorker : IDisposable
                 chunk = new SpeechChunk(chunk.Kept with { End = end < chunk.Kept.End ? end : chunk.Kept.End }, chunk.Heard with { End = end });
             }
 
-            var (words, language) = _hearer.Hear(samples, Language, Math.Max(1, threads), token);
+            var (words, language) = HearOnThisThread(_hearer, samples, Math.Max(1, threads), token, Language);
             token.ThrowIfCancellationRequested();
             var change = job.Transcript.Add(chunk, words, language);
             job.Track.Replace(change.Replaced.Start, change.Replaced.End, change.Cues);
@@ -444,7 +499,39 @@ public sealed class TranscriptionWorker : IDisposable
     private void Fail(string path, Exception error)
     {
         Close(save: true);
-        Settle(path, TranscriptionRetry.Failed(Record(path), error, _time.GetUtcNow()), error.Message);
+        Log?.Invoke($"Transcribing {path} failed: {error}");
+        var record = TranscriptionRetry.Failed(Record(path), error, _time.GetUtcNow());
+        Settle(path, record, record.Reason);
+    }
+
+    /// <summary>The model loaded; what goes wrong loading it is the model's fault, not a file's.</summary>
+    private ISpeechHearer Load()
+    {
+        try
+        {
+            return _load();
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            throw new SpeechModelException(error);
+        }
+    }
+
+    /// <summary>
+    /// Hears a piece, waiting on the worker's own thread (never a pool thread) for the model, which
+    /// works asynchronously. Whatever the model throws once the piece was cancelled is the
+    /// cancellation, not a failure.
+    /// </summary>
+    private static (IReadOnlyList<TranscriptWord> Words, string? Language) HearOnThisThread(ISpeechHearer hearer, float[] samples, int threads, CancellationToken token, string? language = null)
+    {
+        try
+        {
+            return hearer.HearAsync(samples, language, threads, token).AsTask().GetAwaiter().GetResult();
+        }
+        catch (Exception error) when (error is not OperationCanceledException && token.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("The piece was dropped while it was being heard.", error, token);
+        }
     }
 
     /// <summary>A file is done with for this session (heard, failed or without sound); its record is kept.</summary>
@@ -492,8 +579,22 @@ public sealed class TranscriptionWorker : IDisposable
     /// <summary>The model is let go while there is nothing to hear: it holds hundreds of megabytes.</summary>
     private void Unload()
     {
-        _hearer?.Dispose();
+        if (_hearer is not { } hearer)
+        {
+            return;
+        }
+
         _hearer = null;
+        _idleSince = null;
+        try
+        {
+            // Waits for the model to finish stopping before it is released.
+            hearer.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+        catch (Exception error)
+        {
+            Log?.Invoke("The speech model could not be released cleanly: " + error);
+        }
     }
 
     private void Report(WorkerStatus status)
