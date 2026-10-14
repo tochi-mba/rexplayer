@@ -40,8 +40,10 @@ public sealed class SubjectRemovalFill
     // How strongly a far source is penalised, relative to a typical patch difference.
     private const float Nearness = 1f;
 
-    // Sweeps of the fusion: enough to spread a seam's step over several cells either side.
-    private const int FusionSweeps = 40;
+    // Sweeps of the fusion, and how far each one moves a cell past the plain average of its
+    // neighbours: over-relaxed, a sweep carries a seam's step as far as several plain ones would.
+    private const int FusionSweeps = 14;
+    private const float Relaxation = 1.8f;
     // The most the fusion moves a copied colour, so a wild boundary cannot repaint the texture.
     private const float MostCorrection = 64;
 
@@ -214,7 +216,9 @@ public sealed class SubjectRemovalFill
     /// except where two different copies meet, where no step is wanted, and so that it meets the
     /// known picture at the hole's edge. The copies keep their texture while a shadow or a lighting
     /// gradient across the hole carries on through it, and the seams where fronts from either side
-    /// met fade out. Gauss-Seidel sweeps start from the copies, which are already close.
+    /// met fade out. Over-relaxed Gauss-Seidel sweeps (Young, "Iterative Methods for Solving Partial
+    /// Difference Equations of Elliptic Type", Trans. AMS 76, 1954) start from the copies, which are
+    /// already close.
     /// </summary>
     private void Fuse()
     {
@@ -265,7 +269,10 @@ public sealed class SubjectRemovalFill
                     count++;
                 }
 
-                (_fused[cell * 3], _fused[cell * 3 + 1], _fused[cell * 3 + 2]) = (blue / count, green / count, red / count);
+                var at = cell * 3;
+                _fused[at] += Relaxation * (blue / count - _fused[at]);
+                _fused[at + 1] += Relaxation * (green / count - _fused[at + 1]);
+                _fused[at + 2] += Relaxation * (red / count - _fused[at + 2]);
             }
         }
 

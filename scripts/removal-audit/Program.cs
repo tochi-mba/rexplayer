@@ -122,11 +122,13 @@ void Bench(string video, double start, int count)
     var matteProfile = typeof(SubjectRemovalMatte).GetField("ProfileTicks", BindingFlags.Static | BindingFlags.Public)?.GetValue(null) as long[];
     var motionProfile = typeof(SubjectRemovalMotion).GetField("ProfileTicks", BindingFlags.Static | BindingFlags.Public)?.GetValue(null) as long[];
     var bytesProfile = typeof(SubjectRemoval).GetField("ProfileBytes", BindingFlags.Static | BindingFlags.Public)?.GetValue(null) as long[];
+    var fillProfile = typeof(SubjectRemovalFill).GetField("ProfileTicks", BindingFlags.Static | BindingFlags.Public)?.GetValue(null) as long[];
     // Such a build times its stages by this thread's cycles, as the totals are.
     Func<long> cycles = Cycles;
     typeof(SubjectRemoval).GetField("ProfileClock", BindingFlags.Static | BindingFlags.Public)?.SetValue(null, cycles);
     typeof(SubjectRemovalMatte).GetField("ProfileClock", BindingFlags.Static | BindingFlags.Public)?.SetValue(null, cycles);
     typeof(SubjectRemovalMotion).GetField("ProfileClock", BindingFlags.Static | BindingFlags.Public)?.SetValue(null, cycles);
+    typeof(SubjectRemovalFill).GetField("ProfileClock", BindingFlags.Static | BindingFlags.Public)?.SetValue(null, cycles);
     // A first pass warms the code up and is not reported: the runtime compiles a method fully only
     // after it has run about thirty times, so a cold pass measures the compiler as much as the removal.
     for (var pass = 0; pass < 2; pass++)
@@ -142,6 +144,7 @@ void Bench(string video, double start, int count)
         List<double> previews = [], walls = [], records = [], motions = [], mattes = [];
         var stages = new double[12];
         var motionStages = new double[4];
+        var fillStages = new double[4];
         var stageBytes = new long[12];
         var matteStages = new double[12];
         var allocated = 0L;
@@ -154,6 +157,7 @@ void Bench(string video, double start, int count)
             var detail = (Math.Max(0, left - 60), Math.Max(0, top - 60), Math.Min(w, left + bw + 60), Math.Min(h, top + bh + 60));
             var ticks = profile?.ToArray();
             var motionTicks = motionProfile?.ToArray();
+            var fillTicks = fillProfile?.ToArray();
             var byteTicks = bytesProfile?.ToArray();
             var bytes = GC.GetAllocatedBytesForCurrentThread();
             var started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -170,6 +174,11 @@ void Bench(string video, double start, int count)
                 for (var s = 0; motionProfile is not null && s < motionStages.Length; s++)
                 {
                     motionStages[s] += (motionProfile[s] - motionTicks![s]) / (Clock() * 1e6);
+                }
+
+                for (var s = 0; fillProfile is not null && s < fillStages.Length; s++)
+                {
+                    fillStages[s] += (fillProfile[s] - fillTicks![s]) / (Clock() * 1e6);
                 }
 
                 for (var s = 0; bytesProfile is not null && s < stageBytes.Length; s++)
@@ -200,6 +209,7 @@ void Bench(string video, double start, int count)
             Console.WriteLine("  stages (CPU ms a picture): " + string.Join(", ", stages.Select((t, s) => string.Create(culture, $"{s}:{t / n:F1}"))));
             Console.WriteLine("  matte stages (CPU ms a picture): " + string.Join(", ", matteStages.Select((t, s) => string.Create(culture, $"{s}:{t / n:F1}"))));
             Console.WriteLine("  motion stages in the preview (CPU ms a picture): " + string.Join(", ", motionStages.Select((t, s) => string.Create(culture, $"{s}:{t / n:F1}"))));
+            Console.WriteLine("  fill stages in the preview (CPU ms a picture): " + string.Join(", ", fillStages.Select((t, s) => string.Create(culture, $"{s}:{t / n:F1}"))));
             Console.WriteLine("  bytes allocated by stage: " + string.Join(", ", stageBytes.Select((t, s) => string.Create(culture, $"{s}:{t}"))));
         }
     }
