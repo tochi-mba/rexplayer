@@ -645,6 +645,8 @@ public sealed class SubjectRemoval
         var state = _fill.State;
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
+        var matteArea = _matte.Area;
+        var matteWidth = matteArea.Right - matteArea.Left;
         // A cell is read from at most four by four of its pixels.
         var step = Math.Max(1, scale / 4);
         for (var j = 0; j < height; j++)
@@ -658,7 +660,10 @@ public sealed class SubjectRemoval
                 {
                     for (var x = grid.Left + i * scale; x < Math.Min(grid.Right, grid.Left + (i + 1) * scale); x += step)
                     {
-                        guarded |= Guarded(x, y);
+                        // A previous estimated fill may guide the match, but it is not an
+                        // observed texture patch to copy into another unseen place.
+                        guarded |= Guarded(x, y) || (x >= matteArea.Left && y >= matteArea.Top && x < matteArea.Right && y < matteArea.Bottom
+                            && _kind[(y - matteArea.Top) * matteWidth + x - matteArea.Left] == Seeded);
                         if (Background(plane, stride, x, y, out var value))
                         {
                             (blue, green, red) = (blue + (value & 0xFF), green + ((value >> 8) & 0xFF), red + ((value >> 16) & 0xFF));
