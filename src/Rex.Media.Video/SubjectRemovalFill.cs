@@ -470,7 +470,7 @@ public sealed class SubjectRemovalFill
             }
         }
 
-        for (var sample = 0; sample < (_searchStructuredBackground ? 24 : Samples); sample++)
+        for (var sample = 0; sample < Samples; sample++)
         {
             Consider(Near(x, y, _window), 1);
         }
