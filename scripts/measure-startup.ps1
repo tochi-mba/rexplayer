@@ -454,7 +454,7 @@ function Get-Median([double[]]$values) {
     return ($sorted[$middle - 1] + $sorted[$middle]) / 2
 }
 
-$report = [ordered]@{}
+$collected = [ordered]@{}
 $markdown = [Collections.Generic.List[string]]::new()
 $machine = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name.Trim()
 $markdown.Add("# rexplayer $version measured on $Label")
@@ -479,7 +479,7 @@ try {
                 }
             }
 
-            $report[$label] = $results
+            $collected[$label] = $results
             Write-Host ''
             Write-Host "$label ($($results.Count) of $runsHere runs)"
             $markdown.Add('')
@@ -508,7 +508,7 @@ try {
         $measured = Join-Path $root "artifacts/perf/$lane.json"
         if (Test-Path $measured) {
             $suite = Get-Content -Raw $measured | ConvertFrom-Json
-            $report['perf suite'] = $suite
+            $collected['perf suite'] = $suite
             $markdown.Add('')
             $markdown.Add("## Performance suite (lane $lane, fastest pass)")
             $markdown.Add('')
@@ -520,7 +520,7 @@ try {
 }
 finally {
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $scratch
-    if ($Out) { $report | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 $Out }
+    if ($Out) { $collected | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 $Out }
     if ($Report) {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent ([IO.Path]::GetFullPath($Report))) | Out-Null
         [IO.File]::WriteAllText([IO.Path]::GetFullPath($Report), ($markdown -join "`n") + "`n")
