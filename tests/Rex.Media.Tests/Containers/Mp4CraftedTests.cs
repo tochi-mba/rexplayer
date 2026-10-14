@@ -256,8 +256,10 @@ public sealed class Mp4CraftedTests
     public void ShortElementaryStreamDescriptorReportsFormatDamage()
     {
         // The ES descriptor announces itself but does not contain the two-byte id and flags.
+        // The track cannot be described, so it is left out rather than failing the file.
         var shortDescriptor = Full("esds", 0, 0, Descriptor(0x03, [0, 1]));
-        Assert.Throws<MediaFormatException>(() => Track(File([Audio(AudioEntry("mp4a", 2, 16, 48_000, shortDescriptor))])));
+        using var demuxer = Open(File([Audio(AudioEntry("mp4a", 2, 16, 48_000, shortDescriptor))]));
+        Assert.Empty(demuxer.Info.Tracks);
     }
 
     [Theory]
@@ -495,7 +497,9 @@ public sealed class Mp4CraftedTests
         var trun = Encoding.Latin1.GetString(file).LastIndexOf("trun", StringComparison.Ordinal);
         U32(60_000_000).CopyTo(file, trun + 8);
 
-        Assert.Throws<MediaFormatException>(() => Open(file));
+        // The fragment is left out: its track opens with nothing in it, and nothing huge is made.
+        using var demuxer = Open(file);
+        Assert.Empty(ReadAll(demuxer));
     }
 
     [Fact]
@@ -535,9 +539,11 @@ public sealed class Mp4CraftedTests
     [Fact]
     public void EmptyMovieHeaderReportsDamagedMediaInsteadOfAnIndexFailure()
     {
+        // An empty movie header is passed over: the tracks' own lengths would stand in for it.
         var corrupt = Concat(Box("ftyp", Ascii("isom"), U32(0)), Box("moov", Box("mvhd")));
-        var failure = Assert.Throws<MediaFormatException>(() => Open(corrupt));
-        Assert.Contains("ends before", failure.Message, StringComparison.Ordinal);
+        using var demuxer = Open(corrupt);
+        Assert.Empty(demuxer.Info.Tracks);
+        Assert.False(demuxer.Info.Duration.IsKnown);
     }
 
     [Fact]
@@ -560,8 +566,12 @@ public sealed class Mp4CraftedTests
         var stsz = Encoding.Latin1.GetString(media).IndexOf("stsz", StringComparison.Ordinal);
         Assert.True(stsz >= 0);
         U32(1_000_000).CopyTo(media, stsz + 12);
-        var error = Assert.Throws<MediaFormatException>(() => Open(media));
-        Assert.Contains("more data", error.Message, StringComparison.Ordinal);
+
+        // No more samples are made than the file could hold: what is there plays.
+        using var demuxer = Open(media);
+        var packets = ReadAll(demuxer);
+        Assert.Equal(2, packets.Sum(packet => packet.Data.Length));
+        packets.ForEach(packet => packet.Dispose());
     }
 
     [Fact]
@@ -587,10 +597,14 @@ public sealed class Mp4CraftedTests
 
         Assert.Throws<MediaFormatException>(() => Open(noMoov));
         Assert.Throws<MediaFormatException>(() => Open(hugeMoov));
-        Assert.Throws<MediaFormatException>(() => Open(tooManyEntries));
-        Assert.Throws<MediaFormatException>(() => Open(tooManySamples));
-        Assert.Throws<MediaFormatException>(() => Open(compact));
-        Assert.Throws<MediaFormatException>(() => Open(hugeSample));
+
+        // A track whose tables cannot be right is left out (or keeps only what the file holds): the file opens, with nothing to play.
+        foreach (var broken in new[] { tooManyEntries, tooManySamples, compact, hugeSample })
+        {
+            using var demuxer = Open(broken);
+            Assert.Empty(ReadAll(demuxer));
+        }
+
         using (var shortened = Open(good[..^3]))
         {
             var found = ReadAll(shortened);

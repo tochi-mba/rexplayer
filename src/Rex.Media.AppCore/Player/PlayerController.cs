@@ -32,6 +32,9 @@ public sealed partial class PlayerController : IDisposable
     private readonly Func<string, IEnumerable<string>>? _listFolder;
     private readonly Func<string, bool> _exists;
     private readonly List<TrackFailedEvent> _trackFailures = [];
+
+    /// <summary>Whether the window has been told the item playing is damaged: it is told once.</summary>
+    private bool _damageSaid;
     private double _fade = 1;
     private DateTimeOffset? _lastLaunch;
 
@@ -332,6 +335,7 @@ public sealed partial class PlayerController : IDisposable
             + (audioTrack is { } track ? $", audio track {track}" : "")
             + (paused ? ", paused" : "") + ".");
         _trackFailures.Clear();
+        _damageSaid = false;
         ForgetPresentation();
         EndSession();
         Item = item;
@@ -398,7 +402,7 @@ public sealed partial class PlayerController : IDisposable
         _log.Error(LogSource, $"{item.Location} could not be played: {reason}");
         Failure = reason;
         State = SessionState.Faulted;
-        Message?.Invoke(this, $"{item.Title} could not be played: {reason}");
+        Message?.Invoke(this, DamageNotices.Failed(Playlist.Items.Count > 1 ? item.Title : null, reason));
         Changed?.Invoke(this, EventArgs.Empty);
 
         // Move on, unless every entry has now failed in a row: then there is nothing left worth trying.

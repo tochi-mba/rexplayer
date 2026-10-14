@@ -32,6 +32,9 @@ public sealed class FlacDemuxer : IDemuxer
     private const int LeadOutTrack = 170;
     private const int LeadOutTrackNonCd = 255;
 
+    /// <summary>How far past damaged metadata the first frame is looked for.</summary>
+    private const int FirstFrameSearch = MaxMetadataBlock;
+
     private readonly ByteCursor _stream;
     private readonly ScanWindow _window;
     private readonly FlacStreamInfo _streamInfo;
@@ -69,53 +72,45 @@ public sealed class FlacDemuxer : IDemuxer
             throw new MediaFormatException("The file is not a FLAC stream.");
         }
 
-        FlacStreamInfo? streamInfo = null;
-        byte[] streamInfoBytes = [];
-        var last = false;
-        while (!last)
+        var header = _stream.ReadByte();
+        var length = (int)_stream.ReadUInt24BigEndian();
+        if ((header & 0x7F) != 0)
         {
-            var header = _stream.ReadByte();
-            last = (header & 0x80) != 0;
-            var type = header & 0x7F;
-            var length = (int)_stream.ReadUInt24BigEndian();
-            if (streamInfo is null && type != 0)
+            throw new MediaFormatException("The FLAC stream does not start with a STREAMINFO block.");
+        }
+
+        var streamInfoBytes = ReadBlock(length);
+        var streamInfo = FlacStreamInfo.Parse(streamInfoBytes);
+        streamInfoBytes = streamInfoBytes[..FlacStreamInfo.Size];
+        var afterStreamInfo = _stream.Position;
+        var damaged = false;
+        var last = (header & 0x80) != 0;
+        while (!last && !damaged)
+        {
+            var blockStart = _stream.Position;
+            try
             {
-                throw new MediaFormatException("The FLAC stream does not start with a STREAMINFO block.");
+                header = _stream.ReadByte();
+                last = (header & 0x80) != 0;
+                length = (int)_stream.ReadUInt24BigEndian();
+                damaged = !ReadMetadataBlock(header & 0x7F, length, streamInfo.SampleRate, metadata, pictures, chapters);
+            }
+            catch (MediaFormatException)
+            {
+                // A block that runs past the end of the file: the metadata is damaged from here.
+                damaged = true;
             }
 
-            switch (type)
+            if (damaged)
             {
-                case 0:
-                    streamInfoBytes = ReadBlock(length);
-                    streamInfo = FlacStreamInfo.Parse(streamInfoBytes);
-                    streamInfoBytes = streamInfoBytes[..FlacStreamInfo.Size];
-                    break;
-                case 3:
-                    ReadSeekTable(ReadBlock(length));
-                    break;
-                case 4:
-                    VorbisComments.Read(ReadBlock(length), metadata);
-                    break;
-                case 5:
-                    chapters.AddRange(ReadCueSheet(ReadBlock(length), streamInfo!.SampleRate));
-                    break;
-                case 6:
-                    if (PictureBlock.Parse(ReadBlock(length)) is { } picture)
-                    {
-                        pictures.Add(picture);
-                    }
-
-                    break;
-                case 127:
-                    throw new MediaFormatException("The FLAC stream has a metadata block of the forbidden type 127.");
-                default:
-                    _stream.Skip(length);
-                    break;
+                _stream.Seek(blockStart);
             }
         }
 
-        _streamInfo = streamInfo!;
-        _firstFrame = _stream.Position;
+        // Damaged metadata (a block with a wrong length, say) costs the tags, not the sound: the
+        // frames are found by their sync code after the stream information.
+        _firstFrame = damaged ? FindFirstFrame(streamInfo, afterStreamInfo) : _stream.Position;
+        (_streamInfo, streamInfoBytes) = Repaired(streamInfo, streamInfoBytes, _firstFrame);
         _window = new ScanWindow(_stream, _firstFrame);
 
         // The largest frame the stream can hold: verbatim samples, one extra bit for a side channel.
@@ -225,9 +220,126 @@ public sealed class FlacDemuxer : IDemuxer
 
     private byte[] ReadBlock(int length)
     {
+        if (_stream.Remaining is { } remaining && length > remaining)
+        {
+            throw new MediaFormatException("A FLAC metadata block runs past the end of the file.");
+        }
+
         var block = new byte[length];
         _stream.ReadExactly(block);
         return block;
+    }
+
+    /// <summary>
+    /// Reads one metadata block after STREAMINFO (the readers pass over damaged contents); false
+    /// when the block itself cannot be right, so the blocks after it cannot be found.
+    /// </summary>
+    private bool ReadMetadataBlock(int type, int length, int sampleRate, Dictionary<string, string> metadata, List<PictureBlock> pictures, List<Chapter> chapters)
+    {
+        if (type is 0 or 127 || (_stream.Remaining is { } remaining && length > remaining))
+        {
+            // A second STREAMINFO, the forbidden type or a length past the end: not a block at all.
+            return false;
+        }
+
+        if (type is not (3 or 4 or 5 or 6))
+        {
+            _stream.Skip(length);
+            return true;
+        }
+
+        var block = ReadBlock(length);
+        switch (type)
+        {
+            case 3:
+                ReadSeekTable(block);
+                break;
+            case 4:
+                VorbisComments.Read(block, metadata);
+                break;
+            case 5:
+                chapters.AddRange(ReadCueSheet(block, sampleRate));
+                break;
+            default:
+                if (PictureBlock.Parse(block) is { } picture)
+                {
+                    pictures.Add(picture);
+                }
+
+                break;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Where the frames start when the metadata is damaged: the first frame header after
+    /// <paramref name="from"/> that numbers the stream's first frame, else the first that fits the
+    /// stream, else <paramref name="from"/> itself (reading then scans on from there).
+    /// </summary>
+    private long FindFirstFrame(FlacStreamInfo info, long from)
+    {
+        var size = (int)Math.Min(FirstFrameSearch, Math.Max(0, (_stream.Length ?? (from + FirstFrameSearch)) - from));
+        var buffer = ArrayPool<byte>.Shared.Rent(size);
+        try
+        {
+            _stream.Seek(from);
+            var span = buffer.AsSpan(0, _stream.Read(buffer.AsSpan(0, size)));
+            long? fitting = null;
+            for (var i = span.IndexOf((byte)0xFF); i >= 0 && i + 1 < span.Length; i = NextSync(span, i))
+            {
+                if (FlacFrameHeader.IsSync(span[i], span[i + 1]) && FlacFrameHeader.TryParse(span[i..], out var header) && Fits(info, header, header.VariableBlockSize))
+                {
+                    if (header.CodedNumber == 0)
+                    {
+                        return from + i;
+                    }
+
+                    fitting ??= from + i;
+                }
+            }
+
+            return fitting ?? from;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+
+        static int NextSync(ReadOnlySpan<byte> span, int at)
+        {
+            var next = span[(at + 1)..].IndexOf((byte)0xFF);
+            return next < 0 ? -1 : at + 1 + next;
+        }
+    }
+
+    /// <summary>
+    /// The stream information, put right from the first frame when damage left it describing a
+    /// stream no frame fits (a wrong channel count, rate, sample size or block size): otherwise no
+    /// frame would ever be found and the whole file would be read for nothing.
+    /// </summary>
+    private (FlacStreamInfo Info, byte[] Bytes) Repaired(FlacStreamInfo info, byte[] bytes, long firstFrame)
+    {
+        Span<byte> head = stackalloc byte[FlacFrameHeader.MaxLength];
+        _stream.Seek(firstFrame);
+        var read = _stream.Read(head);
+        if (!FlacFrameHeader.TryParse(head[..read], out var first) || Fits(info, first, first.VariableBlockSize))
+        {
+            return (info, bytes);
+        }
+
+        var blockSize = Math.Max(first.BlockSize, 16);
+        var repaired = info with
+        {
+            Channels = first.Channels,
+            SampleRate = first.SampleRate > 0 ? first.SampleRate : info.SampleRate,
+            BitsPerSample = first.BitsPerSample > 0 ? first.BitsPerSample : info.BitsPerSample,
+            MinBlockSize = first.VariableBlockSize ? Math.Min(info.MinBlockSize, blockSize) : blockSize,
+            MaxBlockSize = first.VariableBlockSize ? Math.Max(info.MaxBlockSize, blockSize) : Math.Max(info.MaxBlockSize == info.MinBlockSize ? blockSize : info.MaxBlockSize, blockSize),
+            MinFrameSize = 0,
+            MaxFrameSize = 0,
+        };
+        return (repaired, repaired.ToBytes());
     }
 
     private void ReadSeekTable(byte[] table)
@@ -277,12 +389,14 @@ public sealed class FlacDemuxer : IDemuxer
     }
 
     /// <summary>Whether a header belongs to this stream rather than being a sync pattern inside audio data.</summary>
-    private bool Fits(FlacFrameHeader header) =>
-        header.VariableBlockSize == (_variable ?? header.VariableBlockSize)
-        && header.Channels == _streamInfo.Channels
-        && (header.SampleRate == 0 || header.SampleRate == _streamInfo.SampleRate)
-        && (header.BitsPerSample == 0 || header.BitsPerSample == _streamInfo.BitsPerSample)
-        && header.BlockSize <= _streamInfo.MaxBlockSize;
+    private bool Fits(FlacFrameHeader header) => Fits(_streamInfo, header, _variable ?? header.VariableBlockSize);
+
+    private static bool Fits(FlacStreamInfo info, FlacFrameHeader header, bool variable) =>
+        header.VariableBlockSize == variable
+        && header.Channels == info.Channels
+        && (header.SampleRate == 0 || header.SampleRate == info.SampleRate)
+        && (header.BitsPerSample == 0 || header.BitsPerSample == info.BitsPerSample)
+        && header.BlockSize <= info.MaxBlockSize;
 
     private static bool Follows(FlacFrameHeader current, FlacFrameHeader next) =>
         next.CodedNumber == current.CodedNumber + (current.VariableBlockSize ? current.BlockSize : 1);

@@ -315,10 +315,17 @@ public sealed partial class MainWindow
         {
             var picker = Prepared(new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary, SuggestedFileName = "rexplayer keyboard and mouse" });
             picker.FileTypeChoices.Add("Keyboard and mouse", [".json"]);
-            if (await picker.PickSaveFileAsync() is { } file)
+            try
             {
-                await File.WriteAllTextAsync(file.Path, ShortcutEditing.Export(Edited()));
-                Say("Saved to " + file.Path);
+                if (await picker.PickSaveFileAsync() is { } file)
+                {
+                    await File.WriteAllTextAsync(file.Path, ShortcutEditing.Export(Edited()));
+                    Say("Saved to " + file.Path);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+            {
+                Say("The shortcuts could not be saved: " + ex.Message);
             }
         };
         var import = new Button { Content = "Load from a file..." };

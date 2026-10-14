@@ -384,6 +384,12 @@ public sealed partial class MainWindow
             : entry.Kind == LibraryKind.Picture
                 ? string.Join(" · ", new[] { Path.GetFileName(Path.GetDirectoryName(entry.Path)), entry.Modified == default ? null : entry.Modified.ToLocalTime().ToString("d", CultureInfo.CurrentCulture) }.Where(part => part is not null))
                 : string.Join(" · ", new[] { entry.Artist, entry.Album }.Where(part => part is not null));
+        if (entry.Problem is { } problem)
+        {
+            // A file whose details could not be read (damaged, most often) says why instead.
+            detail = "Could not be read: " + problem;
+        }
+
         var extra = entry.Kind != LibraryKind.Picture && entry.Duration is { } duration ? TimeText.Format(duration, duration) : "";
         var badge = entry.Kind switch
         {
@@ -828,11 +834,19 @@ public sealed partial class MainWindow
 
     private async void OnLibraryAddFolder(object sender, RoutedEventArgs e)
     {
-        var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary });
-        picker.FileTypeFilter.Add("*");
-        if (await picker.PickSingleFolderAsync() is { } folder)
+        try
         {
-            AddLibraryFolder(folder.Path);
+            var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary });
+            picker.FileTypeFilter.Add("*");
+            if (await picker.PickSingleFolderAsync() is { } folder)
+            {
+                AddLibraryFolder(folder.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            App.Log.Error(LogSource, "A folder could not be added: " + ex);
+            Say("The folder could not be added: " + Rex.Media.AppCore.Player.DamageNotices.Short(ex.Message));
         }
     }
 

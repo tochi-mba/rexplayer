@@ -9,6 +9,9 @@ namespace Rex.Media.Codecs.MediaFoundation;
 /// <summary>One Media Foundation audio decoder transform, producing float frames.</summary>
 public sealed class MfAudioDecoder : IAudioDecoder
 {
+    /// <summary>How many times a refused packet is offered again, its output collected between, before the decoder is taken to be stuck.</summary>
+    private const int MaxInputRetries = 64;
+
     private readonly MfTransform _transform;
     private int _rate;
     private int _channels;
@@ -94,8 +97,17 @@ public sealed class MfAudioDecoder : IAudioDecoder
         var time = packet.Pts.IsKnown ? packet.Pts.Ticks : long.MinValue;
         try
         {
+            // A decoder refuses input while it holds output; one that keeps refusing after giving
+            // everything up is stuck on damaged data, and waiting on it would hang the audio thread.
+            var retries = 0;
             while (!_transform.ProcessInput(packet.Data.Span, time, packet.Duration.Ticks, packet.IsKeyframe, discontinuity: false))
             {
+                if (++retries > MaxInputRetries)
+                {
+                    _transform.Flush();
+                    throw new MediaFormatException("The Windows decoder stopped taking input.");
+                }
+
                 Collect(output);
             }
 
@@ -109,15 +121,29 @@ public sealed class MfAudioDecoder : IAudioDecoder
 
     public void Drain(ICollection<AudioFrame> output)
     {
-        _transform.Drain();
-        Collect(output);
-        _transform.Begin();
+        try
+        {
+            _transform.Drain();
+            Collect(output);
+            _transform.Begin();
+        }
+        catch (COMException ex)
+        {
+            throw new MediaFormatException($"The Windows decoder could not finish the stream (0x{ex.HResult:X8}).", ex);
+        }
     }
 
     public void Flush()
     {
-        _transform.Flush();
         _next = MediaTime.Unknown;
+        try
+        {
+            _transform.Flush();
+        }
+        catch (COMException ex)
+        {
+            throw new MediaFormatException($"The Windows decoder could not be reset (0x{ex.HResult:X8}).", ex);
+        }
     }
 
     public void Dispose() => _transform.Dispose();

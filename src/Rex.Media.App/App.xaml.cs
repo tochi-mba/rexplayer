@@ -42,7 +42,13 @@ public partial class App : Application
         }
 
         InitializeComponent();
-        UnhandledException += (_, e) => Log.Critical("app", ExceptionDiagnostics.Summary(e.Exception));
+        UnhandledException += (_, e) =>
+        {
+            // A failure on the window's thread (an event handler, the rest of an awaited call) is
+            // written down and the player carries on: one broken file or click must not close it.
+            Log.Critical("app", e.Exception.ToString());
+            e.Handled = true;
+        };
 
         // Off the window's thread too: the log is the only trace a crash on an engine thread leaves.
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Critical("app", e.ExceptionObject is Exception ex ? ex.ToString() : "An unknown failure.");
@@ -103,6 +109,21 @@ public partial class App : Application
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
+        try
+        {
+            await LaunchAsync();
+        }
+        catch (Exception ex)
+        {
+            // Nothing was shown, so there is nothing to carry on with: the log says why, and the
+            // process ends instead of staying behind without a window.
+            Log.Critical("app", "rexplayer could not start: " + ex);
+            Exit();
+        }
+    }
+
+    private async Task LaunchAsync()
+    {
         Log.Info("app", $"rexplayer {MainWindow.Version} starting on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}), .NET {Environment.Version}, data in {DataRoot}.");
         Milestones.Reach("launched");
         Log.Debug("app", "Command line: " + string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(arg => "\"" + arg + "\"")));
@@ -154,12 +175,22 @@ public partial class App : Application
             Foreground.AllowAnyProcess();
         }
 
-        // A jump list task first brings the window forward (an open with nothing to open does), so
-        // the dialog it may show is in front, then runs.
-        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }, FindRunningPlayer);
-        if (reply is { Ok: true } && command is not null)
+        AutomationReply? reply;
+        try
         {
-            reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "run", Id = command }, FindRunningPlayer);
+            // A jump list task first brings the window forward (an open with nothing to open does), so
+            // the dialog it may show is in front, then runs.
+            reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }, FindRunningPlayer);
+            if (reply is { Ok: true } && command is not null)
+            {
+                reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "run", Id = command }, FindRunningPlayer);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            // The other player went away or does not answer: this one opens its own window.
+            Log.Info("app", "The running player did not take the files: " + ex.Message);
+            return false;
         }
 
         if (reply is not { Ok: true })

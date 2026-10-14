@@ -128,6 +128,19 @@ public sealed class AudioClock : IMediaClock
         }
     }
 
+    /// <summary>
+    /// The next sample written is at <paramref name="anchor"/> of the item being written, which
+    /// carries on: the clock moves over a stretch of damaged media when that sample is heard.
+    /// </summary>
+    public void Jump(MediaTime anchor)
+    {
+        lock (_gate)
+        {
+            var item = _coming.Count > 0 ? _coming.Last().Item : _heard.Item;
+            _coming.Enqueue(new Segment(_written, anchor, item, Starts: false));
+        }
+    }
+
     /// <summary>The items whose first sample has been heard since the last call, in order.</summary>
     public IReadOnlyList<object> TakeStarted()
     {
@@ -145,12 +158,16 @@ public sealed class AudioClock : IMediaClock
         while (_coming.TryPeek(out var next) && next.At <= played)
         {
             _coming.Dequeue();
-            if (_heard.Item is { } previous)
+            if (_heard.Item is { } previous && !ReferenceEquals(previous, next.Item))
             {
                 _past.AddOrUpdate(previous, _heard);
             }
+
             _heard = next;
-            _started.Enqueue(next.Item!);
+            if (next.Starts)
+            {
+                _started.Enqueue(next.Item!);
+            }
         }
     }
 
@@ -160,7 +177,7 @@ public sealed class AudioClock : IMediaClock
         return _speed == 1 ? time : new MediaTime((long)(time.Ticks * _speed));
     }
 
-    private sealed record Segment(long At, MediaTime Anchor, object? Item);
+    private sealed record Segment(long At, MediaTime Anchor, object? Item, bool Starts = true);
 }
 
 /// <summary>

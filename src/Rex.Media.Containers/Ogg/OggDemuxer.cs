@@ -45,7 +45,9 @@ public sealed class OggDemuxer : IDemuxer
 
         // The headers: every stream's first page comes first (RFC 3533 section 4), then the rest of
         // their header packets, which end a page of their own; the sound starts on the page after.
-        for (var headerPage = 0; headerPage < MaxHeaderPages && ReadPage() is { } page; headerPage++)
+        // A header page whose CRC fails (a flipped bit) is still taken: without it nothing would play,
+        // and the decoder refuses what it cannot use.
+        for (var headerPage = 0; headerPage < MaxHeaderPages && ReadPage(serial => _streams.Any(s => s.Serial == serial && !s.HeadersDone)) is { } page; headerPage++)
         {
             if (page.BeginsStream)
             {
@@ -238,9 +240,11 @@ public sealed class OggDemuxer : IDemuxer
     }
 
     /// <summary>
-    /// The next page whose CRC checks out, skipping anything damaged or not Ogg; null at the end.
+    /// The next page whose CRC checks out, skipping anything damaged or not Ogg; null at the end. A
+    /// whole page that fails its CRC is taken all the same when <paramref name="takeDamaged"/> says
+    /// its stream needs it.
     /// </summary>
-    private OggPage? ReadPage()
+    private OggPage? ReadPage(Func<int, bool>? takeDamaged = null)
     {
         var header = new byte[27];
         while (true)
@@ -269,7 +273,7 @@ public sealed class OggDemuxer : IDemuxer
             var body = new byte[table.Sum(lace => lace)];
             whole = whole && _stream.Read(body) == body.Length;
             var page = new OggPage(offset, header, table, body);
-            if (!whole || !page.ChecksOut)
+            if (!whole || (!page.ChecksOut && takeDamaged?.Invoke(page.Serial) != true))
             {
                 // Damaged (or cut short by a damaged length): look for the next page from just past this one's capture pattern.
                 _stream.Seek(offset + 1);
@@ -342,6 +346,9 @@ internal sealed class OggStream(int serial)
 
     public long LastGranule { get; set; } = -1;
 
+    /// <summary>The latest position a time can be made of (a few thousand years at any rate): beyond it a position is damage.</summary>
+    private long MaxGranule => long.MaxValue / 10_000_000 * Math.Max(1L, _sampleRate) / 4;
+
     /// <summary>After a seek into the middle of the file: a packet carried over from an earlier page is dropped.</summary>
     public bool SkipPartial { get; set; }
 
@@ -394,18 +401,22 @@ internal sealed class OggStream(int serial)
     /// <summary>Reads one header packet: the first names the codec; the rest carry tags and setup.</summary>
     public void Header(byte[] packet, Dictionary<string, string> metadata, List<PictureBlock> pictures)
     {
-        _headers.Add(packet);
-        if (_headers.Count == 1)
+        if (_headers.Count == 0)
         {
+            _headers.Add(packet);
             Identify(packet);
             return;
         }
 
+        if (_codec == CodecId.Vorbis)
+        {
+            VorbisHeader(packet, metadata);
+            return;
+        }
+
+        _headers.Add(packet);
         switch (_codec)
         {
-            case CodecId.Vorbis when packet.AsSpan().StartsWith("\x03vorbis"u8):
-                VorbisComments.Read(packet.AsSpan(7), metadata);
-                break;
             case CodecId.Opus when packet.AsSpan().StartsWith("OpusTags"u8):
                 VorbisComments.Read(packet.AsSpan(8), metadata);
                 break;
@@ -424,10 +435,45 @@ internal sealed class OggStream(int serial)
         }
 
         HeadersDone = _headers.Count >= _headerCount;
-        if (HeadersDone && _codec == CodecId.Vorbis)
+    }
+
+    /// <summary>
+    /// A Vorbis header after the identification, told apart by its type: the comments may be lost
+    /// to damage (empty ones stand in), but without the setup header nothing can be decoded, so a
+    /// sound packet arriving first means the stream cannot be played.
+    /// </summary>
+    private void VorbisHeader(byte[] packet, Dictionary<string, string> metadata)
+    {
+        var span = packet.AsSpan();
+        if (span.StartsWith("\x03vorbis"u8))
         {
-            _vorbis = VorbisSetup.FromHeaders(_headers[0], _headers[2]);
-            _codecPrivate = Lace(_headers);
+            _headers.Add(packet);
+            VorbisComments.Read(span[7..], metadata);
+            return;
+        }
+
+        HeadersDone = true;
+        if (!span.StartsWith("\x05vorbis"u8))
+        {
+            Track = null;
+            return;
+        }
+
+        if (_headers.Count == 1)
+        {
+            // The comment header was lost: an empty one keeps the three headers the decoder expects.
+            _headers.Add([3, .. "vorbis"u8, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+        }
+
+        _headers.Add(packet);
+        try
+        {
+            _vorbis = VorbisSetup.FromHeaders(_headers[0], packet);
+            _codecPrivate = Lace([_headers[0], _headers[1], packet]);
+        }
+        catch (MediaFormatException)
+        {
+            Track = null;
         }
     }
 
@@ -440,7 +486,7 @@ internal sealed class OggStream(int serial)
         {
             Id = id,
             CodecPrivate = _codecPrivate,
-            Duration = LastGranule >= 0 && end >= 0 ? MediaTime.FromSamples(end, _sampleRate) : MediaTime.Unknown,
+            Duration = LastGranule >= 0 && end >= 0 && LastGranule <= MaxGranule ? MediaTime.FromSamples(end, _sampleRate) : MediaTime.Unknown,
         };
     }
 
@@ -457,11 +503,15 @@ internal sealed class OggStream(int serial)
         var data = Assemble(page);
         var lengths = data.Select(Samples).ToList();
 
+        // A position past the stream's last one (or past any time) is damage that the CRC could not
+        // catch: the page's packets carry on from the one before instead.
+        var granule = page.Granule <= MaxGranule && (LastGranule < 0 || page.Granule <= LastGranule) ? page.Granule : -1;
+
         // Each page's position times its own packets, so a page lost to damage leaves no drift; the
         // last page's position marks where the stream ends instead, so it carries on from the one before.
-        if (page.Granule >= 0 && (!page.EndsStream || _position is null))
+        if (granule >= 0 && (!page.EndsStream || _position is null))
         {
-            _position = page.Granule - lengths.Sum();
+            _position = granule - lengths.Sum();
         }
 
         var packets = new List<Packet>();
@@ -474,9 +524,9 @@ internal sealed class OggStream(int serial)
             position += lengths[i];
 
             // The last page may end the stream before its last packet does (RFC 7845 section 4.4).
-            if (i == data.Count - 1 && page.EndsStream && page.Granule >= 0 && position > page.Granule)
+            if (i == data.Count - 1 && page.EndsStream && granule >= 0 && position > granule)
             {
-                packet.DiscardSamples = (int)Math.Min(lengths[i], position - page.Granule);
+                packet.DiscardSamples = (int)Math.Min(lengths[i], position - granule);
             }
 
             packets.Add(packet);
@@ -484,7 +534,7 @@ internal sealed class OggStream(int serial)
 
         if (data.Count > 0)
         {
-            _position = page.Granule >= 0 ? page.Granule : position;
+            _position = granule >= 0 ? granule : position;
         }
 
         return packets;

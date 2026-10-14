@@ -45,6 +45,9 @@ public sealed record LibraryEntry
     /// <summary>Whether its details have been read (or found unreadable).</summary>
     public bool Probed { get; init; }
 
+    /// <summary>Why its details could not be read (a damaged file, say), in plain words; null when they were, or are yet to be.</summary>
+    public string? Problem { get; init; }
+
     public required string Title { get; init; }
 
     public string? Artist { get; init; }
@@ -280,14 +283,24 @@ public sealed class MediaLibrary
     public void SetDetails(IEnumerable<(string Path, MediaInfo? Info)> details)
     {
         ArgumentNullException.ThrowIfNull(details);
+        SetReadDetails(details.Select(detail => (detail.Path, detail.Info, (string?)null)));
+    }
+
+    /// <summary>
+    /// Fills in the details of several files in one write; a file whose details could not be read
+    /// keeps the <paramref name="details"/>' problem, which says why (shown with it, and cleared once it reads).
+    /// </summary>
+    public void SetReadDetails(IEnumerable<(string Path, MediaInfo? Info, string? Problem)> details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
         lock (_gate)
         {
             var written = new List<LibraryEntry>();
-            foreach (var (path, info) in details)
+            foreach (var (path, info, problem) in details)
             {
                 if (_entries.TryGetValue(path, out var known))
                 {
-                    written.Add(info is null ? known with { Probed = true } : WithDetails(known, info));
+                    written.Add(info is null ? known with { Probed = true, Problem = problem } : WithDetails(known, info) with { Problem = null });
                 }
             }
 

@@ -92,7 +92,7 @@ public sealed class Mp4Demuxer : IDemuxer
                     majorBrand = _stream.ReadFourCC();
                     break;
                 case "moov":
-                    moov = ReadBody(position + headerSize, size - headerSize);
+                    moov = ReadBody(position + headerSize, size - headerSize) is { Length: > 0 } body ? body : moov;
                     break;
                 case "moof":
                     fragments.Add((position, ReadBody(position + headerSize, size - headerSize)));
@@ -118,12 +118,16 @@ public sealed class Mp4Demuxer : IDemuxer
         var span = moov.AsSpan();
         uint movieTimescale = 1000;
         long movieDuration = 0;
-        if (Mp4Boxes.Find(span, "mvhd") is { } mvhd)
+        if (Mp4Boxes.Find(span, "mvhd") is { } mvhd && mvhd.Length >= 20)
         {
+            // A movie header cut short keeps the defaults: the tracks' own lengths stand in for it.
             var body = Mp4Boxes.Body(span, mvhd);
             var version = Mp4Boxes.U32(body, 0) >> 24;
-            movieTimescale = Math.Max(1, Mp4Boxes.U32(body, version == 1 ? 20 : 12));
-            movieDuration = version == 1 ? (long)Math.Min(Mp4Boxes.U64(body, 24), long.MaxValue) : Mp4Boxes.U32(body, 16);
+            if (body.Length >= (version == 1 ? 32 : 20))
+            {
+                movieTimescale = Math.Max(1, Mp4Boxes.U32(body, version == 1 ? 20 : 12));
+                movieDuration = version == 1 ? (long)Math.Min(Mp4Boxes.U64(body, 24), long.MaxValue) : Mp4Boxes.U32(body, 16);
+            }
         }
 
         var defaults = new Dictionary<int, (uint Duration, uint Size, uint Flags)>();
@@ -131,7 +135,7 @@ public sealed class Mp4Demuxer : IDemuxer
         {
             switch (box.Type)
             {
-                case "trak" when Mp4Track.Parse(span, box, movieTimescale, _stream.Length) is { } track:
+                case "trak" when ParseTrack(span, box, movieTimescale) is { } track:
                     _tracks.Add(track);
                     break;
                 case "mvex":
@@ -151,9 +155,22 @@ public sealed class Mp4Demuxer : IDemuxer
             }
         }
 
+        // A track whose header was lost (or that shares another's number) is numbered after the rest.
+        foreach (var unnumbered in _tracks.Where((track, i) => track.Id <= 0 || _tracks.Take(i).Any(other => other.Id == track.Id)).ToList())
+        {
+            unnumbered.Id = _tracks.Max(track => track.Id) + 1;
+        }
+
         foreach (var (start, body) in fragments)
         {
-            ReadFragment(start, body, defaults);
+            try
+            {
+                ReadFragment(start, body, defaults);
+            }
+            catch (MediaFormatException)
+            {
+                // A damaged fragment is left out (its samples already added stay); the fragments after it still play.
+            }
         }
 
         foreach (var chapterTrack in _tracks.Where(t => _tracks.Any(other => other.ChapterTrackId == t.Id)).ToList())
@@ -193,6 +210,9 @@ public sealed class Mp4Demuxer : IDemuxer
     public Packet? ReadPacket(CancellationToken cancellationToken)
     {
         _stream.CancellationToken = cancellationToken;
+
+        // Asked once: a file's length can cost a system call, and the loops below would ask per sample.
+        var fileLength = _stream.Length;
         while (true)
         {
             var best = -1;
@@ -217,7 +237,8 @@ public sealed class Mp4Demuxer : IDemuxer
             {
                 // PCM files store one sample per audio frame; contiguous ones travel together.
                 while (last + 1 < track.SampleCount && last + 1 - first < PcmFramesPerPacket
-                    && track.Offsets[last + 1] == track.Offsets[last] + track.Sizes[last])
+                    && track.Offsets[last + 1] == track.Offsets[last] + track.Sizes[last]
+                    && (fileLength is not { } total || track.Offsets[last + 1] + track.Sizes[last + 1] <= total))
                 {
                     last++;
                     bytes += track.Sizes[last];
@@ -229,7 +250,7 @@ public sealed class Mp4Demuxer : IDemuxer
             // Advancing _next before skipping guarantees that no corrupt entry can loop forever.
             var offset = track.Offsets[first];
             if (bytes <= 0 || bytes > MaxSampleBytes || offset < 0
-                || _stream.Length is { } length && (offset > length || bytes > length - offset))
+                || fileLength is { } length && (offset > length || bytes > length - offset))
             {
                 continue;
             }
@@ -274,6 +295,19 @@ public sealed class Mp4Demuxer : IDemuxer
 
     public void Dispose()
     {
+    }
+
+    /// <summary>A track, or null when its description is too damaged to read: the other tracks still play.</summary>
+    private Mp4Track? ParseTrack(ReadOnlySpan<byte> moov, Mp4Box trak, uint movieTimescale)
+    {
+        try
+        {
+            return Mp4Track.Parse(moov, trak, movieTimescale, _stream.Length);
+        }
+        catch (MediaFormatException)
+        {
+            return null;
+        }
     }
 
     private static MediaTime Time(Mp4Track track, long units) =>
@@ -332,16 +366,16 @@ public sealed class Mp4Demuxer : IDemuxer
 
     private byte[] ReadBody(long start, long length)
     {
-        if (length < 0 || length > MaxMoovBytes)
-        {
-            throw new MediaFormatException("An MP4 header box is larger than rexplayer accepts.");
-        }
-
         // Do not allocate a claimed box size when the file ends after a few bytes.
         // A crashed recording can have a valid prefix and a truncated final box.
         if (_stream.Length is { } available)
         {
             length = Math.Min(length, Math.Max(0, available - start));
+        }
+
+        if (length < 0 || length > MaxMoovBytes)
+        {
+            throw new MediaFormatException("An MP4 header box is larger than rexplayer accepts.");
         }
 
         var body = new byte[length];
@@ -494,7 +528,12 @@ public sealed class Mp4Demuxer : IDemuxer
 
             var count = Math.Min((length[0] << 8) | length[1], track.Sizes[i] - 2);
             var text = new byte[count];
-            _stream.ReadExactly(text);
+            if (_stream.Read(text) < count)
+            {
+                // A title cut off by the end of the file (a file cut short): the chapters before it are kept.
+                continue;
+            }
+
             chapters.Add(new Chapter(Time(track, track.Presentation(i)), Encoding.UTF8.GetString(text)));
         }
 

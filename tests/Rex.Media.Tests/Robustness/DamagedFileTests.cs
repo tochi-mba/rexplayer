@@ -1,55 +1,88 @@
-using Rex.Media.AppCore;
-using Rex.Media.IO;
-using Rex.Media.Primitives;
+using System.Globalization;
+using System.Text;
+using Rex.Media.TestKit;
 using Rex.Media.TestKit.Damage;
 
 namespace Rex.Media.Tests.Robustness;
 
 /// <summary>
-/// Every sample begins as sound or video made by TestKit. The mutations are reproducible,
-/// checked on the real demuxers, bounded by a packet budget and a wall-clock deadline.
+/// Damaged files never crash or hang the player, never cost unbounded memory or time, and play as
+/// much as can be read. Every file begins as sound or video made by TestKit; the damage is
+/// reproducible (<see cref="DamageCorpus"/>). Each is read on one thread with exact allocation counts
+/// (the demuxers and decoders alone), then played through a whole session (what a viewer gets),
+/// which must keep at least the share of the sound each kind of damage allows.
+/// REXPLAYER_DAMAGE_LONG=1 runs longer files with more seeds; REXPLAYER_DAMAGE_REPORT names a file
+/// the results table is written to.
 /// </summary>
 public sealed class DamagedFileTests
 {
-    private const int MaximumPackets = 20_000;
-    private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(15);
 
-    [Fact]
-    public async Task EveryDamagedFormatFinishesCleanlyWithinABound()
+    private static bool Long => Environment.GetEnvironmentVariable("REXPLAYER_DAMAGE_LONG") == "1";
+
+    private static readonly string[] FormatNames = ["wav", "flac", "mp3", "mp4", "mkv", "ogg"];
+
+    public static TheoryData<string> Formats => [.. FormatNames];
+
+    private static HealthyFile Healthy(string format, double seconds) => format switch
     {
-        var seen = 0;
-        foreach (var healthy in HealthyMedia.All(seconds: 2))
+        "wav" => HealthyMedia.Wav(seconds),
+        "flac" => HealthyMedia.Flac(seconds),
+        "mp3" => HealthyMedia.Mp3(seconds),
+        "mp4" => HealthyMedia.Mp4(seconds),
+        "mkv" => HealthyMedia.Matroska(seconds),
+        _ => HealthyMedia.Ogg(seconds),
+    };
+
+    [Theory]
+    [MemberData(nameof(Formats))]
+    [Capability("SEC-01")]
+    public async Task DamagedFilesPlayAsMuchAsCanBeRead(string format)
+    {
+        var healthy = Healthy(format, Long ? 60 : 8);
+        var whole = DamageRunner.Demux(healthy.Bytes, healthy.Extension, Deadline);
+        var played = await DamagedSession.PlayAsync(healthy.Bytes, healthy.Extension, Deadline);
+        Assert.Equal(DamageResult.Played, whole.Result);
+        Assert.Equal(DamageResult.Played, played.Result);
+        Assert.Equal(0, played.Notices);
+        Assert.InRange(played.AudioSeconds, healthy.Seconds * 0.98, healthy.Seconds * 1.02);
+
+        var failures = new List<string>();
+        var report = new StringBuilder();
+        report.AppendLine(Row(new DamagedMedia(format, "healthy", healthy.Bytes, healthy.Extension), whole, played, 1, 1, played.Pictures > 0 ? 1 : null));
+        foreach (var seed in Long ? Enumerable.Range(1, 12) : [7])
         {
-            foreach (var broken in DamageCorpus.Make(healthy))
+            foreach (var damaged in DamageCorpus.Make(healthy, seed))
             {
-                var name = broken.Format + "/" + broken.Kind;
-                // The file's extension is deliberately wrong in one case; probing, not a
-                // filename, must decide whether the bytes hold a supported format.
-                var result = Task.Run(() => Exercise(broken.Bytes, broken.Extension), TestContext.Current.CancellationToken);
-                try
+                var read = DamageRunner.Demux(damaged.Bytes, damaged.Extension, Deadline);
+                var session = await DamagedSession.PlayAsync(damaged.Bytes, damaged.Extension, Deadline);
+                var audioShare = session.AudioSeconds / played.AudioSeconds;
+                var pictureShare = played.Pictures > 0 ? session.Pictures / (double)played.Pictures : 0;
+                var share = Math.Max(audioShare, pictureShare);
+                report.AppendLine(Row(damaged, read, session, read.AudioSeconds / whole.AudioSeconds, audioShare, played.Pictures > 0 ? pictureShare : null));
+                foreach (var (what, measure) in new[] { ("read", read), ("played", session) })
                 {
-                    var (packets, bytes) = await result.WaitAsync(Deadline, TestContext.Current.CancellationToken);
-                    Assert.InRange(packets, 0, MaximumPackets);
-                    Assert.InRange(bytes, 0, 128L * 1024 * 1024);
-                }
-                catch (MediaFormatException)
-                {
-                    // A header too badly damaged to open is a normal format refusal.
-                }
-                catch (TimeoutException)
-                {
-                    Assert.Fail(name + " failed to finish in " + Deadline.TotalSeconds + " seconds.");
-                }
-                catch (Exception ex) when (ex is not Xunit.Sdk.XunitException)
-                {
-                    Assert.Fail(name + " raised an unexpected " + ex.GetType().Name + ": " + ex.Message);
+                    if (measure.Result is DamageResult.Crashed or DamageResult.Hung)
+                    {
+                        failures.Add($"{damaged.Name} (seed {seed}) {measure.Result} when {what}: {measure.Error}");
+                    }
                 }
 
-                seen++;
+                // Exact on the reading thread: a damaged size field must never become a huge allocation.
+                if (read.AllocatedBytes > Math.Max(64L << 20, 16L * damaged.Bytes.Length))
+                {
+                    failures.Add($"{damaged.Name} (seed {seed}) allocated {read.AllocatedBytes >> 20} MB reading a {damaged.Bytes.Length >> 10} KB file.");
+                }
+
+                if (share < damaged.MinimumShare)
+                {
+                    failures.Add($"{damaged.Name} (seed {seed}) played {share:P0} of its sound or pictures; at least {damaged.MinimumShare:P0} can be read. {session.Error}");
+                }
             }
         }
 
-        Assert.True(seen >= 40, "The corpus must exercise multiple kinds of damage in all six formats.");
+        Write(format, report.ToString());
+        Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
     }
 
     [Fact]
@@ -65,35 +98,44 @@ public sealed class DamagedFileTests
         Assert.Contains(a, x => x.Kind == "broken-fmt");
         Assert.Contains(a, x => x.Kind == "wrong-extension");
         Assert.Contains(a, x => x.Kind == "garbage-prefix");
+        Assert.Contains(a, x => x.Kind == "data-size-huge");
     }
 
-    private static (int Packets, long Bytes) Exercise(byte[] bytes, string extension)
+    [Fact]
+    public void EveryFormatHasDamageAimedAtItsStructure()
     {
-        var demuxers = MediaRegistries.Demuxers();
-        using var source = new MemoryByteSource(bytes, "damage" + extension);
-        using var demuxer = demuxers.Open(source, CancellationToken.None);
-        long readBytes = 0;
-        var packets = 0;
-        while (packets < MaximumPackets && demuxer.ReadPacket(CancellationToken.None) is { } packet)
+        foreach (var format in FormatNames)
         {
-            using (packet)
+            var healthy = Healthy(format, 2);
+            Assert.True(StructuralDamage.For(healthy, new Random(1)).Count >= 3, format);
+        }
+    }
+
+    /// <summary>
+    /// A row of the results table: format, damage, how reading on one thread and playing in a session
+    /// ended, the share of the sound read and played, the share of the pictures shown, the notices
+    /// given, megabytes allocated reading, and seconds per megabyte reading.
+    /// </summary>
+    private static string Row(DamagedMedia damaged, DamageMeasure read, DamageMeasure session, double readShare, double audioShare, double? pictureShare) =>
+        string.Create(CultureInfo.InvariantCulture,
+            $"| {damaged.Format} | {damaged.Kind} | {read.Result} | {session.Result} | {readShare * 100:0}% | {audioShare * 100:0}% | {(pictureShare is { } shown ? $"{shown * 100:0}%" : "-")} | {session.Notices} | {read.AllocatedBytes / 1e6:0.0} | {read.SecondsPerMegabyte:0.00} |");
+
+    private static void Write(string format, string rows)
+    {
+        TestContext.Current.SendDiagnosticMessage(format + Environment.NewLine + rows);
+        if (Environment.GetEnvironmentVariable("REXPLAYER_DAMAGE_REPORT") is { Length: > 0 } path)
+        {
+            lock (typeof(DamagedFileTests))
             {
-                readBytes += packet.Data.Length;
-                packets++;
+                File.AppendAllText(path, rows);
             }
         }
-
-        if (packets >= MaximumPackets)
-        {
-            throw new MediaFormatException("The damaged file exceeded the packet budget.");
-        }
-
-        return (packets, readBytes);
     }
 
     private sealed class ByteArrayComparer : IEqualityComparer<byte[]>
     {
         public bool Equals(byte[]? x, byte[]? y) => x is null ? y is null : y is not null && x.AsSpan().SequenceEqual(y);
+
         public int GetHashCode(byte[] obj) => obj.Length;
     }
 }

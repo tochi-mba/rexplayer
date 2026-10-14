@@ -22,6 +22,12 @@ public sealed record TrackFailedEvent(int TrackId, string Reason) : SessionEvent
 /// <summary>The session cannot continue.</summary>
 public sealed record ErrorEvent(string Message) : SessionEvent;
 
+/// <summary>
+/// The media is damaged and plays as far as it can be read. <paramref name="Skipped"/> is how long a
+/// stretch that could not be read was passed over; zero when the damage was first found.
+/// </summary>
+public sealed record MediaDamagedEvent(MediaTime Skipped) : SessionEvent;
+
 /// <summary>A queued item could not be played and was passed over; playback continues with the next.</summary>
 public sealed record ItemSkippedEvent(string Name, string Reason) : SessionEvent;
 
