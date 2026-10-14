@@ -281,7 +281,9 @@ public sealed class SubjectRemovalTests
             }
         }
 
-        Assert.True(RemovalScore.Psnr(error, count) > 26, $"{RemovalScore.Psnr(error, count)}");
+        Assert.True(RemovalScore.Psnr(error, count) > 26,
+            $"PSNR {RemovalScore.Psnr(error, count)}, overlap {both / (double)either}, " +
+            $"observed {removal.ObservedPixels}, estimated {removal.EstimatedPixels}");
         Assert.True(both / (double)either > 0.85, $"{both / (double)either}");
         Assert.False(removal.IsSubject(-1, 300));
 
