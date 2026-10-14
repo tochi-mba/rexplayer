@@ -90,7 +90,8 @@ public sealed class SubtitleBufferTests
 
         var fiftySecondsAhead = TimeRanges.Of([R(0, 60)]);
         Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true, fiftySecondsAhead, S(10), S(200), 0.5, 1));
-        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true, TimeRanges.Of([R(0, 70)]), S(10), S(200), 0.5, 1));
+        Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true, TimeRanges.Of([R(0, 70)]), S(10), S(200), 0.5, 1));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true, TimeRanges.Of([R(0, 100)]), S(10), S(200), 0.5, 1));
     }
 
     [Fact]
