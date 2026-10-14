@@ -279,6 +279,18 @@ public sealed class TranscriptionPolicyTests
         speed.Heard(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(15));
         Assert.Equal(7.6, speed.Factor!.Value, 6);
         Assert.Equal(76, speed.TimeFor(TimeSpan.FromSeconds(577.6))!.Value.TotalSeconds, 3);
+        Assert.InRange(speed.SafeFactor!.Value, 1.1, 2.1);
+        speed.Heard(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(3));
+        Assert.True(speed.SafeFactor < speed.Factor);
+        speed.Heard(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        Assert.True(speed.SafeFactor < 1.5);
+
+        // Garbage or zero-length measurements never poison the prediction.
+        var before = speed.SafeFactor;
+        speed.Heard(TimeSpan.MaxValue, TimeSpan.FromTicks(1));
+        Assert.NotNull(speed.SafeFactor);
+        Assert.True(speed.SafeFactor > 0);
+        Assert.True(before > 0);
     }
 
     [Fact]

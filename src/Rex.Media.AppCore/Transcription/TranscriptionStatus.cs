@@ -30,8 +30,33 @@ public sealed class TranscriptionSpeed
     /// <summary>How much each new piece moves the estimate.</summary>
     private const double Weight = 0.3;
 
-    /// <summary>Seconds of sound heard a second, or null before the first piece.</summary>
-    public double? Factor { get; private set; }
+    private readonly object _gate = new();
+    private double? _factor;
+    private double? _workPerSecond;
+    private double _deviation;
+    private double _recentSlow;
+
+    /// <summary>Seconds of new subtitle coverage per wall-clock second, smoothed for progress estimates.</summary>
+    public double? Factor
+    {
+        get { lock (_gate) { return _factor; } }
+    }
+
+    /// <summary>
+    /// A conservative rate for playback buffering. Smooth the processing cost (seconds of work
+    /// per media second) and its absolute variation, while retaining recent slow chunks. Looking
+    /// only at the average rate would resume playback right before a slow recognition pass.
+    /// </summary>
+    public double? SafeFactor
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _workPerSecond is { } cost ? 1 / Math.Max(cost + 2 * _deviation, _recentSlow) : null;
+            }
+        }
+    }
 
     /// <summary>Notes a piece of <paramref name="sound"/> heard in <paramref name="took"/>.</summary>
     public void Heard(TimeSpan sound, TimeSpan took)
@@ -42,7 +67,27 @@ public sealed class TranscriptionSpeed
         }
 
         var factor = sound / took;
-        Factor = Factor is { } before ? before + (Weight * (factor - before)) : factor;
+        var cost = took / sound;
+        if (!double.IsFinite(factor) || !double.IsFinite(cost) || factor <= 0 || cost <= 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _factor = _factor is { } before ? before + Weight * (factor - before) : factor;
+            if (_workPerSecond is { } previous)
+            {
+                _deviation += Weight * (Math.Abs(cost - previous) - _deviation);
+                _workPerSecond = previous + Weight * (cost - previous);
+                _recentSlow = Math.Max(cost, _recentSlow * 0.85);
+            }
+            else
+            {
+                _workPerSecond = cost;
+                _recentSlow = cost;
+            }
+        }
     }
 
     /// <summary>How long hearing <paramref name="sound"/> should take, or null before the first piece.</summary>

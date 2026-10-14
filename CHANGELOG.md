@@ -5,6 +5,13 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Fixed
+
+- **Smoother progressive transcript buffering.** The buffer learns how long each newly transcribed
+  stretch really takes, including variability between chunks and overlapping recognition context.
+  When pausing for subtitles is enabled, it waits for a bounded safety reserve instead of
+  repeatedly catching up after a single slow chunk, and releases promptly as new subtitles arrive.
+
 ## 0.24.0 - 2026-10-14
 
 ### Added

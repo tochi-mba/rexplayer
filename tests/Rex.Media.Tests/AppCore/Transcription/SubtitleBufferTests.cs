@@ -85,7 +85,7 @@ public sealed class SubtitleBufferTests
     public void ASlowTranscriberBuildsEnoughLeadToAvoidRepeatedPauses()
     {
         Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(4, 1, S(10), S(200)));
-        Assert.Equal(S(57), SubtitleBuffer.ReleaseTarget(0.5, 1, S(10), S(200)));
+        Assert.Equal(S(89.5), SubtitleBuffer.ReleaseTarget(0.5, 1, S(10), S(200)));
         Assert.Equal(S(90), SubtitleBuffer.ReleaseTarget(0.1, 2, S(10), S(500)));
 
         var fiftySecondsAhead = TimeRanges.Of([R(0, 60)]);
@@ -94,10 +94,28 @@ public sealed class SubtitleBufferTests
     }
 
     [Fact]
+    public void SlowerThanPlaybackUsesTheAvailableReservoirInsteadOfPausingEachChunk()
+    {
+        // 26 seconds of speech takes 52 seconds to transcribe. A one-chunk lead can
+        // never stay ahead of playback; extra reservoir reduces repeated interruptions.
+        var slow = SubtitleBuffer.ReleaseTarget(0.5, 1, S(0), S(600));
+        Assert.InRange(slow.TotalSeconds, 89, 90);
+        Assert.Equal(HoldAction.Nothing, SubtitleBuffer.Hold(true, true, true,
+            TimeRanges.Of([R(0, 80)]), S(0), S(600), 0.5, 1));
+        Assert.Equal(HoldAction.Release, SubtitleBuffer.Hold(true, true, true,
+            TimeRanges.Of([R(0, 90)]), S(0), S(600), 0.5, 1));
+
+        // Faster recognition needs less waiting; playback speed must count.
+        Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(4, 1, S(0), S(600)));
+        Assert.Equal(S(90), SubtitleBuffer.ReleaseTarget(0.5, 2, S(0), S(600)));
+        Assert.Equal(S(6), SubtitleBuffer.ReleaseTarget(0.5, 2, S(94), S(100)));
+    }
+
+    [Fact]
     public void AdaptiveLeadHandlesRateChangesEndsAndBadMeasurements()
     {
         Assert.Equal(S(31), SubtitleBuffer.ReleaseTarget(1, 1, S(0), S(200)));
-        Assert.Equal(S(57), SubtitleBuffer.ReleaseTarget(1, 2, S(0), S(200)));
+        Assert.Equal(S(89.5), SubtitleBuffer.ReleaseTarget(1, 2, S(0), S(200)));
         Assert.Equal(S(8), SubtitleBuffer.ReleaseTarget(0.1, 2, S(42), S(50)));
         Assert.Equal(S(15), SubtitleBuffer.ReleaseTarget(double.NaN, double.NaN, S(0), S(200)));
         Assert.Equal(TimeSpan.Zero, SubtitleBuffer.ReleaseTarget(1, 1, S(50), S(50)));

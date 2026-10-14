@@ -156,6 +156,8 @@ public sealed partial class MainWindow
 
             (_bufferDone, _bufferDuration, _bufferHearing) = (e.Done, e.Duration, !e.Complete);
             ShowSubtitleBuffer();
+            // A newly completed chunk may immediately release a held player.
+            HoldForSubtitles();
         });
     }
 
@@ -212,6 +214,8 @@ public sealed partial class MainWindow
         if (_bufferDone is not null)
         {
             ShowSubtitleBufferState();
+            // Evaluate at the playhead instead of waiting up to a second after the last cue.
+            HoldForSubtitles();
         }
     }
 
@@ -701,7 +705,7 @@ public sealed partial class MainWindow
         }
 
         switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles,
-            _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.Factor, _player.Speed))
+            _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed))
         {
             case HoldAction.Hold:
                 _holdingForSubtitles = true;
