@@ -547,9 +547,10 @@ public sealed partial class MainWindow
             LibraryTranscriptionText.Text = compact;
         }
 
-        if (AutomationProperties.GetName(LibraryTranscription) != full)
+        var accessible = full + ". Open to see the queue.";
+        if (AutomationProperties.GetName(LibraryTranscription) != accessible)
         {
-            AutomationProperties.SetName(LibraryTranscription, full + ". Open to see the queue.");
+            AutomationProperties.SetName(LibraryTranscription, accessible);
             ToolTipService.SetToolTip(LibraryTranscription, full + "\nOpen to see every file.");
         }
 
