@@ -36,6 +36,10 @@ public sealed partial class MainWindow
     private readonly List<string> _askedTranscripts = [];
     private readonly HashSet<string> _queuedTranscripts = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rectangle> _bufferMarks = [];
+    private readonly Dictionary<string, (TextBlock State, ProgressBar Progress)> _transcriptionQueueRows = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<QueuedFile>? _shownTranscriptionQueue;
+    private string? _shownTranscriptionWorker;
+    private bool _transcriptionDetailsOpen;
     private TranscriptionWorker? _worker;
     private DispatcherQueueTimer? _transcriptionTimer;
     private TranscriptionPlan? _plannedTranscription;
@@ -77,7 +81,6 @@ public sealed partial class MainWindow
         first.Tick += (_, _) => StartTranscription();
         first.Start();
         _player.PositionChanged += (_, _) => MoveTranscriptionPlayhead();
-        LibraryTranscription.Flyout = TranscriptionMenu();
     }
 
     private void StartTranscription()
@@ -255,6 +258,7 @@ public sealed partial class MainWindow
     private void OpenTranscriptOf(string? item)
     {
         (_bufferDone, _bufferDuration, _bufferHearing, _holdingForSubtitles) = (null, null, false, false);
+        ShowSubtitleBuffer();
         (_playingTranscript, _playingWanted) = (null, false);
         if (_askedPlaying != item)
         {
@@ -515,7 +519,7 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The library's transcription line, and what a screen reader hears when its state changes.</summary>
+    /// <summary>Short status on the toolbar; the button opens all filenames and their live progress.</summary>
     private void ShowTranscriptionStatus()
     {
         var settings = _settings.Transcription;
@@ -529,17 +533,28 @@ public sealed partial class MainWindow
         var status = _worker?.Status ?? WorkerStatus.Idle;
         var waiting = _plannedTranscription?.Waiting;
         var current = status.Path is { } path ? MediaLibrary.TitleOf(path) : null;
-        var position = Math.Max(1, _transcriptionQueue.ToList().FindIndex(file => string.Equals(file.Path, status.Path, StringComparison.OrdinalIgnoreCase)) + 1);
+        var index = _transcriptionQueue.ToList().FindIndex(file => string.Equals(file.Path, status.Path, StringComparison.OrdinalIgnoreCase));
+        var count = _transcriptionQueue.Count + (status.Path is not null && index < 0 ? 1 : 0);
+        var position = Math.Max(1, index + 1);
         var left = _worker?.Speed.TimeFor(TranscriptionOrder.SoundLeft(_transcriptionQueue));
-        var line = TranscriptionStatus.Line(position, _transcriptionQueue.Count, current, status.Share, left, waiting);
-        if (LibraryTranscriptionText.Text != line)
+        var full = TranscriptionStatus.Line(position, count, current, status.Share, left, waiting);
+        var compact = status.Path is not null
+            ? count <= 1 ? "Transcribing · 1 file" : $"1 active · {count - 1} queued"
+            : waiting is not null ? $"Paused · {count} queued"
+            : count > 0 ? $"{count} waiting" : "Transcription ready";
+        if (LibraryTranscriptionText.Text != compact)
         {
-            LibraryTranscriptionText.Text = line;
-            AutomationProperties.SetName(LibraryTranscription, line);
+            LibraryTranscriptionText.Text = compact;
         }
 
-        // The first state is the one the user set up, not news; after that each change is said once.
-        var state = TranscriptionStatus.State(status.Path is not null || _transcriptionQueue.Count > 0, waiting, _transcriptionQueue.Count);
+        if (AutomationProperties.GetName(LibraryTranscription) != full)
+        {
+            AutomationProperties.SetName(LibraryTranscription, full + ". Open to see the queue.");
+            ToolTipService.SetToolTip(LibraryTranscription, full + "\nOpen to see every file.");
+        }
+
+        // Announce transitions, not changing percentages or time estimates.
+        var state = TranscriptionStatus.State(status.Path is not null || count > 0, waiting, count);
         if (_announcedTranscription is null)
         {
             _announcedTranscription = state;
@@ -557,41 +572,154 @@ public sealed partial class MainWindow
             RefreshTranscriptBadges();
         }
 
+        if (_transcriptionDetailsOpen)
+        {
+            UpdateTranscriptionDetails(status, waiting);
+        }
+
         ShowHearingProgress(status);
     }
 
-    /// <summary>The transcription menu: the line, pause or resume, stop, and the settings.</summary>
-    private MenuFlyout TranscriptionMenu()
+    /// <summary>Populate the flyout with a real scrollable queue, not a second menu of commands.</summary>
+    private void OnTranscriptionDetailsOpened(object sender, object e)
     {
-        var menu = new MenuFlyout();
-        menu.Opening += (_, _) =>
+        _transcriptionDetailsOpen = true;
+        _shownTranscriptionQueue = null;
+        UpdateTranscriptionDetails(_worker?.Status ?? WorkerStatus.Idle, _plannedTranscription?.Waiting);
+    }
+
+    private void OnTranscriptionDetailsClosed(object sender, object e)
+    {
+        _transcriptionDetailsOpen = false;
+        _transcriptionQueueRows.Clear();
+        _shownTranscriptionQueue = null;
+    }
+
+    private void UpdateTranscriptionDetails(WorkerStatus status, string? waiting)
+    {
+        var current = status.Path;
+        if (!ReferenceEquals(_shownTranscriptionQueue, _transcriptionQueue) ||
+            !string.Equals(current, _shownTranscriptionWorker, StringComparison.OrdinalIgnoreCase))
         {
-            menu.Items.Clear();
-            menu.Items.Add(new MenuFlyoutItem { Text = LibraryTranscriptionText.Text, IsEnabled = false });
-            var paused = _settings.Transcription.Paused;
-            if (_settings.Transcription.Library)
+            _shownTranscriptionQueue = _transcriptionQueue;
+            _shownTranscriptionWorker = current;
+            _transcriptionQueueRows.Clear();
+            TranscriptionQueueRows.Children.Clear();
+
+            // What plays can be outside the library. It is still the active job and should appear first.
+            var paths = new List<(string Path, double Share)>();
+            if (current is not null)
             {
-                menu.Items.Add(MenuItem(paused ? "Resume" : "Pause", "TranscriptionPause", () => SetTranscription(_settings.Transcription with { Paused = !paused })));
-                menu.Items.Add(MenuItem("Stop transcribing the library", "TranscriptionStop", () =>
-                {
-                    _askedTranscripts.Clear();
-                    SetTranscription(_settings.Transcription with { Library = false, Paused = false });
-                }));
-            }
-            else if (_askedTranscripts.Count > 0)
-            {
-                menu.Items.Add(MenuItem("Cancel what was asked for", "TranscriptionCancel", () =>
-                {
-                    _askedTranscripts.Clear();
-                    _queueDirty = true;
-                    TranscriptionTick();
-                }));
+                paths.Add((current, status.Share));
             }
 
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(MenuItem("Transcription settings...", "TranscriptionSettings", () => _ = ShowPreferencesAsync()));
-        };
-        return menu;
+            foreach (var file in _transcriptionQueue)
+            {
+                if (!string.Equals(file.Path, current, StringComparison.OrdinalIgnoreCase))
+                {
+                    paths.Add((file.Path, file.Share));
+                }
+            }
+
+            if (paths.Count == 0)
+            {
+                TranscriptionQueueRows.Children.Add(new TextBlock
+                {
+                    Text = waiting ?? "No files waiting. Everything selected is ready.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(8),
+                });
+            }
+
+            for (var i = 0; i < paths.Count; i++)
+            {
+                var (path, share) = paths[i];
+                var active = string.Equals(path, current, StringComparison.OrdinalIgnoreCase);
+                var name = new TextBlock
+                {
+                    Text = MediaLibrary.TitleOf(path),
+                    FontWeight = active ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxLines = 1,
+                };
+                ToolTipService.SetToolTip(name, path);
+
+                var state = new TextBlock
+                {
+                    FontSize = 12,
+                    Text = active ? "Transcribing" : "Waiting",
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                };
+                var bar = new ProgressBar
+                {
+                    Maximum = 100,
+                    Value = Math.Clamp(share, 0, 1) * 100,
+                    Height = 4,
+                    MinWidth = 80,
+                };
+                var item = new StackPanel { Spacing = 5 };
+                item.Children.Add(name);
+                item.Children.Add(state);
+                item.Children.Add(bar);
+                var back = new Border
+                {
+                    Padding = new Thickness(10, 8, 10, 8),
+                    CornerRadius = new CornerRadius(8),
+                    Background = new SolidColorBrush(Microsoft.UI.Colors.Gray) { Opacity = 0.10 },
+                    Child = item,
+                };
+                AutomationProperties.SetName(back, $"{i + 1}. {name.Text}");
+                TranscriptionQueueRows.Children.Add(back);
+                _transcriptionQueueRows[path] = (state, bar);
+            }
+        }
+
+        var count = _transcriptionQueueRows.Count;
+        TranscriptionQueueCount.Text = $"{count} {(count == 1 ? "file" : "files")}";
+        var left = _worker?.Speed.TimeFor(TranscriptionOrder.SoundLeft(_transcriptionQueue));
+        TranscriptionQueueSummary.Text = status.Path is not null
+            ? $"Now: {MediaLibrary.TitleOf(status.Path)}" +
+              (left is { } estimate ? $" · about {Math.Max(1, (int)Math.Ceiling(estimate.TotalMinutes))} min remaining" : "")
+            : waiting ?? (count > 0 ? "Waiting for the next available slot" : "Nothing left to transcribe.");
+
+        foreach (var file in _transcriptionQueue)
+        {
+            if (_transcriptionQueueRows.TryGetValue(file.Path, out var row) &&
+                !string.Equals(status.Path, file.Path, StringComparison.OrdinalIgnoreCase))
+            {
+                var percent = Math.Clamp(file.Share, 0, 1) * 100;
+                row.Progress.Value = percent;
+                row.State.Text = percent >= 1 ? "Ready" : percent > 0 ? $"Queued · {percent:0}% already done" : "Queued";
+            }
+        }
+
+        if (status.Path is { } pathNow && _transcriptionQueueRows.TryGetValue(pathNow, out var activeRow))
+        {
+            var percent = Math.Clamp(status.Share, 0, 1) * 100;
+            activeRow.Progress.Value = percent;
+            activeRow.State.Text = $"Transcribing · {percent:0}% complete";
+        }
+
+        var library = _settings.Transcription.Library;
+        TranscriptionPauseButton.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
+        TranscriptionPauseButton.Content = _settings.Transcription.Paused ? "Resume" : "Pause";
+        TranscriptionStopButton.Visibility = library || _askedTranscripts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TranscriptionStopButton.Content = library ? "Stop library" : "Cancel requests";
+    }
+
+    private void OnTranscriptionPauseClick(object sender, RoutedEventArgs e) =>
+        SetTranscription(_settings.Transcription with { Paused = !_settings.Transcription.Paused });
+
+    private void OnTranscriptionStopClick(object sender, RoutedEventArgs e)
+    {
+        _askedTranscripts.Clear();
+        SetTranscription(_settings.Transcription with { Library = false, Paused = false });
+    }
+
+    private void OnTranscriptionSettingsClick(object sender, RoutedEventArgs e)
+    {
+        TranscriptionDetails.Hide();
+        _ = ShowPreferencesAsync();
     }
 
     private void SetTranscription(TranscriptionSettings settings)
@@ -609,18 +737,25 @@ public sealed partial class MainWindow
         RefreshTranscriptBadges();
     }
 
-    /// <summary>The stretches ready, drawn under the rail only when they change: one mark a stretch.</summary>
+    /// <summary>Paint contiguous caption coverage on a separate, labelled track beneath playback.</summary>
     private void ShowSubtitleBuffer()
     {
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
         var key = string.Join(";", view.Spans);
+        TranscriptRail.Visibility = view.State == BufferState.None ? Visibility.Collapsed : Visibility.Visible;
         if (key != _shownBuffer)
         {
             _shownBuffer = key;
-            SubtitleBuffer.Visibility = view.State == BufferState.None ? Visibility.Collapsed : Visibility.Visible;
             while (_bufferMarks.Count < view.Spans.Count)
             {
-                var mark = new Rectangle { Height = 2, Fill = new SolidColorBrush(Microsoft.UI.Colors.White), Opacity = 0.45, IsHitTestVisible = false };
+                var mark = new Rectangle
+                {
+                    Height = 6,
+                    RadiusX = 3,
+                    RadiusY = 3,
+                    Fill = new SolidColorBrush(Microsoft.UI.Colors.MediumTurquoise),
+                    IsHitTestVisible = false,
+                };
                 SubtitleBuffer.Children.Add(mark);
                 _bufferMarks.Add(mark);
             }
@@ -638,43 +773,58 @@ public sealed partial class MainWindow
 
     private void PositionSubtitleBuffer()
     {
+        if (TranscriptRail.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
         var width = SubtitleBuffer.ActualWidth;
+        if (width <= 0)
+        {
+            return;
+        }
+
         for (var i = 0; i < view.Spans.Count && i < _bufferMarks.Count; i++)
         {
             var (from, to) = view.Spans[i];
-            _bufferMarks[i].Width = Math.Max(1, (to - from) * width);
+            _bufferMarks[i].Width = Math.Max(2, (to - from) * width);
             Canvas.SetLeft(_bufferMarks[i], from * width);
-            Canvas.SetTop(_bufferMarks[i], (SubtitleBuffer.ActualHeight / 2) + 7);
+            Canvas.SetTop(_bufferMarks[i], 0);
         }
     }
 
-    /// <summary>
-    /// The small words beside the seek bar, and its tooltip; changed only with the state. Called at
-    /// every position report, so all it does then is ask the state (two binary searches, nothing
-    /// made); the words are built only when the state changes or a piece was heard.
-    /// </summary>
+    /// <summary>A short live readout; no floating message over the video or playback rail.</summary>
     private void ShowSubtitleBufferState(bool force = false)
     {
         var duration = _bufferDuration ?? _player.Duration;
         var state = Rex.Media.AppCore.Transcription.SubtitleBuffer.StateAt(_bufferDone, duration, _player.Position, _bufferHearing);
-        if (!force && state == _shownBufferState)
+        if (!force && state == _shownBufferState && state is BufferState.None or BufferState.Complete)
         {
             return;
         }
 
         _shownBufferState = state;
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, duration, _player.Position, _bufferHearing);
-        if (SubtitleBufferState.Text != view.Label)
+        var ahead = _bufferDone is null ? TimeSpan.Zero : Rex.Media.AppCore.Transcription.SubtitleBuffer.Ahead(_bufferDone, _player.Position);
+        var label = state switch
         {
-            SubtitleBufferState.Text = view.Label;
-            SubtitleBufferState.Visibility = view.Label.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            BufferState.Ahead => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s ahead",
+            BufferState.CatchingUp when ahead > TimeSpan.Zero => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s remaining",
+            BufferState.CatchingUp => "Catching up",
+            BufferState.Stalled => "Not ready here",
+            BufferState.Complete => "All ready",
+            _ => "",
+        };
+        if (SubtitleBufferState.Text != label)
+        {
+            SubtitleBufferState.Text = label;
         }
 
-        if (AutomationProperties.GetName(SubtitleBuffer) != view.ToolTip)
+        if (AutomationProperties.GetName(TranscriptRail) != view.ToolTip)
         {
-            AutomationProperties.SetName(SubtitleBuffer, view.ToolTip);
-            ToolTipService.SetToolTip(SubtitleBufferState, view.ToolTip.Length > 0 ? view.ToolTip : null);
+            AutomationProperties.SetName(TranscriptRail, view.ToolTip);
+            ToolTipService.SetToolTip(TranscriptRail, view.ToolTip.Length > 0 ? view.ToolTip : null);
         }
     }
 
