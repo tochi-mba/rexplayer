@@ -269,7 +269,7 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "FMT-C01",
@@ -2889,7 +2889,7 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "WIN-06",
@@ -2899,7 +2899,7 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "UIA HW",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "WIN-07",
@@ -2909,7 +2909,7 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "STORE",
-      "status": "planned"
+      "status": "built"
     },
     {
       "id": "WIN-08",

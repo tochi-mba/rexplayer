@@ -121,7 +121,7 @@ public sealed class Mp4Demuxer : IDemuxer
         if (Mp4Boxes.Find(span, "mvhd") is { } mvhd)
         {
             var body = Mp4Boxes.Body(span, mvhd);
-            var version = body[0];
+            var version = Mp4Boxes.U32(body, 0) >> 24;
             movieTimescale = Math.Max(1, Mp4Boxes.U32(body, version == 1 ? 20 : 12));
             movieDuration = version == 1 ? (long)Math.Min(Mp4Boxes.U64(body, 24), long.MaxValue) : Mp4Boxes.U32(body, 16);
         }
@@ -131,7 +131,7 @@ public sealed class Mp4Demuxer : IDemuxer
         {
             switch (box.Type)
             {
-                case "trak" when Mp4Track.Parse(span, box, movieTimescale) is { } track:
+                case "trak" when Mp4Track.Parse(span, box, movieTimescale, _stream.Length) is { } track:
                     _tracks.Add(track);
                     break;
                 case "mvex":
@@ -193,55 +193,62 @@ public sealed class Mp4Demuxer : IDemuxer
     public Packet? ReadPacket(CancellationToken cancellationToken)
     {
         _stream.CancellationToken = cancellationToken;
-        var best = -1;
-        for (var t = 0; t < _tracks.Count; t++)
+        while (true)
         {
-            if (_next[t] < _tracks[t].SampleCount && (best < 0 || _tracks[t].Offsets[_next[t]] < _tracks[best].Offsets[_next[best]]))
+            var best = -1;
+            for (var t = 0; t < _tracks.Count; t++)
             {
-                best = t;
+                if (_next[t] < _tracks[t].SampleCount && (best < 0 || _tracks[t].Offsets[_next[t]] < _tracks[best].Offsets[_next[best]]))
+                {
+                    best = t;
+                }
             }
-        }
 
-        if (best < 0)
-        {
-            return null;
-        }
-
-        var track = _tracks[best];
-        var first = _next[best];
-        var last = first;
-        long bytes = track.Sizes[first];
-        if (track.Codec == CodecId.Pcm)
-        {
-            // PCM files store one sample per audio frame; contiguous ones travel together.
-            while (last + 1 < track.SampleCount && last + 1 - first < PcmFramesPerPacket
-                && track.Offsets[last + 1] == track.Offsets[last] + track.Sizes[last])
+            if (best < 0)
             {
-                last++;
-                bytes += track.Sizes[last];
+                return null;
             }
-        }
 
-        _next[best] = last + 1;
-        if (bytes > MaxSampleBytes)
-        {
-            throw new MediaFormatException("An MP4 sample is larger than rexplayer accepts.");
-        }
+            var track = _tracks[best];
+            var first = _next[best];
+            var last = first;
+            long bytes = track.Sizes[first];
+            if (track.Codec == CodecId.Pcm)
+            {
+                // PCM files store one sample per audio frame; contiguous ones travel together.
+                while (last + 1 < track.SampleCount && last + 1 - first < PcmFramesPerPacket
+                    && track.Offsets[last + 1] == track.Offsets[last] + track.Sizes[last])
+                {
+                    last++;
+                    bytes += track.Sizes[last];
+                }
+            }
 
-        _stream.Seek(track.Offsets[first]);
-        var buffer = MediaBuffer.Rent((int)bytes);
-        var read = _stream.Read(buffer.Span);
-        if (read < bytes)
-        {
-            buffer.Dispose();
-            throw new MediaFormatException("An MP4 sample lies beyond the end of the file.");
-        }
+            _next[best] = last + 1;
+            // A damaged size or offset invalidates this sample, not every other track.
+            // Advancing _next before skipping guarantees that no corrupt entry can loop forever.
+            var offset = track.Offsets[first];
+            if (bytes <= 0 || bytes > MaxSampleBytes || offset < 0
+                || _stream.Length is { } length && (offset > length || bytes > length - offset))
+            {
+                continue;
+            }
 
-        var end = last + 1 < track.SampleCount ? track.Dts[last + 1] : Math.Max(track.NextDts, track.Dts[last]);
-        var pts = Time(track, track.Presentation(first));
-        var dts = Time(track, track.Dts[first] - track.EditOffset);
-        var packet = Packet.Create(track.Id, buffer, pts, dts, Time(track, end - track.Dts[first]), track.IsSync(first));
-        return packet;
+            _stream.Seek(offset);
+            var buffer = MediaBuffer.Rent((int)bytes);
+            var read = _stream.Read(buffer.Span);
+            if (read < bytes)
+            {
+                buffer.Dispose();
+                continue;
+            }
+
+            var end = last + 1 < track.SampleCount ? track.Dts[last + 1] : Math.Max(track.NextDts, track.Dts[last]);
+            var pts = Time(track, track.Presentation(first));
+            var dts = Time(track, track.Dts[first] - track.EditOffset);
+            var packet = Packet.Create(track.Id, buffer, pts, dts, Time(track, end - track.Dts[first]), track.IsSync(first));
+            return packet;
+        }
     }
 
     public void Seek(MediaTime target, CancellationToken cancellationToken)
@@ -325,9 +332,16 @@ public sealed class Mp4Demuxer : IDemuxer
 
     private byte[] ReadBody(long start, long length)
     {
-        if (length > MaxMoovBytes)
+        if (length < 0 || length > MaxMoovBytes)
         {
             throw new MediaFormatException("An MP4 header box is larger than rexplayer accepts.");
+        }
+
+        // Do not allocate a claimed box size when the file ends after a few bytes.
+        // A crashed recording can have a valid prefix and a truncated final box.
+        if (_stream.Length is { } available)
+        {
+            length = Math.Min(length, Math.Max(0, available - start));
         }
 
         var body = new byte[length];
@@ -405,7 +419,7 @@ public sealed class Mp4Demuxer : IDemuxer
             if (Mp4Boxes.Find(span[..traf.End], "tfdt", traf.Start) is { } tfdt)
             {
                 var body = Mp4Boxes.Body(span, tfdt);
-                dts = body[0] == 1 ? (long)Mp4Boxes.U64(body, 4) : Mp4Boxes.U32(body, 4);
+                dts = (Mp4Boxes.U32(body, 0) >> 24) == 1 ? (long)Mp4Boxes.U64(body, 4) : Mp4Boxes.U32(body, 4);
             }
 
             var dataPosition = baseOffset;

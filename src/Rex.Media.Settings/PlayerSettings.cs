@@ -614,6 +614,9 @@ public sealed record PlayerSettings
 
     public bool PlaylistVisible { get; init; }
 
+    /// <summary>Allow taskbar transport buttons, media keys, the lock-screen media card and the jump list.</summary>
+    public bool ShellMediaControls { get; init; } = true;
+
     /// <summary>Only the picture and the menus, without the controls (Ctrl+H).</summary>
     public bool MinimalInterface { get; init; }
 

@@ -307,15 +307,24 @@ public sealed class Playlist(Random? random = null)
             return null;
         }
 
-        // With nothing current (its item was removed) the position is already the item before it.
-        var target = Current is null && _position >= 0 && _position < _order.Count ? _position : _position - 1;
-        _position = target >= 0 ? target
-            : Repeat == RepeatMode.All ? _order.Count - 1
-            : 0;
+        _position = PreviousPosition();
         _nextCycle = null;
         Current = _order[_position];
         Raise();
         return Current;
+    }
+
+    /// <summary>What <see cref="Previous"/> would give, without moving; null when the queue is empty.</summary>
+    public PlaylistItem? PeekPrevious() => _order.Count == 0 ? null : _order[PreviousPosition()];
+
+    /// <summary>Where <see cref="Previous"/> moves to; the queue is not empty.</summary>
+    private int PreviousPosition()
+    {
+        // With nothing current (its item was removed) the position is already the item before it.
+        var target = Current is null && _position >= 0 && _position < _order.Count ? _position : _position - 1;
+        return target >= 0 ? target
+            : Repeat == RepeatMode.All ? _order.Count - 1
+            : 0;
     }
 
     /// <summary>The order of the next pass through the queue, chosen once so a peek and the move agree.</summary>

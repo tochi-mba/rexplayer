@@ -107,6 +107,7 @@ public sealed partial class SubjectEditSession : IDisposable
         ObservedPixels = 0;
         _click = null;
         _shots.Reset();
+        ForgetWeights();
         _glanceKnown = false;
         IsCut = false;
         _shotChanged = false;
@@ -223,6 +224,7 @@ public sealed partial class SubjectEditSession : IDisposable
             var selection = Bounds(frame.Width, frame.Height);
             _identityWidth = Math.Max(1, (int)Math.Round(Region.Width * frame.Width));
             _identityHeight = Math.Max(1, (int)Math.Round(Region.Height * frame.Height));
+            Weigh(frame, selection);
             Describe(frame, selection.Left, selection.Top,
                 selection.Right - selection.Left, selection.Bottom - selection.Top, _probe);
             var (selectedCentre, nearbyBorder, _) = CompareSubjectWithBorder(frame, selection);

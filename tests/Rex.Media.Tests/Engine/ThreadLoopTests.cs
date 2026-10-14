@@ -29,12 +29,13 @@ public sealed class ThreadLoopTests
     }
 
     [Fact]
-    public void ACancellationThatIsNotTheSessionsIsNotSwallowed()
+    public void AnUnrelatedCancellationIsReportedAsAFailure()
     {
         using var other = new CancellationTokenSource();
         other.Cancel();
-
-        Assert.Throws<OperationCanceledException>(() => ThreadLoop.Run(() => other.Token.ThrowIfCancellationRequested(), _ => { }, CancellationToken.None));
+        var reported = new List<Exception>();
+        ThreadLoop.Run(() => other.Token.ThrowIfCancellationRequested(), reported.Add, CancellationToken.None);
+        Assert.IsType<OperationCanceledException>(Assert.Single(reported));
     }
 
     [Theory]
@@ -53,9 +54,16 @@ public sealed class ThreadLoopTests
     }
 
     [Fact]
-    public void ProgrammingErrorsAreNotHidden()
+    public void UnexpectedParserErrorsFaultTheSessionInsteadOfEscapingTheThread()
     {
-        Assert.Throws<ArgumentNullException>(() => ThreadLoop.Run(() => throw new ArgumentNullException("x"), _ => { }, CancellationToken.None));
+        var failures = new List<Exception>();
+        var broken = Assert.Throws<NullReferenceException>(() => ((object?)null)!.ToString());
+        ThreadLoop.Run(() => throw broken, failures.Add, CancellationToken.None);
+        Assert.Same(broken, Assert.Single(failures));
+        failures.Clear();
+        var badArgument = new ArgumentNullException("packet");
+        ThreadLoop.Run(() => throw badArgument, failures.Add, CancellationToken.None);
+        Assert.Same(badArgument, Assert.Single(failures));
     }
 }
 
