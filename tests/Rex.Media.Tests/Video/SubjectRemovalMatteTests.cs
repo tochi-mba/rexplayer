@@ -163,6 +163,123 @@ public sealed class SubjectRemovalMatteTests
         Assert.True(At(matte, 120, 100) > 0, "the wall beside him");
     }
 
+    /// <summary>
+    /// A man in a dark jacket on a textured grey wall, his skin-coloured hand and a green bag strap
+    /// held out past the right of the box, and a shoe below it.
+    /// </summary>
+    private static VideoFrame Reaching(int width = 320, int height = 220, int floor = 200)
+    {
+        var picture = VideoFrame.Rent(PixelFormat.Bgra32, width, height);
+        for (var y = 0; y < height; y++)
+        {
+            var row = picture.Row(0, y);
+            for (var x = 0; x < width; x++)
+            {
+                var grey = (byte)(118 + (x * 7 + y * 13) % 9);
+                var head = (x - 160) * (x - 160) + (y - 52) * (y - 52) <= 13 * 13;
+                var jacket = x >= 138 && x < 182 && y >= 64 && y < 170;
+                var hand = x >= 182 && x < 206 && y >= 120 && y < 130;
+                var strap = x >= 200 && x < 206 && y >= 96 && y < 120;
+                var shoe = x >= 146 && x < 170 && y >= 170 && y < Math.Min(floor, 190);
+                (byte B, byte G, byte R) colour = head || hand ? ((byte)88, (byte)118, (byte)176)
+                    : strap ? ((byte)30, (byte)140, (byte)60)
+                    : jacket || shoe ? ((byte)(26 + (y & 3)), (byte)26, (byte)30)
+                    : (grey, grey, grey);
+                (row[x * 4], row[x * 4 + 1], row[x * 4 + 2], row[x * 4 + 3]) = (colour.B, colour.G, colour.R, 255);
+            }
+        }
+
+        return picture;
+    }
+
+    [Fact]
+    public void WhatJoinsTheSubjectPastTheBoxGoesWithItAndTheWallStays()
+    {
+        // The owner's report: a hand and a strap just outside the selected box stayed behind, and a
+        // shoe below it. They join the subject and the wall around the box never shows their colours,
+        // so the matte grows out to them; the wall beside them is left.
+        using var picture = Reaching();
+        var matte = new SubjectRemovalMatte();
+        matte.Compute(picture, (134, 36, 186, 168), null, 50, remember: false);
+        Assert.True(At(matte, 160, 100) < 0, "the jacket");
+        Assert.True(At(matte, 197, 125) < 0, "the hand");
+        Assert.True(At(matte, 203, 104) < 0, "the strap");
+        Assert.True(At(matte, 158, 182) < 0, "the shoe");
+        Assert.True(At(matte, 120, 100) > 0, "the wall beside him");
+        Assert.True(At(matte, 196, 104) > 0, "the wall between the strap and the jacket");
+    }
+
+    [Fact]
+    public void TheBackgroundSeenBeforeDecidesWhatGrowsWhereItWasSeen()
+    {
+        // Where the background was recorded, only what differs from it grows. The plate here saw
+        // the hand's colour where the hand now is, as if it were painted on the wall: it stays.
+        using var picture = Reaching();
+        using var wall = Reaching();
+        for (var y = 0; y < 220; y++)
+        {
+            var row = wall.Row(0, y);
+            for (var x = 0; x < 320; x++)
+            {
+                if (x < 132 || x >= 188 || y < 30 || y >= 170)
+                {
+                    continue;
+                }
+
+                var grey = (byte)(118 + (x * 7 + y * 13) % 9);
+                (row[x * 4], row[x * 4 + 1], row[x * 4 + 2]) = (grey, grey, grey);
+            }
+        }
+
+        var plate = new SubjectRemovalPlate();
+        plate.Prepare(320, 220);
+        for (var i = 0; i < SubjectRemovalPlate.Confirmations; i++)
+        {
+            plate.Learn(wall, (0, 0, 320, 220), (0, 0, 0, 0), default, 0);
+        }
+
+        var matte = new SubjectRemovalMatte();
+        matte.Compute(picture, (134, 36, 186, 168), plate, 50, remember: false);
+        Assert.True(At(matte, 160, 100) < 0, "the jacket, unlike the wall seen behind it");
+        Assert.True(At(matte, 197, 125) > 0, "the hand, just as it was seen before");
+    }
+
+    [Fact]
+    public void GrowthReachesThePicturesEdgeButIsBounded()
+    {
+        // The shoe runs off the bottom of the picture: the matte follows it to the edge.
+        using var cut = Reaching(height: 186, floor: 186);
+        var matte = new SubjectRemovalMatte();
+        matte.Compute(cut, (134, 36, 186, 168), null, 50, remember: false);
+        Assert.True(At(matte, 158, 185) < 0, "the shoe at the picture's edge");
+
+        // A red post with a tall blue panel against it, beside the box: growth takes at most half
+        // as much again as the subject, nearest first, so the panel's far end stays.
+        using var panel = VideoFrame.Rent(PixelFormat.Bgra32, 240, 200);
+        for (var y = 0; y < 200; y++)
+        {
+            var row = panel.Row(0, y);
+            for (var x = 0; x < 240; x++)
+            {
+                var grey = (byte)(112 + (x * 5 + y * 11) % 9);
+                var red = x >= 100 && x < 116 && y >= 80 && y < 120;
+                var blue = x >= 116 && x < 124 && y >= 70 && y < 130;
+                (byte B, byte G, byte R) colour = red ? ((byte)40, (byte)40, (byte)210) : blue ? ((byte)200, (byte)60, (byte)30) : (grey, grey, grey);
+                (row[x * 4], row[x * 4 + 1], row[x * 4 + 2], row[x * 4 + 3]) = (colour.B, colour.G, colour.R, 255);
+            }
+        }
+
+        matte.Compute(panel, (98, 78, 118, 122), null, 50, remember: false);
+        Assert.True(At(matte, 108, 100) < 0, "the post");
+        Assert.True(At(matte, 121, 100) < 0, "the panel beside it");
+        Assert.True(At(matte, 121, 71) > 0, "the panel's far end");
+
+        // A box over the whole picture leaves no ring to learn the background from: nothing grows.
+        using var whole = Reaching();
+        matte.Compute(whole, (0, 0, 320, 220), null, 50, remember: false);
+        Assert.False(matte.IsEmpty);
+    }
+
     [Fact]
     public void APieceLikeTheSubjectButApartFromItIsLeftAlone()
     {

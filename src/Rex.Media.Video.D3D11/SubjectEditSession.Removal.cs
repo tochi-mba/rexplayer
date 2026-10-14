@@ -7,9 +7,10 @@ namespace Rex.Media.Video.D3D11;
 /// The removal preview: the tracked subject is hidden by the background behind it, taken from
 /// other pictures where the video showed it and synthesised from nearby texture where it never did
 /// (<see cref="SubjectRemoval"/>), or, in <see cref="RemovalMode.Blend"/>, covered by the surface
-/// around it. The background is recorded on every tracked picture, so turning the preview on later
-/// can already use what the camera saw. The preview, once asked for, stays asked for: when the
-/// subject is lost it pauses, and it resumes once the subject is found again and followed steadily.
+/// around it. Nothing is recorded or drawn until the preview is asked for, so following a subject
+/// without it costs the removal nothing. The preview, once asked for, stays asked for: when the
+/// subject is lost it pauses, still recording the background around the subject whenever it is
+/// followed, and it resumes once the subject is found again and followed steadily.
 /// </summary>
 public sealed partial class SubjectEditSession
 {
@@ -44,8 +45,9 @@ public sealed partial class SubjectEditSession
     public int ObservedPixels { get; private set; }
 
     /// <summary>
-    /// Record the background around the subject and, while <see cref="Erase"/> is on, draw the
-    /// preview into a new picture the caller disposes. Null means show the original.
+    /// While the preview is asked for, record the background around the subject and, while
+    /// <see cref="Erase"/> is on, draw the preview into a new picture the caller disposes. Null
+    /// means show the original.
     /// </summary>
     private VideoFrame? Remove(VideoFrame frame, bool advanceTracking)
     {
@@ -59,7 +61,7 @@ public sealed partial class SubjectEditSession
 
         if (!Erase)
         {
-            if (advanceTracking)
+            if (advanceTracking && _eraseWanted)
             {
                 _removal.Apply(frame, box, advance: true, Feather, MaskTolerance, output: null, mode: Mode);
             }

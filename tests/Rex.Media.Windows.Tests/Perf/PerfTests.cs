@@ -7,6 +7,7 @@ using Rex.Media.Codecs;
 using Rex.Media.Containers;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
+using Rex.Media.Video;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Windows.Tests.Perf;
@@ -177,6 +178,38 @@ public sealed class PerfTests
         Assert.True(packets > 50, $"Only {packets} packets were measured.");
         Assert.Equal(0, allocated);
     }
+
+    /// <summary>Reports removal throughput at full HD until CI has recorded a baseline.</summary>
+    [Fact]
+    public void SubjectRemovalReportsSmallAndLargePicturePreviewRates()
+    {
+        using var frame = VideoFrame.Rent(PixelFormat.Bgra32, 1920, 1080);
+        using var preview = VideoFrame.Rent(PixelFormat.Bgra32, 1920, 1080);
+        frame.Plane(0).Fill(120);
+        foreach (var (side, label) in new[] { (140, "small"), (360, "large") })
+        {
+            var left = 760;
+            var top = 300;
+            for (var y = top; y < top + side; y++)
+            {
+                var row = frame.Row(0, y);
+                for (var x = left; x < left + side; x++)
+                {
+                    var at = x * 4;
+                    row[at] = 24;
+                    row[at + 1] = 28;
+                    row[at + 2] = 31;
+                }
+            }
+
+            var removal = new SubjectRemoval();
+            var box = (left - 10, top - 10, left + side + 10, top + side + 10);
+            removal.Apply(frame, box, advance: true, 3, 50, preview);
+            PerfBaselines.AtLeast("subject-removal-" + label + "-1080p-per-second",
+                Rate(() => removal.Apply(frame, box, advance: true, 3, 50, preview)));
+        }
+    }
+
     /// <summary>
     /// Merges a piece into an hour-long transcript, reporting throughput until CI has a baseline.
     /// Uses one warm transcript so the measure is the incremental merge, not its initial load.
@@ -199,5 +232,4 @@ public sealed class PerfTests
         PerfBaselines.AtLeast("progressive-transcript-merges-per-second", Rate(() => transcript.Add(patch, heard, "en")));
         Assert.Equal(words.Length, transcript.WordCount);
     }
-
 }
