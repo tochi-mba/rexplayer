@@ -38,6 +38,10 @@ public sealed class SubjectRemoval
     private const long LargeArea = 300_000;
     // A picture this long after the previous one is not its neighbour; nothing carries across.
     private const double LongestGap = 0.5;
+    // A large box is removed on a copy of the picture reduced so that the box holds about this many
+    // pixels, at most four times smaller, which keeps every subject's cost within a frame's time.
+    private const long WorkingBox = 24_000;
+    private const int MostScale = 4;
 
     private const byte Outside = 0;
     private const byte Seen = 1;
@@ -63,11 +67,19 @@ public sealed class SubjectRemoval
     // Where the selection moved since the previous picture; a blend moves with it.
     private (float X, float Y) _boxShift;
     // Never copied from: the box and a band around the subject's outline, which may hold parts of
-    // the subject the outline missed (a shoe, a hand) or its blurred edge.
+    // the subject the outline missed (a shoe, a hand) or its blurred edge, and the ground just below
+    // the box, where its shadow and its reflection in a wet floor fall.
     private (int Left, int Top, int Right, int Bottom) _protected;
     private int _guard;
     private RemovalMode _mode;
+    // 1 when the removal works on the picture itself, else how many times smaller _small, the
+    // reduced copy it works on, is.
+    private int _scale = 1;
+    private VideoFrame? _small;
+    private int[] _enlargeColumns = [];
+    private bool[] _estimated = [];
     private byte[]? _shape;
+    private byte[]? _halfShape;
     private (MediaTime Pts, int Width, int Height, (int, int, int, int) Box, int Coverage, bool Shaped) _matteKey;
     private (int Width, int Height, MediaTime Pts) _shapePicture;
     private MediaTime _lastPts = MediaTime.Unknown;
@@ -94,9 +106,13 @@ public sealed class SubjectRemoval
     public bool IsSubject(int x, int y)
     {
         var area = _matte.Area;
+        (x, y) = (x < 0 ? -1 : x / _scale, y < 0 ? -1 : y / _scale);
         return !_matte.IsEmpty && x >= area.Left && y >= area.Top && x < area.Right && y < area.Bottom
             && _matte.Distance[(y - area.Top) * (area.Right - area.Left) + x - area.Left] <= 0;
     }
+
+    /// <summary>1 when the last picture was worked on at full size, else how many times smaller the copy it was worked on.</summary>
+    internal int WorkingScale => _scale;
 
     /// <summary>Whether the last preview's never-seen pixels came from a given estimate rather than this class's own synthesis.</summary>
     public bool UsedEstimate { get; private set; }
@@ -116,6 +132,7 @@ public sealed class SubjectRemoval
         }
 
         _shape = outline.ToArray();
+        _halfShape = null;
         _shapePicture = (width, height, pts);
     }
 
@@ -123,7 +140,10 @@ public sealed class SubjectRemoval
     public void Release()
     {
         _plate.Release();
-        _shape = null;
+        _shape = _halfShape = null;
+        _small?.Dispose();
+        _small = null;
+        _scale = 1;
         Forget();
     }
 
@@ -142,16 +162,26 @@ public sealed class SubjectRemoval
 
         var area = _matte.Area;
         var areaWidth = area.Right - area.Left;
+        var height = hole.Length / width;
         var count = 0;
         for (var y = area.Top; y < area.Bottom; y++)
         {
             for (var x = area.Left; x < area.Right; x++)
             {
                 var kind = _kind[(y - area.Top) * areaWidth + x - area.Left];
-                if (kind is Seeded or Unseen)
+                if (kind is not (Seeded or Unseen))
                 {
-                    hole[y * width + x] = 255;
-                    count++;
+                    continue;
+                }
+
+                // At half size each pixel stands for the two by two it was made from.
+                for (var py = y * _scale; py < Math.Min(height, (y + 1) * _scale); py++)
+                {
+                    for (var px = x * _scale; px < Math.Min(width, (x + 1) * _scale); px++)
+                    {
+                        hole[py * width + px] = 255;
+                        count++;
+                    }
                 }
             }
         }
@@ -198,6 +228,17 @@ public sealed class SubjectRemoval
         ObservedPixels = EstimatedPixels = 0;
         UsedEstimate = false;
         _mode = mode;
+        var picture = frame;
+        var shaped = _shape is not null && _shapePicture == (frame.Width, frame.Height, frame.Pts);
+        var scale = ChooseScale(frame, box);
+        if (scale > 1)
+        {
+            // A large subject: everything below works on a reduced copy, drawn back at full size.
+            frame = Reduce(picture);
+            box = (box.Left / scale, box.Top / scale, (box.Right + scale - 1) / scale, (box.Bottom + scale - 1) / scale);
+            feather = (feather + scale - 1) / scale;
+        }
+
         if (_plate.Width != frame.Width || _plate.Height != frame.Height)
         {
             _plate.Prepare(frame.Width, frame.Height);
@@ -211,13 +252,12 @@ public sealed class SubjectRemoval
 
         if (output is not null)
         {
-            var shaped = _shape is not null && _shapePicture == (frame.Width, frame.Height, frame.Pts);
             var key = (frame.Pts, frame.Width, frame.Height, box, coverage, shaped);
             // A paused redraw with the same settings shows the matte it showed; computing it again
             // would read colour models and a remembered matte that this very picture just updated.
             if (advance || key != _matteKey)
             {
-                _matte.Compute(frame, box, _plate, coverage, remember: advance, shaped ? _shape : default);
+                _matte.Compute(frame, box, _plate, coverage, remember: advance, shaped ? Shape() : default);
                 _matteKey = key;
             }
         }
@@ -233,26 +273,42 @@ public sealed class SubjectRemoval
             return false;
         }
 
-        frame.Plane(0).CopyTo(output.Plane(0));
+        picture.Plane(0).CopyTo(output.Plane(0));
         if (_matte.IsEmpty)
         {
             return false;
         }
 
         _guard = (int)(_matte.Grow + Math.Max(feather, 3) + 4);
+        // A blanket extra band below the whole box withheld genuine background from the
+        // plate, especially for large figures at half resolution. The existing outline-based
+        // guard already excludes the subject's edge and any connected shoes.
         _protected = Expand(box, 0, 0, _guard, frame);
 
         var hole = Classify(frame, feather);
         if (estimate is not null)
         {
             TakeEstimate(estimate);
+            UsedEstimate = true;
         }
         else if (hole.Right > hole.Left)
         {
             Synthesise(frame, hole, advance);
         }
 
-        Composite(frame, output);
+        if (_scale == 1)
+        {
+            Composite(frame, output);
+        }
+        else
+        {
+            var area = _matte.Area;
+            SubjectRemovalMatte.Ensure(ref _enlargeColumns, SubjectRemovalScaling.ScratchPerColumn * picture.Width);
+            SubjectRemovalScaling.Enlarge(picture, frame, output, _scale, area, _alpha, _colour, _enlargeColumns, estimate, _estimated);
+            ObservedPixels *= _scale * _scale;
+            EstimatedPixels *= _scale * _scale;
+        }
+
         return true;
     }
 
@@ -427,21 +483,91 @@ public sealed class SubjectRemoval
         var width = area.Right - area.Left;
         var pixels = MemoryMarshal.Cast<byte, uint>(estimate.Plane(0));
         var stride = estimate.Stride(0) / 4;
+        SubjectRemovalMatte.Ensure(ref _estimated, width * (area.Bottom - area.Top));
         for (var y = area.Top; y < area.Bottom; y++)
         {
             for (var x = area.Left; x < area.Right; x++)
             {
                 var at = (y - area.Top) * width + x - area.Left;
-                if (_kind[at] is Seeded or Unseen)
+                _estimated[at] = _kind[at] is Seeded or Unseen;
+                if (_estimated[at])
                 {
-                    var colour = pixels[y * stride + x] & 0xFFFFFF;
+                    // At half size the estimate's two by two is averaged; the full-size drawing
+                    // takes the estimate's own pixels.
+                    var (ex, ey) = (x * _scale, y * _scale);
+                    var (right, below) = (Math.Min(ex + _scale - 1, estimate.Width - 1), Math.Min(ey + _scale - 1, estimate.Height - 1));
+                    var colour = SubjectRemovalScaling.Average(pixels[ey * stride + ex], pixels[ey * stride + right],
+                        pixels[below * stride + ex], pixels[below * stride + right]) & 0xFFFFFF;
                     _colour[at] = colour;
                     _plate.Estimate(x, y, colour);
                 }
             }
         }
+    }
 
-        UsedEstimate = true;
+    /// <summary>
+    /// How many times smaller a copy the removal works on for this box: the size that brings the
+    /// box to about <see cref="WorkingBox"/> pixels, at most <see cref="MostScale"/>. The size in use
+    /// is kept until the box outgrows it by a third or shrinks well below the next size's reach, so
+    /// a box whose size wavers does not make the background seen so far be dropped again and again.
+    /// </summary>
+    private int ChooseScale(VideoFrame frame, (int Left, int Top, int Right, int Bottom) box)
+    {
+        var pixels = (long)Math.Max(0, box.Right - box.Left) * Math.Max(0, box.Bottom - box.Top);
+        var most = Math.Clamp(Math.Min(frame.Width, frame.Height) / 64, 1, MostScale);
+        var ideal = Math.Clamp((int)Math.Ceiling(Math.Sqrt(pixels / (double)WorkingBox)), 1, most);
+        var keep = _scale <= most && pixels <= WorkingBox * 4 / 3 * _scale * _scale
+            && (_scale == 1 || pixels >= WorkingBox * 2 / 3 * (_scale - 1) * (_scale - 1));
+        _scale = keep ? _scale : ideal;
+        return _scale;
+    }
+
+    /// <summary>The reduced copy of the picture, kept from picture to picture.</summary>
+    private VideoFrame Reduce(VideoFrame picture)
+    {
+        var (width, height) = (picture.Width / _scale, picture.Height / _scale);
+        if (_small is null || _small.Width != width || _small.Height != height)
+        {
+            _small?.Dispose();
+            _small = VideoFrame.Rent(PixelFormat.Bgra32, width, height);
+        }
+
+        SubjectRemovalScaling.Reduce(picture, _small, _scale);
+        _small.Pts = picture.Pts;
+        return _small;
+    }
+
+    /// <summary>
+    /// The model's outline at the size the removal works at: in a reduced copy, a pixel is inside
+    /// when at least two of the four pixels its colour was taken from are.
+    /// </summary>
+    private byte[] Shape()
+    {
+        if (_scale == 1)
+        {
+            return _shape!;
+        }
+
+        var (width, height) = (_shapePicture.Width / _scale, _shapePicture.Height / _scale);
+        if (_halfShape is null || _halfShape.Length != width * height)
+        {
+            _halfShape = new byte[width * height];
+            var full = _shapePicture.Width;
+            var (near, far) = (_scale / 4, _scale - 1 - _scale / 4);
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var (top, bottom) = ((_scale * y + near) * full, (_scale * y + far) * full);
+                    var (left, right) = (_scale * x + near, _scale * x + far);
+                    var inside = (_shape![top + left] != 0 ? 1 : 0) + (_shape[top + right] != 0 ? 1 : 0)
+                        + (_shape[bottom + left] != 0 ? 1 : 0) + (_shape[bottom + right] != 0 ? 1 : 0);
+                    _halfShape[y * width + x] = (byte)(inside >= 2 ? 255 : 0);
+                }
+            }
+        }
+
+        return _halfShape;
     }
 
     /// <summary>Whether the background at the picture's pixel (x, y) is known, seen or estimated before, and its colour if so.</summary>
@@ -476,14 +602,21 @@ public sealed class SubjectRemoval
     /// </summary>
     private bool Guarded(int x, int y)
     {
+        var area = _matte.Area;
+        var inside = x >= area.Left && y >= area.Top && x < area.Right && y < area.Bottom;
+        if (inside && _kind[(y - area.Top) * (area.Right - area.Left) + x - area.Left] == Seen)
+        {
+            // Background confirmed in earlier pictures is safe to reuse, even inside the
+            // widened tracking box. Excluding it wastes the closest, best-matching texture.
+            return false;
+        }
+
         if (x >= _protected.Left && x < _protected.Right && y >= _protected.Top && y < _protected.Bottom)
         {
             return true;
         }
 
-        var area = _matte.Area;
-        return x >= area.Left && y >= area.Top && x < area.Right && y < area.Bottom
-            && _matte.Distance[(y - area.Top) * (area.Right - area.Left) + x - area.Left] <= _guard * SubjectRemovalMatte.DistanceUnit;
+        return inside && _matte.Distance[(y - area.Top) * (area.Right - area.Left) + x - area.Left] <= _guard * SubjectRemovalMatte.DistanceUnit;
     }
 
     private static uint Pixel(ReadOnlySpan<byte> plane, int stride, int x, int y)
@@ -501,7 +634,11 @@ public sealed class SubjectRemoval
         var grid = (Left: Math.Max(0, hole.Left - margin), Top: Math.Max(0, hole.Top - margin),
             Right: Math.Min(frame.Width, hole.Right + margin), Bottom: Math.Min(frame.Height, hole.Bottom + margin));
         var gridArea = (double)(grid.Right - grid.Left) * (grid.Bottom - grid.Top);
-        var scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(Math.Max(gridArea / FillBudget, (double)_unseen / HoleBudget))));
+        // A reduced copy's inferred texture is kept on a finer grid, so repeated edges survive
+        // the enlargement back to full size.
+        var fillBudget = _scale > 1 ? 24_000 : FillBudget;
+        var holeBudget = _scale > 1 ? 6_000 : HoleBudget;
+        var scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(Math.Max(gridArea / fillBudget, (double)_unseen / holeBudget))));
         var width = (grid.Right - grid.Left + scale - 1) / scale;
         var height = (grid.Bottom - grid.Top + scale - 1) / scale;
         _fill.Prepare(width, height);
@@ -513,7 +650,7 @@ public sealed class SubjectRemoval
             GuessFromPrevious(grid, scale, width, height, advance);
         }
 
-        _fill.Solve(_pictures * 2654435761u);
+        _fill.Solve(_pictures * 2654435761u, searchStructuredBackground: _scale > 1);
         if (advance)
         {
             SubjectRemovalMatte.Ensure(ref _previousSource, width * height);
@@ -531,6 +668,8 @@ public sealed class SubjectRemoval
         var state = _fill.State;
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
+        var matteArea = _matte.Area;
+        var matteWidth = matteArea.Right - matteArea.Left;
         // A cell is read from at most four by four of its pixels.
         var step = Math.Max(1, scale / 4);
         for (var j = 0; j < height; j++)
@@ -544,7 +683,10 @@ public sealed class SubjectRemoval
                 {
                     for (var x = grid.Left + i * scale; x < Math.Min(grid.Right, grid.Left + (i + 1) * scale); x += step)
                     {
-                        guarded |= Guarded(x, y);
+                        // A previous estimated fill may guide the match, but it is not an
+                        // observed texture patch to copy into another unseen place.
+                        guarded |= Guarded(x, y) || (x >= matteArea.Left && y >= matteArea.Top && x < matteArea.Right && y < matteArea.Bottom
+                            && _kind[(y - matteArea.Top) * matteWidth + x - matteArea.Left] == Seeded);
                         if (Background(plane, stride, x, y, out var value))
                         {
                             (blue, green, red) = (blue + (value & 0xFF), green + ((value >> 8) & 0xFF), red + ((value >> 16) & 0xFF));
