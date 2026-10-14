@@ -531,8 +531,16 @@ public sealed class SubjectRemovalPlate
         var (wx, wy) = (_fractionX, _fractionY);
         var (stepX, stepY) = (wx > 0 ? 1 : 0, wy > 0 ? 1 : 0);
         var v0 = y + _wholeY;
+        // A shifted row can fall entirely outside the plate. Do not construct an invalid span.
+        if (v0 < 0 || v0 + stepY >= Height)
+        {
+            colours.Clear();
+            states.Clear();
+            return;
+        }
+
         var first = Math.Clamp(-(x + _wholeX), 0, count);
-        var last = v0 < 0 || v0 + stepY >= Height ? first : Math.Clamp(Width - stepX - x - _wholeX, first, count);
+        var last = Math.Clamp(Width - stepX - x - _wholeX, first, count);
         colours[..first].Clear();
         states[..first].Clear();
         colours[last..].Clear();
@@ -551,7 +559,10 @@ public sealed class SubjectRemovalPlate
             Vector.ConditionalSelect(known, Mix(c00, c10, c01, c11, w00, w10, w01, w11), Vector<uint>.Zero).CopyTo(colours[i0..]);
             for (var lane = 0; lane < Vector<uint>.Count; lane++)
             {
-                states[i0 + lane] = (byte)lowest[lane];
+                // A partly known neighbourhood uses the scalar edge reconstruction, which
+                // estimates from known neighbours rather than discarding their colour.
+                var at = i0 + lane;
+                states[at] = lowest[lane] == Unknown ? Sample(x + at, y, out colours[at]) : (byte)lowest[lane];
             }
         }
 
