@@ -42,6 +42,9 @@ Imitates a weak computer for everything this script starts: two processor cores,
 priority, a cap of -MemoryCapMB on each process's memory (a job object), pictures drawn in software
 (REXPLAYER_GRAPHICS=software) and no decoding on the graphics card (REXPLAYER_HARDWARE_DECODING=off).
 
+.PARAMETER Only
+Runs only these of the scenarios (with -All, only these of all of them).
+
 .PARAMETER Out
 A JSON file to write every run's figures to.
 
@@ -65,7 +68,8 @@ param(
     [int]$SteadySeconds = 15,
     [int]$LibraryFiles = 3000,
     [int]$MemoryCapMB = 2048,
-    [string]$Label
+    [string]$Label,
+    [string[]]$Only = @()
 )
 
 Set-StrictMode -Version Latest
@@ -183,6 +187,10 @@ if ($All) {
     $plan['music'] = @(& $at 'music.mp3')
     $plan['ui'] = @(& $at 'h264-1080p.mp4')
 }
+
+# -Only runs some of the scenarios, as when two builds are measured turn about.
+$Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+if ($Only.Count -gt 0) { $Scenario = @($Scenario | Where-Object { $Only -contains $_ }) }
 elseif ($Media.Count -eq 0) {
     $Media = @((Join-Path $root 'tests/fixtures/mp4/h264-aac.mp4'), (Join-Path $root 'tests/fixtures/mp3/stereo-44k-128k-cbr.mp3'))
 }
