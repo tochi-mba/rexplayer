@@ -627,7 +627,7 @@ public sealed class SubjectRemoval
             GuessFromPrevious(grid, scale, width, height, advance);
         }
 
-        _fill.Solve(_pictures * 2654435761u);
+        _fill.Solve(_pictures * 2654435761u, searchStructuredBackground: _scale == 2);
         if (advance)
         {
             SubjectRemovalMatte.Ensure(ref _previousSource, width * height);
