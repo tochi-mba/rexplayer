@@ -93,7 +93,7 @@ public sealed class SubjectRemovalScalingTests
         frame.Plane(0).CopyTo(output.Plane(0));
         // A full-size column right of every half-size pixel's neighbours: some fill blends in.
         fill[3] = 0x00C000;
-        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[96]);
+        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32]);
         Assert.Equal(0xFF0000C0u, Pixel(output, 2, 8));
         Assert.Equal(Pixel(frame, 24, 8), Pixel(output, 24, 8));
         // Green bleeds into the full-size pixels beside the half-size pixel that holds it, by the
@@ -104,11 +104,11 @@ public sealed class SubjectRemovalScalingTests
         Assert.Equal(Pixel(frame, 17, 8), Pixel(output, 17, 8));
 
         // An area with nothing in it draws nothing.
-        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (4, 4, 4, 6), alpha, fill, new int[96]);
-        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (4, 4, 6, 4), alpha, fill, new int[96]);
-        Assert.Throws<ArgumentNullException>(() => SubjectRemovalScaling.Enlarge(null!, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[96]));
-        Assert.Throws<ArgumentNullException>(() => SubjectRemovalScaling.Enlarge(frame, null!, output, 2, (0, 0, 16, 8), alpha, fill, new int[96]));
-        Assert.Throws<ArgumentNullException>(() => SubjectRemovalScaling.Enlarge(frame, half, null!, 2, (0, 0, 16, 8), alpha, fill, new int[96]));
+        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (4, 4, 4, 6), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32]);
+        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (4, 4, 6, 4), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32]);
+        Assert.Throws<ArgumentNullException>(() => SubjectRemovalScaling.Enlarge(null!, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32]));
+        Assert.Throws<ArgumentNullException>(() => SubjectRemovalScaling.Enlarge(frame, null!, output, 2, (0, 0, 16, 8), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32]));
+        Assert.Throws<ArgumentNullException>(() => SubjectRemovalScaling.Enlarge(frame, half, null!, 2, (0, 0, 16, 8), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32]));
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class SubjectRemovalScalingTests
         using var __ = half;
         using var output = VideoFrame.Rent(PixelFormat.Bgra32, 32, 16);
         frame.Plane(0).CopyTo(output.Plane(0));
-        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[96]);
+        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32]);
         Assert.Equal(0xFF0000C0u, Pixel(output, 15, 6));
         var bilinear = SubjectRemovalScaling.Over(Pixel(frame, 16, 6), 0xC0, 64);
         Assert.Equal(Pixel(frame, 16, 6), Pixel(output, 16, 6));
@@ -142,7 +142,7 @@ public sealed class SubjectRemovalScalingTests
         var estimated = alpha.Select((a, at) => a == 255 && at / 16 < 4).ToArray();
         // Even a marked edge pixel with partial matte opacity must take the model's exact full-size colour.
         alpha[1 * 16 + 1] = 128;
-        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[96], estimate, estimated);
+        SubjectRemovalScaling.Enlarge(frame, half, output, 2, (0, 0, 16, 8), alpha, fill, new int[SubjectRemovalScaling.ScratchPerColumn * 32], estimate, estimated);
         Assert.Equal(Pixel(estimate, 3, 2) | 0xFF000000, Pixel(output, 3, 2));
         Assert.Equal(Pixel(estimate, 2, 2) | 0xFF000000, Pixel(output, 2, 2));
         Assert.Equal(0xFF0000C0u, Pixel(output, 3, 12));

@@ -303,7 +303,7 @@ public sealed class SubjectRemoval
         else
         {
             var area = _matte.Area;
-            SubjectRemovalMatte.Ensure(ref _enlargeColumns, 3 * picture.Width);
+            SubjectRemovalMatte.Ensure(ref _enlargeColumns, SubjectRemovalScaling.ScratchPerColumn * picture.Width);
             SubjectRemovalScaling.Enlarge(picture, frame, output, _scale, area, _alpha, _colour, _enlargeColumns, estimate, _estimated);
             ObservedPixels *= _scale * _scale;
             EstimatedPixels *= _scale * _scale;

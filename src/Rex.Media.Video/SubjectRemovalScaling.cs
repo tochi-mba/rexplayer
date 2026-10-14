@@ -112,11 +112,17 @@ public static class SubjectRemovalScaling
     /// BGR) row by row. Opacity and fill are blended premultiplied, so a reduced pixel left untouched
     /// lends no colour to its neighbours' fill. With <paramref name="estimate"/> (full size), every
     /// pixel whose nearest reduced pixel is marked in <paramref name="estimated"/> takes the
-    /// estimate's own colour instead. <paramref name="columns"/> is scratch space of at least three
-    /// values for each full-size column of the area.
+    /// estimate's own colour instead. <paramref name="scratch"/> is scratch space of at least
+    /// <see cref="ScratchPerColumn"/> values for each full-size column of the picture.
+    /// <para>
+    /// Inside the hole the enlargement is separable: each reduced row the drawing needs is enlarged
+    /// across once, into a full-width row of opacities and colours, and each full-size row then
+    /// only blends the two enlarged rows above and below it. Only the boundary, where some of the
+    /// four neighbours hide less than all, does the joint upsampling's work.
+    /// </para>
     /// </summary>
     public static void Enlarge(VideoFrame frame, VideoFrame small, VideoFrame output, int scale,
-        (int Left, int Top, int Right, int Bottom) area, ReadOnlySpan<byte> alpha, ReadOnlySpan<uint> fill, Span<int> columns,
+        (int Left, int Top, int Right, int Bottom) area, ReadOnlySpan<byte> alpha, ReadOnlySpan<uint> fill, Span<int> scratch,
         VideoFrame? estimate = null, ReadOnlySpan<bool> estimated = default)
     {
         ArgumentNullException.ThrowIfNull(frame);
@@ -135,6 +141,11 @@ public static class SubjectRemovalScaling
         var (inStride, smallStride, outStride) = (frame.Stride(0) / 4, small.Stride(0) / 4, output.Stride(0) / 4);
         var (left, right) = (scale * area.Left, Math.Min(frame.Width, scale * area.Right));
         var bottom = Math.Min(frame.Height, scale * area.Bottom);
+        var count = right - left;
+        var columns = scratch[..(3 * count)];
+        // Two enlarged rows in two slots, with the reduced row each was made from: opacities in
+        // sixteenths of 255 after the columns, then colours.
+        Span<int> made = [-1, -1];
         // Each full-size column's two reduced neighbours (as places in the area's rows) and the
         // second one's weight in sixteenths, worked out once for every row.
         for (var x = left; x < right; x++)
@@ -159,24 +170,66 @@ public static class SubjectRemovalScaling
             var (first, last) = Stretch(rows.UpperAlpha, rows.LowerAlpha);
             var from = Math.Max(0, (first - 1) * scale);
             var to = Math.Min(right - left, (last + 2) * scale);
-            var upperAlpha = rows.UpperAlpha;
-            var lowerAlpha = rows.LowerAlpha;
-            var upperFill = rows.UpperFill;
-            var lowerFill = rows.LowerFill;
+            // The enlarged rows for the reduced rows above and below, kept while they are still needed:
+            // a row not yet made goes into the slot the other one does not hold.
+            foreach (var row in (ReadOnlySpan<int>)[upper, lower])
+            {
+                if (made[0] != row && made[1] != row)
+                {
+                    var slot = made[0] == upper || made[0] == lower ? 1 : 0;
+                    Across(alpha.Slice(row * areaWidth, areaWidth), fill.Slice(row * areaWidth, areaWidth), columns, count,
+                        scratch.Slice((3 + slot) * count, count), MemoryMarshal.Cast<int, uint>(scratch.Slice((5 + slot) * count, count)));
+                    made[slot] = row;
+                }
+            }
+
+            var (above, below) = (made[0] == upper ? 0 : 1, made[0] == lower ? 0 : 1);
+            ReadOnlySpan<int> aboveOpacity = scratch.Slice((3 + above) * count, count);
+            ReadOnlySpan<int> belowOpacity = scratch.Slice((3 + below) * count, count);
+            ReadOnlySpan<uint> aboveColour = MemoryMarshal.Cast<int, uint>(scratch.Slice((5 + above) * count, count));
+            ReadOnlySpan<uint> belowColour = MemoryMarshal.Cast<int, uint>(scratch.Slice((5 + below) * count, count));
+            var (keep, take) = ((uint)(16 - down), (uint)down);
             for (var x = from; x < to; x++)
             {
-                var (one, two, across) = (columns[3 * x], columns[3 * x + 1], columns[3 * x + 2]);
-                var all = upperAlpha[one] & upperAlpha[two] & lowerAlpha[one] & lowerAlpha[two];
-                if (all == 255 && better.IsEmpty)
+                // Opacity in 256ths of 255: nothing hidden, all hidden, or the boundary between.
+                var hidden = (16 - down) * aboveOpacity[x] + down * belowOpacity[x];
+                if (hidden == 0)
                 {
-                    // Inside the hole, the usual case: the enlarged fill, the picture's alpha kept.
-                    drawn[x] = (picture[x] & 0xFF000000) | Blend(upperFill[one], upperFill[two], lowerFill[one], lowerFill[two],
-                        (16 - across) * (16 - down), across * (16 - down), (16 - across) * down, across * down);
                     continue;
                 }
 
-                Draw(rows, one, two, across, picture, drawn, better, x);
+                if (hidden == 255 * 256 && better.IsEmpty)
+                {
+                    // Inside the hole, the usual case: the enlarged fill, the picture's alpha kept.
+                    var (a, b) = (aboveColour[x], belowColour[x]);
+                    var blueRed = (((a & 0xFF00FF) * keep + (b & 0xFF00FF) * take + 0x80008) >> 4) & 0xFF00FF;
+                    var green = (((a & 0xFF00) * keep + (b & 0xFF00) * take + 0x800) >> 4) & 0xFF00;
+                    drawn[x] = (picture[x] & 0xFF000000) | blueRed | green;
+                    continue;
+                }
+
+                Draw(rows, columns[3 * x], columns[3 * x + 1], columns[3 * x + 2], picture, drawn, better, x);
             }
+        }
+    }
+
+    /// <summary>How many scratch values <see cref="Enlarge"/> needs for each full-size column.</summary>
+    public const int ScratchPerColumn = 7;
+
+    /// <summary>
+    /// Enlarges one reduced row across its <paramref name="count"/> full-size columns: each opacity
+    /// in sixteenths of the reduced ones, each colour blended by the same weights.
+    /// </summary>
+    private static void Across(ReadOnlySpan<byte> alpha, ReadOnlySpan<uint> fill, ReadOnlySpan<int> columns, int count,
+        Span<int> opacity, Span<uint> colour)
+    {
+        for (var x = 0; x < count; x++)
+        {
+            var (one, two, across) = (columns[3 * x], columns[3 * x + 1], columns[3 * x + 2]);
+            opacity[x] = (16 - across) * alpha[one] + across * alpha[two];
+            var (a, b, keep, take) = (fill[one], fill[two], (uint)(16 - across), (uint)across);
+            colour[x] = ((((a & 0xFF00FF) * keep + (b & 0xFF00FF) * take + 0x80008) >> 4) & 0xFF00FF)
+                | ((((a & 0xFF00) * keep + (b & 0xFF00) * take + 0x800) >> 4) & 0xFF00);
         }
     }
 
