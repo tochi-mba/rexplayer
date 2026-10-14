@@ -590,14 +590,21 @@ public sealed class SubjectRemoval
     /// </summary>
     private bool Guarded(int x, int y)
     {
+        var area = _matte.Area;
+        var inside = x >= area.Left && y >= area.Top && x < area.Right && y < area.Bottom;
+        if (inside && _kind[(y - area.Top) * (area.Right - area.Left) + x - area.Left] == Seen)
+        {
+            // Background confirmed in earlier pictures is safe to reuse, even inside the
+            // widened tracking box. Excluding it wastes the closest, best-matching texture.
+            return false;
+        }
+
         if (x >= _protected.Left && x < _protected.Right && y >= _protected.Top && y < _protected.Bottom)
         {
             return true;
         }
 
-        var area = _matte.Area;
-        return x >= area.Left && y >= area.Top && x < area.Right && y < area.Bottom
-            && _matte.Distance[(y - area.Top) * (area.Right - area.Left) + x - area.Left] <= _guard * SubjectRemovalMatte.DistanceUnit;
+        return inside && _matte.Distance[(y - area.Top) * (area.Right - area.Left) + x - area.Left] <= _guard * SubjectRemovalMatte.DistanceUnit;
     }
 
     private static uint Pixel(ReadOnlySpan<byte> plane, int stride, int x, int y)
