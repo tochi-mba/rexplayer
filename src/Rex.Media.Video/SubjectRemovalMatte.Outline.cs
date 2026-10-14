@@ -199,16 +199,7 @@ public sealed partial class SubjectRemovalMatte
 
         var areaWidth = Area.Right - Area.Left;
         var areaHeight = Area.Bottom - Area.Top;
-        Ensure(ref _columns, areaWidth);
-        Ensure(ref _fractions, areaWidth);
         Ensure(ref _blend, w + 1);
-        for (var x = 0; x < areaWidth; x++)
-        {
-            var gx = Math.Clamp((x + 0.5f) / Scale - 0.5f, 0, w - 1);
-            _columns[x] = (int)gx;
-            _fractions[x] = gx - (int)gx;
-        }
-
         for (var y = 0; y < areaHeight; y++)
         {
             var gy = Math.Clamp((y + 0.5f) / Scale - 0.5f, 0, h - 1);
@@ -237,10 +228,12 @@ public sealed partial class SubjectRemovalMatte
                     continue;
                 }
 
+                // From this cell's centre to the next one's the distance runs in a straight line; before
+                // the first centre it is the first cell's, and the last cell's lies flat beyond it.
+                var (centre, slope) = ((i + 0.5f) * Scale - 0.5f, (b - a) / Scale);
                 for (; x < end; x++)
                 {
-                    var c = _columns[x];
-                    row[x] = (short)Math.Clamp(_blend[c] + (_blend[c + 1] - _blend[c]) * _fractions[x], -Saturated, Saturated);
+                    row[x] = (short)Math.Clamp(a + slope * Math.Max(0, x - centre), -Saturated, Saturated);
                 }
             }
         }

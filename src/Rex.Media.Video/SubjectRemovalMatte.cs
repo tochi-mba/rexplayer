@@ -1,3 +1,4 @@
+using System.Numerics;
 using Rex.Media.Primitives;
 
 namespace Rex.Media.Video;
@@ -21,7 +22,9 @@ namespace Rex.Media.Video;
 /// joined to the middle of the box are dropped and holes inside the subject are closed.
 /// </para>
 /// All of this runs on a grid of at most <see cref="GridBudget"/> cells, so its cost does not
-/// grow with the size of the picture or of the subject.
+/// grow with the size of the picture or of the subject. The smoothing works on whole rows of cells
+/// at once with the processor's vector instructions, and the guided filter's window means are read
+/// from summed-area tables (Crow, "Summed-Area Tables for Texture Mapping", SIGGRAPH 1984).
 /// </summary>
 public sealed partial class SubjectRemovalMatte
 {
@@ -61,7 +64,12 @@ public sealed partial class SubjectRemovalMatte
     private readonly float[] _ringHistogram = new float[BinCount];
     private bool _hasModels;
 
-    private byte[] _colour = [];
+    // Each cell's blue, green and red, and the smoothing's spins, with a margin of zeros before and
+    // after the grid (see _pad) so neighbours can be read without testing for the grid's edge.
+    private float[] _blue = [];
+    private float[] _green = [];
+    private float[] _red = [];
+    private float[] _spin = [];
     private float[] _grey = [];
     private short[] _bin = [];
     private byte[] _region = [];
@@ -72,19 +80,19 @@ public sealed partial class SubjectRemovalMatte
     private float[] _unary = [];
     private float[] _probability = [];
     private float[] _next = [];
+    // The smoothness weights between each cell and its right, lower, lower right and lower left
+    // neighbours, one run of the padded grid's length for each direction; zero where there is none.
     private float[] _weights = [];
+    private double[] _table = [];
     private float[] _filterA = [];
     private float[] _filterB = [];
     private float[] _filterC = [];
     private float[] _filterD = [];
-    private float[] _filterE = [];
     private byte[] _label = [];
     private int[] _queue = [];
     private float[] _outside = [];
     private float[] _inside = [];
     private short[] _distance = [];
-    private int[] _columns = [];
-    private float[] _fractions = [];
     private float[] _blend = [];
 
     private float[] _memory = [];
@@ -97,6 +105,10 @@ public sealed partial class SubjectRemovalMatte
 
     private int _gridWidth;
     private int _gridHeight;
+    // The zeros kept before and after the grid in padded runs: a row and a cell, the farthest any
+    // neighbour lies.
+    private int _pad;
+    private int _stride;
     // How many cells the outline may grow outwards.
     private int _growth;
     private (int Width, int Height) _picture;
@@ -256,7 +268,13 @@ public sealed partial class SubjectRemovalMatte
 
     private void Reserve(int cells, int pixels)
     {
-        Ensure(ref _colour, cells * 3);
+        _pad = _gridWidth + 1;
+        _stride = cells + 2 * _pad;
+        Ensure(ref _blue, _stride);
+        Ensure(ref _green, _stride);
+        Ensure(ref _red, _stride);
+        Ensure(ref _spin, _stride);
+        Ensure(ref _table, (_gridWidth + 1) * (_gridHeight + 1));
         Ensure(ref _grey, cells);
         Ensure(ref _bin, cells);
         Ensure(ref _region, cells);
@@ -267,12 +285,11 @@ public sealed partial class SubjectRemovalMatte
         Ensure(ref _unary, cells);
         Ensure(ref _probability, cells);
         Ensure(ref _next, cells);
-        Ensure(ref _weights, cells * 4);
+        Ensure(ref _weights, 4 * _stride);
         Ensure(ref _filterA, cells);
         Ensure(ref _filterB, cells);
         Ensure(ref _filterC, cells);
         Ensure(ref _filterD, cells);
-        Ensure(ref _filterE, cells);
         Ensure(ref _label, cells);
         Ensure(ref _queue, cells);
         Ensure(ref _outside, cells);
@@ -280,13 +297,14 @@ public sealed partial class SubjectRemovalMatte
         Ensure(ref _distance, pixels);
     }
 
-    internal static void Ensure<T>(ref T[] buffer, int length)
+    internal static void Ensure<T>(ref T[] buffer, int length, int room = 0)
     {
         if (buffer.Length < length)
         {
             // A quarter more than asked for, so an area that grows a little from picture to picture
-            // as a subject moves does not allocate again each time.
-            buffer = new T[length + length / 4];
+            // as a subject moves does not allocate again each time; or, when the caller knows how
+            // much its use can vary, room for all of that at once.
+            buffer = new T[Math.Max(length + length / 4, room)];
         }
     }
 
@@ -323,7 +341,7 @@ public sealed partial class SubjectRemovalMatte
 
                 var cell = j * _gridWidth + i;
                 var (b, g, r) = (blue / count, green / count, red / count);
-                (_colour[cell * 3], _colour[cell * 3 + 1], _colour[cell * 3 + 2]) = ((byte)b, (byte)g, (byte)r);
+                (_blue[_pad + cell], _green[_pad + cell], _red[_pad + cell]) = (b, g, r);
                 _grey[cell] = (0.114f * b + 0.587f * g + 0.299f * r) / 255f;
                 _bin[cell] = (short)(((b >> 4) << 8) | ((g >> 4) << 4) | (r >> 4));
                 var x0 = (left + right - 1) / 2;
@@ -480,80 +498,159 @@ public sealed partial class SubjectRemovalMatte
         // Right, down, down-right and down-left; each pair of neighbours is stored once, at the first.
         Span<int> offsets = [1, w, w + 1, w - 1];
         var total = 0.0;
-        var pairs = 0;
-        for (var j = 0; j < h; j++)
+        for (var direction = 0; direction < 4; direction++)
         {
-            for (var i = 0; i < w; i++)
-            {
-                var cell = j * w + i;
-                for (var direction = 0; direction < 4; direction++)
-                {
-                    var valid = direction == 0 ? i + 1 < w
-                        : j + 1 < h && (direction == 1 || (direction == 2 ? i + 1 < w : i > 0));
-                    var distance = valid ? ColourDistance(cell, cell + offsets[direction]) : -1;
-                    _weights[cell * 4 + direction] = distance;
-                    if (valid)
-                    {
-                        total += distance;
-                        pairs++;
-                    }
-                }
-            }
+            // The margins either side of each run are read as the neighbours past the grid's edges.
+            _weights.AsSpan(direction * _stride, _pad).Clear();
+            _weights.AsSpan(direction * _stride + _pad + cells, _pad).Clear();
+            var weights = Direction(direction);
+            Differences(offsets[direction], weights);
+            Unpaired(direction, weights);
+            total += Sum(weights);
         }
 
+        // Every cell has a right neighbour but the last column, a lower one but the last row, and a
+        // diagonal one but both.
+        var pairs = (w - 1) * h + w * (h - 1) + 2 * (w - 1) * (h - 1);
         var beta = total > 0 ? (float)(pairs / (2 * total)) : 0;
-        for (var at = 0; at < cells * 4; at++)
+        for (var direction = 0; direction < 4; direction++)
         {
-            var distance = _weights[at];
-            _weights[at] = distance < 0 ? 0 : MathF.Exp(-beta * distance) * ((at & 3) < 2 ? 1 : 0.7071f);
+            var weights = Direction(direction);
+            var scale = direction < 2 ? 1 : 0.7071f;
+            var cell = 0;
+            for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
+            {
+                (Vector.Exp(new Vector<float>(weights[cell..]) * -beta) * scale).CopyTo(weights[cell..]);
+            }
+
+            for (; cell < cells; cell++)
+            {
+                weights[cell] = MathF.Exp(-beta * weights[cell]) * scale;
+            }
+
+            Unpaired(direction, weights);
         }
     }
 
-    private void Smooth(int iterations)
+    /// <summary>The weights towards one direction, cell by cell from the grid's first; the margin either side stays zero.</summary>
+    private Span<float> Direction(int direction) => _weights.AsSpan(direction * _stride + _pad, _stride - _pad);
+
+    /// <summary>Each cell's squared colour difference from the cell <paramref name="offset"/> on.</summary>
+    private void Differences(int offset, Span<float> output)
+    {
+        var cells = _gridWidth * _gridHeight;
+        ReadOnlySpan<float> b = _blue.AsSpan(_pad);
+        ReadOnlySpan<float> g = _green.AsSpan(_pad);
+        ReadOnlySpan<float> r = _red.AsSpan(_pad);
+        var cell = 0;
+        for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
+        {
+            var db = new Vector<float>(b[cell..]) - new Vector<float>(b[(cell + offset)..]);
+            var dg = new Vector<float>(g[cell..]) - new Vector<float>(g[(cell + offset)..]);
+            var dr = new Vector<float>(r[cell..]) - new Vector<float>(r[(cell + offset)..]);
+            (db * db + dg * dg + dr * dr).CopyTo(output[cell..]);
+        }
+
+        for (; cell < cells; cell++)
+        {
+            var (db, dg, dr) = (b[cell] - b[cell + offset], g[cell] - g[cell + offset], r[cell] - r[cell + offset]);
+            output[cell] = db * db + dg * dg + dr * dr;
+        }
+    }
+
+    /// <summary>Zero where a cell has no neighbour in the direction: past the last column or row, or, down-left, before the first column.</summary>
+    private void Unpaired(int direction, Span<float> weights)
     {
         var (w, h) = (_gridWidth, _gridHeight);
-        var cells = w * h;
-        Span<int> offsets = [1, w, w + 1, w - 1];
+        if (direction != 1)
+        {
+            // The last column has nothing to its right; down-left, the first has nothing to its left.
+            for (var at = direction == 3 ? 0 : w - 1; at < w * h; at += w)
+            {
+                weights[at] = 0;
+            }
+        }
+
+        if (direction != 0)
+        {
+            weights.Slice((h - 1) * w, w).Clear();
+        }
+    }
+
+    private float Sum(ReadOnlySpan<float> values)
+    {
+        var cells = _gridWidth * _gridHeight;
+        var sum = Vector<float>.Zero;
+        var cell = 0;
+        for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
+        {
+            sum += new Vector<float>(values[cell..]);
+        }
+
+        var total = Vector.Sum(sum);
+        for (; cell < cells; cell++)
+        {
+            total += values[cell];
+        }
+
+        return total;
+    }
+
+    /// <summary>
+    /// Mean-field updates: each cell's spin (2p - 1) pulls its eight neighbours by the weight between
+    /// them, a whole run of cells at a time, the grid's edges handled by the zeros either side.
+    /// </summary>
+    private void Smooth(int iterations)
+    {
+        var w = _gridWidth;
+        var cells = w * _gridHeight;
+        var pad = _pad;
         const float Strength = 0.45f;
-        var spin = _filterE;
+        var spin = _spin.AsSpan(0, _stride);
+        spin[..pad].Clear();
+        spin[(pad + cells)..].Clear();
+        ReadOnlySpan<float> right = _weights.AsSpan(0, _stride);
+        ReadOnlySpan<float> down = _weights.AsSpan(_stride, _stride);
+        ReadOnlySpan<float> downRight = _weights.AsSpan(2 * _stride, _stride);
+        ReadOnlySpan<float> downLeft = _weights.AsSpan(3 * _stride, _stride);
         for (var iteration = 0; iteration < iterations; iteration++)
         {
-            for (var cell = 0; cell < cells; cell++)
+            var cell = 0;
+            for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
             {
-                spin[cell] = 2 * _probability[cell] - 1;
+                (new Vector<float>(_probability.AsSpan(cell)) * 2 - Vector<float>.One).CopyTo(spin[(pad + cell)..]);
             }
 
-            for (var cell = 0; cell < cells; cell++)
+            for (; cell < cells; cell++)
             {
-                var pull = 0f;
-                var at = cell * 4;
-                for (var direction = 0; direction < 4; direction++)
-                {
-                    var offset = offsets[direction];
-                    var forward = cell + offset;
-                    if (forward < cells)
-                    {
-                        pull += _weights[at + direction] * spin[forward];
-                    }
+                spin[pad + cell] = 2 * _probability[cell] - 1;
+            }
 
-                    var backward = cell - offset;
-                    if (backward >= 0)
-                    {
-                        pull += _weights[backward * 4 + direction] * spin[backward];
-                    }
-                }
+            for (cell = 0; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
+            {
+                var at = pad + cell;
+                var pull = new Vector<float>(right[at..]) * new Vector<float>(spin[(at + 1)..])
+                    + new Vector<float>(right[(at - 1)..]) * new Vector<float>(spin[(at - 1)..])
+                    + new Vector<float>(down[at..]) * new Vector<float>(spin[(at + w)..])
+                    + new Vector<float>(down[(at - w)..]) * new Vector<float>(spin[(at - w)..])
+                    + new Vector<float>(downRight[at..]) * new Vector<float>(spin[(at + w + 1)..])
+                    + new Vector<float>(downRight[(at - w - 1)..]) * new Vector<float>(spin[(at - w - 1)..])
+                    + new Vector<float>(downLeft[at..]) * new Vector<float>(spin[(at + w - 1)..])
+                    + new Vector<float>(downLeft[(at - w + 1)..]) * new Vector<float>(spin[(at - w + 1)..]);
+                var field = new Vector<float>(_unary.AsSpan(cell)) + pull * Strength;
+                (Vector<float>.One / (Vector<float>.One + Vector.Exp(-field))).CopyTo(_probability.AsSpan(cell));
+            }
 
+            for (; cell < cells; cell++)
+            {
+                var at = pad + cell;
+                var pull = right[at] * spin[at + 1] + right[at - 1] * spin[at - 1]
+                    + down[at] * spin[at + w] + down[at - w] * spin[at - w]
+                    + downRight[at] * spin[at + w + 1] + downRight[at - w - 1] * spin[at - w - 1]
+                    + downLeft[at] * spin[at + w - 1] + downLeft[at - w + 1] * spin[at - w + 1];
                 _probability[cell] = Sigmoid(_unary[cell] + Strength * pull);
             }
         }
-    }
-
-    private float ColourDistance(int a, int b)
-    {
-        var db = _colour[a * 3] - _colour[b * 3];
-        var dg = _colour[a * 3 + 1] - _colour[b * 3 + 1];
-        var dr = _colour[a * 3 + 2] - _colour[b * 3 + 2];
-        return db * db + dg * dg + dr * dr;
     }
 
     private void Label(bool wholeBox)
@@ -665,56 +762,38 @@ public sealed partial class SubjectRemovalMatte
         }
     }
 
-    /// <summary>A mean over a square window, clipped at the grid's edges; the output may be the input.</summary>
+    /// <summary>
+    /// A mean over a square window, clipped at the grid's edges, read from a summed-area table: each
+    /// entry holds the sum of everything above and to the left, so any window's sum is four reads.
+    /// The output may be the input.
+    /// </summary>
     private void BoxFilter(float[] input, float[] output, int radius)
     {
         var (w, h) = (_gridWidth, _gridHeight);
+        var across = w + 1;
+        var table = _table;
+        Array.Clear(table, 0, across);
         for (var j = 0; j < h; j++)
         {
-            var row = j * w;
-            var sum = 0f;
-            for (var i = 0; i < Math.Min(radius, w); i++)
-            {
-                sum += input[row + i];
-            }
-
+            var run = 0.0;
+            var (above, row) = (j * across, (j + 1) * across);
+            table[row] = 0;
             for (var i = 0; i < w; i++)
             {
-                if (i + radius < w)
-                {
-                    sum += input[row + i + radius];
-                }
-
-                if (i - radius - 1 >= 0)
-                {
-                    sum -= input[row + i - radius - 1];
-                }
-
-                _filterE[row + i] = sum / (Math.Min(w - 1, i + radius) - Math.Max(0, i - radius) + 1);
+                run += input[j * w + i];
+                table[row + i + 1] = table[above + i + 1] + run;
             }
         }
 
-        for (var i = 0; i < w; i++)
+        for (var j = 0; j < h; j++)
         {
-            var sum = 0f;
-            for (var j = 0; j < Math.Min(radius, h); j++)
+            var (top, bottom) = (Math.Max(0, j - radius) * across, Math.Min(h, j + radius + 1) * across);
+            var rows = (bottom - top) / across;
+            for (var i = 0; i < w; i++)
             {
-                sum += _filterE[j * w + i];
-            }
-
-            for (var j = 0; j < h; j++)
-            {
-                if (j + radius < h)
-                {
-                    sum += _filterE[(j + radius) * w + i];
-                }
-
-                if (j - radius - 1 >= 0)
-                {
-                    sum -= _filterE[(j - radius - 1) * w + i];
-                }
-
-                output[j * w + i] = sum / (Math.Min(h - 1, j + radius) - Math.Max(0, j - radius) + 1);
+                var (left, right) = (Math.Max(0, i - radius), Math.Min(w, i + radius + 1));
+                var sum = table[bottom + right] - table[top + right] - table[bottom + left] + table[top + left];
+                output[j * w + i] = (float)(sum / (rows * (right - left)));
             }
         }
     }
@@ -722,33 +801,30 @@ public sealed partial class SubjectRemovalMatte
     /// <summary>
     /// One pass of a majority filter over each cell's eight neighbours: a notch bitten into the
     /// outline, where a shadowed fold of clothing looked like the background, is closed, and a stray
-    /// cell of background colour that looked like the subject is dropped.
+    /// cell of background colour that looked like the subject is dropped. The neighbours are counted
+    /// as rows of three, each summed once.
     /// </summary>
     private void Tidy()
     {
         var (w, h) = (_gridWidth, _gridHeight);
+        var threes = _queue;
+        for (var j = 0; j < h; j++)
+        {
+            var row = j * w;
+            for (var i = 0; i < w; i++)
+            {
+                threes[row + i] = _label[row + i] + (i > 0 ? _label[row + i - 1] : 0) + (i + 1 < w ? _label[row + i + 1] : 0);
+            }
+        }
+
         for (var j = 0; j < h; j++)
         {
             for (var i = 0; i < w; i++)
             {
                 var cell = j * w + i;
-                var around = 0;
-                for (var dy = -1; dy <= 1; dy++)
-                {
-                    for (var dx = -1; dx <= 1; dx++)
-                    {
-                        var (x, y) = (i + dx, j + dy);
-                        around += (dx | dy) != 0 && x >= 0 && y >= 0 && x < w && y < h ? _label[y * w + x] : 0;
-                    }
-                }
-
-                _next[cell] = _region[cell] == Beyond ? 0 : around >= 6 ? 1 : around <= 1 ? 0 : _label[cell];
+                var around = threes[cell] - _label[cell] + (j > 0 ? threes[cell - w] : 0) + (j + 1 < h ? threes[cell + w] : 0);
+                _label[cell] = (byte)(_region[cell] == Beyond ? 0 : around >= 6 ? 1 : around <= 1 ? 0 : _label[cell]);
             }
-        }
-
-        for (var cell = 0; cell < w * h; cell++)
-        {
-            _label[cell] = (byte)_next[cell];
         }
     }
 }
