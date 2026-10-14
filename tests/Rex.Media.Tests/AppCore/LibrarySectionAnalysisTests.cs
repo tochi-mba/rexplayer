@@ -186,6 +186,93 @@ public sealed class LibrarySectionAnalysisTests
     }
 
     [Fact]
+    public void ReplacingTheQueueCancelsInFlightWorkAndFinishesTheNewEpisode()
+    {
+        var folder = Directory.CreateTempSubdirectory("rexplayer-background-replace-").FullName;
+        try
+        {
+            var first = Path.Combine(folder, "Series.S01E01.mkv");
+            var next = Path.Combine(folder, "Series.S01E02.mkv");
+            File.WriteAllBytes(first, [1]);
+            File.WriteAllBytes(next, [2]);
+            using var started = new ManualResetEventSlim();
+            using var interrupted = new ManualResetEventSlim();
+            var memory = new PlayerMemory(RexStore.InMemory());
+            using var worker = new LibrarySectionAnalysis(memory, new SectionAnalysisCache(), (file, token) =>
+            {
+                if (file == first)
+                {
+                    started.Set();
+                    try
+                    {
+                        token.WaitHandle.WaitOne(TimeSpan.FromSeconds(10));
+                        token.ThrowIfCancellationRequested();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        interrupted.Set();
+                        throw;
+                    }
+                }
+
+                return new EpisodeAnalysis(file, SectionAnalysis.SignatureOf(file),
+                    TimeSpan.FromMinutes(42), [], [], []);
+            }, RexLog.InMemory());
+
+            worker.SetQueue([first]);
+            Assert.True(started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            worker.SetQueue([next]);
+            Assert.True(interrupted.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            Assert.True(SpinWait.SpinUntil(() =>
+                memory.Proposals(next, PlayerController.DetectionSignature(next, [])) is not null,
+                TimeSpan.FromSeconds(10)));
+            Assert.Null(memory.Proposals(first, PlayerController.DetectionSignature(first, [])));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DisposingACurrentDecodeCancelsItPromptly()
+    {
+        var folder = Directory.CreateTempSubdirectory("rexplayer-background-stop-").FullName;
+        try
+        {
+            var path = Path.Combine(folder, "Series.S01E01.mkv");
+            File.WriteAllBytes(path, [1]);
+            using var started = new ManualResetEventSlim();
+            using var stopped = new ManualResetEventSlim();
+            var worker = new LibrarySectionAnalysis(new PlayerMemory(RexStore.InMemory()),
+                new SectionAnalysisCache(), (file, token) =>
+                {
+                    started.Set();
+                    token.WaitHandle.WaitOne(TimeSpan.FromSeconds(10));
+                    try
+                    {
+                        token.ThrowIfCancellationRequested();
+                    }
+                    finally
+                    {
+                        stopped.Set();
+                    }
+
+                    return new EpisodeAnalysis(file, SectionAnalysis.SignatureOf(file),
+                        TimeSpan.FromMinutes(42), [], [], []);
+                }, RexLog.InMemory());
+            worker.SetQueue([path]);
+            Assert.True(started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            worker.Dispose();
+            Assert.True(stopped.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public void StoppedWorkersIgnoreNewRequests()
     {
         using var worker = new LibrarySectionAnalysis(
