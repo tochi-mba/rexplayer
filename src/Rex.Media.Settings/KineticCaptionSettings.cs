@@ -29,6 +29,13 @@ public enum CaptionPreset
     Rave,
     Classic,
     Glitch,
+    Ticker,
+    Ghost,
+    Stamp,
+    Pills,
+    Marker,
+    Stairs,
+    Wire,
     Custom,
 }
 
@@ -40,6 +47,7 @@ public enum CaptionFontChoice
     Mono,
     Display,
     Rounded,
+    Hand,
 }
 
 /// <summary>How words are cased, for a custom look.</summary>
@@ -58,6 +66,8 @@ public enum CaptionMotionChoice
     Typewriter,
     Bounce,
     Drop,
+    Fade,
+    Stamp,
 }
 
 /// <summary>Where clusters of words go.</summary>
@@ -68,6 +78,8 @@ public enum CaptionLayoutChoice
     Centre,
     Left,
     Confetti,
+    Ticker,
+    Stairs,
 }
 
 /// <summary>The colours stressed words run through.</summary>
@@ -149,6 +161,15 @@ public sealed record KineticCaptionSettings
     /// <summary>How much every word trembles, in percent of the font size (0 to 20).</summary>
     public int Jitter { get; init; }
 
+    /// <summary>Each word's plate in the word's own colour, the word in ink.</summary>
+    public bool PlateTint { get; init; }
+
+    /// <summary>Plain words as outlines only; stressed words fill in.</summary>
+    public bool Hollow { get; init; }
+
+    /// <summary>Seconds a word stays before it drifts up and fades on its own (0 to 10; 0 keeps it with its cluster).</summary>
+    public int Dissolve { get; init; }
+
     public CaptionWordSource Words { get; init; } = CaptionWordSource.Automatic;
 
     /// <summary>How far the voice moves the words, in percent (25 to 300).</summary>
@@ -187,6 +208,7 @@ public sealed record KineticCaptionSettings
         Motion = Enum.IsDefined(Motion) ? Motion : CaptionMotionChoice.Pop,
         Tilt = Math.Clamp(Tilt, 0, 300),
         Jitter = Math.Clamp(Jitter, 0, 20),
+        Dissolve = Math.Clamp(Dissolve, 0, 10),
         Outline = Math.Clamp(Outline, 0, 200),
         Words = Enum.IsDefined(Words) ? Words : CaptionWordSource.Automatic,
         Energy = Math.Clamp(Energy, LeastEnergy, MostEnergy),

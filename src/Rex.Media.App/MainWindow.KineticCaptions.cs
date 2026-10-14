@@ -47,6 +47,8 @@ public sealed partial class MainWindow
     private CancellationTokenSource? _pictureScan;
     private string? _captionItem;
     private SubtitleTrack? _transcript;
+    private SubtitleTrack? _timed;
+    private (SubtitleTrack, Transcript, int)? _timedFor;
     private bool _captioning;
     private bool _toldNoWords;
     private TimeSpan _captionLast;
@@ -119,13 +121,35 @@ public sealed partial class MainWindow
         _ => _player.Subtitles is not null || _transcript is not null,
     };
 
-    /// <summary>The cues to animate at <paramref name="position"/>, from where the user chose.</summary>
+    /// <summary>
+    /// The cues to animate at <paramref name="position"/>, from where the user chose. With both a
+    /// subtitle track and a transcript, automatic takes the subtitles' words at the times the
+    /// transcript heard them, so every word lands on its syllable.
+    /// </summary>
     private IReadOnlyList<SubtitleCue> CaptionCues(TimeSpan position) => _settings.KineticCaptions.Words switch
     {
         CaptionWordSource.Transcript => _transcript?.At(position, _player.SubtitleDelay) ?? [],
         CaptionWordSource.Automatic when _player.Subtitles is null => _transcript?.At(position, _player.SubtitleDelay) ?? [],
+        CaptionWordSource.Automatic or CaptionWordSource.SubtitlesTimedByTranscript when TimedSubtitles() is { } timed => timed.At(position, _player.SubtitleDelay),
         _ => _player.SubtitlesAt(position),
     };
+
+    /// <summary>The subtitles shown, timed by the transcript; remade only when either changes (a track read from the media grows as it plays).</summary>
+    private SubtitleTrack? TimedSubtitles()
+    {
+        if (_heard is not { IsEmpty: false } heard || _player.Subtitles is not { } shown || shown == _transcript)
+        {
+            return null;
+        }
+
+        if (_timedFor != (shown, heard, shown.Count))
+        {
+            _timed = TranscriptAlignment.Time(shown, heard);
+            _timedFor = (shown, heard, shown.Count);
+        }
+
+        return _timed;
+    }
 
     private void OnCaptionRendering(object? sender, object e)
     {
@@ -376,9 +400,9 @@ public sealed partial class MainWindow
         var preset = Choice("Look", [.. presets.Select(CaptionPresets.Name)], presets.IndexOf(k.Preset));
         AutomationProperties.SetAutomationId(preset, "CaptionPreset");
         var about = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Text = CaptionPresets.Describe(k.Preset), Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] };
-        var font = Choice("Typeface (custom look)", ["Sans", "Serif", "Monospace", "Display", "Rounded"], (int)k.Font);
+        var font = Choice("Typeface (custom look)", ["Sans", "Serif", "Monospace", "Display", "Rounded", "Handwriting"], (int)k.Font);
         var wordCase = Choice("Case (custom look)", ["As said", "Lower case", "Capitals"], (int)k.Case);
-        var motion = Choice("Arrival (custom look)", ["Pop", "Slide", "Typewriter", "Bounce", "Drop"], (int)k.Motion);
+        var motion = Choice("Arrival (custom look)", ["Pop", "Slide", "Typewriter", "Bounce", "Drop", "Fade", "Stamp"], (int)k.Motion);
         var highlight = Check("Only the word being said is bright (custom look)", k.Highlight);
         var flicker = Check("A shout flickers as it lands (custom look)", k.Flicker);
         var tilt = Number("Tilt (%, custom look)", k.Tilt, 0, 300);
@@ -470,6 +494,7 @@ public sealed partial class MainWindow
         CaptionFont.Mono => "Consolas",
         CaptionFont.Display => "Impact",
         CaptionFont.Rounded => "Bahnschrift",
+        CaptionFont.Hand => "Segoe Print",
         _ => subtitleFont,
     };
 
@@ -511,12 +536,22 @@ public sealed partial class MainWindow
                 text.Children.Add(Text(word, fontSize, family, weight, new Argb(200, 40, 240, 255), fontSize * 0.06, 0));
             }
 
-            if (word.Backing.Outline > 0)
+            if (word.Hollow)
             {
-                AddCopies(text, word, fontSize, family, weight, word.PlateLight ? new Argb(60, 0, 0, 0) : new Argb(230, 0, 0, 0), outline);
+                // Outlines only: a dark halo, then the word's colour as a line, nothing inside.
+                AddCopies(text, word, fontSize, family, weight, new Argb(200, 0, 0, 0), outline * 1.8);
+                AddCopies(text, word, fontSize, family, weight, word.Color, outline);
+                text.Children.Add(Text(word, fontSize, family, weight, new Argb(0, 0, 0, 0), 0, 0));
             }
+            else
+            {
+                if (word.Backing.Outline > 0)
+                {
+                    AddCopies(text, word, fontSize, family, weight, word.PlateLight || word.PlateTint ? new Argb(60, 0, 0, 0) : new Argb(230, 0, 0, 0), outline);
+                }
 
-            text.Children.Add(Text(word, fontSize, family, weight, word.Color, 0, 0));
+                text.Children.Add(Text(word, fontSize, family, weight, word.PlateTint ? new Argb(255, 20, 20, 24) : word.Color, 0, 0));
+            }
             var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = fontSize * 0.2 };
             line.Children.Add(text);
             if (word.Glyph is { } glyph)
@@ -533,7 +568,7 @@ public sealed partial class MainWindow
             var size = root.DesiredSize;
             flash.Margin = new Thickness(-size.Width * 0.25, -size.Height * 0.45, -size.Width * 0.25, -size.Height * 0.45);
             var view = new CaptionView(root, plate, flash, fontSize, word.Text);
-            view._plateBrush.Color = word.PlateLight ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
+            view._plateBrush.Color = word.PlateTint ? Windows.UI.Color.FromArgb(255, word.Color.R, word.Color.G, word.Color.B) : word.PlateLight ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
             return view;
         }
 

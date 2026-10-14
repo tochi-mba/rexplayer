@@ -20,6 +20,12 @@ public enum CaptionLayout
 
     /// <summary>Every word somewhere of its own on the picture, like confetti.</summary>
     Confetti,
+
+    /// <summary>One line sliding steadily leftward along the bottom, as a news ticker runs.</summary>
+    Ticker,
+
+    /// <summary>Each word a step up and to the right of the one before, climbing from the lower left.</summary>
+    Stairs,
 }
 
 /// <summary>The kind of typeface words are set in.</summary>
@@ -34,6 +40,9 @@ public enum CaptionFont
 
     /// <summary>A rounded, friendly face.</summary>
     Rounded,
+
+    /// <summary>A handwritten face, as a marker pen writes.</summary>
+    Hand,
 }
 
 /// <summary>How words are cased: as the voice says (shouts in capitals, hushes in lower case), all lower, or all capitals.</summary>
@@ -61,6 +70,12 @@ public enum CaptionMotion
 
     /// <summary>Falls in from above.</summary>
     Drop,
+
+    /// <summary>Fades up from nothing, settling from a little large.</summary>
+    Fade,
+
+    /// <summary>Comes down hard from far too big, as a rubber stamp lands.</summary>
+    Stamp,
 }
 
 /// <summary>
@@ -74,7 +89,10 @@ public enum CaptionMotion
 /// shows only the word being said; <see cref="Flat"/> sizes and colours every word alike, whatever the
 /// voice did; <see cref="Cursor"/> blinks a cursor after the last word typed; <see cref="Split"/> draws
 /// the word's red and cyan apart, as a broken feed; <see cref="Jitter"/> keeps every word trembling, in
-/// base font sizes.
+/// base font sizes. <see cref="PlateTint"/> colours each word's plate in the word's own colour and
+/// sets the word in ink; <see cref="Hollow"/> draws plain words as outlines only, filling in the
+/// stressed ones; <see cref="Dissolve"/> is the seconds a word stays before it drifts up and fades
+/// of its own accord (0: it stays with its cluster).
 /// </summary>
 public sealed record CaptionStyle(
     Argb Text,
@@ -99,7 +117,10 @@ public sealed record CaptionStyle(
     bool Flat = false,
     bool Cursor = false,
     bool Split = false,
-    double Jitter = 0)
+    double Jitter = 0,
+    bool PlateTint = false,
+    bool Hollow = false,
+    double Dissolve = 0)
 {
     /// <summary>White text, a gold accent, warm stress colours, full energy, scattered, with glyphs, shouts in capitals, clear of what matters.</summary>
     public static CaptionStyle Default { get; } = new(new Argb(255, 255, 255, 255), new Argb(255, 255, 180, 0), VisualPalette.Warm, 1, CaptionLayout.Scatter, true, true);
@@ -140,7 +161,9 @@ public sealed record CaptionWord(
     double OffsetY = 0,
     bool Lit = true,
     bool PlateLight = false,
-    bool Split = false);
+    bool Split = false,
+    bool PlateTint = false,
+    bool Hollow = false);
 
 /// <summary>
 /// Turns the words as they come in, with how each was said, into where and how they show
@@ -174,6 +197,12 @@ public sealed class CaptionChoreography
 
     /// <summary>Words living at once before the oldest leave.</summary>
     public const int MostWords = 14;
+
+    /// <summary>How long a dissolving word takes to fade once its time is up.</summary>
+    public const double DissolveSeconds = 0.6;
+
+    /// <summary>How fast a ticker runs, in widths of the area a second.</summary>
+    public const double TickerSpeed = 0.18;
 
     /// <summary>The smallest a word is drawn, as a share of the caption area's height, so it always reads.</summary>
     public const double SmallestShare = 0.028;
@@ -277,14 +306,19 @@ public sealed class CaptionChoreography
         };
 
         var glyph = _style.Glyphs ? CaptionGlyphs.For(word.Text) : null;
-        var widthEm = (0.58 * text.Length) + (glyph is null ? 0 : 1.3);
+        var widthEm = WidthEm(text, _style.Font, word.Style.Bold || stress is Stress.Shout or Stress.Peak) + (glyph is null ? 0 : 1.3) + (_style.PlateAlways ? 0.4 : 0);
         var own = stress is Stress.Shout or Stress.Peak;
         var loud = stress is Stress.Peak ? 1 : Math.Clamp((frame.Loudness - 0.6) / 0.4, 0, 1);
         var rgb = (_style.Accent.R << 16) | (_style.Accent.G << 8) | _style.Accent.B;
         var color = word.Style.Color is { } fromFile ? Argb.From(fromFile, 100)
             : own ? Visualizers.PaletteColor(_style.Palette, loud, seconds, _style.Accent, rgb)
             : lilt ? _style.Accent
+            : _style.PlateTint ? (_style.Palette == VisualPalette.Rainbow ? Pastel(Visualizers.PaletteColor(VisualPalette.Rainbow, (_nextId % 7) / 7.0, 0, _style.Accent, rgb)) : _style.Accent)
             : _style.Text;
+        if (_style.PlateTint && own)
+        {
+            color = Pastel(color);
+        }
 
         var placed = new Placed(_nextId++, text, stress, lilt, stretched, seconds, widthEm, size, color, glyph, word.Style.Italic || lilt, lilt, word.Style.Bold || own, own) { Lit = lit };
         _words.Add(placed);
@@ -338,6 +372,10 @@ public sealed class CaptionChoreography
     public IReadOnlyList<CaptionWord> Scene(double seconds, Area area, double fontSize, float pace = 0, PictureSpace? picture = null)
     {
         _words.RemoveAll(word => word.Died is { } died && seconds - died >= FadeSeconds);
+        if (_style.Dissolve > 0)
+        {
+            _words.RemoveAll(word => seconds - word.Born >= _style.Dissolve + DissolveSeconds);
+        }
         if (_words.Count == 0 || area.Width <= 0 || area.Height <= 0)
         {
             return [];
@@ -345,10 +383,20 @@ public sealed class CaptionChoreography
 
         var em = Math.Max(Math.Max(1, fontSize), area.Height * SmallestShare / 0.8);
         var tight = Math.Clamp((pace - 3) / 4, 0, 1);
-        var rowGap = 1.2 - (0.25 * tight);
+        var rowGap = (_style.PlateAlways ? 1.5 : 1.2) - (0.25 * tight);
         if (_style.Layout == CaptionLayout.Confetti)
         {
             return Confetti(seconds, area, em, picture);
+        }
+
+        if (_style.Layout == CaptionLayout.Ticker)
+        {
+            return Ticker(seconds, area, em, picture);
+        }
+
+        if (_style.Layout == CaptionLayout.Stairs)
+        {
+            return Stairs(seconds, area, em, picture);
         }
 
         var rows = Flow(em, area.Width * RowShare);
@@ -424,6 +472,72 @@ public sealed class CaptionChoreography
 
     private bool Centred => _style.Layout is CaptionLayout.Stack or CaptionLayout.Centre;
 
+    /// <summary>
+    /// One line along the bottom, every word in the order said, the whole line sliding left at a
+    /// steady pace from the right edge; a word that has slid off the left is gone.
+    /// </summary>
+    private IReadOnlyList<CaptionWord> Ticker(double seconds, Area area, double em, PictureSpace? picture)
+    {
+        var scene = new List<CaptionWord>(_words.Count);
+        var height = 1.4 * em;
+        var centreY = area.Height - (height * 0.9);
+        var x = 0.0;
+        var first = _words.Count > 0 ? _words[0].Born : seconds;
+        var origin = area.Width - ((seconds - first) * TickerSpeed * area.Width);
+        foreach (var word in _words)
+        {
+            var width = word.WidthEm * em;
+            var left = origin + x;
+            if (left + width < 0)
+            {
+                word.Died ??= seconds;
+            }
+
+            scene.Add(Draw(new Slot(word, 1, width, 0.6 * em), left, centreY, seconds, em, area, picture));
+            x += width + (0.6 * em);
+        }
+
+        return scene;
+    }
+
+    /// <summary>
+    /// Each word a step above and to the right of the one before, climbing from the lower left;
+    /// when the stairs reach the top the oldest step leaves and the rest shift down.
+    /// </summary>
+    private IReadOnlyList<CaptionWord> Stairs(double seconds, Area area, double em, PictureSpace? picture)
+    {
+        var scene = new List<CaptionWord>(_words.Count);
+        var living = _words.Where(word => word.Died is null).ToList();
+        var step = 1.3 * em;
+        var most = Math.Max(2, (int)((area.Height * 0.7) / step));
+        var overflow = Math.Max(0, living.Count - most);
+        for (var i = 0; i < overflow; i++)
+        {
+            living[i].Died ??= living[i + most].Born;
+        }
+
+        var bottom = area.Height * 0.86;
+        var ordered = _words.ToList();
+        var index = 0;
+        foreach (var word in ordered)
+        {
+            var size = Math.Min(word.Size, (area.Width * 0.5) / Math.Max(1e-9, word.WidthEm * em));
+            var width = word.WidthEm * size * em;
+            var left = Math.Clamp((area.Width * 0.06) + (index * 1.4 * em), 0, Math.Max(0, area.Width - width));
+            var centreY = bottom - (index * step);
+            scene.Add(Draw(new Slot(word, size, width, 0), left, centreY, seconds, em, area, picture));
+            if (word.Died is null)
+            {
+                index++;
+            }
+        }
+
+        return scene;
+    }
+
+    /// <summary>A colour softened toward white, for a plate dark text reads on.</summary>
+    public static Argb Pastel(Argb color) => new(255, (byte)(color.R + ((255 - color.R) * 0.55)), (byte)(color.G + ((255 - color.G) * 0.55)), (byte)(color.B + ((255 - color.B) * 0.55)));
+
     /// <summary>Every word at a spot of its own, chosen when it arrives and kept, clear of faces where the picture is read; each in its own hue.</summary>
     private IReadOnlyList<CaptionWord> Confetti(double seconds, Area area, double em, PictureSpace? picture)
     {
@@ -434,11 +548,8 @@ public sealed class CaptionChoreography
             var (width, height) = (word.WidthEm * size * em, size * em * 1.2);
             if (word.Spot is null)
             {
-                // Somewhere of its own, by its number, kept off what matters when the picture is read.
-                var seed = (word.Id * 2654435761u) % 1000 / 1000.0;
-                var seed2 = (word.Id * 40503u + 7919u) % 1000 / 1000.0;
-                var preferred = (X: 0.08 + (seed * (0.84 - (width / area.Width))), Y: 0.08 + (seed2 * (0.84 - (height / area.Height))));
-                word.Spot = _style.AvoidPicture && picture is not null ? picture.Place(width / area.Width, height / area.Height, preferred) : preferred;
+                word.Spot = ConfettiSpot(word, width / area.Width, height / area.Height, picture);
+                word.SpotSize = (width / area.Width, height / area.Height);
             }
 
             var slot = new Slot(word, size, width, 0);
@@ -449,6 +560,80 @@ public sealed class CaptionChoreography
         }
 
         return scene;
+    }
+
+    /// <summary>
+    /// Where a confetti word lands: of a dozen spots chosen by its number, the one that overlaps the
+    /// words already placed least (none, where there is room), and then, where the picture is read,
+    /// the clearest place near it.
+    /// </summary>
+    private (double X, double Y) ConfettiSpot(Placed word, double width, double height, PictureSpace? picture)
+    {
+        var others = _words.Where(other => other != word && other.Spot is not null && other.Died is null).ToList();
+        // A spot of its own by its number, then the nearest place on a fine grid that overlaps no other word and no face.
+        var seed = ((uint)word.Id * 2654435761u) % 1000 / 1000.0;
+        var seed2 = ((uint)word.Id * 40503u + 7919u) % 1000 / 1000.0;
+        var wish = (X: 0.06 + (seed * Math.Max(0, 0.88 - width)), Y: 0.06 + (seed2 * Math.Max(0, 0.88 - height)));
+        var best = wish;
+        var least = double.MaxValue;
+        const int Columns = 24;
+        const int Rows = 32;
+        for (var row = 0; row <= Rows; row++)
+        {
+            for (var column = 0; column <= Columns; column++)
+            {
+                var spot = (X: 0.04 + ((0.92 - width) * column / Columns), Y: 0.04 + ((0.92 - height) * row / Rows));
+                if (spot.X < 0 || spot.Y < 0)
+                {
+                    continue;
+                }
+
+                var overlap = others.Sum(other => Overlap(spot, (width, height), other.Spot!.Value, other.SpotSize));
+                var covered = _style.AvoidPicture && picture is not null && picture.CoversAFace(spot.X, spot.Y, width, height) ? 1 : 0;
+                var distance = Math.Abs(spot.X - wish.X) + Math.Abs(spot.Y - wish.Y);
+                var cost = (overlap * 40) + covered + (distance * 0.5);
+                if (cost < least - 1e-9)
+                {
+                    (least, best) = (cost, spot);
+                }
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>How much of two boxes (shares of the area) lies over each other, as a share of the area.</summary>
+    private static double Overlap((double X, double Y) a, (double Width, double Height) sizeA, (double X, double Y) b, (double Width, double Height) sizeB)
+    {
+        var across = Math.Min(a.X + sizeA.Width, b.X + sizeB.Width) - Math.Max(a.X, b.X);
+        var down = Math.Min(a.Y + sizeA.Height, b.Y + sizeB.Height) - Math.Max(a.Y, b.Y);
+        return across > 0 && down > 0 ? across * down : 0;
+    }
+
+    /// <summary>
+    /// How wide <paramref name="text"/> is, in base font sizes, in a typeface of this kind: capitals
+    /// and bold run wider than lower case, a serif's capitals widest, a monospace face the same for
+    /// every letter, a condensed display face narrowest.
+    /// </summary>
+    public static double WidthEm(string text, CaptionFont font, bool bold)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        double total = 0;
+        foreach (var c in text)
+        {
+            var upper = char.IsUpper(c);
+            total += font switch
+            {
+                CaptionFont.Mono => 0.6,
+                CaptionFont.Display => upper ? 0.56 : 0.48,
+                CaptionFont.Serif => upper ? 0.76 : 0.56,
+                CaptionFont.Rounded => upper ? 0.66 : 0.55,
+                CaptionFont.Hand => upper ? 0.72 : 0.6,
+                _ => char.IsWhiteSpace(c) ? 0.3 : upper ? 0.7 : 0.56,
+            } * (bold && font != CaptionFont.Mono ? 1.08 : 1);
+        }
+
+        return total;
     }
 
     private CaptionWord Draw(Slot slot, double left, double centreY, double seconds, double em, Area area, PictureSpace? picture)
@@ -475,9 +660,20 @@ public sealed class CaptionChoreography
             offsetY += _style.Jitter * Math.Cos((seconds * 41) + (word.Id * 3));
         }
 
-        if (_style.Motion is CaptionMotion.Slide or CaptionMotion.Drop)
+        if (_style.Motion is CaptionMotion.Slide or CaptionMotion.Drop or CaptionMotion.Fade)
         {
             opacity *= arriving;
+        }
+        else if (_style.Motion is CaptionMotion.Stamp)
+        {
+            opacity *= Math.Min(1, arriving * 3);
+        }
+
+        if (_style.Dissolve > 0 && word.Died is null)
+        {
+            // Of its own accord: the word drifts up as it goes.
+            opacity *= Math.Clamp(1 - ((age - _style.Dissolve) / DissolveSeconds), 0, 1);
+            offsetY -= 0.12 * Math.Max(0, age);
         }
 
         if (_style.Highlight && word.Died is null && word != _words.Last(w => w.Died is null))
@@ -495,7 +691,18 @@ public sealed class CaptionChoreography
         var rotation = _style.Tilt * (word.Own ? ((word.Id % 5) - 2) * 1.5 : word.Lilt ? -2 : 0);
         var height = slot.Size * em;
         var behind = picture?.Behind(left / area.Width, (centreY - (height / 2)) / area.Height, slot.Width / area.Width, height / area.Height) ?? new Backing(0.6, 0);
-        var backing = new Backing(Math.Clamp(behind.Outline * _style.Outline, 0, 2), _style.PlateAlways ? Math.Max(behind.Plate, _style.PlateLight ? 0.92 : 0.55) : behind.Plate);
+        var backing = new Backing(Math.Clamp(behind.Outline * _style.Outline, 0, 2), _style.PlateAlways ? Math.Max(behind.Plate, _style.PlateLight || _style.PlateTint ? 0.92 : 0.55) : behind.Plate);
+        // Whatever the look, a word always has something keeping it readable: an outline where there is no plate, and a plate behind hollow letters over a busy picture.
+        if (!_style.PlateLight && !_style.PlateTint && backing.Plate < 0.35 && backing.Outline < 0.45)
+        {
+            backing = backing with { Outline = 0.6 };
+        }
+
+        if (_style.Hollow && !word.Own && behind.Plate > 0 && backing.Plate < 0.4)
+        {
+            backing = backing with { Plate = 0.4 };
+        }
+
         return new CaptionWord(
             word.Id,
             text,
@@ -520,7 +727,9 @@ public sealed class CaptionChoreography
             offsetY,
             word.Lit,
             _style.PlateLight,
-            _style.Split);
+            _style.Split,
+            _style.PlateTint,
+            _style.Hollow && !word.Own);
     }
 
     /// <summary>
@@ -545,6 +754,10 @@ public sealed class CaptionChoreography
             case CaptionMotion.Typewriter:
                 var shown = age < 0 ? 0 : Math.Min(text.Length, 1 + (int)(age / 0.035));
                 return (1, 0, 0, shown >= text.Length ? text : text[..shown]);
+            case CaptionMotion.Fade:
+                return (1 + (0.15 * (1 - t)), 0, 0, text);
+            case CaptionMotion.Stamp:
+                return (1 + (1.4 * (1 - t) * (1 - t)), 0, 0, text);
             default:
                 return (Pop(t), 0, 0, text);
         }
@@ -606,6 +819,8 @@ public sealed class CaptionChoreography
         public bool Lit { get; set; } = true;
 
         public (double X, double Y)? Spot { get; set; }
+
+        public (double Width, double Height) SpotSize { get; set; }
 
         public double WidthEm { get; } = widthEm;
 
