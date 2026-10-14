@@ -19,6 +19,7 @@ namespace Rex.Media.Windows.Tests.Perf;
 /// noise only ever slows a pass down.
 /// </summary>
 [Trait("Category", "Perf")]
+[Collection("Performance measurements")]
 [System.Runtime.Versioning.SupportedOSPlatform("windows8.0")]
 public sealed class ExperiencePerfTests
 {

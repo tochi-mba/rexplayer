@@ -19,6 +19,7 @@ namespace Rex.Media.Windows.Tests.Perf;
 /// ./dev.ps1 perf; record a lane's baselines with REXPLAYER_WRITE_PERF=1.
 /// </summary>
 [Trait("Category", "Perf")]
+[Collection("Performance measurements")]
 public sealed class PerfTests
 {
     private static readonly TimeSpan Budget = TimeSpan.FromSeconds(1);
