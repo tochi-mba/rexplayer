@@ -42,10 +42,6 @@ public sealed class SubjectRemoval
     // pixels, at most four times smaller, which keeps every subject's cost within a frame's time.
     private const long WorkingBox = 24_000;
     private const int MostScale = 4;
-    // How much further than the recorded area a reduced copy is made, in its pixels, so a camera
-    // that speeds up between pictures still finds its area made.
-    private const int Headroom = 16;
-
     private const byte Outside = 0;
     private const byte Seen = 1;
     private const byte Seeded = 2;
@@ -247,7 +243,7 @@ public sealed class SubjectRemoval
             // A large subject: everything below works on a reduced copy, drawn back at full size.
             box = (box.Left / scale, box.Top / scale, (box.Right + scale - 1) / scale, (box.Bottom + scale - 1) / scale);
             feather = (feather + scale - 1) / scale;
-            frame = Reduce(picture, box);
+            frame = Reduce(picture);
         }
 
         if (_plate.Width != frame.Width || _plate.Height != frame.Height)
@@ -544,11 +540,9 @@ public sealed class SubjectRemoval
     }
 
     /// <summary>
-    /// The reduced copy of the picture, kept from picture to picture. Only the part around the
-    /// subject that the removal reads is made: the area whose background is recorded, with room for
-    /// the camera to speed up; the fill reads further only when its hole needs to.
+    /// The reduced copy of the picture, kept from picture to picture.
     /// </summary>
-    private VideoFrame Reduce(VideoFrame picture, (int Left, int Top, int Right, int Bottom) box)
+    private VideoFrame Reduce(VideoFrame picture)
     {
         var (width, height) = (picture.Width / _scale, picture.Height / _scale);
         if (_small is null || _small.Width != width || _small.Height != height)
@@ -559,8 +553,11 @@ public sealed class SubjectRemoval
 
         _small.Pts = picture.Pts;
         _picture = picture;
-        _reduced = Expand(Interest(_small, box), 0, 0, Headroom, _small);
-        SubjectRemovalScaling.Reduce(picture, _small, _scale, _reduced);
+        // Motion and plate sampling can reach beyond today's interest area. Making the complete
+        // reduced picture preserves those sources; partial rows left stale produced visible fill
+        // errors when a large subject moved across them.
+        _reduced = (0, 0, width, height);
+        SubjectRemovalScaling.Reduce(picture, _small, _scale);
         return _small;
     }
 
