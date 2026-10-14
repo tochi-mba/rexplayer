@@ -5,9 +5,17 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+## 0.25.0 - 2026-10-15
+
+### Added
+
+- **Play AVI videos through Windows decoders.** Open AVI movie files with XviD/MPEG-4,
+  Motion JPEG or H.264 video and their audio tracks. rexplayer reads RIFF and AVIX segments,
+  uses older file indexes to seek to keyframes, and scans files without an index.
+
 ### Improved
 
-- **Uninterrupted caption playback mode.** With *Hold for subtitles* enabled, rexplayer now
+- **Uninterrupted caption playback mode.** With *Wait for subtitles before playing* enabled, rexplayer now
   waits for the predicted amount of caption coverage needed to watch the remainder without
   rebuffering, based on conservative transcription speed, playback speed and remaining duration.
   It no longer resumes after an arbitrary 90-second maximum. An empty new transcript holds
@@ -16,6 +24,14 @@ pipeline the moment its number reaches `main`.
 - **Caption preparation overlay.** When playback waits for captions, a clear message over the
   picture shows how much subtitle coverage is ready and how much is needed. **Play now** lets
   you start immediately rather than wait for the target.
+- **A clearer choice for subtitle waiting.** Preferences now gives the existing opt-in
+  setting its own plain-language explanation, including the possibility of a long wait.
+  The same setting controls the new overlay rather than adding a second toggle.
+- **The Z shortcut follows what is showing.** While a video or picture is on screen,
+  Z moves to the next picture effect and wraps back to Off; for audio-only playback,
+  Z continues to move between music visualisations.
+- **Audio follows Windows' multimedia output.** Music and videos use the default
+  playback device for multimedia, even when Windows routes console sounds elsewhere.
 
 ## 0.24.1 - 2026-10-14
 
