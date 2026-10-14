@@ -5,16 +5,17 @@ using Rex.Media.Primitives;
 namespace Rex.Media.Video;
 
 /// <summary>
-/// A large subject's removal runs on a half-size copy of the picture and is drawn back at full size.
+/// A large subject's removal runs on a reduced copy of the picture, two, three or four times
+/// smaller, and is drawn back at full size.
 /// <para>
-/// The copy is a two-by-two box average. Drawing back blends each full-size pixel from the four
-/// nearest half-size ones with the bilinear weights of a two-times enlargement (a quarter and three
-/// quarters along each axis). Where those four disagree on how much of the subject to hide, the
-/// boundary, the opacity is upsampled jointly with the full-size picture as the guide (Kopf, Cohen,
-/// Lischinski and Uyttendaele, "Joint Bilateral Upsampling", SIGGRAPH 2007): a half-size pixel
-/// counts for more the closer its colour is to the full-size pixel's, so the soft edge follows the
-/// picture's real edge rather than the half-size grid. Inside the hole every pixel takes the
-/// enlarged fill, and outside it the picture is left exactly as it was.
+/// The copy averages each block: all four pixels of a two-by-two block, and for larger blocks four
+/// pixels spread evenly over it. Drawing back blends each full-size pixel from the four nearest
+/// reduced ones with bilinear weights. Where those four disagree on how much of the subject to
+/// hide, the boundary, the opacity is upsampled jointly with the full-size picture as the guide
+/// (Kopf, Cohen, Lischinski and Uyttendaele, "Joint Bilateral Upsampling", SIGGRAPH 2007): a
+/// reduced pixel counts for more the closer its colour is to the full-size pixel's, so the soft
+/// edge follows the picture's real edge rather than the reduced grid. Inside the hole every pixel
+/// takes the enlarged fill, and outside it the picture is left exactly as it was.
 /// </para>
 /// </summary>
 public static class SubjectRemovalScaling
@@ -36,30 +37,33 @@ public static class SubjectRemovalScaling
     }
 
     /// <summary>
-    /// Fills <paramref name="half"/> (BGRA, half the size of <paramref name="frame"/> rounded down)
-    /// with the mean of each two-by-two block of <paramref name="frame"/>, rounded half up.
+    /// Fills <paramref name="small"/> (BGRA, <paramref name="scale"/> times smaller than
+    /// <paramref name="frame"/>, rounded down) with the rounded mean of four pixels of each block:
+    /// the whole block when it is two by two, else four spread evenly over it.
     /// </summary>
-    public static void Halve(VideoFrame frame, VideoFrame half)
+    public static void Reduce(VideoFrame frame, VideoFrame small, int scale)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        ArgumentNullException.ThrowIfNull(half);
-        if (half.Width != frame.Width / 2 || half.Height != frame.Height / 2)
+        ArgumentNullException.ThrowIfNull(small);
+        if (scale < 2 || small.Width != frame.Width / scale || small.Height != frame.Height / scale)
         {
-            throw new ArgumentException("The half-size picture must be half the picture's size.", nameof(half));
+            throw new ArgumentException("The reduced picture must be the picture's size divided by a scale of two or more.", nameof(small));
         }
 
         var source = MemoryMarshal.Cast<byte, uint>(frame.Plane(0));
-        var target = MemoryMarshal.Cast<byte, uint>(half.Plane(0));
-        var (inStride, outStride) = (frame.Stride(0) / 4, half.Stride(0) / 4);
-        var width = half.Width;
-        for (var y = 0; y < half.Height; y++)
+        var target = MemoryMarshal.Cast<byte, uint>(small.Plane(0));
+        var (inStride, outStride) = (frame.Stride(0) / 4, small.Stride(0) / 4);
+        var width = small.Width;
+        // The two sample offsets inside a block, along each axis: 0 and 1 for two, else a quarter in from either side.
+        var (near, far) = (scale / 4, scale - 1 - scale / 4);
+        for (var y = 0; y < small.Height; y++)
         {
-            var top = source.Slice(2 * y * inStride, 2 * width);
-            var bottom = source.Slice((2 * y + 1) * inStride, 2 * width);
+            var top = source.Slice((scale * y + near) * inStride, frame.Width);
+            var bottom = source.Slice((scale * y + far) * inStride, frame.Width);
             var row = target.Slice(y * outStride, width);
             var x = 0;
-            // Eight half-size pixels at a time: blue and red, then green and alpha, each in 16-bit lanes.
-            for (; Vector256.IsHardwareAccelerated && x + 8 <= width; x += 8)
+            // Two by two, eight reduced pixels at a time: blue and red, then green and alpha, each in 16-bit lanes.
+            for (; scale == 2 && Vector256.IsHardwareAccelerated && x + 8 <= width; x += 8)
             {
                 var a = Vector256.Create(top.Slice(2 * x, 8));
                 var b = Vector256.Create(top.Slice(2 * x + 8, 8));
@@ -67,7 +71,6 @@ public static class SubjectRemovalScaling
                 var d = Vector256.Create(bottom.Slice(2 * x + 8, 8));
                 var evens = Vector256.Create(0u, 2, 4, 6, 0, 2, 4, 6);
                 var odds = Vector256.Create(1u, 3, 5, 7, 1, 3, 5, 7);
-                // Left and right pixels of each block, the first four blocks from a and c, the rest from b and d.
                 var left = Join(Vector256.Shuffle(a, evens), Vector256.Shuffle(b, evens));
                 var right = Join(Vector256.Shuffle(a, odds), Vector256.Shuffle(b, odds));
                 var lowerLeft = Join(Vector256.Shuffle(c, evens), Vector256.Shuffle(d, evens));
@@ -82,63 +85,98 @@ public static class SubjectRemovalScaling
 
             for (; x < width; x++)
             {
-                row[x] = Average(top[2 * x], top[2 * x + 1], bottom[2 * x], bottom[2 * x + 1]);
+                var (left, right) = (scale * x + near, scale * x + far);
+                row[x] = Average(top[left], top[right], bottom[left], bottom[right]);
             }
         }
     }
 
+    /// <summary>The low halves of two vectors, one after the other.</summary>
+    private static Vector256<uint> Join(Vector256<uint> low, Vector256<uint> high) =>
+        Vector256.Create(low.GetLower(), high.GetLower());
+
+    /// <summary>The rounded mean of four packed BGRA pixels, alpha included.</summary>
+    internal static uint Average(uint a, uint b, uint c, uint d)
+    {
+        const uint Mask = 0x00FF00FF;
+        var blueRed = (a & Mask) + (b & Mask) + (c & Mask) + (d & Mask) + 0x00020002;
+        var greenAlpha = ((a >> 8) & Mask) + ((b >> 8) & Mask) + ((c >> 8) & Mask) + ((d >> 8) & Mask) + 0x00020002;
+        return ((blueRed >> 2) & Mask) | (((greenAlpha >> 2) & Mask) << 8);
+    }
+
     /// <summary>
-    /// Draws a removal worked out on the half-size picture <paramref name="half"/> into the full-size
-    /// <paramref name="output"/>, which already holds <paramref name="frame"/>. <paramref name="area"/>
-    /// is the half-size area the removal covers; <paramref name="alpha"/> and <paramref name="fill"/>
-    /// hold its opacity and fill colour (packed BGR) row by row. Opacity and fill are blended
-    /// premultiplied, so a half-size pixel left untouched lends no colour to its neighbours' fill.
-    /// With <paramref name="estimate"/> (full size), every pixel whose nearest half-size pixel is
-    /// marked in <paramref name="estimated"/> takes the estimate's own full-size colour instead.
+    /// Draws a removal worked out on the reduced picture <paramref name="small"/>, <paramref name="scale"/>
+    /// times smaller, into the full-size <paramref name="output"/>, which already holds
+    /// <paramref name="frame"/>. <paramref name="area"/> is the reduced area the removal covers;
+    /// <paramref name="alpha"/> and <paramref name="fill"/> hold its opacity and fill colour (packed
+    /// BGR) row by row. Opacity and fill are blended premultiplied, so a reduced pixel left untouched
+    /// lends no colour to its neighbours' fill. With <paramref name="estimate"/> (full size), every
+    /// pixel whose nearest reduced pixel is marked in <paramref name="estimated"/> takes the
+    /// estimate's own colour instead. <paramref name="columns"/> is scratch space of at least three
+    /// values for each full-size column of the area.
     /// </summary>
-    public static void Enlarge(VideoFrame frame, VideoFrame half, VideoFrame output, (int Left, int Top, int Right, int Bottom) area,
-        ReadOnlySpan<byte> alpha, ReadOnlySpan<uint> fill, VideoFrame? estimate = null, ReadOnlySpan<bool> estimated = default)
+    public static void Enlarge(VideoFrame frame, VideoFrame small, VideoFrame output, int scale,
+        (int Left, int Top, int Right, int Bottom) area, ReadOnlySpan<byte> alpha, ReadOnlySpan<uint> fill, Span<int> columns,
+        VideoFrame? estimate = null, ReadOnlySpan<bool> estimated = default)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        ArgumentNullException.ThrowIfNull(half);
+        ArgumentNullException.ThrowIfNull(small);
         ArgumentNullException.ThrowIfNull(output);
         var areaWidth = area.Right - area.Left;
-        if (areaWidth <= 0 || area.Bottom <= area.Top)
+        var areaHeight = area.Bottom - area.Top;
+        if (areaWidth <= 0 || areaHeight <= 0)
         {
             return;
         }
 
         var source = MemoryMarshal.Cast<byte, uint>(frame.Plane(0));
-        var guide = MemoryMarshal.Cast<byte, uint>(half.Plane(0));
+        var guide = MemoryMarshal.Cast<byte, uint>(small.Plane(0));
         var target = MemoryMarshal.Cast<byte, uint>(output.Plane(0));
-        var (inStride, halfStride, outStride) = (frame.Stride(0) / 4, half.Stride(0) / 4, output.Stride(0) / 4);
-        var bottom = Math.Min(frame.Height, 2 * area.Bottom);
-        var areaHeight = area.Bottom - area.Top;
-        for (var y = 2 * area.Top; y < bottom; y++)
+        var (inStride, smallStride, outStride) = (frame.Stride(0) / 4, small.Stride(0) / 4, output.Stride(0) / 4);
+        var (left, right) = (scale * area.Left, Math.Min(frame.Width, scale * area.Right));
+        var bottom = Math.Min(frame.Height, scale * area.Bottom);
+        // Each full-size column's two reduced neighbours (as places in the area's rows) and the
+        // second one's weight in sixteenths, worked out once for every row.
+        for (var x = left; x < right; x++)
         {
-            // A full-size row lies a quarter of a half-size row from the nearer of its two neighbours.
-            var near = (y >> 1) - area.Top;
-            var far = Math.Clamp((y & 1) == 0 ? near - 1 : near + 1, 0, areaHeight - 1);
-            var rows = new Rows(alpha.Slice(near * areaWidth, areaWidth), alpha.Slice(far * areaWidth, areaWidth),
-                fill.Slice(near * areaWidth, areaWidth), fill.Slice(far * areaWidth, areaWidth),
-                guide.Slice((near + area.Top) * halfStride + area.Left, areaWidth), guide.Slice((far + area.Top) * halfStride + area.Left, areaWidth),
-                estimate is null ? default : estimated.Slice(near * areaWidth, areaWidth));
-            var picture = source.Slice(y * inStride + 2 * area.Left, Math.Min(frame.Width, 2 * area.Right) - 2 * area.Left);
-            var drawn = target.Slice(y * outStride + 2 * area.Left, picture.Length);
-            var better = estimate is null ? default : MemoryMarshal.Cast<byte, uint>(estimate.Row(0, y)).Slice(2 * area.Left, picture.Length);
-            // Only the stretch of the two rows where either hides anything, a pixel either side.
-            var (first, last) = Stretch(rows.NearAlpha, rows.FarAlpha);
-            for (var i = Math.Max(0, first - 1); i <= Math.Min(areaWidth - 1, last + 1); i++)
+            var (first, weight) = Position(x, scale, area.Left, areaWidth);
+            (columns[3 * (x - left)], columns[3 * (x - left) + 1], columns[3 * (x - left) + 2]) =
+                (first, Math.Min(first + 1, areaWidth - 1), weight);
+        }
+
+        for (var y = scale * area.Top; y < bottom; y++)
+        {
+            var (upper, down) = Position(y, scale, area.Top, areaHeight);
+            var lower = Math.Min(upper + 1, areaHeight - 1);
+            var rows = new Rows(alpha.Slice(upper * areaWidth, areaWidth), alpha.Slice(lower * areaWidth, areaWidth),
+                fill.Slice(upper * areaWidth, areaWidth), fill.Slice(lower * areaWidth, areaWidth),
+                guide.Slice((upper + area.Top) * smallStride + area.Left, areaWidth), guide.Slice((lower + area.Top) * smallStride + area.Left, areaWidth),
+                estimate is null ? default : estimated.Slice((down >= 8 ? lower : upper) * areaWidth, areaWidth), down);
+            var picture = source.Slice(y * inStride + left, right - left);
+            var drawn = target.Slice(y * outStride + left, right - left);
+            var better = estimate is null ? default : MemoryMarshal.Cast<byte, uint>(estimate.Row(0, y)).Slice(left, right - left);
+            // Only the stretch of the two rows where either hides anything, a reduced pixel either side.
+            var (first, last) = Stretch(rows.UpperAlpha, rows.LowerAlpha);
+            var from = Math.Max(0, (first - 1) * scale);
+            var to = Math.Min(right - left, (last + 2) * scale);
+            for (var x = from; x < to; x++)
             {
-                // Full-size pixel 2i lies a quarter of a pixel from half-size pixel i towards i - 1,
-                // and pixel 2i + 1 towards i + 1.
-                Draw(rows, i, Math.Max(0, i - 1), picture, drawn, better, 2 * i);
-                if (2 * i + 1 < picture.Length)
-                {
-                    Draw(rows, i, Math.Min(areaWidth - 1, i + 1), picture, drawn, better, 2 * i + 1);
-                }
+                Draw(rows, columns[3 * x], columns[3 * x + 1], columns[3 * x + 2], picture, drawn, better, x);
             }
         }
+    }
+
+    /// <summary>
+    /// Where the full-size pixel <paramref name="at"/> falls between reduced pixels: the first of its
+    /// two neighbours, counted from <paramref name="start"/> and kept within <paramref name="count"/>,
+    /// and the second one's weight in sixteenths.
+    /// </summary>
+    private static (int First, int Weight) Position(int at, int scale, int start, int count)
+    {
+        var place = (at + 0.5f) / scale - 0.5f - start;
+        var first = (int)MathF.Floor(place);
+        var weight = (int)MathF.Round((place - first) * 16);
+        return first < 0 ? (0, 0) : first >= count - 1 ? (count - 1, 0) : (first, weight);
     }
 
     /// <summary>The first and last places where either row is not zero; an empty stretch when neither has any.</summary>
@@ -149,63 +187,70 @@ public static class SubjectRemovalScaling
         return first < 0 ? (0, -2) : (first, Math.Max(a.LastIndexOfAnyExcept((byte)0), b.LastIndexOfAnyExcept((byte)0)));
     }
 
-    /// <summary>The two half-size rows a full-size row is drawn from: the nearer and the farther.</summary>
-    private readonly ref struct Rows(ReadOnlySpan<byte> nearAlpha, ReadOnlySpan<byte> farAlpha, ReadOnlySpan<uint> nearFill,
-        ReadOnlySpan<uint> farFill, ReadOnlySpan<uint> nearGuide, ReadOnlySpan<uint> farGuide, ReadOnlySpan<bool> estimated)
+    /// <summary>The two reduced rows a full-size row is drawn from, and the lower one's weight in sixteenths.</summary>
+    private readonly ref struct Rows(ReadOnlySpan<byte> upperAlpha, ReadOnlySpan<byte> lowerAlpha, ReadOnlySpan<uint> upperFill,
+        ReadOnlySpan<uint> lowerFill, ReadOnlySpan<uint> upperGuide, ReadOnlySpan<uint> lowerGuide, ReadOnlySpan<bool> estimated, int down)
     {
-        public readonly ReadOnlySpan<byte> NearAlpha = nearAlpha;
-        public readonly ReadOnlySpan<byte> FarAlpha = farAlpha;
-        public readonly ReadOnlySpan<uint> NearFill = nearFill;
-        public readonly ReadOnlySpan<uint> FarFill = farFill;
-        public readonly ReadOnlySpan<uint> NearGuide = nearGuide;
-        public readonly ReadOnlySpan<uint> FarGuide = farGuide;
+        public readonly ReadOnlySpan<byte> UpperAlpha = upperAlpha;
+        public readonly ReadOnlySpan<byte> LowerAlpha = lowerAlpha;
+        public readonly ReadOnlySpan<uint> UpperFill = upperFill;
+        public readonly ReadOnlySpan<uint> LowerFill = lowerFill;
+        public readonly ReadOnlySpan<uint> UpperGuide = upperGuide;
+        public readonly ReadOnlySpan<uint> LowerGuide = lowerGuide;
         public readonly ReadOnlySpan<bool> Estimated = estimated;
+        public readonly int Down = down;
     }
 
     /// <summary>
-    /// Draws the full-size pixel <paramref name="x"/> of a row from half-size pixels <paramref name="near"/>
-    /// and <paramref name="far"/> of the nearer and farther rows, weighted nine, three, three and one.
+    /// Draws the full-size pixel <paramref name="x"/> of a row from reduced pixels <paramref name="first"/>
+    /// and <paramref name="second"/> of the two rows, <paramref name="across"/> sixteenths of the way to the second.
     /// </summary>
-    private static void Draw(in Rows rows, int near, int far, ReadOnlySpan<uint> picture, Span<uint> drawn, ReadOnlySpan<uint> better, int x)
+    private static void Draw(in Rows rows, int first, int second, int across, ReadOnlySpan<uint> picture, Span<uint> drawn,
+        ReadOnlySpan<uint> better, int x)
     {
-        var (a0, a1, a2, a3) = (rows.NearAlpha[near], rows.NearAlpha[far], rows.FarAlpha[near], rows.FarAlpha[far]);
+        var (a0, a1, a2, a3) = (rows.UpperAlpha[first], rows.UpperAlpha[second], rows.LowerAlpha[first], rows.LowerAlpha[second]);
         if ((a0 | a1 | a2 | a3) == 0)
         {
             return;
         }
 
+        var down = rows.Down;
+        // Bilinear weights in 256ths.
+        var (w0, w1, w2, w3) = ((16 - across) * (16 - down), across * (16 - down), (16 - across) * down, across * down);
+        var (f0, f1, f2, f3) = (rows.UpperFill[first], rows.UpperFill[second], rows.LowerFill[first], rows.LowerFill[second]);
         var original = picture[x];
         uint colour;
         int opacity;
         if ((a0 & a1 & a2 & a3) == 255)
         {
             // Inside the hole: the enlarged fill.
-            colour = Blend(rows.NearFill[near], rows.NearFill[far], rows.FarFill[near], rows.FarFill[far]);
+            colour = Blend(f0, f1, f2, f3, w0, w1, w2, w3);
             opacity = 256;
         }
         else
         {
             // At the boundary each neighbour's bilinear weight is scaled by how alike its colour is
-            // to this pixel's, and opacity and fill are blended premultiplied.
-            var w0 = 9 * RangeWeights[Difference(original, rows.NearGuide[near])];
-            var w1 = 3 * RangeWeights[Difference(original, rows.NearGuide[far])];
-            var w2 = 3 * RangeWeights[Difference(original, rows.FarGuide[near])];
-            var w3 = RangeWeights[Difference(original, rows.FarGuide[far])];
+            // to this pixel's, and opacity and fill are blended premultiplied. Every range weight is
+            // at least one, so a neighbour with any weight keeps some.
+            (w0, w1, w2, w3) = (w0 * RangeWeights[Difference(original, rows.UpperGuide[first])],
+                w1 * RangeWeights[Difference(original, rows.UpperGuide[second])],
+                w2 * RangeWeights[Difference(original, rows.LowerGuide[first])],
+                w3 * RangeWeights[Difference(original, rows.LowerGuide[second])]);
             var (s0, s1, s2, s3) = ((long)w0 * a0, (long)w1 * a1, (long)w2 * a2, (long)w3 * a3);
-            // At least one of the four is opaque in part and every weight is positive, so covered
-            // is too; an opacity that rounds to nothing leaves the pixel as it was.
             var covered = s0 + s1 + s2 + s3;
             var total = w0 + w1 + w2 + w3;
+            // An opacity that rounds to nothing, or a pixel whose only hiding neighbour has no
+            // weight, leaves the pixel as it was.
             opacity = (int)((covered * 256 / 255 + total / 2) / total);
-            var (f0, f1, f2, f3) = (rows.NearFill[near], rows.NearFill[far], rows.FarFill[near], rows.FarFill[far]);
+            covered = Math.Max(1, covered);
             colour = Channel(f0, f1, f2, f3, s0, s1, s2, s3, covered, 0) | (Channel(f0, f1, f2, f3, s0, s1, s2, s3, covered, 8) << 8)
                 | (Channel(f0, f1, f2, f3, s0, s1, s2, s3, covered, 16) << 16);
         }
 
-        if (!better.IsEmpty && rows.Estimated[near])
+        if (!better.IsEmpty && rows.Estimated[across >= 8 ? second : first])
         {
-            // A model-supplied fill is defined at full resolution. Its marked pixels
-            // take the model's own colour, not a feathered mix with the old subject.
+            // A model's fill is defined at full size: its marked pixels take the model's own
+            // colour outright, not a feathered mix with the subject.
             colour = better[x] & 0xFFFFFF;
             opacity = 256;
         }
@@ -222,12 +267,12 @@ public static class SubjectRemovalScaling
         Math.Abs((int)(a & 0xFF) - (int)(b & 0xFF)) + Math.Abs((int)((a >> 8) & 0xFF) - (int)((b >> 8) & 0xFF))
             + Math.Abs((int)((a >> 16) & 0xFF) - (int)((b >> 16) & 0xFF));
 
-    /// <summary>Four packed colours blended nine, three, three and one sixteenths, alpha dropped.</summary>
-    private static uint Blend(uint a, uint b, uint c, uint d)
+    /// <summary>Four packed colours blended by weights in 256ths that sum to 256, alpha dropped.</summary>
+    private static uint Blend(uint a, uint b, uint c, uint d, int wa, int wb, int wc, int wd)
     {
         const uint Mask = 0x00FF00FF;
-        var blueRed = ((a & Mask) * 9 + (b & Mask) * 3 + (c & Mask) * 3 + (d & Mask) + 0x00080008) >> 4;
-        var green = (((a >> 8) & 0xFF) * 9 + ((b >> 8) & 0xFF) * 3 + ((c >> 8) & 0xFF) * 3 + ((d >> 8) & 0xFF) + 8) >> 4;
+        var blueRed = ((a & Mask) * (uint)wa + (b & Mask) * (uint)wb + (c & Mask) * (uint)wc + (d & Mask) * (uint)wd + 0x00800080) >> 8;
+        var green = (((a >> 8) & 0xFF) * (uint)wa + ((b >> 8) & 0xFF) * (uint)wb + ((c >> 8) & 0xFF) * (uint)wc + ((d >> 8) & 0xFF) * (uint)wd + 0x80) >> 8;
         return (blueRed & Mask) | (green << 8);
     }
 
@@ -239,18 +284,5 @@ public static class SubjectRemovalScaling
         var blueRed = (((original & 0xFF00FF) * keep + (colour & 0xFF00FF) * over + 0x800080) >> 8) & 0xFF00FF;
         var green = (((original & 0xFF00) * keep + (colour & 0xFF00) * over + 0x8000) >> 8) & 0xFF00;
         return (original & 0xFF000000) | blueRed | green;
-    }
-
-    /// <summary>The low halves of two vectors, one after the other.</summary>
-    private static Vector256<uint> Join(Vector256<uint> low, Vector256<uint> high) =>
-        Vector256.Create(low.GetLower(), high.GetLower());
-
-    /// <summary>The rounded mean of four packed BGRA pixels, alpha included.</summary>
-    internal static uint Average(uint a, uint b, uint c, uint d)
-    {
-        const uint Mask = 0x00FF00FF;
-        var blueRed = (a & Mask) + (b & Mask) + (c & Mask) + (d & Mask) + 0x00020002;
-        var greenAlpha = ((a >> 8) & Mask) + ((b >> 8) & Mask) + ((c >> 8) & Mask) + ((d >> 8) & Mask) + 0x00020002;
-        return ((blueRed >> 2) & Mask) | (((greenAlpha >> 2) & Mask) << 8);
     }
 }

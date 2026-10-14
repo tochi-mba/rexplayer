@@ -178,6 +178,7 @@ public sealed class PerfTests
         Assert.True(packets > 50, $"Only {packets} packets were measured.");
         Assert.Equal(0, allocated);
     }
+
     /// <summary>Reports removal throughput at full HD until CI has recorded a baseline.</summary>
     [Fact]
     public void SubjectRemovalReportsSmallAndLargePicturePreviewRates()
@@ -231,5 +232,4 @@ public sealed class PerfTests
         PerfBaselines.AtLeast("progressive-transcript-merges-per-second", Rate(() => transcript.Add(patch, heard, "en")));
         Assert.Equal(words.Length, transcript.WordCount);
     }
-
 }
