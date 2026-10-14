@@ -68,8 +68,10 @@ public sealed partial class MediaSession
             _playback.Start(play);
             MoveTo(play ? SessionState.Playing : SessionState.Ready);
         }
-        catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex)
         {
+            // Whatever stops the media opening (a reader's own fault on hostile bytes too) leaves the
+            // session failed with the reason, never stuck opening.
             presenter?.Dispose();
             sink?.Dispose();
             item?.Dispose();
@@ -211,6 +213,15 @@ public sealed partial class MediaSession
     }
 
     private void OnTrackFailed(int trackId, string reason) => _events.Post(new TrackFailedEvent(trackId, reason));
+
+    /// <summary>The playing item turned out damaged: <paramref name="skipped"/> long was passed over (zero: found, playing on).</summary>
+    private void OnDamaged(Playback playback, MediaTime skipped)
+    {
+        if (ReferenceEquals(playback, _playback))
+        {
+            _events.Post(new MediaDamagedEvent(skipped));
+        }
+    }
 
     private void OnPosition(MediaTime position, MediaTime duration) => _events.Post(new PositionEvent(position, duration));
 }

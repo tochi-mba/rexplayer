@@ -362,8 +362,13 @@ public sealed class FlacDemuxerTests
 
         Assert.Throws<MediaFormatException>(() => Open("RIFF0000WAVE"u8.ToArray()));
         Assert.Throws<MediaFormatException>(() => Open(wrongFirst));
-        Assert.Throws<MediaFormatException>(() => Open(forbidden));
         Assert.Throws<MediaFormatException>(() => Open(good[..20]));
+
+        // A block of the forbidden type after STREAMINFO is damage: the metadata ends there, the frames still play.
+        using var damaged = Open(forbidden);
+        var packets = ReadAll(damaged);
+        Assert.NotEmpty(packets);
+        Release(packets);
         Assert.Throws<ArgumentNullException>(() => new FlacDemuxer(null!, CancellationToken.None));
     }
 }

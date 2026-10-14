@@ -165,7 +165,14 @@ public sealed class MfVideoDecoder : IVideoDecoder
     {
         ReturnWaiting();
         _draining = false;
-        _transform.Flush();
+        try
+        {
+            _transform.Flush();
+        }
+        catch (COMException ex)
+        {
+            throw new MediaFormatException($"The Windows decoder could not be reset (0x{ex.HResult:X8}).", ex);
+        }
     }
 
     public void Dispose()

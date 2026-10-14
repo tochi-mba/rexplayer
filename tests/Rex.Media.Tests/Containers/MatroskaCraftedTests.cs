@@ -201,7 +201,7 @@ public sealed class MatroskaCraftedTests
         { Concat(Id(Id.Ebml), [0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]), "impossible size" },
         { Concat(Element(Id.Ebml), Element(Id.Cluster)), "no segment" },
         { Mkv(Element(Id.Info)), "no tracks" },
-        { File("matroska", [Concat(Id(Id.Info), Size((64L << 20) + 1))], unsizedSegment: true), "larger than" },
+        { File("matroska", [Concat(Id(Id.Info), Size((64L << 20) + 1))], unsizedSegment: true), "no tracks" },
         { [0x00], "malformed" },
         { [0x08, 0, 0, 0, 0], "malformed" },
     };

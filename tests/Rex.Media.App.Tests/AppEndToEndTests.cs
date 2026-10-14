@@ -125,7 +125,7 @@ public sealed class AppEndToEndTests : IDisposable
 
         Wait.For(() => app.Text("IdleHint").Length > 0 && app.Text("IdleTitle") == "broken", "the reason to show");
         // The error banner updates on the UI thread, but logging flushes asynchronously.
-        Wait.For(() => app.LogText.Contains("broken could not be played", StringComparison.Ordinal), "the media failure to be logged");
+        Wait.For(() => app.LogText.Contains("This file could not be played", StringComparison.Ordinal), "the media failure to be logged");
         Assert.Equal(0, app.Close());
     }
 }

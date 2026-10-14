@@ -1,4 +1,3 @@
-using Rex.Media.Codecs;
 using Rex.Media.Diagnostics;
 using Rex.Media.Primitives;
 
@@ -130,14 +129,18 @@ public sealed partial class MediaSession
                     var seek = SeekFor(item.Generation);
                     state.Target = seek.Mode == SeekMode.Precise ? seek.Target : MediaTime.Zero;
                     (state.Shown, state.OnTarget) = (false, false);
-                    _videoItem.VideoDecoder?.Flush();
+                    if (_videoItem.VideoDecoder is { } flushed)
+                    {
+                        Guarded(_videoItem, "flushed", flushed.Flush);
+                    }
+
                     _cadence.Restart();
                 }
 
                 if (item.Owner is MediaItem owner && !ReferenceEquals(owner, _videoItem))
                 {
                     // The run has moved to the next item: what the last one's decoder holds is shown first.
-                    DrainAndShow(_videoItem.VideoDecoder, state);
+                    DrainAndShow(_videoItem, state);
                     Volatile.Write(ref _videoItem, owner);
                     state.Target = MediaTime.Zero;
                     (state.Shown, state.OnTarget) = (false, false);
@@ -152,7 +155,7 @@ public sealed partial class MediaSession
                 var decoder = _videoItem.VideoDecoder;
                 if (item.EndOfStream)
                 {
-                    DrainAndShow(decoder, state);
+                    DrainAndShow(_videoItem, state);
                     StreamEnded(video: true, state.Generation);
                     continue;
                 }
@@ -162,11 +165,13 @@ public sealed partial class MediaSession
                 {
                     decoder!.Decode(packet, state.Decoded);
                 }
-                catch (MediaFormatException ex)
+                catch (Exception ex) when (Recoverable(ex))
                 {
-                    // A damaged picture is skipped; the decoder picks up again at the next keyframe.
+                    // A damaged picture is skipped; the decoder picks up again at the next keyframe,
+                    // and the sound plays on meanwhile.
                     Interlocked.Increment(ref _corruptPackets);
-                    _session._log.Warning(LogSource, "A video packet could not be decoded: " + ex.Message);
+                    ReportDamage(_videoItem);
+                    _session._log.Warning(LogSource, "A video packet could not be decoded: " + ExceptionDiagnostics.Summary(ex));
                     DisposeAll(state.Decoded);
                     continue;
                 }
@@ -175,15 +180,19 @@ public sealed partial class MediaSession
             }
         }
 
-        /// <summary>Shows everything a decoder still holds, batch by batch, releasing each batch before asking for the next.</summary>
-        private void DrainAndShow(IVideoDecoder? decoder, VideoState state)
+        /// <summary>
+        /// Shows everything an item's decoder still holds, batch by batch, releasing each batch before
+        /// asking for the next. A decoder that fails part-way keeps the pictures it gave; the rest are lost.
+        /// </summary>
+        private void DrainAndShow(MediaItem item, VideoState state)
         {
-            if (decoder is null)
+            if (item.VideoDecoder is not { } decoder)
             {
                 return;
             }
 
-            while (!decoder.Drain(state.Decoded))
+            var empty = false;
+            while (Guarded(item, "drained", () => empty = decoder.Drain(state.Decoded)) && !empty)
             {
                 Show(state);
             }

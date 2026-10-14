@@ -127,11 +127,20 @@ public sealed partial class MainWindow
         }
 
         var enqueue = IsDown(VirtualKey.Control);
-        var items = await e.DataView.GetStorageItemsAsync();
-        var paths = items.Select(item => item.Path).Where(path => !string.IsNullOrEmpty(path)).ToList();
-        if (paths.Count > 0)
+        try
         {
-            _player.Drop(paths, enqueue);
+            var items = await e.DataView.GetStorageItemsAsync();
+            var paths = items.Select(item => item.Path).Where(path => !string.IsNullOrEmpty(path)).ToList();
+            if (paths.Count > 0)
+            {
+                _player.Drop(paths, enqueue);
+            }
+        }
+        catch (Exception ex)
+        {
+            // A drop from somewhere that stops answering (or a file that cannot be opened) is told of, not fatal.
+            App.Log.Error("input", "A drop could not be taken: " + ex);
+            Say("What was dropped could not be opened.");
         }
     }
 

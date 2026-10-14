@@ -12,6 +12,7 @@ AudioArtwork.cs
 AudioEffects.cs
 AudioFormat.cs
 AudioFrame.cs
+AudioGaps.cs
 AudioLandmarks.cs
 AudioPipeline.cs
 AudioScope.cs
@@ -62,8 +63,11 @@ Crc.cs
 CreditFrameEvidence.cs
 Cue.cs
 CymaticsScene.cs
+DamageGuard.cs
+DamageNotices.cs
 Decoders.cs
 DemuxerRegistry.cs
+DemuxRecovery.cs
 DeviceFormatPolicy.cs
 DeviceProfile.cs
 DiagnosticsBundle.cs

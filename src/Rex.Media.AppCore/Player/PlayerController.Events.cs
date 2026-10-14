@@ -262,6 +262,7 @@ public sealed partial class PlayerController
                 _queueTried = false;
                 _openedInSession = true;
                 _failuresInARow = 0;
+                _damageSaid = false;
                 Info = opened.Info;
                 _log.Info(LogSource, "Opened " + Describe(opened.Info));
                 Duration = PartDuration(opened.Info.Duration);
@@ -290,6 +291,19 @@ public sealed partial class PlayerController
 
                 // An item shorter than the queueing distance may end before its first position report.
                 QueueNextIfNearTheEnd(session);
+                break;
+            case MediaDamagedEvent damaged:
+                // Plain words, once for the file and then for each stretch passed over; never a dialog.
+                if (damaged.Skipped > Rex.Media.Primitives.MediaTime.Zero)
+                {
+                    Say(DamageNotices.Skipped(damaged.Skipped.ToTimeSpan()));
+                }
+                else if (!_damageSaid)
+                {
+                    Say(DamageNotices.Damaged);
+                }
+
+                _damageSaid = true;
                 break;
             case TrackFailedEvent trackFailed:
                 _log.Warning(LogSource, $"Track {trackFailed.TrackId} cannot be played: {trackFailed.Reason}");
@@ -325,7 +339,7 @@ public sealed partial class PlayerController
                 Item = Playlist.Next(automatic: true);
                 _queued = null;
                 _log.Warning(LogSource, $"Skipped {skipped.Name}: {skipped.Reason}");
-                Say($"{skipped.Name} could not be played: {skipped.Reason}");
+                Say(DamageNotices.Failed(skipped.Name, skipped.Reason));
                 if (State == SessionState.Ended)
                 {
                     StartNext();

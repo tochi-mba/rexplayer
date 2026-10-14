@@ -126,10 +126,16 @@ internal sealed class Mp4Track
         return track;
     }
 
+    /// <summary>The track's number, whether it is enabled, and its rotation. A header cut short leaves the defaults (the demuxer numbers the track).</summary>
     private void ReadTrackHeader(ReadOnlySpan<byte> body)
     {
+        var version = body.Length >= 4 ? Mp4Boxes.U32(body, 0) >> 24 : 0;
+        if (body.Length < (version == 1 ? 24 : 16))
+        {
+            return;
+        }
+
         var flags = Mp4Boxes.U32(body, 0);
-        var version = flags >> 24;
         Enabled = (flags & 1) != 0;
         Id = (int)Mp4Boxes.U32(body, version == 1 ? 20 : 12);
         var matrix = version == 1 ? 52 : 40;
@@ -623,11 +629,12 @@ internal sealed class Mp4Track
             var count = CheckedCount(Mp4Boxes.U32(body, 8));
             if (fixedSize != 0)
             {
-                // A corrupt header can claim fifty million fixed-size packets despite only
-                // a few bytes existing. Reject it before allocating sample tables.
-                if (fileLength is { } length && count > length / fixedSize)
+                // A corrupt header can claim fifty million fixed-size packets despite only a few
+                // bytes existing, and a file cut short holds fewer than its table says: no more are
+                // made than the file could hold.
+                if (fileLength is { } length)
                 {
-                    throw new MediaFormatException("An MP4 sample table claims more data than the file contains.");
+                    count = (int)Math.Min(count, length / fixedSize);
                 }
 
                 return [.. Enumerable.Repeat((int)Math.Min(fixedSize, int.MaxValue), count)];
