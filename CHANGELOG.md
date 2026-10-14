@@ -5,8 +5,13 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+## 0.24.1 - 2026-10-14
+
 ### Fixed
 
+- **Background logging keeps up with a busy processor.** Log entries are written promptly even
+  while decoding and other work keep the processor occupied. Writing stays in the background and
+  critical entries still reach the file immediately.
 - **Smoother progressive transcript buffering.** The buffer learns how long each newly transcribed
   stretch really takes, including variability between chunks and overlapping recognition context.
   When pausing for subtitles is enabled, it waits for a bounded safety reserve instead of
