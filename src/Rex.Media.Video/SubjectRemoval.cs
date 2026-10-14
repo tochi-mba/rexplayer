@@ -622,7 +622,11 @@ public sealed class SubjectRemoval
         var grid = (Left: Math.Max(0, hole.Left - margin), Top: Math.Max(0, hole.Top - margin),
             Right: Math.Min(frame.Width, hole.Right + margin), Bottom: Math.Min(frame.Height, hole.Bottom + margin));
         var gridArea = (double)(grid.Right - grid.Left) * (grid.Bottom - grid.Top);
-        var scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(Math.Max(gridArea / FillBudget, (double)_unseen / HoleBudget))));
+        // The larger subject was already downsampled; keep its inferred texture at a
+        // finer grid so repeated edges survive the additional full-size enlargement.
+        var fillBudget = _scale == 2 ? 24_000 : FillBudget;
+        var holeBudget = _scale == 2 ? 6_000 : HoleBudget;
+        var scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(Math.Max(gridArea / fillBudget, (double)_unseen / holeBudget))));
         var width = (grid.Right - grid.Left + scale - 1) / scale;
         var height = (grid.Bottom - grid.Top + scale - 1) / scale;
         _fill.Prepare(width, height);
