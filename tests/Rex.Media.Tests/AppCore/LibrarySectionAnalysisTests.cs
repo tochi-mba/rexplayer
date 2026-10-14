@@ -131,8 +131,8 @@ public sealed class LibrarySectionAnalysisTests
                 worker.SetQueue([path]);
                 Assert.True(started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken), "Background worker did not start.");
                 worker.SetPaused(true);
-                // Changing the queue cancels the current worker, and it must not publish stale data.
-                worker.SetQueue([path]);
+                // Pausing cancels the current worker. It must put the interrupted
+                // episode back into its pending queue without needing another scan.
                 worker.SetPaused(false);
                 var ready = SpinWait.SpinUntil(() =>
                     memory.Proposals(path, PlayerController.DetectionSignature(path, [])) is not null,
@@ -193,6 +193,7 @@ public sealed class LibrarySectionAnalysisTests
             (file, token) => throw new IOException("not reached"), RexLog.InMemory(), background: false);
         worker.SetPaused(true);
         worker.SetPaused(true);
+        worker.Dispose();
         worker.Dispose();
         worker.SetQueue([]);
         worker.SetPaused(false);
