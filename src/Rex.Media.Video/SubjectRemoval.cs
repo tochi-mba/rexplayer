@@ -59,6 +59,9 @@ public sealed class SubjectRemoval
     private byte[] _alpha = [];
     private byte[] _kind = [];
     private uint[] _colour = [];
+    // One row of the plate's colours and states, read a row at a time.
+    private uint[] _sampled = [];
+    private byte[] _sampledState = [];
     private int[] _previousSource = [];
     private int[] _jumps = [];
     private int[] _columns = [];
@@ -441,9 +444,20 @@ public sealed class SubjectRemoval
 
         var (left, top, right, bottom) = (frame.Width, frame.Height, 0, 0);
         _unseen = 0;
-        uint seen = 0;
+        SubjectRemovalMatte.Ensure(ref _sampled, width);
+        SubjectRemovalMatte.Ensure(ref _sampledState, width);
+        var sampled = _sampled.AsSpan(0, width);
+        var states = _sampledState.AsSpan(0, width);
+        // A blend copies only the surface around the selection, never the scene seen behind it.
+        sampled.Clear();
+        states.Clear();
         for (var y = area.Top; y < area.Bottom; y++)
         {
+            if (_mode != RemovalMode.Blend)
+            {
+                _plate.SampleRow(area.Left, y, sampled, states);
+            }
+
             for (var x = area.Left; x < area.Right; x++)
             {
                 var at = (y - area.Top) * width + x - area.Left;
@@ -455,9 +469,8 @@ public sealed class SubjectRemoval
                     continue;
                 }
 
-                // A blend copies only the surface around the selection, never the scene seen behind it.
-                var state = _mode == RemovalMode.Blend ? SubjectRemovalPlate.Unknown : _plate.Sample(x, y, out seen);
-                _colour[at] = seen;
+                var state = states[x - area.Left];
+                _colour[at] = sampled[x - area.Left];
                 if (state == SubjectRemovalPlate.Observed)
                 {
                     _kind[at] = Seen;
