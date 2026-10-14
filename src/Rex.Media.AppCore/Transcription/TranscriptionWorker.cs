@@ -249,6 +249,14 @@ public sealed class TranscriptionWorker : IDisposable
     public void Dispose()
     {
         _stop.Cancel();
+        // The model may be waiting inside Hear on the piece's own token. Cancel that
+        // token explicitly as well, rather than relying on a linked cancellation
+        // callback during shutdown, so closing never leaves a sleeping speech thread.
+        lock (_gate)
+        {
+            _piece?.Cancel();
+        }
+
         Wake();
         if (_thread is null)
         {
