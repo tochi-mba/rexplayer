@@ -4,7 +4,7 @@ using Rex.Media.AppCore.Shell;
 using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.TestKit;
-using Rex.Media.TestKit.Damage;
+using Rex.Media.Containers.Matroska;
 
 namespace Rex.Media.Tests.AppCore.Shell;
 
@@ -75,7 +75,21 @@ public sealed class TransportPolicyTests
 
         using (var video = new ControllerHarness(autoPlay: false, pictures: true))
         {
-            video.Files["film.mkv"] = HealthyMedia.Matroska(2).Bytes;
+            // A tiny self-contained video with a real Matroska track and a fake decoder.
+            var videoTrack = EbmlWriter.Element(MatroskaId.TrackEntry,
+                EbmlWriter.UInt(MatroskaId.TrackNumber, 2),
+                EbmlWriter.UInt(MatroskaId.TrackType, 1),
+                EbmlWriter.Text(MatroskaId.CodecId, "V_MPEG4/ISO/AVC"),
+                EbmlWriter.Element(MatroskaId.Video,
+                    EbmlWriter.UInt(MatroskaId.PixelWidth, 16),
+                    EbmlWriter.UInt(MatroskaId.PixelHeight, 8)));
+            var info = EbmlWriter.Element(MatroskaId.Info,
+                EbmlWriter.UInt(MatroskaId.TimestampScale, 1_000_000),
+                EbmlWriter.Float(MatroskaId.Duration, 2_000));
+            video.Files["film.mkv"] = Rex.Media.Tests.Containers.MatroskaCraftedTests.Mkv(
+                info, Rex.Media.Tests.Containers.MatroskaCraftedTests.Tracks(videoTrack),
+                Rex.Media.Tests.Containers.MatroskaCraftedTests.Cluster(0,
+                    Rex.Media.Tests.Containers.MatroskaCraftedTests.Simple(2, 0, true, 1)));
             video.Controller.Open(["film.mkv"]);
             video.PumpUntil(c => c.State == SessionState.Ready);
             Assert.Equal(TransportMedia.Video, TransportAvailability.MediaOf(video.Controller));
