@@ -66,6 +66,7 @@ public sealed class SubjectRemovalFill
     private uint _random = 2463534242;
     private int _window;
     private bool _searchStructuredBackground;
+    private int _room;
 
     /// <summary>The grid's width in cells.</summary>
     public int Width { get; private set; }
@@ -100,27 +101,34 @@ public sealed class SubjectRemovalFill
     /// <summary>Whether the last solve could only blend the hole in from its edges, having nothing whole to copy.</summary>
     public bool Blended { get; private set; }
 
-    /// <summary>Set the grid's size; the caller then fills <see cref="Colour"/>, <see cref="State"/>, <see cref="Avoid"/> and <see cref="Guess"/>.</summary>
-    public void Prepare(int width, int height)
+    /// <summary>
+    /// Set the grid's size; the caller then fills <see cref="Colour"/>, <see cref="State"/>, <see cref="Avoid"/> and <see cref="Guess"/>.
+    /// <paramref name="room"/> is the most cells the caller's grids will have, so that a hole whose
+    /// size changes from picture to picture is given its memory once.
+    /// </summary>
+    public void Prepare(int width, int height, int room = 0)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
         (Width, Height) = (width, height);
         var cells = width * height;
-        SubjectRemovalMatte.Ensure(ref _colour, cells * 3);
-        SubjectRemovalMatte.Ensure(ref _fused, cells * 3);
-        SubjectRemovalMatte.Ensure(ref _state, cells);
-        SubjectRemovalMatte.Ensure(ref _avoid, cells);
-        SubjectRemovalMatte.Ensure(ref _guess, cells);
-        SubjectRemovalMatte.Ensure(ref _source, cells);
-        SubjectRemovalMatte.Ensure(ref _sourceOk, cells);
-        SubjectRemovalMatte.Ensure(ref _confidence, cells);
-        SubjectRemovalMatte.Ensure(ref _gradientX, cells);
-        SubjectRemovalMatte.Ensure(ref _gradientY, cells);
-        SubjectRemovalMatte.Ensure(ref _sums, (width + 1) * (height + 1));
+        room = Math.Max(room, cells);
+        _room = room;
+        SubjectRemovalMatte.Ensure(ref _colour, cells * 3, room * 3);
+        SubjectRemovalMatte.Ensure(ref _fused, cells * 3, room * 3);
+        SubjectRemovalMatte.Ensure(ref _state, cells, room);
+        SubjectRemovalMatte.Ensure(ref _avoid, cells, room);
+        SubjectRemovalMatte.Ensure(ref _guess, cells, room);
+        SubjectRemovalMatte.Ensure(ref _source, cells, room);
+        SubjectRemovalMatte.Ensure(ref _sourceOk, cells, room);
+        SubjectRemovalMatte.Ensure(ref _confidence, cells, room);
+        SubjectRemovalMatte.Ensure(ref _gradientX, cells, room);
+        SubjectRemovalMatte.Ensure(ref _gradientY, cells, room);
+        // A grid's sums have a row and a column more than the grid: at most twice its cells and two more.
+        SubjectRemovalMatte.Ensure(ref _sums, (width + 1) * (height + 1), 2 * room + 2);
         // A cell enters the queue when it first borders the fill and again each time a neighbour is filled.
-        SubjectRemovalMatte.Ensure(ref _heapCells, cells * 9);
-        SubjectRemovalMatte.Ensure(ref _heapKeys, cells * 9);
+        SubjectRemovalMatte.Ensure(ref _heapCells, cells * 9, room * 9);
+        SubjectRemovalMatte.Ensure(ref _heapKeys, cells * 9, room * 9);
     }
 
     /// <summary>Fill every hole cell. <paramref name="seed"/> makes the random search repeatable.</summary>
@@ -725,8 +733,9 @@ public sealed class SubjectRemovalFill
             }
         }
 
-        SubjectRemovalMatte.Ensure(ref _pullColour, total * 3);
-        SubjectRemovalMatte.Ensure(ref _pullWeight, total);
+        // The pyramid holds at most twice the grid's cells.
+        SubjectRemovalMatte.Ensure(ref _pullColour, total * 3, _room * 6);
+        SubjectRemovalMatte.Ensure(ref _pullWeight, total, _room * 2);
         for (var cell = 0; cell < w * h; cell++)
         {
             var known = _state[cell] == Known;

@@ -86,6 +86,8 @@ public sealed class SubjectRemoval
     private uint _pictures;
     private int _boxSpeed;
     private int _unseen;
+    // The most cells the fill's grid can have at the size worked at.
+    private int _room;
 
     /// <summary>Edited pixels whose background the video showed in an earlier picture.</summary>
     public int ObservedPixels { get; private set; }
@@ -641,7 +643,10 @@ public sealed class SubjectRemoval
         var scale = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(Math.Max(gridArea / fillBudget, (double)_unseen / holeBudget))));
         var width = (grid.Right - grid.Left + scale - 1) / scale;
         var height = (grid.Bottom - grid.Top + scale - 1) / scale;
-        _fill.Prepare(width, height);
+        // Rounding up each side can take a grid a little past its budget; the room covers that, so a
+        // hole that changes size from picture to picture never needs more memory.
+        _room = fillBudget + fillBudget / 4;
+        _fill.Prepare(width, height, _room);
         ReadGrid(frame, grid, scale, width, height);
         if (advance)
         {
@@ -653,7 +658,7 @@ public sealed class SubjectRemoval
         _fill.Solve(_pictures * 2654435761u, searchStructuredBackground: _scale > 1);
         if (advance)
         {
-            SubjectRemovalMatte.Ensure(ref _previousSource, width * height);
+            SubjectRemovalMatte.Ensure(ref _previousSource, width * height, _room);
             _fill.Source.CopyTo(_previousSource);
             _previousGrid = (grid.Left, grid.Top, scale, width, height);
             _hasPreviousSource = true;
@@ -779,7 +784,7 @@ public sealed class SubjectRemoval
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
         var cells = width * height;
-        SubjectRemovalMatte.Ensure(ref _jumps, cells);
+        SubjectRemovalMatte.Ensure(ref _jumps, cells, _room);
         for (var cell = 0; cell < cells; cell++)
         {
             // A cell's match as a jump in picture pixels, packed in one integer; none for known cells.
@@ -789,8 +794,9 @@ public sealed class SubjectRemoval
         }
 
         var holeWidth = hole.Right - hole.Left;
-        SubjectRemovalMatte.Ensure(ref _columns, holeWidth);
-        SubjectRemovalMatte.Ensure(ref _weights, holeWidth);
+        // The hole lies inside the matte's area, so room for the area's width is room for any hole.
+        SubjectRemovalMatte.Ensure(ref _columns, holeWidth, areaWidth);
+        SubjectRemovalMatte.Ensure(ref _weights, holeWidth, areaWidth);
         for (var x = 0; x < holeWidth; x++)
         {
             var gx = Math.Clamp((hole.Left + x - grid.Left + 0.5f) / scale - 0.5f, 0, width - 1);
