@@ -174,7 +174,7 @@ public sealed partial class MainWindow
         UIElement[] controls =
         [
             new TextBlock { Text = "Subtitles made from the speech, on this computer: what plays is heard from where it plays, its subtitles appearing as they are heard, and the library ahead of time.", TextWrapping = TextWrapping.Wrap },
-            library, scope, folders, leftOut, leaveOut, music, whatPlays, whilePlaying, battery, holdGroup, model, language, modelLine, download, storage, clearing,
+            library, scope, folders, leftOut, leaveOut, music, whatPlays, holdGroup, whilePlaying, battery, model, language, modelLine, download, storage, clearing,
         ];
         return (controls, settings => settings with
         {
