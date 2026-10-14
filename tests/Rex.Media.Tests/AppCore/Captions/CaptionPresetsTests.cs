@@ -184,4 +184,164 @@ public sealed class CaptionPresetsTests
         glitch.Reveal(Word("feed"), Plain, Stress.Plain, 0);
         Assert.True(Assert.Single(glitch.Scene(1, Area, 60)).Split);
     }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void WidthsFollowTheTypefaceAndCase()
+    {
+        Assert.Equal(3.0, CaptionChoreography.WidthEm("HELLO", CaptionFont.Mono, bold: true), 3);
+        Assert.True(CaptionChoreography.WidthEm("HELLO", CaptionFont.Serif, bold: false) > CaptionChoreography.WidthEm("hello", CaptionFont.Serif, bold: false));
+        Assert.True(CaptionChoreography.WidthEm("HELLO", CaptionFont.Serif, bold: false) > CaptionChoreography.WidthEm("HELLO", CaptionFont.Display, bold: false));
+        Assert.True(CaptionChoreography.WidthEm("HELLO", CaptionFont.Sans, bold: true) > CaptionChoreography.WidthEm("HELLO", CaptionFont.Sans, bold: false));
+        Assert.Equal(0.3, CaptionChoreography.WidthEm(" ", CaptionFont.Sans, bold: false), 3);
+        Assert.True(CaptionChoreography.WidthEm("Ab", CaptionFont.Rounded, bold: false) > 1.1);
+        Assert.Throws<ArgumentNullException>(() => CaptionChoreography.WidthEm(null!, CaptionFont.Sans, bold: false));
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void ConfettiWordsLandClearOfEachOtherAndOfFaces()
+    {
+        var face = PictureSpace.Read(PictureSpaceTests.Picture((x, y) => ((byte)40, (byte)40, (byte)48), 320, 180), 320, 180, 1280, faces: [new Area(0.3, 0.3, 0.4, 0.4)]);
+        var rave = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Rave, CaptionStyle.Default));
+        foreach (var (text, i) in "a lot of people watch videos on mute usually".Split(' ').Select((text, i) => (text, i)))
+        {
+            rave.Reveal(Word(text), Plain, Stress.Plain, i * 0.05);
+        }
+
+        var scene = rave.Scene(1, Area, 60, picture: face);
+        Assert.Equal(9, scene.Count);
+        var boxes = scene.Select(word => (Left: word.X - (CaptionChoreography.WidthEm(word.Text, CaptionFont.Display, word.Bold) * 60 * word.Settled / 2), Top: word.Y - (60 * word.Settled * 0.6), Right: word.X + (CaptionChoreography.WidthEm(word.Text, CaptionFont.Display, word.Bold) * 60 * word.Settled / 2), Bottom: word.Y + (60 * word.Settled * 0.6))).ToList();
+        for (var a = 0; a < boxes.Count; a++)
+        {
+            for (var b = a + 1; b < boxes.Count; b++)
+            {
+                var overlapX = Math.Min(boxes[a].Right, boxes[b].Right) - Math.Max(boxes[a].Left, boxes[b].Left);
+                var overlapY = Math.Min(boxes[a].Bottom, boxes[b].Bottom) - Math.Max(boxes[a].Top, boxes[b].Top);
+                Assert.False(overlapX > 6 && overlapY > 6, $"{scene[a].Text} and {scene[b].Text} overlap");
+            }
+        }
+
+        Assert.All(scene, word => Assert.False(face.CoversAFace((word.X / Area.Width) - 0.01, (word.Y / Area.Height) - 0.01, 0.02, 0.02), $"{word.Text} is on the face"));
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void ATickerSlidesItsLineLeftAndDropsWordsThatHaveGone()
+    {
+        var ticker = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Ticker, CaptionStyle.Default));
+        ticker.Reveal(Word("breaking"), Plain, Stress.Shout, 0);
+        ticker.Reveal(Word("news"), Plain, Stress.Plain, 0.5);
+        var early = ticker.Scene(0.6, Area, 60);
+        var later = ticker.Scene(2.6, Area, 60);
+        Assert.Equal(["BREAKING", "NEWS"], early.Select(word => word.Text));
+        Assert.All(early, word => Assert.Equal(1.0, word.Settled));
+        Assert.True(later[0].X < early[0].X - (Area.Width * 0.3), $"{early[0].X} then {later[0].X}");
+        Assert.True(early[1].X > early[0].X);
+        Assert.All(early, word => Assert.True(word.Y > Area.Height * 0.85 && word.Backing.Plate >= 0.55));
+        // Off the left edge, a word is gone.
+        ticker.Scene(12, Area, 60);
+        var far = ticker.Scene(12.5, Area, 60);
+        Assert.DoesNotContain(far, word => word.Opacity > 0.01);
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void StairsClimbFromTheLowerLeftAndGhostsDissolveOnTheirOwn()
+    {
+        var stairs = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Stairs, CaptionStyle.Default));
+        foreach (var (text, i) in new[] { "one", "two", "three" }.Select((text, i) => (text, i)))
+        {
+            stairs.Reveal(Word(text), Plain, Stress.Plain, i * 0.2);
+        }
+
+        var steps = stairs.Scene(1, Area, 60);
+        Assert.True(steps[0].X < steps[1].X && steps[1].X < steps[2].X);
+        Assert.True(steps[0].Y > steps[1].Y && steps[1].Y > steps[2].Y);
+        Assert.All(steps, word => Assert.Equal(CaptionFont.Rounded, word.Font));
+        for (var i = 3; i < 40; i++)
+        {
+            stairs.Reveal(Word("w" + i), Plain, Stress.Plain, 1 + (i * 0.1));
+        }
+
+        var tall = stairs.Scene(5.5, Area, 60);
+        Assert.All(tall.Where(word => word.Opacity > 0.99), word => Assert.True(word.Y > 0));
+        // On a short picture only a few steps fit: the oldest leave as new ones climb.
+        var low = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Stairs, CaptionStyle.Default));
+        foreach (var (text, i) in new[] { "one", "two", "three", "four" }.Select((text, i) => (text, i)))
+        {
+            low.Reveal(Word(text), Plain, Stress.Plain, i * 0.2);
+        }
+
+        var few = low.Scene(1, new Area(0, 0, 1080, 300), 60);
+        Assert.Equal(2, few.Count(word => word.Opacity > 0.99));
+        Assert.Contains(few, word => word.Opacity < 0.99);
+
+        var ghosts = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Ghost, CaptionStyle.Default));
+        ghosts.Reveal(Word("Boo"), Plain, Stress.Peak, 0);
+        var fresh = Assert.Single(ghosts.Scene(0.05, Area, 60));
+        Assert.True(fresh.Opacity < 1 && fresh.Size > 1 && fresh.Text == "boo" && fresh.Flash == 0, $"{fresh}");
+        var going = Assert.Single(ghosts.Scene(2.5, Area, 60));
+        Assert.True(going.Opacity < 0.6 && going.OffsetY < -0.2, $"{going}");
+        Assert.Empty(ghosts.Scene(3, Area, 60));
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void StampsSlamDownPillsAreTintedMarkerWritesAndWireIsHollowUntilStressed()
+    {
+        var stamp = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Stamp, CaptionStyle.Default));
+        stamp.Reveal(Word("Denied"), Plain, Stress.Plain, 0);
+        var landing = Assert.Single(stamp.Scene(0.01, Area, 60));
+        Assert.True(landing.Size > 1.8 && landing.Opacity < 0.5 && landing.Text == "DENIED", $"{landing}");
+        Assert.Equal(1.0, Assert.Single(stamp.Scene(1, Area, 60)).Size);
+
+        var pills = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Pills, CaptionStyle.Default));
+        pills.Reveal(Word("soft"), Plain, Stress.Plain, 0);
+        pills.Reveal(Word("LOUD"), Plain with { Loudness = 1 }, Stress.Peak, 0.3);
+        var pill = pills.Scene(1, Area, 60);
+        Assert.All(pill, word => Assert.True(word.PlateTint && word.Backing.Plate >= 0.9));
+        Assert.All(pill, word => Assert.True(word.Color.R + word.Color.G + word.Color.B > 450, $"{word.Color} is not pastel"));
+        Assert.NotEqual(pill[0].Color, pill[1].Color);
+
+        var marker = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Marker, CaptionStyle.Default));
+        marker.Reveal(Word("note"), Plain, Stress.Plain, 0);
+        var written = Assert.Single(marker.Scene(0.05, Area, 60));
+        Assert.Equal((CaptionFont.Hand, true, 2), (written.Font, written.PlateTint, written.Text.Length));
+
+        var wire = new CaptionChoreography(CaptionPresets.Style(CaptionPreset.Wire, CaptionStyle.Default));
+        wire.Reveal(Word("thin"), Plain, Stress.Plain, 0);
+        wire.Reveal(Word("solid"), Plain with { Loudness = 1 }, Stress.Shout, 0.3);
+        var wires = wire.Scene(1, Area, 60);
+        Assert.True(wires[0].Hollow);
+        Assert.False(wires[1].Hollow);
+        // Over a light, flat picture the hollow word gets a plate it would otherwise lack.
+        var light = PictureSpace.Read(PictureSpaceTests.Picture((x, y) => ((byte)160, (byte)160, (byte)160)), 320, 180, 1280);
+        var plated = wire.Scene(1, Area, 60, picture: light);
+        Assert.Equal(0.4, plated[0].Backing.Plate, 3);
+    }
+
+    [Fact]
+    [Capability("OSD-11")]
+    public void EveryLookKeepsItsWordsReadableOverAnyPicture()
+    {
+        var bright = PictureSpace.Read(PictureSpaceTests.Picture((x, y) => (x + y) % 2 == 0 ? ((byte)255, (byte)255, (byte)255) : ((byte)0, (byte)0, (byte)0)), 320, 180, 1280);
+        var dark = PictureSpace.Read(PictureSpaceTests.Picture((x, y) => ((byte)12, (byte)12, (byte)16)), 320, 180, 1280);
+        foreach (var preset in Enum.GetValues<CaptionPreset>().Where(preset => preset != CaptionPreset.Custom))
+        {
+            foreach (var picture in new[] { bright, dark })
+            {
+                var choreography = new CaptionChoreography(CaptionPresets.Style(preset, CaptionStyle.Default));
+                choreography.Reveal(Word("read"), Plain, Stress.Plain, 0);
+                choreography.Reveal(Word("me"), Plain with { Loudness = 1 }, Stress.Peak, 0.3);
+                foreach (var word in choreography.Scene(1, Area, 60, picture: picture))
+                {
+                    var readable = word.Backing.Plate >= 0.35 || word.Backing.Outline >= 0.45 || word.PlateLight || word.PlateTint;
+                    Assert.True(readable, $"{preset}: {word.Text} has plate {word.Backing.Plate} and outline {word.Backing.Outline}");
+                }
+            }
+        }
+
+        Assert.Equal(new Argb(255, 140, 140, 140), CaptionChoreography.Pastel(new Argb(255, 0, 0, 0)));
+    }
 }

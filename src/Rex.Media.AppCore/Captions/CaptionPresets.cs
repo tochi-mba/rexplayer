@@ -40,6 +40,20 @@ public static class CaptionPresets
             CaptionPreset.Classic => new CaptionStyle(White, Rgb(0xFFB400), VisualPalette.Accent, 0.6, CaptionLayout.Stack, false, false, PlateAlways: true, Tilt: 0, Prefill: true, Flat: true),
             // A feed breaking up: monospace capitals split into red and cyan, jittering, dropping in askew.
             CaptionPreset.Glitch => new CaptionStyle(Rgb(0xD8FFF4), Rgb(0xFF2B2B), VisualPalette.Cool, 1.2, CaptionLayout.Scatter, false, true, Font: CaptionFont.Mono, Case: CaptionCase.Upper, Motion: CaptionMotion.Drop, Flicker: true, Tilt: 3, Outline: 0.6, Split: true, Jitter: 0.025),
+            // A news ticker: one steady line of capitals sliding along a dark bar at the bottom, every word the same size.
+            CaptionPreset.Ticker => new CaptionStyle(White, Rgb(0xFFD400), VisualPalette.Accent, 0.6, CaptionLayout.Ticker, false, false, Case: CaptionCase.Upper, Motion: CaptionMotion.Fade, PlateAlways: true, Tilt: 0, Flat: true),
+            // Ghosts: pale serif words fade up in the middle, then drift upward and dissolve of their own accord.
+            CaptionPreset.Ghost => new CaptionStyle(Rgb(0xEDEDF5), Rgb(0xEDEDF5), VisualPalette.Accent, 0.5, CaptionLayout.Centre, false, false, Font: CaptionFont.Serif, Case: CaptionCase.Lower, Motion: CaptionMotion.Fade, Tilt: 0, Outline: 0.5, Flat: true, Dissolve: 2.2),
+            // Rubber stamps: red poster capitals slam down from far too big, each a little askew.
+            CaptionPreset.Stamp => new CaptionStyle(Rgb(0xB3101E), Rgb(0x1A1A1A), VisualPalette.Accent, 1.3, CaptionLayout.Scatter, false, true, Font: CaptionFont.Display, Case: CaptionCase.Upper, Motion: CaptionMotion.Stamp, Outline: 1.3, Tilt: 3),
+            // Pills: every word in a soft pastel pill of its own colour, ink on it, bouncing in at the bottom.
+            CaptionPreset.Pills => new CaptionStyle(Ink, Rgb(0xFF6FA3), VisualPalette.Rainbow, 0.9, CaptionLayout.Stack, true, false, Font: CaptionFont.Rounded, Motion: CaptionMotion.Bounce, PlateAlways: true, Tilt: 0, Outline: 0, PlateTint: true),
+            // Marker: handwriting over a yellow highlighter, written out letter by letter, a little askew.
+            CaptionPreset.Marker => new CaptionStyle(Ink, Rgb(0xFFF176), VisualPalette.Fire, 1, CaptionLayout.Scatter, false, false, Font: CaptionFont.Hand, Motion: CaptionMotion.Typewriter, PlateAlways: true, Tilt: 1.5, Outline: 0, PlateTint: true),
+            // Stairs: rounded capitals climb a staircase from the lower left, sliding in step by step.
+            CaptionPreset.Stairs => new CaptionStyle(White, Rgb(0x7CE0FF), VisualPalette.Cool, 1, CaptionLayout.Stairs, false, true, Font: CaptionFont.Rounded, Case: CaptionCase.Upper, Motion: CaptionMotion.Slide, Tilt: 0, Outline: 1.2),
+            // Wire: outlined capitals only, hollow, until a stressed word fills in solid.
+            CaptionPreset.Wire => new CaptionStyle(White, Rgb(0x00FFC8), VisualPalette.Neon, 1.2, CaptionLayout.Centre, false, true, Font: CaptionFont.Display, Case: CaptionCase.Upper, Hollow: true, Outline: 1.5, Tilt: 0),
             CaptionPreset.Custom => own,
             _ => CaptionStyle.Default,
         };
@@ -63,6 +77,13 @@ public static class CaptionPresets
         CaptionPreset.Rave => "Rave",
         CaptionPreset.Classic => "Classic, word lit",
         CaptionPreset.Glitch => "Glitch",
+        CaptionPreset.Ticker => "News ticker",
+        CaptionPreset.Ghost => "Ghosts",
+        CaptionPreset.Stamp => "Rubber stamp",
+        CaptionPreset.Pills => "Pills",
+        CaptionPreset.Marker => "Marker pen",
+        CaptionPreset.Stairs => "Stairs",
+        CaptionPreset.Wire => "Wire",
         CaptionPreset.Custom => "Custom",
         _ => "Creator cut",
     };
@@ -79,6 +100,13 @@ public static class CaptionPresets
         CaptionPreset.Rave => "Confetti: every word lands somewhere of its own in a colour of its own, jittering and flickering.",
         CaptionPreset.Classic => "A subtitle line as ever, the word being said lit in the accent colour.",
         CaptionPreset.Glitch => "A feed breaking up: monospace capitals split into red and cyan, jittering, dropping in askew.",
+        CaptionPreset.Ticker => "A news ticker: one steady line of capitals sliding along a dark bar at the bottom.",
+        CaptionPreset.Ghost => "Pale serif words fade up in the middle, then drift upward and dissolve on their own.",
+        CaptionPreset.Stamp => "Red poster capitals slam down like rubber stamps, each a little askew.",
+        CaptionPreset.Pills => "Every word in a soft pastel pill of its own colour, bouncing in at the bottom.",
+        CaptionPreset.Marker => "Handwriting over a yellow highlighter, written out letter by letter.",
+        CaptionPreset.Stairs => "Rounded capitals climb a staircase from the lower left, one step a word.",
+        CaptionPreset.Wire => "Outlined capitals only, hollow, until a stressed word fills in solid.",
         CaptionPreset.Custom => "Your own mix of the choices below.",
         _ => "The creator's cut: words scattered where the picture is clear, shouts huge in capitals, a lift in the voice in gold italics.",
     };

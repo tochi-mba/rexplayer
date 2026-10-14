@@ -169,6 +169,8 @@ public sealed class CaptionDirector
                 CaptionLayoutChoice.Centre => CaptionLayout.Centre,
                 CaptionLayoutChoice.Left => CaptionLayout.Left,
                 CaptionLayoutChoice.Confetti => CaptionLayout.Confetti,
+                CaptionLayoutChoice.Ticker => CaptionLayout.Ticker,
+                CaptionLayoutChoice.Stairs => CaptionLayout.Stairs,
                 _ => CaptionLayout.Scatter,
             },
             kinetic.Glyphs,
@@ -188,7 +190,10 @@ public sealed class CaptionDirector
             kinetic.Flat,
             kinetic.Motion == CaptionMotionChoice.Typewriter,
             kinetic.Split,
-            kinetic.Jitter / 100.0);
+            kinetic.Jitter / 100.0,
+            kinetic.PlateTint,
+            kinetic.Hollow,
+            kinetic.Dissolve);
         return CaptionPresets.Style(kinetic.Preset, own);
     }
 

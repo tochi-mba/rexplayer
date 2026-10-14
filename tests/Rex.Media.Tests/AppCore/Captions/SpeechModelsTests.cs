@@ -35,6 +35,12 @@ public sealed class SpeechModelsTests : IDisposable
         }
     }
 
+    /// <summary>Progress kept as it comes, not posted to a thread that may have moved on as Progress would.</summary>
+    private sealed class Reports(List<double> into) : IProgress<double>
+    {
+        public void Report(double value) => into.Add(value);
+    }
+
     private static SpeechModel Model(byte[] bytes, string? sha = null) =>
         new("test", "Test", "ggml-test.bin", new Uri("https://example.test/ggml-test.bin"), bytes.Length, sha ?? Convert.ToHexStringLower(SHA256.HashData(bytes)), "MIT", "fast");
 
@@ -75,8 +81,7 @@ public sealed class SpeechModelsTests : IDisposable
         Directory.CreateDirectory(store.Root);
         File.WriteAllBytes(store.PathOf(model) + SpeechModelStore.PartialSuffix, bytes[..50_000]);
         Assert.Equal(50_000, store.PartialBytes(model));
-        await store.DownloadAsync(model, new Progress<double>(reports.Add), TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await store.DownloadAsync(model, new Reports(reports), TestContext.Current.CancellationToken);
 
         Assert.True(store.IsInstalled(model));
         Assert.Equal(bytes, File.ReadAllBytes(store.PathOf(model)));

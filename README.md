@@ -46,6 +46,7 @@ window to watch and listen in, and a command line made for scripts.
 | Browse your music and videos | View, Library (Ctrl+Shift+L): add your folders, then search, or go by album, artist or genre |
 | Keep a playlist | Media, Playlists, New playlist; Playback, Add to a playlist adds what is playing |
 | Subtitles | Keep `film.srt` beside `film.mkv`, or drop the file on the window; V switches, G and H shift them |
+| Kinetic captions | Ctrl+Shift+V: words land as they are spoken, sized by how they were said, kept off faces; Ctrl+Shift+K changes the look; Subtitles, Transcribe the speech, hears a film with no subtitles |
 | Carry on later | Open it again: rexplayer offers to go back to where you stopped. Ctrl+B adds a bookmark |
 | Save the playlist | Ctrl+Y (M3U8, XSPF or PLS); Ctrl+X opens one |
 | Fall asleep to it | Playback, Sleep in 15, 30 or 60 minutes, or at the end of this item |

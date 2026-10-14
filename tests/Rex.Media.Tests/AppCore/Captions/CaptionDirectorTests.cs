@@ -140,6 +140,8 @@ public sealed class CaptionDirectorTests
         Assert.Equal(CaptionLayout.Stack, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Stack } }).Layout);
         Assert.Equal(CaptionLayout.Left, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Left } }).Layout);
         Assert.Equal(CaptionLayout.Confetti, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Confetti } }).Layout);
+        Assert.Equal(CaptionLayout.Ticker, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Ticker } }).Layout);
+        Assert.Equal(CaptionLayout.Stairs, CaptionDirector.StyleFor(new PlayerSettings { KineticCaptions = new KineticCaptionSettings { Preset = CaptionPreset.Custom, Layout = CaptionLayoutChoice.Stairs } }).Layout);
         Assert.Throws<ArgumentNullException>(() => CaptionDirector.StyleFor(null!));
         Assert.Throws<ArgumentNullException>(() => director.Restyle(null!));
         Assert.Throws<ArgumentNullException>(() => new CaptionDirector(null!));
