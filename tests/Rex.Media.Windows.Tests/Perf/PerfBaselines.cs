@@ -42,13 +42,33 @@ internal static class PerfBaselines
         }
     }
 
-    /// <summary>The lane's baseline for a measure, or null when there is none or this run records them.</summary>
-    private static double? Check(string measure, double value)
+    /// <summary>A cost: lower is better. It may grow to the baseline divided by <see cref="ThroughputFloor"/> before the gate fails.</summary>
+    public static void AtMost(string measure, double value)
+    {
+        if (Check(measure, value) is { } baseline)
+        {
+            Assert.True(value <= baseline / ThroughputFloor, $"{measure} is {value:F1}, above the {Lane} baseline {baseline:F1} by more than {1 / ThroughputFloor:P0}.");
+        }
+    }
+
+    /// <summary>
+    /// A measure written down for reading, never gated and never made a baseline: each picture
+    /// effect and each visualisation on its own, whose totals are what the gate watches.
+    /// </summary>
+    public static void Report(string measure, double value) => Check(measure, value, gated: false);
+
+    /// <summary>The lane's baseline for a measure, or null when there is none, it is not gated, or this run records them.</summary>
+    private static double? Check(string measure, double value, bool gated = true)
     {
         TestContext.Current.SendDiagnosticMessage($"{Lane} {measure}: {value.ToString("F1", CultureInfo.InvariantCulture)}");
         lock (Gate)
         {
             Write(Measured, document => document[measure] = Math.Round(value, 1));
+            if (!gated)
+            {
+                return null;
+            }
+
             if (Recording)
             {
                 Write(Path, document =>

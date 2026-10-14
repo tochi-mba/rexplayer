@@ -45,6 +45,42 @@ reason they moved.
 Allocations are exact rather than relative: once warm, demuxing and decoding with our own code
 allocate nothing at all, on every machine.
 
+The suite also measures what people feel, part by part at full HD (`ExperiencePerfTests`): each
+software visualisation's frame, each picture effect's time on the graphics card (Direct3D 11
+timestamp queries), the conversion of a decoded picture to BGRA for Subject Lock, Subject Lock's
+tracking, and scanning and reopening a library of 20 000 files. Each visualisation and effect is
+reported on its own (`visual-1080p-ms-*`, `effect-1080p-gpu-ms-*`) and never gated; their totals
+are. A cost (lower is better) may grow to its baseline divided by 0.7 before the run fails.
+
+A new measure has no `ci-windows` baseline until one is recorded from CI itself: download the
+`perf-measurements` artefact of a green run on `main` and copy its numbers into
+`tests/perf-baselines.json`, saying in the commit where they came from. Numbers from a developer's
+machine never become CI's baselines.
+
+## Measuring the whole player
+
+`./dev.ps1 measure` publishes the player as people get it and measures it with
+`scripts/measure-startup.ps1 -All`, then runs the performance suite, and writes the tables to
+`artifacts/measure/normal.md`. Each figure is the median and the worst of several runs, with how
+busy the rest of the computer was just before each run, so a measurement taken while other work ran
+can be told apart. It needs FFmpeg, which makes the media it plays once (H.264 at full HD and 4K,
+10-bit HEVC, VP9, MP3, FLAC and a picture) into `artifacts/measure/media`.
+
+| Scenario | What it measures |
+|---|---|
+| launch, cold | Start to first paint and to interactive, with the program in memory and read from the disk |
+| play | Start to the first picture and the first sound for each kind of media |
+| seek, seekfar | A short jump forward, and a seek four fifths of the way through, to the picture and the sound |
+| steady | Playing full HD and 4K for 15 seconds: processor, pictures dropped, the jitter of the pictures' timing, memory, allocations and how long the window's thread was blocked |
+| music | The same while a software visualisation draws, and its frame cost |
+| ui | Opening the library, Preferences, the Subject Lock panel, the picture effect picker and the effects panel |
+| library | Scanning a generated library of 3 000 files and opening the library on it |
+
+`./dev.ps1 measure -LowEnd` runs all of it on an imitation of a weak computer: two processor
+cores, below-normal priority, a cap of 2 GB on each process's memory (a job object), pictures drawn
+in software (`REXPLAYER_GRAPHICS=software`) and no decoding on the graphics card
+(`REXPLAYER_HARDWARE_DECODING=off`). The player's own device profile sees the same limits, so the
+imitation also shows what the Fastest tier does. Its report is `artifacts/measure/low-end.md`.
 ## Rules
 
 - No wall-clock waits in the pure suite: clocks are `ManualTimeProvider`, and blocking points are

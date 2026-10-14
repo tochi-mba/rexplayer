@@ -20,7 +20,7 @@ public sealed partial class MainWindow
 
     private void OnSeekAreaPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (_closed || !_settings.SeekPreview || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
+        if (_closed || !_settings.SeekPreview || !_budget.SeekPreview || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
         {
             HideSeekPreview();
             return;

@@ -47,6 +47,14 @@ public sealed class YuvTransform
         ]);
     }
 
+    /// <summary>One output's row (0 red, 1 green, 2 blue): what each sample is multiplied by, and the constant added.</summary>
+    public (double Y, double Cb, double Cr, double Offset) Coefficients(int row)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(row);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(row, 2);
+        return (_rows[row * 4], _rows[(row * 4) + 1], _rows[(row * 4) + 2], _rows[(row * 4) + 3]);
+    }
+
     /// <summary>Red, green and blue (unclamped) for one set of samples.</summary>
     public (double R, double G, double B) Apply(int y, int cb, int cr) => (Row(0, y, cb, cr), Row(1, y, cb, cr), Row(2, y, cb, cr));
 

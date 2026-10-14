@@ -77,26 +77,70 @@ public static class NalUnits
     /// </summary>
     public static byte[] ToAnnexB(ReadOnlySpan<byte> sample, int lengthSize, ReadOnlySpan<byte> parameterSets = default)
     {
-        var units = SplitLengthPrefixed(sample, lengthSize);
-        var size = parameterSets.Length;
-        foreach (var unit in units)
-        {
-            size += StartCode.Length + unit.GetOffsetAndLength(sample.Length).Length;
-        }
+        var output = new byte[AnnexBSize(sample, lengthSize, parameterSets.Length)];
+        ToAnnexB(sample, lengthSize, parameterSets, output);
+        return output;
+    }
 
-        var output = new byte[size];
+    /// <summary>
+    /// <see cref="ToAnnexB(ReadOnlySpan{byte}, int, ReadOnlySpan{byte})"/> into
+    /// <paramref name="output"/>, which must hold <see cref="AnnexBSize"/> bytes; returns how many it
+    /// wrote. Nothing is allocated, so a decoder can convert every packet into one reused buffer.
+    /// </summary>
+    public static int ToAnnexB(ReadOnlySpan<byte> sample, int lengthSize, ReadOnlySpan<byte> parameterSets, Span<byte> output)
+    {
         parameterSets.CopyTo(output);
         var at = parameterSets.Length;
-        foreach (var unit in units)
+        var position = 0;
+        while (NextUnit(sample, lengthSize, ref position) is var (start, end) && start >= 0)
         {
-            StartCode.CopyTo(output, at);
+            StartCode.CopyTo(output[at..]);
             at += StartCode.Length;
-            var bytes = sample[unit];
-            bytes.CopyTo(output.AsSpan(at));
-            at += bytes.Length;
+            sample[start..end].CopyTo(output[at..]);
+            at += end - start;
         }
 
-        return output;
+        return at;
+    }
+
+    /// <summary>How many bytes <see cref="ToAnnexB(ReadOnlySpan{byte}, int, ReadOnlySpan{byte}, Span{byte})"/> writes.</summary>
+    public static int AnnexBSize(ReadOnlySpan<byte> sample, int lengthSize, int parameterSetsLength)
+    {
+        var size = parameterSetsLength;
+        var position = 0;
+        while (NextUnit(sample, lengthSize, ref position) is var (start, end) && start >= 0)
+        {
+            size += StartCode.Length + end - start;
+        }
+
+        return size;
+    }
+
+    /// <summary>
+    /// The next length-prefixed unit from <paramref name="position"/>, as <see cref="SplitLengthPrefixed"/>
+    /// reads them, moving past it; (-1, -1) once there are no more.
+    /// </summary>
+    private static (int Start, int End) NextUnit(ReadOnlySpan<byte> data, int lengthSize, ref int position)
+    {
+        if (lengthSize is not (1 or 2 or 4))
+        {
+            throw new ArgumentOutOfRangeException(nameof(lengthSize), "NAL unit lengths are 1, 2 or 4 bytes.");
+        }
+
+        if (position + lengthSize > data.Length)
+        {
+            return (-1, -1);
+        }
+
+        long length = 0;
+        for (var i = 0; i < lengthSize; i++)
+        {
+            length = (length << 8) | data[position + i];
+        }
+
+        var start = position + lengthSize;
+        position = (int)Math.Min(start + length, data.Length);
+        return (start, position);
     }
 
     /// <summary>NAL units joined as an Annex B byte stream.</summary>

@@ -339,6 +339,7 @@ public sealed partial class MainWindow
                 _ = ShowLogAsync();
                 break;
             case CommandCatalog.OpenLogFolder:
+                App.Log.Flush();
                 Directory.CreateDirectory(App.LogFolder);
                 _ = Windows.System.Launcher.LaunchFolderPathAsync(App.LogFolder);
                 break;
@@ -775,6 +776,7 @@ public sealed partial class MainWindow
             await Task.Run(() =>
             {
                 using var output = File.Create(file.Path);
+                App.Log.Flush();
                 DiagnosticsBundle.Write(
                     output,
                     [("rexplayer.log", ReadShared(App.Log.FilePath)), ("settings.json", ReadShared(App.SettingsPath)), ("system.txt", DescribeSystem())],

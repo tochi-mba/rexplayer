@@ -35,10 +35,18 @@ public static class LaunchPlan
     /// </summary>
     public static readonly TimeSpan FirstLibraryScan = TimeSpan.FromSeconds(10);
 
-    public static IReadOnlyList<LaunchWork> Order(bool opensMedia, bool realAudio)
+    /// <param name="opensMedia">The launch was given something to open.</param>
+    /// <param name="realAudio">There is a real audio device to warm.</param>
+    /// <param name="lean">
+    /// A weak computer (DeviceBudget.LeanLaunch): with nothing to open, only the two stores the
+    /// window needs are read ahead, so they do not share two processor cores with three warm-ups
+    /// whose results may not be wanted; the rest is made when first used.
+    /// </param>
+    public static IReadOnlyList<LaunchWork> Order(bool opensMedia, bool realAudio, bool lean = false)
     {
         IEnumerable<LaunchWork> order = opensMedia
             ? [LaunchWork.Pictures, LaunchWork.Memory, LaunchWork.Decoders, LaunchWork.AudioDevice, LaunchWork.Library]
+            : lean ? [LaunchWork.Memory, LaunchWork.Library]
             : [LaunchWork.Memory, LaunchWork.Library, LaunchWork.Pictures, LaunchWork.Decoders, LaunchWork.AudioDevice];
         return [.. order.Where(work => realAudio || work != LaunchWork.AudioDevice)];
     }

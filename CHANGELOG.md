@@ -3,6 +3,30 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## Unreleased
+
+### Added
+
+- **rexplayer fits itself to the computer.** On a slower computer it does a little less so
+  playback stays smooth: visualisations are drawn smaller and less often, the heaviest picture
+  effects stay off, Subject Lock follows its subject in a half-size copy, transcription uses a
+  smaller speech model and waits while something plays, an empty launch prepares only the window,
+  the timeline preview and list animations are off, and fewer
+  pictures wait to be decoded. Windows' energy saver makes it a step lighter. Preferences has a
+  new Performance section showing what was chosen and why, with Automatic, Best quality, Balanced
+  and Fastest. A capable computer loses nothing.
+- `./dev.ps1 measure` measures the whole player as people feel it (launch, opening each kind of
+  media, seeking, steady playback, memory, the panels, the library) and `-LowEnd` repeats it on
+  an imitation of a weak computer. The performance suite also measures every visualisation, every
+  picture effect on the graphics card, Subject Lock and a library of 20 000 files.
+
+### Changed
+
+- Playing comes first: the threads that read, decode and play run above ordinary priority, so other
+  work on a busy computer no longer makes pictures late or sound break.
+- The log is written in the background, so the window never waits for the disk to note something.
+- Subject Lock converts each picture several times faster, and decoding through Windows no longer
+  makes a new copy of every picture and packet for the memory manager to clear away.
 ## 0.23.0 - 2026-10-14
 
 ### Added

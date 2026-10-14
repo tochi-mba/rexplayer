@@ -27,7 +27,18 @@ public partial class App : Application
         // A launch that will hand its files to a running player has nothing to warm up.
         if (!AutomationPipe.IsServed(AutomationPipe.NameForCurrentUser))
         {
-            Warmup = LaunchWarmup.Start(Environment.GetCommandLineArgs().Length > 1, Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") != "1");
+            // A weak computer warms only what an empty launch shows (DeviceBudget.LeanLaunch),
+            // judged from what costs nothing to read: reading the settings or asking Windows about
+            // the power first delayed every warm-up by as much as a second.
+            var facts = new Rex.Media.AppCore.Performance.DeviceFacts
+            {
+                Processors = Environment.ProcessorCount,
+                MemoryBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
+                Graphics = SoftwareGraphics ? Rex.Media.AppCore.Performance.GraphicsKind.Software : Rex.Media.AppCore.Performance.GraphicsKind.Unknown,
+                HardwareDecoding = GraphicsCardDecoding ? null : [],
+            };
+            var lean = Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Classify(facts), facts).LeanLaunch;
+            Warmup = LaunchWarmup.Start(Environment.GetCommandLineArgs().Length > 1, Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") != "1", lean);
         }
 
         InitializeComponent();
@@ -57,14 +68,16 @@ public partial class App : Application
 
     public static string SettingsPath { get; } = Path.Combine(DataRoot, "settings.json");
 
+
     /// <summary>The folder the log is written in, which Help, Open the log folder shows.</summary>
     public static string LogFolder { get; } = Path.Combine(DataRoot, "logs");
 
     /// <summary>
     /// The log, in detail: every command, every item and its tracks, every decoder chosen or refused,
     /// so a problem can be diagnosed from the file alone. Files roll over at 8 MB; the last five are kept.
+    /// Lines are written behind, so the window's thread never waits for the disk to log.
     /// </summary>
-    public static RexLog Log { get; } = new(new RexLogOptions { Directory = LogFolder, FileName = "rexplayer.log", Minimum = LogLevel.Debug, MaxBytes = 8 * 1024 * 1024, KeepFiles = 5 });
+    public static RexLog Log { get; } = new(new RexLogOptions { Directory = LogFolder, FileName = "rexplayer.log", Minimum = LogLevel.Debug, MaxBytes = 8 * 1024 * 1024, KeepFiles = 5, WriteBehind = true });
 
     /// <summary>
     /// The timing lines of the log: how long since the process started each moment of the launch

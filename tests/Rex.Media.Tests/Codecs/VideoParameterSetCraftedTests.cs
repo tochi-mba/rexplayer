@@ -225,6 +225,19 @@ public sealed class VideoParameterSetCraftedTests
 
         Assert.Equal([0, 0, 0, 1, 0x65, 1, 2, 0, 0, 0, 1, 0x06, 3], plain);
         Assert.Equal([0, 0, 0, 1, 0x67, 9, 0, 0, 0, 1, 0x68, 8, .. plain], withSets);
+
+        // Into a buffer of the caller's, larger than needed: the same bytes, and how many.
+        var buffer = new byte[64];
+        Assert.Equal(13, NalUnits.AnnexBSize(sample, lengthSize, 0));
+        Assert.Equal(13, NalUnits.ToAnnexB(sample, lengthSize, default, buffer));
+        Assert.Equal(plain, buffer[..13]);
+    }
+
+    [Fact]
+    public void ConvertingToAnnexBNeedsAKnownLengthSize()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => NalUnits.AnnexBSize([0, 1, 2], 3, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => NalUnits.ToAnnexB([], 3));
     }
 
     [Fact]

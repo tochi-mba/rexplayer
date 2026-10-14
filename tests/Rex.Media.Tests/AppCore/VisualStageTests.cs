@@ -414,6 +414,11 @@ public sealed class VisualStageTests
         Assert.Equal((16, 9), VisualStage.SizeFor(1920, double.PositiveInfinity));
         Assert.Equal((1920, 1080), VisualStage.SizeFor(1920, 1080, double.NaN));
         Assert.Equal((320, 180), VisualStage.SizeFor(320, 180));
+
+        // A weaker computer's cap; never above full HD, never below a usable size.
+        Assert.Equal((854, 480), VisualStage.SizeFor(1920, 1080, maxSide: 854));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(1920, 1080, maxSide: 4000));
+        Assert.Equal((16, 9), VisualStage.SizeFor(1920, 1080, maxSide: 1));
         Assert.False(VisualScene.Draws(VisualizerChoice.Spectrum));
         Assert.True(VisualScene.Draws(VisualizerChoice.BeatEdit));
 

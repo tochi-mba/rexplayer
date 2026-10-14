@@ -130,10 +130,12 @@ public sealed partial class MainWindow
     /// Hands the presenter all four of an effect's saved controls. The one place this happens, so
     /// starting the player, choosing an effect and changing its settings always agree.
     /// </summary>
-    private static void ConfigureEffect(D3D11Presenter presenter, VideoEffect effect, IReadOnlyDictionary<string, int> values, int legacyStrength)
+    private void ConfigureEffect(D3D11Presenter presenter, VideoEffect effect, IReadOnlyDictionary<string, int> values, int legacyStrength)
     {
         var controls = VideoStyleOptions.Controls(effect, values, legacyStrength);
-        presenter.SetEffect(effect, controls.Intensity, controls.Detail);
+
+        // On a weak computer the heaviest effects stay off (DeviceProfile.HeavyEffects); the choice is kept.
+        presenter.SetEffect(_budget.Allows(effect) ? effect : VideoEffect.Off, controls.Intensity, controls.Detail);
         presenter.SetEffectExtras(controls.Third, controls.Fourth);
     }
 
@@ -142,7 +144,9 @@ public sealed partial class MainWindow
         _settings = _settings with { VideoEffect = effect };
         RememberLater();
         ApplyVideoEffect(effect, _settings.VideoEffectStrength);
-        Say("Picture effects: " + VideoEffects.Name(effect));
+        Say(_budget.Allows(effect)
+            ? "Picture effects: " + VideoEffects.Name(effect)
+            : $"{VideoEffects.Name(effect)} is off on this computer to keep video smooth. Choose Best quality under Performance in Preferences to use it.");
     }
 
     /// <summary>

@@ -80,9 +80,10 @@ public sealed class VisualStage
     /// The canvas for a stage <paramref name="width"/> by <paramref name="height"/> layout units
     /// across on a screen of <paramref name="scale"/> pixels a unit: the stage's own pixels, so
     /// nothing is scaled up at full quality until its longest side would pass
-    /// <see cref="MaxSide"/>. Quality scales that fitted size, including on smaller windows.
+    /// <see cref="MaxSide"/>, or <paramref name="maxSide"/> on a computer that cannot spare the time.
+    /// Quality scales that fitted size, including on smaller windows.
     /// </summary>
-    public static (int Width, int Height) SizeFor(double width, double height, double quality = 1, double scale = 1)
+    public static (int Width, int Height) SizeFor(double width, double height, double quality = 1, double scale = 1, int maxSide = MaxSide)
     {
         if (!(width >= 2 && height >= 2) || !double.IsFinite(width) || !double.IsFinite(height))
         {
@@ -91,7 +92,7 @@ public sealed class VisualStage
 
         scale = double.IsFinite(scale) && scale > 0 ? scale : 1;
         var longest = Math.Max(width, height);
-        var fitted = Math.Min(MaxSide, longest * scale)
+        var fitted = Math.Min(Math.Clamp(maxSide, 16, MaxSide), longest * scale)
             * (double.IsFinite(quality) ? Math.Clamp(quality, LowestQuality, 1) : 1);
         // Divide before multiplying so even very large finite layout sizes or scales retain
         // their aspect ratio instead of producing infinity times zero.

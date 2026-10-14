@@ -207,7 +207,7 @@ public sealed partial class MainWindow
             var current = _lyricTexts[line];
             current.Foreground = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
             current.FontWeight = FontWeights.SemiBold;
-            LyricsLines.Children[line].StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5, AnimationDesired = true });
+            LyricsLines.Children[line].StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5, AnimationDesired = _budget.Animations });
         }
     }
 }

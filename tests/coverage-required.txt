@@ -4,6 +4,7 @@ AacConfig.cs
 AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+AnalysisConverter.cs
 Ass.cs
 Asx.cs
 AtomicFile.cs
@@ -64,6 +65,7 @@ CymaticsScene.cs
 Decoders.cs
 DemuxerRegistry.cs
 DeviceFormatPolicy.cs
+DeviceProfile.cs
 DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
