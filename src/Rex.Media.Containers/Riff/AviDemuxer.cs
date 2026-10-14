@@ -165,10 +165,11 @@ public sealed class AviDemuxer : IDemuxer
     {
         if (_movie.Count == 0) return;
         var baseOffset = _movie[0].Start - 4;
-        _stream.Seek(start);
         Span<byte> entry = stackalloc byte[16];
         for (long read = 0; read + 16 <= size; read += 16)
         {
+            // Validating an entry seeks to its media chunk, so return to the index for each entry.
+            _stream.Seek(start + read);
             _stream.ReadExactly(entry);
             var stream = StreamNumber(entry);
             var offset = BinaryPrimitives.ReadUInt32LittleEndian(entry[8..]);
@@ -248,7 +249,7 @@ public sealed class AviDemuxer : IDemuxer
             var scale = BinaryPrimitives.ReadUInt32LittleEndian(header[20..]);
             var rate = BinaryPrimitives.ReadUInt32LittleEndian(header[24..]);
             if (scale == 0 || rate == 0) throw new MediaFormatException("An AVI stream has an invalid time base.");
-            return new(FourCC.ToString(header), scale, rate, BinaryPrimitives.ReadUInt32LittleEndian(header[32..]), BinaryPrimitives.ReadUInt32LittleEndian(header[44..]), format);
+            return new(FourCC.ToString(header[..4]), scale, rate, BinaryPrimitives.ReadUInt32LittleEndian(header[32..]), BinaryPrimitives.ReadUInt32LittleEndian(header[44..]), format);
         }
 
         public MediaTime Time(long units) => MediaTime.FromTimebase(units, new Rational(Scale, Rate));
@@ -261,7 +262,7 @@ public sealed class AviDemuxer : IDemuxer
             if (Kind != "vids" || Format.Length < 40) return new TrackInfo { Id = id, Codec = CodecId.Unknown, Duration = duration };
             var width = Math.Abs(BinaryPrimitives.ReadInt32LittleEndian(Format.AsSpan(4)));
             var height = Math.Abs(BinaryPrimitives.ReadInt32LittleEndian(Format.AsSpan(8)));
-            var compression = FourCC.ToString(Format.AsSpan(16)).ToUpperInvariant();
+            var compression = FourCC.ToString(Format.AsSpan(16, 4)).ToUpperInvariant();
             var codec = compression switch { "XVID" or "DIVX" or "DX50" or "MP4V" or "M4S2" => CodecId.Mpeg4Part2, "MJPG" => CodecId.Mjpeg, "H264" or "X264" or "AVC1" => CodecId.H264, _ => CodecId.Unknown };
             return new TrackInfo { Id = id, Codec = codec, CodecPrivate = Format.Length > 40 ? Format[40..] : [], Duration = duration, Video = new VideoTrackInfo { Width = width, Height = height, FrameRate = new Rational(Rate, Scale) } };
         }
