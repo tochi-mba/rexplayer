@@ -6,7 +6,7 @@ namespace Rex.Media.Codecs.MediaFoundation;
 
 /// <summary>
 /// The decode ladder's Windows rung: the codecs rexplayer leaves to Windows (AAC, AC-3, E-AC-3,
-/// H.264, HEVC, VP9, AV1) through the Media Foundation decoder transforms. It ranks below
+/// H.264, HEVC, MPEG-4 Part 2, VP9, AV1) through the Media Foundation decoder transforms. It ranks below
 /// rexplayer's own decoders, so it is only reached for codecs they do not cover (ADR-009).
 /// </summary>
 public sealed class MfDecoderFactory : IDecoderFactory
@@ -34,6 +34,7 @@ public sealed class MfDecoderFactory : IDecoderFactory
     {
         CodecId.H264 => PInvoke.MFVideoFormat_H264,
         CodecId.Hevc => PInvoke.MFVideoFormat_HEVC,
+        CodecId.Mpeg4Part2 => PInvoke.MFVideoFormat_MP4V,
         CodecId.Vp9 => PInvoke.MFVideoFormat_VP90,
         _ => null,
     };
@@ -54,6 +55,7 @@ public sealed class MfDecoderFactory : IDecoderFactory
         (CodecId.Vp9, true, PInvoke.MFVideoFormat_VP90),
         (CodecId.Av1, true, PInvoke.MFVideoFormat_AV1),
         (CodecId.Mpeg2Video, true, PInvoke.MFVideoFormat_MPEG2),
+        (CodecId.Mpeg4Part2, true, PInvoke.MFVideoFormat_MP4V),
         (CodecId.Vc1, true, PInvoke.MFVideoFormat_WVC1),
     ];
 
