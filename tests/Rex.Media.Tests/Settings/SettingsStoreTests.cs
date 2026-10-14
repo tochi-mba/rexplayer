@@ -105,6 +105,9 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Off", VideoEffects.Name((VideoEffect)999));
         Assert.Equal(0, VideoEffects.Strength(-1));
         Assert.Equal(100, VideoEffects.Strength(1000));
+        Assert.Equal(VideoEffect.PrismFlow, VideoEffects.Next(VideoEffect.Off));
+        Assert.Equal(VideoEffect.Off, VideoEffects.Next(Enum.GetValues<VideoEffect>()[^1]));
+        Assert.Equal(VideoEffect.Off, VideoEffects.Next((VideoEffect)999));
         Assert.Equal(VideoEffect.Off, new PlayerSettings().VideoEffect);
         Assert.Equal(65, new PlayerSettings().VideoEffectStrength);
 

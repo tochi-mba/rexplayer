@@ -299,6 +299,19 @@ public sealed class AppWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-02")]
+    public void ZCyclesPictureEffectsWhenVideoIsShowing()
+    {
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video's details");
+
+        app.Run(CommandCatalog.CycleVisualizer);
+
+        Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.PrismFlow, "the next picture effect to be kept");
+        Assert.Equal(0, app.Close());
+    }
+
     [Theory]
     [Capability("AU-18")]
     [InlineData("Vinyl")]

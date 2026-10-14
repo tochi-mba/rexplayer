@@ -149,6 +149,9 @@ public sealed partial class MainWindow
             : $"{VideoEffects.Name(effect)} is off on this computer to keep video smooth. Choose Best quality under Performance in Preferences to use it.");
     }
 
+    /// <summary>Cycles the picture effect from the shared Z shortcut while pictures are showing.</summary>
+    private void CycleVideoEffect() => ChooseVideoEffect(VideoEffects.Next(_settings.VideoEffect));
+
     /// <summary>
     /// Per-look controls preview immediately, but Cancel returns the renderer and settings to
     /// the prior values. Reset removes only this style's keys, never another style's presets.
