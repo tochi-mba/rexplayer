@@ -383,3 +383,229 @@ public sealed partial class PlayerController
         return true;
     }
 }
+
+
+/// <summary>
+/// Analyses numbered TV episodes in the library even before any is opened. One below-normal
+/// worker shares the player's per-file feature cache and saved proposals, yields immediately to
+/// playback, and never opens a playback session. Re-queuing checks signatures, so unchanged
+/// episodes require no decoding and a replaced sibling invalidates every dependent proposal.
+/// </summary>
+public sealed class LibrarySectionAnalysis : IDisposable
+{
+    private static readonly HashSet<string> Extensions = new(
+        [".mkv", ".mp4", ".m4v", ".avi", ".mov", ".webm", ".ts"],
+        StringComparer.OrdinalIgnoreCase);
+
+    private readonly PlayerMemory _memory;
+    private readonly SectionAnalysisCache _cache;
+    private readonly Func<string, CancellationToken, EpisodeAnalysis> _analyzer;
+    private readonly Rex.Media.Diagnostics.RexLog _log;
+    private readonly object _gate = new();
+    private readonly AutoResetEvent _wake = new(false);
+    private readonly CancellationTokenSource _stop = new();
+    private readonly Thread? _worker;
+    private string[] _files = [];
+    private List<string> _pending = [];
+    private CancellationTokenSource? _active;
+    private bool _paused;
+
+    /// <summary>False leaves the queue for deterministic calls to <see cref="RunPending"/> in tests.</summary>
+    public LibrarySectionAnalysis(PlayerMemory memory, SectionAnalysisCache cache,
+        Func<string, CancellationToken, EpisodeAnalysis> analyzer, Rex.Media.Diagnostics.RexLog log, bool background = true)
+    {
+        _memory = memory ?? throw new ArgumentNullException(nameof(memory));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
+        _log = log ?? throw new ArgumentNullException(nameof(log));
+        if (background)
+        {
+            _worker = new Thread(Work)
+            {
+                IsBackground = true,
+                Priority = ThreadPriority.BelowNormal,
+                Name = "rexplayer library section analysis",
+            };
+            _worker.Start();
+        }
+    }
+
+    /// <summary>Replaces the library's known video files, including when a scan adds or removes files.</summary>
+    public void SetQueue(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var eligible = paths.Where(path => !string.IsNullOrWhiteSpace(path) && Path.IsPathFullyQualified(path)
+                && Extensions.Contains(Path.GetExtension(path)) && EpisodeGrouping.Identify(path) is not null)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        lock (_gate)
+        {
+            if (_stop.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _files = eligible;
+            _pending = [.. eligible];
+            _active?.Cancel();
+        }
+
+        _wake.Set();
+    }
+
+    /// <summary>When playback begins, interrupt even the currently decoding episode.</summary>
+    public void SetPaused(bool paused)
+    {
+        lock (_gate)
+        {
+            if (_stop.IsCancellationRequested || _paused == paused)
+            {
+                return;
+            }
+
+            _paused = paused;
+            if (paused)
+            {
+                _active?.Cancel();
+            }
+        }
+
+        _wake.Set();
+    }
+
+    /// <summary>Consume everything currently queued, or return when paused or stopped.</summary>
+    public void RunPending()
+    {
+        while (true)
+        {
+            string path;
+            string[] files;
+            CancellationTokenSource active;
+            lock (_gate)
+            {
+                if (_stop.IsCancellationRequested || _paused || _pending.Count == 0)
+                {
+                    return;
+                }
+
+                path = _pending[0];
+                _pending.RemoveAt(0);
+                files = _files;
+                _active = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
+                active = _active;
+            }
+
+            try
+            {
+                Analyze(path, files, active.Token);
+            }
+            catch (OperationCanceledException) when (active.IsCancellationRequested)
+            {
+                // Playing takes priority; this episode is placed back in the queue below.
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                Rex.Media.Primitives.MediaFormatException or InvalidOperationException or ArgumentException)
+            {
+                _log.Warning("sections", "Could not analyse library episode " + path + ": " + ex.Message);
+            }
+            finally
+            {
+                lock (_gate)
+                {
+                    if (ReferenceEquals(_active, active))
+                    {
+                        _active = null;
+                    }
+
+                    if (active.IsCancellationRequested && !_stop.IsCancellationRequested &&
+                        _files.Contains(path, StringComparer.OrdinalIgnoreCase) &&
+                        !_pending.Contains(path, StringComparer.OrdinalIgnoreCase))
+                    {
+                        _pending.Insert(0, path);
+                    }
+                }
+
+                active.Dispose();
+            }
+        }
+    }
+
+    private void Analyze(string path, IReadOnlyList<string> files, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var folder = Path.GetDirectoryName(path);
+        var inFolder = files.Where(other => string.Equals(Path.GetDirectoryName(other), folder,
+            StringComparison.OrdinalIgnoreCase));
+        var siblings = EpisodeGrouping.Siblings(path, inFolder, SectionDetector.SiblingsCompared);
+        var signature = PlayerController.DetectionSignature(path, siblings);
+        if (_memory.Proposals(path, signature) is not null)
+        {
+            return;
+        }
+
+        EpisodeAnalysis Features(string file)
+        {
+            token.ThrowIfCancellationRequested();
+            var stamp = SectionAnalysis.SignatureOf(file);
+            if (_cache.Get(file, stamp) is { } kept)
+            {
+                return kept;
+            }
+
+            var made = _analyzer(file, token);
+            token.ThrowIfCancellationRequested();
+            _cache.Set(made);
+            return made;
+        }
+
+        var episode = Features(path);
+        var compared = new List<EpisodeAnalysis>();
+        foreach (var sibling in siblings)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                compared.Add(Features(sibling));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
+            {
+                _log.Warning("sections", "Could not analyse sibling " + sibling + ": " + ex.Message);
+            }
+        }
+
+        token.ThrowIfCancellationRequested();
+        var result = SectionDetector.Detect(episode, compared) with { Signature = signature };
+        _memory.SetProposals(path, result);
+    }
+
+    private void Work()
+    {
+        while (!_stop.IsCancellationRequested)
+        {
+            RunPending();
+            _wake.WaitOne(TimeSpan.FromSeconds(1));
+        }
+    }
+
+    /// <summary>Stop promptly, without preventing the app from closing if a decoder misbehaves.</summary>
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_stop.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _stop.Cancel();
+            _active?.Cancel();
+        }
+
+        _wake.Set();
+        if (_worker is null || _worker.Join(TimeSpan.FromSeconds(5)))
+        {
+            _wake.Dispose();
+            _stop.Dispose();
+        }
+    }
+}
