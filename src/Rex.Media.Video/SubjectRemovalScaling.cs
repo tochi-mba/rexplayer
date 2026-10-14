@@ -275,12 +275,8 @@ public static class SubjectRemovalScaling
     private static void Draw(in Rows rows, int first, int second, int across, ReadOnlySpan<uint> picture, Span<uint> drawn,
         ReadOnlySpan<uint> better, int x)
     {
+        // The caller draws only pixels where a neighbour with some weight hides something.
         var (a0, a1, a2, a3) = (rows.UpperAlpha[first], rows.UpperAlpha[second], rows.LowerAlpha[first], rows.LowerAlpha[second]);
-        if ((a0 | a1 | a2 | a3) == 0)
-        {
-            return;
-        }
-
         var down = rows.Down;
         // Bilinear weights in 256ths.
         var (w0, w1, w2, w3) = ((16 - across) * (16 - down), across * (16 - down), (16 - across) * down, across * down);
