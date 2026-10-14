@@ -84,6 +84,76 @@ public sealed class SectionDetectionControllerTests
         }
     }
 
+    [Fact]
+    public void EmptyDetectionSurvivesRestartButAChangedSiblingInvalidatesIt()
+    {
+        var folder = Directory.CreateTempSubdirectory("rexplayer-section-result-cache-").FullName;
+        try
+        {
+            var first = Path.Combine(folder, "Series.S01E01.mkv");
+            var sibling = Path.Combine(folder, "Series.S01E02.mkv");
+            var third = Path.Combine(folder, "Series.S01E03.mkv");
+            var bytes = MatroskaCraftedTests.Mkv(
+                EbmlWriter.Element(MatroskaId.Info,
+                    EbmlWriter.UInt(MatroskaId.TimestampScale, 1_000_000),
+                    EbmlWriter.Float(MatroskaId.Duration, 10_000)),
+                MatroskaCraftedTests.Tracks(EbmlWriter.Element(MatroskaId.TrackEntry,
+                    EbmlWriter.UInt(MatroskaId.TrackNumber, 2),
+                    EbmlWriter.UInt(MatroskaId.TrackType, 1),
+                    EbmlWriter.Text(MatroskaId.CodecId, "V_MPEG4/ISO/AVC"),
+                    EbmlWriter.Element(MatroskaId.Video,
+                        EbmlWriter.UInt(MatroskaId.PixelWidth, 16),
+                        EbmlWriter.UInt(MatroskaId.PixelHeight, 8)))),
+                MatroskaCraftedTests.Cluster(0, MatroskaCraftedTests.Simple(2, 0, true, 40)));
+            File.WriteAllBytes(first, bytes);
+            File.WriteAllBytes(sibling, bytes);
+            File.WriteAllBytes(third, bytes);
+            var store = RexStore.InMemory();
+            var cache = new SectionAnalysisCache();
+            var analyzed = 0;
+
+            EpisodeAnalysis Analyze(string path, CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                Interlocked.Increment(ref analyzed);
+                return new EpisodeAnalysis(path, SectionAnalysis.SignatureOf(path),
+                    TimeSpan.FromMinutes(43), [], [], []);
+            }
+
+            void OpenAndWait(int expectedAnalyses)
+            {
+                using var harness = new ControllerHarness(autoPlay: false, pictures: true, store: store);
+                harness.Files[first] = bytes;
+                harness.Controller.SectionCache = cache;
+                harness.Controller.SectionAnalyzer = Analyze;
+                harness.Controller.Open([first]);
+                harness.PumpUntil(player => player.State == SessionState.Ready &&
+                    player.CurrentProposals is { Candidates.Count: 0 } &&
+                    Volatile.Read(ref analyzed) >= expectedAnalyses);
+            }
+
+            OpenAndWait(3);
+            Assert.Equal(3, analyzed);
+
+            // No result is a durable result: reopening does no decoding.
+            OpenAndWait(3);
+            Assert.Equal(3, analyzed);
+
+            // The result depended on the sibling. Replacing it changes the dependency signature;
+            // the current episode's analysis remains reusable and only the sibling is decoded.
+            using (var changed = new FileStream(sibling, FileMode.Append))
+            {
+                changed.WriteByte(0);
+            }
+            OpenAndWait(4);
+            Assert.Equal(4, analyzed);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
 
     [Fact]
     public void NamedChaptersMayBeSavedOnceWithoutOverwritingManualAdjustments()
@@ -334,7 +404,7 @@ public sealed class SectionDetectionControllerTests
 
             var store = RexStore.InMemory();
             var memory = new PlayerMemory(store);
-            var signature = SectionAnalysis.SignatureOf(path);
+            var signature = PlayerController.DetectionSignature(path, []);
             var proposal = new SectionProposals(signature, [
                 new SectionCandidate(EpisodeSectionKind.Intro, TimeSpan.Zero,
                     TimeSpan.FromSeconds(4), 0.96, "A repeated opening", "shared audio"),
