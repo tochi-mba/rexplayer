@@ -166,7 +166,11 @@ public sealed class TranscriptionWorker : IDisposable
         Wake();
     }
 
-    /// <summary>The playhead moved; a seek away from the piece being heard drops it.</summary>
+    /// <summary>
+    /// The playhead moved; a seek away from the piece being heard drops it. Called at every position
+    /// report, so it never wakes the thread: the next piece reads the playhead when it is planned,
+    /// and a dropped piece ends the step that was hearing it.
+    /// </summary>
     public void MovePlayhead(TimeSpan playhead)
     {
         lock (_gate)
@@ -177,8 +181,6 @@ public sealed class TranscriptionWorker : IDisposable
                 _piece?.Cancel();
             }
         }
-
-        Wake();
     }
 
     /// <summary>Forgets that files were settled this session, so a retried or changed file is heard again.</summary>

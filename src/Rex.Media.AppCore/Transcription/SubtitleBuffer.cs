@@ -78,10 +78,7 @@ public static class SubtitleBuffer
         var ready = whole.Length - done.Gaps(whole).Aggregate(TimeSpan.Zero, (sum, gap) => sum + gap.Length);
         var ahead = Ahead(done, playhead);
         var complete = done.Covers(whole);
-        var state = complete ? BufferState.Complete
-            : ahead >= Comfortable || (ahead > TimeSpan.Zero && done.At(playhead)!.Value.End >= duration) ? BufferState.Ahead
-            : hearing ? BufferState.CatchingUp
-            : BufferState.Stalled;
+        var state = StateAt(done, duration, playhead, hearing);
         var label = state switch
         {
             BufferState.CatchingUp => "Transcribing ahead...",
@@ -93,6 +90,24 @@ public static class SubtitleBuffer
                 + (ahead > TimeSpan.Zero ? string.Create(CultureInfo.InvariantCulture, $", {TimeText.Format(ahead, duration)} ahead of where you are.") : ".")
                 + (hearing ? " Transcribing ahead of you." : "");
         return new BufferView(spans, state, label, tip);
+    }
+
+    /// <summary>
+    /// Where the playhead stands, with nothing made but the answer: two binary searches, so the
+    /// window can ask at every position report and redraw only when the state changes.
+    /// </summary>
+    public static BufferState StateAt(TimeRanges? done, TimeSpan duration, TimeSpan playhead, bool hearing)
+    {
+        if (done is null || duration <= TimeSpan.Zero)
+        {
+            return BufferState.None;
+        }
+
+        var ahead = Ahead(done, playhead);
+        return done.Covers(new TimeRange(TimeSpan.Zero, duration)) ? BufferState.Complete
+            : ahead >= Comfortable || (ahead > TimeSpan.Zero && playhead + ahead >= duration) ? BufferState.Ahead
+            : hearing ? BufferState.CatchingUp
+            : BufferState.Stalled;
     }
 
     /// <summary>What the timeline preview says under the pointer at <paramref name="at"/>: whether subtitles are ready there.</summary>

@@ -47,6 +47,11 @@ public sealed class SubtitleBufferTests
         var whole = SubtitleBuffer.View(TimeRanges.Of([R(0, 200)]), S(200), S(199), hearing: false);
         Assert.Equal((BufferState.Complete, "", "Subtitles are ready for the whole of it."), (whole.State, whole.Label, whole.ToolTip));
 
+        Assert.Equal(BufferState.CatchingUp, SubtitleBuffer.StateAt(done, S(200), S(47), hearing: true));
+        Assert.Equal(BufferState.Stalled, SubtitleBuffer.StateAt(done, S(200), S(60), hearing: false));
+        Assert.Equal(BufferState.Ahead, SubtitleBuffer.StateAt(done, S(200), S(10), hearing: false));
+        Assert.Equal(BufferState.None, SubtitleBuffer.StateAt(null, S(200), S(10), hearing: true));
+        Assert.Equal(BufferState.None, SubtitleBuffer.StateAt(done, TimeSpan.Zero, S(10), hearing: true));
         Assert.Equal("Subtitles ready here", SubtitleBuffer.HintAt(done, S(10)));
         Assert.Equal("No subtitles here yet", SubtitleBuffer.HintAt(done, S(60)));
         Assert.Throws<ArgumentNullException>(() => SubtitleBuffer.HintAt(null!, S(1)));
