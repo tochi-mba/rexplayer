@@ -91,7 +91,10 @@ public sealed unsafe class WasapiRenderClient : IDisposable
         var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
         try
         {
-            enumerator.GetDefaultAudioEndpoint(EDataFlow.eRender, ERole.eConsole, out var device);
+            // Media playback follows Windows' multimedia default. The console default can be a
+            // different endpoint (commonly the built-in speakers) even while the user's music and
+            // video apps are routed elsewhere.
+            enumerator.GetDefaultAudioEndpoint(EDataFlow.eRender, ERole.eMultimedia, out var device);
             return new WasapiRenderClient(device, bufferDuration);
         }
         catch (COMException)
