@@ -1,4 +1,3 @@
-using System.Numerics;
 using Rex.Media.Primitives;
 
 namespace Rex.Media.Video;
@@ -22,9 +21,7 @@ namespace Rex.Media.Video;
 /// joined to the middle of the box are dropped and holes inside the subject are closed.
 /// </para>
 /// All of this runs on a grid of at most <see cref="GridBudget"/> cells, so its cost does not
-/// grow with the size of the picture or of the subject. The smoothing works on whole rows of cells
-/// at once with the processor's vector instructions, and the guided filter's window means are read
-/// from summed-area tables (Crow, "Summed-Area Tables for Texture Mapping", SIGGRAPH 1984).
+/// grow with the size of the picture or of the subject.
 /// </summary>
 public sealed partial class SubjectRemovalMatte
 {
@@ -64,12 +61,7 @@ public sealed partial class SubjectRemovalMatte
     private readonly float[] _ringHistogram = new float[BinCount];
     private bool _hasModels;
 
-    // Each cell's blue, green and red, and the smoothing's spins, with a margin of zeros before and
-    // after the grid (see _pad) so neighbours can be read without testing for the grid's edge.
-    private float[] _blue = [];
-    private float[] _green = [];
-    private float[] _red = [];
-    private float[] _spin = [];
+    private byte[] _colour = [];
     private float[] _grey = [];
     private short[] _bin = [];
     private byte[] _region = [];
@@ -80,15 +72,12 @@ public sealed partial class SubjectRemovalMatte
     private float[] _unary = [];
     private float[] _probability = [];
     private float[] _next = [];
-    // The smoothness weights between each cell and its right, lower, lower right and lower left
-    // neighbours, one run of the padded grid's length for each direction; zero where there is none.
     private float[] _weights = [];
-    private double[] _table = [];
-    private double[] _windows = [];
     private float[] _filterA = [];
     private float[] _filterB = [];
     private float[] _filterC = [];
     private float[] _filterD = [];
+    private float[] _filterE = [];
     private byte[] _label = [];
     private int[] _queue = [];
     private float[] _outside = [];
@@ -97,7 +86,6 @@ public sealed partial class SubjectRemovalMatte
     private float[] _blend = [];
 
     private float[] _memory = [];
-    private float[] _carried = [];
     private bool _hasMemory;
     private (int Left, int Top, int Right, int Bottom) _memoryBox;
     private (int Left, int Top) _memoryOrigin;
@@ -107,10 +95,6 @@ public sealed partial class SubjectRemovalMatte
 
     private int _gridWidth;
     private int _gridHeight;
-    // The zeros kept before and after the grid in padded runs: a row and a cell, the farthest any
-    // neighbour lies.
-    private int _pad;
-    private int _stride;
     // How many cells the outline may grow outwards.
     private int _growth;
     private (int Width, int Height) _picture;
@@ -203,28 +187,12 @@ public sealed partial class SubjectRemovalMatte
         var bias = (Math.Clamp(coverage, 0, 100) - 50) / 50f * 2.5f;
         var wholeBox = coverage >= 100;
         // GrabCut's iteration: label with models from the box and the ring, then estimate the models
-        // again from that labelling and label once more. While the subject is followed steadily, the
-        // previous picture's matte, carried along with the box, is that first labelling: a warm
-        // start, as a video segmentation's previous result seeds the next.
-        var steady = Carried(box) && _hasModels;
-        if (steady)
-        {
-            for (var cell = 0; cell < cells; cell++)
-            {
-                _label[cell] = (byte)(_region[cell] == Beyond ? 0 : wholeBox && _region[cell] == Inside ? 1 : _carried[cell] > 0.5f ? 1 : 0);
-            }
-
-            Weigh();
-        }
-        else
-        {
-            BuildModels(firstPass: true, remember);
-            Weigh();
-            Score(bias);
-            Smooth(1);
-            Label(wholeBox);
-        }
-
+        // again from that labelling and label once more.
+        BuildModels(firstPass: true, remember);
+        Weigh();
+        Score(bias);
+        Smooth(1);
+        Label(wholeBox);
         BuildModels(firstPass: false, remember);
         Score(bias);
         Smooth(3);
@@ -286,13 +254,7 @@ public sealed partial class SubjectRemovalMatte
 
     private void Reserve(int cells, int pixels)
     {
-        _pad = _gridWidth + 1;
-        _stride = cells + 2 * _pad;
-        Ensure(ref _blue, _stride);
-        Ensure(ref _green, _stride);
-        Ensure(ref _red, _stride);
-        Ensure(ref _spin, _stride);
-        Ensure(ref _table, (_gridWidth + 1) * (_gridHeight + 1));
+        Ensure(ref _colour, cells * 3);
         Ensure(ref _grey, cells);
         Ensure(ref _bin, cells);
         Ensure(ref _region, cells);
@@ -303,11 +265,12 @@ public sealed partial class SubjectRemovalMatte
         Ensure(ref _unary, cells);
         Ensure(ref _probability, cells);
         Ensure(ref _next, cells);
-        Ensure(ref _weights, 4 * _stride);
+        Ensure(ref _weights, cells * 4);
         Ensure(ref _filterA, cells);
         Ensure(ref _filterB, cells);
         Ensure(ref _filterC, cells);
         Ensure(ref _filterD, cells);
+        Ensure(ref _filterE, cells);
         Ensure(ref _label, cells);
         Ensure(ref _queue, cells);
         Ensure(ref _outside, cells);
@@ -319,9 +282,7 @@ public sealed partial class SubjectRemovalMatte
     {
         if (buffer.Length < length)
         {
-            // A quarter more than asked for, so an area that grows a little from picture to picture
-            // as a subject moves does not allocate again each time; or, when the caller knows how
-            // much its use can vary, room for all of that at once.
+            // Keep room for the largest grid the caller can request without allocating again.
             buffer = new T[Math.Max(length + length / 4, room)];
         }
     }
@@ -359,7 +320,7 @@ public sealed partial class SubjectRemovalMatte
 
                 var cell = j * _gridWidth + i;
                 var (b, g, r) = (blue / count, green / count, red / count);
-                (_blue[_pad + cell], _green[_pad + cell], _red[_pad + cell]) = (b, g, r);
+                (_colour[cell * 3], _colour[cell * 3 + 1], _colour[cell * 3 + 2]) = ((byte)b, (byte)g, (byte)r);
                 _grey[cell] = (0.114f * b + 0.587f * g + 0.299f * r) / 255f;
                 _bin[cell] = (short)(((b >> 4) << 8) | ((g >> 4) << 4) | (r >> 4));
                 var x0 = (left + right - 1) / 2;
@@ -431,10 +392,10 @@ public sealed partial class SubjectRemovalMatte
         if (_hasModels)
         {
             // Colour models change slowly; half of each comes from the pictures before.
-            for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
+            for (var bin = 0; bin < BinCount; bin++)
             {
-                ((new Vector<float>(_subjectHistogram.AsSpan(bin)) + new Vector<float>(_subjectMemory.AsSpan(bin))) * 0.5f).CopyTo(_subjectHistogram.AsSpan(bin));
-                ((new Vector<float>(_backgroundHistogram.AsSpan(bin)) + new Vector<float>(_backgroundMemory.AsSpan(bin))) * 0.5f).CopyTo(_backgroundHistogram.AsSpan(bin));
+                _subjectHistogram[bin] = 0.5f * (_subjectHistogram[bin] + _subjectMemory[bin]);
+                _backgroundHistogram[bin] = 0.5f * (_backgroundHistogram[bin] + _backgroundMemory[bin]);
             }
         }
 
@@ -445,63 +406,40 @@ public sealed partial class SubjectRemovalMatte
             _hasModels = true;
         }
 
-        var floor = new Vector<float>(1e-4f);
-        for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
+        for (var bin = 0; bin < BinCount; bin++)
         {
-            var ratio = Vector.Log(new Vector<float>(_subjectHistogram.AsSpan(bin)) + floor)
-                - Vector.Log(new Vector<float>(_backgroundHistogram.AsSpan(bin)) + floor);
-            Vector.Clamp(ratio, new Vector<float>(-6), new Vector<float>(6)).CopyTo(_ratio.AsSpan(bin));
+            _ratio[bin] = Math.Clamp(MathF.Log(_subjectHistogram[bin] + 1e-4f) - MathF.Log(_backgroundHistogram[bin] + 1e-4f), -6, 6);
         }
     }
 
-    /// <summary>
-    /// Spreads each histogram over neighbouring bins, then scales it to sum to one. Along each axis
-    /// every bin takes a quarter of either neighbour, a run of bins at a time; the first and last
-    /// level, with a neighbour on one side only, keep that side's quarter themselves.
-    /// </summary>
+    /// <summary>Spreads each histogram over neighbouring bins, then scales it to sum to one.</summary>
     private void Normalise(float[] histogram)
     {
         for (var axis = 0; axis < 3; axis++)
         {
             var stride = 1 << (4 * axis);
-            var bin = stride;
-            for (; bin + Vector<float>.Count <= BinCount - stride; bin += Vector<float>.Count)
+            for (var bin = 0; bin < BinCount; bin++)
             {
-                (new Vector<float>(histogram.AsSpan(bin - stride)) * 0.25f + new Vector<float>(histogram.AsSpan(bin)) * 0.5f
-                    + new Vector<float>(histogram.AsSpan(bin + stride)) * 0.25f).CopyTo(_scratch.AsSpan(bin));
-            }
-
-            for (; bin < BinCount - stride; bin++)
-            {
-                _scratch[bin] = 0.25f * histogram[bin - stride] + 0.5f * histogram[bin] + 0.25f * histogram[bin + stride];
-            }
-
-            for (var block = 0; block < BinCount; block += Levels * stride)
-            {
-                for (var low = block; low < block + stride; low++)
-                {
-                    var high = low + (Levels - 1) * stride;
-                    _scratch[low] = 0.75f * histogram[low] + 0.25f * histogram[low + stride];
-                    _scratch[high] = 0.25f * histogram[high - stride] + 0.75f * histogram[high];
-                }
+                var level = (bin >> (4 * axis)) & (Levels - 1);
+                var before = level > 0 ? histogram[bin - stride] : histogram[bin];
+                var after = level < Levels - 1 ? histogram[bin + stride] : histogram[bin];
+                _scratch[bin] = 0.25f * before + 0.5f * histogram[bin] + 0.25f * after;
             }
 
             _scratch.CopyTo(histogram, 0);
         }
 
-        var sum = Vector<float>.Zero;
-        for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
+        var total = 0f;
+        foreach (var value in histogram)
         {
-            sum += new Vector<float>(histogram.AsSpan(bin));
+            total += value;
         }
 
-        var total = Vector.Sum(sum);
         if (total > 0)
         {
-            var scale = 1 / total;
-            for (var bin = 0; bin < BinCount; bin += Vector<float>.Count)
+            for (var bin = 0; bin < BinCount; bin++)
             {
-                (new Vector<float>(histogram.AsSpan(bin)) * scale).CopyTo(histogram.AsSpan(bin));
+                histogram[bin] /= total;
             }
         }
     }
@@ -539,159 +477,80 @@ public sealed partial class SubjectRemovalMatte
         // Right, down, down-right and down-left; each pair of neighbours is stored once, at the first.
         Span<int> offsets = [1, w, w + 1, w - 1];
         var total = 0.0;
-        for (var direction = 0; direction < 4; direction++)
+        var pairs = 0;
+        for (var j = 0; j < h; j++)
         {
-            // The margins either side of each run are read as the neighbours past the grid's edges.
-            _weights.AsSpan(direction * _stride, _pad).Clear();
-            _weights.AsSpan(direction * _stride + _pad + cells, _pad).Clear();
-            var weights = Direction(direction);
-            Differences(offsets[direction], weights);
-            Unpaired(direction, weights);
-            total += Sum(weights);
+            for (var i = 0; i < w; i++)
+            {
+                var cell = j * w + i;
+                for (var direction = 0; direction < 4; direction++)
+                {
+                    var valid = direction == 0 ? i + 1 < w
+                        : j + 1 < h && (direction == 1 || (direction == 2 ? i + 1 < w : i > 0));
+                    var distance = valid ? ColourDistance(cell, cell + offsets[direction]) : -1;
+                    _weights[cell * 4 + direction] = distance;
+                    if (valid)
+                    {
+                        total += distance;
+                        pairs++;
+                    }
+                }
+            }
         }
 
-        // Every cell has a right neighbour but the last column, a lower one but the last row, and a
-        // diagonal one but both.
-        var pairs = (w - 1) * h + w * (h - 1) + 2 * (w - 1) * (h - 1);
         var beta = total > 0 ? (float)(pairs / (2 * total)) : 0;
-        for (var direction = 0; direction < 4; direction++)
+        for (var at = 0; at < cells * 4; at++)
         {
-            var weights = Direction(direction);
-            var scale = direction < 2 ? 1 : 0.7071f;
-            var cell = 0;
-            for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
-            {
-                (Vector.Exp(new Vector<float>(weights[cell..]) * -beta) * scale).CopyTo(weights[cell..]);
-            }
-
-            for (; cell < cells; cell++)
-            {
-                weights[cell] = MathF.Exp(-beta * weights[cell]) * scale;
-            }
-
-            Unpaired(direction, weights);
+            var distance = _weights[at];
+            _weights[at] = distance < 0 ? 0 : MathF.Exp(-beta * distance) * ((at & 3) < 2 ? 1 : 0.7071f);
         }
     }
 
-    /// <summary>The weights towards one direction, cell by cell from the grid's first; the margin either side stays zero.</summary>
-    private Span<float> Direction(int direction) => _weights.AsSpan(direction * _stride + _pad, _stride - _pad);
-
-    /// <summary>Each cell's squared colour difference from the cell <paramref name="offset"/> on.</summary>
-    private void Differences(int offset, Span<float> output)
-    {
-        var cells = _gridWidth * _gridHeight;
-        ReadOnlySpan<float> b = _blue.AsSpan(_pad);
-        ReadOnlySpan<float> g = _green.AsSpan(_pad);
-        ReadOnlySpan<float> r = _red.AsSpan(_pad);
-        var cell = 0;
-        for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
-        {
-            var db = new Vector<float>(b[cell..]) - new Vector<float>(b[(cell + offset)..]);
-            var dg = new Vector<float>(g[cell..]) - new Vector<float>(g[(cell + offset)..]);
-            var dr = new Vector<float>(r[cell..]) - new Vector<float>(r[(cell + offset)..]);
-            (db * db + dg * dg + dr * dr).CopyTo(output[cell..]);
-        }
-
-        for (; cell < cells; cell++)
-        {
-            var (db, dg, dr) = (b[cell] - b[cell + offset], g[cell] - g[cell + offset], r[cell] - r[cell + offset]);
-            output[cell] = db * db + dg * dg + dr * dr;
-        }
-    }
-
-    /// <summary>Zero where a cell has no neighbour in the direction: past the last column or row, or, down-left, before the first column.</summary>
-    private void Unpaired(int direction, Span<float> weights)
-    {
-        var (w, h) = (_gridWidth, _gridHeight);
-        if (direction != 1)
-        {
-            // The last column has nothing to its right; down-left, the first has nothing to its left.
-            for (var at = direction == 3 ? 0 : w - 1; at < w * h; at += w)
-            {
-                weights[at] = 0;
-            }
-        }
-
-        if (direction != 0)
-        {
-            weights.Slice((h - 1) * w, w).Clear();
-        }
-    }
-
-    private float Sum(ReadOnlySpan<float> values)
-    {
-        var cells = _gridWidth * _gridHeight;
-        var sum = Vector<float>.Zero;
-        var cell = 0;
-        for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
-        {
-            sum += new Vector<float>(values[cell..]);
-        }
-
-        var total = Vector.Sum(sum);
-        for (; cell < cells; cell++)
-        {
-            total += values[cell];
-        }
-
-        return total;
-    }
-
-    /// <summary>
-    /// Mean-field updates: each cell's spin (2p - 1) pulls its eight neighbours by the weight between
-    /// them, a whole run of cells at a time, the grid's edges handled by the zeros either side.
-    /// </summary>
     private void Smooth(int iterations)
     {
-        var w = _gridWidth;
-        var cells = w * _gridHeight;
-        var pad = _pad;
+        var (w, h) = (_gridWidth, _gridHeight);
+        var cells = w * h;
+        Span<int> offsets = [1, w, w + 1, w - 1];
         const float Strength = 0.45f;
-        var spin = _spin.AsSpan(0, _stride);
-        spin[..pad].Clear();
-        spin[(pad + cells)..].Clear();
-        ReadOnlySpan<float> right = _weights.AsSpan(0, _stride);
-        ReadOnlySpan<float> down = _weights.AsSpan(_stride, _stride);
-        ReadOnlySpan<float> downRight = _weights.AsSpan(2 * _stride, _stride);
-        ReadOnlySpan<float> downLeft = _weights.AsSpan(3 * _stride, _stride);
+        var spin = _filterE;
         for (var iteration = 0; iteration < iterations; iteration++)
         {
-            var cell = 0;
-            for (; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
+            for (var cell = 0; cell < cells; cell++)
             {
-                (new Vector<float>(_probability.AsSpan(cell)) * 2 - Vector<float>.One).CopyTo(spin[(pad + cell)..]);
+                spin[cell] = 2 * _probability[cell] - 1;
             }
 
-            for (; cell < cells; cell++)
+            for (var cell = 0; cell < cells; cell++)
             {
-                spin[pad + cell] = 2 * _probability[cell] - 1;
-            }
+                var pull = 0f;
+                var at = cell * 4;
+                for (var direction = 0; direction < 4; direction++)
+                {
+                    var offset = offsets[direction];
+                    var forward = cell + offset;
+                    if (forward < cells)
+                    {
+                        pull += _weights[at + direction] * spin[forward];
+                    }
 
-            for (cell = 0; cell + Vector<float>.Count <= cells; cell += Vector<float>.Count)
-            {
-                var at = pad + cell;
-                var pull = new Vector<float>(right[at..]) * new Vector<float>(spin[(at + 1)..])
-                    + new Vector<float>(right[(at - 1)..]) * new Vector<float>(spin[(at - 1)..])
-                    + new Vector<float>(down[at..]) * new Vector<float>(spin[(at + w)..])
-                    + new Vector<float>(down[(at - w)..]) * new Vector<float>(spin[(at - w)..])
-                    + new Vector<float>(downRight[at..]) * new Vector<float>(spin[(at + w + 1)..])
-                    + new Vector<float>(downRight[(at - w - 1)..]) * new Vector<float>(spin[(at - w - 1)..])
-                    + new Vector<float>(downLeft[at..]) * new Vector<float>(spin[(at + w - 1)..])
-                    + new Vector<float>(downLeft[(at - w + 1)..]) * new Vector<float>(spin[(at - w + 1)..]);
-                var field = new Vector<float>(_unary.AsSpan(cell)) + pull * Strength;
-                (Vector<float>.One / (Vector<float>.One + Vector.Exp(-field))).CopyTo(_probability.AsSpan(cell));
-            }
+                    var backward = cell - offset;
+                    if (backward >= 0)
+                    {
+                        pull += _weights[backward * 4 + direction] * spin[backward];
+                    }
+                }
 
-            for (; cell < cells; cell++)
-            {
-                var at = pad + cell;
-                var pull = right[at] * spin[at + 1] + right[at - 1] * spin[at - 1]
-                    + down[at] * spin[at + w] + down[at - w] * spin[at - w]
-                    + downRight[at] * spin[at + w + 1] + downRight[at - w - 1] * spin[at - w - 1]
-                    + downLeft[at] * spin[at + w - 1] + downLeft[at - w + 1] * spin[at - w + 1];
                 _probability[cell] = Sigmoid(_unary[cell] + Strength * pull);
             }
         }
+    }
+
+    private float ColourDistance(int a, int b)
+    {
+        var db = _colour[a * 3] - _colour[b * 3];
+        var dg = _colour[a * 3 + 1] - _colour[b * 3 + 1];
+        var dr = _colour[a * 3 + 2] - _colour[b * 3 + 2];
+        return db * db + dg * dg + dr * dr;
     }
 
     private void Label(bool wholeBox)
@@ -706,71 +565,51 @@ public sealed partial class SubjectRemovalMatte
     }
 
     /// <summary>
-    /// Reads the previous picture's matte at each cell, at the same place relative to the box, which
-    /// moves with the subject, into <see cref="_carried"/>; -1 where it has none. Returns whether it
-    /// was read relative to the box, as for a subject followed steadily: a box that changed size a lot
-    /// keeps the remembered matte in picture coordinates instead, or there is none.
+    /// Blends in the previous picture's matte, read at the same place relative to the box, which moves
+    /// with the subject; then remembers this one.
     /// </summary>
-    private bool Carried((int Left, int Top, int Right, int Bottom) box)
-    {
-        var (w, h) = (_gridWidth, _gridHeight);
-        Ensure(ref _carried, w * h);
-        _carried.AsSpan(0, w * h).Fill(-1);
-        if (!_hasMemory)
-        {
-            return false;
-        }
-
-        var oldWidth = _memoryBox.Right - _memoryBox.Left;
-        var oldHeight = _memoryBox.Bottom - _memoryBox.Top;
-        var newWidth = box.Right - box.Left;
-        var newHeight = box.Bottom - box.Top;
-        // A box enlarged for reacquisition is not evidence that the subject grew: when it changes
-        // size a lot, the remembered matte stays in picture coordinates about the box's centre;
-        // only a modest change is taken as the subject's change of scale.
-        var loose = Math.Abs(newWidth - oldWidth) > oldWidth * 0.2f || Math.Abs(newHeight - oldHeight) > oldHeight * 0.2f;
-        var scaleX = loose ? 1 : oldWidth / (float)newWidth;
-        var scaleY = loose ? 1 : oldHeight / (float)newHeight;
-        var offsetX = loose ? (_memoryBox.Left + _memoryBox.Right - box.Left - box.Right) / 2f : 0;
-        var offsetY = loose ? (_memoryBox.Top + _memoryBox.Bottom - box.Top - box.Bottom) / 2f : 0;
-        for (var j = 0; j < h; j++)
-        {
-            var y = Area.Top + (j + 0.5f) * Scale;
-            var then = loose ? y + offsetY : _memoryBox.Top + (y - box.Top) * scaleY;
-            var gy = (then - _memoryOrigin.Top) / _memoryScale - 0.5f;
-            for (var i = 0; i < w; i++)
-            {
-                var x = Area.Left + (i + 0.5f) * Scale;
-                var gx = ((loose ? x + offsetX : _memoryBox.Left + (x - box.Left) * scaleX) - _memoryOrigin.Left) / _memoryScale - 0.5f;
-                if (gx < 0 || gy < 0 || gx > _memoryWidth - 1 || gy > _memoryHeight - 1)
-                {
-                    continue;
-                }
-
-                var x0 = Math.Min((int)gx, Math.Max(0, _memoryWidth - 2));
-                var y0 = Math.Min((int)gy, Math.Max(0, _memoryHeight - 2));
-                var x1 = Math.Min(x0 + 1, _memoryWidth - 1);
-                var y1 = Math.Min(y0 + 1, _memoryHeight - 1);
-                var fx = Math.Clamp(gx - x0, 0, 1);
-                var fy = Math.Clamp(gy - y0, 0, 1);
-                var top = _memory[y0 * _memoryWidth + x0] * (1 - fx) + _memory[y0 * _memoryWidth + x1] * fx;
-                var bottom = _memory[y1 * _memoryWidth + x0] * (1 - fx) + _memory[y1 * _memoryWidth + x1] * fx;
-                _carried[j * w + i] = top + (bottom - top) * fy;
-            }
-        }
-
-        return !loose;
-    }
-
-    /// <summary>Blends in the previous picture's matte read by <see cref="Carried"/> so the matte does not flicker; then remembers this one.</summary>
     private void Carry((int Left, int Top, int Right, int Bottom) box, bool remember)
     {
-        var cells = _gridWidth * _gridHeight;
-        for (var cell = 0; cell < cells; cell++)
+        var (w, h) = (_gridWidth, _gridHeight);
+        if (_hasMemory)
         {
-            if (_carried[cell] >= 0)
+            var oldWidth = _memoryBox.Right - _memoryBox.Left;
+            var oldHeight = _memoryBox.Bottom - _memoryBox.Top;
+            var newWidth = box.Right - box.Left;
+            var newHeight = box.Bottom - box.Top;
+            // A box enlarged for reacquisition is not evidence that the subject grew: when it changes
+            // size a lot, the remembered matte stays in picture coordinates about the box's centre;
+            // only a modest change is taken as the subject's change of scale.
+            var loose = Math.Abs(newWidth - oldWidth) > oldWidth * 0.2f || Math.Abs(newHeight - oldHeight) > oldHeight * 0.2f;
+            var scaleX = loose ? 1 : oldWidth / (float)newWidth;
+            var scaleY = loose ? 1 : oldHeight / (float)newHeight;
+            var offsetX = loose ? (_memoryBox.Left + _memoryBox.Right - box.Left - box.Right) / 2f : 0;
+            var offsetY = loose ? (_memoryBox.Top + _memoryBox.Bottom - box.Top - box.Bottom) / 2f : 0;
+            for (var j = 0; j < h; j++)
             {
-                _probability[cell] = 0.65f * _probability[cell] + 0.35f * _carried[cell];
+                var y = Area.Top + (j + 0.5f) * Scale;
+                var then = loose ? y + offsetY : _memoryBox.Top + (y - box.Top) * scaleY;
+                var gy = (then - _memoryOrigin.Top) / _memoryScale - 0.5f;
+                for (var i = 0; i < w; i++)
+                {
+                    var x = Area.Left + (i + 0.5f) * Scale;
+                    var gx = ((loose ? x + offsetX : _memoryBox.Left + (x - box.Left) * scaleX) - _memoryOrigin.Left) / _memoryScale - 0.5f;
+                    if (gx < 0 || gy < 0 || gx > _memoryWidth - 1 || gy > _memoryHeight - 1)
+                    {
+                        continue;
+                    }
+
+                    var x0 = Math.Min((int)gx, Math.Max(0, _memoryWidth - 2));
+                    var y0 = Math.Min((int)gy, Math.Max(0, _memoryHeight - 2));
+                    var x1 = Math.Min(x0 + 1, _memoryWidth - 1);
+                    var y1 = Math.Min(y0 + 1, _memoryHeight - 1);
+                    var fx = Math.Clamp(gx - x0, 0, 1);
+                    var fy = Math.Clamp(gy - y0, 0, 1);
+                    var top = _memory[y0 * _memoryWidth + x0] * (1 - fx) + _memory[y0 * _memoryWidth + x1] * fx;
+                    var bottom = _memory[y1 * _memoryWidth + x0] * (1 - fx) + _memory[y1 * _memoryWidth + x1] * fx;
+                    var cell = j * w + i;
+                    _probability[cell] = 0.65f * _probability[cell] + 0.35f * (top + (bottom - top) * fy);
+                }
             }
         }
 
@@ -823,46 +662,56 @@ public sealed partial class SubjectRemovalMatte
         }
     }
 
-    /// <summary>
-    /// A mean over a square window, clipped at the grid's edges, read from a summed-area table: each
-    /// entry holds the sum of everything above and to the left, so any window's sum is four reads.
-    /// The output may be the input.
-    /// </summary>
+    /// <summary>A mean over a square window, clipped at the grid's edges; the output may be the input.</summary>
     private void BoxFilter(float[] input, float[] output, int radius)
     {
         var (w, h) = (_gridWidth, _gridHeight);
-        var across = w + 1;
-        var table = _table;
-        Array.Clear(table, 0, across);
         for (var j = 0; j < h; j++)
         {
-            var run = 0.0;
-            var (above, row) = (j * across, (j + 1) * across);
-            table[row] = 0;
+            var row = j * w;
+            var sum = 0f;
+            for (var i = 0; i < Math.Min(radius, w); i++)
+            {
+                sum += input[row + i];
+            }
+
             for (var i = 0; i < w; i++)
             {
-                run += input[j * w + i];
-                table[row + i + 1] = table[above + i + 1] + run;
+                if (i + radius < w)
+                {
+                    sum += input[row + i + radius];
+                }
+
+                if (i - radius - 1 >= 0)
+                {
+                    sum -= input[row + i - radius - 1];
+                }
+
+                _filterE[row + i] = sum / (Math.Min(w - 1, i + radius) - Math.Max(0, i - radius) + 1);
             }
         }
 
-        // Each column's window edges and one over its width, worked out once for every row.
-        Ensure(ref _windows, 3 * w);
         for (var i = 0; i < w; i++)
         {
-            var (left, right) = (Math.Max(0, i - radius), Math.Min(w, i + radius + 1));
-            (_windows[3 * i], _windows[3 * i + 1], _windows[3 * i + 2]) = (left, right, 1.0 / (right - left));
-        }
-
-        for (var j = 0; j < h; j++)
-        {
-            var (top, bottom) = (Math.Max(0, j - radius) * across, Math.Min(h, j + radius + 1) * across);
-            var share = across / (double)(bottom - top);
-            for (var i = 0; i < w; i++)
+            var sum = 0f;
+            for (var j = 0; j < Math.Min(radius, h); j++)
             {
-                var (left, right) = ((int)_windows[3 * i], (int)_windows[3 * i + 1]);
-                var sum = table[bottom + right] - table[top + right] - table[bottom + left] + table[top + left];
-                output[j * w + i] = (float)(sum * share * _windows[3 * i + 2]);
+                sum += _filterE[j * w + i];
+            }
+
+            for (var j = 0; j < h; j++)
+            {
+                if (j + radius < h)
+                {
+                    sum += _filterE[(j + radius) * w + i];
+                }
+
+                if (j - radius - 1 >= 0)
+                {
+                    sum -= _filterE[(j - radius - 1) * w + i];
+                }
+
+                output[j * w + i] = sum / (Math.Min(h - 1, j + radius) - Math.Max(0, j - radius) + 1);
             }
         }
     }
@@ -870,30 +719,33 @@ public sealed partial class SubjectRemovalMatte
     /// <summary>
     /// One pass of a majority filter over each cell's eight neighbours: a notch bitten into the
     /// outline, where a shadowed fold of clothing looked like the background, is closed, and a stray
-    /// cell of background colour that looked like the subject is dropped. The neighbours are counted
-    /// as rows of three, each summed once.
+    /// cell of background colour that looked like the subject is dropped.
     /// </summary>
     private void Tidy()
     {
         var (w, h) = (_gridWidth, _gridHeight);
-        var threes = _queue;
-        for (var j = 0; j < h; j++)
-        {
-            var row = j * w;
-            for (var i = 0; i < w; i++)
-            {
-                threes[row + i] = _label[row + i] + (i > 0 ? _label[row + i - 1] : 0) + (i + 1 < w ? _label[row + i + 1] : 0);
-            }
-        }
-
         for (var j = 0; j < h; j++)
         {
             for (var i = 0; i < w; i++)
             {
                 var cell = j * w + i;
-                var around = threes[cell] - _label[cell] + (j > 0 ? threes[cell - w] : 0) + (j + 1 < h ? threes[cell + w] : 0);
-                _label[cell] = (byte)(_region[cell] == Beyond ? 0 : around >= 6 ? 1 : around <= 1 ? 0 : _label[cell]);
+                var around = 0;
+                for (var dy = -1; dy <= 1; dy++)
+                {
+                    for (var dx = -1; dx <= 1; dx++)
+                    {
+                        var (x, y) = (i + dx, j + dy);
+                        around += (dx | dy) != 0 && x >= 0 && y >= 0 && x < w && y < h ? _label[y * w + x] : 0;
+                    }
+                }
+
+                _next[cell] = _region[cell] == Beyond ? 0 : around >= 6 ? 1 : around <= 1 ? 0 : _label[cell];
             }
+        }
+
+        for (var cell = 0; cell < w * h; cell++)
+        {
+            _label[cell] = (byte)_next[cell];
         }
     }
 }
