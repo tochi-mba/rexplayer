@@ -832,7 +832,7 @@ public sealed partial class MainWindow
                 BufferState.Stalled => "Not ready here",
                 BufferState.Complete => "All ready",
                 _ => "",
-        };
+            };
         if (SubtitleBufferState.Text != label)
         {
             SubtitleBufferState.Text = label;
