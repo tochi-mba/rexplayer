@@ -11,6 +11,10 @@ pipeline the moment its number reaches `main`.
   stretch really takes, including variability between chunks and overlapping recognition context.
   When pausing for subtitles is enabled, it waits for a bounded safety reserve instead of
   repeatedly catching up after a single slow chunk, and releases promptly as new subtitles arrive.
+- **Visible transcription progress.** A labelled CAPTIONS coverage rail sits below the playback
+  timeline instead of drawing a faint mark over it, with the remaining lead beside it. The
+  transcription button opens the actual list of queued filenames, the active file's progress,
+  each file's completion and quick pause/stop controls.
 
 ## 0.24.0 - 2026-10-14
 
