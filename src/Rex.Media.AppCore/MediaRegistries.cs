@@ -20,7 +20,6 @@ public static class MediaRegistries
 {
     /// <summary>Every demuxer; pictures show for <paramref name="showPicturesFor"/> (5 seconds when not given).</summary>
     public static DemuxerRegistry Demuxers(TimeSpan? showPicturesFor = null) => new DemuxerRegistry()
-        .Add(new AviDemuxerFactory())
         .Add(new WavDemuxerFactory())
         .Add(new AiffDemuxerFactory())
         .Add(new FlacDemuxerFactory())
