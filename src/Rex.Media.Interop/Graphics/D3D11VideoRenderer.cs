@@ -31,7 +31,7 @@ public enum VideoPlaneFormat
 /// decided by the presenter in Rex.Media.Video.D3D11.
 /// </summary>
 [SupportedOSPlatform("windows8.0")]
-public sealed unsafe class D3D11VideoRenderer : IDisposable
+public sealed unsafe partial class D3D11VideoRenderer : IDisposable
 {
     /// <summary>
     /// A full-window triangle from the vertex index, and two pixel shaders: YUV planes through the
