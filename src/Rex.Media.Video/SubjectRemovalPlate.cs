@@ -514,6 +514,53 @@ public sealed class SubjectRemovalPlate
         return Estimated;
     }
 
+    /// <summary>Samples a horizontal run of plate colours and states.</summary>
+    public void SampleRow(int x, int y, Span<uint> colours, Span<byte> states)
+    {
+        var count = colours.Length;
+        if (!_unzoomed)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                states[i] = Sample(x + i, y, out colours[i]);
+            }
+
+            return;
+        }
+
+        var (wx, wy) = (_fractionX, _fractionY);
+        var (stepX, stepY) = (wx > 0 ? 1 : 0, wy > 0 ? 1 : 0);
+        var v0 = y + _wholeY;
+        var first = Math.Clamp(-(x + _wholeX), 0, count);
+        var last = v0 < 0 || v0 + stepY >= Height ? first : Math.Clamp(Width - stepX - x - _wholeX, first, count);
+        colours[..first].Clear();
+        states[..first].Clear();
+        colours[last..].Clear();
+        states[last..].Clear();
+        var row = _cells.AsSpan(Math.Max(0, v0) * Width, Width);
+        var below = _cells.AsSpan(Math.Min(Height - 1, Math.Max(0, v0 + stepY)) * Width, Width);
+        var (w00, w10, w01, w11) = Weights(wx, wy);
+        var i0 = first;
+        for (; i0 + Vector<uint>.Count <= last; i0 += Vector<uint>.Count)
+        {
+            var u = x + i0 + _wholeX;
+            var (c00, c10) = (new Vector<uint>(row[u..]), new Vector<uint>(row[(u + stepX)..]));
+            var (c01, c11) = (new Vector<uint>(below[u..]), new Vector<uint>(below[(u + stepX)..]));
+            var lowest = Vector.Min(Vector.Min(c00 >> 24, c10 >> 24), Vector.Min(c01 >> 24, c11 >> 24));
+            var known = ~Vector.Equals(lowest, Vector<uint>.Zero);
+            Vector.ConditionalSelect(known, Mix(c00, c10, c01, c11, w00, w10, w01, w11), Vector<uint>.Zero).CopyTo(colours[i0..]);
+            for (var lane = 0; lane < Vector<uint>.Count; lane++)
+            {
+                states[i0 + lane] = (byte)lowest[lane];
+            }
+        }
+
+        for (; i0 < last; i0++)
+        {
+            states[i0] = Sample(x + i0, y, out colours[i0]);
+        }
+    }
+
     /// <summary>Record a synthesised colour (packed BGR) for the picture's pixel (x, y), never over an observed cell.</summary>
     public void Estimate(int x, int y, uint colour)
     {
