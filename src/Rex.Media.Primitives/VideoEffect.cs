@@ -117,6 +117,13 @@ public static class VideoEffects
 
     public static string Name(VideoEffect effect) => Enum.IsDefined(effect) ? Names[(int)effect] : Names[0];
 
+    /// <summary>Steps to the next effect, wrapping back to Off after the last one.</summary>
+    public static VideoEffect Next(VideoEffect effect)
+    {
+        var count = Enum.GetValues<VideoEffect>().Length;
+        return Enum.IsDefined(effect) ? (VideoEffect)(((int)effect + 1) % count) : VideoEffect.Off;
+    }
+
     /// <summary>Visual grouping for an accessible effect picker.</summary>
     public static string Category(VideoEffect effect) => effect switch
     {

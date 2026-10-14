@@ -228,6 +228,14 @@ public sealed partial class MainWindow
             return;
         }
 
+        // Z follows the media in front of the user: pictures cycle picture effects, while
+        // audio-only playback keeps cycling its visualisations.
+        if (command == CommandCatalog.CycleVisualizer && HasVideo)
+        {
+            CycleVideoEffect();
+            return;
+        }
+
         App.Log.Debug(LogSource, "Command " + command);
         if (RunSubtitleCommand(command) || RunKineticCaptionCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command) || RunZoomCommand(command))
         {
