@@ -556,7 +556,7 @@ public sealed class SubjectRemovalFill
 
         var (sx, sy) = (source % Width - x, source / Width - y);
         var distance = (sx * sx + sy * sy) / (float)(_window * _window);
-        return total / weight * (1 + Nearness * distance) + 150 * distance;
+        return total / weight * (1 + Nearness * distance) + (_searchStructuredBackground ? 40 : 150) * distance;
     }
 
     /// <summary>One sweep matching every filled cell again over its whole patch, keeping a neighbour's continuation when it fits better.</summary>
