@@ -32,6 +32,7 @@ public sealed partial class MainWindow
     private CancellationTokenSource _hoverPictures = new();
     private MediaLibrary? _library;
     private LibraryScanner? _scanner;
+    private LibrarySectionAnalysis? _backgroundSections;
     private DispatcherQueueTimer? _libraryRefresh;
     private DispatcherQueueTimer? _libraryChanges;
     private DispatcherQueueTimer? _libraryRescan;
@@ -81,6 +82,10 @@ public sealed partial class MainWindow
         _player.Library = _library;
         _scanner = new LibraryScanner(_library, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, App.Log);
         _scanner.StatusChanged += (_, _) => OnWindowThread(ShowLibraryStatus);
+        _backgroundSections = new LibrarySectionAnalysis(_player.Memory, _player.SectionCache,
+            _player.SectionAnalyzer!, App.Log);
+        _backgroundSections.SetPaused(_player.IsPlaying);
+        _player.Changed += (_, _) => _backgroundSections?.SetPaused(_player.IsPlaying);
 
         // A burst of changes (a scan's batches) shows once.
         _libraryRefresh = DispatcherQueue.CreateTimer();
@@ -115,13 +120,25 @@ public sealed partial class MainWindow
         var firstScan = DispatcherQueue.CreateTimer();
         firstScan.Interval = Rex.Media.AppCore.LaunchPlan.FirstLibraryScan;
         firstScan.IsRepeating = false;
-        firstScan.Tick += (_, _) => _scanner?.Request();
+        firstScan.Tick += (_, _) =>
+        {
+            _scanner?.Request();
+            QueueLibrarySections();
+        };
         firstScan.Start();
         App.Log.Info(LogSource, $"The library watches {_library.Folders.Count} folder(s) and knows {_library.Entries.Count} file(s).");
     }
 
     private void CloseLibrary()
     {
+        var sections = _backgroundSections;
+        _backgroundSections = null;
+        if (sections is not null)
+        {
+            // A decoder may be cancelling on another thread. Never hold the window open for it.
+            _ = Task.Run(sections.Dispose);
+        }
+
         CancelLibraryPictures();
         _libraryRescan?.Stop();
         _libraryChanges?.Stop();
@@ -191,7 +208,15 @@ public sealed partial class MainWindow
             return;
         }
 
+        QueueLibrarySections();
         ShowLibrary();
+    }
+
+    /// <summary>Hand a snapshot of library episodes to the low-priority section worker.</summary>
+    private void QueueLibrarySections()
+    {
+        _backgroundSections?.SetQueue(_library!.Entries.Where(entry => entry.Kind == LibraryKind.Video)
+            .Select(entry => entry.Path));
     }
 
     /// <summary>Watches every folder of the library for files coming, going and changing.</summary>
