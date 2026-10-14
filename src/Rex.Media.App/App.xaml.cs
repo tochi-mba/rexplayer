@@ -71,8 +71,9 @@ public partial class App : Application
     /// <summary>
     /// The log, in detail: every command, every item and its tracks, every decoder chosen or refused,
     /// so a problem can be diagnosed from the file alone. Files roll over at 8 MB; the last five are kept.
+    /// Lines are written behind, so the window's thread never waits for the disk to log.
     /// </summary>
-    public static RexLog Log { get; } = new(new RexLogOptions { Directory = LogFolder, FileName = "rexplayer.log", Minimum = LogLevel.Debug, MaxBytes = 8 * 1024 * 1024, KeepFiles = 5 });
+    public static RexLog Log { get; } = new(new RexLogOptions { Directory = LogFolder, FileName = "rexplayer.log", Minimum = LogLevel.Debug, MaxBytes = 8 * 1024 * 1024, KeepFiles = 5, WriteBehind = true });
 
     /// <summary>
     /// The timing lines of the log: how long since the process started each moment of the launch
