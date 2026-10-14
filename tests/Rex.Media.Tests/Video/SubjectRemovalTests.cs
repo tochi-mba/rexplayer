@@ -268,6 +268,7 @@ public sealed class SubjectRemovalTests
         var count = 0;
         long both = 0, either = 0;
         var frameQuality = new List<string>();
+        var estimatedHole = new byte[1280 * 720];
         for (var i = 0; i < 14; i++)
         {
             using var picture = scene.Render(i, wall, opacity);
@@ -279,7 +280,39 @@ public sealed class SubjectRemovalTests
                 (error, count) = (error + e, count + n);
                 var (b, u) = RemovalScore.Overlap(removal.IsSubject, opacity, 1280, 720);
                 (both, either) = (both + b, either + u);
-                frameQuality.Add($"{i}: {RemovalScore.Psnr(e, n):F2} dB, observed {removal.ObservedPixels}, estimated {removal.EstimatedPixels}, overlap {b / (double)u:F3}");
+                removal.EstimatedHole(estimatedHole, 1280);
+                double estimatedError = 0, otherError = 0;
+                var estimatedCount = 0;
+                var otherCount = 0;
+                for (var py = 0; py < 720; py++)
+                {
+                    var rendered = preview.Row(0, py);
+                    var truth = wall.Row(0, py);
+                    for (var px = 0; px < 1280; px++)
+                    {
+                        if (opacity[py * 1280 + px] < 0.5f)
+                        {
+                            continue;
+                        }
+
+                        for (var channel = 0; channel < 3; channel++)
+                        {
+                            var delta = rendered[px * 4 + channel] - truth[px * 4 + channel];
+                            if (estimatedHole[py * 1280 + px] != 0)
+                            {
+                                estimatedError += delta * delta;
+                                estimatedCount++;
+                            }
+                            else
+                            {
+                                otherError += delta * delta;
+                                otherCount++;
+                            }
+                        }
+                    }
+                }
+
+                frameQuality.Add($"{i}: {RemovalScore.Psnr(e, n):F2} dB, observed {removal.ObservedPixels}, estimated {removal.EstimatedPixels}, overlap {b / (double)u:F3}, estimated region {RemovalScore.Psnr(estimatedError, estimatedCount):F2} dB, other region {RemovalScore.Psnr(otherError, otherCount):F2} dB");
             }
         }
 
