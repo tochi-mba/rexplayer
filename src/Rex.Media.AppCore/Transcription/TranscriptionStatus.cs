@@ -39,7 +39,13 @@ public sealed class TranscriptionSpeed
     /// <summary>Seconds of new subtitle coverage per wall-clock second, smoothed for progress estimates.</summary>
     public double? Factor
     {
-        get { lock (_gate) { return _factor; } }
+        get
+        {
+            lock (_gate)
+            {
+                return _factor;
+            }
+        }
     }
 
     /// <summary>
@@ -68,11 +74,6 @@ public sealed class TranscriptionSpeed
 
         var factor = sound / took;
         var cost = took / sound;
-        if (!double.IsFinite(factor) || !double.IsFinite(cost) || factor <= 0 || cost <= 0)
-        {
-            return;
-        }
-
         lock (_gate)
         {
             _factor = _factor is { } before ? before + Weight * (factor - before) : factor;
