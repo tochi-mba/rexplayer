@@ -18,6 +18,7 @@ public sealed partial class MainWindow
     private MenuFlyoutSubItem? _bookmarksMenu;
     private string _shownMemory = "";
     private string _shownBookmarkMarkers = "";
+    private CancellationTokenSource? _resumeOfferTimeout;
     private readonly List<(Button Button, Bookmark Bookmark)> _bookmarkMarkerButtons = [];
 
     /// <summary>The store beside the settings; when it cannot be read, one in memory, so playing still works.</summary>
@@ -45,8 +46,8 @@ public sealed partial class MainWindow
     {
         ResumeBar.ActionButton = new Button { Content = "Resume" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(ResumeBar.ActionButton, "ResumeButton");
-        ResumeBar.ActionButton.Click += (_, _) => _player.AcceptResume();
-        ResumeBar.CloseButtonClick += (_, _) => _player.DeclineResume();
+        ResumeBar.ActionButton.Click += (_, _) => AnswerResumeOffer(resume: true);
+        ResumeBar.CloseButtonClick += (_, _) => AnswerResumeOffer(resume: false);
     }
 
     /// <summary>The menus that hold remembered things; made with the others.</summary>
@@ -68,10 +69,19 @@ public sealed partial class MainWindow
     /// <summary>Brings the resume offer, recent media and bookmarks on screen in line with the player.</summary>
     private void ShowMemory()
     {
-        var offer = _player.ResumeOffer is { } at && _player.State is not (SessionState.Opening or SessionState.Idle or SessionState.Faulted);
+        var resumeAt = _player.ResumeOffer;
+        var offer = resumeAt is not null && _player.State is not (SessionState.Opening or SessionState.Idle or SessionState.Faulted);
         if (offer)
         {
-            ResumeBar.Message = "You stopped at " + TimeText.Format(_player.ResumeOffer!.Value, _player.Duration) + ".";
+            ResumeBar.Title = "Resume from " + TimeText.Format(_player.ResumeOffer!.Value, _player.Duration) + "?";
+            if (!ResumeBar.IsOpen)
+            {
+                StartResumeOfferTimeout(resumeAt!.Value);
+            }
+        }
+        else
+        {
+            StopResumeOfferTimeout();
         }
 
         ResumeBar.IsOpen = offer;
@@ -115,6 +125,51 @@ public sealed partial class MainWindow
         }
 
         _bookmarksMenu.IsEnabled = bookmarks.Count > 0;
+    }
+
+    /// <summary>The resume choice is useful briefly; it must not become permanent chrome over a video.</summary>
+    private void StartResumeOfferTimeout(TimeSpan offeredAt)
+    {
+        StopResumeOfferTimeout();
+        var timeout = new CancellationTokenSource();
+        _resumeOfferTimeout = timeout;
+        _ = DismissResumeOfferAfterDelay(offeredAt, timeout.Token);
+    }
+
+    private async Task DismissResumeOfferAfterDelay(TimeSpan offeredAt, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), token);
+            if (!_closed && ResumeBar.IsOpen && _player.ResumeOffer == offeredAt)
+            {
+                AnswerResumeOffer(resume: false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Answered, replaced or no longer relevant.
+        }
+    }
+
+    private void AnswerResumeOffer(bool resume)
+    {
+        StopResumeOfferTimeout();
+        if (resume)
+        {
+            _player.AcceptResume();
+        }
+        else
+        {
+            _player.DeclineResume();
+        }
+    }
+
+    private void StopResumeOfferTimeout()
+    {
+        _resumeOfferTimeout?.Cancel();
+        _resumeOfferTimeout?.Dispose();
+        _resumeOfferTimeout = null;
     }
 
     /// <summary>Draws each bookmark over its exact place on the seek rail as an accessible seek button.</summary>
