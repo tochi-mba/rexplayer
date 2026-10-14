@@ -66,7 +66,6 @@ public sealed class SubjectRemovalFill
     private uint _random = 2463534242;
     private int _window;
     private bool _searchStructuredBackground;
-    private int _room;
 
     /// <summary>The grid's width in cells.</summary>
     public int Width { get; private set; }
@@ -113,7 +112,6 @@ public sealed class SubjectRemovalFill
         (Width, Height) = (width, height);
         var cells = width * height;
         room = Math.Max(room, cells);
-        _room = room;
         SubjectRemovalMatte.Ensure(ref _colour, cells * 3, room * 3);
         SubjectRemovalMatte.Ensure(ref _fused, cells * 3, room * 3);
         SubjectRemovalMatte.Ensure(ref _state, cells, room);
@@ -129,6 +127,10 @@ public sealed class SubjectRemovalFill
         // A cell enters the queue when it first borders the fill and again each time a neighbour is filled.
         SubjectRemovalMatte.Ensure(ref _heapCells, cells * 9, room * 9);
         SubjectRemovalMatte.Ensure(ref _heapKeys, cells * 9, room * 9);
+        // Pull-push's pyramid, which a picture with nothing whole to copy falls back to, holds under
+        // four times the grid's cells and a few more; it is reserved here so that picture needs no memory.
+        SubjectRemovalMatte.Ensure(ref _pullColour, (4 * cells + 64) * 3, (4 * room + 64) * 3);
+        SubjectRemovalMatte.Ensure(ref _pullWeight, 4 * cells + 64, 4 * room + 64);
     }
 
     /// <summary>Fill every hole cell. <paramref name="seed"/> makes the random search repeatable.</summary>
@@ -733,9 +735,8 @@ public sealed class SubjectRemovalFill
             }
         }
 
-        // The pyramid holds at most twice the grid's cells.
-        SubjectRemovalMatte.Ensure(ref _pullColour, total * 3, _room * 6);
-        SubjectRemovalMatte.Ensure(ref _pullWeight, total, _room * 2);
+        SubjectRemovalMatte.Ensure(ref _pullColour, total * 3);
+        SubjectRemovalMatte.Ensure(ref _pullWeight, total);
         for (var cell = 0; cell < w * h; cell++)
         {
             var known = _state[cell] == Known;

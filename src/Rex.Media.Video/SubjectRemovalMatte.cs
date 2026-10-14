@@ -84,6 +84,7 @@ public sealed partial class SubjectRemovalMatte
     // neighbours, one run of the padded grid's length for each direction; zero where there is none.
     private float[] _weights = [];
     private double[] _table = [];
+    private double[] _windows = [];
     private float[] _filterA = [];
     private float[] _filterB = [];
     private float[] _filterC = [];
@@ -785,15 +786,23 @@ public sealed partial class SubjectRemovalMatte
             }
         }
 
+        // Each column's window edges and one over its width, worked out once for every row.
+        Ensure(ref _windows, 3 * w);
+        for (var i = 0; i < w; i++)
+        {
+            var (left, right) = (Math.Max(0, i - radius), Math.Min(w, i + radius + 1));
+            (_windows[3 * i], _windows[3 * i + 1], _windows[3 * i + 2]) = (left, right, 1.0 / (right - left));
+        }
+
         for (var j = 0; j < h; j++)
         {
             var (top, bottom) = (Math.Max(0, j - radius) * across, Math.Min(h, j + radius + 1) * across);
-            var rows = (bottom - top) / across;
+            var share = across / (double)(bottom - top);
             for (var i = 0; i < w; i++)
             {
-                var (left, right) = (Math.Max(0, i - radius), Math.Min(w, i + radius + 1));
+                var (left, right) = ((int)_windows[3 * i], (int)_windows[3 * i + 1]);
                 var sum = table[bottom + right] - table[top + right] - table[bottom + left] + table[top + left];
-                output[j * w + i] = (float)(sum / (rows * (right - left)));
+                output[j * w + i] = (float)(sum * share * _windows[3 * i + 2]);
             }
         }
     }
