@@ -65,6 +65,7 @@ public sealed class SubjectRemovalFill
     private readonly int[] _pullSizes = new int[64];
     private uint _random = 2463534242;
     private int _window;
+    private bool _searchStructuredBackground;
 
     /// <summary>The grid's width in cells.</summary>
     public int Width { get; private set; }
@@ -123,8 +124,9 @@ public sealed class SubjectRemovalFill
     }
 
     /// <summary>Fill every hole cell. <paramref name="seed"/> makes the random search repeatable.</summary>
-    public void Solve(uint seed)
+    public void Solve(uint seed, bool searchStructuredBackground = false)
     {
+        _searchStructuredBackground = searchStructuredBackground;
         _random = seed | 1;
         var cells = Width * Height;
         _fused.AsSpan(0, cells * 3).Clear();
@@ -442,7 +444,10 @@ public sealed class SubjectRemovalFill
         // Along the rows and columns first, at doubling distances: a wall's mortar lines and a
         // floor's grain continue that way, and random candidates alone can miss the matching side of
         // a narrow hole.
-        for (var distance = Side; distance <= _window; distance *= 2)
+        // The coarser search is enough for ordinary subjects. Large subjects already
+        // processed at half resolution need closer-spaced axial candidates so a
+        // horizontal seam or repeated wall pattern does not fall between jumps.
+        for (var distance = Side; distance <= _window; distance += _searchStructuredBackground ? 4 : distance)
         {
             if (x - distance >= 0)
             {
