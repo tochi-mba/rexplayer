@@ -761,27 +761,28 @@
         </Grid.RowDefinitions>
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
-        <!-- Subtitle coverage has its own track: the playback rail and its chapter/bookmark marks
-             remain untouched. When no transcript is selected the entire row disappears. -->
-        <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="14,0,14,3" ColumnSpacing="10" Visibility="Collapsed"
+        <!-- A second aligned rail for transcript coverage. The whole width maps to the same
+             timeline as SeekBar; labels are on their own row and never shift the spans. -->
+        <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="14,0,14,3" Visibility="Collapsed"
               AutomationProperties.AutomationId="TranscriptRail" AutomationProperties.Name="Transcript coverage">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <TextBlock Text="CAPTIONS" FontSize="10" CharacterSpacing="65" VerticalAlignment="Center"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                     AutomationProperties.AccessibilityView="Raw" />
-          <Grid Grid.Column="1" Height="6" VerticalAlignment="Center" IsHitTestVisible="False">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Grid Height="6" VerticalAlignment="Center" IsHitTestVisible="False">
             <Border CornerRadius="3" Background="{ThemeResource ControlFillColorSecondaryBrush}" />
             <Canvas x:Name="SubtitleBuffer" Height="6" IsHitTestVisible="False"
                     AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
           </Grid>
-          <TextBlock x:Name="SubtitleBufferState" Grid.Column="2" MinWidth="85" TextAlignment="Right"
-                     FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                     AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Off" />
+          <Grid Grid.Row="1" Margin="0,3,0,0">
+            <TextBlock Text="CAPTIONS" FontSize="10" CharacterSpacing="65"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       AutomationProperties.AccessibilityView="Raw" />
+            <TextBlock x:Name="SubtitleBufferState" HorizontalAlignment="Right" TextAlignment="Right"
+                       FontSize="11" FontWeight="SemiBold"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Off" />
+          </Grid>
         </Grid>
         <!-- Intro and credits as bands on the rail: filled when saved, outlined when detected. -->
         <Canvas x:Name="SectionMarkers" Height="28" VerticalAlignment="Center" IsHitTestVisible="False"
