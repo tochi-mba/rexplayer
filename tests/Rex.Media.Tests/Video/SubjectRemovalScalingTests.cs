@@ -46,6 +46,13 @@ public sealed class SubjectRemovalScalingTests
             Assert.Equal((sum + 2) / 4, third.Row(0, 1)[4 + c]);
         }
 
+        // Only a region: the rest is left as it was.
+        using var part = VideoFrame.Rent(PixelFormat.Bgra32, 18, 10);
+        part.Plane(0).Clear();
+        SubjectRemovalScaling.Reduce(frame, part, 2, (3, 2, 14, 6));
+        Assert.Equal(half.Row(0, 4).Slice(3 * 4, 11 * 4).ToArray(), part.Row(0, 4).Slice(3 * 4, 11 * 4).ToArray());
+        Assert.Equal(0, part.Row(0, 4)[2 * 4]);
+        Assert.Equal(0, part.Row(0, 6)[5 * 4]);
         Assert.Throws<ArgumentException>(() => SubjectRemovalScaling.Reduce(frame, half, 1));
         using var wrong = VideoFrame.Rent(PixelFormat.Bgra32, 19, 10);
         Assert.Throws<ArgumentException>(() => SubjectRemovalScaling.Reduce(frame, wrong, 2));
