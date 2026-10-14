@@ -48,7 +48,10 @@ public sealed class LibrarySectionAnalysisTests
 
             // Playback interrupts the queue and it resumes afterwards.
             worker.SetPaused(true);
-            File.AppendAllBytes(paths[1], [4]);
+            using (var changed = new FileStream(paths[1], FileMode.Append))
+            {
+                changed.WriteByte(4);
+            }
             worker.SetQueue(paths);
             worker.RunPending();
             Assert.Equal(3, decoded.Count);
