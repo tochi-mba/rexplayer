@@ -156,6 +156,13 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        var transcription = TranscriptionPreferences();
+        content.Children.Add(Heading("Transcription"));
+        foreach (var control in transcription.Controls)
+        {
+            content.Children.Add(control);
+        }
+
         content.Children.Add(Heading("Window"));
         foreach (var control in new UIElement[] { theme, onTop, hide, messages, title, shellMedia })
         {
@@ -213,7 +220,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var next = (_settings with
+        var next = transcription.Apply((_settings with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,
@@ -268,7 +275,7 @@ public sealed partial class MainWindow
             SubtitlesAtBottom = atBottom.IsChecked == true,
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
-        }).Normalize();
+        }).Normalize()).Normalize();
         var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
             || s.AudioArtworkStyle != next.AudioArtworkStyle
             || s.AudioArtworkColor != next.AudioArtworkColor
@@ -288,6 +295,7 @@ public sealed partial class MainWindow
         ShowState();
         ShowTaskbarSettingsChanged();
         SaveSettings();
+        TranscriptionSaved(s);
         Say("Preferences saved");
 
         // A changed mode or schedule may start, stop or allow a download or a prompt.

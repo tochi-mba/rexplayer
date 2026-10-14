@@ -3,6 +3,17 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## Unreleased
+
+### Added
+
+- Transcribe eligible library videos quietly in the background, with per-file progress, a pause
+  control, retries and folder exclusions. It is off until enabled in Preferences.
+- Hear the currently playing file ahead of the playhead, adding subtitles piece by piece and
+  showing the part already transcribed on the seek bar. The `rexplay transcribe --from` command
+  measures the same progressive speech path without opening the window.
+- Keep partial transcripts between sessions and provide controls to forget them.
+
 ## 0.22.0 - 2026-10-13
 
 ### Fixed

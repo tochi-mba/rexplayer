@@ -33,6 +33,9 @@ public sealed class CliHost
     /// <summary>A transcriber on the model file given, named as given (SUB-19); null where the host cannot hear speech.</summary>
     public Func<string, string, Captions.ISpeechTranscriber?> Transcriber { get; init; } = (_, _) => null;
 
+    /// <summary>A speech model on the model file given, for hearing piece by piece (SUB-21); null where the host cannot hear speech.</summary>
+    public Func<string, Transcription.ISpeechHearer?> Hearer { get; init; } = _ => null;
+
     /// <summary>Creates the speech-model store; tests replace its HTTP handler without using the network.</summary>
     public Func<string, Captions.SpeechModelStore> SpeechStore { get; init; } = root => new(root);
 

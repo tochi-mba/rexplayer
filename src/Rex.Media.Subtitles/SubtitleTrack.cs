@@ -54,6 +54,49 @@ public sealed class SubtitleTrack(string name)
         }
     }
 
+    /// <summary>
+    /// Puts <paramref name="cues"/> in place of every cue starting from <paramref name="from"/> up to
+    /// <paramref name="to"/>, finding them by binary search: a transcript heard piece by piece
+    /// changes its track this way, never rebuilding the rest.
+    /// </summary>
+    public void Replace(TimeSpan from, TimeSpan to, IEnumerable<SubtitleCue> cues)
+    {
+        ArgumentNullException.ThrowIfNull(cues);
+        lock (_gate)
+        {
+            var first = FirstStartingAtOrAfter(from);
+            var last = Math.Max(first, FirstStartingAtOrAfter(to));
+            for (var i = first; i < last; i++)
+            {
+                _seen.Remove((_cues[i].Start, _cues[i].Text));
+            }
+
+            // In the same hold, so a reader never sees the stretch empty.
+            _cues.RemoveRange(first, last - first);
+            AddRange(cues);
+        }
+    }
+
+    /// <summary>The index of the first cue starting at or after <paramref name="time"/>. Called holding the gate.</summary>
+    private int FirstStartingAtOrAfter(TimeSpan time)
+    {
+        int low = 0, high = _cues.Count;
+        while (low < high)
+        {
+            var middle = (low + high) / 2;
+            if (_cues[middle].Start < time)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low;
+    }
+
     /// <summary>Every cue, in start order, as they are now.</summary>
     public IReadOnlyList<SubtitleCue> All()
     {

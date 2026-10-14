@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Rex.Media.Audio;
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Captions;
+using Rex.Media.AppCore.Transcription;
 using Rex.Media.Codecs;
 using Rex.Media.Containers;
 using Rex.Media.IO;
@@ -175,4 +177,27 @@ public sealed class PerfTests
         Assert.True(packets > 50, $"Only {packets} packets were measured.");
         Assert.Equal(0, allocated);
     }
+    /// <summary>
+    /// Merges a piece into an hour-long transcript, reporting throughput until CI has a baseline.
+    /// Uses one warm transcript so the measure is the incremental merge, not its initial load.
+    /// </summary>
+    [Fact]
+    public void AProgressiveTranscriptMergesAPieceIntoALongTranscript()
+    {
+        var words = Enumerable.Range(0, 6000).Select(index => new TranscriptWord(
+            "word" + index, TimeSpan.FromSeconds(index * 0.5), TimeSpan.FromSeconds(index * 0.5 + 0.2), 0.9f)).ToArray();
+        var transcript = new ProgressiveTranscript("base.en", "en", TimeSpan.FromSeconds(3000));
+        var whole = new TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(3000));
+        transcript.Add(new SpeechChunk(whole, whole), words, "en");
+
+        var range = new TimeRange(TimeSpan.FromSeconds(1500), TimeSpan.FromSeconds(1526));
+        var patch = new SpeechChunk(range, range);
+        var heard = Enumerable.Range(3000, 52).Select(index => new TranscriptWord(
+            "word" + index, TimeSpan.FromSeconds((index - 3000) * 0.5),
+            TimeSpan.FromSeconds((index - 3000) * 0.5 + 0.2), 0.9f)).ToArray();
+
+        PerfBaselines.AtLeast("progressive-transcript-merges-per-second", Rate(() => transcript.Add(patch, heard, "en")));
+        Assert.Equal(words.Length, transcript.WordCount);
+    }
+
 }

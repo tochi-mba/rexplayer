@@ -73,12 +73,8 @@ public sealed partial class MainWindow
             _captionItem = item;
             (_transcript, _heard, _toldNoWords) = (null, null, false);
             StopPictureScan();
-            StopTranscribing();
             _pictures.Clear();
-            if (item is not null && File.Exists(item))
-            {
-                LoadKeptTranscript(item);
-            }
+            OpenTranscriptOf(item);
         }
 
         var words = HasCaptionWords();

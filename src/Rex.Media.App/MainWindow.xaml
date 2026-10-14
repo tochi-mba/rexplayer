@@ -15,7 +15,7 @@
     <ItemsPanelTemplate x:Key="LibraryPhotoPanel"><ItemsWrapGrid Orientation="Horizontal" ItemWidth="226" ItemHeight="220" /></ItemsPanelTemplate>
 
     <DataTemplate x:Key="LibrarySongTemplate" x:DataType="local:LibraryRow">
-      <Grid ColumnSpacing="12" Padding="2,5" MinHeight="64" AutomationProperties.Name="{x:Bind Name}">
+      <Grid ColumnSpacing="12" Padding="2,5" MinHeight="64" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="32" />
           <ColumnDefinition Width="54" />
@@ -34,7 +34,12 @@
           <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
           <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility}" />
         </StackPanel>
-        <TextBlock Grid.Column="3" Text="{x:Bind Extra}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
+                    AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}" />
+          <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
+        </StackPanel>
       </Grid>
     </DataTemplate>
 
@@ -60,7 +65,7 @@
     </DataTemplate>
 
     <DataTemplate x:Key="LibraryVideoTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
         <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
@@ -73,6 +78,11 @@
               <TextBlock Text="{x:Bind Extra}" Foreground="White" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
             </Border>
             <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" Margin="0" />
+            <Border Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" Background="#C0181818" CornerRadius="4" Padding="5,3" Margin="7"
+                    HorizontalAlignment="Right" VerticalAlignment="Top" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
+                    AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}">
+              <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" FontSize="13" Foreground="White" />
+            </Border>
             <Border x:Name="CardPlay" Opacity="0" Width="48" Height="48" CornerRadius="24" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
               <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
@@ -88,7 +98,7 @@
 
     <!-- Poster-height cards keep their image ratio. Hover or focus reveals Play but never hides the artwork. -->
     <DataTemplate x:Key="LibraryMovieTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+      <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
         <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Border CornerRadius="12" Background="#20252D" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
           <Grid>
@@ -97,6 +107,11 @@
             <Border Background="#BE17202C" CornerRadius="4" Padding="6,3" Margin="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Visibility="{x:Bind BadgeVisibility}">
               <TextBlock Text="{x:Bind Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+            </Border>
+            <Border Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" Background="#C0181818" CornerRadius="4" Padding="5,3" Margin="9"
+                    HorizontalAlignment="Right" VerticalAlignment="Top" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
+                    AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}">
+              <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" FontSize="13" Foreground="White" />
             </Border>
             <Border x:Name="CardPlay" Opacity="0" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
@@ -559,6 +574,7 @@
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <DropDownButton x:Name="LibraryLookButton" AutomationProperties.AutomationId="LibraryLook" ToolTipService.ToolTip="How the view is laid out" />
             <DropDownButton x:Name="LibrarySortButton" Grid.Column="1" AutomationProperties.AutomationId="LibrarySort" ToolTipService.ToolTip="What the view is ordered by" />
@@ -571,7 +587,18 @@
             </StackPanel>
             <TextBlock x:Name="LibraryStatus" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus" />
-            <TextBox x:Name="LibrarySearch" Grid.Column="6" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
+            <!-- Library transcription (SUB-20): its line, and a menu to pause, resume, stop or change it. The
+                 line changes only with the state, so a screen reader hears each change once. -->
+            <DropDownButton x:Name="LibraryTranscription" Grid.Column="6" Visibility="Collapsed" MaxWidth="320"
+                            AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription"
+                            ToolTipService.ToolTip="Transcription of the library: progress, pause, resume and settings">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE7F0;" FontSize="14" />
+                <TextBlock x:Name="LibraryTranscriptionText" TextTrimming="CharacterEllipsis" MaxWidth="260"
+                           AutomationProperties.AutomationId="LibraryTranscriptionText" />
+              </StackPanel>
+            </DropDownButton>
+            <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
           </Grid>
 
@@ -692,6 +719,9 @@
             PointerMoved="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
+        <!-- The subtitles ready for what plays (SUB-21), as a quiet second track under the rail. -->
+        <Canvas x:Name="SubtitleBuffer" Height="28" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"
+                AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
         <!-- Intro and credits as bands on the rail: filled when saved, outlined when detected. -->
         <Canvas x:Name="SectionMarkers" Height="28" VerticalAlignment="Center" IsHitTestVisible="False"
                 AutomationProperties.AutomationId="SectionMarkers" AutomationProperties.Name="No intro or credits marked" />
@@ -708,9 +738,14 @@
             </Border>
             <TextBlock x:Name="SeekPreviewTime" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontWeight="SemiBold"
                        HorizontalAlignment="Center" AutomationProperties.AutomationId="SeekPreviewTime" />
+            <TextBlock x:Name="SeekPreviewSubtitles" Foreground="#C8FFFFFF" FontSize="11" HorizontalAlignment="Center" Visibility="Collapsed"
+                       AutomationProperties.AutomationId="SeekPreviewSubtitles" />
           </StackPanel>
         </Border>
       </Grid>
+      <TextBlock x:Name="SubtitleBufferState" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-12,4,0"
+                 FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsHitTestVisible="True" Visibility="Collapsed"
+                 AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Polite" />
       <TextBlock x:Name="Remaining" Grid.Row="0" Grid.Column="2" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
                  Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
 
