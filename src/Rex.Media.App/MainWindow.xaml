@@ -430,6 +430,26 @@
           <StackPanel x:Name="LyricsLines" Spacing="6" Padding="0,8" />
         </ScrollViewer>
 
+        <!-- A held viewer should not have to infer from the small timeline rail that captions are
+             being prepared. Keep the explanation central and offer an immediate, explicit escape. -->
+        <Border x:Name="CaptionBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
+                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="#F20B0D0C"
+                BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30"
+                AutomationProperties.AutomationId="CaptionBufferOverlay" AutomationProperties.Name="Preparing captions">
+          <StackPanel Spacing="12" HorizontalAlignment="Center">
+            <ProgressRing IsActive="True" Width="34" Height="34" HorizontalAlignment="Center"
+                          AutomationProperties.AccessibilityView="Raw" />
+            <TextBlock Text="Preparing captions" FontSize="18" FontWeight="SemiBold" Foreground="White"
+                       HorizontalAlignment="Center" />
+            <TextBlock x:Name="CaptionBufferOverlayText" Foreground="#FFD6DAD7" TextAlignment="Center"
+                       TextWrapping="Wrap" AutomationProperties.AutomationId="CaptionBufferOverlayText"
+                       AutomationProperties.LiveSetting="Polite" />
+            <Button Content="Play now" HorizontalAlignment="Center" Click="OnPlayWithoutCaptionBuffer"
+                    AutomationProperties.AutomationId="CaptionBufferPlayNow"
+                    AutomationProperties.Name="Play now without waiting for more captions" />
+          </StackPanel>
+        </Border>
+
         <InfoBar x:Name="ResumeBar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16" Padding="12,8"
                  IsOpen="False" IsClosable="True" IsIconVisible="False" MaxWidth="420"
                  Background="#F21B1B1B" Foreground="White" AutomationProperties.AutomationId="ResumeBar" />
