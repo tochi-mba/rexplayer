@@ -5,6 +5,16 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Improved
+
+- **Uninterrupted caption playback mode.** With *Hold for subtitles* enabled, rexplayer now
+  waits for the predicted amount of caption coverage needed to watch the remainder without
+  rebuffering, based on conservative transcription speed, playback speed and remaining duration.
+  It no longer resumes after an arbitrary 90-second maximum. An empty new transcript holds
+  before playback rather than first running out of captions. Progress shows the target;
+  playback remains manually resumable, and errors release the wait.
+
+
 ## 0.24.1 - 2026-10-14
 
 ### Fixed
