@@ -192,7 +192,18 @@ public sealed class EventPump : IDisposable
 
             foreach (var sessionEvent in batch)
             {
-                _listener(sessionEvent);
+                // A window that has closed or a failing subscriber may reject an event. The
+                // dispatch thread must stay alive to deliver the next state or failure.
+                try
+                {
+                    _listener(sessionEvent);
+                }
+#pragma warning disable CA1031 // Final boundary to code outside the event pump.
+                catch (Exception)
+#pragma warning restore CA1031
+                {
+                    // Drop this notification, never the remaining events.
+                }
             }
 
             batch.Clear();

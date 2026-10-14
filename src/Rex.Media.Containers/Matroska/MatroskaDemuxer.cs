@@ -23,6 +23,7 @@ public sealed class MatroskaDemuxer : IDemuxer
 {
     private const long MaxHeaderBytes = 64L << 20;
     private const long MaxBlockBytes = 64L << 20;
+    private const long MaximumResync = 8L << 20;
 
     private readonly ByteCursor _stream;
     private readonly long _segmentStart;
@@ -189,9 +190,19 @@ public sealed class MatroskaDemuxer : IDemuxer
 
             if (!_inCluster)
             {
-                if (_position >= _segmentEnd || !TryReadHeader(_position, out var id, out var size, out var dataStart))
+                if (_position >= _segmentEnd)
                 {
                     return null;
+                }
+
+                if (!TryReadHeader(_position, out var id, out var size, out var dataStart))
+                {
+                    if (!FindNextCluster())
+                    {
+                        return null;
+                    }
+
+                    continue;
                 }
 
                 if (id == MatroskaId.Cluster)
@@ -203,9 +214,14 @@ public sealed class MatroskaDemuxer : IDemuxer
                     continue;
                 }
 
-                if (size == Ebml.UnknownSize)
+                if (size == Ebml.UnknownSize || dataStart + size > _segmentEnd)
                 {
-                    return null;
+                    if (!FindNextCluster())
+                    {
+                        return null;
+                    }
+
+                    continue;
                 }
 
                 _position = dataStart + size;
@@ -217,10 +233,16 @@ public sealed class MatroskaDemuxer : IDemuxer
                 _inCluster = false;
                 if (_clusterEnd < 0)
                 {
-                    return null;
+                    if (!FindNextCluster())
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    _position = _clusterEnd;
                 }
 
-                _position = _clusterEnd;
                 continue;
             }
 
@@ -231,9 +253,15 @@ public sealed class MatroskaDemuxer : IDemuxer
                 continue;
             }
 
-            if (childSize == Ebml.UnknownSize || childSize > MaxBlockBytes)
+            if (childSize == Ebml.UnknownSize || childSize > MaxBlockBytes
+                || (_stream.Length is { } total && childStart + childSize > total))
             {
-                throw new MediaFormatException("A Matroska block has an unusable size.");
+                if (!FindNextCluster())
+                {
+                    return null;
+                }
+
+                continue;
             }
 
             var elementStart = _position;
@@ -266,6 +294,49 @@ public sealed class MatroskaDemuxer : IDemuxer
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Recover at the next cluster after a malformed block or lost EBML header. Limit the
+    /// search so a wholly corrupt file cannot hold the demux thread indefinitely.
+    /// </summary>
+    private bool FindNextCluster()
+    {
+        var from = _position + 1;
+        var limit = Math.Min(_segmentEnd, _stream.Length ?? long.MaxValue);
+        limit = Math.Min(limit, from + MaximumResync);
+        ReadOnlySpan<byte> signature = [0x1F, 0x43, 0xB6, 0x75];
+        Span<byte> block = stackalloc byte[4096];
+        while (from + signature.Length <= limit)
+        {
+            _stream.Seek(from);
+            var count = _stream.Peek(block[..(int)Math.Min(block.Length, limit - from)]);
+            if (count < signature.Length)
+            {
+                return false;
+            }
+
+            var found = block[..count].IndexOf(signature);
+            if (found >= 0)
+            {
+                var candidate = from + found;
+                if (TryReadHeader(candidate, out var id, out var size, out var dataStart)
+                    && id == MatroskaId.Cluster && (size == Ebml.UnknownSize || dataStart + size <= _segmentEnd))
+                {
+                    _position = candidate;
+                    _inCluster = false;
+                    return true;
+                }
+
+                from = candidate + 1;
+            }
+            else
+            {
+                from += count - signature.Length + 1;
+            }
+        }
+
+        return false;
     }
 
     public void Seek(MediaTime target, CancellationToken cancellationToken)

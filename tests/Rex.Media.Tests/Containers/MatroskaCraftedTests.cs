@@ -156,14 +156,14 @@ public sealed class MatroskaCraftedTests
     }
 
     [Fact]
-    public void ReadingStopsAtAnUnsizedElementThatIsNotACluster()
+    public void AnUnsizedNonClusterElementResynchronizesAtTheNextCluster()
     {
         var file = Mkv(Tracks(PcmTrack()), Cluster(0, Simple(Audio, 0, true, 1)), Unsized(Id.Tags), Cluster(5, Simple(Audio, 0, true, 2)));
         using var demuxer = Open(file);
 
         var packets = ReadAll(demuxer);
 
-        Assert.Equal([1], packets.Select(p => p.Data.Span[0]));
+        Assert.Equal([1, 2], packets.Select(p => p.Data.Span[0]));
         MatroskaDemuxerTests.Release(packets);
     }
 
@@ -233,9 +233,17 @@ public sealed class MatroskaCraftedTests
     {
         using var demuxer = Open(File("matroska", [Tracks(PcmTrack()), cluster], unsizedSegment: true));
 
-        var error = Assert.Throws<MediaFormatException>(() => demuxer.ReadPacket(CancellationToken.None));
-
-        Assert.Contains(reason, error.Message, StringComparison.Ordinal);
+        if (reason is "unusable size" or "past the end")
+        {
+            // A damaged element size no longer ends a playable container; resynchronize
+            // at a later cluster or report a clean end when the file has no more clusters.
+            Assert.Null(demuxer.ReadPacket(CancellationToken.None));
+        }
+        else
+        {
+            var error = Assert.Throws<MediaFormatException>(() => demuxer.ReadPacket(CancellationToken.None));
+            Assert.Contains(reason, error.Message, StringComparison.Ordinal);
+        }
     }
 
     /// <summary>Audio every 10 ms and video every 40 ms (a keyframe every 80), one cluster per 40 ms.</summary>
