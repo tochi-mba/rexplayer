@@ -33,6 +33,32 @@ public sealed class Mp4CraftedTests
         return packets;
     }
 
+    [Fact]
+    public void AnUnknownLengthMp4CanSkipAShortReadAndKeepEarlierPackets()
+    {
+        var file = File([Audio(AudioEntry("Opus", 1, 16, 8000), Samples(5, 5, 5))]);
+        // The movie header is complete, but the final sample is cut short and the
+        // source cannot report its length up front.
+        using var demuxer = new Mp4Demuxer(new UnknownLengthSource(file[..^3]), CancellationToken.None);
+        var packets = ReadAll(demuxer);
+        Assert.Equal([1, 2], packets.Select(packet => packet.Data.Span[0]));
+        packets.ForEach(packet => packet.Dispose());
+    }
+
+    private sealed class UnknownLengthSource(byte[] bytes) : IByteSource
+    {
+        private readonly MemoryByteSource _inner = new(bytes, "damaged.mp4");
+
+        public string Name => _inner.Name;
+        public long? Length => null;
+        public bool CanSeek => true;
+
+        public int Read(long position, Span<byte> destination, CancellationToken cancellationToken) =>
+            _inner.Read(position, destination, cancellationToken);
+
+        public void Dispose() => _inner.Dispose();
+    }
+
     [Theory]
     [InlineData(4)]
     [InlineData(8)]
