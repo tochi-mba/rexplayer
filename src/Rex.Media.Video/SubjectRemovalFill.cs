@@ -40,10 +40,10 @@ public sealed class SubjectRemovalFill
     // How strongly a far source is penalised, relative to a typical patch difference.
     private const float Nearness = 1f;
 
-    // Sweeps of the fusion, and how far each one moves a cell past the plain average of its
-    // neighbours: over-relaxed, a sweep carries a seam's step as far as several plain ones would.
-    private const int FusionSweeps = 10;
-    private const float Relaxation = 1.8f;
+    // Complete the fusion until copied texture and known edges agree, rather than stopping
+    // early and leaving a visible seam. The warm-started copies converge without over-relaxation.
+    private const int FusionSweeps = 40;
+    private const float Relaxation = 1f;
     // The most the fusion moves a copied colour, so a wild boundary cannot repaint the texture.
     private const float MostCorrection = 64;
 
