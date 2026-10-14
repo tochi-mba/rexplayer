@@ -74,7 +74,7 @@ public sealed class TransportEdgeCaseTests
     }
 
     [Fact]
-    public void RepeatAllWrapsBothWaysAndRepeatOneChangesNothingAskedFor()
+    public void RepeatAllWrapsBothWaysAndRepeatOneWrapsOnlyForwardAsTheCommandsDo()
     {
         using var harness = Playing("a", "b", "c");
         harness.Controller.Playlist.Repeat = RepeatMode.All;
@@ -82,10 +82,14 @@ public sealed class TransportEdgeCaseTests
         Go(harness, 2);
         Assert.Equal("Next: a", View(harness).Next.Tooltip);
 
+        // Repeat one repeats an item that ends by itself; asked for, Next carries on round the
+        // playlist as repeat-all does, and Previous stops at the first item as repeat-off does.
         harness.Controller.Playlist.Repeat = RepeatMode.One;
         var one = View(harness);
         Assert.Equal("Previous: b", one.Previous.Tooltip);
-        Assert.False(one.Next.IsVisible);
+        Assert.Equal("Next: a", one.Next.Tooltip);
+        Go(harness, 0);
+        Assert.False(View(harness).Previous.IsVisible);
     }
 
     [Fact]
