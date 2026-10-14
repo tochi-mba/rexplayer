@@ -310,7 +310,7 @@ public sealed class TranscriptionWorkerTests : IDisposable
     {
         var film = Media("film.mkv", seconds: 60, declared: 60);
         var worker = Worker();
-        var finished = new TaskCompletionSource();
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         worker.Heard += (_, e) =>
         {
             if (e.Complete)
@@ -324,8 +324,8 @@ public sealed class TranscriptionWorkerTests : IDisposable
 
         // Closed while hearing: the hearer is told to stop and let go.
         var second = Media("second.mkv", seconds: 60, declared: 60);
-        var hearing = new TaskCompletionSource();
-        var released = new TaskCompletionSource();
+        var hearing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         FakeHearer.Created = hearer =>
         {
             hearer.During = () => hearing.TrySetResult();
