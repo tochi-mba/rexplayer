@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Rex.Media.AppCore.Player;
 
 /// <summary>
@@ -130,13 +133,14 @@ public sealed partial class PlayerController
     {
         try
         {
-            var signature = SectionAnalysis.SignatureOf(path);
-            var cached = Memory.Proposals(path, signature);
-            Publish(path, cached, token);
             var folder = Path.GetDirectoryName(path)!;
             var files = Directory.EnumerateFiles(folder)
                 .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
                 .ToArray();
+            var siblings = EpisodeGrouping.Siblings(path, files, SectionDetector.SiblingsCompared);
+            var signature = DetectionSignature(path, siblings);
+            var cached = Memory.Proposals(path, signature);
+            Publish(path, cached, token);
             var next = EpisodeGrouping.Next(path, files) ?? NextSeason(path, folder);
             _dispatch(() =>
             {
@@ -146,12 +150,13 @@ public sealed partial class PlayerController
                     Changed?.Invoke(this, EventArgs.Empty);
                 }
             });
-            if (analyzer is null || cached is { Candidates.Count: > 0 })
+            // An empty result is still a result. Re-decoding an episode and its season on every
+            // open merely because no intro or credits were found defeats the cache.
+            if (analyzer is null || cached is not null)
             {
                 return;
             }
 
-            var siblings = EpisodeGrouping.Siblings(path, files, SectionDetector.SiblingsCompared);
             EpisodeAnalysis? main = null;
             var others = new List<EpisodeAnalysis>();
             foreach (var candidate in siblings.Prepend(path))
@@ -191,12 +196,12 @@ public sealed partial class PlayerController
 
                 if (others.Count != 1 && candidate != siblings.LastOrDefault())
                 {
-                    Publish(path, SectionDetector.Detect(main, others), token);
+                    Publish(path, SectionDetector.Detect(main, others) with { Signature = signature }, token);
                 }
             }
 
             token.ThrowIfCancellationRequested();
-            var proposals = SectionDetector.Detect(main!, others);
+            var proposals = SectionDetector.Detect(main!, others) with { Signature = signature };
             Memory.SetProposals(path, proposals);
             Publish(path, proposals, token);
         }
@@ -209,6 +214,29 @@ public sealed partial class PlayerController
         {
             _log.Warning("sections", "Background analysis unavailable: " + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Identity of every recording which can affect a detection. The selected sibling paths are
+    /// included as well as their file signatures, so adding, removing, moving or replacing an
+    /// episode invalidates the result. <see cref="SectionAnalysis.FeatureVersion"/> is already in
+    /// every file signature and therefore invalidates results when detector parameters change.
+    /// </summary>
+    internal static string DetectionSignature(string path, IReadOnlyList<string> siblings)
+    {
+        var text = new StringBuilder();
+        foreach (var file in siblings.Prepend(path))
+        {
+            var identity = Path.GetFullPath(file);
+            if (OperatingSystem.IsWindows())
+            {
+                identity = identity.ToUpperInvariant();
+            }
+
+            text.Append(identity).Append('\0').Append(SectionAnalysis.SignatureOf(file)).Append('\n');
+        }
+
+        return "set:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
     }
 
     /// <summary>After a season's last episode in a "Season 1" folder, the first episode in the folder of the next season.</summary>
