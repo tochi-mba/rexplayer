@@ -91,6 +91,7 @@ FourCC.cs
 FrameBudget.cs
 FrameCadence.cs
 GalaxyScene.cs
+GenreNames.cs
 GifDecoder.cs
 GifDemuxer.cs
 GrooveScene.cs
@@ -286,10 +287,10 @@ TaskbarGlyphs.cs
 TaskbarProgress.cs
 ThreadLoop.cs
 ThreadResponsiveness.cs
+TimelineThrottle.cs
 TimeRanges.cs
 TimeStretch.cs
 TimeText.cs
-TimelineThrottle.cs
 TimeWarpScene.cs
 TrackInfo.cs
 Transcript.cs

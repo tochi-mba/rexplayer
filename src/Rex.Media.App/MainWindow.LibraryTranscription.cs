@@ -550,6 +550,8 @@ public sealed partial class MainWindow
             _workerPath = status.Path;
             RefreshTranscriptBadges();
         }
+
+        ShowHearingProgress(status);
     }
 
     /// <summary>The transcription menu: the line, pause or resume, stop, and the settings.</summary>

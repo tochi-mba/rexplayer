@@ -215,6 +215,10 @@ public sealed partial class MainWindow
     {
         RunCommand(command);
         ShowMenuChecks();
+        if (command == CommandCatalog.ClearHistory)
+        {
+            RefreshJumpListLater();
+        }
     }
 
     private void RunCommand(string command)

@@ -141,10 +141,14 @@ public partial class App : Application
             Foreground.AllowAnyProcess();
         }
 
-        var request = command is null
-            ? new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }
-            : new AutomationRequest { Command = "run", Id = command };
-        var reply = await AutomationPipe.SendAsync(pipe, request, FindRunningPlayer);
+        // A jump list task first brings the window forward (an open with nothing to open does), so
+        // the dialog it may show is in front, then runs.
+        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }, FindRunningPlayer);
+        if (reply is { Ok: true } && command is not null)
+        {
+            reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "run", Id = command }, FindRunningPlayer);
+        }
+
         if (reply is not { Ok: true })
         {
             return false;

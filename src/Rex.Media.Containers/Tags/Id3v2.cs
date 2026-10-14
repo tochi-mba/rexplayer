@@ -416,6 +416,9 @@ public static class Id3v1
         "Trailer", "Lo-Fi", "Tribal", "Acid Punk", "Acid Jazz", "Polka", "Retro", "Musical", "Rock & Roll", "Hard Rock",
     ];
 
+    /// <summary>The numbered ID3v1 genres, in number order.</summary>
+    public static IReadOnlyList<string> GenreNames => Genres;
+
     /// <summary>Whether the last 128 bytes of a file are an ID3v1 tag.</summary>
     public static bool IsTag(ReadOnlySpan<byte> last128) => last128.Length == Size && last128[0] == 'T' && last128[1] == 'A' && last128[2] == 'G';
 
