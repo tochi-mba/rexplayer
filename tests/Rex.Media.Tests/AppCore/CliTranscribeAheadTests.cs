@@ -24,15 +24,13 @@ public sealed class CliTranscribeAheadTests : IDisposable
     {
         public List<int> Threads { get; } = [];
 
-        public (IReadOnlyList<TranscriptWord> Words, string? Language) Hear(float[] samples, string? language, int threads, CancellationToken cancellationToken)
+        public ValueTask<(IReadOnlyList<TranscriptWord> Words, string? Language)> HearAsync(float[] samples, string? language, int threads, CancellationToken cancellationToken)
         {
             Threads.Add(threads);
-            return ([new TranscriptWord("word.", TimeSpan.FromSeconds(2.5), TimeSpan.FromSeconds(2.8))], language ?? "en");
+            return ValueTask.FromResult<(IReadOnlyList<TranscriptWord>, string?)>(([new TranscriptWord("word.", TimeSpan.FromSeconds(2.5), TimeSpan.FromSeconds(2.8))], language ?? "en"));
         }
 
-        public void Dispose()
-        {
-        }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private (int Exit, string Out, string Error) Run(ISpeechHearer? hearer, params string[] args)

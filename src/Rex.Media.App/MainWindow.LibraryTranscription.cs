@@ -57,6 +57,7 @@ public sealed partial class MainWindow
     private TimeSpan? _bufferDuration;
     private bool _bufferHearing;
     private string _shownBuffer = "";
+    private BufferState _shownBufferState;
     private bool _holdingForSubtitles;
     private string? _announcedTranscription;
     private string? _workerPath;
@@ -117,6 +118,7 @@ public sealed partial class MainWindow
         var worker = new TranscriptionWorker(_transcripts, _ledger, file => new SpeechAudioReader(file, decoders, CancellationToken.None), () => new WhisperHearer(path), model.Id)
         {
             Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null,
+            Log = message => App.Log.Warning(LogSource, message),
         };
 
         // Only what plays crosses to the window, and only the stretches heard: its track fills by itself.
@@ -627,7 +629,7 @@ public sealed partial class MainWindow
             PositionSubtitleBuffer();
         }
 
-        ShowSubtitleBufferState();
+        ShowSubtitleBufferState(force: true);
     }
 
     private void PositionSubtitleBuffer()
@@ -643,10 +645,22 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The small words beside the seek bar, and its tooltip; changed only with the state.</summary>
-    private void ShowSubtitleBufferState()
+    /// <summary>
+    /// The small words beside the seek bar, and its tooltip; changed only with the state. Called at
+    /// every position report, so all it does then is ask the state (two binary searches, nothing
+    /// made); the words are built only when the state changes or a piece was heard.
+    /// </summary>
+    private void ShowSubtitleBufferState(bool force = false)
     {
-        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
+        var duration = _bufferDuration ?? _player.Duration;
+        var state = Rex.Media.AppCore.Transcription.SubtitleBuffer.StateAt(_bufferDone, duration, _player.Position, _bufferHearing);
+        if (!force && state == _shownBufferState)
+        {
+            return;
+        }
+
+        _shownBufferState = state;
+        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, duration, _player.Position, _bufferHearing);
         if (SubtitleBufferState.Text != view.Label)
         {
             SubtitleBufferState.Text = view.Label;
@@ -686,7 +700,8 @@ public sealed partial class MainWindow
             return;
         }
 
-        switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles, _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration))
+        switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles,
+            _bufferHearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.Factor, _player.Speed))
         {
             case HoldAction.Hold:
                 _holdingForSubtitles = true;

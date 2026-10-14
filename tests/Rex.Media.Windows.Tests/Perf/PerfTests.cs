@@ -232,4 +232,30 @@ public sealed class PerfTests
         PerfBaselines.AtLeast("progressive-transcript-merges-per-second", Rate(() => transcript.Add(patch, heard, "en")));
         Assert.Equal(words.Length, transcript.WordCount);
     }
+    /// <summary>
+    /// The window asks where the playhead stands against the subtitles ready at every position
+    /// report while something is transcribed: an hour with forty stretches ready, a thousand asks a
+    /// pass. Once warm the ask allocates nothing at all, on every machine.
+    /// </summary>
+    [Fact]
+    public void TheSubtitleBufferIsAskedAtEveryPositionReportWithoutAllocating()
+    {
+        var done = TimeRanges.Of(Enumerable.Range(0, 40).Select(index => new TimeRange(TimeSpan.FromSeconds(index * 90), TimeSpan.FromSeconds((index * 90) + 60))));
+        var duration = TimeSpan.FromHours(1);
+        var states = 0;
+        void Pass()
+        {
+            for (var second = 0; second < 1000; second++)
+            {
+                states += (int)SubtitleBuffer.StateAt(done, duration, TimeSpan.FromSeconds(second * 3.6), hearing: true);
+            }
+        }
+
+        Pass();
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        Pass();
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        PerfBaselines.AtLeast("subtitle-buffer-thousand-asks-per-second", Rate(Pass));
+        Assert.True(states > 0);
+    }
 }

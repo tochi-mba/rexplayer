@@ -17,19 +17,23 @@ public static class TranscriptionRetry
 
     private static readonly TimeSpan LastingWait = TimeSpan.FromMinutes(30);
 
-    /// <summary>What went wrong, in words a person reads, and whether it may pass by itself.</summary>
+    /// <summary>
+    /// What went wrong, as a short plain sentence a person reads, and whether it may pass by
+    /// itself. The exception's own text never reaches the user; it goes to the log.
+    /// </summary>
     public static (string Reason, bool Passing) Classify(Exception error)
     {
         ArgumentNullException.ThrowIfNull(error);
         return error switch
         {
-            FileNotFoundException or DirectoryNotFoundException => ("The file is no longer there", true),
-            UnauthorizedAccessException => ("rexplayer is not allowed to read the file", false),
-            MediaFormatException => ("The file could not be read: " + error.Message, false),
-            IOException => ("The file was busy or out of reach: " + error.Message, true),
-            NotSupportedException => ("Its sound is in a format rexplayer cannot decode", false),
-            InvalidDataException => ("The speech model could not hear it: " + error.Message, false),
-            _ => ("Something went wrong: " + error.Message, false),
+            FileNotFoundException or DirectoryNotFoundException => ("The file is no longer there.", true),
+            UnauthorizedAccessException => ("rexplayer is not allowed to read this file.", false),
+            MediaFormatException or InvalidDataException => ("This file's audio could not be read.", false),
+            IOException => ("The file was busy or out of reach.", true),
+            NotSupportedException => ("This file's audio is in a format rexplayer cannot decode.", false),
+            OutOfMemoryException or InsufficientMemoryException => ("Not enough memory to transcribe now.", true),
+            SpeechModelException or DllNotFoundException or BadImageFormatException => ("The speech model could not be loaded.", true),
+            _ => ("Transcription stopped unexpectedly.", false),
         };
     }
 

@@ -55,6 +55,29 @@ public static class SubtitleBuffer
     /// <summary>A held playback carries on once the subtitles are this far ahead.</summary>
     public static readonly TimeSpan ReleaseAhead = TimeSpan.FromSeconds(15);
 
+    /// <summary>The largest buffer retained before playback resumes; transcription stays bounded and near the playhead.</summary>
+    public static readonly TimeSpan MostReleaseAhead = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    /// How far subtitles should lead before a held player resumes. The measured transcription
+    /// factor is seconds of media heard per wall-clock second. When hearing is slower than playback,
+    /// one chunk's processing time is covered so playback does not repeatedly stop between chunks.
+    /// Unknown or invalid measurements use the conservative fixed buffer.
+    /// </summary>
+    public static TimeSpan ReleaseTarget(double? transcriptionFactor, double playbackRate, TimeSpan playhead, TimeSpan duration)
+    {
+        playbackRate = double.IsFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
+        var wanted = ReleaseAhead;
+        if (transcriptionFactor is { } factor && factor > 0 && double.IsFinite(factor))
+        {
+            var seconds = ChunkPlanner.Length.TotalSeconds * playbackRate / factor + Comfortable.TotalSeconds;
+            wanted = TimeSpan.FromSeconds(Math.Clamp(seconds, ReleaseAhead.TotalSeconds, MostReleaseAhead.TotalSeconds));
+        }
+
+        var remaining = duration - playhead;
+        return remaining <= TimeSpan.Zero ? TimeSpan.Zero : wanted < remaining ? wanted : remaining;
+    }
+
     /// <summary>How long ready subtitles run on past <paramref name="playhead"/> without a gap.</summary>
     public static TimeSpan Ahead(TimeRanges done, TimeSpan playhead)
     {
@@ -78,10 +101,7 @@ public static class SubtitleBuffer
         var ready = whole.Length - done.Gaps(whole).Aggregate(TimeSpan.Zero, (sum, gap) => sum + gap.Length);
         var ahead = Ahead(done, playhead);
         var complete = done.Covers(whole);
-        var state = complete ? BufferState.Complete
-            : ahead >= Comfortable || (ahead > TimeSpan.Zero && done.At(playhead)!.Value.End >= duration) ? BufferState.Ahead
-            : hearing ? BufferState.CatchingUp
-            : BufferState.Stalled;
+        var state = StateAt(done, duration, playhead, hearing);
         var label = state switch
         {
             BufferState.CatchingUp => "Transcribing ahead...",
@@ -93,6 +113,24 @@ public static class SubtitleBuffer
                 + (ahead > TimeSpan.Zero ? string.Create(CultureInfo.InvariantCulture, $", {TimeText.Format(ahead, duration)} ahead of where you are.") : ".")
                 + (hearing ? " Transcribing ahead of you." : "");
         return new BufferView(spans, state, label, tip);
+    }
+
+    /// <summary>
+    /// Where the playhead stands, with nothing made but the answer: two binary searches, so the
+    /// window can ask at every position report and redraw only when the state changes.
+    /// </summary>
+    public static BufferState StateAt(TimeRanges? done, TimeSpan duration, TimeSpan playhead, bool hearing)
+    {
+        if (done is null || duration <= TimeSpan.Zero)
+        {
+            return BufferState.None;
+        }
+
+        var ahead = Ahead(done, playhead);
+        return done.Covers(new TimeRange(TimeSpan.Zero, duration)) ? BufferState.Complete
+            : ahead >= Comfortable || (ahead > TimeSpan.Zero && playhead + ahead >= duration) ? BufferState.Ahead
+            : hearing ? BufferState.CatchingUp
+            : BufferState.Stalled;
     }
 
     /// <summary>What the timeline preview says under the pointer at <paramref name="at"/>: whether subtitles are ready there.</summary>
@@ -108,12 +146,18 @@ public static class SubtitleBuffer
     /// <see cref="ReleaseAhead"/> ahead, reach the end, or hearing stops or the setting goes off.
     /// </summary>
     public static HoldAction Hold(bool allowed, bool holding, bool hearing, TimeRanges done, TimeSpan playhead, TimeSpan duration)
+        => Hold(allowed, holding, hearing, done, playhead, duration, null, 1);
+
+    /// <summary>An adaptive hold/release policy, capped so work and memory stay near the playhead.</summary>
+    public static HoldAction Hold(bool allowed, bool holding, bool hearing, TimeRanges done, TimeSpan playhead, TimeSpan duration,
+        double? transcriptionFactor, double playbackRate)
     {
         ArgumentNullException.ThrowIfNull(done);
         var ahead = Ahead(done, playhead);
         if (holding)
         {
-            return !allowed || !hearing || ahead >= ReleaseAhead || (ahead > TimeSpan.Zero && playhead + ahead >= duration) ? HoldAction.Release : HoldAction.Nothing;
+            var target = ReleaseTarget(transcriptionFactor, playbackRate, playhead, duration);
+            return !allowed || !hearing || ahead >= target || (ahead > TimeSpan.Zero && playhead + ahead >= duration) ? HoldAction.Release : HoldAction.Nothing;
         }
 
         return allowed && hearing && ahead < TimeSpan.FromSeconds(0.5) && playhead < duration ? HoldAction.Hold : HoldAction.Nothing;
