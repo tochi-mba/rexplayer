@@ -58,6 +58,13 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (!e.Handled && HandleShellMediaKey((int)e.Key))
+        {
+            e.Handled = true;
+            _shortcutKeys.Add(e.Key);
+            return;
+        }
+
         if (e.Handled || FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox or PasswordBox or AutoSuggestBox)
         {
             return;

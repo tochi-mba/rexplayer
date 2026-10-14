@@ -177,6 +177,29 @@ public sealed class PipelinePartsTests
     }
 
     [Fact]
+    public void AFailingSubscriberDoesNotStopTheEventThread()
+    {
+        using var second = new ManualResetEventSlim(false);
+        var calls = 0;
+        using (var pump = new EventPump(_ =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+            {
+                throw new InvalidOperationException("The window could not receive the event.");
+            }
+
+            second.Set();
+        }))
+        {
+            pump.Post(new EndedEvent());
+            pump.Post(new EndedEvent());
+            Assert.True(second.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        }
+
+        Assert.Equal(2, Volatile.Read(ref calls));
+    }
+
+    [Fact]
     public void ThePumpRefusesANullEvent()
     {
         using var pump = new EventPump(_ => { });

@@ -538,6 +538,11 @@ public sealed partial class MainWindow
     /// </summary>
     public Task<AutomationReply> AnswerAsync(AutomationRequest request)
     {
+        if (AnswerMeasurement(request) is { } measured)
+        {
+            return measured;
+        }
+
         var answered = new TaskCompletionSource<AutomationReply>(TaskCreationOptions.RunContinuationsAsynchronously);
         var queued = DispatcherQueue.TryEnqueue(() =>
         {
@@ -560,7 +565,7 @@ public sealed partial class MainWindow
                 case "status":
                     break;
                 default:
-                    answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run or status."));
+                    answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run, seek, status, metrics or measure."));
                     return;
             }
 

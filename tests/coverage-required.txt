@@ -88,6 +88,7 @@ FlightScene.cs
 FolderArt.cs
 FourCC.cs
 FrameBudget.cs
+FrameCadence.cs
 GalaxyScene.cs
 GifDecoder.cs
 GifDemuxer.cs
@@ -102,6 +103,7 @@ InfinityMirrorScene.cs
 InkScene.cs
 InpaintTensors.cs
 InstallStateMachine.cs
+JumpListPlan.cs
 KaleidoscopeScene.cs
 KeyChord.cs
 Keymap.cs
@@ -131,10 +133,12 @@ MandalaScene.cs
 MatroskaDemuxer.cs
 MatroskaHeaders.cs
 MediaBuffer.cs
+MediaCard.cs
 MediaClock.cs
 MediaFiles.cs
 MediaFormatException.cs
 MediaInfo.cs
+MediaKeyEcho.cs
 MediaLibrary.cs
 MediaPrefetch.cs
 MediaRegistries.cs
@@ -197,6 +201,7 @@ PlayerController.Subtitles.cs
 PlayerController.Timers.cs
 PlayerController.Timing.cs
 PlayerMemory.cs
+PlayerMetrics.cs
 PlayerSettings.cs
 Playlist.cs
 PlaylistEntry.cs
@@ -271,15 +276,20 @@ SubtitleWords.cs
 SubViewer.cs
 SynthwaveScene.cs
 SystemReport.cs
+TaskbarGlyphs.cs
+TaskbarProgress.cs
 ThreadLoop.cs
+ThreadResponsiveness.cs
 TimeStretch.cs
 TimeText.cs
+TimelineThrottle.cs
 TimeWarpScene.cs
 TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
 TranscriptCache.cs
 TransferMeter.cs
+TransportAvailability.cs
 UpdateCheck.cs
 UpdateDownloader.cs
 UpdateFlow.cs

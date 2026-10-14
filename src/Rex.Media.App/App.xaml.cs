@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Shell;
 using Rex.Media.Diagnostics;
 using Rex.Media.Interop.Windowing;
 using Rex.Media.Settings;
@@ -72,6 +73,18 @@ public partial class App : Application
     /// </summary>
     public static Milestones Milestones { get; } = new(Log, LaunchedAt, Environment.GetEnvironmentVariable("REXPLAYER_EXIT_AFTER"), () => Environment.Exit(0));
 
+    /// <summary>
+    /// Draws pictures in software, as a computer without a usable graphics card does, when
+    /// REXPLAYER_GRAPHICS=software: how scripts/measure-startup.ps1 -LowEnd imitates a weak computer.
+    /// </summary>
+    public static bool SoftwareGraphics { get; } = string.Equals(Environment.GetEnvironmentVariable("REXPLAYER_GRAPHICS"), "software", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether video may be decoded on the graphics card: not when REXPLAYER_HARDWARE_DECODING=off,
+    /// which imitates a graphics card with no video decoding (scripts/measure-startup.ps1 -LowEnd).
+    /// </summary>
+    public static bool GraphicsCardDecoding { get; } = !string.Equals(Environment.GetEnvironmentVariable("REXPLAYER_HARDWARE_DECODING"), "off", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The slow parts of this launch, started in the background before the window is built; null when it hands over.</summary>
     internal static LaunchWarmup? Warmup { get; private set; }
 
@@ -80,12 +93,13 @@ public partial class App : Application
         Log.Info("app", $"rexplayer {MainWindow.Version} starting on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}), .NET {Environment.Version}, data in {DataRoot}.");
         Milestones.Reach("launched");
         Log.Debug("app", "Command line: " + string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(arg => "\"" + arg + "\"")));
-        var files = Environment.GetCommandLineArgs().Skip(1).Select(Located).ToList();
+        var (launchFiles, launchCommand) = JumpListPlan.ParseLaunch(Environment.GetCommandLineArgs().Skip(1).ToArray());
+        var files = launchFiles.Select(Located).ToList();
         var settings = SettingsStore.Load(SettingsPath);
         var pipe = AutomationPipe.NameForCurrentUser;
 
         // Only a player that is there can be handed to: with none, there is nothing to wait for.
-        if (settings.SingleInstance && AutomationPipe.IsServed(pipe) && await HandOverAsync(pipe, files, settings))
+        if (settings.SingleInstance && AutomationPipe.IsServed(pipe) && await HandOverAsync(pipe, files, settings, launchCommand))
         {
             Exit();
             return;
@@ -103,7 +117,7 @@ public partial class App : Application
         catch (IOException ex)
         {
             // Another launch began serving after this one looked; or one window was turned off.
-            if (settings.SingleInstance && await HandOverAsync(pipe, files, settings))
+            if (settings.SingleInstance && await HandOverAsync(pipe, files, settings, launchCommand))
             {
                 Exit();
                 return;
@@ -112,7 +126,7 @@ public partial class App : Application
             Log.Info("app", "Another player answers the automation pipe: " + ex.Message);
         }
 
-        var window = new MainWindow(files, settings);
+        var window = new MainWindow(files, settings, launchCommand);
         window.Closed += (_, _) => closing.Cancel();
         answering.SetResult(window);
         window.Activate();
@@ -120,14 +134,17 @@ public partial class App : Application
     }
 
     /// <summary>Gives the files to the player already running; false when it does not take them.</summary>
-    private static async Task<bool> HandOverAsync(string pipe, List<string> files, PlayerSettings settings)
+    private static async Task<bool> HandOverAsync(string pipe, List<string> files, PlayerSettings settings, string? command)
     {
         if (OperatingSystem.IsWindows())
         {
             Foreground.AllowAnyProcess();
         }
 
-        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }, FindRunningPlayer);
+        var request = command is null
+            ? new AutomationRequest { Command = "open", Paths = files, Enqueue = settings.EnqueueFromSecondLaunch, LaunchedAt = LaunchedAt }
+            : new AutomationRequest { Command = "run", Id = command };
+        var reply = await AutomationPipe.SendAsync(pipe, request, FindRunningPlayer);
         if (reply is not { Ok: true })
         {
             return false;

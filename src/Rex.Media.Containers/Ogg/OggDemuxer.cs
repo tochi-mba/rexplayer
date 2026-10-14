@@ -29,6 +29,7 @@ public sealed class OggDemuxer : IDemuxer
 {
     private const int MaxPage = 27 + 255 + (255 * 255);
     private const int EndScan = 128 * 1024;
+    private const int MaxHeaderPages = 128;
 
     private readonly ByteCursor _stream;
     private readonly List<OggStream> _streams = [];
@@ -44,7 +45,7 @@ public sealed class OggDemuxer : IDemuxer
 
         // The headers: every stream's first page comes first (RFC 3533 section 4), then the rest of
         // their header packets, which end a page of their own; the sound starts on the page after.
-        while (ReadPage() is { } page)
+        for (var headerPage = 0; headerPage < MaxHeaderPages && ReadPage() is { } page; headerPage++)
         {
             if (page.BeginsStream)
             {
@@ -67,13 +68,13 @@ public sealed class OggDemuxer : IDemuxer
 
         var dataStart = _stream.Position;
 
-        var tracks = _streams.Where(s => s.Track is not null).ToList();
+        var tracks = _streams.Where(s => s.Track is not null && s.HeadersDone).ToList();
         if (tracks.Count == 0)
         {
             throw new MediaFormatException("The Ogg file carries no Vorbis, Opus or FLAC stream rexplayer can play.");
         }
 
-        _streams.RemoveAll(s => s.Track is null);
+        _streams.RemoveAll(s => s.Track is null || !s.HeadersDone);
         var length = _stream.Length;
         if (length is { } total && source.CanSeek)
         {
@@ -210,6 +211,33 @@ public sealed class OggDemuxer : IDemuxer
     }
 
     /// <summary>
+    /// Search for the next capture pattern in blocks instead of probing the same damaged
+    /// source one byte at a time. Three overlapping bytes preserve a pattern across blocks.
+    /// </summary>
+    private bool FindCapture()
+    {
+        Span<byte> lookahead = stackalloc byte[4096];
+        while (true)
+        {
+            var start = _stream.Position;
+            var count = _stream.Peek(lookahead);
+            if (count < 4)
+            {
+                return false;
+            }
+
+            var found = lookahead[..count].IndexOf("OggS"u8);
+            if (found >= 0)
+            {
+                _stream.Seek(start + found);
+                return true;
+            }
+
+            _stream.Skip(count - 3);
+        }
+    }
+
+    /// <summary>
     /// The next page whose CRC checks out, skipping anything damaged or not Ogg; null at the end.
     /// </summary>
     private OggPage? ReadPage()
@@ -226,6 +254,11 @@ public sealed class OggDemuxer : IDemuxer
             if (!header.AsSpan().StartsWith("OggS"u8) || header[4] != 0)
             {
                 _stream.Skip(1);
+                if (!FindCapture())
+                {
+                    return null;
+                }
+
                 continue;
             }
 

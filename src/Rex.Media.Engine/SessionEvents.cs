@@ -70,6 +70,9 @@ public sealed record SessionStats
 
     /// <summary>Where pictures are decoded: rexplayer's own code, Windows in software, or the graphics card.</summary>
     public DecoderSource? VideoDecoderSource { get; init; }
+
+    /// <summary>How steadily the newest pictures were presented: the spread of their intervals and lateness.</summary>
+    public FrameCadenceStats Cadence { get; init; }
 }
 
 /// <summary>
@@ -189,7 +192,18 @@ public sealed class EventPump : IDisposable
 
             foreach (var sessionEvent in batch)
             {
-                _listener(sessionEvent);
+                // A window that has closed or a failing subscriber may reject an event. The
+                // dispatch thread must stay alive to deliver the next state or failure.
+                try
+                {
+                    _listener(sessionEvent);
+                }
+#pragma warning disable CA1031 // Final boundary to code outside the event pump.
+                catch (Exception)
+#pragma warning restore CA1031
+                {
+                    // Drop this notification, never the remaining events.
+                }
             }
 
             batch.Clear();
