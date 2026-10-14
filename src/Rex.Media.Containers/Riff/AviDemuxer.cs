@@ -166,9 +166,9 @@ public sealed class AviDemuxer : IDemuxer
         if (_movie.Count == 0) return;
         var baseOffset = _movie[0].Start - 4;
         _stream.Seek(start);
+        Span<byte> entry = stackalloc byte[16];
         for (long read = 0; read + 16 <= size; read += 16)
         {
-            Span<byte> entry = stackalloc byte[16];
             _stream.ReadExactly(entry);
             var stream = StreamNumber(entry);
             var offset = BinaryPrimitives.ReadUInt32LittleEndian(entry[8..]);
@@ -187,11 +187,11 @@ public sealed class AviDemuxer : IDemuxer
 
     private void ScanChunks(long start, long end, CancellationToken cancellationToken)
     {
+        Span<byte> id = stackalloc byte[4];
         for (var position = start; position + 8 <= end;)
         {
             cancellationToken.ThrowIfCancellationRequested();
             _stream.Seek(position);
-            Span<byte> id = stackalloc byte[4];
             _stream.ReadExactly(id);
             var size = _stream.ReadUInt32LittleEndian();
             var data = _stream.Position;
