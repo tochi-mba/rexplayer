@@ -288,7 +288,9 @@ public sealed class TranscriptionWorker : IDisposable
             {
                 if (!Step(_stop.Token))
                 {
-                    _wake.WaitOne();
+                    // Wait for either new work or shutdown. A wake signal alone can be
+                    // consumed by another update before shutdown reaches this wait.
+                    WaitHandle.WaitAny([_wake, _stop.Token.WaitHandle]);
                 }
             }
         }
