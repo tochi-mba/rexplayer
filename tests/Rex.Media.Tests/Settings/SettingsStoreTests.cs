@@ -542,6 +542,7 @@ public sealed class SettingsStoreTests : IDisposable
             AudioArtworkColor = -1,
             AudioArtworkDetail = 500,
             AudioArtworkContrast = 201,
+            ResumeAudioLongerThanMinutes = double.PositiveInfinity,
             Shortcuts = null!,
         }.Normalize();
 
@@ -558,11 +559,14 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(ThemeChoice.System, wild.Theme);
         Assert.Equal((UpdateCadence.Daily, UpdateMode.DownloadAndAsk), (wild.UpdateChecks, wild.UpdateMode));
         Assert.Equal((ArtworkStyle.Prism, 0, 200, 200), (wild.AudioArtworkStyle, wild.AudioArtworkColor, wild.AudioArtworkDetail, wild.AudioArtworkContrast));
+        Assert.Equal(10, wild.ResumeAudioLongerThanMinutes);
         Assert.Empty(wild.Shortcuts);
 
         var tame = new PlayerSettings { Volume = double.PositiveInfinity, MaxVolumePercent = 10, TitleSeconds = double.NaN, ControlsHideSeconds = 99 }.Normalize();
         Assert.Equal((1.0, 100, 3.0, 10.0), (tame.Volume, tame.MaxVolumePercent, tame.TitleSeconds, tame.ControlsHideSeconds));
         Assert.Equal(1.25, new PlayerSettings { Volume = 1.6, MaxVolumePercent = 125 }.Normalize().Volume);
+        Assert.Equal(180, new PlayerSettings { ResumeAudioLongerThanMinutes = 999 }.Normalize().ResumeAudioLongerThanMinutes);
+        Assert.Equal(0, new PlayerSettings { ResumeAudioLongerThanMinutes = -1 }.Normalize().ResumeAudioLongerThanMinutes);
     }
 
     [Fact]
