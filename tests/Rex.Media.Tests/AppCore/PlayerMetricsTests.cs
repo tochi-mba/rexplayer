@@ -6,7 +6,7 @@ namespace Rex.Media.Tests.AppCore;
 
 public sealed class PlayerMetricsTests
 {
-    private static readonly ProcessSample Process = new(1500, 200L << 20, 150L << 20, 40L << 20, 900L << 20, 30, 5, 1, 42, 8);
+    private static readonly ProcessSample Process = new(1500, 200L << 20, 150L << 20, 220L << 20, 180L << 20, 40L << 20, 900L << 20, 30, 5, 1, 42, 8);
 
     [Fact]
     public void TheProcessAndTheWindowAreAlwaysReported()
@@ -16,6 +16,8 @@ public sealed class PlayerMetricsTests
         Assert.Equal(1500, metrics["cpu-ms"]);
         Assert.Equal(200, metrics["working-set-mb"]);
         Assert.Equal(150, metrics["private-mb"]);
+        Assert.Equal(220, metrics["peak-working-set-mb"]);
+        Assert.Equal(180, metrics["peak-private-mb"]);
         Assert.Equal(40, metrics["managed-heap-mb"]);
         Assert.Equal(900, metrics["allocated-mb"]);
         Assert.Equal((30.0, 5.0, 1.0), (metrics["gc0"], metrics["gc1"], metrics["gc2"]));
