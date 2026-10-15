@@ -743,6 +743,12 @@ public sealed class AppWindowTests : IDisposable
             Assert.Equal(0, first.Close());
         }
 
+        // This test verifies the explicit resume path; short audio now starts over by default.
+        var settingsPath = Path.Combine(root, "settings.json");
+        var settings = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settingsPath))!.AsObject();
+        settings["resumeAudioLongerThanMinutes"] = 0;
+        File.WriteAllText(settingsPath, settings.ToJsonString());
+
         using var second = AppProcess.Start([song], root);
         Wait.For(() => second.IsShown("ResumeBar"), "the offer to carry on");
         Assert.True(second.IsShown("StartOverButton"));
