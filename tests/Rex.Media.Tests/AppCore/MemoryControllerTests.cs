@@ -99,6 +99,16 @@ public sealed class MemoryControllerTests
     }
 
     [Fact]
+    public void LongAudioResumesAutomaticallyWhenAlwaysIsChosen()
+    {
+        using var harness = Harness(RexStore.InMemory(), ResumeChoice.Always, resumeAudioMinutes: 0.25);
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+        harness.PumpUntil(c => c.Position == TimeSpan.FromSeconds(15));
+        Assert.Null(harness.Controller.ResumeOffer);
+    }
+
+    [Fact]
     public void AudioThresholdCanBeDisabled()
     {
         var store = RexStore.InMemory();
