@@ -468,6 +468,9 @@ function Invoke-DrivenRun([string]$kind, [string]$file) {
         $result['peak-working-set-mb'] = $after.'peak-working-set-mb'
         $result['peak-private-mb'] = $after.'peak-private-mb'
         $result['managed-heap-mb'] = $after.'managed-heap-mb'
+        $result['working-set-change-mb'] = $after.'working-set-mb' - $before.'working-set-mb'
+        $result['private-change-mb'] = $after.'private-mb' - $before.'private-mb'
+        $result['managed-heap-change-mb'] = $after.'managed-heap-mb' - $before.'managed-heap-mb'
         $result['ui-blocked-ms-per-s'] = $after.'ui-blocked-ms-per-second'
         $result['ui-worst-ms'] = $after.'ui-worst-ms'
         if ($after.PSObject.Properties['frames-presented']) {
