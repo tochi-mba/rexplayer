@@ -255,7 +255,12 @@ public sealed class ShellIntegrationTests
 
             lock (pressed)
             {
-                Assert.Equal(new[] { MediaControlButton.Next, MediaControlButton.Pause }, pressed);
+                // Windows forwards independently posted system media commands asynchronously:
+                // callback delivery can reverse their order even when both requests succeed.
+                // Verify both commands arrive exactly once, with no unexpected buttons.
+                Assert.Equal(2, pressed.Count);
+                Assert.Contains(MediaControlButton.Next, pressed);
+                Assert.Contains(MediaControlButton.Pause, pressed);
             }
         }
         finally
