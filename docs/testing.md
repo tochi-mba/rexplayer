@@ -34,7 +34,9 @@ branches no input can reach ([ADR-0018](adr/0018-test-projects-and-the-coverage-
 ## Performance
 
 `./dev.ps1 perf` measures our own decoders and the resampler (× real time) and the demuxers (MB/s),
-each as its fastest pass after a warm-up, because noise only ever slows a pass down. A measure may
+each as its fastest pass after a warm-up, because noise only ever slows a pass down. The
+resampler gets a longer warm-up to let the .NET tiered JIT finish optimizing its convolution
+on slower CI machines; the committed throughput floor is unchanged. A measure may
 fall to 0.7 of its baseline in `tests/perf-baselines.json` before the run fails. Baselines are kept
 per lane: CI's runners are `ci-windows`, and a developer's machine is `local-<name>`. A lane with no
 baseline reports and passes, because a working machine is too noisy to gate on. Every run writes its
