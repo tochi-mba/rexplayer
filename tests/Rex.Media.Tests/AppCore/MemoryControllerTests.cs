@@ -109,6 +109,17 @@ public sealed class MemoryControllerTests
     }
 
     [Fact]
+    public void AudioExactlyAtTheChosenThresholdStartsFromTheBeginning()
+    {
+        using var harness = Harness(RexStore.InMemory(), resumeAudioMinutes: 0.5);
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+
+        Assert.Equal(TimeSpan.Zero, harness.Controller.Position);
+        Assert.Null(harness.Controller.ResumeOffer);
+    }
+
+    [Fact]
     public void AudioThresholdCanBeDisabled()
     {
         var store = RexStore.InMemory();
