@@ -10,7 +10,7 @@ using Rex.Media.TestKit;
 namespace Rex.Media.Windows.Tests;
 
 /// <summary>
-/// Windows' H.264, HEVC and VP9 decoders, reached through Media Foundation. Decoding these codecs
+/// Windows' H.264, HEVC, VP8 and VP9 decoders, reached through Media Foundation. Decoding these codecs
 /// is exact, so every picture must hash as the independent decode of the same file hashes.
 /// </summary>
 public sealed class MfVideoDecoderTests
@@ -163,13 +163,19 @@ public sealed class MfVideoDecoderTests
     [Fact]
     public void TracksWindowsIsNotAskedAboutAreRefused()
     {
-        var vp8 = new TrackInfo { Id = 1, Codec = CodecId.Vp8, Video = new VideoTrackInfo { Width = 16, Height = 16 } };
+        var theora = new TrackInfo { Id = 1, Codec = CodecId.Theora, Video = new VideoTrackInfo { Width = 16, Height = 16 } };
         var audio = new TrackInfo { Id = 1, Codec = CodecId.H264 };
 
-        Assert.False(Factory.CanDecode(vp8));
-        Assert.Throws<MediaFormatException>(() => new MfVideoDecoder(vp8));
+        Assert.False(Factory.CanDecode(theora));
+        Assert.Throws<MediaFormatException>(() => new MfVideoDecoder(theora));
         Assert.Throws<MediaFormatException>(() => new MfVideoDecoder(audio));
-        Assert.Throws<NotSupportedException>(() => ((IDecoderFactory)new AudioOnlyFactory()).CreateVideo(vp8));
+        Assert.Throws<NotSupportedException>(() => ((IDecoderFactory)new AudioOnlyFactory()).CreateVideo(theora));
+    }
+
+    [Fact]
+    public void Vp8UsesTheDocumentedWindowsSubtype()
+    {
+        Assert.Equal(new Guid("30385056-0000-0010-8000-00AA00389B71"), MfDecoderFactory.VideoSubtype(CodecId.Vp8));
     }
 
     private sealed class AudioOnlyFactory : IDecoderFactory
