@@ -33,11 +33,6 @@ public sealed partial class MediaSession
                 StopFileBuffering();
                 return true;
             }
-            catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
-            {
-                StopFileBuffering();
-                throw;
-            }
 
             StopFileBuffering();
             switch (change)
