@@ -397,7 +397,9 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
     }
 
     $result = [ordered]@{ 'machine-busy-%' = $busy; 'process-created' = $created }
-    $result['cpu-%-of-one-core'] = $cpuUsed / $runClock.Elapsed.TotalMilliseconds * 100
+    # The first moments can finish almost instantly; never divide by a zero-length interval.
+    $elapsedCpuMs = [math]::Max(1.0, $runClock.Elapsed.TotalMilliseconds)
+    $result['cpu-%-of-one-core'] = [math]::Max(0, $cpuUsed) / $elapsedCpuMs * 100
     $result['cpu-%-of-machine'] = $result['cpu-%-of-one-core'] / [Environment]::ProcessorCount
     $result['peak-working-set-mb'] = $memory['peak-working-set-mb']
     $result['peak-private-mb'] = $memory['peak-private-mb']
