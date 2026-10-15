@@ -3,7 +3,18 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
-## Unreleased
+## 0.25.1 - 2026-10-15
+
+### Added
+
+- **Peak memory measurements.** Timed launch, open, play and seek measurements report peak
+  working-set and private-memory usage alongside current memory and managed-heap metrics.
+
+### Fixed
+
+- **Performance preferences stay selected.** The chosen performance tier is saved and restored
+  instead of reverting to Automatic. Changing tiers also keeps the active transcription item's
+  model stable, so subtitle buffering and its pause behavior continue uninterrupted.
 
 ## 0.25.0 - 2026-10-15
 
