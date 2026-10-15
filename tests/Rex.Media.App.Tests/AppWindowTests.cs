@@ -745,6 +745,7 @@ public sealed class AppWindowTests : IDisposable
 
         using var second = AppProcess.Start([song], root);
         Wait.For(() => second.IsShown("ResumeBar"), "the offer to carry on");
+        Assert.True(second.IsShown("StartOverButton"));
         second.Press("ResumeButton");
         Wait.For(() => !second.IsShown("ResumeBar"), "the offer to go");
         Wait.For(() => second.Text("Elapsed") is { } elapsed && (elapsed.StartsWith("0:2", StringComparison.Ordinal) || elapsed.StartsWith("0:3", StringComparison.Ordinal)), "the song to carry on from where it was");
