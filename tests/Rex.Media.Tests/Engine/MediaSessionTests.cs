@@ -107,7 +107,14 @@ public sealed class MediaSessionTests
         await harness.Session.OpenAsync(source);
         Assert.True(waitEntered.Wait(TimeSpan.FromSeconds(5), Token));
 
+        // Capture the old playback explicitly: cancellation can race with its last buffering callback.
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var oldPlayback = typeof(MediaSession).GetField("_playback", flags)!.GetValue(harness.Session);
+        Assert.NotNull(oldPlayback);
+
         await harness.Session.OpenAsync(SessionHarness.Source(Ramp));
+        // Replay the callback after replacement to exercise the stale-playback guard reliably.
+        typeof(MediaSession).GetMethod("OnBuffering", flags)!.Invoke(harness.Session, [oldPlayback, false]);
         await harness.Session.GetStatsAsync();
 
         Assert.Equal(SessionState.Ready, harness.Session.State);
