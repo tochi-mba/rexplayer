@@ -491,8 +491,8 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start([playlist]);
         app.Run(CommandCatalog.TogglePlaylist);
 
-        var gone = Wait.Until(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Terminator (missing)")));
-        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "\u25B6 Sungba")));
+        var gone = Wait.Until(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Terminator. Missing")));
+        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Playing. Sungba")));
         ((SelectionItemPattern)gone!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Assert.Equal(0, app.Close());
     }

@@ -447,7 +447,17 @@ public sealed partial class MainWindow : Window
     private void ShowPlaylist()
     {
         var current = _player.Playlist.CurrentIndex;
-        var rows = _player.Playlist.Items.Select((item, i) => new PlaylistRow((i == current ? "\u25B6 " : "") + item.Title, _player.IsMissing(item), item.Location)).ToList();
+        var repeated = _player.Playlist.Items
+            .GroupBy(item => item.Title, StringComparer.CurrentCultureIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.CurrentCultureIgnoreCase);
+        var rows = _player.Playlist.Items.Select((item, i) =>
+        {
+            var source = repeated.Contains(item.Title) ? PlaylistItem.SourceOf(item.Location) : null;
+            var secondary = string.Join(" · ", new[] { item.Artist, source }.Where(text => !string.IsNullOrWhiteSpace(text)).Distinct(StringComparer.CurrentCultureIgnoreCase));
+            return new PlaylistRow(item.Title, secondary, i == current, _player.IsMissing(item), item.Location);
+        }).ToList();
         for (var i = 0; i < rows.Count; i++)
         {
             if (i >= _playlistRows.Count)

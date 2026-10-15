@@ -267,4 +267,14 @@ public sealed class PlaylistTests
     {
         Assert.Equal(title, new PlaylistItem(location).Title);
     }
+
+    [Theory]
+    [InlineData("C:\\Music\\Live\\Sungba.flac", "Live")]
+    [InlineData("/music/studio/Sungba.flac", "studio")]
+    [InlineData("https://radio.example/live/Sungba.mp3", "radio.example")]
+    [InlineData("Sungba.flac", null)]
+    public void SourcesDistinguishEquallyNamedItems(string location, string? source)
+    {
+        Assert.Equal(source, PlaylistItem.SourceOf(location));
+    }
 }

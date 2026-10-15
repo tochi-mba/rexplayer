@@ -33,6 +33,26 @@ public sealed class PlaylistItem(string location)
         var title = Path.GetFileNameWithoutExtension(Uri.UnescapeDataString(name));
         return title.Length > 0 ? title : location;
     }
+
+    /// <summary>The folder or host that can distinguish equally named entries, when one exists.</summary>
+    public static string? SourceOf(string location)
+    {
+        if (Uri.TryCreate(location, UriKind.Absolute, out var uri) && !uri.IsFile)
+        {
+            return uri.Host.Length > 0 ? uri.Host : null;
+        }
+
+        var separator = location.LastIndexOfAny(['/', '\\']);
+        if (separator <= 0)
+        {
+            return null;
+        }
+
+        var folder = location[..separator].TrimEnd('/', '\\');
+        var parent = folder.LastIndexOfAny(['/', '\\']);
+        var name = folder[(parent + 1)..];
+        return name.Length > 0 ? name : null;
+    }
 }
 
 /// <summary>

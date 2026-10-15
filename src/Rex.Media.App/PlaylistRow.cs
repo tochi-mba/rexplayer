@@ -6,17 +6,21 @@ using Rex.Media.Library;
 namespace Rex.Media.App;
 
 /// <summary>
-/// A line of the playlist: its picture, its text, greyed and marked when its file is missing
+/// A line of the playlist: its picture, title and context, greyed and marked when its file is missing
 /// (LIB-09). Two lines are the same when they say the same of the same file, so a playlist that
 /// redraws keeps its lines, and their pictures.
 /// </summary>
-public sealed partial class PlaylistRow(string text, bool missing, string location) : INotifyPropertyChanged, IEquatable<PlaylistRow>
+public sealed partial class PlaylistRow(string title, string? secondary, bool current, bool missing, string location) : INotifyPropertyChanged, IEquatable<PlaylistRow>
 {
     private ImageSource? _picture;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public string Text { get; } = text;
+    public string Title { get; } = title;
+
+    public string? Secondary { get; } = secondary;
+
+    public bool Current { get; } = current;
 
     public bool Missing { get; } = missing;
 
@@ -28,6 +32,18 @@ public sealed partial class PlaylistRow(string text, bool missing, string locati
     public double Opacity => Missing ? 0.5 : 1;
 
     public Visibility MissingVisibility => Missing ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility SecondaryVisibility => string.IsNullOrWhiteSpace(Secondary) ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility CurrentVisibility => Current ? Visibility.Visible : Visibility.Collapsed;
+
+    public string AccessibleName => string.Join(". ", new[]
+    {
+        Current ? "Playing" : null,
+        Title,
+        Secondary,
+        Missing ? "Missing" : null,
+    }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
     /// <summary>The mark shown until the picture comes.</summary>
     public string Placeholder => Kind switch { LibraryKind.Music => "♪", LibraryKind.Picture => "▧", _ => "▶" };
@@ -45,12 +61,12 @@ public sealed partial class PlaylistRow(string text, bool missing, string locati
         }
     }
 
-    public bool Equals(PlaylistRow? other) => other is not null && other.Text == Text && other.Missing == Missing && other.Location == Location;
+    public bool Equals(PlaylistRow? other) => other is not null && other.Title == Title && other.Secondary == Secondary && other.Current == Current && other.Missing == Missing && other.Location == Location;
 
     public override bool Equals(object? obj) => Equals(obj as PlaylistRow);
 
-    public override int GetHashCode() => HashCode.Combine(Text, Missing, Location);
+    public override int GetHashCode() => HashCode.Combine(Title, Secondary, Current, Missing, Location);
 
     /// <summary>What a screen reader says for the line.</summary>
-    public override string ToString() => Missing ? Text + " (missing)" : Text;
+    public override string ToString() => AccessibleName;
 }
