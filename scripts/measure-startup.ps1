@@ -250,17 +250,31 @@ function Find-Moment($moments, [string]$name, [int]$nth = 1) {
     return $found[$nth - 1].Ms
 }
 
-function Wait-Moments([string]$data, [hashtable]$needed, [Diagnostics.Process]$process) {
+function Wait-Moments([string]$data, [hashtable]$needed, [Diagnostics.Process]$process, [hashtable]$memory) {
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
+        Add-ProcessMemorySample $process $memory
         $moments = Read-Moments $data
         $missing = @($needed.Keys | Where-Object { @($moments | Where-Object Name -eq $_).Count -lt $needed[$_] })
-        if ($missing.Count -eq 0) { return $moments }
+        if ($missing.Count -eq 0) {
+            Add-ProcessMemorySample $process $memory
+            return $moments
+        }
         if ($process.HasExited) { throw "rexplayer exited before $($missing -join ', ')." }
         Start-Sleep -Milliseconds 20
     }
 
     throw "Timed out waiting for $($needed.Keys -join ', ')."
+}
+
+function Wait-PlayerExit([Diagnostics.Process]$process, [hashtable]$memory, [string]$exitAfter) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        Add-ProcessMemorySample $process $memory
+        if ($process.WaitForExit(50)) { return }
+    }
+
+    throw "rexplayer did not reach $exitAfter within $TimeoutSeconds s."
 }
 
 # Sends one request and gives the player's reply.
@@ -281,6 +295,25 @@ function Send-Request([string]$pipeName, [string]$json) {
 function Get-Metrics([string]$pipeName, [switch]$Start) {
     $request = if ($Start) { '{"command":"metrics","id":"start"}' } else { '{"command":"metrics"}' }
     return (Send-Request $pipeName $request).metrics
+}
+
+# Reads the OS-maintained lifetime high-water marks while a timed run is active.
+function Add-ProcessMemorySample([Diagnostics.Process]$process, [hashtable]$memory) {
+    if ($null -eq $memory) { return }
+
+    try {
+        if ($process.HasExited) { return }
+        $process.Refresh()
+        if ($process.HasExited) { return }
+        $memory['peak-working-set-mb'] = [math]::Max($memory['peak-working-set-mb'], $process.PeakWorkingSet64 / 1MB)
+        $memory['peak-private-mb'] = [math]::Max($memory['peak-private-mb'], $process.PeakPagedMemorySize64 / 1MB)
+    }
+    catch [InvalidOperationException] {
+        if (-not $process.HasExited) { throw }
+    }
+    catch [ComponentModel.Win32Exception] {
+        if (-not $process.HasExited) { throw }
+    }
 }
 
 # How busy the rest of the machine is now, in percent of all its processors.
@@ -323,33 +356,35 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
     $busy = Get-MachineBusy
     $asked = [DateTime]::Now
     $process = Start-Player $data $(if ($kind -in 'launch', 'cold', 'open') { '' } else { $file }) $exitAfter ($Cold -or $kind -eq 'cold') $pipeName
+    $memory = @{ 'peak-working-set-mb' = 0.0; 'peak-private-mb' = 0.0 }
     try {
+        Add-ProcessMemorySample $process $memory
         $created = ($process.StartTime - $asked).TotalMilliseconds
         $firstPlayed = if ($audioOnly) { @{ 'first-audio' = 1 } } else { @{ 'first-frame' = 1; 'first-audio' = 1 } }
         switch ($kind) {
             'open' {
-                Wait-Moments $data @{ 'interactive' = 1 } $process | Out-Null
+                Wait-Moments $data @{ 'interactive' = 1 } $process $memory | Out-Null
                 Send-Request $pipeName (@{ command = 'open'; paths = @($file) } | ConvertTo-Json -Compress) | Out-Null
             }
             'seek' {
-                Wait-Moments $data $firstPlayed $process | Out-Null
+                Wait-Moments $data $firstPlayed $process $memory | Out-Null
                 Start-Sleep -Milliseconds 1500
                 Send-Request $pipeName '{"command":"run","id":"jump-forward-short"}' | Out-Null
             }
             'seekfar' {
-                Wait-Moments $data $firstPlayed $process | Out-Null
+                Wait-Moments $data $firstPlayed $process $memory | Out-Null
                 Start-Sleep -Milliseconds 1500
                 $status = Send-Request $pipeName '{"command":"status"}'
                 Send-Request $pipeName (@{ command = 'seek'; to = [math]::Round($status.duration * 0.8, 1) } | ConvertTo-Json -Compress) | Out-Null
             }
             'next' {
-                Wait-Moments $data $firstPlayed $process | Out-Null
+                Wait-Moments $data $firstPlayed $process $memory | Out-Null
                 Start-Sleep -Milliseconds 1500
                 Send-Request $pipeName '{"command":"run","id":"next-episode"}' | Out-Null
             }
         }
 
-        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) { throw "rexplayer did not reach $exitAfter within $TimeoutSeconds s." }
+        Wait-PlayerExit $process $memory $exitAfter
         $moments = Read-Moments $data
     }
     finally {
@@ -358,6 +393,8 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
     }
 
     $result = [ordered]@{ 'machine-busy-%' = $busy; 'process-created' = $created }
+    $result['peak-working-set-mb'] = $memory['peak-working-set-mb']
+    $result['peak-private-mb'] = $memory['peak-private-mb']
     foreach ($moment in $moments) {
         if (-not $result.Contains($moment.Name)) { $result[$moment.Name] = $moment.Ms }
     }
@@ -428,6 +465,8 @@ function Invoke-DrivenRun([string]$kind, [string]$file) {
         $result['gc-per-s'] = (($after.gc0 - $before.gc0) + ($after.gc1 - $before.gc1) + ($after.gc2 - $before.gc2)) / $seconds
         $result['working-set-mb'] = $after.'working-set-mb'
         $result['private-mb'] = $after.'private-mb'
+        $result['peak-working-set-mb'] = $after.'peak-working-set-mb'
+        $result['peak-private-mb'] = $after.'peak-private-mb'
         $result['managed-heap-mb'] = $after.'managed-heap-mb'
         $result['ui-blocked-ms-per-s'] = $after.'ui-blocked-ms-per-second'
         $result['ui-worst-ms'] = $after.'ui-worst-ms'

@@ -74,6 +74,8 @@ public sealed partial class MainWindow
             process.TotalProcessorTime.TotalMilliseconds,
             process.WorkingSet64,
             process.PrivateMemorySize64,
+            process.PeakWorkingSet64,
+            process.PeakPagedMemorySize64,
             GC.GetTotalMemory(forceFullCollection: false),
             GC.GetTotalAllocatedBytes(precise: false),
             GC.CollectionCount(0),

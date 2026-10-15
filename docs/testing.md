@@ -65,7 +65,9 @@ machine never become CI's baselines.
 `scripts/measure-startup.ps1 -All`, then runs the performance suite, and writes the tables to
 `artifacts/measure/normal.md`. Each figure is the median and the worst of several runs, with how
 busy the rest of the computer was just before each run, so a measurement taken while other work ran
-can be told apart. It needs FFmpeg, which makes the media it plays once (H.264 at full HD and 4K,
+can be told apart. Timed launch, open, play and seek runs include sampled peak working set and
+private memory; driven runs report those process-lifetime peaks alongside current working set,
+private memory and managed heap. It needs FFmpeg, which makes the media it plays once (H.264 at full HD and 4K,
 10-bit HEVC, VP9, MP3, FLAC and a picture) into `artifacts/measure/media`.
 
 | Scenario | What it measures |
