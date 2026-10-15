@@ -313,7 +313,7 @@ public sealed partial class MainWindow
             if (LibraryCollage.Visibility == Visibility.Visible)
             {
                 LibraryCollage.Select(index);
-                LibraryCollage.StartBringItemIntoView(index);
+                LibraryCollage.StartBringItemIntoView(index, new BringIntoViewOptions());
             }
             else
             {
