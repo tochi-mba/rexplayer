@@ -23,6 +23,8 @@ pipeline the moment its number reaches `main`.
 ### Fixed
 
 - **Gapless playlist seek bar.** Reset the displayed position as the next track begins.
+- **Reliable Windows shell shutdown.** Keep the background shell worker's wake handle
+  alive until the worker exits, preventing a shutdown race.
 
 ## 0.25.2 - 2026-10-15
 
