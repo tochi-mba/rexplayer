@@ -103,8 +103,15 @@ public sealed class MemoryControllerTests
     {
         using var harness = Harness(RexStore.InMemory(), ResumeChoice.Always, resumeAudioMinutes: 0.25);
         LeaveAHalfWay(harness);
-        OpenReady(harness, "a.wav");
-        harness.PumpUntil(c => c.Position == TimeSpan.FromSeconds(15));
+
+        // The automatic resume seeks as soon as the file opens. By the time events
+        // are pumped, the controller may already be Paused rather than Ready.
+        harness.Controller.Open(["a.wav"]);
+        harness.PumpUntil(c => c.Item?.Location == "a.wav"
+            && c.State == SessionState.Paused
+            && c.Position == TimeSpan.FromSeconds(15));
+
+        Assert.Contains("Resuming at 0:15", harness.Messages);
         Assert.Null(harness.Controller.ResumeOffer);
     }
 
