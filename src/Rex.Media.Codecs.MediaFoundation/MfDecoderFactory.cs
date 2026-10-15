@@ -33,7 +33,7 @@ public sealed class MfDecoderFactory : IDecoderFactory
     };
 
     /// <summary>The Media Foundation subtype for a video codec, or null when Windows is not asked to decode it.</summary>
-    internal static Guid? VideoSubtype(CodecId codec) => codec switch
+    public static Guid? VideoSubtype(CodecId codec) => codec switch
     {
         CodecId.H264 => PInvoke.MFVideoFormat_H264,
         CodecId.Hevc => PInvoke.MFVideoFormat_HEVC,
