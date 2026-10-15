@@ -728,6 +728,26 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    public void ALocalDownloadWaitShowsItsStatusAndClearsWhenBytesArrive()
+    {
+        var path = Path.Combine(_media, "Downloading.wav");
+        var wav = WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build();
+        const int initialLength = 44 + 4000;
+        File.WriteAllBytes(path, wav[..initialLength]);
+
+        using var app = AppProcess.Start([path]);
+        Wait.For(() => app.IsShown("DownloadBufferOverlay"), "the download waiting message");
+
+        using (var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+        {
+            stream.Write(wav.AsSpan(initialLength));
+        }
+
+        Wait.For(() => !app.IsShown("DownloadBufferOverlay"), "playback to continue after download");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("PB-11")]
     public void ASongLeftPartWayOffersToCarryOnFromThere()
     {
