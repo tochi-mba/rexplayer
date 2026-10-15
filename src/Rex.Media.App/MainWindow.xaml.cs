@@ -622,7 +622,12 @@ public sealed partial class MainWindow : Window
         TryClearResumeMarker();
         KeepAwake(false, false);
         _player.Dispose();
+        // Presenter work is queued on a background thread. Finish its final disposal
+        // before WinUI tears down the window, or a late native callback may crash
+        // the process after the Close handler has already logged success.
         OnPresenterThread(presenter => presenter.Dispose());
+        _presenter = null;
+        _presenterWork.GetAwaiter().GetResult();
         _closed = true;
         App.Log.Info(LogSource, "rexplayer closed.");
     }
