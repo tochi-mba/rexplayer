@@ -297,14 +297,14 @@ function Get-Metrics([string]$pipeName, [switch]$Start) {
     return (Send-Request $pipeName $request).metrics
 }
 
-# Keeps the largest process memory readings while a timed run is active.
+# Reads the OS-maintained lifetime high-water marks while a timed run is active.
 function Add-ProcessMemorySample([Diagnostics.Process]$process, [hashtable]$memory) {
     try {
         if ($process.HasExited) { return }
         $process.Refresh()
         if ($process.HasExited) { return }
-        $memory['peak-working-set-mb'] = [math]::Max($memory['peak-working-set-mb'], $process.WorkingSet64 / 1MB)
-        $memory['peak-private-mb'] = [math]::Max($memory['peak-private-mb'], $process.PrivateMemorySize64 / 1MB)
+        $memory['peak-working-set-mb'] = [math]::Max($memory['peak-working-set-mb'], $process.PeakWorkingSet64 / 1MB)
+        $memory['peak-private-mb'] = [math]::Max($memory['peak-private-mb'], $process.PeakPagedMemorySize64 / 1MB)
     }
     catch [InvalidOperationException] {
         if (-not $process.HasExited) { throw }
