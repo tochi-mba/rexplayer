@@ -3,6 +3,20 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.2 - 2026-10-15
+
+### Added
+
+- **Sun/NeXT audio support.** Open AU audio files.
+- **Playback while files download.** Start playback from a local file that is still growing.
+
+### Improved
+
+- **Clearer resume choice.** Make the resume decision explicit.
+- **More reliable library grouping.** Keep year-qualified releases distinct, including remakes.
+- **Easier playlist management.** Improve long-title display and duplicate-entry handling.
+- **More responsive transcription queues.** Make queue behavior clearer and more intentional.
+
 ## 0.25.1 - 2026-10-15
 
 ### Added
