@@ -134,6 +134,13 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceNow, "PreferencesPerformanceNow");
         var performanceChanges = new TextBlock { TextWrapping = TextWrapping.Wrap };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceChanges, "PreferencesPerformanceChanges");
+        var performanceTranscriptionNote = new TextBlock
+        {
+            Text = "Changing the speech-model limit keeps the current item's transcript and buffering.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceTranscriptionNote, "PreferencesPerformanceTranscriptionNote");
         void ShowPerformance()
         {
             var choice = (PerformanceChoice)Math.Max(0, performance.SelectedIndex);
@@ -168,6 +175,7 @@ public sealed partial class MainWindow
         content.Children.Add(performance);
         content.Children.Add(performanceNow);
         content.Children.Add(performanceChanges);
+        content.Children.Add(performanceTranscriptionNote);
 
         content.Children.Add(Heading("Languages"));
         content.Children.Add(audioLanguages);
@@ -298,6 +306,7 @@ public sealed partial class MainWindow
             SubtitlesAtBottom = atBottom.IsChecked == true,
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
+            Performance = (PerformanceChoice)Math.Max(0, performance.SelectedIndex),
         }).Normalize()).Normalize();
         var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
             || s.AudioArtworkStyle != next.AudioArtworkStyle

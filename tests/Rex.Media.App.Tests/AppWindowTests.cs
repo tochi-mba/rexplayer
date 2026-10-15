@@ -823,9 +823,15 @@ public sealed class AppWindowTests : IDisposable
         ((RangeValuePattern)artwork.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(135);
         var generated = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Generate artwork from music when no cover exists")));
         ((TogglePattern)generated.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+        var performance = app.Find("PreferencesPerformance");
+        ((ExpandCollapsePattern)performance.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        var balanced = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+            new PropertyCondition(AutomationElement.NameProperty, "Balanced"))));
+        ((SelectionItemPattern)balanced.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         app.Press("PrimaryButton");
 
-        Wait.For(() => app.SavedSettings is { ShortJumpSeconds: 25, AudioArtworkDetail: 135, GenerateAudioArtwork: false }, "the preferences to be saved");
+        Wait.For(() => app.SavedSettings is { ShortJumpSeconds: 25, AudioArtworkDetail: 135, GenerateAudioArtwork: false, Performance: Rex.Media.Settings.PerformanceChoice.Balanced }, "the preferences to be saved");
         Assert.Equal(0, app.Close());
     }
 

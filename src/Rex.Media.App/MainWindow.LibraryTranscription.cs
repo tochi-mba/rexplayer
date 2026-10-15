@@ -48,6 +48,7 @@ public sealed partial class MainWindow
     private bool _queueDirty = true;
     private bool _queueRefreshing;
     private bool? _modelInstalled;
+    private TranscriptModelChoice? _playingModelChoice;
 
     // What plays, as the worker was last told, and whether its speech is wanted.
     private string? _playingTranscript;
@@ -68,7 +69,7 @@ public sealed partial class MainWindow
     private string? _workerPath;
 
     /// <summary>The model the settings name.</summary>
-    private SpeechModel TranscriptModel => SpeechModels.For(_budget.SpeechModel(_settings.KineticCaptions.TranscriptModel));
+    private SpeechModel TranscriptModel => SpeechModels.For(_playingModelChoice ?? _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel));
 
     /// <summary>Wires transcription without touching the disk: the first look happens once the launch has settled.</summary>
     private void WireTranscription()
@@ -269,6 +270,7 @@ public sealed partial class MainWindow
         (_bufferDone, _bufferDuration, _bufferHearing, _holdingForSubtitles, _subtitleHoldOverridden) = (null, null, false, false, false);
         ShowSubtitleBuffer();
         (_playingTranscript, _playingWanted) = (null, false);
+        _playingModelChoice = null;
         if (_askedPlaying != item)
         {
             _askedPlaying = null;
@@ -280,7 +282,8 @@ public sealed partial class MainWindow
             return;
         }
 
-        var model = TranscriptModel;
+        var modelChoice = _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
+        var model = SpeechModels.For(modelChoice);
         var settings = _settings.Transcription;
         var asked = _askedPlaying == item;
         var entry = _library?.Entry(item);
@@ -315,6 +318,7 @@ public sealed partial class MainWindow
             _bufferDuration = full is not null ? null : duration ?? _player.Duration;
             _bufferHearing = full is null && requested;
             (_playingTranscript, _playingWanted) = (item, requested);
+            _playingModelChoice = requested ? modelChoice : null;
             ShowSubtitleBuffer();
             TranscriptionTick();
         }), TaskScheduler.Default);
@@ -352,6 +356,7 @@ public sealed partial class MainWindow
 
         StartTranscription();
         _askedPlaying = item;
+        _playingModelChoice = _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
         (_playingTranscript, _playingWanted) = (item, true);
         Say("Transcribing from here: subtitles appear as the speech is heard, ahead of where you are.");
         TranscriptionTick();
