@@ -357,7 +357,7 @@ public sealed class AppWindowTests : IDisposable
         var change = frames.Zip(frames.Skip(1), (a, b) => WindowPicture.Change(a, b, area)).Average();
         // Stars, shells and ink occupy only a few pixels at once; they should be visible
         // and moving, not forced to illuminate the entire scene like a broad colour wash.
-        var minimumLight = visualisation is "Constellation" or "Fireworks" or "Ink" ? 0.003 : 0.01;
+        var minimumLight = visualisation is "Constellation" or "Galaxy" or "Fireworks" or "Ink" ? 0.003 : 0.01;
         Assert.True(lit > minimumLight && lit < 0.8, $"{visualisation} lit {lit:0.000} of the stage.");
         Assert.True(change > 0.002, $"{visualisation} changed {change:0.0000} between moments.");
         Assert.DoesNotContain("could not be drawn", app.LogText, StringComparison.Ordinal);

@@ -403,9 +403,22 @@ public sealed class TranscriptionWorkerTests : IDisposable
     {
         var worker = Worker();
         worker.Start();
-        worker.Dispose();
         var field = typeof(TranscriptionWorker).GetField("_thread", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         var thread = (Thread)field.GetValue(worker)!;
+        try
+        {
+            // Starting and immediately disposing can cancel before the background loop
+            // reaches its idle wait, leaving a required line uncovered depending on
+            // scheduling. Observe the real blocked state before requesting shutdown.
+            Assert.True(SpinWait.SpinUntil(
+                () => (thread.ThreadState & System.Threading.ThreadState.WaitSleepJoin) != 0,
+                TimeSpan.FromSeconds(10)), "The idle transcription worker never entered its wait.");
+        }
+        finally
+        {
+            worker.Dispose();
+        }
+
         Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "The idle transcription thread did not stop.");
     }
 
