@@ -13,9 +13,9 @@ public sealed class MemoryControllerTests
 {
     private static readonly byte[] HalfMinute = Count(0, 8000 * 30);
 
-    private static ControllerHarness Harness(RexStore store, ResumeChoice resume = ResumeChoice.Ask, bool autoPlay = false, bool keepHistory = true, bool restoreQueue = true)
+    private static ControllerHarness Harness(RexStore store, ResumeChoice resume = ResumeChoice.Ask, bool autoPlay = false, bool keepHistory = true, bool restoreQueue = true, double resumeAudioMinutes = 0)
     {
-        var harness = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0, ResumePlayback = resume, KeepHistory = keepHistory, RestoreQueue = restoreQueue }, store: store);
+        var harness = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0, ResumePlayback = resume, ResumeAudioLongerThanMinutes = resumeAudioMinutes, KeepHistory = keepHistory, RestoreQueue = restoreQueue }, store: store);
         harness.Files["a.wav"] = HalfMinute;
         harness.Files["b.wav"] = HalfMinute;
         return harness;
@@ -82,6 +82,63 @@ public sealed class MemoryControllerTests
         using var never = Harness(store, ResumeChoice.Never);
         OpenReady(never, "a.wav");
         Assert.Equal((TimeSpan.Zero, (TimeSpan?)null), (never.Controller.Position, never.Controller.ResumeOffer));
+    }
+
+    [Theory]
+    [InlineData(ResumeChoice.Ask)]
+    [InlineData(ResumeChoice.Always)]
+    public void ShortAudioStartsOverWithoutAResumePrompt(ResumeChoice choice)
+    {
+        var store = RexStore.InMemory();
+        using var harness = Harness(store, choice, resumeAudioMinutes: 10);
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+
+        Assert.Equal(TimeSpan.Zero, harness.Controller.Position);
+        Assert.Null(harness.Controller.ResumeOffer);
+    }
+
+    [Fact]
+    public void LongAudioResumesAutomaticallyWhenAlwaysIsChosen()
+    {
+        using var harness = Harness(RexStore.InMemory(), ResumeChoice.Always, resumeAudioMinutes: 0.25);
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+        harness.PumpUntil(c => c.Position == TimeSpan.FromSeconds(15));
+        Assert.Null(harness.Controller.ResumeOffer);
+    }
+
+    [Fact]
+    public void AudioExactlyAtTheChosenThresholdStartsFromTheBeginning()
+    {
+        using var harness = Harness(RexStore.InMemory(), resumeAudioMinutes: 0.5);
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+
+        Assert.Equal(TimeSpan.Zero, harness.Controller.Position);
+        Assert.Null(harness.Controller.ResumeOffer);
+    }
+
+    [Fact]
+    public void AudioThresholdCanBeDisabled()
+    {
+        var store = RexStore.InMemory();
+        using var harness = Harness(store, resumeAudioMinutes: 0);
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+
+        Assert.Equal(TimeSpan.FromSeconds(15), harness.Controller.ResumeOffer);
+    }
+
+    [Fact]
+    public void AudioLongerThanTheChosenThresholdStillOffersToResume()
+    {
+        var store = RexStore.InMemory();
+        using var harness = Harness(store, resumeAudioMinutes: 0.25);
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+
+        Assert.Equal(TimeSpan.FromSeconds(15), harness.Controller.ResumeOffer);
     }
 
     [Fact]

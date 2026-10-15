@@ -94,6 +94,8 @@ public sealed partial class MainWindow
         }
 
         var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
+        var resumeAudio = Number("Only resume audio longer than (minutes; 0 means all audio)", s.ResumeAudioLongerThanMinutes, 0, 180);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(resumeAudio, "PreferencesResumeAudioMinutes");
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
         var pauseLibrary = Check("Pause playback when the library opens", s.PauseWhenLibraryOpens);
         var keepLibraryAudio = Check("Keep audio-only items playing in the library", s.KeepAudioPlayingInLibrary);
@@ -205,7 +207,7 @@ public sealed partial class MainWindow
         content.Children.Add(keepLibraryAudio);
 
         content.Children.Add(Heading("Memory"));
-        foreach (var control in new UIElement[] { resume, history, queue, sleep })
+        foreach (var control in new UIElement[] { resume, resumeAudio, history, queue, sleep })
         {
             content.Children.Add(control);
         }
@@ -282,6 +284,7 @@ public sealed partial class MainWindow
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
             UpdateMode = (UpdateMode)updateMode.SelectedIndex,
             ResumePlayback = (ResumeChoice)resume.SelectedIndex,
+            ResumeAudioLongerThanMinutes = resumeAudio.Value,
             KeepHistory = history.IsChecked == true,
             PauseWhenLibraryOpens = pauseLibrary.IsChecked == true,
             KeepAudioPlayingInLibrary = keepLibraryAudio.IsChecked == true,

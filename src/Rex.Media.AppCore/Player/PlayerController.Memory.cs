@@ -8,6 +8,7 @@ public sealed partial class PlayerController
 {
     // Where the restored queue's current item was, used by the first play.
     private TimeSpan? _restoredAt;
+    private TimeSpan? _resumeAfterOpening;
 
     /// <summary>What the player remembers between runs.</summary>
     public PlayerMemory Memory { get; }
@@ -298,11 +299,44 @@ public sealed partial class PlayerController
         }
 
         _restoredAt = null;
+        _resumeAfterOpening = null;
         if (startAt > TimeSpan.Zero || audioTrack is not null || Settings.ResumePlayback == ResumeChoice.Never || Memory.ResumePoint(MemoryKey(item)) is not { } at)
         {
             return startAt;
         }
 
+        if (Settings.ResumeAudioLongerThanMinutes > 0)
+        {
+            _resumeAfterOpening = at;
+            return startAt;
+        }
+
+        return ApplyResumeChoice(at, startAt);
+    }
+
+    /// <summary>Applies a deferred audio resume once its real tracks and duration are known.</summary>
+    private void ApplyAudioResumeChoice()
+    {
+        if (_resumeAfterOpening is not { } at)
+        {
+            return;
+        }
+
+        _resumeAfterOpening = null;
+        var audioOnly = Info?.FirstTrack(Rex.Media.Primitives.MediaKind.Audio) is not null
+            && Info.FirstTrack(Rex.Media.Primitives.MediaKind.Video) is null;
+        if (!audioOnly || Duration > TimeSpan.FromMinutes(Settings.ResumeAudioLongerThanMinutes))
+        {
+            var target = ApplyResumeChoice(at, TimeSpan.Zero);
+            if (target > TimeSpan.Zero)
+            {
+                Seek(target);
+            }
+        }
+    }
+
+    private TimeSpan ApplyResumeChoice(TimeSpan at, TimeSpan startAt)
+    {
         if (Settings.ResumePlayback == ResumeChoice.Always)
         {
             Say("Resuming at " + TimeText.Format(at, TimeSpan.Zero));
