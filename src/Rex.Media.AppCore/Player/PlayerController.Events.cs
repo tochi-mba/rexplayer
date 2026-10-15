@@ -243,6 +243,7 @@ public sealed partial class PlayerController
                 {
                     // The queued item has begun, without a gap: the playlist moves on with it.
                     Item = Playlist.Next(automatic: true);
+                    Position = TimeSpan.Zero;
                     _log.Info(LogSource, $"Carried on without a gap into {Item!.Location}.");
                     _queued = null;
                     FindSubtitles(Item!);
