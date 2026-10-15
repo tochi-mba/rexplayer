@@ -199,6 +199,28 @@ public sealed partial class MediaSession
             null));
     }
 
+    private void OnBuffering(Playback playback, bool buffering)
+    {
+        Enqueue(new Command(
+            () =>
+            {
+                if (!ReferenceEquals(playback, _playback))
+                {
+                    return;
+                }
+
+                if (buffering && _state == SessionState.Playing)
+                {
+                    MoveTo(SessionState.Buffering);
+                }
+                else if (!buffering && _state == SessionState.Buffering)
+                {
+                    MoveTo(playback.IsPaused ? SessionState.Paused : SessionState.Playing);
+                }
+            },
+            null));
+    }
+
     private void OnFailed(Playback playback, string message)
     {
         Enqueue(new Command(

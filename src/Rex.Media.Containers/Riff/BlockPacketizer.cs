@@ -50,7 +50,14 @@ internal sealed class BlockPacketizer
         }
     }
 
-    public MediaTime Duration => BlockCount is { } blocks ? MediaTime.FromSamples(blocks * _samplesPerBlock, _sampleRate) : MediaTime.Unknown;
+    public MediaTime Duration
+    {
+        get
+        {
+            var length = _stream.Source is IGrowingByteSource ? _dataLength ?? DataLength : DataLength;
+            return length is { } bytes ? MediaTime.FromSamples((bytes / _blockAlign) * _samplesPerBlock, _sampleRate) : MediaTime.Unknown;
+        }
+    }
 
     private long? DataLength
     {

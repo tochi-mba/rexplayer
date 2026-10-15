@@ -74,6 +74,8 @@ public sealed partial class MediaSession
         private long _lastPositionPost;
         private int _itemsStarted = 1;
         private long _earlierTicks;
+        private MediaTime _demuxReached = MediaTime.Zero;
+        private int _waitingForFile;
 
         public Playback(MediaSession session, MediaItem first, IAudioSink sink, AudioFormat sinkFormat, IVideoPresenter? presenter)
         {
@@ -320,6 +322,7 @@ public sealed partial class MediaSession
                     _silenceUntil = seek.Target;
                     _silenceStarted = false;
                     _recovery.Restart();
+                    _demuxReached = seek.Target;
                     ended = false;
                 }
 
@@ -339,6 +342,11 @@ public sealed partial class MediaSession
                 var packet = ReadPacketOrEnd(token);
                 if (packet is null)
                 {
+                    if (WaitForGrowingFile(generation, token))
+                    {
+                        continue;
+                    }
+
                     if (SilentAudio.Is(_demuxItem.AudioTrack))
                     {
                         // The silence runs to the end of the pictures, so the last one is shown for its full time.
@@ -359,6 +367,11 @@ public sealed partial class MediaSession
 
                 Interlocked.Increment(ref _packetsRead);
                 Interlocked.Add(ref _bytesRead, packet.Data.Length);
+                if (packet.Timestamp.IsKnown)
+                {
+                    var end = packet.Timestamp + (packet.Duration > MediaTime.Zero ? packet.Duration : MediaTime.Zero);
+                    _demuxReached = MediaTime.Max(_demuxReached, end);
+                }
                 packet.Generation = generation;
                 var isVideo = _videoQueue is not null && packet.TrackId == _demuxItem.VideoTrack?.Id;
                 if (!_recovery.Keep(packet.Timestamp, isVideo, packet.IsKeyframe))
