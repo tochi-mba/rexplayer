@@ -41,6 +41,15 @@ public static class TranscriptionEligibility
     /// <summary>Anything shorter is passed over.</summary>
     public static readonly TimeSpan Shortest = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// Whether the item playing should be heard automatically. A direct request always wins, but
+    /// the broad "what plays" setting applies only to media with pictures: opening a song must not
+    /// silently spend processor time turning lyrics into captions. A library item already selected
+    /// by the background policy remains eligible (including music the user explicitly included).
+    /// </summary>
+    public static bool Playing(bool asked, bool hasPictures, bool whatPlays, bool backgroundEligible) =>
+        asked || (hasPictures && whatPlays) || backgroundEligible;
+
     /// <summary>Whether <paramref name="path"/> is in the background transcription's scope.</summary>
     public static bool InScope(string path, TranscriptionSettings settings, IReadOnlyList<string> libraryFolders)
     {

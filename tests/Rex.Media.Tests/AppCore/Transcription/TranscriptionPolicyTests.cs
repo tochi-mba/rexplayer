@@ -77,6 +77,17 @@ public sealed class TranscriptionPolicyTests
 
     [Fact]
     [Capability("SUB-20")]
+    public void WhatPlaysDoesNotAutomaticallyTranscribeMusic()
+    {
+        Assert.True(TranscriptionEligibility.Playing(asked: true, hasPictures: false, whatPlays: false, backgroundEligible: false));
+        Assert.True(TranscriptionEligibility.Playing(asked: false, hasPictures: true, whatPlays: true, backgroundEligible: false));
+        Assert.True(TranscriptionEligibility.Playing(asked: false, hasPictures: false, whatPlays: false, backgroundEligible: true));
+        Assert.False(TranscriptionEligibility.Playing(asked: false, hasPictures: false, whatPlays: true, backgroundEligible: false));
+        Assert.False(TranscriptionEligibility.Playing(asked: false, hasPictures: true, whatPlays: false, backgroundEligible: false));
+    }
+
+    [Fact]
+    [Capability("SUB-20")]
     public void TheQueueTakesWhatWasAskedThenPartHeardThenLeftPartWayThenNewest()
     {
         var old = Entry(@"D:\Videos\old.mkv", added: 1, size: 1);
