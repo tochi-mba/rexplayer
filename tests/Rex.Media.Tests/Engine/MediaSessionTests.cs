@@ -77,6 +77,39 @@ public sealed class MediaSessionTests
         }
     }
 
+    [Theory]
+    [InlineData(ByteSourceChange.Truncated)]
+    [InlineData(ByteSourceChange.Replaced)]
+    [InlineData(ByteSourceChange.TimedOut)]
+    public async Task AChangedOrStalledGrowingSourceEndsAfterItsWaitPolicy(ByteSourceChange firstChange)
+    {
+        using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], firstChange, ByteSourceChange.TimedOut);
+        using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+        await harness.Session.OpenAsync(source);
+        harness.WaitForState(SessionState.Buffering);
+        await harness.FinishAsync();
+
+        Assert.Equal(SessionState.Ended, harness.Session.State);
+        Assert.Contains(SessionState.Buffering, harness.States);
+    }
+
+    [Fact]
+    public async Task ASeekCancelsTheGrowingFileWait()
+    {
+        using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], cancelFirstWait: true);
+        using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+        await harness.Session.OpenAsync(source);
+        harness.WaitForState(SessionState.Buffering);
+        await harness.Session.SeekAsync(MediaTime.FromSeconds(5));
+        harness.WaitFor<SeekCompletedEvent>();
+        await harness.FinishAsync();
+
+        Assert.Equal(SessionState.Ended, harness.Session.State);
+        Assert.Contains(SessionState.Seeking, harness.States);
+    }
+
     [Fact]
     [Capability("PB-03")]
     public async Task APreciseSeekLandsOnTheExactSample()
@@ -472,6 +505,52 @@ public sealed class MediaSessionTests
             public void Dispose()
             {
             }
+
+        }
+    }
+
+    private sealed class ScriptedGrowingSource(byte[] data, params ByteSourceChange[] changes) : IGrowingByteSource
+    {
+        private readonly Queue<ByteSourceChange> _changes = new(changes);
+        private readonly bool _cancelFirstWait;
+        private int _waits;
+
+        public ScriptedGrowingSource(byte[] data, bool cancelFirstWait) : this(data) => _cancelFirstWait = cancelFirstWait;
+
+        public string Name => "growing.wav";
+
+        public long? Length => data.Length;
+
+        public bool CanSeek => true;
+
+        public ByteSourceExtent Extent => new(data.Length, 0);
+
+        public int Read(long position, Span<byte> destination, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (position >= data.Length)
+            {
+                return 0;
+            }
+
+            var count = Math.Min(destination.Length, data.Length - (int)position);
+            data.AsSpan((int)position, count).CopyTo(destination);
+            return count;
+        }
+
+        public ByteSourceChange WaitForChange(ByteSourceExtent observed, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            if (_cancelFirstWait && _waits++ == 0)
+            {
+                cancellationToken.WaitHandle.WaitOne();
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            return _changes.TryDequeue(out var change) ? change : ByteSourceChange.TimedOut;
+        }
+
+        public void Dispose()
+        {
         }
     }
 
