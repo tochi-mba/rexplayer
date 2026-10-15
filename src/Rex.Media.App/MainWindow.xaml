@@ -451,7 +451,7 @@
         </Border>
 
         <InfoBar x:Name="ResumeBar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16" Padding="12,8"
-                 IsOpen="False" IsClosable="True" IsIconVisible="False" MaxWidth="420"
+                 IsOpen="False" IsClosable="False" IsIconVisible="False" MaxWidth="460"
                  Background="#F21B1B1B" Foreground="White" AutomationProperties.AutomationId="ResumeBar" />
 
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"

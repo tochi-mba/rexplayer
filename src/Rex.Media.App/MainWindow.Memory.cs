@@ -44,10 +44,18 @@ public sealed partial class MainWindow
 
     private void WireMemory()
     {
-        ResumeBar.ActionButton = new Button { Content = "Resume" };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(ResumeBar.ActionButton, "ResumeButton");
+        ResumeBar.ActionButton = new Button
+        {
+            Content = "Resume",
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+        };
+        AutomationProperties.SetAutomationId(ResumeBar.ActionButton, "ResumeButton");
         ResumeBar.ActionButton.Click += (_, _) => AnswerResumeOffer(resume: true);
-        ResumeBar.CloseButtonClick += (_, _) => AnswerResumeOffer(resume: false);
+        var startOver = new Button { Content = "Start over" };
+        AutomationProperties.SetAutomationId(startOver, "StartOverButton");
+        AutomationProperties.SetName(startOver, "Start this media from the beginning");
+        startOver.Click += (_, _) => AnswerResumeOffer(resume: false);
+        ResumeBar.Content = startOver;
     }
 
     /// <summary>The menus that hold remembered things; made with the others.</summary>
