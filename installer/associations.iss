@@ -132,6 +132,12 @@ Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssocia
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".caf"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\.caf\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".caf"; ValueData: "rexplayer.audio"
+Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".au"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\.au\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".au"; ValueData: "rexplayer.audio"
+Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".snd"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\.snd\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".snd"; ValueData: "rexplayer.audio"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".ac3"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\.ac3\OpenWithProgids"; ValueType: string; ValueName: "rexplayer.audio"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\REX Technologies\rexplayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ac3"; ValueData: "rexplayer.audio"

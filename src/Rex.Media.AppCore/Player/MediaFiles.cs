@@ -16,7 +16,7 @@ public static class MediaFiles
     public static IReadOnlyList<string> Audio { get; } =
     [
         ".mp3", ".flac", ".m4a", ".aac", ".adts", ".wav", ".ogg", ".oga", ".opus", ".wma", ".aif", ".aiff", ".aifc",
-        ".caf", ".ac3", ".eac3", ".dts", ".mka", ".mp2", ".rf64", ".w64",
+        ".caf", ".au", ".snd", ".ac3", ".eac3", ".dts", ".mka", ".mp2", ".rf64", ".w64",
     ];
 
     /// <summary>Pictures (FMT-C19): shown for a while each, so a folder of them plays as a slideshow.</summary>

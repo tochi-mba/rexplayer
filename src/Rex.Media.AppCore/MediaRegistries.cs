@@ -23,6 +23,7 @@ public static class MediaRegistries
         .Add(new AviDemuxerFactory())
         .Add(new WavDemuxerFactory())
         .Add(new AiffDemuxerFactory())
+        .Add(new AuDemuxerFactory())
         .Add(new FlacDemuxerFactory())
         .Add(new MpegAudioDemuxerFactory())
         .Add(new Mp4DemuxerFactory())
