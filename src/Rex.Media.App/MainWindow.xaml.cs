@@ -421,6 +421,7 @@ public sealed partial class MainWindow : Window
         ShowNamedPlaylists();
         ShowMenuChecks();
         ShowTaskbarState();
+        ShowCurrentLibraryItem();
         RememberLater();
     }
 

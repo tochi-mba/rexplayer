@@ -178,7 +178,10 @@ public sealed partial class MainWindow
         if (open)
         {
             _shownLibrary = "";
-            ShowLibrary();
+            if (!RevealCurrentLibraryItem())
+            {
+                ShowLibrary();
+            }
             ShowLibraryStatus();
             if (LibraryCollage.Visibility == Visibility.Visible)
             {
@@ -193,6 +196,46 @@ public sealed partial class MainWindow
         {
             CancelLibraryPictures();
         }
+    }
+
+    /// <summary>Opens the narrowest library route containing the current local item.</summary>
+    private bool RevealCurrentLibraryItem()
+    {
+        var located = LibraryViews.LocateCurrent(_library!.Entries, _player.Playlist.Current?.Location);
+        if (located is null)
+        {
+            return false;
+        }
+
+        var source = located.Entry.Kind switch
+        {
+            LibraryKind.Music => LibrarySource.Songs,
+            LibraryKind.Picture => LibrarySource.Pictures,
+            LibraryKind.Video when located.Show is not null => LibrarySource.TvShows,
+            LibraryKind.Video => LibrarySource.Movies,
+            _ => LibrarySource.Home,
+        };
+        var index = Array.FindIndex(LibrarySourceItems, pair => pair.Source == source);
+        if (LibrarySources.SelectedIndex != index)
+        {
+            LibrarySources.SelectedIndex = index;
+        }
+        else
+        {
+            _librarySource = source;
+        }
+
+        if (LibrarySearch.Text.Length > 0)
+        {
+            LibrarySearch.Text = "";
+        }
+
+        _libraryGroup = located.Show;
+        _librarySeason = located.Season;
+        _shownLibrary = "";
+        ShowLibrary();
+        RevealLibraryRow(located.Entry.Path);
+        return true;
     }
 
     /// <summary>
@@ -399,7 +442,8 @@ public sealed partial class MainWindow
         };
         var placeholder = entry.Kind switch { LibraryKind.Music => "♪", LibraryKind.Video => "▶", _ => "▧" };
         var progress = entry.Kind == LibraryKind.Video && _player.LeftAt(entry.Path) is { } left && entry.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(left / length, 0, 1) : 0;
-        var row = new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress);
+        var row = new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress,
+            isPlaying: LibraryViews.SameLocation(entry.Path, _player.Playlist.Current?.Location));
         var (glyph, text) = TranscriptBadgeOf(entry);
         row.SetTranscript(glyph, text);
         return row;

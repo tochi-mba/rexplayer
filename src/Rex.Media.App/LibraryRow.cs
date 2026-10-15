@@ -16,11 +16,13 @@ public sealed partial class LibraryRow(
     bool hasPicture = false,
     string picturePlaceholder = "",
     string badge = "",
-    double progress = 0) : INotifyPropertyChanged
+    double progress = 0,
+    bool isPlaying = false) : INotifyPropertyChanged
 {
     private ImageSource? _picture;
     private string _transcriptGlyph = "";
     private string _transcriptText = "";
+    private bool _isPlaying = isPlaying;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -50,6 +52,13 @@ public sealed partial class LibraryRow(
     public double Progress { get; } = progress;
 
     public Visibility ProgressVisibility => Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Whether this row is another representation of the item currently in the player.</summary>
+    public bool IsPlaying => _isPlaying;
+
+    public Visibility PlayingVisibility => _isPlaying ? Visibility.Visible : Visibility.Collapsed;
+
+    public string AccessibilityName => _isPlaying ? $"{Name}, now playing" : Name;
 
     /// <summary>The transcription badge's icon (SUB-20), or empty for none.</summary>
     public string TranscriptGlyph => _transcriptGlyph;
@@ -84,6 +93,20 @@ public sealed partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptGlyph)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptVisibility)));
+    }
+
+    /// <summary>Updates the durable now-playing treatment without rebuilding or moving the view.</summary>
+    public void SetPlaying(bool playing)
+    {
+        if (playing == _isPlaying)
+        {
+            return;
+        }
+
+        _isPlaying = playing;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPlaying)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PlayingVisibility)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AccessibilityName)));
     }
 
     /// <summary>What a screen reader says for the line, and what the window tests find it by.</summary>

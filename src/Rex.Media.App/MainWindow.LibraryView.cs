@@ -298,6 +298,41 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Selects the current item and asks the virtualised view to bring it on screen.</summary>
+    private void RevealLibraryRow(string path)
+    {
+        var index = _libraryRows.FindIndex(row => row.Item is LibraryEntry entry && LibraryViews.SameLocation(entry.Path, path));
+        if (index < 0)
+        {
+            return;
+        }
+
+        var row = _libraryRows[index];
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (LibraryCollage.Visibility == Visibility.Visible)
+            {
+                LibraryCollage.Select(index);
+                LibraryCollage.StartBringItemIntoView(index);
+            }
+            else
+            {
+                LibraryList.SelectedItem = row;
+                LibraryList.ScrollIntoView(row, ScrollIntoViewAlignment.Leading);
+            }
+        });
+    }
+
+    /// <summary>Updates every visible representation when playback changes without moving the view.</summary>
+    private void ShowCurrentLibraryItem()
+    {
+        var current = _player.Playlist.Current?.Location;
+        foreach (var row in _libraryRows.Concat(_homeShelfRows))
+        {
+            row.SetPlaying(row.Item is LibraryEntry entry && LibraryViews.SameLocation(entry.Path, current));
+        }
+    }
+
     /// <summary>A list of entries, ordered and grouped as the view's choices say.</summary>
     private List<LibraryRowGroup> EntrySections(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice) =>
         [.. LibraryArrangement.Group(LibraryArrangement.Sort(entries, choice.Sort, choice.Descending), choice.Grouping, DateTime.UtcNow)
