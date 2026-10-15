@@ -299,6 +299,8 @@ function Get-Metrics([string]$pipeName, [switch]$Start) {
 
 # Reads the OS-maintained lifetime high-water marks while a timed run is active.
 function Add-ProcessMemorySample([Diagnostics.Process]$process, [hashtable]$memory) {
+    if ($null -eq $memory) { return }
+
     try {
         if ($process.HasExited) { return }
         $process.Refresh()
