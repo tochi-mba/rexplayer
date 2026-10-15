@@ -8,6 +8,9 @@ namespace Rex.Media.AppCore.Library;
 /// <summary>Entries gathered under one name: an artist's, an album's (with its artist as the detail) or a genre's.</summary>
 public sealed record LibraryGroup(string Name, string? Detail, IReadOnlyList<LibraryEntry> Entries);
 
+/// <summary>The library route that contains a file which is already open in the player.</summary>
+public sealed record CurrentLibraryLocation(LibraryEntry Entry, LibraryGroup? Show = null, LibraryGroup? Season = null);
+
 /// <summary>A season-and-episode mark inferred from a video's filename.</summary>
 public sealed record VideoEpisode(string Series, int Season, int Episode, int? SeriesYear = null)
 {
@@ -30,6 +33,59 @@ public static partial class LibraryViews
 
     private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
+
+    /// <summary>
+    /// Finds the library entry represented by a player location and, for an episode, the show and
+    /// season that must be opened to reveal it. File URIs and ordinary paths name the same file;
+    /// network locations never accidentally match a local entry.
+    /// </summary>
+    public static CurrentLibraryLocation? LocateCurrent(IEnumerable<LibraryEntry> entries, string? location)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        if (string.IsNullOrWhiteSpace(location))
+        {
+            return null;
+        }
+
+        var snapshot = entries.ToList();
+        var entry = snapshot.FirstOrDefault(candidate => SameLocation(candidate.Path, location));
+        if (entry is null || entry.Kind != LibraryKind.Video || EpisodeOf(entry) is null)
+        {
+            return entry is null ? null : new CurrentLibraryLocation(entry);
+        }
+
+        var show = TvShows(snapshot).FirstOrDefault(group => group.Entries.Any(candidate => SameLocation(candidate.Path, entry.Path)));
+        var season = show is null ? null : TvSeasons(show).FirstOrDefault(group => group.Entries.Any(candidate => SameLocation(candidate.Path, entry.Path)));
+        return new CurrentLibraryLocation(entry, show, season);
+    }
+
+    /// <summary>Whether two player/library locations identify the same local file.</summary>
+    public static bool SameLocation(string? first, string? second)
+    {
+        var left = LocalLocation(first);
+        var right = LocalLocation(second);
+        return left is not null && right is not null && string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? LocalLocation(string? location)
+    {
+        if (string.IsNullOrWhiteSpace(location))
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(location, UriKind.Absolute, out var uri))
+        {
+            if (!uri.IsFile)
+            {
+                return null;
+            }
+
+            location = uri.LocalPath;
+        }
+
+        return location.Replace('/', '\\').TrimEnd('\\');
+    }
 
     /// <summary>
     /// Refreshes an opened group without losing navigation when filters hide all its members.

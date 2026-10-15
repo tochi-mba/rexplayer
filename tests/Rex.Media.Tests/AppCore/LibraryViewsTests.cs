@@ -117,6 +117,40 @@ public sealed class LibraryViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void CurrentItemLocatesItsNarrowestLibraryRoute()
+    {
+        var song = Song("Playing", "Artist", "Album");
+        var episode = VideoAt(@"D:\Media\TV\Sky City", "Sky.City.S02E03.Return");
+        var picture = Picture(@"D:\Photos", "Playing.jpg");
+
+        var songLocation = LibraryViews.LocateCurrent([song, episode, picture], new Uri(song.Path).AbsoluteUri);
+        Assert.Same(song, songLocation!.Entry);
+        Assert.Null(songLocation.Show);
+        Assert.Null(songLocation.Season);
+
+        var episodeLocation = LibraryViews.LocateCurrent([song, episode, picture], episode.Path.ToUpperInvariant());
+        Assert.Same(episode, episodeLocation!.Entry);
+        Assert.Equal("Sky City", episodeLocation.Show!.Name);
+        Assert.Equal("Season 2", episodeLocation.Season!.Name);
+
+        Assert.Same(picture, LibraryViews.LocateCurrent([song, episode, picture], picture.Path)!.Entry);
+        Assert.Null(LibraryViews.LocateCurrent([song], @"D:\Music\Missing.mp3"));
+        Assert.Null(LibraryViews.LocateCurrent([song], "https://example.invalid/Playing.mp3"));
+        Assert.Null(LibraryViews.LocateCurrent([song], null));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.LocateCurrent(null!, song.Path));
+    }
+
+    [Theory]
+    [InlineData(@"D:\Music\Song.mp3", "file:///D:/Music/Song.mp3", true)]
+    [InlineData(@"D:\Music\Song.mp3", @"d:/music/song.mp3", true)]
+    [InlineData(@"D:\Music\Song.mp3", @"D:\Music\Other.mp3", false)]
+    [InlineData(@"D:\Music\Song.mp3", "https://example.invalid/Song.mp3", false)]
+    [InlineData(null, @"D:\Music\Song.mp3", false)]
+    public void CurrentItemLocationComparisonHandlesRepresentations(string? first, string? second, bool same) =>
+        Assert.Equal(same, LibraryViews.SameLocation(first, second));
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnEpisodeAutoplaysOnlyItsSeasonInEpisodeOrder()
     {
         var folder = Path.Combine("D:\\Videos", "The Rehearsal Season 1");
