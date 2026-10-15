@@ -363,6 +363,15 @@ public sealed partial class MainWindow : Window
             : _player.State == SessionState.Opening ? "Opening" + "\u2026"
             : _player.Failure ?? _player.Artist ?? "";
 
+        var waitingForDownload = _player.State == SessionState.Buffering;
+        DownloadBufferOverlay.Visibility = waitingForDownload ? Visibility.Visible : Visibility.Collapsed;
+        if (waitingForDownload)
+        {
+            DownloadBufferOverlayText.Text = string.IsNullOrWhiteSpace(title)
+                ? "Playback will continue automatically when more of the file is available."
+                : $"{title} will continue automatically when more of the file is available.";
+        }
+
         _updatingControls = true;
         ShuffleButton.IsChecked = _player.Playlist.Shuffle;
         RepeatButton.IsChecked = _player.Playlist.Repeat != RepeatMode.Off;
