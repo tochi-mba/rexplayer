@@ -54,6 +54,12 @@ public sealed class EngineOptions
 
     /// <summary>How often position events are posted while playing.</summary>
     public TimeSpan PositionInterval { get; init; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// How long playback waits at a temporary end of a growing local file before accepting that the
+    /// download stalled. The wait is cancellable immediately by a seek, stop, or shutdown.
+    /// </summary>
+    public TimeSpan GrowingFileStallTimeout { get; init; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>How exactly a seek lands.</summary>

@@ -74,6 +74,8 @@ public sealed partial class MediaSession
         private long _lastPositionPost;
         private int _itemsStarted = 1;
         private long _earlierTicks;
+        private MediaTime _demuxReached = MediaTime.Zero;
+        private int _waitingForFile;
 
         public Playback(MediaSession session, MediaItem first, IAudioSink sink, AudioFormat sinkFormat, IVideoPresenter? presenter)
         {
@@ -320,6 +322,7 @@ public sealed partial class MediaSession
                     _silenceUntil = seek.Target;
                     _silenceStarted = false;
                     _recovery.Restart();
+                    _demuxReached = seek.Target;
                     ended = false;
                 }
 
@@ -339,6 +342,11 @@ public sealed partial class MediaSession
                 var packet = ReadPacketOrEnd(token);
                 if (packet is null)
                 {
+                    if (WaitForGrowingFile(generation, token))
+                    {
+                        continue;
+                    }
+
                     if (SilentAudio.Is(_demuxItem.AudioTrack))
                     {
                         // The silence runs to the end of the pictures, so the last one is shown for its full time.
@@ -359,6 +367,11 @@ public sealed partial class MediaSession
 
                 Interlocked.Increment(ref _packetsRead);
                 Interlocked.Add(ref _bytesRead, packet.Data.Length);
+                if (packet.Timestamp.IsKnown)
+                {
+                    var end = packet.Timestamp + (packet.Duration > MediaTime.Zero ? packet.Duration : MediaTime.Zero);
+                    _demuxReached = MediaTime.Max(_demuxReached, end);
+                }
                 packet.Generation = generation;
                 var isVideo = _videoQueue is not null && packet.TrackId == _demuxItem.VideoTrack?.Id;
                 if (!_recovery.Keep(packet.Timestamp, isVideo, packet.IsKeyframe))
@@ -395,6 +408,78 @@ public sealed partial class MediaSession
                         ReadSubtitle(packet);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// A demuxer's null normally means the end. For a local source whose declared timeline still
+        /// has media left, it means the writer has not supplied the next bytes yet. Wait at the byte
+        /// source instead of spinning, and let a seek or shutdown cancel the wait immediately.
+        /// </summary>
+        private bool WaitForGrowingFile(long generation, CancellationToken lifetime)
+        {
+            if (_demuxItem.Source is not IGrowingByteSource growing || !HasDeclaredShortfall(_demuxItem.Info.Duration, _demuxReached))
+            {
+                StopFileBuffering();
+                return false;
+            }
+
+            var observed = growing.Extent;
+            StartFileBuffering();
+            ByteSourceChange change;
+            try
+            {
+                change = growing.WaitForChange(observed, _session._options.GrowingFileStallTimeout, GenerationToken(generation));
+            }
+            catch (OperationCanceledException) when (!lifetime.IsCancellationRequested)
+            {
+                StopFileBuffering();
+                return true;
+            }
+
+            StopFileBuffering();
+            switch (change)
+            {
+                case ByteSourceChange.Grew:
+                    _session._log.Info(LogSource, $"More bytes arrived for {_demuxItem.Source.Name}; playback is continuing.");
+                    return true;
+                case ByteSourceChange.Truncated:
+                case ByteSourceChange.Replaced:
+                    // The path now names a different extent. Reposition through the demuxer so its
+                    // cursor and packet state agree with the refreshed byte source.
+                    _demuxItem.Demuxer.Seek(_demuxReached, lifetime);
+                    _session._log.Info(LogSource, $"{_demuxItem.Source.Name} changed while open; playback was repositioned.");
+                    return true;
+                default:
+                    _session._log.Warning(LogSource, $"No more bytes arrived for {_demuxItem.Source.Name} before the download wait expired.");
+                    return false;
+            }
+        }
+
+        private static bool HasDeclaredShortfall(MediaTime duration, MediaTime reached)
+        {
+            if (!duration.IsKnown || !reached.IsKnown)
+            {
+                return false;
+            }
+
+            var tolerance = MediaTime.Max(MediaTime.FromSeconds(2), new MediaTime(duration.Ticks / 200));
+            return reached + tolerance < duration;
+        }
+
+        private void StartFileBuffering()
+        {
+            if (Interlocked.Exchange(ref _waitingForFile, 1) == 0)
+            {
+                _session.OnBuffering(this, buffering: true);
+            }
+        }
+
+        private void StopFileBuffering()
+        {
+            if (Interlocked.Exchange(ref _waitingForFile, 0) != 0)
+            {
+                _session.OnBuffering(this, buffering: false);
             }
         }
 
