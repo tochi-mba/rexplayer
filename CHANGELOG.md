@@ -3,6 +3,15 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.4 - 2026-10-15
+
+### Improved
+
+- **Short-audio resume behavior.** Apply the configurable resume threshold based on the
+  opened media's actual tracks and duration, so short audio starts from the beginning.
+- **Whole-player CPU and memory measurements.** Measure processor use during timed
+  scenarios and memory changes during steady playback, UI and library work.
+
 ## 0.25.3 - 2026-10-15
 
 ### Added
