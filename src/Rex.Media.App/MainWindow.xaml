@@ -451,7 +451,7 @@
         </Border>
 
         <InfoBar x:Name="ResumeBar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16" Padding="12,8"
-                 IsOpen="False" IsClosable="True" IsIconVisible="False" MaxWidth="420"
+                 IsOpen="False" IsClosable="False" IsIconVisible="False" MaxWidth="460"
                  Background="#F21B1B1B" Foreground="White" AutomationProperties.AutomationId="ResumeBar" />
 
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
@@ -689,32 +689,43 @@
         </Grid>
       </Grid>
 
-      <Grid x:Name="PlaylistPane" Grid.Column="1" Width="320" Visibility="Collapsed" Padding="8"
+      <Grid x:Name="PlaylistPane" Grid.Column="1" Width="344" Visibility="Collapsed" Padding="10,8"
             Background="{ThemeResource LayerFillColorDefaultBrush}" AutomationProperties.AutomationId="PlaylistPane">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="4,0,0,8" />
+        <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="6,2,0,10" />
         <ListView x:Name="PlaylistView" Grid.Row="1" SelectionMode="Extended" IsItemClickEnabled="False" CanReorderItems="False"
                   DoubleTapped="OnPlaylistDoubleTapped" KeyDown="OnPlaylistKeyDown"
                   AutomationProperties.AutomationId="PlaylistView" AutomationProperties.Name="Playlist">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:PlaylistRow">
-              <Grid ColumnSpacing="10" Padding="0,3" Opacity="{x:Bind Opacity}">
+              <Grid ColumnSpacing="10" Padding="0,5,8,5" MinHeight="58" Opacity="{x:Bind Opacity}"
+                    ToolTipService.ToolTip="{x:Bind Title}" AutomationProperties.Name="{x:Bind AccessibleName}">
                 <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="3" />
                   <ColumnDefinition Width="64" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border Width="64" Height="36" CornerRadius="4" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <Border Width="3" Margin="0,3,0,3" CornerRadius="2" Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        Visibility="{x:Bind CurrentVisibility}" />
+                <Border Grid.Column="1" Width="64" Height="40" CornerRadius="5" Background="{ThemeResource LayerFillColorDefaultBrush}">
                   <Grid>
                     <TextBlock Text="{x:Bind Placeholder}" FontSize="16" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
                   </Grid>
                 </Border>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                  <TextBlock Text="{x:Bind Text}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Text="(missing)" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind MissingVisibility}" />
+                <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock Text="{x:Bind Title}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" LineHeight="18" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Playing" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                               Visibility="{x:Bind CurrentVisibility}" />
+                    <TextBlock Text="{x:Bind Secondary}" FontSize="12" TextTrimming="CharacterEllipsis"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind SecondaryVisibility}" />
+                    <TextBlock Text="Missing" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                               Visibility="{x:Bind MissingVisibility}" />
+                  </StackPanel>
                 </StackPanel>
               </Grid>
             </DataTemplate>

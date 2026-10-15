@@ -491,8 +491,8 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start([playlist]);
         app.Run(CommandCatalog.TogglePlaylist);
 
-        var gone = Wait.Until(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Terminator (missing)")));
-        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "\u25B6 Sungba")));
+        var gone = Wait.Until(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Terminator. Missing")));
+        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Playing. Sungba")));
         ((SelectionItemPattern)gone!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Assert.Equal(0, app.Close());
     }
@@ -745,6 +745,7 @@ public sealed class AppWindowTests : IDisposable
 
         using var second = AppProcess.Start([song], root);
         Wait.For(() => second.IsShown("ResumeBar"), "the offer to carry on");
+        Assert.True(second.IsShown("StartOverButton"));
         second.Press("ResumeButton");
         Wait.For(() => !second.IsShown("ResumeBar"), "the offer to go");
         Wait.For(() => second.Text("Elapsed") is { } elapsed && (elapsed.StartsWith("0:2", StringComparison.Ordinal) || elapsed.StartsWith("0:3", StringComparison.Ordinal)), "the song to carry on from where it was");

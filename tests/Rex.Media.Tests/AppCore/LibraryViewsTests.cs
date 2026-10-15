@@ -179,6 +179,39 @@ public sealed class LibraryViewsTests
         Assert.Throws<ArgumentNullException>(() => LibraryViews.MovieYearOf(null!));
     }
 
+    [Fact]
+    [Capability("LIB-05")]
+    public void ASingleYearQualifiedReleaseJoinsTheUnqualifiedSeries()
+    {
+        var loose = VideoAt(@"D:\Media\TV", "Lanterns.2026.S01E01.XviD-AFG[EZTVx.to]");
+        var next = VideoAt(@"D:\Media\TV", "Lanterns.2026.S01E02.1080p.WEB.h264-ETHEL[EZTVx.to]");
+        var releaseFolder = VideoAt(@"D:\Media\TV\www.example.invalid - Lanterns S01E01 Pilot REPACK 2160p", "Lanterns S01E01 Pilot REPACK 2160p WEB-DL");
+
+        Assert.Equal(new VideoEpisode("Lanterns", 1, 1, 2026), LibraryViews.EpisodeOf(loose));
+        Assert.Equal("Lanterns (2026) · S01E01", LibraryViews.EpisodeOf(loose)!.DisplayName);
+        var show = Assert.Single(LibraryViews.TvShows([loose, next, releaseFolder]));
+        Assert.Equal("Lanterns", show.Name);
+        Assert.Equal("1 season · 3 episodes", show.Detail);
+        Assert.Equal([loose, releaseFolder, next], show.Entries);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void DifferentYearQualifiedRemakesStayInSeparateSeries()
+    {
+        var original = VideoAt(@"D:\Media\TV", "Signal.2005.S01E01.Pilot");
+        var remake = VideoAt(@"D:\Media\TV", "Signal_[2025]_S01E01_Pilot");
+        var ambiguous = VideoAt(@"D:\Media\TV", "Signal S01E02 Second");
+
+        var shows = LibraryViews.TvShows([original, remake, ambiguous]);
+
+        Assert.Equal(["Signal", "Signal (2005)", "Signal (2025)"], shows.Select(show => show.Name));
+        Assert.Equal(new VideoEpisode("Signal", 1, 1, 2005), LibraryViews.EpisodeOf(original));
+        Assert.Equal(new VideoEpisode("Signal", 1, 1, 2025), LibraryViews.EpisodeOf(remake));
+        Assert.Equal([ambiguous], LibraryViews.AutoplayVideos([original, remake, ambiguous], ambiguous));
+        Assert.Equal([remake], LibraryViews.AutoplayVideos([original, remake, ambiguous], remake));
+    }
+
     [Theory]
     [Capability("LIB-05")]
     [InlineData("", new string[0])]
