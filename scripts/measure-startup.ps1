@@ -356,6 +356,8 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
     $busy = Get-MachineBusy
     $asked = [DateTime]::Now
     $process = Start-Player $data $(if ($kind -in 'launch', 'cold', 'open') { '' } else { $file }) $exitAfter ($Cold -or $kind -eq 'cold') $pipeName
+    $cpuStarted = $process.TotalProcessorTime.TotalMilliseconds
+    $runClock = [Diagnostics.Stopwatch]::StartNew()
     $memory = @{ 'peak-working-set-mb' = 0.0; 'peak-private-mb' = 0.0 }
     try {
         Add-ProcessMemorySample $process $memory
@@ -385,6 +387,8 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
         }
 
         Wait-PlayerExit $process $memory $exitAfter
+        $runClock.Stop()
+        $cpuUsed = $process.TotalProcessorTime.TotalMilliseconds - $cpuStarted
         $moments = Read-Moments $data
     }
     finally {
@@ -393,6 +397,8 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
     }
 
     $result = [ordered]@{ 'machine-busy-%' = $busy; 'process-created' = $created }
+    $result['cpu-%-of-one-core'] = $cpuUsed / $runClock.Elapsed.TotalMilliseconds * 100
+    $result['cpu-%-of-machine'] = $result['cpu-%-of-one-core'] / [Environment]::ProcessorCount
     $result['peak-working-set-mb'] = $memory['peak-working-set-mb']
     $result['peak-private-mb'] = $memory['peak-private-mb']
     foreach ($moment in $moments) {
