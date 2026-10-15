@@ -36,7 +36,7 @@ public sealed class AuDemuxer : IDemuxer
         var encoding = stream.ReadUInt32BigEndian();
         var sampleRate = stream.ReadUInt32BigEndian();
         var channels = stream.ReadUInt32BigEndian();
-        if (dataOffset < 24 || dataOffset > long.MaxValue || sampleRate is 0 or > 768_000 || channels is 0 or > AudioFormat.MaxChannels)
+        if (dataOffset < 24 || sampleRate is 0 or > 768_000 || channels is 0 or > AudioFormat.MaxChannels)
         {
             throw new MediaFormatException("The AU header declares an impossible audio format.");
         }
