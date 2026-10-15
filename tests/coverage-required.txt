@@ -339,6 +339,7 @@ VorbisMdct.cs
 VorbisSetup.cs
 WaterScene.cs
 WavDemuxer.cs
+AviDemuxer.cs
 WaveFormat.cs
 WavFileSink.cs
 WebVtt.cs
