@@ -482,6 +482,24 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    public void SeekBarResetsWhenGaplessPlaylistAdvancesToTheNextFile()
+    {
+        var first = Song(6);
+        var second = Path.Combine(_media, "Next.wav");
+        File.WriteAllBytes(second, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
+        var playlist = Path.Combine(_media, "Mix.m3u8");
+        File.WriteAllText(playlist, "Sungba.wav\nNext.wav\n");
+        using var app = AppProcess.Start([playlist]);
+        var seekBar = (RangeValuePattern)app.Find("SeekBar").GetCurrentPattern(RangeValuePattern.Pattern);
+
+        Wait.For(() => seekBar.Current.Value >= 0.5, "the first song to advance");
+        Wait.For(() => app.Text("NowPlaying") == "Next", "the gapless next song to start");
+        Wait.For(() => seekBar.Current.Value < 1.0, "the seek bar to reset to the next song");
+
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-09")]
     public void AnEntryWhoseFileHasGoneIsMarkedMissingAndOffersToFindIt()
     {
