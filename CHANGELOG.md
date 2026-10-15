@@ -3,6 +3,25 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.3 - 2026-10-15
+
+### Added
+
+- **Play VP8 video through Windows.** Decode compatible VP8 tracks using Media Foundation.
+- **Show what is playing in the library.** Highlight the current item and reveal its song,
+  picture, movie, or TV season when opening the library.
+- **Show local download waits.** Indicate when playback needs more bytes from a growing file,
+  then clear the message automatically when playback resumes.
+
+### Improved
+
+- **Short audio starts from the beginning.** Skip the resume prompt for short audio files,
+  with a configurable duration threshold.
+
+### Fixed
+
+- **Gapless playlist seek bar.** Reset the displayed position as the next track begins.
+
 ## 0.25.2 - 2026-10-15
 
 ### Added
