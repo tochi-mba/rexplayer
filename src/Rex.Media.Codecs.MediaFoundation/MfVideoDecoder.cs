@@ -11,7 +11,7 @@ using Windows.Win32;
 namespace Rex.Media.Codecs.MediaFoundation;
 
 /// <summary>
-/// One Media Foundation video decoder transform (H.264, HEVC or VP9), producing NV12 pictures, or
+/// One Media Foundation video decoder transform (H.264, HEVC, VP8 or VP9), producing NV12 pictures, or
 /// P010 for streams deeper than 8 bits. Given the presenter's Direct3D 11 device, the transform
 /// decodes on the graphics card and its pictures stay there (VID-01); otherwise it decodes in
 /// software into memory. Windows' H.264 and HEVC decoders take Annex B, so their samples stored
