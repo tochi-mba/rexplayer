@@ -227,7 +227,17 @@ public sealed class ShellIntegrationTests
                 Assert.Skip("Windows' media service did not list this test's session.");
             }
 
+            // Windows publishes artwork after the title has made the session
+            // discoverable. Poll the actual media properties, not just the session
+            // list, before asserting that the card contains its thumbnail.
             var properties = await ours.TryGetMediaPropertiesAsync();
+            var artworkDeadline = DateTime.UtcNow + Patience;
+            while (properties.Thumbnail is null && DateTime.UtcNow < artworkDeadline)
+            {
+                await Task.Delay(100, TestContext.Current.CancellationToken);
+                properties = await ours.TryGetMediaPropertiesAsync();
+            }
+
             Assert.Equal("Asake", properties.Artist);
             Assert.Equal("Work of Art", properties.AlbumTitle);
             Assert.NotNull(properties.Thumbnail);

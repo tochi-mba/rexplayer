@@ -356,6 +356,8 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
     $busy = Get-MachineBusy
     $asked = [DateTime]::Now
     $process = Start-Player $data $(if ($kind -in 'launch', 'cold', 'open') { '' } else { $file }) $exitAfter ($Cold -or $kind -eq 'cold') $pipeName
+    $cpuStarted = $process.TotalProcessorTime.TotalMilliseconds
+    $runClock = [Diagnostics.Stopwatch]::StartNew()
     $memory = @{ 'peak-working-set-mb' = 0.0; 'peak-private-mb' = 0.0 }
     try {
         Add-ProcessMemorySample $process $memory
@@ -385,6 +387,8 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
         }
 
         Wait-PlayerExit $process $memory $exitAfter
+        $runClock.Stop()
+        $cpuUsed = $process.TotalProcessorTime.TotalMilliseconds - $cpuStarted
         $moments = Read-Moments $data
     }
     finally {
@@ -393,6 +397,10 @@ function Invoke-TimedRun([string]$kind, [string]$file) {
     }
 
     $result = [ordered]@{ 'machine-busy-%' = $busy; 'process-created' = $created }
+    # The first moments can finish almost instantly; never divide by a zero-length interval.
+    $elapsedCpuMs = [math]::Max(1.0, $runClock.Elapsed.TotalMilliseconds)
+    $result['cpu-%-of-one-core'] = [math]::Max(0, $cpuUsed) / $elapsedCpuMs * 100
+    $result['cpu-%-of-machine'] = $result['cpu-%-of-one-core'] / [Environment]::ProcessorCount
     $result['peak-working-set-mb'] = $memory['peak-working-set-mb']
     $result['peak-private-mb'] = $memory['peak-private-mb']
     foreach ($moment in $moments) {
@@ -468,6 +476,9 @@ function Invoke-DrivenRun([string]$kind, [string]$file) {
         $result['peak-working-set-mb'] = $after.'peak-working-set-mb'
         $result['peak-private-mb'] = $after.'peak-private-mb'
         $result['managed-heap-mb'] = $after.'managed-heap-mb'
+        $result['working-set-change-mb'] = $after.'working-set-mb' - $before.'working-set-mb'
+        $result['private-change-mb'] = $after.'private-mb' - $before.'private-mb'
+        $result['managed-heap-change-mb'] = $after.'managed-heap-mb' - $before.'managed-heap-mb'
         $result['ui-blocked-ms-per-s'] = $after.'ui-blocked-ms-per-second'
         $result['ui-worst-ms'] = $after.'ui-worst-ms'
         if ($after.PSObject.Properties['frames-presented']) {
