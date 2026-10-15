@@ -91,11 +91,13 @@ public sealed class MemoryControllerTests
         using var harness = Harness(RexStore.InMemory());
         harness.Files["short.wav"] = Count(0, 8000 * 12);
         var controller = harness.Controller;
-        // Seek while ready: the recording sink can consume this short file before a
-        // test thread observes Playing, especially on a busy CI worker.
+        // Seek while ready: this command completes asynchronously. Finish it before
+        // starting playback, so this test checks end-of-file memory rather than the
+        // unrelated overlap between seeking and pressing Play on a busy CI worker.
         controller.Open(["short.wav"]);
         harness.PumpUntil(c => c.State == SessionState.Ready);
         controller.Seek(TimeSpan.FromSeconds(11));
+        harness.PumpUntil(c => c.State == SessionState.Paused);
         controller.RememberPosition();
         Assert.True(controller.Execute(CommandCatalog.PlayPause));
         harness.PumpUntil(c => c.State == SessionState.Ended);
