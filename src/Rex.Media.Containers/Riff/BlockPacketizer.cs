@@ -54,7 +54,7 @@ internal sealed class BlockPacketizer
     {
         get
         {
-            var length = _dataLength ?? DataLength;
+            var length = _stream.Source is IGrowingByteSource ? _dataLength ?? DataLength : DataLength;
             return length is { } bytes ? MediaTime.FromSamples((bytes / _blockAlign) * _samplesPerBlock, _sampleRate) : MediaTime.Unknown;
         }
     }

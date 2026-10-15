@@ -3,6 +3,7 @@ using Rex.Media.Codecs.Software.Pcm;
 using Rex.Media.Containers;
 using Rex.Media.Containers.Riff;
 using Rex.Media.Engine;
+using Rex.Media.IO;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
 
@@ -41,6 +42,39 @@ public sealed class MediaSessionTests
         Assert.Equal(0, harness.WaitFor<TracksChangedEvent>().AudioTrack);
         Assert.Contains("drain", harness.Recording.Calls);
         Assert.NotNull(harness.Session.Info);
+    }
+
+    [Fact]
+    public async Task PlaybackResumesWhenTheLocalWavFileGrows()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"rexplayer-growing-{Guid.NewGuid():N}.wav");
+        var wav = Pcm.RampWav(8000, 80_000);
+        const int initialLength = 44 + 4000;
+        await File.WriteAllBytesAsync(path, wav[..initialLength], Token);
+
+        try
+        {
+            using var source = new FileByteSource(path);
+            using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+            await harness.Session.OpenAsync(source);
+            harness.WaitForState(SessionState.Buffering);
+
+            await using (var writer = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+            {
+                await writer.WriteAsync(wav.AsMemory(initialLength), Token);
+            }
+
+            await harness.FinishAsync();
+
+            Assert.Equal(80_000, harness.Recording.Channel(0).Length);
+            Assert.Contains(SessionState.Buffering, harness.States);
+            Assert.Equal(SessionState.Ended, harness.Session.State);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Fact]

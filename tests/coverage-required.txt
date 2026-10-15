@@ -194,6 +194,7 @@ PictureTimeline.cs
 PictureView.cs
 PixelFormat.cs
 Playback.cs
+Playback.GrowingFile.cs
 Playback.Video.cs
 PlayerController.cs
 PlayerController.EpisodeSections.cs
