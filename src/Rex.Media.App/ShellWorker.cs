@@ -104,7 +104,15 @@ internal sealed class ShellWorker : IDisposable
 
     public void Dispose()
     {
-        Post(() => _stopping = true);
+        lock (_gate)
+        {
+            if (!_stopping)
+            {
+                _stopping = true;
+                _wake.Set();
+            }
+        }
+
         // A shell COM call may outlast the join timeout. Let the worker close its own
         // wait handle after it exits, rather than racing its next WaitOne.
         _thread.Join(TimeSpan.FromSeconds(2));
@@ -114,10 +122,14 @@ internal sealed class ShellWorker : IDisposable
     {
         lock (_gate)
         {
-            change();
-        }
+            if (_stopping)
+            {
+                return;
+            }
 
-        _wake.Set();
+            change();
+            _wake.Set();
+        }
     }
 
     private void Run()
