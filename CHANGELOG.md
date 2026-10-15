@@ -17,6 +17,8 @@ pipeline the moment its number reaches `main`.
 
 - **Short audio starts from the beginning.** Skip the resume prompt for short audio files,
   with a configurable duration threshold.
+- **Whole-player performance measurements.** Report processor use for timed scenarios and
+  start-to-end memory changes during playback, UI and library scenarios alongside peak metrics.
 
 ### Fixed
 
