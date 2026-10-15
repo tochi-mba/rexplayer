@@ -88,7 +88,20 @@ public sealed partial class MainWindow
         var whatPlays = Check("Transcribe whatever I play, from where I am, ahead of the playhead", t.WhatPlays);
         var whilePlaying = Check("Keep transcribing the library while something plays (it uses one processor thread)", t.WhilePlaying);
         var battery = Check("Keep transcribing the library on battery power", t.OnBattery);
-        var hold = Check("Pause playback briefly when it catches up with the subtitles", t.HoldForSubtitles);
+        // This is the same opt-in hold used by progressive captions, not a second buffering mode.
+        // Explain the potentially long initial wait and the escape hatch before the user opts in.
+        var hold = Check("Wait for subtitles before playing", t.HoldForSubtitles);
+        var holdHint = new TextBlock
+        {
+            Text = "When subtitles are being generated, wait for enough to avoid interruptions. This may take a while on slower computers. Choose Play now to skip the wait.",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(32, 0, 0, 8),
+            Opacity = 0.75,
+        };
+        AutomationProperties.SetHelpText(hold, holdHint.Text);
+        var holdGroup = new StackPanel { Spacing = 2 };
+        holdGroup.Children.Add(hold);
+        holdGroup.Children.Add(holdHint);
         AutomationProperties.SetAutomationId(music, "PreferencesTranscribeMusic");
         AutomationProperties.SetAutomationId(whatPlays, "PreferencesTranscribeWhatPlays");
         AutomationProperties.SetAutomationId(whilePlaying, "PreferencesTranscribeWhilePlaying");
@@ -161,7 +174,7 @@ public sealed partial class MainWindow
         UIElement[] controls =
         [
             new TextBlock { Text = "Subtitles made from the speech, on this computer: what plays is heard from where it plays, its subtitles appearing as they are heard, and the library ahead of time.", TextWrapping = TextWrapping.Wrap },
-            library, scope, folders, leftOut, leaveOut, music, whatPlays, whilePlaying, battery, hold, model, language, modelLine, download, storage, clearing,
+            library, scope, folders, leftOut, leaveOut, music, whatPlays, holdGroup, whilePlaying, battery, model, language, modelLine, download, storage, clearing,
         ];
         return (controls, settings => settings with
         {

@@ -838,6 +838,11 @@ public sealed partial class MainWindow
             SubtitleBufferState.Text = label;
         }
 
+        CaptionBufferOverlay.Visibility = _holdingForSubtitles ? Visibility.Visible : Visibility.Collapsed;
+        CaptionBufferOverlayText.Text = _holdingForSubtitles
+            ? label + ". Playback will start automatically when enough captions are ready."
+            : "";
+
         if (AutomationProperties.GetName(TranscriptRail) != view.ToolTip)
         {
             AutomationProperties.SetName(TranscriptRail, view.ToolTip);
@@ -875,6 +880,7 @@ public sealed partial class MainWindow
         {
             _holdingForSubtitles = false;
             _subtitleHoldOverridden = true;
+            ShowSubtitleBufferState(force: true);
             return;
         }
 
@@ -893,15 +899,29 @@ public sealed partial class MainWindow
                 _holdingForSubtitles = true;
                 _player.Pause();
                 Say("Preparing enough subtitles to play through without interruptions. This may take a while on slower computers.");
+                ShowSubtitleBufferState(force: true);
                 break;
             case HoldAction.Release:
                 _holdingForSubtitles = false;
+                ShowSubtitleBufferState(force: true);
                 if (_player.State == SessionState.Paused)
                 {
                     _player.Execute(CommandCatalog.PlayPause);
                 }
 
                 break;
+        }
+    }
+
+    /// <summary>Lets the viewer explicitly trade uninterrupted captions for immediate playback.</summary>
+    private void OnPlayWithoutCaptionBuffer(object sender, RoutedEventArgs e)
+    {
+        _holdingForSubtitles = false;
+        _subtitleHoldOverridden = true;
+        ShowSubtitleBufferState(force: true);
+        if (!_player.IsPlaying)
+        {
+            _player.Execute(CommandCatalog.PlayPause);
         }
     }
 

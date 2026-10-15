@@ -41,7 +41,7 @@ public sealed record TranscriptionSettings
     /// <summary>The library goes on being transcribed on battery power; otherwise it waits for the charger.</summary>
     public bool OnBattery { get; init; }
 
-    /// <summary>When playback catches up with the transcription, it pauses until the subtitles are a little ahead again.</summary>
+    /// <summary>Opt-in waiting for enough generated subtitles to avoid rebuffering; playback can be manually resumed at any time.</summary>
     public bool HoldForSubtitles { get; init; }
 
     /// <summary>The user paused the background transcription; it stays paused until they resume it.</summary>
