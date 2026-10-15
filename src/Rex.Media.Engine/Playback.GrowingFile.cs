@@ -23,14 +23,20 @@ public sealed partial class MediaSession
             var observed = growing.Extent;
             StartFileBuffering();
             ByteSourceChange change;
+            using var waitCancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime, GenerationToken(generation));
             try
             {
-                change = growing.WaitForChange(observed, _session._options.GrowingFileStallTimeout, GenerationToken(generation));
+                change = growing.WaitForChange(observed, _session._options.GrowingFileStallTimeout, waitCancellation.Token);
             }
             catch (OperationCanceledException) when (!lifetime.IsCancellationRequested)
             {
                 StopFileBuffering();
                 return true;
+            }
+            catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+            {
+                StopFileBuffering();
+                throw;
             }
 
             StopFileBuffering();

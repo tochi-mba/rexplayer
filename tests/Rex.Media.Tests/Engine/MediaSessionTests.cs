@@ -81,7 +81,8 @@ public sealed class MediaSessionTests
     [InlineData(ByteSourceChange.Truncated)]
     [InlineData(ByteSourceChange.Replaced)]
     [InlineData(ByteSourceChange.TimedOut)]
-    public async Task AChangedOrStalledGrowingSourceEndsAfterItsWaitPolicy(ByteSourceChange firstChange)
+    [InlineData(ByteSourceChange.Grew)]
+    public async Task AChangedOrStalledGrowingSourceFollowsItsWaitPolicy(ByteSourceChange firstChange)
     {
         using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], firstChange, ByteSourceChange.TimedOut);
         using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
@@ -92,6 +93,24 @@ public sealed class MediaSessionTests
 
         Assert.Equal(SessionState.Ended, harness.Session.State);
         Assert.Contains(SessionState.Buffering, harness.States);
+    }
+
+    [Fact]
+    public async Task ReplacingBufferedPlaybackIgnoresItsLateBufferingCallback()
+    {
+        using var waitEntered = new ManualResetEventSlim();
+        using var source = new ScriptedGrowingSource(
+            Pcm.RampWav(8000, 80_000)[..(44 + 4000)],
+            waitEntered);
+        using var harness = new SessionHarness(autoPlay: false, growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+        await harness.Session.OpenAsync(source);
+        Assert.True(waitEntered.Wait(TimeSpan.FromSeconds(5), Token));
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Ramp));
+        await harness.Session.GetStatsAsync();
+
+        Assert.Equal(SessionState.Ready, harness.Session.State);
     }
 
     [Fact]
@@ -513,9 +532,15 @@ public sealed class MediaSessionTests
     {
         private readonly Queue<ByteSourceChange> _changes = new(changes);
         private readonly bool _cancelFirstWait;
+        private ManualResetEventSlim? _waitEntered;
         private int _waits;
 
         public ScriptedGrowingSource(byte[] data, bool cancelFirstWait) : this(data) => _cancelFirstWait = cancelFirstWait;
+
+        public ScriptedGrowingSource(byte[] data, ManualResetEventSlim waitEntered) : this(data, ByteSourceChange.Grew)
+        {
+            _waitEntered = waitEntered;
+        }
 
         public string Name => "growing.wav";
 
@@ -540,6 +565,13 @@ public sealed class MediaSessionTests
 
         public ByteSourceChange WaitForChange(ByteSourceExtent observed, TimeSpan timeout, CancellationToken cancellationToken)
         {
+            if (_waitEntered is not null)
+            {
+                _waitEntered.Set();
+                cancellationToken.WaitHandle.WaitOne();
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             if (_cancelFirstWait && _waits++ == 0)
             {
                 cancellationToken.WaitHandle.WaitOne();

@@ -39,6 +39,34 @@ public sealed class ByteSourceTests : IDisposable
     }
 
     [Fact]
+    public void AFileSourceReportsGrowthAfterTheObservedExtent()
+    {
+        File.WriteAllBytes(_path, [1]);
+        using var source = new FileByteSource(_path);
+        var observed = source.Extent;
+        var lastWrite = File.GetLastWriteTimeUtc(_path);
+        using (var writer = new FileStream(_path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+        {
+            writer.Write([2, 3]);
+        }
+
+        File.SetLastWriteTimeUtc(_path, lastWrite);
+
+        Assert.Equal(ByteSourceChange.Grew, source.WaitForChange(observed, TimeSpan.Zero, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void AFileSourceReportsWhenItsPathDisappears()
+    {
+        File.WriteAllBytes(_path, [1]);
+        using var source = new FileByteSource(_path);
+        var observed = source.Extent;
+        File.Delete(_path);
+
+        Assert.Equal(ByteSourceChange.TimedOut, source.WaitForChange(observed, TimeSpan.Zero, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public void AFileSourceRejectsBadArgumentsAndCancellation()
     {
         File.WriteAllBytes(_path, [1]);
