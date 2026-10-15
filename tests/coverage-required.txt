@@ -4,6 +4,7 @@ AacConfig.cs
 AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+AuDemuxer.cs
 AnalysisConverter.cs
 Ass.cs
 Asx.cs
