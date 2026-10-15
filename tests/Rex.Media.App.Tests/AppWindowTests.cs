@@ -536,11 +536,18 @@ public sealed class AppWindowTests : IDisposable
         File.WriteAllText(Path.Combine(root, "settings.json"), $$"""{ "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off", "pictureSeconds": 1 }""");
         using var app = AppProcess.Start([_media], root);
 
-        // The folder is a slideshow: each picture in turn, a second each, the GIF moving.
-        Wait.For(() => app.Text("NowPlaying") == "anim", "the GIF");
-        Wait.For(() => app.Text("NowPlaying") == "photo", "the next picture");
+        // Each image stays on screen for one second; Windows UI automation may only
+        // attach after an early title has already gone. Observe the durable playback
+        // log instead, and still prove that every image opens in slideshow order.
+        Wait.For(() => app.LogText.Contains("Opened anim.gif as", StringComparison.Ordinal), "the GIF to open");
+        Wait.For(() => app.LogText.Contains("Opened photo.jpg as", StringComparison.Ordinal), "the JPEG to open");
         Wait.For(() => app.LogText.Contains("Opened photo.png as PNG", StringComparison.Ordinal), "the last picture");
-        Assert.Contains("Video: GIF via rexplayer GIF into Direct3D 11", app.LogText, StringComparison.Ordinal);
+        var log = app.LogText;
+        var gif = log.IndexOf("Opened anim.gif as", StringComparison.Ordinal);
+        var jpeg = log.IndexOf("Opened photo.jpg as", StringComparison.Ordinal);
+        var png = log.IndexOf("Opened photo.png as PNG", StringComparison.Ordinal);
+        Assert.True(gif >= 0 && gif < jpeg && jpeg < png, "Pictures did not open in slideshow order.");
+        Assert.Contains("Video: GIF via rexplayer GIF into Direct3D 11", log, StringComparison.Ordinal);
         Assert.DoesNotContain("could not be played", app.LogText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
