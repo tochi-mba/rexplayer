@@ -699,14 +699,14 @@
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
           </Grid>
 
-          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="OnLibraryDoubleTapped" KeyDown="OnLibraryKeyDown"
+          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" KeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
 
           <ItemsView x:Name="LibraryCollage" Grid.Row="2" Visibility="Collapsed" Padding="18,0,18,8"
                      SelectionMode="Extended" ItemTemplate="{StaticResource LibraryCollageTemplate}"
-                     DoubleTapped="OnCollageDoubleTapped" KeyDown="OnCollageKeyDown"
+                     Tapped="OnCollageTapped" DoubleTapped="OnCollageDoubleTapped" KeyDown="OnCollageKeyDown"
                      AutomationProperties.AutomationId="LibraryCollage" AutomationProperties.Name="Justified collage, select or open media">
             <ItemsView.Layout>
               <LinedFlowLayout ItemsStretch="Fill" LineHeight="180" LineSpacing="6" MinItemSpacing="6"
@@ -735,7 +735,7 @@
         </Grid.RowDefinitions>
         <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="6,2,0,10" />
         <ListView x:Name="PlaylistView" Grid.Row="1" SelectionMode="Extended" IsItemClickEnabled="False" CanReorderItems="False"
-                  DoubleTapped="OnPlaylistDoubleTapped" KeyDown="OnPlaylistKeyDown"
+                  Tapped="OnPlaylistTapped" DoubleTapped="OnPlaylistDoubleTapped" KeyDown="OnPlaylistKeyDown"
                   AutomationProperties.AutomationId="PlaylistView" AutomationProperties.Name="Playlist">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:PlaylistRow">

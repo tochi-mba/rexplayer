@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.Settings;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.System;
@@ -252,10 +253,36 @@ public sealed partial class MainWindow
 
     private void OnPlaylistDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        if (PlaylistView.SelectedIndex >= 0)
+        if (_settings.MediaOpenClickMode == MediaOpenClick.DoubleClick && TappedPlaylistIndex(e.OriginalSource) is var index && index >= 0)
         {
-            _player.PlayAt(PlaylistView.SelectedIndex);
+            _player.PlayAt(index);
         }
+    }
+
+    private void OnPlaylistTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick && TappedPlaylistIndex(e.OriginalSource) is var index && index >= 0)
+        {
+            _player.PlayAt(index);
+        }
+    }
+
+    private int TappedPlaylistIndex(object source)
+    {
+        if (source is not DependencyObject current)
+        {
+            return -1;
+        }
+
+        for (; current is not null; current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current))
+        {
+            if (current is FrameworkElement { DataContext: PlaylistRow row })
+            {
+                return PlaylistView.Items.IndexOf(row);
+            }
+        }
+
+        return -1;
     }
 
     private void OnPlaylistKeyDown(object sender, KeyRoutedEventArgs e)

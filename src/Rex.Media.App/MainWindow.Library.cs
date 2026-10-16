@@ -4,9 +4,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.VisualBasic.FileIO;
 using Windows.Storage.Pickers;
@@ -555,7 +557,39 @@ public sealed partial class MainWindow
 
     private void OnLibraryEnqueue(object sender, RoutedEventArgs e) => EnqueueChosen();
 
-    private void OnLibraryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => Activate(LibraryList.SelectedItem as LibraryRow);
+    private void OnLibraryTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
+        {
+            Activate(TappedRow(e.OriginalSource));
+        }
+    }
+
+    private void OnLibraryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (_settings.MediaOpenClickMode == MediaOpenClick.DoubleClick)
+        {
+            Activate(TappedRow(e.OriginalSource) ?? LibraryList.SelectedItem as LibraryRow);
+        }
+    }
+
+    private static LibraryRow? TappedRow(object source)
+    {
+        if (source is not DependencyObject current)
+        {
+            return null;
+        }
+
+        for (; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is FrameworkElement { DataContext: LibraryRow row })
+            {
+                return row;
+            }
+        }
+
+        return null;
+    }
 
     private void OnLibraryKeyDown(object sender, KeyRoutedEventArgs e)
     {

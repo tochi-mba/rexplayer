@@ -623,7 +623,7 @@ public sealed partial class MainWindow
             ItemTemplate = (DataTemplate)Root.Resources[template],
             ItemsPanel = (ItemsPanelTemplate)XamlReader.Load("""<ItemsPanelTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><ItemsStackPanel Orientation="Horizontal" /></ItemsPanelTemplate>"""),
             SelectionMode = ListViewSelectionMode.None,
-            IsItemClickEnabled = true,
+            IsItemClickEnabled = _settings.MediaOpenClickMode == MediaOpenClick.SingleClick,
             Height = height + 16,
             ItemContainerStyle = CardStyle(width, height),
         };
@@ -634,7 +634,21 @@ public sealed partial class MainWindow
         AutomationProperties.SetName(cards, title);
         AutomationProperties.SetAutomationId(cards, "LibraryShelfCards-" + see);
         cards.ContainerContentChanging += OnLibraryRowShown;
-        cards.ItemClick += (_, e) => OpenFromShelf(see, rows, (LibraryRow)e.ClickedItem);
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
+        {
+            cards.ItemClick += (_, e) => OpenFromShelf(see, rows, (LibraryRow)e.ClickedItem);
+        }
+        else
+        {
+            cards.DoubleTapped += (_, e) =>
+            {
+                if (TappedRow(e.OriginalSource) is { } row)
+                {
+                    OpenFromShelf(see, rows, row);
+                }
+            };
+        }
+
         shelf.Children.Add(cards);
         return shelf;
     }
