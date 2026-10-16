@@ -1,7 +1,7 @@
 using System.IO;
 using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
-using Rex.Media.Primitives;
+using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
 
