@@ -63,7 +63,9 @@ public sealed class MediaFilesTests
 
         Assert.Equal(["C:\\Videos\\clip.MKV", "C:\\Videos"], supported);
         Assert.Equal(2, skipped);
-        Assert.Equal((Array.Empty<string>(), 0), MediaFiles.FilterClipboardText(" \r\n ", _ => false));
+        var (empty, emptySkipped) = MediaFiles.FilterClipboardText(" \r\n ", _ => false);
+        Assert.Empty(empty);
+        Assert.Equal(0, emptySkipped);
         Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardText(null!, _ => false));
         Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardText("", null!));
     }
