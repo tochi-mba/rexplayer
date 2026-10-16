@@ -119,6 +119,25 @@ public sealed class DeviceProfileTests
     }
 
     [Fact]
+    public void PerformanceModesReduceResourceBudgetsMonotonically()
+    {
+        var best = DeviceProfile.For(PerformanceTier.BestQuality, Capable);
+        var balanced = DeviceProfile.For(PerformanceTier.Balanced, Capable);
+        var fastest = DeviceProfile.For(PerformanceTier.Fastest, Capable);
+
+        Assert.True(best.VisualMaxSide >= balanced.VisualMaxSide && balanced.VisualMaxSide >= fastest.VisualMaxSide);
+        Assert.True(best.VisualFrameMilliseconds <= balanced.VisualFrameMilliseconds && balanced.VisualFrameMilliseconds <= fastest.VisualFrameMilliseconds);
+        Assert.True(best.VideoQueueCapacity >= balanced.VideoQueueCapacity && balanced.VideoQueueCapacity >= fastest.VideoQueueCapacity);
+        Assert.True(best.AudioQueueCapacity >= balanced.AudioQueueCapacity && balanced.AudioQueueCapacity >= fastest.AudioQueueCapacity);
+        Assert.True(best.LibraryPictureSide >= balanced.LibraryPictureSide && balanced.LibraryPictureSide >= fastest.LibraryPictureSide);
+        Assert.True(best.LibraryPicturesAtOnce >= balanced.LibraryPicturesAtOnce && balanced.LibraryPicturesAtOnce >= fastest.LibraryPicturesAtOnce);
+        Assert.True(best.SubjectStep <= balanced.SubjectStep && balanced.SubjectStep <= fastest.SubjectStep);
+        Assert.True(best.Allows(VideoEffect.NeonEdges));
+        Assert.True(balanced.Allows(VideoEffect.NeonEdges));
+        Assert.False(fastest.Allows(VideoEffect.NeonEdges));
+    }
+
+    [Fact]
     public void WindowsWithoutAnimationsTurnsTheWindowsOffOnEveryTier()
     {
         Assert.False(DeviceProfile.For(PerformanceTier.BestQuality, Capable with { SystemAnimations = false }).Animations);
