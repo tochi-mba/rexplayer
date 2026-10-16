@@ -106,10 +106,12 @@ public sealed class DeviceProfileTests
         Assert.Equal((true, false, true, false, false), (budget.HeavyEffectsOff, budget.TranscribeWhilePlaying, budget.LeanLaunch, budget.SeekPreview, budget.Animations));
         Assert.Equal(TranscriptModelChoice.Tiny, budget.SpeechModel(TranscriptModelChoice.Base));
         Assert.False(budget.Allows(VideoEffect.NeonEdges));
+        Assert.False(budget.Allows(VideoEffect.TopographicContours));
+        Assert.False(budget.Allows(VideoEffect.ZoomBurst));
         Assert.True(budget.Allows(VideoEffect.Halftone));
         var changes = DeviceProfile.Changes(budget);
         Assert.Equal(8, changes.Count);
-        Assert.Contains("The heaviest picture effects stay off (Bokeh, Chromatic contours, Fireflies, Flow field, Ghostwire, Ghostwire mask mode, Ghostwire motion, Ink trace, Lumen weave, Neon contours). Choosing one says so.", changes);
+        Assert.Contains("The heaviest picture effects stay off (Aurora, Bokeh, Bubbles, Brick build, Cel shade, Chromatic contours, Confetti, Cube mosaic, Depth haze, Electric edges, Fireflies, Flow field, Ghostwire, Ghostwire mask mode, Ghostwire motion, Hologram, Ink trace, Lens bloom, Lumen weave, Neon contours, Oil paint, Parallax, Pinball, Pixel sort, Rain on glass, Scan sweep, Shatter, Snow settle, Sonar ping, Stained glass, Stipple engrave, Torchlight, Topographic contours, Zoom burst). Choosing one says so.", changes);
         Assert.Contains("Transcription uses at most the Tiny speech model, and the library waits while something plays.", changes);
         Assert.Contains("Subject Lock follows its subject in a half-size copy of each picture.", changes);
         Assert.Contains("The timeline shows no preview picture under the pointer.", changes);

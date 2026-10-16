@@ -113,15 +113,21 @@ public static class DeviceProfile
     private const long Gigabyte = 1024L * 1024 * 1024;
 
     /// <summary>
-    /// The picture effects that cost the most on the graphics card: each took over 25 ms a full-HD
-    /// frame on built-in graphics (the performance suite's effect-1080p-gpu-ms measures), close to
-    /// a whole frame's time at thirty a second, and many times that drawn in software.
+    /// The picture effects measured above 100 ms per full-HD frame in the supplied Windows CI
+    /// measurements. At that cost they are far beyond a real-time frame budget, so Fastest leaves
+    /// them off; lower-cost effects remain available.
     /// </summary>
     public static IReadOnlySet<VideoEffect> HeavyEffects { get; } = new HashSet<VideoEffect>
     {
-        VideoEffect.GhostwireMotion, VideoEffect.ChromaticContours, VideoEffect.LumenWeave, VideoEffect.Fireflies,
-        VideoEffect.NeonEdges, VideoEffect.GhostwireMask, VideoEffect.Ghostwire, VideoEffect.FlowField,
-        VideoEffect.InkTrace, VideoEffect.Bokeh,
+        VideoEffect.GhostwireMotion, VideoEffect.ChromaticContours, VideoEffect.Fireflies, VideoEffect.LumenWeave,
+        VideoEffect.Ghostwire, VideoEffect.GhostwireMask, VideoEffect.InkTrace, VideoEffect.NeonEdges,
+        VideoEffect.Bokeh, VideoEffect.FlowField, VideoEffect.LensBloom, VideoEffect.Confetti,
+        VideoEffect.OilPaint, VideoEffect.TopographicContours, VideoEffect.ZoomBurst, VideoEffect.BrickBuild,
+        VideoEffect.SnowSettle, VideoEffect.Pinball, VideoEffect.Bubbles, VideoEffect.StainedGlass,
+        VideoEffect.StippleEngrave, VideoEffect.RainGlass, VideoEffect.Shatter, VideoEffect.PixelSort,
+        VideoEffect.Parallax, VideoEffect.Hologram, VideoEffect.Aurora, VideoEffect.ElectricEdges,
+        VideoEffect.ScanSweep, VideoEffect.CelShade, VideoEffect.SonarPing, VideoEffect.HeatHaze,
+        VideoEffect.DepthHaze, VideoEffect.Torchlight, VideoEffect.CubeMosaic,
     };
 
     /// <summary>The software rasteriser's vendor id: a graphics device in name only.</summary>
