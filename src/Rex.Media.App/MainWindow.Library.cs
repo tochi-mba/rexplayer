@@ -165,6 +165,12 @@ public sealed partial class MainWindow
 
     private void SetLibraryOpen(bool open)
     {
+        var opening = open && !LibraryOpen;
+        if (!open && LibraryOpen)
+        {
+            KeepLibraryViewport();
+        }
+
         // Only a transition into the library can pause playback. A paused item stays paused,
         // and closing the library never restarts it or changes the seek position.
         if (open && !LibraryOpen && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
@@ -177,11 +183,12 @@ public sealed partial class MainWindow
         LibraryButton.IsChecked = open;
         if (open)
         {
-            _shownLibrary = "";
-            if (!RevealCurrentLibraryItem())
+            if (!opening || !_settings.OpenLibraryAtPlayingItem || !RevealCurrentLibraryItem())
             {
                 ShowLibrary();
+                RestoreLibraryViewport();
             }
+            ResumeLibraryPictures();
             ShowLibraryStatus();
             if (LibraryCollage.Visibility == Visibility.Visible)
             {

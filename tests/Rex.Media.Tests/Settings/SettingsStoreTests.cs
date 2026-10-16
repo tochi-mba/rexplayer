@@ -35,6 +35,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Empty(settings.Shortcuts);
         Assert.False(settings.SeekPreview);
         Assert.Equal(MediaOpenClick.DoubleClick, settings.MediaOpenClickMode);
+        Assert.True(settings.OpenLibraryAtPlayingItem);
     }
 
     [Fact]
@@ -53,6 +54,7 @@ public sealed class SettingsStoreTests : IDisposable
             LastSeenVersion = "0.4.0",
             Shortcuts = new Dictionary<string, string> { ["play-pause"] = "Ctrl+P", ["stop"] = "" },
             SeekPreview = true,
+            OpenLibraryAtPlayingItem = false,
             LibraryViews = new Dictionary<string, LibraryViewChoice> { ["Albums"] = new(LibraryLook.Wall, LibrarySort.MostPlayed, true, LibraryGrouping.Letter, 240) },
         };
 

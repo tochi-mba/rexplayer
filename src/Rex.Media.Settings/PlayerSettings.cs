@@ -547,6 +547,9 @@ public sealed record PlayerSettings
     /// <summary>Whether a library item opens on one click or two.</summary>
     public MediaOpenClick MediaOpenClickMode { get; init; } = Rex.Media.Settings.MediaOpenClick.DoubleClick;
 
+    /// <summary>Opening the library reveals the playing item; otherwise it returns to the current browsing location.</summary>
+    public bool OpenLibraryAtPlayingItem { get; init; } = true;
+
     /// <summary>With <see cref="PauseWhenLibraryOpens"/>, music and other sound-only items keep playing while the library is open.</summary>
     public bool KeepAudioPlayingInLibrary { get; init; } = true;
 
