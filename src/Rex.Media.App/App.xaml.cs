@@ -16,6 +16,7 @@ namespace Rex.Media.App;
 public partial class App : Application
 {
     private static readonly TimeSpan FindRunningPlayer = TimeSpan.FromMilliseconds(300);
+    private PlayerSettings? _startupSettings;
 
     public App()
     {
@@ -27,9 +28,10 @@ public partial class App : Application
         // A launch that will hand its files to a running player has nothing to warm up.
         if (!AutomationPipe.IsServed(AutomationPipe.NameForCurrentUser))
         {
-            // A weak computer warms only what an empty launch shows (DeviceBudget.LeanLaunch),
-            // judged from what costs nothing to read: reading the settings or asking Windows about
-            // the power first delayed every warm-up by as much as a second.
+            // Fastest and a weak Automatic profile warm only what an empty launch shows. Read the
+            // settings here so an explicit mode governs startup too, then reuse the same read when
+            // the window is created.
+            _startupSettings = SettingsStore.Load(SettingsPath);
             var facts = new Rex.Media.AppCore.Performance.DeviceFacts
             {
                 Processors = Environment.ProcessorCount,
@@ -37,7 +39,8 @@ public partial class App : Application
                 Graphics = SoftwareGraphics ? Rex.Media.AppCore.Performance.GraphicsKind.Software : Rex.Media.AppCore.Performance.GraphicsKind.Unknown,
                 HardwareDecoding = GraphicsCardDecoding ? null : [],
             };
-            var lean = Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Classify(facts), facts).LeanLaunch;
+            var tier = Rex.Media.AppCore.Performance.DeviceProfile.Choose(_startupSettings.Performance, facts);
+            var lean = Rex.Media.AppCore.Performance.DeviceProfile.For(tier, facts).LeanLaunch;
             Warmup = LaunchWarmup.Start(Environment.GetCommandLineArgs().Length > 1, Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") != "1", lean);
         }
 
@@ -129,7 +132,8 @@ public partial class App : Application
         Log.Debug("app", "Command line: " + string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(arg => "\"" + arg + "\"")));
         var (launchFiles, launchCommand) = JumpListPlan.ParseLaunch(Environment.GetCommandLineArgs().Skip(1).ToArray());
         var files = launchFiles.Select(Located).ToList();
-        var settings = SettingsStore.Load(SettingsPath);
+        var settings = _startupSettings ?? SettingsStore.Load(SettingsPath);
+        _startupSettings = null;
         var pipe = AutomationPipe.NameForCurrentUser;
 
         // Only a player that is there can be handed to: with none, there is nothing to wait for.
