@@ -208,6 +208,7 @@ public sealed partial class MainWindow
 
         content.Children.Add(Heading("Library"));
         content.Children.Add(libraryOpening);
+        content.Children.Add(mediaOpenClick);
         content.Children.Add(pauseLibrary);
         content.Children.Add(keepLibraryAudio);
 
@@ -245,7 +246,9 @@ public sealed partial class MainWindow
         bool saved;
         try
         {
-            saved = await Ask("Preferences", new ScrollViewer { Content = content, MaxHeight = 560 }, "Save");
+            var scroll = new ScrollViewer { Content = content, MaxHeight = 560 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(scroll, "PreferencesScroll");
+            saved = await Ask("Preferences", scroll, "Save");
         }
         finally
         {
