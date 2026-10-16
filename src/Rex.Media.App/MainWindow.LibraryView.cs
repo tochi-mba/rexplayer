@@ -186,7 +186,7 @@ public sealed partial class MainWindow
                 LibrarySource.Videos => LibraryViews.Videos(entries),
                 LibrarySource.Pictures => LibraryViews.Pictures(entries),
                 LibrarySource.ContinueWatching => LibraryViews.ContinueWatching(entries, _player.LeftAt),
-                LibrarySource.RecentlyPlayed => LibraryViews.RecentlyPlayed(entries),
+                LibrarySource.RecentlyPlayed => LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)),
                 LibrarySource.RecentlyAdded => LibraryViews.RecentlyAdded(entries),
                 _ => null,
             };
@@ -577,7 +577,7 @@ public sealed partial class MainWindow
         var shelves = new (string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)[]
         {
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
-            ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
+            ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
             ("Your most played", LibrarySource.Songs, [.. entries.Where(entry => entry.Kind == LibraryKind.Music && entry.Plays > 0).OrderByDescending(entry => entry.Plays).Take(20).Select(EntryRow)], false),
             ("New in your library", LibrarySource.RecentlyAdded, [.. recent.Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
             ("Albums", LibrarySource.Albums, [.. LibraryArrangement.Sort(LibraryViews.Albums(entries), LibrarySort.Added, false).Take(20).Select(GroupRow)], false),
