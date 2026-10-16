@@ -177,8 +177,7 @@ public sealed partial class MainWindow
         LibraryButton.IsChecked = open;
         if (open)
         {
-            _shownLibrary = "";
-            if (!RevealCurrentLibraryItem())
+            if (!_settings.OpenLibraryAtPlayingItem || !RevealCurrentLibraryItem())
             {
                 ShowLibrary();
             }
