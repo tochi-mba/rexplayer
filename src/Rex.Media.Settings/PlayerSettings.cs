@@ -550,6 +550,12 @@ public sealed record PlayerSettings
     /// <summary>Opening the library reveals the playing item; otherwise it returns to the current browsing location.</summary>
     public bool OpenLibraryAtPlayingItem { get; init; } = true;
 
+    /// <summary>Opening the library leaves full screen so browsing has the normal window chrome.</summary>
+    public bool LeaveFullScreenWhenLibraryOpens { get; init; } = true;
+
+    /// <summary>Starting media from the library closes it and returns to the player.</summary>
+    public bool ShowPlayerWhenLibraryMediaStarts { get; init; } = true;
+
     /// <summary>With <see cref="PauseWhenLibraryOpens"/>, music and other sound-only items keep playing while the library is open.</summary>
     public bool KeepAudioPlayingInLibrary { get; init; } = true;
 

@@ -166,6 +166,11 @@ public sealed partial class MainWindow
     private void SetLibraryOpen(bool open)
     {
         var opening = open && !LibraryOpen;
+        if (opening && IsFullScreen && _settings.LeaveFullScreenWhenLibraryOpens)
+        {
+            SetFullScreen(false);
+        }
+
         if (!open && LibraryOpen)
         {
             KeepLibraryViewport();
@@ -582,70 +587,6 @@ public sealed partial class MainWindow
                 _ = ChooseLibraryDeletionAsync();
                 e.Handled = true;
                 break;
-        }
-    }
-
-    private void PlayChosen()
-    {
-        var chosen = SelectedLibraryRows();
-        if (chosen is [{ Item: LibraryEntry }])
-        {
-            Activate(chosen[0]);
-            return;
-        }
-
-        if (ChosenRows() is [{ Item: NamedPlaylist playlist }, ..])
-        {
-            _player.PlayPlaylist(playlist.Id);
-            return;
-        }
-
-        Play(EntriesOf(ChosenRows()), 0);
-    }
-
-    private void EnqueueChosen()
-    {
-        var rows = ChosenRows();
-        foreach (var playlist in rows.Select(row => row.Item).OfType<NamedPlaylist>())
-        {
-            _player.PlayPlaylist(playlist.Id, enqueue: true);
-        }
-
-        var entries = EntriesOf(rows);
-        if (entries.Count > 0)
-        {
-            _player.EnqueueFromLibrary(entries);
-            Say($"Added {LibraryActions.Count(entries.Count, "item")} to the playlist");
-        }
-    }
-
-    /// <summary>Plays from the library; visual media closes the library so its picture shows.</summary>
-    private void Play(IReadOnlyList<LibraryEntry> entries, int start, bool resume = false)
-    {
-        if (entries.Count == 0)
-        {
-            Say("There is nothing here to play yet.");
-            return;
-        }
-
-        var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
-        var resumeAt = resume || _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
-        if (chosen.Kind is LibraryKind.Video or LibraryKind.Picture)
-        {
-            // Let the pane disappear and the window paint before opening a potentially large image
-            // or video. Its probing and decoding stay on the engine threads, never this UI turn.
-            SetLibraryOpen(false);
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
-            {
-                if (!_closing)
-                {
-                    _player.PlayFromLibrary(entries, start, resumeAt);
-                }
-            });
-        }
-        else
-        {
-            _player.PlayFromLibrary(entries, start, resumeAt);
         }
     }
 
