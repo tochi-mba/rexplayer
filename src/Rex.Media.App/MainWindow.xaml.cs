@@ -36,6 +36,7 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherQueueTimer _osdTimer;
     private readonly DispatcherQueueTimer _saveTimer;
     private readonly DispatcherQueueTimer _controlsTimer;
+    private readonly DispatcherQueueTimer _pointerTimer;
     private readonly DispatcherQueueTimer _statsTimer;
     private readonly DispatcherQueueTimer _resumeTimer;
     private readonly DispatcherQueueTimer _sleepTimer;
@@ -105,6 +106,7 @@ public sealed partial class MainWindow : Window
         _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
         _controlsTimer = Timer(TimeSpan.FromSeconds(_settings.ControlsHideSeconds), HideFullScreenControls);
+        _pointerTimer = Timer(TimeSpan.FromSeconds(1.5), HideFullScreenPointer);
         _statsTimer = Timer(TimeSpan.FromSeconds(1), () => _ = RefreshStatsAsync());
         _statsTimer.IsRepeating = true;
         _resumeTimer = Timer(TimeSpan.FromSeconds(5), RememberWhereWeAre);
