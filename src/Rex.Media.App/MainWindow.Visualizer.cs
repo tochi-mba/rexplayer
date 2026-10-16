@@ -152,6 +152,33 @@ public sealed partial class MainWindow
         // The worker owns the stage until its frame finishes. Reset between frames, never during one.
         _stageReset = true;
         StopCamera();
+        ReleaseVisualizerMemoryWhenIdle();
+    }
+
+    /// <summary>
+    /// Releases full-frame visual buffers once an in-flight draw has stopped using them. A later
+    /// song rebuilds the chosen visualisation; video and idle screens do not retain its canvas.
+    /// </summary>
+    private void ReleaseVisualizerMemoryWhenIdle()
+    {
+        if (_stageWork is { IsCompleted: false } work)
+        {
+            _ = work.ContinueWith(_ => DispatcherQueue.TryEnqueue(ReleaseVisualizerMemoryWhenIdle),
+                CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            return;
+        }
+
+        if (_visualizing)
+        {
+            return;
+        }
+
+        _stageWork = null;
+        _visualStage = null;
+        _visualBitmap = null;
+        _visualCover = null;
+        _builtFor = null;
+        SpectrogramImage.Source = null;
     }
 
     private bool RunVisualizerCommand(string command)
