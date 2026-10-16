@@ -90,10 +90,10 @@ public sealed partial class MainWindow
         var battery = Check("Keep transcribing the library on battery power", t.OnBattery);
         // This is the same opt-in hold used by progressive captions, not a second buffering mode.
         // Explain the potentially long initial wait and the escape hatch before the user opts in.
-        var hold = Check("Wait for subtitles before playing", t.HoldForSubtitles);
+        var hold = Check("Wait for generated subtitles before playing", t.HoldForSubtitles);
         var holdHint = new TextBlock
         {
-            Text = "When subtitles are being generated, wait for enough to avoid interruptions. This may take a while on slower computers. Choose Play now to skip the wait.",
+            Text = "If the selected caption source needs a transcript, wait for enough words to avoid gaps. Existing usable subtitles play without waiting unless kinetic captions are set to transcript-only. Choose Play now to skip the wait.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(32, 0, 0, 8),
             Opacity = 0.75,
