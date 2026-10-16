@@ -106,16 +106,40 @@ public sealed class DeviceProfileTests
         Assert.Equal((true, false, true, false, false), (budget.HeavyEffectsOff, budget.TranscribeWhilePlaying, budget.LeanLaunch, budget.SeekPreview, budget.Animations));
         Assert.Equal(TranscriptModelChoice.Tiny, budget.SpeechModel(TranscriptModelChoice.Base));
         Assert.False(budget.Allows(VideoEffect.NeonEdges));
+        Assert.False(budget.Allows(VideoEffect.TopographicContours));
+        Assert.False(budget.Allows(VideoEffect.ZoomBurst));
         Assert.True(budget.Allows(VideoEffect.Halftone));
         var changes = DeviceProfile.Changes(budget);
         Assert.Equal(8, changes.Count);
-        Assert.Contains("The heaviest picture effects stay off (Bokeh, Chromatic contours, Fireflies, Flow field, Ghostwire, Ghostwire mask mode, Ghostwire motion, Ink trace, Lumen weave, Neon contours). Choosing one says so.", changes);
+        Assert.Equal(35, DeviceProfile.HeavyEffects.Count);
+        Assert.Contains(
+            $"The heaviest picture effects stay off ({string.Join(", ", DeviceProfile.HeavyEffects.Select(VideoEffects.Name).Order(StringComparer.Ordinal))}). Choosing one says so.",
+            changes);
         Assert.Contains("Transcription uses at most the Tiny speech model, and the library waits while something plays.", changes);
         Assert.Contains("Subject Lock follows its subject in a half-size copy of each picture.", changes);
         Assert.Contains("The timeline shows no preview picture under the pointer.", changes);
         Assert.Contains("The window's animations are off.", changes);
         Assert.Contains("Starting with nothing to play prepares only the window; video and sound are made ready when first used.", changes);
         Assert.All(changes, change => Assert.DoesNotContain((char)0x2014, change));
+    }
+
+    [Fact]
+    public void PerformanceModesReduceResourceBudgetsMonotonically()
+    {
+        var best = DeviceProfile.For(PerformanceTier.BestQuality, Capable);
+        var balanced = DeviceProfile.For(PerformanceTier.Balanced, Capable);
+        var fastest = DeviceProfile.For(PerformanceTier.Fastest, Capable);
+
+        Assert.True(best.VisualMaxSide >= balanced.VisualMaxSide && balanced.VisualMaxSide >= fastest.VisualMaxSide);
+        Assert.True(best.VisualFrameMilliseconds <= balanced.VisualFrameMilliseconds && balanced.VisualFrameMilliseconds <= fastest.VisualFrameMilliseconds);
+        Assert.True(best.VideoQueueCapacity >= balanced.VideoQueueCapacity && balanced.VideoQueueCapacity >= fastest.VideoQueueCapacity);
+        Assert.True(best.AudioQueueCapacity >= balanced.AudioQueueCapacity && balanced.AudioQueueCapacity >= fastest.AudioQueueCapacity);
+        Assert.True(best.LibraryPictureSide >= balanced.LibraryPictureSide && balanced.LibraryPictureSide >= fastest.LibraryPictureSide);
+        Assert.True(best.LibraryPicturesAtOnce >= balanced.LibraryPicturesAtOnce && balanced.LibraryPicturesAtOnce >= fastest.LibraryPicturesAtOnce);
+        Assert.True(best.SubjectStep <= balanced.SubjectStep && balanced.SubjectStep <= fastest.SubjectStep);
+        Assert.True(best.Allows(VideoEffect.NeonEdges));
+        Assert.True(balanced.Allows(VideoEffect.NeonEdges));
+        Assert.False(fastest.Allows(VideoEffect.NeonEdges));
     }
 
     [Fact]

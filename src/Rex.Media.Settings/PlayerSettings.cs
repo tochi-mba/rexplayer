@@ -544,6 +544,9 @@ public sealed record PlayerSettings
     /// <summary>Opening the library pauses what is playing, so the picture is not missed while browsing (LIB-05).</summary>
     public bool PauseWhenLibraryOpens { get; init; } = true;
 
+    /// <summary>Opening the library reveals the playing item; otherwise it returns to the current browsing location.</summary>
+    public bool OpenLibraryAtPlayingItem { get; init; } = true;
+
     /// <summary>With <see cref="PauseWhenLibraryOpens"/>, music and other sound-only items keep playing while the library is open.</summary>
     public bool KeepAudioPlayingInLibrary { get; init; } = true;
 
