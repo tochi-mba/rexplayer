@@ -544,6 +544,9 @@ public sealed record PlayerSettings
     /// <summary>Opening the library pauses what is playing, so the picture is not missed while browsing (LIB-05).</summary>
     public bool PauseWhenLibraryOpens { get; init; } = true;
 
+    /// <summary>Whether a library item opens on one click or two.</summary>
+    public MediaOpenClick MediaOpenClickMode { get; init; } = Rex.Media.Settings.MediaOpenClick.DoubleClick;
+
     /// <summary>Opening the library reveals the playing item; otherwise it returns to the current browsing location.</summary>
     public bool OpenLibraryAtPlayingItem { get; init; } = true;
 
@@ -779,6 +782,7 @@ public sealed record PlayerSettings
             SubjectPanelSide = Enum.IsDefined(SubjectPanelSide) ? SubjectPanelSide : PanelSide.Right,
             SubjectSelection = Enum.IsDefined(SubjectSelection) ? SubjectSelection : SubjectSelectionMode.Click,
             SubjectRemoval = Enum.IsDefined(SubjectRemoval) ? SubjectRemoval : RemovalMode.Remove,
+            MediaOpenClickMode = Enum.IsDefined(MediaOpenClickMode) ? MediaOpenClickMode : Rex.Media.Settings.MediaOpenClick.DoubleClick,
             VideoLook = Enum.IsDefined(VideoLook) ? VideoLook : Rex.Media.Primitives.VideoLook.Original,
             VideoEffect = Enum.IsDefined(VideoEffect) ? VideoEffect : Rex.Media.Primitives.VideoEffect.Off,
             VideoEffectStrength = VideoEffects.Strength(VideoEffectStrength),
@@ -820,4 +824,11 @@ public enum PerformanceChoice
     BestQuality,
     Balanced,
     Fastest,
+}
+
+/// <summary>How many clicks open a media item from the library or playlist.</summary>
+public enum MediaOpenClick
+{
+    SingleClick,
+    DoubleClick,
 }

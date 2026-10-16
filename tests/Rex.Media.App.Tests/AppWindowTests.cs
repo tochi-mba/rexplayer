@@ -881,15 +881,26 @@ public sealed class AppWindowTests : IDisposable
         ((RangeValuePattern)artwork.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(135);
         var generated = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Generate artwork from music when no cover exists")));
         ((TogglePattern)generated.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+        var preferencesScroll = (ScrollPattern)app.Find("PreferencesScroll").GetCurrentPattern(ScrollPattern.Pattern);
+        preferencesScroll.SetScrollPercent(ScrollPattern.NoScroll, 30);
         var performance = app.Find("PreferencesPerformance");
         ((ExpandCollapsePattern)performance.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
         var balanced = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new AndCondition(
             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
             new PropertyCondition(AutomationElement.NameProperty, "Balanced"))));
         ((SelectionItemPattern)balanced.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        ((ExpandCollapsePattern)performance.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Collapse();
+        preferencesScroll.SetScrollPercent(ScrollPattern.NoScroll, 75);
+        var mediaOpenClick = app.Find("PreferencesMediaOpenClick");
+        ((ExpandCollapsePattern)mediaOpenClick.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        var singleClick = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+            new PropertyCondition(AutomationElement.NameProperty, "Single click"))));
+        ((SelectionItemPattern)singleClick.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        ((ExpandCollapsePattern)mediaOpenClick.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Collapse();
         app.Press("PrimaryButton");
 
-        Wait.For(() => app.SavedSettings is { ShortJumpSeconds: 25, AudioArtworkDetail: 135, GenerateAudioArtwork: false, Performance: Rex.Media.Settings.PerformanceChoice.Balanced }, "the preferences to be saved");
+        Wait.For(() => app.SavedSettings is { ShortJumpSeconds: 25, AudioArtworkDetail: 135, GenerateAudioArtwork: false, Performance: Rex.Media.Settings.PerformanceChoice.Balanced, MediaOpenClickMode: Rex.Media.Settings.MediaOpenClick.SingleClick }, "the preferences to be saved");
         Assert.Equal(0, app.Close());
     }
 

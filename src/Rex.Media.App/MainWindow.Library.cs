@@ -567,8 +567,6 @@ public sealed partial class MainWindow
 
     private void OnLibraryEnqueue(object sender, RoutedEventArgs e) => EnqueueChosen();
 
-    private void OnLibraryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => Activate(LibraryList.SelectedItem as LibraryRow);
-
     private void OnLibraryKeyDown(object sender, KeyRoutedEventArgs e)
     {
         switch (e.Key)

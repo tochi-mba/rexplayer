@@ -34,6 +34,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Null(settings.PendingUpdate);
         Assert.Empty(settings.Shortcuts);
         Assert.False(settings.SeekPreview);
+        Assert.Equal(MediaOpenClick.DoubleClick, settings.MediaOpenClickMode);
         Assert.True(settings.OpenLibraryAtPlayingItem);
         Assert.True(settings.LeaveFullScreenWhenLibraryOpens);
         Assert.True(settings.ShowPlayerWhenLibraryMediaStarts);
@@ -50,6 +51,7 @@ public sealed class SettingsStoreTests : IDisposable
             Shuffle = true,
             Window = new WindowPlacement(10, 20, 800, 600, Maximized: true),
             Theme = ThemeChoice.Dark,
+            MediaOpenClickMode = MediaOpenClick.SingleClick,
             LastUpdateCheck = new DateTimeOffset(2026, 10, 7, 9, 30, 0, TimeSpan.Zero),
             LastSeenVersion = "0.4.0",
             Shortcuts = new Dictionary<string, string> { ["play-pause"] = "Ctrl+P", ["stop"] = "" },
@@ -68,6 +70,8 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
         Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
         Assert.Equal(saved.LibraryViews, loaded.LibraryViews);
+        Assert.Equal(MediaOpenClick.SingleClick, loaded.MediaOpenClickMode);
+        Assert.Equal(MediaOpenClick.DoubleClick, new PlayerSettings { MediaOpenClickMode = (MediaOpenClick)99 }.Normalize().MediaOpenClickMode);
     }
 
     [Fact]

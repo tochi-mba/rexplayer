@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Rex.Media.Settings;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
@@ -60,8 +61,20 @@ public sealed partial class MainWindow
 
     private void OnCollageDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
-        Activate(LibraryCollage.SelectedItem as LibraryRow);
+        if (_settings.MediaOpenClickMode == MediaOpenClick.DoubleClick)
+        {
+            Activate(TappedRow(args.OriginalSource) ?? LibraryCollage.SelectedItem as LibraryRow);
+        }
+
         args.Handled = true;
+    }
+
+    private void OnCollageTapped(object sender, TappedRoutedEventArgs args)
+    {
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
+        {
+            Activate(TappedRow(args.OriginalSource));
+        }
     }
 
     private void OnCollageKeyDown(object sender, KeyRoutedEventArgs args)

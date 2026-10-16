@@ -96,6 +96,8 @@ public sealed partial class MainWindow
         var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
         var resumeAudio = Number("Only resume audio longer than (minutes; 0 means all audio)", s.ResumeAudioLongerThanMinutes, 0, 180);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(resumeAudio, "PreferencesResumeAudioMinutes");
+        var mediaOpenClick = Choice("Open media on", ["Single click", "Double click"], (int)s.MediaOpenClickMode);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(mediaOpenClick, "PreferencesMediaOpenClick");
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
         var libraryOpening = Choice("When opening the library", ["Show the playing item", "Return to where I left the library"], s.OpenLibraryAtPlayingItem ? 0 : 1);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(libraryOpening, "PreferencesLibraryOpening");
@@ -210,6 +212,7 @@ public sealed partial class MainWindow
 
         content.Children.Add(Heading("Library"));
         content.Children.Add(libraryOpening);
+        content.Children.Add(mediaOpenClick);
         content.Children.Add(libraryFullScreen);
         content.Children.Add(libraryPlayback);
         content.Children.Add(pauseLibrary);
@@ -249,7 +252,9 @@ public sealed partial class MainWindow
         bool saved;
         try
         {
-            saved = await Ask("Preferences", new ScrollViewer { Content = content, MaxHeight = 560 }, "Save");
+            var scroll = new ScrollViewer { Content = content, MaxHeight = 560 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(scroll, "PreferencesScroll");
+            saved = await Ask("Preferences", scroll, "Save");
         }
         finally
         {
@@ -294,6 +299,7 @@ public sealed partial class MainWindow
             UpdateMode = (UpdateMode)updateMode.SelectedIndex,
             ResumePlayback = (ResumeChoice)resume.SelectedIndex,
             ResumeAudioLongerThanMinutes = resumeAudio.Value,
+            MediaOpenClickMode = (MediaOpenClick)Math.Max(0, mediaOpenClick.SelectedIndex),
             KeepHistory = history.IsChecked == true,
             OpenLibraryAtPlayingItem = libraryOpening.SelectedIndex == 0,
             LeaveFullScreenWhenLibraryOpens = libraryFullScreen.IsChecked == true,
