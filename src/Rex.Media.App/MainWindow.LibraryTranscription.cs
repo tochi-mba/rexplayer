@@ -906,9 +906,13 @@ public sealed partial class MainWindow
         // A missing or failed speech model cannot make more coverage. Never strand the
         // player behind an unavailable worker; the user may still choose to play manually.
         var hearing = _bufferHearing && _modelInstalled == true && _worker?.Status.Error is null;
-        var desired = Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles,
+        var hasUsableSubtitles = _player.SubtitleTracks.Any(subtitle => subtitle != _transcript);
+        var waitForTranscript = _playingWanted && SubtitleBuffer.ShouldWaitForTranscript(
+            hasUsableSubtitles, _settings.KineticCaptions.Words);
+        var allowed = _settings.Transcription.HoldForSubtitles && waitForTranscript;
+        var desired = Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(allowed, _holdingForSubtitles,
             hearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed);
-        var action = _subtitleHold.Update(_settings.Transcription.HoldForSubtitles, _player.State, desired);
+        var action = _subtitleHold.Update(allowed, _player.State, desired);
         ShowSubtitleBufferState(force: true);
         switch (action)
         {

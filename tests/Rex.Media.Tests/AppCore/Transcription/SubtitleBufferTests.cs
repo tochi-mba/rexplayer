@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Transcription;
+using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore.Transcription;
@@ -8,6 +9,18 @@ public sealed class SubtitleBufferTests
     private static TimeSpan S(double seconds) => TimeSpan.FromSeconds(seconds);
 
     private static TimeRange R(double start, double end) => new(S(start), S(end));
+
+    [Theory]
+    [InlineData(false, CaptionWordSource.Automatic, true)]
+    [InlineData(false, CaptionWordSource.Subtitles, true)]
+    [InlineData(false, CaptionWordSource.Transcript, true)]
+    [InlineData(false, CaptionWordSource.SubtitlesTimedByTranscript, true)]
+    [InlineData(true, CaptionWordSource.Automatic, false)]
+    [InlineData(true, CaptionWordSource.Subtitles, false)]
+    [InlineData(true, CaptionWordSource.Transcript, true)]
+    [InlineData(true, CaptionWordSource.SubtitlesTimedByTranscript, false)]
+    public void ExistingSubtitlesAvoidWaitingUnlessTranscriptWordsWereChosen(bool hasSubtitles, CaptionWordSource words, bool expected) =>
+        Assert.Equal(expected, SubtitleBuffer.ShouldWaitForTranscript(hasSubtitles, words));
 
     [Fact]
     [Capability("SUB-21")]
