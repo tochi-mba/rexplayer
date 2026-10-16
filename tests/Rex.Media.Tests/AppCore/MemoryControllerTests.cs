@@ -298,6 +298,27 @@ public sealed class MemoryControllerTests
 
     [Fact]
     [Capability("LIB-03")]
+    public void RestoringAQueueDoesNotApplyItsPositionToADifferentItem()
+    {
+        using var harness = Harness(RexStore.InMemory(), ResumeChoice.Never);
+        var controller = harness.Controller;
+        controller.Memory.Queue = new QueueSnapshot(
+            [new QueuedItem("a.wav", "A", null, TimeSpan.Zero, null),
+             new QueuedItem("b.wav", "B", null, TimeSpan.Zero, null)],
+            0, TimeSpan.FromSeconds(12));
+        Assert.True(controller.RestoreQueue());
+
+        controller.PlayAt(1);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "b.wav");
+        Assert.Equal(TimeSpan.Zero, controller.Position);
+
+        controller.PlayAt(0);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "a.wav");
+        Assert.Equal(TimeSpan.Zero, controller.Position);
+    }
+
+    [Fact]
+    [Capability("LIB-03")]
     public void AnUpgradeRestoresTheQueuePositionAndWorkspaceEvenWhenRegularRestoreIsOff()
     {
         var store = RexStore.InMemory();

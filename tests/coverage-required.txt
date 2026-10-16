@@ -279,6 +279,7 @@ SubjectRemovalPlate.cs
 SubjectRemovalScaling.cs
 SubRip.cs
 SubtitleBuffer.cs
+SubtitleHold.cs
 SubtitleCue.cs
 SubtitleFile.cs
 SubtitleLook.cs
