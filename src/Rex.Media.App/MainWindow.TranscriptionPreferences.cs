@@ -93,7 +93,7 @@ public sealed partial class MainWindow
         var hold = Check("Wait for generated subtitles before playing", t.HoldForSubtitles);
         var holdHint = new TextBlock
         {
-            Text = "If the selected caption source needs a transcript, wait for enough words to avoid gaps. Existing usable subtitles play without waiting unless kinetic captions are set to transcript-only. Choose Play now to skip the wait.",
+            Text = "If the selected caption source needs a transcript, wait for enough words to avoid gaps. To generate subtitles for media not being transcribed from your library, also turn on \"Transcribe whatever I play\" above. Existing usable subtitles play without waiting unless kinetic captions are set to transcript-only. Choose Play now to skip the wait.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(32, 0, 0, 8),
             Opacity = 0.75,

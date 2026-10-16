@@ -877,6 +877,7 @@ public sealed class AppWindowTests : IDisposable
         var waitForSubtitles = app.Find("PreferencesHoldForSubtitles");
         Assert.Equal("Wait for generated subtitles before playing", waitForSubtitles.Current.Name);
         Assert.Contains("Existing usable subtitles play without waiting", waitForSubtitles.Current.HelpText, StringComparison.Ordinal);
+        Assert.Contains("also turn on \"Transcribe whatever I play\" above", waitForSubtitles.Current.HelpText, StringComparison.Ordinal);
         var artwork = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Artwork detail (%)")));
         ((RangeValuePattern)artwork.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(135);
         var generated = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Generate artwork from music when no cover exists")));
