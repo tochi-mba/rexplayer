@@ -907,7 +907,7 @@ public sealed partial class MainWindow
         // player behind an unavailable worker; the user may still choose to play manually.
         var hearing = _bufferHearing && _modelInstalled == true && _worker?.Status.Error is null;
         var hasUsableSubtitles = _player.SubtitleTracks.Any(subtitle => subtitle != _transcript);
-        var waitForTranscript = _playingWanted && SubtitleBuffer.ShouldWaitForTranscript(
+        var waitForTranscript = _playingWanted && Rex.Media.AppCore.Transcription.SubtitleBuffer.ShouldWaitForTranscript(
             hasUsableSubtitles, _settings.KineticCaptions.Words);
         var allowed = _settings.Transcription.HoldForSubtitles && waitForTranscript;
         var desired = Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(allowed, _holdingForSubtitles,
