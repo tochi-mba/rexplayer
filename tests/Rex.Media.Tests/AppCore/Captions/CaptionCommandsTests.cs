@@ -16,6 +16,7 @@ public sealed class CaptionCommandsTests
         var off = CaptionCommands.Apply(CommandCatalog.ToggleKineticCaptions, on.Settings)!.Value;
         Assert.Equal((false, "Kinetic captions off"), (off.Settings.On, off.Message));
         Assert.Equal("Ctrl+Shift+V", CommandCatalog.Find(CommandCatalog.ToggleKineticCaptions)!.DefaultShortcuts.Single().ToString());
+        Assert.Equal("Ctrl+Shift+K", CommandCatalog.Find(CommandCatalog.CycleCaptionStyle)!.DefaultShortcuts.Single().ToString());
     }
 
     [Fact]
