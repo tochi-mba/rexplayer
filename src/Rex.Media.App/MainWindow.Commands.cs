@@ -385,6 +385,7 @@ public sealed partial class MainWindow
         else
         {
             _controlsTimer.Stop();
+            _pointerTimer.Stop();
             ShowPointer(true);
             ApplyMinimalInterface();
             ApplyAlwaysOnTop();
@@ -396,6 +397,7 @@ public sealed partial class MainWindow
 
     private void ShowFullScreenControls()
     {
+        _pointerTimer.Stop();
         ShowPointer(true);
         Controls.Visibility = Visibility.Visible;
         _controlsTimer.Stop();
@@ -407,11 +409,21 @@ public sealed partial class MainWindow
         if (IsFullScreen && !Controls.FocusState.HasFlag(FocusState.Keyboard))
         {
             Controls.Visibility = Visibility.Collapsed;
+            _pointerTimer.Stop();
+            _pointerTimer.Start();
+        }
+    }
+
+    /// <summary>The pointer is the last piece of full-screen chrome to leave.</summary>
+    private void HideFullScreenPointer()
+    {
+        if (IsFullScreen && Controls.Visibility == Visibility.Collapsed)
+        {
             ShowPointer(false);
         }
     }
 
-    /// <summary>The pointer hides with the full-screen controls and comes back with them.</summary>
+    /// <summary>The pointer follows full-screen activity without obscuring a settled picture.</summary>
     private static void ShowPointer(bool shown)
     {
         if (OperatingSystem.IsWindows())
