@@ -42,6 +42,19 @@ public sealed class MediaFilesTests
     }
 
     [Fact]
+    public void PastedFilesAreFilteredWithoutDroppingFoldersOrSupportedMedia()
+    {
+        var (supported, skipped) = MediaFiles.FilterClipboardPaths(
+            ["C:\\Videos", "C:\\Videos\\clip.MKV", "C:\\notes.txt", ""],
+            path => path == "C:\\Videos");
+
+        Assert.Equal(["C:\\Videos", "C:\\Videos\\clip.MKV"], supported);
+        Assert.Equal(2, skipped);
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardPaths(null!, _ => false));
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardPaths([], null!));
+    }
+
+    [Fact]
     [Capability("PLF-09")]
     public void AFolderExpandsToItsMediaInNaturalOrderFilesBeforeSubfolders()
     {

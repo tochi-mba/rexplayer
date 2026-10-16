@@ -648,7 +648,19 @@ public sealed partial class MainWindow
         var content = Clipboard.GetContent();
         if (content.Contains(StandardDataFormats.StorageItems))
         {
-            _player.Open(PathsOf(await content.GetStorageItemsAsync()));
+            var (supported, skipped) = MediaFiles.FilterClipboardPaths(PathsOf(await content.GetStorageItemsAsync()), Directory.Exists);
+            if (supported.Count == 0)
+            {
+                Say("The clipboard has no media rexplayer can open.");
+                return;
+            }
+
+            if (skipped > 0)
+            {
+                Say($"Skipped {skipped} clipboard item{(skipped == 1 ? "" : "s")} that rexplayer cannot open.");
+            }
+
+            _player.Open(supported);
         }
         else if (content.Contains(StandardDataFormats.Text) && (await content.GetTextAsync()).Trim().Trim('"') is { Length: > 0 } text)
         {
