@@ -39,7 +39,7 @@ public static class MediaFiles
         var skipped = 0;
         foreach (var path in paths)
         {
-            if (!string.IsNullOrWhiteSpace(path) && (IsMedia(path) || isDirectory(path)))
+            if (!string.IsNullOrWhiteSpace(path) && IsLocalClipboardPath(path) && (IsMedia(path) || isDirectory(path)))
             {
                 supported.Add(path);
             }
@@ -50,6 +50,29 @@ public static class MediaFiles
         }
 
         return (supported, skipped);
+    }
+
+    /// <summary>Splits pasted text into paths and filters unsupported items, ignoring blank lines.</summary>
+    public static (IReadOnlyList<string> Supported, int Skipped) FilterClipboardText(string text, Func<string, bool> isDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(isDirectory);
+
+        var paths = text.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(path => path.Trim('"', '\'').Trim())
+            .Where(path => path.Length > 0)
+            .ToArray();
+        return FilterClipboardPaths(paths, isDirectory);
+    }
+
+    private static bool IsLocalClipboardPath(string path)
+    {
+        if (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile)
+        {
+            return true;
+        }
+
+        return uri.Scheme.Length == 1 && path.Length > 2 && path[1] == ':' && path[2] is '\\' or '/';
     }
 
     private static readonly HashSet<string> PictureSet = new(Pictures, StringComparer.OrdinalIgnoreCase);

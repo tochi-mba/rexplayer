@@ -45,13 +45,27 @@ public sealed class MediaFilesTests
     public void PastedFilesAreFilteredWithoutDroppingFoldersOrSupportedMedia()
     {
         var (supported, skipped) = MediaFiles.FilterClipboardPaths(
-            ["C:\\Videos", "C:\\Videos\\clip.MKV", "C:\\notes.txt", ""],
+            ["C:\\Videos", "C:\\Videos\\clip.MKV", "https://example.test/clip.mp4", "C:\\notes.txt", ""],
             path => path == "C:\\Videos");
 
         Assert.Equal(["C:\\Videos", "C:\\Videos\\clip.MKV"], supported);
-        Assert.Equal(2, skipped);
+        Assert.Equal(3, skipped);
         Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardPaths(null!, _ => false));
         Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardPaths([], null!));
+    }
+
+    [Fact]
+    public void PastedTextIsSplitUnquotedAndFilteredAsLocalPaths()
+    {
+        var (supported, skipped) = MediaFiles.FilterClipboardText(
+            "\"C:\\Videos\\clip.MKV\"\r\nC:\\Videos\r\nhttps://example.test/clip.mp4\r\nnotes.txt\r\n",
+            path => path == "C:\\Videos");
+
+        Assert.Equal(["C:\\Videos\\clip.MKV", "C:\\Videos"], supported);
+        Assert.Equal(2, skipped);
+        Assert.Equal((Array.Empty<string>(), 0), MediaFiles.FilterClipboardText(" \r\n ", _ => false));
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardText(null!, _ => false));
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardText("", null!));
     }
 
     [Fact]
