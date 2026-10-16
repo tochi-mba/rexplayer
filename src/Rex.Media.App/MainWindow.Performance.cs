@@ -115,6 +115,14 @@ public sealed partial class MainWindow
 
         var before = _budget;
         _budget = budget;
+        if (before.LibraryPictureSide != budget.LibraryPictureSide)
+        {
+            // Drop the old tier's decoded pictures; the on-disk originals remain
+            // available to decode at the new width when rows next request them.
+            _pictureMemory.Clear();
+            _pictureOrder.Clear();
+        }
+
         App.Log.Info(LogSource, $"Performance: {DeviceProfile.Describe(_settings.Performance, _facts)} {string.Join(" ", DeviceProfile.Changes(budget))}");
         OnPresenterThread(presenter => presenter.SubjectStep = budget.SubjectStep);
         if (before.LargestSpeechModel != budget.LargestSpeechModel)
