@@ -22,11 +22,6 @@ public sealed partial class MainWindow
     private readonly Dictionary<Microsoft.UI.Xaml.Controls.ListViewBase, TransitionCollection> _listTransitions = [];
     private bool _powerWatched;
 
-    /// <summary>
-    /// What this computer's tier allows the library's pictures: the width they are made at and how
-    /// many are made at once. The library's picture code reads it (it is not changed here).
-    /// </summary>
-    internal (int Side, int AtOnce) LibraryPictureBudget => (_budget.LibraryPictureSide, _budget.LibraryPicturesAtOnce);
     /// <summary>The facts available at once: threads and memory this process may use, power, and the switches that imitate a weak computer.</summary>
     internal static DeviceFacts QuickFacts() => new()
     {

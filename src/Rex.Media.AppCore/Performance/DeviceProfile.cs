@@ -76,10 +76,8 @@ public sealed record DeviceBudget
     /// <summary>A launch with nothing to open prepares only what its window needs, the rest when first used.</summary>
     public bool LeanLaunch { get; init; }
 
-    /// <summary>The longest side of a library picture, in pixels, and how many are made at once: for the library's picture code to read.</summary>
+    /// <summary>The maximum width, in pixels, at which library pictures are decoded.</summary>
     public int LibraryPictureSide { get; init; } = 320;
-
-    public int LibraryPicturesAtOnce { get; init; } = 2;
 
     /// <summary>The timeline shows a preview picture under the pointer when the user allows it.</summary>
     public bool SeekPreview { get; init; } = true;
@@ -202,7 +200,6 @@ public static class DeviceProfile
                 TranscribeWhilePlaying = false,
                 LeanLaunch = true,
                 LibraryPictureSide = 240,
-                LibraryPicturesAtOnce = 1,
                 SeekPreview = false,
                 Animations = false,
                 VideoQueueCapacity = 12,
@@ -274,6 +271,10 @@ public static class DeviceProfile
             changes.Add("Starting with nothing to play prepares only the window; video and sound are made ready when first used.");
         }
 
+        if (budget.LibraryPictureSide < 320)
+        {
+            changes.Add($"Library pictures are decoded up to {budget.LibraryPictureSide} pixels across to use less memory.");
+        }
 
         if (!budget.SeekPreview)
         {
