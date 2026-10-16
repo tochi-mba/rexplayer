@@ -23,7 +23,8 @@ namespace Rex.Media.App;
 /// own thumbnail when it has a real one, otherwise a frame of the video itself, the picture itself,
 /// or for music its cover, its folder's art or artwork drawn from its sound. Made pictures are kept
 /// on disk until the file changes, and the latest few hundred in memory, so a list that redraws does
-/// not make them again. At most two are made at once, each within a bound, away from the window.
+/// not make them again. Two normal requests use bounded slots; a separate slot serves an
+/// urgent hovered or keyboard-focused row while those are occupied.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -83,14 +84,15 @@ public sealed partial class MainWindow
                 return;
             }
 
+            var decodeWidth = _budget.LibraryPictureSide;
             // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
-            var image = poster is null ? null : await LocalPictureAsync(poster, token);
-            image ??= await ReadPictureCacheAsync(key, token);
-            image ??= await ShellPictureAsync(path, kind, token);
+            var image = poster is null ? null : await LocalPictureAsync(poster, decodeWidth, token);
+            image ??= await ReadPictureCacheAsync(key, decodeWidth, token);
+            image ??= await ShellPictureAsync(path, kind, decodeWidth, token);
             if (image is null)
             {
                 var bytes = await Task.Run(() => MakePicture(path, kind, duration, key, settings, token), token);
-                image = await DecodePictureAsync(bytes, token);
+                image = await DecodePictureAsync(bytes, decodeWidth, token);
             }
             token.ThrowIfCancellationRequested();
             if (_closed)
@@ -170,13 +172,14 @@ public sealed partial class MainWindow
     /// Windows' thumbnail, when it is a picture of the media: for formats Windows has no thumbnailer
     /// for (WebM, Matroska and others) it gives the file type's icon, which is no picture of it.
     /// </summary>
-    private static async Task<ImageSource?> ShellPictureAsync(string path, LibraryKind kind, CancellationToken token)
+    private static async Task<ImageSource?> ShellPictureAsync(string path, LibraryKind kind, int decodeWidth, CancellationToken token)
     {
         using var shellTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         shellTimeout.CancelAfter(TimeSpan.FromSeconds(2));
         try
         {
-            return await ReadShellPictureAsync(path, kind, shellTimeout.Token);
+            var standardWidth = kind == LibraryKind.Music ? 192 : 256;
+            return await ReadShellPictureAsync(path, kind, (uint)Math.Min(decodeWidth, standardWidth), shellTimeout.Token);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {
@@ -190,7 +193,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private static async Task<ImageSource?> LocalPictureAsync(string path, CancellationToken token)
+    private static async Task<ImageSource?> LocalPictureAsync(string path, int decodeWidth, CancellationToken token)
     {
         try
         {
@@ -198,7 +201,7 @@ public sealed partial class MainWindow
             // enormous poster. WIC scales the decoded bitmap to the size needed by the cards.
             var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
             using var stream = await file.OpenReadAsync().AsTask(token);
-            var image = new BitmapImage { DecodePixelWidth = 320 };
+            var image = new BitmapImage { DecodePixelWidth = decodeWidth };
             await image.SetSourceAsync(stream).AsTask(token);
             token.ThrowIfCancellationRequested();
             return image;
@@ -213,12 +216,12 @@ public sealed partial class MainWindow
     /// Read the disk cache before asking a potentially slow shell provider. A damaged or
     /// unreadable cache is a miss, never a permanent empty card or an unbounded retry loop.
     /// </summary>
-    private static async Task<ImageSource?> ReadPictureCacheAsync(string key, CancellationToken token)
+    private static async Task<ImageSource?> ReadPictureCacheAsync(string key, int decodeWidth, CancellationToken token)
     {
         try
         {
             var bytes = await Task.Run(() => File.ReadAllBytes(PictureCachePath(key)), token);
-            return await DecodePictureAsync(bytes, token);
+            return await DecodePictureAsync(bytes, decodeWidth, token);
         }
         catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
@@ -230,7 +233,7 @@ public sealed partial class MainWindow
     private static string PictureCachePath(string key) =>
         Path.Combine(App.DataRoot, "cache", "library-pictures", key + ".png");
 
-    private static async Task<ImageSource?> ReadShellPictureAsync(string path, LibraryKind kind, CancellationToken token)
+    private static async Task<ImageSource?> ReadShellPictureAsync(string path, LibraryKind kind, uint size, CancellationToken token)
     {
         var mode = kind switch
         {
@@ -238,7 +241,6 @@ public sealed partial class MainWindow
             LibraryKind.Picture => ThumbnailMode.PicturesView,
             _ => ThumbnailMode.VideosView,
         };
-        var size = kind == LibraryKind.Music ? 192u : 256u;
         using var thumbnail = await Task.Run(async () =>
         {
             var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
@@ -330,7 +332,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private static async Task<ImageSource> DecodePictureAsync(byte[] bytes, CancellationToken token)
+    private static async Task<ImageSource> DecodePictureAsync(byte[] bytes, int decodeWidth, CancellationToken token)
     {
         using var stream = new InMemoryRandomAccessStream();
         using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
@@ -342,7 +344,7 @@ public sealed partial class MainWindow
 
         token.ThrowIfCancellationRequested();
         stream.Seek(0);
-        var image = new BitmapImage { DecodePixelWidth = 320 };
+        var image = new BitmapImage { DecodePixelWidth = decodeWidth };
         await image.SetSourceAsync(stream).AsTask(token);
         return image;
     }

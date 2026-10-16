@@ -102,7 +102,7 @@ public sealed class DeviceProfileTests
     {
         var budget = DeviceProfile.For(PerformanceTier.Fastest, Capable);
 
-        Assert.Equal((854, 40, 12, 32, 2, 240, 1), (budget.VisualMaxSide, budget.VisualFrameMilliseconds, budget.VideoQueueCapacity, budget.AudioQueueCapacity, budget.SubjectStep, budget.LibraryPictureSide, budget.LibraryPicturesAtOnce));
+        Assert.Equal((854, 40, 12, 32, 2, 240), (budget.VisualMaxSide, budget.VisualFrameMilliseconds, budget.VideoQueueCapacity, budget.AudioQueueCapacity, budget.SubjectStep, budget.LibraryPictureSide));
         Assert.Equal((true, false, true, false, false), (budget.HeavyEffectsOff, budget.TranscribeWhilePlaying, budget.LeanLaunch, budget.SeekPreview, budget.Animations));
         Assert.Equal(TranscriptModelChoice.Tiny, budget.SpeechModel(TranscriptModelChoice.Base));
         Assert.False(budget.Allows(VideoEffect.NeonEdges));
@@ -110,7 +110,7 @@ public sealed class DeviceProfileTests
         Assert.False(budget.Allows(VideoEffect.ZoomBurst));
         Assert.True(budget.Allows(VideoEffect.Halftone));
         var changes = DeviceProfile.Changes(budget);
-        Assert.Equal(8, changes.Count);
+        Assert.Equal(9, changes.Count);
         Assert.Equal(35, DeviceProfile.HeavyEffects.Count);
         Assert.Contains(
             $"The heaviest picture effects stay off ({string.Join(", ", DeviceProfile.HeavyEffects.Select(VideoEffects.Name).Order(StringComparer.Ordinal))}). Choosing one says so.",
@@ -120,6 +120,7 @@ public sealed class DeviceProfileTests
         Assert.Contains("The timeline shows no preview picture under the pointer.", changes);
         Assert.Contains("The window's animations are off.", changes);
         Assert.Contains("Starting with nothing to play prepares only the window; video and sound are made ready when first used.", changes);
+        Assert.Contains("Library pictures are decoded up to 240 pixels across to use less memory.", changes);
         Assert.All(changes, change => Assert.DoesNotContain((char)0x2014, change));
     }
 
@@ -135,7 +136,6 @@ public sealed class DeviceProfileTests
         Assert.True(best.VideoQueueCapacity >= balanced.VideoQueueCapacity && balanced.VideoQueueCapacity >= fastest.VideoQueueCapacity);
         Assert.True(best.AudioQueueCapacity >= balanced.AudioQueueCapacity && balanced.AudioQueueCapacity >= fastest.AudioQueueCapacity);
         Assert.True(best.LibraryPictureSide >= balanced.LibraryPictureSide && balanced.LibraryPictureSide >= fastest.LibraryPictureSide);
-        Assert.True(best.LibraryPicturesAtOnce >= balanced.LibraryPicturesAtOnce && balanced.LibraryPicturesAtOnce >= fastest.LibraryPicturesAtOnce);
         Assert.True(best.SubjectStep <= balanced.SubjectStep && balanced.SubjectStep <= fastest.SubjectStep);
         Assert.True(best.Allows(VideoEffect.NeonEdges));
         Assert.True(balanced.Allows(VideoEffect.NeonEdges));
