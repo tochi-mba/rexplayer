@@ -326,7 +326,7 @@ public static partial class LibraryViews
                 {
                     Path = path,
                     Kind = kind,
-                    Title = Path.GetFileNameWithoutExtension(path),
+                    Title = Path.GetFileNameWithoutExtension(path.Replace('\\', '/')),
                     LastPlayed = DateTime.MaxValue.AddTicks(-played.Count),
                 });
             }
