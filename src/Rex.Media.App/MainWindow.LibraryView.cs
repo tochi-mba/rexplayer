@@ -81,7 +81,7 @@ public sealed partial class MainWindow
 
         return key switch
         {
-            "Songs" or "RecentlyPlayed" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Genres group" => new LibraryViewChoice(LibraryLook.List),
+            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Genres group" => new LibraryViewChoice(LibraryLook.List),
             "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
             "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200),
             "Videos" or "ContinueWatching" or "TvShows group" or "TvShows season" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
@@ -192,7 +192,16 @@ public sealed partial class MainWindow
             };
             if (list is not null)
             {
-                sections = EntrySections(list, choice);
+                if (_librarySource == LibrarySource.RecentlyPlayed)
+                {
+                    sections = [new LibraryRowGroup("", list.Select(EntryRow))];
+                    options = false;
+                }
+                else
+                {
+                    sections = EntrySections(list, choice);
+                }
+
                 kind = _librarySource switch { LibrarySource.Movies or LibrarySource.Videos or LibrarySource.ContinueWatching => LibraryKind.Video, LibrarySource.Pictures => LibraryKind.Picture, _ => LibraryKind.Music };
                 subtitle = Count(list.Count, _librarySource switch { LibrarySource.Pictures => "picture", LibrarySource.Movies => "movie", LibrarySource.Videos or LibrarySource.ContinueWatching => "video", _ => "item" })
                     + (kind == LibraryKind.Picture ? "" : " \u00B7 " + Total(list));
