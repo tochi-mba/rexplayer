@@ -78,13 +78,15 @@ public sealed partial class MainWindow
                 return;
             }
 
-            if (_pictureMemory.TryGetValue(key, out var known))
+            var decodeWidth = _budget.LibraryPictureSide;
+            // A picture already decoded for another performance tier must not keep the
+            // old resolution when the budget changes.
+            var memoryKey = key + ":" + decodeWidth.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (_pictureMemory.TryGetValue(memoryKey, out var known))
             {
                 show(known);
                 return;
             }
-
-            var decodeWidth = _budget.LibraryPictureSide;
             // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
             var image = poster is null ? null : await LocalPictureAsync(poster, decodeWidth, token);
             image ??= await ReadPictureCacheAsync(key, decodeWidth, token);
@@ -99,7 +101,7 @@ public sealed partial class MainWindow
             {
                 return;
             }
-            Remember(key, image);
+            Remember(memoryKey, image);
             show(image);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
