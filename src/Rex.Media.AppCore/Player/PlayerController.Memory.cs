@@ -8,6 +8,7 @@ public sealed partial class PlayerController
 {
     // Where the restored queue's current item was, used by the first play.
     private TimeSpan? _restoredAt;
+    private PlaylistItem? _restoredItem;
     private TimeSpan? _resumeAfterOpening;
 
     /// <summary>What the player remembers between runs.</summary>
@@ -153,9 +154,11 @@ public sealed partial class PlayerController
 
         Playlist.Clear();
         Playlist.Add(queue.Items.Select(Restored));
+        _restoredAt = null;
+        _restoredItem = null;
         if (queue.Current >= 0 && queue.Current < Playlist.Items.Count)
         {
-            Playlist.JumpTo(queue.Current);
+            _restoredItem = Playlist.JumpTo(queue.Current);
             _restoredAt = queue.At;
         }
 
@@ -232,7 +235,7 @@ public sealed partial class PlayerController
             Playlist.Add(items.Select(Restored));
             if (queue.Current >= 0 && queue.Current < Playlist.Items.Count)
             {
-                Playlist.JumpTo(queue.Current);
+                _restoredItem = Playlist.JumpTo(queue.Current);
                 _restoredAt = queue.At >= TimeSpan.Zero ? queue.At : TimeSpan.Zero;
             }
 
@@ -292,13 +295,15 @@ public sealed partial class PlayerController
     {
         RememberPosition();
         ResumeOffer = null;
-        if (_restoredAt is { } restored && Playlist.Current == item && startAt == TimeSpan.Zero)
+        if (_restoredAt is { } restored && _restoredItem == item && startAt == TimeSpan.Zero)
         {
             _restoredAt = null;
+            _restoredItem = null;
             return restored;
         }
 
         _restoredAt = null;
+        _restoredItem = null;
         _resumeAfterOpening = null;
         if (startAt > TimeSpan.Zero || audioTrack is not null || Settings.ResumePlayback == ResumeChoice.Never || Memory.ResumePoint(MemoryKey(item)) is not { } at)
         {
