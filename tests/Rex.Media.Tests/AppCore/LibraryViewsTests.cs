@@ -91,6 +91,10 @@ public sealed class LibraryViewsTests
         var played = Entries.Select((entry, i) => i < 3 ? entry with { LastPlayed = Monday.AddMinutes(i) } : entry with { LastPlayed = null }).ToList();
         Assert.Equal(["Lonely At The Top", "Sungba", "Terminator"], Titles(LibraryViews.RecentlyPlayed(played)));
 
+        var pasted = LibraryViews.RecentlyPlayed(played, [@"D:\Inbox\pasted.mkv", Entries[1].Path, @"D:\Inbox\pasted.mkv", @"D:\Inbox\notes.txt"]);
+        Assert.Equal(["pasted", "Sungba", "Lonely At The Top", "Terminator"], Titles(pasted));
+        Assert.Equal(LibraryKind.Video, pasted[0].Kind);
+
         var added = Entries.Select((entry, i) => entry with { Added = Monday.AddDays(-i) }).ToList();
         Assert.Equal(LibraryViews.Lately, LibraryViews.RecentlyAdded(Enumerable.Repeat(added, 10).SelectMany(x => x)).Count);
         Assert.Equal("Terminator", LibraryViews.RecentlyAdded(added)[0].Title);

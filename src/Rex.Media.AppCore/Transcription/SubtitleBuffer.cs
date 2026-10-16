@@ -1,5 +1,6 @@
 using System.Globalization;
 using Rex.Media.AppCore.Player;
+using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Transcription;
 
@@ -54,6 +55,10 @@ public static class SubtitleBuffer
 
     /// <summary>A held playback carries on once the subtitles are this far ahead.</summary>
     public static readonly TimeSpan ReleaseAhead = TimeSpan.FromSeconds(15);
+
+    /// <summary>Existing subtitles avoid a transcription wait unless kinetic captions use the transcript alone.</summary>
+    public static bool ShouldWaitForTranscript(bool hasUsableSubtitles, CaptionWordSource words) =>
+        !hasUsableSubtitles || words == CaptionWordSource.Transcript;
 
     /// <summary>
     /// How far subtitles must lead before held playback may safely resume. A faster

@@ -301,6 +301,41 @@ public static partial class LibraryViews
     public static IReadOnlyList<LibraryEntry> RecentlyPlayed(IEnumerable<LibraryEntry> entries) =>
         [.. entries.Where(entry => entry.LastPlayed is not null).OrderByDescending(entry => entry.LastPlayed).Take(Lately)];
 
+    /// <summary>Recent history first, including supported files played outside watched library folders.</summary>
+    public static IReadOnlyList<LibraryEntry> RecentlyPlayed(IEnumerable<LibraryEntry> entries, IEnumerable<string> recentPaths)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(recentPaths);
+        var known = entries.ToDictionary(entry => entry.Path, StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var played = new List<LibraryEntry>();
+        foreach (var path in recentPaths)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !seen.Add(path))
+            {
+                continue;
+            }
+
+            if (known.TryGetValue(path, out var entry))
+            {
+                played.Add(entry);
+            }
+            else if (MediaFiles.LibraryKindOf(path) is { } kind)
+            {
+                played.Add(new LibraryEntry
+                {
+                    Path = path,
+                    Kind = kind,
+                    Title = Path.GetFileNameWithoutExtension(path.Replace('\\', '/')),
+                    LastPlayed = DateTime.MaxValue.AddTicks(-played.Count),
+                });
+            }
+        }
+
+        played.AddRange(RecentlyPlayed(known.Values).Where(entry => seen.Add(entry.Path)));
+        return played.Take(Lately).ToArray();
+    }
+
     /// <summary>What the library found most lately, newest first.</summary>
     public static IReadOnlyList<LibraryEntry> RecentlyAdded(IEnumerable<LibraryEntry> entries) =>
         [.. entries.OrderByDescending(entry => entry.Added).ThenBy(entry => entry.Title, NaturalOrder.Instance).Take(Lately)];

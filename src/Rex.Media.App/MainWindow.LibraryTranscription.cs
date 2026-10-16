@@ -64,8 +64,8 @@ public sealed partial class MainWindow
     private bool _bufferHearing;
     private string _shownBuffer = "";
     private BufferState _shownBufferState;
-    private bool _holdingForSubtitles;
-    private bool _subtitleHoldOverridden;
+    private readonly SubtitleHold _subtitleHold = new();
+    private bool _holdingForSubtitles => _subtitleHold.Holding;
     private string? _announcedTranscription;
     private string? _workerPath;
 
@@ -84,6 +84,7 @@ public sealed partial class MainWindow
         first.Tick += (_, _) => StartTranscription();
         first.Start();
         _player.PositionChanged += (_, _) => MoveTranscriptionPlayhead();
+        _player.Changed += (_, _) => HoldForSubtitles();
     }
 
     private void StartTranscription()
@@ -268,7 +269,8 @@ public sealed partial class MainWindow
     /// </summary>
     private void OpenTranscriptOf(string? item)
     {
-        (_bufferDone, _bufferDuration, _bufferHearing, _holdingForSubtitles, _subtitleHoldOverridden) = (null, null, false, false, false);
+        _subtitleHold.Reset();
+        (_bufferDone, _bufferDuration, _bufferHearing) = (null, null, false);
         ShowSubtitleBuffer();
         (_playingTranscript, _playingWanted) = (null, false);
         _playingModelChoice = null;
@@ -900,45 +902,26 @@ public sealed partial class MainWindow
     /// <summary>Playback held while it has caught up with the subtitles, when the user allows it.</summary>
     private void HoldForSubtitles()
     {
-        if (_bufferDone is not { } done || (!_holdingForSubtitles && !_player.IsPlaying))
-        {
-            return;
-        }
-
-        // Manual Play while held is an explicit decision to watch now, even without captions.
-        // Respect that choice until the next file or until the feature is disabled/re-enabled.
-        if (!_settings.Transcription.HoldForSubtitles)
-        {
-            _subtitleHoldOverridden = false;
-        }
-
-        if (_holdingForSubtitles && _player.IsPlaying)
-        {
-            _holdingForSubtitles = false;
-            _subtitleHoldOverridden = true;
-            ShowSubtitleBufferState(force: true);
-            return;
-        }
-
-        if (_subtitleHoldOverridden)
-        {
-            return;
-        }
-
+        var done = _bufferDone ?? TimeRanges.Empty;
         // A missing or failed speech model cannot make more coverage. Never strand the
         // player behind an unavailable worker; the user may still choose to play manually.
         var hearing = _bufferHearing && _modelInstalled == true && _worker?.Status.Error is null;
-        switch (Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(_settings.Transcription.HoldForSubtitles, _holdingForSubtitles,
-            hearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed))
+        var hasUsableSubtitles = _player.SubtitleTracks.Any(subtitle => subtitle != _transcript);
+        var waitForTranscript = _playingWanted && Rex.Media.AppCore.Transcription.SubtitleBuffer.ShouldWaitForTranscript(
+            hasUsableSubtitles, _settings.KineticCaptions.Words);
+        var allowed = _settings.Transcription.HoldForSubtitles && waitForTranscript;
+        var desired = Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(allowed, _holdingForSubtitles,
+            hearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed);
+        var action = _subtitleHold.Update(allowed, _player.State, desired);
+        ShowSubtitleBufferState(force: true);
+        switch (action)
         {
             case HoldAction.Hold:
-                _holdingForSubtitles = true;
                 _player.Pause();
                 Say("Preparing enough subtitles to play through without interruptions. This may take a while on slower computers.");
                 ShowSubtitleBufferState(force: true);
                 break;
             case HoldAction.Release:
-                _holdingForSubtitles = false;
                 ShowSubtitleBufferState(force: true);
                 if (_player.State == SessionState.Paused)
                 {
@@ -952,8 +935,7 @@ public sealed partial class MainWindow
     /// <summary>Lets the viewer explicitly trade uninterrupted captions for immediate playback.</summary>
     private void OnPlayWithoutCaptionBuffer(object sender, RoutedEventArgs e)
     {
-        _holdingForSubtitles = false;
-        _subtitleHoldOverridden = true;
+        _subtitleHold.PlayNow();
         ShowSubtitleBufferState(force: true);
         if (!_player.IsPlaying)
         {
