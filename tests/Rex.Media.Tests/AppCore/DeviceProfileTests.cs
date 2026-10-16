@@ -111,7 +111,10 @@ public sealed class DeviceProfileTests
         Assert.True(budget.Allows(VideoEffect.Halftone));
         var changes = DeviceProfile.Changes(budget);
         Assert.Equal(8, changes.Count);
-        Assert.Contains("The heaviest picture effects stay off (Aurora, Bokeh, Bubbles, Brick build, Cel shade, Chromatic contours, Confetti, Cube mosaic, Depth haze, Electric edges, Fireflies, Flow field, Ghostwire, Ghostwire mask mode, Ghostwire motion, Hologram, Ink trace, Lens bloom, Lumen weave, Neon contours, Oil paint, Parallax, Pinball, Pixel sort, Rain on glass, Scan sweep, Shatter, Snow settle, Sonar ping, Stained glass, Stipple engrave, Torchlight, Topographic contours, Zoom burst). Choosing one says so.", changes);
+        Assert.Equal(35, DeviceProfile.HeavyEffects.Count);
+        Assert.Contains(
+            $"The heaviest picture effects stay off ({string.Join(", ", DeviceProfile.HeavyEffects.Select(VideoEffects.Name).Order(StringComparer.Ordinal))}). Choosing one says so.",
+            changes);
         Assert.Contains("Transcription uses at most the Tiny speech model, and the library waits while something plays.", changes);
         Assert.Contains("Subject Lock follows its subject in a half-size copy of each picture.", changes);
         Assert.Contains("The timeline shows no preview picture under the pointer.", changes);
