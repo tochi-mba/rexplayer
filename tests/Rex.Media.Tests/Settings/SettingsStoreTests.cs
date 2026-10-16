@@ -35,6 +35,8 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Empty(settings.Shortcuts);
         Assert.False(settings.SeekPreview);
         Assert.True(settings.OpenLibraryAtPlayingItem);
+        Assert.True(settings.LeaveFullScreenWhenLibraryOpens);
+        Assert.True(settings.ShowPlayerWhenLibraryMediaStarts);
     }
 
     [Fact]
@@ -53,6 +55,8 @@ public sealed class SettingsStoreTests : IDisposable
             Shortcuts = new Dictionary<string, string> { ["play-pause"] = "Ctrl+P", ["stop"] = "" },
             SeekPreview = true,
             OpenLibraryAtPlayingItem = false,
+            LeaveFullScreenWhenLibraryOpens = false,
+            ShowPlayerWhenLibraryMediaStarts = false,
             LibraryViews = new Dictionary<string, LibraryViewChoice> { ["Albums"] = new(LibraryLook.Wall, LibrarySort.MostPlayed, true, LibraryGrouping.Letter, 240) },
         };
 

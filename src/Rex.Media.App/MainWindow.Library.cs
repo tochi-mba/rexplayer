@@ -166,6 +166,11 @@ public sealed partial class MainWindow
     private void SetLibraryOpen(bool open)
     {
         var opening = open && !LibraryOpen;
+        if (opening && IsFullScreen && _settings.LeaveFullScreenWhenLibraryOpens)
+        {
+            SetFullScreen(false);
+        }
+
         if (!open && LibraryOpen)
         {
             KeepLibraryViewport();
@@ -607,12 +612,15 @@ public sealed partial class MainWindow
                 ShowLibrary();
                 break;
             case NamedPlaylist playlist:
+                if (_settings.ShowPlayerWhenLibraryMediaStarts)
+                {
+                    SetLibraryOpen(false);
+                }
+
                 _player.PlayPlaylist(playlist.Id);
                 break;
             case LibraryEntry entry:
-                var view = entry.Kind == LibraryKind.Video
-                    ? LibraryViews.AutoplayVideos(_library!.Entries, entry)
-                    : EntriesOf(_libraryRows);
+                var view = EntriesOf(_libraryRows);
                 Play(view, view.ToList().FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
                 if (view.Count > 1 && LibraryViews.EpisodeOf(entry) is { } episode)
                 {
@@ -668,7 +676,7 @@ public sealed partial class MainWindow
 
         var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
         var resumeAt = resume || _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
-        if (chosen.Kind is LibraryKind.Video or LibraryKind.Picture)
+        if (_settings.ShowPlayerWhenLibraryMediaStarts || chosen.Kind is LibraryKind.Video or LibraryKind.Picture)
         {
             // Let the pane disappear and the window paint before opening a potentially large image
             // or video. Its probing and decoding stay on the engine threads, never this UI turn.
