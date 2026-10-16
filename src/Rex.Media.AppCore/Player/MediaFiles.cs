@@ -30,6 +30,28 @@ public static class MediaFiles
     /// <summary>Whether a file with this name is one the player offers to play.</summary>
     public static bool IsMedia(string path) => Known.Contains(Path.GetExtension(path));
 
+    /// <summary>Filters pasted paths to media files and folders, returning how many items were skipped.</summary>
+    public static (IReadOnlyList<string> Supported, int Skipped) FilterClipboardPaths(IEnumerable<string> paths, Func<string, bool> isDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(isDirectory);
+        var supported = new List<string>();
+        var skipped = 0;
+        foreach (var path in paths)
+        {
+            if (!string.IsNullOrWhiteSpace(path) && (IsMedia(path) || isDirectory(path)))
+            {
+                supported.Add(path);
+            }
+            else
+            {
+                skipped++;
+            }
+        }
+
+        return (supported, skipped);
+    }
+
     private static readonly HashSet<string> PictureSet = new(Pictures, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> VideoSet = new(Video, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> AudioSet = new(Audio, StringComparer.OrdinalIgnoreCase);
