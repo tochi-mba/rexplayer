@@ -603,6 +603,9 @@ public sealed class AppWindowTests : IDisposable
         ((SelectionItemPattern)song!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         app.Press("LibraryPlay");
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song to play");
+        Wait.For(() => !app.IsShown("LibraryPane"), "the player to return after the song starts");
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => app.IsShown("LibraryPane"), "the library to reopen");
 
         ((ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern)).SetValue("no such song");
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText") == "Nothing in the library matches that.", "no results");
