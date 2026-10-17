@@ -44,7 +44,7 @@ public sealed partial class MainWindow
             folders.Children.Add(new TextBlock { Text = "The library watches no folders yet; add them in the library.", TextWrapping = TextWrapping.Wrap });
         }
 
-        void Follow() => folders.Opacity = scope.SelectedIndex == (int)TranscriptionScope.ChosenFolders ? 1 : 0.5;
+        void Follow() => folders.Visibility = scope.SelectedIndex == (int)TranscriptionScope.ChosenFolders ? Visibility.Visible : Visibility.Collapsed;
         scope.SelectionChanged += (_, _) => Follow();
         Follow();
 
@@ -174,10 +174,26 @@ public sealed partial class MainWindow
         clearing.Children.Add(forgetGone);
         clearing.Children.Add(forgetAll);
 
+        var libraryOptions = new StackPanel { Spacing = 8 };
+        foreach (var control in new UIElement[] { scope, folders, leftOut, leaveOut, music, whilePlaying, battery })
+        {
+            libraryOptions.Children.Add(control);
+        }
+        var backgroundDetails = new Expander
+        {
+            Header = "Library transcription folders and scheduling",
+            Content = libraryOptions,
+            IsExpanded = t.Library,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        AutomationProperties.SetAutomationId(backgroundDetails, "PreferencesTranscriptionDetails");
+        AutomationProperties.SetName(backgroundDetails, "Library transcription folders and scheduling");
+        library.Checked += (_, _) => backgroundDetails.IsExpanded = true;
+
         UIElement[] controls =
         [
             new TextBlock { Text = "Subtitles made from the speech, on this computer: what plays is heard from where it plays, its subtitles appearing as they are heard, and the library ahead of time.", TextWrapping = TextWrapping.Wrap },
-            library, scope, folders, leftOut, leaveOut, music, whatPlays, holdGroup, whilePlaying, battery, model, language, modelLine, download, storage, clearing,
+            library, backgroundDetails, whatPlays, holdGroup, model, language, modelLine, download, storage, clearing,
         ];
         return (controls, settings => settings with
         {
