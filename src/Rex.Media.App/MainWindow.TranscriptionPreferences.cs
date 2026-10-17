@@ -107,31 +107,34 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(whilePlaying, "PreferencesTranscribeWhilePlaying");
         AutomationProperties.SetAutomationId(battery, "PreferencesTranscribeOnBattery");
         AutomationProperties.SetAutomationId(hold, "PreferencesHoldForSubtitles");
-        var model = Choice("Speech model", [.. SpeechModels.All.Select(each => $"{each.Name}, {each.Size}: {each.Speed}")], (int)k.TranscriptModel);
+        var model = Choice("Transcription quality", [.. SpeechModels.QualityChoices], (int)k.TranscriptModel);
         AutomationProperties.SetAutomationId(model, "PreferencesTranscriptionModel");
         var language = Words("Spoken language (two letters, such as \"en\"; the models offered hear English)", k.TranscriptLanguage);
         AutomationProperties.SetAutomationId(language, "PreferencesTranscriptionLanguage");
 
-        var chosenModel = SpeechModels.For(k.TranscriptModel);
-        var modelLine = new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            Text = _speechModels.IsInstalled(chosenModel)
-                ? $"The {chosenModel.Name} model is downloaded."
-                : $"The {chosenModel.Name} model ({chosenModel.Size}) is not downloaded yet. It downloads once, when transcription is first used, and never on a metered connection unless you choose Download now.",
-        };
+        var modelLine = new TextBlock { TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetAutomationId(modelLine, "PreferencesTranscriptionModelStatus");
-        var download = new Button { Content = "Download now", Visibility = _speechModels.IsInstalled(chosenModel) ? Visibility.Collapsed : Visibility.Visible };
+        var download = new Button { Content = "Download now" };
         AutomationProperties.SetAutomationId(download, "PreferencesTranscriptionDownload");
+        SpeechModel SelectedModel() => SpeechModels.For((TranscriptModelChoice)Math.Max(0, model.SelectedIndex));
+        void ShowModel()
+        {
+            var selected = SelectedModel();
+            var installed = _speechModels.IsInstalled(selected);
+            modelLine.Text = installed
+                ? $"The {selected.Name} model is downloaded."
+                : $"The {selected.Name} model ({selected.Size}) is not downloaded yet. It downloads once, when transcription is first used, and never on a metered connection unless you choose Download now.";
+            download.Visibility = installed ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        model.SelectionChanged += (_, _) => ShowModel();
+        ShowModel();
         download.Click += async (_, _) =>
         {
+            var selected = SelectedModel();
             download.IsEnabled = false;
-            if (await EnsureSpeechModelAsync(askedNow: true))
-            {
-                modelLine.Text = $"The {chosenModel.Name} model is downloaded.";
-                download.Visibility = Visibility.Collapsed;
-            }
-
+            await EnsureSpeechModelAsync(askedNow: true, requestedModel: selected);
+            ShowModel();
             download.IsEnabled = true;
         };
 

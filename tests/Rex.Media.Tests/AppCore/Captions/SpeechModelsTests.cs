@@ -45,6 +45,16 @@ public sealed class SpeechModelsTests : IDisposable
         new("test", "Test", "ggml-test.bin", new Uri("https://example.test/ggml-test.bin"), bytes.Length, sha ?? Convert.ToHexStringLower(SHA256.HashData(bytes)), "MIT", "fast");
 
     [Fact]
+    public void QualityChoicesKeepTheSavedModelOrderAndExplainTheirCosts()
+    {
+        Assert.Equal(3, SpeechModels.QualityChoices.Count);
+        Assert.StartsWith("Fast", SpeechModels.QualityChoices[(int)TranscriptModelChoice.Tiny], StringComparison.Ordinal);
+        Assert.StartsWith("Default", SpeechModels.QualityChoices[(int)TranscriptModelChoice.Base], StringComparison.Ordinal);
+        Assert.StartsWith("Best", SpeechModels.QualityChoices[(int)TranscriptModelChoice.Small], StringComparison.Ordinal);
+        Assert.All(SpeechModels.QualityChoices, label => Assert.Contains("MB", label, StringComparison.Ordinal));
+    }
+
+    [Fact]
     [Capability("SUB-19")]
     public void TheCatalogueNamesThreeEnglishModelsPinnedAndPermissive()
     {
