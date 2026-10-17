@@ -188,6 +188,13 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        content.Children.Add(new TextBlock
+        {
+            Text = "Customize opens a separate editor for the saved look or effect and closes Preferences without saving. Save changes here first.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
+
         AddSection("Music and artwork");
         content.Children.Add(visualizer);
         content.Children.Add(generatedArt);
@@ -273,6 +280,12 @@ public sealed partial class MainWindow
             DispatcherQueue.TryEnqueue(() => _ = ShowKeyboardAndMouseAsync());
         };
         content.Children.Add(keys);
+        content.Children.Add(new TextBlock
+        {
+            Text = "Opening the shortcut editor closes Preferences without saving. Save changes here first.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
 
         AddSection("Opening files");
         foreach (var control in new UIElement[] { single, enqueue })
@@ -310,7 +323,7 @@ public sealed partial class MainWindow
             navigation.Children.Add(section);
             var saveHint = new TextBlock
             {
-                Text = "Changes across all sections apply when you choose Save. Cancel keeps your current settings.",
+                Text = "Setting changes across all sections apply on Save. Cancel keeps your current settings. Downloads, update checks and transcript cleanup run when selected.",
                 TextWrapping = TextWrapping.Wrap,
                 Opacity = 0.75,
             };
