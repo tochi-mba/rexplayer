@@ -3,6 +3,19 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.6 - 2026-10-17
+
+### Improved
+
+- **Preferences are easier to navigate.** Jump directly to a section using a fixed selector,
+  with accessible headings, clearer descriptions, and expandable artwork and library
+  transcription settings. Edits stay in the dialog as you move between sections;
+  Save applies them together and Cancel leaves saved settings unchanged.
+- **Transcription quality is clearer.** Choose Fast, Default or Best with model sizes and
+  speed-versus-accuracy guidance in Preferences and kinetic caption settings, preserving
+  existing saved model choices. Model availability and Download now follow the selected
+  model, while a transcription in progress keeps using its original model.
+
 ## 0.25.5 - 2026-10-17
 
 ### Improved
