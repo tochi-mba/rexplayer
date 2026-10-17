@@ -107,7 +107,7 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(whilePlaying, "PreferencesTranscribeWhilePlaying");
         AutomationProperties.SetAutomationId(battery, "PreferencesTranscribeOnBattery");
         AutomationProperties.SetAutomationId(hold, "PreferencesHoldForSubtitles");
-        var model = Choice("Speech model", [.. SpeechModels.All.Select(each => $"{each.Name}, {each.Size}: {each.Speed}")], (int)k.TranscriptModel);
+        var model = Choice("Transcription quality", [.. SpeechModels.QualityChoices], (int)k.TranscriptModel);
         AutomationProperties.SetAutomationId(model, "PreferencesTranscriptionModel");
         var language = Words("Spoken language (two letters, such as \"en\"; the models offered hear English)", k.TranscriptLanguage);
         AutomationProperties.SetAutomationId(language, "PreferencesTranscriptionLanguage");

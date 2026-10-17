@@ -426,7 +426,7 @@ public sealed partial class MainWindow
         var glyphs = Check("Small pictures beside some words", k.Glyphs);
         var capitals = Check("Shouted words in capitals", k.ShoutsInCapitals);
         var keep = Check("Keep the ordinary subtitles as well", k.KeepSubtitles);
-        var model = Choice("Transcription model", ["Tiny (fastest)", "Base", "Small (hears best)"], (int)k.TranscriptModel);
+        var model = Choice("Transcription quality", [.. SpeechModels.QualityChoices], (int)k.TranscriptModel);
         var language = Words("Spoken language (two letters, such as \"en\"; empty to follow the audio)", k.TranscriptLanguage);
 
         KineticCaptionSettings Read() => (before with
