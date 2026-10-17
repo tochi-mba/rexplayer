@@ -55,9 +55,9 @@ public static class SpeechModels
     /// <summary>Quality choices in the persisted Tiny, Base, Small order.</summary>
     public static IReadOnlyList<string> QualityChoices { get; } =
     [
-        "Fast — Tiny English, 78 MB; quickest, may miss more words",
-        "Default — Base English, 148 MB; balanced speed and accuracy",
-        "Best — Small English, 488 MB; most accurate, longer preparation",
+        "Fast - Tiny English, 78 MB; quickest, may miss more words",
+        "Default - Base English, 148 MB; balanced speed and accuracy",
+        "Best - Small English, 488 MB; most accurate, longer preparation",
     ];
 
     /// <summary>The model for a setting.</summary>
