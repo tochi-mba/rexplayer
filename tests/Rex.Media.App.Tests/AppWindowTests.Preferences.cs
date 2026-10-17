@@ -82,11 +82,8 @@ public sealed partial class AppWindowTests
         ChoosePreferencesSection(app, "Playback");
         Assert.Equal(37, ((RangeValuePattern)jump.GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         app.Press("CloseButton");
-        app.Run(CommandCatalog.Preferences);
-        var restored = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.NameProperty, "Short jump (seconds)")));
-        Assert.Equal(before, ((RangeValuePattern)restored.GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
-        app.Press("CloseButton");
+        Wait.For(() => !app.IsShown("PreferencesSection"), "Preferences to close after Cancel");
+        Assert.Equal(before, app.SavedSettings.ShortJumpSeconds);
         Assert.Equal(0, app.Close());
     }
 }
