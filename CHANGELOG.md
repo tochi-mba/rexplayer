@@ -3,6 +3,16 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.5 - 2026-10-17
+
+### Improved
+
+- **Recently Played stays in playback order.** Show the most recently played item first in
+  a simple mixed-media list without unrelated music-only sorting controls.
+- **Smaller library pictures on Fastest.** Apply the selected performance tier's picture
+  width budget to local artwork, cached pictures, and Windows thumbnails. Discard old
+  decoded resolutions when switching tiers so the budget stays effective.
+
 ## 0.25.4 - 2026-10-15
 
 ### Improved
