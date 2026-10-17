@@ -183,10 +183,34 @@ public sealed partial class MainWindow
         content.Children.Add(autoCredits);
 
         AddSection("Video and pictures");
-        foreach (var control in new UIElement[] { pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
+        foreach (var control in new UIElement[] { pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings })
         {
             content.Children.Add(control);
         }
+
+        AddSection("Music and artwork");
+        content.Children.Add(visualizer);
+        content.Children.Add(generatedArt);
+        var artworkOptions = new StackPanel { Spacing = 8 };
+        foreach (var control in new UIElement[] { artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
+        {
+            artworkOptions.Children.Add(control);
+        }
+        var artworkDetails = new Expander
+        {
+            Header = "Generated artwork appearance",
+            Content = artworkOptions,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(artworkDetails, "PreferencesArtworkDetails");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(artworkDetails, "Generated artwork appearance");
+        content.Children.Add(artworkDetails);
+        content.Children.Add(new TextBlock
+        {
+            Text = "These choices apply when rexplayer generates a cover. Existing album covers are kept.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
 
         AddSection("Performance");
         content.Children.Add(new TextBlock { Text = "On a slower computer rexplayer can do a little less so playback stays smooth. Automatic decides from the computer and Windows' energy saver; choose a level to decide yourself.", TextWrapping = TextWrapping.Wrap });
@@ -226,7 +250,14 @@ public sealed partial class MainWindow
         content.Children.Add(pauseLibrary);
         content.Children.Add(keepLibraryAudio);
 
-        AddSection("Memory");
+        content.Children.Add(new TextBlock
+        {
+            Text = "Return to where I left the library keeps your browsing view while the player is open. Ctrl or Shift clicks still select media without opening it.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
+
+        AddSection("History and resume");
         foreach (var control in new UIElement[] { resume, resumeAudio, history, queue, sleep })
         {
             content.Children.Add(control);
@@ -243,7 +274,7 @@ public sealed partial class MainWindow
         };
         content.Children.Add(keys);
 
-        AddSection("rexplayer");
+        AddSection("Opening files");
         foreach (var control in new UIElement[] { single, enqueue })
         {
             content.Children.Add(control);
@@ -275,10 +306,20 @@ public sealed partial class MainWindow
                     scroll.ChangeView(null, position.Y, null, disableAnimation: true);
                 }
             };
+            var navigation = new StackPanel { Spacing = 4 };
+            navigation.Children.Add(section);
+            var saveHint = new TextBlock
+            {
+                Text = "Changes across all sections apply when you choose Save. Cancel keeps your current settings.",
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(saveHint, "PreferencesSaveHint");
+            navigation.Children.Add(saveHint);
             var panel = new Grid { RowSpacing = 12 };
             panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            panel.Children.Add(section);
+            panel.Children.Add(navigation);
             Grid.SetRow(scroll, 1);
             panel.Children.Add(scroll);
             saved = await Ask("Preferences", panel, "Save");
