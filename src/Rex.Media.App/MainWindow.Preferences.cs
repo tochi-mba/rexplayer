@@ -163,54 +163,93 @@ public sealed partial class MainWindow
         ShowPerformance();
 
         var content = new StackPanel { Spacing = 8, MinWidth = 460 };
-        content.Children.Add(Heading("Playback"));
+        var sections = new List<(string Name, TextBlock Heading)>();
+        void AddSection(string name)
+        {
+            var heading = Heading(name);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHeadingLevel(heading, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
+            sections.Add((name, heading));
+            content.Children.Add(heading);
+        }
+        AddSection("Playback");
         foreach (var control in new UIElement[] { veryShort, shortJump, medium, longJump, step, maxVolume, seekPreview })
         {
             content.Children.Add(control);
         }
 
-        content.Children.Add(Heading("Intros and credits"));
+        AddSection("Intros and credits");
         content.Children.Add(new TextBlock { Text = "While an episode's intro or credits play, a button offers to skip them. Turn these on to skip without a click; a 5 second countdown lets you cancel. To choose per show, use Always skip for this show on the button's menu.", TextWrapping = TextWrapping.Wrap });
         content.Children.Add(autoIntro);
         content.Children.Add(autoCredits);
 
-        content.Children.Add(Heading("Video and pictures"));
-        foreach (var control in new UIElement[] { pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings, visualizer, generatedArt, artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
+        AddSection("Video and pictures");
+        foreach (var control in new UIElement[] { pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings })
         {
             content.Children.Add(control);
         }
 
-        content.Children.Add(Heading("Performance"));
+        content.Children.Add(new TextBlock
+        {
+            Text = "Customize opens a separate editor for the saved look or effect and closes Preferences without saving. Save changes here first.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
+
+        AddSection("Music and artwork");
+        content.Children.Add(visualizer);
+        content.Children.Add(generatedArt);
+        var artworkOptions = new StackPanel { Spacing = 8 };
+        foreach (var control in new UIElement[] { artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
+        {
+            artworkOptions.Children.Add(control);
+        }
+        var artworkDetails = new Expander
+        {
+            Header = "Generated artwork appearance",
+            Content = artworkOptions,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(artworkDetails, "PreferencesArtworkDetails");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(artworkDetails, "Generated artwork appearance");
+        content.Children.Add(artworkDetails);
+        content.Children.Add(new TextBlock
+        {
+            Text = "These choices apply when rexplayer generates a cover. Existing album covers are kept.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
+
+        AddSection("Performance");
         content.Children.Add(new TextBlock { Text = "On a slower computer rexplayer can do a little less so playback stays smooth. Automatic decides from the computer and Windows' energy saver; choose a level to decide yourself.", TextWrapping = TextWrapping.Wrap });
         content.Children.Add(performance);
         content.Children.Add(performanceNow);
         content.Children.Add(performanceChanges);
         content.Children.Add(performanceTranscriptionNote);
 
-        content.Children.Add(Heading("Languages"));
+        AddSection("Languages");
         content.Children.Add(audioLanguages);
         content.Children.Add(subtitleLanguages);
 
-        content.Children.Add(Heading("Subtitles"));
+        AddSection("Subtitles");
         foreach (var control in new UIElement[] { font, size, color.Box, opacity, bold, outline, outlineColor.Box, shadow, box, boxColor.Box, margin, inBars, atBottom, styles, codePage })
         {
             content.Children.Add(control);
         }
 
         var transcription = TranscriptionPreferences();
-        content.Children.Add(Heading("Transcription"));
+        AddSection("Transcription");
         foreach (var control in transcription.Controls)
         {
             content.Children.Add(control);
         }
 
-        content.Children.Add(Heading("Window"));
+        AddSection("Window");
         foreach (var control in new UIElement[] { theme, onTop, hide, messages, title, shellMedia })
         {
             content.Children.Add(control);
         }
 
-        content.Children.Add(Heading("Library"));
+        AddSection("Library");
         content.Children.Add(libraryOpening);
         content.Children.Add(mediaOpenClick);
         content.Children.Add(libraryFullScreen);
@@ -218,13 +257,20 @@ public sealed partial class MainWindow
         content.Children.Add(pauseLibrary);
         content.Children.Add(keepLibraryAudio);
 
-        content.Children.Add(Heading("Memory"));
+        content.Children.Add(new TextBlock
+        {
+            Text = "Return to where I left the library keeps your browsing view while the player is open. Ctrl or Shift clicks still select media without opening it.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
+
+        AddSection("History and resume");
         foreach (var control in new UIElement[] { resume, resumeAudio, history, queue, sleep })
         {
             content.Children.Add(control);
         }
 
-        content.Children.Add(Heading("Keyboard and mouse"));
+        AddSection("Keyboard and mouse");
         var keys = new Button { Content = "Change shortcuts and what the mouse does..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(keys, "PreferencesKeyboard");
         keys.Click += (_, _) =>
@@ -234,14 +280,20 @@ public sealed partial class MainWindow
             DispatcherQueue.TryEnqueue(() => _ = ShowKeyboardAndMouseAsync());
         };
         content.Children.Add(keys);
+        content.Children.Add(new TextBlock
+        {
+            Text = "Opening the shortcut editor closes Preferences without saving. Save changes here first.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        });
 
-        content.Children.Add(Heading("rexplayer"));
+        AddSection("Opening files");
         foreach (var control in new UIElement[] { single, enqueue })
         {
             content.Children.Add(control);
         }
 
-        content.Children.Add(Heading("Updates"));
+        AddSection("Updates");
         foreach (var control in new UIElement[] { updates, updateMode, updateStatus, lastUpdated, updateButtons })
         {
             content.Children.Add(control);
@@ -254,7 +306,36 @@ public sealed partial class MainWindow
         {
             var scroll = new ScrollViewer { Content = content, MaxHeight = 560 };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(scroll, "PreferencesScroll");
-            saved = await Ask("Preferences", scroll, "Save");
+            var section = Choice("Go to section", [.. sections.Select(item => item.Name)], 0);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(section, "PreferencesSection");
+            section.HorizontalAlignment = HorizontalAlignment.Stretch;
+            section.SelectionChanged += (_, _) =>
+            {
+                if (section.SelectedIndex >= 0)
+                {
+                    content.UpdateLayout();
+                    var heading = sections[section.SelectedIndex].Heading;
+                    var position = heading.TransformToVisual(content).TransformPoint(new Windows.Foundation.Point());
+                    scroll.ChangeView(null, position.Y, null, disableAnimation: true);
+                }
+            };
+            var navigation = new StackPanel { Spacing = 4 };
+            navigation.Children.Add(section);
+            var saveHint = new TextBlock
+            {
+                Text = "Setting changes across all sections apply on Save. Cancel keeps your current settings. Downloads, update checks and transcript cleanup run when selected.",
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(saveHint, "PreferencesSaveHint");
+            navigation.Children.Add(saveHint);
+            var panel = new Grid { RowSpacing = 12 };
+            panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            panel.Children.Add(navigation);
+            Grid.SetRow(scroll, 1);
+            panel.Children.Add(scroll);
+            saved = await Ask("Preferences", panel, "Save");
         }
         finally
         {
