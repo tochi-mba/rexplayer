@@ -370,12 +370,16 @@ public sealed partial class MainWindow
     /// The speech model, downloaded once on the user's say-so (ADR-0020); on a connection that
     /// costs by the byte only when they asked there and then. False when it is not here.
     /// </summary>
-    private async Task<bool> EnsureSpeechModelAsync(bool askedNow)
+    private async Task<bool> EnsureSpeechModelAsync(bool askedNow, SpeechModel? requestedModel = null)
     {
-        var model = TranscriptModel;
+        var model = requestedModel ?? TranscriptModel;
         if (_speechModels.IsInstalled(model))
         {
-            _modelInstalled = true;
+            if (model == TranscriptModel)
+            {
+                _modelInstalled = true;
+            }
+
             return true;
         }
 
@@ -392,7 +396,10 @@ public sealed partial class MainWindow
         {
             Say($"Downloading the {model.Name} speech model ({model.Size}) once, to {_speechModels.Root}.");
             await _speechModels.DownloadAsync(model, Progress("Downloading " + model.Name), CancellationToken.None);
-            _modelInstalled = true;
+            if (model == TranscriptModel)
+            {
+                _modelInstalled = true;
+            }
             _plannedTranscription = null;
             return true;
         }

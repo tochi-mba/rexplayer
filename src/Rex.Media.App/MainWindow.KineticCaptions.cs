@@ -390,6 +390,14 @@ public sealed partial class MainWindow
 
     private void SetKineticCaptions(KineticCaptionSettings kinetic)
     {
+        if (_settings.KineticCaptions.TranscriptModel != kinetic.TranscriptModel)
+        {
+            // Recheck availability for the new model; an active transcript keeps its pinned model.
+            _modelInstalled = null;
+            _plannedTranscription = null;
+            _queueDirty = true;
+        }
+
         _settings = _settings with { KineticCaptions = kinetic };
         _player.Settings = _settings;
         _captionDirector?.Restyle(CaptionDirector.StyleFor(_settings));
@@ -426,7 +434,7 @@ public sealed partial class MainWindow
         var glyphs = Check("Small pictures beside some words", k.Glyphs);
         var capitals = Check("Shouted words in capitals", k.ShoutsInCapitals);
         var keep = Check("Keep the ordinary subtitles as well", k.KeepSubtitles);
-        var model = Choice("Transcription model", ["Tiny (fastest)", "Base", "Small (hears best)"], (int)k.TranscriptModel);
+        var model = Choice("Transcription quality", [.. SpeechModels.QualityChoices], (int)k.TranscriptModel);
         var language = Words("Spoken language (two letters, such as \"en\"; empty to follow the audio)", k.TranscriptLanguage);
 
         KineticCaptionSettings Read() => (before with
