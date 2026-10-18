@@ -36,6 +36,9 @@ public sealed partial class MainWindow
         _coverageVariant = variant;
         _variantDone = null;
         _variantDuration = null;
+        // Never leave the previous edition's coverage on screen while the new one loads.
+        ShowSubtitleBuffer();
+        HoldForSubtitles();
         if (_player.Item?.Location is not { } media)
         {
             return;
