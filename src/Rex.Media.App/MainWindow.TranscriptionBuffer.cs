@@ -157,6 +157,20 @@ public sealed partial class MainWindow
     /// <summary>Playback held while it has caught up with the subtitles, when the user allows it.</summary>
     private void HoldForSubtitles()
     {
+        // A cached, complete transcript can arrive before the media reader reports its duration.
+        // At that point its coverage is empty and the rail is hidden; restore the full span as
+        // soon as the duration becomes known, without waiting for a new transcription event.
+        if (_bufferDuration is { } previous && previous <= TimeSpan.Zero && _player.Duration > TimeSpan.Zero)
+        {
+            _bufferDuration = _player.Duration;
+            if (_heard is { IsEmpty: false } && !_bufferHearing)
+            {
+                _bufferDone = Rex.Media.AppCore.Transcription.SubtitleBuffer.Coverage(true, null, false, _player.Duration);
+            }
+
+            ShowSubtitleBuffer();
+        }
+
         var done = _bufferDone ?? TimeRanges.Empty;
         // A missing or failed speech model cannot make more coverage. Never strand the
         // player behind an unavailable worker; the user may still choose to play manually.
