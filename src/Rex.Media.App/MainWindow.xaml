@@ -853,9 +853,9 @@
                               AutomationProperties.AutomationId="TranscriptModelButton" AutomationProperties.Name="Transcription quality">
                 <DropDownButton.Flyout>
                   <MenuFlyout>
-                    <ToggleMenuFlyoutItem x:Name="TranscriptModelFast" Text="Fast · quickest, may miss more words" Tag="0" Click="OnTranscriptModelClick" />
-                    <ToggleMenuFlyoutItem x:Name="TranscriptModelDefault" Text="Default · balanced speed and accuracy" Tag="1" Click="OnTranscriptModelClick" />
-                    <ToggleMenuFlyoutItem x:Name="TranscriptModelBest" Text="Best · most accurate, longer preparation" Tag="2" Click="OnTranscriptModelClick" />
+                    <ToggleMenuFlyoutItem x:Name="TranscriptModelFast" AutomationProperties.AutomationId="TranscriptModelFast" Text="Fast · quickest, may miss more words" Tag="0" Click="OnTranscriptModelClick" />
+                    <ToggleMenuFlyoutItem x:Name="TranscriptModelDefault" AutomationProperties.AutomationId="TranscriptModelDefault" Text="Default · balanced speed and accuracy" Tag="1" Click="OnTranscriptModelClick" />
+                    <ToggleMenuFlyoutItem x:Name="TranscriptModelBest" AutomationProperties.AutomationId="TranscriptModelBest" Text="Best · most accurate, longer preparation" Tag="2" Click="OnTranscriptModelClick" />
                   </MenuFlyout>
                 </DropDownButton.Flyout>
               </DropDownButton>

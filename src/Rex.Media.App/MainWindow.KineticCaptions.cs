@@ -410,7 +410,7 @@ public sealed partial class MainWindow
         RememberLater();
         if (modelChanged)
         {
-            OpenTranscriptOf(_player.Item?.Location);
+            OpenTranscriptOf(_player.Item?.Location, preserveHold: true);
         }
     }
 
