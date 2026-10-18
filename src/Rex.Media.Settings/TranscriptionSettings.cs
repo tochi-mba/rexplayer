@@ -44,6 +44,9 @@ public sealed record TranscriptionSettings
     /// <summary>Opt-in waiting for enough generated subtitles to avoid rebuffering; playback can be manually resumed at any time.</summary>
     public bool HoldForSubtitles { get; init; }
 
+    /// <summary>Keep a model-labelled SubRip copy beside media as its transcript changes.</summary>
+    public bool WriteSrtBesideMedia { get; init; }
+
     /// <summary>The user paused the background transcription; it stays paused until they resume it.</summary>
     public bool Paused { get; init; }
 
