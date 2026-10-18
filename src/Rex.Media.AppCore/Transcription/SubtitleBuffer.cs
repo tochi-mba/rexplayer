@@ -1,6 +1,8 @@
 using System.Globalization;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Settings;
+using Rex.Media.Subtitles;
+using Rex.Media.AppCore.Captions;
 
 namespace Rex.Media.AppCore.Transcription;
 
@@ -55,6 +57,15 @@ public static class SubtitleBuffer
 
     /// <summary>A held playback carries on once the subtitles are this far ahead.</summary>
     public static readonly TimeSpan ReleaseAhead = TimeSpan.FromSeconds(15);
+
+    /// <summary>Generated tracks from another quality are not a substitute for the requested transcript.</summary>
+    public static bool HasUsableSubtitles(IEnumerable<SubtitleTrack> tracks) =>
+        tracks.Any(track => track.Count > 0 && !SpeechModels.All.Any(model => track.Name == TranscriptionWorker.TrackName(model.Id)));
+
+    /// <summary>Restores the coverage rail for completed, partial, or newly requested transcription.</summary>
+    public static TimeRanges? Coverage(bool complete, TimeRanges? partial, bool requested, TimeSpan duration) =>
+        complete ? duration > TimeSpan.Zero ? TimeRanges.Of([new TimeRange(TimeSpan.Zero, duration)]) : TimeRanges.Empty
+            : partial ?? (requested ? TimeRanges.Empty : null);
 
     /// <summary>Existing subtitles avoid a transcription wait unless kinetic captions use the transcript alone.</summary>
     public static bool ShouldWaitForTranscript(bool hasUsableSubtitles, CaptionWordSource words) =>

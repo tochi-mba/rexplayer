@@ -317,9 +317,9 @@ public sealed partial class MainWindow
             // A new transcription starts with an empty coverage rail, not with a missing
             // buffer. If the user opted into waiting, hold before playback outruns the
             // first recognised piece; an already-complete transcript never holds.
-            var requested = wanted || _askedPlaying == item;
-            _bufferDone = full is not null ? null : done ?? (requested ? TimeRanges.Empty : null);
-            _bufferDuration = full is not null ? null : duration ?? _player.Duration;
+            var requested = full is null && (wanted || _askedPlaying == item);
+            _bufferDuration = duration ?? _player.Duration;
+            _bufferDone = Rex.Media.AppCore.Transcription.SubtitleBuffer.Coverage(full is not null, done, requested, _bufferDuration.Value);
             _bufferHearing = full is null && requested;
             (_playingTranscript, _playingWanted) = (item, requested);
             _playingModelChoice = requested ? modelChoice : null;
@@ -913,7 +913,7 @@ public sealed partial class MainWindow
         // A missing or failed speech model cannot make more coverage. Never strand the
         // player behind an unavailable worker; the user may still choose to play manually.
         var hearing = _bufferHearing && _modelInstalled == true && _worker?.Status.Error is null;
-        var hasUsableSubtitles = _player.SubtitleTracks.Any(subtitle => subtitle != _transcript);
+        var hasUsableSubtitles = Rex.Media.AppCore.Transcription.SubtitleBuffer.HasUsableSubtitles(_player.SubtitleTracks);
         var waitForTranscript = _playingWanted && Rex.Media.AppCore.Transcription.SubtitleBuffer.ShouldWaitForTranscript(
             hasUsableSubtitles, _settings.KineticCaptions.Words);
         var allowed = _settings.Transcription.HoldForSubtitles && waitForTranscript;
