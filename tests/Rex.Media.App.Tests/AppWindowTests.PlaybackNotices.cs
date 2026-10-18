@@ -25,9 +25,9 @@ public sealed partial class AppWindowTests
 
         using var app = AppProcess.Start([broken, song], root: root);
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the next queued item to open");
-        Wait.For(() => app.LogText.Contains("could not be played", StringComparison.Ordinal), "the failed file to remain in the log");
         // With opening titles disabled, no replacement title can hide a stale failure notice.
         Assert.False(app.IsShown("Osd"));
+        Wait.For(() => app.LogText.Contains("could not be played", StringComparison.Ordinal), "the failed file to remain in the log");
         Assert.Equal(0, app.Close());
     }
 }
