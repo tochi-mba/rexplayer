@@ -267,7 +267,6 @@ public sealed partial class PlayerController
                 Info = opened.Info;
                 _log.Info(LogSource, "Opened " + Describe(opened.Info));
                 Duration = PartDuration(opened.Info.Duration);
-                ApplyAudioResumeChoice();
                 BeginSectionDetection();
                 Memory.Played(Item!.Location);
                 CountPlay(Item);

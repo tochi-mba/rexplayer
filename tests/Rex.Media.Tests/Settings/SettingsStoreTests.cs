@@ -40,6 +40,23 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.True(settings.ShowPlayerWhenLibraryMediaStarts);
     }
 
+    [Theory]
+    [InlineData("Ask")]
+    [InlineData("Always")]
+    [InlineData("Never")]
+    public void LegacyResumePreferencesAreIgnoredWithoutLosingOtherSettings(string oldChoice)
+    {
+        Directory.CreateDirectory(_folder);
+        System.IO.File.WriteAllText(File, $$"""{"resumePlayback":"{{oldChoice}}","resumeAudioLongerThanMinutes":180,"volume":0.4,"theme":"Dark"}""");
+        var settings = SettingsStore.Load(File);
+        Assert.Equal(0.4, settings.Volume);
+        Assert.Equal(ThemeChoice.Dark, settings.Theme);
+        SettingsStore.Save(File, settings);
+        var saved = System.IO.File.ReadAllText(File);
+        Assert.DoesNotContain("resumePlayback", saved, StringComparison.Ordinal);
+        Assert.DoesNotContain("resumeAudioLongerThanMinutes", saved, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void SavedSettingsComeBackTheSame()
     {
@@ -552,7 +569,6 @@ public sealed class SettingsStoreTests : IDisposable
             AudioArtworkColor = -1,
             AudioArtworkDetail = 500,
             AudioArtworkContrast = 201,
-            ResumeAudioLongerThanMinutes = double.PositiveInfinity,
             Shortcuts = null!,
         }.Normalize();
 
@@ -569,15 +585,11 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(ThemeChoice.System, wild.Theme);
         Assert.Equal((UpdateCadence.Daily, UpdateMode.DownloadAndAsk), (wild.UpdateChecks, wild.UpdateMode));
         Assert.Equal((ArtworkStyle.Prism, 0, 200, 200), (wild.AudioArtworkStyle, wild.AudioArtworkColor, wild.AudioArtworkDetail, wild.AudioArtworkContrast));
-        Assert.Equal(10, wild.ResumeAudioLongerThanMinutes);
-        Assert.Equal(ResumeChoice.Always, wild.ResumePlayback);
         Assert.Empty(wild.Shortcuts);
 
         var tame = new PlayerSettings { Volume = double.PositiveInfinity, MaxVolumePercent = 10, TitleSeconds = double.NaN, ControlsHideSeconds = 99 }.Normalize();
         Assert.Equal((1.0, 100, 3.0, 10.0), (tame.Volume, tame.MaxVolumePercent, tame.TitleSeconds, tame.ControlsHideSeconds));
         Assert.Equal(1.25, new PlayerSettings { Volume = 1.6, MaxVolumePercent = 125 }.Normalize().Volume);
-        Assert.Equal(180, new PlayerSettings { ResumeAudioLongerThanMinutes = 999 }.Normalize().ResumeAudioLongerThanMinutes);
-        Assert.Equal(0, new PlayerSettings { ResumeAudioLongerThanMinutes = -1 }.Normalize().ResumeAudioLongerThanMinutes);
     }
 
     [Fact]

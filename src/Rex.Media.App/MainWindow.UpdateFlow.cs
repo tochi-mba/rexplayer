@@ -201,7 +201,7 @@ public sealed partial class MainWindow
         IsFullScreen,
         _dialog is not null,
         _subjectOpen,
-        Notice.IsOpen || ResumeBar.IsOpen,
+        Notice.IsOpen,
         _updatePanelOpen,
         TimeSpan.FromMilliseconds(Environment.TickCount64 - _lastInputTick));
 
