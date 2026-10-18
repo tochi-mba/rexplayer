@@ -132,8 +132,8 @@ public sealed partial class MainWindow
         };
 
         // Only what plays crosses to the window, and only the stretches heard: its track fills by itself.
-        worker.Opened += (_, e) => OnHearing(e);
-        worker.Heard += (_, e) => OnHearing(e);
+        worker.Opened += (_, e) => OnHearing(worker, e);
+        worker.Heard += (_, e) => OnHearing(worker, e);
         worker.Changed += (_, _) => OnWindowThread(() =>
         {
             _queueDirty = true;
@@ -153,9 +153,9 @@ public sealed partial class MainWindow
         return worker;
     }
 
-    private void OnHearing(HearingEventArgs e)
+    private void OnHearing(TranscriptionWorker worker, HearingEventArgs e)
     {
-        if (!string.Equals(e.Path, _playingTranscript, StringComparison.OrdinalIgnoreCase))
+        if (worker != _worker || !string.Equals(e.Path, _playingTranscript, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -306,7 +306,7 @@ public sealed partial class MainWindow
             return (full, track, partial?.Done, partial?.Duration, wanted);
         }).ContinueWith(task => OnWindowThread(() =>
         {
-            if (!task.IsCompletedSuccessfully || _player.Item?.Location != item)
+            if (!task.IsCompletedSuccessfully || _player.Item?.Location != item || TranscriptModel.Id != model.Id)
             {
                 return;
             }
@@ -860,7 +860,6 @@ public sealed partial class MainWindow
 
         var choice = (TranscriptModelChoice)Math.Clamp(selected, 0, 2);
         SetKineticCaptions(_settings.KineticCaptions with { TranscriptModel = choice });
-        OpenTranscriptOf(_player.Item?.Location);
         Say($"Transcription quality: {TranscriptModelButton.Content}");
     }
 
