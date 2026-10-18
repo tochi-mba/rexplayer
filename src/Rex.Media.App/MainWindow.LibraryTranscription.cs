@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -36,6 +37,7 @@ public sealed partial class MainWindow
     private readonly TranscriptionLedger _ledger = new(TranscriptionLedger.DefaultPath(App.DataRoot));
     private readonly List<string> _askedTranscripts = [];
     private readonly HashSet<string> _queuedTranscripts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _srtWriteFailures = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Rectangle> _bufferMarks = [];
     private readonly Dictionary<string, (TextBlock State, ProgressBar Progress)> _transcriptionQueueRows = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<QueuedFile>? _shownTranscriptionQueue;
@@ -129,8 +131,8 @@ public sealed partial class MainWindow
         };
 
         // Only what plays crosses to the window, and only the stretches heard: its track fills by itself.
-        worker.Opened += (_, e) => OnHearing(e);
-        worker.Heard += (_, e) => OnHearing(e);
+        worker.Opened += (_, e) => OnHearing(worker, e);
+        worker.Heard += (_, e) => OnHearing(worker, e);
         worker.Changed += (_, _) => OnWindowThread(() =>
         {
             _queueDirty = true;
@@ -150,8 +152,9 @@ public sealed partial class MainWindow
         return worker;
     }
 
-    private void OnHearing(HearingEventArgs e)
+    private void OnHearing(TranscriptionWorker worker, HearingEventArgs e)
     {
+        WriteTranscriptSrt(worker, e.Path);
         if (!string.Equals(e.Path, _playingTranscript, StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -174,6 +177,28 @@ public sealed partial class MainWindow
             // A newly completed chunk may immediately release a held player.
             HoldForSubtitles();
         });
+    }
+
+    private void WriteTranscriptSrt(TranscriptionWorker worker, string path)
+    {
+        if (!_settings.Transcription.WriteSrtBesideMedia || worker.Snapshot(path) is not { IsEmpty: false } transcript)
+        {
+            return;
+        }
+
+        try
+        {
+            transcript.WriteSidecarSrt(path);
+            _srtWriteFailures.TryRemove(path, out _);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            App.Log.Warning(LogSource, $"Writing the transcript SRT beside {path} failed: {error}");
+            if (_srtWriteFailures.TryAdd(path, 0))
+            {
+                OnWindowThread(() => Say($"The transcript could not be saved beside {System.IO.Path.GetFileName(path)}: {error.Message}"));
+            }
+        }
     }
 
     /// <summary>Once a second: what the computer allows, what plays, the queue, the line and holding for subtitles.</summary>

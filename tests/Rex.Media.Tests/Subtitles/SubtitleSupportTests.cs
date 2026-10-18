@@ -87,7 +87,7 @@ public sealed class SubtitleSupportTests
     {
         var files = new Dictionary<string, string[]>
         {
-            [Path.Combine("Films")] = [Path.Combine("Films", "Film.mkv"), Path.Combine("Films", "Film.srt"), Path.Combine("Films", "Film.fr.forced.ass"), Path.Combine("Films", "Other.srt"), Path.Combine("Films", "notes.txt.bak")],
+            [Path.Combine("Films")] = [Path.Combine("Films", "Film.mkv"), Path.Combine("Films", "Film.srt"), Path.Combine("Films", "Film.fr.forced.ass"), Path.Combine("Films", "Film.transcript.fast.original.srt"), Path.Combine("Films", "Film.transcript.fast.edited.srt"), Path.Combine("Films", "Other.srt"), Path.Combine("Films", "notes.txt.bak")],
             [Path.Combine("Films", "Subs")] = [Path.Combine("Films", "Subs", "Film.eng.sdh.srt"), Path.Combine("Films", "Subs", "The Film director cut.vtt")],
         };
 

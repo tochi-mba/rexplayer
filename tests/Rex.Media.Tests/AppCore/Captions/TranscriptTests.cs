@@ -72,15 +72,16 @@ public sealed class TranscriptTests : IDisposable
     }
 
     [Theory]
-    [InlineData("tiny.en", "Film.transcript.fast.srt")]
-    [InlineData("base.en", "Film.transcript.default.srt")]
-    [InlineData("small.en", "Film.transcript.best.srt")]
-    [InlineData("custom/model", "Film.transcript.custom-model.srt")]
+    [InlineData("tiny.en", "Film.transcript.fast.original.srt")]
+    [InlineData("base.en", "Film.transcript.default.original.srt")]
+    [InlineData("small.en", "Film.transcript.best.original.srt")]
+    [InlineData("custom/model", "Film.transcript.custom-model.original.srt")]
     public void ModelLabelledSidecarsHaveStableSafeNames(string model, string expected)
     {
         var media = Path.Combine(_directory, "Film.mkv");
         var path = Transcript.SidecarSrtPath(media, model);
         Assert.Equal(Path.Combine(_directory, expected), path);
+        Assert.EndsWith(".edited.srt", Transcript.SidecarSrtPath(media, model, edited: true), StringComparison.Ordinal);
 
         (Speech with { Model = model }).WriteSidecarSrt(media);
         Assert.Equal(Speech.ToSrt(), File.ReadAllText(path));

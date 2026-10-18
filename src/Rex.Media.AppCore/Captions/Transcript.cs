@@ -36,7 +36,7 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
     public bool IsEmpty => Words.Count == 0;
 
     /// <summary>The model-labelled SubRip path beside a media file, kept distinct from authored subtitles.</summary>
-    public static string SidecarSrtPath(string mediaPath, string model)
+    public static string SidecarSrtPath(string mediaPath, string model, bool edited = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mediaPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
@@ -48,7 +48,8 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
             _ => SanitizeModel(model),
         };
         var directory = Path.GetDirectoryName(mediaPath);
-        var name = $"{Path.GetFileNameWithoutExtension(mediaPath)}.transcript.{quality}.srt";
+        var version = edited ? "edited" : "original";
+        var name = $"{Path.GetFileNameWithoutExtension(mediaPath)}.transcript.{quality}.{version}.srt";
         return string.IsNullOrEmpty(directory) ? name : Path.Combine(directory, name);
     }
 
