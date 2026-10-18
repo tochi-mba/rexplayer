@@ -9,6 +9,22 @@ namespace Rex.Media.AppCore.Captions;
 /// <summary>One word heard: its text, when it was said, and how sure the model was (0 to 1).</summary>
 public sealed record TranscriptWord(string Text, TimeSpan Start, TimeSpan End, float Confidence = 1);
 
+/// <summary>A generated transcript or the user's independent edited version for one speech model.</summary>
+public readonly record struct TranscriptVariant(string Model, bool Edited)
+{
+    public string Quality => Model switch
+    {
+        "tiny.en" => "Fast",
+        "base.en" => "Default",
+        "small.en" => "Best",
+        _ => Model,
+    };
+
+    public string DisplayName => Edited ? $"{Quality} — Edited" : $"{Quality} — Original";
+
+    public string TrackName => $"Transcript ({Model}, {(Edited ? "edited" : "original")})";
+}
+
 /// <summary>
 /// What a speech model heard in a file (SUB-19): every word with the moment it was said, so
 /// captions land on the syllables. Becomes an ordinary subtitle track (one cue a sentence or

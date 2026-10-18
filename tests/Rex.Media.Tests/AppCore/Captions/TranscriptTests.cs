@@ -21,6 +21,16 @@ public sealed class TranscriptTests : IDisposable
         W("and", 7.0, 7.1), W("night", 7.15, 7.5), W(" ", 7.6, 7.7),
     ]);
 
+    [Theory]
+    [InlineData("tiny.en", false, "Fast — Original", "Transcript (tiny.en, original)")]
+    [InlineData("base.en", true, "Default — Edited", "Transcript (base.en, edited)")]
+    [InlineData("small.en", false, "Best — Original", "Transcript (small.en, original)")]
+    public void TranscriptVariantsIdentifyTheirModelAndIndependentEdit(string model, bool edited, string display, string track)
+    {
+        var variant = new TranscriptVariant(model, edited);
+        Assert.Equal((display, track), (variant.DisplayName, variant.TrackName));
+    }
+
     [Fact]
     [Capability("SUB-19")]
     public void WordsBecomeCuesAtSentencesBreathsAndLimitsEachRunTimed()
