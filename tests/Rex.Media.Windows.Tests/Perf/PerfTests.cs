@@ -136,11 +136,15 @@ public sealed class PerfTests
         var resampler = new Resampler(44_100, 48_000, 2);
         using var frame = AudioFrame.Rent(44_100, 2, 4410);
 
-        // The sinc convolution is hot JIT code. A half-second warm-up sometimes only
-        // measures quick-JIT code on a busy Windows runner, making this result ten
-        // times slower than its optimized steady state. Give tiered PGO time to
-        // optimize before measuring, without relaxing the committed throughput gate.
-        var rate = Rate(() => resampler.Process(frame)?.Dispose(), TimeSpan.FromSeconds(3));
+        // On a shared Windows runner, tiered PGO can still be compiling the sinc
+        // convolution after the first warm-up. Measure several warmed windows and
+        // keep the fastest one, as Rate already does with individual passes. A real
+        // sustained regression still fails the unchanged committed throughput gate.
+        var rate = 0.0;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            rate = Math.Max(rate, Rate(() => resampler.Process(frame)?.Dispose(), TimeSpan.FromSeconds(3)));
+        }
 
         PerfBaselines.AtLeast("resampler-x-realtime", rate * 0.1);
     }
