@@ -3,6 +3,14 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.7 - 2026-10-18
+
+### Fixed
+
+- **Transcript coverage and quality selection.** Restore completed transcript coverage and wait for the selected transcription quality without mistaking an older generated track for usable subtitles.
+- **Timeline previews.** Clear stale preview frames and release cached images when changing media or disabling previews.
+- **Preferences and shortcuts.** Keep pending Preferences changes while opening and closing the shortcut editor, with independent Save and Cancel behavior.
+
 ## 0.25.6 - 2026-10-17
 
 ### Improved
