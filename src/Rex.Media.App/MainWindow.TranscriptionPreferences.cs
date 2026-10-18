@@ -224,6 +224,7 @@ public sealed partial class MainWindow
     /// <summary>After Save: the queue and the model looked at again; the model fetched if transcription was turned on.</summary>
     private void TranscriptionSaved(PlayerSettings before)
     {
+        var modelChanged = before.KineticCaptions.TranscriptModel != _settings.KineticCaptions.TranscriptModel;
         _queueDirty = true;
         _plannedTranscription = null;
         _modelInstalled = null;
@@ -245,5 +246,11 @@ public sealed partial class MainWindow
 
         TranscriptionTick();
         RefreshTranscriptBadges();
+        if (modelChanged)
+        {
+            DetachGeneratedTranscript();
+            _playingModelChoice = null;
+            OpenTranscriptOf(_player.Item?.Location);
+        }
     }
 }
