@@ -15,6 +15,52 @@ public sealed class TranscriptStoreTests : IDisposable
 
     private static readonly Transcript Heard = new("en", "base.en", [new TranscriptWord("Hello.", TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1.5))]);
 
+    [Fact]
+    public void EditedVariantsSurviveGenerationAndCacheClearingWithoutClaimingNewCoverage()
+    {
+        var cache = new TranscriptCache(Path.Combine(_directory, "cache"));
+        var film = Media("edit.mkv", [7, 8, 9]);
+        Assert.Null(cache.LoadEdited(film, "base.en"));
+        var done = TimeRanges.Of([new TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(10))]);
+        var corrected = Heard with { Words = [Heard.Words[0] with { Text = "Corrected." }] };
+        var revision = new TranscriptRevision(corrected, done, TimeSpan.FromMinutes(1), false);
+        cache.SaveEdited(film, revision);
+        cache.Save(film, Heard);
+        var loaded = cache.LoadEdited(film, "base.en")!;
+        Assert.Equal("Corrected.", loaded.Content.Words[0].Text);
+        Assert.Equal(done.Ranges, loaded.Done.Ranges);
+        Assert.Equal(revision.Duration, loaded.Duration);
+        Assert.False(loaded.Complete);
+        Assert.Equal("Hello.", cache.Load(film, "base.en")!.Words[0].Text);
+        Assert.Null(cache.LoadEdited(film, "tiny.en"));
+        cache.Forget(film, "base.en");
+        cache.Clear();
+        Assert.NotNull(cache.LoadEdited(film, "base.en"));
+        cache.SaveEdited(film, revision with { Content = corrected with { Model = "tiny.en" }, Duration = null, Complete = true });
+        Assert.Null(cache.LoadEdited(film, "tiny.en")!.Duration);
+        Assert.True(cache.LoadEdited(film, "tiny.en")!.Complete);
+        cache.ForgetEdited(film, "base.en");
+        Assert.Null(cache.LoadEdited(film, "base.en"));
+        Assert.NotNull(cache.LoadEdited(film, "tiny.en"));
+        Assert.Throws<ArgumentNullException>(() => cache.SaveEdited(film, null!));
+    }
+
+    [Theory]
+    [InlineData("{broken")]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("{\"Transcript\":\"{}\",\"Done\":[]}")]
+    [InlineData("{\"Transcript\":\"{\\\"Model\\\":\\\"wrong\\\",\\\"Words\\\":[]}\",\"Done\":[]}")]
+    public void DamagedEditedSnapshotsAreNotShown(string json)
+    {
+        var cache = new TranscriptCache(_directory);
+        var film = Media("damaged.mkv", [4]);
+        var path = cache.EditedPathFor(film, "base.en");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, json);
+        Assert.Null(cache.LoadEdited(film, "base.en"));
+    }
+
     private string Media(string name, byte[] bytes)
     {
         var path = Path.Combine(_directory, name);

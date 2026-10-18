@@ -23,6 +23,20 @@ public readonly record struct TranscriptVariant(string Model, bool Edited)
     public string DisplayName => Edited ? $"{Quality} — Edited" : $"{Quality} — Original";
 
     public string TrackName => $"Transcript ({Model}, {(Edited ? "edited" : "original")})";
+
+    /// <summary>Recognises named variants, including generated tracks from older versions.</summary>
+    public static TranscriptVariant? FromTrackName(string name)
+    {
+        if (!name.StartsWith("Transcript (", StringComparison.Ordinal) || !name.EndsWith(')'))
+        {
+            return null;
+        }
+
+        var identity = name[12..^1];
+        var edited = identity.EndsWith(", edited", StringComparison.Ordinal);
+        var model = edited ? identity[..^8] : identity.EndsWith(", original", StringComparison.Ordinal) ? identity[..^10] : identity;
+        return model.Length > 0 ? new TranscriptVariant(model, edited) : null;
+    }
 }
 
 /// <summary>

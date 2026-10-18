@@ -305,6 +305,7 @@ TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
 TranscriptCache.cs
+TranscriptEdits.cs
 TranscriptionConditions.cs
 TranscriptionEligibility.cs
 TranscriptionLedger.cs
