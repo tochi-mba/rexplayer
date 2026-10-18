@@ -650,7 +650,7 @@ public sealed record PlayerSettings
 
     // Memory
 
-    public ResumeChoice ResumePlayback { get; init; } = ResumeChoice.Ask;
+    public ResumeChoice ResumePlayback { get; init; } = ResumeChoice.Always;
 
     /// <summary>
     /// Audio this many minutes long or shorter starts from the beginning instead of offering a
@@ -775,7 +775,7 @@ public sealed record PlayerSettings
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
-            ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
+            ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Always,
             ResumeAudioLongerThanMinutes = double.IsFinite(ResumeAudioLongerThanMinutes)
                 ? Math.Clamp(ResumeAudioLongerThanMinutes, 0, 180) : 10,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,

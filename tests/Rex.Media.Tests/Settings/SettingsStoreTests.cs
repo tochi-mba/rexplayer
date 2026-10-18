@@ -570,6 +570,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal((UpdateCadence.Daily, UpdateMode.DownloadAndAsk), (wild.UpdateChecks, wild.UpdateMode));
         Assert.Equal((ArtworkStyle.Prism, 0, 200, 200), (wild.AudioArtworkStyle, wild.AudioArtworkColor, wild.AudioArtworkDetail, wild.AudioArtworkContrast));
         Assert.Equal(10, wild.ResumeAudioLongerThanMinutes);
+        Assert.Equal(ResumeChoice.Always, wild.ResumePlayback);
         Assert.Empty(wild.Shortcuts);
 
         var tame = new PlayerSettings { Volume = double.PositiveInfinity, MaxVolumePercent = 10, TitleSeconds = double.NaN, ControlsHideSeconds = 99 }.Normalize();
