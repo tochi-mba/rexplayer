@@ -18,7 +18,7 @@ public sealed partial class MainWindow
     private void ShowSubtitleBuffer()
     {
         ShowTranscriptModelChoice();
-        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
+        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(DisplayedCoverage, DisplayedDuration, _player.Position, DisplayedHearing);
         var key = string.Join(";", view.Spans);
         // Keep the quality picker available even before this model has any saved coverage.
         TranscriptRail.Visibility = _player.Item is not null || view.State != BufferState.None ? Visibility.Visible : Visibility.Collapsed;
@@ -86,7 +86,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
+        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(DisplayedCoverage, DisplayedDuration, _player.Position, DisplayedHearing);
         var width = SubtitleBuffer.ActualWidth;
         if (width <= 0)
         {
@@ -105,17 +105,18 @@ public sealed partial class MainWindow
     /// <summary>A short live readout; no floating message over the video or playback rail.</summary>
     private void ShowSubtitleBufferState(bool force = false)
     {
-        var duration = _bufferDuration ?? _player.Duration;
-        var state = Rex.Media.AppCore.Transcription.SubtitleBuffer.StateAt(_bufferDone, duration, _player.Position, _bufferHearing);
+        var coverage = DisplayedCoverage;
+        var duration = DisplayedDuration;
+        var state = Rex.Media.AppCore.Transcription.SubtitleBuffer.StateAt(coverage, duration, _player.Position, DisplayedHearing);
         if (!force && state == _shownBufferState && state is BufferState.None or BufferState.Complete)
         {
             return;
         }
 
         _shownBufferState = state;
-        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, duration, _player.Position, _bufferHearing);
-        var ahead = _bufferDone is null ? TimeSpan.Zero : Rex.Media.AppCore.Transcription.SubtitleBuffer.Ahead(_bufferDone, _player.Position);
-        var label = _holdingForSubtitles && _bufferDone is not null
+        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(coverage, duration, _player.Position, DisplayedHearing);
+        var ahead = coverage is null ? TimeSpan.Zero : Rex.Media.AppCore.Transcription.SubtitleBuffer.Ahead(coverage, _player.Position);
+        var label = _holdingForSubtitles && coverage is not null
             ? $"Preparing captions · {Math.Round(ahead.TotalMinutes):0}/{Math.Ceiling(Rex.Media.AppCore.Transcription.SubtitleBuffer.ReleaseTarget(_worker?.Speed.SafeFactor, _player.Speed, _player.Position, duration).TotalMinutes):0} min"
             : state switch
             {
@@ -146,11 +147,11 @@ public sealed partial class MainWindow
     /// <summary>What the timeline preview says of the subtitles at the pointer, while any are being heard.</summary>
     private void ShowSeekPreviewSubtitles(TimeSpan at)
     {
-        var show = _bufferDone is not null && _bufferHearing;
+        var show = DisplayedCoverage is not null && DisplayedHearing;
         SeekPreviewSubtitles.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (show)
         {
-            SeekPreviewSubtitles.Text = Rex.Media.AppCore.Transcription.SubtitleBuffer.HintAt(_bufferDone!, at);
+            SeekPreviewSubtitles.Text = Rex.Media.AppCore.Transcription.SubtitleBuffer.HintAt(DisplayedCoverage!, at);
         }
     }
 
@@ -178,7 +179,7 @@ public sealed partial class MainWindow
         var hasUsableSubtitles = Rex.Media.AppCore.Transcription.SubtitleBuffer.HasUsableSubtitles(_player.SubtitleTracks);
         var waitForTranscript = _playingWanted && Rex.Media.AppCore.Transcription.SubtitleBuffer.ShouldWaitForTranscript(
             hasUsableSubtitles, _settings.KineticCaptions.Words);
-        var allowed = _settings.Transcription.HoldForSubtitles && waitForTranscript;
+        var allowed = _coverageVariant is null && _settings.Transcription.HoldForSubtitles && waitForTranscript;
         var desired = Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(allowed, _holdingForSubtitles,
             hearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed);
         var action = _subtitleHold.Update(allowed, _player.State, desired);

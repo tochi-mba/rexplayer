@@ -21,6 +21,35 @@ public sealed class TranscriptTests : IDisposable
         W("and", 7.0, 7.1), W("night", 7.15, 7.5), W(" ", 7.6, 7.7),
     ]);
 
+    [Theory]
+    [InlineData("tiny.en", false, "Fast — Original", "Transcript (tiny.en, original)")]
+    [InlineData("base.en", true, "Default — Edited", "Transcript (base.en, edited)")]
+    [InlineData("small.en", false, "Best — Original", "Transcript (small.en, original)")]
+    [InlineData("custom/model", true, "custom/model — Edited", "Transcript (custom/model, edited)")]
+    public void TranscriptVariantsIdentifyTheirModelAndIndependentEdit(string model, bool edited, string display, string track)
+    {
+        var variant = new TranscriptVariant(model, edited);
+        Assert.Equal((display, track), (variant.DisplayName, variant.TrackName));
+    }
+
+    [Theory]
+    [InlineData("Transcript (tiny.en, original)", "tiny.en", false)]
+    [InlineData("Transcript (base.en, edited)", "base.en", true)]
+    [InlineData("Transcript (small.en)", "small.en", false)]
+    public void ModelTranscriptTrackNamesIdentifyTheExactVariant(string name, string model, bool edited)
+    {
+        Assert.Equal(new TranscriptVariant(model, edited), TranscriptVariant.FromTrackName(name));
+    }
+
+    [Theory]
+    [InlineData("An authored subtitle track")]
+    [InlineData("Transcript (tiny.en")]
+    [InlineData("Transcript ()")]
+    public void OtherTrackNamesCannotClaimAnEditedTranscript(string name)
+    {
+        Assert.Null(TranscriptVariant.FromTrackName(name));
+    }
+
     [Fact]
     [Capability("SUB-19")]
     public void WordsBecomeCuesAtSentencesBreathsAndLimitsEachRunTimed()
