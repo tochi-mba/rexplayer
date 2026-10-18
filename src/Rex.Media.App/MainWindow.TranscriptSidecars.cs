@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Rex.Media.AppCore.Captions;
-using Rex.Media.Speech;
+using Rex.Media.AppCore.Transcription;
 
 namespace Rex.Media.App;
 
