@@ -28,6 +28,9 @@ public sealed class SubtitleBufferTests
     [InlineData("Transcript (tiny.en)", false)]
     [InlineData("Transcript (base.en)", false)]
     [InlineData("Transcript (small.en)", false)]
+    [InlineData("Transcript (tiny.en, original)", false)]
+    [InlineData("Transcript (base.en, edited)", false)]
+    [InlineData("Transcript (small.en, edited)", false)]
     [InlineData("English", true)]
     [InlineData("film.en.srt", true)]
     public void PreviousQualityTracksDoNotDisableWaitingForTheNewTranscript(string name, bool usable)

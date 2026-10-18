@@ -60,7 +60,7 @@ public static class SubtitleBuffer
 
     /// <summary>Generated tracks from another quality are not a substitute for the requested transcript.</summary>
     public static bool HasUsableSubtitles(IEnumerable<SubtitleTrack> tracks) =>
-        tracks.Any(track => track.Count > 0 && !SpeechModels.All.Any(model => track.Name == TranscriptionWorker.TrackName(model.Id)));
+        tracks.Any(track => track.Count > 0 && TranscriptVariant.FromTrackName(track.Name) is null);
 
     /// <summary>Restores the coverage rail for completed, partial, or newly requested transcription.</summary>
     public static TimeRanges? Coverage(bool complete, TimeRanges? partial, bool requested, TimeSpan duration) =>

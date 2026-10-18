@@ -147,6 +147,7 @@ public sealed partial class MainWindow
         AddEpisodeSectionMenus(Menu.Items.First(item => item.Title == "Video").Items, "Video");
         BuildMemoryMenus();
         BuildNamedPlaylistMenus();
+        BuildTranscriptMenus();
     }
 
     private void Fill(IList<MenuFlyoutItemBase> items, string?[] commands, string prefix)

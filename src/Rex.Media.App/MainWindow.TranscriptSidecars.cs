@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Text;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Transcription;
+using Rex.Media.IO;
 
 namespace Rex.Media.App;
 
@@ -19,11 +21,18 @@ public sealed partial class MainWindow
         WriteTranscriptSrt(path, transcript);
     }
 
-    private void WriteTranscriptSrt(string path, Transcript transcript)
+    private void WriteTranscriptSrt(string path, Transcript transcript, bool edited = false)
     {
         try
         {
-            transcript.WriteSidecarSrt(path);
+            if (edited)
+            {
+                AtomicFile.Write(Transcript.SidecarSrtPath(path, transcript.Model, edited: true), Encoding.UTF8.GetBytes(transcript.ToSrt()));
+            }
+            else
+            {
+                transcript.WriteSidecarSrt(path);
+            }
             _srtWriteFailures.TryRemove(path, out _);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
@@ -43,6 +52,11 @@ public sealed partial class MainWindow
             if (_transcripts.Load(record.Path, record.Model) is { IsEmpty: false } transcript)
             {
                 WriteTranscriptSrt(record.Path, transcript);
+            }
+
+            if (_transcripts.LoadEdited(record.Path, record.Model) is { Content.IsEmpty: false } revision)
+            {
+                WriteTranscriptSrt(record.Path, revision.Content, edited: true);
             }
         }
     }

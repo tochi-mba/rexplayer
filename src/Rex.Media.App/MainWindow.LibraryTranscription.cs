@@ -277,6 +277,11 @@ public sealed partial class MainWindow
     /// </summary>
     private void OpenTranscriptOf(string? item, bool preserveHold = false)
     {
+        // A new item or model invalidates pending exact-variant coverage reads.
+        ++_variantGeneration;
+        _coverageVariant = null;
+        _variantDone = null;
+        _variantDuration = null;
         var generation = ++_transcriptGeneration;
         if (preserveHold)
         {
@@ -303,6 +308,7 @@ public sealed partial class MainWindow
             return;
         }
 
+        QueueTranscriptVariants(item, generation);
         var modelChoice = _settings.KineticCaptions.TranscriptModel;
         var model = SpeechModels.For(modelChoice);
         var settings = _settings.Transcription;
