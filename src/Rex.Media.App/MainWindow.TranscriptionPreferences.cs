@@ -238,6 +238,11 @@ public sealed partial class MainWindow
             _ = EnsureSpeechModelAsync(askedNow: false);
         }
 
+        if (_settings.Transcription.WriteSrtBesideMedia && !before.Transcription.WriteSrtBesideMedia)
+        {
+            _ = Task.Run(ExportCachedTranscriptSrts);
+        }
+
         TranscriptionTick();
         RefreshTranscriptBadges();
     }
