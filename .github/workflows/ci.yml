@@ -159,7 +159,11 @@ jobs:
       - name: Build
         run: ./dev.ps1 build
 
+      # Measure fully optimized steady-state code rather than the tier-0 quick JIT,
+      # whose promotion timing varies widely on shared Windows runners.
       - name: Measure
+        env:
+          DOTNET_TieredCompilation: "0"
         run: ./dev.ps1 perf
 
       - name: Keep the measurements
