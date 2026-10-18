@@ -211,7 +211,11 @@ public sealed class MemoryControllerTests
         after.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "b.wav");
         Assert.Equal(TimeSpan.FromSeconds(12), controller.Position);
 
-        // The restored place is used once; later starts are ordinary.
+        // Automatic resume remains active on later starts until Start over clears the bookmark.
+        controller.PlayAt(1);
+        after.PumpUntil(c => c.State == SessionState.Ready && c.Position == TimeSpan.FromSeconds(12));
+        controller.StartOver();
+        after.PumpUntil(c => c.State == SessionState.Ready && c.Position == TimeSpan.Zero);
         controller.PlayAt(1);
         after.PumpUntil(c => c.State == SessionState.Ready && c.Position == TimeSpan.Zero);
     }
