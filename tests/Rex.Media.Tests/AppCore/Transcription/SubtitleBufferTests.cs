@@ -1,5 +1,6 @@
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Settings;
+using Rex.Media.Subtitles;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore.Transcription;
@@ -9,6 +10,35 @@ public sealed class SubtitleBufferTests
     private static TimeSpan S(double seconds) => TimeSpan.FromSeconds(seconds);
 
     private static TimeRange R(double start, double end) => new(S(start), S(end));
+
+    [Fact]
+    public void CachedAndRequestedTranscriptsKeepTheirCoverageVisible()
+    {
+        var ready = SubtitleBuffer.Coverage(true, null, false, S(200));
+        Assert.Equal(BufferState.Complete, SubtitleBuffer.View(ready, S(200), S(0), false).State);
+        Assert.Equal([(0d, 1d)], SubtitleBuffer.View(ready, S(200), S(150), false).Spans);
+        Assert.Same(TimeRanges.Empty, SubtitleBuffer.Coverage(true, null, false, S(0)));
+        Assert.Same(TimeRanges.Empty, SubtitleBuffer.Coverage(false, null, true, S(200)));
+        Assert.Null(SubtitleBuffer.Coverage(false, null, false, S(200)));
+        var partial = TimeRanges.Of([R(40, 80)]);
+        Assert.Same(partial, SubtitleBuffer.Coverage(false, partial, true, S(200)));
+    }
+
+    [Theory]
+    [InlineData("Transcript (tiny.en)", false)]
+    [InlineData("Transcript (base.en)", false)]
+    [InlineData("Transcript (small.en)", false)]
+    [InlineData("English", true)]
+    [InlineData("film.en.srt", true)]
+    public void PreviousQualityTracksDoNotDisableWaitingForTheNewTranscript(string name, bool usable)
+    {
+        var track = new SubtitleTrack(name);
+        Assert.False(SubtitleBuffer.HasUsableSubtitles([track]));
+        track.Add(new SubtitleCue(S(0), S(2), [new SubtitleLine([new SubtitleRun("Hello")])]));
+        Assert.Equal(usable, SubtitleBuffer.HasUsableSubtitles([track]));
+        Assert.Equal(!usable, SubtitleBuffer.ShouldWaitForTranscript(SubtitleBuffer.HasUsableSubtitles([track]), CaptionWordSource.Automatic));
+        Assert.True(SubtitleBuffer.ShouldWaitForTranscript(SubtitleBuffer.HasUsableSubtitles([track]), CaptionWordSource.Transcript));
+    }
 
     [Theory]
     [InlineData(false, CaptionWordSource.Automatic, true)]
