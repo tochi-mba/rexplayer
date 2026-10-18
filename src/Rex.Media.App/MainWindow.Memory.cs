@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Player;
-using Rex.Media.Engine;
 using Rex.Media.Library;
 
 namespace Rex.Media.App;
