@@ -3,6 +3,13 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.8 - 2026-10-18
+
+### Fixed
+
+- **AVI files with trailing metadata.** Accept non-RIFF metadata after a valid AVI movie segment without weakening initial RIFF validation.
+- **Queue playback error notices.** Clear a failed file's on-screen error when playback advances to the next item, even when opening titles are turned off.
+
 ## 0.25.7 - 2026-10-18
 
 ### Fixed
