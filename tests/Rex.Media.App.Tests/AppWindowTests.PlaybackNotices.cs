@@ -1,6 +1,5 @@
 using System.IO;
 using Rex.Media.Settings;
-using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
 

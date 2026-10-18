@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
 
     private readonly PlayerController _player;
     private readonly DispatcherQueueTimer _osdTimer;
+    private object? _osdNoticeItem;
     private readonly DispatcherQueueTimer _saveTimer;
     private readonly DispatcherQueueTimer _controlsTimer;
     private readonly DispatcherQueueTimer _pointerTimer;
@@ -395,11 +396,14 @@ public sealed partial class MainWindow : Window
         if (!ReferenceEquals(_player.Item, _shownItem))
         {
             ResetSeekPreview();
-            // Notices belong to the item that produced them. In particular, a failed file's
-            // message must not sit over the next queued item while it opens.
-            _osdTimer.Stop();
-            OsdBox.Visibility = Visibility.Collapsed;
-            Osd.Text = "";
+            // Only dismiss a notice from the previous item. The new item may already have
+            // announced its title or state before this update reaches the window.
+            if (ReferenceEquals(_osdNoticeItem, _shownItem))
+            {
+                _osdTimer.Stop();
+                OsdBox.Visibility = Visibility.Collapsed;
+                Osd.Text = "";
+            }
             // Each item starts at its own shape; a crop chosen for one film rarely suits the next.
             _shownItem = _player.Item;
             if (_subjectOpen)
@@ -510,6 +514,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        _osdNoticeItem = _player.Item;
         Osd.Text = text;
         OsdBox.Visibility = Visibility.Visible;
         _osdTimer.Stop();
