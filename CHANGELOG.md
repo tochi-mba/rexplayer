@@ -3,6 +3,17 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.25.9 - 2026-10-18
+
+### Added
+
+- **Independent transcript corrections.** Edit each transcription quality's words without changing the recognised original. Corrections autosave with Undo, Redo and Reset; original and edited SRT files stay separate.
+- **Subtitle track choices.** Select embedded, sidecar, or Fast, Default and Best original/edited transcript tracks from the Subtitles menu.
+
+### Improved
+
+- **Transcription quality beside playback.** Choose Fast, Default or Best on the caption rail and restore the selected model's coverage without borrowing progress or wait state from another model.
+
 ## 0.25.8 - 2026-10-18
 
 ### Fixed
