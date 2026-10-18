@@ -186,6 +186,11 @@ public sealed partial class MainWindow
             return;
         }
 
+        WriteTranscriptSrt(path, transcript);
+    }
+
+    private void WriteTranscriptSrt(string path, Transcript transcript)
+    {
         try
         {
             transcript.WriteSidecarSrt(path);
@@ -197,6 +202,17 @@ public sealed partial class MainWindow
             if (_srtWriteFailures.TryAdd(path, 0))
             {
                 OnWindowThread(() => Say($"The transcript could not be saved beside {System.IO.Path.GetFileName(path)}: {error.Message}"));
+            }
+        }
+    }
+
+    private void ExportCachedTranscriptSrts()
+    {
+        foreach (var record in _ledger.All)
+        {
+            if (_transcripts.Load(record.Path, record.Model) is { IsEmpty: false } transcript)
+            {
+                WriteTranscriptSrt(record.Path, transcript);
             }
         }
     }
