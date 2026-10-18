@@ -135,6 +135,11 @@ public sealed class PerfTests
     {
         var resampler = new Resampler(44_100, 48_000, 2);
         using var frame = AudioFrame.Rent(44_100, 2, 4410);
+        // Rented sample planes are not cleared. Leftover pooled data can contain
+        // subnormal floats that make the sinc convolution much slower on some CPUs.
+        // Give every run the same normal-range audio before measuring throughput.
+        frame.Channel(0).Fill(0.25f);
+        frame.Channel(1).Fill(-0.25f);
 
         // On a shared Windows runner, tiered PGO can still be compiling the sinc
         // convolution after the first warm-up. Measure several warmed windows and
