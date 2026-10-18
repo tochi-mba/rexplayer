@@ -94,7 +94,14 @@ public sealed class AviDemuxer : IDemuxer
         while (position + 12 <= length)
         {
             _stream.Seek(position);
-            if (_stream.ReadFourCC() != "RIFF") throw new MediaFormatException("The AVI file contains bytes outside a RIFF segment.");
+            if (_stream.ReadFourCC() != "RIFF")
+            {
+                // Encoders and taggers sometimes append private metadata after the final RIFF
+                // segment. The movie is complete at this point, so trailing bytes do not make it
+                // unplayable. Bytes before the first segment are still a malformed AVI file.
+                if (position > 0) break;
+                throw new MediaFormatException("The AVI file does not begin with a RIFF segment.");
+            }
             var size = _stream.ReadUInt32LittleEndian();
             var type = _stream.ReadFourCC();
             if (type is not ("AVI " or "AVIX")) throw new MediaFormatException("The RIFF segment is not AVI or AVIX movie data.");
