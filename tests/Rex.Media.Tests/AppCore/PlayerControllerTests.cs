@@ -671,6 +671,15 @@ public sealed class PlayerControllerTests
         Assert.Equal("Transcript (base.en)", controller.Subtitles!.Name);
         Assert.NotSame(again, controller.Subtitles);
         Assert.Throws<ArgumentNullException>(() => controller.AddSubtitles(null!, show: true));
+
+        var generated = controller.Subtitles;
+        controller.ShowSecondarySubtitles(generated);
+        Assert.True(controller.RemoveSubtitles(generated));
+        Assert.Null(controller.Subtitles);
+        Assert.Null(controller.SecondarySubtitles);
+        Assert.DoesNotContain(generated, controller.SubtitleTracks);
+        Assert.False(controller.RemoveSubtitles(generated));
+        Assert.Throws<ArgumentNullException>(() => controller.RemoveSubtitles(null!));
     }
 
     [Fact]

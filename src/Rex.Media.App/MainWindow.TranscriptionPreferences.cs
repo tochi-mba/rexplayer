@@ -239,6 +239,7 @@ public sealed partial class MainWindow
         RefreshTranscriptBadges();
         if (modelChanged)
         {
+            DetachGeneratedTranscript();
             _playingModelChoice = null;
             OpenTranscriptOf(_player.Item?.Location);
         }

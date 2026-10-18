@@ -394,6 +394,7 @@ public sealed partial class MainWindow
         if (modelChanged)
         {
             // Recheck availability and saved coverage for the newly selected model.
+            DetachGeneratedTranscript();
             _playingModelChoice = null;
             _modelInstalled = null;
             _plannedTranscription = null;

@@ -341,6 +341,19 @@ public sealed partial class MainWindow
         ApplyKineticCaptions();
     }
 
+    private void DetachGeneratedTranscript()
+    {
+        if (_transcript is { } generated)
+        {
+            _player.RemoveSubtitles(generated);
+        }
+
+        _transcript = null;
+        _heard = null;
+        _toldNoWords = false;
+        ApplyKineticCaptions();
+    }
+
     /// <summary>Transcribe: what plays is heard from here, its subtitles appearing as each piece is heard.</summary>
     private async Task TranscribeWhatPlaysAsync()
     {
