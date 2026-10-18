@@ -1,6 +1,5 @@
 using System.Globalization;
 using Rex.Media.AppCore.Commands;
-using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Player;
 
