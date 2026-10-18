@@ -52,6 +52,43 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [Capability("UI-10")]
+    public void PreferencesReturnsFromShortcutEditorWithoutLosingPendingValues(bool saveShortcuts, bool savePreferences)
+    {
+        using var app = AppProcess.Start();
+        var before = app.SavedSettings;
+        app.Run(CommandCatalog.Preferences);
+        var jump = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Short jump (seconds)")));
+        ((RangeValuePattern)jump.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(37);
+        ChoosePreferencesSection(app, "Keyboard and mouse");
+        app.Press("PreferencesKeyboard");
+        Wait.For(() => app.IsShown("ShortcutSearch"), "the shortcut editor to open");
+        var pans = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Zoomed in, the wheel and two-finger scrolling move about the picture")));
+        ((TogglePattern)pans.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+        app.Press(saveShortcuts ? "PrimaryButton" : "CloseButton");
+        Wait.For(() => app.IsShown("PreferencesSection"), "Preferences to return after the shortcut editor");
+        var selected = ((SelectionPattern)app.Find("PreferencesSection").GetCurrentPattern(SelectionPattern.Pattern)).Current.GetSelection();
+        Assert.Equal("Keyboard and mouse", Assert.Single(selected).Current.Name);
+        Assert.Equal(before.ShortJumpSeconds, app.SavedSettings.ShortJumpSeconds);
+        ChoosePreferencesSection(app, "Playback");
+        var retained = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Short jump (seconds)")));
+        Assert.Equal(37, ((RangeValuePattern)retained.GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
+        app.Press(savePreferences ? "PrimaryButton" : "CloseButton");
+        Wait.For(() => !app.IsShown("PreferencesSection"), "Preferences to close");
+        Wait.For(() => app.SavedSettings.ShortJumpSeconds == (savePreferences ? 37 : before.ShortJumpSeconds)
+            && app.SavedSettings.WheelPansWhenZoomed == (saveShortcuts ? !before.WheelPansWhenZoomed : before.WheelPansWhenZoomed),
+            "each dialog's Save or Cancel choice to apply independently");
+        Assert.Equal(0, app.Close());
+    }
+
     private static void ChoosePreferencesSection(AppProcess app, string name)
     {
         var selector = app.Find("PreferencesSection");
