@@ -297,7 +297,6 @@ public sealed partial class PlayerController : IDisposable
     {
         _log.Info(LogSource, "Stopped.");
         RememberPosition();
-        ResumeOffer = null;
         EndSession();
         State = SessionState.Idle;
         Position = TimeSpan.Zero;

@@ -488,9 +488,6 @@
           </StackPanel>
         </Border>
 
-        <InfoBar x:Name="ResumeBar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16" Padding="12,8"
-                 IsOpen="False" IsClosable="False" IsIconVisible="False" MaxWidth="460"
-                 Background="#F21B1B1B" Foreground="White" AutomationProperties.AutomationId="ResumeBar" />
 
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
                  AutomationProperties.AutomationId="Notice" />
@@ -821,8 +818,13 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
-      <TextBlock x:Name="Elapsed" Grid.Row="0" Grid.Column="0" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
-                 AutomationProperties.AutomationId="Elapsed" />
+      <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button x:Name="StartOverButton" Content="Start over" Click="OnStartOver" IsEnabled="False"
+                ToolTipService.ToolTip="Start this media from the beginning"
+                AutomationProperties.AutomationId="StartOverButton" AutomationProperties.Name="Start this media from the beginning" />
+        <TextBlock x:Name="Elapsed" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
+                   AutomationProperties.AutomationId="Elapsed" />
+      </StackPanel>
       <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" SizeChanged="OnSeekAreaSizeChanged"
             PointerMoved="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
         <Grid.RowDefinitions>
