@@ -72,6 +72,9 @@ public sealed partial class MainWindow
     /// <summary>The model the settings name.</summary>
     private SpeechModel TranscriptModel => SpeechModels.For(_playingModelChoice ?? _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel));
 
+    private TranscriptModelChoice ActiveTranscriptModelChoice =>
+        _playingModelChoice ?? _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
+
     /// <summary>Wires transcription without touching the disk: the first look happens once the launch has settled.</summary>
     private void WireTranscription()
     {
@@ -800,6 +803,7 @@ public sealed partial class MainWindow
     /// <summary>Paint contiguous caption coverage on a separate, labelled track beneath playback.</summary>
     private void ShowSubtitleBuffer()
     {
+        ShowTranscriptModelChoice();
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
         var key = string.Join(";", view.Spans);
         TranscriptRail.Visibility = view.State == BufferState.None ? Visibility.Collapsed : Visibility.Visible;
@@ -829,6 +833,35 @@ public sealed partial class MainWindow
         }
 
         ShowSubtitleBufferState(force: true);
+    }
+
+    private void ShowTranscriptModelChoice()
+    {
+        var choice = ActiveTranscriptModelChoice;
+        var (name, description) = choice switch
+        {
+            TranscriptModelChoice.Tiny => ("Fast", SpeechModels.TinyEnglish.Speed),
+            TranscriptModelChoice.Small => ("Best", SpeechModels.SmallEnglish.Speed),
+            _ => ("Default", SpeechModels.BaseEnglish.Speed),
+        };
+        TranscriptModelButton.Content = name;
+        TranscriptModelFast.IsChecked = choice == TranscriptModelChoice.Tiny;
+        TranscriptModelDefault.IsChecked = choice == TranscriptModelChoice.Base;
+        TranscriptModelBest.IsChecked = choice == TranscriptModelChoice.Small;
+        ToolTipService.SetToolTip(TranscriptModelButton, $"{name} transcription · {description}");
+    }
+
+    private void OnTranscriptModelClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string value } || !int.TryParse(value, out var selected))
+        {
+            return;
+        }
+
+        var choice = (TranscriptModelChoice)Math.Clamp(selected, 0, 2);
+        SetKineticCaptions(_settings.KineticCaptions with { TranscriptModel = choice });
+        OpenTranscriptOf(_player.Item?.Location);
+        Say($"Transcription quality: {TranscriptModelButton.Content}");
     }
 
     private void PositionSubtitleBuffer()

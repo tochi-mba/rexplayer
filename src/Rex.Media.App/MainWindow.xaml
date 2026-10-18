@@ -845,9 +845,21 @@
                     AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
           </Grid>
           <Grid Grid.Row="1" Margin="0,3,0,0">
-            <TextBlock Text="CAPTIONS" FontSize="10" CharacterSpacing="65"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       AutomationProperties.AccessibilityView="Raw" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="CAPTIONS" FontSize="10" CharacterSpacing="65" VerticalAlignment="Center"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                         AutomationProperties.AccessibilityView="Raw" />
+              <DropDownButton x:Name="TranscriptModelButton" Content="Default" Padding="5,0" MinHeight="20" FontSize="10"
+                              AutomationProperties.AutomationId="TranscriptModelButton" AutomationProperties.Name="Transcription quality">
+                <DropDownButton.Flyout>
+                  <MenuFlyout>
+                    <ToggleMenuFlyoutItem x:Name="TranscriptModelFast" Text="Fast · quickest, may miss more words" Tag="0" Click="OnTranscriptModelClick" />
+                    <ToggleMenuFlyoutItem x:Name="TranscriptModelDefault" Text="Default · balanced speed and accuracy" Tag="1" Click="OnTranscriptModelClick" />
+                    <ToggleMenuFlyoutItem x:Name="TranscriptModelBest" Text="Best · most accurate, longer preparation" Tag="2" Click="OnTranscriptModelClick" />
+                  </MenuFlyout>
+                </DropDownButton.Flyout>
+              </DropDownButton>
+            </StackPanel>
             <TextBlock x:Name="SubtitleBufferState" HorizontalAlignment="Right" TextAlignment="Right"
                        FontSize="11" FontWeight="SemiBold"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
