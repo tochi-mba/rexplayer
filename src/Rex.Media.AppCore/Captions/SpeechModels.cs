@@ -60,6 +60,9 @@ public static class SpeechModels
         "Best — Small English, 488 MB; most accurate, longer preparation",
     ];
 
+    /// <summary>Recognises generated tracks from every quality, including a previously selected model.</summary>
+    public static bool IsTranscriptTrack(string name) => All.Any(model => name == "Transcript (" + model.Id + ")");
+
     /// <summary>The model for a setting.</summary>
     public static SpeechModel For(TranscriptModelChoice choice) => choice switch
     {

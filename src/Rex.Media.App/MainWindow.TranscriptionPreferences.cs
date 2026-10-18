@@ -204,6 +204,12 @@ public sealed partial class MainWindow
         _queueDirty = true;
         _plannedTranscription = null;
         _modelInstalled = null;
+        if (before.Transcription != _settings.Transcription || before.KineticCaptions.TranscriptModel != _settings.KineticCaptions.TranscriptModel || before.Performance != _settings.Performance)
+        {
+            _subtitleHold.AllowWaiting();
+            OpenTranscriptOf(_player.Item?.Location, preserveHold: true);
+        }
+
         var turnedOn = (_settings.Transcription.Library && !before.Transcription.Library) || (_settings.Transcription.WhatPlays && !before.Transcription.WhatPlays);
         if (_settings.Transcription.Library || _settings.Transcription.WhatPlays)
         {

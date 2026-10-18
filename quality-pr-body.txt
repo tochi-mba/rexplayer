@@ -1,0 +1,3 @@
+Expose Fast, Default and Best transcription quality choices with model size and speed/accuracy tradeoffs in both settings surfaces, preserving existing saved enum values.
+
+Draft audit continues: model changes during playback, caption waits, saved per-model transcripts, seek-bar coverage and context menus. Regression test added for quality choice mapping; build and tests pending.

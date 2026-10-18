@@ -50,6 +50,8 @@ public sealed partial class MainWindow
     private bool _queueRefreshing;
     private bool? _modelInstalled;
     private TranscriptModelChoice? _playingModelChoice;
+    private long _transcriptGeneration;
+    private bool _loadingTranscript;
 
     // What plays, as the worker was last told, and whether its speech is wanted.
     private string? _playingTranscript;
@@ -129,10 +131,15 @@ public sealed partial class MainWindow
         };
 
         // Only what plays crosses to the window, and only the stretches heard: its track fills by itself.
-        worker.Opened += (_, e) => OnHearing(e);
-        worker.Heard += (_, e) => OnHearing(e);
+        worker.Opened += (_, e) => OnHearing(worker, e);
+        worker.Heard += (_, e) => OnHearing(worker, e);
         worker.Changed += (_, _) => OnWindowThread(() =>
         {
+            if (!ReferenceEquals(worker, _worker))
+            {
+                return;
+            }
+
             _queueDirty = true;
             ShowTranscriptionStatus();
             RefreshTranscriptBadges();
@@ -150,7 +157,7 @@ public sealed partial class MainWindow
         return worker;
     }
 
-    private void OnHearing(HearingEventArgs e)
+    private void OnHearing(TranscriptionWorker worker, HearingEventArgs e)
     {
         if (!string.Equals(e.Path, _playingTranscript, StringComparison.OrdinalIgnoreCase))
         {
@@ -159,7 +166,7 @@ public sealed partial class MainWindow
 
         OnWindowThread(() =>
         {
-            if (!string.Equals(e.Path, _player.Item?.Location, StringComparison.OrdinalIgnoreCase))
+            if (!ReferenceEquals(worker, _worker) || !string.Equals(e.Path, _player.Item?.Location, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
@@ -193,7 +200,7 @@ public sealed partial class MainWindow
         }
 
         var model = TranscriptModel;
-        _modelInstalled ??= _speechModels.IsInstalled(model);
+        _modelInstalled = _speechModels.IsInstalled(model);
         var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, OnBattery(), EnergySaver(), _modelInstalled.Value), Environment.ProcessorCount);
         var worker = Worker();
         worker.Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null;
@@ -267,13 +274,21 @@ public sealed partial class MainWindow
     /// thread; then whether its speech is wanted (asked for, what plays is transcribed, or in the
     /// library's scope) goes to the worker, which hears it from the playhead.
     /// </summary>
-    private void OpenTranscriptOf(string? item)
+    private void OpenTranscriptOf(string? item, bool preserveHold = false)
     {
-        _subtitleHold.Reset();
+        var generation = ++_transcriptGeneration;
+        _loadingTranscript = false;
+        if (!preserveHold)
+        {
+            _subtitleHold.Reset();
+        }
         (_bufferDone, _bufferDuration, _bufferHearing) = (null, null, false);
         ShowSubtitleBuffer();
         (_playingTranscript, _playingWanted) = (null, false);
         _playingModelChoice = null;
+        _modelInstalled = null;
+        _worker?.SetPlaying(null, false, TimeSpan.Zero);
+        _toldWorker = null;
         if (_askedPlaying != item)
         {
             _askedPlaying = null;
@@ -285,10 +300,12 @@ public sealed partial class MainWindow
             return;
         }
 
+        _loadingTranscript = true;
         var modelChoice = _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
         var model = SpeechModels.For(modelChoice);
         var settings = _settings.Transcription;
         var asked = _askedPlaying == item;
+        var hasVideo = HasVideo;
         var entry = _library?.Entry(item);
         var folders = _library?.Folders ?? [];
         _ = Task.Run(() =>
@@ -297,14 +314,21 @@ public sealed partial class MainWindow
             var partial = full is null ? _transcripts.LoadPartial(item, model.Id) : null;
             var backgroundEligible = settings.Library && entry is not null
                 && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry))) == TranscriptionSkip.None;
-            var wanted = full is null && TranscriptionEligibility.Playing(asked, HasVideo, settings.WhatPlays, backgroundEligible);
+            var wanted = full is null && TranscriptionEligibility.Playing(asked, hasVideo, settings.WhatPlays, backgroundEligible);
             var track = full is not null ? full.ToTrack(TranscriptionWorker.TrackName(model.Id))
                 : !wanted && partial is not null ? partial.ToTranscript().ToTrack(TranscriptionWorker.TrackName(model.Id)) : null;
             return (full, track, partial?.Done, partial?.Duration, wanted);
         }).ContinueWith(task => OnWindowThread(() =>
         {
-            if (!task.IsCompletedSuccessfully || _player.Item?.Location != item)
+            if (generation != _transcriptGeneration || _player.Item?.Location != item)
             {
+                return;
+            }
+
+            _loadingTranscript = false;
+            if (!task.IsCompletedSuccessfully)
+            {
+                HoldForSubtitles();
                 return;
             }
 
@@ -317,9 +341,10 @@ public sealed partial class MainWindow
             // A new transcription starts with an empty coverage rail, not with a missing
             // buffer. If the user opted into waiting, hold before playback outruns the
             // first recognised piece; an already-complete transcript never holds.
-            var requested = wanted || _askedPlaying == item;
-            _bufferDone = full is not null ? null : done ?? (requested ? TimeRanges.Empty : null);
-            _bufferDuration = full is not null ? null : duration ?? _player.Duration;
+            var requested = full is null && (wanted || _askedPlaying == item);
+            var length = duration ?? _player.Duration;
+            _bufferDone = full is not null && length > TimeSpan.Zero ? TimeRanges.Of([new TimeRange(TimeSpan.Zero, length)]) : done ?? (requested ? TimeRanges.Empty : null);
+            _bufferDuration = length;
             _bufferHearing = full is null && requested;
             (_playingTranscript, _playingWanted) = (item, requested);
             _playingModelChoice = requested ? modelChoice : null;
@@ -353,7 +378,9 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (!await EnsureSpeechModelAsync(askedNow: true))
+        var generation = _transcriptGeneration;
+        _playingModelChoice = _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
+        if (!await EnsureSpeechModelAsync(askedNow: true) || generation != _transcriptGeneration || _player.Item?.Location != item)
         {
             return;
         }
@@ -362,6 +389,11 @@ public sealed partial class MainWindow
         _askedPlaying = item;
         _playingModelChoice = _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
         (_playingTranscript, _playingWanted) = (item, true);
+        _bufferDone ??= TimeRanges.Empty;
+        _bufferDuration ??= _player.Duration;
+        _bufferHearing = true;
+        _subtitleHold.AllowWaiting();
+        ShowSubtitleBuffer();
         Say("Transcribing from here: subtitles appear as the speech is heard, ahead of where you are.");
         TranscriptionTick();
     }
@@ -902,11 +934,16 @@ public sealed partial class MainWindow
     /// <summary>Playback held while it has caught up with the subtitles, when the user allows it.</summary>
     private void HoldForSubtitles()
     {
+        if (_loadingTranscript)
+        {
+            return;
+        }
+
         var done = _bufferDone ?? TimeRanges.Empty;
         // A missing or failed speech model cannot make more coverage. Never strand the
         // player behind an unavailable worker; the user may still choose to play manually.
         var hearing = _bufferHearing && _modelInstalled == true && _worker?.Status.Error is null;
-        var hasUsableSubtitles = _player.SubtitleTracks.Any(subtitle => subtitle != _transcript);
+        var hasUsableSubtitles = _player.SubtitleTracks.Any(subtitle => !SpeechModels.IsTranscriptTrack(subtitle.Name));
         var waitForTranscript = _playingWanted && Rex.Media.AppCore.Transcription.SubtitleBuffer.ShouldWaitForTranscript(
             hasUsableSubtitles, _settings.KineticCaptions.Words);
         var allowed = _settings.Transcription.HoldForSubtitles && waitForTranscript;

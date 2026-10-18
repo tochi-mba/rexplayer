@@ -44,6 +44,19 @@ public sealed class SpeechModelsTests : IDisposable
     private static SpeechModel Model(byte[] bytes, string? sha = null) =>
         new("test", "Test", "ggml-test.bin", new Uri("https://example.test/ggml-test.bin"), bytes.Length, sha ?? Convert.ToHexStringLower(SHA256.HashData(bytes)), "MIT", "fast");
 
+    [Theory]
+    [InlineData("Transcript (tiny.en)", true)]
+    [InlineData("Transcript (base.en)", true)]
+    [InlineData("Transcript (small.en)", true)]
+    [InlineData("English", false)]
+    [InlineData("film.en.srt", false)]
+    public void SwitchingQualityDoesNotMistakeThePreviousTranscriptForExistingSubtitles(string name, bool generated)
+    {
+        Assert.Equal(generated, SpeechModels.IsTranscriptTrack(name));
+        Assert.Equal(generated, Rex.Media.AppCore.Transcription.SubtitleBuffer.ShouldWaitForTranscript(
+            !SpeechModels.IsTranscriptTrack(name), CaptionWordSource.Automatic));
+    }
+
     [Fact]
     public void QualityChoicesKeepTheSavedModelOrderAndExplainTheirCosts()
     {
