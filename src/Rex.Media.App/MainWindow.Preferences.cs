@@ -15,6 +15,7 @@ public sealed partial class MainWindow
     private async Task ShowPreferencesAsync()
     {
         var s = _settings;
+        Func<Task>? requestedEditor = null;
         var veryShort = Number("Very short jump (seconds)", s.VeryShortJumpSeconds, 1, 3600);
         var shortJump = Number("Short jump (seconds)", s.ShortJumpSeconds, 1, 3600);
         var medium = Number("Medium jump (seconds)", s.MediumJumpSeconds, 1, 3600);
@@ -275,14 +276,14 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(keys, "PreferencesKeyboard");
         keys.Click += (_, _) =>
         {
-            // One dialog at a time: this one closes, unsaved, and the editor opens.
+            // Keep this dialog and its pending values while the separate editor is open.
+            requestedEditor = ShowKeyboardAndMouseAsync;
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = ShowKeyboardAndMouseAsync());
         };
         content.Children.Add(keys);
         content.Children.Add(new TextBlock
         {
-            Text = "Opening the shortcut editor closes Preferences without saving. Save changes here first.",
+            Text = "Your pending Preferences changes stay here while you edit shortcuts. Save or cancel the shortcut editor to return.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.75,
         });
@@ -335,7 +336,25 @@ public sealed partial class MainWindow
             panel.Children.Add(navigation);
             Grid.SetRow(scroll, 1);
             panel.Children.Add(scroll);
-            saved = await Ask("Preferences", panel, "Save");
+            var dialog = new ContentDialog
+            {
+                Title = "Preferences",
+                Content = panel,
+                PrimaryButtonText = "Save",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = Content.XamlRoot,
+            };
+            do
+            {
+                requestedEditor = null;
+                saved = await ShowDialogAsync(dialog) == ContentDialogResult.Primary;
+                if (requestedEditor is { } edit && !_closed)
+                {
+                    await edit();
+                }
+            }
+            while (requestedEditor is not null && !_closed);
         }
         finally
         {
