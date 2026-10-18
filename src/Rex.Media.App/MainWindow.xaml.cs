@@ -394,6 +394,7 @@ public sealed partial class MainWindow : Window
 
         if (!ReferenceEquals(_player.Item, _shownItem))
         {
+            ResetSeekPreview();
             // Each item starts at its own shape; a crop chosen for one film rarely suits the next.
             _shownItem = _player.Item;
             if (_subjectOpen)

@@ -108,6 +108,11 @@ public sealed partial class MainWindow
     private void ApplyBudget(bool force = false)
     {
         var budget = DeviceProfile.For(DeviceProfile.Choose(_settings.Performance, _facts), _facts);
+        if (!_settings.SeekPreview || !budget.SeekPreview)
+        {
+            ResetSeekPreview();
+        }
+
         if (!force && budget == _budget)
         {
             return;
