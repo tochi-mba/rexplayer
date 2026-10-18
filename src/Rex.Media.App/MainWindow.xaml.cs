@@ -395,6 +395,11 @@ public sealed partial class MainWindow : Window
         if (!ReferenceEquals(_player.Item, _shownItem))
         {
             ResetSeekPreview();
+            // Notices belong to the item that produced them. In particular, a failed file's
+            // message must not sit over the next queued item while it opens.
+            _osdTimer.Stop();
+            OsdBox.Visibility = Visibility.Collapsed;
+            Osd.Text = "";
             // Each item starts at its own shape; a crop chosen for one film rarely suits the next.
             _shownItem = _player.Item;
             if (_subjectOpen)
