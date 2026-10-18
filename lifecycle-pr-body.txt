@@ -1,0 +1,3 @@
+Reopening a completed transcript discarded its coverage rail, and a transcript from a previously selected model could incorrectly count as existing subtitles and disable caption waiting. Restore completed coverage and exclude generated tracks of every quality from the existing-subtitle bypass; empty tracks no longer count as usable subtitles.
+
+Regression tests cover completed/partial/new coverage and Tiny/Base/Small versus embedded/sidecar subtitle tracks. Validation pending; lifecycle audit continuing.
