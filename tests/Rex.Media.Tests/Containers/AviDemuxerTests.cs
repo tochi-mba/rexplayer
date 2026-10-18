@@ -79,10 +79,22 @@ public sealed class AviDemuxerTests
     }
 
     [Fact]
+    public void TrailingMetadataAfterTheLastRiffSegmentIsIgnored()
+    {
+        var bytes = Build(indexed: false).Concat("private metadata"u8.ToArray()).ToArray();
+
+        using var avi = Open(bytes);
+        using var packet = avi.ReadPacket(CancellationToken.None)!;
+
+        Assert.Equal(new byte[] { 1, 2, 3 }, packet.Data.Span.ToArray());
+    }
+
+    [Fact]
     public void InvalidTopLevelAndStreamHeadersAreRejected()
     {
         Assert.Throws<ArgumentNullException>(() => new AviDemuxer(null!, CancellationToken.None));
         Assert.Throws<MediaFormatException>(() => Open([]));
+        Assert.Throws<MediaFormatException>(() => Open(new byte[12]));
 
         var notAvi = Build(indexed: false);
         "WAVE"u8.CopyTo(notAvi.AsSpan(8));
