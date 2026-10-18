@@ -394,6 +394,7 @@ public sealed partial class MainWindow : Window
 
         if (!ReferenceEquals(_player.Item, _shownItem))
         {
+            ResetSeekPreview();
             // Each item starts at its own shape; a crop chosen for one film rarely suits the next.
             _shownItem = _player.Item;
             if (_subjectOpen)
@@ -630,7 +631,7 @@ public sealed partial class MainWindow : Window
         UnwirePerformance();
         // The seek area can still see the pointer leave while the window goes, so its work is
         // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
-        HideSeekPreview();
+        ResetSeekPreview();
         _subjectTimer?.Stop();
         _ = CloseSubjectModels();
         StopVisualizing();

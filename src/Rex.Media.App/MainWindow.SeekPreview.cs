@@ -68,6 +68,15 @@ public sealed partial class MainWindow
         SeekPreview.Visibility = Visibility.Collapsed;
     }
 
+    private void ResetSeekPreview()
+    {
+        HideSeekPreview();
+        _seekPreviewKey = null;
+        _seekPreviewPng = null;
+        SeekPreviewImage.Source = null;
+        SeekPreviewPicture.Visibility = Visibility.Collapsed;
+    }
+
     private async Task LoadSeekPreviewAsync(string location, TimeSpan at, string key, CancellationToken token)
     {
         try
