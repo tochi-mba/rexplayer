@@ -107,6 +107,9 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(whilePlaying, "PreferencesTranscribeWhilePlaying");
         AutomationProperties.SetAutomationId(battery, "PreferencesTranscribeOnBattery");
         AutomationProperties.SetAutomationId(hold, "PreferencesHoldForSubtitles");
+        var writeSrt = Check("Keep original and edited SRT files beside transcribed media", t.WriteSrtBesideMedia);
+        AutomationProperties.SetAutomationId(writeSrt, "PreferencesWriteTranscriptSrt");
+        AutomationProperties.SetHelpText(writeSrt, "Files include the transcription quality and version in their names, such as Movie.transcript.fast.original.srt. Authored subtitle files are never replaced.");
         var model = Choice("Transcription quality", [.. SpeechModels.QualityChoices], (int)k.TranscriptModel);
         AutomationProperties.SetAutomationId(model, "PreferencesTranscriptionModel");
         var language = Words("Spoken language (two letters, such as \"en\"; the models offered hear English)", k.TranscriptLanguage);
@@ -193,7 +196,7 @@ public sealed partial class MainWindow
         UIElement[] controls =
         [
             new TextBlock { Text = "Subtitles made from the speech, on this computer: what plays is heard from where it plays, its subtitles appearing as they are heard, and the library ahead of time.", TextWrapping = TextWrapping.Wrap },
-            library, backgroundDetails, whatPlays, holdGroup, model, language, modelLine, download, storage, clearing,
+            library, backgroundDetails, whatPlays, holdGroup, writeSrt, model, language, modelLine, download, storage, clearing,
         ];
         return (controls, settings => settings with
         {
@@ -208,6 +211,7 @@ public sealed partial class MainWindow
                 WhilePlaying = whilePlaying.IsChecked == true,
                 OnBattery = battery.IsChecked == true,
                 HoldForSubtitles = hold.IsChecked == true,
+                WriteSrtBesideMedia = writeSrt.IsChecked == true,
             }).Normalize(),
             KineticCaptions = (settings.KineticCaptions with
             {
