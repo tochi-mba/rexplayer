@@ -27,25 +27,39 @@ public sealed partial class MainWindow
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
             CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
-            CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
-            CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
+            "Group-Seek", null,
+            "Group-Speed", null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
             CommandCatalog.AddBookmark, CommandCatalog.Resume, null,
-            CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
-            CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
+            "Group-AfterCurrent", null,
+            "Group-Sleep"]),
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
-            CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
+            "Group-AudioDelay", null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
-            CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
-            CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize, null,
-            CommandCatalog.ToggleKineticCaptions, CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer,
-            CommandCatalog.KineticCaptionSettings, null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
+            "Group-SubtitleDelay", null,
+            "Group-SubtitleSize", null,
+            "Group-Captions", null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
-            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
+            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, "Group-WindowSize", null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary, null, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
     ];
+
+    // Named groups keep long menus usable without changing command identities or shortcuts.
+    private static readonly Dictionary<string, (string Title, string?[] Commands)> MenuGroups = new(StringComparer.Ordinal)
+    {
+        ["Group-Seek"] = ("Jump to position", [CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime]),
+        ["Group-Speed"] = ("Playback speed", [CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed]),
+        ["Group-AfterCurrent"] = ("After this item", [CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent]),
+        ["Group-Sleep"] = ("Sleep timer", [CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
+        ["Group-AudioDelay"] = ("Audio timing", [CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay]),
+        ["Group-SubtitleDelay"] = ("Subtitle timing", [CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay]),
+        ["Group-SubtitleSize"] = ("Subtitle size", [CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
+        ["Group-Captions"] = ("Animated captions", [CommandCatalog.ToggleKineticCaptions, CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer,
+            CommandCatalog.KineticCaptionSettings]),
+        ["Group-WindowSize"] = ("Window size", [CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble]),
+    };
 
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
 
@@ -145,6 +159,15 @@ public sealed partial class MainWindow
             if (id is null)
             {
                 items.Add(new MenuFlyoutSeparator());
+                continue;
+            }
+
+            if (MenuGroups.TryGetValue(id, out var group))
+            {
+                var submenu = new MenuFlyoutSubItem { Text = group.Title };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(submenu, prefix + id);
+                Fill(submenu.Items, group.Commands, prefix);
+                items.Add(submenu);
                 continue;
             }
 
