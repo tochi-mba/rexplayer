@@ -126,6 +126,20 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-10")]
+    public void PreferencesOffersTheEnhancedSubjectLockModelsUnderVideo()
+    {
+        using var app = AppProcess.Start();
+        app.Run(CommandCatalog.Preferences);
+        ChoosePreferencesSection(app, "Video and pictures");
+        Wait.For(() => app.IsShown("PreferencesSubjectModelsNote"), "the Enhanced Subject Lock models to show under Video and pictures");
+        Assert.NotNull(app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesSubjectModelsDownload")));
+        app.Press("CloseButton");
+        Assert.Equal(0, app.Close());
+    }
+
     private static void ChoosePreferencesSection(AppProcess app, string name)
     {
         var selector = app.Find("PreferencesSection");

@@ -204,6 +204,10 @@ public sealed partial class MainWindow
             Opacity = 0.75,
         });
 
+        // Enhanced Subject Lock's optional models sit with the picture effects that Subject Lock belongs to.
+        content.Children.Add(Heading(Rex.Media.Vision.ModelDownloadText.Heading));
+        content.Children.Add(SubjectModelsSection());
+
         AddSection("Music and artwork");
         content.Children.Add(visualizer);
         content.Children.Add(generatedArt);
