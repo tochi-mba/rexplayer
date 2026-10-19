@@ -10,6 +10,13 @@ public sealed partial class MainWindow
     private void QueueTranscriptVariants(string media, long generation)
     {
         var active = SpeechModels.For(_settings.KineticCaptions.TranscriptModel).Id;
+        // A quality chosen while this plays had its saved original loaded as a variant; its live
+        // track takes over now, so the frozen copy would be a second "Original" of the same quality.
+        foreach (var stale in _player.SubtitleTracks.Where(track => TranscriptVariant.ReplacedByLiveTrack(track.Name, active)).ToArray())
+        {
+            _player.RemoveSubtitles(stale);
+        }
+
         _ = Task.Run(() =>
         {
             var tracks = new List<SubtitleTrack>();
