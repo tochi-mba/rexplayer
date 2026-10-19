@@ -11,7 +11,7 @@ public sealed class ShowPageTests
     private static LibraryEntry Episode(string file, int plays = 0, DateTime? lastPlayed = null, TimeSpan? duration = null, string? title = null, string? problem = null) =>
         new()
         {
-            Path = $@"D:\TV\Alpha\{file}.mkv",
+            Path = $@"D:\TV\Alpha\{file}.mkv".Replace('\\', Path.DirectorySeparatorChar),
             Kind = LibraryKind.Video,
             Title = title ?? file,
             Added = Monday,
