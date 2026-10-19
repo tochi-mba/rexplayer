@@ -16,7 +16,6 @@ public sealed class ModelTests
         Assert.Equal(primaries, resolved.Primaries);
         Assert.Equal(ColorTransfer.Bt709, resolved.Transfer);
         Assert.False(resolved.FullRange);
-        Assert.False(resolved.IsHdr);
     }
 
     [Fact]
@@ -26,9 +25,8 @@ public sealed class ModelTests
 
         Assert.Equal(ColorPrimaries.Bt2020, hdr.Primaries);
         Assert.Equal(ColorTransfer.Pq, hdr.Transfer);
-        Assert.True(hdr.IsHdr);
         Assert.True(hdr.FullRange);
-        Assert.True(new ColorInfo(ColorMatrix.Rgb, ColorTransfer.Hlg, ColorPrimaries.DisplayP3, false).Resolve(10, 10) is { Primaries: ColorPrimaries.DisplayP3, IsHdr: true });
+        Assert.True(new ColorInfo(ColorMatrix.Rgb, ColorTransfer.Hlg, ColorPrimaries.DisplayP3, false).Resolve(10, 10) is { Primaries: ColorPrimaries.DisplayP3, Transfer: ColorTransfer.Hlg });
     }
 
     [Fact]

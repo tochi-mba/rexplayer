@@ -17,9 +17,6 @@ public sealed record FlacStreamInfo(
 {
     public const int Size = 34;
 
-    /// <summary>Whether every frame (but the last) has the same number of samples.</summary>
-    public bool FixedBlockSize => MinBlockSize == MaxBlockSize;
-
     /// <summary>The speaker order RFC 9639 section 9.1.3 assigns to each channel count.</summary>
     public static ChannelLayout Layout(int channels) => channels switch
     {

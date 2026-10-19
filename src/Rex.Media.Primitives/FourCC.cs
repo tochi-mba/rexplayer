@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Text;
 
 namespace Rex.Media.Primitives;
@@ -17,20 +16,6 @@ public static class FourCC
         }
 
         return builder.ToString();
-    }
-
-    /// <summary>The code as the big-endian integer some formats store it as.</summary>
-    public static uint ToUInt32(string code)
-    {
-        ArgumentNullException.ThrowIfNull(code);
-        ArgumentOutOfRangeException.ThrowIfNotEqual(code.Length, 4, nameof(code));
-        Span<byte> bytes = stackalloc byte[4];
-        for (var i = 0; i < 4; i++)
-        {
-            bytes[i] = (byte)code[i];
-        }
-
-        return BinaryPrimitives.ReadUInt32BigEndian(bytes);
     }
 
     public static bool Matches(ReadOnlySpan<byte> data, string code)

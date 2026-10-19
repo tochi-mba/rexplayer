@@ -26,8 +26,6 @@ public sealed class FlacHeaderTests
         Assert.Equal(16, parsed.BitsPerSample);
         Assert.Equal(0x9_8765_4321, parsed.TotalSamples);
         Assert.Equal(Md5, parsed.Md5);
-        Assert.False(parsed.FixedBlockSize);
-        Assert.True((info with { MinBlockSize = 4608 }).FixedBlockSize);
     }
 
     [Fact]
