@@ -77,6 +77,13 @@ public sealed partial class AppWindowTests : IDisposable
             var items = Wait.Until(() => All(app.Window, ControlType.MenuItem).Where(item => item.Current.AutomationId.StartsWith("Command-", StringComparison.Ordinal)).ToArray() is { Length: > 0 } some ? some : null);
             Assert.All(items, item => Assert.False(string.IsNullOrWhiteSpace(item.Current.Name), item.Current.AutomationId));
             found.UnionWith(items.Select(item => item.Current.AutomationId["Command-".Length..]));
+            if (menu == "PlaybackMenu")
+            {
+                // Finer variants sit one level in: every jump length, under Playback, Jump.
+                ((ExpandCollapsePattern)app.Find("Submenu-jump").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+                Assert.False(string.IsNullOrWhiteSpace(app.Find("Command-" + CommandCatalog.JumpBackLong).Current.Name));
+            }
+
             expander.Collapse();
         }
 
@@ -84,12 +91,6 @@ public sealed partial class AppWindowTests : IDisposable
             new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.AddSubtitles, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
             found);
 
-        // Finer variants sit one level in: every jump length, under Playback, Jump.
-        var playback = (ExpandCollapsePattern)app.Find("PlaybackMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
-        playback.Expand();
-        ((ExpandCollapsePattern)app.Find("Submenu-jump").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-        Assert.False(string.IsNullOrWhiteSpace(app.Find("Command-" + CommandCatalog.JumpBackLong).Current.Name));
-        playback.Collapse();
         Assert.Equal(0, app.Close());
     }
 
