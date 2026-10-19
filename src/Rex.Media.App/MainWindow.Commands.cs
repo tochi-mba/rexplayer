@@ -407,12 +407,23 @@ public sealed partial class MainWindow
 
     private void HideFullScreenControls()
     {
-        if (IsFullScreen && !Controls.FocusState.HasFlag(FocusState.Keyboard))
+        if (IsFullScreen && !FocusIsInside(Controls))
         {
             Controls.Visibility = Visibility.Collapsed;
             _pointerTimer.Stop();
             _pointerTimer.Start();
         }
+    }
+
+    /// <summary>Whether keyboard focus is on <paramref name="bar"/> or on anything inside it, such as one of its buttons.</summary>
+    private bool FocusIsInside(UIElement bar)
+    {
+        if (Content?.XamlRoot is not { } root || Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is not Control { FocusState: FocusState.Keyboard } focused)
+        {
+            return false;
+        }
+
+        return Rex.Media.AppCore.Shell.FocusWithin.IsInside<DependencyObject>(focused, bar, Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent);
     }
 
     /// <summary>The pointer is the last piece of full-screen chrome to leave.</summary>
@@ -697,6 +708,11 @@ public sealed partial class MainWindow
     {
         if (!_player.CanSeek)
         {
+            if (_player.Item is not null)
+            {
+                Say(PlayerController.CannotSeekNotice);
+            }
+
             return;
         }
 

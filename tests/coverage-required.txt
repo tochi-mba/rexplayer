@@ -95,6 +95,7 @@ FlacDemuxer.cs
 FlacFrameHeader.cs
 FlacStreamInfo.cs
 FlightScene.cs
+FocusWithin.cs
 FolderArt.cs
 FourCC.cs
 FrameBudget.cs

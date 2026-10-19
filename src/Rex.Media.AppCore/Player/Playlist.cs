@@ -81,6 +81,9 @@ public sealed class Playlist(Random? random = null)
 
     public int CurrentIndex => Current is null ? -1 : _items.IndexOf(Current);
 
+    /// <summary>Where <paramref name="item"/> is in the queue, or -1 when it is not there.</summary>
+    public int IndexOf(PlaylistItem item) => _items.IndexOf(item);
+
     public RepeatMode Repeat
     {
         get;

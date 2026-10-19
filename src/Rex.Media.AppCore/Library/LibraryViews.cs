@@ -147,11 +147,12 @@ public static partial class LibraryViews
     /// <summary>
     /// The artists, by name, each with their songs. Tag formats can carry several artist values;
     /// rexplayer's canonical metadata joins those with semicolons, so every credited artist gets a
-    /// library entry while the song keeps its original combined credit.
+    /// library entry while the song keeps its original combined credit. A song is filed under its
+    /// album's artist and under its own artists too ("Various Artists" and "Asake"), once under each.
     /// </summary>
     public static IReadOnlyList<LibraryGroup> Artists(IEnumerable<LibraryEntry> entries) =>
         [.. Songs(entries)
-            .SelectMany(entry => ArtistNames(entry.FiledArtist).Select(name => (Name: name, Entry: entry)))
+            .SelectMany(entry => ArtistNames(entry.AlbumArtist + ";" + entry.Artist).Select(name => (Name: name, Entry: entry)))
             .GroupBy(pair => pair.Name, ByName)
             .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Name)), null, [.. group.Select(pair => pair.Entry).Distinct()]))
             .OrderBy(group => group.Name == UnknownArtist)

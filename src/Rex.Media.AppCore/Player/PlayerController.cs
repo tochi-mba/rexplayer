@@ -263,6 +263,12 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
+        // After the last item ended, seeking plays it again, so it is the queue's current item again.
+        if (Playlist.Current is null && Item is { } replayed && Playlist.IndexOf(replayed) is >= 0 and var index)
+        {
+            Playlist.JumpTo(index);
+        }
+
         Position = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
         _log.Debug(LogSource, $"Seeking to {TimeText.Format(Position, Duration)}.");
         _ = Observe(_session.SeekAsync(new MediaTime((Item!.Start + Position).Ticks)));
