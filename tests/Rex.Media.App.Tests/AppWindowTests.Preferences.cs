@@ -102,8 +102,11 @@ public sealed partial class AppWindowTests
         ChoosePreferencesSection(app, "Subtitles");
         var scroll = (ScrollPattern)app.Find("PreferencesScroll").GetCurrentPattern(ScrollPattern.Pattern);
         Wait.For(() => scroll.Current.VerticallyScrollable, "the long section to scroll in a small window");
-        scroll.SetScrollPercent(ScrollPattern.NoScroll, 60);
-        Wait.For(() => scroll.Current.VerticalScrollPercent > 30, "the subtitle section to scroll");
+        Wait.For(() =>
+        {
+            scroll.SetScrollPercent(ScrollPattern.NoScroll, 60);
+            return scroll.Current.VerticalScrollPercent > 30;
+        }, "the subtitle section to scroll");
         var offset = scroll.Current.VerticalScrollPercent;
         ChoosePreferencesSection(app, "Updates");
         Assert.False(app.Find("PreferencesUpdateChecks").Current.IsOffscreen);

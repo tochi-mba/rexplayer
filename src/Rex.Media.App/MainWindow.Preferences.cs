@@ -357,7 +357,12 @@ public sealed partial class MainWindow
                 shownSection = section.SelectedIndex;
                 scroll.Content = sections[shownSection].Page;
                 scroll.UpdateLayout();
-                scroll.ChangeView(null, offsets[shownSection], null, disableAnimation: true);
+                // A view already at its saved place is left alone: a redundant change lands after
+                // layout and would undo a scroll the user starts straight after switching.
+                if (Math.Abs(scroll.VerticalOffset - offsets[shownSection]) > 0.5)
+                {
+                    scroll.ChangeView(null, offsets[shownSection], null, disableAnimation: true);
+                }
             };
             var navigation = new StackPanel { Spacing = 4 };
             navigation.Children.Add(section);
