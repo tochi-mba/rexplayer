@@ -513,6 +513,7 @@ public sealed partial class MainWindow
                 (LibraryKindFilter.Music, "Music"), (LibraryKindFilter.Picture, "Pictures")],
             choice.Kinds, value => KeepViewChoice(choice with { Kinds = value })));
         var folders = new MenuFlyoutSubItem { Text = "Folder" };
+        AutomationProperties.SetAutomationId(folders, "LibraryFilterFolder");
         var allFolders = new RadioMenuFlyoutItem { Text = "All folders", GroupName = "LibraryFilterFolder", IsChecked = choice.Folder is null };
         AutomationProperties.SetAutomationId(allFolders, "LibraryFilterFolder-All");
         allFolders.Click += (_, _) => KeepViewChoice(choice with { Folder = null });
@@ -555,6 +556,7 @@ public sealed partial class MainWindow
         where T : struct, Enum
     {
         var group = new MenuFlyoutSubItem { Text = label };
+        AutomationProperties.SetAutomationId(group, id);
         foreach (var (value, name) in choices)
         {
             var item = new RadioMenuFlyoutItem { Text = name, GroupName = id, IsChecked = EqualityComparer<T>.Default.Equals(value, current) };
