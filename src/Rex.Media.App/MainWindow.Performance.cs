@@ -130,12 +130,6 @@ public sealed partial class MainWindow
 
         App.Log.Info(LogSource, $"Performance: {DeviceProfile.Describe(_settings.Performance, _facts)} {string.Join(" ", DeviceProfile.Changes(budget))}");
         OnPresenterThread(presenter => presenter.SubjectStep = budget.SubjectStep);
-        if (before.LargestSpeechModel != budget.LargestSpeechModel)
-        {
-            // The model transcription uses may have changed: whether it is installed is asked again.
-            _modelInstalled = null;
-        }
-
         if (!force && before.HeavyEffectsOff != budget.HeavyEffectsOff)
         {
             ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);

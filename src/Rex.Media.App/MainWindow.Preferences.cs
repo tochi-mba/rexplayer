@@ -149,7 +149,7 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceChanges, "PreferencesPerformanceChanges");
         var performanceTranscriptionNote = new TextBlock
         {
-            Text = "Changing the speech-model limit keeps the current item's transcript and buffering.",
+            Text = "Transcription quality stays as you choose it on the caption rail or under Transcription, in every mode.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.75,
         };
