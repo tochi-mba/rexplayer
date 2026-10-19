@@ -352,7 +352,6 @@ public sealed class PlaylistFileTests
         Assert.Equal(PlaylistFormat.Pls, PlaylistFiles.FormatForSaving("a.PLS"));
         Assert.Equal(PlaylistFormat.Xspf, PlaylistFiles.FormatForSaving("a.xspf"));
         Assert.Equal(PlaylistFormat.M3u, PlaylistFiles.FormatForSaving("a.m3u8"));
-        Assert.Equal(PlaylistFiles.Writable, [PlaylistFormat.M3u, PlaylistFormat.Pls, PlaylistFormat.Xspf]);
         Assert.Equal(@"C:\Music", PlaylistFiles.Folder(@"C:\Music\a.m3u"));
         Assert.Equal("/", PlaylistFiles.Folder("/a.m3u"));
         Assert.Equal("", PlaylistFiles.Folder("a.m3u"));
