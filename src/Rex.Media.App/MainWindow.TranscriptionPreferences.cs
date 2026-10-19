@@ -44,7 +44,7 @@ public sealed partial class MainWindow
             folders.Children.Add(new TextBlock { Text = "The library watches no folders yet; add them in the library.", TextWrapping = TextWrapping.Wrap });
         }
 
-        void Follow() => folders.Opacity = scope.SelectedIndex == (int)TranscriptionScope.ChosenFolders ? 1 : 0.5;
+        void Follow() => folders.Visibility = scope.SelectedIndex == (int)TranscriptionScope.ChosenFolders ? Visibility.Visible : Visibility.Collapsed;
         scope.SelectionChanged += (_, _) => Follow();
         Follow();
 
@@ -112,26 +112,29 @@ public sealed partial class MainWindow
         var language = Words("Spoken language (two letters, such as \"en\"; the models offered hear English)", k.TranscriptLanguage);
         AutomationProperties.SetAutomationId(language, "PreferencesTranscriptionLanguage");
 
-        var chosenModel = SpeechModels.For(k.TranscriptModel);
-        var modelLine = new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            Text = _speechModels.IsInstalled(chosenModel)
-                ? $"The {chosenModel.Name} model is downloaded."
-                : $"The {chosenModel.Name} model ({chosenModel.Size}) is not downloaded yet. It downloads once, when transcription is first used, and never on a metered connection unless you choose Download now.",
-        };
+        var modelLine = new TextBlock { TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetAutomationId(modelLine, "PreferencesTranscriptionModelStatus");
-        var download = new Button { Content = "Download now", Visibility = _speechModels.IsInstalled(chosenModel) ? Visibility.Collapsed : Visibility.Visible };
+        var download = new Button { Content = "Download now" };
         AutomationProperties.SetAutomationId(download, "PreferencesTranscriptionDownload");
+        SpeechModel SelectedModel() => SpeechModels.For((TranscriptModelChoice)Math.Max(0, model.SelectedIndex));
+        void ShowModel()
+        {
+            var selected = SelectedModel();
+            var installed = _speechModels.IsInstalled(selected);
+            modelLine.Text = installed
+                ? $"The {selected.Name} model is downloaded."
+                : $"The {selected.Name} model ({selected.Size}) is not downloaded yet. It downloads once, when transcription is first used, and never on a metered connection unless you choose Download now.";
+            download.Visibility = installed ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        model.SelectionChanged += (_, _) => ShowModel();
+        ShowModel();
         download.Click += async (_, _) =>
         {
+            var selected = SelectedModel();
             download.IsEnabled = false;
-            if (await EnsureSpeechModelAsync(askedNow: true))
-            {
-                modelLine.Text = $"The {chosenModel.Name} model is downloaded.";
-                download.Visibility = Visibility.Collapsed;
-            }
-
+            await EnsureSpeechModelAsync(askedNow: true, requestedModel: selected);
+            ShowModel();
             download.IsEnabled = true;
         };
 
@@ -171,10 +174,26 @@ public sealed partial class MainWindow
         clearing.Children.Add(forgetGone);
         clearing.Children.Add(forgetAll);
 
+        var libraryOptions = new StackPanel { Spacing = 8 };
+        foreach (var control in new UIElement[] { scope, folders, leftOut, leaveOut, music, whilePlaying, battery })
+        {
+            libraryOptions.Children.Add(control);
+        }
+        var backgroundDetails = new Expander
+        {
+            Header = "Library transcription folders and scheduling",
+            Content = libraryOptions,
+            IsExpanded = t.Library,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        AutomationProperties.SetAutomationId(backgroundDetails, "PreferencesTranscriptionDetails");
+        AutomationProperties.SetName(backgroundDetails, "Library transcription folders and scheduling");
+        library.Checked += (_, _) => backgroundDetails.IsExpanded = true;
+
         UIElement[] controls =
         [
             new TextBlock { Text = "Subtitles made from the speech, on this computer: what plays is heard from where it plays, its subtitles appearing as they are heard, and the library ahead of time.", TextWrapping = TextWrapping.Wrap },
-            library, scope, folders, leftOut, leaveOut, music, whatPlays, holdGroup, whilePlaying, battery, model, language, modelLine, download, storage, clearing,
+            library, backgroundDetails, whatPlays, holdGroup, model, language, modelLine, download, storage, clearing,
         ];
         return (controls, settings => settings with
         {

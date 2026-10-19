@@ -390,6 +390,14 @@ public sealed partial class MainWindow
 
     private void SetKineticCaptions(KineticCaptionSettings kinetic)
     {
+        if (_settings.KineticCaptions.TranscriptModel != kinetic.TranscriptModel)
+        {
+            // Recheck availability for the new model; an active transcript keeps its pinned model.
+            _modelInstalled = null;
+            _plannedTranscription = null;
+            _queueDirty = true;
+        }
+
         _settings = _settings with { KineticCaptions = kinetic };
         _player.Settings = _settings;
         _captionDirector?.Restyle(CaptionDirector.StyleFor(_settings));
