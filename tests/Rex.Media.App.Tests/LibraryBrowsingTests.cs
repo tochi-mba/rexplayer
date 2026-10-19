@@ -108,8 +108,8 @@ public sealed class LibraryBrowsingTests : IDisposable
         app.Pick("LibraryGroup", "Letter");
         Wait.For(() => HasText(app, "LibraryList", "L") && HasText(app, "LibraryList", "S") && HasText(app, "LibraryList", "T"), "a heading per first letter");
 
-        var kept = app.SavedSettings.LibraryViews["Songs"];
-        Assert.Equal((LibraryLook.List, LibrarySort.Title, true, LibraryGrouping.Letter), (kept.Look, kept.Sort, kept.Descending, kept.Grouping));
+        Wait.For(() => app.SavedSettings.LibraryViews.GetValueOrDefault("Songs") is { Look: LibraryLook.List, Sort: LibrarySort.Title, Descending: true, Grouping: LibraryGrouping.Letter },
+            "the songs' layout, order and groups to be kept");
 
         // Another view keeps its own choice, and coming back finds the songs as they were left.
         app.Visit("Albums");
@@ -133,7 +133,7 @@ public sealed class LibraryBrowsingTests : IDisposable
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText").StartsWith("Nothing here matches these filters", StringComparison.Ordinal), "the filtered empty state");
         app.Press("LibraryEmptyClearFilters");
         Wait.For(() => app.Lines().Length == 3, "Clear filters to bring the songs back");
-        Assert.False(app.SavedSettings.LibraryViews["Songs"].IsFiltered);
+        Wait.For(() => app.SavedSettings.LibraryViews.GetValueOrDefault("Songs") is { IsFiltered: false }, "the cleared filters to be kept");
 
         app.Filter("LibraryFilterProgress", "Finished");
         Wait.For(() => app.Lines().SequenceEqual(["Terminator"]), "only the played song");
