@@ -70,6 +70,4 @@ public sealed class CliArguments
     }
 
     public string? Option(string name) => _options.TryGetValue(name, out var value) ? value : null;
-
-    public IEnumerable<string> OptionNames => _options.Keys;
 }
