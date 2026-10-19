@@ -8,7 +8,8 @@ pipeline the moment its number reaches `main`.
 ### Added
 
 - **Artist pages.** Opening an artist in the library shows their most played songs and their albums, newest first, instead of one long song list. An album opens from the page into its own track list with the artist, year, song count and total length over it, Back returns to the artist, and Play and Shuffle play the artist's songs without repeating a top song that is also on an album.
-- **A streaming-style browse for Movies and TV shows.** Both views now open on a featured billboard — the movie or show you left part-way, else the most watched, else the newest — with Play and one more action, over rows that scroll sideways: Continue watching with progress bars, Recently added, Most watched, the movies' genres, and everything A-Z. The Browse layout sits beside List, Cards, Big cards and Collage, and each view remembers the layout you choose.
+- **A streaming-style browse for Movies and TV shows.** Both views now open on a featured billboard - the movie or show you left part-way, else the most watched, else the newest - with Play and one more action, over rows that scroll sideways: Continue watching with progress bars, Recently added, Most watched, the movies' genres, and everything A-Z. The Browse layout sits beside List, Cards, Big cards and Collage, and each view remembers the layout you choose.
+
 
 
 ### Improved
