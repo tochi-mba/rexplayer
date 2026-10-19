@@ -148,7 +148,7 @@ public sealed class TagFileWriterTests : IDisposable
         var good = output.ToArray();
 
         Assert.True(TagFileWriter.Verify(new MemoryByteSource(good), "mp3", original, plan, edit, Ct));
-        Assert.False(TagFileWriter.Verify(new MemoryByteSource(good[..^1]), "mp3", original, plan, edit, Ct));
+        Assert.False(TagFileWriter.Verify(new MemoryByteSource(good.AsMemory(0, good.Length - 1)), "mp3", original, plan, edit, Ct));
         Assert.False(TagFileWriter.Verify(new MemoryByteSource(good), "mp3", original, plan, edit with { Cover = new PictureBlock(3, "image/png", [1]) }, Ct));
         var damaged = (byte[])good.Clone();
         damaged[^1] ^= 0xFF;
@@ -169,9 +169,9 @@ public sealed class TagFileWriterTests : IDisposable
     {
         byte[] info = [.. "fLaC"u8, 0, 0, 0, 34, .. new byte[34]];
         Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource(info), Ct));
-        Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource([.. "fLaC"u8, 0x80, 0, 0, 40, .. new byte[34]]), Ct));
-        Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource([.. "fLaC"u8, 0x80, 0, 0, 34, .. new byte[34], 0xFF, 0x00]), Ct));
-        Assert.Equal(42, FlacTagWriter.MetadataLength(new MemoryByteSource([.. "fLaC"u8, 0x80, 0, 0, 34, .. new byte[34], 0xFF, 0xF9]), Ct));
+        Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource((byte[])[.. "fLaC"u8, 0x80, 0, 0, 40, .. new byte[34]]), Ct));
+        Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource((byte[])[.. "fLaC"u8, 0x80, 0, 0, 34, .. new byte[34], 0xFF, 0x00]), Ct));
+        Assert.Equal(42, FlacTagWriter.MetadataLength(new MemoryByteSource((byte[])[.. "fLaC"u8, 0x80, 0, 0, 34, .. new byte[34], 0xFF, 0xF9]), Ct));
     }
 
     private void Refused(string name, byte[] contents, TagEdit edit)
