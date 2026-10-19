@@ -63,8 +63,10 @@ public sealed class MusicBrainzTests : IDisposable
         var bare = MusicBrainz.SearchUri(null, "Work of Art").AbsoluteUri;
         Assert.DoesNotContain("artist", bare);
         Assert.Equal("https://coverartarchive.org/release-group/rg-1/front-500", MusicBrainz.CoverUri("rg-1").AbsoluteUri);
+        Assert.Equal("https://coverartarchive.org/release-group/rg-1/front-250", MusicBrainz.CoverThumbUri("rg-1").AbsoluteUri);
         Assert.Throws<ArgumentNullException>(() => MusicBrainz.SearchUri("a", null!));
         Assert.Throws<ArgumentNullException>(() => MusicBrainz.CoverUri(null!));
+        Assert.Throws<ArgumentNullException>(() => MusicBrainz.CoverThumbUri(null!));
     }
 
     [Fact]
@@ -144,6 +146,24 @@ public sealed class MusicBrainzTests : IDisposable
 
         await Assert.ThrowsAsync<ArgumentNullException>(() => fetcher.FetchAlbumAsync("a", null!, false, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task SearchingForThePickerReturnsTheCandidatesAndRawFetchesPassThrough()
+    {
+        _answers[MusicBrainz.SearchUri("Asake", "Work of Art").AbsoluteUri] = Search;
+        var fetcher = Fetcher;
+        Assert.Equal(3, (await fetcher.SearchAlbumsAsync("Asake", "Work of Art", CancellationToken.None)).Count);
+        Assert.Empty(await fetcher.SearchAlbumsAsync("Asake", "Unknown", CancellationToken.None));
+        _answers[MusicBrainz.SearchUri("Asake", "Odd").AbsoluteUri] = "broken";
+        Assert.Empty(await fetcher.SearchAlbumsAsync("Asake", "Odd", CancellationToken.None));
+
+        _answers["https://coverartarchive.org/release-group/rg-1/front-250"] = "thumb";
+        Assert.Equal("thumb"u8.ToArray(), await fetcher.FetchBytesAsync(MusicBrainz.CoverThumbUri("rg-1"), CancellationToken.None));
+        Assert.Null(await fetcher.FetchBytesAsync(MusicBrainz.CoverThumbUri("rg-2"), CancellationToken.None));
+    }
+
+    [Fact]
+    public void ReplacingCoversIsOffByDefault() => Assert.False(new Rex.Media.Settings.MetadataSettings().ReplaceCovers);
 
     [Fact]
     public void TheGateKeepsOneCallPerInterval()

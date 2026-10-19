@@ -26,6 +26,10 @@ public static class MusicBrainz
     public static Uri CoverUri(string releaseGroupId) =>
         new($"https://coverartarchive.org/release-group/{releaseGroupId ?? throw new ArgumentNullException(nameof(releaseGroupId))}/front-500");
 
+    /// <summary>The same front cover small, for a row of candidates to pick from.</summary>
+    public static Uri CoverThumbUri(string releaseGroupId) =>
+        new($"https://coverartarchive.org/release-group/{releaseGroupId ?? throw new ArgumentNullException(nameof(releaseGroupId))}/front-250");
+
     /// <summary>The albums a search answered with, best first; malformed JSON throws <see cref="JsonException"/>.</summary>
     public static IReadOnlyList<AlbumCandidate> ParseSearch(string json)
     {

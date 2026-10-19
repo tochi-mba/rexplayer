@@ -1,7 +1,9 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Metadata;
 using Rex.Media.Settings;
+using Windows.Storage.Pickers;
 
 namespace Rex.Media.App;
 
@@ -95,7 +97,7 @@ public sealed partial class MainWindow
     {
         var old = before.Metadata;
         var now = _settings.Metadata;
-        if (old.TvShows == now.TvShows && old.Movies == now.Movies && old.Music == now.Music
+        if (old.TvShows == now.TvShows && old.Movies == now.Movies && old.Music == now.Music && old.ReplaceCovers == now.ReplaceCovers
             && old.TmdbApiKey == now.TmdbApiKey && old.Excluded.SequenceEqual(now.Excluded, StringComparer.OrdinalIgnoreCase))
         {
             return;
@@ -221,11 +223,32 @@ public sealed partial class MainWindow
                 }
 
                 var key = MusicBrainz.AlbumKey(group.Detail, album);
+                var stale = false;
                 lock (_metadataGate)
                 {
-                    if (_metadataAlbums.ContainsKey(key))
+                    if (_metadataAlbums.TryGetValue(key, out var settled))
                     {
-                        continue;
+                        // With covers being replaced, an album once passed over for carrying its
+                        // own art is looked up after all; everything else settled stays settled.
+                        if (!metadata.ReplaceCovers || !settled.LocalArt)
+                        {
+                            continue;
+                        }
+
+                        stale = true;
+                        _metadataAlbums.Remove(key);
+                    }
+                }
+
+                if (stale)
+                {
+                    try
+                    {
+                        MetadataCacheNow.Remove(MetadataFetcher.MusicKind, key, ".json");
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        App.Log.Error(MetadataLogSource, $"The cached metadata for {album} could not be removed: {ex.Message}");
                     }
                 }
 
@@ -275,7 +298,8 @@ public sealed partial class MainWindow
             if (job.Kind == MetadataWork.Music)
             {
                 var (artist, album) = AlbumFromJobKey(job.Key);
-                ok = await fetcher.FetchAlbumAsync(artist, album, AlbumFilesCarryArt(artist, album), token).ConfigureAwait(false);
+                var carryArt = !_settings.Metadata.ReplaceCovers && AlbumFilesCarryArt(artist, album);
+                ok = await fetcher.FetchAlbumAsync(artist, album, carryArt, token).ConfigureAwait(false);
             }
             else
             {
@@ -445,6 +469,169 @@ public sealed partial class MainWindow
 
         StartMetadataWhenAllowed();
         Say($"{album} will be fetched again");
+    }
+
+    /// <summary>
+    /// The cover the user chose for a song's album, if any: their explicit pick beats everything
+    /// shown, lives outside the downloads, and is never written into their files. Reads the disk,
+    /// so it is called off the window's thread.
+    /// </summary>
+    private string? ChosenCoverPath(string path)
+    {
+        if (_library?.Entry(path) is not { Kind: Rex.Media.Library.LibraryKind.Music, Album.Length: > 0 } entry)
+        {
+            return null;
+        }
+
+        var chosen = MetadataCacheNow.ChosenArtPath(MusicBrainz.AlbumKey(entry.FiledArtist, entry.Album));
+        return File.Exists(chosen) ? chosen : null;
+    }
+
+    /// <summary>Whether the user chose a cover for this album, so the menu can offer to restore the original.</summary>
+    private bool HasChosenCover(string? artist, string album) =>
+        File.Exists(MetadataCacheNow.ChosenArtPath(MusicBrainz.AlbumKey(artist, album)));
+
+    /// <summary>Puts the album's own artwork back by forgetting the user's chosen cover.</summary>
+    private void RestoreAlbumCover(string? artist, string album)
+    {
+        try
+        {
+            MetadataCacheNow.RemoveChosenArt(MusicBrainz.AlbumKey(artist, album));
+            Say($"{album} shows its own cover again");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Say("The chosen cover could not be removed: " + ex.Message);
+        }
+
+        ShowLibrary();
+    }
+
+    /// <summary>
+    /// "Replace cover...": the catalogue's candidate covers to pick from, or any image file. The
+    /// pick is kept in rexplayer's own cache - never written into the user's files - and outlives
+    /// rescans and cleared downloads.
+    /// </summary>
+    private async Task ReplaceAlbumCoverAsync(string? artist, string album)
+    {
+        var status = new TextBlock { Text = "Asking the catalogue for covers…", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap, Opacity = 0.75 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(status, "ReplaceCoverStatus");
+        var results = new ListView { MaxHeight = 320, SelectionMode = ListViewSelectionMode.Single };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(results, "Covers the catalogue offers");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(results, "ReplaceCoverResults");
+        var covers = new List<byte[]>();
+        byte[]? pickedFile = null;
+        var pickFile = new Button { Content = "Choose an image file..." };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(pickFile, "ReplaceCoverFromFile");
+        pickFile.Click += async (_, _) =>
+        {
+            var picker = Prepared(new FileOpenPicker { SuggestedStartLocation = PickerLocationId.PicturesLibrary, ViewMode = PickerViewMode.Thumbnail });
+            foreach (var type in new[] { ".jpg", ".jpeg", ".png", ".webp", ".bmp" })
+            {
+                picker.FileTypeFilter.Add(type);
+            }
+
+            if (await picker.PickSingleFileAsync() is { } file)
+            {
+                try
+                {
+                    pickedFile = await File.ReadAllBytesAsync(file.Path);
+                    results.SelectedIndex = -1;
+                    status.Text = $"Using {file.Name}. Save to keep it.";
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    status.Text = "That file could not be read: " + ex.Message;
+                }
+            }
+        };
+
+        var panel = new StackPanel { Spacing = 8, MinWidth = 320 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "The cover you pick changes only what rexplayer shows; your files are never written to.",
+            TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+        });
+        panel.Children.Add(status);
+        panel.Children.Add(results);
+        panel.Children.Add(pickFile);
+
+        async Task LoadCandidatesAsync()
+        {
+            try
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                http.DefaultRequestHeaders.UserAgent.ParseAdd($"rexplayer/{Version} (https://github.com/tochi-mba/rexplayer)");
+                var gate = new RateGate(TimeSpan.FromSeconds(1.1));
+                var fetcher = new MetadataFetcher(MetadataCacheNow, async (uri, inner) =>
+                {
+                    if (uri.Host.EndsWith("musicbrainz.org", StringComparison.OrdinalIgnoreCase)
+                        && gate.Delay(DateTimeOffset.Now) is { } wait && wait > TimeSpan.Zero)
+                    {
+                        await Task.Delay(wait, inner).ConfigureAwait(false);
+                    }
+
+                    using var response = await http.GetAsync(uri, inner).ConfigureAwait(false);
+                    return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync(inner).ConfigureAwait(false) : null;
+                });
+                var candidates = await fetcher.SearchAlbumsAsync(artist, album, CancellationToken.None);
+                foreach (var candidate in candidates.Take(4))
+                {
+                    var bytes = await fetcher.FetchBytesAsync(MusicBrainz.CoverThumbUri(candidate.Id), CancellationToken.None);
+                    if (bytes is null)
+                    {
+                        continue;
+                    }
+
+                    var image = new Microsoft.UI.Xaml.Controls.Image { Width = 120, Height = 120, Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform };
+                    image.Source = await DecodePictureAsync(bytes, 120, CancellationToken.None);
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    row.Children.Add(image);
+                    row.Children.Add(new TextBlock
+                    {
+                        Text = candidate.Title + (candidate.Artist is { } by ? "\n" + by : "") + (candidate.Year is { } year ? "\n" + year.ToString(System.Globalization.CultureInfo.CurrentCulture) : ""),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+                        MaxWidth = 220,
+                    });
+                    covers.Add(bytes);
+                    results.Items.Add(row);
+                }
+
+                status.Text = covers.Count == 0
+                    ? "The catalogue offered no covers for this album; you can still choose an image file."
+                    : $"Pick a cover ({covers.Count} offered), or choose an image file.";
+            }
+            catch (HttpRequestException ex)
+            {
+                status.Text = "The catalogue could not be reached: " + ex.Message;
+            }
+            catch (TaskCanceledException)
+            {
+                status.Text = "The catalogue took too long to answer.";
+            }
+        }
+
+        var loading = LoadCandidatesAsync();
+        var saved = await Ask($"Replace the cover of {album}", panel, "Use this cover", "Cancel");
+        await loading;
+        var chosen = pickedFile ?? (results.SelectedIndex >= 0 && results.SelectedIndex < covers.Count ? covers[results.SelectedIndex] : null);
+        if (!saved || chosen is null)
+        {
+            return;
+        }
+
+        try
+        {
+            MetadataCacheNow.WriteChosenArt(MusicBrainz.AlbumKey(artist, album), chosen);
+            Say($"{album} shows the cover you chose");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Say("The chosen cover could not be kept: " + ex.Message);
+        }
+
+        ShowLibrary();
     }
 
     /// <summary>New facts redraw the library once, on its thread, only while it is open.</summary>

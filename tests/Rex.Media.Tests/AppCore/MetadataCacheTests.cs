@@ -87,6 +87,27 @@ public sealed class MetadataCacheTests : IDisposable
         Assert.True(File.Exists(cache.ChoicesPath));
     }
 
+    [Fact]
+    public void ChosenArtworkLivesOutsideTheDownloadsAndSurvivesAClear()
+    {
+        var cache = Cache;
+        Assert.False(File.Exists(cache.ChosenArtPath("asake\u001fwork of art")));
+        cache.WriteChosenArt("asake\u001fwork of art", [1, 2]);
+        cache.WriteChosenArt("asake\u001fwork of art", [3, 4, 5]);
+        cache.Write("tv", "b", ".json", [9]);
+
+        Assert.Equal(new byte[] { 3, 4, 5 }, File.ReadAllBytes(cache.ChosenArtPath("asake\u001fwork of art")));
+        Assert.Equal(1, cache.Size());
+
+        cache.Clear();
+        Assert.True(File.Exists(cache.ChosenArtPath("asake\u001fwork of art")));
+
+        cache.RemoveChosenArt("asake\u001fwork of art");
+        cache.RemoveChosenArt("asake\u001fwork of art");
+        Assert.False(File.Exists(cache.ChosenArtPath("asake\u001fwork of art")));
+        Assert.Throws<ArgumentNullException>(() => cache.WriteChosenArt("k", null!));
+    }
+
     [Theory]
     [InlineData(0, "nothing yet")]
     [InlineData(-5, "nothing yet")]
