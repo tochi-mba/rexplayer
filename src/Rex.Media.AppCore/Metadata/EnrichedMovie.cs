@@ -94,7 +94,16 @@ public sealed record EnrichedMovie
         ArgumentNullException.ThrowIfNull(json);
         try
         {
-            return JsonSerializer.Deserialize(json, EnrichedMovieJson.Default.EnrichedMovie);
+            var movie = JsonSerializer.Deserialize(json, EnrichedMovieJson.Default.EnrichedMovie);
+            return movie is null ? null : movie with
+            {
+                Genres = movie.Genres ?? [],
+                Cast = movie.Cast ?? [],
+                Directors = movie.Directors ?? [],
+                Writers = movie.Writers ?? [],
+                TrailerKeys = movie.TrailerKeys ?? [],
+                Recommendations = movie.Recommendations ?? [],
+            };
         }
         catch (JsonException)
         {
