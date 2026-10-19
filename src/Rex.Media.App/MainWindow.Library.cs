@@ -723,6 +723,12 @@ public sealed partial class MainWindow
             else if (IsAlbumRow(chosen, out var albumArtist, out var album))
             {
                 menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshAlbumMetadata(albumArtist, album)));
+                menu.Items.Add(MenuItem("Replace cover...", "LibraryMenuReplaceCover", () => _ = ReplaceAlbumCoverAsync(albumArtist, album)));
+                if (HasChosenCover(albumArtist, album))
+                {
+                    menu.Items.Add(MenuItem("Restore original cover", "LibraryMenuRestoreCover", () => RestoreAlbumCover(albumArtist, album)));
+                }
+
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 

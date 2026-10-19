@@ -213,6 +213,23 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
             .Where(album => album is not null)!];
     }
 
+    /// <summary>One raw fetch through the same delegate, for candidate covers a picker shows; null when it cannot answer.</summary>
+    public Task<byte[]?> FetchBytesAsync(Uri uri, CancellationToken token) => _fetch(uri, token);
+
+    /// <summary>The catalogue's candidates for an album, for the user to pick a cover from; empty when it cannot answer.</summary>
+    public async Task<IReadOnlyList<AlbumCandidate>> SearchAlbumsAsync(string? artist, string album, CancellationToken token)
+    {
+        var answer = await TextAsync(MusicBrainz.SearchUri(artist, album), token).ConfigureAwait(false);
+        try
+        {
+            return answer is null ? [] : MusicBrainz.ParseSearch(answer);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
     /// <summary>Forgets the album's record and cover, for a refresh.</summary>
     public void ForgetAlbum(string? artist, string album)
     {
