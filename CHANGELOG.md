@@ -7,6 +7,7 @@ pipeline the moment its number reaches `main`.
 
 ### Improved
 
+- **Zoom out from the right-click menu.** The picture's right-click menu offers Zoom out beside Zoom in and Reset zoom.
 - **A paused visualisation rests.** Once the music pauses or ends, the visualisation lets the last sound die away for a second and a half and then stops redrawing a still picture, instead of drawing it up to sixty times a second; it moves again the moment the music plays. Camera visualisations keep following you while paused.
 - **A quieter idle window.** With nothing open, no sleep timer and nothing to transcribe, the window's own clocks no longer wake it 132 times a minute: the resume point is saved while something is open, the sleep timer ticks while it is set, and transcription looks at the computer only while it has work.
 - **Paused kinetic captions stand still.** While a video is paused the words on screen are left as they are, instead of being worked out, laid out and announced to screen readers again on every display refresh; they move again when playback, a seek, the window's size or the captions' look changes them.
