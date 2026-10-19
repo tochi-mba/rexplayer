@@ -131,6 +131,24 @@ public sealed class MetadataFetcherTests : IDisposable
     }
 
     [Fact]
+    public async Task MalformedOptionalDetailsDoNotDiscardAUsableShow()
+    {
+        AnswerEverything();
+        _answers["https://api.tvmaze.com/shows/318/cast"] = "broken";
+        _answers["https://api.tvmaze.com/shows/318/crew"] = "broken";
+        _answers["https://api.tvmaze.com/shows/318/seasons"] = "broken";
+
+        Assert.True(await Fetcher.FetchShowAsync("The Show", null, null, CancellationToken.None));
+
+        var show = Fetcher.Cached("The Show");
+        Assert.NotNull(show);
+        Assert.Equal("Winter", show!.EpisodeName(1, 1));
+        Assert.Empty(show.Cast);
+        Assert.Empty(show.Creators);
+        Assert.Empty(show.Seasons);
+    }
+
+    [Fact]
     public async Task SearchingForThePickerReturnsTheCandidates()
     {
         AnswerEverything();

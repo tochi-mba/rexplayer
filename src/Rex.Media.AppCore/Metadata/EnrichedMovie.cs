@@ -28,14 +28,58 @@ public sealed record EnrichedMovie
     /// <summary>Whether a poster was fetched and sits in the cache under the same key.</summary>
     public bool HasPoster { get; init; }
 
+    public string? Tagline { get; init; }
+
+    public int? RuntimeMinutes { get; init; }
+
+    /// <summary>"Released", "In Production" and the like, as the catalogue says it.</summary>
+    public string? Status { get; init; }
+
+    /// <summary>The studio (the first production company the catalogue names).</summary>
+    public string? Studio { get; init; }
+
+    public string? OriginalLanguage { get; init; }
+
+    /// <summary>The content rating ("PG-13", say), from the catalogue's US certifications.</summary>
+    public string? ContentRating { get; init; }
+
+    /// <summary>A wide backdrop to fetch lazily at display time, when the catalogue has one.</summary>
+    public string? BackdropUrl { get; init; }
+
+    /// <summary>The main cast, in billing order, photos to be fetched lazily.</summary>
+    public IReadOnlyList<CastMember> Cast { get; init; } = [];
+
+    public IReadOnlyList<string> Directors { get; init; } = [];
+
+    public IReadOnlyList<string> Writers { get; init; } = [];
+
+    /// <summary>YouTube keys for trailers, opened in the browser, never embedded.</summary>
+    public IReadOnlyList<string> TrailerKeys { get; init; } = [];
+
+    /// <summary>Titles the catalogue suggests beside this one; shown only when the library holds them.</summary>
+    public IReadOnlyList<TitleRef> Recommendations { get; init; } = [];
+
+    /// <summary>The collection this movie belongs to ("Part of the Rocky collection"), when it does.</summary>
+    public string? Collection { get; init; }
+
     /// <summary>Whether the lookup found this movie, rather than recording that nothing matched.</summary>
     [JsonIgnore]
     public bool Found => CatalogueId > 0;
 
-    /// <summary>A short line for a movie's card: its genres and its rating, whichever it has.</summary>
+    /// <summary>A short line for a movie's card: genres, content rating, runtime and rating, whichever it has.</summary>
     public string Blurb()
     {
         var parts = Genres.Take(3).ToList();
+        if (ContentRating is { Length: > 0 } certified)
+        {
+            parts.Add(certified);
+        }
+
+        if (RuntimeMinutes is { } minutes)
+        {
+            parts.Add(minutes.ToString(CultureInfo.InvariantCulture) + " min");
+        }
+
         if (Rating is { } rating)
         {
             parts.Add(rating.ToString("0.0", CultureInfo.InvariantCulture) + " / 10");

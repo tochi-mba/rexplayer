@@ -5,7 +5,16 @@ using System.Text.Json.Serialization;
 namespace Rex.Media.AppCore.Metadata;
 
 /// <summary>One episode as a catalogue knows it: its place, its title and, when there is one, a plain-text synopsis.</summary>
-public sealed record EnrichedEpisode(int Season, int Number, string Name, string? Summary);
+public sealed record EnrichedEpisode(int Season, int Number, string Name, string? Summary)
+{
+    /// <summary>When it first aired, as the catalogue writes it (ISO, "2011-04-17"); null when unknown.</summary>
+    public string? AirDate { get; init; }
+
+    public int? RuntimeMinutes { get; init; }
+
+    /// <summary>A still from the episode to fetch lazily at display time, when the catalogue has one.</summary>
+    public string? StillUrl { get; init; }
+}
 
 /// <summary>
 /// Everything fetched for one show, as the cache keeps it: the catalogue's identifier, the plain
@@ -29,6 +38,30 @@ public sealed record EnrichedShow
 
     /// <summary>Whether a poster was fetched and sits in the cache under the same key.</summary>
     public bool HasPoster { get; init; }
+
+    /// <summary>"Running" or "Ended", as the catalogue says it.</summary>
+    public string? Status { get; init; }
+
+    /// <summary>The network or streaming channel that airs it.</summary>
+    public string? Network { get; init; }
+
+    public int? RuntimeMinutes { get; init; }
+
+    public string? Language { get; init; }
+
+    /// <summary>When it first aired, as the catalogue writes it (ISO); null when unknown.</summary>
+    public string? Premiered { get; init; }
+
+    /// <summary>When it ended; null while it runs or when unknown.</summary>
+    public string? Ended { get; init; }
+
+    /// <summary>The main cast, photos to be fetched lazily.</summary>
+    public IReadOnlyList<CastMember> Cast { get; init; } = [];
+
+    public IReadOnlyList<string> Creators { get; init; } = [];
+
+    /// <summary>Each season's overview and poster, for the show's page.</summary>
+    public IReadOnlyList<SeasonDetails> Seasons { get; init; } = [];
 
     public IReadOnlyList<EnrichedEpisode> Episodes { get; init; } = [];
 
