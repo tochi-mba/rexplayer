@@ -337,6 +337,7 @@ VirtualKeys.cs
 VisionModel.cs
 VisionTypes.cs
 VisualizerOptions.cs
+VisualizerGroups.cs
 Visualizers.cs
 VisualPacing.cs
 VisualScene.cs

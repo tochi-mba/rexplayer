@@ -42,7 +42,7 @@ public sealed partial class MainWindow
             _dialog?.Hide();
             DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: true));
         };
-        var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera", "A live beat edit", "Resonance light field", "The groove, scrolling by", "A flight through the music", "Sand on a singing plate", "Ridgelines of sound", "A synthwave drive", "Fireworks", "A lightning storm", "A lava lamp", "The melody in the stars", "A spiral galaxy", "A kaleidoscope", "A murmuration of starlings", "Ink in water", "A city at night", "A mandala", "Clones of my dance (camera)", "My time warp (camera)", "My aura (camera)", "Me on an LED wall (camera)", "Me in stardust (camera)", "Me in a hall of mirrors (camera)", "Painting with light (camera)", "Scanned to the beat (camera)", "Shattered by the kick (camera)", "Me under stage lights (camera)", "Me in an infinity mirror (camera)", "Me through water (camera)"], (int)s.Visualizer);
+        var visualizer = VisualizerChoices(s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
         var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
         var artworkColor = Number("Artwork colour (%)", s.AudioArtworkColor, 0, 200);
@@ -439,7 +439,7 @@ public sealed partial class MainWindow
             ShowNavigator = navigator.IsChecked == true,
             VideoLook = (VideoLook)pictureLook.SelectedIndex,
             VideoEffect = (VideoEffect)pictureEffect.SelectedIndex,
-            Visualizer = (VisualizerChoice)visualizer.SelectedIndex,
+            Visualizer = visualizer.SelectedItem is ComboBoxItem { Tag: VisualizerChoice shown } ? shown : s.Visualizer,
             GenerateAudioArtwork = generatedArt.IsChecked == true,
             AudioArtworkStyle = (ArtworkStyle)artworkStyle.SelectedIndex,
             AudioArtworkColor = (int)artworkColor.Value,
@@ -617,6 +617,31 @@ public sealed partial class MainWindow
     {
         var box = new ComboBox { Header = label, ItemsSource = options, SelectedIndex = Math.Clamp(selected, 0, options.Length - 1), MinWidth = 220 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, label);
+        return box;
+    }
+
+    /// <summary>
+    /// The visualisations, grouped under headings that cannot be chosen, so the long list is easy to
+    /// scan; each choice carries its <see cref="VisualizerChoice"/>, which is what is saved.
+    /// </summary>
+    private static ComboBox VisualizerChoices(VisualizerChoice selected)
+    {
+        const string Label = "While music plays, show";
+        var box = new ComboBox { Header = Label, MinWidth = 220, MaxDropDownHeight = 480 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, Label);
+        box.Items.Add(new ComboBoxItem { Content = Rex.Media.AppCore.Player.VisualizerGroups.Nothing, Tag = VisualizerChoice.Off });
+        foreach (var (heading, choices) in Rex.Media.AppCore.Player.VisualizerGroups.All)
+        {
+            var title = new ComboBoxItem { Content = heading, IsEnabled = false, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, IsTabStop = false };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(title, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+            box.Items.Add(title);
+            foreach (var (choice, label) in choices)
+            {
+                box.Items.Add(new ComboBoxItem { Content = label, Tag = choice, Padding = new Thickness(24, 5, 11, 7) });
+            }
+        }
+
+        box.SelectedItem = box.Items.OfType<ComboBoxItem>().FirstOrDefault(item => item.Tag is VisualizerChoice choice && choice == selected) ?? box.Items[0];
         return box;
     }
 
