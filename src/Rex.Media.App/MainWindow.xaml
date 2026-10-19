@@ -556,7 +556,7 @@
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
 
           <ItemsView x:Name="LibraryCollage" Grid.Row="2" Visibility="Collapsed" Padding="18,0,18,8"
-                     SelectionMode="Extended" ItemTemplate="{StaticResource LibraryCollageTemplate}"
+                     SelectionMode="Extended"
                      Tapped="OnCollageTapped" DoubleTapped="OnCollageDoubleTapped" KeyDown="OnCollageKeyDown"
                      AutomationProperties.AutomationId="LibraryCollage" AutomationProperties.Name="Justified collage, select or open media">
             <ItemsView.Layout>

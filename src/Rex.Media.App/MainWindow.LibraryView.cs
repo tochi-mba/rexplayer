@@ -289,6 +289,7 @@ public sealed partial class MainWindow
             // at once or replace the collection on every playback-position update.
             LibraryList.ItemsSource = null;
             LibraryList.GroupStyle.Clear();
+            LibraryCollage.ItemTemplate ??= LibraryTemplate("LibraryCollageTemplate");
             LibraryCollage.ItemsSource = _libraryRows;
             RestoreLibrarySelection(selected, collage: true);
             return;
