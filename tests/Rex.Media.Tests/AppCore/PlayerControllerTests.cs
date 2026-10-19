@@ -134,17 +134,26 @@ public sealed class PlayerControllerTests
     [Fact]
     public void AQueuedItemRemovedFromThePlaylistIsNotPlayedAndTheOneAfterItIs()
     {
-        using var harness = new ControllerHarness();
+        var opened = new List<string>();
+        ControllerHarness? harnessRef = null;
+        using var harness = new ControllerHarness(openSource: location =>
+        {
+            opened.Add(location);
+            return new MemoryByteSource(harnessRef!.Files[location], location);
+        });
+        harnessRef = harness;
         harness.Files["a.wav"] = Count(0, 400);
         harness.Files["b.wav"] = Count(1000, 400);
         harness.Files["c.wav"] = Count(2000, 400);
 
         harness.Controller.Open(["a.wav", "b.wav", "c.wav"]);
-        // So short an item queues the next as soon as it opens.
-        harness.PumpUntil(controller => controller.Info is not null && controller.Item?.Title == "a");
+        // b is opened only to queue it, so once it has been the controller has certainly queued it:
+        // removing it then always takes the path that follows the changed playlist.
+        harness.PumpUntil(_ => opened.Contains("b.wav"));
         harness.Controller.Playlist.RemoveAt(1);
         harness.PumpUntil(controller => EndedOn(controller, "c"));
 
+        Assert.DoesNotContain("b.wav", opened.Skip(opened.IndexOf("b.wav") + 1));
         Assert.Equal(Expected((2000, 400)), harness.Played()[^400..]);
         Assert.Equal(Expected((2000, 400)), harness.Sinks[^1].Channel(0));
     }
