@@ -371,6 +371,10 @@ public sealed partial class MainWindow
             var section = Choice("Settings section", [.. sections.Select(item => item.Name)], 0);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(section, "PreferencesSection");
             section.HorizontalAlignment = HorizontalAlignment.Stretch;
+            // Keep every section directly reachable when the picker reopens near the end. Once
+            // Metadata made this the eleventh item, the default-height popup virtualized Playback
+            // above the viewport instead of exposing it to keyboard and UI Automation selection.
+            section.MaxDropDownHeight = 560;
             var offsets = new double[sections.Count];
             var shownSection = 0;
             section.SelectionChanged += (_, _) =>
