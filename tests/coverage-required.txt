@@ -273,6 +273,7 @@ SpeechPulse.cs
 SpotlightScene.cs
 StardustScene.cs
 StatsText.cs
+StreamingBrowse.cs
 StrobeScene.cs
 SubjectModelPolicy.cs
 SubjectPanel.cs

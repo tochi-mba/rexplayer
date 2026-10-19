@@ -164,6 +164,9 @@ public enum LibraryLook
 
     /// <summary>Dense, justified rows of differently shaped artwork, without empty grid columns.</summary>
     Collage,
+
+    /// <summary>A streaming-style browse: a featured billboard over horizontal rows by category.</summary>
+    Browse,
 }
 
 /// <summary>
