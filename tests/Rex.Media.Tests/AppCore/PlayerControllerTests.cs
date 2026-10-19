@@ -118,6 +118,20 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    public void FailuresBeforeTheUserOpensSomethingElseDoNotStopItsPlayableItems()
+    {
+        using var harness = new ControllerHarness();
+        harness.Files["a.wav"] = Count(0, 400);
+
+        harness.Controller.Open(["gone.wav"]);
+        Assert.Equal(SessionState.Faulted, harness.Controller.State);
+        harness.Controller.Open(["missing.wav", "a.wav"]);
+        harness.PumpUntil(controller => EndedOn(controller, "a"));
+
+        Assert.Equal(Expected((0, 400)), harness.Played());
+    }
+
+    [Fact]
     public void RepeatOnePlaysTheItemAgainUntilStopped()
     {
         using var harness = new ControllerHarness(settings: new PlayerSettings { Repeat = RepeatMode.One });
