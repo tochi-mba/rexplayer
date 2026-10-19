@@ -42,6 +42,7 @@ test('the page uses the REX ink and signal palette', async ({ page }) => {
 
 test('there are no serious accessibility problems', async ({ page }) => {
   await page.goto('./');
+  await expect(page.locator('a.brand')).toHaveAccessibleName(/REX Technologies\s*rexplayer/);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   const serious = results.violations.filter(v => v.impact === 'serious' || v.impact === 'critical');
 
