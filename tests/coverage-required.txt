@@ -258,6 +258,7 @@ SharedModels.cs
 ShatterScene.cs
 ShortcutEditing.cs
 ShortcutRouting.cs
+ShowPage.cs
 SilentAudio.cs
 SilhouetteMask.cs
 SilhouetteScene.cs

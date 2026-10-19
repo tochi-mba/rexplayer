@@ -24,6 +24,8 @@ pipeline the moment its number reaches `main`.
 - **Library search from the keyboard.** In the library search box, Escape clears the search and Down moves to the first result, so Enter plays it.
 - **Letter headings.** Titles that start with an accented letter now go under the plain letter's heading ("Édith" under E) instead of under a separate "É" heading.
 - **A minimised window draws nothing.** While the window is minimised, video pictures are no longer uploaded, drawn and presented to nobody (about 1,760 a minute for 30-frame video), and the visualisation and kinetic captions stop drawing; the video keeps decoding and the sound and timeline play on in step. The latest picture is drawn the moment the window comes back.
+- **A page for each TV show.** Opening a TV show now goes straight to its episodes: the show's artwork behind its name, a season picker, and Play that names the episode it resumes or starts (such as "Resume S02 E04"). It opens on the season holding the episode to go on with. Each episode is a numbered line with its picture, its title (taken from the file's tags or the words after "S01E03" in its name), where it was left or that it was watched, a progress bar, and its length. Back returns to the list of shows.
+
 
 ### Fixed
 
