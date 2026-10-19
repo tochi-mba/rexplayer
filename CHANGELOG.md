@@ -5,6 +5,10 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Added
+
+- **Artist pages.** Opening an artist in the library shows their most played songs and their albums, newest first, instead of one long song list. An album opens from the page into its own track list with the artist, year, song count and total length over it, Back returns to the artist, and Play and Shuffle play the artist's songs without repeating a top song that is also on an album.
+
 ### Improved
 
 - **Visualisations listed by family.** Preferences groups the visualisations under headings, with the ones that use the camera together; saved choices are kept.
