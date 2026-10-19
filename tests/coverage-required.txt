@@ -132,6 +132,7 @@ LevelMeter.cs
 LibraryActions.cs
 LibraryArrangement.cs
 LibraryBackup.cs
+LibraryEmptyState.cs
 LibraryOpening.cs
 LibraryScanner.cs
 LibraryViews.cs

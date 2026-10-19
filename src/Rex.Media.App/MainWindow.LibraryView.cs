@@ -238,7 +238,7 @@ public sealed partial class MainWindow
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
-        ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source);
+        ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
         var look = SetLibraryLook(options ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
