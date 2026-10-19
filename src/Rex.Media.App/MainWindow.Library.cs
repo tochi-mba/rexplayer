@@ -363,12 +363,27 @@ public sealed partial class MainWindow
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
             _libraryGroup = null;
             _librarySeason = null;
+            if (_shelfChoice?.Source != _librarySource)
+            {
+                _shelfChoice = null;
+            }
+
             LibrarySearch.Text = "";
             ShowLibrary();
         }
     }
 
-    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e) => ShowLibrary();
+    /// <summary>
+    /// The box reports a change after the fact, so clearing it while changing view would build the
+    /// new view twice; it is built again only when the search differs from the one it was built for.
+    /// </summary>
+    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_librarySearchText.Changes(LibrarySearch.Text))
+        {
+            ShowLibrary();
+        }
+    }
 
     private void OnLibraryBack(object sender, RoutedEventArgs e)
     {
