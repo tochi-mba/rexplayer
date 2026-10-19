@@ -15,7 +15,7 @@
   <ItemGroup Label="Product">
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
     <PackageVersion Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" />
-    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.360" />
+    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.363" />
     <!-- Whisper.net (MIT) runs the open Whisper speech models offline through whisper.cpp; ADR-0020
          allows it, referenced by Rex.Media.Speech alone, for user-downloaded models only. -->
     <PackageVersion Include="Whisper.net" Version="1.9.1" />
