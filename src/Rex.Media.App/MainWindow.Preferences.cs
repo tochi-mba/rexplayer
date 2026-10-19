@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Subtitles;
@@ -16,10 +17,10 @@ public sealed partial class MainWindow
     {
         var s = _settings;
         Func<Task>? requestedEditor = null;
-        var veryShort = Number("Very short jump (seconds)", s.VeryShortJumpSeconds, 1, 3600);
-        var shortJump = Number("Short jump (seconds)", s.ShortJumpSeconds, 1, 3600);
-        var medium = Number("Medium jump (seconds)", s.MediumJumpSeconds, 1, 3600);
-        var longJump = Number("Long jump (seconds)", s.LongJumpSeconds, 1, 3600);
+        var veryShort = Jump("Very short jump (seconds)", s.VeryShortJumpSeconds, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardVeryShort);
+        var shortJump = Jump("Short jump (seconds)", s.ShortJumpSeconds, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardShort);
+        var medium = Jump("Medium jump (seconds)", s.MediumJumpSeconds, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardMedium);
+        var longJump = Jump("Long jump (seconds)", s.LongJumpSeconds, CommandCatalog.JumpBackLong, CommandCatalog.JumpForwardLong);
         var step = Number("Volume step (%)", s.VolumeStepPercent, 1, 25);
         var maxVolume = Number("Loudest volume (%)", s.MaxVolumePercent, 100, 200);
         var seekPreview = Check("Show the video frame under the pointer on the timeline", s.SeekPreview);
@@ -432,6 +433,12 @@ public sealed partial class MainWindow
             || s.AudioArtworkUsesIdentity != next.AudioArtworkUsesIdentity;
         _settings = next;
         _player.Settings = _settings;
+        if ((s.VeryShortJumpSeconds, s.ShortJumpSeconds, s.MediumJumpSeconds, s.LongJumpSeconds) != (next.VeryShortJumpSeconds, next.ShortJumpSeconds, next.MediumJumpSeconds, next.LongJumpSeconds))
+        {
+            // The menus name each jump by its length.
+            BuildMenus();
+        }
+
         _player.SetVolume(_player.Volume);
         _controlsTimer.Interval = TimeSpan.FromSeconds(_settings.ControlsHideSeconds);
         ApplyTheme();
@@ -526,6 +533,17 @@ public sealed partial class MainWindow
 
     private static TextBlock Heading(string text) =>
         new() { Text = text, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(0, 12, 0, 0) };
+
+    /// <summary>A jump length, described by the keys that make that jump so the two can be matched.</summary>
+    private NumberBox Jump(string label, int seconds, string back, string forward)
+    {
+        var box = Number(label, seconds, 1, 3600);
+        var keys = string.Join(" and ", new[] { _keymap.Label(back), _keymap.Label(forward) }.Where(key => key.Length > 0));
+        var help = keys.Length > 0 ? "Keys: " + keys : "No keys; set them in Keyboard and mouse";
+        box.Description = help;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(box, help);
+        return box;
+    }
 
     private static NumberBox Number(string label, double value, double minimum, double maximum)
     {

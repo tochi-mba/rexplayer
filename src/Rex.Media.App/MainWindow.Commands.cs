@@ -162,7 +162,7 @@ public sealed partial class MainWindow
 
             var command = CommandCatalog.Find(id)!;
             MenuFlyoutItem item = IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
-            (item.Text, item.KeyboardAcceleratorTextOverride) = (command.Title, _keymap.Label(id));
+            (item.Text, item.KeyboardAcceleratorTextOverride) = (CommandCatalog.TitleOf(command, _settings), _keymap.Label(id));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + id);
             item.Click += (_, _) => Run(id);
             items.Add(item);
@@ -725,7 +725,8 @@ public sealed partial class MainWindow
             foreach (var command in group)
             {
                 var keys = string.Join(", ", _keymap.ShortcutsFor(command.Id));
-                list.Children.Add(new TextBlock { Text = keys.Length > 0 ? $"{command.Title}: {keys}" : command.Title });
+                var title = CommandCatalog.TitleOf(command, _settings);
+                list.Children.Add(new TextBlock { Text = keys.Length > 0 ? $"{title}: {keys}" : title });
             }
         }
 

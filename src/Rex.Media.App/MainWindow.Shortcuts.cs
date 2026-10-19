@@ -152,7 +152,7 @@ public sealed partial class MainWindow
             foreach (var group in CommandCatalog.All.GroupBy(command => command.Group))
             {
                 var shown = group.Where(command => filter.Length == 0
-                    || command.Title.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                    || CommandCatalog.TitleOf(command, _settings).Contains(filter, StringComparison.CurrentCultureIgnoreCase)
                     || keymap.ShortcutsFor(command.Id).Any(chord => chord.ToString().Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
                 if (shown.Count == 0)
                 {
@@ -168,34 +168,35 @@ public sealed partial class MainWindow
 
             if (keymap.Conflicts is [var first, ..])
             {
-                Say($"{first.Chord} is both {CommandCatalog.Find(first.First)!.Title} and {CommandCatalog.Find(first.Second)!.Title}; it does the first. Give one of them another shortcut.");
+                Say($"{first.Chord} is both {CommandCatalog.TitleOf(CommandCatalog.Find(first.First)!, _settings)} and {CommandCatalog.TitleOf(CommandCatalog.Find(first.Second)!, _settings)}; it does the first. Give one of them another shortcut.");
             }
         }
 
         UIElement Row(Command command, Keymap keymap)
         {
             var chords = keymap.ShortcutsFor(command.Id);
+            var name = CommandCatalog.TitleOf(command, _settings);
             var row = new Grid { ColumnSpacing = 8 };
             foreach (var width in new[] { new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto })
             {
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
             }
 
-            var title = new TextBlock { Text = command.Title, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+            var title = new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
             var change = new Button { Content = chords.Count > 0 ? string.Join(", ", chords) : "None", MinWidth = 120 };
             AutomationProperties.SetAutomationId(change, "Shortcut-" + command.Id);
-            AutomationProperties.SetName(change, $"{command.Title}: {(chords.Count > 0 ? string.Join(", ", chords) : "no shortcut")}. Change");
+            AutomationProperties.SetName(change, $"{name}: {(chords.Count > 0 ? string.Join(", ", chords) : "no shortcut")}. Change");
             change.Click += (_, _) =>
             {
                 editing = command.Id;
-                capture.Header = $"Press the new shortcut for {command.Title}, or type it (such as Ctrl+M), then Enter";
+                capture.Header = $"Press the new shortcut for {name}, or type it (such as Ctrl+M), then Enter";
                 capture.Text = "";
                 capturePanel.Visibility = Visibility.Visible;
                 capture.Focus(FocusState.Programmatic);
             };
             var clear = new Button { Content = new FontIcon { Glyph = "\uE711", FontSize = 12 }, IsEnabled = chords.Count > 0 };
             AutomationProperties.SetAutomationId(clear, "ShortcutClear-" + command.Id);
-            AutomationProperties.SetName(clear, "Remove the shortcut of " + command.Title);
+            AutomationProperties.SetName(clear, "Remove the shortcut of " + name);
             ToolTipService.SetToolTip(clear, "No shortcut");
             clear.Click += (_, _) =>
             {
@@ -204,7 +205,7 @@ public sealed partial class MainWindow
             };
             var reset = new Button { Content = new FontIcon { Glyph = "\uE777", FontSize = 12 }, IsEnabled = ShortcutEditing.IsChanged(changes, command.Id) };
             AutomationProperties.SetAutomationId(reset, "ShortcutReset-" + command.Id);
-            AutomationProperties.SetName(reset, "Give " + command.Title + " its own shortcut back");
+            AutomationProperties.SetName(reset, "Give " + name + " its own shortcut back");
             ToolTipService.SetToolTip(reset, "Its own shortcut");
             reset.Click += (_, _) =>
             {
@@ -213,7 +214,7 @@ public sealed partial class MainWindow
             };
             var everywhere = new CheckBox { Content = "Everywhere", IsChecked = global.Contains(command.Id), MinWidth = 0 };
             AutomationProperties.SetAutomationId(everywhere, "ShortcutGlobal-" + command.Id);
-            AutomationProperties.SetName(everywhere, command.Title + " works while another program is in front");
+            AutomationProperties.SetName(everywhere, name + " works while another program is in front");
             ToolTipService.SetToolTip(everywhere, "Works while another program is in front");
             everywhere.Checked += (_, _) => global.Add(command.Id);
             everywhere.Unchecked += (_, _) => global.Remove(command.Id);
@@ -248,7 +249,7 @@ public sealed partial class MainWindow
             if (made.TakenFrom is { } from)
             {
                 var left = new Keymap(changes).ShortcutsFor(from);
-                Say($"{chord} was the shortcut for {CommandCatalog.Find(from)!.Title}; {(left.Count > 0 ? "it keeps " + string.Join(", ", left) : "it has none now")}.");
+                Say($"{chord} was the shortcut for {CommandCatalog.TitleOf(CommandCatalog.Find(from)!, _settings)}; {(left.Count > 0 ? "it keeps " + string.Join(", ", left) : "it has none now")}.");
             }
             else
             {

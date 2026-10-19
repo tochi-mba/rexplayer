@@ -8,11 +8,13 @@ pipeline the moment its number reaches `main`.
 ### Improved
 
 - **A paused visualisation rests.** Once the music pauses or ends, the visualisation lets the last sound die away for a second and a half and then stops redrawing a still picture, instead of drawing it up to sixty times a second; it moves again the moment the music plays. Camera visualisations keep following you while paused.
+
 ### Fixed
 
 - **Caption waits across quality changes.** Changing the transcription quality from the caption rail or Preferences while playback waits for captions keeps the wait and its overlay until the new quality's saved coverage is known, instead of briefly resuming playback or leaving it paused with no overlay.
 - **Caption waits at launch.** A file opened with rexplayer waits for its captions from the start when "pause media while transcribing" is on, rather than playing uncaptioned until the launch settles.
 - **Library right-click menus.** Right-clicking a song, video, picture, album or card that is not selected now selects it and opens its menu, instead of offering "Choose something first" or acting on an earlier selection.
+- **Jump names follow your jump lengths.** The menus, the shortcut editor and the shortcut sheet name each jump by the length set in Preferences (such as Jump forward 30 seconds) instead of always saying a minute or five minutes, and each length in Preferences shows the keys that make that jump.
 
 
 ## 0.25.9 - 2026-10-18
