@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Shapes;
 using Microsoft.Windows.System.Power;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
+using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.Library;
@@ -78,7 +79,7 @@ public sealed partial class MainWindow
     private void WireTranscription()
     {
         _transcriptionTimer = DispatcherQueue.CreateTimer();
-        _transcriptionTimer.Interval = TimeSpan.FromSeconds(1);
+        _transcriptionTimer.Interval = WindowClocks.TranscriptionEvery;
         _transcriptionTimer.Tick += (_, _) => TranscriptionTick();
         var first = DispatcherQueue.CreateTimer();
         first.Interval = LaunchPlan.FirstLibraryScan;
@@ -99,9 +100,9 @@ public sealed partial class MainWindow
         _transcriptionStarted = true;
         _library!.Changed += (_, _) => _queueDirty = true;
 
-        // The ledger is read off the window's thread, then the badges show.
+        // The ledger is read off the window's thread, then the badges show. The tick starts the
+        // clock when there is something to look after.
         _ = Task.Run(() => _ledger.All).ContinueWith(_ => OnWindowThread(RefreshTranscriptBadges), TaskScheduler.Default);
-        _transcriptionTimer!.Start();
         TranscriptionTick();
     }
 
@@ -184,7 +185,11 @@ public sealed partial class MainWindow
         });
     }
 
-    /// <summary>Once a second: what the computer allows, what plays, the queue, the line and holding for subtitles.</summary>
+    /// <summary>
+    /// Once a second while there is a worker or work for one: what the computer allows, what plays,
+    /// the queue, the line and holding for subtitles. With neither, the clock stops; everything that
+    /// asks for transcription calls this, which starts it again.
+    /// </summary>
     private void TranscriptionTick()
     {
         if (_closing || !_transcriptionStarted)
@@ -194,10 +199,17 @@ public sealed partial class MainWindow
 
         var settings = _settings.Transcription;
         var wantsWorker = settings.Library || _askedTranscripts.Count > 0 || (_playingWanted && _playingTranscript is not null);
-        if (_worker is null && !wantsWorker)
+        var clock = _transcriptionTimer!;
+        if (!WindowClocks.Transcription(_worker is not null, wantsWorker))
         {
+            clock.Stop();
             ShowTranscriptionStatus();
             return;
+        }
+
+        if (!clock.IsRunning)
+        {
+            clock.Start();
         }
 
         var model = TranscriptModel;
@@ -616,7 +628,7 @@ public sealed partial class MainWindow
         var status = _worker?.Status ?? WorkerStatus.Idle;
         var waiting = _plannedTranscription?.Waiting;
         var current = status.Path is { } path ? MediaLibrary.TitleOf(path) : null;
-        var index = _transcriptionQueue.ToList().FindIndex(file => string.Equals(file.Path, status.Path, StringComparison.OrdinalIgnoreCase));
+        var index = QueueIndexOf(status.Path);
         var count = _transcriptionQueue.Count + (status.Path is not null && index < 0 ? 1 : 0);
         var position = Math.Max(1, index + 1);
         var left = _worker?.Speed.TimeFor(TranscriptionOrder.SoundLeft(_transcriptionQueue));
@@ -662,6 +674,26 @@ public sealed partial class MainWindow
         }
 
         ShowHearingProgress(status);
+    }
+
+    /// <summary>Where <paramref name="path"/> is in the queue, or -1; looked up in place, as this runs every second.</summary>
+    private int QueueIndexOf(string? path)
+    {
+        if (path is null)
+        {
+            return -1;
+        }
+
+        var queue = _transcriptionQueue;
+        for (var i = 0; i < queue.Count; i++)
+        {
+            if (string.Equals(queue[i].Path, path, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>Populate the flyout with a real scrollable queue, not a second menu of commands.</summary>

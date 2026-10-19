@@ -351,6 +351,7 @@ WaveFormat.cs
 WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
+WindowClocks.cs
 WordAligner.cs
 Wpl.cs
 Xspf.cs
