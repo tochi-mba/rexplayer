@@ -238,6 +238,107 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
         _cache.Remove(CoverKind, key, ArtExtension);
     }
 
+    /// <summary>The cache kind a movie's record lives under.</summary>
+    public const string MovieKind = "movie";
+
+    /// <summary>The cache kind a movie's fetched poster lives under, with <see cref="ArtExtension"/>.</summary>
+    public const string MovieArtKind = "movieart";
+
+    /// <summary>The cache key TMDB's genre names live under, so they are fetched once.</summary>
+    public const string GenresKey = "tmdb genres";
+
+    /// <summary>The movie's cached record, or null before its fetch.</summary>
+    public EnrichedMovie? CachedMovie(string title, int? year) =>
+        _cache.ReadText(MovieKind, Tmdb.MovieKey(title, year)) is { } json ? EnrichedMovie.FromJson(json) : null;
+
+    /// <summary>Where a movie's fetched poster lives, fetched or not.</summary>
+    public string MoviePosterPath(string title, int? year) =>
+        _cache.PathFor(MovieArtKind, Tmdb.MovieKey(title, year), ArtExtension);
+
+    /// <summary>Every movie already in the cache, for filling a lookup table at launch without the network.</summary>
+    public IReadOnlyList<EnrichedMovie> CachedMovies()
+    {
+        var folder = Path.Combine(_cache.Downloads, MovieKind);
+        if (!Directory.Exists(folder))
+        {
+            return [];
+        }
+
+        return [.. Directory.EnumerateFiles(folder, "*.json")
+            .Select(file => EnrichedMovie.FromJson(File.ReadAllText(file)))
+            .Where(movie => movie is not null)!];
+    }
+
+    /// <summary>Forgets the movie's record and poster, for a refresh.</summary>
+    public void ForgetMovie(string title, int? year)
+    {
+        _cache.Remove(MovieKind, Tmdb.MovieKey(title, year), ".json");
+        _cache.Remove(MovieArtKind, Tmdb.MovieKey(title, year), ArtExtension);
+    }
+
+    /// <summary>
+    /// Fetches one movie into the cache with the user's own TMDB key: the best search match, its
+    /// poster, and genre names from a map fetched once. The movie already cached is left alone.
+    /// False means the catalogue could not answer and the fetch should be tried again later; a
+    /// clean "nothing matched" is recorded and true.
+    /// </summary>
+    public async Task<bool> FetchMovieAsync(string apiKey, string title, int? year, CancellationToken token)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+        ArgumentNullException.ThrowIfNull(title);
+        var key = Tmdb.MovieKey(title, year);
+        if (_cache.ReadText(MovieKind, key) is not null)
+        {
+            return true;
+        }
+
+        try
+        {
+            if (await TextAsync(Tmdb.SearchUri(apiKey, title, year), token).ConfigureAwait(false) is not { } answer)
+            {
+                return false;
+            }
+
+            if (Tmdb.Pick(title, year, Tmdb.ParseSearch(answer)) is not { } pick)
+            {
+                _cache.WriteText(MovieKind, key, new EnrichedMovie { CatalogueId = 0, Title = title, Year = year }.ToJson());
+                return true;
+            }
+
+            // The genre names, fetched once and kept; without them the genres are simply left off.
+            var genreMap = _cache.ReadText(MovieKind, GenresKey);
+            if (genreMap is null && await TextAsync(Tmdb.GenresUri(apiKey), token).ConfigureAwait(false) is { } listed)
+            {
+                _cache.WriteText(MovieKind, GenresKey, listed);
+                genreMap = listed;
+            }
+
+            var names = genreMap is null ? new Dictionary<int, string>() : Tmdb.ParseGenres(genreMap);
+            var poster = pick.PosterPath is null ? null : await _fetch(Tmdb.PosterUri(pick.PosterPath), token).ConfigureAwait(false);
+            if (poster is not null)
+            {
+                _cache.Write(MovieArtKind, key, ArtExtension, poster);
+            }
+
+            _cache.WriteText(MovieKind, key, new EnrichedMovie
+            {
+                CatalogueId = pick.Id,
+                Title = pick.Title,
+                Year = pick.Year ?? year,
+                Overview = pick.Overview,
+                Genres = [.. pick.GenreIds.Where(names.ContainsKey).Select(id => names[id])],
+                Rating = pick.Rating,
+                HasPoster = poster is not null,
+            }.ToJson());
+            return true;
+        }
+        catch (JsonException)
+        {
+            // The catalogue answered with something that is not its usual shape; try again later.
+            return false;
+        }
+    }
+
     private async Task<string?> TextAsync(Uri uri, CancellationToken token) =>
         await _fetch(uri, token).ConfigureAwait(false) is { } bytes ? Encoding.UTF8.GetString(bytes) : null;
 }

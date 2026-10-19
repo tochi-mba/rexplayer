@@ -79,6 +79,7 @@ Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
 EnrichedAlbum.cs
+EnrichedMovie.cs
 EnrichedShow.cs
 EpisodeGrouping.cs
 EpisodeNames.cs
@@ -323,6 +324,7 @@ TimeRanges.cs
 TimeStretch.cs
 TimeText.cs
 TimeWarpScene.cs
+Tmdb.cs
 TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
