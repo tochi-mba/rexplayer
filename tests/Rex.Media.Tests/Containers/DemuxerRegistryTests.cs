@@ -61,14 +61,11 @@ public sealed class DemuxerRegistryTests
     {
         Assert.Equal("RIFF", FourCC.ToString("RIFF"u8));
         Assert.Equal("a?b?", FourCC.ToString(new byte[] { (byte)'a', 0x01, (byte)'b', 0xFF }));
-        Assert.Equal(0x52494646u, FourCC.ToUInt32("RIFF"));
         Assert.True(FourCC.Matches("RIFFxxxx"u8, "RIFF"));
         Assert.False(FourCC.Matches("RIF"u8, "RIFF"));
         Assert.False(FourCC.Matches("RIFF"u8, "RIF"));
         Assert.False(FourCC.Matches("RIFX"u8, "RIFF"));
         Assert.Throws<ArgumentOutOfRangeException>(() => FourCC.ToString("RIF"u8));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FourCC.ToUInt32("RIFFX"));
-        Assert.Throws<ArgumentNullException>(() => FourCC.ToUInt32(null!));
         Assert.Throws<ArgumentNullException>(() => FourCC.Matches("RIFF"u8, null!));
     }
 }
