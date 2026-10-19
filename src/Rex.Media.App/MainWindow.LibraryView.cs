@@ -600,7 +600,7 @@ public sealed partial class MainWindow
         }
 
         _shownLook = look;
-        LibraryList.ItemTemplate = (DataTemplate)Root.Resources[template];
+        LibraryList.ItemTemplate = LibraryTemplate(template);
         LibraryList.ItemsPanel = width == 0
             ? (ItemsPanelTemplate)Root.Resources["LibraryListPanel"]
             : (ItemsPanelTemplate)XamlReader.Load(string.Create(CultureInfo.InvariantCulture,
@@ -671,7 +671,7 @@ public sealed partial class MainWindow
         var cards = new ListView
         {
             ItemsSource = rows,
-            ItemTemplate = (DataTemplate)Root.Resources[template],
+            ItemTemplate = LibraryTemplate(template),
             ItemsPanel = (ItemsPanelTemplate)XamlReader.Load("""<ItemsPanelTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><ItemsStackPanel Orientation="Horizontal" /></ItemsPanelTemplate>"""),
             SelectionMode = ListViewSelectionMode.None,
             IsItemClickEnabled = _settings.MediaOpenClickMode == MediaOpenClick.SingleClick,
@@ -754,7 +754,19 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A card shows its play mark while pointed at.</summary>
-    private void OnCardPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    /// <summary>
+    /// A library item template by key: the card layouts come from <see cref="LibraryCardTemplates"/>,
+    /// created on the first lookup, and the list templates from the window's own resources.
+    /// </summary>
+    private DataTemplate LibraryTemplate(string key)
+    {
+        _cardTemplates ??= new LibraryCardTemplates(this);
+        return (DataTemplate)(_cardTemplates.TryGetValue(key, out var card) ? card : Root.Resources[key]);
+    }
+
+    private LibraryCardTemplates? _cardTemplates;
+
+    internal void OnCardPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         SetCardPlay(sender, 1);
         if (sender is FrameworkElement { DataContext: LibraryRow row })
@@ -763,7 +775,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnCardGettingFocus(object sender, Microsoft.UI.Xaml.Input.GettingFocusEventArgs e)
+    internal void OnCardGettingFocus(object sender, Microsoft.UI.Xaml.Input.GettingFocusEventArgs e)
     {
         SetCardPlay(sender, 1);
         if (sender is FrameworkElement { DataContext: LibraryRow row })
@@ -772,7 +784,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnCardPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => SetCardPlay(sender, 0);
+    internal void OnCardPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => SetCardPlay(sender, 0);
 
     private static void SetCardPlay(object card, double opacity)
     {
