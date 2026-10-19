@@ -23,6 +23,7 @@ public sealed partial class MainWindow
         var longJump = Jump("Long jump (seconds)", s.LongJumpSeconds, CommandCatalog.JumpBackLong, CommandCatalog.JumpForwardLong);
         var step = Number("Volume step (%)", s.VolumeStepPercent, 1, 25);
         var maxVolume = Number("Loudest volume (%)", s.MaxVolumePercent, 100, 200);
+        Describe(maxVolume, "How far the volume goes. Above 100 % rexplayer makes quiet media louder than it was recorded, which can distort.");
         var seekPreview = Check("Show the video frame under the pointer on the timeline", s.SeekPreview);
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
@@ -140,6 +141,7 @@ public sealed partial class MainWindow
         var styles = Choice("Styled subtitles", ["Use the file's colours and weights", "Always use mine"], (int)s.SubtitleStyles);
         var codePages = SubtitleText.Fallbacks;
         var codePage = Choice("Text of older subtitle files", [.. codePages.Select(entry => entry.Name)], Math.Max(0, codePages.ToList().FindIndex(entry => entry.CodePage == s.SubtitleCodePage)));
+        Describe(codePage, "For subtitle files that do not say how their text is written. Choose another if their letters come out wrong.");
 
         var performance = Choice("Fit rexplayer to this computer", ["Automatic", "Best quality", "Balanced", "Fastest"], (int)s.Performance);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performance, "PreferencesPerformance");
@@ -180,6 +182,9 @@ public sealed partial class MainWindow
         {
             content.Children.Add(control);
         }
+
+        // The sleep timer is a playback control, so what it does at its time is chosen beside the others.
+        content.Children.Add(sleep);
 
         AddSection("Intros and credits");
         content.Children.Add(new TextBlock { Text = "While an episode's intro or credits play, a button offers to skip them. Turn these on to skip without a click; a 5 second countdown lets you cancel. To choose per show, use Always skip for this show on the button's menu.", TextWrapping = TextWrapping.Wrap });
@@ -269,7 +274,7 @@ public sealed partial class MainWindow
         });
 
         AddSection("History and resume");
-        foreach (var control in new UIElement[] { history, queue, sleep })
+        foreach (var control in new UIElement[] { history, queue })
         {
             content.Children.Add(control);
         }
@@ -660,6 +665,22 @@ public sealed partial class MainWindow
         var box = new TextBox { Header = label, Text = value, MinWidth = 220 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, label);
         return box;
+    }
+
+    /// <summary>A line under a control that says what a less obvious choice does, read out with it too.</summary>
+    private static void Describe(Control control, string help)
+    {
+        switch (control)
+        {
+            case NumberBox number:
+                number.Description = help;
+                break;
+            case ComboBox choice:
+                choice.Description = help;
+                break;
+        }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(control, help);
     }
 
     private static readonly string[] SubtitleFonts = ["Segoe UI", "Arial", "Calibri", "Verdana", "Tahoma", "Georgia", "Times New Roman", "Cascadia Mono"];

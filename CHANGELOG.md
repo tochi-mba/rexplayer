@@ -7,6 +7,7 @@ pipeline the moment its number reaches `main`.
 
 ### Improved
 
+- **Clearer Preferences.** What the sleep timer does at its time is now chosen under Playback, beside the other playback choices, instead of under History and resume. Loudest volume and Text of older subtitle files say what they do.
 - **Visualisations listed by family.** Preferences groups the visualisations under headings, with the ones that use the camera together; saved choices are kept.
 - **The shortcut editor names its jumps.** The wheel and side-button choices say how far they jump, and opened from Preferences the editor uses the jump lengths just set there, saved or not.
 - **Zoom out from the right-click menu.** The picture's right-click menu offers Zoom out beside Zoom in and Reset zoom.
