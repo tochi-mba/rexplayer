@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Rex.Media.AppCore.Library;
-using Rex.Media.Library;
 
 namespace Rex.Media.App;
 
