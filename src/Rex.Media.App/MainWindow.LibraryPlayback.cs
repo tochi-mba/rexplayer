@@ -39,7 +39,7 @@ public sealed partial class MainWindow
                 Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
                 if (view.Count > 1 && LibraryViews.EpisodeOf(entry) is { } episode)
                 {
-                    Say($"Playing {episode.Series}, season {episode.Season}, from episode {episode.Episode}");
+                    Say(episode.Episode is { } number ? $"Playing {episode.Series}, season {episode.Season}, from episode {number}" : $"Playing {episode.Series}, season {episode.Season}");
                 }
 
                 break;
