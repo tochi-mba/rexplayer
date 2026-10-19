@@ -89,6 +89,38 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-10")]
+    public void PreferencesShowsOnlyItsChosenSectionAndFitsASmallerWindow()
+    {
+        using var app = AppProcess.Start();
+        ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(720, 640);
+        app.Run(CommandCatalog.Preferences);
+        Assert.Equal("Settings section", app.Find("PreferencesSection").Current.Name);
+        Assert.Null(app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesUpdateChecks")));
+        ChoosePreferencesSection(app, "Subtitles");
+        var scroll = (ScrollPattern)app.Find("PreferencesScroll").GetCurrentPattern(ScrollPattern.Pattern);
+        Wait.For(() => scroll.Current.VerticallyScrollable, "the long section to scroll in a small window");
+        scroll.SetScrollPercent(ScrollPattern.NoScroll, 60);
+        Wait.For(() => scroll.Current.VerticalScrollPercent > 30, "the subtitle section to scroll");
+        var offset = scroll.Current.VerticalScrollPercent;
+        ChoosePreferencesSection(app, "Updates");
+        Assert.False(app.Find("PreferencesUpdateChecks").Current.IsOffscreen);
+        Assert.Null(app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Subtitle font")));
+        foreach (var id in new[] { "PreferencesSection", "PrimaryButton", "CloseButton" })
+        {
+            var control = app.Find(id);
+            Assert.False(control.Current.IsOffscreen);
+            Assert.True(app.Window.Current.BoundingRectangle.Contains(control.Current.BoundingRectangle), id + " must fit inside the window");
+        }
+        ChoosePreferencesSection(app, "Subtitles");
+        Wait.For(() => Math.Abs(scroll.Current.VerticalScrollPercent - offset) < 2, "the subtitle scroll position to return");
+        app.Press("CloseButton");
+        Assert.Equal(0, app.Close());
+    }
+
     private static void ChoosePreferencesSection(AppProcess app, string name)
     {
         var selector = app.Find("PreferencesSection");
