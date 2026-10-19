@@ -31,6 +31,8 @@ pipeline the moment its number reaches `main`.
 
 ### Fixed
 
+- **Enhanced Subject Lock download is back in Preferences.** The optional models can again be downloaded, stopped and removed from Preferences, now under Video and pictures.
+
 - **Preferences tells the truth about transcription quality.** The Balanced and Fastest modes said transcription would use "at most the Base/Tiny speech model", but no such cap was ever applied: the Fast, Default or Best quality you choose on the caption rail always decides, because transcripts are saved per quality. Preferences now says the quality stays as you choose it; on Fastest it still says the library is transcribed only while nothing plays.
 - **Replaying the last item marks it in the queue.** Dragging the seek bar after the queue ended plays the last item again, and the queue panel now shows it as current.
 - **Moving through unseekable media says why nothing happened.** Go to time and the jump keys show a short notice on media that cannot be moved through.
