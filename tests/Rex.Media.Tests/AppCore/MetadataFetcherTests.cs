@@ -58,7 +58,7 @@ public sealed class MetadataFetcherTests : IDisposable
         Assert.Null(show.EpisodeName(2, 1));
         Assert.Null(show.EpisodeName(1, null));
         Assert.Equal("Drama · 8.2 / 10", show.Blurb());
-        Assert.Equal("jpeg-bytes"u8.ToArray(), fetcher.Poster("The Show"));
+        Assert.Equal("jpeg-bytes"u8.ToArray(), _cache.ReadBytes(MetadataFetcher.ArtKind, "show", MetadataFetcher.ArtExtension));
         Assert.Equal(show.ToJson(), Assert.Single(fetcher.CachedShows()).ToJson());
 
         // Already cached: nothing more is asked.
@@ -69,7 +69,7 @@ public sealed class MetadataFetcherTests : IDisposable
         // Forgotten: both the record and the poster go.
         fetcher.Forget("The Show");
         Assert.Null(fetcher.Cached("The Show"));
-        Assert.Null(fetcher.Poster("The Show"));
+        Assert.Null(_cache.ReadBytes(MetadataFetcher.ArtKind, "show", MetadataFetcher.ArtExtension));
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class MetadataFetcherTests : IDisposable
 
         var show = fetcher.Cached("The Show");
         Assert.False(show!.HasPoster);
-        Assert.Null(fetcher.Poster("The Show"));
+        Assert.Null(_cache.ReadBytes(MetadataFetcher.ArtKind, "show", MetadataFetcher.ArtExtension));
     }
 
     [Fact]
