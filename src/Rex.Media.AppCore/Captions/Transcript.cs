@@ -21,7 +21,7 @@ public readonly record struct TranscriptVariant(string Model, bool Edited)
         _ => Model,
     };
 
-    public string DisplayName => Edited ? $"{Quality} — Edited" : $"{Quality} — Original";
+    public string DisplayName => Edited ? $"{Quality} · Edited" : $"{Quality} · Original";
 
     public string TrackName => $"Transcript ({Model}, {(Edited ? "edited" : "original")})";
 
