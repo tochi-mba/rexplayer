@@ -58,6 +58,10 @@ public sealed partial class MainWindow
         var title = Number("Show the title when an item starts for (seconds, 0 for never)", s.TitleSeconds, 0, 30);
         var single = Check("Use one window: open files in the player already running", s.SingleInstance);
         var enqueue = Check("Files opened that way join the playlist instead of playing", s.EnqueueFromSecondLaunch);
+        enqueue.IsEnabled = single.IsChecked == true;
+        single.Checked += (_, _) => enqueue.IsEnabled = true;
+        single.Unchecked += (_, _) => enqueue.IsEnabled = false;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(enqueue, "Applies when files open in the existing player window.");
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "PreferencesUpdateChecks");
         var updateMode = Choice("When a new version is found", ["Install it by itself when rexplayer is closed or not in use", "Download it, then ask me when to install", "Only tell me about it"], (int)s.UpdateMode);
@@ -299,6 +303,31 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        // Long check-box labels wrap inside the available page width instead of widening it.
+        void WrapLabels(UIElement element)
+        {
+            if (element is CheckBox { Content: string label } check)
+            {
+                check.Content = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(check, label);
+            }
+            else if (element is Panel group)
+            {
+                foreach (var child in group.Children)
+                {
+                    WrapLabels(child);
+                }
+            }
+            else if (element is Expander { Content: UIElement body })
+            {
+                WrapLabels(body);
+            }
+        }
+        foreach (var page in sections)
+        {
+            WrapLabels(page.Page);
+        }
+
         // The status line follows a check or a download while Preferences is open.
         _updateStatusText = updateStatus;
         bool saved;
@@ -355,16 +384,31 @@ public sealed partial class MainWindow
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = Content.XamlRoot,
             };
-            do
+            var root = Content.XamlRoot;
+            void FitPreferences(XamlRoot sender, XamlRootChangedEventArgs args)
             {
-                requestedEditor = null;
-                saved = await ShowDialogAsync(dialog) == ContentDialogResult.Primary;
-                if (requestedEditor is { } edit && !_closed)
-                {
-                    await edit();
-                }
+                panel.Width = Math.Clamp(root.Size.Width - 96, 280, 460);
+                scroll.MaxHeight = Math.Clamp(root.Size.Height - 300, 100, 560);
             }
-            while (requestedEditor is not null && !_closed);
+            FitPreferences(root, null!);
+            root.Changed += FitPreferences;
+            try
+            {
+                do
+                {
+                    requestedEditor = null;
+                    saved = await ShowDialogAsync(dialog) == ContentDialogResult.Primary;
+                    if (requestedEditor is { } edit && !_closed)
+                    {
+                        await edit();
+                    }
+                }
+                while (requestedEditor is not null && !_closed);
+            }
+            finally
+            {
+                root.Changed -= FitPreferences;
+            }
         }
         finally
         {
