@@ -408,8 +408,11 @@ public sealed partial class MainWindow
 
         _shownHero = key;
         var request = ++_heroRequest;
+        // The banner's artwork fades in when decoded instead of popping over the glyph.
         LibraryHeroArt.Source = null;
         LibraryHeroBackdrop.Source = null;
+        LibraryHeroArt.Opacity = 0;
+        LibraryHeroBackdrop.Opacity = 0;
         if (art is not null)
         {
             _ = ShowPictureAsync(art.Path, art.Kind, art.Duration, picture =>
@@ -417,6 +420,8 @@ public sealed partial class MainWindow
                 if (_shownHero == key && request == _heroRequest)
                 {
                     (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
+                    LibraryHeroArt.Opacity = 1;
+                    LibraryHeroBackdrop.Opacity = 0.6;
                 }
             }, CancellationToken.None);
         }
