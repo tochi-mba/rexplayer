@@ -107,6 +107,7 @@ HallOfMirrorsScene.cs
 HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
+HomeShelves.cs
 Id3v2.cs
 InfinityMirrorScene.cs
 InkScene.cs
@@ -132,6 +133,7 @@ LibraryArrangement.cs
 LibraryBackup.cs
 LibraryOpening.cs
 LibraryScanner.cs
+LibrarySearchText.cs
 LibraryViews.cs
 LightningScene.cs
 LightPaintingScene.cs
