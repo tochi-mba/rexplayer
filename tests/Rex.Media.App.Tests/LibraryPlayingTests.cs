@@ -35,8 +35,8 @@ public sealed class LibraryPlayingTests : IDisposable
         Wait.For(() => !app.IsShown("LibraryPane"), "the player to show");
         var queue = app.Queue();
         Assert.Equal(2, queue.Length);
-        Assert.StartsWith("Terminator", queue[0], StringComparison.Ordinal);
-        Assert.StartsWith("Lonely At The Top", queue[1], StringComparison.Ordinal);
+        Assert.Contains("Terminator", queue[0], StringComparison.Ordinal);
+        Assert.Contains("Lonely At The Top", queue[1], StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 

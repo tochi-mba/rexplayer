@@ -160,10 +160,20 @@ internal static class LibraryNavigation
             new PropertyCondition(AutomationElement.NameProperty, name))));
 
     /// <summary>The names of the list's lines from top to bottom, as far as they are realised.</summary>
-    public static string[] Lines(this AppProcess app, string list = "LibraryList") =>
-        [.. app.Find(list).FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
-            .Cast<AutomationElement>().OrderBy(line => line.Current.BoundingRectangle.Top).ThenBy(line => line.Current.BoundingRectangle.Left)
-            .Select(line => line.Current.Name)];
+    public static string[] Lines(this AppProcess app, string list = "LibraryList")
+    {
+        try
+        {
+            return [.. app.Find(list).FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
+                .Cast<AutomationElement>().OrderBy(line => line.Current.BoundingRectangle.Top).ThenBy(line => line.Current.BoundingRectangle.Left)
+                .Select(line => line.Current.Name)];
+        }
+        catch (ElementNotAvailableException)
+        {
+            // The list was rebuilt while it was read; a polling wait reads the new one.
+            return [];
+        }
+    }
 
     public static void Choose(this AppProcess app, string name, bool alone = true)
     {
