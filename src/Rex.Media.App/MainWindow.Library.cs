@@ -468,8 +468,6 @@ public sealed partial class MainWindow
         LibraryActions.Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
         group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
 
-    private List<LibraryRow> EntryRows(IEnumerable<LibraryEntry> entries) => [.. entries.Select(EntryRow)];
-
     private LibraryRow EntryRow(LibraryEntry entry)
     {
         var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
