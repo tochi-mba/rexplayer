@@ -27,9 +27,6 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
     public EnrichedShow? Cached(string show) =>
         _cache.ReadText(ShowKind, MetadataMatch.Normalize(show)) is { } json ? EnrichedShow.FromJson(json) : null;
 
-    /// <summary>The show's cached poster bytes, when its record says one was fetched.</summary>
-    public byte[]? Poster(string show) => _cache.ReadBytes(ArtKind, MetadataMatch.Normalize(show), ArtExtension);
-
     /// <summary>Every show already in the cache, for filling a lookup table at launch without the network.</summary>
     public IReadOnlyList<EnrichedShow> CachedShows()
     {
