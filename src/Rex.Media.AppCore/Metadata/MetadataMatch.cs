@@ -70,8 +70,8 @@ public static class MetadataMatch
         return summary.Length switch
         {
             0 => name,
-            <= 120 => name + " — " + summary,
-            _ => name + " — " + summary[..119].TrimEnd() + "…",
+            <= 120 => name + " · " + summary,
+            _ => name + " · " + summary[..119].TrimEnd() + "…",
         };
     }
 }

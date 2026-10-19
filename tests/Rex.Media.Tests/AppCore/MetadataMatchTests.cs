@@ -50,7 +50,7 @@ public sealed class MetadataMatchTests
     [Fact]
     public void CandidatesDescribeThemselvesBriefly()
     {
-        Assert.Equal("The Show (2019) — Short.", MetadataMatch.Describe(Show(1, "The Show", 2019) with { Summary = "Short." }));
+        Assert.Equal("The Show (2019) · Short.", MetadataMatch.Describe(Show(1, "The Show", 2019) with { Summary = "Short." }));
         Assert.Equal("The Show", MetadataMatch.Describe(Show(1, "The Show")));
         var longSummary = new string('a', 200);
         var described = MetadataMatch.Describe(Show(1, "The Show") with { Summary = longSummary });
