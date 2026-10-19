@@ -714,6 +714,7 @@ public sealed partial class MainWindow
                 () => CopyLibraryPaths(selectedEntries)));
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => _ = OpenLibraryFoldersAsync(selectedEntries)));
+            AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",

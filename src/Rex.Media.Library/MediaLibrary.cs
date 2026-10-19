@@ -71,6 +71,9 @@ public sealed record LibraryEntry
     /// <summary>When it was last played, in UTC.</summary>
     public DateTime? LastPlayed { get; init; }
 
+    /// <summary>Details the person changed that rexplayer keeps over the file's own tags.</summary>
+    public DetailOverride? Override { get; init; }
+
     /// <summary>The artist an album is filed under: its album artist, else its artist.</summary>
     [JsonIgnore]
     public string? FiledArtist => AlbumArtist ?? Artist;
@@ -315,6 +318,25 @@ public sealed class MediaLibrary
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Keeps <paramref name="change"/> over the details of each of <paramref name="paths"/>, at once and after every rescan.</summary>
+    public void SetOverride(IEnumerable<string> paths, DetailOverride change)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(change);
+        Change(paths, known =>
+        {
+            var merged = (known.Override ?? new DetailOverride()).Then(change);
+            return merged.ApplyTo(known) with { Override = merged };
+        });
+    }
+
+    /// <summary>Drops the overrides of <paramref name="paths"/> (their files now hold the details) so their tags are read again.</summary>
+    public void ClearOverride(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        Change(paths, known => known with { Override = null, Probed = false });
+    }
+
     /// <summary>Counts a play of <paramref name="path"/>, now; one the library does not know is passed over.</summary>
     public void Played(string path)
     {
@@ -503,7 +525,7 @@ public sealed class MediaLibrary
     {
         string? Tag(string key) => info.Metadata.GetValueOrDefault(key) is { } value && value.Trim() is { Length: > 0 } trimmed ? trimmed : null;
 
-        return entry with
+        return (entry with
         {
             Probed = true,
             // A video file with only sound in it (an .mp4 of a song) is music.
@@ -517,7 +539,7 @@ public sealed class MediaLibrary
             Disc = Number(Tag(MetadataKeys.Disc)),
             Year = Number(Tag(MetadataKeys.Date)) is { } year && year is >= 1000 and <= 9999 ? year : null,
             Duration = info.Duration.IsKnown ? TimeSpan.FromTicks(info.Duration.Ticks) : null,
-        };
+        }) is var read && entry.Override is { } kept ? kept.ApplyTo(read) : read;
     }
 
     /// <summary>The number a tag starts with: "3/12" is 3, "2019-05-01" is 2019; null when there is none.</summary>

@@ -368,3 +368,5 @@ TagEdit.cs
 Id3v2Writer.cs
 FlacTagWriter.cs
 TagFileWriter.cs
+DetailOverride.cs
+DetailsForm.cs
