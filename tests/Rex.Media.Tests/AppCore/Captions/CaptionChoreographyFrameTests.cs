@@ -48,6 +48,9 @@ public sealed class CaptionChoreographyFrameTests(ITestOutputHelper output)
     [Fact]
     public void EveryLayoutDrawsTheSameFramesItAlwaysHas()
     {
+        // The frames hold sines and cosines, whose last digits differ between Windows' maths library and
+        // others'; the hash was recorded on Windows, where the player runs.
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The recorded frames come from Windows' maths library.");
         var text = new StringBuilder();
         foreach (var layout in Enum.GetValues<CaptionLayout>())
         {
