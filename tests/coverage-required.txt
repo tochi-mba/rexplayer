@@ -76,6 +76,7 @@ Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
 EpisodeGrouping.cs
+EpisodeNames.cs
 EpisodeSectionDetection.cs
 EpisodeSections.cs
 EpisodeSectionView.cs

@@ -161,7 +161,7 @@ public sealed class LibraryViewsTests
         var episodes = new[] { 10, 2, 1 }.Select(number => VideoAt(folder, $"The.Rehearsal.S01E{number:00}.1080p.WEBRip.x265-RARBG")).ToList();
         var anotherShow = VideoAt(folder, "Elsewhere.S01E03.1080p");
         var anotherFolder = VideoAt(Path.Combine("D:\\Videos", "Copy"), "The.Rehearsal.S01E04.1080p");
-        var movie = VideoAt(folder, "A Movie");
+        var movie = VideoAt(@"D:\Videos", "A Movie");
 
         var detected = LibraryViews.EpisodeOf(episodes[1]);
         Assert.Equal(new VideoEpisode("The Rehearsal", 1, 2), detected);
@@ -169,7 +169,8 @@ public sealed class LibraryViewsTests
         Assert.Equal([1, 2, 10], LibraryViews.AutoplayVideos([.. episodes, anotherShow, anotherFolder, movie], episodes[1]).Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
         Assert.Equal([movie], LibraryViews.AutoplayVideos(episodes, movie));
         Assert.Equal([Song("Not video", null, null)], LibraryViews.AutoplayVideos([], Song("Not video", null, null)));
-        Assert.Null(LibraryViews.EpisodeOf(VideoAt(folder, "S01E01")));
+        // A bare mark in a season folder named after the show is that show's episode.
+        Assert.Equal(new VideoEpisode("The Rehearsal", 1, 1), LibraryViews.EpisodeOf(VideoAt(folder, "S01E01")));
         Assert.Throws<ArgumentNullException>(() => LibraryViews.EpisodeOf(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryViews.AutoplayVideos(null!, episodes[0]));
         Assert.Throws<ArgumentNullException>(() => LibraryViews.AutoplayVideos(episodes, null!));

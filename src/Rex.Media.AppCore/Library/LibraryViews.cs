@@ -11,10 +11,28 @@ public sealed record LibraryGroup(string Name, string? Detail, IReadOnlyList<Lib
 /// <summary>The library route that contains a file which is already open in the player.</summary>
 public sealed record CurrentLibraryLocation(LibraryEntry Entry, LibraryGroup? Show = null, LibraryGroup? Season = null);
 
-/// <summary>A season-and-episode mark inferred from a video's filename.</summary>
-public sealed record VideoEpisode(string Series, int Season, int Episode, int? SeriesYear = null)
+/// <summary>
+/// A show's season and episode inferred from a video's path (<see cref="EpisodeNames"/>). Season 0 holds
+/// the specials; <see cref="Episode"/> is null when nothing numbers the episode, which then goes in
+/// natural order; a double episode runs from <see cref="Episode"/> through <see cref="Through"/>.
+/// </summary>
+public sealed record VideoEpisode(string Series, int Season, int? Episode, int? SeriesYear = null)
 {
-    public string DisplayName => $"{Series}{(SeriesYear is { } year ? $" ({year})" : "")} · S{Season:00}E{Episode:00}";
+    /// <summary>The last episode a double episode holds; null for a single one.</summary>
+    public int? Through { get; init; }
+
+    /// <summary>"S06E01", "S06E01-E02", or "S06" when the episode has no number.</summary>
+    public string Code => string.Create(CultureInfo.InvariantCulture,
+        $"S{Season:00}{(Episode is { } first ? $"E{first:00}" : "")}{(Through is { } last ? $"-E{last:00}" : "")}");
+
+    public string DisplayName => $"{Series}{(SeriesYear is { } year ? $" ({year})" : "")} · {Code}";
+
+    /// <summary>The short mark on a tile: "S06 E01", or "S06".</summary>
+    public string Badge => string.Create(CultureInfo.InvariantCulture, $"S{Season:00}{(Episode is { } first ? $" E{first:00}" : "")}");
+
+    /// <summary>"Season 6 · Episode 1", "Season 7 · Episodes 1-2", "Specials", as the detail line says it.</summary>
+    public string Spoken => string.Create(CultureInfo.InvariantCulture,
+        $"{(Season == 0 ? "Specials" : $"Season {Season}")}{(Episode is not { } first ? "" : Through is { } last ? $" · Episodes {first}-{last}" : $" · Episode {first}")}");
 }
 
 /// <summary>
@@ -170,8 +188,7 @@ public static partial class LibraryViews
             .GroupBy(pair => SeriesGroupKey(pair.Episode!, episodes.Select(item => item.Episode!)), ByName)
             .Select(group =>
             {
-                var ordered = group.OrderBy(pair => pair.Episode!.Season)
-                    .ThenBy(pair => pair.Episode!.Episode).ThenBy(pair => pair.Entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
+                var ordered = InEpisodeOrder(group).ToList();
                 var seasons = ordered.Select(pair => pair.Episode!.Season).Distinct().Count();
                 return new LibraryGroup(group.Key,
                     $"{seasons} {(seasons == 1 ? "season" : "seasons")} · {ordered.Count} {(ordered.Count == 1 ? "episode" : "episodes")}",
@@ -180,19 +197,29 @@ public static partial class LibraryViews
             .OrderBy(group => group.Name, ByName)];
     }
 
-    /// <summary>The seasons of one series in chronological order, with naturally ordered episodes.</summary>
+    /// <summary>
+    /// The seasons of one series in chronological order, the specials (season 0) after them; numbered
+    /// episodes come first in number order, then the unnumbered ones by file name in natural order.
+    /// </summary>
     public static IReadOnlyList<LibraryGroup> TvSeasons(LibraryGroup show)
     {
         ArgumentNullException.ThrowIfNull(show);
         return [.. show.Entries
             .Select(entry => (Entry: entry, Episode: EpisodeOf(entry)))
             .Where(pair => pair.Episode is not null)
-            .GroupBy(pair => pair.Episode!.Season).OrderBy(group => group.Key)
-            .Select(group => new LibraryGroup($"Season {group.Key}",
+            .GroupBy(pair => pair.Episode!.Season).OrderBy(group => group.Key == 0).ThenBy(group => group.Key)
+            .Select(group => new LibraryGroup(group.Key == 0 ? "Specials" : $"Season {group.Key}",
                 $"{group.Count()} {(group.Count() == 1 ? "episode" : "episodes")}",
-                [.. group.OrderBy(pair => pair.Episode!.Episode)
-                    .ThenBy(pair => pair.Entry.Path, StringComparer.OrdinalIgnoreCase).Select(pair => pair.Entry)]))];
+                [.. InEpisodeOrder(group).Select(pair => pair.Entry)]))];
     }
+
+    /// <summary>By season; in each, numbered episodes by number, then unnumbered ones by file name in natural order, then by path.</summary>
+    private static IOrderedEnumerable<(LibraryEntry Entry, VideoEpisode? Episode)> InEpisodeOrder(IEnumerable<(LibraryEntry Entry, VideoEpisode? Episode)> pairs) =>
+        pairs.OrderBy(pair => pair.Episode!.Season)
+            .ThenBy(pair => pair.Episode!.Episode is null)
+            .ThenBy(pair => pair.Episode!.Episode)
+            .ThenBy(pair => pair.Episode!.Episode is null ? Path.GetFileNameWithoutExtension(pair.Entry.Path) : "", NaturalOrder.Instance)
+            .ThenBy(pair => pair.Entry.Path, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Clean a filename for a movie card; prefer a real embedded title when available.</summary>
     public static string MovieTitleOf(LibraryEntry entry)
@@ -238,33 +265,15 @@ public static partial class LibraryViews
             .ThenBy(entry => Path.GetFileName(entry.Path), NaturalOrder.Instance)
             .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
-    /// <summary>The season and episode a conventional S01E02 filename identifies, or null.</summary>
+    /// <summary>
+    /// The show, season and episode a video's path identifies (<see cref="EpisodeNames"/>), or null for
+    /// a movie. It is read from the path every time, never stored, so a library saved under older
+    /// rules is classified by the current ones as soon as it loads.
+    /// </summary>
     public static VideoEpisode? EpisodeOf(LibraryEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        var name = Path.GetFileNameWithoutExtension(entry.Path);
-        var match = EpisodePattern().Match(name);
-        if (!match.Success)
-        {
-            match = AlternateEpisodePattern().Match(name);
-        }
-        if (!match.Success
-            || !int.TryParse(match.Groups["season"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var season)
-            || !int.TryParse(match.Groups["episode"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var episode))
-        {
-            return null;
-        }
-
-        var rawSeries = match.Groups["series"].Value.Trim();
-        var qualified = SeriesYearPattern().Match(rawSeries);
-        var seriesYear = qualified.Success && int.TryParse(qualified.Groups["year"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var year) ? year : (int?)null;
-        if (qualified.Success)
-        {
-            rawSeries = qualified.Groups["series"].Value;
-        }
-
-        var series = Separators().Replace(rawSeries, " ").Trim(' ', '-', '(', ')');
-        return series.Length > 0 ? new VideoEpisode(series, season, episode, seriesYear) : null;
+        return EpisodeNames.Parse(entry.Path);
     }
 
     /// <summary>
@@ -288,10 +297,8 @@ public static partial class LibraryViews
             .Where(pair => pair.Episode is { } episode && episode.Season == wanted.Season && episode.Series.Equals(wanted.Series, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var wantedGroup = SeriesGroupKey(wanted, candidates.Select(pair => pair.Episode!));
-        var season = candidates
-            .Where(pair => ByName.Equals(SeriesGroupKey(pair.Episode!, candidates.Select(item => item.Episode!)), wantedGroup))
-            .OrderBy(pair => pair.Episode!.Episode)
-            .ThenBy(pair => pair.Entry.Title, NaturalOrder.Instance)
+        var season = InEpisodeOrder(candidates
+            .Where(pair => ByName.Equals(SeriesGroupKey(pair.Episode!, candidates.Select(item => item.Episode!)), wantedGroup)))
             .Select(pair => pair.Entry)
             .ToList();
         return season.Any(entry => string.Equals(entry.Path, selected.Path, StringComparison.OrdinalIgnoreCase)) ? season : [selected];
@@ -371,18 +378,8 @@ public static partial class LibraryViews
             .Any(field => field is not null && Compare.IndexOf(field, word, Loose) >= 0);
     }
 
-    /// <summary>"Show.Name.S01E02.mkv", "Show - s1e2", "Show_S01E002": the show, then the season and episode.</summary>
-    [GeneratedRegex(@"^(?<series>.+?)[ ._-]+S(?<season>\d{1,3})E(?<episode>\d{1,4})(?=[ ._-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex EpisodePattern();
-
-    [GeneratedRegex(@"^(?<series>.+?)[ ._-]+(?<season>\d{1,2})x(?<episode>\d{1,3})(?=[ ._-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex AlternateEpisodePattern();
-
     [GeneratedRegex(@"^(?<title>.+?)[ ._(\-]+(?<year>19\d{2}|20\d{2})(?=[ ._)\-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MovieYearPattern();
-
-    [GeneratedRegex(@"^(?<series>.+?)[ ._(\[\-]+(?<year>19\d{2}|20\d{2})[\])]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex SeriesYearPattern();
 
     [GeneratedRegex(@"[ ._-]+(?:2160p|1080p|720p|480p|BluRay|WEBRip|WEB[.-]DL)(?=[ ._-]|$).*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex QualitySuffixPattern();
