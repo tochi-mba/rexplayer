@@ -577,7 +577,7 @@ public sealed partial class MainWindow
                 // The newest twentieth of a second, drawn across the width.
                 var span = Math.Min(_soundMono.Length, Math.Max(64, rate / 20));
                 // The line's own points are rewritten in place, so a frame allocates no new collection.
-                var points = _wave.Points;
+                var points = _wave.Points ??= [];
                 var steps = Math.Max(2, (int)Math.Min(width / 2, span));
                 while (points.Count > steps)
                 {
