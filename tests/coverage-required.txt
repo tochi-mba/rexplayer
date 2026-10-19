@@ -375,3 +375,4 @@ FlacTagWriter.cs
 TagFileWriter.cs
 DetailOverride.cs
 DetailsForm.cs
+PendingDetailWrites.cs

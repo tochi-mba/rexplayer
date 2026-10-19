@@ -91,6 +91,7 @@ public sealed partial class MainWindow
             _player.SectionAnalyzer!, App.Log);
         _backgroundSections.SetPaused(_player.IsPlaying);
         _player.Changed += (_, _) => _backgroundSections?.SetPaused(_player.IsPlaying);
+        _player.Changed += (_, _) => OnPlayingChangedForDetailWrites();
 
         // A burst of changes (a scan's batches) shows once.
         _libraryRefresh = DispatcherQueue.CreateTimer();

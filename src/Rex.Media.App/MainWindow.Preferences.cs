@@ -108,6 +108,8 @@ public sealed partial class MainWindow
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
         var libraryOpening = Choice("When opening the library", ["Show the playing item", "Return to where I left the library"], s.OpenLibraryAtPlayingItem ? 0 : 1);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(libraryOpening, "PreferencesLibraryOpening");
+        var detailWriting = Choice("When I edit song details", ["Write them into the files", "Keep them in rexplayer only"], s.WriteDetailsIntoFiles ? 0 : 1);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(detailWriting, "PreferencesDetailWriting");
         var libraryFullScreen = Check("Leave full screen when the library opens", s.LeaveFullScreenWhenLibraryOpens);
         var libraryPlayback = Choice("When media starts from the library", ["Show the player", "Keep browsing while audio plays"], s.ShowPlayerWhenLibraryMediaStarts ? 0 : 1);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(libraryFullScreen, "PreferencesLibraryFullScreen");
@@ -267,6 +269,7 @@ public sealed partial class MainWindow
 
         AddSection("Library");
         content.Children.Add(libraryOpening);
+        content.Children.Add(detailWriting);
         content.Children.Add(mediaOpenClick);
         content.Children.Add(libraryFullScreen);
         content.Children.Add(libraryPlayback);
@@ -494,6 +497,7 @@ public sealed partial class MainWindow
             MediaOpenClickMode = (MediaOpenClick)Math.Max(0, mediaOpenClick.SelectedIndex),
             KeepHistory = history.IsChecked == true,
             OpenLibraryAtPlayingItem = libraryOpening.SelectedIndex == 0,
+            WriteDetailsIntoFiles = detailWriting.SelectedIndex == 0,
             LeaveFullScreenWhenLibraryOpens = libraryFullScreen.IsChecked == true,
             ShowPlayerWhenLibraryMediaStarts = libraryPlayback.SelectedIndex == 0,
             PauseWhenLibraryOpens = pauseLibrary.IsChecked == true,

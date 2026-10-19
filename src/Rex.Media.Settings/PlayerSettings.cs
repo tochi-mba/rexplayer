@@ -544,6 +544,9 @@ public sealed record PlayerSettings
     /// <summary>Opening the library reveals the playing item; otherwise it returns to the current browsing location.</summary>
     public bool OpenLibraryAtPlayingItem { get; init; } = true;
 
+    /// <summary>Edited song details go into the files when their format can be written; otherwise rexplayer keeps them.</summary>
+    public bool WriteDetailsIntoFiles { get; init; } = true;
+
     /// <summary>Opening the library leaves full screen so browsing has the normal window chrome.</summary>
     public bool LeaveFullScreenWhenLibraryOpens { get; init; } = true;
 
