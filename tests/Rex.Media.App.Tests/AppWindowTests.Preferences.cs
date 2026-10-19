@@ -69,6 +69,8 @@ public sealed partial class AppWindowTests
         ChoosePreferencesSection(app, "Keyboard and mouse");
         app.Press("PreferencesKeyboard");
         Wait.For(() => app.IsShown("ShortcutSearch"), "the shortcut editor to open");
+        // The editor names the jump by the length just set, though Preferences has not saved it.
+        Assert.StartsWith("Jump forward 37 seconds:", app.Find("Shortcut-" + CommandCatalog.JumpForwardShort).Current.Name, StringComparison.Ordinal);
         var pans = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, "Zoomed in, the wheel and two-finger scrolling move about the picture")));
         ((TogglePattern)pans.GetCurrentPattern(TogglePattern.Pattern)).Toggle();

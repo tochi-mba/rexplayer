@@ -108,9 +108,13 @@ public sealed partial class MainWindow
         : point.Properties.IsXButton2Pressed ? ShortcutEditing.SideButtonCommand(_settings.SideButtons, forward: true)
         : null;
 
-    /// <summary>The keyboard and mouse editor: nothing applies until Save.</summary>
-    private async Task ShowKeyboardAndMouseAsync()
+    /// <summary>
+    /// The keyboard and mouse editor: nothing applies until Save. <paramref name="jumps"/> are the
+    /// settings whose jump lengths the editor names, such as Preferences' changes not yet saved.
+    /// </summary>
+    private async Task ShowKeyboardAndMouseAsync(PlayerSettings? jumps = null)
     {
+        var named = jumps ?? _settings;
         var changes = new Dictionary<string, string>(_settings.Shortcuts, StringComparer.Ordinal);
         var global = new HashSet<string>(_settings.GlobalShortcuts, StringComparer.Ordinal);
         string? editing = null;
@@ -131,10 +135,10 @@ public sealed partial class MainWindow
         capturePanel.Children.Add(new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Orientation = Orientation.Horizontal, Spacing = 8, Children = { apply, cancel } });
         var rows = new StackPanel { Spacing = 2 };
 
-        var wheel = Choice("Turning the wheel over the picture", ["Changes the volume", "Jumps a little", "Does nothing"], (int)_settings.Wheel);
-        var sideways = Choice("Tilting the wheel", ["Changes the volume", "Jumps a little", "Does nothing"], (int)_settings.SidewaysWheel);
+        var wheel = Choice("Turning the wheel over the picture", ShortcutEditing.WheelChoiceTitles(named), (int)_settings.Wheel);
+        var sideways = Choice("Tilting the wheel", ShortcutEditing.WheelChoiceTitles(named), (int)_settings.SidewaysWheel);
         var middle = Choice("The middle button", ["Plays or pauses", "Goes full screen", "Mutes", "Does nothing"], (int)_settings.MiddleButton);
-        var side = Choice("The back and forward buttons", ["Go to the previous and next item", "Jump back and forward", "Do nothing"], (int)_settings.SideButtons);
+        var side = Choice("The back and forward buttons", ShortcutEditing.SideButtonChoiceTitles(named), (int)_settings.SideButtons);
         var ctrlWheel = Choice("Ctrl with the wheel, and pinching a touchpad", ["Zooms the picture", "Sizes the subtitles"], (int)_settings.CtrlWheel);
         var pans = Check("Zoomed in, the wheel and two-finger scrolling move about the picture", _settings.WheelPansWhenZoomed);
 
@@ -152,7 +156,7 @@ public sealed partial class MainWindow
             foreach (var group in CommandCatalog.All.GroupBy(command => command.Group))
             {
                 var shown = group.Where(command => filter.Length == 0
-                    || CommandCatalog.TitleOf(command, _settings).Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                    || CommandCatalog.TitleOf(command, named).Contains(filter, StringComparison.CurrentCultureIgnoreCase)
                     || keymap.ShortcutsFor(command.Id).Any(chord => chord.ToString().Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
                 if (shown.Count == 0)
                 {
@@ -168,14 +172,14 @@ public sealed partial class MainWindow
 
             if (keymap.Conflicts is [var first, ..])
             {
-                Say($"{first.Chord} is both {CommandCatalog.TitleOf(CommandCatalog.Find(first.First)!, _settings)} and {CommandCatalog.TitleOf(CommandCatalog.Find(first.Second)!, _settings)}; it does the first. Give one of them another shortcut.");
+                Say($"{first.Chord} is both {CommandCatalog.TitleOf(CommandCatalog.Find(first.First)!, named)} and {CommandCatalog.TitleOf(CommandCatalog.Find(first.Second)!, named)}; it does the first. Give one of them another shortcut.");
             }
         }
 
         UIElement Row(Command command, Keymap keymap)
         {
             var chords = keymap.ShortcutsFor(command.Id);
-            var name = CommandCatalog.TitleOf(command, _settings);
+            var name = CommandCatalog.TitleOf(command, named);
             var row = new Grid { ColumnSpacing = 8 };
             foreach (var width in new[] { new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto })
             {
@@ -249,7 +253,7 @@ public sealed partial class MainWindow
             if (made.TakenFrom is { } from)
             {
                 var left = new Keymap(changes).ShortcutsFor(from);
-                Say($"{chord} was the shortcut for {CommandCatalog.TitleOf(CommandCatalog.Find(from)!, _settings)}; {(left.Count > 0 ? "it keeps " + string.Join(", ", left) : "it has none now")}.");
+                Say($"{chord} was the shortcut for {CommandCatalog.TitleOf(CommandCatalog.Find(from)!, named)}; {(left.Count > 0 ? "it keeps " + string.Join(", ", left) : "it has none now")}.");
             }
             else
             {
