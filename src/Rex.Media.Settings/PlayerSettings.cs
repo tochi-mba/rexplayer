@@ -668,7 +668,11 @@ public sealed record PlayerSettings
 
     public bool FirstRunDone { get; init; }
 
-    /// <summary>Looking up artwork and details online: off until the user turns it on (§6.15).</summary>
+    /// <summary>
+    /// The old single switch for looking up artwork and details online (§6.15), saved but never
+    /// read. <see cref="Metadata"/> replaced it with a switch per kind; a file that says true turns
+    /// them all on once, in <see cref="Normalize"/>, and the old switch is cleared.
+    /// </summary>
     public bool OnlineLookups { get; init; }
 
     public UpdateCadence UpdateChecks { get; init; } = UpdateCadence.Daily;
@@ -726,6 +730,12 @@ public sealed record PlayerSettings
         // Settings from before schema 2 that kept the old default loudest volume get the new one; a
         // loudest volume the user chose stays.
         var maxVolume = Math.Clamp(Schema < 2 && MaxVolumePercent == OldMaxVolumeDefault ? 200 : MaxVolumePercent, 100, 200);
+        // The old single online-lookups switch becomes the per-kind metadata switches, once.
+        var metadata = (Metadata ?? new MetadataSettings()).Normalize();
+        if (OnlineLookups && metadata is { TvShows: false, Movies: false, Music: false })
+        {
+            metadata = metadata with { TvShows = true, Movies = true, Music = true };
+        }
         return this with
         {
             Schema = CurrentSchema,
@@ -795,7 +805,8 @@ public sealed record PlayerSettings
             SubtitleStyles = Enum.IsDefined(SubtitleStyles) ? SubtitleStyles : SubtitleStyleChoice.Respect,
             KineticCaptions = (KineticCaptions ?? new KineticCaptionSettings()).Normalize(),
             Transcription = (Transcription ?? new TranscriptionSettings()).Normalize(),
-            Metadata = (Metadata ?? new MetadataSettings()).Normalize(),
+            Metadata = metadata,
+            OnlineLookups = false,
             Performance = Enum.IsDefined(Performance) ? Performance : PerformanceChoice.Automatic,
         };
     }

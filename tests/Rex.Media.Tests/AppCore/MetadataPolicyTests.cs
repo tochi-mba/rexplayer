@@ -119,4 +119,17 @@ public sealed class MetadataPolicyTests
         Assert.NotNull(settings.Metadata);
         Assert.False(settings.Metadata.TvShows);
     }
+
+    [Fact]
+    public void TheOldOnlineLookupsSwitchBecomesTheNewSwitchesOnce()
+    {
+        var migrated = (new PlayerSettings { OnlineLookups = true }).Normalize();
+        Assert.True(migrated.Metadata is { TvShows: true, Movies: true, Music: true });
+        Assert.False(migrated.OnlineLookups);
+
+        // A kind the user already chose is their word on it; the old switch changes nothing then.
+        var chosen = (new PlayerSettings { OnlineLookups = true, Metadata = new MetadataSettings { Music = true } }).Normalize();
+        Assert.True(chosen.Metadata is { TvShows: false, Movies: false, Music: true });
+        Assert.False(chosen.OnlineLookups);
+    }
 }
