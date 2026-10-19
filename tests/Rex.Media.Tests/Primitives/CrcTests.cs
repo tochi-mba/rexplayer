@@ -12,17 +12,14 @@ public sealed class CrcTests
     {
         Assert.Equal(0xF4u, Crc.Crc8Flac.Compute(Check));
         Assert.Equal(0xFEE8u, Crc.Crc16Flac.Compute(Check));
-        Assert.Equal(0xAEE7u, Crc.Crc16Mpeg.Compute(Check));
-        Assert.Equal(0x0376E6E7u, Crc.Crc32Mpeg2.Compute(Check));
         Assert.Equal(0x89A1897Fu, Crc.Crc32Ogg.Compute(Check));
-        Assert.Equal(0xE3069283u, Crc.Crc32C.Compute(Check));
         Assert.Equal(0xCBF43926u, Crc.Crc32.Compute(Check));
     }
 
     [Fact]
     public void AChecksumComputedInPiecesMatchesOneComputedWhole()
     {
-        foreach (var crc in new[] { Crc.Crc8Flac, Crc.Crc16Mpeg, Crc.Crc32C })
+        foreach (var crc in new[] { Crc.Crc8Flac, Crc.Crc16Flac, Crc.Crc32 })
         {
             var register = crc.Append(crc.Start(), Check.AsSpan(0, 4));
             register = crc.Append(register, Check.AsSpan(4));
@@ -34,10 +31,10 @@ public sealed class CrcTests
     [Fact]
     public void TheParametersAreExposed()
     {
-        var crc = Crc.Crc32C;
+        var crc = Crc.Crc32;
 
         Assert.Equal(32, crc.Width);
-        Assert.Equal(0x1EDC6F41u, crc.Polynomial);
+        Assert.Equal(0x04C11DB7u, crc.Polynomial);
         Assert.Equal(0xFFFFFFFFu, crc.Initial);
         Assert.True(crc.Reflected);
         Assert.Equal(0xFFFFFFFFu, crc.FinalXor);
@@ -53,7 +50,7 @@ public sealed class CrcTests
     [Fact]
     public void AnEmptyInputGivesTheInitialValueXoredWithTheFinalXor()
     {
-        Assert.Equal(0u, Crc.Crc32C.Compute([]));
-        Assert.Equal(0xFFFFFFFFu, Crc.Crc32Mpeg2.Compute([]));
+        Assert.Equal(0u, Crc.Crc32.Compute([]));
+        Assert.Equal(0xFFFFFFFFu, new Crc(32, 0x04C11DB7, 0xFFFFFFFF, reflected: false, 0).Compute([]));
     }
 }
