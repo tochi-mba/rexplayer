@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
 using Rex.Media.Settings;
@@ -161,8 +162,8 @@ public static class LibraryArrangement
         switch (grouping)
         {
             case LibraryGrouping.Letter:
-                var first = entry.Title.TrimStart().FirstOrDefault();
-                return char.IsLetter(first) ? (char.ToUpper(first, CultureInfo.CurrentCulture).ToString(), 0, false) : ("#", 0, true);
+                var letter = LetterOf(entry.Title);
+                return (letter, 0, letter == "#");
             case LibraryGrouping.Artist:
                 return entry.FiledArtist is { } artist ? (artist, 0, false) : (LibraryViews.UnknownArtist, 0, true);
             case LibraryGrouping.Album:
@@ -182,6 +183,22 @@ public static class LibraryArrangement
             default:
                 return Length(entry.Duration);
         }
+    }
+
+    /// <summary>
+    /// The letter a name is gathered under: its first letter in capitals, with any accent taken off
+    /// ("Édith" under E, with "Ezra"), or "#" when it starts with no letter.
+    /// </summary>
+    public static string LetterOf(string? name)
+    {
+        var text = (name ?? "").AsSpan().TrimStart();
+        if (text.IsEmpty || !char.IsLetter(text[0]))
+        {
+            return "#";
+        }
+
+        var plain = text[..1].ToString().Normalize(NormalizationForm.FormD)[0];
+        return char.ToUpper(plain, CultureInfo.CurrentCulture).ToString();
     }
 
     /// <summary>When it was added, as a person would say it: today, this week, this month, this year, or the year.</summary>

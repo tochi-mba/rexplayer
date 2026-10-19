@@ -669,7 +669,7 @@
                 </Flyout>
               </DropDownButton.Flyout>
             </DropDownButton>
-            <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged"
+            <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged" KeyDown="OnLibrarySearchKeyDown"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
           </Grid>
 
