@@ -1,4 +1,3 @@
-using Rex.Media.AppCore.Library;
 using Rex.Media.Engine;
 using Rex.Media.Library;
 
@@ -94,9 +93,6 @@ public sealed partial class PlayerController
 
     /// <summary>Where the library's <paramref name="path"/> was left, for "Continue watching".</summary>
     public TimeSpan? LeftAt(string path) => Memory.ResumePoint(path);
-
-    /// <summary>How far the library's <paramref name="entry"/> has been watched or played.</summary>
-    public WatchState WatchStateOf(LibraryEntry entry) => LibraryArrangement.StateOf(entry, LeftAt);
 
     /// <summary>Marks <paramref name="paths"/> as watched through: nowhere to go back to, and played at least once.</summary>
     public void MarkWatched(IReadOnlyList<string> paths)

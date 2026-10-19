@@ -29,12 +29,6 @@ public enum SubjectState
 /// </summary>
 public static class SubjectPanel
 {
-    /// <summary>The removal mask's edge softness when the panel opens, in pixels.</summary>
-    public const int DefaultFeather = 3;
-
-    /// <summary>The removal mask's colour tolerance when the panel opens, in percent.</summary>
-    public const int DefaultTolerance = 50;
-
     /// <summary>The widest the panel gets, in layout units; narrower stages get less.</summary>
     public const double WidestPanel = 320;
 
@@ -109,10 +103,6 @@ public static class SubjectPanel
 
     /// <summary>The label of the button that moves the panel to the other side.</summary>
     public static string MoveText(PanelSide side) => side == PanelSide.Left ? "Move right" : "Move left";
-
-    /// <summary>What the mode switch says about the current selection mode.</summary>
-    public static string ModeText(SubjectSelectionMode mode) =>
-        mode == SubjectSelectionMode.Draw ? "Draw a box" : "Click to lock";
 
     /// <summary>What to do next when nothing is selected, in the current selection mode.</summary>
     public static string Instruction(SubjectSelectionMode mode, bool follow)

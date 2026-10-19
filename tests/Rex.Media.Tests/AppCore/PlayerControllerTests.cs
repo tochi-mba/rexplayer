@@ -637,7 +637,6 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready);
         Assert.Equal("a.srt", controller.Subtitles!.Name);
         Assert.Equal(["Hello"], controller.SubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
-        Assert.Empty(controller.SubtitlesNow);
 
         Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));
         Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));

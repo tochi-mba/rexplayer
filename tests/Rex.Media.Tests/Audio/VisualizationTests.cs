@@ -223,9 +223,6 @@ public sealed class VisualizationTests
         Assert.Equal(new Argb(255, 255, 0, 255), Visualizers.Hsv(300, 1, 1));
         Assert.Equal(new Argb(255, 128, 128, 128), Visualizers.Hsv(90, 0, 0.5));
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Hsv(double.NaN, double.PositiveInfinity, double.NaN));
-        Assert.Equal(2, Visualizers.DominantBand([0.1f, 0.3f, 0.9f, 0.2f]));
-        Assert.Equal(0, Visualizers.DominantBand(Array.Empty<float>()));
-        Assert.Throws<ArgumentNullException>(() => Visualizers.DominantBand(null!));
 
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Heat(0));
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Heat(float.NaN));

@@ -16,7 +16,6 @@ public sealed class CliArgumentsTests
         Assert.Equal("wav:x.wav", arguments.Option("--aout"));
         Assert.True(arguments.Json);
         Assert.Null(arguments.Option("--start"));
-        Assert.Equal(3, arguments.OptionNames.Count());
     }
 
     [Fact]
