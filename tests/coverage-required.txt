@@ -111,6 +111,7 @@ HallOfMirrorsScene.cs
 HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
+HiddenWindow.cs
 Id3v2.cs
 InfinityMirrorScene.cs
 InkScene.cs

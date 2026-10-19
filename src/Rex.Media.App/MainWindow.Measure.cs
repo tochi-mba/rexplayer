@@ -85,7 +85,7 @@ public sealed partial class MainWindow
             Environment.ProcessorCount);
         var watched = _watchingSince == 0 ? TimeSpan.Zero : Stopwatch.GetElapsedTime(_watchingSince);
         var visual = _visualizing && _visualStage is { } stage ? new VisualSample(stage.DrawMilliseconds, stage.Quality, stage.Canvas.Width, stage.Canvas.Height) : (VisualSample?)null;
-        return PlayerMetrics.Read(sample, stats, _windowThread.Snapshot(watched), visual, _budget.Tier);
+        return PlayerMetrics.Read(sample, stats, _windowThread.Snapshot(watched), visual, _budget.Tier, _presenter?.PicturesDrawn);
     }
 
     /// <summary>One probe: posted now, it notes how late the window's thread runs it, then the next is posted a little later.</summary>

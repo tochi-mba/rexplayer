@@ -17,6 +17,7 @@ pipeline the moment its number reaches `main`.
 - **Shorter menus.** Finer variants now sit one level in, so each menu reads at a glance: Playback has Jump (every jump length, including the very short and long ones the menu never offered), Speed (with A little faster and A little slower) and Sleep timer; Audio has Sound timing; Subtitles has Subtitle timing, Subtitle size and Kinetic caption style; Video has Window size; View has Library backup. Clear the playlist and Clear the history moved to the end of View, away from Preferences.
 - **Library search from the keyboard.** In the library search box, Escape clears the search and Down moves to the first result, so Enter plays it.
 - **Letter headings.** Titles that start with an accented letter now go under the plain letter's heading ("Édith" under E) instead of under a separate "É" heading.
+- **A minimised window draws nothing.** While the window is minimised, video pictures are no longer uploaded, drawn and presented to nobody (about 1,760 a minute for 30-frame video), and the visualisation and kinetic captions stop drawing; the video keeps decoding and the sound and timeline play on in step. The latest picture is drawn the moment the window comes back.
 
 ### Fixed
 
