@@ -144,7 +144,7 @@ public sealed partial class MainWindow
     private void WakeVisualizer()
     {
         _visualPacing.Wake();
-        if (_visualizing && !_visualDrawing)
+        if (_visualizing && !_visualDrawing && _hidden.Draws)
         {
             _visualDrawing = true;
             CompositionTarget.Rendering += OnRendering;
@@ -518,9 +518,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        // Paused or ended, the picture settles and then stops being drawn until the music plays again.
+        // Paused or ended, the picture settles and then stops being drawn until the music plays
+        // again; minimised, it is not drawn until the window is back (WakeVisualizer).
         var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
-        if (!_visualPacing.Draws(now, _player.IsPlaying, _builtFor is { } drawing && UsesCamera(drawing)))
+        if (!_hidden.Draws || !_visualPacing.Draws(now, _player.IsPlaying, _builtFor is { } drawing && UsesCamera(drawing)))
         {
             CompositionTarget.Rendering -= OnRendering;
             _visualDrawing = false;

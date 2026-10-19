@@ -15,6 +15,7 @@ pipeline the moment its number reaches `main`.
 - **Paused kinetic captions stand still.** While a video is paused the words on screen are left as they are, instead of being worked out, laid out and announced to screen readers again on every display refresh; they move again when playback, a seek, the window's size or the captions' look changes them.
 - **Library search from the keyboard.** In the library search box, Escape clears the search and Down moves to the first result, so Enter plays it.
 - **Letter headings.** Titles that start with an accented letter now go under the plain letter's heading ("Édith" under E) instead of under a separate "É" heading.
+- **A minimised window draws nothing.** While the window is minimised, video pictures are no longer uploaded, drawn and presented to nobody (about 1,760 a minute for 30-frame video), and the visualisation and kinetic captions stop drawing; the video keeps decoding and the sound and timeline play on in step. The latest picture is drawn the moment the window comes back.
 
 ### Fixed
 
