@@ -149,6 +149,17 @@ public sealed class MetadataFetcherTests : IDisposable
     }
 
     [Fact]
+    public async Task ACorruptCachedShowIsFetchedAgain()
+    {
+        _cache.WriteText(MetadataFetcher.ShowKind, "the-show", "broken");
+        AnswerEverything();
+
+        Assert.True(await Fetcher.FetchShowAsync("The Show", null, null, CancellationToken.None));
+        Assert.Equal(318, Fetcher.Cached("The Show")!.CatalogueId);
+        Assert.NotEmpty(_asked);
+    }
+
+    [Fact]
     public async Task SearchingForThePickerReturnsTheCandidates()
     {
         AnswerEverything();
@@ -177,6 +188,11 @@ public sealed class MetadataFetcherTests : IDisposable
         Assert.Equal(show.Episodes, reloaded.Episodes);
         Assert.Null(EnrichedShow.FromJson("broken"));
         Assert.Throws<ArgumentNullException>(() => EnrichedShow.FromJson(null!));
+
+        var nullLists = EnrichedShow.FromJson("""{"CatalogueId":1,"Name":"X","Genres":null,"Cast":null,"Creators":null,"Seasons":null,"Episodes":null}""");
+        Assert.Equal("", nullLists!.Blurb());
+        Assert.Null(nullLists.EpisodeName(1, 1));
+        Assert.Empty(nullLists.Cast);
     }
 
     [Fact]

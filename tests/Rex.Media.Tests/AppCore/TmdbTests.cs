@@ -221,5 +221,8 @@ public sealed class TmdbTests : IDisposable
         Assert.Equal(movie.Genres, reloaded.Genres);
         Assert.Null(EnrichedMovie.FromJson("broken"));
         Assert.Throws<ArgumentNullException>(() => EnrichedMovie.FromJson(null!));
+        var nullLists = EnrichedMovie.FromJson("""{"CatalogueId":1,"Title":"X","Genres":null,"Cast":null,"Directors":null,"Writers":null,"TrailerKeys":null,"Recommendations":null}""");
+        Assert.Equal("", nullLists!.Blurb());
+        Assert.Empty(nullLists.Cast);
     }
 }

@@ -75,7 +75,15 @@ public sealed record EnrichedShow
         ArgumentNullException.ThrowIfNull(json);
         try
         {
-            return JsonSerializer.Deserialize(json, MetadataRecordsJson.Default.EnrichedShow);
+            var show = JsonSerializer.Deserialize(json, MetadataRecordsJson.Default.EnrichedShow);
+            return show is null ? null : show with
+            {
+                Genres = show.Genres ?? [],
+                Cast = show.Cast ?? [],
+                Creators = show.Creators ?? [],
+                Seasons = show.Seasons ?? [],
+                Episodes = show.Episodes ?? [],
+            };
         }
         catch (JsonException)
         {
