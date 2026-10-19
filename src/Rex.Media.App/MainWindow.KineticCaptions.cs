@@ -42,6 +42,10 @@ public sealed partial class MainWindow
     private readonly float[] _captionRight = new float[SpeechPulse.Size];
     private readonly float[] _captionMono = new float[SpeechPulse.Size];
     private readonly Dictionary<int, CaptionView> _captionViews = [];
+    private readonly CaptionFrameGate _captionGate = new();
+    private readonly HashSet<int> _captionSeen = [];
+    private readonly List<int> _captionGone = [];
+    private readonly List<string> _captionSaid = [];
     private readonly PictureTimeline _pictures = new();
     private CaptionDirector? _captionDirector;
     private CancellationTokenSource? _pictureScan;
@@ -177,6 +181,18 @@ public sealed partial class MainWindow
         var position = CaptionPosition(now);
         Volatile.Write(ref _captionPlayhead, position.TotalSeconds);
 
+        var picture = CaptionPicture();
+        var look = SubtitleLook.For(_settings, picture.Height);
+        var cues = CaptionCues(position);
+        var area = new Area(0, 0, picture.Width, picture.Height);
+
+        // Paused, every movement is worked out from a position that does not move: the words on
+        // screen stand until something they are drawn from changes.
+        if (!_captionGate.Draws(_player.IsPlaying, position, area, look.FontSize, cues, _pictures.ReadTo))
+        {
+            return;
+        }
+
         var heard = _player.IsPlaying && _player.ReadSound(_captionLeft, _captionRight, CaptionSoundLead);
         if (heard)
         {
@@ -186,15 +202,13 @@ public sealed partial class MainWindow
             }
         }
 
-        var picture = CaptionPicture();
-        var look = SubtitleLook.For(_settings, picture.Height);
         var words = director.Frame(
             position,
             heard ? _captionMono : [],
             _player.SoundSampleRate,
             elapsed,
-            CaptionCues(position),
-            new Area(0, 0, picture.Width, picture.Height),
+            cues,
+            area,
             look.FontSize,
             _settings.KineticCaptions.AvoidPicture ? _pictures : null);
         DrawCaptions(words, picture, look);
@@ -237,7 +251,8 @@ public sealed partial class MainWindow
 
     private void DrawCaptions(IReadOnlyList<CaptionWord> words, Area picture, SubtitleLook look)
     {
-        var seen = new HashSet<int>();
+        var seen = _captionSeen;
+        seen.Clear();
         foreach (var word in words)
         {
             seen.Add(word.Id);
@@ -257,19 +272,60 @@ public sealed partial class MainWindow
             view.Show(word, picture, look.FontSize);
         }
 
-        foreach (var gone in _captionViews.Keys.Where(id => !seen.Contains(id)).ToList())
+        _captionGone.Clear();
+        foreach (var id in _captionViews.Keys)
+        {
+            if (!seen.Contains(id))
+            {
+                _captionGone.Add(id);
+            }
+        }
+
+        foreach (var gone in _captionGone)
         {
             KineticLayer.Children.Remove(_captionViews[gone].Root);
             _captionViews.Remove(gone);
         }
 
-        AutomationProperties.SetName(KineticLayer, string.Join(" ", words.Select(word => word.Text)));
+        // Screen readers hear the words when they change, not a new name on every frame.
+        if (!SameWords(words))
+        {
+            _captionSaid.Clear();
+            foreach (var word in words)
+            {
+                _captionSaid.Add(word.Text);
+            }
+
+            AutomationProperties.SetName(KineticLayer, string.Join(" ", _captionSaid));
+        }
+    }
+
+    /// <summary>Whether <paramref name="words"/> say what the layer's name already says.</summary>
+    private bool SameWords(IReadOnlyList<CaptionWord> words)
+    {
+        if (words.Count != _captionSaid.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < words.Count; i++)
+        {
+            if (!string.Equals(words[i].Text, _captionSaid[i], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void ClearCaptionViews()
     {
         KineticLayer.Children.Clear();
         _captionViews.Clear();
+        _captionSaid.Clear();
+        AutomationProperties.SetName(KineticLayer, "");
+        _captionGate.Reset();
     }
 
     /// <summary>Reads the picture ahead of what plays, on a decoder of its own, a few pictures a second.</summary>

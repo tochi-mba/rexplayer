@@ -36,6 +36,7 @@ CameraSight.cs
 CaptionChoreography.cs
 CaptionCommands.cs
 CaptionDirector.cs
+CaptionFrameGate.cs
 CaptionGlyphs.cs
 CaptionPresets.cs
 Changelog.cs
