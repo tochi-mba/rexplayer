@@ -285,7 +285,8 @@ public sealed partial class MainWindow
         var generation = ++_transcriptGeneration;
         if (preserveHold)
         {
-            _subtitleHold.AllowWaiting();
+            // A wait in progress outlives the reload of the new quality's coverage.
+            _subtitleHold.AwaitCoverage();
         }
         else
         {
@@ -305,6 +306,7 @@ public sealed partial class MainWindow
         ShowSubtitleBuffer();
         if (item is null || !File.Exists(item))
         {
+            _subtitleHold.CoverageReady();
             return;
         }
 
@@ -328,8 +330,14 @@ public sealed partial class MainWindow
             return (full, track, partial?.Done, partial?.Duration, wanted);
         }).ContinueWith(task => OnWindowThread(() =>
         {
+            if (generation == _transcriptGeneration)
+            {
+                _subtitleHold.CoverageReady();
+            }
+
             if (!task.IsCompletedSuccessfully || generation != _transcriptGeneration || _player.Item?.Location != item || TranscriptModel.Id != model.Id)
             {
+                HoldForSubtitles();
                 return;
             }
 
@@ -349,7 +357,14 @@ public sealed partial class MainWindow
             (_playingTranscript, _playingWanted) = (item, requested);
             _playingModelChoice = requested ? modelChoice : null;
             ShowSubtitleBuffer();
+            if (TranscriptionConditions.StartsAtOnce(requested, settings.HoldForSubtitles))
+            {
+                // Launched with a file: wait for its captions now, not once the launch settles.
+                StartTranscription();
+            }
+
             TranscriptionTick();
+            HoldForSubtitles();
         }), TaskScheduler.Default);
     }
 
