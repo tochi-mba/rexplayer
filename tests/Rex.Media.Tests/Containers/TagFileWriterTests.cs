@@ -115,6 +115,8 @@ public sealed class TagFileWriterTests : IDisposable
     [Fact]
     public void AFileHeldOpenWithoutSharingIsBusy()
     {
+        // Sharing modes are a Windows guarantee; other systems' locks are advisory and do not stop a writer.
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "File sharing locks are enforced only on Windows.");
         var path = Save("Sungba.mp3", Mp3Audio);
         using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
         {
