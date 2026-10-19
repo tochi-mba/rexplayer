@@ -22,10 +22,6 @@ pipeline the moment its number reaches `main`.
 - **Files that fail to play.** Files that failed before you open, pick or skip to something else no longer count against it. Before, after a few failures, opening a new list that started with a broken file could stop without trying the playable files after it.
 - **Play next after removing the playing item.** If you remove the item that is playing from the queue, items you then choose to Play next (or a next episode) go where it was and play next, instead of going to the top of the queue and being passed over. Items added above that spot no longer change what plays next.
 - **Empty library views.** When quick filters hide everything in a view, it now names those filters and offers Clear filters, instead of saying the library has nothing of that kind. "Looking through your folders..." now updates when a scan starts or finishes, even if the scan found nothing new.
-
-
-### Fixed
-
 - **Section times stay with their episode.** If the next episode opens while the intro or credits times are being edited, or while chapter suggestions are on screen, Save no longer writes them onto the new episode; rexplayer says nothing was saved instead.
 - **Empty or out-of-range section times.** Clearing a time box, or typing a value outside the video, now shows the usual message instead of silently failing to save.
 
