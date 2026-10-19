@@ -211,7 +211,7 @@ public sealed partial class MainWindow
                 groupsView = true;
                 var groups = LibraryArrangement.Sort(Groups(_librarySource, entries), choice.Sort, choice.Descending);
                 sections = choice.Grouping == LibraryGrouping.Letter
-                    ? [.. groups.GroupBy(group => FirstLetter(group.Name)).OrderBy(group => group.Key == "#").ThenBy(group => group.Key, StringComparer.CurrentCulture).Select(group => new LibraryRowGroup(group.Key, group.Select(GroupRow)))]
+                    ? [.. groups.GroupBy(group => LibraryArrangement.LetterOf(group.Name)).OrderBy(group => group.Key == "#").ThenBy(group => group.Key, StringComparer.CurrentCulture).Select(group => new LibraryRowGroup(group.Key, group.Select(GroupRow)))]
                     : [new LibraryRowGroup("", groups.Select(GroupRow))];
                 kind = _librarySource == LibrarySource.TvShows ? LibraryKind.Video : LibraryKind.Music;
                 subtitle = Count(groups.Count, _librarySource switch { LibrarySource.Albums => "album", LibrarySource.Artists => "artist", LibrarySource.TvShows => "show", _ => "genre" });
@@ -346,8 +346,6 @@ public sealed partial class MainWindow
     private List<LibraryRowGroup> EntrySections(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice) =>
         [.. LibraryArrangement.Group(LibraryArrangement.Sort(entries, choice.Sort, choice.Descending), choice.Grouping, DateTime.UtcNow)
             .Select(section => new LibraryRowGroup(section.Header, section.Entries.Select(EntryRow)))];
-
-    private static string FirstLetter(string name) => name.TrimStart().FirstOrDefault() is var first && char.IsLetter(first) ? char.ToUpper(first, CultureInfo.CurrentCulture).ToString() : "#";
 
     /// <summary>How long it all lasts together: "48 min", "3 h 12 min".</summary>
     private static string Total(IEnumerable<LibraryEntry> entries)
