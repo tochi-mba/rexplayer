@@ -134,6 +134,93 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
         }
     }
 
+    /// <summary>The cache kind an album's record lives under.</summary>
+    public const string MusicKind = "music";
+
+    /// <summary>The cache kind an album's fetched cover lives under, with <see cref="ArtExtension"/>.</summary>
+    public const string CoverKind = "albumart";
+
+    /// <summary>The album's cached record, or null before its fetch.</summary>
+    public EnrichedAlbum? CachedAlbum(string? artist, string album) =>
+        _cache.ReadText(MusicKind, MusicBrainz.AlbumKey(artist, album)) is { } json ? EnrichedAlbum.FromJson(json) : null;
+
+    /// <summary>Where an album's fetched cover lives, fetched or not.</summary>
+    public string CoverPath(string? artist, string album) =>
+        _cache.PathFor(CoverKind, MusicBrainz.AlbumKey(artist, album), ArtExtension);
+
+    /// <summary>
+    /// Fetches one album's cover into the cache, only to fill a gap: with <paramref name="filesCarryArt"/>
+    /// true nothing is looked up and the album is recorded as having its own art. The album already
+    /// cached is left alone. False means the catalogue could not answer and the fetch should be tried
+    /// again later; a clean "nothing matched" or a release with no cover is recorded and true.
+    /// </summary>
+    public async Task<bool> FetchAlbumAsync(string? artist, string album, bool filesCarryArt, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(album);
+        var key = MusicBrainz.AlbumKey(artist, album);
+        if (_cache.ReadText(MusicKind, key) is not null)
+        {
+            return true;
+        }
+
+        var record = new EnrichedAlbum { Album = album, Artist = artist };
+        if (filesCarryArt)
+        {
+            _cache.WriteText(MusicKind, key, (record with { LocalArt = true }).ToJson());
+            return true;
+        }
+
+        try
+        {
+            if (await TextAsync(MusicBrainz.SearchUri(artist, album), token).ConfigureAwait(false) is not { } answer)
+            {
+                return false;
+            }
+
+            if (MusicBrainz.Pick(artist, album, MusicBrainz.ParseSearch(answer)) is not { } pick)
+            {
+                _cache.WriteText(MusicKind, key, record.ToJson());
+                return true;
+            }
+
+            var cover = await _fetch(MusicBrainz.CoverUri(pick.Id), token).ConfigureAwait(false);
+            if (cover is not null)
+            {
+                _cache.Write(CoverKind, key, ArtExtension, cover);
+            }
+
+            _cache.WriteText(MusicKind, key, (record with { ReleaseGroupId = pick.Id, HasCover = cover is not null }).ToJson());
+            return true;
+        }
+        catch (JsonException)
+        {
+            // The catalogue answered with something that is not its usual shape; try again later.
+            return false;
+        }
+    }
+
+    /// <summary>Every album already settled in the cache, for filling a lookup table at launch without the network.</summary>
+    public IReadOnlyList<EnrichedAlbum> CachedAlbums()
+    {
+        var folder = Path.Combine(_cache.Downloads, MusicKind);
+        if (!Directory.Exists(folder))
+        {
+            return [];
+        }
+
+        return [.. Directory.EnumerateFiles(folder, "*.json")
+            .Select(file => EnrichedAlbum.FromJson(File.ReadAllText(file)))
+            .Where(album => album is not null)!];
+    }
+
+    /// <summary>Forgets the album's record and cover, for a refresh.</summary>
+    public void ForgetAlbum(string? artist, string album)
+    {
+        var key = MusicBrainz.AlbumKey(artist, album);
+        _cache.Remove(MusicKind, key, ".json");
+        _cache.Remove(CoverKind, key, ArtExtension);
+    }
+
     private async Task<string?> TextAsync(Uri uri, CancellationToken token) =>
         await _fetch(uri, token).ConfigureAwait(false) is { } bytes ? Encoding.UTF8.GetString(bytes) : null;
 }

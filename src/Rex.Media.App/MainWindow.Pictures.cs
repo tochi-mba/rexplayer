@@ -70,7 +70,7 @@ public sealed partial class MainWindow
             {
                 // Artwork beside the file always wins; a fetched poster only fills the gap.
                 var local = kind == LibraryKind.Video ? LocalVideoPoster(path) ?? FetchedPosterPath(path)
-                    : kind == LibraryKind.Music ? FolderArt.Find(path) : null;
+                    : kind == LibraryKind.Music ? FolderArt.Find(path) ?? FetchedCoverPath(path) : null;
                 return (PictureKey(path, kind, settings, local), local);
             }, token);
             token.ThrowIfCancellationRequested();

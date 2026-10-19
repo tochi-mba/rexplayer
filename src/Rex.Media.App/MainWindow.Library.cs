@@ -720,6 +720,11 @@ public sealed partial class MainWindow
                 menu.Items.Add(MenuItem("Wrong match...", "LibraryMenuWrongMatch", () => _ = ChooseShowMatchAsync(show.Name)));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
+            else if (IsAlbumRow(chosen, out var albumArtist, out var album))
+            {
+                menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshAlbumMetadata(albumArtist, album)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
 
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
