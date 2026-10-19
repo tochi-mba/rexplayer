@@ -49,18 +49,6 @@ public sealed partial class MainWindow
 
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
 
-    /// <summary>The picture's right-click menu (UI-03): the same commands, reachable even in full screen and the minimal interface.</summary>
-    private static readonly (string Title, string?[] Commands)[] ContextLayout =
-    [
-        ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings]),
-        ("Subtitles", [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, CommandCatalog.ToggleKineticCaptions]),
-        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ResetZoom, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
-        ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
-    ];
-
-
     /// <summary>The current rate remains visible while the player is paused or changing items.</summary>
     private void ShowSpeed()
     {
@@ -119,7 +107,7 @@ public sealed partial class MainWindow
         }
 
         var context = new MenuFlyout();
-        foreach (var (title, commands) in ContextLayout)
+        foreach (var (title, commands) in ContextMenuLayout.Groups)
         {
             if (title.Length == 0)
             {

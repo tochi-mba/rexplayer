@@ -8,6 +8,7 @@ AuDemuxer.cs
 AnalysisConverter.cs
 Ass.cs
 Asx.cs
+ContextMenuLayout.cs
 AtomicFile.cs
 AudioArtwork.cs
 AudioEffects.cs
