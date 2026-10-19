@@ -20,6 +20,7 @@ pipeline the moment its number reaches `main`.
 - **TV episodes filed under Movies.** A show's season folder ("Season 6", "S06", "Series 6", "Staffel 6", "Saison 6", "Specials") now makes its videos that show's episodes wherever it lives, even inside a folder called Movies and with no episode number in the file names; they go in natural order. Episode marks are also read in more forms ("s6e1", "6x01-02", "S06E01E02", "Episode 1", "Ep 01", "601" in season 6's folder), while movies such as "Title (2007)" and sequels stay in Movies. Libraries already scanned are sorted again the moment they load.
 - **Files that fail to play.** Files that failed before you open, pick or skip to something else no longer count against it. Before, after a few failures, opening a new list that started with a broken file could stop without trying the playable files after it.
 - **Play next after removing the playing item.** If you remove the item that is playing from the queue, items you then choose to Play next (or a next episode) go where it was and play next, instead of going to the top of the queue and being passed over. Items added above that spot no longer change what plays next.
+- **Empty library views.** When quick filters hide everything in a view, it now names those filters and offers Clear filters, instead of saying the library has nothing of that kind. "Looking through your folders..." now updates when a scan starts or finishes, even if the scan found nothing new.
 
 
 ## 0.25.9 - 2026-10-18

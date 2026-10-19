@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.VisualBasic.FileIO;
 using Windows.Storage.Pickers;
@@ -40,6 +41,8 @@ public sealed partial class MainWindow
     private LibraryGroup? _libraryGroup;
     private LibraryGroup? _librarySeason;
     private string _shownLibrary = "";
+    private (bool Searching, LibrarySource? Source, LibraryViewChoice? Choice)? _emptyView;
+    private LibraryEmptyState? _shownEmpty;
 
     private enum LibrarySource
     {
@@ -338,7 +341,17 @@ public sealed partial class MainWindow
         }
     }
 
-    private void ShowLibraryStatus() => LibraryStatus.Text = _scanner?.Status ?? "";
+    private void ShowLibraryStatus()
+    {
+        LibraryStatus.Text = _scanner?.Status ?? "";
+
+        // A scan that finds nothing new changes no entries, so the view is never rebuilt: an empty
+        // one would go on saying it is looking, or never say so.
+        if (_emptyView is not null && LibraryOpen)
+        {
+            ShowLibraryEmptyState();
+        }
+    }
 
     private void OnLibrarySourceChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -368,26 +381,56 @@ public sealed partial class MainWindow
         ShowLibrary();
     }
 
-    private void ShowLibraryEmpty(bool empty, bool searching, LibrarySource? source)
+    /// <summary>
+    /// Shows or hides the words of an empty view and the ways out under them. They are kept, so a
+    /// scan starting or finishing updates them (its status changes no entries), and the buttons are
+    /// rebuilt only when what the view says changes.
+    /// </summary>
+    private void ShowLibraryEmpty(bool empty, bool searching, LibrarySource? source, LibraryViewChoice? choice = null)
     {
-        LibraryEmpty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-        LibraryFolderButtons.Children.Clear();
-        if (!empty)
+        _emptyView = empty ? (searching, source, choice) : null;
+        ShowLibraryEmptyState();
+    }
+
+    private void ShowLibraryEmptyState()
+    {
+        if (_emptyView is not { } empty)
+        {
+            _shownEmpty = null;
+            LibraryEmpty.Visibility = Visibility.Collapsed;
+            LibraryFolderButtons.Children.Clear();
+            return;
+        }
+
+        var (searching, source, choice) = empty;
+        var view = source switch
+        {
+            LibrarySource.ContinueWatching => LibraryEmptyView.ContinueWatching,
+            LibrarySource.RecentlyPlayed => LibraryEmptyView.RecentlyPlayed,
+            LibrarySource.Playlists => LibraryEmptyView.Playlists,
+            LibrarySource.Folders => LibraryEmptyView.Folders,
+            _ => LibraryEmptyView.Media,
+        };
+        var state = LibraryEmptyState.For(view, searching, _library!.Folders.Count > 0,
+            choice is { IsFiltered: true } ? LibraryArrangement.FilterLabel(choice) : null, _scanner?.Status.Length > 0);
+        LibraryEmpty.Visibility = Visibility.Visible;
+        if (state == _shownEmpty)
         {
             return;
         }
 
-        var noFolders = _library!.Folders.Count == 0;
-        LibraryEmptyText.Text = searching ? "Nothing in the library matches that."
-            : noFolders && source is not LibrarySource.Playlists ? "The library shows the music, videos and pictures in the folders you choose, and keeps up as files come and go."
-            : source switch
-            {
-                LibrarySource.ContinueWatching => "Videos you stop part-way through wait here.",
-                LibrarySource.RecentlyPlayed => "What you play from the library shows here.",
-                LibrarySource.Playlists => "Playlists you keep (Media, Playlists) show here.",
-                _ => _scanner!.Status.Length > 0 ? "Looking through your folders..." : "There is nothing of this kind in the library's folders.",
-            };
-        if (searching || !(noFolders || source == LibrarySource.Folders))
+        _shownEmpty = state;
+        LibraryEmptyText.Text = state.Text;
+        LibraryFolderButtons.Children.Clear();
+        if (state.OffersClearFilters)
+        {
+            var clear = new Button { Content = "Clear filters" };
+            AutomationProperties.SetAutomationId(clear, "LibraryEmptyClearFilters");
+            clear.Click += (_, _) => KeepViewChoice(ViewChoice(_libraryViewKey).Unfiltered());
+            LibraryFolderButtons.Children.Add(clear);
+        }
+
+        if (!state.OffersFolders)
         {
             return;
         }
