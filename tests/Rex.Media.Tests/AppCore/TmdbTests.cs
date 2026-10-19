@@ -213,6 +213,26 @@ public sealed class TmdbTests : IDisposable
     }
 
     [Fact]
+    public async Task AnOlderFoundMovieIsFetchedAgainAndUpgraded()
+    {
+        var cache = new MetadataCache(_folder);
+        cache.WriteText(MetadataFetcher.MovieKind, Tmdb.MovieKey("The Matrix", 1999), """{"CatalogueId":603,"Title":"The Matrix","Year":1999}""");
+        var fetcher = Fetcher;
+        Assert.True(fetcher.CachedMovie("The Matrix", 1999) is { Schema: 0, Found: true, Current: false });
+        _answers[Tmdb.SearchUri("k", "The Matrix", 1999).AbsoluteUri] = Search;
+        _answers[Tmdb.DetailsUri("k", 603).AbsoluteUri] = Details;
+
+        Assert.True(await fetcher.FetchMovieAsync("k", "The Matrix", 1999, CancellationToken.None));
+        Assert.True(fetcher.CachedMovie("The Matrix", 1999) is { Schema: EnrichedMovie.CurrentSchema, Current: true, Tagline: "Free your mind." });
+
+        // An older no-match stays settled.
+        cache.WriteText(MetadataFetcher.MovieKind, Tmdb.MovieKey("Obscure", null), """{"CatalogueId":0,"Title":"Obscure"}""");
+        _asked.Clear();
+        Assert.True(await fetcher.FetchMovieAsync("k", "Obscure", null, CancellationToken.None));
+        Assert.Empty(_asked);
+    }
+
+    [Fact]
     public void TheMovieRecordSurvivesItsJsonAndRefusesWhatIsNotOne()
     {
         var movie = new EnrichedMovie { CatalogueId = 603, Title = "The Matrix", Year = 1999, Genres = ["Action"] };

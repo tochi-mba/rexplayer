@@ -272,7 +272,7 @@ public sealed partial class MainWindow
                 var key = MetadataMatch.Normalize(group.Name);
                 lock (_metadataGate)
                 {
-                    if (_metadataShows.ContainsKey(key))
+                    if (_metadataShows.TryGetValue(key, out var known) && known.Current)
                     {
                         continue;
                     }
@@ -302,7 +302,7 @@ public sealed partial class MainWindow
                 var key = Tmdb.MovieKey(title, year);
                 lock (_metadataGate)
                 {
-                    if (_metadataMovies.ContainsKey(key))
+                    if (_metadataMovies.TryGetValue(key, out var known) && known.Current)
                     {
                         continue;
                     }

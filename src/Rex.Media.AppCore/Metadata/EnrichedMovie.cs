@@ -66,6 +66,19 @@ public sealed record EnrichedMovie
     [JsonIgnore]
     public bool Found => CatalogueId > 0;
 
+    /// <summary>
+    /// The shape of record this build writes. A found record of an older shape still shows, but is
+    /// fetched again in the background so it gains what newer builds keep (cast, seasons, trailers).
+    /// </summary>
+    public const int CurrentSchema = 2;
+
+    /// <summary>Which shape of record this is; records written before the field existed read as 0.</summary>
+    public int Schema { get; init; }
+
+    /// <summary>Whether the record needs no new fetch: written by this build's shape, or a no-match, which a refetch would not improve.</summary>
+    [JsonIgnore]
+    public bool Current => Schema >= CurrentSchema || !Found;
+
     /// <summary>A short line for a movie's card: genres, content rating, runtime and rating, whichever it has.</summary>
     public string Blurb()
     {

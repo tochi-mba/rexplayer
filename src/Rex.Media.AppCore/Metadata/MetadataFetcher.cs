@@ -72,7 +72,7 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
     {
         ArgumentNullException.ThrowIfNull(show);
         var key = MetadataMatch.Normalize(show);
-        if (_cache.ReadText(ShowKind, key) is { } cached && EnrichedShow.FromJson(cached) is not null)
+        if (_cache.ReadText(ShowKind, key) is { } cached && EnrichedShow.FromJson(cached) is { Current: true })
         {
             return true;
         }
@@ -121,6 +121,7 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
 
             _cache.WriteText(ShowKind, key, new EnrichedShow
             {
+                Schema = EnrichedShow.CurrentSchema,
                 CatalogueId = pick.Id,
                 Name = pick.Name,
                 Summary = pick.Summary,
@@ -314,7 +315,7 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentNullException.ThrowIfNull(title);
         var key = Tmdb.MovieKey(title, year);
-        if (_cache.ReadText(MovieKind, key) is { } cached && EnrichedMovie.FromJson(cached) is not null)
+        if (_cache.ReadText(MovieKind, key) is { } cached && EnrichedMovie.FromJson(cached) is { Current: true })
         {
             return true;
         }
@@ -347,6 +348,7 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
 
             _cache.WriteText(MovieKind, key, new EnrichedMovie
             {
+                Schema = EnrichedMovie.CurrentSchema,
                 CatalogueId = pick.Id,
                 Title = pick.Title,
                 Year = pick.Year ?? year,
