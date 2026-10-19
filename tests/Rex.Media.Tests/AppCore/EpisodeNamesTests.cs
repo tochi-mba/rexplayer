@@ -16,8 +16,11 @@ public sealed class EpisodeNamesTests
 
     private const string Root = @"E:\Media\Videos\Movies";
 
+    /// <summary>A path written Windows-style, in the separators of the system the tests run on.</summary>
+    private static string Native(string path) => path.Replace('\\', Path.DirectorySeparatorChar);
+
     private static LibraryEntry Video(string path) =>
-        new() { Path = path, Kind = LibraryKind.Video, Title = MediaLibrary.TitleOf(path), Added = Monday };
+        new() { Path = Native(path), Kind = LibraryKind.Video, Title = MediaLibrary.TitleOf(Native(path)), Added = Monday };
 
     private static string[] Titles(IEnumerable<LibraryEntry> entries) => [.. entries.Select(entry => entry.Title)];
 
@@ -58,9 +61,9 @@ public sealed class EpisodeNamesTests
         // Nothing about the kind of video is kept: what a library saved before this rule is read again by it.
         var store = RexStore.InMemory();
         var library = new MediaLibrary(store);
-        var folder = $@"{Root}\Family Guy\Season 6";
-        library.Scan(Root, [new LibraryFile($@"{folder}\Family Guy - Some Episode Title.mkv", 100, Monday), new LibraryFile($@"{Root}\Movie.Title.2007.1080p.mkv", 100, Monday)], _ => LibraryKind.Video);
-        library.SetDetails($@"{folder}\Family Guy - Some Episode Title.mkv", new MediaInfo
+        var episode = Native($@"{Root}\Family Guy\Season 6\Family Guy - Some Episode Title.mkv");
+        library.Scan(Native(Root), [new LibraryFile(episode, 100, Monday), new LibraryFile(Native($@"{Root}\Movie.Title.2007.1080p.mkv"), 100, Monday)], _ => LibraryKind.Video);
+        library.SetDetails(episode, new MediaInfo
         {
             FormatName = "Matroska",
             Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264 }],
