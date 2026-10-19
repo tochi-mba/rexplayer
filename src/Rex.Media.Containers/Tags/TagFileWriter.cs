@@ -47,7 +47,11 @@ public static class TagFileWriter
     }
 
     /// <summary>Writes the edit into <paramref name="path"/>; the file is either fully updated or untouched.</summary>
-    public static TagWriteResult Write(string path, TagEdit edit, CancellationToken cancellationToken = default)
+    public static TagWriteResult Write(string path, TagEdit edit, CancellationToken cancellationToken = default) =>
+        Write(path, edit, beforeReplace: null, cancellationToken);
+
+    /// <summary>The write, with a step run just before the swap (tests use it to change the file meanwhile).</summary>
+    internal static TagWriteResult Write(string path, TagEdit edit, Action? beforeReplace, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(edit);
@@ -76,13 +80,16 @@ public static class TagFileWriter
                 Open(format, original, cancellationToken).Dispose();
                 var plan = Plan(format, original, edit, cancellationToken);
                 WriteCopy(temporary, original, plan, cancellationToken);
-                if (!Verify(temporary, format, original, plan, edit, cancellationToken))
+                using var copy = new FileByteSource(temporary);
+                if (!Verify(copy, format, original, plan, edit, cancellationToken))
                 {
+                    copy.Dispose();
                     File.Delete(temporary);
                     return new TagWriteResult(TagWriteStatus.Refused, "The rewritten file did not read back exactly; the original is untouched.");
                 }
             }
 
+            beforeReplace?.Invoke();
             if ((File.GetLastWriteTimeUtc(full), new FileInfo(full).Length) != before)
             {
                 File.Delete(temporary);
@@ -121,7 +128,7 @@ public static class TagFileWriter
         format == "mp3" ? new MpegAudioDemuxer(source, cancellationToken) : new FlacDemuxer(source, cancellationToken);
 
     /// <summary>The new head, where the audio starts and ends in the original, and the new tail.</summary>
-    private static WritePlan Plan(string format, IByteSource source, TagEdit edit, CancellationToken cancellationToken)
+    internal static WritePlan Plan(string format, IByteSource source, TagEdit edit, CancellationToken cancellationToken)
     {
         var length = source.Length!.Value;
         if (format == "flac")
@@ -147,7 +154,7 @@ public static class TagFileWriter
         return new WritePlan(tag, leading, length, []);
     }
 
-    private static byte[] Read(IByteSource source, long offset, long count, CancellationToken cancellationToken)
+    internal static byte[] Read(IByteSource source, long offset, long count, CancellationToken cancellationToken)
     {
         var bytes = new byte[count];
         if (source.Read(offset, bytes, cancellationToken) != count)
@@ -161,6 +168,13 @@ public static class TagFileWriter
     private static void WriteCopy(string temporary, IByteSource original, WritePlan plan, CancellationToken cancellationToken)
     {
         using var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, CopyBuffer);
+        Copy(output, original, plan, cancellationToken);
+        output.Flush(flushToDisk: true);
+    }
+
+    /// <summary>Writes the new head, the original's audio and the new tail to <paramref name="output"/>.</summary>
+    internal static void Copy(Stream output, IByteSource original, WritePlan plan, CancellationToken cancellationToken)
+    {
         output.Write(plan.Head.Bytes);
         var buffer = new byte[CopyBuffer];
         for (var position = plan.AudioStart; position < plan.AudioEnd;)
@@ -176,13 +190,11 @@ public static class TagFileWriter
         }
 
         output.Write(plan.Tail);
-        output.Flush(flushToDisk: true);
     }
 
     /// <summary>Whether the copy opens, shows the edit, and holds the original's audio byte for byte.</summary>
-    private static bool Verify(string temporary, string format, IByteSource original, WritePlan plan, TagEdit edit, CancellationToken cancellationToken)
+    internal static bool Verify(IByteSource copy, string format, IByteSource original, WritePlan plan, TagEdit edit, CancellationToken cancellationToken)
     {
-        using var copy = new FileByteSource(temporary);
         var audioLength = plan.AudioEnd - plan.AudioStart;
         if (copy.Length != plan.Head.Bytes.Length + audioLength + plan.Tail.Length)
         {
@@ -224,5 +236,5 @@ public static class TagFileWriter
         return true;
     }
 
-    private sealed record WritePlan(TagRewrite Head, long AudioStart, long AudioEnd, byte[] Tail);
+    internal sealed record WritePlan(TagRewrite Head, long AudioStart, long AudioEnd, byte[] Tail);
 }

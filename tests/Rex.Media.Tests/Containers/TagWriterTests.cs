@@ -140,7 +140,7 @@ public sealed class Id3v2WriterTests
     public void ReplacingTheCoverDropsOnlyThePlainFrontCoverAndWritesTheNewOneFirst()
     {
         var old = Id3Builder.V24().Picture([1], "image/jpeg", 3).Picture([2], "image/jpeg", 4)
-            .Frame("APIC", [0, .. "image/png"u8, 0, 3, 0, 7], 0x40)
+            .Frame("APIC", [0, .. "image/png"u8, 0, 3, 0, 7], 0x04)
             .Frame("APIC", [0, .. "image/png"u8])
             .Frame("APIC", [0, .. "image/png"u8, 0])
             .Build();
@@ -324,7 +324,7 @@ public sealed class FlacTagWriterTests
     {
         var builder = new FlacBuilder
         {
-            Comments = ["TITLE=Old", "ARTIST=Someone", "TRACKNUMBER=3", "TRACKTOTAL=12", "ALBUM ARTIST=Old", "YEAR=2019", "REPLAYGAIN_TRACK_GAIN=-6.20 dB", "METADATA_BLOCK_PICTURE=AAAA", "noequals"],
+            Comments = ["TITLE=Old", "ARTIST=Someone", "TRACKNUMBER=3", "TRACKTOTAL=12", "DISCNUMBER=1", "DISCTOTAL=2", "ALBUM ARTIST=Old", "YEAR=2019", "REPLAYGAIN_TRACK_GAIN=-6.20 dB", "METADATA_BLOCK_PICTURE=AAAA", "noequals"],
             Picture = ([1, 2], "image/jpeg", 3),
             SeekPointInterval = 1,
             CueTracks = [(0, 1)],
@@ -342,6 +342,7 @@ public sealed class FlacTagWriterTests
             Date = "2023",
             Genre = ";",
             Album = string.Empty,
+            Disc = "1/2",
             Cover = new PictureBlock(3, "image/png", Art),
         });
         var (fields, pictures, types) = Read(rewrite.Bytes);
@@ -421,7 +422,7 @@ public sealed class FlacTagWriterTests
         var streamInfo = old[..(4 + 4 + 34)];
         streamInfo[4] = 0;
 
-        var (fields, _, _) = Read(FlacTagWriter.Rewrite([.. streamInfo, 0x84, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0], new TagEdit { Disc = "2" }).Bytes);
+        var (fields, _, _) = Read(FlacTagWriter.Rewrite([.. streamInfo, 0x84, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0], new TagEdit { Disc = "2", Album = "Work of Art" }).Bytes);
 
         Assert.Equal("2", fields[MetadataKeys.Disc]);
     }

@@ -53,7 +53,7 @@ public sealed class TagFileWriterTests : IDisposable
         var info = Info(path);
         Assert.False(info.Metadata.ContainsKey(MetadataKeys.Title));
         Assert.Equal("Asake", info.Metadata[MetadataKeys.Artist]);
-        Assert.Equal(Mp3Audio.Length + Id3v1.Size + Id3v2.HeaderSize + Id3v2Writer.Padding + 10 + 1 + 5, new FileInfo(path).Length);
+        Assert.Equal("TAG"u8.ToArray(), File.ReadAllBytes(path)[^Id3v1.Size..^(Id3v1.Size - 3)]);
     }
 
     [Fact]
@@ -123,6 +123,55 @@ public sealed class TagFileWriterTests : IDisposable
 
         Assert.Equal(Mp3Audio, File.ReadAllBytes(path));
         Assert.Single(Directory.GetFiles(_folder));
+    }
+
+    [Fact]
+    public void AFileChangedDuringTheWriteIsBusyAndKeepsItsNewContents()
+    {
+        var path = Save("Sungba.mp3", Mp3Audio);
+
+        var result = TagFileWriter.Write(path, new TagEdit { Title = "Sungba" }, () => File.AppendAllBytes(path, [1]), Ct);
+
+        Assert.Equal(TagWriteStatus.Busy, result.Status);
+        Assert.Equal([.. Mp3Audio, 1], File.ReadAllBytes(path));
+        Assert.Single(Directory.GetFiles(_folder));
+    }
+
+    [Fact]
+    public void VerificationRejectsAWrongLengthAWrongCoverAndChangedAudio()
+    {
+        using var original = new MemoryByteSource(Mp3Audio);
+        var edit = new TagEdit { Title = "Sungba", Cover = new PictureBlock(3, "image/png", Art) };
+        var plan = TagFileWriter.Plan("mp3", original, edit, Ct);
+        using var output = new MemoryStream();
+        TagFileWriter.Copy(output, original, plan, Ct);
+        var good = output.ToArray();
+
+        Assert.True(TagFileWriter.Verify(new MemoryByteSource(good), "mp3", original, plan, edit, Ct));
+        Assert.False(TagFileWriter.Verify(new MemoryByteSource(good[..^1]), "mp3", original, plan, edit, Ct));
+        Assert.False(TagFileWriter.Verify(new MemoryByteSource(good), "mp3", original, plan, edit with { Cover = new PictureBlock(3, "image/png", [1]) }, Ct));
+        var damaged = (byte[])good.Clone();
+        damaged[^1] ^= 0xFF;
+        Assert.False(TagFileWriter.Verify(new MemoryByteSource(damaged), "mp3", original, plan, edit, Ct));
+    }
+
+    [Fact]
+    public void ReadingOrCopyingPastTheEndIsRefused()
+    {
+        using var source = new MemoryByteSource(new byte[10]);
+        Assert.Throws<TagWriteException>(() => TagFileWriter.Read(source, 5, 10, Ct));
+        var plan = new TagFileWriter.WritePlan(new TagRewrite([], new Dictionary<string, string?>()), 0, 20, []);
+        Assert.Throws<TagWriteException>(() => TagFileWriter.Copy(new MemoryStream(), source, plan, Ct));
+    }
+
+    [Fact]
+    public void FlacMetadataThatDoesNotLeadToAFrameIsRefused()
+    {
+        byte[] info = [.. "fLaC"u8, 0, 0, 0, 34, .. new byte[34]];
+        Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource(info), Ct));
+        Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource([.. "fLaC"u8, 0x80, 0, 0, 40, .. new byte[34]]), Ct));
+        Assert.Throws<TagWriteException>(() => FlacTagWriter.MetadataLength(new MemoryByteSource([.. "fLaC"u8, 0x80, 0, 0, 34, .. new byte[34], 0xFF, 0x00]), Ct));
+        Assert.Equal(42, FlacTagWriter.MetadataLength(new MemoryByteSource([.. "fLaC"u8, 0x80, 0, 0, 34, .. new byte[34], 0xFF, 0xF9]), Ct));
     }
 
     private void Refused(string name, byte[] contents, TagEdit edit)
