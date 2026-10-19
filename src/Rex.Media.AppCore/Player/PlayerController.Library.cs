@@ -53,7 +53,7 @@ public sealed partial class PlayerController
             return;
         }
 
-        var at = Playlist.CurrentIndex + 1;
+        var at = Playlist.NextIndex;
         Playlist.InsertNext(at, added);
         _log.Info(LogSource, $"{added.Count} item(s) play next, from {added[0].Location}.");
         if (_session is null || State is SessionState.Idle or SessionState.Ended or SessionState.Faulted)

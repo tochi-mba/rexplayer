@@ -195,6 +195,40 @@ public sealed class PlaylistTests
     }
 
     [Fact]
+    public void ItemsPutNextAfterRemovingWhatIsPlayingStillPlayNext()
+    {
+        var playlist = With(4);
+        Assert.Equal(0, playlist.NextIndex);
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        Assert.Equal(2, playlist.NextIndex);
+
+        playlist.RemoveAt(1);
+        Assert.Equal(1, playlist.NextIndex);
+        playlist.InsertNext(playlist.NextIndex, [new PlaylistItem("C:\\Music\\x.flac")]);
+
+        Assert.Equal(["1", "x", "3", "4"], playlist.Items.Select(i => i.Title));
+        Assert.Equal(["x", "3", "4", "end"], PlayAll(playlist, 4));
+        Assert.Equal(0, playlist.NextIndex);
+    }
+
+    [Fact]
+    public void InsertingAboveWhereARemovedItemWasStillCarriesOnFromThere()
+    {
+        var playlist = With(4);
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        playlist.RemoveAt(2);
+
+        playlist.Insert(0, [new PlaylistItem("C:\\Music\\y.flac")]);
+
+        Assert.Equal(["y", "1", "2", "4"], playlist.Items.Select(i => i.Title));
+        Assert.Equal(3, playlist.NextIndex);
+        Assert.Equal(["4", "end"], PlayAll(playlist, 2));
+    }
+
+    [Fact]
     public void MovingWhileShufflingLeavesThePlayOrderAlone()
     {
         var playlist = With(4, new Random(9));
