@@ -86,6 +86,7 @@ Equalizer.cs
 ExceptionDiagnostics.cs
 ExecutionPolicy.cs
 ExifOrientation.cs
+FetchPlan.cs
 Fft.cs
 FileByteSource.cs
 FireworksScene.cs
@@ -159,6 +160,9 @@ MediaSession.cs
 MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
+MetadataCache.cs
+MetadataPolicy.cs
+MetadataSettings.cs
 MicroDvd.cs
 Milestones.cs
 MirrorScene.cs
