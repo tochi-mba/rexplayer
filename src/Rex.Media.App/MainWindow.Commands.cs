@@ -453,6 +453,7 @@ public sealed partial class MainWindow
         if (IsFullScreen && Controls.Visibility == Visibility.Collapsed)
         {
             ShowPointer(false);
+            App.Log.Debug(LogSource, "Hid the pointer over the full-screen picture.");
         }
     }
 
