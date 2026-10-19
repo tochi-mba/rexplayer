@@ -514,6 +514,12 @@ public sealed partial class MainWindow
         {
             RequestLibraryPicture(args.Item as LibraryRow);
         }
+
+        // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
+        if (sender == LibraryList)
+        {
+            WireRowFocus(args.ItemContainer as Microsoft.UI.Xaml.Controls.Primitives.SelectorItem);
+        }
     }
 
     /// <summary>Only request artwork when the virtualizing panel actually realizes a tile.</summary>
