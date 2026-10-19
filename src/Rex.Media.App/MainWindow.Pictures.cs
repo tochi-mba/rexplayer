@@ -68,7 +68,8 @@ public sealed partial class MainWindow
             timeout.CancelAfter(TimeSpan.FromSeconds(10));
             var (key, poster) = await Task.Run(() =>
             {
-                var local = kind == LibraryKind.Video ? LocalVideoPoster(path)
+                // Artwork beside the file always wins; a fetched poster only fills the gap.
+                var local = kind == LibraryKind.Video ? LocalVideoPoster(path) ?? FetchedPosterPath(path)
                     : kind == LibraryKind.Music ? FolderArt.Find(path) : null;
                 return (PictureKey(path, kind, settings, local), local);
             }, token);

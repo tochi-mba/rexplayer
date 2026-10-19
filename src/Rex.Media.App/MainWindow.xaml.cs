@@ -681,6 +681,7 @@ public sealed partial class MainWindow : Window
         OnPresenterThread(presenter => presenter.Dispose());
         _presenter = null;
         _presenterWork.GetAwaiter().GetResult();
+        StopMetadata();
         _closed = true;
         App.Log.Info(LogSource, "rexplayer closed.");
     }

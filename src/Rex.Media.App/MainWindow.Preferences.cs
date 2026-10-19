@@ -520,6 +520,7 @@ public sealed partial class MainWindow
         ShowTaskbarSettingsChanged();
         SaveSettings();
         TranscriptionSaved(s);
+        MetadataSettingsSaved(s);
         Say("Preferences saved");
 
         // A changed mode or schedule may start, stop or allow a download or a prompt.

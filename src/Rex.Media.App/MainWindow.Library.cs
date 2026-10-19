@@ -464,7 +464,8 @@ public sealed partial class MainWindow
         _ => [],
     };
 
-    private static LibraryRow GroupRow(LibraryGroup group) => new(group.Name, group.Detail,
+    private LibraryRow GroupRow(LibraryGroup group) => new(group.Name,
+        MetadataBlurb(group) is { Length: > 0 } blurb ? (group.Detail is null ? blurb : group.Detail + " · " + blurb) : group.Detail,
         LibraryActions.Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
         group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
 
@@ -475,7 +476,8 @@ public sealed partial class MainWindow
         var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
         var name = _librarySource == LibrarySource.Movies && entry.Kind == LibraryKind.Video
             ? LibraryViews.MovieTitleOf(entry)
-            : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path) ? episode.DisplayName : entry.Title;
+            : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path)
+                ? FetchedEpisodeName(episode) ?? episode.DisplayName : entry.Title;
         var detail = entry.Kind == LibraryKind.Video
             ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
@@ -712,6 +714,13 @@ public sealed partial class MainWindow
                 () => _ = OpenLibraryFoldersAsync(selectedEntries)));
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
+            if (IsShowRow(chosen, out var show))
+            {
+                menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshShowMetadata(show.Name)));
+                menu.Items.Add(MenuItem("Wrong match...", "LibraryMenuWrongMatch", () => _ = ChooseShowMatchAsync(show.Name)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
+
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Delete", selectedEntries.Count, tail: "to Recycle Bin..."), "LibraryMenuDelete",

@@ -105,6 +105,7 @@ public sealed partial class MainWindow
             return;
         }
 
+        StartMetadataWhenAllowed();
         var entries = _library.Entries;
         var search = LibrarySearch.Text.Trim();
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";

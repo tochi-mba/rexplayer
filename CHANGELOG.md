@@ -7,6 +7,7 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **TV shows enriched from TVmaze.** With TV lookups on, shows get posters, descriptions, genres, ratings and episode titles in the library, fetched once in the background and kept on this computer; a right-click offers Refresh metadata and Wrong match..., and a corrected match outlives every rescan.
 - **A Metadata section in Preferences.** rexplayer can now be allowed, kind by kind and strictly off by default, to fetch TV, movie and music details from free online catalogues; it keeps everything fetched on this computer beside the library, never looks inside excluded folders, and the downloads can be measured and cleared in one click.
 
 ### Improved
