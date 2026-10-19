@@ -6,6 +6,23 @@ namespace Rex.Media.AppCore.Metadata;
 /// <summary>One movie the TMDB catalogue offered for a name, before any is chosen.</summary>
 public sealed record MovieCandidate(int Id, string Title, int? Year, string? Overview, double? Rating, string? PosterPath, IReadOnlyList<int> GenreIds);
 
+/// <summary>The fuller facts one movie's details answer carries, beyond what the search already said.</summary>
+public sealed record MovieDetails(
+    string? Tagline,
+    int? RuntimeMinutes,
+    string? Status,
+    string? Studio,
+    string? OriginalLanguage,
+    string? ContentRating,
+    IReadOnlyList<string> Genres,
+    string? BackdropUrl,
+    IReadOnlyList<CastMember> Cast,
+    IReadOnlyList<string> Directors,
+    IReadOnlyList<string> Writers,
+    IReadOnlyList<string> TrailerKeys,
+    IReadOnlyList<TitleRef> Recommendations,
+    string? Collection);
+
 /// <summary>
 /// The TMDB catalogue (api.themoviedb.org), reached only with the user's own free API key: where
 /// to ask and how to read the answers. This product uses the TMDB API but is not endorsed or
@@ -23,11 +40,12 @@ public static class Tmdb
         return new Uri("https://api.themoviedb.org/3/search/movie?api_key=" + Uri.EscapeDataString(apiKey) + when + "&query=" + Uri.EscapeDataString(title));
     }
 
-    /// <summary>The catalogue's genre names, one small answer for every movie.</summary>
-    public static Uri GenresUri(string apiKey)
+    /// <summary>Everything about one movie in a single answer: facts, credits, trailers, suggestions and certifications.</summary>
+    public static Uri DetailsUri(string apiKey, int id)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
-        return new Uri("https://api.themoviedb.org/3/genre/movie/list?api_key=" + Uri.EscapeDataString(apiKey));
+        return new Uri($"https://api.themoviedb.org/3/movie/{id}?api_key=" + Uri.EscapeDataString(apiKey)
+            + "&append_to_response=credits%2Cvideos%2Crecommendations%2Crelease_dates");
     }
 
     /// <summary>A poster already sized for a card.</summary>
@@ -72,28 +90,127 @@ public static class Tmdb
         return candidates;
     }
 
-    /// <summary>The genre names by identifier; empty when the answer is not the usual shape.</summary>
-    public static IReadOnlyDictionary<int, string> ParseGenres(string json)
+    /// <summary>The fuller facts one movie's details answer carries; null when the answer holds no movie.</summary>
+    public static MovieDetails? ParseDetails(string json)
     {
         using var doc = JsonDocument.Parse(json ?? throw new ArgumentNullException(nameof(json)));
-        var names = new Dictionary<int, string>();
-        if (doc.RootElement.ValueKind != JsonValueKind.Object
-            || !doc.RootElement.TryGetProperty("genres", out var genres) || genres.ValueKind != JsonValueKind.Array)
+        var movie = doc.RootElement;
+        if (movie.ValueKind != JsonValueKind.Object || !movie.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.Number)
         {
-            return names;
+            return null;
         }
 
-        foreach (var genre in genres.EnumerateArray())
+        var genres = new List<string>();
+        if (movie.TryGetProperty("genres", out var listed) && listed.ValueKind == JsonValueKind.Array)
         {
-            if (genre.ValueKind == JsonValueKind.Object
-                && genre.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number
-                && Text(genre, "name") is { Length: > 0 } name)
+            genres.AddRange(listed.EnumerateArray()
+                .Where(genre => genre.ValueKind == JsonValueKind.Object)
+                .Select(genre => Text(genre, "name"))
+                .Where(name => !string.IsNullOrEmpty(name))!);
+        }
+
+        string? studio = null;
+        if (movie.TryGetProperty("production_companies", out var companies) && companies.ValueKind == JsonValueKind.Array)
+        {
+            studio = companies.EnumerateArray().Where(company => company.ValueKind == JsonValueKind.Object)
+                .Select(company => Text(company, "name")).FirstOrDefault(name => !string.IsNullOrEmpty(name));
+        }
+
+        string? collection = movie.TryGetProperty("belongs_to_collection", out var belongs) && belongs.ValueKind == JsonValueKind.Object
+            ? Text(belongs, "name") : null;
+        var cast = new List<CastMember>();
+        var directors = new List<string>();
+        var writers = new List<string>();
+        if (movie.TryGetProperty("credits", out var credits) && credits.ValueKind == JsonValueKind.Object)
+        {
+            if (credits.TryGetProperty("cast", out var billed) && billed.ValueKind == JsonValueKind.Array)
             {
-                names[id.GetInt32()] = name;
+                foreach (var person in billed.EnumerateArray().Take(12))
+                {
+                    if (person.ValueKind == JsonValueKind.Object && Text(person, "name") is { Length: > 0 } name)
+                    {
+                        cast.Add(new CastMember(name, Text(person, "character"),
+                            Text(person, "profile_path") is { Length: > 0 } photo ? "https://image.tmdb.org/t/p/w185" + photo : null));
+                    }
+                }
+            }
+
+            if (credits.TryGetProperty("crew", out var crew) && crew.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var person in crew.EnumerateArray())
+                {
+                    if (person.ValueKind != JsonValueKind.Object || Text(person, "name") is not { Length: > 0 } name)
+                    {
+                        continue;
+                    }
+
+                    if (Text(person, "job") == "Director" && !directors.Contains(name, StringComparer.Ordinal))
+                    {
+                        directors.Add(name);
+                    }
+                    else if (Text(person, "department") == "Writing" && writers.Count < 5 && !writers.Contains(name, StringComparer.Ordinal))
+                    {
+                        writers.Add(name);
+                    }
+                }
             }
         }
 
-        return names;
+        var trailers = new List<string>();
+        if (movie.TryGetProperty("videos", out var videos) && videos.ValueKind == JsonValueKind.Object
+            && videos.TryGetProperty("results", out var clips) && clips.ValueKind == JsonValueKind.Array)
+        {
+            trailers.AddRange(clips.EnumerateArray()
+                .Where(clip => clip.ValueKind == JsonValueKind.Object && Text(clip, "site") == "YouTube" && Text(clip, "type") == "Trailer")
+                .Select(clip => Text(clip, "key"))
+                .Where(key => !string.IsNullOrEmpty(key))
+                .Take(3)!);
+        }
+
+        var suggested = new List<TitleRef>();
+        if (movie.TryGetProperty("recommendations", out var recommended) && recommended.ValueKind == JsonValueKind.Object
+            && recommended.TryGetProperty("results", out var titles) && titles.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var suggestion in titles.EnumerateArray().Take(20))
+            {
+                if (suggestion.ValueKind == JsonValueKind.Object && Text(suggestion, "title") is { Length: > 0 } title)
+                {
+                    int? when = Text(suggestion, "release_date") is { Length: >= 4 } date
+                        && int.TryParse(date[..4], NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+                    suggested.Add(new TitleRef(title, when));
+                }
+            }
+        }
+
+        string? certification = null;
+        if (movie.TryGetProperty("release_dates", out var certified) && certified.ValueKind == JsonValueKind.Object
+            && certified.TryGetProperty("results", out var countries) && countries.ValueKind == JsonValueKind.Array)
+        {
+            certification = countries.EnumerateArray()
+                .Where(country => country.ValueKind == JsonValueKind.Object && Text(country, "iso_3166_1") == "US"
+                    && country.TryGetProperty("release_dates", out var dates) && dates.ValueKind == JsonValueKind.Array)
+                .SelectMany(country => country.GetProperty("release_dates").EnumerateArray())
+                .Where(release => release.ValueKind == JsonValueKind.Object)
+                .Select(release => Text(release, "certification"))
+                .FirstOrDefault(rating => !string.IsNullOrEmpty(rating));
+        }
+
+        return new MovieDetails(
+            Tagline: string.IsNullOrEmpty(Text(movie, "tagline")) ? null : Text(movie, "tagline"),
+            RuntimeMinutes: movie.TryGetProperty("runtime", out var runtime) && runtime.ValueKind == JsonValueKind.Number
+                && runtime.GetInt32() is > 0 and var minutes ? minutes : null,
+            Status: Text(movie, "status"),
+            Studio: studio,
+            OriginalLanguage: Text(movie, "original_language"),
+            ContentRating: certification,
+            Genres: genres,
+            BackdropUrl: Text(movie, "backdrop_path") is { Length: > 0 } backdrop ? "https://image.tmdb.org/t/p/w1280" + backdrop : null,
+            Cast: cast,
+            Directors: directors,
+            Writers: writers,
+            TrailerKeys: trailers,
+            Recommendations: suggested,
+            Collection: collection);
     }
 
     /// <summary>

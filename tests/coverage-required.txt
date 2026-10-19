@@ -41,6 +41,7 @@ CaptionDirector.cs
 CaptionFrameGate.cs
 CaptionGlyphs.cs
 CaptionPresets.cs
+CastMember.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs

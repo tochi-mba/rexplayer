@@ -109,6 +109,10 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
             }
 
             var episodes = TvMaze.ParseEpisodes(listed);
+            // The cast, creators and seasons round a page out but never fail the show.
+            var cast = ParseOptional(await TextAsync(TvMaze.CastUri(pick.Id), token).ConfigureAwait(false), TvMaze.ParseCast);
+            var creators = ParseOptional(await TextAsync(TvMaze.CrewUri(pick.Id), token).ConfigureAwait(false), TvMaze.ParseCreators);
+            var seasons = ParseOptional(await TextAsync(TvMaze.SeasonsUri(pick.Id), token).ConfigureAwait(false), TvMaze.ParseSeasons);
             var poster = pick.ImageUrl is null ? null : await _fetch(new Uri(pick.ImageUrl), token).ConfigureAwait(false);
             if (poster is not null)
             {
@@ -123,6 +127,15 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
                 Genres = pick.Genres,
                 Rating = pick.Rating,
                 HasPoster = poster is not null,
+                Status = pick.Status,
+                Network = pick.Network,
+                RuntimeMinutes = pick.RuntimeMinutes,
+                Language = pick.Language,
+                Premiered = pick.Premiered,
+                Ended = pick.Ended,
+                Cast = cast,
+                Creators = creators,
+                Seasons = seasons,
                 Episodes = episodes,
             }.ToJson());
             return true;
@@ -131,6 +144,23 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
         {
             // The catalogue answered with something that is not its usual shape; try again later.
             return false;
+        }
+    }
+
+    private static IReadOnlyList<T> ParseOptional<T>(string? json, Func<string, IReadOnlyList<T>> parse)
+    {
+        if (json is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            return parse(json);
+        }
+        catch (JsonException)
+        {
+            return [];
         }
     }
 
@@ -244,9 +274,6 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
     /// <summary>The cache kind a movie's fetched poster lives under, with <see cref="ArtExtension"/>.</summary>
     public const string MovieArtKind = "movieart";
 
-    /// <summary>The cache key TMDB's genre names live under, so they are fetched once.</summary>
-    public const string GenresKey = "tmdb genres";
-
     /// <summary>The movie's cached record, or null before its fetch.</summary>
     public EnrichedMovie? CachedMovie(string title, int? year) =>
         _cache.ReadText(MovieKind, Tmdb.MovieKey(title, year)) is { } json ? EnrichedMovie.FromJson(json) : null;
@@ -305,15 +332,13 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
                 return true;
             }
 
-            // The genre names, fetched once and kept; without them the genres are simply left off.
-            var genreMap = _cache.ReadText(MovieKind, GenresKey);
-            if (genreMap is null && await TextAsync(Tmdb.GenresUri(apiKey), token).ConfigureAwait(false) is { } listed)
+            // One details answer carries the facts, credits, trailers and suggestions together.
+            if (await TextAsync(Tmdb.DetailsUri(apiKey, pick.Id), token).ConfigureAwait(false) is not { } full
+                || Tmdb.ParseDetails(full) is not { } details)
             {
-                _cache.WriteText(MovieKind, GenresKey, listed);
-                genreMap = listed;
+                return false;
             }
 
-            var names = genreMap is null ? new Dictionary<int, string>() : Tmdb.ParseGenres(genreMap);
             var poster = pick.PosterPath is null ? null : await _fetch(Tmdb.PosterUri(pick.PosterPath), token).ConfigureAwait(false);
             if (poster is not null)
             {
@@ -326,9 +351,22 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
                 Title = pick.Title,
                 Year = pick.Year ?? year,
                 Overview = pick.Overview,
-                Genres = [.. pick.GenreIds.Where(names.ContainsKey).Select(id => names[id])],
+                Genres = details.Genres,
                 Rating = pick.Rating,
                 HasPoster = poster is not null,
+                Tagline = details.Tagline,
+                RuntimeMinutes = details.RuntimeMinutes,
+                Status = details.Status,
+                Studio = details.Studio,
+                OriginalLanguage = details.OriginalLanguage,
+                ContentRating = details.ContentRating,
+                BackdropUrl = details.BackdropUrl,
+                Cast = details.Cast,
+                Directors = details.Directors,
+                Writers = details.Writers,
+                TrailerKeys = details.TrailerKeys,
+                Recommendations = details.Recommendations,
+                Collection = details.Collection,
             }.ToJson());
             return true;
         }

@@ -37,7 +37,19 @@ public sealed class TmdbTests : IDisposable
         ]}
         """;
 
-    private const string Genres = """{"genres":[{"id":28,"name":"Action"},{"id":878,"name":"Science Fiction"},{"id":1},{"name":"Bare"},9]}""";
+    private const string Details = """
+        {"id":603,"tagline":"Free your mind.","runtime":136,"status":"Released","original_language":"en",
+         "genres":[{"id":28,"name":"Action"},{"id":878,"name":"Science Fiction"},{"id":1},9],
+         "production_companies":[{"name":""},{"name":"Village Roadshow Pictures"}],
+         "belongs_to_collection":{"name":"The Matrix Collection"},
+         "backdrop_path":"/wide.jpg",
+         "credits":{
+           "cast":[{"name":"Keanu Reeves","character":"Neo","profile_path":"/kr.jpg"},{"name":"Carrie-Anne Moss","character":"","profile_path":null},{"character":"Nobody"}],
+           "crew":[{"name":"Lana Wachowski","job":"Director"},{"name":"Lana Wachowski","job":"Director"},{"name":"Lilly Wachowski","job":"Director"},{"name":"Lana Wachowski","department":"Writing","job":"Writer"},{"name":"Someone","department":"Camera","job":"Operator"},{"job":"Director"}]},
+         "videos":{"results":[{"site":"YouTube","type":"Trailer","key":"m8e-FF8MsqU"},{"site":"YouTube","type":"Clip","key":"x"},{"site":"Vimeo","type":"Trailer","key":"y"},{"site":"YouTube","type":"Trailer","key":"second"}]},
+         "recommendations":{"results":[{"title":"Dark City","release_date":"1998-02-27"},{"title":"No Date"},{"name":"tv thing"}]},
+         "release_dates":{"results":[{"iso_3166_1":"GB","release_dates":[{"certification":"15"}]},{"iso_3166_1":"US","release_dates":[{"certification":""},{"certification":"R"}]}]}}
+        """;
 
     [Fact]
     public void ASearchAnswerBecomesCandidates()
@@ -57,13 +69,32 @@ public sealed class TmdbTests : IDisposable
     }
 
     [Fact]
-    public void GenreNamesAreReadAndOddOnesSkipped()
+    public void ADetailsAnswerCarriesTheFullerFacts()
     {
-        var names = Tmdb.ParseGenres(Genres);
-        Assert.Equal(new Dictionary<int, string> { [28] = "Action", [878] = "Science Fiction" }, names);
-        Assert.Empty(Tmdb.ParseGenres("{}"));
-        Assert.Empty(Tmdb.ParseGenres("[]"));
-        Assert.Throws<ArgumentNullException>(() => Tmdb.ParseGenres(null!));
+        var details = Tmdb.ParseDetails(Details);
+
+        Assert.NotNull(details);
+        Assert.Equal(("Free your mind.", 136, "Released", "Village Roadshow Pictures", "en", "R"),
+            (details!.Tagline, details.RuntimeMinutes, details.Status, details.Studio, details.OriginalLanguage, details.ContentRating));
+        Assert.Equal(["Action", "Science Fiction"], details.Genres);
+        Assert.Equal("https://image.tmdb.org/t/p/w1280/wide.jpg", details.BackdropUrl);
+        Assert.Equal([new CastMember("Keanu Reeves", "Neo", "https://image.tmdb.org/t/p/w185/kr.jpg"), new CastMember("Carrie-Anne Moss", "", null)], details.Cast);
+        Assert.Equal(["Lana Wachowski", "Lilly Wachowski"], details.Directors);
+        Assert.Equal(["Lana Wachowski"], details.Writers);
+        Assert.Equal(["m8e-FF8MsqU", "second"], details.TrailerKeys);
+        Assert.Equal([new TitleRef("Dark City", 1998), new TitleRef("No Date", null)], details.Recommendations);
+        Assert.Equal("The Matrix Collection", details.Collection);
+        Assert.Null(Tmdb.ParseDetails("{}"));
+        Assert.Null(Tmdb.ParseDetails("[]"));
+        Assert.Throws<ArgumentNullException>(() => Tmdb.ParseDetails(null!));
+
+        var bare = Tmdb.ParseDetails("""{"id":1,"tagline":"","runtime":0}""");
+        Assert.NotNull(bare);
+        Assert.Equal((null, null, null, null, null, null, null), (bare!.Tagline, bare.RuntimeMinutes, bare.Status, bare.Studio, bare.ContentRating, bare.BackdropUrl, bare.Collection));
+        Assert.Empty(bare.Genres);
+        Assert.Empty(bare.Cast);
+        Assert.Empty(bare.TrailerKeys);
+        Assert.Empty(bare.Recommendations);
     }
 
     [Fact]
@@ -71,11 +102,11 @@ public sealed class TmdbTests : IDisposable
     {
         Assert.Equal("https://api.themoviedb.org/3/search/movie?api_key=k%201&year=1999&query=The%20Matrix", Tmdb.SearchUri("k 1", "The Matrix", 1999).AbsoluteUri);
         Assert.Equal("https://api.themoviedb.org/3/search/movie?api_key=k&query=The%20Matrix", Tmdb.SearchUri("k", "The Matrix", null).AbsoluteUri);
-        Assert.Equal("https://api.themoviedb.org/3/genre/movie/list?api_key=k", Tmdb.GenresUri("k").AbsoluteUri);
+        Assert.Equal("https://api.themoviedb.org/3/movie/603?api_key=k&append_to_response=credits%2Cvideos%2Crecommendations%2Crelease_dates", Tmdb.DetailsUri("k", 603).AbsoluteUri);
         Assert.Equal("https://image.tmdb.org/t/p/w500/abc.jpg", Tmdb.PosterUri("/abc.jpg").AbsoluteUri);
         Assert.Throws<ArgumentException>(() => Tmdb.SearchUri(" ", "t", null));
         Assert.Throws<ArgumentNullException>(() => Tmdb.SearchUri("k", null!, null));
-        Assert.Throws<ArgumentException>(() => Tmdb.GenresUri(""));
+        Assert.Throws<ArgumentException>(() => Tmdb.DetailsUri("", 1));
         Assert.Throws<ArgumentNullException>(() => Tmdb.PosterUri(null!));
     }
 
@@ -109,10 +140,10 @@ public sealed class TmdbTests : IDisposable
     }
 
     [Fact]
-    public async Task AMatchedMovieLandsWholeInTheCacheWithItsGenresFetchedOnce()
+    public async Task AMatchedMovieLandsWholeInTheCacheWithItsFullFacts()
     {
         _answers[Tmdb.SearchUri("k", "The Matrix", 1999).AbsoluteUri] = Search;
-        _answers[Tmdb.GenresUri("k").AbsoluteUri] = Genres;
+        _answers[Tmdb.DetailsUri("k", 603).AbsoluteUri] = Details;
         _answers["https://image.tmdb.org/t/p/w500/abc.jpg"] = "poster-bytes";
         var fetcher = Fetcher;
 
@@ -121,7 +152,11 @@ public sealed class TmdbTests : IDisposable
         Assert.NotNull(movie);
         Assert.Equal((603, "The Matrix", 1999, 8.2, true, true), (movie!.CatalogueId, movie.Title, movie.Year, movie.Rating, movie.HasPoster, movie.Found));
         Assert.Equal(["Action", "Science Fiction"], movie.Genres);
-        Assert.Equal("Action · Science Fiction · 8.2 / 10", movie.Blurb());
+        Assert.Equal(("Free your mind.", 136, "Released", "Village Roadshow Pictures", "R", "The Matrix Collection"),
+            (movie.Tagline, movie.RuntimeMinutes, movie.Status, movie.Studio, movie.ContentRating, movie.Collection));
+        Assert.Equal(["m8e-FF8MsqU", "second"], movie.TrailerKeys);
+        Assert.Equal(2, movie.Cast.Count);
+        Assert.Equal("Action · Science Fiction · R · 136 min · 8.2 / 10", movie.Blurb());
         Assert.Equal("poster-bytes"u8.ToArray(), File.ReadAllBytes(fetcher.MoviePosterPath("The Matrix", 1999)));
         Assert.Equal(movie.ToJson(), Assert.Single(fetcher.CachedMovies()).ToJson());
 
@@ -130,10 +165,12 @@ public sealed class TmdbTests : IDisposable
         Assert.True(await fetcher.FetchMovieAsync("k", "The Matrix", 1999, CancellationToken.None));
         Assert.Empty(_asked);
 
-        // A second movie reuses the kept genre map instead of asking again.
+        // A second movie whose details cannot be fetched is tried again later, never half-written.
         _answers[Tmdb.SearchUri("k", "The Matrix Reloaded", null).AbsoluteUri] = Search;
+        Assert.False(await fetcher.FetchMovieAsync("k", "The Matrix Reloaded", null, CancellationToken.None));
+        Assert.Null(fetcher.CachedMovie("The Matrix Reloaded", null));
+        _answers[Tmdb.DetailsUri("k", 604).AbsoluteUri] = """{"id":604}""";
         Assert.True(await fetcher.FetchMovieAsync("k", "The Matrix Reloaded", null, CancellationToken.None));
-        Assert.DoesNotContain(_asked, uri => uri.Contains("genre", StringComparison.Ordinal));
         var second = fetcher.CachedMovie("The Matrix Reloaded", null);
         Assert.True(second is { CatalogueId: 604, HasPoster: false });
         Assert.Empty(second!.Genres);
@@ -161,13 +198,15 @@ public sealed class TmdbTests : IDisposable
         Assert.True(await fetcher.FetchMovieAsync("k", "Obscure", null, CancellationToken.None));
         Assert.Empty(_asked);
 
-        // A match whose genre list never answers is still kept, just without genre names.
+        // A match whose details answer is not the usual shape is tried again later.
         _answers[Tmdb.SearchUri("k", "The Matrix", 1999).AbsoluteUri] = Search;
+        _answers[Tmdb.DetailsUri("k", 603).AbsoluteUri] = "[]";
+        Assert.False(await fetcher.FetchMovieAsync("k", "The Matrix", 1999, CancellationToken.None));
+        _answers[Tmdb.DetailsUri("k", 603).AbsoluteUri] = Details;
         _answers["https://image.tmdb.org/t/p/w500/abc.jpg"] = "poster-bytes";
         Assert.True(await fetcher.FetchMovieAsync("k", "The Matrix", 1999, CancellationToken.None));
         var movie = fetcher.CachedMovie("The Matrix", 1999);
         Assert.True(movie is { CatalogueId: 603, HasPoster: true });
-        Assert.Empty(movie!.Genres);
 
         await Assert.ThrowsAsync<ArgumentException>(() => fetcher.FetchMovieAsync("", "t", null, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentNullException>(() => fetcher.FetchMovieAsync("k", null!, null, CancellationToken.None));

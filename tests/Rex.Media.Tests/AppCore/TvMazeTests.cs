@@ -73,6 +73,73 @@ public sealed class TvMazeTests
         Assert.Equal("https://api.tvmaze.com/shows/318/episodes", TvMaze.EpisodesUri(318).AbsoluteUri);
     }
 
+    [Fact]
+    public void AShowCarriesItsCardFacts()
+    {
+        var show = TvMaze.ParseShow("""
+            {"id":318,"name":"The Show","premiered":"2011-04-17","ended":"2019-05-19","status":"Ended",
+             "language":"English","averageRuntime":57,"network":{"name":"HBO"}}
+            """);
+
+        Assert.Equal(("Ended", "HBO", 57, "English", "2011-04-17", "2019-05-19"),
+            (show!.Status, show.Network, show.RuntimeMinutes, show.Language, show.Premiered, show.Ended));
+
+        var streamed = TvMaze.ParseShow("""{"id":1,"name":"X","network":null,"webChannel":{"name":"Streamflix"},"averageRuntime":0,"runtime":42,"status":""}""");
+        Assert.Equal(("Streamflix", 42, null), (streamed!.Network, streamed.RuntimeMinutes, streamed.Status));
+    }
+
+    [Fact]
+    public void EpisodesCarryAirDatesRuntimesAndStills()
+    {
+        var episodes = TvMaze.ParseEpisodes("""
+            [{"id":1,"season":1,"number":1,"name":"Winter","airdate":"2011-04-17","runtime":62,"image":{"medium":"https://img/ep-m.jpg","original":"https://img/ep.jpg"}},
+             {"id":2,"season":1,"number":2,"name":"Road","airdate":"","runtime":0,"image":null}]
+            """);
+
+        Assert.Equal(("2011-04-17", 62, "https://img/ep.jpg"), (episodes[0].AirDate, episodes[0].RuntimeMinutes, episodes[0].StillUrl));
+        Assert.Equal((null, null, null), (episodes[1].AirDate, episodes[1].RuntimeMinutes, episodes[1].StillUrl));
+    }
+
+    [Fact]
+    public void CastCreatorsAndSeasonsAreRead()
+    {
+        var cast = TvMaze.ParseCast("""
+            [{"person":{"name":"Lead Actor","image":{"medium":"https://img/p.jpg"}},"character":{"name":"The Lead"}},
+             {"person":{"name":"Bare Actor"},"character":null},
+             {"person":{}},
+             {"character":{"name":"No person"}},
+             7]
+            """);
+        Assert.Equal([new CastMember("Lead Actor", "The Lead", "https://img/p.jpg"), new CastMember("Bare Actor", null, null)], cast);
+        Assert.Empty(TvMaze.ParseCast("{}"));
+        Assert.Throws<ArgumentNullException>(() => TvMaze.ParseCast(null!));
+
+        var creators = TvMaze.ParseCreators("""
+            [{"type":"Creator","person":{"name":"The Creator"}},
+             {"type":"Creator","person":{"name":"The Creator"}},
+             {"type":"Producer","person":{"name":"Someone"}},
+             {"type":"Creator"},
+             3]
+            """);
+        Assert.Equal(["The Creator"], creators);
+        Assert.Empty(TvMaze.ParseCreators("{}"));
+        Assert.Throws<ArgumentNullException>(() => TvMaze.ParseCreators(null!));
+
+        var seasons = TvMaze.ParseSeasons("""
+            [{"number":1,"summary":"<p>First.</p>","image":{"original":"https://img/s1.jpg"}},
+             {"number":2,"summary":null,"image":null},
+             {"summary":"No number"},
+             9]
+            """);
+        Assert.Equal([new SeasonDetails(1, "First.", "https://img/s1.jpg"), new SeasonDetails(2, null, null)], seasons);
+        Assert.Empty(TvMaze.ParseSeasons("{}"));
+        Assert.Throws<ArgumentNullException>(() => TvMaze.ParseSeasons(null!));
+
+        Assert.Equal("https://api.tvmaze.com/shows/318/cast", TvMaze.CastUri(318).AbsoluteUri);
+        Assert.Equal("https://api.tvmaze.com/shows/318/crew", TvMaze.CrewUri(318).AbsoluteUri);
+        Assert.Equal("https://api.tvmaze.com/shows/318/seasons", TvMaze.SeasonsUri(318).AbsoluteUri);
+    }
+
     [Theory]
     [InlineData(null, "")]
     [InlineData("", "")]

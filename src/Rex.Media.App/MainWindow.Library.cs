@@ -738,6 +738,12 @@ public sealed partial class MainWindow
             }
             else if (IsMovieRow(chosen, out var movie))
             {
+                if (MetadataMovie(movie) is { TrailerKeys: [{ } trailer, ..] })
+                {
+                    menu.Items.Add(MenuItem("Watch trailer", "LibraryMenuWatchTrailer",
+                        () => _ = Launcher.LaunchUriAsync(new Uri("https://www.youtube.com/watch?v=" + trailer))));
+                }
+
                 menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshMovieMetadata(movie)));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
