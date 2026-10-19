@@ -355,7 +355,8 @@ public sealed partial class MainWindow
                 break;
             case CommandCatalog.CheckForUpdates:
                 _ = CheckForUpdatesAsync(asked: true);
-                break;            case CommandCatalog.WhatsNew:
+                break;
+            case CommandCatalog.WhatsNew:
                 _ = ShowWhatsNewAsync();
                 break;
             case CommandCatalog.About:
