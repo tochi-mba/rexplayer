@@ -7,6 +7,7 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **Album covers from MusicBrainz and the Cover Art Archive.** With music lookups on, albums whose files carry no artwork of their own get their real cover, fetched once at no more than one request a second and kept on this computer; embedded and folder art always wins, and an album card's right-click offers Refresh metadata.
 - **TV shows enriched from TVmaze.** With TV lookups on, shows get posters, descriptions, genres, ratings and episode titles in the library, fetched once in the background and kept on this computer; a right-click offers Refresh metadata and Wrong match..., and a corrected match outlives every rescan.
 - **A Metadata section in Preferences.** rexplayer can now be allowed, kind by kind and strictly off by default, to fetch TV, movie and music details from free online catalogues; it keeps everything fetched on this computer beside the library, never looks inside excluded folders, and the downloads can be measured and cleared in one click.
 - **Artist pages.** Opening an artist in the library shows their most played songs and their albums, newest first, instead of one long song list. An album opens from the page into its own track list with the artist, year, song count and total length over it, Back returns to the artist, and Play and Shuffle play the artist's songs without repeating a top song that is also on an album.

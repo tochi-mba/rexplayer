@@ -18,6 +18,7 @@ public sealed partial class MainWindow
     private readonly object _metadataGate = new();
     private readonly FetchPlan _metadataPlan = new();
     private readonly Dictionary<string, EnrichedShow> _metadataShows = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, EnrichedAlbum> _metadataAlbums = new(StringComparer.Ordinal);
     private MetadataCache? _metadataCache;
     private MetadataChoices? _metadataChoices;
     private CancellationTokenSource? _metadataStop;
@@ -111,8 +112,16 @@ public sealed partial class MainWindow
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd($"rexplayer/{Version} (https://github.com/tochi-mba/rexplayer)");
             var cache = MetadataCacheNow;
+            // MusicBrainz asks for at most about one request a second; the loop is its only caller.
+            var musicGate = new RateGate(TimeSpan.FromSeconds(1.1));
             var fetcher = new MetadataFetcher(cache, async (uri, inner) =>
             {
+                if (uri.Host.EndsWith("musicbrainz.org", StringComparison.OrdinalIgnoreCase)
+                    && musicGate.Delay(DateTimeOffset.Now) is { } wait && wait > TimeSpan.Zero)
+                {
+                    await Task.Delay(wait, inner).ConfigureAwait(false);
+                }
+
                 using var response = await http.GetAsync(uri, inner).ConfigureAwait(false);
                 return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync(inner).ConfigureAwait(false) : null;
             });
@@ -120,12 +129,18 @@ public sealed partial class MainWindow
             // What the cache already holds serves at once, without the network.
             var choices = MetadataChoices.Load(File.Exists(cache.ChoicesPath) ? await File.ReadAllTextAsync(cache.ChoicesPath, token).ConfigureAwait(false) : null);
             var known = fetcher.CachedShows();
+            var knownAlbums = fetcher.CachedAlbums();
             lock (_metadataGate)
             {
                 _metadataChoices = choices;
                 foreach (var show in known)
                 {
                     _metadataShows[MetadataMatch.Normalize(show.Name)] = show;
+                }
+
+                foreach (var album in knownAlbums)
+                {
+                    _metadataAlbums[MusicBrainz.AlbumKey(album.Artist, album.Album)] = album;
                 }
             }
 
@@ -166,36 +181,85 @@ public sealed partial class MainWindow
     private void PlanMetadataWork()
     {
         var metadata = _settings.Metadata;
-        if (!metadata.TvShows || _library is not { } library)
+        if (_library is not { } library)
         {
             return;
         }
 
-        foreach (var group in LibraryViews.TvShows(library.Entries))
+        var entries = library.Entries;
+        if (metadata.TvShows)
         {
-            var key = MetadataMatch.Normalize(group.Name);
-            lock (_metadataGate)
+            foreach (var group in LibraryViews.TvShows(entries))
             {
-                if (_metadataShows.ContainsKey(key))
+                var key = MetadataMatch.Normalize(group.Name);
+                lock (_metadataGate)
+                {
+                    if (_metadataShows.ContainsKey(key))
+                    {
+                        continue;
+                    }
+                }
+
+                if (group.Entries.Any(entry => MetadataPolicy.Allows(metadata, MetadataWork.TvShow, entry.Path)))
+                {
+                    lock (_metadataGate)
+                    {
+                        _metadataPlan.Add(new MetadataJob(MetadataWork.TvShow, group.Name));
+                    }
+                }
+            }
+        }
+
+        if (metadata.Music)
+        {
+            foreach (var group in LibraryViews.Albums(entries))
+            {
+                // A group without a real album tag is a bag of loose songs, not an album to look up.
+                if (group.Entries[0].Album is not { Length: > 0 } album)
                 {
                     continue;
                 }
-            }
 
-            if (group.Entries.Any(entry => MetadataPolicy.Allows(metadata, MetadataWork.TvShow, entry.Path)))
-            {
+                var key = MusicBrainz.AlbumKey(group.Detail, album);
                 lock (_metadataGate)
                 {
-                    _metadataPlan.Add(new MetadataJob(MetadataWork.TvShow, group.Name));
+                    if (_metadataAlbums.ContainsKey(key))
+                    {
+                        continue;
+                    }
+                }
+
+                if (group.Entries.Any(entry => MetadataPolicy.Allows(metadata, MetadataWork.Music, entry.Path)))
+                {
+                    lock (_metadataGate)
+                    {
+                        _metadataPlan.Add(new MetadataJob(MetadataWork.Music, AlbumJobKey(group.Detail, album)));
+                    }
                 }
             }
         }
     }
 
+    /// <summary>An album job's key carries the artist and the album, apart but in one string.</summary>
+    private static string AlbumJobKey(string? artist, string album) => (artist ?? "") + "\u001f" + album;
+
+    private static (string? Artist, string Album) AlbumFromJobKey(string key)
+    {
+        var split = key.IndexOf('\u001f', StringComparison.Ordinal);
+        var artist = key[..split];
+        return (artist.Length > 0 ? artist : null, key[(split + 1)..]);
+    }
+
     private async Task RunMetadataJobAsync(MetadataFetcher fetcher, MetadataChoices choices, MetadataJob job, CancellationToken token)
     {
         // The job may have been outlawed since it was queued.
-        if (job.Kind != MetadataWork.TvShow || !_settings.Metadata.TvShows)
+        var allowed = job.Kind switch
+        {
+            MetadataWork.TvShow => _settings.Metadata.TvShows,
+            MetadataWork.Music => _settings.Metadata.Music,
+            _ => false,
+        };
+        if (!allowed)
         {
             lock (_metadataGate)
             {
@@ -208,13 +272,21 @@ public sealed partial class MainWindow
         var ok = false;
         try
         {
-            int? chosen;
-            lock (_metadataGate)
+            if (job.Kind == MetadataWork.Music)
             {
-                chosen = choices.ChosenShow(job.Key);
+                var (artist, album) = AlbumFromJobKey(job.Key);
+                ok = await fetcher.FetchAlbumAsync(artist, album, AlbumFilesCarryArt(artist, album), token).ConfigureAwait(false);
             }
+            else
+            {
+                int? chosen;
+                lock (_metadataGate)
+                {
+                    chosen = choices.ChosenShow(job.Key);
+                }
 
-            ok = await fetcher.FetchShowAsync(job.Key, null, chosen, token).ConfigureAwait(false);
+                ok = await fetcher.FetchShowAsync(job.Key, null, chosen, token).ConfigureAwait(false);
+            }
         }
         catch (HttpRequestException ex)
         {
@@ -241,7 +313,28 @@ public sealed partial class MainWindow
             }
         }
 
-        if (ok && fetcher.Cached(job.Key) is { } show)
+        if (!ok)
+        {
+            return;
+        }
+
+        if (job.Kind == MetadataWork.Music)
+        {
+            var (artist, album) = AlbumFromJobKey(job.Key);
+            if (fetcher.CachedAlbum(artist, album) is { } got)
+            {
+                lock (_metadataGate)
+                {
+                    _metadataAlbums[MusicBrainz.AlbumKey(artist, album)] = got;
+                }
+
+                if (got.HasCover)
+                {
+                    RefreshLibraryFromMetadata();
+                }
+            }
+        }
+        else if (fetcher.Cached(job.Key) is { } show)
         {
             lock (_metadataGate)
             {
@@ -250,6 +343,108 @@ public sealed partial class MainWindow
 
             RefreshLibraryFromMetadata();
         }
+    }
+
+    /// <summary>
+    /// Whether an album's files bring their own artwork: a cover image in the folder, or art
+    /// embedded in the first file's tags. Local art always wins, so such an album is never looked
+    /// up. Reads the disk, so it runs on the fetcher's thread.
+    /// </summary>
+    private bool AlbumFilesCarryArt(string? artist, string album)
+    {
+        var entries = _library?.Entries ?? [];
+        var first = entries.FirstOrDefault(entry => entry.Kind == Rex.Media.Library.LibraryKind.Music
+            && string.Equals(entry.Album, album, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(entry.FiledArtist ?? "", artist ?? "", StringComparison.OrdinalIgnoreCase));
+        if (first is null)
+        {
+            return false;
+        }
+
+        if (Rex.Media.AppCore.Player.FolderArt.Find(first.Path) is not null)
+        {
+            return true;
+        }
+
+        try
+        {
+            using var source = new Rex.Media.IO.FileByteSource(first.Path);
+            using var demuxer = Rex.Media.AppCore.MediaRegistries.Demuxers().Open(source, CancellationToken.None);
+            return demuxer.Info.CoverArt is { Length: > 0 };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Rex.Media.Primitives.MediaFormatException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// An album's fetched cover file for a song, when its folder gave nothing: it joins the picture
+    /// pipeline exactly like folder art, so the thumbnail cache follows it. Embedded art always
+    /// wins; a cover is only ever fetched for an album whose files carry none.
+    /// </summary>
+    private string? FetchedCoverPath(string path)
+    {
+        var metadata = _settings.Metadata;
+        if (!metadata.Music || MetadataPolicy.Excludes(metadata.Excluded, path)
+            || _library?.Entry(path) is not { Kind: Rex.Media.Library.LibraryKind.Music, Album.Length: > 0 } entry)
+        {
+            return null;
+        }
+
+        var key = MusicBrainz.AlbumKey(entry.FiledArtist, entry.Album);
+        lock (_metadataGate)
+        {
+            if (!_metadataAlbums.TryGetValue(key, out var album) || album is not { HasCover: true, LocalArt: false })
+            {
+                return null;
+            }
+        }
+
+        var cover = MetadataCacheNow.PathFor(MetadataFetcher.CoverKind, key, MetadataFetcher.ArtExtension);
+        return File.Exists(cover) ? cover : null;
+    }
+
+    /// <summary>Whether a chosen row is one album's card, which the refresh entry acts on.</summary>
+    private bool IsAlbumRow(IReadOnlyList<LibraryRow> chosen, out string? artist, out string album)
+    {
+        (artist, album) = (null, "");
+        if (_settings.Metadata.Music
+            && chosen is [{ Item: LibraryGroup { Entries: [{ Kind: Rex.Media.Library.LibraryKind.Music, Album.Length: > 0 }, ..] } group }]
+            && _librarySource == LibrarySource.Albums)
+        {
+            (artist, album) = (group.Detail, group.Entries[0].Album!);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Forgets what was fetched for an album and fetches it again.</summary>
+    private void RefreshAlbumMetadata(string? artist, string album)
+    {
+        var key = MusicBrainz.AlbumKey(artist, album);
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var cache = MetadataCacheNow;
+                cache.Remove(MetadataFetcher.MusicKind, key, ".json");
+                cache.Remove(MetadataFetcher.CoverKind, key, MetadataFetcher.ArtExtension);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                App.Log.Error(MetadataLogSource, $"The cached metadata for {album} could not be removed: {ex.Message}");
+            }
+        });
+        lock (_metadataGate)
+        {
+            _metadataAlbums.Remove(key);
+            _metadataPlan.Add(new MetadataJob(MetadataWork.Music, AlbumJobKey(artist, album)));
+        }
+
+        StartMetadataWhenAllowed();
+        Say($"{album} will be fetched again");
     }
 
     /// <summary>New facts redraw the library once, on its thread, only while it is open.</summary>
