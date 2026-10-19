@@ -21,6 +21,7 @@ public sealed partial class MainWindow
     private readonly FetchPlan _metadataPlan = new();
     private readonly Dictionary<string, EnrichedShow> _metadataShows = new(StringComparer.Ordinal);
     private readonly Dictionary<string, EnrichedAlbum> _metadataAlbums = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, EnrichedMovie> _metadataMovies = new(StringComparer.Ordinal);
     private MetadataCache? _metadataCache;
     private MetadataChoices? _metadataChoices;
     private CancellationTokenSource? _metadataStop;
@@ -56,18 +57,88 @@ public sealed partial class MainWindow
     private string? FetchedPosterPath(string path)
     {
         var metadata = _settings.Metadata;
-        if (!metadata.TvShows || MetadataPolicy.Excludes(metadata.Excluded, path) || EpisodeNames.Parse(path) is not { } episode)
+        if (MetadataPolicy.Excludes(metadata.Excluded, path))
         {
             return null;
         }
 
-        if (MetadataShow(episode.Series) is not { Found: true, HasPoster: true })
+        string? poster = null;
+        if (EpisodeNames.Parse(path) is { } episode)
+        {
+            if (metadata.TvShows && MetadataShow(episode.Series) is { Found: true, HasPoster: true })
+            {
+                poster = MetadataCacheNow.PathFor(MetadataFetcher.ArtKind, MetadataMatch.Normalize(episode.Series), MetadataFetcher.ArtExtension);
+            }
+        }
+        else if (MetadataPolicy.MoviesReady(metadata)
+            && _library?.Entry(path) is { Kind: Rex.Media.Library.LibraryKind.Video } entry
+            && MetadataMovie(entry) is { HasPoster: true } movie)
+        {
+            poster = MetadataCacheNow.PathFor(MetadataFetcher.MovieArtKind,
+                Tmdb.MovieKey(LibraryViews.MovieTitleOf(entry), LibraryViews.MovieYearOf(entry)), MetadataFetcher.ArtExtension);
+        }
+
+        return poster is not null && File.Exists(poster) ? poster : null;
+    }
+
+    /// <summary>The fetched record for a movie's file, from memory only: safe on the window's thread.</summary>
+    private EnrichedMovie? MetadataMovie(Rex.Media.Library.LibraryEntry entry)
+    {
+        if (!MetadataPolicy.MoviesReady(_settings.Metadata))
         {
             return null;
         }
 
-        var poster = MetadataCacheNow.PathFor(MetadataFetcher.ArtKind, MetadataMatch.Normalize(episode.Series), MetadataFetcher.ArtExtension);
-        return File.Exists(poster) ? poster : null;
+        var key = Tmdb.MovieKey(LibraryViews.MovieTitleOf(entry), LibraryViews.MovieYearOf(entry));
+        lock (_metadataGate)
+        {
+            return _metadataMovies.TryGetValue(key, out var movie) && movie.Found ? movie : null;
+        }
+    }
+
+    /// <summary>A movie card's extra words from the catalogue: genres and rating, or nothing.</summary>
+    private string MovieBlurb(Rex.Media.Library.LibraryEntry entry) => MetadataMovie(entry)?.Blurb() ?? "";
+
+    /// <summary>Whether the chosen rows are one movie, which the refresh entry acts on.</summary>
+    private bool IsMovieRow(IReadOnlyList<LibraryRow> chosen, out Rex.Media.Library.LibraryEntry movie)
+    {
+        movie = null!;
+        if (MetadataPolicy.MoviesReady(_settings.Metadata) && _librarySource == LibrarySource.Movies
+            && chosen is [{ Item: Rex.Media.Library.LibraryEntry { Kind: Rex.Media.Library.LibraryKind.Video } entry }])
+        {
+            movie = entry;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Forgets what was fetched for a movie and fetches it again.</summary>
+    private void RefreshMovieMetadata(Rex.Media.Library.LibraryEntry entry)
+    {
+        var title = LibraryViews.MovieTitleOf(entry);
+        var year = LibraryViews.MovieYearOf(entry);
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var cache = MetadataCacheNow;
+                cache.Remove(MetadataFetcher.MovieKind, Tmdb.MovieKey(title, year), ".json");
+                cache.Remove(MetadataFetcher.MovieArtKind, Tmdb.MovieKey(title, year), MetadataFetcher.ArtExtension);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                App.Log.Error(MetadataLogSource, $"The cached metadata for {title} could not be removed: {ex.Message}");
+            }
+        });
+        lock (_metadataGate)
+        {
+            _metadataMovies.Remove(Tmdb.MovieKey(title, year));
+            _metadataPlan.Add(new MetadataJob(MetadataWork.Movie, MovieJobKey(title, year)));
+        }
+
+        StartMetadataWhenAllowed();
+        Say($"{title} will be fetched again");
     }
 
     /// <summary>Starts the fetcher when something is turned on; called when the library shows and after Preferences save.</summary>
@@ -144,6 +215,11 @@ public sealed partial class MainWindow
                 {
                     _metadataAlbums[MusicBrainz.AlbumKey(album.Artist, album.Album)] = album;
                 }
+
+                foreach (var movie in fetcher.CachedMovies())
+                {
+                    _metadataMovies[Tmdb.MovieKey(movie.Title, movie.Year)] = movie;
+                }
             }
 
             if (known.Count > 0)
@@ -212,6 +288,36 @@ public sealed partial class MainWindow
             }
         }
 
+        if (MetadataPolicy.MoviesReady(metadata))
+        {
+            foreach (var entry in LibraryViews.Movies(entries))
+            {
+                var title = LibraryViews.MovieTitleOf(entry);
+                var year = LibraryViews.MovieYearOf(entry);
+                if (title.Length == 0)
+                {
+                    continue;
+                }
+
+                var key = Tmdb.MovieKey(title, year);
+                lock (_metadataGate)
+                {
+                    if (_metadataMovies.ContainsKey(key))
+                    {
+                        continue;
+                    }
+                }
+
+                if (MetadataPolicy.Allows(metadata, MetadataWork.Movie, entry.Path))
+                {
+                    lock (_metadataGate)
+                    {
+                        _metadataPlan.Add(new MetadataJob(MetadataWork.Movie, MovieJobKey(title, year)));
+                    }
+                }
+            }
+        }
+
         if (metadata.Music)
         {
             foreach (var group in LibraryViews.Albums(entries))
@@ -273,6 +379,17 @@ public sealed partial class MainWindow
         return (artist.Length > 0 ? artist : null, key[(split + 1)..]);
     }
 
+    /// <summary>A movie job's key carries the title and the year, apart but in one string.</summary>
+    private static string MovieJobKey(string title, int? year) =>
+        title + "\u001f" + (year?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "");
+
+    private static (string Title, int? Year) MovieFromJobKey(string key)
+    {
+        var split = key.IndexOf('\u001f', StringComparison.Ordinal);
+        var year = key[(split + 1)..];
+        return (key[..split], year.Length > 0 ? int.Parse(year, System.Globalization.CultureInfo.InvariantCulture) : null);
+    }
+
     private async Task RunMetadataJobAsync(MetadataFetcher fetcher, MetadataChoices choices, MetadataJob job, CancellationToken token)
     {
         // The job may have been outlawed since it was queued.
@@ -280,6 +397,7 @@ public sealed partial class MainWindow
         {
             MetadataWork.TvShow => _settings.Metadata.TvShows,
             MetadataWork.Music => _settings.Metadata.Music,
+            MetadataWork.Movie => MetadataPolicy.MoviesReady(_settings.Metadata),
             _ => false,
         };
         if (!allowed)
@@ -300,6 +418,11 @@ public sealed partial class MainWindow
                 var (artist, album) = AlbumFromJobKey(job.Key);
                 var carryArt = !_settings.Metadata.ReplaceCovers && AlbumFilesCarryArt(artist, album);
                 ok = await fetcher.FetchAlbumAsync(artist, album, carryArt, token).ConfigureAwait(false);
+            }
+            else if (job.Kind == MetadataWork.Movie)
+            {
+                var (title, year) = MovieFromJobKey(job.Key);
+                ok = await fetcher.FetchMovieAsync(_settings.Metadata.TmdbApiKey, title, year, token).ConfigureAwait(false);
             }
             else
             {
@@ -356,6 +479,19 @@ public sealed partial class MainWindow
                 {
                     RefreshLibraryFromMetadata();
                 }
+            }
+        }
+        else if (job.Kind == MetadataWork.Movie)
+        {
+            var (title, year) = MovieFromJobKey(job.Key);
+            if (fetcher.CachedMovie(title, year) is { } movie)
+            {
+                lock (_metadataGate)
+                {
+                    _metadataMovies[Tmdb.MovieKey(title, year)] = movie;
+                }
+
+                RefreshLibraryFromMetadata();
             }
         }
         else if (fetcher.Cached(job.Key) is { } show)

@@ -7,6 +7,7 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **Movies enriched from TMDB with your own free key.** With movie lookups on and a key pasted in Preferences, movies get posters, genres and ratings in the library, fetched once and kept on this computer; artwork beside the files always wins, and a movie's right-click offers Refresh metadata. This product uses the TMDB API but is not endorsed or certified by TMDB.
 - **Album covers from MusicBrainz and the Cover Art Archive.** With music lookups on, albums whose files carry no artwork of their own get their real cover, fetched once at no more than one request a second and kept on this computer; embedded and folder art wins unless you choose Replace existing covers too, an album's right-click offers Refresh metadata, Replace cover... (pick from the catalogue or any image, shown by rexplayer without ever writing to your files) and Restore original cover.
 - **TV shows enriched from TVmaze.** With TV lookups on, shows get posters, descriptions, genres, ratings and episode titles in the library, fetched once in the background and kept on this computer; a right-click offers Refresh metadata and Wrong match..., and a corrected match outlives every rescan.
 - **A Metadata section in Preferences.** rexplayer can now be allowed, kind by kind and strictly off by default, to fetch TV, movie and music details from free online catalogues; it keeps everything fetched on this computer beside the library, never looks inside excluded folders, and the downloads can be measured and cleared in one click.

@@ -481,6 +481,7 @@ public sealed partial class MainWindow
         var detail = entry.Kind == LibraryKind.Video
             ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
+                + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
                 + (episode is null ? "" : episode.Spoken + " · ")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
@@ -733,6 +734,11 @@ public sealed partial class MainWindow
                     menu.Items.Add(MenuItem("Restore original cover", "LibraryMenuRestoreCover", () => RestoreAlbumCover(albumArtist, album)));
                 }
 
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
+            else if (IsMovieRow(chosen, out var movie))
+            {
+                menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshMovieMetadata(movie)));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
