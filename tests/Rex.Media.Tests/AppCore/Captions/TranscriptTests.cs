@@ -22,10 +22,10 @@ public sealed class TranscriptTests : IDisposable
     ]);
 
     [Theory]
-    [InlineData("tiny.en", false, "Fast — Original", "Transcript (tiny.en, original)")]
-    [InlineData("base.en", true, "Default — Edited", "Transcript (base.en, edited)")]
-    [InlineData("small.en", false, "Best — Original", "Transcript (small.en, original)")]
-    [InlineData("custom/model", true, "custom/model — Edited", "Transcript (custom/model, edited)")]
+    [InlineData("tiny.en", false, "Fast · Original", "Transcript (tiny.en, original)")]
+    [InlineData("base.en", true, "Default · Edited", "Transcript (base.en, edited)")]
+    [InlineData("small.en", false, "Best · Original", "Transcript (small.en, original)")]
+    [InlineData("custom/model", true, "custom/model · Edited", "Transcript (custom/model, edited)")]
     public void TranscriptVariantsIdentifyTheirModelAndIndependentEdit(string model, bool edited, string display, string track)
     {
         var variant = new TranscriptVariant(model, edited);
