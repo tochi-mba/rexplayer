@@ -161,13 +161,14 @@ public sealed partial class MainWindow
         performance.SelectionChanged += (_, _) => ShowPerformance();
         ShowPerformance();
 
-        var content = new StackPanel { Spacing = 8, MinWidth = 460 };
-        var sections = new List<(string Name, TextBlock Heading)>();
+        var content = new StackPanel();
+        var sections = new List<(string Name, StackPanel Page)>();
         void AddSection(string name)
         {
+            content = new StackPanel { Spacing = 8, MinWidth = 280, MaxWidth = 460 };
             var heading = Heading(name);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetHeadingLevel(heading, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
-            sections.Add((name, heading));
+            sections.Add((name, content));
             content.Children.Add(heading);
         }
         AddSection("Playback");
@@ -303,20 +304,31 @@ public sealed partial class MainWindow
         bool saved;
         try
         {
-            var scroll = new ScrollViewer { Content = content, MaxHeight = 560 };
+            var scroll = new ScrollViewer
+            {
+                Content = sections[0].Page,
+                MaxHeight = 560,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(scroll, "PreferencesScroll");
-            var section = Choice("Go to section", [.. sections.Select(item => item.Name)], 0);
+            var section = Choice("Settings section", [.. sections.Select(item => item.Name)], 0);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(section, "PreferencesSection");
             section.HorizontalAlignment = HorizontalAlignment.Stretch;
+            var offsets = new double[sections.Count];
+            var shownSection = 0;
             section.SelectionChanged += (_, _) =>
             {
-                if (section.SelectedIndex >= 0)
+                if (section.SelectedIndex < 0)
                 {
-                    content.UpdateLayout();
-                    var heading = sections[section.SelectedIndex].Heading;
-                    var position = heading.TransformToVisual(content).TransformPoint(new Windows.Foundation.Point());
-                    scroll.ChangeView(null, position.Y, null, disableAnimation: true);
+                    return;
                 }
+
+                offsets[shownSection] = scroll.VerticalOffset;
+                shownSection = section.SelectedIndex;
+                scroll.Content = sections[shownSection].Page;
+                scroll.UpdateLayout();
+                scroll.ChangeView(null, offsets[shownSection], null, disableAnimation: true);
             };
             var navigation = new StackPanel { Spacing = 4 };
             navigation.Children.Add(section);
