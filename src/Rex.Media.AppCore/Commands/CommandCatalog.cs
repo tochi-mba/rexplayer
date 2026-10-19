@@ -116,6 +116,8 @@ public static class CommandCatalog
     public const string Help = "help";
     public const string CheckForUpdates = "check-for-updates";
     public const string ShortcutSheet = "shortcut-sheet";
+    public const string WhatsNew = "whats-new";
+    public const string About = "about";
 
     private const string Playback = "Playback";
     private const string Audio = "Audio";
@@ -231,6 +233,8 @@ public static class CommandCatalog
         New(Help, "Help", Tools, "F1"),
         New(CheckForUpdates, "Check for updates", Tools),
         New(ShortcutSheet, "Keyboard shortcuts", Tools, "Ctrl+Slash"),
+        New(WhatsNew, "What's new in this version", Tools),
+        New(About, "About rexplayer", Tools),
     ];
 
     /// <summary>The command with this id, or null.</summary>
