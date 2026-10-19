@@ -358,3 +358,7 @@ WordAligner.cs
 Wpl.cs
 Xspf.cs
 YuvTransform.cs
+TagEdit.cs
+Id3v2Writer.cs
+FlacTagWriter.cs
+TagFileWriter.cs

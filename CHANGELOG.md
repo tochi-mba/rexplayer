@@ -5,6 +5,10 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Added
+
+- Write a song's title, artist, album, album artist, track, disc, year, genre and cover into MP3 (ID3v2.3/2.4 and ID3v1) and FLAC files safely: a verified copy replaces the file only when its audio is byte-identical.
+
 ### Improved
 
 - **A paused visualisation rests.** Once the music pauses or ends, the visualisation lets the last sound die away for a second and a half and then stops redrawing a still picture, instead of drawing it up to sixty times a second; it moves again the moment the music plays. Camera visualisations keep following you while paused.
