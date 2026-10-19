@@ -805,6 +805,11 @@ public sealed partial class AppWindowTests : IDisposable
         Assert.Equal("Start this media from the beginning", second.Find("StartOverButton").Current.Name);
         second.Press("StartOverButton");
         Wait.For(() => second.Text("Elapsed").StartsWith("0:0", StringComparison.Ordinal), "Start over to seek to the beginning");
+
+        // Start over forgets the old place: going back to it has nowhere to go.
+        second.Run(CommandCatalog.Resume);
+        Wait.For(() => second.LogText.Contains("There is nowhere to go back to.", StringComparison.Ordinal), "Resume to find nothing to go back to");
+        Assert.StartsWith("0:0", second.Text("Elapsed"), StringComparison.Ordinal);
         Assert.Equal(0, second.Close());
     }
 
