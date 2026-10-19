@@ -37,8 +37,6 @@ public sealed partial class LibraryRow(
 
     public Visibility DetailVisibility => Detail.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility PictureVisibility => HasPicture ? Visibility.Visible : Visibility.Collapsed;
-
     public bool HasPicture { get; } = hasPicture;
 
     public string PicturePlaceholder { get; } = picturePlaceholder;

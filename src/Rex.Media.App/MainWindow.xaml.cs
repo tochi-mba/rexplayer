@@ -138,6 +138,7 @@ public sealed partial class MainWindow : Window
         PlaylistView.ItemsSource = _playlistRows;
         PlaylistView.ContainerContentChanging += OnPlaylistRowShown;
         WirePerformance();
+        WireHiddenWindow();
         ApplySettingsToControls();
         ShowState();
         ShowPosition();

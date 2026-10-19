@@ -21,44 +21,54 @@ public sealed partial class MainWindow
 {
     private const string HelpUrl = "https://tochi-mba.github.io/rexplayer/";
 
-    /// <summary>The menus, by menu, in order; each entry is a command id, or null for a separator.</summary>
+    /// <summary>
+    /// The menus, by menu, in order; each entry is a command id, a <see cref="SubMenu"/> id for a
+    /// group of related commands, or null for a separator. Groups keep each menu short enough to
+    /// read at a glance: the commands people reach for stay on top, their finer variants one level in.
+    /// </summary>
     private static readonly (string Menu, string?[] Commands)[] MenuLayout =
     [
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
             CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
-            "Group-Seek", null,
-            "Group-Speed", null,
+            SubMenu + "jump", CommandCatalog.GoToTime, SubMenu + "speed", null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
             CommandCatalog.AddBookmark, CommandCatalog.Resume, null,
-            "Group-AfterCurrent", null,
-            "Group-Sleep"]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
-            "Group-AudioDelay", null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
+            SubMenu + "sleep"]),
+        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, SubMenu + "audio-timing", null,
+            CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
-            "Group-SubtitleDelay", null,
-            "Group-SubtitleSize", null,
-            "Group-Captions", null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
+            SubMenu + "subtitle-timing", SubMenu + "subtitle-size", null,
+            CommandCatalog.ToggleKineticCaptions, SubMenu + "kinetic-captions", null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
-            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, "Group-WindowSize", null,
+            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, SubMenu + "window-size", null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary, null, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse]),
+        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null,
+            CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse, null,
+            SubMenu + "library-backup", CommandCatalog.ClearPlaylist, CommandCatalog.ClearHistory]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
     ];
 
-    // Named groups keep long menus usable without changing command identities or shortcuts.
-    private static readonly Dictionary<string, (string Title, string?[] Commands)> MenuGroups = new(StringComparer.Ordinal)
+    /// <summary>Marks a <see cref="MenuLayout"/> entry that opens one of <see cref="SubMenus"/>.</summary>
+    private const string SubMenu = "submenu:";
+
+    /// <summary>The groups the menus open one level in, by id: a title and its entries.</summary>
+    private static readonly Dictionary<string, (string Title, string?[] Commands)> SubMenus = new(StringComparer.Ordinal)
     {
-        ["Group-Seek"] = ("Jump to position", [CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime]),
-        ["Group-Speed"] = ("Playback speed", [CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed]),
-        ["Group-AfterCurrent"] = ("After this item", [CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent]),
-        ["Group-Sleep"] = ("Sleep timer", [CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
-        ["Group-AudioDelay"] = ("Audio timing", [CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay]),
-        ["Group-SubtitleDelay"] = ("Subtitle timing", [CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay]),
-        ["Group-SubtitleSize"] = ("Subtitle size", [CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
-        ["Group-Captions"] = ("Animated captions", [CommandCatalog.ToggleKineticCaptions, CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer,
-            CommandCatalog.KineticCaptionSettings]),
-        ["Group-WindowSize"] = ("Window size", [CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble]),
+        [SubMenu + "jump"] = ("Jump", [CommandCatalog.JumpForwardVeryShort, CommandCatalog.JumpBackVeryShort, null,
+            CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, null,
+            CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, null,
+            CommandCatalog.JumpForwardLong, CommandCatalog.JumpBackLong]),
+        [SubMenu + "speed"] = ("Speed", [CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.SlightlyFaster, CommandCatalog.SlightlySlower, null, CommandCatalog.NormalSpeed]),
+        [SubMenu + "sleep"] = ("Sleep timer", [CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
+            CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, null, CommandCatalog.SleepOff]),
+        [SubMenu + "audio-timing"] = ("Sound timing", [CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay]),
+        [SubMenu + "subtitle-timing"] = ("Subtitle timing", [CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay]),
+        [SubMenu + "subtitle-size"] = ("Subtitle size", [CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
+        [SubMenu + "kinetic-captions"] = ("Kinetic caption style", [CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, null,
+            CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer, null, CommandCatalog.KineticCaptionSettings]),
+        [SubMenu + "window-size"] = ("Window size", [CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble]),
+        [SubMenu + "library-backup"] = ("Library backup", [CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary]),
     };
 
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
@@ -162,12 +172,12 @@ public sealed partial class MainWindow
                 continue;
             }
 
-            if (MenuGroups.TryGetValue(id, out var group))
+            if (SubMenus.TryGetValue(id, out var group))
             {
-                var submenu = new MenuFlyoutSubItem { Text = group.Title };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(submenu, prefix + id);
-                Fill(submenu.Items, group.Commands, prefix);
-                items.Add(submenu);
+                var sub = new MenuFlyoutSubItem { Text = group.Title };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sub, "Submenu-" + id[SubMenu.Length..]);
+                Fill(sub.Items, group.Commands, prefix);
+                items.Add(sub);
                 continue;
             }
 

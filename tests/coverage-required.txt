@@ -4,6 +4,7 @@ AacConfig.cs
 AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+ArtistPages.cs
 AuDemuxer.cs
 AnalysisConverter.cs
 Ass.cs
@@ -111,6 +112,7 @@ HallOfMirrorsScene.cs
 HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
+HiddenWindow.cs
 Id3v2.cs
 InfinityMirrorScene.cs
 InkScene.cs

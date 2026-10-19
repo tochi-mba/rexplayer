@@ -26,6 +26,7 @@ public sealed class PlayerMetricsTests
         Assert.False(metrics.ContainsKey("frames-presented"));
         Assert.Equal(0, metrics["performance-tier"]);
         Assert.False(metrics.ContainsKey("visual-draw-ms"));
+        Assert.False(metrics.ContainsKey("pictures-drawn"));
     }
 
     [Theory]
@@ -43,8 +44,11 @@ public sealed class PlayerMetricsTests
             Cadence = new FrameCadenceStats(98, 97, 41.7, 1.5, 50, 3, 0.5, 6),
         };
 
-        var metrics = PlayerMetrics.Read(Process, stats, default, new VisualSample(9.5, 0.85, 1280, 720), PerformanceTier.Fastest);
+        var metrics = PlayerMetrics.Read(Process, stats, default, new VisualSample(9.5, 0.85, 1280, 720), PerformanceTier.Fastest, picturesDrawn: 40);
         Assert.Equal(2, metrics["performance-tier"]);
+
+        // Pictures handed over while the window was minimised are presented but not drawn.
+        Assert.Equal(40, metrics["pictures-drawn"]);
 
         Assert.Equal((100.0, 98.0, 2.0, 48_000.0), (metrics["frames-decoded"], metrics["frames-presented"], metrics["frames-dropped"], metrics["audio-samples-played"]));
         Assert.Equal(onCard, metrics["decoding-on-graphics-card"]);

@@ -39,6 +39,8 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _libraryRescan;
     private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
+
+    /// <summary>The group opened inside <see cref="_libraryGroup"/>: a show's season, or an artist's album.</summary>
     private LibraryGroup? _librarySeason;
     private string _shownLibrary = "";
     private (bool Searching, LibrarySource? Source, LibraryViewChoice? Choice)? _emptyView;
@@ -468,8 +470,6 @@ public sealed partial class MainWindow
         LibraryActions.Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
         group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
 
-    private List<LibraryRow> EntryRows(IEnumerable<LibraryEntry> entries) => [.. entries.Select(EntryRow)];
-
     private LibraryRow EntryRow(LibraryEntry entry)
     {
         var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
@@ -598,7 +598,11 @@ public sealed partial class MainWindow
         return chosen.Count > 0 ? [.. rows.Where(chosen.Contains)] : rows;
     }
 
-    /// <summary>The media the lines stand for, in order: an album's songs, or a folder's media by kind.</summary>
+    /// <summary>
+    /// The media the lines stand for, in order: an album's songs, or a folder's media by kind. A
+    /// file several lines share (an artist page's top song inside one of its albums) plays once,
+    /// at its first place.
+    /// </summary>
     private List<LibraryEntry> EntriesOf(IEnumerable<LibraryRow> rows) =>
         [.. rows.SelectMany(row => row.Item switch
         {
@@ -606,7 +610,7 @@ public sealed partial class MainWindow
             LibraryGroup group => group.Entries,
             string folder => [.. LibraryViews.Songs(_library!.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Videos(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Pictures(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path)))],
             _ => [],
-        })];
+        }).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
     private void OnLibraryPlay(object sender, RoutedEventArgs e) => PlayChosen();
 

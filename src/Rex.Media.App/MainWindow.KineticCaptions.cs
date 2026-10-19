@@ -113,11 +113,11 @@ public sealed partial class MainWindow
         if (show)
         {
             _captionDirector = new CaptionDirector(CaptionDirector.StyleFor(_settings));
-            CompositionTarget.Rendering += OnCaptionRendering;
+            KeepCaptionsDrawing();
         }
         else
         {
-            CompositionTarget.Rendering -= OnCaptionRendering;
+            KeepCaptionsDrawing();
             StopPictureScan();
             ClearCaptionViews();
             _captionDirector = null;

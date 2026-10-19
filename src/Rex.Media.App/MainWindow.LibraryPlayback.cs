@@ -13,7 +13,8 @@ public sealed partial class MainWindow
         switch (row?.Item)
         {
             case LibraryGroup group:
-                if (_librarySource == LibrarySource.TvShows && _libraryGroup is not null && _librarySeason is null)
+                // A group inside an open group nests: a show's season, or an artist's album.
+                if (_librarySource is LibrarySource.TvShows or LibrarySource.Artists && _libraryGroup is not null && _librarySeason is null)
                 {
                     _librarySeason = group;
                 }

@@ -32,20 +32,11 @@ public sealed class Crc
     /// <summary>FLAC frame footer (CRC-16/BUYPASS: polynomial 0x8005, initial 0).</summary>
     public static Crc Crc16Flac { get; } = new(16, 0x8005, 0, reflected: false, 0);
 
-    /// <summary>MPEG audio frame protection and AC-3 (polynomial 0x8005, initial 0xFFFF).</summary>
-    public static Crc Crc16Mpeg { get; } = new(16, 0x8005, 0xFFFF, reflected: false, 0);
-
-    /// <summary>MPEG-2 transport stream sections (CRC-32/MPEG-2).</summary>
-    public static Crc Crc32Mpeg2 { get; } = new(32, 0x04C11DB7, 0xFFFFFFFF, reflected: false, 0);
-
     /// <summary>Ogg pages (polynomial 0x04C11DB7, initial 0, no reflection).</summary>
     public static Crc Crc32Ogg { get; } = new(32, 0x04C11DB7, 0, reflected: false, 0);
 
     /// <summary>CRC-32 as zip and PNG use it (ISO-HDLC: reflected, initial and final XOR all ones).</summary>
     public static Crc Crc32 { get; } = new(32, 0x04C11DB7, 0xFFFFFFFF, reflected: true, 0xFFFFFFFF);
-
-    /// <summary>CRC-32C (Castagnoli), used by the library store's record framing.</summary>
-    public static Crc Crc32C { get; } = new(32, 0x1EDC6F41, 0xFFFFFFFF, reflected: true, 0xFFFFFFFF);
 
     public int Width { get; }
 

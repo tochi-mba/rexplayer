@@ -5,16 +5,23 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Added
+
+- **Artist pages.** Opening an artist in the library shows their most played songs and their albums, newest first, instead of one long song list. An album opens from the page into its own track list with the artist, year, song count and total length over it, Back returns to the artist, and Play and Shuffle play the artist's songs without repeating a top song that is also on an album.
+
 ### Improved
 
+- **Clearer Preferences.** What the sleep timer does at its time is now chosen under Playback, beside the other playback choices, instead of under History and resume. Loudest volume and Text of older subtitle files say what they do.
 - **Visualisations listed by family.** Preferences groups the visualisations under headings, with the ones that use the camera together; saved choices are kept.
 - **The shortcut editor names its jumps.** The wheel and side-button choices say how far they jump, and opened from Preferences the editor uses the jump lengths just set there, saved or not.
 - **Zoom out from the right-click menu.** The picture's right-click menu offers Zoom out beside Zoom in and Reset zoom.
 - **A paused visualisation rests.** Once the music pauses or ends, the visualisation lets the last sound die away for a second and a half and then stops redrawing a still picture, instead of drawing it up to sixty times a second; it moves again the moment the music plays. Camera visualisations keep following you while paused.
 - **A quieter idle window.** With nothing open, no sleep timer and nothing to transcribe, the window's own clocks no longer wake it 132 times a minute: the resume point is saved while something is open, the sleep timer ticks while it is set, and transcription looks at the computer only while it has work.
 - **Paused kinetic captions stand still.** While a video is paused the words on screen are left as they are, instead of being worked out, laid out and announced to screen readers again on every display refresh; they move again when playback, a seek, the window's size or the captions' look changes them.
+- **Shorter menus.** Finer variants now sit one level in, so each menu reads at a glance: Playback has Jump (every jump length, including the very short and long ones the menu never offered), Speed (with A little faster and A little slower) and Sleep timer; Audio has Sound timing; Subtitles has Subtitle timing, Subtitle size and Kinetic caption style; Video has Window size; View has Library backup. Clear the playlist and Clear the history moved to the end of View, away from Preferences.
 - **Library search from the keyboard.** In the library search box, Escape clears the search and Down moves to the first result, so Enter plays it.
 - **Letter headings.** Titles that start with an accented letter now go under the plain letter's heading ("Édith" under E) instead of under a separate "É" heading.
+- **A minimised window draws nothing.** While the window is minimised, video pictures are no longer uploaded, drawn and presented to nobody (about 1,760 a minute for 30-frame video), and the visualisation and kinetic captions stop drawing; the video keeps decoding and the sound and timeline play on in step. The latest picture is drawn the moment the window comes back.
 
 ### Fixed
 
