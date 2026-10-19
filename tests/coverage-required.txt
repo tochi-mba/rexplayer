@@ -333,6 +333,7 @@ VisionModel.cs
 VisionTypes.cs
 VisualizerOptions.cs
 Visualizers.cs
+VisualPacing.cs
 VisualScene.cs
 VisualStage.cs
 Volume.cs
