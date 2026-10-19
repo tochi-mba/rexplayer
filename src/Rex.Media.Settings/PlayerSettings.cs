@@ -609,6 +609,9 @@ public sealed record PlayerSettings
     /// <summary>The library's speech heard ahead of time, and what plays heard from where it plays (SUB-20, SUB-21).</summary>
     public TranscriptionSettings Transcription { get; init; } = new();
 
+    /// <summary>Online metadata enrichment: strictly off until the user turns a kind on.</summary>
+    public MetadataSettings Metadata { get; init; } = new();
+
     /// <summary>How much the player asks of the computer: decided from what the computer is, or chosen.</summary>
     public PerformanceChoice Performance { get; init; }
 
@@ -792,6 +795,7 @@ public sealed record PlayerSettings
             SubtitleStyles = Enum.IsDefined(SubtitleStyles) ? SubtitleStyles : SubtitleStyleChoice.Respect,
             KineticCaptions = (KineticCaptions ?? new KineticCaptionSettings()).Normalize(),
             Transcription = (Transcription ?? new TranscriptionSettings()).Normalize(),
+            Metadata = (Metadata ?? new MetadataSettings()).Normalize(),
             Performance = Enum.IsDefined(Performance) ? Performance : PerformanceChoice.Automatic,
         };
     }

@@ -280,6 +280,13 @@ public sealed partial class MainWindow
             Opacity = 0.75,
         });
 
+        var metadata = MetadataPreferences();
+        AddSection("Metadata");
+        foreach (var control in metadata.Controls)
+        {
+            content.Children.Add(control);
+        }
+
         AddSection("History and resume");
         foreach (var control in new UIElement[] { history, queue })
         {
@@ -450,7 +457,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var next = transcription.Apply((_settings with
+        var next = metadata.Apply(transcription.Apply((_settings with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,
@@ -509,7 +516,7 @@ public sealed partial class MainWindow
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
             Performance = (PerformanceChoice)Math.Max(0, performance.SelectedIndex),
-        }).Normalize()).Normalize();
+        }).Normalize())).Normalize();
         var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
             || s.AudioArtworkStyle != next.AudioArtworkStyle
             || s.AudioArtworkColor != next.AudioArtworkColor
