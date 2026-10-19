@@ -1,0 +1,3 @@
+Caption buffering could dismiss itself when position or transcription progress arrived before the asynchronous pause completed. Keep ownership of that pause until the player acknowledges it, and keep seeks from looking like an explicit Play request.
+
+Draft audit in progress: add regression coverage for automatic/manual transcription startup, settings changes, stale work after media changes, and buffering visibility. Initial pure state tests cover pause acknowledgement, early readiness, explicit playback, seeks and stopping. Validation pending.
