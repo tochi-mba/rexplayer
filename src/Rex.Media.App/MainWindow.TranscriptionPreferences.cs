@@ -250,7 +250,8 @@ public sealed partial class MainWindow
         {
             DetachGeneratedTranscript();
             _playingModelChoice = null;
-            OpenTranscriptOf(_player.Item?.Location);
+            // A caption wait in progress continues against the new quality's coverage.
+            OpenTranscriptOf(_player.Item?.Location, preserveHold: true);
         }
     }
 }

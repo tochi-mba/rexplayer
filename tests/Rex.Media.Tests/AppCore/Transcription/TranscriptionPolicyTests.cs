@@ -217,6 +217,14 @@ public sealed class TranscriptionPolicyTests
         Assert.False(TranscriptionConditions.MayDownloadModel(online: false, metered: false, askedNow: true));
     }
 
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public void AViewerWaitingForCaptionsIsHeardAtOnceEvenBeforeTheLaunchSettles(bool requested, bool holdForSubtitles, bool expected) =>
+        Assert.Equal(expected, TranscriptionConditions.StartsAtOnce(requested, holdForSubtitles));
+
     [Fact]
     [Capability("SUB-20")]
     public void BadgesAndTheQueueLineSayWhereEachFileStands()

@@ -116,7 +116,9 @@ public sealed partial class MainWindow
         _shownBufferState = state;
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(coverage, duration, _player.Position, DisplayedHearing);
         var ahead = coverage is null ? TimeSpan.Zero : Rex.Media.AppCore.Transcription.SubtitleBuffer.Ahead(coverage, _player.Position);
-        var label = _holdingForSubtitles && coverage is not null
+        // While a new quality's coverage loads during a wait, nothing is known yet to count.
+        var label = _holdingForSubtitles && coverage is null ? "Preparing captions"
+            : _holdingForSubtitles
             ? $"Preparing captions · {Math.Round(ahead.TotalMinutes):0}/{Math.Ceiling(Rex.Media.AppCore.Transcription.SubtitleBuffer.ReleaseTarget(_worker?.Speed.SafeFactor, _player.Speed, _player.Position, duration).TotalMinutes):0} min"
             : state switch
             {
