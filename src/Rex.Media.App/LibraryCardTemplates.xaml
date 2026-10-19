@@ -8,7 +8,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Rex.Media.App">
   <DataTemplate x:Key="LibraryBrowseTemplate" x:DataType="local:LibraryRow">
-    <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+    <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
@@ -33,7 +33,7 @@
     </Grid>
   </DataTemplate>
   <DataTemplate x:Key="LibraryVideoTemplate" x:DataType="local:LibraryRow">
-    <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+    <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
@@ -68,7 +68,7 @@
   </DataTemplate>
   <!-- Poster-height cards keep their image ratio. Hover or focus reveals Play but never hides the artwork. -->
   <DataTemplate x:Key="LibraryMovieTemplate" x:DataType="local:LibraryRow">
-    <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+    <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="12" Background="#20252D" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
         <Grid>
@@ -101,7 +101,7 @@
   <!-- Justified collage: variable-width items, virtualized by ItemsView and LinedFlowLayout. -->
   <DataTemplate x:Key="LibraryCollageTemplate" x:DataType="local:LibraryRow">
     <ItemContainer AutomationProperties.Name="{x:Bind Name}" Loaded="OnCollageItemLoaded" DataContextChanged="OnCollageItemDataChanged">
-      <Grid Margin="2" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+      <Grid Margin="2" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
         <Border CornerRadius="9" Background="#20252D">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -132,7 +132,7 @@
     </ItemContainer>
   </DataTemplate>
   <DataTemplate x:Key="LibraryPhotoTemplate" x:DataType="local:LibraryRow">
-    <Grid Padding="4" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
+    <Grid Padding="4" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
       <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
           <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />

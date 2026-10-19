@@ -85,7 +85,7 @@ public sealed partial class MainWindow
         {
             "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" or "TvShows page" => new LibraryViewChoice(LibraryLook.List),
             "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
-            "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200),
+            "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Browse, CardSize: 200),
             "Videos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
             _ => new LibraryViewChoice(LibraryLook.Grid),
         };
@@ -123,12 +123,21 @@ public sealed partial class MainWindow
         {
             entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
         }
-        LibraryHome.Visibility = home ? Visibility.Visible : Visibility.Collapsed;
-        LibraryList.Visibility = home ? Visibility.Collapsed : Visibility.Visible;
+        var browse = !home && search.Length == 0 && BrowseOffered && choice.Look == LibraryLook.Browse;
+        LibraryHome.Visibility = home || browse ? Visibility.Visible : Visibility.Collapsed;
+        LibraryList.Visibility = home || browse ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
+        LibraryHero.Visibility = browse ? Visibility.Collapsed : Visibility.Visible;
         if (home)
         {
             ShowHome(entries);
+            return;
+        }
+
+        if (browse)
+        {
+            LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = Visibility.Collapsed;
+            ShowStreamingBrowse(entries, choice);
             return;
         }
 
@@ -441,9 +450,14 @@ public sealed partial class MainWindow
             return;
         }
 
-        LibraryLookButton.Content = choice.Look switch { LibraryLook.List => "List", LibraryLook.Wall => "Big cards", LibraryLook.Collage => "Collage", _ => "Cards" };
-        LibraryLookButton.Flyout = Choices("LibraryLook",
-            [(LibraryLook.List, "List"), (LibraryLook.Grid, "Cards"), (LibraryLook.Wall, "Big cards"), (LibraryLook.Collage, "Collage")],
+        LibraryLookButton.Content = choice.Look switch { LibraryLook.List => "List", LibraryLook.Wall => "Big cards", LibraryLook.Collage => "Collage", LibraryLook.Browse => "Browse", _ => "Cards" };
+        var looks = new List<(LibraryLook Look, string Name)> { (LibraryLook.List, "List"), (LibraryLook.Grid, "Cards"), (LibraryLook.Wall, "Big cards"), (LibraryLook.Collage, "Collage") };
+        if (BrowseOffered)
+        {
+            looks.Insert(0, (LibraryLook.Browse, "Browse"));
+        }
+
+        LibraryLookButton.Flyout = Choices("LibraryLook", looks,
             choice.Look, look => KeepViewChoice(choice with { Look = look, Grouping = look == LibraryLook.Collage ? LibraryGrouping.None : choice.Grouping }));
 
         // Each view offers the orders and groups that mean something for what it holds.
@@ -656,15 +670,20 @@ public sealed partial class MainWindow
     }
 
     /// <summary>One shelf: its title and a way to see all of it, over a row of cards that scrolls sideways.</summary>
-    private StackPanel Shelf(string title, LibrarySource see, IReadOnlyList<LibraryRow> rows, bool wide)
+    private StackPanel Shelf(string title, LibrarySource see, IReadOnlyList<LibraryRow> rows, bool wide, bool seeAll = true, string? id = null)
     {
+        id ??= see.ToString();
         var shelf = new StackPanel { Spacing = 6 };
         var heading = new Grid();
         heading.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"] });
-        var all = new HyperlinkButton { Content = "See all", HorizontalAlignment = HorizontalAlignment.Right };
-        AutomationProperties.SetAutomationId(all, "LibraryShelf-" + see);
-        all.Click += (_, _) => LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
-        heading.Children.Add(all);
+        if (seeAll)
+        {
+            var all = new HyperlinkButton { Content = "See all", HorizontalAlignment = HorizontalAlignment.Right };
+            AutomationProperties.SetAutomationId(all, "LibraryShelf-" + id);
+            all.Click += (_, _) => LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
+            heading.Children.Add(all);
+        }
+
         shelf.Children.Add(heading);
 
         var picture = rows.FirstOrDefault()?.Item is LibraryEntry { Kind: LibraryKind.Picture };
@@ -685,7 +704,7 @@ public sealed partial class MainWindow
         ScrollViewer.SetVerticalScrollMode(cards, ScrollMode.Disabled);
         ScrollViewer.SetVerticalScrollBarVisibility(cards, ScrollBarVisibility.Disabled);
         AutomationProperties.SetName(cards, title);
-        AutomationProperties.SetAutomationId(cards, "LibraryShelfCards-" + see);
+        AutomationProperties.SetAutomationId(cards, "LibraryShelfCards-" + id);
         cards.ContainerContentChanging += OnLibraryRowShown;
         if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
         {
@@ -788,12 +807,27 @@ public sealed partial class MainWindow
 
     internal void OnCardPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => SetCardPlay(sender, 0);
 
+    internal void OnCardLosingFocus(object sender, Microsoft.UI.Xaml.Input.LosingFocusEventArgs e) => SetCardPlay(sender, 0);
+
+    /// <summary>
+    /// Pointing at a card, or focusing it with the keyboard, reveals its play mark and lifts it a
+    /// little. Both are composition transitions the GPU runs on its own: no timers, no per-frame code.
+    /// </summary>
     private static void SetCardPlay(object card, double opacity)
     {
-        if (card is FrameworkElement element && element.FindName("CardPlay") is UIElement play)
+        if (card is not FrameworkElement element)
+        {
+            return;
+        }
+
+        if (element.FindName("CardPlay") is UIElement play)
         {
             play.OpacityTransition ??= new ScalarTransition { Duration = TimeSpan.FromMilliseconds(120) };
             play.Opacity = opacity;
         }
+
+        element.ScaleTransition ??= new Vector3Transition { Duration = TimeSpan.FromMilliseconds(140) };
+        element.CenterPoint = new System.Numerics.Vector3((float)(element.ActualWidth / 2), (float)(element.ActualHeight / 2), 0);
+        element.Scale = opacity > 0 ? new System.Numerics.Vector3(1.03f, 1.03f, 1f) : System.Numerics.Vector3.One;
     }
 }
