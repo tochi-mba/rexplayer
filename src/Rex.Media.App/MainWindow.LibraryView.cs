@@ -21,6 +21,8 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    private const string MostPlayedShelf = "Your most played";
+
     private static readonly (LibrarySource Source, LibrarySourceItem Item)[] LibrarySourceItems =
     [
         (LibrarySource.Home, new("\uE80F", "Home")),
@@ -62,6 +64,10 @@ public sealed partial class MainWindow
     private string _selectionView = "";
     private long _heroRequest;
     private bool _settingCardSize;
+    private readonly LibrarySearchText _librarySearchText = new();
+
+    /// <summary>A view opened by a shelf's "See all" in the shelf's order, until the user leaves it or keeps a choice of their own.</summary>
+    private (LibrarySource Source, LibraryViewChoice Choice)? _shelfChoice;
 
     private void WireLibraryView()
     {
@@ -76,6 +82,11 @@ public sealed partial class MainWindow
     /// <summary>How the view is shown: as the user last set it, else as suits what it holds.</summary>
     private LibraryViewChoice ViewChoice(string key)
     {
+        if (_shelfChoice is { } shelf && key == shelf.Source.ToString())
+        {
+            return shelf.Choice;
+        }
+
         if (_settings.LibraryViews.TryGetValue(key, out var kept))
         {
             return kept;
@@ -93,6 +104,7 @@ public sealed partial class MainWindow
 
     private void KeepViewChoice(LibraryViewChoice choice)
     {
+        _shelfChoice = null;
         _settings = _settings with { LibraryViews = new Dictionary<string, LibraryViewChoice>(_settings.LibraryViews, StringComparer.Ordinal) { [_libraryViewKey] = choice.Normalize() } };
         RememberLater();
         _shownLibrary = "";
@@ -108,7 +120,7 @@ public sealed partial class MainWindow
         }
 
         var entries = _library.Entries;
-        var search = LibrarySearch.Text.Trim();
+        var search = _librarySearchText.Build(LibrarySearch.Text);
         ResolveShowPage(search);
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
         var selected = selectionView == _selectionView
@@ -645,7 +657,7 @@ public sealed partial class MainWindow
         {
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
             ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
-            ("Your most played", LibrarySource.Songs, [.. entries.Where(entry => entry.Kind == LibraryKind.Music && entry.Plays > 0).OrderByDescending(entry => entry.Plays).Take(20).Select(EntryRow)], false),
+            (MostPlayedShelf, LibrarySource.Songs, [.. HomeShelves.MostPlayed(entries, 20).Select(EntryRow)], false),
             ("New in your library", LibrarySource.RecentlyAdded, [.. recent.Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
             ("Albums", LibrarySource.Albums, [.. LibraryArrangement.Sort(LibraryViews.Albums(entries), LibrarySort.Added, false).Take(20).Select(GroupRow)], false),
             ("Movies", LibrarySource.Movies, [.. LibraryViews.Movies(recent).Take(20).Select(EntryRow)], false),
@@ -680,7 +692,12 @@ public sealed partial class MainWindow
         {
             var all = new HyperlinkButton { Content = "See all", HorizontalAlignment = HorizontalAlignment.Right };
             AutomationProperties.SetAutomationId(all, "LibraryShelf-" + id);
-            all.Click += (_, _) => LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
+            all.Click += (_, _) =>
+            {
+                // The most played shelf opens Songs in its own order, so the view starts with the shelf.
+                _shelfChoice = title == MostPlayedShelf ? (see, HomeShelves.SeeAllMostPlayed(ViewChoice(see.ToString()))) : null;
+                LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
+            };
             heading.Children.Add(all);
         }
 

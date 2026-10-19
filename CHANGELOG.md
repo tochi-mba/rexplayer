@@ -63,6 +63,9 @@ pipeline the moment its number reaches `main`.
 - **Empty library views.** When quick filters hide everything in a view, it now names those filters and offers Clear filters, instead of saying the library has nothing of that kind. "Looking through your folders..." now updates when a scan starts or finishes, even if the scan found nothing new.
 - **Section times stay with their episode.** If the next episode opens while the intro or credits times are being edited, or while chapter suggestions are on screen, Save no longer writes them onto the new episode; rexplayer says nothing was saved instead.
 - **Empty or out-of-range section times.** Clearing a time box, or typing a value outside the video, now shows the usual message instead of silently failing to save.
+- **Library names for screen readers.** Library lists, cards and home shelves now tell a screen reader which item is playing ("Sungba, now playing"), as the screen already showed. Nothing on screen changes.
+- **See all on Your most played.** It now opens Songs ordered by plays, most played first, so the view starts with what the shelf showed, instead of in the usual Songs order. Your own Songs order comes back when you leave the view.
+- **Changing view with a search typed.** Choosing another view while the search box holds text now builds the new view once, not twice.
 
 ## 0.25.9 - 2026-10-18
 

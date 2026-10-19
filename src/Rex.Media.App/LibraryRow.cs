@@ -114,6 +114,9 @@ public sealed partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AccessibilityName)));
     }
 
-    /// <summary>What a screen reader says for the line, and what the window tests find it by.</summary>
-    public override string ToString() => Name;
+    /// <summary>
+    /// What a screen reader says for the line, and what the window tests find it by: a list's item
+    /// takes its accessible name from here, so it carries the now-playing mark the screen shows.
+    /// </summary>
+    public override string ToString() => AccessibilityName;
 }
