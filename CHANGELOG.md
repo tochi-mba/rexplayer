@@ -7,6 +7,8 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **TV shows enriched from TVmaze.** With TV lookups on, shows get posters, descriptions, genres, ratings and episode titles in the library, fetched once in the background and kept on this computer; a right-click offers Refresh metadata and Wrong match..., and a corrected match outlives every rescan.
+- **A Metadata section in Preferences.** rexplayer can now be allowed, kind by kind and strictly off by default, to fetch TV, movie and music details from free online catalogues; it keeps everything fetched on this computer beside the library, never looks inside excluded folders, and the downloads can be measured and cleared in one click.
 - **Artist pages.** Opening an artist in the library shows their most played songs and their albums, newest first, instead of one long song list. An album opens from the page into its own track list with the artist, year, song count and total length over it, Back returns to the artist, and Play and Shuffle play the artist's songs without repeating a top song that is also on an album.
 - Write a song's title, artist, album, album artist, track, disc, year, genre and cover into MP3 (ID3v2.3/2.4 and ID3v1) and FLAC files safely: a verified copy replaces the file only when its audio is byte-identical.
 - Edit details: right-click songs or an album to change title, artist, album, album artist, track, disc, year and genre; several songs at once show "(several values)" for fields that differ. Kept in rexplayer for now, over the files' own tags.
