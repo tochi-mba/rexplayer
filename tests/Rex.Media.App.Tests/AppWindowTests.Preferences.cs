@@ -133,7 +133,11 @@ public sealed partial class AppWindowTests
         using var app = AppProcess.Start();
         app.Run(CommandCatalog.Preferences);
         ChoosePreferencesSection(app, "Video and pictures");
-        Wait.For(() => app.IsShown("PreferencesSubjectModelsNote"), "the Enhanced Subject Lock models to show under Video and pictures");
+        // Only the chosen section is in the window, so finding the models at all puts them under Video and
+        // pictures; they sit at its foot, below the part scrolled into view.
+        Wait.For(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesSubjectModelsNote")) is not null,
+            "the Enhanced Subject Lock models to show under Video and pictures");
         Assert.NotNull(app.Window.FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesSubjectModelsDownload")));
         app.Press("CloseButton");
