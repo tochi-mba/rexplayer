@@ -334,7 +334,7 @@ public sealed partial class PlayerController
             return true;
         }
 
-        var at = Playlist.CurrentIndex + 1;
+        var at = Playlist.NextIndex;
         Playlist.Insert(at, [new PlaylistItem(next)]);
         Start(Playlist.JumpTo(at));
         return true;
