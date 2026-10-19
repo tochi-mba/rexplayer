@@ -83,6 +83,13 @@ public sealed partial class AppWindowTests : IDisposable
         Assert.Superset(
             new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.AddSubtitles, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
             found);
+
+        // Finer variants sit one level in: every jump length, under Playback, Jump.
+        var playback = (ExpandCollapsePattern)app.Find("PlaybackMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        playback.Expand();
+        ((ExpandCollapsePattern)app.Find("Submenu-jump").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        Assert.False(string.IsNullOrWhiteSpace(app.Find("Command-" + CommandCatalog.JumpBackLong).Current.Name));
+        playback.Collapse();
         Assert.Equal(0, app.Close());
     }
 
