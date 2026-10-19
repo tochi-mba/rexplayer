@@ -88,4 +88,19 @@ public sealed class LibraryActionsTests
         Assert.False(LibraryActions.DeletesFiles(new NamedPlaylist("1", "Mix", [])));
         Assert.False(LibraryActions.DeletesFiles(null));
     }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ARightClickActsOnTheLinePointedAtUnlessItIsAlreadyChosen()
+    {
+        // Right-clicking an unchosen line used to open a menu for the old choice, or "Choose
+        // something first" when nothing was chosen, never for the line under the pointer.
+        string[] chosen = ["Sungba", "Terminator"];
+        Assert.Same(chosen, LibraryActions.ContextLines(chosen, "Terminator"));
+        Assert.Same(chosen, LibraryActions.ContextLines(chosen, null));
+        Assert.Equal(["Lonely At The Top"], LibraryActions.ContextLines(chosen, "Lonely At The Top"));
+        Assert.Equal(["Sungba"], LibraryActions.ContextLines([], "Sungba"));
+        Assert.Empty(LibraryActions.ContextLines(Array.Empty<string>(), null));
+        Assert.Throws<ArgumentNullException>(() => LibraryActions.ContextLines<string>(null!, "Sungba"));
+    }
 }

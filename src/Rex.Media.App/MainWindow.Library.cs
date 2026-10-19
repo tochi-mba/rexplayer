@@ -112,6 +112,8 @@ public sealed partial class MainWindow
         entries.Opening += (_, _) => FillLibraryMenu(entries);
         LibraryList.ContextFlyout = entries;
         LibraryCollage.ContextFlyout = entries;
+        LibraryList.ContextRequested += OnLibraryContextRequested;
+        LibraryCollage.ContextRequested += OnLibraryContextRequested;
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();

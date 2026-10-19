@@ -63,6 +63,18 @@ public static class LibraryActions
     /// </summary>
     public static bool DeletesFiles(object? line) => line is LibraryEntry or LibraryGroup;
 
+    /// <summary>
+    /// The lines a right-click menu acts on: the chosen lines when the line pointed at is one of
+    /// them (or nothing is pointed at, as from the keyboard's menu key on a chosen line), else the
+    /// line pointed at alone, which then becomes the choice, as in a file window.
+    /// </summary>
+    public static IReadOnlyList<T> ContextLines<T>(IReadOnlyList<T> chosen, T? pointed)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(chosen);
+        return pointed is null || chosen.Contains(pointed) ? chosen : [pointed];
+    }
+
     /// <summary>The first few names, one a line, then "and N more"; nothing for one name (the title has it).</summary>
     private static string Named(IReadOnlyList<string> names)
     {
