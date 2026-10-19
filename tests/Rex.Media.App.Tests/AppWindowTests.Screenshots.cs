@@ -14,7 +14,7 @@ public sealed partial class AppWindowTests
     [Theory]
     [InlineData("Light")]
     [InlineData("Dark")]
-    [Capability("UI-01")]
+    [Capability("UI-13")]
     public void TheEmptyWindowLooksTheSameInEachTheme(string theme)
     {
         using var app = AppStartedAt(1000, 700, theme);
