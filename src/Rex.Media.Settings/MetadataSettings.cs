@@ -28,6 +28,9 @@ public sealed record MetadataSettings
     public MetadataSettings Normalize() => this with
     {
         TmdbApiKey = TmdbApiKey?.Trim() ?? "",
-        Excluded = [.. (Excluded ?? []).Where(folder => !string.IsNullOrWhiteSpace(folder)).Select(folder => folder.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)],
+        Excluded = Clean(Excluded),
     };
+
+    private static string[] Clean(IReadOnlyList<string>? folders) =>
+        [.. (folders ?? []).Where(folder => !string.IsNullOrWhiteSpace(folder)).Select(folder => folder.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)];
 }
