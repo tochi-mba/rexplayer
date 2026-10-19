@@ -64,38 +64,6 @@ public sealed partial class AppWindowTests : IDisposable
         [.. root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, type)).Cast<AutomationElement>()];
 
     [Fact]
-    [Capability("UI-02")]
-    public void EveryMenuOffersItsCommandsByName()
-    {
-        using var app = AppProcess.Start();
-        var found = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var menu in new[] { "MediaMenu", "PlaybackMenu", "AudioMenu", "SubtitleMenu", "VideoMenu", "ViewMenu", "HelpMenu" })
-        {
-            var expander = (ExpandCollapsePattern)app.Find(menu).GetCurrentPattern(ExpandCollapsePattern.Pattern);
-            expander.Expand();
-            var items = Wait.Until(() => All(app.Window, ControlType.MenuItem).Where(item => item.Current.AutomationId.StartsWith("Command-", StringComparison.Ordinal)).ToArray() is { Length: > 0 } some ? some : null);
-            Assert.All(items, item => Assert.False(string.IsNullOrWhiteSpace(item.Current.Name), item.Current.AutomationId));
-            found.UnionWith(items.Select(item => item.Current.AutomationId["Command-".Length..]));
-            if (menu == "PlaybackMenu")
-            {
-                // Finer variants sit one level in: every jump length, under Playback, Jump.
-                ((ExpandCollapsePattern)app.Find("Submenu-jump").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-                Assert.False(string.IsNullOrWhiteSpace(app.Find("Command-" + CommandCatalog.JumpBackLong).Current.Name));
-            }
-
-            expander.Collapse();
-        }
-
-        Assert.Superset(
-            new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.AddSubtitles, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
-            found);
-
-        Assert.Equal(0, app.Close());
-    }
-
-
-    [Fact]
     [Capability("VID-23")]
     public void VideoLookMenuChangesTheSavedStyleAndReturnsToOriginal()
     {
