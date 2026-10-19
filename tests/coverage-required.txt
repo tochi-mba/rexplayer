@@ -78,6 +78,7 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+EnrichedShow.cs
 EpisodeGrouping.cs
 EpisodeNames.cs
 EpisodeSectionDetection.cs
@@ -167,6 +168,9 @@ MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
 MetadataCache.cs
+MetadataChoices.cs
+MetadataFetcher.cs
+MetadataMatch.cs
 MetadataPolicy.cs
 MetadataSettings.cs
 MicroDvd.cs
@@ -332,6 +336,7 @@ TranscriptionStatus.cs
 TranscriptionWorker.cs
 TransferMeter.cs
 TransportAvailability.cs
+TvMaze.cs
 UpdateCheck.cs
 UpdateDownloader.cs
 UpdateFlow.cs

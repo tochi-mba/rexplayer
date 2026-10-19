@@ -119,6 +119,7 @@ public sealed partial class MainWindow
             return;
         }
 
+        StartMetadataWhenAllowed();
         var entries = _library.Entries;
         var search = _librarySearchText.Build(LibrarySearch.Text);
         ResolveShowPage(search);
