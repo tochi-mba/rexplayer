@@ -161,12 +161,20 @@ public sealed class PlayerControllerTests
     [Fact]
     public void RemovingTheQueuedLastItemEndsPlaybackWithTheItemPlaying()
     {
-        using var harness = new ControllerHarness();
+        var opened = new List<string>();
+        ControllerHarness? harnessRef = null;
+        using var harness = new ControllerHarness(openSource: location =>
+        {
+            opened.Add(location);
+            return new MemoryByteSource(harnessRef!.Files[location], location);
+        });
+        harnessRef = harness;
         harness.Files["a.wav"] = Count(0, 400);
         harness.Files["b.wav"] = Count(1000, 400);
 
         harness.Controller.Open(["a.wav", "b.wav"]);
-        harness.PumpUntil(controller => controller.Info is not null && controller.Item?.Title == "a");
+        // As above: b is opened only to queue it, so it is certainly queued when it is removed.
+        harness.PumpUntil(_ => opened.Contains("b.wav"));
         harness.Controller.Playlist.RemoveAt(1);
         harness.PumpUntil(controller => controller.State == SessionState.Ended);
 
