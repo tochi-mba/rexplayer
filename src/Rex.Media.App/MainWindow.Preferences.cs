@@ -280,7 +280,15 @@ public sealed partial class MainWindow
         keys.Click += (_, _) =>
         {
             // Keep this dialog and its pending values while the separate editor is open.
-            requestedEditor = ShowKeyboardAndMouseAsync;
+            // The editor names the jumps by the lengths set here, saved or not.
+            var jumps = _settings with
+            {
+                VeryShortJumpSeconds = (int)veryShort.Value,
+                ShortJumpSeconds = (int)shortJump.Value,
+                MediumJumpSeconds = (int)medium.Value,
+                LongJumpSeconds = (int)longJump.Value,
+            };
+            requestedEditor = () => ShowKeyboardAndMouseAsync(jumps);
             _dialog?.Hide();
         };
         content.Children.Add(keys);
