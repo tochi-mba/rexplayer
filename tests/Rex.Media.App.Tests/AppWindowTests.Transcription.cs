@@ -38,8 +38,8 @@ public sealed partial class AppWindowTests
         var subtitles = (ExpandCollapsePattern)app.Find("SubtitleMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         subtitles.Expand();
         ((ExpandCollapsePattern)app.Find("SubtitleTrackChoices").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-        var bestOriginal = new PropertyCondition(AutomationElement.NameProperty, "Transcript Best — Original");
-        var defaultOriginal = new PropertyCondition(AutomationElement.NameProperty, "Transcript Default — Original");
+        var bestOriginal = new PropertyCondition(AutomationElement.NameProperty, "Transcript Best · Original");
+        var defaultOriginal = new PropertyCondition(AutomationElement.NameProperty, "Transcript Default · Original");
         Wait.For(() => app.Window.FindAll(TreeScope.Descendants, defaultOriginal).Count == 1
                 && app.Window.FindAll(TreeScope.Descendants, bestOriginal).Count == 1,
             "one Best and one Default original after switching quality",
