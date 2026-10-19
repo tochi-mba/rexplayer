@@ -67,9 +67,6 @@ public sealed record DeviceBudget
     /// <summary>Subject Lock looks at every this-many-th sample across and down: 2 follows the subject at half size.</summary>
     public int SubjectStep { get; init; } = 1;
 
-    /// <summary>The largest speech model transcription uses, whatever larger one is chosen.</summary>
-    public TranscriptModelChoice LargestSpeechModel { get; init; } = TranscriptModelChoice.Small;
-
     /// <summary>The library may go on being transcribed while something plays, when the user allows it.</summary>
     public bool TranscribeWhilePlaying { get; init; } = true;
 
@@ -90,9 +87,6 @@ public sealed record DeviceBudget
 
     /// <summary>Audio packets waiting for the decoder (see EngineOptions.AudioQueueCapacity).</summary>
     public int AudioQueueCapacity { get; init; } = 64;
-
-    /// <summary>The speech model to use when <paramref name="chosen"/> is chosen: it, or the largest this tier allows.</summary>
-    public TranscriptModelChoice SpeechModel(TranscriptModelChoice chosen) => chosen > LargestSpeechModel ? LargestSpeechModel : chosen;
 
     /// <summary>Whether <paramref name="effect"/> may be shown on this tier.</summary>
     public bool Allows(VideoEffect effect) => !(HeavyEffectsOff && DeviceProfile.HeavyEffects.Contains(effect));
@@ -186,7 +180,6 @@ public static class DeviceProfile
                 Tier = tier,
                 VisualMaxSide = 1280,
                 VisualFrameMilliseconds = 33,
-                LargestSpeechModel = TranscriptModelChoice.Base,
                 VideoQueueCapacity = 24,
             },
             PerformanceTier.Fastest => new DeviceBudget
@@ -196,7 +189,6 @@ public static class DeviceProfile
                 VisualFrameMilliseconds = 40,
                 HeavyEffectsOff = true,
                 SubjectStep = 2,
-                LargestSpeechModel = TranscriptModelChoice.Tiny,
                 TranscribeWhilePlaying = false,
                 LeanLaunch = true,
                 LibraryPictureSide = 240,
@@ -261,9 +253,9 @@ public static class DeviceProfile
             changes.Add("Subject Lock follows its subject in a half-size copy of each picture.");
         }
 
-        if (budget.LargestSpeechModel < TranscriptModelChoice.Small)
+        if (!budget.TranscribeWhilePlaying)
         {
-            changes.Add($"Transcription uses at most the {(budget.LargestSpeechModel == TranscriptModelChoice.Tiny ? "Tiny" : "Base")} speech model{(budget.TranscribeWhilePlaying ? "" : ", and the library waits while something plays")}.");
+            changes.Add("The library is transcribed only while nothing plays.");
         }
 
         if (budget.LeanLaunch)

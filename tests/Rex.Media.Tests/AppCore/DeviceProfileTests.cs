@@ -75,7 +75,6 @@ public sealed class DeviceProfileTests
         Assert.Equal(new DeviceBudget(), budget);
         Assert.Empty(DeviceProfile.Changes(budget));
         Assert.All(Enum.GetValues<VideoEffect>(), effect => Assert.True(budget.Allows(effect)));
-        Assert.Equal(TranscriptModelChoice.Small, budget.SpeechModel(TranscriptModelChoice.Small));
     }
 
     [Fact]
@@ -85,13 +84,11 @@ public sealed class DeviceProfileTests
 
         Assert.Equal((1280, 33, 24, 64), (budget.VisualMaxSide, budget.VisualFrameMilliseconds, budget.VideoQueueCapacity, budget.AudioQueueCapacity));
         Assert.Equal((false, 1, true, false, true, true), (budget.HeavyEffectsOff, budget.SubjectStep, budget.TranscribeWhilePlaying, budget.LeanLaunch, budget.SeekPreview, budget.Animations));
-        Assert.Equal(TranscriptModelChoice.Base, budget.SpeechModel(TranscriptModelChoice.Small));
-        Assert.Equal(TranscriptModelChoice.Tiny, budget.SpeechModel(TranscriptModelChoice.Tiny));
         Assert.True(budget.Allows(VideoEffect.GhostwireMotion));
+        // Balanced says nothing about transcription: the quality chosen on the caption rail is used as it is.
         Assert.Equal(
             [
                 "Music visualisations are drawn at up to 1280 pixels across and 30 pictures a second, then scaled to the window.",
-                "Transcription uses at most the Base speech model.",
                 "Fewer pictures wait to be decoded, so playing uses less memory.",
             ],
             DeviceProfile.Changes(budget));
@@ -104,7 +101,6 @@ public sealed class DeviceProfileTests
 
         Assert.Equal((854, 40, 12, 32, 2, 240), (budget.VisualMaxSide, budget.VisualFrameMilliseconds, budget.VideoQueueCapacity, budget.AudioQueueCapacity, budget.SubjectStep, budget.LibraryPictureSide));
         Assert.Equal((true, false, true, false, false), (budget.HeavyEffectsOff, budget.TranscribeWhilePlaying, budget.LeanLaunch, budget.SeekPreview, budget.Animations));
-        Assert.Equal(TranscriptModelChoice.Tiny, budget.SpeechModel(TranscriptModelChoice.Base));
         Assert.False(budget.Allows(VideoEffect.NeonEdges));
         Assert.False(budget.Allows(VideoEffect.TopographicContours));
         Assert.False(budget.Allows(VideoEffect.ZoomBurst));
@@ -115,7 +111,8 @@ public sealed class DeviceProfileTests
         Assert.Contains(
             $"The heaviest picture effects stay off ({string.Join(", ", DeviceProfile.HeavyEffects.Select(VideoEffects.Name).Order(StringComparer.Ordinal))}). Choosing one says so.",
             changes);
-        Assert.Contains("Transcription uses at most the Tiny speech model, and the library waits while something plays.", changes);
+        // The user's transcription quality is used as chosen; only when the library is transcribed changes.
+        Assert.Contains("The library is transcribed only while nothing plays.", changes);
         Assert.Contains("Subject Lock follows its subject in a half-size copy of each picture.", changes);
         Assert.Contains("The timeline shows no preview picture under the pointer.", changes);
         Assert.Contains("The window's animations are off.", changes);
