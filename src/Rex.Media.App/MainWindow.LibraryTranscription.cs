@@ -48,6 +48,7 @@ public sealed partial class MainWindow
     private bool _queueDirty = true;
     private bool _queueRefreshing;
     private bool? _modelInstalled;
+    private readonly Dictionary<string, Task<bool>> _modelDownloads = new(StringComparer.Ordinal);
     private TranscriptModelChoice? _playingModelChoice;
     private long _transcriptGeneration;
 
@@ -438,6 +439,39 @@ public sealed partial class MainWindow
     private async Task<bool> EnsureSpeechModelAsync(bool askedNow, SpeechModel? requestedModel = null)
     {
         var model = requestedModel ?? TranscriptModel;
+        if (_modelDownloads.TryGetValue(model.Id, out var running))
+        {
+            // One download per model: a second request joins it rather than racing it for the file.
+            return await running;
+        }
+
+        var download = DownloadSpeechModelAsync(askedNow, model);
+        if (!download.IsCompleted)
+        {
+            _modelDownloads[model.Id] = download;
+        }
+
+        try
+        {
+            return await download;
+        }
+        finally
+        {
+            _modelDownloads.Remove(model.Id);
+        }
+    }
+
+    /// <summary>Another quality was chosen: its model is fetched (never on a metered connection unasked) when transcription is in use.</summary>
+    private void FetchModelForNewQuality()
+    {
+        if (TranscriptionConditions.FetchesModelForNewQuality(_settings.Transcription, _askedPlaying is not null || _askedTranscripts.Count > 0))
+        {
+            _ = EnsureSpeechModelAsync(askedNow: false);
+        }
+    }
+
+    private async Task<bool> DownloadSpeechModelAsync(bool askedNow, SpeechModel model)
+    {
         if (_speechModels.IsInstalled(model))
         {
             if (model == TranscriptModel)

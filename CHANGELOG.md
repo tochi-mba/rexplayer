@@ -26,6 +26,8 @@ pipeline the moment its number reaches `main`.
 - **Compilation tracks show under their own artists.** In the library's Artists view a song on a "Various Artists" album is listed under its own artist too, once.
 
 - **Caption waits across quality changes.** Changing the transcription quality from the caption rail or Preferences while playback waits for captions keeps the wait and its overlay until the new quality's saved coverage is known, instead of briefly resuming playback or leaving it paused with no overlay.
+- **Switching transcription quality.** Choosing a quality whose speech model is not downloaded yet now fetches it (never on a metered connection unless you ask) instead of silently making no subtitles, and two requests for one model share a single download.
+- **Subtitle track choices after a quality switch.** The newly chosen quality is listed once, as its live transcript, rather than also as a frozen copy loaded while another quality was active.
 - **Caption waits at launch.** A file opened with rexplayer waits for its captions from the start when "pause media while transcribing" is on, rather than playing uncaptioned until the launch settles.
 - **Library right-click menus.** Right-clicking a song, video, picture, album or card that is not selected now selects it and opens its menu, instead of offering "Choose something first" or acting on an earlier selection.
 - **Jump names follow your jump lengths.** The menus, the shortcut editor and the shortcut sheet name each jump by the length set in Preferences (such as Jump forward 30 seconds) instead of always saying a minute or five minutes, and each length in Preferences shows the keys that make that jump.

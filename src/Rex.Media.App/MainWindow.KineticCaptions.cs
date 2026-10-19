@@ -467,6 +467,7 @@ public sealed partial class MainWindow
         if (modelChanged)
         {
             OpenTranscriptOf(_player.Item?.Location, preserveHold: true);
+            FetchModelForNewQuality();
         }
     }
 
