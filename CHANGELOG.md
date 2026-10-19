@@ -62,9 +62,6 @@ pipeline the moment its number reaches `main`.
 - **Play next after removing the playing item.** If you remove the item that is playing from the queue, items you then choose to Play next (or a next episode) go where it was and play next, instead of going to the top of the queue and being passed over. Items added above that spot no longer change what plays next.
 - **Empty library views.** When quick filters hide everything in a view, it now names those filters and offers Clear filters, instead of saying the library has nothing of that kind. "Looking through your folders..." now updates when a scan starts or finishes, even if the scan found nothing new.
 - **Queue changes near the end of an item.** Removing the next item, putting something next, or turning on repeat one or shuffle in the last seconds of an item now changes what plays next, instead of playing the item that had already been lined up while showing another.
-
-### Fixed
-
 - **Section times stay with their episode.** If the next episode opens while the intro or credits times are being edited, or while chapter suggestions are on screen, Save no longer writes them onto the new episode; rexplayer says nothing was saved instead.
 - **Empty or out-of-range section times.** Clearing a time box, or typing a value outside the video, now shows the usual message instead of silently failing to save.
 - **Library names for screen readers.** Library lists, cards and home shelves now tell a screen reader which item is playing ("Sungba, now playing"), as the screen already showed. Nothing on screen changes.

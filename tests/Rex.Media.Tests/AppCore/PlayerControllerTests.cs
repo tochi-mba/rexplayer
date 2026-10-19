@@ -150,6 +150,22 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    public void RemovingTheQueuedLastItemEndsPlaybackWithTheItemPlaying()
+    {
+        using var harness = new ControllerHarness();
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["b.wav"] = Count(1000, 400);
+
+        harness.Controller.Open(["a.wav", "b.wav"]);
+        harness.PumpUntil(controller => controller.Info is not null && controller.Item?.Title == "a");
+        harness.Controller.Playlist.RemoveAt(1);
+        harness.PumpUntil(controller => controller.State == SessionState.Ended);
+
+        Assert.Equal("a", harness.Controller.Item?.Title);
+        Assert.Single(harness.Sinks);
+    }
+
+    [Fact]
     public void RepeatOneChosenAfterTheNextItemWasQueuedPlaysThisItemAgain()
     {
         using var harness = new ControllerHarness();
