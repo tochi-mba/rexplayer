@@ -70,6 +70,8 @@ public sealed partial class MainWindow
     private bool _stageReset;
     private TimeSpan _lastDrawn;
     private bool _visualizing;
+    private bool _visualDrawing;
+    private readonly VisualPacing _visualPacing = new();
 
     private void WireVisualizer()
     {
@@ -126,14 +128,26 @@ public sealed partial class MainWindow
         if (show != _visualizing)
         {
             _visualizing = show;
-            if (show)
-            {
-                CompositionTarget.Rendering += OnRendering;
-            }
-            else
+            if (!show)
             {
                 StopVisualizing();
             }
+        }
+
+        WakeVisualizer();
+    }
+
+    /// <summary>
+    /// Draws the visualisation again from the next frame, for at least <see cref="VisualPacing.Settle"/>:
+    /// the music started, or the picture was rebuilt or changed while it was still.
+    /// </summary>
+    private void WakeVisualizer()
+    {
+        _visualPacing.Wake();
+        if (_visualizing && !_visualDrawing)
+        {
+            _visualDrawing = true;
+            CompositionTarget.Rendering += OnRendering;
         }
     }
 
@@ -144,7 +158,7 @@ public sealed partial class MainWindow
     private void StopVisualizing()
     {
         CompositionTarget.Rendering -= OnRendering;
-        _visualizing = false;
+        (_visualizing, _visualDrawing) = (false, false);
         _bands.Reset();
         _spectrogramBands.Reset();
         _meterLeft.Reset();
@@ -302,6 +316,7 @@ public sealed partial class MainWindow
     private void BuildVisualizer()
     {
         _builtFor = _settings.Visualizer;
+        WakeVisualizer();
         VisualCanvas.Children.Clear();
         _barShapes.Clear();
         _peakShapes.Clear();
@@ -498,14 +513,27 @@ public sealed partial class MainWindow
 
     private void OnRendering(object? sender, object e)
     {
-        if (_closed || (_visualStage is not null && _stageWork is { IsCompleted: false }))
+        if (_closed)
+        {
+            return;
+        }
+
+        // Paused or ended, the picture settles and then stops being drawn until the music plays again.
+        var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
+        if (!_visualPacing.Draws(now, _player.IsPlaying, _builtFor is { } drawing && UsesCamera(drawing)))
+        {
+            CompositionTarget.Rendering -= OnRendering;
+            _visualDrawing = false;
+            return;
+        }
+
+        if (_visualStage is not null && _stageWork is { IsCompleted: false })
         {
             return;
         }
 
         // Sixty pictures a second while the stage draws quickly, so a beat shows within a frame of
         // being heard; thirty otherwise, and for the shapes, which spares the processor.
-        var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
         var elapsed = now - _lastDrawn;
         var fast = _visualStage is { DrawMilliseconds: < 12 } && _builtFor is { } built && VisualScene.Draws(built);
         var interval = TimeSpan.FromMilliseconds(Math.Max(fast ? 15 : 30, _budget.VisualFrameMilliseconds));
