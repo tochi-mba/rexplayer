@@ -18,6 +18,12 @@ public sealed record MetadataSettings
     /// <summary>Fetch album art and music details.</summary>
     public bool Music { get; init; }
 
+    /// <summary>
+    /// Fetched covers replace the artwork albums already carry, on screen only; off, they only fill
+    /// gaps. Nothing is ever written into the user's files either way.
+    /// </summary>
+    public bool ReplaceCovers { get; init; }
+
     /// <summary>The user's own free TMDB API key; without one, nothing is asked of TMDB.</summary>
     public string TmdbApiKey { get; init; } = "";
 

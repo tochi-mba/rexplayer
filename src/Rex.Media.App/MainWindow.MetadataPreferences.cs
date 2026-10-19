@@ -38,6 +38,14 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(movies, "PreferencesMetadataMovies");
         var music = Check("Fetch album art and music details (MusicBrainz and the Cover Art Archive)", m.Music);
         AutomationProperties.SetAutomationId(music, "PreferencesMetadataMusic");
+        var covers = Choice("Fetched album covers", ["Fill missing covers only", "Replace existing covers too"], m.ReplaceCovers ? 1 : 0);
+        AutomationProperties.SetAutomationId(covers, "PreferencesMetadataCovers");
+        var coversHelp = new TextBlock
+        {
+            Text = "Replacing changes only what rexplayer shows; your files are never written to. Per album, right-click for Replace cover... and Restore original cover.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.75,
+        };
         var key = new PasswordBox { Header = "TMDB API key", Password = m.TmdbApiKey, MinWidth = 220 };
         AutomationProperties.SetName(key, "TMDB API key");
         AutomationProperties.SetAutomationId(key, "PreferencesMetadataTmdbKey");
@@ -138,7 +146,7 @@ public sealed partial class MainWindow
             clear.IsEnabled = true;
         };
 
-        UIElement[] controls = [intro, tv, movies, music, key, keyHelp, attribution, leftOutHeading, leftOut, leaveOut, cacheLine, clear];
+        UIElement[] controls = [intro, tv, movies, music, covers, coversHelp, key, keyHelp, attribution, leftOutHeading, leftOut, leaveOut, cacheLine, clear];
         return (controls, settings => settings with
         {
             Metadata = new MetadataSettings
@@ -146,6 +154,7 @@ public sealed partial class MainWindow
                 TvShows = tv.IsChecked == true,
                 Movies = movies.IsChecked == true,
                 Music = music.IsChecked == true,
+                ReplaceCovers = covers.SelectedIndex == 1,
                 TmdbApiKey = key.Password,
                 Excluded = excluded,
             }.Normalize(),
