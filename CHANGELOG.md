@@ -15,8 +15,7 @@ pipeline the moment its number reaches `main`.
 - **A Metadata section in Preferences.** rexplayer can now be allowed, kind by kind and strictly off by default, to fetch TV, movie and music details from free online catalogues; it keeps everything fetched on this computer beside the library, never looks inside excluded folders, and the downloads can be measured and cleared in one click.
 - **A streaming-style browse for Movies and TV shows.** Both views now open on a featured billboard - the movie or show you left part-way, else the most watched, else the newest - with Play and one more action, over rows that scroll sideways: Continue watching with progress bars, Recently added, Most watched, the movies' genres, and everything A-Z. The Browse layout sits beside List, Cards, Big cards and Collage, and each view remembers the layout you choose.
 - Edit details: right-click songs or an album to change title, artist, album, album artist, track, disc, year and genre; several songs at once show "(several values)" for fields that differ. MP3 and FLAC files take the new details and cover (written once a playing file is free); other files keep them in rexplayer. Preferences > Library chooses "write them into the files" or "keep them in rexplayer only".
-
-
+- **About rexplayer.** Help, About rexplayer names the version and when it last updated, shows where the settings, library and log live, and leads to What's new, the website, the log folder and a check for updates. Help, What's new in this version opens the release notes at any time, not only from Preferences after an update.
 
 
 ### Improved
