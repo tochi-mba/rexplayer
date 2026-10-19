@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.VisualBasic.FileIO;
 using Windows.Storage.Pickers;
@@ -38,8 +39,12 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _libraryRescan;
     private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
+
+    /// <summary>The group opened inside <see cref="_libraryGroup"/>: a show's season, or an artist's album.</summary>
     private LibraryGroup? _librarySeason;
     private string _shownLibrary = "";
+    private (bool Searching, LibrarySource? Source, LibraryViewChoice? Choice)? _emptyView;
+    private LibraryEmptyState? _shownEmpty;
 
     private enum LibrarySource
     {
@@ -112,6 +117,8 @@ public sealed partial class MainWindow
         entries.Opening += (_, _) => FillLibraryMenu(entries);
         LibraryList.ContextFlyout = entries;
         LibraryCollage.ContextFlyout = entries;
+        LibraryList.ContextRequested += OnLibraryContextRequested;
+        LibraryCollage.ContextRequested += OnLibraryContextRequested;
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();
@@ -336,7 +343,17 @@ public sealed partial class MainWindow
         }
     }
 
-    private void ShowLibraryStatus() => LibraryStatus.Text = _scanner?.Status ?? "";
+    private void ShowLibraryStatus()
+    {
+        LibraryStatus.Text = _scanner?.Status ?? "";
+
+        // A scan that finds nothing new changes no entries, so the view is never rebuilt: an empty
+        // one would go on saying it is looking, or never say so.
+        if (_emptyView is not null && LibraryOpen)
+        {
+            ShowLibraryEmptyState();
+        }
+    }
 
     private void OnLibrarySourceChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -366,26 +383,56 @@ public sealed partial class MainWindow
         ShowLibrary();
     }
 
-    private void ShowLibraryEmpty(bool empty, bool searching, LibrarySource? source)
+    /// <summary>
+    /// Shows or hides the words of an empty view and the ways out under them. They are kept, so a
+    /// scan starting or finishing updates them (its status changes no entries), and the buttons are
+    /// rebuilt only when what the view says changes.
+    /// </summary>
+    private void ShowLibraryEmpty(bool empty, bool searching, LibrarySource? source, LibraryViewChoice? choice = null)
     {
-        LibraryEmpty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-        LibraryFolderButtons.Children.Clear();
-        if (!empty)
+        _emptyView = empty ? (searching, source, choice) : null;
+        ShowLibraryEmptyState();
+    }
+
+    private void ShowLibraryEmptyState()
+    {
+        if (_emptyView is not { } empty)
+        {
+            _shownEmpty = null;
+            LibraryEmpty.Visibility = Visibility.Collapsed;
+            LibraryFolderButtons.Children.Clear();
+            return;
+        }
+
+        var (searching, source, choice) = empty;
+        var view = source switch
+        {
+            LibrarySource.ContinueWatching => LibraryEmptyView.ContinueWatching,
+            LibrarySource.RecentlyPlayed => LibraryEmptyView.RecentlyPlayed,
+            LibrarySource.Playlists => LibraryEmptyView.Playlists,
+            LibrarySource.Folders => LibraryEmptyView.Folders,
+            _ => LibraryEmptyView.Media,
+        };
+        var state = LibraryEmptyState.For(view, searching, _library!.Folders.Count > 0,
+            choice is { IsFiltered: true } ? LibraryArrangement.FilterLabel(choice) : null, _scanner?.Status.Length > 0);
+        LibraryEmpty.Visibility = Visibility.Visible;
+        if (state == _shownEmpty)
         {
             return;
         }
 
-        var noFolders = _library!.Folders.Count == 0;
-        LibraryEmptyText.Text = searching ? "Nothing in the library matches that."
-            : noFolders && source is not LibrarySource.Playlists ? "The library shows the music, videos and pictures in the folders you choose, and keeps up as files come and go."
-            : source switch
-            {
-                LibrarySource.ContinueWatching => "Videos you stop part-way through wait here.",
-                LibrarySource.RecentlyPlayed => "What you play from the library shows here.",
-                LibrarySource.Playlists => "Playlists you keep (Media, Playlists) show here.",
-                _ => _scanner!.Status.Length > 0 ? "Looking through your folders..." : "There is nothing of this kind in the library's folders.",
-            };
-        if (searching || !(noFolders || source == LibrarySource.Folders))
+        _shownEmpty = state;
+        LibraryEmptyText.Text = state.Text;
+        LibraryFolderButtons.Children.Clear();
+        if (state.OffersClearFilters)
+        {
+            var clear = new Button { Content = "Clear filters" };
+            AutomationProperties.SetAutomationId(clear, "LibraryEmptyClearFilters");
+            clear.Click += (_, _) => KeepViewChoice(ViewChoice(_libraryViewKey).Unfiltered());
+            LibraryFolderButtons.Children.Add(clear);
+        }
+
+        if (!state.OffersFolders)
         {
             return;
         }
@@ -423,18 +470,16 @@ public sealed partial class MainWindow
         LibraryActions.Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
         group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
 
-    private List<LibraryRow> EntryRows(IEnumerable<LibraryEntry> entries) => [.. entries.Select(EntryRow)];
-
     private LibraryRow EntryRow(LibraryEntry entry)
     {
         var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
         var name = _librarySource == LibrarySource.Movies && entry.Kind == LibraryKind.Video
             ? LibraryViews.MovieTitleOf(entry)
-            : episode is not null && entry.Title == MediaLibrary.TitleOf(entry.Path) ? episode.DisplayName : entry.Title;
+            : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path) ? episode.DisplayName : entry.Title;
         var detail = entry.Kind == LibraryKind.Video
             ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
-                + (episode is null ? "" : $"Season {episode.Season} · Episode {episode.Episode} · ")
+                + (episode is null ? "" : episode.Spoken + " · ")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
                 ? string.Join(" · ", new[] { Path.GetFileName(Path.GetDirectoryName(entry.Path)), entry.Modified == default ? null : entry.Modified.ToLocalTime().ToString("d", CultureInfo.CurrentCulture) }.Where(part => part is not null))
@@ -449,7 +494,7 @@ public sealed partial class MainWindow
         var badge = entry.Kind switch
         {
             LibraryKind.Music when entry.Track is { } track => entry.Disc is > 1 ? $"{entry.Disc}.{track}" : track.ToString(CultureInfo.CurrentCulture),
-            LibraryKind.Video when episode is not null => $"S{episode.Season:00} E{episode.Episode:00}",
+            LibraryKind.Video when episode is not null => episode.Badge,
             _ => "",
         };
         var placeholder = entry.Kind switch { LibraryKind.Music => "♪", LibraryKind.Video => "▶", _ => "▧" };
@@ -553,7 +598,11 @@ public sealed partial class MainWindow
         return chosen.Count > 0 ? [.. rows.Where(chosen.Contains)] : rows;
     }
 
-    /// <summary>The media the lines stand for, in order: an album's songs, or a folder's media by kind.</summary>
+    /// <summary>
+    /// The media the lines stand for, in order: an album's songs, or a folder's media by kind. A
+    /// file several lines share (an artist page's top song inside one of its albums) plays once,
+    /// at its first place.
+    /// </summary>
     private List<LibraryEntry> EntriesOf(IEnumerable<LibraryRow> rows) =>
         [.. rows.SelectMany(row => row.Item switch
         {
@@ -561,7 +610,7 @@ public sealed partial class MainWindow
             LibraryGroup group => group.Entries,
             string folder => [.. LibraryViews.Songs(_library!.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Videos(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Pictures(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path)))],
             _ => [],
-        })];
+        }).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
     private void OnLibraryPlay(object sender, RoutedEventArgs e) => PlayChosen();
 

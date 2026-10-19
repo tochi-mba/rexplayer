@@ -118,6 +118,20 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    public void FailuresBeforeTheUserOpensSomethingElseDoNotStopItsPlayableItems()
+    {
+        using var harness = new ControllerHarness();
+        harness.Files["a.wav"] = Count(0, 400);
+
+        harness.Controller.Open(["gone.wav"]);
+        Assert.Equal(SessionState.Faulted, harness.Controller.State);
+        harness.Controller.Open(["missing.wav", "a.wav"]);
+        harness.PumpUntil(controller => EndedOn(controller, "a"));
+
+        Assert.Equal(Expected((0, 400)), harness.Played());
+    }
+
+    [Fact]
     public void RepeatOnePlaysTheItemAgainUntilStopped()
     {
         using var harness = new ControllerHarness(settings: new PlayerSettings { Repeat = RepeatMode.One });
@@ -671,6 +685,15 @@ public sealed class PlayerControllerTests
         Assert.Equal("Transcript (base.en)", controller.Subtitles!.Name);
         Assert.NotSame(again, controller.Subtitles);
         Assert.Throws<ArgumentNullException>(() => controller.AddSubtitles(null!, show: true));
+
+        var generated = controller.Subtitles;
+        controller.ShowSecondarySubtitles(generated);
+        Assert.True(controller.RemoveSubtitles(generated));
+        Assert.Null(controller.Subtitles);
+        Assert.Null(controller.SecondarySubtitles);
+        Assert.DoesNotContain(generated, controller.SubtitleTracks);
+        Assert.False(controller.RemoveSubtitles(generated));
+        Assert.Throws<ArgumentNullException>(() => controller.RemoveSubtitles(null!));
     }
 
     [Fact]

@@ -62,7 +62,7 @@ public sealed class LibraryViewsTests
 
         // Named as most of their songs spell them.
         var artists = LibraryViews.Artists(Entries);
-        Assert.Equal(["Asake", "Burna Boy", "Various", LibraryViews.UnknownArtist], artists.Select(artist => artist.Name));
+        Assert.Equal(["Asake", "Burna Boy", "Olamide", "Various", "Wizkid", LibraryViews.UnknownArtist], artists.Select(artist => artist.Name));
         Assert.Equal(6, artists[0].Entries.Count);
         var genres = LibraryViews.Genres(Entries);
         Assert.Equal(["Afrobeats", LibraryViews.UnknownGenre], genres.Select(genre => genre.Name));
@@ -80,6 +80,19 @@ public sealed class LibraryViewsTests
         Assert.Equal(["Asake", "DJ Snake", "Kabza De Small"], artists.Select(artist => artist.Name));
         Assert.Equal(["Peace Be Unto You", "Amapiano"], Titles(artists[0].Entries));
         Assert.Equal("Asake; DJ Snake; asake", together.Artist);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ACompilationTrackAppearsUnderItsAlbumArtistAndItsOwnArtistOnce()
+    {
+        var compiled = Song("Sungba", "Asake", "Afro Hits", albumArtist: "Various Artists");
+        var own = Song("Terminator", "Asake", "Work of Art", albumArtist: "Asake");
+        var artists = LibraryViews.Artists([compiled, own]);
+
+        Assert.Equal(["Asake", "Various Artists"], artists.Select(artist => artist.Name));
+        Assert.Equal(["Terminator", "Sungba"], Titles(artists[0].Entries));
+        Assert.Equal(["Sungba"], Titles(artists[1].Entries));
     }
 
     [Fact]
@@ -161,7 +174,7 @@ public sealed class LibraryViewsTests
         var episodes = new[] { 10, 2, 1 }.Select(number => VideoAt(folder, $"The.Rehearsal.S01E{number:00}.1080p.WEBRip.x265-RARBG")).ToList();
         var anotherShow = VideoAt(folder, "Elsewhere.S01E03.1080p");
         var anotherFolder = VideoAt(Path.Combine("D:\\Videos", "Copy"), "The.Rehearsal.S01E04.1080p");
-        var movie = VideoAt(folder, "A Movie");
+        var movie = VideoAt(@"D:\Videos", "A Movie");
 
         var detected = LibraryViews.EpisodeOf(episodes[1]);
         Assert.Equal(new VideoEpisode("The Rehearsal", 1, 2), detected);
@@ -169,7 +182,8 @@ public sealed class LibraryViewsTests
         Assert.Equal([1, 2, 10], LibraryViews.AutoplayVideos([.. episodes, anotherShow, anotherFolder, movie], episodes[1]).Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
         Assert.Equal([movie], LibraryViews.AutoplayVideos(episodes, movie));
         Assert.Equal([Song("Not video", null, null)], LibraryViews.AutoplayVideos([], Song("Not video", null, null)));
-        Assert.Null(LibraryViews.EpisodeOf(VideoAt(folder, "S01E01")));
+        // A bare mark in a season folder named after the show is that show's episode.
+        Assert.Equal(new VideoEpisode("The Rehearsal", 1, 1), LibraryViews.EpisodeOf(VideoAt(folder, "S01E01")));
         Assert.Throws<ArgumentNullException>(() => LibraryViews.EpisodeOf(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryViews.AutoplayVideos(null!, episodes[0]));
         Assert.Throws<ArgumentNullException>(() => LibraryViews.AutoplayVideos(episodes, null!));

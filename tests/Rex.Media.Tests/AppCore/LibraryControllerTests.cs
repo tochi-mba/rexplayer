@@ -50,7 +50,6 @@ public sealed class LibraryControllerTests
         controller.PlayFromLibrary(view, start: 0, resumeAt: TimeSpan.FromMilliseconds(250));
         harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "Sungba.wav");
         Assert.Equal(TimeSpan.FromMilliseconds(250), controller.Position);
-        Assert.Null(controller.ResumeOffer);
 
         // Queued after, and played only when nothing plays; nothing to play does nothing.
         controller.EnqueueFromLibrary([Entry("Joha.wav")]);

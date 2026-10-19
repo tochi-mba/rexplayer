@@ -69,7 +69,9 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The key a view's choices are kept under: its name, or the kind of group opened in it, or the search.</summary>
-    private string ViewKey(bool searching) => searching ? "Search" : _librarySeason is not null ? "TvShows season" : _libraryGroup is not null ? _librarySource + " group" : _librarySource.ToString();
+    private string ViewKey(bool searching) => searching ? "Search"
+        : _librarySeason is not null ? (_librarySource == LibrarySource.Artists ? "Artists album" : "TvShows season")
+        : _libraryGroup is not null ? _librarySource + " group" : _librarySource.ToString();
 
     /// <summary>How the view is shown: as the user last set it, else as suits what it holds.</summary>
     private LibraryViewChoice ViewChoice(string key)
@@ -81,7 +83,7 @@ public sealed partial class MainWindow
 
         return key switch
         {
-            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Genres group" => new LibraryViewChoice(LibraryLook.List),
+            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" => new LibraryViewChoice(LibraryLook.List),
             "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
             "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200),
             "Videos" or "ContinueWatching" or "TvShows group" or "TvShows season" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
@@ -134,6 +136,7 @@ public sealed partial class MainWindow
         var kind = LibraryKind.Music;
         var options = true;
         var groupsView = false;
+        var artistPage = false;
         if (search.Length > 0)
         {
             (kicker, title) = ("SEARCH", search);
@@ -146,7 +149,7 @@ public sealed partial class MainWindow
             // The group again, as the library has it now.
             var fresh = LibraryViews.RefreshGroup(Groups(_librarySource, entries), opened, _librarySource == LibrarySource.Albums);
             _libraryGroup = fresh;
-            kicker = _librarySource switch { LibrarySource.Albums => "ALBUM", LibrarySource.Artists => "ARTIST", LibrarySource.TvShows when _librarySeason is not null => "SEASON", LibrarySource.TvShows => "TV SHOW", _ => "GENRE" };
+            kicker = _librarySource switch { LibrarySource.Albums => "ALBUM", LibrarySource.Artists when _librarySeason is not null => "ALBUM", LibrarySource.Artists => "ARTIST", LibrarySource.TvShows when _librarySeason is not null => "SEASON", LibrarySource.TvShows => "TV SHOW", _ => "GENRE" };
             title = fresh.Name;
             var members = fresh.Entries;
             if (_librarySource == LibrarySource.TvShows)
@@ -166,6 +169,35 @@ public sealed partial class MainWindow
                     sections = [new LibraryRowGroup("", seasons.Select(GroupRow))];
                     subtitle = Count(seasons.Count, "season");
                     groupsView = true;
+                }
+            }
+            else if (_librarySource == LibrarySource.Artists)
+            {
+                // The artist page: their most played songs, then their albums, newest first; an
+                // album opened from it shows its own track list, with Back returning to the artist.
+                var albums = ArtistPages.Albums(fresh);
+                if (_librarySeason is { } openedAlbum)
+                {
+                    var album = LibraryViews.RefreshGroup([.. albums.Select(artistAlbum => artistAlbum.Album)], openedAlbum);
+                    _librarySeason = album;
+                    kicker = "ALBUM";
+                    title = album.Name;
+                    var albumYear = albums.FirstOrDefault(artistAlbum => artistAlbum.Album == album)?.Year ?? album.Entries.Max(entry => entry.Year);
+                    subtitle = string.Join(" \u00B7 ", new[] { fresh.Name, albumYear?.ToString(CultureInfo.CurrentCulture), Count(album.Entries.Count, "song"), Total(album.Entries) }.Where(part => !string.IsNullOrEmpty(part)));
+                    sections = EntrySections(album.Entries, choice);
+                }
+                else
+                {
+                    artistPage = true;
+                    var top = ArtistPages.TopSongs(fresh);
+                    sections = [];
+                    if (top.Count > 0)
+                    {
+                        sections.Add(new LibraryRowGroup("Top songs", top.Select(EntryRow)));
+                    }
+
+                    sections.Add(new LibraryRowGroup("Albums", albums.Select(ArtistAlbumRow)));
+                    subtitle = string.Join(" \u00B7 ", new[] { Count(albums.Count, "album"), Count(members.Count, "song"), Total(members) }.Where(part => !string.IsNullOrEmpty(part)));
                 }
             }
             else
@@ -211,7 +243,7 @@ public sealed partial class MainWindow
                 groupsView = true;
                 var groups = LibraryArrangement.Sort(Groups(_librarySource, entries), choice.Sort, choice.Descending);
                 sections = choice.Grouping == LibraryGrouping.Letter
-                    ? [.. groups.GroupBy(group => FirstLetter(group.Name)).OrderBy(group => group.Key == "#").ThenBy(group => group.Key, StringComparer.CurrentCulture).Select(group => new LibraryRowGroup(group.Key, group.Select(GroupRow)))]
+                    ? [.. groups.GroupBy(group => LibraryArrangement.LetterOf(group.Name)).OrderBy(group => group.Key == "#").ThenBy(group => group.Key, StringComparer.CurrentCulture).Select(group => new LibraryRowGroup(group.Key, group.Select(GroupRow)))]
                     : [new LibraryRowGroup("", groups.Select(GroupRow))];
                 kind = _librarySource == LibrarySource.TvShows ? LibraryKind.Video : LibraryKind.Music;
                 subtitle = Count(groups.Count, _librarySource switch { LibrarySource.Albums => "album", LibrarySource.Artists => "artist", LibrarySource.TvShows => "show", _ => "genre" });
@@ -233,14 +265,14 @@ public sealed partial class MainWindow
         LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
         ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
-        ShowViewOptions(options, choice, groupsView, kind);
+        ShowViewOptions(options && !artistPage, choice, groupsView, kind);
         LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
-        ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source);
+        ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
-        var look = SetLibraryLook(options ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
+        var look = SetLibraryLook(options && !artistPage ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
         var shown = look + "\n" + title + "\n" + grouped + "\n" + string.Join("\n", sections.Select(section => section.Header + ":" + string.Join("\n", section.Select(RowIdentity))));
         if (shown == _shownLibrary)
@@ -346,6 +378,11 @@ public sealed partial class MainWindow
     private List<LibraryRowGroup> EntrySections(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice) =>
         [.. LibraryArrangement.Group(LibraryArrangement.Sort(entries, choice.Sort, choice.Descending), choice.Grouping, DateTime.UtcNow)
             .Select(section => new LibraryRowGroup(section.Header, section.Entries.Select(EntryRow)))];
+
+    /// <summary>An album's line on its artist's page: artwork, name, year, how many songs and how long.</summary>
+    private static LibraryRow ArtistAlbumRow(ArtistAlbum album) => new(album.Album.Name,
+        string.Join(" · ", new[] { album.Year?.ToString(CultureInfo.CurrentCulture), Count(album.Album.Entries.Count, "song") }.Where(part => part is not null)),
+        Total(album.Album.Entries), album.Album, hasPicture: true, picturePlaceholder: "♪");
 
     private static string FirstLetter(string name) => name.TrimStart().FirstOrDefault() is var first && char.IsLetter(first) ? char.ToUpper(first, CultureInfo.CurrentCulture).ToString() : "#";
 

@@ -334,7 +334,7 @@ public sealed partial class PlayerController
             return true;
         }
 
-        var at = Playlist.CurrentIndex + 1;
+        var at = Playlist.NextIndex;
         Playlist.Insert(at, [new PlaylistItem(next)]);
         Start(Playlist.JumpTo(at));
         return true;
@@ -359,6 +359,21 @@ public sealed partial class PlayerController
     {
         return _activeProposals?.Best(kind, Duration) is { } candidate &&
             SetSectionBounds(kind, candidate.Start, candidate.End);
+    }
+
+    /// <summary>
+    /// Saves boundaries typed into the section editor, in seconds, onto <paramref name="editing"/>
+    /// only: another episode may have opened while the editor was showing. An empty box (NaN), an
+    /// infinite value or one outside the video is refused before it reaches
+    /// <see cref="TimeSpan.FromSeconds(double)"/>, which would throw for it.
+    /// </summary>
+    public bool SetSectionBounds(EpisodeSectionKind kind, double startSeconds, double endSeconds, PlaylistItem editing)
+    {
+        var length = Duration.TotalSeconds;
+        return ReferenceEquals(editing, Item) &&
+            double.IsFinite(startSeconds) && double.IsFinite(endSeconds) &&
+            startSeconds >= 0 && startSeconds <= length && endSeconds >= 0 && endSeconds <= length &&
+            SetSectionBounds(kind, TimeSpan.FromSeconds(startSeconds), TimeSpan.FromSeconds(endSeconds));
     }
 
     /// <summary>Sets both boundaries of one section exactly, leaving the other section alone.</summary>

@@ -129,6 +129,19 @@ public sealed class LibraryArrangementTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void AnAccentedFirstLetterSitsUnderItsPlainLetter()
+    {
+        // "Édith" used to get an "É" heading of its own, apart from the other E's.
+        var sections = LibraryArrangement.Group([Song("Ezra"), Song("Édith"), Song("éclair"), Song("Ñandú"), Song("1999")], LibraryGrouping.Letter, Now);
+        Assert.Equal(["E", "N", "#"], sections.Select(section => section.Header));
+        Assert.Equal(["Ezra", "Édith", "éclair"], sections[0].Entries.Select(entry => entry.Title));
+        Assert.Equal("O", LibraryArrangement.LetterOf("  özil"));
+        Assert.Equal("#", LibraryArrangement.LetterOf(null));
+        Assert.Equal("#", LibraryArrangement.LetterOf(""));
+    }
+
+    [Fact]
     public void GroupsOfSongsAreOrderedByWhatIsInThem()
     {
         var albums = LibraryViews.Albums(Asake);

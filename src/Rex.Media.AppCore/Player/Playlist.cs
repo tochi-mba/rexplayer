@@ -81,6 +81,9 @@ public sealed class Playlist(Random? random = null)
 
     public int CurrentIndex => Current is null ? -1 : _items.IndexOf(Current);
 
+    /// <summary>Where <paramref name="item"/> is in the queue, or -1 when it is not there.</summary>
+    public int IndexOf(PlaylistItem item) => _items.IndexOf(item);
+
     public RepeatMode Repeat
     {
         get;
@@ -363,10 +366,22 @@ public sealed class Playlist(Random? random = null)
         return _nextCycle;
     }
 
+    /// <summary>
+    /// Where in the list items put next go: straight after what is playing, or with nothing current
+    /// (its item was removed) after the item the queue carries on from; before the start or after
+    /// the end, at the top, where playing starts again.
+    /// </summary>
+    public int NextIndex => Current is not null ? CurrentIndex + 1
+        : _position >= 0 && _position < _order.Count ? _items.IndexOf(_order[_position]) + 1
+        : 0;
+
+    /// <summary>The play order back to the list's order, still carrying on from the same place.</summary>
     private void Unshuffle()
     {
+        // With nothing current the position marks the item the queue carries on from; it keeps the mark wherever it now is.
+        var mark = Current ?? (_position >= 0 && _position < _order.Count ? _order[_position] : null);
         _order = [.. _items];
-        _position = Current is null ? Math.Min(_position, _order.Count) : _order.IndexOf(Current);
+        _position = mark is null ? Math.Min(_position, _order.Count) : _order.IndexOf(mark);
     }
 
     private List<PlaylistItem> Shuffled(IEnumerable<PlaylistItem> items)

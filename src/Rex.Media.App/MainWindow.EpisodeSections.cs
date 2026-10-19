@@ -316,6 +316,7 @@ public sealed partial class MainWindow
             return;
         }
 
+        var editing = _player.Item!;
         var confirmed = _player.CurrentSections;
         var proposed = _player.CurrentProposals?.Best(kind, _player.Duration);
         var start = kind == EpisodeSectionKind.Intro ? confirmed.IntroStart : confirmed.CreditsStart;
@@ -385,8 +386,11 @@ public sealed partial class MainWindow
         {
             if (await Ask("Adjust the " + label.ToLowerInvariant(), panel, "Save", "Cancel"))
             {
-                if (!_player.SetSectionBounds(kind, TimeSpan.FromSeconds(startInput.Value),
-                        TimeSpan.FromSeconds(endInput.Value)))
+                if (!ReferenceEquals(editing, _player.Item))
+                {
+                    Say("Another video opened while the times were being edited, so nothing was saved.");
+                }
+                else if (!_player.SetSectionBounds(kind, startInput.Value, endInput.Value, editing))
                 {
                     Say("The end must be at least two seconds after the start and inside the video.");
                 }
@@ -461,7 +465,8 @@ public sealed partial class MainWindow
     /// <summary>Chapter names are hints only. The viewer approves the actual intervals before saving.</summary>
     private async Task ConfirmChapterSuggestionsAsync()
     {
-        if (_player.ChapterSectionSuggestions is not { } found)
+        var reviewed = _player.Item;
+        if (_player.ChapterSectionSuggestions is not { } found || reviewed is null)
         {
             Say("No unambiguous intro or credits chapters were found. You can mark the sections manually.");
             return;
@@ -482,7 +487,11 @@ public sealed partial class MainWindow
         };
         if (await Ask("Save the suggested section markers?", description, "Save markers", "Cancel"))
         {
-            _player.ApplyChapterSectionSuggestions();
+            if (!_player.ApplyChapterSectionSuggestions(reviewed) && !ReferenceEquals(reviewed, _player.Item))
+            {
+                Say("Another video opened while the suggestions were showing, so nothing was saved.");
+            }
+
             ShowEpisodeSkip();
         }
     }

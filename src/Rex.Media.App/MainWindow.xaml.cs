@@ -96,7 +96,6 @@ public sealed partial class MainWindow : Window
         WireKineticCaptions();
         WireTranscription();
         WireVisualizer();
-        WireMemory();
         WireLibrary();
         ApplyTooltips();
         ApplyGlobalShortcuts();
@@ -110,12 +109,11 @@ public sealed partial class MainWindow : Window
         _pointerTimer = Timer(TimeSpan.FromSeconds(1.5), HideFullScreenPointer);
         _statsTimer = Timer(TimeSpan.FromSeconds(1), () => _ = RefreshStatsAsync());
         _statsTimer.IsRepeating = true;
-        _resumeTimer = Timer(TimeSpan.FromSeconds(5), RememberWhereWeAre);
+        // Started and stopped by KeepClocks as the player's state asks; idle, neither ticks.
+        _resumeTimer = Timer(WindowClocks.ResumeEvery, RememberWhereWeAre);
         _resumeTimer.IsRepeating = true;
-        _resumeTimer.Start();
-        _sleepTimer = Timer(TimeSpan.FromSeconds(1), _player.SleepTick);
+        _sleepTimer = Timer(WindowClocks.SleepEvery, _player.SleepTick);
         _sleepTimer.IsRepeating = true;
-        _sleepTimer.Start();
 
         BuildMenus();
         Root.AddHandler(UIElement.PreviewKeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(OnPreviewKeyDown), handledEventsToo: true);
@@ -140,6 +138,7 @@ public sealed partial class MainWindow : Window
         PlaylistView.ItemsSource = _playlistRows;
         PlaylistView.ContainerContentChanging += OnPlaylistRowShown;
         WirePerformance();
+        WireHiddenWindow();
         ApplySettingsToControls();
         ShowState();
         ShowPosition();
@@ -183,6 +182,26 @@ public sealed partial class MainWindow : Window
             AudioQueueCapacity = _budget.AudioQueueCapacity,
         },
         listener);
+
+    /// <summary>Runs the window's repeating clocks only while they have work (<see cref="WindowClocks"/>).</summary>
+    private void KeepClocks()
+    {
+        Run(_resumeTimer, WindowClocks.Resume(_player.Item is not null));
+        Run(_sleepTimer, WindowClocks.Sleep(_player.SleepTimerSet));
+    }
+
+    /// <summary>Starts or stops <paramref name="timer"/>; one already running keeps its rhythm.</summary>
+    private static void Run(DispatcherQueueTimer timer, bool wanted)
+    {
+        if (wanted && !timer.IsRunning)
+        {
+            timer.Start();
+        }
+        else if (!wanted && timer.IsRunning)
+        {
+            timer.Stop();
+        }
+    }
 
     private DispatcherQueueTimer Timer(TimeSpan interval, Action tick)
     {
@@ -390,6 +409,7 @@ public sealed partial class MainWindow : Window
         MuteIcon.Glyph = _player.Muted ? "\uE74F" : "\uE767";
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(MuteButton, _player.Muted ? "Unmute" : "Mute");
         SeekBar.IsEnabled = _player.CanSeek;
+        StartOverButton.IsEnabled = _player.CanSeek;
         ShowSpeed();
         _updatingControls = false;
 
@@ -433,6 +453,7 @@ public sealed partial class MainWindow : Window
         _updatePlaying = playing;
         ShowUpdates();
         KeepAwake(playing && HasVideo, playing);
+        KeepClocks();
         LayOutSubtitles();
         ShowPresentation();
         ApplyVisualizer();

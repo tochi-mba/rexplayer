@@ -53,4 +53,11 @@ public static class TranscriptionConditions
     /// connection that costs by the byte only when they ask again, there and then (Download now).
     /// </summary>
     public static bool MayDownloadModel(bool online, bool metered, bool askedNow) => online && (askedNow || !metered);
+
+    /// <summary>
+    /// Whether what plays is heard as soon as it opens rather than once the launch has settled:
+    /// when the viewer waits for its captions, the player is paused for them anyway, and putting
+    /// the transcription off would let playback start (and run uncaptioned) before the wait.
+    /// </summary>
+    public static bool StartsAtOnce(bool requested, bool holdForSubtitles) => requested && holdForSubtitles;
 }

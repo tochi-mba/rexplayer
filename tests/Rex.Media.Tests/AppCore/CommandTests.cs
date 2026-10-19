@@ -60,6 +60,30 @@ public sealed class CommandTests
     }
 
     [Fact]
+    public void JumpsAreNamedByTheLengthsChosenInPreferences()
+    {
+        var defaults = new Rex.Media.Settings.PlayerSettings();
+        string Title(string id, Rex.Media.Settings.PlayerSettings settings) => CommandCatalog.TitleOf(CommandCatalog.Find(id)!, settings);
+
+        // The catalogue's own titles are what the defaults name, so the site's shortcut page agrees.
+        foreach (var id in new[] { CommandCatalog.JumpForwardVeryShort, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardLong, CommandCatalog.JumpBackLong })
+        {
+            Assert.Equal(CommandCatalog.Find(id)!.Title, Title(id, defaults));
+        }
+
+        var chosen = defaults with { VeryShortJumpSeconds = 1, ShortJumpSeconds = 30, MediumJumpSeconds = 90, LongJumpSeconds = 3600 };
+        Assert.Equal("Jump forward 1 second", Title(CommandCatalog.JumpForwardVeryShort, chosen));
+        Assert.Equal("Jump back 30 seconds", Title(CommandCatalog.JumpBackShort, chosen));
+        Assert.Equal("Jump forward 90 seconds", Title(CommandCatalog.JumpForwardMedium, chosen));
+        Assert.Equal("Jump back 1 hour", Title(CommandCatalog.JumpBackLong, chosen));
+        Assert.Equal("Jump forward 2 minutes", Title(CommandCatalog.JumpForwardLong, chosen with { LongJumpSeconds = 120 }));
+        Assert.Equal("Play or pause", Title(CommandCatalog.PlayPause, chosen));
+        Assert.Equal("0 seconds", CommandCatalog.Length(0));
+        Assert.Throws<ArgumentNullException>(() => CommandCatalog.TitleOf(null!, defaults));
+        Assert.Throws<ArgumentNullException>(() => CommandCatalog.TitleOf(CommandCatalog.All[0], null!));
+    }
+
+    [Fact]
     public void TheDefaultsMapKeysToCommands()
     {
         var keymap = new Keymap();

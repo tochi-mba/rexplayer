@@ -137,14 +137,14 @@ public static class CommandCatalog
         New(GoToTime, "Go to a time", Playback, "Ctrl+T"),
         New(CycleRepeat, "Repeat: off, all, one", Playback, "L"),
         New(ToggleShuffle, "Shuffle", Playback, "R"),
-        New(JumpForwardVeryShort, "Jump forward a little", Playback, "Shift+Right"),
-        New(JumpBackVeryShort, "Jump back a little", Playback, "Shift+Left"),
-        New(JumpForwardShort, "Jump forward", Playback, "Right"),
-        New(JumpBackShort, "Jump back", Playback, "Left"),
-        New(JumpForwardMedium, "Jump forward a minute", Playback, "Ctrl+Right"),
-        New(JumpBackMedium, "Jump back a minute", Playback, "Ctrl+Left"),
-        New(JumpForwardLong, "Jump forward five minutes", Playback, "Ctrl+Alt+Right"),
-        New(JumpBackLong, "Jump back five minutes", Playback, "Ctrl+Alt+Left"),
+        New(JumpForwardVeryShort, "Jump forward 3 seconds", Playback, "Shift+Right"),
+        New(JumpBackVeryShort, "Jump back 3 seconds", Playback, "Shift+Left"),
+        New(JumpForwardShort, "Jump forward 10 seconds", Playback, "Right"),
+        New(JumpBackShort, "Jump back 10 seconds", Playback, "Left"),
+        New(JumpForwardMedium, "Jump forward 1 minute", Playback, "Ctrl+Right"),
+        New(JumpBackMedium, "Jump back 1 minute", Playback, "Ctrl+Left"),
+        New(JumpForwardLong, "Jump forward 5 minutes", Playback, "Ctrl+Alt+Right"),
+        New(JumpBackLong, "Jump back 5 minutes", Playback, "Ctrl+Alt+Left"),
         New(Faster, "Faster", Playback, "Plus", "Shift+Equals"),
         New(Slower, "Slower", Playback, "Minus"),
         New(NormalSpeed, "Normal speed", Playback, "Equals"),
@@ -235,6 +235,41 @@ public static class CommandCatalog
 
     /// <summary>The command with this id, or null.</summary>
     public static Command? Find(string id) => All.FirstOrDefault(command => command.Id == id);
+
+    /// <summary>
+    /// The title of <paramref name="command"/> as the menus, the shortcut editor and the shortcut
+    /// sheet show it: a jump names the length chosen in Preferences, so a changed length never
+    /// leaves the menu saying the old one. Every other command keeps its own title.
+    /// </summary>
+    public static string TitleOf(Command command, Rex.Media.Settings.PlayerSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(settings);
+        int? seconds = command.Id switch
+        {
+            JumpForwardVeryShort or JumpBackVeryShort => settings.VeryShortJumpSeconds,
+            JumpForwardShort or JumpBackShort => settings.ShortJumpSeconds,
+            JumpForwardMedium or JumpBackMedium => settings.MediumJumpSeconds,
+            JumpForwardLong or JumpBackLong => settings.LongJumpSeconds,
+            _ => null,
+        };
+        if (seconds is not { } length)
+        {
+            return command.Title;
+        }
+
+        var forward = command.Id is JumpForwardVeryShort or JumpForwardShort or JumpForwardMedium or JumpForwardLong;
+        return (forward ? "Jump forward " : "Jump back ") + Length(length);
+    }
+
+    /// <summary>A jump's length as people say it: "10 seconds", "1 minute", "90 seconds", "1 hour".</summary>
+    public static string Length(int seconds)
+    {
+        static string Count(int n, string unit) => n.ToString(CultureInfo.InvariantCulture) + " " + unit + (n == 1 ? "" : "s");
+        return seconds > 0 && seconds % 3600 == 0 ? Count(seconds / 3600, "hour")
+            : seconds > 0 && seconds % 60 == 0 ? Count(seconds / 60, "minute")
+            : Count(seconds, "second");
+    }
 
     /// <summary>The minutes a sleep timer command is for, or null for any other command.</summary>
     public static int? SleepMinutesOf(string id)

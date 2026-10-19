@@ -1,7 +1,175 @@
 # Changelog archive
 
-The versions of rexplayer before 0.10.0, moved here from `CHANGELOG.md` to keep it under the
+The versions of rexplayer before 0.15.0, moved here from `CHANGELOG.md` to keep it under the
 repository's thousand-line limit. Newest first.
+
+## 0.14.0 - 2026-10-10
+
+### Added
+
+- **Ghostwire contours.** A near-transparent, dark-glass rendering of the visible video frame,
+  with fine luminous cyan contours and secondary colour accents. It is an artistic image-aware
+  effect and does not reveal pixels hidden by real-world objects.
+- **Colour spotlight and Relief etch.** Colour spotlight responds to a pointed-at colour in
+  the current picture; Relief etch adds directional lighting based on visible image contrast.
+  Neither effect claims to recognize or track an object's identity.
+- **Subject Lock preview.** Select a visible region with a drag and follow its texture as it
+  moves. Bounded coarse-to-fine matching follows larger frame-to-frame motion; ambiguous or
+  lost matches stop rather than silently attaching to another subject. A visible selection,
+  tracking status, reselect and reset controls keep the original picture available.
+- **Ghost Peel removal preview.** Reconstruct the selected region from authentic background
+  pixels exposed elsewhere in the played footage when the camera is sufficiently steady.
+  Where a region is never exposed, use a four-sided background-colour estimate, with
+  adjustable feathering and colour tolerance. Preview, show original and reset do not
+  change the video file.
+
+### Improved
+
+- **Resume after an in-app update.** One-time recovery restores the ordered playlist, selected
+  item, position, playing or paused state, speed, open library source and search, and window
+  display choices including fullscreen, crop, aspect and zoom. Recovery checks the installed
+  target version; explicit newly opened media takes precedence, and stale update hand-offs
+  are discarded.
+- **Performance and quality checks.** The selected-region path avoids an extra full-frame
+  copy. Regression tests exercise GPU rendering and reset, visible-frame tracking, lost
+  targets, seeking, rough selections, inferred fill, and the real Subject Lock controls.
+
+### Limitations
+
+- Subject Lock uses local visible-texture matching and a rectangular, colour-refined mask:
+  it is not a semantic person, limb or garment segmentation system, and difficult
+  occlusions, camera changes and similar objects can cause tracking to stop.
+- Ghost Peel is a **non-destructive preview**, not an editor that exports modified video.
+  Unseen regions are only plausible background estimates; they cannot reveal authentic
+  surfaces or anatomy that the footage never captured.
+
+## 0.13.1 - 2026-10-10
+
+### Fixed
+
+- **More reliable library artwork.** Damaged cached thumbnails are generated again instead of
+  permanently leaving an empty card. Local video posters and folder covers decode from scaled
+  file streams without loading the whole original image into managed memory. Slow thumbnail
+  decoding follows cancellation when the view changes.
+- **Sound-derived cover identity.** Generated music artwork accounts for playback sample rate
+  and avoids temporary spectrum-slice allocations during rendering.
+- **Library responsiveness.** The post-release audit improved row refresh stability, picture
+  loading and cancellation, and direct resumption from the Home shelf's Jump back in cards.
+- **Playback and effects stability.** The audit tightened gapless playback timing and object
+  lifetimes, visualisation canvas resets, portrait rendering limits and camera cleanup.
+- **Smoother update checking.** Installer checksum verification no longer runs on the window
+  thread, keeping the interface responsive during a handoff.
+
+## 0.13.0 - 2026-10-10
+
+### Added
+
+- **Eight more real-time GPU picture effects.** Ink trace, Topographic contours and
+  Chromatic contours respond to outlines and image structure. Liquid glass, Slice shift,
+  Vortex and Cursor lens warp the video in different ways; Edge gravity responds to
+  spatial image detail. All effects are non-destructive and work alongside video looks.
+- **Organized picture styling.** Browse effects in Contours, Motion & geometry, Interactive
+  and Image-aware groups. Effect intensity and detail or movement each have independent
+  saved values with controls for previewing, resetting and restoring original playback.
+- **Per-episode intro and credits markers.** Mark the start and end of an intro or credit
+  segment for each video, then choose Skip Intro or Skip Credits when playback enters a
+  confirmed section. Nothing is guessed or skipped automatically: cold opens, recaps,
+  alternative intros and post-credit scenes remain under the viewer's control.
+
+## 0.12.0 - 2026-10-10
+
+### Added
+
+- **Collage layout for the library.** A fourth layout choice arranges different-sized artwork
+  in dense, justified rows. Pictures load only as tiles become visible, with hover/focus
+  priority preserved; the layout choice is remembered for each view.
+- **Four optional GPU picture effects.** Prism flow refracts and separates colour, Neon contours
+  outlines edges found in the picture, Pixel drift moves quantised image blocks, and
+  Kaleidoscope remaps the frame into reflected sectors. The Video menu keeps these separate
+  from colour looks. Effects can be switched during playback, adjusted in Preferences and
+  turned fully off. Files are never modified.
+- **Resonance visualisation.** A new music-driven light field maps spectral bands into layered
+  filaments while percussion launches expanding pressure waves. Control colour, shape,
+  fluidity, intensity, trails and symmetry in the visualisation settings.
+
+### Improved
+
+- **Camera visualisations.** Foreground masks compensate for exposure changes, join tiny
+  silhouette gaps and discard small disconnected noise. Beat Edit can smoothly follow a
+  sufficiently confident foreground outline. This is local background subtraction, not
+  semantic recognition; a static camera and a clean background still matter.
+- **Sharper music graphics.** A higher software drawing ceiling improves definition on
+  capable hardware while the existing adaptive quality controller protects responsiveness.
+- **Cleaner timed lyrics.** Compact text backdrops replace the broad dark overlay across
+  bright visualisations, keeping words readable without hiding the scene.
+
+## 0.11.0 - 2026-10-10
+
+### Added
+
+- **Movies and TV Shows have their own library views.** Filenames identify series, seasons and
+  episodes locally, including S01E02 and 1x03 naming; shows open into seasons and episodes in
+  viewing order. Standalone movies get a poster-style grid with cleaned-up titles and years when
+  available. All videos remain accessible in the original all-videos view.
+- **Eight real-time video looks.** Cinema, Clear, Sunset, Arctic, Monochrome, Vintage, Neon and
+  Night vision, alongside Original, are selectable from the video menu and Preferences. The GPU
+  adjusts the displayed picture without rewriting the source or changing its metadata.
+- **Artwork beside videos.** Local posters and folder covers are used when present; otherwise the
+  library can show a frame from the video. Hovered and keyboard-focused cards, followed by nearby
+  cards, get priority while background thumbnail work remains bounded and cancellable.
+
+### Fixed
+
+- A large library banner image could expand the header until the Home shelves and media lists were
+  pushed offscreen. The banner now has a bounded height and browse views retain vertical scrolling.
+
+## 0.10.0 - 2026-10-10
+
+### Added
+
+- **A library to browse, not just a list.** Home opens on shelves of what to play next: jump back
+  into videos, recently played, your most played, new in your library, albums, videos and
+  pictures. Every view has a banner with its artwork, what it holds and how long it lasts, with
+  Play, Shuffle and Add to the playlist. Choose for each view how it is laid out (a list, cards or
+  big cards), how big the cards are, what it is ordered by (title, artist, album, year, date added,
+  last played, most played, length, either way round) and what it is grouped under (first letter,
+  artist, album, genre, year, decade, folder, date added or length), with headings; each view
+  remembers. Videos left part-way show how far you got; cards show a play mark under the pointer.
+- **Every piece of media has a picture.** Videos Windows has no thumbnail for (WebM, Matroska and
+  others) show a frame of the video itself, and the playlist shows every item's picture too.
+- **Menus show what is on.** Shuffle, repeat, mute, subtitles, always on top, full screen, the
+  playlist, the library, lyrics, statistics, the navigator, the minimal interface and stop or pause
+  after this one are ticked when on.
+- **Lyrics over any visualisation.** A song's lyrics now show over the visualisation, not instead
+  of it; Shift+L (or right-click the visualisation) puts them away and brings them back.
+
+### Improved
+
+- **Every visualisation moves with the music.** Kicks, snares and hi-hats are heard apart, as well
+  as the beat, the tempo and the drop, and every effect answers to them: nothing is left to chance.
+  Light no longer builds up until the picture goes white: trails fade and bloom glows without ever
+  piling up, through a filmic curve. Drawing happens away from the window and adapts to the
+  computer, so the window never stutters.
+- **Vinyl** is a turntable: grooves that catch the lamp, the song cut into them in light as it plays,
+  the sound as a ring round the record, strobe dots that flash on the kick, and a tone-arm that swings
+  to the needle.
+- **Aurora** is the northern lights: curtains of rays that fold and drift, green at the hem and
+  violet above, over mountains and stars, with a wave of light along them on each kick.
+- **The beat edit** cuts to the drums: punches in on the kick and swings with it, tilts and glitches
+  on the snare, changes grade on the bar, freezes and snaps back, glitters on the hats, and breaks
+  into four screens on the drop. Its shadows take the palette's colour.
+- **New palettes** (neon, fire, aurora, ocean and sunset), each visualisation starting in the one
+  that suits it; Halo and Embers draw streaks of light; the silhouette's outline is smooth.
+- Settings that did nothing are gone or now work: the aurora's stars and drift, the ripples'
+  origin and when they fall, the strobe's patterns and colours, vinyl's waveform ring and strobe dots.
+
+### Fixed
+
+- The camera visualisations ask before using the camera, wherever they are chosen, and use it
+  reliably: switching between them no longer leaves one on its fallback, a camera that fails to
+  start is tried again, and the beat edit's picture is four times as detailed.
+- Choosing a visualisation while a song had lyrics did nothing.
+- Closing the window as the library finished a scan could end in a crash.
 
 ## 0.9.0 - 2026-10-09
 

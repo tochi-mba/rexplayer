@@ -12,7 +12,7 @@ namespace Rex.Media.AppCore.Captions;
 /// another model is heard again. A transcript still being heard is kept beside it as
 /// <c>.partial.json</c>, so hearing goes on where it stopped. Nothing here is read until asked.
 /// </summary>
-public sealed class TranscriptCache
+public sealed partial class TranscriptCache
 {
     /// <summary>The cache's layout; a change here forgets every transcript made before.</summary>
     public const int Version = 2;

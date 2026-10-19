@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Subtitles;
@@ -16,12 +17,13 @@ public sealed partial class MainWindow
     {
         var s = _settings;
         Func<Task>? requestedEditor = null;
-        var veryShort = Number("Very short jump (seconds)", s.VeryShortJumpSeconds, 1, 3600);
-        var shortJump = Number("Short jump (seconds)", s.ShortJumpSeconds, 1, 3600);
-        var medium = Number("Medium jump (seconds)", s.MediumJumpSeconds, 1, 3600);
-        var longJump = Number("Long jump (seconds)", s.LongJumpSeconds, 1, 3600);
+        var veryShort = Jump("Very short jump (seconds)", s.VeryShortJumpSeconds, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardVeryShort);
+        var shortJump = Jump("Short jump (seconds)", s.ShortJumpSeconds, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardShort);
+        var medium = Jump("Medium jump (seconds)", s.MediumJumpSeconds, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardMedium);
+        var longJump = Jump("Long jump (seconds)", s.LongJumpSeconds, CommandCatalog.JumpBackLong, CommandCatalog.JumpForwardLong);
         var step = Number("Volume step (%)", s.VolumeStepPercent, 1, 25);
         var maxVolume = Number("Loudest volume (%)", s.MaxVolumePercent, 100, 200);
+        Describe(maxVolume, "How far the volume goes. Above 100 % rexplayer makes quiet media louder than it was recorded, which can distort.");
         var seekPreview = Check("Show the video frame under the pointer on the timeline", s.SeekPreview);
         var pictures = Number("Show each picture for (seconds)", s.PictureSeconds, 1, 3600);
         var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
@@ -41,7 +43,7 @@ public sealed partial class MainWindow
             _dialog?.Hide();
             DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: true));
         };
-        var visualizer = Choice("While music plays, show", ["Nothing", "A spectrum", "An oscilloscope", "Level meters", "A spectrogram", "A vinyl record", "A halo", "A mirrored wave", "An aurora", "Embers", "Ripples", "A colour strobe", "My silhouette, from the camera", "A live beat edit", "Resonance light field", "The groove, scrolling by", "A flight through the music", "Sand on a singing plate", "Ridgelines of sound", "A synthwave drive", "Fireworks", "A lightning storm", "A lava lamp", "The melody in the stars", "A spiral galaxy", "A kaleidoscope", "A murmuration of starlings", "Ink in water", "A city at night", "A mandala", "Clones of my dance (camera)", "My time warp (camera)", "My aura (camera)", "Me on an LED wall (camera)", "Me in stardust (camera)", "Me in a hall of mirrors (camera)", "Painting with light (camera)", "Scanned to the beat (camera)", "Shattered by the kick (camera)", "Me under stage lights (camera)", "Me in an infinity mirror (camera)", "Me through water (camera)"], (int)s.Visualizer);
+        var visualizer = VisualizerChoices(s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
         var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
         var artworkColor = Number("Artwork colour (%)", s.AudioArtworkColor, 0, 200);
@@ -57,6 +59,10 @@ public sealed partial class MainWindow
         var title = Number("Show the title when an item starts for (seconds, 0 for never)", s.TitleSeconds, 0, 30);
         var single = Check("Use one window: open files in the player already running", s.SingleInstance);
         var enqueue = Check("Files opened that way join the playlist instead of playing", s.EnqueueFromSecondLaunch);
+        enqueue.IsEnabled = single.IsChecked == true;
+        single.Checked += (_, _) => enqueue.IsEnabled = true;
+        single.Unchecked += (_, _) => enqueue.IsEnabled = false;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(enqueue, "Applies when files open in the existing player window.");
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "PreferencesUpdateChecks");
         var updateMode = Choice("When a new version is found", ["Install it by itself when rexplayer is closed or not in use", "Download it, then ask me when to install", "Only tell me about it"], (int)s.UpdateMode);
@@ -94,9 +100,6 @@ public sealed partial class MainWindow
             lastUpdated.Children.Add(whatsNew);
         }
 
-        var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
-        var resumeAudio = Number("Only resume audio longer than (minutes; 0 means all audio)", s.ResumeAudioLongerThanMinutes, 0, 180);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(resumeAudio, "PreferencesResumeAudioMinutes");
         var mediaOpenClick = Choice("Open media on", ["Single click", "Double click"], (int)s.MediaOpenClickMode);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(mediaOpenClick, "PreferencesMediaOpenClick");
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
@@ -138,6 +141,7 @@ public sealed partial class MainWindow
         var styles = Choice("Styled subtitles", ["Use the file's colours and weights", "Always use mine"], (int)s.SubtitleStyles);
         var codePages = SubtitleText.Fallbacks;
         var codePage = Choice("Text of older subtitle files", [.. codePages.Select(entry => entry.Name)], Math.Max(0, codePages.ToList().FindIndex(entry => entry.CodePage == s.SubtitleCodePage)));
+        Describe(codePage, "For subtitle files that do not say how their text is written. Choose another if their letters come out wrong.");
 
         var performance = Choice("Fit rexplayer to this computer", ["Automatic", "Best quality", "Balanced", "Fastest"], (int)s.Performance);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performance, "PreferencesPerformance");
@@ -147,7 +151,7 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceChanges, "PreferencesPerformanceChanges");
         var performanceTranscriptionNote = new TextBlock
         {
-            Text = "Changing the speech-model limit keeps the current item's transcript and buffering.",
+            Text = "Transcription quality stays as you choose it on the caption rail or under Transcription, in every mode.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.75,
         };
@@ -163,13 +167,14 @@ public sealed partial class MainWindow
         performance.SelectionChanged += (_, _) => ShowPerformance();
         ShowPerformance();
 
-        var content = new StackPanel { Spacing = 8, MinWidth = 460 };
-        var sections = new List<(string Name, TextBlock Heading)>();
+        var content = new StackPanel();
+        var sections = new List<(string Name, StackPanel Page)>();
         void AddSection(string name)
         {
+            content = new StackPanel { Spacing = 8, MinWidth = 280, MaxWidth = 460 };
             var heading = Heading(name);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetHeadingLevel(heading, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
-            sections.Add((name, heading));
+            sections.Add((name, content));
             content.Children.Add(heading);
         }
         AddSection("Playback");
@@ -177,6 +182,9 @@ public sealed partial class MainWindow
         {
             content.Children.Add(control);
         }
+
+        // The sleep timer is a playback control, so what it does at its time is chosen beside the others.
+        content.Children.Add(sleep);
 
         AddSection("Intros and credits");
         content.Children.Add(new TextBlock { Text = "While an episode's intro or credits play, a button offers to skip them. Turn these on to skip without a click; a 5 second countdown lets you cancel. To choose per show, use Always skip for this show on the button's menu.", TextWrapping = TextWrapping.Wrap });
@@ -266,7 +274,7 @@ public sealed partial class MainWindow
         });
 
         AddSection("History and resume");
-        foreach (var control in new UIElement[] { resume, resumeAudio, history, queue, sleep })
+        foreach (var control in new UIElement[] { history, queue })
         {
             content.Children.Add(control);
         }
@@ -277,7 +285,15 @@ public sealed partial class MainWindow
         keys.Click += (_, _) =>
         {
             // Keep this dialog and its pending values while the separate editor is open.
-            requestedEditor = ShowKeyboardAndMouseAsync;
+            // The editor names the jumps by the lengths set here, saved or not.
+            var jumps = _settings with
+            {
+                VeryShortJumpSeconds = (int)veryShort.Value,
+                ShortJumpSeconds = (int)shortJump.Value,
+                MediumJumpSeconds = (int)medium.Value,
+                LongJumpSeconds = (int)longJump.Value,
+            };
+            requestedEditor = () => ShowKeyboardAndMouseAsync(jumps);
             _dialog?.Hide();
         };
         content.Children.Add(keys);
@@ -300,24 +316,65 @@ public sealed partial class MainWindow
             content.Children.Add(control);
         }
 
+        // Long check-box labels wrap inside the available page width instead of widening it.
+        void WrapLabels(UIElement element)
+        {
+            if (element is CheckBox { Content: string label } check)
+            {
+                check.Content = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(check, label);
+            }
+            else if (element is Panel group)
+            {
+                foreach (var child in group.Children)
+                {
+                    WrapLabels(child);
+                }
+            }
+            else if (element is Expander { Content: UIElement body })
+            {
+                WrapLabels(body);
+            }
+        }
+        foreach (var page in sections)
+        {
+            WrapLabels(page.Page);
+        }
+
         // The status line follows a check or a download while Preferences is open.
         _updateStatusText = updateStatus;
         bool saved;
         try
         {
-            var scroll = new ScrollViewer { Content = content, MaxHeight = 560 };
+            var scroll = new ScrollViewer
+            {
+                Content = sections[0].Page,
+                MaxHeight = 560,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(scroll, "PreferencesScroll");
-            var section = Choice("Go to section", [.. sections.Select(item => item.Name)], 0);
+            var section = Choice("Settings section", [.. sections.Select(item => item.Name)], 0);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(section, "PreferencesSection");
             section.HorizontalAlignment = HorizontalAlignment.Stretch;
+            var offsets = new double[sections.Count];
+            var shownSection = 0;
             section.SelectionChanged += (_, _) =>
             {
-                if (section.SelectedIndex >= 0)
+                if (section.SelectedIndex < 0)
                 {
-                    content.UpdateLayout();
-                    var heading = sections[section.SelectedIndex].Heading;
-                    var position = heading.TransformToVisual(content).TransformPoint(new Windows.Foundation.Point());
-                    scroll.ChangeView(null, position.Y, null, disableAnimation: true);
+                    return;
+                }
+
+                offsets[shownSection] = scroll.VerticalOffset;
+                shownSection = section.SelectedIndex;
+                scroll.Content = sections[shownSection].Page;
+                scroll.UpdateLayout();
+                // A view already at its saved place is left alone: a redundant change lands after
+                // layout and would undo a scroll the user starts straight after switching.
+                if (Math.Abs(scroll.VerticalOffset - offsets[shownSection]) > 0.5)
+                {
+                    scroll.ChangeView(null, offsets[shownSection], null, disableAnimation: true);
                 }
             };
             var navigation = new StackPanel { Spacing = 4 };
@@ -345,16 +402,31 @@ public sealed partial class MainWindow
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = Content.XamlRoot,
             };
-            do
+            var root = Content.XamlRoot;
+            void FitPreferences(XamlRoot sender, XamlRootChangedEventArgs args)
             {
-                requestedEditor = null;
-                saved = await ShowDialogAsync(dialog) == ContentDialogResult.Primary;
-                if (requestedEditor is { } edit && !_closed)
-                {
-                    await edit();
-                }
+                panel.Width = Math.Clamp(root.Size.Width - 96, 280, 460);
+                scroll.MaxHeight = Math.Clamp(root.Size.Height - 300, 100, 560);
             }
-            while (requestedEditor is not null && !_closed);
+            FitPreferences(root, null!);
+            root.Changed += FitPreferences;
+            try
+            {
+                do
+                {
+                    requestedEditor = null;
+                    saved = await ShowDialogAsync(dialog) == ContentDialogResult.Primary;
+                    if (requestedEditor is { } edit && !_closed)
+                    {
+                        await edit();
+                    }
+                }
+                while (requestedEditor is not null && !_closed);
+            }
+            finally
+            {
+                root.Changed -= FitPreferences;
+            }
         }
         finally
         {
@@ -380,7 +452,7 @@ public sealed partial class MainWindow
             ShowNavigator = navigator.IsChecked == true,
             VideoLook = (VideoLook)pictureLook.SelectedIndex,
             VideoEffect = (VideoEffect)pictureEffect.SelectedIndex,
-            Visualizer = (VisualizerChoice)visualizer.SelectedIndex,
+            Visualizer = visualizer.SelectedItem is ComboBoxItem { Tag: VisualizerChoice shown } ? shown : s.Visualizer,
             GenerateAudioArtwork = generatedArt.IsChecked == true,
             AudioArtworkStyle = (ArtworkStyle)artworkStyle.SelectedIndex,
             AudioArtworkColor = (int)artworkColor.Value,
@@ -397,8 +469,6 @@ public sealed partial class MainWindow
             EnqueueFromSecondLaunch = enqueue.IsChecked == true,
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
             UpdateMode = (UpdateMode)updateMode.SelectedIndex,
-            ResumePlayback = (ResumeChoice)resume.SelectedIndex,
-            ResumeAudioLongerThanMinutes = resumeAudio.Value,
             MediaOpenClickMode = (MediaOpenClick)Math.Max(0, mediaOpenClick.SelectedIndex),
             KeepHistory = history.IsChecked == true,
             OpenLibraryAtPlayingItem = libraryOpening.SelectedIndex == 0,
@@ -437,6 +507,12 @@ public sealed partial class MainWindow
             || s.AudioArtworkUsesIdentity != next.AudioArtworkUsesIdentity;
         _settings = next;
         _player.Settings = _settings;
+        if ((s.VeryShortJumpSeconds, s.ShortJumpSeconds, s.MediumJumpSeconds, s.LongJumpSeconds) != (next.VeryShortJumpSeconds, next.ShortJumpSeconds, next.MediumJumpSeconds, next.LongJumpSeconds))
+        {
+            // The menus name each jump by its length.
+            BuildMenus();
+        }
+
         _player.SetVolume(_player.Volume);
         _controlsTimer.Interval = TimeSpan.FromSeconds(_settings.ControlsHideSeconds);
         ApplyTheme();
@@ -532,6 +608,17 @@ public sealed partial class MainWindow
     private static TextBlock Heading(string text) =>
         new() { Text = text, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(0, 12, 0, 0) };
 
+    /// <summary>A jump length, described by the keys that make that jump so the two can be matched.</summary>
+    private NumberBox Jump(string label, int seconds, string back, string forward)
+    {
+        var box = Number(label, seconds, 1, 3600);
+        var keys = string.Join(" and ", new[] { _keymap.Label(back), _keymap.Label(forward) }.Where(key => key.Length > 0));
+        var help = keys.Length > 0 ? "Keys: " + keys : "No keys; set them in Keyboard and mouse";
+        box.Description = help;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(box, help);
+        return box;
+    }
+
     private static NumberBox Number(string label, double value, double minimum, double maximum)
     {
         var box = new NumberBox { Header = label, Value = value, Minimum = minimum, Maximum = maximum, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
@@ -546,6 +633,31 @@ public sealed partial class MainWindow
         return box;
     }
 
+    /// <summary>
+    /// The visualisations, grouped under headings that cannot be chosen, so the long list is easy to
+    /// scan; each choice carries its <see cref="VisualizerChoice"/>, which is what is saved.
+    /// </summary>
+    private static ComboBox VisualizerChoices(VisualizerChoice selected)
+    {
+        const string Label = "While music plays, show";
+        var box = new ComboBox { Header = Label, MinWidth = 220, MaxDropDownHeight = 480 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, Label);
+        box.Items.Add(new ComboBoxItem { Content = Rex.Media.AppCore.Player.VisualizerGroups.Nothing, Tag = VisualizerChoice.Off });
+        foreach (var (heading, choices) in Rex.Media.AppCore.Player.VisualizerGroups.All)
+        {
+            var title = new ComboBoxItem { Content = heading, IsEnabled = false, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, IsTabStop = false };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(title, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+            box.Items.Add(title);
+            foreach (var (choice, label) in choices)
+            {
+                box.Items.Add(new ComboBoxItem { Content = label, Tag = choice, Padding = new Thickness(24, 5, 11, 7) });
+            }
+        }
+
+        box.SelectedItem = box.Items.OfType<ComboBoxItem>().FirstOrDefault(item => item.Tag is VisualizerChoice choice && choice == selected) ?? box.Items[0];
+        return box;
+    }
+
     private static CheckBox Check(string label, bool value) => new() { Content = label, IsChecked = value };
 
     private static TextBox Words(string label, string value)
@@ -553,6 +665,22 @@ public sealed partial class MainWindow
         var box = new TextBox { Header = label, Text = value, MinWidth = 220 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, label);
         return box;
+    }
+
+    /// <summary>A line under a control that says what a less obvious choice does, read out with it too.</summary>
+    private static void Describe(Control control, string help)
+    {
+        switch (control)
+        {
+            case NumberBox number:
+                number.Description = help;
+                break;
+            case ComboBox choice:
+                choice.Description = help;
+                break;
+        }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(control, help);
     }
 
     private static readonly string[] SubtitleFonts = ["Segoe UI", "Arial", "Calibri", "Verdana", "Tahoma", "Georgia", "Times New Roman", "Cascadia Mono"];

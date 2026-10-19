@@ -69,6 +69,8 @@ public sealed partial class AppWindowTests
         ChoosePreferencesSection(app, "Keyboard and mouse");
         app.Press("PreferencesKeyboard");
         Wait.For(() => app.IsShown("ShortcutSearch"), "the shortcut editor to open");
+        // The editor names the jump by the length just set, though Preferences has not saved it.
+        Assert.StartsWith("Jump forward 37 seconds:", app.Find("Shortcut-" + CommandCatalog.JumpForwardShort).Current.Name, StringComparison.Ordinal);
         var pans = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, "Zoomed in, the wheel and two-finger scrolling move about the picture")));
         ((TogglePattern)pans.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
@@ -86,6 +88,41 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.SavedSettings.ShortJumpSeconds == (savePreferences ? 37 : before.ShortJumpSeconds)
             && app.SavedSettings.WheelPansWhenZoomed == (saveShortcuts ? !before.WheelPansWhenZoomed : before.WheelPansWhenZoomed),
             "each dialog's Save or Cancel choice to apply independently");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-10")]
+    public void PreferencesShowsOnlyItsChosenSectionAndFitsASmallerWindow()
+    {
+        using var app = AppProcess.Start();
+        ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(720, 640);
+        app.Run(CommandCatalog.Preferences);
+        Assert.Equal("Settings section", app.Find("PreferencesSection").Current.Name);
+        Assert.Null(app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesUpdateChecks")));
+        ChoosePreferencesSection(app, "Subtitles");
+        var scroll = (ScrollPattern)app.Find("PreferencesScroll").GetCurrentPattern(ScrollPattern.Pattern);
+        Wait.For(() => scroll.Current.VerticallyScrollable, "the long section to scroll in a small window");
+        Wait.For(() =>
+        {
+            scroll.SetScrollPercent(ScrollPattern.NoScroll, 60);
+            return scroll.Current.VerticalScrollPercent > 30;
+        }, "the subtitle section to scroll");
+        var offset = scroll.Current.VerticalScrollPercent;
+        ChoosePreferencesSection(app, "Updates");
+        Assert.False(app.Find("PreferencesUpdateChecks").Current.IsOffscreen);
+        Assert.Null(app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Subtitle font")));
+        foreach (var id in new[] { "PreferencesSection", "PrimaryButton", "CloseButton" })
+        {
+            var control = app.Find(id);
+            Assert.False(control.Current.IsOffscreen);
+            Assert.True(app.Window.Current.BoundingRectangle.Contains(control.Current.BoundingRectangle), id + " must fit inside the window");
+        }
+        ChoosePreferencesSection(app, "Subtitles");
+        Wait.For(() => Math.Abs(scroll.Current.VerticalScrollPercent - offset) < 2, "the subtitle scroll position to return");
+        app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }
 

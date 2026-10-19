@@ -84,6 +84,34 @@ public sealed partial class PlayerController
         }
     }
 
+    /// <summary>Removes an in-memory subtitle track, including it from either visible slot.</summary>
+    public bool RemoveSubtitles(SubtitleTrack track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        if (!_subtitleTracks.Remove(track))
+        {
+            return false;
+        }
+
+        if (Subtitles == track)
+        {
+            Subtitles = null;
+        }
+
+        if (SecondarySubtitles == track)
+        {
+            SecondarySubtitles = null;
+        }
+
+        if (_lastSubtitles == track)
+        {
+            _lastSubtitles = null;
+        }
+
+        SubtitlesChanged?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     /// <summary>
     /// What was dropped on the window: media opens as <see cref="Open"/> would, and subtitle files
     /// join what is then playing, so a film dropped with its subtitles plays with them (SUB-16).

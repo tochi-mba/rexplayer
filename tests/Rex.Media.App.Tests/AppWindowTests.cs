@@ -77,12 +77,20 @@ public sealed partial class AppWindowTests : IDisposable
             var items = Wait.Until(() => All(app.Window, ControlType.MenuItem).Where(item => item.Current.AutomationId.StartsWith("Command-", StringComparison.Ordinal)).ToArray() is { Length: > 0 } some ? some : null);
             Assert.All(items, item => Assert.False(string.IsNullOrWhiteSpace(item.Current.Name), item.Current.AutomationId));
             found.UnionWith(items.Select(item => item.Current.AutomationId["Command-".Length..]));
+            if (menu == "PlaybackMenu")
+            {
+                // Finer variants sit one level in: every jump length, under Playback, Jump.
+                ((ExpandCollapsePattern)app.Find("Submenu-jump").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+                Assert.False(string.IsNullOrWhiteSpace(app.Find("Command-" + CommandCatalog.JumpBackLong).Current.Name));
+            }
+
             expander.Collapse();
         }
 
         Assert.Superset(
             new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.AddSubtitles, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
             found);
+
         Assert.Equal(0, app.Close());
     }
 
@@ -777,7 +785,7 @@ public sealed partial class AppWindowTests : IDisposable
 
     [Fact]
     [Capability("PB-11")]
-    public void ASongLeftPartWayOffersToCarryOnFromThere()
+    public void ASongResumesAutomaticallyAndStartOverReturnsToTheBeginning()
     {
         var song = Song(60);
         string root;
@@ -791,18 +799,12 @@ public sealed partial class AppWindowTests : IDisposable
             Assert.Equal(0, first.Close());
         }
 
-        // This test verifies the explicit resume path; short audio now starts over by default.
-        var settingsPath = Path.Combine(root, "settings.json");
-        var settings = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settingsPath))!.AsObject();
-        settings["resumeAudioLongerThanMinutes"] = 0;
-        File.WriteAllText(settingsPath, settings.ToJsonString());
-
         using var second = AppProcess.Start([song], root);
-        Wait.For(() => second.IsShown("ResumeBar"), "the offer to carry on");
-        Assert.True(second.IsShown("StartOverButton"));
-        second.Press("ResumeButton");
-        Wait.For(() => !second.IsShown("ResumeBar"), "the offer to go");
         Wait.For(() => second.Text("Elapsed") is { } elapsed && (elapsed.StartsWith("0:2", StringComparison.Ordinal) || elapsed.StartsWith("0:3", StringComparison.Ordinal)), "the song to carry on from where it was");
+        Assert.False(second.IsShown("ResumeBar"));
+        Assert.Equal("Start this media from the beginning", second.Find("StartOverButton").Current.Name);
+        second.Press("StartOverButton");
+        Wait.For(() => second.Text("Elapsed").StartsWith("0:0", StringComparison.Ordinal), "Start over to seek to the beginning");
         Assert.Equal(0, second.Close());
     }
 

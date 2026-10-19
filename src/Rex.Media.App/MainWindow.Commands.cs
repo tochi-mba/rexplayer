@@ -21,45 +21,57 @@ public sealed partial class MainWindow
 {
     private const string HelpUrl = "https://tochi-mba.github.io/rexplayer/";
 
-    /// <summary>The menus, by menu, in order; each entry is a command id, or null for a separator.</summary>
+    /// <summary>
+    /// The menus, by menu, in order; each entry is a command id, a <see cref="SubMenu"/> id for a
+    /// group of related commands, or null for a separator. Groups keep each menu short enough to
+    /// read at a glance: the commands people reach for stay on top, their finer variants one level in.
+    /// </summary>
     private static readonly (string Menu, string?[] Commands)[] MenuLayout =
     [
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
             CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
-            CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
-            CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
+            SubMenu + "jump", CommandCatalog.GoToTime, SubMenu + "speed", null,
             CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
             CommandCatalog.AddBookmark, CommandCatalog.Resume, null,
-            CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
-            CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
-            CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
+            SubMenu + "sleep"]),
+        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, SubMenu + "audio-timing", null,
+            CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
-            CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
-            CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize, null,
-            CommandCatalog.ToggleKineticCaptions, CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer,
-            CommandCatalog.KineticCaptionSettings, null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
+            SubMenu + "subtitle-timing", SubMenu + "subtitle-size", null,
+            CommandCatalog.ToggleKineticCaptions, SubMenu + "kinetic-captions", null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
-            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
+            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, SubMenu + "window-size", null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary, null, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse]),
+        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null,
+            CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse, null,
+            SubMenu + "library-backup", CommandCatalog.ClearPlaylist, CommandCatalog.ClearHistory]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
     ];
 
+    /// <summary>Marks a <see cref="MenuLayout"/> entry that opens one of <see cref="SubMenus"/>.</summary>
+    private const string SubMenu = "submenu:";
+
+    /// <summary>The groups the menus open one level in, by id: a title and its entries.</summary>
+    private static readonly Dictionary<string, (string Title, string?[] Commands)> SubMenus = new(StringComparer.Ordinal)
+    {
+        [SubMenu + "jump"] = ("Jump", [CommandCatalog.JumpForwardVeryShort, CommandCatalog.JumpBackVeryShort, null,
+            CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, null,
+            CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, null,
+            CommandCatalog.JumpForwardLong, CommandCatalog.JumpBackLong]),
+        [SubMenu + "speed"] = ("Speed", [CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.SlightlyFaster, CommandCatalog.SlightlySlower, null, CommandCatalog.NormalSpeed]),
+        [SubMenu + "sleep"] = ("Sleep timer", [CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
+            CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, null, CommandCatalog.SleepOff]),
+        [SubMenu + "audio-timing"] = ("Sound timing", [CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay]),
+        [SubMenu + "subtitle-timing"] = ("Subtitle timing", [CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay]),
+        [SubMenu + "subtitle-size"] = ("Subtitle size", [CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
+        [SubMenu + "kinetic-captions"] = ("Kinetic caption style", [CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, null,
+            CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer, null, CommandCatalog.KineticCaptionSettings]),
+        [SubMenu + "window-size"] = ("Window size", [CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble]),
+        [SubMenu + "library-backup"] = ("Library backup", [CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary]),
+    };
+
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
-
-    /// <summary>The picture's right-click menu (UI-03): the same commands, reachable even in full screen and the minimal interface.</summary>
-    private static readonly (string Title, string?[] Commands)[] ContextLayout =
-    [
-        ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings]),
-        ("Subtitles", [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, CommandCatalog.ToggleKineticCaptions]),
-        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ResetZoom, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
-        ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
-    ];
-
 
     /// <summary>The current rate remains visible while the player is paused or changing items.</summary>
     private void ShowSpeed()
@@ -119,7 +131,7 @@ public sealed partial class MainWindow
         }
 
         var context = new MenuFlyout();
-        foreach (var (title, commands) in ContextLayout)
+        foreach (var (title, commands) in ContextMenuLayout.Groups)
         {
             if (title.Length == 0)
             {
@@ -147,6 +159,7 @@ public sealed partial class MainWindow
         AddEpisodeSectionMenus(Menu.Items.First(item => item.Title == "Video").Items, "Video");
         BuildMemoryMenus();
         BuildNamedPlaylistMenus();
+        BuildTranscriptMenus();
     }
 
     private void Fill(IList<MenuFlyoutItemBase> items, string?[] commands, string prefix)
@@ -159,9 +172,18 @@ public sealed partial class MainWindow
                 continue;
             }
 
+            if (SubMenus.TryGetValue(id, out var group))
+            {
+                var sub = new MenuFlyoutSubItem { Text = group.Title };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sub, "Submenu-" + id[SubMenu.Length..]);
+                Fill(sub.Items, group.Commands, prefix);
+                items.Add(sub);
+                continue;
+            }
+
             var command = CommandCatalog.Find(id)!;
             MenuFlyoutItem item = IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
-            (item.Text, item.KeyboardAcceleratorTextOverride) = (command.Title, _keymap.Label(id));
+            (item.Text, item.KeyboardAcceleratorTextOverride) = (CommandCatalog.TitleOf(command, _settings), _keymap.Label(id));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + id);
             item.Click += (_, _) => Run(id);
             items.Add(item);
@@ -406,12 +428,23 @@ public sealed partial class MainWindow
 
     private void HideFullScreenControls()
     {
-        if (IsFullScreen && !Controls.FocusState.HasFlag(FocusState.Keyboard))
+        if (IsFullScreen && !FocusIsInside(Controls))
         {
             Controls.Visibility = Visibility.Collapsed;
             _pointerTimer.Stop();
             _pointerTimer.Start();
         }
+    }
+
+    /// <summary>Whether keyboard focus is on <paramref name="bar"/> or on anything inside it, such as one of its buttons.</summary>
+    private bool FocusIsInside(UIElement bar)
+    {
+        if (Content?.XamlRoot is not { } root || Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is not Control { FocusState: FocusState.Keyboard } focused)
+        {
+            return false;
+        }
+
+        return Rex.Media.AppCore.Shell.FocusWithin.IsInside<DependencyObject>(focused, bar, Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent);
     }
 
     /// <summary>The pointer is the last piece of full-screen chrome to leave.</summary>
@@ -696,6 +729,11 @@ public sealed partial class MainWindow
     {
         if (!_player.CanSeek)
         {
+            if (_player.Item is not null)
+            {
+                Say(PlayerController.CannotSeekNotice);
+            }
+
             return;
         }
 
@@ -724,7 +762,8 @@ public sealed partial class MainWindow
             foreach (var command in group)
             {
                 var keys = string.Join(", ", _keymap.ShortcutsFor(command.Id));
-                list.Children.Add(new TextBlock { Text = keys.Length > 0 ? $"{command.Title}: {keys}" : command.Title });
+                var title = CommandCatalog.TitleOf(command, _settings);
+                list.Children.Add(new TextBlock { Text = keys.Length > 0 ? $"{title}: {keys}" : title });
             }
         }
 

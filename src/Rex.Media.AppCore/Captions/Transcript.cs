@@ -2,12 +2,43 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Rex.Media.IO;
 using Rex.Media.Subtitles;
 
 namespace Rex.Media.AppCore.Captions;
 
 /// <summary>One word heard: its text, when it was said, and how sure the model was (0 to 1).</summary>
 public sealed record TranscriptWord(string Text, TimeSpan Start, TimeSpan End, float Confidence = 1);
+
+/// <summary>A generated transcript or the user's independent edited version for one speech model.</summary>
+public readonly record struct TranscriptVariant(string Model, bool Edited)
+{
+    public string Quality => Model switch
+    {
+        "tiny.en" => "Fast",
+        "base.en" => "Default",
+        "small.en" => "Best",
+        _ => Model,
+    };
+
+    public string DisplayName => Edited ? $"{Quality} — Edited" : $"{Quality} — Original";
+
+    public string TrackName => $"Transcript ({Model}, {(Edited ? "edited" : "original")})";
+
+    /// <summary>Recognises named variants, including generated tracks from older versions.</summary>
+    public static TranscriptVariant? FromTrackName(string name)
+    {
+        if (!name.StartsWith("Transcript (", StringComparison.Ordinal) || !name.EndsWith(')'))
+        {
+            return null;
+        }
+
+        var identity = name[12..^1];
+        var edited = identity.EndsWith(", edited", StringComparison.Ordinal);
+        var model = edited ? identity[..^8] : identity.EndsWith(", original", StringComparison.Ordinal) ? identity[..^10] : identity;
+        return model.Length > 0 ? new TranscriptVariant(model, edited) : null;
+    }
+}
 
 /// <summary>
 /// What a speech model heard in a file (SUB-19): every word with the moment it was said, so
@@ -33,6 +64,35 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
 
     /// <summary>Whether anything was heard.</summary>
     public bool IsEmpty => Words.Count == 0;
+
+    /// <summary>The model-labelled SubRip path beside a media file, kept distinct from authored subtitles.</summary>
+    public static string SidecarSrtPath(string mediaPath, string model, bool edited = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        var quality = model switch
+        {
+            "tiny.en" => "fast",
+            "base.en" => "default",
+            "small.en" => "best",
+            _ => SanitizeModel(model),
+        };
+        var directory = Path.GetDirectoryName(mediaPath);
+        var version = edited ? "edited" : "original";
+        var name = $"{Path.GetFileNameWithoutExtension(mediaPath)}.transcript.{quality}.{version}.srt";
+        return string.IsNullOrEmpty(directory) ? name : Path.Combine(directory, name);
+    }
+
+    /// <summary>Atomically replaces the model-labelled SubRip copy beside the media.</summary>
+    public void WriteSidecarSrt(string mediaPath) =>
+        AtomicFile.Write(SidecarSrtPath(mediaPath, Model), Encoding.UTF8.GetBytes(ToSrt()));
+
+    private static string SanitizeModel(string model)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var safe = new string(model.Trim().ToLowerInvariant().Select(c => c is '/' or '\\' || invalid.Contains(c) ? '-' : c).ToArray());
+        return string.IsNullOrWhiteSpace(safe) ? "unknown" : safe;
+    }
 
     /// <summary>
     /// The words as cues: a cue ends at a sentence's end, a breath, the most words, or the longest

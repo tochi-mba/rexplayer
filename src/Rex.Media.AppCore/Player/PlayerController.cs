@@ -263,6 +263,12 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
+        // After the last item ended, seeking plays it again, so it is the queue's current item again.
+        if (Playlist.Current is null && Item is { } replayed && Playlist.IndexOf(replayed) is >= 0 and var index)
+        {
+            Playlist.JumpTo(index);
+        }
+
         Position = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
         _log.Debug(LogSource, $"Seeking to {TimeText.Format(Position, Duration)}.");
         _ = Observe(_session.SeekAsync(new MediaTime((Item!.Start + Position).Ticks)));
@@ -297,7 +303,6 @@ public sealed partial class PlayerController : IDisposable
     {
         _log.Info(LogSource, "Stopped.");
         RememberPosition();
-        ResumeOffer = null;
         EndSession();
         State = SessionState.Idle;
         Position = TimeSpan.Zero;
@@ -318,9 +323,16 @@ public sealed partial class PlayerController : IDisposable
     /// <summary>
     /// Starts <paramref name="item"/> in a session of its own, or stops when there is nothing to
     /// start; part-way and on a chosen audio track when asked (switching tracks restarts the item).
+    /// Only a start that moves on from a failed item (<paramref name="afterFailure"/>) keeps the
+    /// count of failures in a row; any other start, the user's above all, begins it afresh.
     /// </summary>
-    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null, bool paused = false)
+    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null, bool paused = false, bool afterFailure = false)
     {
+        if (!afterFailure)
+        {
+            _failuresInARow = 0;
+        }
+
         if (item is null)
         {
             Stop();
@@ -408,7 +420,7 @@ public sealed partial class PlayerController : IDisposable
         // Move on, unless every entry has now failed in a row: then there is nothing left worth trying.
         if (++_failuresInARow < Playlist.Items.Count && Playlist.Next(automatic: false) is { } next)
         {
-            Start(next);
+            Start(next, afterFailure: true);
         }
     }
 

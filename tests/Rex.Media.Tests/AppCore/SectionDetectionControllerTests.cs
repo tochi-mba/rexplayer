@@ -155,8 +155,8 @@ public sealed class SectionDetectionControllerTests
     }
 
 
-    [Fact]
-    public void NamedChaptersMayBeSavedOnceWithoutOverwritingManualAdjustments()
+    /// <summary>A ten-second video whose chapters name an opening and end credits.</summary>
+    private static byte[] ChapterVideo()
     {
         static byte[] At(long nanoseconds, string title) => EbmlWriter.Element(
             MatroskaId.ChapterAtom,
@@ -179,10 +179,15 @@ public sealed class SectionDetectionControllerTests
         var info = EbmlWriter.Element(MatroskaId.Info,
             EbmlWriter.UInt(MatroskaId.TimestampScale, 1_000_000),
             EbmlWriter.Float(MatroskaId.Duration, 10_000));
-        var bytes = MatroskaCraftedTests.Mkv(info, MatroskaCraftedTests.Tracks(video),
+        return MatroskaCraftedTests.Mkv(info, MatroskaCraftedTests.Tracks(video),
             chapters, MatroskaCraftedTests.Cluster(0, MatroskaCraftedTests.Simple(2, 0, true, 8)));
+    }
+
+    [Fact]
+    public void NamedChaptersMayBeSavedOnceWithoutOverwritingManualAdjustments()
+    {
         using var test = new ControllerHarness(autoPlay: false, pictures: true);
-        test.Files["chapter-video.mkv"] = bytes;
+        test.Files["chapter-video.mkv"] = ChapterVideo();
         var player = test.Controller;
         player.Open(["chapter-video.mkv"]);
         test.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null);
@@ -199,6 +204,42 @@ public sealed class SectionDetectionControllerTests
         Assert.Throws<ArgumentOutOfRangeException>(() => player.SetSectionBounds(
             (EpisodeSectionKind)77, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(4)));
         Assert.False(player.RejectDetectedSection(EpisodeSectionKind.Intro));
+    }
+
+    [Fact]
+    public void EditedSectionTimesAreSavedOnlyOntoTheEpisodeTheEditorOpenedFor()
+    {
+        using var test = new ControllerHarness(autoPlay: false, pictures: true);
+        test.Files["first-video.mkv"] = ChapterVideo();
+        test.Files["second-video.mkv"] = ChapterVideo();
+        var player = test.Controller;
+        player.Open(["first-video.mkv"]);
+        test.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null);
+        var first = player.Item!;
+
+        // An empty box reads as NaN; a typed or pasted value can be infinite or far outside the
+        // video. None may reach TimeSpan.FromSeconds, which throws for them.
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, double.NaN, 4, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, double.NaN, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, double.NegativeInfinity, 4, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, double.PositiveInfinity, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, 1e300, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, -1e300, 4, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, 10.5, first));
+        Assert.Equal(new EpisodeSections(), player.CurrentSections);
+        Assert.True(player.SetSectionBounds(EpisodeSectionKind.Intro, 0.5, 10, first));
+        Assert.Equal(TimeSpan.FromSeconds(10), player.CurrentSections.IntroEnd);
+
+        // The next episode opened while the editor (or the chapter review) was still showing the
+        // first: saving must not land on the second one.
+        player.Open(["second-video.mkv"]);
+        test.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null && p.Item != first);
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Credits, 6, 9, first));
+        Assert.False(player.ApplyChapterSectionSuggestions(first));
+        Assert.Equal(new EpisodeSections(), player.CurrentSections);
+        Assert.True(player.ApplyChapterSectionSuggestions(player.Item));
+        Assert.True(player.SetSectionBounds(EpisodeSectionKind.Credits, 6, 9, player.Item!));
+        Assert.Equal(TimeSpan.FromSeconds(9), player.CurrentSections.CreditsEnd);
     }
 
     [Fact]

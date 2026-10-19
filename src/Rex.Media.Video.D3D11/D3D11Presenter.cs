@@ -48,6 +48,9 @@ public sealed class D3D11Presenter : IVideoPresenter
     private VideoFrame? _originalForEditing;
     private int _subjectStep = 1;
     private (ColorInfo Color, int Bits, float[] Rows)? _matrix;
+    private bool _hidden;
+    private bool _missedPicture;
+    private long _picturesDrawn;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
     {
@@ -357,6 +360,37 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
+    /// <summary>
+    /// The window went out of sight (minimised): from now on pictures are neither uploaded, drawn
+    /// nor presented, and a redraw waits, until <see cref="ShowPictures"/>. Whoever sends pictures carries on
+    /// as before, so playback and its timing are untouched.
+    /// </summary>
+    public void HidePictures()
+    {
+        lock (_gate)
+        {
+            _hidden = true;
+        }
+    }
+
+    /// <summary>
+    /// The window is in sight again; pictures are drawn from the next one. True when a picture was
+    /// left undrawn meanwhile, so the last picture drawn is older than the latest; the caller then
+    /// redraws or asks for the latest picture again (HiddenWindow.Restore decides which).
+    /// </summary>
+    public bool ShowPictures()
+    {
+        lock (_gate)
+        {
+            var missed = _missedPicture;
+            (_hidden, _missedPicture) = (false, false);
+            return missed;
+        }
+    }
+
+    /// <summary>How many pictures have been presented to the screen, for the measurements.</summary>
+    public long PicturesDrawn => Interlocked.Read(ref _picturesDrawn);
+
     /// <summary>The display's scale (1.5 at 150 %), so a composition swap chain maps one buffer pixel to one screen pixel.</summary>
     public void SetScale(float scaleX, float scaleY)
     {
@@ -374,6 +408,12 @@ public sealed class D3D11Presenter : IVideoPresenter
     {
         lock (_gate)
         {
+            if (_hidden)
+            {
+                // Drawn when the window is back (ShowPictures), at the size it has then.
+                return;
+            }
+
             ApplySize();
             if (_subjectEdit.Locked && _originalForEditing is not null)
             {
@@ -410,6 +450,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             }
 
             _renderer.Present(waitForRefresh: false);
+            _picturesDrawn++;
         }
     }
 
@@ -419,6 +460,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _last = null;
+            _missedPicture = false;
             _originalForEditing?.Dispose();
             _originalForEditing = null;
             _subjectEdit.Reset();
@@ -435,6 +477,14 @@ public sealed class D3D11Presenter : IVideoPresenter
         ArgumentNullException.ThrowIfNull(frame);
         lock (_gate)
         {
+            if (_hidden)
+            {
+                // Nobody can see it: no upload, no drawing, no present. The motion trail starts
+                // afresh with the next picture shown, as it does after any gap.
+                _missedPicture = true;
+                return;
+            }
+
             ApplySize();
             if (_historyWanted)
             {
@@ -517,6 +567,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             _renderer.UploadSurface(surface, tenBit ? VideoPlaneFormat.P010 : VideoPlaneFormat.Nv12, frame.Width, frame.Height);
             Draw(frame, Matrix(color, tenBit ? 10 : 8));
             _renderer.Present(waitForRefresh: _onScreen);
+            _picturesDrawn++;
             return;
         }
 
@@ -546,6 +597,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
 
         _renderer.Present(waitForRefresh: _onScreen);
+        _picturesDrawn++;
     }
 
     /// <summary>

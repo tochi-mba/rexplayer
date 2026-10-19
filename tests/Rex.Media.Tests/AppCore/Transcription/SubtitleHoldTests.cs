@@ -33,7 +33,7 @@ public sealed class SubtitleHoldTests
     }
 
     [Fact]
-    public void ASeekKeepsTheHoldAndManualPlayOverridesItUntilTheSettingChanges()
+    public void PlayNowWaivesOneGapAndASeekOrReadyStretchAllowsWaitingAgain()
     {
         var hold = new SubtitleHold();
         hold.Update(true, SessionState.Playing, HoldAction.Hold);
@@ -45,12 +45,68 @@ public sealed class SubtitleHoldTests
         Assert.True(hold.Overridden);
         Assert.False(hold.Holding);
         Assert.Equal(HoldAction.Nothing, hold.Update(true, SessionState.Playing, HoldAction.Hold));
-        hold.Update(false, SessionState.Paused, HoldAction.Nothing);
+        hold.Update(true, SessionState.Seeking, HoldAction.Hold);
         Assert.False(hold.Overridden);
         Assert.Equal(HoldAction.Hold, hold.Update(true, SessionState.Playing, HoldAction.Hold));
         hold.PlayNow();
-        hold.AllowWaiting();
+        Assert.True(hold.Overridden);
+        hold.AwaitCoverage();
         Assert.False(hold.Overridden);
+        Assert.False(hold.Holding);
+        hold.PlayNow();
+        hold.Update(true, SessionState.Playing, HoldAction.Nothing);
+        Assert.False(hold.Overridden);
+    }
+
+    [Fact]
+    public void AQualityChangeKeepsTheWaitUntilTheNewTranscriptsCoverageArrives()
+    {
+        var hold = new SubtitleHold();
+        hold.Update(true, SessionState.Playing, HoldAction.Hold);
+        hold.Update(true, SessionState.Paused, HoldAction.Nothing);
+        hold.AwaitCoverage();
+
+        // While the new model's saved coverage loads, nothing asks for the wait: it must not end.
+        Assert.Equal(HoldAction.Nothing, hold.Update(false, SessionState.Paused, HoldAction.Release));
+        Assert.Equal(HoldAction.Nothing, hold.Update(true, SessionState.Paused, HoldAction.Release));
+        Assert.True(hold.Holding);
+
+        hold.CoverageReady();
+        Assert.Equal(HoldAction.Nothing, hold.Update(true, SessionState.Paused, HoldAction.Nothing));
+        Assert.True(hold.Holding);
+        Assert.Equal(HoldAction.Release, hold.Update(true, SessionState.Paused, HoldAction.Release));
+        Assert.False(hold.Holding);
+    }
+
+    [Fact]
+    public void AwaitingCoverageNeverTrapsTheViewer()
+    {
+        // Play pressed during the reload is the viewer's choice and is honoured at once.
+        var played = new SubtitleHold();
+        played.Update(true, SessionState.Playing, HoldAction.Hold);
+        played.Update(true, SessionState.Paused, HoldAction.Nothing);
+        played.AwaitCoverage();
+        Assert.Equal(HoldAction.Nothing, played.Update(false, SessionState.Playing, HoldAction.Nothing));
+        Assert.False(played.Holding);
+        Assert.True(played.Overridden);
+        played.CoverageReady();
+        Assert.Equal(HoldAction.Nothing, played.Update(true, SessionState.Playing, HoldAction.Hold));
+
+        // Stopping ends the wait and forgets the reload.
+        var stopped = new SubtitleHold();
+        stopped.Update(true, SessionState.Playing, HoldAction.Hold);
+        stopped.AwaitCoverage();
+        stopped.Update(true, SessionState.Stopping, HoldAction.Nothing);
+        Assert.False(stopped.Holding);
+        Assert.Equal(HoldAction.Hold, stopped.Update(true, SessionState.Playing, HoldAction.Hold));
+        Assert.Equal(HoldAction.Release, stopped.Update(true, SessionState.Paused, HoldAction.Release));
+
+        // Without a wait in progress there is nothing to keep.
+        var idle = new SubtitleHold();
+        idle.AwaitCoverage();
+        Assert.Equal(HoldAction.Nothing, idle.Update(true, SessionState.Paused, HoldAction.Release));
+        Assert.Equal(HoldAction.Hold, idle.Update(true, SessionState.Playing, HoldAction.Hold));
+        Assert.Equal(HoldAction.Release, idle.Update(true, SessionState.Paused, HoldAction.Release));
     }
 
     [Theory]

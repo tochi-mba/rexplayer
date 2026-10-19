@@ -26,13 +26,15 @@ public readonly record struct VisualSample(double DrawMs, double Quality, int Wi
 /// under a stable name that scripts/measure-startup.ps1 reads: what the process costs, how steadily
 /// pictures are shown, how responsive the window is, and what the visualisation costs. A script
 /// takes two readings and works out rates (processor use, allocations a second) from the change.
-/// The performance tier is its number: 0 best quality, 1 balanced, 2 fastest.
+/// The performance tier is its number: 0 best quality, 1 balanced, 2 fastest. A picture handed to
+/// a minimised window counts as presented (<c>frames-presented</c>) but not as drawn
+/// (<c>pictures-drawn</c>).
 /// </summary>
 public static class PlayerMetrics
 {
     private const double Megabyte = 1024 * 1024;
 
-    public static IReadOnlyDictionary<string, double> Read(ProcessSample process, SessionStats? playback, ResponsivenessStats window, VisualSample? visual, PerformanceTier tier = PerformanceTier.BestQuality)
+    public static IReadOnlyDictionary<string, double> Read(ProcessSample process, SessionStats? playback, ResponsivenessStats window, VisualSample? visual, PerformanceTier tier = PerformanceTier.BestQuality, long? picturesDrawn = null)
     {
         var metrics = new Dictionary<string, double>(StringComparer.Ordinal)
         {
@@ -71,6 +73,11 @@ public static class PlayerMetrics
             metrics["frame-lateness-mean-ms"] = cadence.LatenessMeanMs;
             metrics["frame-lateness-jitter-ms"] = cadence.LatenessJitterMs;
             metrics["frame-lateness-worst-ms"] = cadence.LatenessWorstMs;
+        }
+
+        if (picturesDrawn is { } drawn)
+        {
+            metrics["pictures-drawn"] = drawn;
         }
 
         if (visual is { } stage)

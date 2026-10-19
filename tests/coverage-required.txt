@@ -4,10 +4,12 @@ AacConfig.cs
 AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+ArtistPages.cs
 AuDemuxer.cs
 AnalysisConverter.cs
 Ass.cs
 Asx.cs
+ContextMenuLayout.cs
 AtomicFile.cs
 AudioArtwork.cs
 AudioEffects.cs
@@ -36,6 +38,7 @@ CameraSight.cs
 CaptionChoreography.cs
 CaptionCommands.cs
 CaptionDirector.cs
+CaptionFrameGate.cs
 CaptionGlyphs.cs
 CaptionPresets.cs
 Changelog.cs
@@ -76,6 +79,7 @@ Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
 EpisodeGrouping.cs
+EpisodeNames.cs
 EpisodeSectionDetection.cs
 EpisodeSections.cs
 EpisodeSectionView.cs
@@ -93,6 +97,7 @@ FlacDemuxer.cs
 FlacFrameHeader.cs
 FlacStreamInfo.cs
 FlightScene.cs
+FocusWithin.cs
 FolderArt.cs
 FourCC.cs
 FrameBudget.cs
@@ -107,6 +112,7 @@ HallOfMirrorsScene.cs
 HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
+HiddenWindow.cs
 Id3v2.cs
 InfinityMirrorScene.cs
 InkScene.cs
@@ -130,6 +136,7 @@ LevelMeter.cs
 LibraryActions.cs
 LibraryArrangement.cs
 LibraryBackup.cs
+LibraryEmptyState.cs
 LibraryOpening.cs
 LibraryScanner.cs
 LibraryViews.cs
@@ -305,6 +312,8 @@ TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
 TranscriptCache.cs
+TranscriptEdits.cs
+TranscriptEditHistory.cs
 TranscriptionConditions.cs
 TranscriptionEligibility.cs
 TranscriptionLedger.cs
@@ -330,7 +339,9 @@ VirtualKeys.cs
 VisionModel.cs
 VisionTypes.cs
 VisualizerOptions.cs
+VisualizerGroups.cs
 Visualizers.cs
+VisualPacing.cs
 VisualScene.cs
 VisualStage.cs
 Volume.cs
@@ -347,6 +358,7 @@ WaveFormat.cs
 WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
+WindowClocks.cs
 WordAligner.cs
 Wpl.cs
 Xspf.cs
