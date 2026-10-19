@@ -70,7 +70,7 @@ public sealed partial class MainWindow
 
     /// <summary>The key a view's choices are kept under: its name, or the kind of group opened in it, or the search.</summary>
     private string ViewKey(bool searching) => searching ? "Search"
-        : _librarySeason is not null ? (_librarySource == LibrarySource.Artists ? "Artists album" : "TvShows season")
+        : _librarySeason is not null ? (_librarySource == LibrarySource.Artists ? "Artists album" : "TvShows page")
         : _libraryGroup is not null ? _librarySource + " group" : _librarySource.ToString();
 
     /// <summary>How the view is shown: as the user last set it, else as suits what it holds.</summary>
@@ -83,10 +83,10 @@ public sealed partial class MainWindow
 
         return key switch
         {
-            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" => new LibraryViewChoice(LibraryLook.List),
+            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" or "TvShows page" => new LibraryViewChoice(LibraryLook.List),
             "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
             "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200),
-            "Videos" or "ContinueWatching" or "TvShows group" or "TvShows season" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
+            "Videos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
             _ => new LibraryViewChoice(LibraryLook.Grid),
         };
     }
@@ -109,6 +109,7 @@ public sealed partial class MainWindow
 
         var entries = _library.Entries;
         var search = LibrarySearch.Text.Trim();
+        ResolveShowPage(search);
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
         var selected = selectionView == _selectionView
             ? SelectedLibraryRows().Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)
@@ -149,7 +150,7 @@ public sealed partial class MainWindow
             // The group again, as the library has it now.
             var fresh = LibraryViews.RefreshGroup(Groups(_librarySource, entries), opened, _librarySource == LibrarySource.Albums);
             _libraryGroup = fresh;
-            kicker = _librarySource switch { LibrarySource.Albums => "ALBUM", LibrarySource.Artists when _librarySeason is not null => "ALBUM", LibrarySource.Artists => "ARTIST", LibrarySource.TvShows when _librarySeason is not null => "SEASON", LibrarySource.TvShows => "TV SHOW", _ => "GENRE" };
+            kicker = _librarySource switch { LibrarySource.Albums => "ALBUM", LibrarySource.Artists when _librarySeason is not null => "ALBUM", LibrarySource.Artists => "ARTIST", LibrarySource.TvShows => "TV SHOW", _ => "GENRE" };
             title = fresh.Name;
             var members = fresh.Entries;
             if (_librarySource == LibrarySource.TvShows)
@@ -159,9 +160,8 @@ public sealed partial class MainWindow
                 {
                     var season = LibraryViews.RefreshGroup(LibraryViews.TvSeasons(fresh), openedSeason);
                     _librarySeason = season;
-                    title += " · " + season.Name;
-                    subtitle = Count(season.Entries.Count, "episode");
-                    sections = EntrySections(season.Entries, choice);
+                    subtitle = ShowPage.Subtitle(fresh, season);
+                    sections = EpisodeSections(season.Entries, choice);
                 }
                 else
                 {
@@ -583,6 +583,7 @@ public sealed partial class MainWindow
         var kind = sample switch { LibraryEntry entry => entry.Kind, LibraryGroup => _librarySource == LibrarySource.TvShows ? LibraryKind.Video : LibraryKind.Music, _ => (LibraryKind?)null };
         var size = choice.Look == LibraryLook.Wall ? Math.Min(LibraryViewChoice.LargestCard * 1.4, choice.CardSize * 1.6) : choice.CardSize;
         var (template, width, height, name) = !media || kind is null ? ("LibraryGenericTemplate", 0.0, 0.0, "Library items, list")
+            : choice.Look == LibraryLook.List && kind == LibraryKind.Video && _librarySeason is not null ? ("LibraryEpisodeTemplate", 0.0, 0.0, "Episodes, list")
             : choice.Look == LibraryLook.List ? ("LibrarySongTemplate", 0.0, 0.0, "Compact list")
             : kind == LibraryKind.Video && (_librarySource == LibrarySource.Movies || (_librarySource == LibrarySource.TvShows && _libraryGroup is null)) ? ("LibraryMovieTemplate", size + 12, (size * 1.5) + 68, "Movies and TV shows, poster grid")
             : kind == LibraryKind.Video ? ("LibraryVideoTemplate", (size * 1.45) + 12, (size * 1.45 * 9 / 16) + 64, "Episodes, thumbnail grid")
@@ -595,7 +596,7 @@ public sealed partial class MainWindow
         }
 
         _shownLook = look;
-        LibraryList.ItemTemplate = (DataTemplate)Root.Resources[template];
+        LibraryList.ItemTemplate = LibraryTemplate(template);
         LibraryList.ItemsPanel = width == 0
             ? (ItemsPanelTemplate)Root.Resources["LibraryListPanel"]
             : (ItemsPanelTemplate)XamlReader.Load(string.Create(CultureInfo.InvariantCulture,
