@@ -29,6 +29,9 @@ internal sealed class AppProcess : IDisposable
 
     public AutomationElement Window { get; }
 
+    /// <summary>The player's process, for finding the other windows it opens, such as the file picker.</summary>
+    public int ProcessId => _process.Id;
+
     /// <summary>The window's handle, for reading what it shows.</summary>
     public nint Handle
     {
@@ -196,13 +199,21 @@ internal sealed class AppProcess : IDisposable
     }
 
     /// <summary>Runs a command through the player's automation pipe, as a script would (TOOL-03).</summary>
-    public Rex.Media.AppCore.Automation.AutomationReply Run(string command)
+    public Rex.Media.AppCore.Automation.AutomationReply Run(string command) =>
+        Send(new Rex.Media.AppCore.Automation.AutomationRequest { Command = "run", Id = command }, command);
+
+    /// <summary>What the player says it is doing now: its state, title, position and length, in seconds.</summary>
+    public Rex.Media.AppCore.Automation.AutomationReply Status() =>
+        Send(new Rex.Media.AppCore.Automation.AutomationRequest { Command = "status" }, "status");
+
+    /// <summary>The playing position in seconds, as the player reports it.</summary>
+    public double Position => Status().Position ?? 0;
+
+    private Rex.Media.AppCore.Automation.AutomationReply Send(Rex.Media.AppCore.Automation.AutomationRequest request, string what)
     {
         var reply = Rex.Media.AppCore.Automation.AutomationPipe.SendAsync(
-            "rexplayer-test-" + Path.GetFileName(Root),
-            new Rex.Media.AppCore.Automation.AutomationRequest { Command = "run", Id = command },
-            Patience).GetAwaiter().GetResult();
-        Assert.True(reply is { Ok: true }, $"The player did not run {command}: {reply?.Error ?? "no answer"}");
+            "rexplayer-test-" + Path.GetFileName(Root), request, Patience).GetAwaiter().GetResult();
+        Assert.True(reply is { Ok: true }, $"The player did not run {what}: {reply?.Error ?? "no answer"}");
         return reply!;
     }
 
