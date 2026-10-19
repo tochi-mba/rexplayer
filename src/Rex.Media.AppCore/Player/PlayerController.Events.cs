@@ -215,7 +215,14 @@ public sealed partial class PlayerController
             Seek(Position + TimeSpan.FromSeconds(forward ? seconds : -seconds));
             Say(TimeText.Format(Position, Duration));
         }
+        else if (Item is not null)
+        {
+            Say(CannotSeekNotice);
+        }
     }
+
+    /// <summary>What the player says when asked to move through media that cannot be moved through.</summary>
+    public const string CannotSeekNotice = "This media cannot be moved through.";
 
     private void Say(string text) => Message?.Invoke(this, text);
 

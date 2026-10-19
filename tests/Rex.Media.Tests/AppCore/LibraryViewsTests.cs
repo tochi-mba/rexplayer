@@ -62,7 +62,7 @@ public sealed class LibraryViewsTests
 
         // Named as most of their songs spell them.
         var artists = LibraryViews.Artists(Entries);
-        Assert.Equal(["Asake", "Burna Boy", "Various", LibraryViews.UnknownArtist], artists.Select(artist => artist.Name));
+        Assert.Equal(["Asake", "Burna Boy", "Olamide", "Various", "Wizkid", LibraryViews.UnknownArtist], artists.Select(artist => artist.Name));
         Assert.Equal(6, artists[0].Entries.Count);
         var genres = LibraryViews.Genres(Entries);
         Assert.Equal(["Afrobeats", LibraryViews.UnknownGenre], genres.Select(genre => genre.Name));
@@ -80,6 +80,19 @@ public sealed class LibraryViewsTests
         Assert.Equal(["Asake", "DJ Snake", "Kabza De Small"], artists.Select(artist => artist.Name));
         Assert.Equal(["Peace Be Unto You", "Amapiano"], Titles(artists[0].Entries));
         Assert.Equal("Asake; DJ Snake; asake", together.Artist);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ACompilationTrackAppearsUnderItsAlbumArtistAndItsOwnArtistOnce()
+    {
+        var compiled = Song("Sungba", "Asake", "Afro Hits", albumArtist: "Various Artists");
+        var own = Song("Terminator", "Asake", "Work of Art", albumArtist: "Asake");
+        var artists = LibraryViews.Artists([compiled, own]);
+
+        Assert.Equal(["Asake", "Various Artists"], artists.Select(artist => artist.Name));
+        Assert.Equal(["Terminator", "Sungba"], Titles(artists[0].Entries));
+        Assert.Equal(["Sungba"], Titles(artists[1].Entries));
     }
 
     [Fact]
