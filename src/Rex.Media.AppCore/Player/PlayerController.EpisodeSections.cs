@@ -57,10 +57,15 @@ public sealed partial class PlayerController
     public EpisodeSections? ChapterSectionSuggestions =>
         CanMarkEpisodeSections && Info is { } info ? EpisodeSectionDetection.Suggest(info.Chapters, Duration) : null;
 
-    /// <summary>Only an explicit user confirmation commits missing chapter-derived ranges.</summary>
-    public bool ApplyChapterSectionSuggestions()
+    /// <summary>
+    /// Only an explicit user confirmation commits missing chapter-derived ranges. With
+    /// <paramref name="reviewed"/>, nothing is saved unless that is still the item playing: another
+    /// episode may have opened while the suggestions were on screen.
+    /// </summary>
+    public bool ApplyChapterSectionSuggestions(PlaylistItem? reviewed = null)
     {
-        if (!CanMarkEpisodeSections || Item is not { } item || ChapterSectionSuggestions is not { } suggested)
+        if (!CanMarkEpisodeSections || Item is not { } item || (reviewed is not null && !ReferenceEquals(reviewed, item)) ||
+            ChapterSectionSuggestions is not { } suggested)
         {
             return false;
         }
