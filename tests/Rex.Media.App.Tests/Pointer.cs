@@ -19,6 +19,8 @@ internal static partial class Pointer
     private const uint KeyUp = 0x0002;
 
     public const ushort Escape = 0x1B;
+    public const ushort Enter = 0x0D;
+    public const ushort Down = 0x28;
 
     public static void Click(AppProcess app, AutomationElement element) => Mouse(app, element, LeftDown, LeftUp, 1);
 
@@ -29,8 +31,14 @@ internal static partial class Pointer
     /// <summary>Gives <paramref name="element"/> the keyboard focus and presses <paramref name="key"/> once.</summary>
     public static void Key(AppProcess app, AutomationElement element, ushort key)
     {
+        Forward(app, element);
+        Send([Keyboard(key, 0), Keyboard(key, KeyUp)]);
+    }
+
+    /// <summary>Presses <paramref name="key"/> once wherever the keyboard focus already is.</summary>
+    public static void Key(AppProcess app, ushort key)
+    {
         Forward(app);
-        element.SetFocus();
         Send([Keyboard(key, 0), Keyboard(key, KeyUp)]);
     }
 
@@ -51,12 +59,37 @@ internal static partial class Pointer
         Send([.. inputs]);
     }
 
-    private static void Forward(AppProcess app)
+    /// <summary>
+    /// Brings the window that holds <paramref name="element"/> to the front, and gives the element
+    /// the focus. A menu is its own window: forcing the main window forward would leave the menu
+    /// open yet take the keys away from it. Without an element, the focus is left where it is.
+    /// </summary>
+    private static void Forward(AppProcess app, AutomationElement? element = null)
     {
-        // UI Automation's focus may move the foreground where SetForegroundWindow alone is refused.
-        app.Window.SetFocus();
-        _ = SetForegroundWindow(app.Handle);
-        Wait.For(() => GetForegroundWindow() == app.Handle, "rexplayer to be the window in front");
+        var window = WindowOf(element) is not 0 and var own ? own : app.Handle;
+        if (GetForegroundWindow() != window)
+        {
+            // UI Automation's focus may move the foreground where SetForegroundWindow alone is refused.
+            (element ?? app.Window).SetFocus();
+            _ = SetForegroundWindow(window);
+            Wait.For(() => GetForegroundWindow() == window, "rexplayer to be the window in front");
+        }
+
+        element?.SetFocus();
+    }
+
+    /// <summary>The handle of the nearest window around <paramref name="element"/>, or 0.</summary>
+    private static nint WindowOf(AutomationElement? element)
+    {
+        for (var current = element; current is not null; current = TreeWalker.ControlViewWalker.GetParent(current))
+        {
+            if (current.Current.NativeWindowHandle is not 0 and var handle)
+            {
+                return handle;
+            }
+        }
+
+        return 0;
     }
 
     private static Input Keyboard(ushort key, uint flags) => new() { Type = InputKeyboard, Keyboard = new KeyboardInput { Key = key, Flags = flags } };
