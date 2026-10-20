@@ -52,6 +52,11 @@ public sealed class TmdbTests : IDisposable
         """;
 
     [Fact]
+    public void ANewCacheHoldsNoMovies() =>
+        // Nothing fetched yet, not even the cache's folder for this kind: the launch table starts empty.
+        Assert.Empty(Fetcher.CachedMovies());
+
+    [Fact]
     public void ASearchAnswerBecomesCandidates()
     {
         var candidates = Tmdb.ParseSearch(Search);

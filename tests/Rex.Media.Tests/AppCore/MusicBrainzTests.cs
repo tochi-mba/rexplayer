@@ -40,6 +40,11 @@ public sealed class MusicBrainzTests : IDisposable
         """;
 
     [Fact]
+    public void ANewCacheHoldsNoAlbums() =>
+        // Nothing fetched yet, not even the cache's folder for this kind: the launch table starts empty.
+        Assert.Empty(Fetcher.CachedAlbums());
+
+    [Fact]
     public void ASearchAnswerBecomesCandidates()
     {
         var candidates = MusicBrainz.ParseSearch(Search);
