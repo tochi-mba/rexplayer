@@ -145,6 +145,7 @@ LibraryArrangement.cs
 LibraryBackup.cs
 LibraryEmptyState.cs
 LibraryOpening.cs
+LibraryPlaces.cs
 LibraryScanner.cs
 LibrarySearchText.cs
 LibraryViews.cs

@@ -181,15 +181,25 @@ public sealed partial class MainWindow
 
         if (!open && LibraryOpen)
         {
-            KeepLibraryViewport();
+            KeepPlace();
         }
 
         // Only a transition into the library can pause playback. A paused item stays paused,
         // and closing the library never restarts it or changes the seek position.
-        if (open && !LibraryOpen && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
+        if (opening && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
                 _settings.KeepAudioPlayingInLibrary, HasVideo, _player.IsPlaying) == LibraryOpenAction.Pause)
         {
             _player.Pause();
+        }
+
+        // The first opening of a session starts where the last one ended, before the pane shows.
+        if (opening && !_libraryRouteApplied)
+        {
+            _libraryRouteApplied = true;
+            if (_settings.LibraryRoute is { } route)
+            {
+                ApplyLibraryRoute(route);
+            }
         }
 
         LibraryPane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
@@ -198,9 +208,9 @@ public sealed partial class MainWindow
         {
             if (!opening || !_settings.OpenLibraryAtPlayingItem || !RevealCurrentLibraryItem())
             {
-                ShowLibrary();
-                RestoreLibraryViewport();
+                ShowLibraryAtPlace();
             }
+
             ResumeLibraryPictures();
             ShowLibraryStatus();
             if (LibraryCollage.Visibility == Visibility.Visible)
@@ -236,6 +246,7 @@ public sealed partial class MainWindow
             _ => LibrarySource.Home,
         };
         var index = Array.FindIndex(LibrarySourceItems, pair => pair.Source == source);
+        _places.RememberSearch(source.ToString(), "");
         if (LibrarySources.SelectedIndex != index)
         {
             LibrarySources.SelectedIndex = index;
@@ -360,6 +371,7 @@ public sealed partial class MainWindow
     {
         if (LibrarySources.SelectedIndex >= 0)
         {
+            KeepPlace();
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
             _libraryGroup = null;
             _librarySeason = null;
@@ -368,25 +380,31 @@ public sealed partial class MainWindow
                 _shelfChoice = null;
             }
 
-            LibrarySearch.Text = "";
-            ShowLibrary();
+            // The view's own search this session comes back with it.
+            LibrarySearch.Text = _places.SearchOf(_librarySource.ToString());
+            ShowLibraryAtPlace();
         }
     }
 
     /// <summary>
-    /// The box reports a change after the fact, so clearing it while changing view would build the
+    /// The box reports a change after the fact, so setting it while changing view would build the
     /// new view twice; it is built again only when the search differs from the one it was built for.
+    /// Clearing the search returns to the place the view was at before it.
     /// </summary>
     private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e)
     {
         if (_librarySearchText.Changes(LibrarySearch.Text))
         {
-            ShowLibrary();
+            KeepPlace();
+            _places.RememberSearch(_librarySource.ToString(), LibrarySearch.Text);
+            ShowLibraryAtPlace();
         }
     }
 
+    /// <summary>Back returns to the parent as it was left, with the line that opened the page chosen and on screen.</summary>
     private void OnLibraryBack(object sender, RoutedEventArgs e)
     {
+        KeepPlace();
         if (_librarySeason is not null)
         {
             _librarySeason = null;
@@ -396,7 +414,7 @@ public sealed partial class MainWindow
             _libraryGroup = null;
         }
 
-        ShowLibrary();
+        ShowLibraryAtPlace();
     }
 
     /// <summary>

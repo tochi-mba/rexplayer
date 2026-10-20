@@ -21,7 +21,7 @@ public sealed partial class MainWindow
         && _librarySource is LibrarySource.Movies or LibrarySource.TvShows;
 
     /// <summary>Movies or TV shows as a billboard over rows; rebuilt only when what it shows has changed.</summary>
-    private void ShowStreamingBrowse(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice)
+    private void ShowStreamingBrowse(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, bool sameRoute)
     {
         ShowViewOptions(true, choice, groupsView: false, LibraryKind.Video);
         foreach (var control in new FrameworkElement[] { LibrarySortButton, LibraryGroupButton, LibraryFilterButton, LibrarySizePanel })
@@ -94,6 +94,7 @@ public sealed partial class MainWindow
         _libraryRows = [];
         _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
         _shownLibrary = shown;
+        var place = sameRoute ? CapturePlace() : null;
         LibraryShelves.Children.Clear();
         if (billboardArt is not null)
         {
@@ -104,6 +105,11 @@ public sealed partial class MainWindow
         foreach (var (title, see, rows, wide, id) in shelves)
         {
             LibraryShelves.Children.Add(Shelf(title, see, rows, wide, seeAll: false, id: id));
+        }
+
+        if (place is not null)
+        {
+            ApplyPlaceAfterLayout(place);
         }
     }
 
@@ -188,9 +194,10 @@ public sealed partial class MainWindow
     /// <summary>Opens a show's own page from the billboard.</summary>
     private void OpenShow(LibraryGroup show)
     {
+        KeepPlace();
         _libraryGroup = show;
         _librarySeason = null;
-        ShowLibrary();
+        ShowLibraryAtPlace();
     }
 
     /// <summary>Shows the featured movie among all of them: the grid, with the movie selected and on screen.</summary>

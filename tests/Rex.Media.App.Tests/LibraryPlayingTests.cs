@@ -103,9 +103,9 @@ public sealed class LibraryPlayingTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
-    public void TheLibraryOpensAtThePlayingItemAndShowsThePlayerByDefault()
+    public void TheLibraryOpensAtThePlayingItemAndShowsThePlayerWhenChosen()
     {
-        using var app = _scene.WithAsake().Ready().Start();
+        using var app = _scene.WithAsake().Ready(settings => settings with { OpenLibraryAtPlayingItem = true }).Start();
         app.Visit("Songs");
         app.Choose("Sungba");
         app.Press("LibraryPlay");
