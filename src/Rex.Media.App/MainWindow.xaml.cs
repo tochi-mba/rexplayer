@@ -691,6 +691,7 @@ public sealed partial class MainWindow : Window
         // the settings are kept, then the workers and the player go, and the graphics device last.
         // Each part closes on its own, so one failure is logged and the rest still close.
         _closing = true;
+        AppDomain.CurrentDomain.FirstChanceException += LogLateException;
         var failures = _teardown.Run(
         [
             ("the clocks", StopClocksAndFrames),
@@ -722,6 +723,21 @@ public sealed partial class MainWindow : Window
 
         _closed = true;
         App.Log.Info(LogSource, failures == 0 ? "rexplayer closed." : $"rexplayer closed; {failures} parts failed to close.");
+    }
+
+    private int _lateExceptions;
+
+    /// <summary>
+    /// Once closing begins, an exception thrown anywhere is written down at once (critical entries
+    /// reach the disk before returning): one that escapes a Windows callback now ends the process
+    /// without reaching App, and this line is all it leaves.
+    /// </summary>
+    private void LogLateException(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
+    {
+        if (Interlocked.Increment(ref _lateExceptions) <= 10)
+        {
+            App.Log.Critical(LogSource, $"While closing: {e.Exception.GetType().Name}: {e.Exception.Message} (0x{e.Exception.HResult:X8}) at{Environment.NewLine}{new System.Diagnostics.StackTrace(1, false)}");
+        }
     }
 
     private void ClosePresenter()
