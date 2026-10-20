@@ -95,9 +95,10 @@ internal sealed class AppProcess : IDisposable
     /// <summary>
     /// Starts the app with <paramref name="arguments"/>, reusing <paramref name="root"/> when given.
     /// A new root starts as someone who has used rexplayer before (no welcome, nothing new to show)
-    /// unless <paramref name="firstRun"/> asks for the very first start.
+    /// unless <paramref name="firstRun"/> asks for the very first start. <paramref name="environment"/>
+    /// adds variables, such as REXPLAYER_FAKE_SPEECH.
     /// </summary>
-    public static AppProcess Start(string[]? arguments = null, string? root = null, bool firstRun = false)
+    public static AppProcess Start(string[]? arguments = null, string? root = null, bool firstRun = false, IReadOnlyDictionary<string, string>? environment = null)
     {
         root ??= Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
         var settings = Path.Combine(root, "settings.json");
@@ -107,7 +108,13 @@ internal sealed class AppProcess : IDisposable
             File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off" }""");
         }
 
-        var process = Process.Start(StartInfo(arguments, root))!;
+        var start = StartInfo(arguments, root);
+        foreach (var (name, value) in environment ?? new Dictionary<string, string>())
+        {
+            start.Environment[name] = value;
+        }
+
+        var process = Process.Start(start)!;
         var window = Wait.Until(() =>
         {
             process.Refresh();

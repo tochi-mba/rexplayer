@@ -25,6 +25,11 @@ A test here proves a feature from what came out, not from the absence of an exce
 | Command-line smoke | Every push, against the packaged build | `./dev.ps1 smoke` |
 | Site | Every push | `./dev.ps1 site`, `node --test tests/site/app.test.mjs`, `npx playwright test` |
 
+The window suite starts rexplayer.exe with `REXPLAYER_FAKE_AUDIO=1` (no sound card needed) and, for
+the caption wait, `REXPLAYER_FAKE_SPEECH=<seconds>`: a stand-in speech model that takes that long
+over each piece and hears one word, so the wait, its overlay and its release run on machines with
+no model downloaded.
+
 ## Coverage
 
 Every file in `tests/coverage-required.txt` keeps 100 % line coverage; the gate fails otherwise.
