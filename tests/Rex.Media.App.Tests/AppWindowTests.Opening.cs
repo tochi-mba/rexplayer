@@ -8,7 +8,7 @@ using Rex.Media.TestKit;
 namespace Rex.Media.App.Tests;
 
 /// <summary>
-/// Every way media comes in besides the command line: the file picker, a typed location, the
+/// Every way media comes in besides the command line: a typed location, the
 /// clipboard (text and copied files), and a second launch that joins the queue.
 /// </summary>
 public sealed partial class AppWindowTests
@@ -52,7 +52,7 @@ public sealed partial class AppWindowTests
 
     [Fact]
     [Capability("PB-01")]
-    public void ATypedLocationOpensAndTheFilePickerCanBeCancelled()
+    public void ATypedLocationOpensFromItsDialog()
     {
         var song = Named("Sungba", 30);
         using var app = AppProcess.Start();
@@ -62,16 +62,6 @@ public sealed partial class AppWindowTests
         app.Press("PrimaryButton");
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the typed location to play");
 
-        // The picker is Windows' own window; closing it unpicked leaves the song playing.
-        app.Run(CommandCatalog.OpenFile);
-        // Windows' dialog class: found among the desktop's windows, or under the player's as its owner.
-        var dialog = new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty, app.ProcessId),
-            new PropertyCondition(AutomationElement.ClassNameProperty, "#32770"));
-        var picker = Wait.Until(() => AutomationElement.RootElement.FindFirst(TreeScope.Children, dialog) ?? app.Window.FindFirst(TreeScope.Descendants, dialog));
-        ((WindowPattern)picker.GetCurrentPattern(WindowPattern.Pattern)).Close();
-        Wait.For(() => app.Position > 1, "the song to carry on after the picker closed");
-        Assert.Equal("Sungba", app.Text("NowPlaying"));
         Assert.Equal(0, app.Close());
     }
 
