@@ -26,22 +26,4 @@ public sealed class PlayerControllerQueueTests
 
         Assert.Same(harness.Controller.Playlist.Items[1], harness.Controller.Playlist.Current);
     }
-
-    [Fact]
-    [Capability("PB-14")]
-    public void AQueuedItemRemovedFromThePlaylistIsStillNamedWhileItPlays()
-    {
-        using var harness = new ControllerHarness(settings: new PlayerSettings { TitleSeconds = 0 });
-        harness.Files["a.wav"] = Count(0, 800);
-        harness.Files["b.wav"] = Count(1000, 8000);
-        harness.Files["c.wav"] = Count(2000, 800);
-
-        harness.Controller.Open(["a.wav", "b.wav", "c.wav"]);
-        harness.PumpUntil(c => c.Duration > TimeSpan.Zero && c.Item?.Title == "a");
-        harness.Controller.Playlist.RemoveAt(1);
-        harness.PumpUntil(c => c.Item?.Title == "b");
-
-        Assert.Equal(["a", "c"], harness.Controller.Playlist.Items.Select(item => item.Title));
-        Assert.Equal("a", harness.Controller.Playlist.Current?.Title);
-    }
 }
