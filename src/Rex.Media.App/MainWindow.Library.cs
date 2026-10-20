@@ -742,34 +742,7 @@ public sealed partial class MainWindow
             AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
-            if (IsShowRow(chosen, out var show))
-            {
-                menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshShowMetadata(show.Name)));
-                menu.Items.Add(MenuItem("Wrong match...", "LibraryMenuWrongMatch", () => _ = ChooseShowMatchAsync(show.Name)));
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
-            else if (IsAlbumRow(chosen, out var albumArtist, out var album))
-            {
-                menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshAlbumMetadata(albumArtist, album)));
-                menu.Items.Add(MenuItem("Replace cover...", "LibraryMenuReplaceCover", () => _ = ReplaceAlbumCoverAsync(albumArtist, album)));
-                if (HasChosenCover(albumArtist, album))
-                {
-                    menu.Items.Add(MenuItem("Restore original cover", "LibraryMenuRestoreCover", () => RestoreAlbumCover(albumArtist, album)));
-                }
-
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
-            else if (IsMovieRow(chosen, out var movie))
-            {
-                if (MetadataMovie(movie) is { TrailerKeys: [{ } trailer, ..] })
-                {
-                    menu.Items.Add(MenuItem("Watch trailer", "LibraryMenuWatchTrailer",
-                        () => _ = Launcher.LaunchUriAsync(new Uri("https://www.youtube.com/watch?v=" + trailer))));
-                }
-
-                menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshMovieMetadata(movie)));
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
+            AddMetadataMenuItems(menu, chosen);
 
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));

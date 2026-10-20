@@ -4,6 +4,7 @@ using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Metadata;
 using Rex.Media.Settings;
 using Windows.Storage.Pickers;
+using Launcher = Windows.System.Launcher;
 
 namespace Rex.Media.App;
 
@@ -908,5 +909,38 @@ public sealed partial class MainWindow
         });
         StartMetadataWhenAllowed();
         Say($"{show} will be fetched as {pick.Name}");
+    }
+
+    /// <summary>A library row's online-details actions: refresh, fix the match, change the cover or watch the trailer.</summary>
+    private void AddMetadataMenuItems(MenuFlyout menu, IReadOnlyList<LibraryRow> chosen)
+    {
+        if (IsShowRow(chosen, out var show))
+        {
+            menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshShowMetadata(show.Name)));
+            menu.Items.Add(MenuItem("Wrong match...", "LibraryMenuWrongMatch", () => _ = ChooseShowMatchAsync(show.Name)));
+            menu.Items.Add(new MenuFlyoutSeparator());
+        }
+        else if (IsAlbumRow(chosen, out var albumArtist, out var album))
+        {
+            menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshAlbumMetadata(albumArtist, album)));
+            menu.Items.Add(MenuItem("Replace cover...", "LibraryMenuReplaceCover", () => _ = ReplaceAlbumCoverAsync(albumArtist, album)));
+            if (HasChosenCover(albumArtist, album))
+            {
+                menu.Items.Add(MenuItem("Restore original cover", "LibraryMenuRestoreCover", () => RestoreAlbumCover(albumArtist, album)));
+            }
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+        }
+        else if (IsMovieRow(chosen, out var movie))
+        {
+            if (MetadataMovie(movie) is { TrailerKeys: [{ } trailer, ..] })
+            {
+                menu.Items.Add(MenuItem("Watch trailer", "LibraryMenuWatchTrailer",
+                    () => _ = Launcher.LaunchUriAsync(new Uri("https://www.youtube.com/watch?v=" + trailer))));
+            }
+
+            menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshMovieMetadata(movie)));
+            menu.Items.Add(new MenuFlyoutSeparator());
+        }
     }
 }
