@@ -67,7 +67,7 @@ public sealed class LibraryPlayingTests : IDisposable
         Assert.Equal("Add 2 items to queue", app.Text("LibraryMenuEnqueue"));
 
         // The menu makes a playlist of what it acts on.
-        app.Press("LibraryMenuAddTo");
+        ((System.Windows.Automation.ExpandCollapsePattern)app.Find("LibraryMenuAddTo").GetCurrentPattern(System.Windows.Automation.ExpandCollapsePattern.Pattern)).Expand();
         app.Press("LibraryMenuAddToNew");
         ((System.Windows.Automation.ValuePattern)app.Find("PlaylistName").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).SetValue("Asake");
         app.Press("PrimaryButton");
