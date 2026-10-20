@@ -69,6 +69,7 @@ public sealed class LibraryFoldersTests : IDisposable
         Wait.For(() => app.Text("LibraryKicker") == "TV SHOW" && app.Text("LibrarySubtitle").StartsWith("2 seasons", StringComparison.Ordinal), "the show's seasons",
             () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {app.Text("LibrarySubtitle")} / {app.Text("NowPlaying")}");
         Wait.For(() => app.Lines().Length == 2, "a line per season", () => string.Join(", ", app.Lines()));
+        Screenshots.Match(app, "library-show-seasons", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 }
