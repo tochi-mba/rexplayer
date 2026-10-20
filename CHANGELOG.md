@@ -25,6 +25,7 @@ pipeline the moment its number reaches `main`.
 
 ### Fixed
 
+- **The right title after a late repeat change.** Choosing Repeat one (or shuffle) while a song was already lined up to follow without a gap no longer leaves the window naming the old song, with the new one's length, once the new one begins.
 - **Preferences tells the truth about transcription quality.** The Balanced and Fastest modes said transcription would use "at most the Base/Tiny speech model", but no such cap was ever applied: the Fast, Default or Best quality you choose on the caption rail always decides, because transcripts are saved per quality. Preferences now says the quality stays as you choose it; on Fastest it still says the library is transcribed only while nothing plays.
 - **Replaying the last item marks it in the queue.** Dragging the seek bar after the queue ended plays the last item again, and the queue panel now shows it as current.
 - **Moving through unseekable media says why nothing happened.** Go to time and the jump keys show a short notice on media that cannot be moved through.

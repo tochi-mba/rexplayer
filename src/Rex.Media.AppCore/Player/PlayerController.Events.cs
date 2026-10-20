@@ -248,8 +248,9 @@ public sealed partial class PlayerController
             case MediaOpenedEvent opened:
                 if (_openedInSession && _queued is not null)
                 {
-                    // The queued item has begun, without a gap: the playlist moves on with it.
-                    Item = Playlist.Next(automatic: true);
+                    // The queued item has begun, without a gap: the playlist moves on with it, even
+                    // when repeat or shuffle changed after it was queued and would now pick another.
+                    Item = CarryOnInto(_queued);
                     Position = TimeSpan.Zero;
                     _log.Info(LogSource, $"Carried on without a gap into {Item!.Location}.");
                     _queued = null;
@@ -382,6 +383,22 @@ public sealed partial class PlayerController
 
                 break;
         }
+    }
+
+    /// <summary>
+    /// The playlist's place moved to <paramref name="queued"/>, the item the engine has just begun:
+    /// the next one when nothing changed, otherwise wherever it now stands. One removed from the
+    /// playlist since is still what plays, so it stays the item.
+    /// </summary>
+    private PlaylistItem CarryOnInto(PlaylistItem queued)
+    {
+        if (Playlist.PeekNext(automatic: true) == queued)
+        {
+            return Playlist.Next(automatic: true)!;
+        }
+
+        var index = Playlist.IndexOf(queued);
+        return index >= 0 ? Playlist.JumpTo(index) : queued;
     }
 
     private void StartNext()
