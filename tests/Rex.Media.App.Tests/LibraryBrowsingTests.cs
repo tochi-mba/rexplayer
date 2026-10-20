@@ -159,7 +159,7 @@ public sealed class LibraryBrowsingTests : IDisposable
         Wait.For(() => app.Lines().SequenceEqual(["Sungba"]), "the search to find one song", () => string.Join(", ", app.Lines()));
         Pointer.Key(app, app.Find("LibrarySearch"), Pointer.Down);
         Wait.For(() => app.IsChosen("Sungba"), "Down to choose the first found");
-        Pointer.Key(app, Pointer.Enter);
+        Pointer.Key(Pointer.Enter);
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "Enter to play the chosen song");
 
         Assert.Equal(0, app.Close());
