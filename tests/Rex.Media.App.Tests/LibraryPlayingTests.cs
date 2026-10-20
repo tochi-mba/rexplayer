@@ -56,9 +56,11 @@ public sealed class LibraryPlayingTests : IDisposable
         Assert.True(app.IsChosen("Sungba"));
         Assert.False(app.IsChosen("Terminator"), "The right-click chooses the line under the pointer alone.");
 
-        // Right-clicking a line already among the chosen keeps them all.
-        Pointer.Key(Pointer.Escape);
+        // Activate this item's action to close the flyout deterministically; synthesized
+        // Escape is unreliable for WinUI's separate popup window on CI desktops.
+        app.Press("LibraryMenuPlayNext");
         Wait.For(() => !app.IsShown("LibraryMenuPlayNext"), "the menu to close");
+        // Right-clicking a line already among the chosen keeps them all.
         app.Choose("Terminator", alone: false);
         Pointer.RightClick(app, app.Line("Terminator"));
         Wait.For(() => app.IsShown("LibraryMenuEnqueue"), "the menu for both lines");
