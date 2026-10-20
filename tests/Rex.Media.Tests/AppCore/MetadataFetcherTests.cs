@@ -131,6 +131,67 @@ public sealed class MetadataFetcherTests : IDisposable
     }
 
     [Fact]
+    public async Task MalformedOptionalDetailsDoNotDiscardAUsableShow()
+    {
+        AnswerEverything();
+        _answers["https://api.tvmaze.com/shows/318/cast"] = "broken";
+        _answers["https://api.tvmaze.com/shows/318/crew"] = "broken";
+        _answers["https://api.tvmaze.com/shows/318/seasons"] = "broken";
+
+        Assert.True(await Fetcher.FetchShowAsync("The Show", null, null, CancellationToken.None));
+
+        var show = Fetcher.Cached("The Show");
+        Assert.NotNull(show);
+        Assert.Equal("Winter", show!.EpisodeName(1, 1));
+        Assert.Empty(show.Cast);
+        Assert.Empty(show.Creators);
+        Assert.Empty(show.Seasons);
+    }
+
+    [Fact]
+    public async Task ACorruptCachedShowIsFetchedAgain()
+    {
+        // Written under the very key the fetcher reads, so the damaged record is what it finds first.
+        _cache.WriteText(MetadataFetcher.ShowKind, MetadataMatch.Normalize("The Show"), "broken");
+        Assert.Null(Fetcher.Cached("The Show"));
+        AnswerEverything();
+
+        Assert.True(await Fetcher.FetchShowAsync("The Show", null, null, CancellationToken.None));
+        Assert.Equal(318, Fetcher.Cached("The Show")!.CatalogueId);
+        Assert.NotEmpty(_asked);
+    }
+
+    [Fact]
+    public async Task AnOlderFoundRecordIsFetchedAgainAndUpgraded()
+    {
+        // A record from before the schema field: found, but without cast or seasons.
+        _cache.WriteText(MetadataFetcher.ShowKind, MetadataMatch.Normalize("The Show"), """{"CatalogueId":318,"Name":"The Show","Summary":"Old."}""");
+        var old = Fetcher.Cached("The Show");
+        Assert.True(old is { Schema: 0, Found: true, Current: false });
+        AnswerEverything();
+
+        Assert.True(await Fetcher.FetchShowAsync("The Show", null, null, CancellationToken.None));
+        Assert.NotEmpty(_asked);
+        var upgraded = Fetcher.Cached("The Show");
+        Assert.True(upgraded is { Schema: EnrichedShow.CurrentSchema, Current: true, Summary: "Dragons." });
+
+        // Current now: nothing more is asked.
+        _asked.Clear();
+        Assert.True(await Fetcher.FetchShowAsync("The Show", null, null, CancellationToken.None));
+        Assert.Empty(_asked);
+    }
+
+    [Fact]
+    public async Task AnOlderNoMatchIsNotAskedAgain()
+    {
+        _cache.WriteText(MetadataFetcher.ShowKind, MetadataMatch.Normalize("Obscure"), """{"CatalogueId":0,"Name":"Obscure"}""");
+        Assert.True(Fetcher.Cached("Obscure") is { Schema: 0, Found: false, Current: true });
+
+        Assert.True(await Fetcher.FetchShowAsync("Obscure", null, null, CancellationToken.None));
+        Assert.Empty(_asked);
+    }
+
+    [Fact]
     public async Task SearchingForThePickerReturnsTheCandidates()
     {
         AnswerEverything();
@@ -159,6 +220,11 @@ public sealed class MetadataFetcherTests : IDisposable
         Assert.Equal(show.Episodes, reloaded.Episodes);
         Assert.Null(EnrichedShow.FromJson("broken"));
         Assert.Throws<ArgumentNullException>(() => EnrichedShow.FromJson(null!));
+
+        var nullLists = EnrichedShow.FromJson("""{"CatalogueId":1,"Name":"X","Genres":null,"Cast":null,"Creators":null,"Seasons":null,"Episodes":null}""");
+        Assert.Equal("", nullLists!.Blurb());
+        Assert.Null(nullLists.EpisodeName(1, 1));
+        Assert.Empty(nullLists.Cast);
     }
 
     [Fact]

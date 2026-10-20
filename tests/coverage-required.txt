@@ -41,6 +41,7 @@ CaptionDirector.cs
 CaptionFrameGate.cs
 CaptionGlyphs.cs
 CaptionPresets.cs
+CastMember.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
@@ -78,6 +79,8 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+EnrichedAlbum.cs
+EnrichedMovie.cs
 EnrichedShow.cs
 EpisodeGrouping.cs
 EpisodeNames.cs
@@ -192,6 +195,7 @@ MpegAudioHeader.cs
 MpegInfoTag.cs
 Mpl2.cs
 MurmurationScene.cs
+MusicBrainz.cs
 MusicPulse.cs
 NalUnits.cs
 NaturalOrder.cs
@@ -240,6 +244,7 @@ PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs
 Raster.cs
+RateGate.cs
 Rational.cs
 ReleaseNotes.cs
 RemovalPanel.cs
@@ -320,6 +325,7 @@ TimeRanges.cs
 TimeStretch.cs
 TimeText.cs
 TimeWarpScene.cs
+Tmdb.cs
 TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs

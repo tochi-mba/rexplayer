@@ -91,6 +91,33 @@ public sealed class MetadataCache(string folder)
         }
     }
 
+    /// <summary>The user's own chosen artwork, kept outside <see cref="Downloads"/> so a clear never undoes a pick.</summary>
+    public string ChosenArt => System.IO.Path.Combine(Folder, "chosen-art");
+
+    /// <summary>Where a key's chosen artwork lives, chosen or not.</summary>
+    public string ChosenArtPath(string key) => System.IO.Path.Combine(ChosenArt, FileName(key) + ".img");
+
+    /// <summary>Keeps the user's chosen artwork for a key, whole or not at all.</summary>
+    public void WriteChosenArt(string key, byte[] content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var path = ChosenArtPath(key);
+        Directory.CreateDirectory(ChosenArt);
+        var staging = path + ".new";
+        File.WriteAllBytes(staging, content);
+        File.Move(staging, path, overwrite: true);
+    }
+
+    /// <summary>Forgets the chosen artwork, restoring whatever the album had; nothing happens when none was chosen.</summary>
+    public void RemoveChosenArt(string key)
+    {
+        var path = ChosenArtPath(key);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
     /// <summary>A size in words for the Preferences line: "nothing yet", "412 KB", "3.2 MB".</summary>
     public static string Describe(long bytes) => bytes switch
     {

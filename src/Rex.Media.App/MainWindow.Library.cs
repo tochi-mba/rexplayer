@@ -497,6 +497,7 @@ public sealed partial class MainWindow
         var detail = entry.Kind == LibraryKind.Video
             ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
+                + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
                 + (episode is null ? "" : episode.Spoken + " · ")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
@@ -741,12 +742,7 @@ public sealed partial class MainWindow
             AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
-            if (IsShowRow(chosen, out var show))
-            {
-                menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshShowMetadata(show.Name)));
-                menu.Items.Add(MenuItem("Wrong match...", "LibraryMenuWrongMatch", () => _ = ChooseShowMatchAsync(show.Name)));
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
+            AddMetadataMenuItems(menu, chosen);
 
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
