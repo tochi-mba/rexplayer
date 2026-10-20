@@ -64,10 +64,11 @@ public sealed partial class AppWindowTests
 
         // The picker is Windows' own window; closing it unpicked leaves the song playing.
         app.Run(CommandCatalog.OpenFile);
-        var picker = Wait.Until(() => AutomationElement.RootElement.FindFirst(TreeScope.Children, new AndCondition(
-                new PropertyCondition(AutomationElement.ProcessIdProperty, app.ProcessId),
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window),
-                new NotCondition(new PropertyCondition(AutomationElement.NativeWindowHandleProperty, (int)app.Handle)))));
+        // Windows' dialog class: found among the desktop's windows, or under the player's as its owner.
+        var dialog = new AndCondition(
+            new PropertyCondition(AutomationElement.ProcessIdProperty, app.ProcessId),
+            new PropertyCondition(AutomationElement.ClassNameProperty, "#32770"));
+        var picker = Wait.Until(() => AutomationElement.RootElement.FindFirst(TreeScope.Children, dialog) ?? app.Window.FindFirst(TreeScope.Descendants, dialog));
         ((WindowPattern)picker.GetCurrentPattern(WindowPattern.Pattern)).Close();
         Wait.For(() => app.Position > 1, "the song to carry on after the picker closed");
         Assert.Equal("Sungba", app.Text("NowPlaying"));

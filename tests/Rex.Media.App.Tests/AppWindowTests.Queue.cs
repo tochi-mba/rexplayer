@@ -60,7 +60,7 @@ public sealed partial class AppWindowTests
 
         app.Press("RepeatButton");
         Wait.For(() => app.Find("RepeatButton").Current.Name == "Repeat off", "Repeat off");
-        Assert.Equal(Rex.Media.Settings.RepeatMode.Off, app.SavedSettings.Repeat);
+        Wait.For(() => app.SavedSettings.Repeat == Rex.Media.Settings.RepeatMode.Off, "Repeat off to be kept");
         Assert.Equal(0, app.Close());
     }
 
