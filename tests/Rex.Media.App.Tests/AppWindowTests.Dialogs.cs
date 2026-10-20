@@ -30,21 +30,21 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Find("SeekBar").Current.IsEnabled && app.Find("StartOverButton").Current.IsEnabled, "seeking to be offered");
 
         app.Run(CommandCatalog.PlayPause);
-        app.Run(CommandCatalog.GoToTime);
+        OpenDialog(app, CommandCatalog.GoToTime, "GoToTimeBox");
         var box = (ValuePattern)app.Find("GoToTimeBox").GetCurrentPattern(ValuePattern.Pattern);
         box.SetValue("0:42");
         app.Press("PrimaryButton");
         Wait.For(() => app.Text("Elapsed") == "0:42", "the song to move to 0:42", () => "It shows " + app.Text("Elapsed") + ".");
 
         // A time that is not a time says so and leaves the place alone.
-        app.Run(CommandCatalog.GoToTime);
+        OpenDialog(app, CommandCatalog.GoToTime, "GoToTimeBox");
         ((ValuePattern)app.Find("GoToTimeBox").GetCurrentPattern(ValuePattern.Pattern)).SetValue("soon");
         app.Press("PrimaryButton");
-        Wait.For(() => NoticeSays(app, "\"soon\" is not a time"), "the notice about the time");
+        Wait.For(() => app.LogText.Contains("\"soon\" is not a time", StringComparison.Ordinal), "the message about the time");
         Assert.Equal("0:42", app.Text("Elapsed"));
 
         // Cancel changes nothing.
-        app.Run(CommandCatalog.GoToTime);
+        OpenDialog(app, CommandCatalog.GoToTime, "GoToTimeBox");
         ((ValuePattern)app.Find("GoToTimeBox").GetCurrentPattern(ValuePattern.Pattern)).SetValue("0:05");
         app.Press("CloseButton");
         Wait.For(() => !app.IsShown("GoToTimeBox"), "Go to a time to close");
@@ -74,8 +74,7 @@ public sealed partial class AppWindowTests
         app.Press("CloseButton");
         Wait.For(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Keyboard shortcuts")) is null, "the sheet to close");
         Assert.NotNull(sheet);
-        app.Run(CommandCatalog.Preferences);
-        Wait.For(() => app.IsShown("PreferencesSection"), "Preferences to open once the sheet is closed");
+        OpenDialog(app, CommandCatalog.Preferences, "PreferencesSection");
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }
@@ -97,7 +96,7 @@ public sealed partial class AppWindowTests
         Wait.For(() => !app.IsShown("WhatsNewText"), "What's new to close");
 
         // Preferences' Updates section offers it again.
-        app.Run(CommandCatalog.Preferences);
+        OpenDialog(app, CommandCatalog.Preferences, "PreferencesSection");
         ChoosePreferencesSection(app, "Updates");
         Assert.False(string.IsNullOrWhiteSpace(app.Text("PreferencesLastUpdated")));
         app.Press("PreferencesWhatsNew");

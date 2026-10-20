@@ -40,6 +40,12 @@ internal static partial class Input
         }, "the window to come to the front");
     }
 
+    /// <summary>Maximises the window as its title bar's button does.</summary>
+    public static void Maximize(AppProcess app) => ShowWindow(app.Handle, 3);
+
+    /// <summary>Restores a maximised window to its own size.</summary>
+    public static void Restore(AppProcess app) => ShowWindow(app.Handle, 9);
+
     /// <summary>Presses and releases a shortcut written as rexplayer writes them ("Ctrl+Alt+F9", "M").</summary>
     public static void Press(string chord)
     {
@@ -131,4 +137,8 @@ internal static partial class Input
 
     [LibraryImport("user32.dll")]
     private static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint window, int command);
 }

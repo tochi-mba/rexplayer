@@ -17,6 +17,9 @@ public sealed partial class MainWindow
     {
         var s = _settings;
         Func<Task>? requestedEditor = null;
+
+        // What to show once Preferences has closed: WinUI shows one dialog at a time.
+        Func<Task>? afterClose = null;
         var veryShort = Jump("Very short jump (seconds)", s.VeryShortJumpSeconds, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardVeryShort);
         var shortJump = Jump("Short jump (seconds)", s.ShortJumpSeconds, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardShort);
         var medium = Jump("Medium jump (seconds)", s.MediumJumpSeconds, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardMedium);
@@ -93,8 +96,8 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "PreferencesWhatsNew");
             whatsNew.Click += (_, _) =>
             {
+                afterClose = ShowWhatsNewAsync;
                 _dialog?.Hide();
-                DispatcherQueue.TryEnqueue(() => _ = ShowWhatsNewAsync());
             };
             lastUpdated.Children.Add(updatedText);
             lastUpdated.Children.Add(whatsNew);
@@ -426,6 +429,10 @@ public sealed partial class MainWindow
                     }
                 }
                 while (requestedEditor is not null && !_closed);
+                if (afterClose is { } then && !_closed)
+                {
+                    await then();
+                }
             }
             finally
             {
