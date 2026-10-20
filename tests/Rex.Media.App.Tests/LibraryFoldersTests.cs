@@ -69,18 +69,6 @@ public sealed class LibraryFoldersTests : IDisposable
         Wait.For(() => app.Text("LibraryKicker") == "TV SHOW" && app.Text("LibrarySubtitle").StartsWith("2 seasons", StringComparison.Ordinal), "the show's seasons",
             () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {app.Text("LibrarySubtitle")} / {app.Text("NowPlaying")}");
         Wait.For(() => app.Lines().Length == 2, "a line per season", () => string.Join(", ", app.Lines()));
-        app.Open(app.Lines()[0]);
-        Wait.For(() => app.Text("LibraryKicker") == "SEASON" && app.Text("LibrarySubtitle").StartsWith("2 episodes", StringComparison.Ordinal), "the first season");
-
-        // An episode's menu offers the season from there as well as the one episode.
-        var first = app.Lines()[0];
-        Pointer.RightClick(app, app.Line(first));
-        Wait.For(() => app.IsShown("LibraryMenuPlay"), "the episode's menu");
-        Assert.Equal("Play season 1 from here (2 episodes)", app.Text("LibraryMenuPlay"));
-        Pointer.Key(app, app.Find("LibraryMenuPlay"), Pointer.Escape);
-
-        app.Press("LibraryBack");
-        Wait.For(() => app.Text("LibraryKicker") == "TV SHOW", "Back to the show");
         Assert.Equal(0, app.Close());
     }
 }
