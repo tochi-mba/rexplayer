@@ -46,17 +46,24 @@ public sealed partial class AppWindowTests
         // One: the same song again and again.
         app.Press("RepeatButton");
         Wait.For(() => app.Find("RepeatButton").Current.Name == "Repeat one", "Repeat one");
-        var repeated = app.Status().Title;
+        // A song already lined up when Repeat one was chosen may still begin: from its first
+        // restart on, the same song plays again and again.
+        string? repeated = null;
         var wrapped = 0;
         var last = app.Position;
         Wait.For(() =>
         {
-            var position = app.Position;
-            wrapped += position + 0.5 < last ? 1 : 0;
+            var status = app.Status();
+            var position = status.Position ?? 0;
+            if (position + 0.5 < last && ++wrapped == 1)
+            {
+                repeated = status.Title;
+            }
+
             last = position;
-            return wrapped >= 2;
-        }, "the song to start over twice");
-        Assert.Equal(repeated, app.Status().Title);
+            Assert.True(repeated is null || status.Title == repeated, $"Repeat one moved from {repeated} to {status.Title}.");
+            return wrapped >= 3;
+        }, "the song to start over again and again");
 
         app.Press("RepeatButton");
         Wait.For(() => app.Find("RepeatButton").Current.Name == "Repeat off", "Repeat off");
