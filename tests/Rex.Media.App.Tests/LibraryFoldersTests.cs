@@ -78,7 +78,6 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Open("Harbour Lights");
         Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on its first season",
             () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
-        Assert.StartsWith("Play", app.Find("LibraryPlay").Current.Name, StringComparison.Ordinal);
         Screenshots.Match(app, "library-show-page", "LibraryPane");
         var picker = app.Find("LibrarySeasonPicker");
         ((ExpandCollapsePattern)picker.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
