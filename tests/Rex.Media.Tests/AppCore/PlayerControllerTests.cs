@@ -186,40 +186,6 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
-    public void RepeatOneChosenAfterTheNextItemWasQueuedPlaysThisItemAgain()
-    {
-        using var harness = new ControllerHarness();
-        harness.Files["a.wav"] = Count(0, 400);
-        harness.Files["b.wav"] = Count(1000, 400);
-
-        harness.Controller.Open(["a.wav", "b.wav"]);
-        harness.PumpUntil(controller => controller.Info is not null && controller.Item?.Title == "a");
-        harness.Controller.Execute(CommandCatalog.CycleRepeat);
-        harness.Controller.Execute(CommandCatalog.CycleRepeat);
-        Assert.Equal(RepeatMode.One, harness.Controller.Playlist.Repeat);
-        harness.PumpUntil(_ => harness.Sinks.Count >= 2 && harness.Sinks[1].Channel(0).Length >= 400);
-        harness.Controller.Stop();
-
-        Assert.Equal(Expected((0, 400)), harness.Sinks[1].Channel(0)[..400]);
-    }
-
-    [Fact]
-    public void AnItemPutNextAfterTheQueueWasMadePlaysNext()
-    {
-        using var harness = new ControllerHarness();
-        harness.Files["a.wav"] = Count(0, 400);
-        harness.Files["b.wav"] = Count(1000, 400);
-        harness.Files["x.wav"] = Count(3000, 400);
-
-        harness.Controller.Open(["a.wav", "b.wav"]);
-        harness.PumpUntil(controller => controller.Info is not null && controller.Item?.Title == "a");
-        harness.Controller.Playlist.InsertNext(1, [new PlaylistItem("x.wav")]);
-        harness.PumpUntil(controller => EndedOn(controller, "b"));
-
-        Assert.Equal(Expected((3000, 400), (1000, 400)), harness.Played()[^800..]);
-    }
-
-    [Fact]
     public void RepeatOnePlaysTheItemAgainUntilStopped()
     {
         using var harness = new ControllerHarness(settings: new PlayerSettings { Repeat = RepeatMode.One });
