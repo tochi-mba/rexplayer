@@ -125,8 +125,4 @@ public sealed partial class MainWindow
         return row;
     }
 
-    /// <summary>A library template by key: the window's own, or the show page's, created the first time it is needed.</summary>
-    private DataTemplate LibraryTemplate(string key) =>
-        Root.Resources.TryGetValue(key, out var template) ? (DataTemplate)template
-            : (DataTemplate)(_episodeTemplates ??= new LibraryEpisodeTemplates())[key];
 }

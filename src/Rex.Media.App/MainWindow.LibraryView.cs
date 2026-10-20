@@ -776,13 +776,20 @@ public sealed partial class MainWindow
 
     /// <summary>A card shows its play mark while pointed at.</summary>
     /// <summary>
-    /// A library item template by key: the card layouts come from <see cref="LibraryCardTemplates"/>,
-    /// created on the first lookup, and the list templates from the window's own resources.
+    /// A library item template by key: the window's own list templates, else the show page's episode
+    /// lines or the card layouts, each dictionary created the first time one of its templates is needed.
     /// </summary>
     private DataTemplate LibraryTemplate(string key)
     {
-        _cardTemplates ??= new LibraryCardTemplates(this);
-        return (DataTemplate)(_cardTemplates.TryGetValue(key, out var card) ? card : Root.Resources[key]);
+        if (Root.Resources.TryGetValue(key, out var own))
+        {
+            return (DataTemplate)own;
+        }
+
+        ResourceDictionary templates = key.StartsWith("LibraryEpisode", StringComparison.Ordinal)
+            ? _episodeTemplates ??= new LibraryEpisodeTemplates()
+            : _cardTemplates ??= new LibraryCardTemplates(this);
+        return (DataTemplate)templates[key];
     }
 
     private LibraryCardTemplates? _cardTemplates;
