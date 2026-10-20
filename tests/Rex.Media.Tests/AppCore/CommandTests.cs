@@ -14,9 +14,43 @@ public sealed class CommandTests
     [InlineData("F24", KeyModifiers.None, "F24")]
     [InlineData("Ctrl+slash", KeyModifiers.Ctrl, "Slash")]
     [InlineData("mediaplaypause", KeyModifiers.None, "MediaPlayPause")]
+    [InlineData("Cmd+O", KeyModifiers.Ctrl, "O")]
+    [InlineData("command+shift+o", KeyModifiers.Ctrl | KeyModifiers.Shift, "O")]
+    [InlineData("Option+Left", KeyModifiers.Alt, "Left")]
+    [InlineData("opt+cmd+1", KeyModifiers.Ctrl | KeyModifiers.Alt, "1")]
     public void ChordsParseWhateverTheCaseAndOrder(string text, KeyModifiers modifiers, string key)
     {
         Assert.Equal(new KeyChord(modifiers, key), KeyChord.Parse(text));
+    }
+
+    [Fact]
+    public void TheMacsWordsNameTheSameKeysSoOneSettingsFileFitsEveryPlatform()
+    {
+        // A chord typed the Mac way is stored the canonical way, and reads back on either platform.
+        Assert.Equal("Ctrl+Alt+Shift+O", KeyChord.Parse("Shift+Option+Cmd+O").ToString());
+        Assert.Null(KeyChord.TryParse("Cmd+Ctrl+O"));
+    }
+
+    [Theory]
+    [InlineData("Ctrl+O", "Ctrl+O", "Cmd+O")]
+    [InlineData("Ctrl+Alt+Shift+Right", "Ctrl+Alt+Shift+Right", "Option+Shift+Cmd+Right")]
+    [InlineData("Alt+1", "Alt+1", "Option+1")]
+    [InlineData("Shift+N", "Shift+N", "Shift+N")]
+    [InlineData("Space", "Space", "Space")]
+    public void AChordIsShownInEachPlatformsOwnWords(string text, string windows, string mac)
+    {
+        var chord = KeyChord.Parse(text);
+        Assert.Equal(windows, chord.Display(ShortcutStyle.Windows));
+        Assert.Equal(mac, chord.Display(ShortcutStyle.Mac));
+    }
+
+    [Fact]
+    public void MenuLabelsFollowThePlatformsStyle()
+    {
+        var keymap = new Keymap();
+        Assert.Equal("Ctrl+T", keymap.Label(CommandCatalog.GoToTime));
+        Assert.Equal("Cmd+T", keymap.Label(CommandCatalog.GoToTime, ShortcutStyle.Mac));
+        Assert.Equal("", keymap.Label(CommandCatalog.ToggleAlwaysOnTop, ShortcutStyle.Mac));
     }
 
     [Theory]

@@ -52,6 +52,6 @@ public sealed class Keymap
     /// <summary>A command's chords, in the order they are shown.</summary>
     public IReadOnlyList<KeyChord> ShortcutsFor(string commandId) => _byCommand.GetValueOrDefault(commandId) ?? [];
 
-    /// <summary>The first chord's text for menus ("Ctrl+O"), or an empty string.</summary>
-    public string Label(string commandId) => ShortcutsFor(commandId) is [var first, ..] ? first.ToString() : "";
+    /// <summary>The first chord's text for menus ("Ctrl+O", or "Cmd+O" in the Mac's words), or an empty string.</summary>
+    public string Label(string commandId, ShortcutStyle style = ShortcutStyle.Windows) => ShortcutsFor(commandId) is [var first, ..] ? first.Display(style) : "";
 }

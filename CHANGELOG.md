@@ -9,12 +9,15 @@ pipeline the moment its number reaches `main`.
 
 - **Automatic performance mode while Energy Saver is on.** When Windows' Energy Saver turns on, a chosen Best quality, Balanced or Fastest gives way to Automatic so the device budget adapts, with a short notice over the picture; the chosen mode comes back, and is announced, when Energy Saver turns off. Preferences > Performance shows which mode is in effect and why, and "When Energy Saver is on, use the Automatic performance mode" turns the behaviour off.
 
+### Improved
+
+- **Shortcuts speak every platform's language.** A shortcut typed the Mac way (Cmd+O, Option+Left) is understood, and the shared player code can show any shortcut in Windows words or Mac words, so one settings file means the same keys on both.
+
 ### Fixed
 
 - **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.
 - **Down in the library search moves into the results.** It chooses the first item found, so Enter plays it.
 - **No more crash while subtitles are being transcribed.** With a transcript being made for what plays, a seek, a pause or the next item could end rexplayer at once: the stretch to hear next sometimes held no sound at all (the file's sound lands later than asked, or there is none there), and the speech model was asked to hear nothing, which the model cannot survive. Such a stretch is now passed over as heard with no words, and the model is never asked to hear an empty piece.
-
 
 ## 0.26.0 - 2026-10-20
 
