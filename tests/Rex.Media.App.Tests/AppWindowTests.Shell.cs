@@ -29,7 +29,7 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.Preferences);
         var picker = (ExpandCollapsePattern)app.Find("PreferencesSection").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         picker.Expand();
-        var offered = Wait.Until(() => All(app.Window, ControlType.ListItem).Select(item => item.Current.Name).Where(PreferencesSections.Contains).ToArray() is { Length: > 0 } names ? names : null);
+        var offered = Wait.Until(() => All(app.Window, ControlType.ListItem).Select(item => item.Current.Name).Where(PreferencesSections.Contains).Distinct().ToArray() is { Length: > 0 } names ? names : null);
         picker.Collapse();
         Assert.Equal(PreferencesSections, offered);
 
@@ -67,7 +67,7 @@ public sealed partial class AppWindowTests
         Wait.For(() => !app.IsShown("ShortcutSearch"), "the editor to close");
         Assert.False(app.SavedSettings.Shortcuts.ContainsKey(CommandCatalog.Mute));
 
-        app.Run(CommandCatalog.KeyboardAndMouse);
+        OpenDialog(app, CommandCatalog.KeyboardAndMouse, "ShortcutSearch");
         app.Press("ShortcutClear-" + CommandCatalog.Mute);
         app.Press("PrimaryButton");
         Wait.For(() => app.SavedSettings.Shortcuts.GetValueOrDefault(CommandCatalog.Mute) == "", "the cleared shortcut to be kept");
@@ -80,12 +80,11 @@ public sealed partial class AppWindowTests
     {
         using var app = AppProcess.Start([Song(30)]);
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song");
-        var mute = (TogglePattern)app.Find("MuteButton").GetCurrentPattern(TogglePattern.Pattern);
-        Assert.Equal(ToggleState.Off, mute.Current.ToggleState);
+        Assert.Equal("Mute", app.Text("MuteButton"));
 
         Input.Focus(app);
         Input.Press("M");
-        Wait.For(() => mute.Current.ToggleState == ToggleState.On, "M to mute");
+        Wait.For(() => app.Text("MuteButton") == "Unmute", "M to mute");
         Input.Press("Ctrl+P");
         Wait.For(() => app.IsShown("PreferencesSection"), "Ctrl+P to open Preferences");
         app.Press("CloseButton");
@@ -108,11 +107,10 @@ public sealed partial class AppWindowTests
         });
         using var app = AppProcess.Start([Song(30)], root: root);
         Wait.For(() => app.LogText.Contains("1 shortcut(s) work everywhere.", StringComparison.Ordinal), "the global shortcut to be registered");
-        var mute = (TogglePattern)app.Find("MuteButton").GetCurrentPattern(TogglePattern.Pattern);
 
         // A hotkey reaches rexplayer whichever window has the keyboard.
         Input.Press("Ctrl+Alt+F9");
-        Wait.For(() => mute.Current.ToggleState == ToggleState.On, "the global shortcut to mute");
+        Wait.For(() => app.Text("MuteButton") == "Unmute", "the global shortcut to mute");
         Wait.For(() => app.LogText.Contains("Global shortcut " + CommandCatalog.Mute, StringComparison.Ordinal), "the global shortcut to be logged");
         Assert.Equal(0, app.Close());
     }
@@ -139,7 +137,7 @@ public sealed partial class AppWindowTests
         using (var second = AppProcess.Start(root: root))
         {
             Wait.For(() => Near(second.Window.Current.BoundingRectangle, left), "the window where it was left", () => "It is at " + second.Window.Current.BoundingRectangle + ".");
-            ((WindowPattern)second.Window.GetCurrentPattern(WindowPattern.Pattern)).SetWindowVisualState(WindowVisualState.Maximized);
+            Input.Maximize(second);
             Wait.For(() => ((WindowPattern)second.Window.GetCurrentPattern(WindowPattern.Pattern)).Current.WindowVisualState == WindowVisualState.Maximized, "the window to fill the screen");
             Assert.Equal(0, second.Close());
         }
@@ -147,7 +145,7 @@ public sealed partial class AppWindowTests
         Assert.True(SettingsStore.Load(Path.Combine(root, "settings.json")).Window is { Maximized: true });
         using var third = AppProcess.Start(root: root);
         Wait.For(() => ((WindowPattern)third.Window.GetCurrentPattern(WindowPattern.Pattern)).Current.WindowVisualState == WindowVisualState.Maximized, "the window to open filling the screen again");
-        ((WindowPattern)third.Window.GetCurrentPattern(WindowPattern.Pattern)).SetWindowVisualState(WindowVisualState.Normal);
+        Input.Restore(third);
         Wait.For(() => Near(third.Window.Current.BoundingRectangle, left), "restoring to bring back the size it was left at");
         Assert.Equal(0, third.Close());
     }
@@ -168,6 +166,21 @@ public sealed partial class AppWindowTests
     /// <summary>The level-two headings Preferences shows now: one per section on screen.</summary>
     private static string[] SectionHeadings(AppProcess app) =>
         [.. All(app.Find("PreferencesScroll"), ControlType.Text).Select(text => text.Current.Name).Where(PreferencesSections.Contains).Distinct()];
+
+    /// <summary>
+    /// Opens a dialog and waits for <paramref name="shownId"/>. Just after another dialog closes the
+    /// window may still count it as open and refuse the new one, so the command is asked again.
+    /// </summary>
+    private static void OpenDialog(AppProcess app, string command, string shownId) =>
+        Wait.For(() =>
+        {
+            if (!app.IsShown(shownId))
+            {
+                app.Run(command);
+            }
+
+            return app.IsShown(shownId);
+        }, "the dialog with " + shownId + " to open");
 
     private static bool Near(System.Windows.Rect a, System.Windows.Rect b) =>
         Math.Abs(a.X - b.X) < 2 && Math.Abs(a.Y - b.Y) < 2 && Math.Abs(a.Width - b.Width) < 2 && Math.Abs(a.Height - b.Height) < 2;

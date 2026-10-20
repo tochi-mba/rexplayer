@@ -75,7 +75,7 @@ public sealed partial class AppWindowTests
         Assert.Equal(ToggleState.Off, MenuTick(app, "PlaybackMenu", CommandCatalog.ToggleShuffle));
         app.Toggle("ShuffleButton");
         Assert.Equal(ToggleState.On, MenuTick(app, "PlaybackMenu", CommandCatalog.ToggleShuffle));
-        app.Toggle("MuteButton");
+        app.Press("MuteButton");
         Assert.Equal(ToggleState.On, MenuTick(app, "AudioMenu", CommandCatalog.Mute));
 
         // Choosing an item runs its command and closes the menu.
