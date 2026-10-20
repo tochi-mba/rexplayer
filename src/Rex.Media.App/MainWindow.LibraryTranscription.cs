@@ -126,7 +126,7 @@ public sealed partial class MainWindow
         _worker?.Dispose();
         var decoders = MediaRegistries.Decoders(new MfDecoderFactory(), new WicDecoderFactory());
         var path = _speechModels.PathOf(model);
-        var worker = new TranscriptionWorker(_transcripts, _ledger, file => new SpeechAudioReader(file, decoders, CancellationToken.None), () => new WhisperHearer(path), model.Id)
+        var worker = new TranscriptionWorker(_transcripts, _ledger, file => new SpeechAudioReader(file, decoders, CancellationToken.None), () => FakeSpeechHearer.PerPiece is { } perPiece ? new FakeSpeechHearer(perPiece) : (ISpeechHearer)new WhisperHearer(path), model.Id)
         {
             Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null,
             Log = message => App.Log.Warning(LogSource, message),
@@ -214,7 +214,7 @@ public sealed partial class MainWindow
         }
 
         var model = TranscriptModel;
-        _modelInstalled ??= _speechModels.IsInstalled(model);
+        _modelInstalled ??= SpeechModelHere(model);
         var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, OnBattery(), EnergySaver(), _modelInstalled.Value), Environment.ProcessorCount);
         var worker = Worker();
         worker.Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null;
@@ -432,6 +432,9 @@ public sealed partial class MainWindow
         TranscriptionTick();
     }
 
+    /// <summary>Whether <paramref name="model"/> can hear now: downloaded, or stood in for in the window tests.</summary>
+    private bool SpeechModelHere(SpeechModel model) => FakeSpeechHearer.PerPiece is not null || _speechModels.IsInstalled(model);
+
     /// <summary>
     /// The speech model, downloaded once on the user's say-so (ADR-0020); on a connection that
     /// costs by the byte only when they asked there and then. False when it is not here.
@@ -472,7 +475,7 @@ public sealed partial class MainWindow
 
     private async Task<bool> DownloadSpeechModelAsync(bool askedNow, SpeechModel model)
     {
-        if (_speechModels.IsInstalled(model))
+        if (SpeechModelHere(model))
         {
             if (model == TranscriptModel)
             {
