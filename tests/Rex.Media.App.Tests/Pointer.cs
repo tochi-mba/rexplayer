@@ -36,7 +36,7 @@ internal static partial class Pointer
     }
 
     /// <summary>Presses <paramref name="key"/> once wherever the keyboard focus already is.</summary>
-    public static void Key(AppProcess app, ushort key)
+    public static void Key(ushort key)
     {
         // The focused element may be inside a separate menu popup window. Do not
         // bring the owner window forward: Escape must reach the active popup.
