@@ -18,9 +18,7 @@ internal static partial class Pointer
     private const uint RightUp = 0x0010;
     private const uint KeyUp = 0x0002;
 
-    public const ushort Enter = 0x0D;
     public const ushort Escape = 0x1B;
-    public const ushort Down = 0x28;
 
     public static void Click(AppProcess app, AutomationElement element) => Mouse(app, element, LeftDown, LeftUp, 1);
 
@@ -39,8 +37,10 @@ internal static partial class Pointer
     private static void Mouse(AppProcess app, AutomationElement element, uint down, uint up, int clicks)
     {
         Forward(app);
-        var point = element.GetClickablePoint();
-        Assert.True(SetCursorPos((int)point.X, (int)point.Y), "The pointer could not be moved over the line.");
+        // A list line's own clickable point is often refused; the middle of its box is on the line.
+        var box = element.Current.BoundingRectangle;
+        Assert.False(box.IsEmpty, "The line has no place on the screen.");
+        Assert.True(SetCursorPos((int)(box.Left + (box.Width / 2)), (int)(box.Top + (box.Height / 2))), "The pointer could not be moved over the line.");
         var inputs = new List<Input>();
         for (var i = 0; i < clicks; i++)
         {

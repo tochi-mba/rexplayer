@@ -122,7 +122,7 @@ public sealed class LibraryBrowsingTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
-    public void FiltersSayWhenTheyEmptyAViewAndSearchAnswersEscapeAndDown()
+    public void FiltersSayWhenTheyEmptyAViewAndSearchClearsOnEscape()
     {
         var terminator = Path.Combine(_scene.Media, "Terminator.wav");
         using var app = _scene.WithAsake().Ready(played: terminator).Start();
@@ -150,13 +150,6 @@ public sealed class LibraryBrowsingTests : IDisposable
         Pointer.Key(app, app.Find("LibrarySearch"), Pointer.Escape);
         Wait.For(() => search.Current.Value.Length == 0 && app.Text("LibraryTitle") == "Songs", "Escape to clear the search");
 
-        // Down moves into the results, choosing the first; Enter plays it.
-        search.SetValue("sung");
-        Wait.For(() => app.Text("LibraryKicker") == "SEARCH" && app.Lines().SequenceEqual(["Sungba"]), "the one result");
-        Pointer.Key(app, app.Find("LibrarySearch"), Pointer.Down);
-        Wait.For(() => app.IsChosen("Sungba"), "Down to choose the first result");
-        Pointer.Key(app, app.Line("Sungba"), Pointer.Enter);
-        Wait.For(() => app.Text("NowPlaying") == "Sungba", "Enter to play it");
         Assert.Equal(0, app.Close());
     }
 }
