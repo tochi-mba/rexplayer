@@ -237,6 +237,56 @@ public sealed partial class MainWindow
         return true;
     }
 
+    private void OnLibrarySourceChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (LibrarySources.SelectedIndex >= 0)
+        {
+            KeepPlace();
+            _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
+            _libraryGroup = null;
+            _librarySeason = null;
+            if (_shelfChoice?.Source != _librarySource)
+            {
+                _shelfChoice = null;
+            }
+
+            // The view's own search this session comes back with it.
+            LibrarySearch.Text = _places.SearchOf(_librarySource.ToString());
+            ShowLibraryAtPlace();
+        }
+    }
+
+    /// <summary>
+    /// The box reports a change after the fact, so setting it while changing view would build the
+    /// new view twice; it is built again only when the search differs from the one it was built for.
+    /// Clearing the search returns to the place the view was at before it.
+    /// </summary>
+    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_librarySearchText.Changes(LibrarySearch.Text))
+        {
+            KeepPlace();
+            _places.RememberSearch(_librarySource.ToString(), LibrarySearch.Text);
+            ShowLibraryAtPlace();
+        }
+    }
+
+    /// <summary>Back returns to the parent as it was left, with the line that opened the page chosen and on screen.</summary>
+    private void OnLibraryBack(object sender, RoutedEventArgs e)
+    {
+        KeepPlace();
+        if (_librarySeason is not null)
+        {
+            _librarySeason = null;
+        }
+        else
+        {
+            _libraryGroup = null;
+        }
+
+        ShowLibraryAtPlace();
+    }
+
     // Closing cancels artwork requests. Retained rows must be allowed to request their missing
     // pictures again; only realized cards are requested, never the whole library.
     private void ResumeLibraryPictures()
