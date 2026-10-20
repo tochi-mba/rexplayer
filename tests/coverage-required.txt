@@ -83,6 +83,7 @@ EnrichedAlbum.cs
 EnrichedMovie.cs
 EnrichedShow.cs
 EpisodeGrouping.cs
+EnergySaverMode.cs
 EpisodeNames.cs
 EpisodeSectionDetection.cs
 EpisodeSections.cs
