@@ -68,7 +68,8 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Open("Harbour Lights");
         Wait.For(() => app.Text("LibraryKicker") == "TV SHOW" && app.Text("LibrarySubtitle").StartsWith("2 seasons", StringComparison.Ordinal), "the show's seasons",
             () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {app.Text("LibrarySubtitle")} / {app.Text("NowPlaying")}");
-        app.Open("Season 1");
+        Wait.For(() => app.Lines().Length == 2, "a line per season", () => string.Join(", ", app.Lines()));
+        app.Open(app.Lines()[0]);
         Wait.For(() => app.Text("LibraryKicker") == "SEASON" && app.Text("LibrarySubtitle").StartsWith("2 episodes", StringComparison.Ordinal), "the first season");
 
         // An episode's menu offers the season from there as well as the one episode.
