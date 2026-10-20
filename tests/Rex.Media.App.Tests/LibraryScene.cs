@@ -150,7 +150,9 @@ internal static class LibraryNavigation
         var source = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, view)));
         ((SelectionItemPattern)source.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
-        Wait.For(() => app.Text("LibraryTitle") == (title ?? view), view + " to open");
+        // The streaming browse of Movies and TV shows has a billboard in place of the title.
+        Wait.For(() => (app.IsShown("LibraryTitle") && app.Text("LibraryTitle") == (title ?? view))
+            || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard")), view + " to open");
     }
 
     /// <summary>The line named <paramref name="name"/> in the list, once it is there.</summary>
