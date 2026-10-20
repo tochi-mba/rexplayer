@@ -36,7 +36,7 @@ You need the .NET 10 SDK, Python 3, Node 22 and, to build the installer, Inno Se
    `docs/fixtures.md`.
 3. Register it in `MediaRegistries`.
 4. Test every header field, every error path and a round trip through the engine.
-5. Add its files to `tests/coverage-required.txt`, and its row status in
+5. Add its files to `tests/coverage-required.txt`, and its row's status per platform in
    `docs/capability-matrix.json` with a `[Capability]` test.
 
 **Adding a command-line option**
