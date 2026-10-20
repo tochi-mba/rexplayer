@@ -109,4 +109,6 @@ imitation also shows what the Fastest tier does. Its report is `artifacts/measur
 - No wall-clock waits in the pure suite: clocks are `ManualTimeProvider`, and blocking points are
   held by gates the test controls.
 - No retries. A flaky test is a bug in the test or in the product.
-- Tests that prove a capability carry `[Capability("ID")]`.
+- Tests that prove a capability carry `[Capability("ID")]`, which proves the row on every
+  platform a portable test runs on and only on its own platform from a platform project.
+  `docs/parity.md` lists the rows where the platforms differ.
