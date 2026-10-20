@@ -71,6 +71,10 @@ public sealed class LibraryPlayingTests : IDisposable
         app.Press("LibraryMenuAddToNew");
         ((System.Windows.Automation.ValuePattern)app.Find("PlaylistName").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).SetValue("Asake");
         app.Press("PrimaryButton");
+        // The dialog closes before its async callback stores the new playlist. Wait for
+        // the controller to confirm creation before navigating to the playlist view.
+        Wait.For(() => app.LogText.Contains("Made the playlist Asake", StringComparison.Ordinal),
+            "the new playlist to be stored", () => app.LogText.Split(Environment.NewLine).LastOrDefault() ?? "");
         app.Visit("Playlists");
         app.Line("Asake");
         Assert.Equal(0, app.Close());
