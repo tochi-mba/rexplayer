@@ -372,6 +372,7 @@ WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
 WindowClocks.cs
+WindowTeardown.cs
 WordAligner.cs
 Wpl.cs
 Xspf.cs
