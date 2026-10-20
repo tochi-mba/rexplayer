@@ -29,9 +29,6 @@ internal sealed class AppProcess : IDisposable
 
     public AutomationElement Window { get; }
 
-    /// <summary>The player's process, for finding the other windows it opens, such as the file picker.</summary>
-    public int ProcessId => _process.Id;
-
     /// <summary>The window's handle, for reading what it shows.</summary>
     public nint Handle
     {
