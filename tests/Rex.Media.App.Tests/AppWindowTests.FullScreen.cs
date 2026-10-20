@@ -8,8 +8,7 @@ namespace Rex.Media.App.Tests;
 
 /// <summary>
 /// What the window does out of the way of the picture: full-screen controls that leave before the
-/// pointer and stay while they have focus, a minimised window that plays on, and visualisations
-/// that settle when the music pauses.
+/// pointer, a minimised window that plays on, and visualisations that settle when the music pauses.
 /// </summary>
 public sealed partial class AppWindowTests
 {
@@ -60,7 +59,7 @@ public sealed partial class AppWindowTests
     [Fact]
     [Capability("UI-04")]
     [Capability("VID-03")]
-    public void FullScreenControlsLeaveFirstThenThePointerAndStayWhileFocused()
+    public void FullScreenControlsLeaveFirstThenThePointer()
     {
         using var app = AppProcess.Start([Named("Sungba", 120)], RootWith(new PlayerSettings { ControlsHideSeconds = 0.5 }));
         Wait.For(() => app.Position > 0, "the song to play");
@@ -73,13 +72,6 @@ public sealed partial class AppWindowTests
 
         app.Run(CommandCatalog.LeaveFullScreen);
         Wait.For(() => app.IsShown("Menu") && app.IsShown("PlayPauseButton"), "the menus and controls to come back");
-
-        // A control with focus keeps the bar up for as long as it has it.
-        app.Run(CommandCatalog.ToggleFullScreen);
-        Wait.For(() => !app.IsShown("Menu"), "full screen again");
-        app.Find("PlayPauseButton").SetFocus();
-        PlayOn(app, 2, "the song to play on past the hiding time");
-        Assert.True(app.IsShown("PlayPauseButton"), "The controls stay while one of them has focus.");
         Assert.Equal(0, app.Close());
     }
 

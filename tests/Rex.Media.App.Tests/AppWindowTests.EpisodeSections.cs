@@ -108,15 +108,20 @@ public sealed partial class AppWindowTests
         again.SetValue("SeekBar", 3);
         Wait.For(() => again.IsShown("EpisodeSkipCancel"), "the countdown to show");
         Wait.For(() => again.Position >= 19.5 && Count(again.LogText, "Intro skipped.") == skipped + 1, "the intro to skip by itself");
-
-        // Cancelled, the intro plays on.
-        again.SetValue("SeekBar", 3);
-        Wait.For(() => again.IsShown("EpisodeSkipCancel"), "the countdown to show again");
-        again.Press("EpisodeSkipCancel");
-        Wait.For(() => !again.IsShown("EpisodeSkipCancel"), "the countdown to stop");
-        PlayOn(again, 8, "the intro to play on past where the countdown would have skipped");
-        Assert.InRange(again.Position, 10, 19.4);
-        Assert.Equal(skipped + 1, Count(again.LogText, "Intro skipped."));
         Assert.Equal(0, again.Close());
+
+        // An intro skipped once is not counted down again in that session; a fresh one shows that
+        // a cancelled countdown leaves the intro playing.
+        using var third = AppProcess.Start([film], root);
+        Wait.For(() => third.Status().Duration > 50, "the episode to open a third time");
+        skipped = Count(third.LogText, "Intro skipped.");
+        third.SetValue("SeekBar", 3);
+        Wait.For(() => third.IsShown("EpisodeSkipCancel"), "the countdown to show again");
+        third.Press("EpisodeSkipCancel");
+        Wait.For(() => !third.IsShown("EpisodeSkipCancel"), "the countdown to stop");
+        PlayOn(third, 8, "the intro to play on past where the countdown would have skipped");
+        Assert.InRange(third.Position, 10, 19.4);
+        Assert.Equal(skipped, Count(third.LogText, "Intro skipped."));
+        Assert.Equal(0, third.Close());
     }
 }
