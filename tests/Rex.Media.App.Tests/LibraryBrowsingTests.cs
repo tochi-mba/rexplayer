@@ -67,7 +67,7 @@ public sealed class LibraryBrowsingTests : IDisposable
         app.Visit("Songs");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("4 items", StringComparison.Ordinal), "the four songs");
         app.Visit("Movies");
-        app.Line("Small.Film.2023");
+        Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 movie", StringComparison.Ordinal), "the one movie");
         app.Visit("All videos");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 video", StringComparison.Ordinal), "the one video");
         app.Visit("Pictures");
