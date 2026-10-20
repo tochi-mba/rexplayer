@@ -275,6 +275,7 @@ public sealed class UpdateDownloaderTests : IDisposable
         // Linux reports a file held elsewhere as the bare error number 11 (EWOULDBLOCK). Windows'
         // error 11 is a bad format, and was taken for another window downloading the file.
         Assert.Equal(DownloadOutcome.Busy, UpdateDownloader.Classify(new IOException("locked", 11)).Outcome);
+        Assert.Equal(DownloadOutcome.Busy, UpdateDownloader.Classify(new IOException("locked on a Mac", 35)).Outcome);
         Assert.Equal(new DownloadReport(DownloadOutcome.Failed, "bad format"), UpdateDownloader.Classify(new IOException("bad format", unchecked((int)0x8007000B))));
         Assert.Equal(new DownloadReport(DownloadOutcome.Failed, "other"), UpdateDownloader.Classify(new IOException("other")));
         Assert.Throws<ArgumentNullException>(() => UpdateDownloader.Classify(null!));

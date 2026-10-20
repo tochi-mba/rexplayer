@@ -52,6 +52,9 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
     /// </summary>
     private const int UnixWouldBlock = 11;
 
+    /// <summary>The same refusal on macOS, whose EWOULDBLOCK is 35; Windows' error 35 never arrives bare either.</summary>
+    private const int MacWouldBlock = 35;
+
     /// <summary>Whether something is playing; while it is, the download keeps to <see cref="BusyBytesPerSecond"/>.</summary>
     public Func<bool> Busy { get; init; } = () => false;
 
@@ -152,7 +155,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
     {
         ArgumentNullException.ThrowIfNull(error);
         var busy = new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it");
-        return error.HResult == UnixWouldBlock ? busy : (error.HResult & 0xFFFF) switch
+        return error.HResult is UnixWouldBlock or MacWouldBlock ? busy : (error.HResult & 0xFFFF) switch
         {
             ErrorDiskFull or ErrorHandleDiskFull => new DownloadReport(DownloadOutcome.NoSpace, "the disk is full"),
             ErrorSharingViolation or ErrorLockViolation => busy,
