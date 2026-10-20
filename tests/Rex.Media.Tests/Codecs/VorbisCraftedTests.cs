@@ -252,6 +252,19 @@ public sealed class VorbisCraftedTests
     }
 
     [Fact]
+    public void ASetupHeaderThatEndsInsideACodebookIsRefused()
+    {
+        // Six whole entry lengths end the packet on a byte boundary, so the lookup type is read past its end.
+        var w = new VorbisWriter().Bits(0x564342, 24).Bits(1, 16).Bits(6, 24).Flag(false).Flag(false);
+        foreach (var length in new[] { 2, 2, 3, 3, 3, 3 })
+        {
+            w.Bits(length - 1, 5);
+        }
+
+        Assert.Contains("ends inside a codebook", Assert.Throws<MediaFormatException>(() => new VorbisCodebook(new VorbisBits(w.ToArray()))).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ACodebookLargerThanItsHeaderIsRefusedBeforeItIsRead()
     {
         var manyEntries = new VorbisWriter().Bits(0x564342, 24).Bits(1, 16).Bits(1 << 20, 24).Flag(false).Flag(false).Bits(0, 64).ToArray();
