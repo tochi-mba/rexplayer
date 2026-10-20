@@ -37,7 +37,7 @@ public sealed partial class MainWindow
             link.Click += (_, _) =>
             {
                 _dialog?.Hide();
-                DispatcherQueue.TryEnqueue(() => click());
+                OnWindowThread(() => click());
             };
             links.Children.Add(link);
             return link;

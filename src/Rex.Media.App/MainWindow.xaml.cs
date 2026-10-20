@@ -661,7 +661,10 @@ public sealed partial class MainWindow : Window
     /// Runs <paramref name="action"/> on the window's thread, unless the window is closing by then:
     /// work queued from another thread as it closes must not wake timers or touch controls that are going.
     /// </summary>
-    private void OnWindowThread(Action action)
+    private void OnWindowThread(Action action) => OnWindowThread(DispatcherQueuePriority.Normal, action);
+
+    /// <inheritdoc cref="OnWindowThread(Action)"/>
+    private void OnWindowThread(DispatcherQueuePriority priority, Action action)
     {
         // Engine events may arrive after Closed, when WinUI has detached this window's
         // dispatcher. Never access that dispatcher after the window starts closing.
@@ -676,7 +679,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        dispatcher.TryEnqueue(() =>
+        dispatcher.TryEnqueue(priority, () =>
         {
             if (!_closing)
             {

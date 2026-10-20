@@ -37,14 +37,14 @@ public sealed partial class MainWindow
         lookSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: false));
+            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: false));
         };
         var effectSettings = new Button { Content = "Customize the current picture effect..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(effectSettings, "PreferencesEffectSettings");
         effectSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: true));
+            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: true));
         };
         var visualizer = VisualizerChoices(s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
@@ -82,7 +82,7 @@ public sealed partial class MainWindow
         installNow.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = InstallAsync(unattended: false));
+            OnWindowThread(() => _ = InstallAsync(unattended: false));
         };
         var updateButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         updateButtons.Children.Add(checkNow);

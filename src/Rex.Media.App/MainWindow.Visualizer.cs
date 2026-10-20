@@ -177,7 +177,7 @@ public sealed partial class MainWindow
     {
         if (_stageWork is { IsCompleted: false } work)
         {
-            _ = work.ContinueWith(_ => DispatcherQueue.TryEnqueue(ReleaseVisualizerMemoryWhenIdle),
+            _ = work.ContinueWith(_ => OnWindowThread(ReleaseVisualizerMemoryWhenIdle),
                 CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             return;
         }
