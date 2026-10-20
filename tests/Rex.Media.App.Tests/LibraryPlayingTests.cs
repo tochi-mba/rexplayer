@@ -57,7 +57,7 @@ public sealed class LibraryPlayingTests : IDisposable
         Assert.False(app.IsChosen("Terminator"), "The right-click chooses the line under the pointer alone.");
 
         // Right-clicking a line already among the chosen keeps them all.
-        Pointer.Key(app, Pointer.Escape);
+        Pointer.Key(Pointer.Escape);
         Wait.For(() => !app.IsShown("LibraryMenuPlayNext"), "the menu to close");
         app.Choose("Terminator", alone: false);
         Pointer.RightClick(app, app.Line("Terminator"));
