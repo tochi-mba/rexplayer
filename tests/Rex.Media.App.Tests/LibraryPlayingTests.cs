@@ -58,7 +58,7 @@ public sealed class LibraryPlayingTests : IDisposable
 
         // Activate this item's action to close the flyout deterministically; synthesized
         // Escape is unreliable for WinUI's separate popup window on CI desktops.
-        app.Press("LibraryMenuPlayNext");
+        app.Press("LibraryMenuEnqueue");
         Wait.For(() => !app.IsShown("LibraryMenuPlayNext"), "the menu to close");
         // Right-clicking a line already among the chosen keeps them all.
         app.Choose("Terminator", alone: false);
