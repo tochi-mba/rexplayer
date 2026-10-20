@@ -470,7 +470,9 @@ public sealed partial class AppWindowTests : IDisposable
 
         Wait.For(() => seekBar.Current.Value >= 0.5, "the first song to advance");
         Wait.For(() => app.Text("NowPlaying") == "Next", "the gapless next song to start");
-        Wait.For(() => seekBar.Current.Value < 1.0, "the seek bar to reset to the next song");
+        // A bar that kept counting from the first song would read 6 or more; one that reset reads
+        // well under that for a while, however slowly the runner gets to look.
+        Wait.For(() => seekBar.Current.Value < 5.0, "the seek bar to reset to the next song", () => seekBar.Current.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         Assert.Equal(0, app.Close());
     }
