@@ -176,6 +176,9 @@ public sealed class PlayerControllerTests
         // As above: b is opened only to queue it, so it is certainly queued when it is removed.
         harness.PumpUntil(_ => opened.Contains("b.wav"));
         harness.Controller.Playlist.RemoveAt(1);
+        // So short an item can end before the engine takes b on; it then opens b just after. Either way
+        // the engine runs into b, and only then is the controller's answer, ending playback, certain.
+        harness.WaitForEngine<MediaOpenedEvent>(2);
         harness.PumpUntil(controller => controller.State == SessionState.Ended);
 
         Assert.Equal("a", harness.Controller.Item?.Title);
