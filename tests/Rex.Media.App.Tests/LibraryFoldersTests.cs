@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows.Automation;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
@@ -59,17 +60,31 @@ public sealed class LibraryFoldersTests : IDisposable
         _scene.Video(Path.Combine("Movies", "Small.Film.2023.mp4"));
         using var app = _scene.Ready().Start();
 
+        // Movies and TV shows open on the streaming-style browse, a billboard over rows.
+        app.Visit("TV Shows");
+        Wait.For(() => app.IsShown("LibraryBillboard") && app.IsShown("LibraryBillboardPlay"), "the billboard");
+        Screenshots.Match(app, "library-tv-browse", "LibraryPane");
+
+        // As cards, the counts show which videos are films and which are episodes.
         app.Visit("Movies");
+        app.Pick("LibraryLook", "Grid");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 movie", StringComparison.Ordinal), "only the film among the movies");
         app.Visit("TV Shows");
+        app.Pick("LibraryLook", "Grid");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("2 shows", StringComparison.Ordinal), "both shows", () => string.Join(", ", app.Lines()));
         app.Line("Night Desk");
 
+        // A show's page lands on the season to go on with, and the picker moves between seasons.
         app.Open("Harbour Lights");
-        Wait.For(() => app.Text("LibraryKicker") == "TV SHOW" && app.Text("LibrarySubtitle").StartsWith("2 seasons", StringComparison.Ordinal), "the show's seasons",
-            () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {app.Text("LibrarySubtitle")} / {app.Text("NowPlaying")}");
-        Wait.For(() => app.Lines().Length == 2, "a line per season", () => string.Join(", ", app.Lines()));
-        Screenshots.Match(app, "library-show-seasons", "LibraryPane");
+        Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on its first season",
+            () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
+        Assert.StartsWith("Play", app.Find("LibraryPlay").Current.Name, StringComparison.Ordinal);
+        Screenshots.Match(app, "library-show-page", "LibraryPane");
+        var picker = app.Find("LibrarySeasonPicker");
+        ((ExpandCollapsePattern)picker.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        var second = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 2")));
+        ((SelectionItemPattern)second.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        Wait.For(() => app.Lines().Length == 1, "the second season's one episode", () => string.Join(", ", app.Lines()));
         Assert.Equal(0, app.Close());
     }
 }
