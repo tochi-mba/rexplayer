@@ -5,6 +5,10 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Added
+
+- **Automatic performance mode while Energy Saver is on.** When Windows' Energy Saver turns on, a chosen Best quality, Balanced or Fastest gives way to Automatic so the device budget adapts, with a short notice over the picture; the chosen mode comes back, and is announced, when Energy Saver turns off. Preferences > Performance shows which mode is in effect and why, and "When Energy Saver is on, use the Automatic performance mode" turns the behaviour off.
+
 ### Fixed
 
 - **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.

@@ -621,6 +621,9 @@ public sealed record PlayerSettings
     /// <summary>How much the player asks of the computer: decided from what the computer is, or chosen.</summary>
     public PerformanceChoice Performance { get; init; }
 
+    /// <summary>While Windows' energy saver is on, a chosen mode gives way to Automatic; the choice itself is kept.</summary>
+    public bool AutomaticWhenEnergySaver { get; init; } = true;
+
     // Window
 
     public WindowPlacement? Window { get; init; }
