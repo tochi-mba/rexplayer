@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Library;
 using Rex.Media.Engine;
 using Rex.Media.Library;
 
