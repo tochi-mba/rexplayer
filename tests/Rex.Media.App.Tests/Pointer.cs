@@ -66,16 +66,29 @@ internal static partial class Pointer
     /// </summary>
     private static void Forward(AppProcess app, AutomationElement? element = null)
     {
-        var window = WindowOf(element) is not 0 and var own ? own : app.Handle;
-        if (GetForegroundWindow() != window)
+        if (element is null)
         {
-            // UI Automation's focus may move the foreground where SetForegroundWindow alone is refused.
-            (element ?? app.Window).SetFocus();
-            _ = SetForegroundWindow(window);
-            Wait.For(() => GetForegroundWindow() == window, "rexplayer to be the window in front");
+            // The selected list line already has keyboard focus. Never move it back to the
+            // window root merely to bring the app forward before pressing Enter.
+            if (GetForegroundWindow() != app.Handle)
+            {
+                _ = SetForegroundWindow(app.Handle);
+                Wait.For(() => GetForegroundWindow() == app.Handle, "rexplayer to be the window in front");
+            }
+
+            return;
         }
 
-        element?.SetFocus();
+        // A flyout has its own native window. UI Automation can focus its item even when
+        // Windows refuses to mark that popup handle as the foreground top-level window.
+        var window = WindowOf(element) is not 0 and var own ? own : app.Handle;
+        element.SetFocus();
+        if (GetForegroundWindow() != window)
+        {
+            _ = SetForegroundWindow(window);
+        }
+
+        element.SetFocus();
     }
 
     /// <summary>The handle of the nearest window around <paramref name="element"/>, or 0.</summary>
