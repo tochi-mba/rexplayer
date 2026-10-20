@@ -1,6 +1,11 @@
 namespace Rex.Media.AppCore.Commands;
 
-/// <summary>The modifier keys of a chord.</summary>
+/// <summary>
+/// The modifier keys of a chord, named by their place on the keyboard rather than any one
+/// platform's key: <see cref="Ctrl"/> is the primary modifier, the Control key on Windows and the
+/// Command key on a Mac; <see cref="Alt"/> is the Alt key on Windows and Option on a Mac. One
+/// settings file therefore means the same shortcuts on every platform.
+/// </summary>
 [Flags]
 public enum KeyModifiers
 {
@@ -10,11 +15,22 @@ public enum KeyModifiers
     Shift = 4,
 }
 
+/// <summary>How a chord is written for the person in front of it: the words each platform's users know.</summary>
+public enum ShortcutStyle
+{
+    /// <summary>"Ctrl+Alt+Shift+O": the canonical form, also what the settings file stores.</summary>
+    Windows,
+
+    /// <summary>"Option+Shift+Cmd+O": the Mac's names in the Mac's order, Option, Shift, Command.</summary>
+    Mac,
+}
+
 /// <summary>
 /// A key with its modifiers, written the way people write shortcuts: "Ctrl+Shift+O", "Space",
 /// "Alt+1". Key names are rexplayer's own small vocabulary, independent of any UI framework; the app
-/// translates its key events into them. Text is case-insensitive when parsed and canonical
-/// (Ctrl, Alt, Shift, then the key) when written.
+/// translates its key events into them. Text is case-insensitive when parsed, accepts the Mac's
+/// words for the same keys (Cmd, Command, Option), and is canonical (Ctrl, Alt, Shift, then the
+/// key) when written; <see cref="Display"/> writes it in a platform's own words.
 /// </summary>
 public readonly record struct KeyChord(KeyModifiers Modifiers, string Key)
 {
@@ -45,8 +61,8 @@ public readonly record struct KeyChord(KeyModifiers Modifiers, string Key)
         {
             var modifier = part.ToUpperInvariant() switch
             {
-                "CTRL" or "CONTROL" => KeyModifiers.Ctrl,
-                "ALT" => KeyModifiers.Alt,
+                "CTRL" or "CONTROL" or "CMD" or "COMMAND" => KeyModifiers.Ctrl,
+                "ALT" or "OPTION" or "OPT" => KeyModifiers.Alt,
                 "SHIFT" => KeyModifiers.Shift,
                 _ => KeyModifiers.None,
             };
@@ -69,6 +85,20 @@ public readonly record struct KeyChord(KeyModifiers Modifiers, string Key)
         var text = Modifiers.HasFlag(KeyModifiers.Ctrl) ? "Ctrl+" : "";
         text += Modifiers.HasFlag(KeyModifiers.Alt) ? "Alt+" : "";
         text += Modifiers.HasFlag(KeyModifiers.Shift) ? "Shift+" : "";
+        return text + Key;
+    }
+
+    /// <summary>The chord in a platform's own words; <see cref="ShortcutStyle.Windows"/> is <see cref="ToString"/>.</summary>
+    public string Display(ShortcutStyle style)
+    {
+        if (style != ShortcutStyle.Mac)
+        {
+            return ToString();
+        }
+
+        var text = Modifiers.HasFlag(KeyModifiers.Alt) ? "Option+" : "";
+        text += Modifiers.HasFlag(KeyModifiers.Shift) ? "Shift+" : "";
+        text += Modifiers.HasFlag(KeyModifiers.Ctrl) ? "Cmd+" : "";
         return text + Key;
     }
 
