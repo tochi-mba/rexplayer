@@ -191,12 +191,8 @@ internal static class LibraryNavigation
     public static bool IsChosen(this AppProcess app, string name) =>
         ((SelectionItemPattern)app.Line(name).GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
 
-    /// <summary>Opens a line as Enter does: a group shows what it holds, media plays.</summary>
-    public static void Open(this AppProcess app, string name)
-    {
-        app.Choose(name);
-        Pointer.Key(app, app.Line(name), Pointer.Enter);
-    }
+    /// <summary>Opens a line with a double click: a group shows what it holds, media plays.</summary>
+    public static void Open(this AppProcess app, string name) => Pointer.DoubleClick(app, app.Line(name));
 
     /// <summary>Opens one of the view's option menus (layout, order, groups) and picks a choice in it.</summary>
     public static void Pick(this AppProcess app, string menu, string choice)
