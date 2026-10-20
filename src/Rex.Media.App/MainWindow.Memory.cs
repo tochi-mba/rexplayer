@@ -22,7 +22,7 @@ public sealed partial class MainWindow
     /// <summary>The store beside the settings; when it cannot be read, one in memory, so playing still works.</summary>
     internal static RexStore OpenStore()
     {
-        var path = Path.Combine(App.DataRoot, "store.log");
+        var path = App.Roots.MemoryStore;
         try
         {
             var store = RexStore.Open(path);

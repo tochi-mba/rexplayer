@@ -18,7 +18,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     /// <summary>The cache's folder, beside the library's own store in the app's data.</summary>
-    internal static string MetadataFolder => Path.Combine(App.DataRoot, "metadata");
+    internal static string MetadataFolder => App.Roots.Metadata;
 
     /// <summary>The group's controls, and how the settings change on Save.</summary>
     private (UIElement[] Controls, Func<PlayerSettings, PlayerSettings> Apply) MetadataPreferences()

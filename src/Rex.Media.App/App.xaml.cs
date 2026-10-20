@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Platform;
 using Rex.Media.AppCore.Shell;
 using Rex.Media.Diagnostics;
 using Rex.Media.Interop.Windowing;
@@ -23,7 +24,7 @@ public partial class App : Application
         Milestones.Reach("app");
 
         // Compiling the picture shaders takes seconds; they are kept between runs.
-        Rex.Media.Interop.Graphics.D3D11VideoRenderer.CompiledShaders = new Rex.Media.Video.CompiledShaderCache(Path.Combine(DataRoot, "cache", "shaders")).GetOrCompile;
+        Rex.Media.Interop.Graphics.D3D11VideoRenderer.CompiledShaders = new Rex.Media.Video.CompiledShaderCache(Roots.ShaderCache).GetOrCompile;
 
         // A launch that will hand its files to a running player has nothing to warm up.
         if (!AutomationPipe.IsServed(AutomationPipe.NameForCurrentUser))
@@ -67,21 +68,20 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Where settings and logs live: REXPLAYER_ROOT when set (tests point it at a scratch folder),
-    /// else %LocalAppData%\REX\rexplayer.
+    /// Where settings, logs and everything else rexplayer keeps live: REXPLAYER_ROOT when set
+    /// (tests point it at a scratch folder), else the platform's folder for an application's data.
     /// </summary>
-    public static string DataRoot { get; } = Environment.GetEnvironmentVariable("REXPLAYER_ROOT") is { Length: > 0 } root
-        ? root
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "REX", "rexplayer");
+    public static DataRoots Roots { get; } = DataRoots.ForCurrentProcess();
+
+    public static string DataRoot => Roots.Root;
 
     /// <summary>When this launch started, which says whether its files belong with another launch's.</summary>
     public static DateTimeOffset LaunchedAt { get; } = new(System.Diagnostics.Process.GetCurrentProcess().StartTime);
 
-    public static string SettingsPath { get; } = Path.Combine(DataRoot, "settings.json");
-
+    public static string SettingsPath => Roots.SettingsPath;
 
     /// <summary>The folder the log is written in, which Help, Open the log folder shows.</summary>
-    public static string LogFolder { get; } = Path.Combine(DataRoot, "logs");
+    public static string LogFolder => Roots.LogFolder;
 
     /// <summary>
     /// The log, in detail: every command, every item and its tracks, every decoder chosen or refused,

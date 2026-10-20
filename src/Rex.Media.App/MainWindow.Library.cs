@@ -69,7 +69,7 @@ public sealed partial class MainWindow
     /// <summary>The library's own store beside the other; when it cannot be read, one in memory.</summary>
     internal static RexStore OpenLibraryStore()
     {
-        var path = Path.Combine(App.DataRoot, "library.log");
+        var path = App.Roots.LibraryStore;
         try
         {
             return RexStore.Open(path);

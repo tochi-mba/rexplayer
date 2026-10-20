@@ -7,7 +7,7 @@ namespace Rex.Media.App;
 
 public sealed partial class MainWindow
 {
-    private static readonly string ResumePath = Path.Combine(App.DataRoot, "resume.json");
+    private static readonly string ResumePath = App.Roots.ResumePath;
     private bool _installingUpdate;
     private UpdateWindowState? _pendingUpdateWindowState;
     private PlaylistItem? _pendingUpdateItem;
