@@ -85,6 +85,17 @@ public sealed class DamagedFileTests
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
     }
 
+    [Theory]
+    [InlineData("tests/fixtures/corpus/demux/mkv-vorbis-codebook-runs-never-advance.bin", ".webm")]
+    [Capability("SEC-01")]
+    public void FilesTheFuzzerFoundHangingAreReadOrRefusedInTime(string path, string extension)
+    {
+        var read = DamageRunner.Demux(File.ReadAllBytes(RepoPaths.Combine(path)), extension, Deadline);
+
+        Assert.True(read.Result is not (DamageResult.Crashed or DamageResult.Hung), $"{path} {read.Result}: {read.Error}");
+        Assert.True(read.Elapsed < TimeSpan.FromSeconds(2), $"{path} took {read.Elapsed.TotalSeconds:0.0} s.");
+    }
+
     [Fact]
     public void DamageCasesAreReproducibleAndDoNotMutateTheirSource()
     {

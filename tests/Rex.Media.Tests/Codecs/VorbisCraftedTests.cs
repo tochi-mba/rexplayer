@@ -240,6 +240,32 @@ public sealed class VorbisCraftedTests
     }
 
     [Fact]
+    public void AnOrderedCodebookWhoseRunsNeverAdvanceIsRefusedPromptly()
+    {
+        // Ordered lengths in runs of zero entries: the lengths grew without end and opening hung.
+        var header = new VorbisWriter().Bits(0x564342, 24).Bits(1, 16).Bits(4, 24).Flag(true).Bits(0, 5);
+        var zeroRuns = header.Bits(0, 30).Bits(0, 30).Bits(0, 30).Bits(0, 30).ToArray();
+        var endsInARun = new VorbisWriter().Bits(0x564342, 24).Bits(1, 16).Bits(4, 24).Flag(true).Bits(0, 5).ToArray();
+
+        Assert.Contains("entry lengths", Assert.Throws<MediaFormatException>(() => new VorbisCodebook(new VorbisBits(zeroRuns))).Message, StringComparison.Ordinal);
+        Assert.Contains("entry lengths", Assert.Throws<MediaFormatException>(() => new VorbisCodebook(new VorbisBits(endsInARun))).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACodebookLargerThanItsHeaderIsRefusedBeforeItIsRead()
+    {
+        var manyEntries = new VorbisWriter().Bits(0x564342, 24).Bits(1, 16).Bits(1 << 20, 24).Flag(false).Flag(false).Bits(0, 64).ToArray();
+        var cutLengths = new VorbisWriter().Bits(0x564342, 24).Bits(1, 16).Bits(40, 24).Flag(false).Flag(false).Bits(0, 50).ToArray();
+        var hugeTable = new VorbisWriter().Codebook(65535, [.. Enumerable.Repeat(7, 128)], lookupType: 1).Bits(Pack(-1), 32).Bits(Pack(1), 32).Bits(0, 4).Flag(false).ToArray();
+        var shortValues = new VorbisWriter().Codebook(3000, [1, 1], lookupType: 2).Bits(Pack(-1), 32).Bits(Pack(1), 32).Bits(7, 4).Flag(false).ToArray();
+
+        Assert.Contains("more entries", Assert.Throws<MediaFormatException>(() => new VorbisCodebook(new VorbisBits(manyEntries))).Message, StringComparison.Ordinal);
+        Assert.Contains("entry lengths", Assert.Throws<MediaFormatException>(() => new VorbisCodebook(new VorbisBits(cutLengths))).Message, StringComparison.Ordinal);
+        Assert.Contains("vector table", Assert.Throws<MediaFormatException>(() => new VorbisCodebook(new VorbisBits(hugeTable))).Message, StringComparison.Ordinal);
+        Assert.Contains("vector table", Assert.Throws<MediaFormatException>(() => new VorbisCodebook(new VorbisBits(shortValues))).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AFloorOfTheOldKindPlaysAsSilence()
     {
         static void Floor0(VorbisWriter w) => w.Bits(0, 16).Bits(8, 8).Bits(8000, 16).Bits(32, 16).Bits(6, 6).Bits(0, 8).Bits(0, 4).Bits(0, 8);
