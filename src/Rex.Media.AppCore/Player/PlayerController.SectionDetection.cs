@@ -28,6 +28,21 @@ public sealed partial class PlayerController
 
     public SectionProposals? CurrentProposals => _activeProposals;
 
+    /// <summary>
+    /// Whether the background analysis is still running, so a test can wait for the worker to
+    /// finish rather than guess how long a below-normal thread takes on a busy machine.
+    /// </summary>
+    internal bool FindingSections
+    {
+        get
+        {
+            lock (_sectionStopGate)
+            {
+                return _sectionStop is not null;
+            }
+        }
+    }
+
     /// <summary>The file of the episode after this one in its folder, once the background lookup has found it.</summary>
     public string? NextEpisode => _nextEpisode;
 
