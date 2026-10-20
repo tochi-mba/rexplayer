@@ -17,7 +17,7 @@ public sealed partial class AppWindowTests
     private static readonly string[] PreferencesSections =
     [
         "Playback", "Intros and credits", "Video and pictures", "Music and artwork", "Performance", "Languages", "Subtitles",
-        "Transcription", "Window", "Library", "History and resume", "Keyboard and mouse", "Opening files", "Updates",
+        "Transcription", "Window", "Library", "Metadata", "History and resume", "Keyboard and mouse", "Opening files", "Updates",
     ];
 
     [Fact]
@@ -29,7 +29,18 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.Preferences);
         var picker = (ExpandCollapsePattern)app.Find("PreferencesSection").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         picker.Expand();
-        var offered = Wait.Until(() => All(app.Window, ControlType.ListItem).Select(item => item.Current.Name).Where(PreferencesSections.Contains).Distinct().ToArray() is { Length: > 0 } names ? names : null);
+        var offered = Wait.Until(() =>
+        {
+            var names = All(app.Window, ControlType.ListItem).Select(item => item.Current.Name).Where(PreferencesSections.Contains).Distinct().ToArray();
+            if (names.Length > 0)
+            {
+                return names;
+            }
+
+            // The picker can swallow the first Expand while Preferences is still settling: ask again.
+            picker.Expand();
+            return null;
+        });
         picker.Collapse();
         Assert.Equal(PreferencesSections, offered);
 
