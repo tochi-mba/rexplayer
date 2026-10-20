@@ -54,6 +54,11 @@ pipeline the moment its number reaches `main`.
 
 ### Fixed
 
+- **No transcript rail over a picture.** While a picture is on screen the caption coverage rail under the timeline, and the wait for captions, stay away; they come back the moment a song or video plays.
+- **Reopening the library returns to where you were.** With Preferences set to return to where you left the library, it now opens on the same view or page (an album, an artist, a show, a season), scrolled as it was, with the same line chosen; that is now the default, since what plays was most often opened from there. "Show the playing item" still opens the view holding it.
+- **The library remembers your place everywhere.** Every view keeps its scroll place and chosen line, in the session and across restarts; Back returns to the parent with the line you opened chosen and on screen; a view built again after a scan, a new order or a filter stays on the line in view instead of jumping to the top; clearing a search returns to the place before it, and each view keeps its last search for the session.
+- **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.
+- **Down in the library search moves into the results.** It chooses the first item found, so Enter plays it.
 - **A damaged Vorbis track no longer hangs opening.** A codebook whose length runs never moved on, or that claimed more entries or values than its header holds, kept the decoder setting up for many seconds; it is now refused at once and the file plays its other tracks or is reported as damaged. The nightly fuzzer's input joins the corpus.
 - **No more crash on closing.** Closing the window within a moment of an on-screen notice (a title, a seek, a saved setting) could end rexplayer with an error instead of closing cleanly; every clock now stops as the window closes, work queued for the window (such as the visualisation letting its memory go) no longer runs once it has closed, and a part that fails to close is written to the log instead.
 - **Enhanced Subject Lock download is back in Preferences.** The optional models can again be downloaded, stopped and removed from Preferences, now under Video and pictures.

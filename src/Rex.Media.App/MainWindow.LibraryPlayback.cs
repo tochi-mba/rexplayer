@@ -13,6 +13,8 @@ public sealed partial class MainWindow
         switch (row?.Item)
         {
             case LibraryGroup group:
+                // The parent is kept with this line chosen, so Back finds it chosen and on screen.
+                KeepPlace(SelectionIdentity(row));
                 // A group inside an open group nests: a show's season, or an artist's album.
                 if (_librarySource is LibrarySource.TvShows or LibrarySource.Artists && _libraryGroup is not null && _librarySeason is null)
                 {
@@ -25,7 +27,8 @@ public sealed partial class MainWindow
                 }
 
                 LibrarySearch.Text = "";
-                ShowLibrary();
+                _places.RememberSearch(_librarySource.ToString(), "");
+                ShowLibraryAtPlace();
                 break;
             case NamedPlaylist playlist:
                 if (_settings.ShowPlayerWhenLibraryMediaStarts)

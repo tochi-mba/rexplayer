@@ -220,6 +220,31 @@ public sealed record LibraryViewChoice(
     };
 }
 
+/// <summary>
+/// Where the user was in one library view: the line at the top of the list and the line chosen
+/// (each named by its identity), and for the surfaces without lines, how far Home's page and each
+/// of its shelves, or the collage, were scrolled, in pixels.
+/// </summary>
+public sealed record LibraryPlace(string? Anchor = null, string? Selected = null, double Offset = 0, IReadOnlyList<double>? Shelves = null)
+{
+    /// <summary>The most places kept; older ones are forgotten first.</summary>
+    public const int Most = 200;
+
+    /// <summary>Whether the place says nothing: the top of the view with nothing chosen.</summary>
+    public bool IsEmpty => Anchor is null && Selected is null && Offset <= 0 && (Shelves is null || Shelves.All(shelf => shelf <= 0));
+
+    public LibraryPlace Normalize() => new(
+        string.IsNullOrWhiteSpace(Anchor) ? null : Anchor,
+        string.IsNullOrWhiteSpace(Selected) ? null : Selected,
+        Pixels(Offset),
+        Shelves is null || Shelves.Count == 0 ? null : [.. Shelves.Select(Pixels)]);
+
+    private static double Pixels(double value) => double.IsFinite(value) && value > 0 ? value : 0;
+}
+
+/// <summary>The route the library was last at: its view and, when one was opened in it, a group (an album, an artist, a show) and the group's page (a season, an artist's album).</summary>
+public sealed record LibraryRoute(string View, string? Group = null, string? GroupDetail = null, string? Page = null);
+
 /// <summary>The broad composition used for cover art drawn from an audio file.</summary>
 public enum ArtworkStyle
 {
@@ -550,14 +575,24 @@ public sealed record PlayerSettings
     /// <summary>How each library view is shown, by the view's name (LIB-05).</summary>
     public IReadOnlyDictionary<string, LibraryViewChoice> LibraryViews { get; init; } = new Dictionary<string, LibraryViewChoice>(StringComparer.Ordinal);
 
+    /// <summary>Where the user was in each library view and page, by the route's key, newest last (LIB-05).</summary>
+    public IReadOnlyDictionary<string, LibraryPlace> LibraryPlaces { get; init; } = new Dictionary<string, LibraryPlace>(StringComparer.Ordinal);
+
+    /// <summary>The route the library was last at, so the next launch returns to it; null for Home.</summary>
+    public LibraryRoute? LibraryRoute { get; init; }
+
     /// <summary>Opening the library pauses what is playing, so the picture is not missed while browsing (LIB-05).</summary>
     public bool PauseWhenLibraryOpens { get; init; } = true;
 
     /// <summary>Whether a library item opens on one click or two.</summary>
     public MediaOpenClick MediaOpenClickMode { get; init; } = Rex.Media.Settings.MediaOpenClick.DoubleClick;
 
-    /// <summary>Opening the library reveals the playing item; otherwise it returns to the current browsing location.</summary>
-    public bool OpenLibraryAtPlayingItem { get; init; } = true;
+    /// <summary>
+    /// Opening the library reveals the playing item; otherwise it returns to where the library was
+    /// left: the same view or page, scrolled as it was, with the same line chosen. Off by default:
+    /// what was opened was most often opened from there, and a page left open stays open.
+    /// </summary>
+    public bool OpenLibraryAtPlayingItem { get; init; }
 
     /// <summary>Edited song details go into the files when their format can be written; otherwise rexplayer keeps them.</summary>
     public bool WriteDetailsIntoFiles { get; init; } = true;
@@ -812,6 +847,13 @@ public sealed record PlayerSettings
             AudioArtworkContrast = Math.Clamp(AudioArtworkContrast, 0, 200),
             VisualOptions = VisualOptions ?? new Dictionary<string, string>(StringComparer.Ordinal),
             LibraryViews = (LibraryViews ?? new Dictionary<string, LibraryViewChoice>()).Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value.Normalize(), StringComparer.Ordinal),
+            LibraryPlaces = (LibraryPlaces ?? new Dictionary<string, LibraryPlace>())
+                .Where(pair => pair.Key.Length > 0 && pair.Value is not null)
+                .Select(pair => (pair.Key, Place: pair.Value.Normalize()))
+                .Where(pair => !pair.Place.IsEmpty)
+                .TakeLast(LibraryPlace.Most)
+                .ToDictionary(pair => pair.Key, pair => pair.Place, StringComparer.Ordinal),
+            LibraryRoute = string.IsNullOrWhiteSpace(LibraryRoute?.View) ? null : LibraryRoute,
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),
