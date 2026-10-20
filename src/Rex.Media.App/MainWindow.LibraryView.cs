@@ -372,7 +372,7 @@ public sealed partial class MainWindow
         }
 
         var row = _libraryRows[index];
-        DispatcherQueue.TryEnqueue(() =>
+        OnWindowThread(() =>
         {
             if (LibraryCollage.Visibility == Visibility.Visible)
             {

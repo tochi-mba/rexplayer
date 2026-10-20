@@ -253,7 +253,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>New facts redraw the library once, on its thread, only while it is open.</summary>
-    private void RefreshLibraryFromMetadata() => DispatcherQueue.TryEnqueue(() =>
+    private void RefreshLibraryFromMetadata() => OnWindowThread(() =>
     {
         if (!_closed && LibraryOpen)
         {

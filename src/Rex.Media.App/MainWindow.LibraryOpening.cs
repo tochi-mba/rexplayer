@@ -35,7 +35,7 @@ public sealed partial class MainWindow
     {
         var route = _libraryViewportRoute;
         var restore = _libraryViewport.ToArray();
-        DispatcherQueue.TryEnqueue(() =>
+        OnWindowThread(() =>
         {
             if (!LibraryOpen || _selectionView != route)
             {

@@ -72,7 +72,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnPowerChanged(object? sender, object e) => DispatcherQueue.TryEnqueue(() =>
+    private void OnPowerChanged(object? sender, object e) => OnWindowThread(() =>
     {
         _facts = _facts with { OnBattery = OnBattery(), EnergySaver = EnergySaver() };
         ApplyBudget();

@@ -96,7 +96,7 @@ public sealed partial class MainWindow
             // Let the pane disappear and the window paint before opening a potentially large image
             // or video. Its probing and decoding stay on the engine threads, never this UI turn.
             SetLibraryOpen(false);
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            OnWindowThread(DispatcherQueuePriority.Low, () =>
             {
                 if (!_closing)
                 {

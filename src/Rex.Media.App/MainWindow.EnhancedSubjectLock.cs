@@ -55,7 +55,7 @@ public sealed partial class MainWindow
             }
             finally
             {
-                DispatcherQueue.TryEnqueue(() =>
+                OnWindowThread(() =>
                 {
                     _subjectModelsDownload = null;
                     cancel.Dispose();
