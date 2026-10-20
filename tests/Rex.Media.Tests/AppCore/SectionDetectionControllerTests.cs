@@ -409,9 +409,11 @@ public sealed class SectionDetectionControllerTests
             test.Controller.Open([path]);
             test.PumpUntil(x => x.State == SessionState.Ready);
             Assert.True(invoked.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
-            Assert.False(SpinWait.SpinUntil(() => test.Controller.Memory.Proposals(
-                path, SectionAnalysis.SignatureOf(path)) is not null,
-                TimeSpan.FromMilliseconds(50)));
+
+            // The worker runs below normal priority; disposing the controller before it has seen
+            // the wrong identity would cancel it first, and the refusal would go unexercised.
+            Assert.True(SpinWait.SpinUntil(() => !test.Controller.FindingSections, ControllerHarness.Patience), "The analysis never finished.");
+            Assert.Null(test.Controller.Memory.Proposals(path, SectionAnalysis.SignatureOf(path)));
             Assert.Null(test.Controller.CurrentProposals);
         }
         finally
