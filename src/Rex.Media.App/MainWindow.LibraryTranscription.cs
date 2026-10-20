@@ -79,10 +79,10 @@ public sealed partial class MainWindow
     /// <summary>Wires transcription without touching the disk: the first look happens once the launch has settled.</summary>
     private void WireTranscription()
     {
-        _transcriptionTimer = DispatcherQueue.CreateTimer();
+        _transcriptionTimer = CreateTimer();
         _transcriptionTimer.Interval = WindowClocks.TranscriptionEvery;
         _transcriptionTimer.Tick += (_, _) => TranscriptionTick();
-        var first = DispatcherQueue.CreateTimer();
+        var first = CreateTimer();
         first.Interval = LaunchPlan.FirstLibraryScan;
         first.IsRepeating = false;
         first.Tick += (_, _) => StartTranscription();

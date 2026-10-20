@@ -94,19 +94,19 @@ public sealed partial class MainWindow
         _player.Changed += (_, _) => OnPlayingChangedForDetailWrites();
 
         // A burst of changes (a scan's batches) shows once.
-        _libraryRefresh = DispatcherQueue.CreateTimer();
+        _libraryRefresh = CreateTimer();
         _libraryRefresh.Interval = TimeSpan.FromMilliseconds(400);
         _libraryRefresh.IsRepeating = false;
         _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
         _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
 
         // Files copied in arrive in many events; the folder is looked at once they settle.
-        _libraryChanges = DispatcherQueue.CreateTimer();
+        _libraryChanges = CreateTimer();
         _libraryChanges.Interval = TimeSpan.FromSeconds(3);
         _libraryChanges.IsRepeating = false;
         _libraryChanges.Tick += (_, _) => LookAtChangedFolders();
 
-        _libraryRescan = DispatcherQueue.CreateTimer();
+        _libraryRescan = CreateTimer();
         _libraryRescan.Interval = LibraryRescanEvery;
         _libraryRescan.Tick += (_, _) => _scanner.Request();
         _libraryRescan.Start();
@@ -125,7 +125,7 @@ public sealed partial class MainWindow
         WatchLibraryFolders();
         // Looked through once the launch has settled: a large library's scan reads every folder
         // and competes with the first picture and sound for the disk and the processor.
-        var firstScan = DispatcherQueue.CreateTimer();
+        var firstScan = CreateTimer();
         firstScan.Interval = Rex.Media.AppCore.LaunchPlan.FirstLibraryScan;
         firstScan.IsRepeating = false;
         firstScan.Tick += (_, _) =>
