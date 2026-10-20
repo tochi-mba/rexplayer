@@ -3,7 +3,7 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
-## Unreleased
+## 0.26.0 - 2026-10-20
 
 ### Added
 
@@ -17,7 +17,6 @@ pipeline the moment its number reaches `main`.
 - Edit details: right-click songs or an album to change title, artist, album, album artist, track, disc, year and genre; several songs at once show "(several values)" for fields that differ. MP3 and FLAC files take the new details and cover (written once a playing file is free); other files keep them in rexplayer. Preferences > Library chooses "write them into the files" or "keep them in rexplayer only".
 - **About rexplayer.** Help, About rexplayer names the version and when it last updated, shows where the settings, library and log live, and leads to What's new, the website, the log folder and a check for updates. Help, What's new in this version opens the release notes at any time, not only from Preferences after an update.
 
-
 ### Improved
 
 - **Clearer Preferences.** What the sleep timer does at its time is now chosen under Playback, beside the other playback choices, instead of under History and resume. Loudest volume and Text of older subtitle files say what they do.
@@ -27,7 +26,6 @@ pipeline the moment its number reaches `main`.
 - **Quick play and queue on song lines.** Pointing at or arrowing onto a song, album or genre line in the library shows Play and Add to queue right on the line, so a single click plays it or queues it without a right-click menu; keyboard focus shows exactly what hovering shows.
 - **Artwork fades in.** Covers in the library's lists, cards and banner fade in over their placeholder once decoded instead of popping, and a focused or pointed-at line's artwork loads first.
 - **Playback allocates less each frame.** Finding the subtitles on screen, the caption choreography and the visualiser meters and oscilloscope reuse their memory instead of allocating every frame.
-
 - **A paused visualisation rests.** Once the music pauses or ends, the visualisation lets the last sound die away for a second and a half and then stops redrawing a still picture, instead of drawing it up to sixty times a second; it moves again the moment the music plays. Camera visualisations keep following you while paused.
 - **A quieter idle window.** With nothing open, no sleep timer and nothing to transcribe, the window's own clocks no longer wake it 132 times a minute: the resume point is saved while something is open, the sleep timer ticks while it is set, and transcription looks at the computer only while it has work.
 - **Paused kinetic captions stand still.** While a video is paused the words on screen are left as they are, instead of being worked out, laid out and announced to screen readers again on every display refresh; they move again when playback, a seek, the window's size or the captions' look changes them.
@@ -38,7 +36,6 @@ pipeline the moment its number reaches `main`.
 - **A page for each TV show.** Opening a TV show now goes straight to its episodes: the show's artwork behind its name, a season picker, and Play that names the episode it resumes or starts (such as "Resume S02 E04"). It opens on the season holding the episode to go on with. Each episode is a numbered line with its picture, its title (taken from the file's tags or the words after "S01E03" in its name), where it was left or that it was watched, a progress bar, and its length. Back returns to the list of shows.
 - **Cards lift when pointed at or focused.** Library cards rise slightly and show their play mark on hover and on keyboard focus alike, animated by the compositor.
 
-
 ### Fixed
 
 - **A damaged Vorbis track no longer hangs opening.** A codebook whose length runs never moved on, or that claimed more entries or values than its header holds, kept the decoder setting up for many seconds; it is now refused at once and the file plays its other tracks or is reported as damaged. The nightly fuzzer's input joins the corpus.
@@ -46,14 +43,11 @@ pipeline the moment its number reaches `main`.
 - **Enhanced Subject Lock download is back in Preferences.** The optional models can again be downloaded, stopped and removed from Preferences, now under Video and pictures.
 - **What's new from Preferences opens.** The What's new link beside the last update in Preferences could close Preferences without showing the notes; it now shows them every time.
 - **The right title after a late repeat change.** Choosing Repeat one (or shuffle) while a song was already lined up to follow without a gap no longer leaves the window naming the old song, with the new one's length, once the new one begins.
-
-
 - **Preferences tells the truth about transcription quality.** The Balanced and Fastest modes said transcription would use "at most the Base/Tiny speech model", but no such cap was ever applied: the Fast, Default or Best quality you choose on the caption rail always decides, because transcripts are saved per quality. Preferences now says the quality stays as you choose it; on Fastest it still says the library is transcribed only while nothing plays.
 - **Replaying the last item marks it in the queue.** Dragging the seek bar after the queue ended plays the last item again, and the queue panel now shows it as current.
 - **Moving through unseekable media says why nothing happened.** Go to time and the jump keys show a short notice on media that cannot be moved through.
 - **Full-screen controls stay while a button in them has focus.** Tabbing to a button in the controls bar keeps the bar up, as focus on the bar itself already did.
 - **Compilation tracks show under their own artists.** In the library's Artists view a song on a "Various Artists" album is listed under its own artist too, once.
-
 - **Caption waits across quality changes.** Changing the transcription quality from the caption rail or Preferences while playback waits for captions keeps the wait and its overlay until the new quality's saved coverage is known, instead of briefly resuming playback or leaving it paused with no overlay.
 - **Switching transcription quality.** Choosing a quality whose speech model is not downloaded yet now fetches it (never on a metered connection unless you ask) instead of silently making no subtitles, and two requests for one model share a single download.
 - **Subtitle track choices after a quality switch.** The newly chosen quality is listed once, as its live transcript, rather than also as a frozen copy loaded while another quality was active.
