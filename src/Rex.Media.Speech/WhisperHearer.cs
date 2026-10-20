@@ -30,6 +30,13 @@ public sealed class WhisperHearer : ISpeechHearer
     public async ValueTask<(IReadOnlyList<TranscriptWord> Words, string? Language)> HearAsync(float[] samples, string? language, int threads, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(samples);
+        if (samples.Length == 0)
+        {
+            // Given no samples, the native model skips its spectrogram and then reads it, which
+            // ends the process: there is nothing to hear, so nothing is asked.
+            return ([], language);
+        }
+
         if (_processor is null || _built != (threads, language))
         {
             await ReleaseProcessorAsync().ConfigureAwait(false);
