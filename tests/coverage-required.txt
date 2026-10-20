@@ -10,6 +10,7 @@ AnalysisConverter.cs
 Ass.cs
 Asx.cs
 ContextMenuLayout.cs
+MenuBarLayout.cs
 AtomicFile.cs
 AudioArtwork.cs
 AudioEffects.cs

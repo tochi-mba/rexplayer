@@ -21,56 +21,6 @@ public sealed partial class MainWindow
 {
     private const string HelpUrl = "https://tochi-mba.github.io/rexplayer/";
 
-    /// <summary>
-    /// The menus, by menu, in order; each entry is a command id, a <see cref="SubMenu"/> id for a
-    /// group of related commands, or null for a separator. Groups keep each menu short enough to
-    /// read at a glance: the commands people reach for stay on top, their finer variants one level in.
-    /// </summary>
-    private static readonly (string Menu, string?[] Commands)[] MenuLayout =
-    [
-        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
-        ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
-            CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
-            SubMenu + "jump", CommandCatalog.GoToTime, SubMenu + "speed", null,
-            CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
-            CommandCatalog.AddBookmark, CommandCatalog.Resume, null,
-            SubMenu + "sleep"]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, SubMenu + "audio-timing", null,
-            CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
-        ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
-            SubMenu + "subtitle-timing", SubMenu + "subtitle-size", null,
-            CommandCatalog.ToggleKineticCaptions, SubMenu + "kinetic-captions", null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
-        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
-            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, SubMenu + "window-size", null,
-            CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null,
-            CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse, null,
-            SubMenu + "library-backup", CommandCatalog.ClearPlaylist, CommandCatalog.ClearHistory]),
-        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates, CommandCatalog.WhatsNew, null, CommandCatalog.About]),
-    ];
-
-    /// <summary>Marks a <see cref="MenuLayout"/> entry that opens one of <see cref="SubMenus"/>.</summary>
-    private const string SubMenu = "submenu:";
-
-    /// <summary>The groups the menus open one level in, by id: a title and its entries.</summary>
-    private static readonly Dictionary<string, (string Title, string?[] Commands)> SubMenus = new(StringComparer.Ordinal)
-    {
-        [SubMenu + "jump"] = ("Jump", [CommandCatalog.JumpForwardVeryShort, CommandCatalog.JumpBackVeryShort, null,
-            CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, null,
-            CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, null,
-            CommandCatalog.JumpForwardLong, CommandCatalog.JumpBackLong]),
-        [SubMenu + "speed"] = ("Speed", [CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.SlightlyFaster, CommandCatalog.SlightlySlower, null, CommandCatalog.NormalSpeed]),
-        [SubMenu + "sleep"] = ("Sleep timer", [CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
-            CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, null, CommandCatalog.SleepOff]),
-        [SubMenu + "audio-timing"] = ("Sound timing", [CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay]),
-        [SubMenu + "subtitle-timing"] = ("Subtitle timing", [CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay]),
-        [SubMenu + "subtitle-size"] = ("Subtitle size", [CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
-        [SubMenu + "kinetic-captions"] = ("Kinetic caption style", [CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, null,
-            CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer, null, CommandCatalog.KineticCaptionSettings]),
-        [SubMenu + "window-size"] = ("Window size", [CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble]),
-        [SubMenu + "library-backup"] = ("Library backup", [CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary]),
-    };
-
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
 
     /// <summary>The current rate remains visible while the player is paused or changing items.</summary>
@@ -123,7 +73,7 @@ public sealed partial class MainWindow
         _videoLookItems.Clear();
         _videoEffectItems.Clear();
         _sectionMenuUpdates.Clear();
-        foreach (var (title, commands) in MenuLayout)
+        foreach (var (title, commands) in MenuBarLayout.Menus)
         {
             var menu = Menu.Items.First(item => item.Title == title);
             menu.Items.Clear();
@@ -172,17 +122,17 @@ public sealed partial class MainWindow
                 continue;
             }
 
-            if (SubMenus.TryGetValue(id, out var group))
+            if (MenuBarLayout.SubMenus.TryGetValue(id, out var group))
             {
                 var sub = new MenuFlyoutSubItem { Text = group.Title };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sub, "Submenu-" + id[SubMenu.Length..]);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sub, "Submenu-" + MenuBarLayout.SubMenuId(id));
                 Fill(sub.Items, group.Commands, prefix);
                 items.Add(sub);
                 continue;
             }
 
             var command = CommandCatalog.Find(id)!;
-            MenuFlyoutItem item = IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
+            MenuFlyoutItem item = MenuBarLayout.IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
             (item.Text, item.KeyboardAcceleratorTextOverride) = (CommandCatalog.TitleOf(command, _settings), _keymap.Label(id));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + id);
             item.Click += (_, _) => Run(id);
@@ -196,12 +146,6 @@ public sealed partial class MainWindow
 
     // Menu items that are on or off, ticked to match.
     private readonly List<(ToggleMenuFlyoutItem Item, string Command)> _menuChecks = [];
-
-    /// <summary>Whether a command switches something on and off (rather than doing a thing once), so its menu item carries a tick.</summary>
-    private static bool IsOnOff(string command) => command is CommandCatalog.ToggleShuffle or CommandCatalog.CycleRepeat or CommandCatalog.Mute
-        or CommandCatalog.ToggleSubtitles or CommandCatalog.ToggleNavigator or CommandCatalog.StopAfterCurrent or CommandCatalog.PauseAfterCurrent
-        or CommandCatalog.SleepAtEndOfItem or CommandCatalog.ToggleFullScreen or CommandCatalog.ToggleAlwaysOnTop or CommandCatalog.ToggleStats
-        or CommandCatalog.TogglePlaylist or CommandCatalog.ToggleLyrics or CommandCatalog.ToggleLibrary or CommandCatalog.MinimalInterface;
 
     /// <summary>Whether what <paramref name="command"/> switches is on now.</summary>
     private bool IsOn(string command) => command switch
