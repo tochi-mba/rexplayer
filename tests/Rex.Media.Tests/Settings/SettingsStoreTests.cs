@@ -35,7 +35,9 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Empty(settings.Shortcuts);
         Assert.False(settings.SeekPreview);
         Assert.Equal(MediaOpenClick.DoubleClick, settings.MediaOpenClickMode);
-        Assert.True(settings.OpenLibraryAtPlayingItem);
+        Assert.False(settings.OpenLibraryAtPlayingItem);
+        Assert.Empty(settings.LibraryPlaces);
+        Assert.Null(settings.LibraryRoute);
         Assert.True(settings.WriteDetailsIntoFiles);
         Assert.True(settings.LeaveFullScreenWhenLibraryOpens);
         Assert.True(settings.ShowPlayerWhenLibraryMediaStarts);
@@ -74,8 +76,17 @@ public sealed class SettingsStoreTests : IDisposable
             LastSeenVersion = "0.4.0",
             Shortcuts = new Dictionary<string, string> { ["play-pause"] = "Ctrl+P", ["stop"] = "" },
             SeekPreview = true,
-            OpenLibraryAtPlayingItem = false,
+            OpenLibraryAtPlayingItem = true,
+            LibraryPlaces = new Dictionary<string, LibraryPlace>
+            {
+                ["Songs"] = new("file:C:\\Music\\Terminator.wav", "file:C:\\Music\\Sungba.wav"),
+                ["Home"] = new(Offset: 240.5, Shelves: [0, 360]),
+                ["Albums"] = new(),
+                ["Genres"] = new(" ", null, -5),
+            },
+            LibraryRoute = new LibraryRoute("Artists", "Asake", null, "Work of Art"),
             WriteDetailsIntoFiles = false,
+            AutomaticWhenEnergySaver = false,
             LeaveFullScreenWhenLibraryOpens = false,
             ShowPlayerWhenLibraryMediaStarts = false,
             LibraryViews = new Dictionary<string, LibraryViewChoice> { ["Albums"] = new(LibraryLook.Wall, LibrarySort.MostPlayed, true, LibraryGrouping.Letter, 240) },
@@ -85,10 +96,20 @@ public sealed class SettingsStoreTests : IDisposable
         var loaded = SettingsStore.Load(File);
 
         // Lists compare by reference in a record, so they are compared by content apart.
-        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, VideoStyleValues = loaded.VideoStyleValues }, loaded);
+        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, LibraryPlaces = loaded.LibraryPlaces, VideoStyleValues = loaded.VideoStyleValues }, loaded);
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
         Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
         Assert.Equal(saved.LibraryViews, loaded.LibraryViews);
+
+        // Places that say nothing (the top, nothing chosen) are not kept; the rest come back whole.
+        Assert.Equal(["Songs", "Home"], loaded.LibraryPlaces.Keys);
+        Assert.Equal(saved.LibraryPlaces["Songs"], loaded.LibraryPlaces["Songs"]);
+        Assert.Equal(240.5, loaded.LibraryPlaces["Home"].Offset);
+        Assert.Equal([0, 360], loaded.LibraryPlaces["Home"].Shelves);
+        Assert.Null((saved with { LibraryRoute = new LibraryRoute(" ") }).Normalize().LibraryRoute);
+        var crowded = new PlayerSettings { LibraryPlaces = Enumerable.Range(0, LibraryPlace.Most + 5).ToDictionary(i => "Songs\n" + i, i => new LibraryPlace("file:" + i)) }.Normalize();
+        Assert.Equal(LibraryPlace.Most, crowded.LibraryPlaces.Count);
+        Assert.False(crowded.LibraryPlaces.ContainsKey("Songs\n0"));
         Assert.Equal(MediaOpenClick.SingleClick, loaded.MediaOpenClickMode);
         Assert.Equal(MediaOpenClick.DoubleClick, new PlayerSettings { MediaOpenClickMode = (MediaOpenClick)99 }.Normalize().MediaOpenClickMode);
     }
@@ -414,7 +435,7 @@ public sealed class SettingsStoreTests : IDisposable
 
         var loaded = SettingsStore.Load(File);
 
-        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, VideoStyleValues = loaded.VideoStyleValues }, loaded);
+        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, LibraryPlaces = loaded.LibraryPlaces, VideoStyleValues = loaded.VideoStyleValues }, loaded);
         Assert.Equal(new double[10], loaded.EqualizerGains);
         Assert.True(loaded.SingleInstance);
         Assert.Equal(10, loaded.ShortJumpSeconds);

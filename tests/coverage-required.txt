@@ -24,6 +24,8 @@ AuraScene.cs
 AuroraScene.cs
 AutomaticSkip.cs
 AutomationPipe.cs
+ShellAutomation.cs
+ShellSurface.cs
 AvcConfig.cs
 BandEnergy.cs
 BandLayout.cs
@@ -84,6 +86,7 @@ EnrichedAlbum.cs
 EnrichedMovie.cs
 EnrichedShow.cs
 EpisodeGrouping.cs
+EnergySaverMode.cs
 EpisodeNames.cs
 EpisodeSectionDetection.cs
 EpisodeSections.cs
@@ -145,6 +148,7 @@ LibraryArrangement.cs
 LibraryBackup.cs
 LibraryEmptyState.cs
 LibraryOpening.cs
+LibraryPlaces.cs
 LibraryScanner.cs
 LibrarySearchText.cs
 LibraryViews.cs
@@ -390,4 +394,5 @@ FlacTagWriter.cs
 TagFileWriter.cs
 DetailOverride.cs
 DetailsForm.cs
+Downloads.cs
 PendingDetailWrites.cs

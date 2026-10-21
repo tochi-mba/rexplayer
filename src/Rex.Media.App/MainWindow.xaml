@@ -31,11 +31,15 @@
             <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
             </Image>
+            <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="22" Height="22" Margin="3"
+                          HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
+                          ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />
+            <FontIcon Glyph="&#xE896;" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" FontSize="9" Foreground="White" Width="22" Height="22" Margin="3" HorizontalAlignment="Right" VerticalAlignment="Top" />
           </Grid>
         </Border>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
           <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
-          <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility}" />
+          <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
         </StackPanel>
         <!-- Quick actions show on the line pointed at or focused, exactly like a card's play mark. -->
         <StackPanel x:Name="CardPlay" Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Opacity="0">
@@ -546,11 +550,11 @@
                 </Flyout>
               </DropDownButton.Flyout>
             </DropDownButton>
-            <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged" KeyDown="OnLibrarySearchKeyDown"
+            <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
           </Grid>
 
-          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" KeyDown="OnLibraryKeyDown"
+          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />

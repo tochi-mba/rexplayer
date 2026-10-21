@@ -144,7 +144,7 @@ public sealed class AutomationPipeTests
     [InlineData("", "The request was empty.")]
     [InlineData("{ not json\n", "The request was not valid JSON: ")]
     [InlineData("null\n", "The request was not a request.")]
-    [InlineData("{\"protocolVersion\":2,\"command\":\"status\"}\n", "This player speaks protocol 1, not 2.")]
+    [InlineData("{\"protocolVersion\":3,\"command\":\"status\"}\n", "This player speaks protocol 2, not 3.")]
     public async Task UnreadableRequestsAreAnsweredWithTheReason(string sent, string reason)
     {
         var reply = await Answer(Encoding.UTF8.GetBytes(sent));

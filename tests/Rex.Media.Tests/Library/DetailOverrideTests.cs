@@ -84,6 +84,18 @@ public sealed class DetailOverrideTests
     }
 
     [Fact]
+    public void TheDialogSaysWhereTheDetailsGoAndNeverWritesIntoADownloadingFile()
+    {
+        Assert.Equal("Saved in rexplayer only, as Preferences asks; the files are not changed.", DetailsForm.Note(2, 0, 1, writing: false));
+        Assert.Equal("Saved into the files.", DetailsForm.Note(2, 2, 0, writing: true));
+        Assert.Equal("This file is still downloading, so its details are saved in rexplayer only until it is whole.", DetailsForm.Note(1, 0, 1, writing: true));
+        Assert.Equal("These files are still downloading, so their details are saved in rexplayer only until they are whole.", DetailsForm.Note(3, 0, 3, writing: true));
+        Assert.Equal(Rex.Media.Containers.Tags.TagFileWriter.LibraryOnlyMessage, DetailsForm.Note(2, 0, 0, writing: true));
+        Assert.Equal("1 of these files can't be written to; their details are saved in rexplayer only.", DetailsForm.Note(3, 2, 0, writing: true));
+        Assert.Equal("2 of these files can't be written to (1 still downloading); their details are saved in rexplayer only.", DetailsForm.Note(3, 1, 1, writing: true));
+    }
+
+    [Fact]
     public void TheFormShowsSharedValuesAndSeveralValues()
     {
         var songs = new[] { Song("a.mp3", "Sungba"), Song("b.mp3", "Terminator", track: 2) };

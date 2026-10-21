@@ -622,6 +622,7 @@ public sealed partial class MainWindow : Window
             : AppWindow.Presenter.Kind == AppWindowPresenterKind.Overlapped && AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Restored }
                 ? new WindowPlacement(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height, false)
                 : _settings.Window;
+        KeepPlace();
         _settings = _settings with
         {
             Volume = _player.Volume,
@@ -630,6 +631,7 @@ public sealed partial class MainWindow : Window
             Shuffle = _player.Playlist.Shuffle,
             PlaylistVisible = PlaylistPane.Visibility == Visibility.Visible,
             Window = placement,
+            LibraryRoute = _libraryRouteApplied ? CurrentLibraryRoute() : _settings.LibraryRoute,
         };
         try
         {

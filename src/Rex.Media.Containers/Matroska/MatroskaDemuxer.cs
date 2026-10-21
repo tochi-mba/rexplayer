@@ -130,6 +130,7 @@ public sealed class MatroskaDemuxer : IDemuxer
         Info = new MediaInfo
         {
             FormatName = docType == "webm" ? "WebM" : "Matroska",
+            DeclaredLength = segmentSize == Ebml.UnknownSize ? null : _segmentEnd,
             Tracks = [.. _tracks.Values.Select(t => t.Describe(duration))],
             Duration = duration,
             IsSeekable = source.CanSeek,

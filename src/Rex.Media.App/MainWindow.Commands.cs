@@ -555,6 +555,12 @@ public sealed partial class MainWindow
         var answered = new TaskCompletionSource<AutomationReply>(TaskCreationOptions.RunContinuationsAsynchronously);
         var queued = DispatcherQueue.TryEnqueue(() =>
         {
+            if (ShellAutomation.IsUiRequest(request.Command))
+            {
+                _ = AnswerUiAsync(request, answered);
+                return;
+            }
+
             switch (request.Command)
             {
                 case "open":
@@ -574,7 +580,7 @@ public sealed partial class MainWindow
                 case "status":
                     break;
                 default:
-                    answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run, seek, status, metrics or measure."));
+                    answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run, seek, status, metrics, measure or a ui. command such as ui.tree."));
                     return;
             }
 

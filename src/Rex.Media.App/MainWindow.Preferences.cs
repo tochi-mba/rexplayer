@@ -161,15 +161,29 @@ public sealed partial class MainWindow
             Opacity = 0.75,
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceTranscriptionNote, "PreferencesPerformanceTranscriptionNote");
+        var energySaverAutomatic = Check("When Energy Saver is on, use the Automatic performance mode", s.AutomaticWhenEnergySaver);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(energySaverAutomatic, "PreferencesEnergySaverAutomatic");
+        var energySaverHint = new TextBlock
+        {
+            Text = "The mode chosen above returns when Energy Saver turns off.",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(32, 0, 0, 8),
+            Opacity = 0.75,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(energySaverAutomatic, energySaverHint.Text);
         void ShowPerformance()
         {
+            // What would be in effect once saved: a mode chosen while Energy Saver holds Automatic wins.
             var choice = (PerformanceChoice)Math.Max(0, performance.SelectedIndex);
-            performanceNow.Text = Rex.Media.AppCore.Performance.DeviceProfile.Describe(choice, _facts);
-            var changes = Rex.Media.AppCore.Performance.DeviceProfile.Changes(Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Choose(choice, _facts), _facts));
+            var energy = _energy.WithChoice(choice, energySaverAutomatic.IsChecked == true);
+            performanceNow.Text = energy.Describe(_facts);
+            var changes = Rex.Media.AppCore.Performance.DeviceProfile.Changes(Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Choose(energy.Effective, _facts), _facts));
             performanceChanges.Text = changes.Count == 0 ? "Nothing is held back: every picture, effect and visualisation at full quality." : string.Join("\n", changes);
         }
 
         performance.SelectionChanged += (_, _) => ShowPerformance();
+        energySaverAutomatic.Checked += (_, _) => ShowPerformance();
+        energySaverAutomatic.Unchecked += (_, _) => ShowPerformance();
         ShowPerformance();
 
         var content = new StackPanel();
@@ -240,6 +254,8 @@ public sealed partial class MainWindow
         AddSection("Performance");
         content.Children.Add(new TextBlock { Text = "On a slower computer rexplayer can do a little less so playback stays smooth. Automatic decides from the computer and Windows' energy saver; choose a level to decide yourself.", TextWrapping = TextWrapping.Wrap });
         content.Children.Add(performance);
+        content.Children.Add(energySaverAutomatic);
+        content.Children.Add(energySaverHint);
         content.Children.Add(performanceNow);
         content.Children.Add(performanceChanges);
         content.Children.Add(performanceTranscriptionNote);
@@ -524,6 +540,7 @@ public sealed partial class MainWindow
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
             Performance = (PerformanceChoice)Math.Max(0, performance.SelectedIndex),
+            AutomaticWhenEnergySaver = energySaverAutomatic.IsChecked == true,
         }).Normalize())).Normalize();
         var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
             || s.AudioArtworkStyle != next.AudioArtworkStyle
@@ -544,7 +561,7 @@ public sealed partial class MainWindow
         ApplyTheme();
         ApplyAlwaysOnTop();
         ApplyVideoLook(_settings.VideoLook);
-        ApplyBudget();
+        ApplyBudget(force: PerformanceChosen());
         ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
         LayOutSubtitles();
         SetView(_view);

@@ -72,6 +72,14 @@ public static class SubtitleBuffer
         !hasUsableSubtitles || words == CaptionWordSource.Transcript;
 
     /// <summary>
+    /// Whether the coverage rail has a place under the timeline: while something that can be heard
+    /// is open (the quality picker stays at hand before any coverage exists), or while coverage is
+    /// still shown after it. A picture has nothing to transcribe, so nothing is shown for one.
+    /// </summary>
+    public static bool RailShown(bool itemOpen, bool itemIsPicture, BufferState state) =>
+        !itemIsPicture && (itemOpen || state != BufferState.None);
+
+    /// <summary>
     /// How far subtitles must lead before held playback may safely resume. A faster
     /// transcriber only needs one chunk of reserve. If recognition is slower than playback,
     /// prebuffer the predicted lifetime deficit across the entire remaining movie: the

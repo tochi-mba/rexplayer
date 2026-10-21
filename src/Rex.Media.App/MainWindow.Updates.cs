@@ -1,5 +1,4 @@
 using Microsoft.UI.Xaml.Controls;
-using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
 using Rex.Media.Video;
@@ -98,24 +97,9 @@ public sealed partial class MainWindow
         PlaylistPane.Visibility = saved.PlaylistVisible
             ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         PlaylistButton.IsChecked = saved.PlaylistVisible;
-        if (Enum.TryParse<LibrarySource>(saved.LibrarySource, out var source) && Enum.IsDefined(source))
+        if (saved.LibrarySource is { Length: > 0 })
         {
-            var index = Array.FindIndex(LibrarySourceItems, item => item.Source == source);
-            if (index >= 0)
-            {
-                LibrarySources.SelectedIndex = index;
-                _librarySource = source;
-                if (saved.GroupName is { Length: > 0 } && _library is { } library)
-                {
-                    _libraryGroup = Groups(source, library.Entries).FirstOrDefault(group =>
-                        group.Name == saved.GroupName && group.Detail == saved.GroupDetail);
-                    if (_libraryGroup is not null && saved.SeasonName is { Length: > 0 })
-                    {
-                        _librarySeason = LibraryViews.TvSeasons(_libraryGroup)
-                            .FirstOrDefault(season => season.Name == saved.SeasonName);
-                    }
-                }
-            }
+            ApplyLibraryRoute(new Rex.Media.Settings.LibraryRoute(saved.LibrarySource, saved.GroupName, saved.GroupDetail, saved.SeasonName));
         }
 
         if (saved.Search.Length > 0)

@@ -99,6 +99,7 @@ public sealed partial class MainWindow
         _libraryRefresh.IsRepeating = false;
         _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
         _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
+        WireDownloadRechecks();
 
         // Files copied in arrive in many events; the folder is looked at once they settle.
         _libraryChanges = CreateTimer();
@@ -115,11 +116,11 @@ public sealed partial class MainWindow
         WireLibraryView();
         LibrarySources.SelectedIndex = 0;
         var entries = new MenuFlyout();
-        entries.Opening += (_, _) => FillLibraryMenu(entries);
+        entries.Opening += (_, _) => FillLibraryMenu(entries, ChoosePointedLine());
         LibraryList.ContextFlyout = entries;
         LibraryCollage.ContextFlyout = entries;
-        LibraryList.ContextRequested += OnLibraryContextRequested;
-        LibraryCollage.ContextRequested += OnLibraryContextRequested;
+        LibraryList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
+        LibraryCollage.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();
@@ -181,15 +182,25 @@ public sealed partial class MainWindow
 
         if (!open && LibraryOpen)
         {
-            KeepLibraryViewport();
+            KeepPlace();
         }
 
         // Only a transition into the library can pause playback. A paused item stays paused,
         // and closing the library never restarts it or changes the seek position.
-        if (open && !LibraryOpen && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
+        if (opening && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
                 _settings.KeepAudioPlayingInLibrary, HasVideo, _player.IsPlaying) == LibraryOpenAction.Pause)
         {
             _player.Pause();
+        }
+
+        // The first opening of a session starts where the last one ended, before the pane shows.
+        if (opening && !_libraryRouteApplied)
+        {
+            _libraryRouteApplied = true;
+            if (_settings.LibraryRoute is { } route)
+            {
+                ApplyLibraryRoute(route);
+            }
         }
 
         LibraryPane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
@@ -198,9 +209,9 @@ public sealed partial class MainWindow
         {
             if (!opening || !_settings.OpenLibraryAtPlayingItem || !RevealCurrentLibraryItem())
             {
-                ShowLibrary();
-                RestoreLibraryViewport();
+                ShowLibraryAtPlace();
             }
+
             ResumeLibraryPictures();
             ShowLibraryStatus();
             if (LibraryCollage.Visibility == Visibility.Visible)
@@ -236,6 +247,7 @@ public sealed partial class MainWindow
             _ => LibrarySource.Home,
         };
         var index = Array.FindIndex(LibrarySourceItems, pair => pair.Source == source);
+        _places.RememberSearch(source.ToString(), "");
         if (LibrarySources.SelectedIndex != index)
         {
             LibrarySources.SelectedIndex = index;
@@ -354,49 +366,6 @@ public sealed partial class MainWindow
         {
             ShowLibraryEmptyState();
         }
-    }
-
-    private void OnLibrarySourceChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (LibrarySources.SelectedIndex >= 0)
-        {
-            _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
-            _libraryGroup = null;
-            _librarySeason = null;
-            if (_shelfChoice?.Source != _librarySource)
-            {
-                _shelfChoice = null;
-            }
-
-            LibrarySearch.Text = "";
-            ShowLibrary();
-        }
-    }
-
-    /// <summary>
-    /// The box reports a change after the fact, so clearing it while changing view would build the
-    /// new view twice; it is built again only when the search differs from the one it was built for.
-    /// </summary>
-    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_librarySearchText.Changes(LibrarySearch.Text))
-        {
-            ShowLibrary();
-        }
-    }
-
-    private void OnLibraryBack(object sender, RoutedEventArgs e)
-    {
-        if (_librarySeason is not null)
-        {
-            _librarySeason = null;
-        }
-        else
-        {
-            _libraryGroup = null;
-        }
-
-        ShowLibrary();
     }
 
     /// <summary>
@@ -522,6 +491,7 @@ public sealed partial class MainWindow
             isPlaying: LibraryViews.SameLocation(entry.Path, _player.Playlist.Current?.Location));
         var (glyph, text) = TranscriptBadgeOf(entry);
         row.SetTranscript(glyph, text);
+        ShowDownload(row, entry);
         return row;
     }
 
@@ -665,10 +635,9 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The list's right-click menu, for the lines chosen when it opens.</summary>
-    private void FillLibraryMenu(MenuFlyout menu)
+    private void FillLibraryMenu(MenuFlyout menu, List<LibraryRow> chosen)
     {
         menu.Items.Clear();
-        var chosen = SelectedLibraryRows();
         if (chosen.Count == 0)
         {
             menu.Items.Add(new MenuFlyoutItem { Text = "Choose something first", IsEnabled = false });

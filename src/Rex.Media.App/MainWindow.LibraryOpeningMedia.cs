@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Library;
@@ -9,6 +10,8 @@ namespace Rex.Media.App;
 
 public sealed partial class MainWindow
 {
+    private (object? List, LibraryRow? Line) _rightPressedLine;
+
     private void OnLibraryTapped(object sender, TappedRoutedEventArgs e)
     {
         if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
@@ -26,19 +29,32 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Before the menu opens: a right-click on a line that is not chosen chooses it alone, so the
-    /// menu offers what can be done with the line under the pointer, never with an older choice.
+    /// Notes the line a right button went down on. The list's own lines show its menu and mark the
+    /// right-click handled, so the list never hears ContextRequested; a pointer press is heard first,
+    /// even when handled, and always before the menu opens.
     /// </summary>
-    private void OnLibraryContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    private void OnLibraryPointerPressed(object sender, PointerRoutedEventArgs e) =>
+        _rightPressedLine = e.GetCurrentPoint(null).Properties.IsRightButtonPressed
+            ? (sender, TappedRow(e.OriginalSource))
+            : default;
+
+    /// <summary>
+    /// As the menu opens: a right-click on a line that is not chosen chooses it alone, so the menu
+    /// offers what can be done with the line under the pointer, never with an older choice. Gives
+    /// the lines the menu acts on.
+    /// </summary>
+    private List<LibraryRow> ChoosePointedLine()
     {
+        var (list, pointed) = _rightPressedLine;
+        _rightPressedLine = default;
         var chosen = SelectedLibraryRows();
-        if (TappedRow(args.OriginalSource) is not { } pointed
-            || ReferenceEquals(LibraryActions.ContextLines(chosen, pointed), chosen))
+        var lines = LibraryActions.ContextLines(chosen, pointed);
+        if (pointed is null || ReferenceEquals(lines, chosen))
         {
-            return;
+            return chosen;
         }
 
-        if (sender == LibraryCollage)
+        if (ReferenceEquals(list, LibraryCollage))
         {
             LibraryCollage.DeselectAll();
             if (_libraryRows.IndexOf(pointed) is >= 0 and var index)
@@ -51,13 +67,16 @@ public sealed partial class MainWindow
             LibraryList.SelectedItems.Clear();
             LibraryList.SelectedItem = pointed;
         }
+
+        return [pointed];
     }
 
     /// <summary>
     /// In the search box, Escape clears what was typed and Down moves into what it found, choosing
-    /// the first item when nothing is chosen, so Enter plays it without reaching for the mouse.
+    /// the first item when nothing is chosen, so Enter plays it without reaching for the mouse. A
+    /// preview, because the box moves its caret on Down and marks the key handled before KeyDown.
     /// </summary>
-    private void OnLibrarySearchKeyDown(object sender, KeyRoutedEventArgs e)
+    private void OnLibrarySearchPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         switch (e.Key)
         {
@@ -80,9 +99,24 @@ public sealed partial class MainWindow
                     LibraryList.SelectedItem = _libraryRows[0];
                 }
 
-                LibraryList.Focus(FocusState.Keyboard);
+                FocusListLine(LibraryList.SelectedItem);
                 e.Handled = true;
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Gives the keyboard to a line's own container: the ListView is no tab stop, so focus on it
+    /// landed nowhere the next key reached while the search box held the focus. The collage is a
+    /// tab stop itself and hands the keys to its current item.
+    /// </summary>
+    private void FocusListLine(object? item)
+    {
+        LibraryList.ScrollIntoView(item);
+        LibraryList.UpdateLayout();
+        if (LibraryList.ContainerFromItem(item) is not Control line || !line.Focus(FocusState.Keyboard))
+        {
+            LibraryList.Focus(FocusState.Keyboard);
         }
     }
 

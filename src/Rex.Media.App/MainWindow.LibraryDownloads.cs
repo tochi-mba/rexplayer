@@ -1,0 +1,132 @@
+using Microsoft.UI.Dispatching;
+using Rex.Media.AppCore.Library;
+using Rex.Media.Library;
+
+namespace Rex.Media.App;
+
+/// <summary>
+/// Files still being downloaded into the library's folders (LIB-05): each card, line and shelf
+/// tile wears a badge with a progress ring while its file is partial, its detail line says how far
+/// the download is, and both go the moment the file is whole. While such a file is shown the
+/// library looks at it again every few seconds, so a download that stops growing is seen to be
+/// whole without waiting for the next scan; Play on one too incomplete to open says so instead of
+/// failing. Nothing here runs while no file is downloading.
+/// </summary>
+public sealed partial class MainWindow
+{
+    private static readonly TimeSpan DownloadRecheckEvery = TimeSpan.FromSeconds(2.5);
+
+    private DispatcherQueueTimer? _downloadRecheck;
+    private int _recheckingDownloads;
+
+    private void WireDownloadRechecks()
+    {
+        _downloadRecheck = CreateTimer();
+        _downloadRecheck.Interval = DownloadRecheckEvery;
+        _downloadRecheck.IsRepeating = true;
+        _downloadRecheck.Tick += (_, _) => RecheckDownloads();
+    }
+
+    /// <summary>The badge and detail a row shows for its file's download, or none once it is whole.</summary>
+    private static void ShowDownload(LibraryRow row, LibraryEntry entry) =>
+        row.SetDownload(entry.Downloading ? Downloads.Detail(entry.Size, entry.FinalSize) : null, entry.Downloading ? Downloads.Fraction(entry.Size, entry.FinalSize) : null);
+
+    /// <summary>
+    /// Brings every shown row's badge in line with the library after it changed, in place (the
+    /// view is rebuilt only when what it holds changes), and keeps looking while any file shown
+    /// is still downloading.
+    /// </summary>
+    private void ShowDownloads()
+    {
+        var downloading = _library!.Entries.Where(entry => entry.Downloading).ToDictionary(entry => entry.Path, StringComparer.OrdinalIgnoreCase);
+        var shown = false;
+        foreach (var row in _libraryRows.Concat(_homeShelfRows))
+        {
+            if (row.Item is not LibraryEntry entry)
+            {
+                continue;
+            }
+
+            if (downloading.GetValueOrDefault(entry.Path) is { } fresh)
+            {
+                ShowDownload(row, fresh);
+                shown = true;
+            }
+            else
+            {
+                row.SetDownload(null, null);
+            }
+        }
+
+        if (shown)
+        {
+            if (!_downloadRecheck!.IsRunning)
+            {
+                _downloadRecheck.Start();
+            }
+        }
+        else
+        {
+            _downloadRecheck?.Stop();
+        }
+    }
+
+    /// <summary>Looks at the downloading files again, off the window's thread; the library's change brings the rows up to date.</summary>
+    private void RecheckDownloads()
+    {
+        if (!LibraryOpen)
+        {
+            _downloadRecheck!.Stop();
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _recheckingDownloads, 1) != 0)
+        {
+            return;
+        }
+
+        var library = _library!;
+        var scanner = _scanner!;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var looked = library.Entries.Where(entry => entry.Downloading).Select(entry => entry.Path).ToList();
+                library.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker);
+
+                // A file found whole is read again, for its details and to be sure it opens.
+                foreach (var folder in looked.Where(path => library.Entry(path) is { Downloading: false, Probed: false }).Select(Path.GetDirectoryName).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    scanner.Request(folder);
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _recheckingDownloads, 0);
+            }
+        });
+    }
+
+    /// <summary>
+    /// What Play says of <paramref name="entry"/> when its file is still downloading and could not
+    /// be opened yet ("Still downloading: 20% so far"), after one more look at the disk; null when
+    /// it can play, growing as it goes.
+    /// </summary>
+    private string? NotYetPlayable(LibraryEntry entry)
+    {
+        if (!entry.Downloading)
+        {
+            return null;
+        }
+
+        _library!.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker);
+        var fresh = _library.Entry(entry.Path) ?? entry;
+        return fresh.Downloading && (fresh.Problem is not null || !fresh.Probed) ? Downloads.NotYetNotice(fresh.Size, fresh.FinalSize) : null;
+    }
+
+    private static LibraryFile? Stat(string path)
+    {
+        var file = new FileInfo(path);
+        return file.Exists ? new LibraryFile(path, file.Length, file.LastWriteTimeUtc) : null;
+    }
+}

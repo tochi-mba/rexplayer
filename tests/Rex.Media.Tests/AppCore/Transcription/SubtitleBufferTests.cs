@@ -226,4 +226,14 @@ public sealed class SubtitleBufferTests
             TimeRanges.Empty, TimeSpan.Zero, S(900), null, 1));
     }
 
+    [Theory]
+    [InlineData(true, false, BufferState.None, true)]
+    [InlineData(false, false, BufferState.Ahead, true)]
+    [InlineData(false, false, BufferState.None, false)]
+    [InlineData(true, true, BufferState.None, false)]
+    [InlineData(true, true, BufferState.Complete, false)]
+    public void TheRailShowsForSoundAndVideoAndNeverForAPicture(bool open, bool picture, BufferState state, bool shown)
+    {
+        Assert.Equal(shown, SubtitleBuffer.RailShown(open, picture, state));
+    }
 }

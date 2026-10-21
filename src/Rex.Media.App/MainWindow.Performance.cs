@@ -1,8 +1,8 @@
 using Microsoft.UI.Xaml.Media.Animation;
-using Microsoft.Windows.System.Power;
 using Rex.Media.AppCore.Performance;
 using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App;
 
@@ -10,17 +10,18 @@ namespace Rex.Media.App;
 /// Fitting the player to the computer (Preferences, Performance): the facts about it are read
 /// at once where they are cheap (processor threads, memory, power), then completed once the
 /// picture surface exists (what draws the pictures) and Windows has listed its decoders (which
-/// codecs the graphics card decodes). <see cref="DeviceProfile"/> turns them and the user's choice
-/// into a <see cref="DeviceBudget"/>, applied here to the visualisations, the picture effects,
-/// Subject Lock, the timeline preview, the lists' animations and the
-/// decode queues. A change of power (energy saver, the charger) is applied as it happens.
+/// codecs the graphics card decodes). <see cref="DeviceProfile"/> turns them and the mode in
+/// effect into a <see cref="DeviceBudget"/>, applied here to the visualisations, the picture
+/// effects, Subject Lock, the timeline preview, the lists' animations and the decode queues. A
+/// change of power (energy saver, the charger) is applied as it happens, and while energy saver
+/// is on <see cref="EnergySaverMode"/> may put Automatic in place of the chosen mode.
 /// </summary>
 public sealed partial class MainWindow
 {
     private DeviceFacts _facts = QuickFacts();
     private DeviceBudget _budget = new();
+    private EnergySaverMode _energy = EnergySaverMode.Start(PerformanceChoice.Automatic, true);
     private readonly Dictionary<Microsoft.UI.Xaml.Controls.ListViewBase, TransitionCollection> _listTransitions = [];
-    private bool _powerWatched;
 
     /// <summary>The facts available at once: threads and memory this process may use, power, and the switches that imitate a weak computer.</summary>
     internal static DeviceFacts QuickFacts() => new()
@@ -29,8 +30,8 @@ public sealed partial class MainWindow
         MemoryBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
         Graphics = App.SoftwareGraphics ? GraphicsKind.Software : GraphicsKind.Unknown,
         HardwareDecoding = App.GraphicsCardDecoding ? null : [],
-        OnBattery = OnBattery(),
-        EnergySaver = EnergySaver(),
+        OnBattery = App.Power.OnBattery,
+        EnergySaver = App.Power.EnergySaver,
         SystemAnimations = AnimationsOn(),
     };
 
@@ -46,37 +47,44 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The budget for the quick facts, applied before anything is shown, and the power watched from now on.</summary>
+    /// <summary>
+    /// The budget for the quick facts, applied before anything is shown, and the power watched from
+    /// now on. The energy saver status already in the facts decides the mode in effect, so the
+    /// window reads it once; a notice says so when it put Automatic in place of the chosen mode.
+    /// </summary>
     private void WirePerformance()
     {
+        var (energy, notice) = EnergySaverMode.Start(_settings.Performance, _settings.AutomaticWhenEnergySaver).PowerChanged(_facts.EnergySaver);
+        _energy = energy;
         ApplyBudget(force: true);
-        try
+        App.Power.Changed += OnPowerChanged;
+        if (notice is not null)
         {
-            PowerManager.EnergySaverStatusChanged += OnPowerChanged;
-            PowerManager.PowerSupplyStatusChanged += OnPowerChanged;
-            _powerWatched = true;
-        }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            App.Log.Debug(LogSource, "The power cannot be watched: " + ex.Message);
+            Say(notice);
         }
     }
 
-    private void UnwirePerformance()
-    {
-        if (_powerWatched)
-        {
-            PowerManager.EnergySaverStatusChanged -= OnPowerChanged;
-            PowerManager.PowerSupplyStatusChanged -= OnPowerChanged;
-            _powerWatched = false;
-        }
-    }
+    private void UnwirePerformance() => App.Power.Changed -= OnPowerChanged;
 
-    private void OnPowerChanged(object? sender, object e) => OnWindowThread(() =>
+    private void OnPowerChanged(object? sender, EventArgs e) => OnWindowThread(() =>
     {
-        _facts = _facts with { OnBattery = OnBattery(), EnergySaver = EnergySaver() };
+        _facts = _facts with { OnBattery = App.Power.OnBattery, EnergySaver = App.Power.EnergySaver };
+        var (energy, notice) = _energy.PowerChanged(_facts.EnergySaver);
+        _energy = energy;
         ApplyBudget();
+        if (notice is not null)
+        {
+            Say(notice);
+        }
     });
+
+    /// <summary>Preferences saved: the chosen mode and whether energy saver may replace it.</summary>
+    private bool PerformanceChosen()
+    {
+        var before = _energy.Effective;
+        _energy = _energy.WithChoice(_settings.Performance, _settings.AutomaticWhenEnergySaver);
+        return _energy.Effective != before;
+    }
 
     /// <summary>Completes the facts once the picture surface exists: what draws the pictures, and the codecs the graphics card decodes.</summary>
     private async Task CompleteFactsAsync()
@@ -104,10 +112,10 @@ public sealed partial class MainWindow
         ApplyBudget();
     }
 
-    /// <summary>Works out the budget for the facts and the user's choice, and applies whatever changed.</summary>
+    /// <summary>Works out the budget for the facts and the mode in effect, and applies whatever changed.</summary>
     private void ApplyBudget(bool force = false)
     {
-        var budget = DeviceProfile.For(DeviceProfile.Choose(_settings.Performance, _facts), _facts);
+        var budget = DeviceProfile.For(DeviceProfile.Choose(_energy.Effective, _facts), _facts);
         if (!_settings.SeekPreview || !budget.SeekPreview)
         {
             ResetSeekPreview();
@@ -128,7 +136,7 @@ public sealed partial class MainWindow
             _pictureOrder.Clear();
         }
 
-        App.Log.Info(LogSource, $"Performance: {DeviceProfile.Describe(_settings.Performance, _facts)} {string.Join(" ", DeviceProfile.Changes(budget))}");
+        App.Log.Info(LogSource, $"Performance: {_energy.Describe(_facts)} {string.Join(" ", DeviceProfile.Changes(budget))}");
         OnPresenterThread(presenter => presenter.SubjectStep = budget.SubjectStep);
         if (!force && before.HeavyEffectsOff != budget.HeavyEffectsOff)
         {

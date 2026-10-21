@@ -31,7 +31,9 @@ public sealed partial class MainWindow
     private async Task EditDetailsAsync(IReadOnlyList<LibraryEntry> songs)
     {
         var writing = _settings.WriteDetailsIntoFiles;
-        var writable = writing ? songs.Where(song => TagFileWriter.CanWrite(song.Path)).ToList() : [];
+        var downloading = songs.Count(song => song.Downloading);
+        // A file still arriving is never written into: its edit stays in rexplayer.
+        var writable = writing ? songs.Where(song => !song.Downloading && TagFileWriter.CanWrite(song.Path)).ToList() : [];
         var fields = DetailsForm.Fields(songs);
         var boxes = new Dictionary<string, TextBox>(StringComparer.Ordinal);
         var panel = new StackPanel { Spacing = 8, MinWidth = 360 };
@@ -80,7 +82,7 @@ public sealed partial class MainWindow
 
         panel.Children.Add(new TextBlock
         {
-            Text = Note(songs.Count, writable.Count, writing),
+            Text = DetailsForm.Note(songs.Count, writable.Count, downloading, writing),
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.7,
         });
@@ -112,13 +114,6 @@ public sealed partial class MainWindow
         Say(writable.Count == 0 ? "Saved the details in rexplayer" : "Saving the details into the files");
         FlushDetailWrites();
     }
-
-    /// <summary>What the dialog says about where the details go.</summary>
-    private static string Note(int songs, int writable, bool writing) =>
-        !writing ? "Saved in rexplayer only, as Preferences asks; the files are not changed."
-        : writable == songs ? "Saved into the files."
-        : writable == 0 ? TagFileWriter.LibraryOnlyMessage
-        : $"{songs - writable} of these files can't be written to; their details are saved in rexplayer only.";
 
     /// <summary>Writes the waiting edits on a worker thread, holding back the file that plays.</summary>
     private void FlushDetailWrites()

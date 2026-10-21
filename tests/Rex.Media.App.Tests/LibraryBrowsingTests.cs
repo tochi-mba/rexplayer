@@ -154,6 +154,14 @@ public sealed class LibraryBrowsingTests : IDisposable
         Pointer.Key(app, app.Find("LibrarySearch"), Pointer.Escape);
         Wait.For(() => search.Current.Value.Length == 0 && app.Text("LibraryTitle") == "Songs", "Escape to clear the search");
 
+        // Down moves from the search into what it found and chooses the first; Enter plays it.
+        search.SetValue("Sungba");
+        Wait.For(() => app.Lines().SequenceEqual(["Sungba"]), "the search to find one song", () => string.Join(", ", app.Lines()));
+        Pointer.Key(app, app.Find("LibrarySearch"), Pointer.Down);
+        Wait.For(() => app.IsChosen("Sungba"), "Down to choose the first found");
+        Pointer.Key(Pointer.Enter);
+        Wait.For(() => app.Text("NowPlaying") == "Sungba", "Enter to play the chosen song");
+
         Assert.Equal(0, app.Close());
     }
 }
