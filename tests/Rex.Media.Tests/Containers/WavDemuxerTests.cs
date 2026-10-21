@@ -160,6 +160,30 @@ public sealed class WavDemuxerTests
     }
 
     [Fact]
+    [Capability("FMT-C01")]
+    public void InfoTagsAfterTheAudioDataAreReadWithoutChangingTheSamples()
+    {
+        var samples = Enumerable.Range(0, 160).Select(index => (byte)index).ToArray();
+        // Watched folders use files with this chunk order: fmt, data, then LIST/INFO.
+        var file = WavBuilder.Pcm(8000, 1, 16, samples)
+            .Info(("INAM", "Lonely At The Top"), ("IART", "Asake"), ("IPRD", "Lungu Boy"), ("IGNR", "Afrobeats"))
+            .Build();
+
+        using var demuxer = Open(file);
+        Assert.Equal("Lonely At The Top", demuxer.Info.Metadata[MetadataKeys.Title]);
+        Assert.Equal("Asake", demuxer.Info.Metadata[MetadataKeys.Artist]);
+        Assert.Equal("Lungu Boy", demuxer.Info.Metadata[MetadataKeys.Album]);
+        Assert.Equal("Afrobeats", demuxer.Info.Metadata[MetadataKeys.Genre]);
+
+        var packets = ReadAll(demuxer);
+        Assert.Equal(samples, packets.SelectMany(packet => packet.Data.Span.ToArray()));
+        foreach (var packet in packets)
+        {
+            packet.Dispose();
+        }
+    }
+
+    [Fact]
     public void ListChunksThatAreNotInfoOrAreTooBigAreIgnored()
     {
         var file = new WavBuilder()
