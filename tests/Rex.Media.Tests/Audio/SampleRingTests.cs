@@ -89,7 +89,7 @@ public sealed class SampleRingTests
     }
 
     [Fact]
-    public void OneWriterAndOneReaderOnTheirOwnThreadsAgreeOnEverySample()
+    public async Task OneWriterAndOneReaderOnTheirOwnThreadsAgreeOnEverySample()
     {
         const int Total = 200_000;
         var ring = new SampleRing(frames: 512, channels: 1);
@@ -111,7 +111,7 @@ public sealed class SampleRingTests
             offset += ring.Write(source.AsSpan(offset, Math.Min(131, Total - offset)));
         }
 
-        Assert.True(reader.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
+        await reader.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         Assert.Equal(source, received);
         Assert.Equal(Total, ring.FramesRead);
     }

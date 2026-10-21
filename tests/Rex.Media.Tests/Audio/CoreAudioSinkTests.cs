@@ -7,6 +7,7 @@ namespace Rex.Media.Tests.Audio;
 /// The Mac's audio output driven for real (ADR-0021): only on a Mac, and only where it has an
 /// output device; elsewhere each test says why it did not run. Silence is played, so nothing is heard.
 /// </summary>
+[System.Runtime.Versioning.SupportedOSPlatform("macos")]
 public sealed class CoreAudioSinkTests
 {
     private const int Rate = 48_000;
