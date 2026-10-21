@@ -4,13 +4,13 @@ namespace Rex.Media.Codecs.Apple;
 
 /// <summary>
 /// The Mac's own decoders, the counterpart of Windows Media Foundation (ADR-0009): H.264 and HEVC
-/// through VideoToolbox. Ranked as Windows' decoders are, below rexplayer's own for the codecs
-/// both cover. Tracks need their parameter sets in the container (MP4's avcC and hvcC, Matroska's
-/// CodecPrivate); raw Annex B streams follow.
+/// through VideoToolbox, AAC through AudioToolbox. Ranked as Windows' decoders are, below
+/// rexplayer's own for the codecs both cover. Tracks need their configuration in the container
+/// (MP4's avcC, hvcC and esds, Matroska's CodecPrivate); raw Annex B and ADTS streams follow.
 /// </summary>
 public sealed class AppleDecoderFactory : IDecoderFactory
 {
-    public string Name => "macOS VideoToolbox";
+    public string Name => "macOS VideoToolbox and AudioToolbox";
 
     public DecoderSource Source => DecoderSource.OsSoftware;
 
@@ -19,10 +19,17 @@ public sealed class AppleDecoderFactory : IDecoderFactory
     public bool CanDecode(TrackInfo track)
     {
         ArgumentNullException.ThrowIfNull(track);
-        return OperatingSystem.IsMacOS() && track.Video is not null && track.CodecPrivate.Length > 0 && track.Codec is CodecId.H264 or CodecId.Hevc;
+        return OperatingSystem.IsMacOS() && track.CodecPrivate.Length > 0 && track.Codec switch
+        {
+            CodecId.H264 or CodecId.Hevc => track.Video is not null,
+            CodecId.Aac => track.Audio is not null,
+            _ => false,
+        };
     }
 
-    public IAudioDecoder CreateAudio(TrackInfo track) => throw new NotSupportedException($"{Name} decodes video only.");
+    public IAudioDecoder CreateAudio(TrackInfo track) => OperatingSystem.IsMacOS()
+        ? new AtAacDecoder(track)
+        : throw new PlatformNotSupportedException("AudioToolbox exists only on a Mac.");
 
     public IVideoDecoder CreateVideo(TrackInfo track) => OperatingSystem.IsMacOS()
         ? new VtVideoDecoder(track)

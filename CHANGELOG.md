@@ -7,6 +7,7 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **Mac sound for MP4, MOV and MKV videos.** On a Mac, AAC (the sound of most videos) decodes through the Mac's own AudioToolbox, held to the same reference as Windows' decoder.
 - **Every release now includes the Mac app.** Each version on the releases page carries rexplayer for Apple Silicon and for Intel Macs beside the Windows installer, with checksums; a version that does not build for a Mac does not publish.
 - **Videos show their pictures on a Mac.** rexplayer.app draws with Metal, with the same colours and the same letterboxing as Windows; picture looks and effects follow.
 - **rexplayer.app, the first Mac window.** A native Mac window plays music and the sound of videos with the same menus, shortcuts (Cmd where Windows says Ctrl), settings, queue and history as on Windows; pictures arrive next. Every change builds it for Apple Silicon and Intel Macs.

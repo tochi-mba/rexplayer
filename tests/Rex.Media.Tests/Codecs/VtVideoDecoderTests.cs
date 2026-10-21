@@ -139,7 +139,10 @@ public sealed class VtVideoDecoderTests
         Assert.Equal(OperatingSystem.IsMacOS(), Factory.CanDecode(h264));
         Assert.False(Factory.CanDecode(h264 with { CodecPrivate = [] }));
         Assert.False(Factory.CanDecode(h264 with { Codec = CodecId.Vp9 }));
-        Assert.Throws<NotSupportedException>(() => Factory.CreateAudio(h264));
-        Assert.Equal(("macOS VideoToolbox", 50), (Factory.Name, Factory.Rank));
+        Assert.False(Factory.CanDecode(h264 with { Video = null }));
+        var aac = new TrackInfo { Id = 2, Codec = CodecId.Aac, CodecPrivate = [0x11, 0x90], Audio = new AudioTrackInfo { SampleRate = 48_000, Channels = 2 } };
+        Assert.Equal(OperatingSystem.IsMacOS(), Factory.CanDecode(aac));
+        Assert.False(Factory.CanDecode(aac with { Audio = null }));
+        Assert.Equal(("macOS VideoToolbox and AudioToolbox", 50), (Factory.Name, Factory.Rank));
     }
 }

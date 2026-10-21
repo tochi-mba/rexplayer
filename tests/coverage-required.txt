@@ -88,6 +88,7 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+EsDescriptor.cs
 DominantColour.cs
 EnrichedAlbum.cs
 EnrichedArtist.cs
