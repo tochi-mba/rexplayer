@@ -128,7 +128,7 @@ public sealed partial class MainWindow
     private void BuildLibrary()
     {
         StartMetadataWhenAllowed();
-        var entries = _library.Entries;
+        var entries = _library!.Entries;
         var search = _librarySearchText.Build(LibrarySearch.Text);
         ResolveShowPage(search);
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
