@@ -82,7 +82,7 @@ public sealed partial class MainWindow
         try
         {
             await Task.Delay(180, token);
-            var png = await Task.Run(() => PreviewPng(location, at, token), token);
+            var png = await Task.Run(() => PreviewPng(location, at, token, withoutBars: true), token);
             token.ThrowIfCancellationRequested();
             _seekPreviewKey = key;
             _seekPreviewPng = png;
@@ -98,7 +98,11 @@ public sealed partial class MainWindow
         }
     }
 
-    private byte[] PreviewPng(string location, TimeSpan at, CancellationToken token)
+    /// <summary>
+    /// The picture at <paramref name="at"/> as a PNG; with <paramref name="withoutBars"/> the black or grey
+    /// bars recorded into it are cut away, so a frame filled by it shows picture, not bars.
+    /// </summary>
+    private byte[] PreviewPng(string location, TimeSpan at, CancellationToken token, bool withoutBars = false)
     {
         using var source = new FileByteSource(location);
         using var demuxer = MediaRegistries.Demuxers(TimeSpan.FromSeconds(_settings.PictureSeconds)).Open(source, token);
@@ -106,7 +110,15 @@ public sealed partial class MainWindow
         using (picture)
         using (var output = new MemoryStream())
         {
-            PngWriter.Write(output, picture);
+            if (withoutBars)
+            {
+                PictureBorders.WritePng(output, picture);
+            }
+            else
+            {
+                PngWriter.Write(output, picture);
+            }
+
             return output.ToArray();
         }
     }

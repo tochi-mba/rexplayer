@@ -17,19 +17,31 @@ public static class PngWriter
     /// <summary>Writes <paramref name="frame"/>, converting it to RGB first if it is not BGRA.</summary>
     public static void Write(Stream output, VideoFrame frame)
     {
+        ArgumentNullException.ThrowIfNull(frame);
+        Write(output, frame, new PictureArea(0, 0, frame.Width, frame.Height));
+    }
+
+    /// <summary>Writes the part <paramref name="area"/> of <paramref name="frame"/>, converting it to RGB first if it is not BGRA.</summary>
+    public static void Write(Stream output, VideoFrame frame, PictureArea area)
+    {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(frame);
+        if (area.X < 0 || area.Y < 0 || area.Width <= 0 || area.Height <= 0 || area.X + area.Width > frame.Width || area.Y + area.Height > frame.Height)
+        {
+            throw new ArgumentOutOfRangeException(nameof(area), "The area must lie inside the picture.");
+        }
+
         if (frame.Format != PixelFormat.Bgra32)
         {
             using var converted = ColorConverter.ToBgra(frame);
-            Write(output, converted);
+            Write(output, converted, area);
             return;
         }
 
         output.Write(Signature);
         var header = new byte[13];
-        BinaryPrimitives.WriteInt32BigEndian(header, frame.Width);
-        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4), frame.Height);
+        BinaryPrimitives.WriteInt32BigEndian(header, area.Width);
+        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4), area.Height);
         header[8] = 8;
         header[9] = 2;
         WriteChunk(output, "IHDR", header);
@@ -37,12 +49,12 @@ public static class PngWriter
         using var compressed = new MemoryStream();
         using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
         {
-            var line = new byte[1 + (frame.Width * 3)];
+            var line = new byte[1 + (area.Width * 3)];
             line[0] = 1;
-            for (var y = 0; y < frame.Height; y++)
+            for (var y = 0; y < area.Height; y++)
             {
-                var row = frame.Row(0, y);
-                for (var x = 0; x < frame.Width; x++)
+                var row = frame.Row(0, area.Y + y)[(area.X * 4)..];
+                for (var x = 0; x < area.Width; x++)
                 {
                     for (var c = 0; c < 3; c++)
                     {

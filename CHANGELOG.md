@@ -19,6 +19,16 @@ pipeline the moment its number reaches `main`.
 - **Down in the library search moves into the results.** It chooses the first item found, so Enter plays it.
 - **No more crash while subtitles are being transcribed.** With a transcript being made for what plays, a seek, a pause or the next item could end rexplayer at once: the stretch to hear next sometimes held no sound at all (the file's sound lands later than asked, or there is none there), and the speech model was asked to hear nothing, which the model cannot survive. Such a stretch is now passed over as heard with no words, and the model is never asked to hear an empty piece.
 
+<<<<<<< HEAD
+=======
+
+### Changed
+
+- **Artwork fills its card.** Posters, covers, video thumbnails, episode stills, the billboard and the timeline preview now fill their frames edge to edge, cropped rather than shrunk inside grey bars; poster cards keep the top of the picture, where faces usually are. A card with no picture yet keeps its clean placeholder.
+- **Thumbnails without recorded bars.** A letterboxed film or a 4:3 programme in a wide frame gets a thumbnail cut from the picture inside its black or grey bars, so a card shows picture, not bars; video thumbnails are made once more to pick this up.
+- **Movies and TV shows open on Browse.** The billboard and rows are the layout for both views unless you pick another: a Cards layout saved only because an order or card size changed, or kept from before Browse existed, opens as Browse; a layout you pick stays.
+
+>>>>>>> 29450855 (Fill library cards with their artwork and open Movies and TV shows on Browse)
 ## 0.26.0 - 2026-10-20
 
 ### Added

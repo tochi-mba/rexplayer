@@ -89,23 +89,12 @@ public sealed partial class MainWindow
             return shelf.Choice;
         }
 
-        if (_settings.LibraryViews.TryGetValue(key, out var kept))
-        {
-            return kept;
-        }
-
-        return key switch
-        {
-            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" or "TvShows page" => new LibraryViewChoice(LibraryLook.List),
-            "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
-            "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Browse, CardSize: 200),
-            "Videos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
-            _ => new LibraryViewChoice(LibraryLook.Grid),
-        };
+        return LibraryViewDefaults.Resolve(key, _settings.LibraryViews.GetValueOrDefault(key));
     }
 
     private void KeepViewChoice(LibraryViewChoice choice)
     {
+        choice = LibraryViewDefaults.Keep(ViewChoice(_libraryViewKey), choice);
         _shelfChoice = null;
         _settings = _settings with { LibraryViews = new Dictionary<string, LibraryViewChoice>(_settings.LibraryViews, StringComparer.Ordinal) { [_libraryViewKey] = choice.Normalize() } };
         RememberLater();

@@ -59,12 +59,15 @@ internal sealed class LibraryScene : IDisposable
         return path;
     }
 
-    /// <summary>A short real video at <paramref name="relative"/> under the watched folder, which names what it is.</summary>
-    public string Video(string relative)
+    /// <summary>
+    /// A short real video at <paramref name="relative"/> under the watched folder, which names what it is,
+    /// copied from <paramref name="fixture"/> in tests/fixtures/mp4.
+    /// </summary>
+    public string Video(string relative, string fixture = "h264-aac.mp4")
     {
         var path = Path.Combine(Media, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), path);
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", fixture), path);
         _files.Add((path, LibraryKind.Video, null));
         return path;
     }
