@@ -60,6 +60,18 @@ internal sealed class LibraryScene : IDisposable
         return path;
     }
 
+    /// <summary>A song numbered on its album (and disc), for the album page's track list.</summary>
+    public string Track(string title, string album, int track, int disc = 1, int year = 2024, string genre = "Afrobeats", string artist = "Asake")
+    {
+        var path = Song(title, album, year, genre, artist);
+        var info = _files[^1].Info!;
+        var tags = (Dictionary<string, string>)info.Metadata;
+        tags[MetadataKeys.Track] = track.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        tags[MetadataKeys.Disc] = disc.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        tags[MetadataKeys.AlbumArtist] = "Asake";
+        return path;
+    }
+
     /// <summary>
     /// A short real video at <paramref name="relative"/> under the watched folder, which names what it is,
     /// copied from <paramref name="fixture"/> in tests/fixtures/mp4. With a <paramref name="length"/>, the
@@ -169,7 +181,8 @@ internal static class LibraryNavigation
         ((SelectionItemPattern)source.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         // The streaming browse of Movies and TV shows has a billboard in place of the title.
         Wait.For(() => (app.IsShown("LibraryTitle") && app.Text("LibraryTitle") == (title ?? view))
-            || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard")), view + " to open");
+            || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard"))
+            || (view == "Music" && app.IsShown("MusicHero")), view + " to open");
     }
 
     /// <summary>The line named <paramref name="name"/> in the list, once it is there.</summary>

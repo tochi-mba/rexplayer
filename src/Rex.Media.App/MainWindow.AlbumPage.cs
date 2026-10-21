@@ -209,6 +209,7 @@ public sealed partial class MainWindow
     {
         var footer = new StackPanel { Spacing = 4, Padding = new Thickness(6, 18, 6, 12) };
         AutomationProperties.SetAutomationId(footer, "AlbumFacts");
+        AutomationProperties.SetName(footer, "About this album");
         var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         foreach (var line in new[] { AlbumPage.Released(facts, CultureInfo.CurrentCulture), AlbumPage.Phonographic(facts) }.OfType<string>())
         {
@@ -249,6 +250,7 @@ public sealed partial class MainWindow
     {
         var header = new Grid { ColumnSpacing = 12, Padding = new Thickness(10, 4, 10, 6) };
         AutomationProperties.SetAutomationId(header, "SongsTableHeader");
+        AutomationProperties.SetName(header, "Columns");
         foreach (var width in new[] { new GridLength(44), new GridLength(2, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(72), new GridLength(76), new GridLength(64) })
         {
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
