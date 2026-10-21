@@ -127,8 +127,14 @@ public sealed partial class MainWindow
 
     private void BuildLibrary()
     {
+        var library = _library;
+        if (library is null)
+        {
+            return;
+        }
+
         StartMetadataWhenAllowed();
-        var entries = _library.Entries;
+        var entries = library.Entries;
         var search = _librarySearchText.Build(LibrarySearch.Text);
         ResolveShowPage(search);
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
@@ -288,7 +294,7 @@ public sealed partial class MainWindow
                 options = false;
                 var rows = _librarySource == LibrarySource.Playlists
                     ? _player.NamedPlaylists.Select(p => new LibraryRow(p.Name, null, Count(p.Items.Count, "item"), p)).ToList()
-                    : [.. _library.Folders.Select(folder => new LibraryRow(folder, Count(entries.Count(entry => MediaLibrary.Holds(folder, entry.Path)), "file"), "", folder))];
+                    : [.. library.Folders.Select(folder => new LibraryRow(folder, Count(entries.Count(entry => MediaLibrary.Holds(folder, entry.Path)), "file"), "", folder))];
                 sections = [new LibraryRowGroup("", rows)];
                 subtitle = _librarySource == LibrarySource.Playlists ? Count(rows.Count, "playlist") : Count(rows.Count, "folder") + " watched";
             }
