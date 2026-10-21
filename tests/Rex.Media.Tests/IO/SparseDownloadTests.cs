@@ -90,6 +90,7 @@ public sealed class SparseDownloadTests : IDisposable
         Assert.Equal(ByteSourceChange.TimedOut, source.WaitForChange(extent, TimeSpan.Zero, Token));
         holes.Fill();
         Assert.Equal(ByteSourceChange.Grew, source.WaitForChange(extent, TimeSpan.FromSeconds(5), Token));
+        Assert.True(source.Extent.Revision > extent.Revision);
         Assert.Equal(30, source.Read(30, buffer, Token));
         Assert.Equal(40, buffer[10]);
         Assert.False(source.IsPending(30, 20));
