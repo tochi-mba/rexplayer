@@ -703,8 +703,8 @@ public sealed partial class MainWindow
         ShowLibraryEmpty(entries.Count == 0, false, LibrarySource.Home);
 
         var downloading = HomeShelves.Downloading(entries, 20);
-        var shelves = new (string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)[]
-        {
+        (string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)[] shelves =
+        [
             (DownloadingShelf, Enum.Parse<LibrarySource>(HomeShelves.SeeAllDownloading(downloading, ViewChoice).View), [.. downloading.Select(EntryRow)], downloading is [{ Kind: LibraryKind.Video }, ..]),
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
             .. ListeningShelvesForHome(),
@@ -716,7 +716,7 @@ public sealed partial class MainWindow
             ("TV Shows", LibrarySource.TvShows, [.. LibraryViews.TvShows(entries).Take(20).Select(GroupRow)], false),
             ("Videos", LibrarySource.Videos, [.. recent.Where(entry => entry.Kind == LibraryKind.Video).Take(20).Select(EntryRow)], true),
             ("Pictures", LibrarySource.Pictures, [.. recent.Where(entry => entry.Kind == LibraryKind.Picture).Take(24).Select(EntryRow)], false),
-        };
+        ];
         var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(RowIdentity))));
         if (shown == _shownLibrary)
         {

@@ -190,7 +190,7 @@ public sealed partial class MainWindow
                     _libraryGroup = show;
                     var unplayed = ListeningViews.Unplayed(show, _player.LeftAt);
                     return ("PODCAST", show.Name, string.Join(" · ", new[] { show.Detail, Count(show.Entries.Count, "episode"), unplayed + " unplayed" }.Where(part => part is not null)),
-                        [new LibraryRowGroup("", show.Entries.Select(EpisodeRow))], false);
+                        [new LibraryRowGroup("", show.Entries.Select(PodcastEpisodeRow))], false);
                 }
 
                 return ("LIBRARY", title, Count(shows.Count, "show") + " · " + Count(mine.Count, "episode"), [new LibraryRowGroup("", shows.Select(ShowRow))], true);
@@ -234,7 +234,7 @@ public sealed partial class MainWindow
     /// <summary>One chapter of an open book; the one it is up to says so.</summary>
     private LibraryRow ChapterRow(LibraryGroup book, BookChapter chapter, int index, BookPlace place)
     {
-        var part = book.Entries.IndexOf(chapter.Part);
+        var part = IndexOfPart(book, chapter.Part);
         var detail = book.Entries.Count > 1 && chapter.Part.Chapters is { Count: > 0 } ? chapter.Part.Title : "";
         var current = part == place.Part && chapter.Start <= place.At
             && ListeningViews.Chapters(book).Where(other => other.Part == chapter.Part && other.Start <= place.At).Max(other => other.Start) == chapter.Start;
@@ -257,7 +257,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>An episode's line: new, played or where it was left, and its date.</summary>
-    private LibraryRow EpisodeRow(LibraryEntry episode)
+    private LibraryRow PodcastEpisodeRow(LibraryEntry episode)
     {
         var left = _player.LeftAt(episode.Path);
         var state = left is { } at ? "Stopped at " + TimeText.Format(at, episode.Duration ?? TimeSpan.Zero) : episode.Plays > 0 ? "Played" : "New";
@@ -299,7 +299,7 @@ public sealed partial class MainWindow
         var shelves = Listening();
         var going = ListeningViews.ContinueListening(shelves, _player.LeftAt, Audiobooks.Finished).Take(20).ToList();
         yield return ("Continue listening", going.Any(item => item.Book is not null) ? LibrarySource.Audiobooks : LibrarySource.Podcasts,
-            [.. going.Select(item => item.Book is { } book ? BookRow(book) : EpisodeRow(item.Entry))], false);
-        yield return ("New episodes", LibrarySource.Podcasts, [.. ListeningViews.NewEpisodes(shelves, _player.LeftAt, DateTime.UtcNow).Take(20).Select(EpisodeRow)], false);
+            [.. going.Select(item => item.Book is { } book ? BookRow(book) : PodcastEpisodeRow(item.Entry))], false);
+        yield return ("New episodes", LibrarySource.Podcasts, [.. ListeningViews.NewEpisodes(shelves, _player.LeftAt, DateTime.UtcNow).Take(20).Select(PodcastEpisodeRow)], false);
     }
 }

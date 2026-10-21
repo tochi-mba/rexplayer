@@ -114,7 +114,7 @@ public sealed partial class MainWindow
     /// </summary>
     private void PlayBook(LibraryGroup book, BookChapter? chapter)
     {
-        var place = chapter is not null ? new BookPlace(book.Entries.IndexOf(chapter.Part), chapter.Start)
+        var place = chapter is not null ? new BookPlace(IndexOfPart(book, chapter.Part), chapter.Start)
             : Audiobooks.Finished(book) ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
         if (chapter is null && Audiobooks.Finished(book))
         {
@@ -135,6 +135,9 @@ public sealed partial class MainWindow
 
         _player.PlayFromLibrary(book.Entries, Math.Max(0, place.Part), place.At > TimeSpan.Zero ? place.At : null);
     }
+
+    private static int IndexOfPart(LibraryGroup book, LibraryEntry part) =>
+        Math.Max(0, book.Entries.Select(entry => entry.Path).ToList().IndexOf(part.Path));
 
     /// <summary>While a book plays, a change of speed is kept for it; when something else plays, normal speed comes back.</summary>
     private void FollowBookSpeed()
