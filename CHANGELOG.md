@@ -11,6 +11,8 @@ pipeline the moment its number reaches `main`.
 
 ### Changed
 
+- **Movie details now come from Wikidata and Wikipedia, with no key needed.** The Movies switch in Preferences alone turns lookups on: facts, cast and trailers come from Wikidata, the synopsis and poster from English Wikipedia, and nothing asks for a key or a sign-up. A movie's right-click offers More like this, ranked from the library's own movies by shared series, directors, cast and genres. TV shows TVmaze does not know fall back to Wikidata and Wikipedia too. Movie details fetched before are fetched again once, and a key stored by an earlier version is dropped. Preferences and Help, About credit Wikidata, TVmaze, MusicBrainz, the Cover Art Archive and Wikipedia.
+
 - **Artwork fills its card.** Posters, covers, video thumbnails, episode stills, the billboard and the timeline preview now fill their frames edge to edge, cropped rather than shrunk inside grey bars; poster cards keep the top of the picture, where faces usually are. A card with no picture yet keeps its clean placeholder.
 - **Thumbnails without recorded bars.** A letterboxed film or a 4:3 programme in a wide frame gets a thumbnail cut from the picture inside its black or grey bars, so a card shows picture, not bars; video thumbnails are made once more to pick this up.
 - **Movies and TV shows open on Browse.** The billboard and rows are the layout for both views unless you pick another: a Cards layout saved only because an order or card size changed, or kept from before Browse existed, opens as Browse; a layout you pick stays.

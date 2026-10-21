@@ -26,15 +26,15 @@ public sealed partial class MainWindow
         var m = _settings.Metadata;
         var intro = new TextBlock
         {
-            Text = "rexplayer can fetch posters, descriptions, episode titles, genres, ratings and album art "
-                + "from free online catalogues. A lookup sends the names of your files and folders to those "
+            Text = "rexplayer can fetch posters, descriptions, episode titles, genres, cast and album art "
+                + "from free online catalogues that need no key or sign-up. A lookup sends the names of your files and folders to those "
                 + "services, so each kind stays off until you turn it on. Everything fetched is kept on this "
                 + "computer and works offline, and artwork found in your files or beside them always wins.",
             TextWrapping = TextWrapping.Wrap,
         };
         var tv = Check("Fetch TV show details (TVmaze)", m.TvShows);
         AutomationProperties.SetAutomationId(tv, "PreferencesMetadataTv");
-        var movies = Check("Fetch movie details (TMDB; needs your key below)", m.Movies);
+        var movies = Check("Fetch movie details (Wikidata and Wikipedia)", m.Movies);
         AutomationProperties.SetAutomationId(movies, "PreferencesMetadataMovies");
         var music = Check("Fetch album art and music details (MusicBrainz and the Cover Art Archive)", m.Music);
         AutomationProperties.SetAutomationId(music, "PreferencesMetadataMusic");
@@ -46,22 +46,8 @@ public sealed partial class MainWindow
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.75,
         };
-        var key = new PasswordBox { Header = "TMDB API key", Password = m.TmdbApiKey, MinWidth = 220 };
-        AutomationProperties.SetName(key, "TMDB API key");
-        AutomationProperties.SetAutomationId(key, "PreferencesMetadataTmdbKey");
-        var keyHelp = new TextBlock
-        {
-            Text = "A free key unlocks movies: create one at themoviedb.org under Settings, then API.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.75,
-        };
-        var attribution = new TextBlock
-        {
-            Text = "This product uses the TMDB API but is not endorsed or certified by TMDB.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.75,
-        };
-        AutomationProperties.SetAutomationId(attribution, "PreferencesMetadataTmdbAttribution");
+        var credit = new TextBlock { Text = MetadataPolicy.DataCredit, TextWrapping = TextWrapping.Wrap, Opacity = 0.75 };
+        AutomationProperties.SetAutomationId(credit, "PreferencesMetadataCredit");
 
         // Folders left out: listed with a way to put each back, and a picker to leave one out.
         var excluded = m.Excluded.ToList();
@@ -146,7 +132,7 @@ public sealed partial class MainWindow
             clear.IsEnabled = true;
         };
 
-        UIElement[] controls = [intro, tv, movies, music, covers, coversHelp, key, keyHelp, attribution, leftOutHeading, leftOut, leaveOut, cacheLine, clear];
+        UIElement[] controls = [intro, tv, movies, music, covers, coversHelp, credit, leftOutHeading, leftOut, leaveOut, cacheLine, clear];
         return (controls, settings => settings with
         {
             Metadata = new MetadataSettings
@@ -155,7 +141,6 @@ public sealed partial class MainWindow
                 Movies = movies.IsChecked == true,
                 Music = music.IsChecked == true,
                 ReplaceCovers = covers.SelectedIndex == 1,
-                TmdbApiKey = key.Password,
                 Excluded = excluded,
             }.Normalize(),
         });

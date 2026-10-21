@@ -23,8 +23,17 @@ public sealed record EnrichedEpisode(int Season, int Number, string Name, string
 /// </summary>
 public sealed record EnrichedShow
 {
-    /// <summary>The show in the catalogue, or 0 when the lookup found no match.</summary>
+    /// <summary>
+    /// The show in TVmaze, or its Wikidata item number when TVmaze had no match and
+    /// <see cref="WikidataId"/> is set; 0 when the lookup found no match anywhere.
+    /// </summary>
     public required int CatalogueId { get; init; }
+
+    /// <summary>The Wikidata item ("Q1079") the show came from when TVmaze did not know it; null for a TVmaze show.</summary>
+    public string? WikidataId { get; init; }
+
+    /// <summary>The Wikipedia article <see cref="Summary"/> comes from when it is Wikipedia's (CC BY-SA), for its credit.</summary>
+    public string? ArticleUrl { get; init; }
 
     /// <summary>The show's name as the catalogue spells it.</summary>
     public required string Name { get; init; }

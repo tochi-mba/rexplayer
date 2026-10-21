@@ -28,6 +28,9 @@ public sealed partial class MainWindow
         var data = new TextBlock { Text = "Settings, library and log: " + App.DataRoot, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(data, "AboutDataFolder");
         panel.Children.Add(data);
+        var credit = new TextBlock { Text = Rex.Media.AppCore.Metadata.MetadataPolicy.DataCredit, TextWrapping = TextWrapping.Wrap, Opacity = 0.75 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(credit, "AboutMetadataCredit");
+        panel.Children.Add(credit);
 
         var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         HyperlinkButton Link(string text, string id, Action click)

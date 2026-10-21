@@ -71,12 +71,12 @@ public sealed partial class MainWindow
                 poster = MetadataCacheNow.PathFor(MetadataFetcher.ArtKind, MetadataMatch.Normalize(episode.Series), MetadataFetcher.ArtExtension);
             }
         }
-        else if (MetadataPolicy.MoviesReady(metadata)
+        else if (metadata.Movies
             && _library?.Entry(path) is { Kind: Rex.Media.Library.LibraryKind.Video } entry
             && MetadataMovie(entry) is { HasPoster: true } movie)
         {
             poster = MetadataCacheNow.PathFor(MetadataFetcher.MovieArtKind,
-                Tmdb.MovieKey(LibraryViews.MovieTitleOf(entry), LibraryViews.MovieYearOf(entry)), MetadataFetcher.ArtExtension);
+                MetadataMatch.MovieKey(LibraryViews.MovieTitleOf(entry), LibraryViews.MovieYearOf(entry)), MetadataFetcher.ArtExtension);
         }
 
         return poster is not null && File.Exists(poster) ? poster : null;
@@ -85,12 +85,12 @@ public sealed partial class MainWindow
     /// <summary>The fetched record for a movie's file, from memory only: safe on the window's thread.</summary>
     private EnrichedMovie? MetadataMovie(Rex.Media.Library.LibraryEntry entry)
     {
-        if (!MetadataPolicy.MoviesReady(_settings.Metadata))
+        if (!_settings.Metadata.Movies)
         {
             return null;
         }
 
-        var key = Tmdb.MovieKey(LibraryViews.MovieTitleOf(entry), LibraryViews.MovieYearOf(entry));
+        var key = MetadataMatch.MovieKey(LibraryViews.MovieTitleOf(entry), LibraryViews.MovieYearOf(entry));
         lock (_metadataGate)
         {
             return _metadataMovies.TryGetValue(key, out var movie) && movie.Found ? movie : null;
@@ -104,7 +104,7 @@ public sealed partial class MainWindow
     private bool IsMovieRow(IReadOnlyList<LibraryRow> chosen, out Rex.Media.Library.LibraryEntry movie)
     {
         movie = null!;
-        if (MetadataPolicy.MoviesReady(_settings.Metadata) && _librarySource == LibrarySource.Movies
+        if (_settings.Metadata.Movies && _librarySource == LibrarySource.Movies
             && chosen is [{ Item: Rex.Media.Library.LibraryEntry { Kind: Rex.Media.Library.LibraryKind.Video } entry }])
         {
             movie = entry;
@@ -124,8 +124,8 @@ public sealed partial class MainWindow
             try
             {
                 var cache = MetadataCacheNow;
-                cache.Remove(MetadataFetcher.MovieKind, Tmdb.MovieKey(title, year), ".json");
-                cache.Remove(MetadataFetcher.MovieArtKind, Tmdb.MovieKey(title, year), MetadataFetcher.ArtExtension);
+                cache.Remove(MetadataFetcher.MovieKind, MetadataMatch.MovieKey(title, year), ".json");
+                cache.Remove(MetadataFetcher.MovieArtKind, MetadataMatch.MovieKey(title, year), MetadataFetcher.ArtExtension);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -134,7 +134,7 @@ public sealed partial class MainWindow
         }));
         lock (_metadataGate)
         {
-            _metadataMovies.Remove(Tmdb.MovieKey(title, year));
+            _metadataMovies.Remove(MetadataMatch.MovieKey(title, year));
             _metadataPlan.Add(new MetadataJob(MetadataWork.Movie, MovieJobKey(title, year)));
         }
 
@@ -170,7 +170,7 @@ public sealed partial class MainWindow
         var old = before.Metadata;
         var now = _settings.Metadata;
         if (old.TvShows == now.TvShows && old.Movies == now.Movies && old.Music == now.Music && old.ReplaceCovers == now.ReplaceCovers
-            && old.TmdbApiKey == now.TmdbApiKey && old.Excluded.SequenceEqual(now.Excluded, StringComparer.OrdinalIgnoreCase))
+            && old.Excluded.SequenceEqual(now.Excluded, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }
@@ -186,17 +186,22 @@ public sealed partial class MainWindow
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd($"rexplayer/{Version} (https://github.com/tochi-mba/rexplayer)");
             var cache = MetadataCacheNow;
-            // MusicBrainz asks for at most about one request a second; the loop is its only caller.
-            var musicGate = new RateGate(TimeSpan.FromSeconds(1.1));
+            // Each service's pace is kept per host, one request at a time (the loop is the only
+            // caller), and an answer asking to slow down holds the whole queue back.
+            var hosts = new PoliteHosts();
             var fetcher = new MetadataFetcher(cache, async (uri, inner) =>
             {
-                if (uri.Host.EndsWith("musicbrainz.org", StringComparison.OrdinalIgnoreCase)
-                    && musicGate.Delay(DateTimeOffset.Now) is { } wait && wait > TimeSpan.Zero)
+                if (hosts.Delay(uri, DateTimeOffset.Now) is { } wait && wait > TimeSpan.Zero)
                 {
                     await Task.Delay(wait, inner).ConfigureAwait(false);
                 }
 
                 using var response = await http.GetAsync(uri, inner).ConfigureAwait(false);
+                if (PoliteHosts.BacksOff((int)response.StatusCode))
+                {
+                    throw new HttpRequestException($"{uri.Host} asked for fewer requests ({(int)response.StatusCode})", null, response.StatusCode);
+                }
+
                 return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync(inner).ConfigureAwait(false) : null;
             });
 
@@ -219,7 +224,7 @@ public sealed partial class MainWindow
 
                 foreach (var movie in fetcher.CachedMovies())
                 {
-                    _metadataMovies[Tmdb.MovieKey(movie.Title, movie.Year)] = movie;
+                    _metadataMovies[MetadataMatch.MovieKey(movie.Title, movie.Year)] = movie;
                 }
             }
 
@@ -289,7 +294,7 @@ public sealed partial class MainWindow
             }
         }
 
-        if (MetadataPolicy.MoviesReady(metadata))
+        if (metadata.Movies)
         {
             foreach (var entry in LibraryViews.Movies(entries))
             {
@@ -300,7 +305,7 @@ public sealed partial class MainWindow
                     continue;
                 }
 
-                var key = Tmdb.MovieKey(title, year);
+                var key = MetadataMatch.MovieKey(title, year);
                 lock (_metadataGate)
                 {
                     if (_metadataMovies.TryGetValue(key, out var known) && known.Current)
@@ -398,7 +403,7 @@ public sealed partial class MainWindow
         {
             MetadataWork.TvShow => _settings.Metadata.TvShows,
             MetadataWork.Music => _settings.Metadata.Music,
-            MetadataWork.Movie => MetadataPolicy.MoviesReady(_settings.Metadata),
+            MetadataWork.Movie => _settings.Metadata.Movies,
             _ => false,
         };
         if (!allowed)
@@ -423,7 +428,7 @@ public sealed partial class MainWindow
             else if (job.Kind == MetadataWork.Movie)
             {
                 var (title, year) = MovieFromJobKey(job.Key);
-                ok = await fetcher.FetchMovieAsync(_settings.Metadata.TmdbApiKey, title, year, token).ConfigureAwait(false);
+                ok = await fetcher.FetchMovieAsync(title, year, token).ConfigureAwait(false);
             }
             else
             {
@@ -489,7 +494,7 @@ public sealed partial class MainWindow
             {
                 lock (_metadataGate)
                 {
-                    _metadataMovies[Tmdb.MovieKey(title, year)] = movie;
+                    _metadataMovies[MetadataMatch.MovieKey(title, year)] = movie;
                 }
 
                 RefreshLibraryFromMetadata();
@@ -911,6 +916,21 @@ public sealed partial class MainWindow
         Say($"{show} will be fetched as {pick.Name}");
     }
 
+    /// <summary>The library's movies most like one, from the facts already cached: no service is asked.</summary>
+    private List<Rex.Media.Library.LibraryEntry> MoviesLike(EnrichedMovie facts)
+    {
+        var known = new List<(Rex.Media.Library.LibraryEntry, EnrichedMovie)>();
+        foreach (var entry in LibraryViews.Movies(_library?.Entries ?? []))
+        {
+            if (MetadataMovie(entry) is { } other)
+            {
+                known.Add((entry, other));
+            }
+        }
+
+        return [.. MoreLikeThis.Rank(facts, known)];
+    }
+
     /// <summary>A library row's online-details actions: refresh, fix the match, change the cover or watch the trailer.</summary>
     private void AddMetadataMenuItems(MenuFlyout menu, IReadOnlyList<LibraryRow> chosen)
     {
@@ -933,10 +953,23 @@ public sealed partial class MainWindow
         }
         else if (IsMovieRow(chosen, out var movie))
         {
-            if (MetadataMovie(movie) is { TrailerKeys: [{ } trailer, ..] })
+            var facts = MetadataMovie(movie);
+            if (facts is { TrailerKeys: [{ } trailer, ..] })
             {
                 menu.Items.Add(MenuItem("Watch trailer", "LibraryMenuWatchTrailer",
                     () => _ = Launcher.LaunchUriAsync(new Uri("https://www.youtube.com/watch?v=" + trailer))));
+            }
+
+            if (facts is not null && MoviesLike(facts) is { Count: > 0 } alike)
+            {
+                var more = new MenuFlyoutSubItem { Text = "More like this" };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(more, "LibraryMenuMoreLikeThis");
+                foreach (var other in alike)
+                {
+                    more.Items.Add(MenuItem(LibraryViews.MovieTitleOf(other), null, () => Play([other], 0, resume: true)));
+                }
+
+                menu.Items.Add(more);
             }
 
             menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshMovieMetadata(movie)));

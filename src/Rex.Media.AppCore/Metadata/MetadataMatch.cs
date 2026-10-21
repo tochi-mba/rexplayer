@@ -61,6 +61,11 @@ public static class MetadataMatch
         return near.Count == 1 ? near[0] : null;
     }
 
+    /// <summary>One key for a movie wherever it is named: the title and the year, normalized.</summary>
+    public static string MovieKey(string title, int? year) =>
+        Normalize(title ?? throw new ArgumentNullException(nameof(title)))
+            + (year is { } dated ? " " + dated.ToString(CultureInfo.InvariantCulture) : "");
+
     /// <summary>How a candidate reads in a list to pick from: its name, year and the start of its summary.</summary>
     public static string Describe(ShowCandidate candidate)
     {

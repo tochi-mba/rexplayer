@@ -12,25 +12,21 @@ public enum MetadataWork
 }
 
 /// <summary>
-/// Whether an online lookup is allowed at all: each kind only once the user turned it on, movies
-/// only once a TMDB key is pasted, and nothing for a file under an excluded folder. The decision
-/// is made before any name leaves the computer, so an excluded file is never even searched for.
+/// Whether an online lookup is allowed at all: each kind only once the user turned its switch on
+/// (no catalogue needs a key or a sign-up), and nothing for a file under an excluded folder. The
+/// decision is made before any name leaves the computer, so an excluded file is never even searched for.
 /// </summary>
 public static class MetadataPolicy
 {
+    /// <summary>The credit Preferences and Help, About give the free services everything fetched comes from.</summary>
+    public const string DataCredit = "Data from Wikidata, TVmaze, MusicBrainz and the Cover Art Archive. Descriptions from Wikipedia, under CC BY-SA.";
+
     /// <summary>Whether <paramref name="path"/> lies in or under one of <paramref name="excluded"/>.</summary>
     public static bool Excludes(IReadOnlyList<string> excluded, string path)
     {
         ArgumentNullException.ThrowIfNull(excluded);
         ArgumentNullException.ThrowIfNull(path);
         return excluded.Any(folder => MediaLibrary.Holds(folder, path));
-    }
-
-    /// <summary>Whether movie lookups can run: the switch is on and a TMDB key is pasted.</summary>
-    public static bool MoviesReady(MetadataSettings settings)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-        return settings.Movies && settings.TmdbApiKey.Length > 0;
     }
 
     /// <summary>Whether a lookup of <paramref name="kind"/> may run for the file at <paramref name="path"/>.</summary>
@@ -40,7 +36,7 @@ public static class MetadataPolicy
         var on = kind switch
         {
             MetadataWork.TvShow => settings.TvShows,
-            MetadataWork.Movie => MoviesReady(settings),
+            MetadataWork.Movie => settings.Movies,
             MetadataWork.Music => settings.Music,
             _ => false,
         };

@@ -179,6 +179,7 @@ MemoryByteSource.cs
 MetadataCache.cs
 MetadataChoices.cs
 MetadataFetcher.cs
+MetadataFetcher.Wikidata.cs
 MetadataMatch.cs
 MetadataPolicy.cs
 MetadataSettings.cs
@@ -191,6 +192,7 @@ ModelDownloadText.cs
 ModelSet.cs
 ModelStore.cs
 MovingMedian.cs
+MoreLikeThis.cs
 Mp3Decoder.cs
 Mp4Boxes.cs
 Mp4Demuxer.cs
@@ -246,6 +248,7 @@ PlaylistFiles.cs
 PlaylistPaths.cs
 PlaylistText.cs
 Pls.cs
+PoliteHosts.cs
 PictureBorders.cs
 PngWriter.cs
 ProgressiveTranscript.cs
@@ -332,7 +335,6 @@ TimeRanges.cs
 TimeStretch.cs
 TimeText.cs
 TimeWarpScene.cs
-Tmdb.cs
 TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
@@ -384,6 +386,9 @@ WaveFormat.cs
 WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
+Wikidata.cs
+WikidataFacts.cs
+Wikipedia.cs
 WindowClocks.cs
 WindowTeardown.cs
 WordAligner.cs
