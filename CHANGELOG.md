@@ -15,6 +15,7 @@ pipeline the moment its number reaches `main`.
 
 ### Improved
 
+- **The parity ledger counts what already works on a Mac.** Thirty rows (playback, gapless, speed, the sleep timer, every container, the audio decoders rexplayer writes itself, playlists and tags) are now verified on macOS, proved by the same tests on the Mac runner as on Windows.
 - **Songs by several artists show under each of them.** "beabadoobee/The Marías" or "A$AP Rocky/Brent Faiyaz" no longer appear as artists of their own: the song is counted once under every artist it names, as are artists named with feat., ft., featuring or " x ", those a title features ("Song (feat. Asake)"), and "&", "and" or "," credits whose artists each have songs of their own, while names such as AC/DC, Tyler, The Creator and Earth, Wind & Fire stay whole. Spellings that differ only in case, accents or punctuation are one artist, every value of a multi-artist tag is read (with ARTISTS lists in FLAC, Ogg, MP3 and MP4 files, read again in the background once), an artist page's top songs take in the songs they are featured on and a Featured on section lists other artists' albums they are on, and a song's artist line lists its artists ("beabadoobee, The Marías").
 
 ### Fixed
