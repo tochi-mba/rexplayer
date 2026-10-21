@@ -127,8 +127,12 @@ public sealed class SectionDetectionControllerTests
                 harness.Controller.SectionCache = cache;
                 harness.Controller.SectionAnalyzer = Analyze;
                 harness.Controller.Open([first]);
+                // The early, one-episode result is also empty, and it is shown before the last
+                // sibling is decoded; disposing then cancels the worker before it keeps anything.
+                // Only the kept result (saved just before the final one is shown) says it is done.
                 harness.PumpUntil(player => player.State == SessionState.Ready &&
-                    player.CurrentProposals is { Candidates.Count: 0 } &&
+                    player.CurrentProposals is { Candidates.Count: 0 } proposals &&
+                    player.Memory.Proposals(first, proposals.Signature) is not null &&
                     Volatile.Read(ref analyzed) >= expectedAnalyses);
             }
 
