@@ -210,6 +210,14 @@ internal sealed class AppProcess : IDisposable
     public Rex.Media.AppCore.Automation.AutomationReply Status() =>
         Send(new Rex.Media.AppCore.Automation.AutomationRequest { Command = "status" }, "status");
 
+    /// <summary>
+    /// Asks the window itself through the pipe (protocol 2's <c>ui.</c> commands), as the
+    /// cross-platform window suite will; refused requests come back for the test to inspect.
+    /// </summary>
+    public Rex.Media.AppCore.Automation.AutomationReply Ui(Rex.Media.AppCore.Automation.AutomationRequest request) =>
+        Rex.Media.AppCore.Automation.AutomationPipe.SendAsync("rexplayer-test-" + Path.GetFileName(Root), request, Patience).GetAwaiter().GetResult()
+            ?? throw new InvalidOperationException("The player did not answer " + request.Command + ".");
+
     /// <summary>The playing position in seconds, as the player reports it.</summary>
     public double Position => Status().Position ?? 0;
 

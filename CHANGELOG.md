@@ -3,6 +3,12 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## Unreleased
+
+### Added
+
+- **Scripts can now drive the window.** The automation pipe speaks protocol 2: ui.tree lists every control, ui.menu the menu bar, and ui.press, ui.toggle, ui.set, ui.key, ui.text and ui.snapshot act on them or read them, the same on every platform rexplayer runs on. Protocol 1 scripts keep working.
+
 ## 0.26.0 - 2026-10-20
 
 ### Added

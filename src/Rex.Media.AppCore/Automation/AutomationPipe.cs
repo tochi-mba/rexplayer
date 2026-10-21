@@ -30,6 +30,18 @@ public sealed record AutomationRequest
 
     /// <summary>For <c>seek</c>: where to go, in seconds from the start of what is playing.</summary>
     public double? To { get; init; }
+
+    /// <summary>For the <c>ui.</c> commands (<see cref="ShellAutomation"/>): the automation id of the control to act on or read.</summary>
+    public string? Target { get; init; }
+
+    /// <summary>For <c>ui.set</c>: where to put a slider or the like.</summary>
+    public double? Value { get; init; }
+
+    /// <summary>For <c>ui.key</c>: the shortcut to press, written such as "Ctrl+Shift+M".</summary>
+    public string? Chord { get; init; }
+
+    /// <summary>For <c>ui.snapshot</c>: where to save the window's picture.</summary>
+    public string? Path { get; init; }
 }
 
 /// <summary>The player's answer: whether it did it, or why not, and what it is playing.</summary>
@@ -52,6 +64,15 @@ public sealed record AutomationReply
     /// <summary>For <c>metrics</c> and <c>measure</c>: what was measured, each a number under its name.</summary>
     public IReadOnlyDictionary<string, double>? Metrics { get; init; }
 
+    /// <summary>For <c>ui.tree</c>: every control of the window.</summary>
+    public IReadOnlyList<UiControl>? Controls { get; init; }
+
+    /// <summary>For <c>ui.menu</c>: the menu bar as rendered.</summary>
+    public IReadOnlyList<UiMenuItem>? Menus { get; init; }
+
+    /// <summary>For <c>ui.text</c> the text shown; for <c>ui.snapshot</c> the path saved.</summary>
+    public string? Text { get; init; }
+
     public static AutomationReply Failed(string error) => new() { Ok = false, Error = error };
 }
 
@@ -63,7 +84,10 @@ public sealed record AutomationReply
 /// </summary>
 public static class AutomationPipe
 {
-    public const int ProtocolVersion = 1;
+    public const int ProtocolVersion = 2;
+
+    /// <summary>The versions a player still answers: 1 lacked only the ui. commands, so its requests mean the same today.</summary>
+    public const int OldestProtocolVersion = 1;
 
     public const int MaxLineBytes = 64 * 1024;
 
@@ -160,7 +184,7 @@ public static class AutomationPipe
                 ? AutomationReply.Failed("The request was empty.")
                 : JsonSerializer.Deserialize(line, AutomationJson.Default.AutomationRequest) is not { } request
                     ? AutomationReply.Failed("The request was not a request.")
-                    : request.ProtocolVersion is not (0 or ProtocolVersion)
+                    : request.ProtocolVersion is not 0 && request.ProtocolVersion is < OldestProtocolVersion or > ProtocolVersion
                         ? AutomationReply.Failed($"This player speaks protocol {ProtocolVersion}, not {request.ProtocolVersion}.")
                         : await Handle(handle, request with { Paths = request.Paths ?? [] }).ConfigureAwait(false);
         }

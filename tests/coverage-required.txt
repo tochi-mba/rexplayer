@@ -23,6 +23,8 @@ AuraScene.cs
 AuroraScene.cs
 AutomaticSkip.cs
 AutomationPipe.cs
+ShellAutomation.cs
+ShellSurface.cs
 AvcConfig.cs
 BandEnergy.cs
 BandLayout.cs
