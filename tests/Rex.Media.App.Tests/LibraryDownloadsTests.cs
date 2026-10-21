@@ -51,7 +51,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         Screenshots.Match(app, "library-card-downloading", "LibraryShelfCards-Downloading");
 
         // Videos: the Download filter keeps only what is still arriving, or only what is whole.
-        app.Visit("Videos");
+        app.Visit("All videos");
         app.Pick("LibraryLook", "List");
         Wait.For(() => app.Lines().Length == 2, "both videos", () => string.Join(", ", app.Lines()));
         Wait.For(() => HasBadge(app, "LibraryList"), "the badge on the partial video's line");
@@ -81,7 +81,7 @@ public sealed class LibraryDownloadsTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
-    public void SeeAllOnTheDownloadingShelfOpensVideosFilteredToIt()
+    public void SeeAllOnTheDownloadingShelfOpensAllVideosFilteredToIt()
     {
         Growing();
         _scene.Video("Finished.mp4");
@@ -89,7 +89,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         Wait.For(() => app.IsShown("LibraryShelf-Downloading"), "the Downloading shelf");
 
         app.Press("LibraryShelf-Downloading");
-        Wait.For(() => app.Text("LibraryTitle") == "Videos", "the Videos view");
+        Wait.For(() => app.Text("LibraryTitle") == "All videos", "the All videos view");
         Wait.For(() => app.Text("LibraryFilter") == "Still downloading", "the view filtered to Still downloading");
         Wait.For(() => app.Lines().Length == 1, "only the partial video", () => string.Join(", ", app.Lines()));
         Assert.Equal(0, app.Close());
@@ -109,7 +109,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         File.WriteAllBytes(clip + ".aria2", control);
         using var app = _scene.Watched().Start();
 
-        app.Visit("Videos");
+        app.Visit("All videos");
         app.Pick("LibraryLook", "List");
         app.Choose("Clip");
         app.Press("LibraryPlay");
