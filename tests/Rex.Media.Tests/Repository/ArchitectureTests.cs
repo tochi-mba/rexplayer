@@ -13,6 +13,7 @@ public sealed class ArchitectureTests
     private const string Portable = "net10.0";
     private const string Windows = "net10.0-windows";
     private const string WindowsApp = "net10.0-windows10.0.22621.0";
+    private const string MacApp = "net10.0-macos";
 
     private static readonly string[] Everything =
     [
@@ -20,7 +21,7 @@ public sealed class ArchitectureTests
         "Audio", "Audio.Wasapi", "Video", "Video.D3D11", "Subtitles", "Subtitles.DirectWrite", "Engine",
         "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Discs.Device", "Extensibility",
         "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML", "Faces", "Speech",
-        "Interop.Mac", "Audio.CoreAudio",
+        "Interop.Mac", "Audio.CoreAudio", "Codecs.Apple", "Video.Metal",
     ];
 
     private static readonly Dictionary<string, (string Framework, string[] Allowed)> Graph = new(StringComparer.Ordinal)
@@ -64,9 +65,13 @@ public sealed class ArchitectureTests
         // machine; they run only on a Mac, where the macOS adapter tests prove them.
         ["Interop.Mac"] = (Portable, []),
         ["Audio.CoreAudio"] = (Portable, ["Primitives", "Audio", "Interop.Mac"]),
+        ["Codecs.Apple"] = (Portable, ["Primitives", "Codecs", "Interop.Mac"]),
         ["Cli.Mac"] = (Portable, Everything),
         ["Cli"] = (WindowsApp, Everything),
         ["App"] = (WindowsApp, Everything),
+        // ADR-0021: the macOS window, the one project that needs the platform SDK.
+        ["App.Mac"] = (MacApp, Everything),
+        ["Video.Metal"] = (MacApp, ["Primitives", "Video"]),
     };
 
     [Fact]

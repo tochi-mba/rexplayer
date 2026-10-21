@@ -20,6 +20,17 @@ public sealed record HevcConfig
     /// <summary>Every unit as an Annex B byte stream, to put in front of a keyframe.</summary>
     public byte[] ParameterSetsAnnexB() => NalUnits.JoinAnnexB(Units);
 
+    /// <summary>
+    /// The video, sequence and picture parameter sets alone, in that order, as a decoder that is
+    /// told the parameter sets apart from the samples wants them (macOS's VideoToolbox); SEI and
+    /// anything else in the record is left out.
+    /// </summary>
+    public IReadOnlyList<byte[]> ParameterSets() =>
+        [.. new[] { VpsType, HevcSps.NalType, PpsType }.SelectMany(type => Units.Where(unit => unit.Length > 0 && HevcSps.TypeOf(unit[0]) == type))];
+
+    private const int VpsType = 32;
+    private const int PpsType = 34;
+
     /// <summary>What the first sequence parameter set says, or null when there is none it can read.</summary>
     public SequenceInfo? Sequence()
     {

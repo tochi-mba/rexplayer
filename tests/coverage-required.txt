@@ -16,6 +16,7 @@ Asx.cs
 ContextMenuLayout.cs
 DataRoots.cs
 MenuBarLayout.cs
+MacKeyEquivalents.cs
 AtomicFile.cs
 AudioArtwork.cs
 AudioEffects.cs
@@ -87,6 +88,7 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+EsDescriptor.cs
 DominantColour.cs
 EnrichedAlbum.cs
 EnrichedArtist.cs
@@ -226,6 +228,7 @@ OpusHeaders.cs
 Packet.cs
 Particles.cs
 PcmDecoder.cs
+PresentationOrder.cs
 PendingUpdate.cs
 PictureBlock.cs
 PictureDemuxer.cs

@@ -71,6 +71,36 @@ internal static partial class AudioToolbox
         public AudioBuffer First;
     }
 
+    /// <summary>Where one packet sits in a buffer and how big it is (CoreAudioBaseTypes.h).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct AudioStreamPacketDescription
+    {
+        public long StartOffset;
+        public uint VariableFramesInPacket;
+        public uint DataByteSize;
+    }
+
+    [LibraryImport(Library)]
+    public static unsafe partial int AudioConverterNew(AudioStreamBasicDescription* source, AudioStreamBasicDescription* destination, out nint converter);
+
+    [LibraryImport(Library)]
+    public static unsafe partial int AudioConverterSetProperty(nint converter, uint property, uint size, void* data);
+
+    [LibraryImport(Library)]
+    public static unsafe partial int AudioConverterFillComplexBuffer(
+        nint converter,
+        delegate* unmanaged<nint, uint*, AudioBufferList*, AudioStreamPacketDescription**, nint, int> input,
+        nint reference,
+        ref uint packets,
+        AudioBufferList* output,
+        AudioStreamPacketDescription* descriptions);
+
+    [LibraryImport(Library)]
+    public static partial int AudioConverterReset(nint converter);
+
+    [LibraryImport(Library)]
+    public static partial int AudioConverterDispose(nint converter);
+
     [LibraryImport(Library)]
     public static partial nint AudioComponentFindNext(nint component, ref AudioComponentDescription description);
 

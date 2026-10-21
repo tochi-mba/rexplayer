@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 118 rows differ (92 must), 2 not applicable, 0 gaps.
+Totals: 116 rows differ (90 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -29,13 +29,6 @@ Totals: 118 rows differ (92 must), 2 not applicable, 0 gaps.
 |---|---|---|---|---|---|
 | FMT-C09 | Ogg (+OGM Could) | must | built | planned |  |
 | FMT-C19 | Image files as media | should | verified | planned |  |
-
-## Formats: Video decoders
-
-| ID | Capability | Priority | Windows | macOS | Note |
-|---|---|---|---|---|---|
-| FMT-V01 | H.264/AVC (all common profiles incl. High 10 where MF supports it) | must | verified | planned |  |
-| FMT-V02 | HEVC/H.265 (Main, Main 10) | must | verified | planned |  |
 
 ## Formats: Audio decoders
 

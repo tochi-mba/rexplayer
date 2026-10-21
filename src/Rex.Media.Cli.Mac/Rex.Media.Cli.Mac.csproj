@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
     <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
     <ProjectReference Include="..\Rex.Media.Audio.CoreAudio\Rex.Media.Audio.CoreAudio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs.Apple\Rex.Media.Codecs.Apple.csproj" />
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
   </ItemGroup>
 

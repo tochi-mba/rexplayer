@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The Mac's presenter: pictures drawn with Metal into a CAMetalLayer, through Microsoft's
+         macOS SDK (ADR-0021). Built with the Mac app on the macOS runner, not in the Windows loop. -->
+    <TargetFramework>net10.0-macos</TargetFramework>
+    <SupportedOSPlatformVersion>12.0</SupportedOSPlatformVersion>
+    <RootNamespace>Rex.Media.Video.Metal</RootNamespace>
+    <!-- One pinned upload per plane; its bounds argument is in tests/unsafe-allowlist.txt. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
+  </ItemGroup>
+
+</Project>

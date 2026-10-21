@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The Mac's own decoders for patented codecs (ADR-0009): VideoToolbox through
+         Rex.Media.Interop.Mac, plain .NET that runs only on a Mac (ADR-0021). Named explicitly so
+         the coverage gate leaves it to the macOS decoder tests, which hold it to the same
+         reference hashes as Windows' decoders. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Rex.Media.Codecs.Apple</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\Rex.Media.Interop.Mac\Rex.Media.Interop.Mac.csproj" />
+  </ItemGroup>
+
+</Project>

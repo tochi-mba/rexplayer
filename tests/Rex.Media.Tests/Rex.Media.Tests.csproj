@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\src\Rex.Media.Vision\Rex.Media.Vision.csproj" />
     <!-- Proved only on a Mac, where these tests run for real; elsewhere they skip (ADR-0021). -->
     <ProjectReference Include="..\..\src\Rex.Media.Audio.CoreAudio\Rex.Media.Audio.CoreAudio.csproj" />
+    <ProjectReference Include="..\..\src\Rex.Media.Codecs.Apple\Rex.Media.Codecs.Apple.csproj" />
   </ItemGroup>
 
 </Project>

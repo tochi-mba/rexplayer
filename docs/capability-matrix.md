@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 263 planned, 30 verified, 27 post-1.0, 2 not-applicable.
+macOS: 261 planned, 32 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -68,8 +68,8 @@ macOS: 263 planned, 30 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| FMT-V01 | H.264/AVC (all common profiles incl. High 10 where MF supports it) | MF (D3D11VA → SW MFT) | M3 | must | verified | planned |
-| FMT-V02 | HEVC/H.265 (Main, Main 10) | MF + Store extension | M3 | must | verified | planned |
+| FMT-V01 | H.264/AVC (all common profiles incl. High 10 where MF supports it) | MF (D3D11VA → SW MFT) | M3 | must | verified | verified |
+| FMT-V02 | HEVC/H.265 (Main, Main 10) | MF + Store extension | M3 | must | verified | verified |
 | FMT-V03 | AV1 | MF + AV1 extension; own post-1.0 | M3 | must | planned | planned |
 | FMT-V04 | VP9 (profiles 0/2) | MF extension; own M12 | M3/M12 | must | planned | planned |
 | FMT-V05 | VP8 | Own (MF if present) | M12 | should | planned | planned |
