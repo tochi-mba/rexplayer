@@ -138,6 +138,11 @@ public sealed partial class MainWindow
         _selectionView = selectionView;
         _placeKey = LibraryPlaces.Key(_librarySource.ToString(), _libraryGroup?.Name,
             _librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null, _librarySeason?.Name, search);
+        if (ShowDetailsPage(search, entries))
+        {
+            return;
+        }
+
         var source = search.Length > 0 ? (LibrarySource?)null : _librarySource;
         _libraryViewKey = ViewKey(search.Length > 0);
         var choice = ViewChoice(_libraryViewKey);
@@ -824,11 +829,17 @@ public sealed partial class MainWindow
         return style;
     }
 
-    /// <summary>A card on a shelf: an album opens, a song or video plays with the rest of its shelf after it.</summary>
+    /// <summary>
+    /// A card on a shelf: an album opens, a song or video plays with the rest of its shelf after it;
+    /// on a details page, a movie opens its own page.
+    /// </summary>
     private void OpenFromShelf(LibrarySource see, IReadOnlyList<LibraryRow> rows, LibraryRow row)
     {
         switch (row.Item)
         {
+            case LibraryEntry movie when _details.Count > 0 && IsMovie(movie):
+                OpenMovieDetails(movie);
+                break;
             case LibraryGroup group:
                 KeepPlace();
                 _places.RememberSearch(see.ToString(), "");
@@ -847,7 +858,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>What tells one row from another when a view is rebuilt; a download's progress is not in it, since the row shows that as it changes.</summary>
-    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}";
+    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}|{row.Summary}";
 
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)

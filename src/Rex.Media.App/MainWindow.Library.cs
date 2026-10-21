@@ -619,7 +619,13 @@ public sealed partial class MainWindow
             _ => [],
         }).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
-    private void OnLibraryPlay(object sender, RoutedEventArgs e) => PlayChosen();
+    private void OnLibraryPlay(object sender, RoutedEventArgs e)
+    {
+        if (!PlayDetailsMovie())
+        {
+            PlayChosen();
+        }
+    }
 
     private void OnLibraryEnqueue(object sender, RoutedEventArgs e) => EnqueueChosen();
 
@@ -685,6 +691,11 @@ public sealed partial class MainWindow
         else
         {
             menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", PlayChosen));
+        }
+
+        if (chosen is [{ Item: LibraryEntry single }] && IsMovie(single))
+        {
+            menu.Items.Add(MenuItem("Details", "LibraryMenuDetails", () => OpenMovieDetails(single)));
         }
 
         var selectedEntries = EntriesOf(chosen).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();

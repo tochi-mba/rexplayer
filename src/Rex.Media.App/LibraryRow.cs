@@ -24,6 +24,7 @@ public partial class LibraryRow(
     private string _transcriptText = "";
     private string? _downloadText;
     private bool _isPlaying = isPlaying;
+    private bool _summaryOpen;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -155,6 +156,32 @@ public partial class LibraryRow(
 
     /// <summary>Tells the line's template that <paramref name="property"/> changed.</summary>
     protected void Changed(string property) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+
+    /// <summary>An episode's synopsis under its line, two lines until it is opened; empty for none.</summary>
+    public string Summary { get; private set; } = "";
+
+    public Visibility SummaryVisibility => Summary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>How many lines the synopsis shows: two, or all of it once opened.</summary>
+    public int SummaryLines => _summaryOpen ? 0 : 2;
+
+    /// <summary>
+    /// Whether the line is a movie's card, which offers its details page. A line has no window to ask the
+    /// catalogue answers, so it judges by the film rules alone (title, length and folder).
+    /// </summary>
+    public Visibility InfoVisibility => Item is Rex.Media.Library.LibraryEntry entry
+        && Rex.Media.AppCore.Library.LibraryViews.Movies([entry], Rex.Media.AppCore.Library.MovieRules.Offline).Count == 1
+        ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Gives the line its synopsis as it is made, before any list shows it.</summary>
+    public void SetSummary(string? summary) => Summary = summary ?? "";
+
+    /// <summary>Opens the synopsis to its full length, or folds it back to two lines.</summary>
+    public void ToggleSummary()
+    {
+        _summaryOpen = !_summaryOpen;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SummaryLines)));
+    }
 
     /// <summary>
     /// What a screen reader says for the line, and what the window tests find it by: a list's item

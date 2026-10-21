@@ -274,6 +274,11 @@ public sealed partial class MainWindow
     /// <summary>Back returns to the parent as it was left, with the line that opened the page chosen and on screen.</summary>
     private void OnLibraryBack(object sender, RoutedEventArgs e)
     {
+        if (LeaveDetailsPage())
+        {
+            return;
+        }
+
         KeepPlace();
         if (_librarySeason is not null)
         {

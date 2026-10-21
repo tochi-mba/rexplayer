@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The details screens' cast cards: a round photo (initials until it comes), the person's name and
+     who they play. Loaded the first time a cast row is shown, never at launch; the cards stay in a
+     virtualised row that asks for the photos of the cards on screen only. -->
+<ResourceDictionary
+    x:Class="Rex.Media.App.LibraryDetailsTemplates"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Rex.Media.App">
+  <DataTemplate x:Key="LibraryCastTemplate" x:DataType="local:CastCard">
+    <StackPanel Width="112" Spacing="4" Padding="0,4" ToolTipService.ToolTip="{x:Bind Name}">
+      <Grid Width="88" Height="88" HorizontalAlignment="Center">
+        <Ellipse Fill="{ThemeResource LayerFillColorDefaultBrush}" Stroke="{ThemeResource DividerStrokeColorDefaultBrush}" StrokeThickness="1" />
+        <TextBlock Text="{x:Bind Initials}" FontSize="26" FontWeight="SemiBold" Opacity="0.55" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <Ellipse>
+          <Ellipse.Fill>
+            <ImageBrush ImageSource="{x:Bind Photo, Mode=OneWay}" Stretch="UniformToFill" AlignmentY="Top" />
+          </Ellipse.Fill>
+        </Ellipse>
+      </Grid>
+      <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="13" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+      <TextBlock Text="{x:Bind Character}" Visibility="{x:Bind CharacterVisibility}" FontSize="12" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                 TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </StackPanel>
+  </DataTemplate>
+</ResourceDictionary>

@@ -98,6 +98,12 @@
           <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="9" HorizontalAlignment="Left" VerticalAlignment="Top">
             <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
           </Border>
+          <!-- A movie's details page, one click away from its card. -->
+          <Button Visibility="{x:Bind InfoVisibility}" Click="OnCardInfoClick" Width="32" Height="32" Padding="0" CornerRadius="16" Margin="9"
+                  HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="#BE17202C" BorderThickness="0"
+                  ToolTipService.ToolTip="Details" AutomationProperties.Name="Details" AutomationProperties.AutomationId="LibraryCardInfo">
+            <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="White" />
+          </Button>
           <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="26" Height="26" Margin="9,9,40,9"
                         HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
                         ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />

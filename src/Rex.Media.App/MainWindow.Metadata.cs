@@ -230,7 +230,6 @@ public sealed partial class MainWindow
                 }
             }
 
-            // Cached films move into Movies (and their posters show) as soon as they are read.
             if (known.Count > 0 || knownMovies.Count > 0)
             {
                 RefreshLibraryFromMetadata();
@@ -893,21 +892,6 @@ public sealed partial class MainWindow
         Say($"{show} will be fetched as {pick.Name}");
     }
 
-    /// <summary>The library's movies most like one, from the facts already cached: no service is asked.</summary>
-    private List<Rex.Media.Library.LibraryEntry> MoviesLike(EnrichedMovie facts)
-    {
-        var known = new List<(Rex.Media.Library.LibraryEntry, EnrichedMovie)>();
-        foreach (var entry in LibraryViews.Movies(_library?.Entries ?? [], MovieLookupOf))
-        {
-            if (MetadataMovie(entry) is { } other)
-            {
-                known.Add((entry, other));
-            }
-        }
-
-        return [.. MoreLikeThis.Rank(facts, known)];
-    }
-
     /// <summary>A library row's online-details actions: refresh, fix the match, change the cover or watch the trailer.</summary>
     private void AddMetadataMenuItems(MenuFlyout menu, IReadOnlyList<LibraryRow> chosen)
     {
@@ -937,7 +921,7 @@ public sealed partial class MainWindow
                     () => _ = Launcher.LaunchUriAsync(new Uri("https://www.youtube.com/watch?v=" + trailer))));
             }
 
-            if (facts is not null && MoviesLike(facts) is { Count: > 0 } alike)
+            if (facts is not null && MoreLikeThis.Rank(facts, KnownMovies()) is { Count: > 0 } alike)
             {
                 var more = new MenuFlyoutSubItem { Text = "More like this" };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(more, "LibraryMenuMoreLikeThis");
