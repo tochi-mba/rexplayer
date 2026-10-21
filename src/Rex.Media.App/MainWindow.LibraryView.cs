@@ -837,7 +837,7 @@ public sealed partial class MainWindow
                 break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);
-                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see == LibrarySource.ContinueWatching);
+                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks or LibrarySource.Podcasts);
                 break;
         }
     }
