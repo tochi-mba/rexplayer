@@ -14,7 +14,6 @@ namespace Rex.Media.App.Tests;
 [Collection("desktop")]
 public sealed class LibraryDownloadsTests : IDisposable
 {
-    private const int Whole = 11125;
     private const int Part = 6000;
 
     private readonly LibraryScene _scene = new();
