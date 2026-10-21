@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Library;
@@ -22,6 +23,35 @@ public sealed partial class MainWindow
 
     /// <summary>Whether the route of the last session, or of the update hand-off, has been applied.</summary>
     private bool _libraryRouteApplied;
+
+    /// <summary>The exact parents of pages opened during this library visit.</summary>
+    private readonly Stack<LibraryNavigationStop> _libraryParents = new();
+    private bool _changingLibraryRoute;
+    private bool _focusRestoredLibraryItem;
+
+    private sealed record LibraryNavigationStop(LibrarySource Source, LibraryGroup? Group, LibraryGroup? Page, string Search)
+    {
+        public string Label => Page?.Name ?? Group?.Name ?? (Search.Length > 0 ? $"“{Search}” results" : LibrarySourceItems.First(item => item.Source == Source).Item.Name);
+    }
+
+    /// <summary>Makes Back a visible breadcrumb instead of an unexplained arrow.</summary>
+    private void ShowLibraryBack(bool shown, string? label = null)
+    {
+        LibraryBack.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        if (!shown)
+        {
+            return;
+        }
+
+        var target = label ?? (_libraryParents.TryPeek(out var parent)
+            ? parent.Label
+            : _libraryGroup is not null
+                ? LibrarySourceItems.First(item => item.Source == _librarySource).Item.Name
+                : "Library");
+        LibraryBackText.Text = "Back to " + target;
+        AutomationProperties.SetName(LibraryBack, LibraryBackText.Text);
+        ToolTipService.SetToolTip(LibraryBack, LibraryBackText.Text + " (Alt+Left)");
+    }
 
     /// <summary>The route shown now, for the next launch; null for Home.</summary>
     private LibraryRoute? CurrentLibraryRoute() => _librarySource == LibrarySource.Home && _libraryGroup is null ? null
@@ -101,6 +131,7 @@ public sealed partial class MainWindow
                 }
             }
 
+            _focusRestoredLibraryItem = false;
             return;
         }
 
@@ -111,12 +142,17 @@ public sealed partial class MainWindow
             {
                 LibraryCollage.Select(selected);
                 LibraryCollage.StartBringItemIntoView(selected, new BringIntoViewOptions());
+                if (_focusRestoredLibraryItem)
+                {
+                    LibraryCollage.Focus(FocusState.Keyboard);
+                }
             }
             else
             {
                 LibraryCollage.ScrollView?.ScrollTo(0, place.Offset, new ScrollingScrollOptions(ScrollingAnimationMode.Disabled, ScrollingSnapPointsMode.Ignore));
             }
 
+            _focusRestoredLibraryItem = false;
             return;
         }
 
@@ -135,7 +171,13 @@ public sealed partial class MainWindow
 
             // The line that opened a page, or was chosen, stays on screen; the list moves only as far as it must.
             LibraryList.ScrollIntoView(row);
+            if (_focusRestoredLibraryItem)
+            {
+                FocusListLine(row);
+            }
         }
+
+        _focusRestoredLibraryItem = false;
     }
 
     /// <summary>
@@ -239,8 +281,14 @@ public sealed partial class MainWindow
 
     private void OnLibrarySourceChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_changingLibraryRoute)
+        {
+            return;
+        }
+
         if (LibrarySources.SelectedIndex >= 0)
         {
+            _libraryParents.Clear();
             KeepPlace();
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
             _libraryGroup = null;
@@ -263,6 +311,11 @@ public sealed partial class MainWindow
     /// </summary>
     private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e)
     {
+        if (_changingLibraryRoute)
+        {
+            return;
+        }
+
         if (_librarySearchText.Changes(LibrarySearch.Text))
         {
             KeepPlace();
@@ -280,6 +333,21 @@ public sealed partial class MainWindow
         }
 
         KeepPlace();
+        if (_libraryParents.TryPop(out var parent))
+        {
+            _changingLibraryRoute = true;
+            _librarySource = parent.Source;
+            _libraryGroup = parent.Group;
+            _librarySeason = parent.Page;
+            LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, item => item.Source == parent.Source);
+            LibrarySearch.Text = parent.Search;
+            _places.RememberSearch(parent.Source.ToString(), parent.Search);
+            _changingLibraryRoute = false;
+            _focusRestoredLibraryItem = true;
+            ShowLibraryAtPlace();
+            return;
+        }
+
         if (_librarySeason is not null)
         {
             _librarySeason = null;
@@ -290,6 +358,13 @@ public sealed partial class MainWindow
         }
 
         ShowLibraryAtPlace();
+    }
+
+    /// <summary>Keeps the complete parent, including its search, before a card drills into a page.</summary>
+    private void KeepLibraryParent(string? selected = null)
+    {
+        KeepPlace(selected);
+        _libraryParents.Push(new LibraryNavigationStop(_librarySource, _libraryGroup, _librarySeason, LibrarySearch.Text));
     }
 
     // Closing cancels artwork requests. Retained rows must be allowed to request their missing

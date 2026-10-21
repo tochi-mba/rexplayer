@@ -95,7 +95,7 @@ public sealed partial class MainWindow
     private bool ShowDetailsPage(string search, IReadOnlyList<LibraryEntry> entries)
     {
         _detailsMovie = null;
-        if (_details.Count > 0 && (search.Length > 0 || _placeKey != _detailsBase))
+        if (_details.Count > 0 && _placeKey != _detailsBase)
         {
             // The view underneath changed: the pages close, and the view sets the banner again.
             _details.Clear();
@@ -132,7 +132,11 @@ public sealed partial class MainWindow
         }
 
         LibraryShuffle.Visibility = LibraryEnqueue.Visibility = Visibility.Collapsed;
-        LibraryBack.Visibility = Visibility.Visible;
+        var backLabel = _details.Count > 1
+            ? _details[^2].Movie?.Title ?? _details[^2].Person?.Name
+            : _libraryParents.TryPeek(out var parent) ? parent.Label
+            : _libraryGroup?.Name ?? LibrarySourceItems.First(item => item.Source == _librarySource).Item.Name;
+        ShowLibraryBack(true, backLabel);
         ShowLibraryEmpty(false, false, null);
         if (movie is not null)
         {

@@ -105,6 +105,27 @@ public sealed class LibraryPlaceTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void BackReturnsToTheExactSearchThatOpenedAGroup()
+    {
+        _scene.WithAsake();
+        _scene.Song("Calm Down", "Rave & Roses", 2022, "Afrobeats", "Rema");
+        using var app = _scene.Ready().Start();
+        app.Visit("Artists");
+        ((System.Windows.Automation.ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).SetValue("asa");
+        Wait.For(() => app.Text("LibraryTitle") == "asa", "the filtered artists");
+        app.Open("Asake");
+        Wait.For(() => app.Text("LibraryTitle") == "Asake", "the artist page");
+
+        app.Press("LibraryBack");
+        Wait.For(() => app.Text("LibraryTitle") == "asa", "the same filtered artists");
+        Assert.Equal("asa", ((System.Windows.Automation.ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).Current.Value);
+        Wait.For(() => app.IsChosen("Asake"), "the artist that opened the page to be chosen");
+        Assert.DoesNotContain("Rema", app.Lines());
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AViewsScrollPlaceOutlivesASearchAndARestart()
     {
         foreach (var title in ManySongs)

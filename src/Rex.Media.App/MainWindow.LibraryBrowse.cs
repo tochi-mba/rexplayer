@@ -246,7 +246,7 @@ public sealed partial class MainWindow
     /// <summary>Opens a show's own page from the billboard.</summary>
     private void OpenShow(LibraryGroup show)
     {
-        KeepPlace();
+        KeepLibraryParent();
         _libraryGroup = show;
         _librarySeason = null;
         ShowLibraryAtPlace();
