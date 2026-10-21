@@ -22,6 +22,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private const string MostPlayedShelf = "Your most played";
+    private const string DownloadingShelf = "Downloading";
 
     private static readonly (LibrarySource Source, LibrarySourceItem Item)[] LibrarySourceItems =
     [
@@ -119,6 +120,12 @@ public sealed partial class MainWindow
             return;
         }
 
+        BuildLibrary();
+        ShowDownloads();
+    }
+
+    private void BuildLibrary()
+    {
         StartMetadataWhenAllowed();
         var entries = _library.Entries;
         var search = _librarySearchText.Build(LibrarySearch.Text);
@@ -537,6 +544,9 @@ public sealed partial class MainWindow
         }
 
         filterMenu.Items.Add(folders);
+        filterMenu.Items.Add(FilterGroup("Download", "LibraryFilterDownload",
+            [.. new[] { LibraryDownloadFilter.Any, LibraryDownloadFilter.Complete, LibraryDownloadFilter.Downloading }.Select(value => (value, LibraryArrangement.DownloadName(value)))],
+            choice.Download, value => KeepViewChoice(choice with { Download = value })));
         filterMenu.Items.Add(new MenuFlyoutSeparator());
         var resetFilters = new MenuFlyoutItem { Text = "Clear filters", IsEnabled = choice.IsFiltered };
         AutomationProperties.SetAutomationId(resetFilters, "LibraryFilterClear");
@@ -656,8 +666,10 @@ public sealed partial class MainWindow
         _libraryRows = [];
         ShowLibraryEmpty(entries.Count == 0, false, LibrarySource.Home);
 
+        var downloading = HomeShelves.Downloading(entries, 20);
         var shelves = new (string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)[]
         {
+            (DownloadingShelf, Enum.Parse<LibrarySource>(HomeShelves.SeeAllDownloading(downloading, ViewChoice).View), [.. downloading.Select(EntryRow)], downloading is [{ Kind: LibraryKind.Video }, ..]),
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
             ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
             (MostPlayedShelf, LibrarySource.Songs, [.. HomeShelves.MostPlayed(entries, 20).Select(EntryRow)], false),
@@ -680,7 +692,7 @@ public sealed partial class MainWindow
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
         {
-            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide));
+            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide, id: shelfTitle == DownloadingShelf ? "Downloading" : null));
         }
     }
 
@@ -697,8 +709,11 @@ public sealed partial class MainWindow
             AutomationProperties.SetAutomationId(all, "LibraryShelf-" + id);
             all.Click += (_, _) =>
             {
-                // The most played shelf opens Songs in its own order, so the view starts with the shelf.
-                _shelfChoice = title == MostPlayedShelf ? (see, HomeShelves.SeeAllMostPlayed(ViewChoice(see.ToString()))) : null;
+                // The most played and downloading shelves open their view in their own order and
+                // filter, so the view starts with the shelf.
+                _shelfChoice = title == MostPlayedShelf ? (see, HomeShelves.SeeAllMostPlayed(ViewChoice(see.ToString())))
+                    : title == DownloadingShelf ? (see, HomeShelves.SeeAllDownloading(HomeShelves.Downloading(_library!.Entries, 20), ViewChoice).Choice)
+                    : null;
                 LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
             };
             heading.Children.Add(all);
@@ -777,7 +792,8 @@ public sealed partial class MainWindow
         }
     }
 
-    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.Detail}|{row.Extra}|{row.Progress:R}";
+    /// <summary>What tells one row from another when a view is rebuilt; a download's progress is not in it, since the row shows that as it changes.</summary>
+    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}";
 
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)

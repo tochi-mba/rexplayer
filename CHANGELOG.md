@@ -5,6 +5,10 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Added
+
+- **Files still downloading show as such.** A file arriving in a watched folder (named by a downloader, marked by its control file, short of the size its container or downloader declares, or still growing) wears a down-arrow badge with a progress ring on its card, line and shelf tile, and its detail line reads "Downloading · 1.2 GB of 3.4 GB" as it grows, until the moment it is whole. The library's Filter menu gains a Download group (Fully downloaded, Still downloading) that combines with the others and is remembered per view; Home shows a Downloading shelf while anything is partial, newest first, with See all opening the view filtered to it; Play on a file too incomplete to open says "Still downloading: 20% so far" instead of failing; and Edit details never writes into a file that is still downloading, and says so.
+
 ### Fixed
 
 - **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.

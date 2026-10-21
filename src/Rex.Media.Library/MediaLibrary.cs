@@ -74,6 +74,15 @@ public sealed record LibraryEntry
     /// <summary>Details the person changed that rexplayer keeps over the file's own tags.</summary>
     public DetailOverride? Override { get; init; }
 
+    /// <summary>
+    /// Whether the file is still being downloaded into its folder (<see cref="Downloads"/>): named or
+    /// marked as partial by a downloader, short of a declared size, or growing between looks.
+    /// </summary>
+    public bool Downloading { get; init; }
+
+    /// <summary>How many bytes it will be once whole, when a downloader's sidecar or its container says; null when nothing does, or it is whole.</summary>
+    public long? FinalSize { get; init; }
+
     /// <summary>The artist an album is filed under: its album artist, else its artist.</summary>
     [JsonIgnore]
     public string? FiledArtist => AlbumArtist ?? Artist;
@@ -229,35 +238,43 @@ public sealed class MediaLibrary
     /// Brings what the library knows of <paramref name="folder"/> in line with <paramref name="files"/>,
     /// every media file in it and the folders inside it: new files are added, changed ones are to be
     /// read again, and ones no longer there are forgotten. <paramref name="kindOf"/> says what each
-    /// file is (null for a file that is not media).
+    /// file is (null for a file that is not media). A file still being downloaded is marked so
+    /// (<see cref="Downloads"/>), judged by the markers listed beside it, by how it grew since the
+    /// last scan, and by what <paramref name="readMarker"/> reads of a downloader's sidecar; a
+    /// partial file whose whole name is listed too is left to that one.
     /// </summary>
-    public ScanResult Scan(string folder, IEnumerable<LibraryFile> files, Func<string, LibraryKind?> kindOf)
+    public ScanResult Scan(string folder, IEnumerable<LibraryFile> files, Func<string, LibraryKind?> kindOf, Func<string, byte[]?>? readMarker = null)
     {
         ArgumentNullException.ThrowIfNull(files);
         ArgumentNullException.ThrowIfNull(kindOf);
         folder = Normal(folder);
         var now = _time.GetUtcNow().UtcDateTime;
         ScanResult result;
+        var listed = files as IReadOnlyCollection<LibraryFile> ?? files.ToList();
+        var paths = new HashSet<string>(listed.Select(file => file.Path), StringComparer.OrdinalIgnoreCase);
         lock (_gate)
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var written = new List<LibraryEntry>();
             int added = 0, changed = 0;
-            foreach (var file in files)
+            foreach (var file in listed)
             {
-                if (kindOf(file.Path) is not { } kind || _hidden.Contains(file.Path) || !seen.Add(file.Path))
+                if (kindOf(file.Path) is not { } kind || _hidden.Contains(file.Path) || !seen.Add(file.Path)
+                    || (Downloads.WholeNameOf(file.Path) is { } whole && paths.Contains(whole)))
                 {
                     continue;
                 }
 
+                var evidence = Downloads.Gather(file.Path, paths.Contains, readMarker ?? (_ => null));
                 if (!_entries.TryGetValue(file.Path, out var known))
                 {
-                    written.Add(new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path) });
+                    var (downloading, finalSize) = Downloads.Judge(evidence, null, file.Size, null);
+                    written.Add(new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path), Downloading = downloading, FinalSize = finalSize });
                     added++;
                 }
-                else if (known.Size != file.Size || known.Modified != file.Modified)
+                else if (known.Size != file.Size || known.Modified != file.Modified || known.Downloading != Downloads.Judge(evidence, known.Size, file.Size, known.FinalSize).Downloading)
                 {
-                    written.Add(known with { Kind = kind, Size = file.Size, Modified = file.Modified, Probed = false });
+                    written.Add(Looked(known, evidence, file.Size, file.Modified) with { Kind = kind });
                     changed++;
                 }
             }
@@ -274,6 +291,43 @@ public sealed class MediaLibrary
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Looks again at every file marked as downloading: <paramref name="stat"/> gives its size now
+    /// (null when it is gone), and the markers beside it are read as a scan reads them. One that
+    /// stopped growing, with nothing marking it and no declared size left to reach, is whole; its
+    /// details are read again. For the window, which looks while such files are shown or opened.
+    /// </summary>
+    public void RecheckDownloads(Func<string, LibraryFile?> stat, Func<string, bool> exists, Func<string, byte[]?> readMarker)
+    {
+        ArgumentNullException.ThrowIfNull(stat);
+        ArgumentNullException.ThrowIfNull(exists);
+        ArgumentNullException.ThrowIfNull(readMarker);
+        List<string> downloading;
+        lock (_gate)
+        {
+            downloading = [.. _entries.Values.Where(entry => entry.Downloading).Select(entry => entry.Path)];
+        }
+
+        var looked = downloading.Select(path => (Path: path, File: stat(path), Evidence: Downloads.Gather(path, exists, readMarker))).Where(look => look.File is not null).ToList();
+        Change(looked.Select(look => look.Path), known =>
+        {
+            var (_, file, evidence) = looked.First(look => string.Equals(look.Path, known.Path, StringComparison.OrdinalIgnoreCase));
+            return Looked(known, evidence, file!.Value.Size, file.Value.Modified);
+        });
+    }
+
+    /// <summary>
+    /// <paramref name="known"/> as the disk shows it now. A file that changed is read again, except
+    /// while it downloads: its details are read once, then left until it is whole.
+    /// </summary>
+    private static LibraryEntry Looked(LibraryEntry known, DownloadEvidence evidence, long size, DateTime modified)
+    {
+        var (downloading, finalSize) = Downloads.Judge(evidence, known.Size, size, known.FinalSize);
+        var changed = known.Size != size || known.Modified != modified;
+        var reread = downloading ? changed && !known.Downloading : changed || known.Downloading;
+        return known with { Size = size, Modified = modified, Downloading = downloading, FinalSize = finalSize, Probed = known.Probed && !reread };
     }
 
     /// <summary>
@@ -501,7 +555,7 @@ public sealed class MediaLibrary
     }
 
     /// <summary>The title a file has until its details are read: its name without the extension.</summary>
-    public static string TitleOf(string path) => System.IO.Path.GetFileNameWithoutExtension(path) is { Length: > 0 } name ? name : path;
+    public static string TitleOf(string path) => System.IO.Path.GetFileNameWithoutExtension(Downloads.WholeNameOf(path) ?? path) is { Length: > 0 } name ? name : path;
 
     /// <summary>Whether <paramref name="folder"/> is <paramref name="path"/> or holds it.</summary>
     public static bool Holds(string folder, string path)
@@ -525,9 +579,15 @@ public sealed class MediaLibrary
     {
         string? Tag(string key) => info.Metadata.GetValueOrDefault(key) is { } value && value.Trim() is { Length: > 0 } trimmed ? trimmed : null;
 
+        // A container that declares more bytes than the file holds is still arriving.
+        var (downloading, finalSize) = info.DeclaredLength is { } declared && declared > entry.Size
+            ? (true, (long?)declared)
+            : (entry.Downloading, entry.FinalSize);
         return (entry with
         {
             Probed = true,
+            Downloading = downloading,
+            FinalSize = finalSize,
             // A video file with only sound in it (an .mp4 of a song) is music.
             Kind = info.FirstTrack(MediaKind.Video) is null && info.FirstTrack(MediaKind.Audio) is not null ? LibraryKind.Music : entry.Kind,
             Title = Tag(MetadataKeys.Title) ?? TitleOf(entry.Path),

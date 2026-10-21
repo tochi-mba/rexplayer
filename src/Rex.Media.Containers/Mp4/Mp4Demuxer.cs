@@ -202,6 +202,8 @@ public sealed class Mp4Demuxer : IDemuxer
             Metadata = metadata,
             Chapters = chapters,
             CoverArt = cover,
+            // The walk ends where the last box says it does, past the file's end while it is still arriving.
+            DeclaredLength = position,
         };
     }
 

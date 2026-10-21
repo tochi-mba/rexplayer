@@ -21,6 +21,12 @@ public sealed record MediaInfo
     /// <summary>Embedded cover art (encoded image bytes), if the file carries any.</summary>
     public byte[]? CoverArt { get; init; }
 
+    /// <summary>
+    /// How many bytes the container says it reaches (the end of its last box or segment), when it
+    /// says; more than the file holds while the file is still being written or downloaded.
+    /// </summary>
+    public long? DeclaredLength { get; init; }
+
     public TrackInfo? FirstTrack(MediaKind kind) => Tracks.FirstOrDefault(track => track.Kind == kind);
 }
 

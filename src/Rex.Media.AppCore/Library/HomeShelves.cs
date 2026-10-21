@@ -34,4 +34,36 @@ public static class HomeShelves
         ArgumentNullException.ThrowIfNull(kept);
         return kept with { Sort = LibrarySort.MostPlayed, Descending = false, Grouping = LibraryGrouping.None };
     }
+
+    /// <summary>
+    /// "Downloading": the files still arriving in the watched folders, newest first; empty, and so
+    /// not shown, once every file is whole.
+    /// </summary>
+    /// <param name="entries">The library's entries.</param>
+    /// <param name="count">How many the shelf holds.</param>
+    public static IReadOnlyList<LibraryEntry> Downloading(IEnumerable<LibraryEntry> entries, int count)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        return [.. LibraryArrangement.Sort([.. entries.Where(entry => entry.Downloading)], LibrarySort.Added, descending: false).Take(count)];
+    }
+
+    /// <summary>
+    /// The view "See all" opens from the Downloading shelf: the one that holds most of what is
+    /// downloading (Videos, Songs or Pictures; Videos when nothing is), filtered to Still downloading
+    /// and ordered newest first, the way the shelf shows it, with no headings.
+    /// </summary>
+    /// <param name="downloading">What the shelf shows.</param>
+    /// <param name="kept">How the user keeps each view, by its name.</param>
+    public static (string View, LibraryViewChoice Choice) SeeAllDownloading(IReadOnlyList<LibraryEntry> downloading, Func<string, LibraryViewChoice> kept)
+    {
+        ArgumentNullException.ThrowIfNull(downloading);
+        ArgumentNullException.ThrowIfNull(kept);
+        var view = downloading.GroupBy(entry => entry.Kind).OrderByDescending(group => group.Count()).Select(group => group.Key).FirstOrDefault(LibraryKind.Video) switch
+        {
+            LibraryKind.Music => "Songs",
+            LibraryKind.Picture => "Pictures",
+            _ => "Videos",
+        };
+        return (view, kept(view) with { Download = LibraryDownloadFilter.Downloading, Sort = LibrarySort.Added, Descending = false, Grouping = LibraryGrouping.None });
+    }
 }

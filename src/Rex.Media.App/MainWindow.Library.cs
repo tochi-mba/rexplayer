@@ -99,6 +99,7 @@ public sealed partial class MainWindow
         _libraryRefresh.IsRepeating = false;
         _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
         _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
+        WireDownloadRechecks();
 
         // Files copied in arrive in many events; the folder is looked at once they settle.
         _libraryChanges = CreateTimer();
@@ -522,6 +523,7 @@ public sealed partial class MainWindow
             isPlaying: LibraryViews.SameLocation(entry.Path, _player.Playlist.Current?.Location));
         var (glyph, text) = TranscriptBadgeOf(entry);
         row.SetTranscript(glyph, text);
+        ShowDownload(row, entry);
         return row;
     }
 
