@@ -138,6 +138,74 @@ jobs:
         shell: pwsh
         run: ./dev.ps1 smoke
 
+  # rexplayer.app for both kinds of Mac, from the one macOS project that needs the platform SDK
+  # (ADR-0021). Not part of a release yet: the parity ledger (docs/parity.md) says what the Mac
+  # window still owes before it ships beside Windows.
+  macos-app:
+    name: The Mac app, built and bundled (macOS)
+    # Every .NET 10 macOS SDK needs Xcode 26.6 or later, which needs macOS 26: so this runs on
+    # the macOS 26 image, an Apple Silicon Mac that also builds the Intel app.
+    runs-on: macos-26
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-arm64, osx-x64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # The image's default Xcode, the one it installs whole: a side-by-side copy can lack the
+      # macOS SDK (the first macOS 26 run picked such a copy and could not link).
+      - name: Read the runner's Xcode
+        id: xcode
+        run: |
+          echo "Using $(xcode-select -p)"
+          version=$(xcodebuild -version | head -1 | awk '{print $2}')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          xcodebuild -version
+
+      # Each macOS SDK release requires one Xcode exactly, so the workload is pinned to the
+      # release made for the Xcode this runner has, rather than whatever is newest today
+      # (github.com/dotnet/macios/releases lists the pairs).
+      - name: Install the macOS workload that matches this Xcode
+        env:
+          XCODE: ${{ steps.xcode.outputs.version }}
+        run: |
+          case "$XCODE" in
+            27.1*) set=10.0.402.1 ;;
+            27.0*) set=10.0.401.1 ;;
+            26.6*) set=10.0.401 ;;
+            *) echo "No .NET macOS SDK is known to match Xcode $XCODE; add its workload set here." >&2; exit 1 ;;
+          esac
+          echo "Xcode $XCODE: workload set $set"
+          dotnet workload install macos --version "$set"
+
+      - name: Build rexplayer.app
+        run: dotnet publish src/Rex.Media.App.Mac/Rex.Media.App.Mac.csproj -c Release -r ${{ matrix.rid }} -nologo -o publish/${{ matrix.rid }}
+
+      - name: Sign it ad hoc and zip it the way a Mac expects
+        run: |
+          # Publishing leaves an installer package in the output folder and the bundle itself in bin.
+          app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/${{ matrix.rid }} -maxdepth 1 -name '*.app' | head -1)
+          test -n "$app" || { echo "No rexplayer.app was built." >&2; exit 1; }
+          echo "Bundling $app"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          mkdir -p dist
+          ditto -c -k --keepParent "$app" "dist/rexplayer-mac-${{ matrix.rid }}.zip"
+          shasum -a 256 "dist/rexplayer-mac-${{ matrix.rid }}.zip" > "dist/rexplayer-mac-${{ matrix.rid }}.zip.sha256"
+
+      - name: Keep the app
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rexplayer-mac-${{ matrix.rid }}
+          path: dist/
+          retention-days: 14
+
   site:
     name: Website
     runs-on: ubuntu-latest

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- rexplayer.app: the macOS window over the same player code the Windows window uses
+         (Rex.Media.AppCore), in AppKit through Microsoft's macOS SDK (ADR-0021). The one project a
+         Windows machine compiles but cannot link; the macOS runner builds and bundles it. -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-macos</TargetFramework>
+    <SupportedOSPlatformVersion>12.0</SupportedOSPlatformVersion>
+    <RootNamespace>Rex.Media.App.Mac</RootNamespace>
+    <AssemblyName>rexplayer</AssemblyName>
+    <ApplicationId>com.rextechnologies.rexplayer</ApplicationId>
+    <ApplicationTitle>rexplayer</ApplicationTitle>
+    <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+    <ApplicationVersion>$(Version)</ApplicationVersion>
+    <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Diagnostics\Rex.Media.Diagnostics.csproj" />
+    <ProjectReference Include="..\Rex.Media.IO\Rex.Media.IO.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio.CoreAudio\Rex.Media.Audio.CoreAudio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs\Rex.Media.Codecs.csproj" />
+    <ProjectReference Include="..\Rex.Media.Codecs.Apple\Rex.Media.Codecs.Apple.csproj" />
+    <ProjectReference Include="..\Rex.Media.Engine\Rex.Media.Engine.csproj" />
+    <ProjectReference Include="..\Rex.Media.Library\Rex.Media.Library.csproj" />
+    <ProjectReference Include="..\Rex.Media.Settings\Rex.Media.Settings.csproj" />
+    <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+  </ItemGroup>
+
+</Project>

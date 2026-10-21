@@ -13,6 +13,7 @@ public sealed class ArchitectureTests
     private const string Portable = "net10.0";
     private const string Windows = "net10.0-windows";
     private const string WindowsApp = "net10.0-windows10.0.22621.0";
+    private const string MacApp = "net10.0-macos";
 
     private static readonly string[] Everything =
     [
@@ -68,6 +69,8 @@ public sealed class ArchitectureTests
         ["Cli.Mac"] = (Portable, Everything),
         ["Cli"] = (WindowsApp, Everything),
         ["App"] = (WindowsApp, Everything),
+        // ADR-0021: the macOS window, the one project that needs the platform SDK.
+        ["App.Mac"] = (MacApp, Everything),
     };
 
     [Fact]

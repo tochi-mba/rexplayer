@@ -16,6 +16,7 @@ Asx.cs
 ContextMenuLayout.cs
 DataRoots.cs
 MenuBarLayout.cs
+MacKeyEquivalents.cs
 AtomicFile.cs
 AudioArtwork.cs
 AudioEffects.cs
