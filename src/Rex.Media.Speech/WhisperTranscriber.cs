@@ -49,6 +49,13 @@ public sealed class WhisperTranscriber : ISpeechTranscriber
     public async Task<Transcript> HearAsync(float[] samples, string? language, IProgress<double>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(samples);
+        if (samples.Length == 0)
+        {
+            // Given no samples, the native model skips its spectrogram and then reads it, which
+            // ends the process: there is nothing to hear, so nothing is asked.
+            return new Transcript(language ?? "", ModelName, []);
+        }
+
         using var factory = WhisperFactory.FromPath(_modelPath);
         var builder = factory.CreateBuilder()
             .WithThreads(Math.Max(1, Environment.ProcessorCount - 1))

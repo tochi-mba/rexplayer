@@ -115,11 +115,11 @@ public sealed partial class MainWindow
         WireLibraryView();
         LibrarySources.SelectedIndex = 0;
         var entries = new MenuFlyout();
-        entries.Opening += (_, _) => FillLibraryMenu(entries);
+        entries.Opening += (_, _) => FillLibraryMenu(entries, ChoosePointedLine());
         LibraryList.ContextFlyout = entries;
         LibraryCollage.ContextFlyout = entries;
-        LibraryList.ContextRequested += OnLibraryContextRequested;
-        LibraryCollage.ContextRequested += OnLibraryContextRequested;
+        LibraryList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
+        LibraryCollage.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();
@@ -665,10 +665,9 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The list's right-click menu, for the lines chosen when it opens.</summary>
-    private void FillLibraryMenu(MenuFlyout menu)
+    private void FillLibraryMenu(MenuFlyout menu, List<LibraryRow> chosen)
     {
         menu.Items.Clear();
-        var chosen = SelectedLibraryRows();
         if (chosen.Count == 0)
         {
             menu.Items.Add(new MenuFlyoutItem { Text = "Choose something first", IsEnabled = false });

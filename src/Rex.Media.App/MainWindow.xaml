@@ -546,11 +546,11 @@
                 </Flyout>
               </DropDownButton.Flyout>
             </DropDownButton>
-            <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged" KeyDown="OnLibrarySearchKeyDown"
+            <TextBox x:Name="LibrarySearch" Grid.Column="7" Width="260" PlaceholderText="Search the library" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
           </Grid>
 
-          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" KeyDown="OnLibraryKeyDown"
+          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />

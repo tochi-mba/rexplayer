@@ -76,6 +76,7 @@ public sealed class SettingsStoreTests : IDisposable
             SeekPreview = true,
             OpenLibraryAtPlayingItem = false,
             WriteDetailsIntoFiles = false,
+            AutomaticWhenEnergySaver = false,
             LeaveFullScreenWhenLibraryOpens = false,
             ShowPlayerWhenLibraryMediaStarts = false,
             LibraryViews = new Dictionary<string, LibraryViewChoice> { ["Albums"] = new(LibraryLook.Wall, LibrarySort.MostPlayed, true, LibraryGrouping.Letter, 240) },

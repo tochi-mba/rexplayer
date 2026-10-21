@@ -40,7 +40,7 @@ public sealed class LibraryPlayingTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
-    [Fact(Skip = "On CI the line menu still counts the older two-line choice after a right-click on a third line; the app needs a fix first.")]
+    [Fact]
     [Capability("LIB-05")]
     public void ARightClickActsOnTheLineUnderThePointerNotAnOlderChoice()
     {
@@ -56,19 +56,25 @@ public sealed class LibraryPlayingTests : IDisposable
         Assert.True(app.IsChosen("Sungba"));
         Assert.False(app.IsChosen("Terminator"), "The right-click chooses the line under the pointer alone.");
 
-        // Right-clicking a line already among the chosen keeps them all.
-        Pointer.Key(app, app.Find("LibraryMenuPlayNext"), Pointer.Escape);
+        // Activate this item's action to close the flyout deterministically; synthesized
+        // Escape is unreliable for WinUI's separate popup window on CI desktops.
+        app.Press("LibraryMenuEnqueue");
         Wait.For(() => !app.IsShown("LibraryMenuPlayNext"), "the menu to close");
+        // Right-clicking a line already among the chosen keeps them all.
         app.Choose("Terminator", alone: false);
         Pointer.RightClick(app, app.Line("Terminator"));
         Wait.For(() => app.IsShown("LibraryMenuEnqueue"), "the menu for both lines");
         Assert.Equal("Add 2 items to queue", app.Text("LibraryMenuEnqueue"));
 
         // The menu makes a playlist of what it acts on.
-        app.Press("LibraryMenuAddTo");
+        ((System.Windows.Automation.ExpandCollapsePattern)app.Find("LibraryMenuAddTo").GetCurrentPattern(System.Windows.Automation.ExpandCollapsePattern.Pattern)).Expand();
         app.Press("LibraryMenuAddToNew");
         ((System.Windows.Automation.ValuePattern)app.Find("PlaylistName").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).SetValue("Asake");
         app.Press("PrimaryButton");
+        // The dialog closes before its async callback stores the new playlist. Wait for
+        // the controller to confirm creation before navigating to the playlist view.
+        Wait.For(() => app.LogText.Contains("Made the playlist Asake", StringComparison.Ordinal),
+            "the new playlist to be stored", () => app.LogText.Split(Environment.NewLine).LastOrDefault() ?? "");
         app.Visit("Playlists");
         app.Line("Asake");
         Assert.Equal(0, app.Close());

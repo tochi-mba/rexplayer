@@ -460,13 +460,20 @@ public sealed class TranscriptionWorker : IDisposable
                 chunk = new SpeechChunk(chunk.Kept with { End = end < chunk.Kept.End ? end : chunk.Kept.End }, chunk.Heard with { End = end });
             }
 
-            var (words, language) = HearOnThisThread(_hearer, samples, Math.Max(1, threads), token, Language);
+            var audible = samples.Length >= FewestSamples;
+            var (words, language) = audible
+                ? HearOnThisThread(_hearer, samples, Math.Max(1, threads), token, Language)
+                : PassOver(job, chunk, samples.Length);
             token.ThrowIfCancellationRequested();
             var change = job.Transcript.Add(chunk, words, language);
             job.Track.Replace(change.Replaced.Start, change.Replaced.End, change.Cues);
-            // Two seconds of context on either side are decoded again for each piece. They
-            // cost time but produce no new subtitle coverage: count only what was kept.
-            Speed.Heard(chunk.Kept.Length, _time.GetElapsedTime(started));
+            if (audible)
+            {
+                // Two seconds of context on either side are decoded again for each piece. They
+                // cost time but produce no new subtitle coverage: count only what was kept.
+                Speed.Heard(chunk.Kept.Length, _time.GetElapsedTime(started));
+            }
+
             if (++job.Pieces % SaveEvery == 0)
             {
                 _cache.SavePartial(job.Path, job.Transcript);
@@ -517,6 +524,23 @@ public sealed class TranscriptionWorker : IDisposable
         {
             throw new SpeechModelException(error);
         }
+    }
+
+    /// <summary>
+    /// The least sound a piece must hold to be heard: a tenth of a second, the least the model
+    /// itself takes. The model is never asked to hear nothing: given no samples at all, the native
+    /// model skips its spectrogram and then reads it, and that read ends the process.
+    /// </summary>
+    private const int FewestSamples = SpeechAudio.Rate / 10;
+
+    /// <summary>
+    /// A stretch with (nearly) no sound, though the file goes on, such as one the demuxer lands
+    /// past or a gap in the sound: it counts as heard with no words, so hearing moves on.
+    /// </summary>
+    private (IReadOnlyList<TranscriptWord> Words, string? Language) PassOver(Job job, SpeechChunk chunk, int samples)
+    {
+        Log?.Invoke($"Nothing to hear in {job.Path} from {chunk.Heard.Start} ({samples} samples): passed over.");
+        return ([], null);
     }
 
     /// <summary>

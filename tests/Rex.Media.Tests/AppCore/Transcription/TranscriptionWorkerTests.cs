@@ -136,6 +136,39 @@ public sealed class TranscriptionWorkerTests : IDisposable
         Assert.Equal(1, _loads);
     }
 
+    /// <summary>
+    /// The installed player died ten times in one evening with the native speech model reading
+    /// past an input of no samples: a stretch the demuxer gave no sound for, though the file went
+    /// on. Such a stretch is passed over as heard with no words; the model is never asked.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1599)]
+    public void AStretchWithoutSoundIsPassedOverAndTheModelIsNeverAskedToHearIt(int samples)
+    {
+        var film = Media("film.mkv");
+        _sources[film].Silent = (S(118), samples);
+        using var worker = Worker();
+        var heard = new List<HearingEventArgs>();
+        worker.Heard += (_, e) => heard.Add(e);
+        worker.Language = "en";
+        worker.SetPlaying(film, wanted: true, S(120.4));
+
+        Assert.True(worker.Step(Token));
+        Assert.True(worker.Step(Token));
+        Assert.Empty(_hearer!.Threads);
+        Assert.Equal([new TimeRange(S(120), S(146))], heard[^1].Done.Ranges);
+        Assert.Null(worker.Speed.Factor);
+        Assert.Contains(_log, line => line.Contains("Nothing to hear in " + film, StringComparison.Ordinal) && line.Contains($"({samples} samples)", StringComparison.Ordinal));
+
+        Complete(worker);
+        Assert.True(heard[^1].Complete);
+        var words = _cache.Load(film, "base.en")!.Words;
+        Assert.NotEmpty(words);
+        Assert.DoesNotContain(words, word => word.Start >= S(120) && word.Start < S(146));
+        Assert.Equal(_speech.Count(word => word.Start < S(120) || word.Start >= S(146)), words.Count);
+    }
+
     [Fact]
     [Capability("SUB-21")]
     public void ASeekAwayDropsThePieceBeingHeardAndHearingMovesThere()
@@ -479,6 +512,9 @@ public sealed class TranscriptionWorkerTests : IDisposable
 
         public bool Failing { get; set; }
 
+        /// <summary>A stretch starting here reads this few samples, though the sound goes on.</summary>
+        public (TimeSpan Start, int Samples)? Silent { get; set; }
+
         public ISpeechSource Open() => new Opened(this);
 
         private sealed class Opened(FakeSource file) : ISpeechSource
@@ -497,6 +533,11 @@ public sealed class TranscriptionWorkerTests : IDisposable
                 }
 
                 file.Reads.Add(range);
+                if (file.Silent is { } silent && range.Start == silent.Start)
+                {
+                    return new float[silent.Samples];
+                }
+
                 var end = range.End < file.Sound ? range.End : file.Sound;
                 Ended = range.End > file.Sound;
                 var count = Math.Max(0, (int)Math.Round((end - range.Start).TotalSeconds * SpeechAudio.Rate));
