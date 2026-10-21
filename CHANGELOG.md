@@ -3,6 +3,23 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.29.0 - 2026-10-22
+
+### Added
+
+- **A library that always gives you a way back.** Movie, show, season, episode, artist and album pages have a persistent, labelled Back button and Alt+Left support. Back restores the exact source, search, selection, focus and scroll position that opened the page instead of rebuilding a similar-looking view somewhere else. Browse keeps Sort and Filter available, so changing what is shown never requires switching layouts.
+- **An immersive library rail.** The sidebar can collapse to a 64-pixel icon rail, remembers the choice and compacts automatically in narrow windows. Every icon keeps its name in a tooltip and to assistive technology, while Browse and details expand into the reclaimed space.
+- **A varied Browse showcase.** Movies and TV Shows curate five distinct features from the library and rotate them slowly with a restrained fade. Rotation pauses during interaction, stops while hidden or outside Browse and becomes an immediate swap when animations are disabled. The billboard opens rich details; its separate Play or Resume action names the actual next episode when there is one. It never starts a trailer, network request or video by itself.
+
+### Changed
+
+- **The player now looks and reads like the medium playing.** Music, podcasts, audiobooks, recordings, other audio, pictures, episodes and videos receive their own label and useful title, creator, show, album, year, genre and length hierarchy. Artwork has more presence, the bottom transport carries a compact second line of context, and the seek target and control grouping are calmer and easier to use.
+
+### Fixed
+
+- **Playable downloads start before the download ends.** rexplayer re-probes a growing file as bytes arrive, opens it once its headers and first required ranges are usable, and buffers only when playback reaches bytes that are not present yet. The buffering card shows determinate progress when the expected size is known, retries through quiet download intervals, resumes automatically, cancels cleanly on a seek and still finishes normally when a changed source settles at its end.
+- **An empty playlist explains what to do.** The playlist panel now says that media can be opened or dropped there instead of showing a blank surface.
+
 ## 0.28.0 - 2026-10-21
 
 ### Added
