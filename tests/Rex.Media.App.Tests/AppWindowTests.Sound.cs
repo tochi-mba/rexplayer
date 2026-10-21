@@ -11,14 +11,6 @@ public sealed partial class AppWindowTests
     private static double Volume(AppProcess app) =>
         ((RangeValuePattern)app.Find("VolumeBar").GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value;
 
-    private static void Expand(AppProcess app, params string[] menus)
-    {
-        foreach (var menu in menus)
-        {
-            ((ExpandCollapsePattern)app.Find(menu).GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-        }
-    }
-
     [Fact]
     [Capability("AU-05")]
     [Capability("AU-06")]
@@ -82,12 +74,11 @@ public sealed partial class AppWindowTests
         app.Press("PlayPauseButton");
         var first = app.Text("SubtitleText");
 
-        Expand(app, "SubtitleMenu", "SubtitleTrackChoices");
-        Wait.For(() => app.IsShown("SubtitleTrackChoice-1"), "the second track to be offered");
+        app.OpenMenu("SubtitleTrackChoice-1", "SubtitleMenu", "SubtitleTrackChoices");
         app.Press("SubtitleTrackChoice-1");
         Wait.For(() => app.IsShown("SubtitleText") && app.Text("SubtitleText") != first, "the other track to show");
 
-        Expand(app, "SubtitleMenu", "SubtitleTrackChoices");
+        app.OpenMenu("SubtitleTrackOff", "SubtitleMenu", "SubtitleTrackChoices");
         app.Press("SubtitleTrackOff");
         Wait.For(() => !app.IsShown("SubtitleText") && app.LogText.Contains("Subtitles off", StringComparison.Ordinal), "the subtitles to go");
 

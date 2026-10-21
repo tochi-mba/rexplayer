@@ -35,16 +35,14 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Text("TranscriptRail").Contains("0:26", StringComparison.Ordinal), "Best model partial coverage");
 
         // Best's saved original was offered as a variant while Default played; its live track replaces it.
-        var subtitles = (ExpandCollapsePattern)app.Find("SubtitleMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
-        subtitles.Expand();
-        ((ExpandCollapsePattern)app.Find("SubtitleTrackChoices").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        app.OpenMenu("SubtitleTrackOff", "SubtitleMenu", "SubtitleTrackChoices");
         var bestOriginal = new PropertyCondition(AutomationElement.NameProperty, "Transcript Best · Original");
         var defaultOriginal = new PropertyCondition(AutomationElement.NameProperty, "Transcript Default · Original");
         Wait.For(() => app.Window.FindAll(TreeScope.Descendants, defaultOriginal).Count == 1
                 && app.Window.FindAll(TreeScope.Descendants, bestOriginal).Count == 1,
             "one Best and one Default original after switching quality",
             () => $"Best: {app.Window.FindAll(TreeScope.Descendants, bestOriginal).Count}; Default: {app.Window.FindAll(TreeScope.Descendants, defaultOriginal).Count}");
-        subtitles.Collapse();
+        ((ExpandCollapsePattern)app.Find("SubtitleMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Collapse();
         app.Press("TranscriptModelButton");
         app.Press("TranscriptModelFast");
         Wait.For(() => app.Text("TranscriptModelButton") == "Transcription quality: Fast" && app.Text("SubtitleBufferState") == "All ready", "Fast cached coverage");

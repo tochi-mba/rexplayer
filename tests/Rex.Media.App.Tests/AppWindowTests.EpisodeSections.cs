@@ -82,7 +82,7 @@ public sealed partial class AppWindowTests
             {
                 app.SetValue("SeekBar", at);
                 WaitForPosition(app, at, "the position for " + mark);
-                Expand(app, "VideoMenu", "VideoEpisodeSections");
+                app.OpenMenu(mark, "VideoMenu", "VideoEpisodeSections");
                 app.Press(mark);
                 Wait.For(() => app.LogText.Contains(said, StringComparison.Ordinal), said);
             }
