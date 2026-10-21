@@ -292,6 +292,7 @@ public sealed partial class MainWindow
 
         QueueLibrarySections();
         ShowLibrary();
+        ShowMovieVersions();
     }
 
     /// <summary>Hand a snapshot of library episodes to the low-priority section worker.</summary>
