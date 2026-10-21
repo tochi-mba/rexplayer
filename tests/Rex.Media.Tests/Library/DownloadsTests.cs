@@ -209,10 +209,10 @@ public sealed class DownloadsTests
 
         // A marker beside a file keeps it downloading however still it is.
         sizes[film] = 300;
-        library.RecheckDownloads(path => File(path, sizes[path], 2), path => path == film + ".part", _ => null);
+        library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, path => path == film + ".part", _ => null);
         Assert.True(library.Entry(film)!.Downloading);
         sizes[show] = 200;
-        library.RecheckDownloads(path => File(path, sizes[path], 2), _ => false, _ => null);
+        library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, _ => false, _ => null);
         Assert.False(library.Entry(film)!.Downloading);
         Assert.Equal(3, changes);
 
