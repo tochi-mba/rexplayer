@@ -103,6 +103,7 @@ ExifOrientation.cs
 FetchPlan.cs
 Fft.cs
 FileByteSource.cs
+IFileAllocation.cs
 FireworksScene.cs
 FirstPicture.cs
 FlacDecoder.cs

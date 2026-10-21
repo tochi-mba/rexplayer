@@ -5,23 +5,45 @@ namespace Rex.Media.IO;
 /// <summary>
 /// A local file read with positional I/O, so concurrent readers never fight over a shared file
 /// position. The file is opened for reading with others allowed to read and write, because media
-/// being recorded is often played while it grows.
+/// being recorded is often played while it grows. A sparse file still filling in (a torrent's
+/// download, laid out at full size) reads only as far as the bytes on the disk go: a read stops
+/// where a part not yet written begins, and that part filling in counts as the file growing.
 /// </summary>
 public sealed class FileByteSource : IGrowingByteSource
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
     private readonly object _gate = new();
+    private readonly IFileAllocation? _allocation;
     private SafeFileHandle _handle;
     private long _revision;
     private DateTime _lastWriteUtc;
+    private long _allocated;
+    private volatile bool _filling;
 
     public FileByteSource(string path)
+        : this(path, Allocation is { } allocation && (File.GetAttributes(path) & FileAttributes.SparseFile) != 0 ? allocation : null)
+    {
+    }
+
+    /// <param name="path">The file.</param>
+    /// <param name="allocation">Which of its bytes are on the disk, for a sparse file; null reads it as it is.</param>
+    public FileByteSource(string path, IFileAllocation? allocation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         Path = System.IO.Path.GetFullPath(path);
         _handle = File.OpenHandle(Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
         _lastWriteUtc = File.GetLastWriteTimeUtc(Path);
+        if (allocation is not null)
+        {
+            var length = RandomAccess.GetLength(_handle);
+            _allocated = allocation.Allocated(_handle, length);
+            _filling = _allocated < length;
+            _allocation = _filling ? allocation : null;
+        }
     }
+
+    /// <summary>Which bytes of a sparse file are on the disk, set once by the app where the system can tell; null elsewhere, and sparse files read as they are.</summary>
+    public static IFileAllocation? Allocation { get; set; }
 
     public string Path { get; }
 
@@ -74,6 +96,18 @@ public sealed class FileByteSource : IGrowingByteSource
     {
         ArgumentOutOfRangeException.ThrowIfNegative(position);
         cancellationToken.ThrowIfCancellationRequested();
+        if (_filling)
+        {
+            // Only what is on the disk: a part not yet written reads as zeros, not media.
+            long end;
+            lock (_gate)
+            {
+                end = _allocation!.AllocatedEnd(_handle, position, destination.Length);
+            }
+
+            destination = destination[..(int)Math.Clamp(end - position, 0, destination.Length)];
+        }
+
         var total = 0;
         while (total < destination.Length)
         {
@@ -91,6 +125,19 @@ public sealed class FileByteSource : IGrowingByteSource
         }
 
         return total;
+    }
+
+    public bool IsPending(long position, long length)
+    {
+        if (!_filling || length <= 0)
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            return position + length <= RandomAccess.GetLength(_handle) && _allocation!.AllocatedEnd(_handle, position, length) < position + length;
+        }
     }
 
     public void Dispose()
@@ -111,6 +158,13 @@ public sealed class FileByteSource : IGrowingByteSource
             if (!info.Exists)
             {
                 return ByteSourceChange.TimedOut;
+            }
+
+            // A sparse download filling in is written in place all the time: that is growth, not a new file.
+            if (info.Length == handleLength && FilledIn(handleLength))
+            {
+                _lastWriteUtc = info.LastWriteTimeUtc;
+                return ByteSourceChange.Grew;
             }
 
             if (info.Length != handleLength || (info.LastWriteTimeUtc != _lastWriteUtc && info.Length <= handleLength))
@@ -136,5 +190,24 @@ public sealed class FileByteSource : IGrowingByteSource
 
             return handleLength < observed.Length ? ByteSourceChange.Truncated : ByteSourceChange.TimedOut;
         }
+    }
+
+    /// <summary>Whether more of a sparse file filling in reached the disk since the last look; once all of it has, reads stop asking. Called holding the gate.</summary>
+    private bool FilledIn(long length)
+    {
+        if (!_filling)
+        {
+            return false;
+        }
+
+        var allocated = _allocation!.Allocated(_handle, length);
+        if (allocated <= _allocated)
+        {
+            return false;
+        }
+
+        _allocated = allocated;
+        _filling = allocated < length;
+        return true;
     }
 }

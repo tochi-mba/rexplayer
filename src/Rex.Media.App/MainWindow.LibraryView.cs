@@ -573,6 +573,8 @@ public sealed partial class MainWindow
         resetFilters.Click += (_, _) => KeepViewChoice(choice.Unfiltered());
         filterMenu.Items.Add(resetFilters);
         LibraryFilterButton.Content = LibraryArrangement.FilterLabel(choice);
+        // A screen reader hears which filters are on, as the button shows them.
+        AutomationProperties.SetName(LibraryFilterButton, choice.IsFiltered ? "Filter: " + LibraryArrangement.FilterLabel(choice) : "Filter by progress, type, folder or download");
         LibraryFilterButton.Flyout = filterMenu;
 
         LibrarySizePanel.Visibility = choice.Look == LibraryLook.List ? Visibility.Collapsed : Visibility.Visible;

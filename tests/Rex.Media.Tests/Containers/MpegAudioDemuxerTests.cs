@@ -368,4 +368,24 @@ public sealed class MpegInfoTagTests
 
         Assert.Null(MpegInfoTag.Parse(frame, HeaderOf(frame)));
     }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AnMp3WithAnEncoderTagDeclaresItsStreamBytesSoACutShortOneShowsAsDownloading()
+    {
+        var whole = File.ReadAllBytes(RepoPaths.Combine("tests/fixtures/mp3/stereo-44k-vbr-bursts.mp3"));
+        static MpegAudioDemuxer Open(byte[] file) => new(new MemoryByteSource(file, "test.mp3"), CancellationToken.None);
+        long declared;
+        using (var mp3 = Open(whole))
+        {
+            declared = Assert.NotNull(mp3.Info.DeclaredLength);
+            Assert.InRange(declared, 1, whole.Length);
+        }
+
+        var cut = whole[..(int)(declared / 2)];
+        using (var partial = Open(cut))
+        {
+            Assert.True(partial.Info.DeclaredLength > cut.Length, "a cut-short MP3 should declare more bytes than it holds");
+        }
+    }
 }

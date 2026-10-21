@@ -367,7 +367,7 @@ public sealed partial class PlayerController
                 _queued = null;
                 _log.Warning(LogSource, $"Skipped {skipped.Name}: {skipped.Reason}");
                 Say(partial is { Downloading: true }
-                    ? $"Skipped {skipped.Name}. {Downloads.NotYetNotice(partial.Size, partial.FinalSize)}"
+                    ? $"Skipped {skipped.Name}. {Downloads.NotYetNotice(partial.Size, partial.FinalSize, partial.Allocated)}"
                     : DamageNotices.Failed(skipped.Name, skipped.Reason));
                 if (State == SessionState.Ended)
                 {

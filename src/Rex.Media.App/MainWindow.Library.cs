@@ -86,7 +86,7 @@ public sealed partial class MainWindow
     {
         _library = App.Warmup?.TakeLibrary() ?? new MediaLibrary(OpenLibraryStore());
         _player.Library = _library;
-        _scanner = new LibraryScanner(_library, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, App.Log);
+        _scanner = new LibraryScanner(_library, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, App.Log, inspect: InspectFile);
         _scanner.StatusChanged += (_, _) => OnWindowThread(ShowLibraryStatus);
         _backgroundSections = new LibrarySectionAnalysis(_player.Memory, _player.SectionCache,
             _player.SectionAnalyzer!, App.Log);
@@ -339,7 +339,15 @@ public sealed partial class MainWindow
             _changedFolders.Add(folder);
         }
 
-        OnWindowThread(() => Restart(_libraryChanges!));
+        // Settle from the first change, not the last: a download writes without pause, and
+        // restarting the wait on every write would put the look off for as long as it lasts.
+        OnWindowThread(() =>
+        {
+            if (!_libraryChanges!.IsRunning)
+            {
+                _libraryChanges.Start();
+            }
+        });
     }
 
     private void LookAtChangedFolders()
