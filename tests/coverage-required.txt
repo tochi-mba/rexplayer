@@ -424,3 +424,7 @@ TitleFacts.cs
 TitleSections.cs
 ArtworkChoice.cs
 FrameChoice.cs
+AudiobookMemory.cs
+AudioRules.cs
+LibrarySections.cs
+ListeningViews.cs

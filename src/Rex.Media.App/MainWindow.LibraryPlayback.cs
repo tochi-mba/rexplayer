@@ -30,6 +30,9 @@ public sealed partial class MainWindow
                 _places.RememberSearch(_librarySource.ToString(), "");
                 ShowLibraryAtPlace();
                 break;
+            case BookChapter chapter when _libraryGroup is { } book:
+                PlayBook(book, chapter);
+                break;
             case NamedPlaylist playlist:
                 if (_settings.ShowPlayerWhenLibraryMediaStarts)
                 {
@@ -53,7 +56,7 @@ public sealed partial class MainWindow
     private void PlayChosen()
     {
         var chosen = SelectedLibraryRows();
-        if (chosen.Count == 0 && PlayShowPageNextUp())
+        if (PlayOpenBook(chosen) || (chosen.Count == 0 && PlayShowPageNextUp()))
         {
             return;
         }

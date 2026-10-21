@@ -21,12 +21,13 @@ public static class ArtistPages
 
     /// <summary>
     /// The artist's most played songs, the most played first; only songs actually played count,
-    /// so a fresh library simply has no top songs yet. Ties keep the songs' view order.
+    /// so a fresh library simply has no top songs yet. Ties keep the songs' view order. Long mixes
+    /// and sets (<see cref="AudioRules.IsLongMix"/>) are not ranked.
     /// </summary>
     public static IReadOnlyList<LibraryEntry> TopSongs(LibraryGroup artist)
     {
         ArgumentNullException.ThrowIfNull(artist);
-        return [.. artist.Entries.Where(entry => entry.Plays > 0)
+        return [.. AudioRules.Ranked(artist.Entries).Where(entry => entry.Plays > 0)
             .OrderByDescending(entry => entry.Plays)
             .Take(TopSongCount)];
     }

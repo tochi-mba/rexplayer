@@ -412,7 +412,7 @@ public static partial class LibraryViews
 
     /// <summary>What was played most lately, newest first.</summary>
     public static IReadOnlyList<LibraryEntry> RecentlyPlayed(IEnumerable<LibraryEntry> entries) =>
-        [.. entries.Where(entry => entry.LastPlayed is not null).OrderByDescending(entry => entry.LastPlayed).Take(Lately)];
+        [.. entries.Where(entry => entry.LastPlayed is not null).OrderByDescending(entry => entry.LastPlayed)];
 
     /// <summary>Recent history first, including supported files played outside watched library folders.</summary>
     public static IReadOnlyList<LibraryEntry> RecentlyPlayed(IEnumerable<LibraryEntry> entries, IEnumerable<string> recentPaths)
@@ -446,12 +446,12 @@ public static partial class LibraryViews
         }
 
         played.AddRange(RecentlyPlayed(known.Values).Where(entry => seen.Add(entry.Path)));
-        return played.Take(Lately).ToArray();
+        return played;
     }
 
     /// <summary>What the library found most lately, newest first.</summary>
     public static IReadOnlyList<LibraryEntry> RecentlyAdded(IEnumerable<LibraryEntry> entries) =>
-        [.. entries.OrderByDescending(entry => entry.Added).ThenBy(entry => entry.Title, NaturalOrder.Instance).Take(Lately)];
+        [.. entries.OrderByDescending(entry => entry.Added).ThenBy(entry => entry.Title, NaturalOrder.Instance)];
 
     /// <summary>The videos left part-way (<paramref name="leftAt"/> knows where), the latest played first.</summary>
     public static IReadOnlyList<LibraryEntry> ContinueWatching(IEnumerable<LibraryEntry> entries, Func<string, TimeSpan?> leftAt)

@@ -163,8 +163,7 @@ public sealed partial class MainWindow
         shellTimeout.CancelAfter(TimeSpan.FromSeconds(2));
         try
         {
-            var standardWidth = kind == LibraryKind.Music ? 192 : 256;
-            return await ReadShellPictureAsync(path, kind, (uint)Math.Min(decodeWidth, standardWidth), key, shellTimeout.Token);
+            return await ReadShellPictureAsync(path, kind, (uint)Math.Min(decodeWidth, 1920), key, shellTimeout.Token);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {

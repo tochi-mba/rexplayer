@@ -53,6 +53,9 @@ public sealed partial class MainWindow
         Albums,
         Artists,
         Genres,
+        Audiobooks,
+        Podcasts,
+        Recordings,
         Movies,
         TvShows,
         OtherVideos,
@@ -116,6 +119,8 @@ public sealed partial class MainWindow
 
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
         WireLibraryView();
+        WireListening();
+        WireSections();
         LibrarySources.SelectedIndex = 0;
         var entries = new MenuFlyout();
         entries.Opening += (_, _) => FillLibraryMenu(entries, ChoosePointedLine());
@@ -242,7 +247,7 @@ public sealed partial class MainWindow
 
         var source = located.Entry.Kind switch
         {
-            LibraryKind.Music => LibrarySource.Songs,
+            LibraryKind.Music => SourceOfAudio(located.Entry),
             LibraryKind.Picture => LibrarySource.Pictures,
             LibraryKind.Video when located.Show is not null => LibrarySource.TvShows,
             LibraryKind.Video => SectionOf(located.Entry),
@@ -432,7 +437,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var add = new Button { Content = "Add a folder..." };
+        var add = new Button { Content = "Add folders..." };
         AutomationProperties.SetAutomationId(add, "LibraryEmptyAddFolder");
         add.Click += OnLibraryAddFolder;
         LibraryFolderButtons.Children.Add(add);
@@ -585,6 +590,7 @@ public sealed partial class MainWindow
     {
         LibraryEntry entry => entry,
         LibraryGroup { Entries.Count: > 0 } group => group.Entries[0],
+        BookChapter chapter => chapter.Part,
         _ => null,
     };
 
@@ -622,6 +628,7 @@ public sealed partial class MainWindow
         {
             LibraryEntry entry => [entry],
             LibraryGroup group => group.Entries,
+            BookChapter chapter => [chapter.Part],
             string folder => [.. LibraryViews.Songs(_library!.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Videos(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Pictures(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path)))],
             _ => [],
         }).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
@@ -739,6 +746,7 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => Forget(OpenLibraryFoldersAsync(selectedEntries))));
             AddEditDetailsMenuItem(menu, selectedEntries);
+            AddListeningMenuItems(menu, selectedEntries, chosen);
             AddMovieChoiceMenuItems(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -861,38 +869,6 @@ public sealed partial class MainWindow
         {
             Say($"{failed.Count} file(s) could not be moved to the Recycle Bin: " + string.Join("; ", failed.Take(3)));
         }
-    }
-
-    private async void OnLibraryAddFolder(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary });
-            picker.FileTypeFilter.Add("*");
-            if (await picker.PickSingleFolderAsync() is { } folder)
-            {
-                AddLibraryFolder(folder.Path);
-            }
-        }
-        catch (Exception ex)
-        {
-            App.Log.Error(LogSource, "A folder could not be added: " + ex);
-            Say("The folder could not be added: " + Rex.Media.AppCore.Player.DamageNotices.Short(ex.Message));
-        }
-    }
-
-    private void AddLibraryFolder(string path)
-    {
-        if (!_library!.AddFolder(path))
-        {
-            Say($"The library already watches {path}.");
-            return;
-        }
-
-        App.Log.Info(LogSource, "The library now watches " + path);
-        Say("The library now watches " + path);
-        WatchLibraryFolders();
-        _scanner!.Request();
     }
 
     private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => RemoveChosenFolders();
