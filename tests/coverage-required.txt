@@ -286,6 +286,7 @@ ShatterScene.cs
 ShortcutEditing.cs
 ShortcutRouting.cs
 ShowPage.cs
+ShowNames.cs
 SilentAudio.cs
 SilhouetteMask.cs
 SilhouetteScene.cs

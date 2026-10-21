@@ -71,7 +71,7 @@ public static partial class ShowPage
 
     /// <summary>
     /// An episode's title: its embedded title when the file has one, else the words after its mark in
-    /// the file name ("Show.S01E03.The.Long.Night.1080p" reads "The Long Night"), else "Episode 3".
+    /// the file name ("Show.S01E03.The.Long.Night.1080p" reads "The Long Night"), else "Episode 3" ("Special 3").
     /// </summary>
     public static string EpisodeTitle(LibraryEntry entry, VideoEpisode episode)
     {
@@ -95,6 +95,7 @@ public static partial class ShowPage
         }
 
         return episode.Episode is null ? Separators().Replace(name, " ").Trim()
+            : episode.Season == 0 ? $"Special {Number(episode)}"
             : episode.Through is not null ? $"Episodes {Number(episode)}" : $"Episode {Number(episode)}";
     }
 
@@ -126,8 +127,8 @@ public static partial class ShowPage
         return ticks <= 0 ? "" : total.TotalHours >= 1 ? $"{(int)total.TotalHours} h {total.Minutes} min" : $"{Math.Max(1, total.Minutes)} min";
     }
 
-    /// <summary>An episode mark: "S01E03", "S01E01-E02", "1x03", "Episode 3", "Ep 03", "E03".</summary>
-    [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:s\d{1,3}[ ._-]?e\d{1,4}(?:(?:-?e|-)\d{1,4})*|\d{1,2}x\d{1,3}(?:(?:-?x|-)\d{1,3})*|(?:episode|ep)[ ._-]*\d{1,4}|e\d{1,4})(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>An episode mark: "S01E03", "S01E01-E02", "1x03", "Episode 3", "Ep 03", "E03", "S07X01", "S07 Special 1", "SP01", "OVA 2".</summary>
+    [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:s\d{1,3}[ ._-]?e\d{1,4}(?:(?:-?e|-)\d{1,4})*|s\d{1,3}(?:[ ._-]?(?:x|sp)\d{1,3}|[ ._-]*special(?:[ ._-]*\d{1,3})?|\.5)|sp\d{1,3}|(?:ova|oad)(?:[ ._-]*\d{1,3})?|\d{1,2}x\d{1,3}(?:(?:-?x|-)\d{1,3})*|(?:episode|ep)[ ._-]*\d{1,4}|e\d{1,4})(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MarkPattern();
 
     /// <summary>What a release adds after the title: picture size, source, codecs and a group's tag, to the end.</summary>

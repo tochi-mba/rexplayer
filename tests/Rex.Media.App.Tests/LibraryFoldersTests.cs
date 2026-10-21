@@ -86,4 +86,31 @@ public sealed class LibraryFoldersTests : IDisposable
         Wait.For(() => app.Lines().Length == 1, "the second season's one episode", () => string.Join(", ", app.Lines()));
         Assert.Equal(0, app.Close());
     }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ASpecialBesideASeasonFolderJoinsItsShow()
+    {
+        _scene.Video(Path.Combine("Futurama", "Season 7", "Futurama S07E01 The Bots and the Bees.mp4"));
+        _scene.Video(Path.Combine("Futurama", "Season 7", "Futurama S07E02 A Farewell to Arms.mp4"));
+        _scene.Video(Path.Combine("Futurama", "Futurama S07X01 Simpsorama.mp4"));
+        using var app = _scene.Ready().Start();
+
+        // One show, not a second one named after the special's file.
+        app.Visit("TV Shows");
+        app.Pick("LibraryLook", "Grid");
+        Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 show", StringComparison.Ordinal), "a single show", () => string.Join(", ", app.Lines()));
+        Assert.Equal(["Futurama"], app.Lines());
+
+        // The special waits in the show's Specials, named by the words after its mark.
+        app.Open("Futurama");
+        Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on season 7",
+            () => $"{app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
+        var picker = app.Find("LibrarySeasonPicker");
+        ((ExpandCollapsePattern)picker.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        var specials = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Specials")));
+        ((SelectionItemPattern)specials.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        Wait.For(() => app.Lines() is ["Simpsorama"], "the special in Specials", () => string.Join(", ", app.Lines()));
+        Assert.Equal(0, app.Close());
+    }
 }

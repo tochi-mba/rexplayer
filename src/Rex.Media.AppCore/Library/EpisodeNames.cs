@@ -17,6 +17,16 @@ namespace Rex.Media.AppCore.Library;
 /// "Season 2 Episode 5", "Episode 1", "Ep 01" or "E01", double episodes ("S06E01-E02", "S06E01E02",
 /// "6x01-02") included. A year after an "Episode" mark ("Saga Episode 4 - Title (1977)") says movie.
 /// </para>
+/// <para>
+/// Specials go in the show's Specials (season 0), never among a season's numbered episodes, so a
+/// season's count and order stay its broadcast run and "special 1" never sorts beside "episode 1".
+/// A special that names its season ("S07X01", "S07 X01", "S07SP01", "S07 Special 1", "S07E00",
+/// "S07.5") keeps that season in <see cref="VideoEpisode.SpecialOf"/>, which labels it "S07 Special 1".
+/// A special without a season ("S00E05", "SP01", "Special", "OVA", "OAD") and a video in an "Extras",
+/// "Featurettes" or "Behind the Scenes" folder is a special too. Outside a season folder those are
+/// <see cref="VideoEpisode.Tentative"/>: a movie has extras and "Special" titles as well, so they join
+/// a show only when the library already has that show (<see cref="LibraryViews.TvShows"/>).
+/// </para>
 /// </summary>
 public static partial class EpisodeNames
 {
@@ -25,6 +35,12 @@ public static partial class EpisodeNames
     {
         "Movies", "Movie", "Films", "Film", "Videos", "Video", "My Videos", "TV", "TV Shows", "TV Series", "Shows",
         "Series", "Downloads", "Download", "Media", "Library", "Anime", "Cartoons", "Kids",
+    };
+
+    /// <summary>Folders of bonus material beside a show's (or a movie's) videos.</summary>
+    private static readonly HashSet<string> ExtrasFolders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Extras", "Extra", "Featurettes", "Featurette", "Behind the Scenes", "Special Features", "Deleted Scenes", "Bonus",
     };
 
     /// <summary>The show, season and episode <paramref name="path"/> names, or null for a video that is not an episode.</summary>
@@ -40,6 +56,11 @@ public static partial class EpisodeNames
         var name = Path.GetFileNameWithoutExtension(parts[^1]);
         var parent = parts.Length > 1 ? parts[^2] : "";
         var above = parts.Length > 2 ? parts[^3] : "";
+        if (ExtrasFolders.Contains(parent))
+        {
+            return Extra(above, parts.Length > 3 ? parts[^4] : "");
+        }
+
         var folder = SeasonFolderPattern().Match(parent);
         int? folderSeason = folder.Success ? folder.Groups["specials"].Success ? 0 : Number(folder.Groups["season"]) : null;
         var folderShow = !folder.Success ? null : folder.Groups["show"].Success ? folder.Groups["show"].Value : Named(above) ? above : null;
@@ -55,7 +76,15 @@ public static partial class EpisodeNames
         if (mark.Success)
         {
             var prefix = name[..mark.Index];
-            return Episode(Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow, Number(mark.Groups["season"]), mark);
+            return Episode(Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow, Number(mark.Groups["season"]), Optional(mark.Groups["episode"]), Optional(mark.Groups["through"]));
+        }
+
+        // A special that names its season: "S07X01", "S07 SP01", "S07 Special 1", "S07.5".
+        mark = SeasonSpecialPattern().Match(name);
+        if (mark.Success)
+        {
+            var prefix = name[..mark.Index];
+            return Episode(Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow, 0, Optional(mark.Groups["episode"]), specialOf: Number(mark.Groups["season"]));
         }
 
         mark = KeywordPattern().Match(name);
@@ -63,21 +92,46 @@ public static partial class EpisodeNames
         {
             var prefix = name[..mark.Index];
             var season = mark.Groups["season"].Success ? Number(mark.Groups["season"]) : folderSeason ?? 1;
-            return Episode(folderShow ?? (Clean(prefix).Length > 0 ? prefix : looseShow), season, mark);
+            return Episode(folderShow ?? (Clean(prefix).Length > 0 ? prefix : looseShow), season, Optional(mark.Groups["episode"]), Optional(mark.Groups["through"]));
         }
 
+        // A special without a season: "SP01", "Special 2", "OVA", "OAD". Only a season folder makes it certain.
+        var special = SpecialPattern().Match(name);
         if (folderSeason is not { } inFolder)
         {
-            return null;
+            return special.Success ? Episode(looseShow ?? name[..special.Index], 0, Optional(special.Groups["episode"]), tentative: true) : null;
         }
 
         // In a season folder without a mark: a number after the show's name orders the episode, if there is one.
         var show = folderShow ?? (name.IndexOf(" - ", StringComparison.Ordinal) is > 0 and var dash ? name[..dash] : null);
         var rest = show is not null && name.Replace('.', ' ').Replace('_', ' ').StartsWith(Clean(show), StringComparison.OrdinalIgnoreCase) ? name[Clean(show).Length..] : name;
-        return Episode(show, inFolder, null, CompactEpisode(rest, inFolder) ?? PlainNumber(rest));
+        var number = CompactEpisode(rest, inFolder) ?? PlainNumber(rest);
+        if (special.Success && (special.Groups["episode"].Success || number is null))
+        {
+            // "Holiday Special" in season 7's folder is its special; "05 - Holiday Special" is still episode 5.
+            return Episode(show, 0, Optional(special.Groups["episode"]), specialOf: inFolder);
+        }
+
+        return Episode(show, inFolder, number);
     }
 
-    private static VideoEpisode? Episode(string? rawSeries, int season, Match? mark, int? number = null)
+    /// <summary>
+    /// A video in an extras folder: a special of the season folder above it, certainly a show's; or of
+    /// the folder above it, which may be a movie's, so it joins only a show the library already has.
+    /// </summary>
+    private static VideoEpisode? Extra(string above, string aboveThat)
+    {
+        var folder = SeasonFolderPattern().Match(above);
+        if (!folder.Success)
+        {
+            return Named(above) ? Episode(above, 0, null, tentative: true) : null;
+        }
+
+        var show = folder.Groups["show"].Success ? folder.Groups["show"].Value : Named(aboveThat) ? aboveThat : null;
+        return Episode(show, 0, null, specialOf: folder.Groups["specials"].Success ? null : Number(folder.Groups["season"]));
+    }
+
+    private static VideoEpisode? Episode(string? rawSeries, int season, int? episode, int? through = null, int? specialOf = null, bool tentative = false)
     {
         var qualified = SeriesYearPattern().Match(rawSeries ?? "");
         var series = Clean(qualified.Success ? qualified.Groups["series"].Value : rawSeries ?? "");
@@ -86,10 +140,21 @@ public static partial class EpisodeNames
             return null;
         }
 
-        int? episode = mark is null ? number : Number(mark.Groups["episode"]);
-        int? through = mark is not null && mark.Groups["through"].Success && Number(mark.Groups["through"]) is var last && last > episode ? last : null;
-        return new VideoEpisode(series, season, episode, qualified.Success ? Number(qualified.Groups["year"]) : null) { Through = through };
+        if (season > 0 && episode == 0)
+        {
+            // "S07E00": the special that goes with season 7.
+            (specialOf, season, episode, through) = (season, 0, null, null);
+        }
+
+        return new VideoEpisode(series, season, episode, qualified.Success ? Number(qualified.Groups["year"]) : null)
+        {
+            Through = through > episode ? through : null,
+            SpecialOf = specialOf is > 0 ? specialOf : null,
+            Tentative = tentative,
+        };
     }
+
+    private static int? Optional(Group group) => group.Success ? Number(group) : null;
 
     /// <summary>"601" or "0601" in season 6's folder: the season's number, then two digits of episode. Years never count.</summary>
     private static int? CompactEpisode(string name, int season)
@@ -110,7 +175,7 @@ public static partial class EpisodeNames
 
     /// <summary>A folder that can name a show: not empty, not a drive, not a library's own folder and not a season.</summary>
     private static bool Named(string folder) =>
-        folder.Length > 0 && !folder.EndsWith(':') && !Generic.Contains(folder) && !SeasonFolderPattern().IsMatch(folder);
+        folder.Length > 0 && !folder.EndsWith(':') && !Generic.Contains(folder) && !ExtrasFolders.Contains(folder) && !SeasonFolderPattern().IsMatch(folder);
 
     private static int Number(Group group) => Number(group.Value);
 
@@ -130,6 +195,14 @@ public static partial class EpisodeNames
     /// <summary>"6x01", "6x01-02", "6x01x02", "6x01-6x02"; never a picture size such as "1920x1080".</summary>
     [GeneratedRegex(@"(?<![\p{L}\p{N}])(?<season>\d{1,2})x(?<episode>\d{1,3})(?:(?:-?x|-(?:\d{1,2}x)?)(?<through>\d{1,3}))*(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
     private static partial Regex CrossPattern();
+
+    /// <summary>"S07X01", "S07 X01", "S07SP01", "S07 Special 1", "S07 Special", "Season 7 Special 2", "S07.5".</summary>
+    [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:s|season[ ._-]*)(?<season>\d{1,3})(?:[ ._-]?(?:x(?!26[45](?!\d))|sp)(?<episode>\d{1,3})|[ ._-]*special(?:[ ._-]*(?<episode>\d{1,3}))?|\.5)(?![\p{L}\p{N}]|[.,]\d)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+    private static partial Regex SeasonSpecialPattern();
+
+    /// <summary>"SP01", "Special 2", "OVA", "OVA 3", "OAD", and "Special" last in the name; never "Special Edition" or "Special Delivery".</summary>
+    [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:sp(?<episode>\d{1,3})|(?:ova|oad)(?:[ ._-]*(?<episode>\d{1,3}))?|special(?:[ ._-]*(?<episode>\d{1,3})|(?=[ ._-]*(?:$|[(\[]))))(?![\p{L}\p{N}]|[.,]\d)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+    private static partial Regex SpecialPattern();
 
     /// <summary>"Episode 1", "Ep 01", "Ep.01-02", "E01", optionally after "Season 2" or "S02".</summary>
     [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:(?:(?:season|series|staffel|saison)[ ._-]*|s)(?<season>\d{1,3})[ ._-]*)?(?:(?:episode|ep)[ ._-]*(?<episode>\d{1,4})|(?<bare>e)(?<episode>\d{1,4}))(?:-(?:ep?)?(?<through>\d{1,4}))?(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]

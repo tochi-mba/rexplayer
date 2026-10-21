@@ -101,6 +101,10 @@ public sealed class ShowPageTests
     [InlineData("Alpha S01E05 720p", "Episode 5")]
     [InlineData("Alpha S01E01E02", "Episodes 1-2")]
     [InlineData("Alpha S01E06", "Episode 6")]
+    [InlineData("Alpha S07X01 Simpsorama 1080p", "Simpsorama")]
+    [InlineData("Alpha.S07.Special.1.The.Reunion", "The Reunion")]
+    [InlineData("Alpha OVA 2 - The Lost Tape", "The Lost Tape")]
+    [InlineData("Alpha S00E03", "Special 3")]
     public void TitlesComeFromTheWordsAfterTheMark(string file, string expected)
     {
         var entry = Episode(file);
