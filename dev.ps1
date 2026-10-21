@@ -84,7 +84,10 @@ function Invoke-Gate {
 }
 
 function Invoke-Smoke {
-    $exe = Get-ChildItem -Recurse -Filter rexplay.exe -Path (Join-Path $root "dist"), (Join-Path $root "src/Rex.Media.Cli/bin/$Configuration") -ErrorAction SilentlyContinue |
+    # The same contract on every platform: Windows' rexplay.exe, or the Mac's rexplay (ADR-0020).
+    $name, $project = if ($IsMacOS) { "rexplay", "src/Rex.Media.Cli.Mac" } else { "rexplay.exe", "src/Rex.Media.Cli" }
+    $exe = Get-ChildItem -Recurse -Filter $name -Path (Join-Path $root "dist"), (Join-Path $root "$project/bin/$Configuration") -ErrorAction SilentlyContinue |
+        Where-Object { -not $_.PSIsContainer -and $_.Extension -in @("", ".exe") } |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $exe) { throw "rexplay.exe has not been built." }
     Write-Host "Smoke testing $($exe.FullName)"

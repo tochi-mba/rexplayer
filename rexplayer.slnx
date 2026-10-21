@@ -23,6 +23,9 @@
     <Project Path="src/Rex.Media.Speech/Rex.Media.Speech.csproj" />
     <Project Path="src/Rex.Media.Interop/Rex.Media.Interop.csproj" />
     <Project Path="src/Rex.Media.Cli/Rex.Media.Cli.csproj" />
+    <Project Path="src/Rex.Media.Interop.Mac/Rex.Media.Interop.Mac.csproj" />
+    <Project Path="src/Rex.Media.Audio.CoreAudio/Rex.Media.Audio.CoreAudio.csproj" />
+    <Project Path="src/Rex.Media.Cli.Mac/Rex.Media.Cli.Mac.csproj" />
     <Project Path="src/Rex.Media.App/Rex.Media.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
