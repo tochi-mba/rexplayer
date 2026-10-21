@@ -63,7 +63,7 @@ public sealed partial class MainWindow
     /// <summary>Once the window is interactive: the shell is started a moment later, off the launch's path.</summary>
     private void StartShellSoon()
     {
-        var start = DispatcherQueue.CreateTimer();
+        var start = CreateTimer();
         start.Interval = ShellStartDelay;
         start.IsRepeating = false;
         start.Tick += (_, _) => ShowTaskbarSettingsChanged();
@@ -109,7 +109,7 @@ public sealed partial class MainWindow
         _shellMessages.ButtonClicked += (_, id) => ShellButtonClicked(id);
         _shellMessages.ButtonCreated += (_, _) => _shell?.TaskbarButtonCreated();
         _shellMessages.AppearanceChanged += (_, _) => _shell?.AppearanceChanged();
-        _jumpListTimer = DispatcherQueue.CreateTimer();
+        _jumpListTimer = CreateTimer();
         _jumpListTimer.Interval = JumpListDelay;
         _jumpListTimer.IsRepeating = false;
         _jumpListTimer.Tick += (_, _) => PublishJumpList();

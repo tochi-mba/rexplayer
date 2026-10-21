@@ -252,6 +252,7 @@ public sealed partial class MainWindow
             _playingModelChoice = null;
             // A caption wait in progress continues against the new quality's coverage.
             OpenTranscriptOf(_player.Item?.Location, preserveHold: true);
+            FetchModelForNewQuality();
         }
     }
 }

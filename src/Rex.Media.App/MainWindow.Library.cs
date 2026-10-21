@@ -91,21 +91,22 @@ public sealed partial class MainWindow
             _player.SectionAnalyzer!, App.Log);
         _backgroundSections.SetPaused(_player.IsPlaying);
         _player.Changed += (_, _) => _backgroundSections?.SetPaused(_player.IsPlaying);
+        _player.Changed += (_, _) => OnPlayingChangedForDetailWrites();
 
         // A burst of changes (a scan's batches) shows once.
-        _libraryRefresh = DispatcherQueue.CreateTimer();
+        _libraryRefresh = CreateTimer();
         _libraryRefresh.Interval = TimeSpan.FromMilliseconds(400);
         _libraryRefresh.IsRepeating = false;
         _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
         _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
 
         // Files copied in arrive in many events; the folder is looked at once they settle.
-        _libraryChanges = DispatcherQueue.CreateTimer();
+        _libraryChanges = CreateTimer();
         _libraryChanges.Interval = TimeSpan.FromSeconds(3);
         _libraryChanges.IsRepeating = false;
         _libraryChanges.Tick += (_, _) => LookAtChangedFolders();
 
-        _libraryRescan = DispatcherQueue.CreateTimer();
+        _libraryRescan = CreateTimer();
         _libraryRescan.Interval = LibraryRescanEvery;
         _libraryRescan.Tick += (_, _) => _scanner.Request();
         _libraryRescan.Start();
@@ -124,7 +125,7 @@ public sealed partial class MainWindow
         WatchLibraryFolders();
         // Looked through once the launch has settled: a large library's scan reads every folder
         // and competes with the first picture and sound for the disk and the processor.
-        var firstScan = DispatcherQueue.CreateTimer();
+        var firstScan = CreateTimer();
         firstScan.Interval = Rex.Media.AppCore.LaunchPlan.FirstLibraryScan;
         firstScan.IsRepeating = false;
         firstScan.Tick += (_, _) =>
@@ -362,12 +363,27 @@ public sealed partial class MainWindow
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
             _libraryGroup = null;
             _librarySeason = null;
+            if (_shelfChoice?.Source != _librarySource)
+            {
+                _shelfChoice = null;
+            }
+
             LibrarySearch.Text = "";
             ShowLibrary();
         }
     }
 
-    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e) => ShowLibrary();
+    /// <summary>
+    /// The box reports a change after the fact, so clearing it while changing view would build the
+    /// new view twice; it is built again only when the search differs from the one it was built for.
+    /// </summary>
+    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_librarySearchText.Changes(LibrarySearch.Text))
+        {
+            ShowLibrary();
+        }
+    }
 
     private void OnLibraryBack(object sender, RoutedEventArgs e)
     {
@@ -516,6 +532,12 @@ public sealed partial class MainWindow
         if (!args.InRecycleQueue)
         {
             RequestLibraryPicture(args.Item as LibraryRow);
+        }
+
+        // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
+        if (sender == LibraryList)
+        {
+            WireRowFocus(args.ItemContainer as Microsoft.UI.Xaml.Controls.Primitives.SelectorItem);
         }
     }
 
@@ -717,8 +739,10 @@ public sealed partial class MainWindow
                 () => CopyLibraryPaths(selectedEntries)));
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => _ = OpenLibraryFoldersAsync(selectedEntries)));
+            AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
+<<<<<<< HEAD
             if (IsShowRow(chosen, out var show))
             {
                 menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshShowMetadata(show.Name)));
@@ -747,6 +771,9 @@ public sealed partial class MainWindow
                 menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshMovieMetadata(movie)));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
+=======
+            AddMetadataMenuItems(menu, chosen);
+>>>>>>> ded68aebd0f1ca625c9271e7d45284be04287d03
 
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));

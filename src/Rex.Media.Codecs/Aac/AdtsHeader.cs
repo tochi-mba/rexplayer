@@ -52,7 +52,4 @@ public readonly record struct AdtsHeader
         };
         return true;
     }
-
-    /// <summary>The AudioSpecificConfig a decoder needs for frames with this header.</summary>
-    public byte[] ToAudioSpecificConfig() => AacConfig.Build(ObjectType, SampleRate, ChannelConfiguration);
 }

@@ -26,7 +26,7 @@ public sealed class ModelDownloadTextTests
         Assert.Equal("EfficientSAM-Ti, 41.4 MB, Apache-2.0 licence: selects the object you click (Yunyang Xiong et al., EfficientSAM, CVPR 2024)", lines[0]);
         Assert.Equal("MI-GAN 512 (Places2), 28.1 MB, MIT licence: fills the space a removed object leaves (Andranik Sargsyan et al., MI-GAN, ICCV 2023)", lines[1]);
         Assert.Equal("Downloads 69.4 MB from the model authors' own pages when you choose Download.", ModelDownloadText.Total(ModelCatalogue.SubjectLock));
-        Assert.DoesNotContain('—', ModelDownloadText.Note + string.Concat(lines));
+        Assert.DoesNotContain((char)0x2014, ModelDownloadText.Note + string.Concat(lines));
         Assert.DoesNotContain('·', ModelDownloadText.Note + string.Concat(lines));
     }
 

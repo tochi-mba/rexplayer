@@ -47,9 +47,9 @@ public sealed partial class MainWindow
     }
 
     // Both events matter: a recycled item may keep its container while receiving a new data item.
-    private void OnCollageItemLoaded(object sender, RoutedEventArgs args) => LoadCollagePicture(sender);
+    internal void OnCollageItemLoaded(object sender, RoutedEventArgs args) => LoadCollagePicture(sender);
 
-    private void OnCollageItemDataChanged(FrameworkElement sender, DataContextChangedEventArgs args) => LoadCollagePicture(sender);
+    internal void OnCollageItemDataChanged(FrameworkElement sender, DataContextChangedEventArgs args) => LoadCollagePicture(sender);
 
     private void LoadCollagePicture(object sender)
     {

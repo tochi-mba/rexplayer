@@ -33,9 +33,6 @@ public sealed partial class PlayerController
     /// <summary>How much later the subtitles show than they were made for (negative: sooner).</summary>
     public TimeSpan SubtitleDelay { get; private set; }
 
-    /// <summary>The cues to show now.</summary>
-    public IReadOnlyList<SubtitleCue> SubtitlesNow => Subtitles?.At(Position, SubtitleDelay) ?? [];
-
     /// <summary>The cues to show at <paramref name="position"/>, for a window that keeps time between position reports.</summary>
     public IReadOnlyList<SubtitleCue> SubtitlesAt(TimeSpan position) => Subtitles?.At(position, SubtitleDelay) ?? [];
 

@@ -57,7 +57,7 @@ public sealed partial class MainWindow
             PollSubjectOverlay();
         };
         SubjectToolbar.Loaded += (_, _) => SizeSubjectToolbar();
-        _subjectTimer = DispatcherQueue.CreateTimer();
+        _subjectTimer = CreateTimer();
         _subjectTimer.Interval = TimeSpan.FromMilliseconds(200);
         _subjectTimer.IsRepeating = true;
         _subjectTimer.Tick += (_, _) => PollSubjectOverlay();

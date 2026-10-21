@@ -76,8 +76,15 @@ public sealed partial class LibraryRow(
         {
             _picture = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Picture)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PictureOpacity)));
         }
     }
+
+    /// <summary>
+    /// Artwork fades in over the placeholder instead of popping: 0 until the picture is decoded,
+    /// 1 after, animated by the template's composition OpacityTransition.
+    /// </summary>
+    public double PictureOpacity => _picture is null ? 0 : 1;
 
     /// <summary>Shows a transcription badge; nothing is raised when it is the one shown already.</summary>
     public void SetTranscript(string glyph, string text)
@@ -107,6 +114,9 @@ public sealed partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AccessibilityName)));
     }
 
-    /// <summary>What a screen reader says for the line, and what the window tests find it by.</summary>
-    public override string ToString() => Name;
+    /// <summary>
+    /// What a screen reader says for the line, and what the window tests find it by: a list's item
+    /// takes its accessible name from here, so it carries the now-playing mark the screen shows.
+    /// </summary>
+    public override string ToString() => AccessibilityName;
 }

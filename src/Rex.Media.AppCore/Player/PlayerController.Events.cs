@@ -246,10 +246,21 @@ public sealed partial class PlayerController
 
                 break;
             case MediaOpenedEvent opened:
+                if (_openedInSession && _queued is not null && Playlist.IndexOf(_queued) < 0)
+                {
+                    // The queued item was removed from the playlist after it was lined up: it is not
+                    // played, and what the playlist says now plays instead.
+                    _log.Info(LogSource, $"{_queued.Location} was removed after it was queued; following the playlist instead.");
+                    _queued = null;
+                    FinishQueuedOver();
+                    return;
+                }
+
                 if (_openedInSession && _queued is not null)
                 {
-                    // The queued item has begun, without a gap: the playlist moves on with it.
-                    Item = Playlist.Next(automatic: true);
+                    // The queued item has begun, without a gap: the playlist moves on with it, even
+                    // when repeat or shuffle changed after it was queued and would now pick another.
+                    Item = CarryOnInto(_queued);
                     Position = TimeSpan.Zero;
                     _log.Info(LogSource, $"Carried on without a gap into {Item!.Location}.");
                     _queued = null;
@@ -344,7 +355,12 @@ public sealed partial class PlayerController
             case ItemSkippedEvent skipped:
                 // The queued item would not open: the playlist steps past it, and if the session has
                 // already ended (it was queued too late to follow on) the item after it starts here.
-                Item = Playlist.Next(automatic: true);
+                // When the playlist has changed since it was queued, there is nothing of it to step past.
+                if (ReferenceEquals(Playlist.PeekNext(automatic: true), _queued))
+                {
+                    Item = Playlist.Next(automatic: true);
+                }
+
                 _queued = null;
                 _log.Warning(LogSource, $"Skipped {skipped.Name}: {skipped.Reason}");
                 Say(DamageNotices.Failed(skipped.Name, skipped.Reason));
@@ -383,6 +399,37 @@ public sealed partial class PlayerController
                 break;
         }
     }
+
+    /// <summary>
+    /// The item playing is over, but the engine ran on into a queued item the playlist no longer
+    /// plays next: the item the playlist names starts in a session of its own, or playback ends.
+    /// </summary>
+    private void FinishQueuedOver()
+    {
+        Position = Duration;
+        RememberPosition();
+        FinishItem(() =>
+        {
+            if (Playlist.Next(automatic: true) is { } following)
+            {
+                Start(following);
+                return;
+            }
+
+            EndSession();
+            State = SessionState.Ended;
+            Changed?.Invoke(this, EventArgs.Empty);
+            PositionChanged?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
+    /// <summary>
+    /// The playlist's place moved to <paramref name="queued"/>, the item the engine has just begun:
+    /// the next one when nothing changed, otherwise wherever it now stands. A queued item removed
+    /// since never gets here; the playlist is followed instead.
+    /// </summary>
+    private PlaylistItem CarryOnInto(PlaylistItem queued) =>
+        Playlist.PeekNext(automatic: true) == queued ? Playlist.Next(automatic: true)! : Playlist.JumpTo(Playlist.IndexOf(queued));
 
     private void StartNext()
     {

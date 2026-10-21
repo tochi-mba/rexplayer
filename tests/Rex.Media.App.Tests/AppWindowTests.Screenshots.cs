@@ -1,0 +1,53 @@
+using System.Windows.Automation;
+using Rex.Media.AppCore.Commands;
+using Rex.Media.TestKit;
+
+namespace Rex.Media.App.Tests;
+
+/// <summary>
+/// How the window looks, compared with CI's baselines (see <see cref="Screenshots"/>): the empty
+/// window in both themes and Preferences at a normal and a small size. Behaviour is asserted
+/// through UI Automation elsewhere; these only catch layout and drawing that goes wrong.
+/// </summary>
+public sealed partial class AppWindowTests
+{
+    [Theory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    [Capability("UI-13")]
+    public void TheEmptyWindowLooksTheSameInEachTheme(string theme)
+    {
+        using var app = AppStartedAt(1000, 700, theme);
+        Wait.For(() => app.IsShown("IdleTitle"), "the empty window's welcome");
+
+        Screenshots.Match(app, "empty-window-" + theme.ToLowerInvariant());
+        Assert.Equal(0, app.Close());
+    }
+
+    [Theory]
+    [InlineData(1000, 760, "normal")]
+    [InlineData(720, 640, "small")]
+    [Capability("UI-10")]
+    public void PreferencesLooksTheSameAtEachSize(int width, int height, string size)
+    {
+        using var app = AppStartedAt(width, height, "Light");
+        app.Run(CommandCatalog.Preferences);
+        Wait.For(() => app.IsShown("PreferencesSection") && app.IsShown("PrimaryButton"), "Preferences to open");
+
+        Screenshots.Match(app, "preferences-" + size);
+        app.Press("CloseButton");
+        Wait.For(() => !app.IsShown("PreferencesSection"), "Preferences to close");
+        Assert.Equal(0, app.Close());
+    }
+
+    /// <summary>The app in a fixed theme, its window at a fixed size, so its shots compare run to run.</summary>
+    private static AppProcess AppStartedAt(int width, int height, string theme)
+    {
+        var app = AppProcess.Start(extraSettings: $"\"theme\": \"{theme}\"");
+        var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        transform.Resize(width, height);
+        Wait.For(() => app.Window.Current.BoundingRectangle is { Width: var w, Height: var h } && Math.Abs(w - width) < 2 && Math.Abs(h - height) < 2,
+            $"the window to be {width}x{height}");
+        return app;
+    }
+}

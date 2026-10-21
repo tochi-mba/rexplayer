@@ -17,6 +17,9 @@ public sealed partial class MainWindow
     {
         var s = _settings;
         Func<Task>? requestedEditor = null;
+
+        // What to show once Preferences has closed: WinUI shows one dialog at a time.
+        Func<Task>? afterClose = null;
         var veryShort = Jump("Very short jump (seconds)", s.VeryShortJumpSeconds, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardVeryShort);
         var shortJump = Jump("Short jump (seconds)", s.ShortJumpSeconds, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardShort);
         var medium = Jump("Medium jump (seconds)", s.MediumJumpSeconds, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardMedium);
@@ -34,14 +37,14 @@ public sealed partial class MainWindow
         lookSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: false));
+            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: false));
         };
         var effectSettings = new Button { Content = "Customize the current picture effect..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(effectSettings, "PreferencesEffectSettings");
         effectSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: true));
+            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: true));
         };
         var visualizer = VisualizerChoices(s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
@@ -79,7 +82,7 @@ public sealed partial class MainWindow
         installNow.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = InstallAsync(unattended: false));
+            OnWindowThread(() => _ = InstallAsync(unattended: false));
         };
         var updateButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         updateButtons.Children.Add(checkNow);
@@ -93,8 +96,8 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "PreferencesWhatsNew");
             whatsNew.Click += (_, _) =>
             {
+                afterClose = ShowWhatsNewAsync;
                 _dialog?.Hide();
-                DispatcherQueue.TryEnqueue(() => _ = ShowWhatsNewAsync());
             };
             lastUpdated.Children.Add(updatedText);
             lastUpdated.Children.Add(whatsNew);
@@ -105,6 +108,8 @@ public sealed partial class MainWindow
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
         var libraryOpening = Choice("When opening the library", ["Show the playing item", "Return to where I left the library"], s.OpenLibraryAtPlayingItem ? 0 : 1);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(libraryOpening, "PreferencesLibraryOpening");
+        var detailWriting = Choice("When I edit song details", ["Write them into the files", "Keep them in rexplayer only"], s.WriteDetailsIntoFiles ? 0 : 1);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(detailWriting, "PreferencesDetailWriting");
         var libraryFullScreen = Check("Leave full screen when the library opens", s.LeaveFullScreenWhenLibraryOpens);
         var libraryPlayback = Choice("When media starts from the library", ["Show the player", "Keep browsing while audio plays"], s.ShowPlayerWhenLibraryMediaStarts ? 0 : 1);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(libraryFullScreen, "PreferencesLibraryFullScreen");
@@ -204,6 +209,10 @@ public sealed partial class MainWindow
             Opacity = 0.75,
         });
 
+        // Enhanced Subject Lock's optional models sit with the picture effects that Subject Lock belongs to.
+        content.Children.Add(Heading(Rex.Media.Vision.ModelDownloadText.Heading));
+        content.Children.Add(SubjectModelsSection());
+
         AddSection("Music and artwork");
         content.Children.Add(visualizer);
         content.Children.Add(generatedArt);
@@ -260,6 +269,7 @@ public sealed partial class MainWindow
 
         AddSection("Library");
         content.Children.Add(libraryOpening);
+        content.Children.Add(detailWriting);
         content.Children.Add(mediaOpenClick);
         content.Children.Add(libraryFullScreen);
         content.Children.Add(libraryPlayback);
@@ -433,6 +443,10 @@ public sealed partial class MainWindow
                     }
                 }
                 while (requestedEditor is not null && !_closed);
+                if (afterClose is { } then && !_closed)
+                {
+                    await then();
+                }
             }
             finally
             {
@@ -483,6 +497,7 @@ public sealed partial class MainWindow
             MediaOpenClickMode = (MediaOpenClick)Math.Max(0, mediaOpenClick.SelectedIndex),
             KeepHistory = history.IsChecked == true,
             OpenLibraryAtPlayingItem = libraryOpening.SelectedIndex == 0,
+            WriteDetailsIntoFiles = detailWriting.SelectedIndex == 0,
             LeaveFullScreenWhenLibraryOpens = libraryFullScreen.IsChecked == true,
             ShowPlayerWhenLibraryMediaStarts = libraryPlayback.SelectedIndex == 0,
             PauseWhenLibraryOpens = pauseLibrary.IsChecked == true,

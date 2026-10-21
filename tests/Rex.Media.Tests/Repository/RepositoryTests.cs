@@ -145,6 +145,18 @@ public sealed partial class RepositoryTests
     }
 
     [Fact]
+    public void NoTrackedTextContainsAnEmDash()
+    {
+        // House style: a middle dot or a plain dash, never an em dash, in code, text and UI strings.
+        var offenders = SourceFiles()
+            .Where(Lexicon.IsCheckedText)
+            .Where(path => File.ReadAllText(RepoPaths.Combine(path)).Contains((char)0x2014))
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "Replace the em dash in: " + string.Join(", ", offenders));
+    }
+
+    [Fact]
     public void NoFileHardCodesSomeonesHomeFolder()
     {
         var offenders = SourceFiles()

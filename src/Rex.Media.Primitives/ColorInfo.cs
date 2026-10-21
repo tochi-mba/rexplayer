@@ -41,8 +41,6 @@ public sealed record ColorInfo(ColorMatrix Matrix, ColorTransfer Transfer, Color
 {
     public static ColorInfo Unspecified { get; } = new(ColorMatrix.Unspecified, ColorTransfer.Unspecified, ColorPrimaries.Unspecified, false);
 
-    public bool IsHdr => Transfer is ColorTransfer.Pq or ColorTransfer.Hlg;
-
     /// <summary>
     /// The colour description from ITU-T H.273 code points, the numbering MP4 "colr" boxes, Matroska
     /// and the H.264 and HEVC headers all share. Codes rexplayer does not distinguish stay unspecified.

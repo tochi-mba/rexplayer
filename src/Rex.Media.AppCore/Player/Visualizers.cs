@@ -117,22 +117,6 @@ public static class Visualizers
         return new Argb(255, Mix(a.R, b.R, t), Mix(a.G, b.G, t), Mix(a.B, b.B, t));
     }
 
-    /// <summary>The band carrying the most energy, for colours that follow the pitch; 0 in silence.</summary>
-    public static int DominantBand(IReadOnlyList<float> levels)
-    {
-        ArgumentNullException.ThrowIfNull(levels);
-        var band = 0;
-        for (var i = 1; i < levels.Count; i++)
-        {
-            if (levels[i] > levels[band])
-            {
-                band = i;
-            }
-        }
-
-        return band;
-    }
-
     /// <summary>A colour from its hue (degrees), saturation and value, each brought into range; what is not a number is black.</summary>
     public static Argb Hsv(double hue, double saturation, double value)
     {

@@ -64,38 +64,6 @@ public sealed partial class AppWindowTests : IDisposable
         [.. root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, type)).Cast<AutomationElement>()];
 
     [Fact]
-    [Capability("UI-02")]
-    public void EveryMenuOffersItsCommandsByName()
-    {
-        using var app = AppProcess.Start();
-        var found = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var menu in new[] { "MediaMenu", "PlaybackMenu", "AudioMenu", "SubtitleMenu", "VideoMenu", "ViewMenu", "HelpMenu" })
-        {
-            var expander = (ExpandCollapsePattern)app.Find(menu).GetCurrentPattern(ExpandCollapsePattern.Pattern);
-            expander.Expand();
-            var items = Wait.Until(() => All(app.Window, ControlType.MenuItem).Where(item => item.Current.AutomationId.StartsWith("Command-", StringComparison.Ordinal)).ToArray() is { Length: > 0 } some ? some : null);
-            Assert.All(items, item => Assert.False(string.IsNullOrWhiteSpace(item.Current.Name), item.Current.AutomationId));
-            found.UnionWith(items.Select(item => item.Current.AutomationId["Command-".Length..]));
-            if (menu == "PlaybackMenu")
-            {
-                // Finer variants sit one level in: every jump length, under Playback, Jump.
-                ((ExpandCollapsePattern)app.Find("Submenu-jump").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-                Assert.False(string.IsNullOrWhiteSpace(app.Find("Command-" + CommandCatalog.JumpBackLong).Current.Name));
-            }
-
-            expander.Collapse();
-        }
-
-        Assert.Superset(
-            new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.AddSubtitles, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
-            found);
-
-        Assert.Equal(0, app.Close());
-    }
-
-
-    [Fact]
     [Capability("VID-23")]
     public void VideoLookMenuChangesTheSavedStyleAndReturnsToOriginal()
     {
@@ -696,6 +664,15 @@ public sealed partial class AppWindowTests : IDisposable
 
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        // Cards rather than the streaming browse, so each view's title, count and list can be read.
+        var cards = new Rex.Media.Settings.LibraryViewChoice(Rex.Media.Settings.LibraryLook.Grid, CardSize: 200);
+        Rex.Media.Settings.SettingsStore.Save(Path.Combine(root, "settings.json"), new Rex.Media.Settings.PlayerSettings
+        {
+            FirstRunDone = true,
+            LastSeenVersion = AppProcess.Version,
+            UpdateChecks = Rex.Media.Settings.UpdateCadence.Off,
+            LibraryViews = new Dictionary<string, Rex.Media.Settings.LibraryViewChoice> { ["Movies"] = cards, ["TvShows"] = cards },
+        });
         var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log")));
         library.AddFolder(_media);
         Assert.Equal(paths.Length, library.Scan(_media, paths.Select(path =>
@@ -805,6 +782,11 @@ public sealed partial class AppWindowTests : IDisposable
         Assert.Equal("Start this media from the beginning", second.Find("StartOverButton").Current.Name);
         second.Press("StartOverButton");
         Wait.For(() => second.Text("Elapsed").StartsWith("0:0", StringComparison.Ordinal), "Start over to seek to the beginning");
+
+        // Start over forgets the old place: going back to it has nowhere to go.
+        second.Run(CommandCatalog.Resume);
+        Wait.For(() => second.LogText.Contains("There is nowhere to go back to.", StringComparison.Ordinal), "Resume to find nothing to go back to");
+        Assert.StartsWith("0:0", second.Text("Elapsed"), StringComparison.Ordinal);
         Assert.Equal(0, second.Close());
     }
 

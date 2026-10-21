@@ -118,6 +118,7 @@ HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
 HiddenWindow.cs
+HomeShelves.cs
 Id3v2.cs
 InfinityMirrorScene.cs
 InkScene.cs
@@ -144,6 +145,7 @@ LibraryBackup.cs
 LibraryEmptyState.cs
 LibraryOpening.cs
 LibraryScanner.cs
+LibrarySearchText.cs
 LibraryViews.cs
 LightningScene.cs
 LightPaintingScene.cs
@@ -271,6 +273,7 @@ SharedModels.cs
 ShatterScene.cs
 ShortcutEditing.cs
 ShortcutRouting.cs
+ShowPage.cs
 SilentAudio.cs
 SilhouetteMask.cs
 SilhouetteScene.cs
@@ -286,6 +289,7 @@ SpeechPulse.cs
 SpotlightScene.cs
 StardustScene.cs
 StatsText.cs
+StreamingBrowse.cs
 StrobeScene.cs
 SubjectModelPolicy.cs
 SubjectPanel.cs
@@ -374,7 +378,15 @@ WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
 WindowClocks.cs
+WindowTeardown.cs
 WordAligner.cs
 Wpl.cs
 Xspf.cs
 YuvTransform.cs
+TagEdit.cs
+Id3v2Writer.cs
+FlacTagWriter.cs
+TagFileWriter.cs
+DetailOverride.cs
+DetailsForm.cs
+PendingDetailWrites.cs
