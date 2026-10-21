@@ -44,7 +44,7 @@ internal sealed class LibraryScene : IDisposable
         var path = Path.Combine(Media, title + ".wav");
         // The tags are in the file too, so a window that reads the folder itself finds music, not recordings.
         File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20]))
-            .Info(("INAM", title), ("IART", "Asake"), ("IPRD", album), ("IGNR", genre), ("ICRD", year.ToString(System.Globalization.CultureInfo.InvariantCulture))).Build());
+            .Info(("INAM", title), ("IART", artist), ("IPRD", album), ("IGNR", genre), ("ICRD", year.ToString(System.Globalization.CultureInfo.InvariantCulture))).Build());
         _files.Add((path, LibraryKind.Music, new MediaInfo
         {
             FormatName = "WAVE",
