@@ -99,13 +99,13 @@ public sealed class LibraryDownloadsTests : IDisposable
     [Capability("LIB-05")]
     public void PlayOnAFileTooShortToOpenSaysHowFarItsDownloadIs()
     {
-        // aria2 says the file will be 5000 bytes; a thousand have arrived, not even its header.
+        // aria2 says the file will be 100 bytes; twenty have arrived, not even its first box.
         var clip = Path.Combine(_scene.Media, "Clip.mp4");
-        File.WriteAllBytes(clip, Fixture[..1000]);
+        File.WriteAllBytes(clip, Fixture[..20]);
         var control = new byte[10 + 20 + 4 + 8 + 8 + 4];
         BinaryPrimitives.WriteUInt16BigEndian(control, 1);
         BinaryPrimitives.WriteUInt32BigEndian(control.AsSpan(6), 20);
-        BinaryPrimitives.WriteUInt64BigEndian(control.AsSpan(34), 5000);
+        BinaryPrimitives.WriteUInt64BigEndian(control.AsSpan(34), 100);
         File.WriteAllBytes(clip + ".aria2", control);
         using var app = _scene.Watched().Start();
 

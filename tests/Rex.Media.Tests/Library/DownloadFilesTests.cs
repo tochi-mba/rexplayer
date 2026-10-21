@@ -59,6 +59,32 @@ public sealed class DownloadFilesTests : IDisposable
         Assert.Equal(default, Inspect(listed with { Path = In("missing.mkv") }));
     }
 
+    /// <summary>A sparse file with 1000 of its bytes on the disk, as the file system would say.</summary>
+    private sealed class Thousand : IFileAllocation
+    {
+        public long Allocated(Microsoft.Win32.SafeHandles.SafeFileHandle file, long length) => Math.Min(1000, length);
+
+        public long AllocatedEnd(Microsoft.Win32.SafeHandles.SafeFileHandle file, long position, long length) => Math.Clamp(1000, position, position + length);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ASparseFileSaysHowManyOfItsBytesAreOnTheDiskEvenWhileItsWriterGoesOn()
+    {
+        var film = In("Film.mp4");
+        File.WriteAllBytes(film, new byte[4096]);
+        var sparse = LibraryScanner.Listed(new FileInfo(film)) with { Sparse = true };
+        Assert.Equal(new FileLook(false, 1000), LibraryScanner.Inspect(sparse, new Thousand()));
+        Assert.Equal(new FileLook(false, null), LibraryScanner.Inspect(sparse, null));
+        Assert.Equal(new FileLook(false, null), LibraryScanner.Inspect(sparse with { Sparse = false }, new Thousand()));
+        using (new FileStream(film, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+        {
+            Assert.Equal(new FileLook(OperatingSystem.IsWindows(), 1000), LibraryScanner.Inspect(sparse, new Thousand()));
+        }
+
+        Assert.Equal(default, LibraryScanner.Inspect(sparse with { Path = In("gone.mp4") }, new Thousand()));
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void AFileLaidOutAtFullSizeIsDownloadingWhileItsWriterGoesOn()
