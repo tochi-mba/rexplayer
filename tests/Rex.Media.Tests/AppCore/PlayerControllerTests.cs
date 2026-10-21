@@ -118,6 +118,28 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void AQueuedLibraryFileStillDownloadingIsSkippedWithAStillDownloadingNotice()
+    {
+        using var harness = new ControllerHarness();
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["arriving.wav"] = [1, 2, 3, 4];
+        harness.Files["c.wav"] = Count(500, 400);
+        var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.InMemory());
+        library.Scan(".", [new("a.wav", 1, default), new("arriving.wav", 4, default), new("c.wav", 1, default)], _ => Rex.Media.Library.LibraryKind.Music);
+        library.SetDetails("arriving.wav", new MediaInfo { FormatName = "WAVE", Tracks = [], DeclaredLength = 20 });
+        harness.Controller.Library = library;
+
+        harness.Controller.PlayFromLibrary([.. new[] { "a.wav", "arriving.wav", "c.wav" }.Select(path => library.Entry(path)!)]);
+        harness.WaitForEngine<EndedEvent>();
+        harness.PumpUntil(controller => EndedOn(controller, "c"));
+
+        Assert.Contains(harness.Messages, m => m.EndsWith(". Still downloading: 20% so far", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Messages, m => m.Contains("could not be played", StringComparison.Ordinal));
+        Assert.Equal(Expected((0, 400), (500, 400)), harness.Played());
+    }
+
+    [Fact]
     public void FailuresBeforeTheUserOpensSomethingElseDoNotStopItsPlayableItems()
     {
         using var harness = new ControllerHarness();

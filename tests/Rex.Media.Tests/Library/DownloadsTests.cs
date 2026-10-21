@@ -233,7 +233,8 @@ public sealed class DownloadsTests
         sizes[show] = 200;
         library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, _ => false, _ => null);
         Assert.False(library.Entry(film)!.Downloading);
-        Assert.Equal(3, changes);
+        // The look that found nothing new wrote nothing.
+        Assert.Equal(2, changes);
 
         Assert.Throws<ArgumentNullException>(() => library.RecheckDownloads(null!, _ => false, _ => null));
         Assert.Throws<ArgumentNullException>(() => library.RecheckDownloads(_ => null, null!, _ => null));

@@ -2,6 +2,7 @@ using System.Globalization;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Engine;
 using Rex.Media.IO;
+using Rex.Media.Library;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 
@@ -361,9 +362,13 @@ public sealed partial class PlayerController
                     Item = Playlist.Next(automatic: true);
                 }
 
+                // A library file still downloading is passed over for now, and the notice says so.
+                var partial = _queued?.Location is { } location ? Library?.Entry(location) : null;
                 _queued = null;
                 _log.Warning(LogSource, $"Skipped {skipped.Name}: {skipped.Reason}");
-                Say(DamageNotices.Failed(skipped.Name, skipped.Reason));
+                Say(partial is { Downloading: true }
+                    ? $"Skipped {skipped.Name}. {Downloads.NotYetNotice(partial.Size, partial.FinalSize)}"
+                    : DamageNotices.Failed(skipped.Name, skipped.Reason));
                 if (State == SessionState.Ended)
                 {
                     StartNext();
