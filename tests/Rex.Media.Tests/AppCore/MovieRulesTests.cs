@@ -52,6 +52,54 @@ public sealed class MovieRulesTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void ReleasePrefixesAndEncodingsResolveToTheSameFilm()
+    {
+        var rip = Video(@"D:\Movies\[SPVT] Iron.Lung.2026.1080p.WEBRip.x265.6CH-SupaCvnt.mkv", Feature);
+        var hdr = Video(@"D:\Movies\Iron.Lung.2026.2160p.WEB-DL.HDR.DDP5.1.H265.mkv", Feature);
+
+        Assert.Equal("Iron Lung", LibraryViews.MovieTitleOf(rip));
+        Assert.Equal("Iron Lung", LibraryViews.MovieTitleOf(hdr));
+        Assert.Equal(2026, LibraryViews.MovieYearOf(rip));
+        Assert.Equal(2026, LibraryViews.MovieYearOf(hdr));
+        Assert.Equal(VideoVerdict.MovieByEvidence, Offline(rip));
+        Assert.Equal(VideoVerdict.MovieByEvidence, Offline(hdr));
+        Assert.Equal("1080p", LibraryViews.MovieResolution(rip));
+        Assert.Equal("2160p", LibraryViews.MovieResolution(hdr));
+        Assert.Equal([hdr, rip], LibraryViews.MovieVersions([rip, hdr], rip));
+    }
+
+    [Fact]
+    public void AFilmTitleWithAYearInItsOwnNameOrBracketsIsPreserved()
+    {
+        var space = Video(@"D:\Movies\2001.A.Space.Odyssey.1968.1080p.BluRay.mkv", Feature);
+        var rec = Video(@"D:\Movies\[REC] (2007).mkv", Feature);
+        Assert.Equal("2001 A Space Odyssey", LibraryViews.MovieTitleOf(space));
+        Assert.Equal(1968, LibraryViews.MovieYearOf(space));
+        Assert.Equal("[REC]", LibraryViews.MovieTitleOf(rec));
+        Assert.Equal(2007, LibraryViews.MovieYearOf(rec));
+    }
+
+    [Fact]
+    public void AlternateResolutionsNeverCombineOtherFilmsCutsOrIncompleteFiles()
+    {
+        var first = Video(@"D:\Movies\Iron.Lung.2026.1080p.WEBRip.mkv", Feature);
+        var second = Video(@"D:\Movies\Iron.Lung.2026.2160p.WEB-DL.mkv", Feature);
+        var later = Video(@"D:\Movies\Iron.Lung.2027.2160p.mkv", Feature);
+        var unrelated = Video(@"D:\Movies\Iron.Will.2026.2160p.mkv", Feature);
+        var extended = Video(@"D:\Movies\Iron.Lung.2026.720p.Extended.mkv", Feature + TimeSpan.FromMinutes(16));
+        var unfinished = Video(@"D:\Movies\Iron.Lung.2026.480p.mkv", Feature) with { Downloading = true };
+        var excluded = Video(@"D:\Movies\Iron.Lung.2026.1440p.mkv", Feature, movie: false);
+        var clip = Video(@"D:\Movies\Iron.Lung.2026.360p.mkv", TimeSpan.FromMinutes(3));
+        var unknown = Video(@"D:\Movies\Iron Lung.mkv", Feature);
+        Assert.Equal([second, first], LibraryViews.MovieVersions([first, second, later, unrelated, extended, unfinished, excluded, clip, unknown], first));
+        Assert.Empty(LibraryViews.MovieVersions([unknown, first], unknown));
+        Assert.Empty(LibraryViews.MovieVersions([first, second], unfinished));
+        Assert.Equal("Unknown", LibraryViews.MovieResolution(unknown));
+        Assert.Equal("2160p", LibraryViews.MovieResolution(Video(@"D:\Movies\Iron.Lung.2026.UHD.WEB.mkv")));
+    }
+
+    [Fact]
     public void ATitleTagWithAYearIsEvidenceButAYearAloneIsNot()
     {
         Assert.Equal(VideoVerdict.MovieByEvidence, Offline(Video(@"D:\Videos\disc_title_01.mkv", Feature, title: "Heat", year: 1995)));
