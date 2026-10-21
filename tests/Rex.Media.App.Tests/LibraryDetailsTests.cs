@@ -186,11 +186,11 @@ public sealed class LibraryDetailsTests : IDisposable
         app.Visit("Movies");
         Wait.For(() => app.IsShown("LibraryBillboard") && app.Text("LibraryBillboardTitle") == "The Matrix", "the billboard");
         Assert.False(app.IsShown("LibraryBillboardSynopsis"), "With metadata off the billboard has no synopsis.");
-        Assert.Equal("1999 · 2 h", app.Text("LibraryBillboardLine"));
+        Assert.Equal("1999 · 2 h 0 min", app.Text("LibraryBillboardLine"));
 
         app.Press("LibraryBillboardMore");
         Wait.For(() => app.Text("LibraryKicker") == "MOVIE" && app.Text("LibraryTitle") == "The Matrix", "the movie's page");
-        Assert.Equal("1999 · 2 h", app.Text("LibrarySubtitle"));
+        Assert.Equal("1999 · 2 h 0 min", app.Text("LibrarySubtitle"));
         foreach (var hidden in new[] { "LibraryOverview", "LibraryCredit", "LibraryFacts", "LibraryTrailer", "LibraryCastRow" })
         {
             Assert.False(app.IsShown(hidden), hidden + " is hidden with metadata off.");
