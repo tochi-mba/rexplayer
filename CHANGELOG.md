@@ -5,6 +5,10 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Added
+
+- **Music lookups fetch artists and release facts.** With the Music switch on, each album also gets its release type (Album, EP, Single, Compilation), first release date, labels and genres from MusicBrainz, and each artist their type, origin, years active, genres and a group's members. An artist's photo is the freely licensed picture their Wikidata item names on Wikimedia Commons, and their bio is the English Wikipedia summary, credited as such. Nothing needs a key, every service keeps its own pace, folder exclusions still apply, and albums settled by an earlier version are looked up once more for the facts they lack (a cover fetched before is kept, and albums with their own art still never get a fetched cover).
+
 ### Improved
 
 - **Songs by several artists show under each of them.** "beabadoobee/The Marías" or "A$AP Rocky/Brent Faiyaz" no longer appear as artists of their own: the song is counted once under every artist it names, as are artists named with feat., ft., featuring or " x ", those a title features ("Song (feat. Asake)"), and "&", "and" or "," credits whose artists each have songs of their own, while names such as AC/DC, Tyler, The Creator and Earth, Wind & Fire stay whole. Spellings that differ only in case, accents or punctuation are one artist, every value of a multi-artist tag is read (with ARTISTS lists in FLAC, Ogg, MP3 and MP4 files, read again in the background once), an artist page's top songs take in the songs they are featured on and a Featured on section lists other artists' albums they are on, and a song's artist line lists its artists ("beabadoobee, The Marías").

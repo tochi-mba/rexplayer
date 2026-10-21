@@ -19,7 +19,7 @@ public enum MetadataWork
 public static class MetadataPolicy
 {
     /// <summary>The credit Preferences and Help, About give the free services everything fetched comes from.</summary>
-    public const string DataCredit = "Data from Wikidata, TVmaze, MusicBrainz and the Cover Art Archive. Descriptions from Wikipedia, under CC BY-SA.";
+    public const string DataCredit = "Data from Wikidata, TVmaze, MusicBrainz and the Cover Art Archive. Descriptions from Wikipedia, under CC BY-SA. Artist photos from Wikimedia Commons, under their own free licences.";
 
     /// <summary>Whether <paramref name="path"/> lies in or under one of <paramref name="excluded"/>.</summary>
     public static bool Excludes(IReadOnlyList<string> excluded, string path)
