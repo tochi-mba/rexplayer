@@ -403,5 +403,4 @@ public sealed class LibraryScanner : IDisposable
             return null;
         }
     }
-    }
 }
