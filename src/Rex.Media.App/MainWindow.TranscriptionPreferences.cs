@@ -110,6 +110,13 @@ public sealed partial class MainWindow
         var writeSrt = Check("Keep original and edited SRT files beside transcribed media", t.WriteSrtBesideMedia);
         AutomationProperties.SetAutomationId(writeSrt, "PreferencesWriteTranscriptSrt");
         AutomationProperties.SetHelpText(writeSrt, "Files include the transcription quality and version in their names, such as Movie.transcript.fast.original.srt. Authored subtitle files are never replaced.");
+        var cleanOnDisable = Check("Remove rexplayer-generated SRT copies when I turn off sidecar saving", t.CleanSrtWhenDisabled);
+        AutomationProperties.SetAutomationId(cleanOnDisable, "PreferencesCleanTranscriptSrtWhenDisabled");
+        AutomationProperties.SetHelpText(cleanOnDisable, "Opt in to removing original and edited transcript SRT exports from beside known media. Other subtitles and cached transcripts are kept.");
+        var cleanNow = new Button { Content = "Clean up generated SRT copies now" };
+        AutomationProperties.SetAutomationId(cleanNow, "PreferencesCleanTranscriptSrtNow");
+        AutomationProperties.SetHelpText(cleanNow, "Deletes only rexplayer's model-labelled .transcript.*.original.srt and .transcript.*.edited.srt copies for known media. Authored subtitle files stay.");
+        cleanNow.Click += (_, _) => CleanGeneratedTranscriptSrts();
         var model = Choice("Transcription quality", [.. SpeechModels.QualityChoices], (int)k.TranscriptModel);
         AutomationProperties.SetAutomationId(model, "PreferencesTranscriptionModel");
         var language = Words("Spoken language (two letters, such as \"en\"; the models offered hear English)", k.TranscriptLanguage);
@@ -196,7 +203,7 @@ public sealed partial class MainWindow
         UIElement[] controls =
         [
             new TextBlock { Text = "Subtitles made from the speech, on this computer: what plays is heard from where it plays, its subtitles appearing as they are heard, and the library ahead of time.", TextWrapping = TextWrapping.Wrap },
-            library, backgroundDetails, whatPlays, holdGroup, writeSrt, model, language, modelLine, download, storage, clearing,
+            library, backgroundDetails, whatPlays, holdGroup, writeSrt, cleanOnDisable, cleanNow, model, language, modelLine, download, storage, clearing,
         ];
         return (controls, settings => settings with
         {
@@ -212,6 +219,7 @@ public sealed partial class MainWindow
                 OnBattery = battery.IsChecked == true,
                 HoldForSubtitles = hold.IsChecked == true,
                 WriteSrtBesideMedia = writeSrt.IsChecked == true,
+                CleanSrtWhenDisabled = cleanOnDisable.IsChecked == true,
             }).Normalize(),
             KineticCaptions = (settings.KineticCaptions with
             {
@@ -242,6 +250,11 @@ public sealed partial class MainWindow
         if (_settings.Transcription.WriteSrtBesideMedia && !before.Transcription.WriteSrtBesideMedia)
         {
             Forget(Task.Run(ExportCachedTranscriptSrts));
+        }
+        else if (!_settings.Transcription.WriteSrtBesideMedia && before.Transcription.WriteSrtBesideMedia
+            && _settings.Transcription.CleanSrtWhenDisabled)
+        {
+            CleanGeneratedTranscriptSrts();
         }
 
         TranscriptionTick();
