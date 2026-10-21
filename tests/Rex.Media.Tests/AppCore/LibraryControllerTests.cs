@@ -69,6 +69,49 @@ public sealed class LibraryControllerTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void SwitchingMovieVersionsKeepsTheQueueAndPositionAndDoesNotResumeAnOldTargetPosition()
+    {
+        using var harness = new ControllerHarness(autoPlay: false);
+        var source = new LibraryEntry { Path = "Iron.Lung.2026.1080p.wav", Kind = LibraryKind.Video, Title = "Iron Lung" };
+        var higher = source with { Path = "Iron.Lung.2026.2160p.wav" };
+        var next = source with { Path = "Next.2026.wav", Title = "Next" };
+        foreach (var entry in new[] { source, higher, next })
+        {
+            harness.Files[entry.Path] = Count(0, 8000 * 5);
+        }
+
+        var player = harness.Controller;
+        player.PlayFromLibrary([higher]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Info is not null);
+        player.Seek(TimeSpan.FromSeconds(2));
+        player.RememberPosition();
+
+        player.PlayFromLibrary([source, next]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == source.Path && c.Info is not null);
+        Assert.Equal(TimeSpan.Zero, player.Position);
+        Assert.True(player.SwitchLibraryVersion(higher));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == higher.Path && c.Info is not null);
+        Assert.Equal(TimeSpan.Zero, player.Position); // Ignore the higher version's old two-second resume point.
+        Assert.Equal([higher.Path, next.Path], player.Playlist.Items.Select(item => item.Location));
+        Assert.Equal(0, player.Playlist.CurrentIndex);
+
+        player.Seek(TimeSpan.FromSeconds(1));
+        Assert.True(player.SwitchLibraryVersion(source));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == source.Path && c.Info is not null);
+        Assert.Equal(TimeSpan.FromSeconds(1), player.Position);
+        Assert.Equal([source.Path, next.Path], player.Playlist.Items.Select(item => item.Location));
+        player.Seek(TimeSpan.FromSeconds(4));
+        Assert.True(player.SwitchLibraryVersion(higher with { Duration = TimeSpan.FromSeconds(3) }));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == higher.Path && c.Info is not null);
+        Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
+        Assert.False(player.SwitchLibraryVersion(higher));
+        Assert.False(player.SwitchLibraryVersion(source with { Path = "missing.wav" }));
+        Assert.False(player.SwitchLibraryVersion(source with { Kind = LibraryKind.Picture }));
+        Assert.Throws<ArgumentNullException>(() => player.SwitchLibraryVersion(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void WithoutHistoryPlaysAreNotCounted()
     {
         var (harness, library) = Harness(keepHistory: false);

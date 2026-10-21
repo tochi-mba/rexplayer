@@ -530,6 +530,7 @@ public sealed partial class MainWindow : Window
         ShowMenuChecks();
         ShowTaskbarState();
         ShowCurrentLibraryItem();
+        ShowMovieVersions();
         RememberLater();
     }
 

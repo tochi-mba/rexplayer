@@ -326,7 +326,7 @@ public sealed partial class PlayerController : IDisposable
     /// Only a start that moves on from a failed item (<paramref name="afterFailure"/>) keeps the
     /// count of failures in a row; any other start, the user's above all, begins it afresh.
     /// </summary>
-    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null, bool paused = false, bool afterFailure = false)
+    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null, bool paused = false, bool afterFailure = false, bool exactPosition = false)
     {
         if (!afterFailure)
         {
@@ -340,7 +340,7 @@ public sealed partial class PlayerController : IDisposable
         }
 
         Reach("start");
-        startAt = BeforeStart(item, startAt, audioTrack);
+        startAt = BeforeStart(item, startAt, audioTrack, exactPosition);
         _log.Info(LogSource, $"Starting \"{item.Title}\" ({item.Location})"
             + (item.IsPart ? $", the part from {TimeText.Format(item.Start, TimeSpan.Zero)}{(item.End is { } partEnd ? " to " + TimeText.Format(partEnd, TimeSpan.Zero) : "")}" : "")
             + (startAt > TimeSpan.Zero ? $", at {TimeText.Format(startAt, TimeSpan.Zero)}" : "")

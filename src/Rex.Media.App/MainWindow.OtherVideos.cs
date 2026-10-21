@@ -1,4 +1,6 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Rex.Media.Engine;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Metadata;
 using Rex.Media.Library;
@@ -39,6 +41,60 @@ public sealed partial class MainWindow
     /// <summary>The section a standalone video is in now: Movies or Other videos.</summary>
     private LibrarySource SectionOf(LibraryEntry video) =>
         MovieRules.IsMovie(video, MovieLookupOf) ? LibrarySource.Movies : LibrarySource.OtherVideos;
+
+    /// <summary>Show alternate local encodings only for the same film and release year.</summary>
+    private void ShowMovieVersions()
+    {
+        MovieVersionMenu.Items.Clear();
+        MovieVersionButton.Visibility = Visibility.Collapsed;
+        if (_player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current
+            || _player.Playlist.CurrentIndex < 0 || _player.State is SessionState.Idle or SessionState.Faulted)
+        {
+            return;
+        }
+
+        var editions = LibraryViews.MovieVersions(_library.Entries, current);
+        if (editions.Count < 2)
+        {
+            return;
+        }
+
+        foreach (var edition in editions)
+        {
+            var selected = LibraryViews.SameLocation(edition.Path, playing);
+            var label = LibraryViews.MovieResolution(edition);
+            var item = new ToggleMenuFlyoutItem
+            {
+                Text = label + " · " + Path.GetFileName(edition.Path),
+                IsChecked = selected,
+                IsEnabled = !selected,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, label + (selected ? ", currently playing" : ", play this version"));
+            ToolTipService.SetToolTip(item, edition.Path);
+            item.Click += (_, _) => SwitchMovieVersion(edition.Path);
+            MovieVersionMenu.Items.Add(item);
+        }
+
+        MovieVersionButton.Content = LibraryViews.MovieResolution(current);
+        MovieVersionButton.Visibility = Visibility.Visible;
+    }
+
+    private void SwitchMovieVersion(string path)
+    {
+        if (_player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current)
+        {
+            return;
+        }
+
+        // Re-evaluate at selection time: the scan may have removed or reclassified a file
+        // since the flyout was opened. An unrelated video can never be switched in.
+        var target = LibraryViews.MovieVersions(_library.Entries, current)
+            .FirstOrDefault(entry => LibraryViews.SameLocation(entry.Path, path));
+        if (target is null || !_player.SwitchLibraryVersion(target))
+        {
+            Say("That movie version is no longer available.");
+        }
+    }
 
     /// <summary>"This is a movie" and "Not a movie" for the chosen videos that are not TV episodes, whichever would move something.</summary>
     private void AddMovieChoiceMenuItems(MenuFlyout menu, IReadOnlyList<LibraryEntry> entries)

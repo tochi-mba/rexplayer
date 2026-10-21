@@ -218,6 +218,42 @@ public sealed class TranscriptTests : IDisposable
     }
 
     [Fact]
+    [Capability("SUB-20")]
+    public void CleaningGeneratedSidecarsNeverDeletesAuthoredSubtitlesOrAnotherMovie()
+    {
+        var film = Path.Combine(_directory, "Iron.Lung.2026.mkv");
+        var other = Path.Combine(_directory, "Iron.Lung.2027.mkv");
+        var generated = Transcript.SidecarSrtPath(film, "tiny.en");
+        var edited = Transcript.SidecarSrtPath(film, "base.en", edited: true);
+        var otherGenerated = Transcript.SidecarSrtPath(other, "tiny.en");
+        var authored = Path.ChangeExtension(film, ".srt");
+        var language = Path.Combine(_directory, "Iron.Lung.2026.en.srt");
+        var unrelatedModel = Transcript.SidecarSrtPath(film, "small.en");
+        foreach (var path in new[] { generated, edited, otherGenerated, authored, language, unrelatedModel })
+        {
+            File.WriteAllText(path, "subtitle");
+        }
+
+        var cleaned = TranscriptSidecarCleanup.Remove([film, film], ["tiny.en", "base.en", "tiny.en"]);
+        Assert.Equal(2, cleaned.Removed);
+        Assert.Equal(0, cleaned.Failed);
+        Assert.False(File.Exists(generated));
+        Assert.False(File.Exists(edited));
+        Assert.True(File.Exists(otherGenerated));
+        Assert.True(File.Exists(authored));
+        Assert.True(File.Exists(language));
+        Assert.True(File.Exists(unrelatedModel));
+        Assert.Equal(0, TranscriptSidecarCleanup.Remove([film], ["tiny.en"]).Removed);
+        Assert.Throws<ArgumentNullException>(() => TranscriptSidecarCleanup.Remove(null!, ["tiny.en"]));
+        Assert.Throws<ArgumentNullException>(() => TranscriptSidecarCleanup.Remove([film], null!));
+        Assert.Equal(0, TranscriptSidecarCleanup.Remove([""], [""]).Removed);
+        var failed = TranscriptSidecarCleanup.Remove([film], ["tiny.en"],
+            exists: _ => true, delete: _ => throw new UnauthorizedAccessException("Locked"));
+        Assert.Equal(0, failed.Removed);
+        Assert.Equal(2, failed.Failed);
+    }
+
+    [Fact]
     public void ARunThatIsOnlySpacesOrAlreadyTimedKeepsItsTime()
     {
         var cue = new SubtitleCue(S(1), S(2), [new SubtitleLine([new SubtitleRun("  "), new SubtitleRun("word", At: S(0.3))])]);

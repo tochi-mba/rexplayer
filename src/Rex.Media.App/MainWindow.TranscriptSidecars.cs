@@ -45,6 +45,34 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Only known media and models are eligible for removal; never search arbitrary folders.</summary>
+    private void CleanGeneratedTranscriptSrts()
+    {
+        var records = _ledger.All.ToArray();
+        var media = records.Select(record => record.Path)
+            .Concat((_library?.Entries ?? []).Select(entry => entry.Path))
+            .Append(_player.Item?.Location ?? "")
+            .ToArray();
+        var models = Enum.GetValues<Rex.Media.Settings.TranscriptModelChoice>()
+            .Select(choice => SpeechModels.For(choice).Id)
+            .Concat(records.Select(record => record.Model))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        Forget(Task.Run(() => TranscriptSidecarCleanup.Remove(media, models)).ContinueWith(task => OnWindowThread(() =>
+        {
+            if (task.IsCompletedSuccessfully)
+            {
+                var result = task.Result;
+                Say($"Removed {result.Removed} generated SRT copies" + (result.Failed > 0 ? $"; {result.Failed} could not be removed." : "."));
+            }
+            else
+            {
+                App.Log.Warning(LogSource, "Cleaning generated SRT copies failed: " + task.Exception);
+                Say("The generated SRT copies could not be cleaned up.");
+            }
+        }), TaskScheduler.Default));
+    }
+
     private void ExportCachedTranscriptSrts()
     {
         foreach (var record in _ledger.All)

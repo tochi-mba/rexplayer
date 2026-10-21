@@ -41,6 +41,30 @@ public sealed partial class PlayerController
         Start(Playlist.JumpTo(Math.Clamp(start, 0, entries.Count - 1)), resumeAt is { } at && at > TimeSpan.Zero ? at : TimeSpan.Zero);
     }
 
+    /// <summary>
+    /// Changes to another local encoding of the currently playing film at the same position,
+    /// leaving the rest of the playlist and paused/playing state intact. Version discovery and
+    /// verification are the caller's responsibility; this never switches to a different title.
+    /// </summary>
+    public bool SwitchLibraryVersion(LibraryEntry version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+        var index = Playlist.CurrentIndex;
+        if (Item is not { } current || index < 0 || version.Kind != LibraryKind.Video
+            || !_exists(version.Path) || string.Equals(current.Location, version.Path, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var position = version.Duration is { } duration && duration > TimeSpan.Zero && Position > duration
+            ? duration : Position;
+        var paused = State is SessionState.Paused or SessionState.Ready;
+        var replacement = ItemOf(version);
+        Playlist.Replace(index, replacement);
+        Start(replacement, position, paused: paused, exactPosition: true);
+        return true;
+    }
+
     /// <summary>Puts <paramref name="entries"/> at the end of the playlist, playing them if nothing plays.</summary>
     public void EnqueueFromLibrary(IEnumerable<LibraryEntry> entries)
     {

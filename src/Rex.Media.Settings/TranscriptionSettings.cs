@@ -47,6 +47,9 @@ public sealed record TranscriptionSettings
     /// <summary>Keep a model-labelled SubRip copy beside media as its transcript changes.</summary>
     public bool WriteSrtBesideMedia { get; init; }
 
+    /// <summary>Opt in to deleting rexplayer's model-labelled SRT copies when sidecar export is switched off.</summary>
+    public bool CleanSrtWhenDisabled { get; init; }
+
     /// <summary>The user paused the background transcription; it stays paused until they resume it.</summary>
     public bool Paused { get; init; }
 

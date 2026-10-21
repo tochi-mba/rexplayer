@@ -266,3 +266,56 @@ internal sealed record TranscriptFileWord(string? Text, double Start, double End
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(TranscriptFile))]
 internal sealed partial class TranscriptJson : JsonSerializerContext;
+
+
+/// <summary>
+/// Deletes only the exact model-labelled SRT copies rexplayer emits beside known media files.
+/// Authored subtitles, files in subtitle folders and transcript caches are left untouched.
+/// </summary>
+public static class TranscriptSidecarCleanup
+{
+    /// <summary>How many exports were removed, and how many could not be removed.</summary>
+    public readonly record struct Result(int Removed, int Failed);
+
+    /// <summary>
+    /// The caller supplies media paths and known transcription model ids, never arbitrary
+    /// directories to search. Only the two names written by <see cref="Transcript.SidecarSrtPath"/>
+    /// are candidates for each pair.
+    /// </summary>
+    public static Result Remove(IEnumerable<string> mediaPaths, IEnumerable<string> models,
+        Func<string, bool>? exists = null, Action<string>? delete = null)
+    {
+        ArgumentNullException.ThrowIfNull(mediaPaths);
+        ArgumentNullException.ThrowIfNull(models);
+        exists ??= File.Exists;
+        delete ??= File.Delete;
+        var knownModels = models.Where(model => !string.IsNullOrWhiteSpace(model))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var paths = mediaPaths.Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase).SelectMany(media =>
+                knownModels.SelectMany(model => new[]
+                {
+                    Transcript.SidecarSrtPath(media, model),
+                    Transcript.SidecarSrtPath(media, model, edited: true),
+                })).Distinct(StringComparer.OrdinalIgnoreCase);
+        var removed = 0;
+        var failed = 0;
+        foreach (var path in paths)
+        {
+            try
+            {
+                if (exists(path))
+                {
+                    delete(path);
+                    removed++;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                failed++;
+            }
+        }
+
+        return new Result(removed, failed);
+    }
+}
