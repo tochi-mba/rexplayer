@@ -34,7 +34,7 @@ public sealed class EpisodeNamesTests
         var movie = Video($@"{Root}\Movie Title (2007).mkv");
         LibraryEntry[] all = [.. season6, season7, movie];
 
-        Assert.Equal([movie], LibraryViews.Movies(all));
+        Assert.Equal([movie], LibraryViews.Movies(all, MovieRules.Offline));
         var show = Assert.Single(LibraryViews.TvShows(all));
         Assert.Equal("Family Guy", show.Name);
         Assert.Equal("2 seasons · 4 episodes", show.Detail);
@@ -71,7 +71,7 @@ public sealed class EpisodeNamesTests
         });
 
         var again = new MediaLibrary(store).Entries;
-        Assert.Equal(["Movie.Title.2007.1080p"], Titles(LibraryViews.Movies(again)));
+        Assert.Equal(["Movie.Title.2007.1080p"], Titles(LibraryViews.Movies(again, MovieRules.Offline)));
         Assert.Equal(["Some Episode Title"], Titles(Assert.Single(LibraryViews.TvShows(again)).Entries));
     }
 
@@ -106,7 +106,7 @@ public sealed class EpisodeNamesTests
     {
         var found = LibraryViews.EpisodeOf(Video(path))!;
         Assert.Equal((series, season, episode), (found.Series, found.Season, found.Episode));
-        Assert.Empty(LibraryViews.Movies([Video(path)]));
+        Assert.Null(MovieRules.Judge(Video(path), MovieLookup.Matched));
     }
 
     [Theory]
@@ -169,10 +169,10 @@ public sealed class EpisodeNamesTests
     [InlineData(Root + @"\Show.S01.576p.mkv")]
     [InlineData(@"D:\Downloads\Special.mkv")]
     [InlineData(@"D:\Extras\Making Of.mkv")]
-    public void RealMoviesStayMovies(string path)
+    public void VideosThatAreNotEpisodesStayOutOfTvShows(string path)
     {
         Assert.Null(LibraryViews.EpisodeOf(Video(path)));
-        Assert.Single(LibraryViews.Movies([Video(path)]));
+        Assert.NotNull(MovieRules.Judge(Video(path), MovieLookup.NotSearched));
     }
 
     [Fact]
@@ -272,7 +272,7 @@ public sealed class EpisodeNamesTests
     {
         var found = EpisodeNames.Parse(Native(path))!;
         Assert.Equal((series, 0, episode, true), (found.Series, found.Season, found.Episode, found.Tentative));
-        Assert.Single(LibraryViews.Movies([Video(path)]));
+        Assert.Single(LibraryViews.Standalone([Video(path)]));
         Assert.Empty(LibraryViews.TvShows([Video(path)]));
     }
 
@@ -307,7 +307,7 @@ public sealed class EpisodeNamesTests
         Assert.Equal(["Season 1", "Season 7", "Specials"], seasons.Select(season => season.Name));
         // The specials naming no season first (numbered, then by name), then each season's own.
         Assert.Equal(["Futurama SP01", "Futurama S07 OVA", "Making Of", "Futurama S07X01 Simpsorama"], Titles(seasons[2].Entries));
-        Assert.Equal(["Dream Levels"], Titles(LibraryViews.Movies(library)));
+        Assert.Equal(["Dream Levels"], Titles(LibraryViews.Standalone(library)));
 
         var special = LibraryViews.EpisodeOf(library[3])!;
         Assert.Equal(("S07 Special 1", "Season 7, special 1", "Futurama · S07 Special 1"), (special.Badge, special.Spoken, special.DisplayName));
@@ -336,7 +336,7 @@ public sealed class EpisodeNamesTests
             Video(@"D:\TV\Signal (2016)\Extras\Cast Interviews.mkv"),
         ];
 
-        Assert.Equal(["Cast Interviews", "Making Of", "X-Men (2000)"], Titles(LibraryViews.Movies(library)).Order());
+        Assert.Equal(["Cast Interviews", "Making Of", "X-Men (2000)"], Titles(LibraryViews.Standalone(library)).Order());
         var shows = LibraryViews.TvShows(library);
         Assert.Equal(["Signal", "X-Men"], shows.Select(show => show.Name));
         Assert.Equal(["Signal - Pilot", "Table Read"], Titles(shows[0].Entries).Order());
@@ -370,6 +370,6 @@ public sealed class EpisodeNamesTests
         Assert.Equal(["Doctor Who", "Doctor Who Confidential", "Futurama", "Law & Order", "Marvel's Agents", "Pokémon"], shows.Select(show => show.Name));
         Assert.Equal([2, 1, 3, 2, 2, 3], shows.Select(show => show.Entries.Count));
         Assert.Equal("Futurama S07 Bonus - Simpsorama", shows[2].Entries[^1].Title);
-        Assert.Empty(LibraryViews.Movies(library));
+        Assert.Empty(LibraryViews.Standalone(library));
     }
 }

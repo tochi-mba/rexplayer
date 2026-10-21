@@ -42,7 +42,7 @@ public sealed class WavDemuxer : IDemuxer
         var riff = _stream.ReadFourCC();
         var bigEndian = riff == "RIFX";
         var is64 = riff is "RF64" or "BW64";
-        _stream.Skip(4);
+        var riffSize = bigEndian ? _stream.ReadUInt32BigEndian() : _stream.ReadUInt32LittleEndian();
         if (_stream.ReadFourCC() != "WAVE")
         {
             throw new MediaFormatException("The RIFF file is not a WAVE file.");
@@ -118,6 +118,8 @@ public sealed class WavDemuxer : IDemuxer
             Duration = _packets.Duration,
             IsSeekable = source.CanSeek,
             Metadata = metadata,
+            // A finished RIFF states its size; 0 and all ones are what a writer leaves while it streams.
+            DeclaredLength = is64 || riffSize is 0 or uint.MaxValue ? null : 8L + riffSize,
         };
     }
 

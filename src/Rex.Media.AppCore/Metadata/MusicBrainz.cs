@@ -59,7 +59,7 @@ public static class MusicBrainz
                 artist = string.Join(" ", names) is { Length: > 0 } joined ? joined : null;
             }
 
-            var score = group.TryGetProperty("score", out var scored) && scored.ValueKind == JsonValueKind.Number ? scored.GetInt32() : 0;
+            var score = group.TryGetProperty("score", out var scored) && scored.ValueKind == JsonValueKind.Number && scored.TryGetInt32(out var given) ? given : 0;
             int? year = Text(group, "first-release-date") is { Length: >= 4 } date
                 && int.TryParse(date[..4], NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
             candidates.Add(new AlbumCandidate(id, title, artist, score, year));

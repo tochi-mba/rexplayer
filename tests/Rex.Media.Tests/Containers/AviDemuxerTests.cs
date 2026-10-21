@@ -1,3 +1,4 @@
+using Rex.Media.TestKit;
 using System.Buffers.Binary;
 using System.Text;
 using Rex.Media.Containers.Riff;
@@ -194,5 +195,20 @@ public sealed class AviDemuxerTests
         Span<byte> encoded = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(encoded, value);
         bytes.AddRange(encoded);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AnAviFileDeclaresWhereItsLastRiffSegmentEndsSoACutShortOneShowsAsDownloading()
+    {
+        var whole = Build(indexed: true);
+        using (var avi = Open(whole))
+        {
+            Assert.Equal(whole.Length, avi.Info.DeclaredLength);
+        }
+
+        var cut = whole[..^20];
+        using var partial = Open(cut);
+        Assert.True(partial.Info.DeclaredLength > cut.Length, "a cut-short AVI should declare more bytes than it holds");
     }
 }

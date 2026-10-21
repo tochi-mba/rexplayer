@@ -1,5 +1,6 @@
 using Microsoft.UI.Dispatching;
 using Rex.Media.AppCore.Library;
+using Rex.Media.IO;
 using Rex.Media.Library;
 
 namespace Rex.Media.App;
@@ -29,7 +30,7 @@ public sealed partial class MainWindow
 
     /// <summary>The badge and detail a row shows for its file's download, or none once it is whole.</summary>
     private static void ShowDownload(LibraryRow row, LibraryEntry entry) =>
-        row.SetDownload(entry.Downloading ? Downloads.Detail(entry.Size, entry.FinalSize) : null, entry.Downloading ? Downloads.Fraction(entry.Size, entry.FinalSize) : null);
+        row.SetDownload(entry.Downloading ? Downloads.Detail(entry.Size, entry.FinalSize, entry.Allocated) : null, entry.Downloading ? Downloads.Fraction(entry.Size, entry.FinalSize, entry.Allocated) : null);
 
     /// <summary>
     /// Brings every shown row's badge in line with the library after it changed, in place (the
@@ -92,7 +93,7 @@ public sealed partial class MainWindow
             try
             {
                 var looked = library.Entries.Where(entry => entry.Downloading).Select(entry => entry.Path).ToList();
-                library.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker);
+                library.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker, InspectFile);
 
                 // A file found whole is read again, for its details and to be sure it opens.
                 foreach (var folder in looked.Where(path => library.Entry(path) is { Downloading: false, Probed: false }).Select(Path.GetDirectoryName).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
@@ -119,14 +120,17 @@ public sealed partial class MainWindow
             return null;
         }
 
-        _library!.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker);
+        _library!.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker, InspectFile);
         var fresh = _library.Entry(entry.Path) ?? entry;
-        return fresh.Downloading && (fresh.Problem is not null || !fresh.Probed) ? Downloads.NotYetNotice(fresh.Size, fresh.FinalSize) : null;
+        return fresh.Downloading && (fresh.Problem is not null || !fresh.Probed) ? Downloads.NotYetNotice(fresh.Size, fresh.FinalSize, fresh.Allocated) : null;
     }
+
+    /// <summary>The scanner's look at a file: a writer holding it, and a sparse file's bytes on the disk.</summary>
+    private static FileLook InspectFile(LibraryFile file) => LibraryScanner.Inspect(file, FileByteSource.Allocation);
 
     private static LibraryFile? Stat(string path)
     {
         var file = new FileInfo(path);
-        return file.Exists ? new LibraryFile(path, file.Length, file.LastWriteTimeUtc) : null;
+        return file.Exists ? LibraryScanner.Listed(file) : null;
     }
 }

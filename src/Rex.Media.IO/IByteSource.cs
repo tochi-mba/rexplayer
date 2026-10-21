@@ -39,6 +39,13 @@ public interface IGrowingByteSource : IByteSource
     /// operation is cancelled. Implementations wake promptly on cancellation.
     /// </summary>
     ByteSourceChange WaitForChange(ByteSourceExtent observed, TimeSpan timeout, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether some of the <paramref name="length"/> bytes at <paramref name="position"/> have not
+    /// arrived yet though the source is already that long (a sparse download filling in): a reader
+    /// that came up short there waits for them rather than passing over what they hold.
+    /// </summary>
+    bool IsPending(long position, long length) => false;
 }
 
 /// <summary>The observable identity and readable length of a source at one instant.</summary>

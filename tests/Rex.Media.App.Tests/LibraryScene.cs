@@ -62,16 +62,29 @@ internal sealed class LibraryScene : IDisposable
 
     /// <summary>
     /// A short real video at <paramref name="relative"/> under the watched folder, which names what it is,
-    /// copied from <paramref name="fixture"/> in tests/fixtures/mp4.
+    /// copied from <paramref name="fixture"/> in tests/fixtures/mp4. With a <paramref name="length"/>, the
+    /// library records it as read with that running time, so the rules that weigh length (a film lasts
+    /// 40 minutes or more) see it; without one, the window reads the fixture's own few seconds.
     /// </summary>
-    public string Video(string relative, string fixture = "h264-aac.mp4")
+    public string Video(string relative, string fixture = "h264-aac.mp4", TimeSpan? length = null)
     {
         var path = Path.Combine(Media, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", fixture), path);
-        _files.Add((path, LibraryKind.Video, null));
+        _files.Add((path, LibraryKind.Video, length is { } running ? VideoInfo(running) : null));
         return path;
     }
+
+    /// <summary>A film for Movies: a release-style name at <paramref name="relative"/>, recorded at a feature's length.</summary>
+    public string Film(string relative, string fixture = "h264-aac.mp4") => Video(relative, fixture, TimeSpan.FromHours(2));
+
+    /// <summary>What reading an H.264 and AAC video of <paramref name="length"/> finds.</summary>
+    public static MediaInfo VideoInfo(TimeSpan length) => new()
+    {
+        FormatName = "MPEG-4",
+        Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264 }, new TrackInfo { Id = 2, Codec = CodecId.Aac }],
+        Duration = MediaTime.FromSeconds(length.TotalSeconds),
+    };
 
     public string Picture(string name)
     {

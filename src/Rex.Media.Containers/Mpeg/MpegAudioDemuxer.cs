@@ -177,6 +177,9 @@ public sealed class MpegAudioDemuxer : IDemuxer
             IsSeekable = source.CanSeek,
             Metadata = metadata,
             Chapters = chapters,
+            // The Xing or VBRI tag counts the stream's bytes. Encoders differ on whether the leading
+            // tag is included, so only the count itself is taken: a file shorter is surely cut short.
+            DeclaredLength = tagFrame?.Bytes is > 0 and var streamBytes ? streamBytes : null,
             CoverArt = PictureBlock.Cover(pictures)?.Data,
         };
     }

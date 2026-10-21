@@ -40,7 +40,7 @@ public sealed partial class MainWindow
         string moreLabel;
         if (movies)
         {
-            var browse = StreamingBrowse.Movies(entries, _player.LeftAt);
+            var browse = StreamingBrowse.Movies(LibraryViews.Movies(entries, MovieLookupOf), _player.LeftAt);
             billboardArt = browse.Billboard;
             billboardTitle = browse.Billboard is null ? "" : LibraryViews.MovieTitleOf(browse.Billboard);
             billboardLine = browse.Billboard is null ? "" : StreamingBrowse.MovieLine(browse.Billboard);

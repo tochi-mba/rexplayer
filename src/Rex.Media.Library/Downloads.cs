@@ -8,11 +8,28 @@ namespace Rex.Media.Library;
 /// <param name="FinalSize">How many bytes it will be once whole, from the downloader's sidecar; null when nothing says.</param>
 public readonly record struct DownloadEvidence(bool Marked, long? FinalSize);
 
+/// <summary>What a look at the file itself says, asked only of files that changed or are already in question.</summary>
+/// <param name="WriterOpen">Another program holds it open for writing (a downloader, a copy, a torrent client).</param>
+/// <param name="Allocated">For a sparse file, how many of its bytes are on the disk; null for a file that is not sparse, or when the system cannot tell.</param>
+public readonly record struct FileLook(bool WriterOpen, long? Allocated);
+
+/// <summary>Whether a file is still downloading, after a look.</summary>
+/// <param name="Downloading">It is still arriving.</param>
+/// <param name="Suspect">A weak sign was seen once, not yet confirmed by a second look.</param>
+/// <param name="FinalSize">How big it will be once whole, when something declares it and it has not got there.</param>
+/// <param name="Allocated">How many of a sparse file's bytes have arrived, while some have not.</param>
+public readonly record struct DownloadState(bool Downloading, bool Suspect, long? FinalSize, long? Allocated);
+
 /// <summary>
-/// Tells a file still being downloaded into a watched folder (LIB-05) from a whole one, without
-/// opening it: a download-in-progress name ("film.mp4.part"), a marker file beside it (aria2's
-/// control file, a browser's part file), a declared size it has not reached (the downloader's
-/// sidecar or the container's own boxes), or a size still growing between two looks.
+/// Tells a file still being downloaded into a watched folder (LIB-05) from a whole one. Strong
+/// signs settle it at one look: a download-in-progress name ("film.mp4.part") or a marker beside
+/// it (aria2's control file, a browser's part file); a declared size it has not reached (the
+/// downloader's sidecar or the container's own header); or, for a sparse file (how torrent clients
+/// lay out a download at its full size), bytes not yet on the disk. Weak signs (it grew, it was
+/// rewritten in place, another program holds it open for writing) count only on two looks in a
+/// row, or while it is already known to be downloading, so a whole file that a virus scanner or
+/// a tag editor touches once never flickers into "downloading". rexplayer's own reads never count:
+/// they hold a file open for reading only.
 /// </summary>
 public static class Downloads
 {
@@ -72,34 +89,44 @@ public static class Downloads
     }
 
     /// <summary>
-    /// Whether a file of <paramref name="size"/> bytes, last seen at <paramref name="lastSize"/>
-    /// (null when never seen), is still downloading, and how big it will be when a downloader or
-    /// its container (<paramref name="declaredLength"/>) says: marked files are, files short of
-    /// their declared size are, and, when nothing declares a size, so is one that grew since the
-    /// last look.
+    /// Whether a file of <paramref name="size"/> bytes, changed at <paramref name="modified"/>, is
+    /// still downloading, given what the disk says (<paramref name="evidence"/>, <paramref name="look"/>)
+    /// and what the library knew of it at the last look (<paramref name="before"/>, null for a file
+    /// never seen). See <see cref="Downloads"/> for the rule.
     /// </summary>
-    public static (bool Downloading, long? FinalSize) Judge(DownloadEvidence evidence, long? lastSize, long size, long? declaredLength)
+    public static DownloadState Judge(DownloadEvidence evidence, FileLook look, LibraryEntry? before, long size, DateTime modified)
     {
-        var declared = Math.Max(evidence.FinalSize ?? 0, declaredLength ?? 0);
-        if (declared > 0)
-        {
-            return (evidence.Marked || size < declared, size < declared ? declared : null);
-        }
-
-        return (evidence.Marked || (lastSize is { } last && size > last), null);
+        var declared = Math.Max(evidence.FinalSize ?? 0, before?.FinalSize ?? 0);
+        long? final = declared > size ? declared : null;
+        long? allocated = look.Allocated is { } onDisk && onDisk < size ? onDisk : null;
+        var strong = evidence.Marked || final is not null || allocated is not null;
+        // Growth and rewrites say nothing of a file that reached its declared size, or a sparse file
+        // whose every byte is on the disk: the last piece arriving changes it once more, and that is
+        // the download finishing.
+        var changing = declared == 0 && look.Allocated is null && before is not null && (size > before.Size || (size == before.Size && modified != before.Modified));
+        var weak = look.WriterOpen || changing;
+        var downloading = strong || (weak && before is { Downloading: true } or { Suspect: true });
+        return new DownloadState(downloading, weak && !downloading, final, allocated);
     }
 
-    /// <summary>How far along a download is, 0 to 1, when its final size is known.</summary>
-    public static double? Fraction(long size, long? finalSize) =>
-        finalSize is > 0 and var final ? Math.Clamp((double)size / final, 0, 1) : null;
+    /// <summary>How far along a download is, 0 to 1: the share of a sparse file on the disk, else its size against its final size; null when nothing says.</summary>
+    public static double? Fraction(long size, long? finalSize, long? allocated = null) =>
+        allocated is { } onDisk && size > 0 ? Math.Clamp((double)onDisk / size, 0, 1)
+        : finalSize is > 0 and var final ? Math.Clamp((double)size / final, 0, 1)
+        : null;
 
-    /// <summary>The detail line under a downloading file: "Downloading · 1.2 GB of 3.4 GB", or "Downloading" when its final size is unknown.</summary>
-    public static string Detail(long size, long? finalSize) =>
-        finalSize is > 0 and var final ? $"Downloading · {SizeText(size)} of {SizeText(final)}" : "Downloading";
+    /// <summary>
+    /// The detail line under a downloading file: "Downloading · 41%" for a sparse file filling in,
+    /// "Downloading · 1.2 GB of 3.4 GB" when its final size is known, else "Downloading".
+    /// </summary>
+    public static string Detail(long size, long? finalSize, long? allocated = null) =>
+        allocated is not null && Fraction(size, finalSize, allocated) is { } share
+            ? string.Create(CultureInfo.CurrentCulture, $"Downloading \u00B7 {Math.Floor(share * 100):0}%")
+            : finalSize is > 0 and var final ? $"Downloading \u00B7 {SizeText(size)} of {SizeText(final)}" : "Downloading";
 
     /// <summary>What Play says of a file too incomplete to open: "Still downloading: 20% so far", or "Still downloading".</summary>
-    public static string NotYetNotice(long size, long? finalSize) =>
-        Fraction(size, finalSize) is { } fraction
+    public static string NotYetNotice(long size, long? finalSize, long? allocated = null) =>
+        Fraction(size, finalSize, allocated) is { } fraction
             ? string.Create(CultureInfo.CurrentCulture, $"Still downloading: {Math.Floor(fraction * 100):0}% so far")
             : "Still downloading";
 
