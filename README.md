@@ -6,6 +6,7 @@ window to watch and listen in, and a command line made for scripts.
 [Download](https://github.com/tochi-mba/rexplayer/releases/latest) ·
 [Website](https://tochi-mba.github.io/rexplayer/) ·
 [Capability matrix](docs/capability-matrix.md) ·
+[On a Mac](docs/mac.md) ·
 [What's new](CHANGELOG.md)
 
 > **Status: 0.22.0.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
