@@ -57,7 +57,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         Wait.For(() => HasBadge(app, "LibraryList"), "the badge on the partial video's line");
         app.Filter("LibraryFilterDownload", "Downloading");
         Wait.For(() => app.Lines().Length == 1 && Shows(app, "LibraryList", detail), "only the partial video", () => string.Join(", ", app.Lines()));
-        Assert.Equal("Still downloading", app.Text("LibraryFilter"));
+        Assert.Equal("Filter: Still downloading", app.Text("LibraryFilter"));
         app.Filter("LibraryFilterDownload", "Complete");
         Wait.For(() => app.Lines().Length == 1 && !HasBadge(app, "LibraryList"), "only the whole video", () => string.Join(", ", app.Lines()));
 
@@ -90,7 +90,7 @@ public sealed class LibraryDownloadsTests : IDisposable
 
         app.Press("LibraryShelf-Downloading");
         Wait.For(() => app.Text("LibraryTitle") == "All videos", "the All videos view");
-        Wait.For(() => app.Text("LibraryFilter") == "Still downloading", "the view filtered to Still downloading");
+        Wait.For(() => app.Text("LibraryFilter") == "Filter: Still downloading", "the view filtered to Still downloading");
         Wait.For(() => app.Lines().Length == 1, "only the partial video", () => string.Join(", ", app.Lines()));
         Assert.Equal(0, app.Close());
     }
@@ -113,8 +113,8 @@ public sealed class LibraryDownloadsTests : IDisposable
         app.Pick("LibraryLook", "List");
         app.Choose("Clip");
         app.Press("LibraryPlay");
-        Wait.For(() => app.IsShown("Notice") && app.Find("Notice").FindAll(TreeScope.Subtree, Condition.TrueCondition).Cast<AutomationElement>()
-            .Any(element => element.Current.Name.Contains("Still downloading: 20% so far", StringComparison.Ordinal)), "the still-downloading notice");
+        Wait.For(() => app.IsShown("LibraryNotice") && app.Find("LibraryNotice").FindAll(TreeScope.Subtree, Condition.TrueCondition).Cast<AutomationElement>()
+            .Any(element => element.Current.Name.Contains("Still downloading: 20% so far", StringComparison.Ordinal)), "the still-downloading notice in the library");
         Assert.True(app.IsShown("LibraryPane"), "the library should stay open rather than show a player that failed");
         Assert.Equal(0, app.Close());
     }

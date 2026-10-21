@@ -101,21 +101,41 @@ public sealed class DownloadsTests
 
     [Fact]
     [Capability("LIB-05")]
-    public void AFileIsDownloadingWhileMarkedShortOfItsDeclaredSizeOrGrowing()
+    public void StrongSignsSettleItAtOneLookAndWeakOnesWaitForASecond()
     {
-        var plain = new DownloadEvidence(false, null);
-        Assert.Equal((false, (long?)null), Downloads.Judge(plain, null, 100, null));
-        Assert.Equal((false, (long?)null), Downloads.Judge(plain, 100, 100, null));
-        Assert.Equal((true, (long?)null), Downloads.Judge(plain, 100, 150, null));
-        Assert.Equal((false, (long?)null), Downloads.Judge(plain, 150, 100, null));
-        Assert.Equal((true, (long?)null), Downloads.Judge(new DownloadEvidence(true, null), 100, 100, null));
-        Assert.Equal((true, (long?)400), Downloads.Judge(new DownloadEvidence(true, 400), 100, 100, null));
-        Assert.Equal((true, (long?)400), Downloads.Judge(plain, 100, 100, 400));
-        Assert.Equal((true, (long?)500), Downloads.Judge(new DownloadEvidence(false, 500), 100, 100, 400));
-        // Reached its declared size: whole, however it grew to get there, and the size is no longer a goal.
-        Assert.Equal((false, (long?)null), Downloads.Judge(plain, 400, 400, 400));
-        Assert.Equal((false, (long?)null), Downloads.Judge(plain, 100, 400, 400));
-        Assert.Equal((true, (long?)null), Downloads.Judge(new DownloadEvidence(true, 400), 400, 400, null));
+        var none = new DownloadEvidence(false, null);
+        var later = Monday.AddMinutes(1);
+        LibraryEntry Before(long size, bool downloading = false, bool suspect = false, long? final = null) =>
+            new() { Path = In("Film.mp4"), Kind = LibraryKind.Video, Title = "Film", Size = size, Modified = Monday, Downloading = downloading, Suspect = suspect, FinalSize = final };
+
+        // Nothing at all: whole.
+        Assert.Equal(new DownloadState(false, false, null, null), Downloads.Judge(none, default, null, 100, Monday));
+        Assert.Equal(new DownloadState(false, false, null, null), Downloads.Judge(none, default, Before(100), 100, Monday));
+
+        // Strong: a downloader's name or marker, a declared size not reached, a sparse file's missing bytes.
+        Assert.Equal(new DownloadState(true, false, null, null), Downloads.Judge(new DownloadEvidence(true, null), default, null, 100, Monday));
+        Assert.Equal(new DownloadState(true, false, 400, null), Downloads.Judge(new DownloadEvidence(true, 400), default, null, 100, Monday));
+        Assert.Equal(new DownloadState(true, false, 400, null), Downloads.Judge(none, default, Before(100, final: 400), 100, Monday));
+        Assert.Equal(new DownloadState(true, false, 500, null), Downloads.Judge(new DownloadEvidence(false, 500), default, Before(100, final: 400), 100, Monday));
+        Assert.Equal(new DownloadState(true, false, null, 41), Downloads.Judge(none, new FileLook(false, 41), null, 100, Monday));
+
+        // Reached: the declared size met (however it grew to get there), every byte of a sparse file on the disk.
+        Assert.Equal(new DownloadState(false, false, null, null), Downloads.Judge(none, default, Before(400, final: 400), 400, Monday));
+        Assert.Equal(new DownloadState(false, false, null, null), Downloads.Judge(none, new FileLook(false, 100), Before(100, downloading: true), 100, later));
+
+        // Weak: a writer, growth, a rewrite in place. Once is a suspicion; twice in a row, a download.
+        Assert.Equal(new DownloadState(false, true, null, null), Downloads.Judge(none, new FileLook(true, null), null, 100, Monday));
+        Assert.Equal(new DownloadState(true, false, null, null), Downloads.Judge(none, new FileLook(true, null), Before(100, suspect: true), 100, Monday));
+        Assert.Equal(new DownloadState(false, true, null, null), Downloads.Judge(none, default, Before(100), 150, Monday));
+        Assert.Equal(new DownloadState(true, false, null, null), Downloads.Judge(none, default, Before(100, suspect: true), 150, Monday));
+        Assert.Equal(new DownloadState(false, true, null, null), Downloads.Judge(none, default, Before(100), 100, later));
+        Assert.Equal(new DownloadState(true, false, null, null), Downloads.Judge(none, default, Before(100, suspect: true), 100, later));
+        Assert.Equal(new DownloadState(false, false, null, null), Downloads.Judge(none, default, Before(150), 100, Monday));
+
+        // While it downloads, any weak sign keeps it so; with none left it is whole, and a suspicion not confirmed is dropped.
+        Assert.Equal(new DownloadState(true, false, null, null), Downloads.Judge(none, default, Before(100, downloading: true), 150, Monday));
+        Assert.Equal(new DownloadState(false, false, null, null), Downloads.Judge(none, default, Before(100, downloading: true), 100, Monday));
+        Assert.Equal(new DownloadState(false, false, null, null), Downloads.Judge(none, default, Before(100, suspect: true), 100, Monday));
     }
 
     [Fact]
@@ -134,6 +154,13 @@ public sealed class DownloadsTests
         Assert.Equal("Still downloading: 20% so far", Downloads.NotYetNotice(20, 100));
         Assert.Equal("Still downloading: 99% so far", Downloads.NotYetNotice(999, 1000));
         Assert.Equal("Still downloading", Downloads.NotYetNotice(20, null));
+
+        // A sparse file filling in says how much of it is on the disk.
+        Assert.Equal("Downloading \u00B7 41%", Downloads.Detail(19_661_255_450, null, 8_061_200_000));
+        Assert.Equal(0.25, Downloads.Fraction(400, 1000, 100));
+        Assert.Null(Downloads.Fraction(0, null, 0));
+        Assert.Equal("Downloading", Downloads.Detail(0, null, 0));
+        Assert.Equal("Still downloading: 41% so far", Downloads.NotYetNotice(100, null, 41));
     }
 
     [Fact]
@@ -156,21 +183,22 @@ public sealed class DownloadsTests
         Assert.Null(library.Entry(show + ".part"));
         Assert.False(library.Entry(song)!.Downloading);
 
-        // Read once while partial, then left alone as it grows; a whole file that grows is downloading too.
+        // Read once while partial, then left alone as it grows. A whole file that grows once is only a suspicion.
         library.SetDetails(film, new MediaInfo { FormatName = "MP4", Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264 }], Duration = MediaTime.FromSeconds(9) });
         library.SetDetails(song, new MediaInfo { FormatName = "FLAC", Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Pcm }] });
         var second = library.Scan(Videos, [File(film, 700, 1), File(film + ".aria2", 60), File(show + ".part", 300, 1), File(show, 0), File(song, 900, 1)], MediaFiles.LibraryKindOf, Marker);
         Assert.Equal(new ScanResult(0, 2, 0), second);
         var grown = library.Entry(film)!;
         Assert.Equal((700L, true, (long?)1000, true), (grown.Size, grown.Downloading, grown.FinalSize, grown.Probed));
-        Assert.Equal((true, (long?)null, false), (library.Entry(song)!.Downloading, library.Entry(song)!.FinalSize, library.Entry(song)!.Probed));
+        Assert.Equal((false, true, false), (library.Entry(song)!.Downloading, library.Entry(song)!.Suspect, library.Entry(song)!.Probed));
 
-        // Whole: the size reached, the growth over; each is read again. The show's part file was
-        // renamed into place, which is growth from nothing until the next look finds it still.
+        // The film reaches its size; the show's part file was renamed into place, which is growth while it
+        // was downloading; the song did not change again, so the suspicion is dropped without a word.
         var third = library.Scan(Videos, [File(film, 1000, 2), File(show, 300, 2), File(song, 900, 1)], MediaFiles.LibraryKindOf, Marker);
-        Assert.Equal(new ScanResult(0, 3, 0), third);
-        Assert.All(new[] { film, song }, path => Assert.Equal((false, (long?)null, false), (library.Entry(path)!.Downloading, library.Entry(path)!.FinalSize, library.Entry(path)!.Probed)));
+        Assert.Equal(new ScanResult(0, 2, 0), third);
+        Assert.Equal((false, (long?)null, false), (library.Entry(film)!.Downloading, library.Entry(film)!.FinalSize, library.Entry(film)!.Probed));
         Assert.True(library.Entry(show)!.Downloading);
+        Assert.Equal((false, false), (library.Entry(song)!.Downloading, library.Entry(song)!.Suspect));
         Assert.Equal(new ScanResult(0, 1, 0), library.Scan(Videos, [File(film, 1000, 2), File(show, 300, 2), File(song, 900, 1)], MediaFiles.LibraryKindOf));
         Assert.False(library.Entry(show)!.Downloading);
         Assert.Equal([film, show, song], library.Unprobed.Select(entry => entry.Path).Order(StringComparer.OrdinalIgnoreCase));
@@ -210,30 +238,34 @@ public sealed class DownloadsTests
         var film = In("Film.mp4");
         var show = In("Show.mkv");
         var gone = In("Gone.mkv");
-        library.Scan(Videos, [File(film, 100), File(show, 100), File(gone, 100)], MediaFiles.LibraryKindOf);
-        library.Scan(Videos, [File(film, 200, 1), File(show, 200, 1), File(gone, 200, 1)], MediaFiles.LibraryKindOf);
+        var listed = new[] { film, show, gone };
+        foreach (var day in new[] { 0, 1, 2 })
+        {
+            library.Scan(Videos, [.. listed.Select(path => File(path, 100 * (day + 1), day))], MediaFiles.LibraryKindOf);
+        }
+
         Assert.All(library.Entries, entry => Assert.True(entry.Downloading));
         var changes = 0;
         library.Changed += (_, _) => changes++;
 
         // Film grew again; Show stopped at the same size; Gone is no longer there, so it is left as it was.
-        var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { [film] = 300, [show] = 200 };
+        var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { [film] = 400, [show] = 300 };
         var markerChecks = new List<string>();
-        library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, path => { markerChecks.Add(path); return false; }, _ => null);
-        Assert.Equal((true, 300L), (library.Entry(film)!.Downloading, library.Entry(film)!.Size));
+        LibraryFile? Stat(string path) => sizes.TryGetValue(path, out var size) ? File(path, size, size == 300 ? 2 : 3) : null;
+        library.RecheckDownloads(Stat, path => { markerChecks.Add(path); return false; }, _ => null);
+        Assert.Equal((true, 400L), (library.Entry(film)!.Downloading, library.Entry(film)!.Size));
         Assert.Equal((false, false), (library.Entry(show)!.Downloading, library.Entry(show)!.Probed));
         Assert.True(library.Entry(gone)!.Downloading);
         Assert.DoesNotContain(markerChecks, path => path.StartsWith(gone, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(1, changes);
 
-        // A marker beside a file keeps it downloading however still it is.
-        sizes[film] = 300;
-        library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, path => path == film + ".part", _ => null);
+        // A marker beside a file, or a writer holding it, keeps it downloading however still it is.
+        library.RecheckDownloads(Stat, path => path == film + ".part", _ => null);
+        library.RecheckDownloads(Stat, _ => false, _ => null, file => new FileLook(file.Path == film, null));
         Assert.True(library.Entry(film)!.Downloading);
-        sizes[show] = 200;
-        library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, _ => false, _ => null);
+        library.RecheckDownloads(Stat, _ => false, _ => null, _ => default);
         Assert.False(library.Entry(film)!.Downloading);
-        // The look that found nothing new wrote nothing.
+        // The looks that found nothing new wrote nothing.
         Assert.Equal(2, changes);
 
         Assert.Throws<ArgumentNullException>(() => library.RecheckDownloads(null!, _ => false, _ => null));
