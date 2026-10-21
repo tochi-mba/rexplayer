@@ -151,13 +151,24 @@ public sealed class LibraryBrowsingTests : IDisposable
         var search = (ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern);
         search.SetValue("no such song");
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText") == "Nothing in the library matches that.", "no results");
-        Pointer.Key(app, app.Find("LibrarySearch"), Pointer.Escape);
-        Wait.For(() => search.Current.Value.Length == 0 && app.Text("LibraryTitle") == "Songs", "Escape to clear the search");
+        Pointer.Key(app, "LibrarySearch", Pointer.Escape);
+        Wait.For(() =>
+        {
+            try
+            {
+                var current = (ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern);
+                return current.Current.Value.Length == 0 && app.Text("LibraryTitle") == "Songs";
+            }
+            catch (ElementNotAvailableException)
+            {
+                return false;
+            }
+        }, "Escape to clear the search");
 
         // Down moves from the search into what it found and chooses the first; Enter plays it.
-        search.SetValue("Sungba");
+        ((ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern)).SetValue("Sungba");
         Wait.For(() => app.Lines().SequenceEqual(["Sungba"]), "the search to find one song", () => string.Join(", ", app.Lines()));
-        Pointer.Key(app, app.Find("LibrarySearch"), Pointer.Down);
+        Pointer.Key(app, "LibrarySearch", Pointer.Down);
         Wait.For(() => app.IsChosen("Sungba"), "Down to choose the first found");
         Pointer.Key(Pointer.Enter);
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "Enter to play the chosen song");
