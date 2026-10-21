@@ -66,7 +66,7 @@
     </DataTemplate>
     <!-- The card and grid templates live in LibraryCardTemplates.xaml, loaded when the library first lays out cards. -->
     <DataTemplate x:Key="LibrarySourceTemplate" x:DataType="local:LibrarySourceItem">
-      <Grid ColumnSpacing="12" Padding="4,6" AutomationProperties.Name="{x:Bind Name}">
+      <Grid ColumnSpacing="12" Padding="4,6" AutomationProperties.Name="{x:Bind Name}" ToolTipService.ToolTip="{x:Bind Name}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
         <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
         <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" />
@@ -399,16 +399,24 @@
       </Grid>
 
       <!-- The media library (LIB-05), over the picture while it is open; playback follows the library preference. -->
-      <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+      <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" SizeChanged="OnLibraryPaneSized"
             AutomationProperties.AutomationId="LibraryPane" AutomationProperties.Name="Library">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="200" />
+          <ColumnDefinition x:Name="LibraryNavigationColumn" Width="200" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <ListView x:Name="LibrarySources" Grid.Column="0" SelectionMode="Single" Padding="0,8" Background="{ThemeResource LayerFillColorDefaultBrush}"
-                  ItemTemplate="{StaticResource LibrarySourceTemplate}"
-                  SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
+        <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}">
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" HorizontalAlignment="Right"
+                  Click="OnLibraryNavigationToggle" ToolTipService.ToolTip="Collapse library navigation"
+                  AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
+            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
+          </Button>
+          <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8" Background="Transparent"
+                    ItemTemplate="{StaticResource LibrarySourceTemplate}"
+                    SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
+        </Grid>
 
         <Grid Grid.Column="1">
           <Grid.RowDefinitions>

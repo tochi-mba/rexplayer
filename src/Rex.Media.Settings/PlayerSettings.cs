@@ -684,6 +684,9 @@ public sealed record PlayerSettings
 
     public bool PlaylistVisible { get; init; }
 
+    /// <summary>Whether the library uses its compact icon navigation rail when space permits either form.</summary>
+    public bool LibraryNavigationCollapsed { get; init; }
+
     /// <summary>Allow taskbar transport buttons, media keys, the lock-screen media card and the jump list.</summary>
     public bool ShellMediaControls { get; init; } = true;
 
