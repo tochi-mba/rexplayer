@@ -67,6 +67,7 @@ public sealed partial class MainWindow
             {
                 Text = label + " · " + Path.GetFileName(edition.Path),
                 IsChecked = selected,
+                IsEnabled = !selected,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, label + (selected ? ", currently playing" : ", play this version"));
             ToolTipService.SetToolTip(item, edition.Path);
