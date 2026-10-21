@@ -22,7 +22,7 @@ public sealed partial class MainWindow
     private bool _subjectModelsOpening;
 
     /// <summary>The store under the data folder, so REXPLAYER_ROOT moves it with everything else.</summary>
-    private static ModelStore SubjectModelStore { get; } = new(Path.Combine(App.DataRoot, "models"));
+    private static ModelStore SubjectModelStore { get; } = new(App.Roots.Models);
 
     /// <summary>The models Subject Lock may use, with their install state; created on first use.</summary>
     private ModelSet SubjectModels => _subjectModels ??= new ModelSet(SubjectModelStore, ModelCatalogue.SubjectLock);

@@ -18,8 +18,8 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
-    private static readonly string UpdateFolder = Path.Combine(App.DataRoot, "updates");
-    private static readonly string UpdateLog = Path.Combine(App.DataRoot, "logs", "update.log");
+    private static readonly string UpdateFolder = App.Roots.UpdateFolder;
+    private static readonly string UpdateLog = App.Roots.UpdateLog;
 
     private DispatcherQueueTimer? _updateTimer;
     private bool _updatesStarted;
