@@ -5,34 +5,34 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 293 planned, 27 post-1.0, 2 not-applicable.
+macOS: 263 planned, 30 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| PB-01 | Open & play any local file | Content sniffing (never trust extensions), probe order by score, unknown-format message names the bytes it saw | M1–M3 | must | verified | planned |
-| PB-02 | Play / pause / stop / toggle | Stop returns to start and releases devices; pause holds the decoders warm | M2 | must | verified | planned |
-| PB-03 | Precise seek (time) | Sample-accurate audio, frame-accurate video; seek bar click, drag (keyframe while dragging, precise on release) | M2/M3 | must | verified | planned |
-| PB-04 | Relative jumps | Very short 3 s, short 10 s, medium 60 s, long 300 s; every size configurable | M4 | must | verified | planned |
+| PB-01 | Open & play any local file | Content sniffing (never trust extensions), probe order by score, unknown-format message names the bytes it saw | M1–M3 | must | verified | verified |
+| PB-02 | Play / pause / stop / toggle | Stop returns to start and releases devices; pause holds the decoders warm | M2 | must | verified | verified |
+| PB-03 | Precise seek (time) | Sample-accurate audio, frame-accurate video; seek bar click, drag (keyframe while dragging, precise on release) | M2/M3 | must | verified | verified |
+| PB-04 | Relative jumps | Very short 3 s, short 10 s, medium 60 s, long 300 s; every size configurable | M4 | must | verified | verified |
 | PB-05 | Go to time | Dialog (Ctrl+T) accepting `h:mm:ss`, `mm:ss` or seconds; also `rexplay seek` | M4 | must | verified | planned |
-| PB-06 | Playback rate | 0.25×–4×; coarse steps (0.25/0.5/0.75/1/1.25/1.5/2/3/4) and fine steps of ±0.1; reset to 1.0; pitch preserved by default | M5 | must | verified | planned |
+| PB-06 | Playback rate | 0.25×–4×; coarse steps (0.25/0.5/0.75/1/1.25/1.5/2/3/4) and fine steps of ±0.1; reset to 1.0; pitch preserved by default | M5 | must | verified | verified |
 | PB-07 | Frame step | Forward E; backward Shift+E (decode-from-keyframe cache) | M11 | must/should | planned | planned |
 | PB-08 | A-B loop | Set A, set B, clear; loop survives a pause; snaps to frames | M11 | must | planned | planned |
 | PB-09 | Titles & chapters | Next/previous chapter and title; chapter menu; chapter marks on the seek bar | M3/M11 | must | planned | planned |
 | PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | verified | planned |
 | PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | verified | planned |
 | PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified | planned |
-| PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | verified | planned |
-| PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified | planned |
+| PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | verified | verified |
+| PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified | verified |
 | PB-15 | Crossfade between tracks | 0–12 s setting (default off) | M6 | could | planned | planned |
 | PB-16 | Snapshot | Current frame at source resolution, without the OSD; PNG/JPEG/BMP; folder, filename pattern and sequential numbering configurable | M3/M11 | must | verified | planned |
 | PB-17 | Track selection | Video / audio / subtitle / secondary subtitle; preferred-language lists; "off" for each | M3–M5 | must | built | planned |
 | PB-18 | Program selection (TS) | Next/previous program (service id) for multi-program transport streams | M7 | should | planned | planned |
 | PB-19 | Audio delay | ±50 ms steps (J/K), reset, exact entry; range ±10 s; optionally remembered per file | M5 | must | built | planned |
 | PB-20 | Subtitle delay & sync | ±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset | M5 | must | built | planned |
-| PB-21 | Sleep timer | Stop or pause after N minutes or at the end of the current item, with a fade-out | M6 | should | verified | planned |
-| PB-22 | Play-and-exit / play-and-stop / play-and-pause | CLI and settings | M4 | must | verified | planned |
+| PB-21 | Sleep timer | Stop or pause after N minutes or at the end of the current item, with a fade-out | M6 | should | verified | verified |
+| PB-22 | Play-and-exit / play-and-stop / play-and-pause | CLI and settings | M4 | must | verified | verified |
 | PB-23 | Start/stop/run time per item | `--start`, `--stop`, `--run-time`; per-item options in the playlist | M4 | should | built | planned |
 | PB-24 | Corrupt-file resilience | Skip bad access units, keep playing other streams, rebuild a missing MP4/AVI index by scanning (with progress) | M3/M7 | must | planned | planned |
 | PB-25 | Instant start | Cold start under 300 ms to UI; open to first frame under 500 ms on the hardware lane | M15 | must | planned | planned |
@@ -43,12 +43,12 @@ macOS: 293 planned, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| FMT-C01 | WAV / RF64 / BW64 / Wave64 | WAVE_FORMAT_EXTENSIBLE, channel masks, `LIST/INFO`, `bext`, cue chunks | M1 | must | verified | planned |
-| FMT-C02 | AIFF / AIFF-C | Big-endian PCM, `sowt`, float, markers | M1 | must | verified | planned |
-| FMT-C03 | MPEG audio elementary (MP1/2/3) | Xing/Info/VBRI headers for duration and seek, LAME gapless delay/padding, ID3v1/v2, APEv2 at the tail | M2 | must | verified | planned |
-| FMT-C04 | FLAC native | STREAMINFO, SEEKTABLE, PICTURE, VORBIS_COMMENT, CUESHEET; frame-scan seek when there is no seektable | M2 | must | verified | planned |
-| FMT-C05 | MP4 / MOV / 3GP / M4A / M4V / F4V | Progressive + fragmented (moof/mfra/sidx), edit lists (gapless offset), `chap` chapters, `tx3g` text, multiple tracks, `ctts` B-frames, 64-bit boxes, fast-start and non-fast-start | M3 | must | verified | planned |
-| FMT-C06 | Matroska / WebM | EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters | M3 | must | verified | planned |
+| FMT-C01 | WAV / RF64 / BW64 / Wave64 | WAVE_FORMAT_EXTENSIBLE, channel masks, `LIST/INFO`, `bext`, cue chunks | M1 | must | verified | verified |
+| FMT-C02 | AIFF / AIFF-C | Big-endian PCM, `sowt`, float, markers | M1 | must | verified | verified |
+| FMT-C03 | MPEG audio elementary (MP1/2/3) | Xing/Info/VBRI headers for duration and seek, LAME gapless delay/padding, ID3v1/v2, APEv2 at the tail | M2 | must | verified | verified |
+| FMT-C04 | FLAC native | STREAMINFO, SEEKTABLE, PICTURE, VORBIS_COMMENT, CUESHEET; frame-scan seek when there is no seektable | M2 | must | verified | verified |
+| FMT-C05 | MP4 / MOV / 3GP / M4A / M4V / F4V | Progressive + fragmented (moof/mfra/sidx), edit lists (gapless offset), `chap` chapters, `tx3g` text, multiple tracks, `ctts` B-frames, 64-bit boxes, fast-start and non-fast-start | M3 | must | verified | verified |
+| FMT-C06 | Matroska / WebM | EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters | M3 | must | verified | verified |
 | FMT-C07 | MPEG-TS / M2TS (BDAV) | PAT/PMT/SDT/EIT, PCR clock recovery, multi-program, discontinuity handling, 188/192/204-byte packets, PES reassembly | M7 | must | planned | planned |
 | FMT-C08 | MPEG-PS / VOB / MPG | Pack/system headers, private streams (AC-3/DTS/LPCM/SPU), SCR | M7 | must | planned | planned |
 | FMT-C09 | Ogg (+OGM Could) | Vorbis, Opus, FLAC-in-Ogg, Theora, Speex; chained streams (internet radio); granule-position seek bisection | M7 | must | built | planned |
@@ -89,15 +89,15 @@ macOS: 293 planned, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| FMT-A01 | PCM (u8/s16/s24/s32/f32/f64, LE/BE, A-law/µ-law) | Own | M1 | must | verified | planned |
-| FMT-A02 | MP3 (incl. MPEG-2.5, free-format) | Own | M2 | must | verified | planned |
+| FMT-A01 | PCM (u8/s16/s24/s32/f32/f64, LE/BE, A-law/µ-law) | Own | M1 | must | verified | verified |
+| FMT-A02 | MP3 (incl. MPEG-2.5, free-format) | Own | M2 | must | verified | verified |
 | FMT-A03 | MP1 / MP2 | Own | M7 | must | planned | planned |
-| FMT-A04 | FLAC (incl. 24/32-bit, up to 8 ch) | Own | M2 | must | verified | planned |
+| FMT-A04 | FLAC (incl. 24/32-bit, up to 8 ch) | Own | M2 | must | verified | verified |
 | FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | MF | M3 | must | verified | planned |
 | FMT-A06 | AC-3 | Own (dialnorm, DRC modes, downmix coefficients) | M7 | must | planned | planned |
 | FMT-A07 | E-AC-3 | MF ext → own after legal checkpoint | M11/M12 | should | planned | planned |
 | FMT-A08 | DTS core (+ core extraction from DTS-HD) | Own | M12 | should | planned | planned |
-| FMT-A09 | Vorbis | Own | M7 | must | verified | planned |
+| FMT-A09 | Vorbis | Own | M7 | must | verified | verified |
 | FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | Own | M7 | must | built | planned |
 | FMT-A11 | ALAC | Own | M7 | should | planned | planned |
 | FMT-A12 | WMA 1/2/Pro/Lossless | MF | M3 | should | planned | planned |
@@ -141,24 +141,24 @@ macOS: 293 planned, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| PLF-01 | M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI) | R/W | M6 | must | verified | planned |
-| PLF-02 | PLS | R/W | M6 | must | verified | planned |
-| PLF-03 | XSPF (incl. per-track extension data) | R/W | M6 | must | verified | planned |
-| PLF-04 | CUE sheets (single-file albums as virtual tracks, multi-file cues) | R | M6 | must | verified | planned |
-| PLF-05 | ASX / WAX / WVX | R | M6 | should | verified | planned |
-| PLF-06 | WPL / ZPL | R | M6 | could | verified | planned |
+| PLF-01 | M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI) | R/W | M6 | must | verified | verified |
+| PLF-02 | PLS | R/W | M6 | must | verified | verified |
+| PLF-03 | XSPF (incl. per-track extension data) | R/W | M6 | must | verified | verified |
+| PLF-04 | CUE sheets (single-file albums as virtual tracks, multi-file cues) | R | M6 | must | verified | verified |
+| PLF-05 | ASX / WAX / WVX | R | M6 | should | verified | verified |
+| PLF-06 | WPL / ZPL | R | M6 | could | verified | verified |
 | PLF-07 | B4S, QTL, iTunes XML, SMIL | R | post | could/wont | post-1.0 | post-1.0 |
 | PLF-08 | Podcast RSS/Atom feeds | R | M8 | should | planned | planned |
-| PLF-09 | Directory / recursive folder as playlist | Natural sort (house `NaturalOrder` pattern), ignore list (thumbs, `.nfo`, ...) | M4 | must | verified | planned |
+| PLF-09 | Directory / recursive folder as playlist | Natural sort (house `NaturalOrder` pattern), ignore list (thumbs, `.nfo`, ...) | M4 | must | verified | verified |
 
 ## Formats: Metadata & artwork
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| META-01 | ID3v1/1.1, ID3v2.2/2.3/2.4 | Text frames, APIC, USLT lyrics, CHAP/CTOC chapters, TXXX ReplayGain, unsynchronisation, compression | M2 | must | verified | planned |
-| META-02 | Vorbis comments / FLAC blocks / METADATA_BLOCK_PICTURE |  | M2 | must | verified | planned |
-| META-03 | MP4 `ilst` atoms (incl. `covr`, `----` freeform) |  | M3 | must | verified | planned |
-| META-04 | Matroska tags + attachments |  | M3 | must | verified | planned |
+| META-01 | ID3v1/1.1, ID3v2.2/2.3/2.4 | Text frames, APIC, USLT lyrics, CHAP/CTOC chapters, TXXX ReplayGain, unsynchronisation, compression | M2 | must | verified | verified |
+| META-02 | Vorbis comments / FLAC blocks / METADATA_BLOCK_PICTURE |  | M2 | must | verified | verified |
+| META-03 | MP4 `ilst` atoms (incl. `covr`, `----` freeform) |  | M3 | must | verified | verified |
+| META-04 | Matroska tags + attachments |  | M3 | must | verified | verified |
 | META-05 | APEv2, ASF attributes, RIFF INFO, AIFF chunks |  | M7 | should | planned | planned |
 | META-06 | Folder art discovery | `cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred | M6 | must | verified | planned |
 | META-07 | Tag editing | Write title/artist/album/genre/track/date/comment/artwork for ID3v2.4, Vorbis comments/FLAC and MP4 atoms, via a safe rewrite (atomic replace, padding reuse) | M6 | should | planned | planned |
