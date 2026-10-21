@@ -30,6 +30,7 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
+- **Files still downloading show as such.** A file arriving in a watched folder (named by a downloader, marked by its control file, short of the size its container or downloader declares, or still growing) wears a down-arrow badge with a progress ring on its card, line and shelf tile, and its detail line reads "Downloading · 1.2 GB of 3.4 GB" as it grows, until the moment it is whole. The library's Filter menu gains a Download group (Fully downloaded, Still downloading) that combines with the others and is remembered per view; Home shows a Downloading shelf while anything is partial, newest first, with See all opening the view filtered to it; Play on a file too incomplete to open says "Still downloading: 20% so far" instead of failing, and the queue passes over such a file with the same words; Edit details never writes into a file that is still downloading, and says so.
 - **Automatic performance mode while Energy Saver is on.** When Windows' Energy Saver turns on, a chosen Best quality, Balanced or Fastest gives way to Automatic so the device budget adapts, with a short notice over the picture; the chosen mode comes back, and is announced, when Energy Saver turns off. Preferences > Performance shows which mode is in effect and why, and "When Energy Saver is on, use the Automatic performance mode" turns the behaviour off.
 
 ### Changed

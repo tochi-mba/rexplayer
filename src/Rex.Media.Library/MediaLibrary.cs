@@ -343,7 +343,12 @@ public sealed class MediaLibrary
                 continue;
             }
 
-            looked.Add((path, file, Downloads.Gather(path, exists, readMarker)));
+            // Only what moved is written: a download that has not grown since the last look changes nothing.
+            var evidence = Downloads.Gather(path, exists, readMarker);
+            if (Entry(path) is { } known && Looked(known, evidence, file.Size, file.Modified) != known)
+            {
+                looked.Add((path, file, evidence));
+            }
         }
 
         Change(looked.Select(look => look.Path), known =>
