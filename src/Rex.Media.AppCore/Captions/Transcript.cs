@@ -282,10 +282,13 @@ public static class TranscriptSidecarCleanup
     /// directories to search. Only the two names written by <see cref="Transcript.SidecarSrtPath"/>
     /// are candidates for each pair.
     /// </summary>
-    public static Result Remove(IEnumerable<string> mediaPaths, IEnumerable<string> models)
+    public static Result Remove(IEnumerable<string> mediaPaths, IEnumerable<string> models,
+        Func<string, bool>? exists = null, Action<string>? delete = null)
     {
         ArgumentNullException.ThrowIfNull(mediaPaths);
         ArgumentNullException.ThrowIfNull(models);
+        exists ??= File.Exists;
+        delete ??= File.Delete;
         var knownModels = models.Where(model => !string.IsNullOrWhiteSpace(model))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var paths = mediaPaths.Where(path => !string.IsNullOrWhiteSpace(path))
@@ -301,9 +304,9 @@ public static class TranscriptSidecarCleanup
         {
             try
             {
-                if (File.Exists(path))
+                if (exists(path))
                 {
-                    File.Delete(path);
+                    delete(path);
                     removed++;
                 }
             }
