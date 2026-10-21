@@ -328,7 +328,7 @@ public sealed partial class MainWindow
 
         if (metadata.Music)
         {
-            foreach (var group in LibraryViews.Albums(entries))
+            foreach (var group in LibraryViews.Albums(entries.Where(AudioRules.WorthLookingUp)))
             {
                 // A group without a real album tag is a bag of loose songs, not an album to look up.
                 if (group.Entries[0].Album is not { Length: > 0 } album)

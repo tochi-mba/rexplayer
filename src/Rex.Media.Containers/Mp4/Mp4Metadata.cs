@@ -1,4 +1,4 @@
-// Spec: Apple QuickTime File Format "Metadata" (the ilst item list, data atoms and their type indicators, freeform "----" items with mean and name); the Nero "chpl" chapter list as written by its tools; ID3v1 genre numbering for "gnre".
+// Spec: Apple QuickTime File Format "Metadata" (the ilst item list, data atoms and their type indicators, freeform "----" items with mean and name); the Nero "chpl" chapter list as written by its tools; ID3v1 genre numbering for "gnre"; the iTunes "stik" media kind, "pcst" podcast flag and "purl"/"egid" feed and episode addresses.
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
@@ -64,6 +64,14 @@ internal static class Mp4Metadata
                     break;
                 case "covr":
                     cover ??= value.ToArray();
+                    break;
+                case "stik" when value.Length >= 1 && value[^1] is 2 or 21:
+                    // The media kind iTunes stores: 2 is an audiobook, 21 a podcast episode.
+                    metadata[MetadataKeys.MediaType] = value[^1] == 2 ? MetadataKeys.Audiobook : MetadataKeys.Podcast;
+                    break;
+                case "purl" or "egid" when value.Length > 0:
+                case "pcst" when value.Length >= 1 && value[^1] != 0:
+                    metadata[MetadataKeys.MediaType] = MetadataKeys.Podcast;
                     break;
                 case "----":
                     if (Mp4Boxes.Find(body, "name") is { } nameBox && nameBox.Length > 4)

@@ -56,4 +56,13 @@ public static class MetadataKeys
     public const string ReplayGainTrackPeak = "replaygain_track_peak";
     public const string ReplayGainAlbumGain = "replaygain_album_gain";
     public const string ReplayGainAlbumPeak = "replaygain_album_peak";
+
+    /// <summary>What the file says it is when it is not music: "podcast" or "audiobook" (the MP4 media kind, the podcast flag of MP4 and ID3).</summary>
+    public const string MediaType = "media_type";
+
+    /// <summary>The <see cref="MediaType"/> of a podcast episode.</summary>
+    public const string Podcast = "podcast";
+
+    /// <summary>The <see cref="MediaType"/> of an audiobook.</summary>
+    public const string Audiobook = "audiobook";
 }

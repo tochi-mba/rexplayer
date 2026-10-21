@@ -32,7 +32,7 @@ public sealed class LibraryFoldersTests : IDisposable
 
         // A file copied in arrives by itself, and one deleted goes.
         var joha = Path.Combine(_scene.Media, "Joha.wav");
-        File.WriteAllBytes(joha, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000])).Build());
+        File.WriteAllBytes(joha, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000])).Info(("INAM", "Joha"), ("IART", "Asake"), ("IPRD", "Lungu Boy")).Build());
         Wait.For(() => app.Lines().Contains("Joha"), "the new file to appear");
         File.Delete(joha);
         Wait.For(() => !app.Lines().Contains("Joha"), "the deleted file to go");
