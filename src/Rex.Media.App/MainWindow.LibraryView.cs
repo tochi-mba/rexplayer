@@ -520,7 +520,7 @@ public sealed partial class MainWindow
                     LibraryHeroArt.Opacity = 1;
                     LibraryHeroBackdrop.Opacity = 0.6;
                 }
-            }, CancellationToken.None, art: shape));
+            }, CancellationToken.None, art: shape, side: Math.Max(1600, _budget.LibraryPictureSide)));
         }
     }
 

@@ -121,6 +121,13 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Look for the missing files in a folder...", "EntryRelink", () => Forget(RelinkAsync())));
         }
 
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var up = MenuItem("Move up", "EntryMoveUp", () => MoveSelectedPlaylistEntries(-1));
+        up.IsEnabled = _player.Playlist.IndexOf(chosen[0]) > 0;
+        menu.Items.Add(up);
+        var down = MenuItem("Move down", "EntryMoveDown", () => MoveSelectedPlaylistEntries(1));
+        down.IsEnabled = _player.Playlist.IndexOf(chosen[^1]) < _player.Playlist.Items.Count - 1;
+        menu.Items.Add(down);
         menu.Items.Add(MenuItem("Remove", "EntryRemove", RemoveSelected));
     }
 

@@ -15,6 +15,7 @@ public sealed partial class MainWindow
 {
     // Keys whose press ran a shortcut: their release is the shortcut's too.
     private readonly HashSet<VirtualKey> _shortcutKeys = [];
+    private List<(PlaylistRow Row, Rex.Media.AppCore.Player.PlaylistItem Item)>? _playlistDragOrder;
 
     /// <summary>
     /// Whether <paramref name="key"/> is held. For Ctrl, Alt and Shift either of the pair counts:
@@ -261,9 +262,53 @@ public sealed partial class MainWindow
 
     private void OnPlaylistTapped(object sender, TappedRoutedEventArgs e)
     {
-        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick && TappedPlaylistIndex(e.OriginalSource) is var index && index >= 0)
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick && !IsDown(VirtualKey.Control) && !IsDown(VirtualKey.Shift)
+            && TappedPlaylistIndex(e.OriginalSource) is var index && index >= 0)
         {
             _player.PlayAt(index);
+        }
+    }
+
+    /// <summary>
+    /// A context click acts on the row under the pointer. Keep an existing multi-selection when it
+    /// is clicked, but make an unselected row the sole choice so the menu never asks for a selection
+    /// the user's click mode makes awkward to create.
+    /// </summary>
+    private void OnPlaylistRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        var index = TappedPlaylistIndex(e.OriginalSource);
+        if (index >= 0 && !PlaylistView.SelectedRanges.Any(range => index >= range.FirstIndex && index < range.FirstIndex + (int)range.Length))
+        {
+            PlaylistView.SelectedIndex = index;
+        }
+    }
+
+    private void OnPlaylistDragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        var items = _player.Playlist.Items;
+        _playlistDragOrder = _playlistRows.Select((row, index) => (row, items[index])).ToList();
+        e.Data.RequestedOperation = DataPackageOperation.Move;
+    }
+
+    private void OnPlaylistDragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        var before = _playlistDragOrder;
+        _playlistDragOrder = null;
+        if (args.DropResult != DataPackageOperation.Move || before is null || before.Count != _playlistRows.Count)
+        {
+            return;
+        }
+
+        // Rows are distinct objects even when the same file occurs twice. Mapping by identity keeps
+        // duplicate playlist entries in exactly the order the user dropped them.
+        var wanted = _playlistRows.Select(row => before.First(pair => ReferenceEquals(pair.Row, row)).Item).ToList();
+        for (var target = 0; target < wanted.Count; target++)
+        {
+            var from = _player.Playlist.IndexOf(wanted[target]);
+            if (from != target)
+            {
+                _player.Playlist.Move(from, target);
+            }
         }
     }
 
@@ -289,6 +334,14 @@ public sealed partial class MainWindow
     {
         switch (e.Key)
         {
+            case VirtualKey.Up when IsDown(VirtualKey.Menu) && PlaylistView.SelectedItems.Count > 0:
+                MoveSelectedPlaylistEntries(-1);
+                e.Handled = true;
+                break;
+            case VirtualKey.Down when IsDown(VirtualKey.Menu) && PlaylistView.SelectedItems.Count > 0:
+                MoveSelectedPlaylistEntries(1);
+                e.Handled = true;
+                break;
             case VirtualKey.Enter when PlaylistView.SelectedIndex >= 0:
                 _player.PlayAt(PlaylistView.SelectedIndex);
                 e.Handled = true;
@@ -298,6 +351,40 @@ public sealed partial class MainWindow
                 e.Handled = true;
                 break;
         }
+    }
+
+    /// <summary>Moves the chosen playlist rows together and leaves them chosen at their new positions.</summary>
+    private void MoveSelectedPlaylistEntries(int direction)
+    {
+        var chosen = ChosenEntries();
+        if (chosen.Count == 0)
+        {
+            return;
+        }
+
+        var indexes = chosen.Select(_player.Playlist.IndexOf).Order().ToList();
+        if ((direction < 0 && indexes[0] == 0) || (direction > 0 && indexes[^1] == _player.Playlist.Items.Count - 1))
+        {
+            return;
+        }
+
+        IEnumerable<int> moving = direction < 0 ? indexes : indexes.OrderDescending();
+        foreach (var index in moving)
+        {
+            _player.Playlist.Move(index, index + direction);
+        }
+
+        PlaylistView.SelectedItems.Clear();
+        foreach (var item in chosen)
+        {
+            if (_player.Playlist.IndexOf(item) is >= 0 and var index)
+            {
+                PlaylistView.SelectedItems.Add(_playlistRows[index]);
+            }
+        }
+
+        PlaylistView.ScrollIntoView(_playlistRows[_player.Playlist.IndexOf(chosen[0])]);
+        Say(chosen.Count == 1 ? $"Moved to position {_player.Playlist.IndexOf(chosen[0]) + 1}" : $"Moved {chosen.Count} entries");
     }
 
     /// <summary>Removes the selected entries, from the bottom up so the indexes stay right.</summary>
