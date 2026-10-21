@@ -390,6 +390,7 @@ public static partial class LibraryViews
         }
 
         var name = Rex.Media.AppCore.Metadata.MetadataMatch.Normalize(MovieTitleOf(playing));
+        var cut = MovieCutOf(playing);
         if (name.Length == 0)
         {
             return [];
@@ -398,11 +399,22 @@ public static partial class LibraryViews
         return [.. entries.Where(entry => entry.Kind == LibraryKind.Video && !entry.Downloading
                 && MovieRules.WorthLookingUp(entry) && MovieYearOf(entry) == year
                 && Rex.Media.AppCore.Metadata.MetadataMatch.Normalize(MovieTitleOf(entry)) == name
+                && MovieCutOf(entry) == cut
                 && (entry.Duration is not { } other || playing.Duration is not { } current
                     || Math.Abs((other - current).TotalSeconds) <= Math.Max(120, current.TotalSeconds * 0.03)))
             .DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(entry => MovieResolutionHeight(entry))
             .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
+    }
+
+    /// <summary>Keep director's cuts, extended, unrated and theatrical releases distinct even if their runtimes happen to be similar.</summary>
+    private static string MovieCutOf(LibraryEntry entry)
+    {
+        var name = MovieReleaseName(entry.Path);
+        var year = MovieYearPattern().Match(name);
+        var suffix = year.Success ? name[(year.Index + year.Length)..] : "";
+        var cut = MovieCutPattern().Match(suffix);
+        return cut.Success ? new string(cut.Groups["cut"].Value.Where(char.IsLetter).ToArray()).ToLowerInvariant() : "";
     }
 
     /// <summary>The resolution named by the release, or "Unknown" when no resolution is stated.</summary>
@@ -551,6 +563,9 @@ public static partial class LibraryViews
 
     [GeneratedRegex(@"(?:^|[^A-Za-z0-9])(?<quality>4320p|2160p|1440p|1080p|720p|576p|480p|360p|4K|UHD)(?=$|[^A-Za-z0-9])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MovieResolutionPattern();
+
+    [GeneratedRegex(@"(?:^|[ ._-])(?<cut>extended|director'?s?[ ._-]*cut|theatrical|unrated|special[ ._-]*edition|final[ ._-]*cut)(?=$|[ ._-])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex MovieCutPattern();
 
     [GeneratedRegex("[._]+")]
     private static partial Regex Separators();
