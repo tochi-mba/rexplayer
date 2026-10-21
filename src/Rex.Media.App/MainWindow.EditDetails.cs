@@ -24,7 +24,7 @@ public sealed partial class MainWindow
         var songs = entries.Where(entry => entry.Kind == LibraryKind.Music).ToList();
         if (songs.Count > 0)
         {
-            menu.Items.Add(MenuItem("Edit details...", "LibraryMenuEditDetails", () => _ = EditDetailsAsync(songs)));
+            menu.Items.Add(MenuItem("Edit details...", "LibraryMenuEditDetails", () => Forget(EditDetailsAsync(songs))));
         }
     }
 
@@ -125,11 +125,11 @@ public sealed partial class MainWindow
         }
 
         var playing = _detailWritesHeldFor;
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             var results = _detailWrites.Flush(path => string.Equals(path, playing, StringComparison.OrdinalIgnoreCase), (path, edit) => TagFileWriter.Write(path, edit));
             OnWindowThread(() => ShowDetailWrites(results));
-        });
+        }));
     }
 
     /// <summary>Once a file holds its details rexplayer's own copy is dropped; a refusal keeps it and says why.</summary>

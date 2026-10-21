@@ -23,11 +23,11 @@ public sealed partial class MainWindow
     {
         if (command == CommandCatalog.Transcribe)
         {
-            _ = TranscribeWhatPlaysAsync();
+            Forget(TranscribeWhatPlaysAsync());
         }
         else
         {
-            _ = SaveTranscriptAsync();
+            Forget(SaveTranscriptAsync());
         }
     }
 

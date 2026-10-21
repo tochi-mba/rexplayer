@@ -66,7 +66,7 @@ public sealed partial class MainWindow
         var start = CreateTimer();
         start.Interval = ShellStartDelay;
         start.IsRepeating = false;
-        start.Tick += (_, _) => ShowTaskbarSettingsChanged();
+        OnTick(start, ShowTaskbarSettingsChanged);
         start.Start();
     }
 
@@ -112,7 +112,7 @@ public sealed partial class MainWindow
         _jumpListTimer = CreateTimer();
         _jumpListTimer.Interval = JumpListDelay;
         _jumpListTimer.IsRepeating = false;
-        _jumpListTimer.Tick += (_, _) => PublishJumpList();
+        OnTick(_jumpListTimer, PublishJumpList);
         App.Milestones.Reach("shell");
     }
 
@@ -218,7 +218,7 @@ public sealed partial class MainWindow
             _artwork?.Cancel();
             _artwork?.Dispose();
             _artwork = new CancellationTokenSource();
-            _ = ShowArtworkAsync(playing, card, TransportAvailability.MediaOf(_player), _player.Duration, _settings, _artwork.Token);
+            Forget(ShowArtworkAsync(playing, card, TransportAvailability.MediaOf(_player), _player.Duration, _settings, _artwork.Token));
         }
     }
 

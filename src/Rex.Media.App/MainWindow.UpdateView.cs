@@ -311,7 +311,7 @@ public sealed partial class MainWindow
         _updateDownload?.Cancel();
         _settings = _settings with { SkippedUpdateVersion = pending.Version };
         SetPending(null);
-        _ = Task.Run(() => UpdateDownloader.Clean(UpdateFolder, null));
+        Forget(Task.Run(() => UpdateDownloader.Clean(UpdateFolder, null)));
         Say($"rexplayer {pending.Version} will not be offered again; a newer version will be.");
     }
 
@@ -319,7 +319,7 @@ public sealed partial class MainWindow
     {
         if (_shownCard?.Kind == UpdatePrompt.Ready)
         {
-            _ = InstallAsync(unattended: false);
+            Forget(InstallAsync(unattended: false));
         }
         else
         {
@@ -367,17 +367,17 @@ public sealed partial class MainWindow
             }
             else
             {
-                _ = Task.Run(() => UpdateDownloader.Clean(UpdateFolder, null));
+                Forget(Task.Run(() => UpdateDownloader.Clean(UpdateFolder, null)));
             }
         }
     }
 
-    private void OnUpdateCheckAgainClick(object sender, RoutedEventArgs e) => _ = CheckForUpdatesAsync(asked: true);
+    private void OnUpdateCheckAgainClick(object sender, RoutedEventArgs e) => Forget(CheckForUpdatesAsync(asked: true));
 
     private void OnUpdateRestartClick(object sender, RoutedEventArgs e)
     {
         UpdateFlyout.Hide();
-        _ = InstallAsync(unattended: false);
+        Forget(InstallAsync(unattended: false));
     }
 
     private void OnUpdateReleasePageClick(object sender, RoutedEventArgs e)

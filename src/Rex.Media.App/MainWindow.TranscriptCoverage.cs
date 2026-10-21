@@ -45,7 +45,7 @@ public sealed partial class MainWindow
         }
 
         var duration = _player.Duration;
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             if (variant.Value.Edited)
             {
@@ -74,6 +74,6 @@ public sealed partial class MainWindow
             _variantDuration = task.Result?.Duration;
             ShowSubtitleBuffer();
             HoldForSubtitles();
-        }), TaskScheduler.Default);
+        }), TaskScheduler.Default));
     }
 }

@@ -192,7 +192,7 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.AddSubtitles:
-                _ = PickSubtitlesAsync();
+                Forget(PickSubtitlesAsync());
                 return true;
             case CommandCatalog.SubtitlesBigger:
                 SetSubtitleSize(SubtitleLook.StepSize(_settings.SubtitleSize, 1));

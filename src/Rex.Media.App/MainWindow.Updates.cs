@@ -228,7 +228,7 @@ public sealed partial class MainWindow
             retry.Click += (_, _) =>
             {
                 Notice.IsOpen = false;
-                _ = InstallAsync(unattended: false);
+                Forget(InstallAsync(unattended: false));
             };
         }
 
@@ -243,7 +243,7 @@ public sealed partial class MainWindow
         whatsNew.Click += (_, _) =>
         {
             Notice.IsOpen = false;
-            _ = ShowWhatsNewAsync();
+            Forget(ShowWhatsNewAsync());
         };
         ShowNotice($"Updated to rexplayer {Version}", "Everything you had open is as you left it.", whatsNew, InfoBarSeverity.Success);
     }

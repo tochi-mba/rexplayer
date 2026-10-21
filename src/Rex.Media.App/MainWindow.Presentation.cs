@@ -35,7 +35,7 @@ public sealed partial class MainWindow
         if (!ReferenceEquals(cover, _shownCover))
         {
             _shownCover = cover;
-            _ = ShowCoverAsync(cover);
+            Forget(ShowCoverAsync(cover));
         }
 
         var lyrics = music && _settings.ShowLyrics ? _player.Lyrics : null;

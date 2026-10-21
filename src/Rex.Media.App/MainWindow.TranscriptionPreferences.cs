@@ -143,26 +143,26 @@ public sealed partial class MainWindow
 
         var storage = new TextBlock { Text = "Measuring the transcripts kept...", TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetAutomationId(storage, "PreferencesTranscriptStorage");
-        void Measure() => _ = Task.Run(_transcripts.Usage).ContinueWith(task => OnWindowThread(() => storage.Text = task.IsCompletedSuccessfully
+        void Measure() => Forget(Task.Run(_transcripts.Usage).ContinueWith(task => OnWindowThread(() => storage.Text = task.IsCompletedSuccessfully
             ? string.Create(CultureInfo.InvariantCulture, $"Transcripts kept: {task.Result.Files} files, {task.Result.Bytes / 1_000_000.0:0.0} MB, in {_transcripts.Root}.")
-            : "The transcripts kept could not be measured."), TaskScheduler.Default);
+            : "The transcripts kept could not be measured."), TaskScheduler.Default));
         Measure();
         var forgetGone = new Button { Content = "Forget transcripts of files not in the library" };
         AutomationProperties.SetAutomationId(forgetGone, "PreferencesForgetGoneTranscripts");
         forgetGone.Click += (_, _) =>
         {
             var kept = (_library?.Entries ?? []).Select(TranscriptionOrder.Sign).ToHashSet();
-            _ = Task.Run(() =>
+            Forget(Task.Run(() =>
             {
                 foreach (var record in _ledger.Remove(record => !kept.Contains(record.Signature)))
                 {
                     _transcripts.Forget(record.Signature, record.Model);
                 }
-            }).ContinueWith(_ => OnWindowThread(Measure), TaskScheduler.Default);
+            }).ContinueWith(_ => OnWindowThread(Measure), TaskScheduler.Default));
         };
         var forgetAll = new Button { Content = "Forget every transcript" };
         AutomationProperties.SetAutomationId(forgetAll, "PreferencesForgetAllTranscripts");
-        forgetAll.Click += (_, _) => _ = Task.Run(() =>
+        forgetAll.Click += (_, _) => Forget(Task.Run(() =>
         {
             _ledger.Remove(_ => true);
             _transcripts.Clear();
@@ -172,7 +172,7 @@ public sealed partial class MainWindow
             _queueDirty = true;
             Measure();
             RefreshTranscriptBadges();
-        }), TaskScheduler.Default);
+        }), TaskScheduler.Default));
         var clearing = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         clearing.Children.Add(forgetGone);
         clearing.Children.Add(forgetAll);
@@ -236,12 +236,12 @@ public sealed partial class MainWindow
 
         if (turnedOn)
         {
-            _ = EnsureSpeechModelAsync(askedNow: false);
+            Forget(EnsureSpeechModelAsync(askedNow: false));
         }
 
         if (_settings.Transcription.WriteSrtBesideMedia && !before.Transcription.WriteSrtBesideMedia)
         {
-            _ = Task.Run(ExportCachedTranscriptSrts);
+            Forget(Task.Run(ExportCachedTranscriptSrts));
         }
 
         TranscriptionTick();

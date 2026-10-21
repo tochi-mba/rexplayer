@@ -468,7 +468,7 @@ public sealed partial class MainWindow
         LibraryHeroBackdrop.Opacity = 0;
         if (art is not null)
         {
-            _ = ShowPictureAsync(art.Path, art.Kind, art.Duration, picture =>
+            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture =>
             {
                 if (_shownHero == key && request == _heroRequest)
                 {
@@ -476,7 +476,7 @@ public sealed partial class MainWindow
                     LibraryHeroArt.Opacity = 1;
                     LibraryHeroBackdrop.Opacity = 0.6;
                 }
-            }, CancellationToken.None);
+            }, CancellationToken.None));
         }
     }
 

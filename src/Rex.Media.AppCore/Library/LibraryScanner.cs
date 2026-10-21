@@ -159,11 +159,26 @@ public sealed class LibraryScanner : IDisposable
     /// <summary>The worker: does what is asked for, and what is asked for meanwhile, then ends.</summary>
     private void Work()
     {
-        do
+        try
         {
-            RunPending();
+            do
+            {
+                RunPending();
+            }
+            while (!Finished());
         }
-        while (!Finished());
+        catch (Exception ex)
+        {
+            // A fault of the scanner's own must not end the player from this thread: it is written
+            // down, and the next request starts a worker afresh.
+            _log.Error(LogSource, "The library scan stopped: " + ex);
+            lock (_gate)
+            {
+                _worker = null;
+            }
+
+            SetStatus("");
+        }
     }
 
     /// <summary>Whether the worker may end: stopped, or nothing asked for since its last look (then it is gone).</summary>

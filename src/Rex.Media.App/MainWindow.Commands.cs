@@ -220,10 +220,10 @@ public sealed partial class MainWindow
                 SetLibraryOpen(!LibraryOpen);
                 break;
             case CommandCatalog.BackUpLibrary:
-                _ = BackUpLibraryAsync();
+                Forget(BackUpLibraryAsync());
                 break;
             case CommandCatalog.RestoreLibrary:
-                _ = RestoreLibraryAsync();
+                Forget(RestoreLibraryAsync());
                 break;
             case CommandCatalog.TogglePlaylist:
                 var show = PlaylistPane.Visibility != Visibility.Visible;
@@ -269,7 +269,7 @@ public sealed partial class MainWindow
                 Say("Crop: " + _crop.Name);
                 break;
             case CommandCatalog.Snapshot:
-                _ = SnapshotAsync();
+                Forget(SnapshotAsync());
                 break;
             case CommandCatalog.ToggleStats:
                 _settings = _settings with { StatsOverlay = !_settings.StatsOverlay };
@@ -277,46 +277,46 @@ public sealed partial class MainWindow
                 RememberLater();
                 break;
             case CommandCatalog.OpenFile:
-                _ = OpenFilesAsync();
+                Forget(OpenFilesAsync());
                 break;
             case CommandCatalog.OpenFolder:
-                _ = OpenFolderAsync();
+                Forget(OpenFolderAsync());
                 break;
             case CommandCatalog.OpenLocation:
-                _ = OpenLocationAsync();
+                Forget(OpenLocationAsync());
                 break;
             case CommandCatalog.PasteLocation:
-                _ = PasteAsync();
+                Forget(PasteAsync());
                 break;
             case CommandCatalog.GoToTime:
-                _ = GoToTimeAsync();
+                Forget(GoToTimeAsync());
                 break;
             case CommandCatalog.ShortcutSheet:
-                _ = ShowShortcutsAsync();
+                Forget(ShowShortcutsAsync());
                 break;
             case CommandCatalog.MediaInformation:
-                _ = ShowMediaInformationAsync();
+                Forget(ShowMediaInformationAsync());
                 break;
             case CommandCatalog.CheckForUpdates:
-                _ = CheckForUpdatesAsync(asked: true);
+                Forget(CheckForUpdatesAsync(asked: true));
                 break;
             case CommandCatalog.WhatsNew:
-                _ = ShowWhatsNewAsync();
+                Forget(ShowWhatsNewAsync());
                 break;
             case CommandCatalog.About:
-                _ = ShowAboutAsync();
+                Forget(ShowAboutAsync());
                 break;
             case CommandCatalog.Effects:
-                _ = ShowEffectsAsync();
+                Forget(ShowEffectsAsync());
                 break;
             case CommandCatalog.Preferences:
-                _ = ShowPreferencesAsync();
+                Forget(ShowPreferencesAsync());
                 break;
             case CommandCatalog.KeyboardAndMouse:
-                _ = ShowKeyboardAndMouseAsync();
+                Forget(ShowKeyboardAndMouseAsync());
                 break;
             case CommandCatalog.ShowLog:
-                _ = ShowLogAsync();
+                Forget(ShowLogAsync());
                 break;
             case CommandCatalog.OpenLogFolder:
                 App.Log.Flush();
@@ -324,7 +324,7 @@ public sealed partial class MainWindow
                 _ = Windows.System.Launcher.LaunchFolderPathAsync(App.LogFolder);
                 break;
             case CommandCatalog.SaveDiagnostics:
-                _ = SaveDiagnosticsAsync();
+                Forget(SaveDiagnosticsAsync());
                 break;
             case CommandCatalog.Help:
                 _ = Windows.System.Launcher.LaunchUriAsync(new Uri(HelpUrl));
@@ -525,7 +525,7 @@ public sealed partial class MainWindow
         if (_settings.StatsOverlay)
         {
             _statsTimer.Start();
-            _ = RefreshStatsAsync();
+            Forget(RefreshStatsAsync());
         }
         else
         {
@@ -547,7 +547,7 @@ public sealed partial class MainWindow
     /// </summary>
     public Task<AutomationReply> AnswerAsync(AutomationRequest request)
     {
-        if (AnswerMeasurement(request) is { } measured)
+        if ((AnswerMeasurement(request) ?? AnswerFault(request)) is { } measured)
         {
             return measured;
         }
@@ -555,43 +555,51 @@ public sealed partial class MainWindow
         var answered = new TaskCompletionSource<AutomationReply>(TaskCreationOptions.RunContinuationsAsynchronously);
         var queued = DispatcherQueue.TryEnqueue(() =>
         {
-            if (ShellAutomation.IsUiRequest(request.Command))
+            try
             {
-                _ = AnswerUiAsync(request, answered);
-                return;
-            }
-
-            switch (request.Command)
-            {
-                case "open":
-                    if (request.Paths.Count > 0)
-                    {
-                        _player.OpenHandedOver(request.Paths, request.Enqueue, request.LaunchedAt ?? DateTimeOffset.Now);
-                    }
-
-                    ComeForward();
-                    break;
-                case "run" when request.Id is { } id && CommandCatalog.Find(id) is not null:
-                    Run(id);
-                    break;
-                case "run":
-                    answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
+                if (ShellAutomation.IsUiRequest(request.Command))
+                {
+                    Forget(AnswerUiAsync(request, answered));
                     return;
-                case "status":
-                    break;
-                default:
-                    answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run, seek, status, metrics, measure or a ui. command such as ui.tree."));
-                    return;
-            }
+                }
 
-            answered.SetResult(new AutomationReply
+                switch (request.Command)
+                {
+                    case "open":
+                        if (request.Paths.Count > 0)
+                        {
+                            _player.OpenHandedOver(request.Paths, request.Enqueue, request.LaunchedAt ?? DateTimeOffset.Now);
+                        }
+
+                        ComeForward();
+                        break;
+                    case "run" when request.Id is { } id && CommandCatalog.Find(id) is not null:
+                        Run(id);
+                        break;
+                    case "run":
+                        answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
+                        return;
+                    case "status":
+                        break;
+                    default:
+                        answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run, seek, status, metrics, measure or a ui. command such as ui.tree."));
+                        return;
+                }
+
+                answered.SetResult(new AutomationReply
+                {
+                    Ok = true,
+                    State = _player.State.ToString(),
+                    Title = _player.Item is null ? null : _player.Title,
+                    Position = _player.Position.TotalSeconds,
+                    Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
+                });
+            }
+            catch (Exception ex)
             {
-                Ok = true,
-                State = _player.State.ToString(),
-                Title = _player.Item is null ? null : _player.Title,
-                Position = _player.Position.TotalSeconds,
-                Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
-            });
+                App.Log.Critical(LogSource, $"The automation request \"{request.Command}\" failed; the window carries on: {ex}");
+                answered.SetResult(AutomationReply.Failed(ex.Message));
+            }
         });
         return queued ? answered.Task : Task.FromResult(AutomationReply.Failed("The player is closing."));
     }

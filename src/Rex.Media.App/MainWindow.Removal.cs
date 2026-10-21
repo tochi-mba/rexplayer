@@ -33,7 +33,7 @@ public sealed partial class MainWindow
         SubjectFillText.Text = RemovalPanel.FillText(tracking: false, erase: false, 0, 0);
         if (_subjectTimer is { } timer)
         {
-            timer.Tick += (_, _) => PollRemovalFill();
+            OnTick(timer, PollRemovalFill);
         }
     }
 

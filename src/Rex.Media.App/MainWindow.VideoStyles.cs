@@ -48,7 +48,7 @@ public sealed partial class MainWindow
 
         var customize = new MenuFlyoutItem { Text = "Customize current look..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(customize, prefix + "Customize");
-        customize.Click += (_, _) => _ = ShowVideoStyleSettingsAsync(effect: false);
+        customize.Click += (_, _) => Forget(ShowVideoStyleSettingsAsync(effect: false));
         looks.Items.Add(new MenuFlyoutSeparator());
         looks.Items.Add(customize);
         items.Add(new MenuFlyoutSeparator());
@@ -95,7 +95,7 @@ public sealed partial class MainWindow
 
         var customize = new MenuFlyoutItem { Text = "Customize current effect..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(customize, prefix + "Customize");
-        customize.Click += (_, _) => _ = ShowVideoStyleSettingsAsync(effect: true);
+        customize.Click += (_, _) => Forget(ShowVideoStyleSettingsAsync(effect: true));
         sub.Items.Add(new MenuFlyoutSeparator());
         sub.Items.Add(customize);
         items.Add(sub);

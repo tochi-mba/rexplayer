@@ -24,7 +24,7 @@ public sealed partial class MainWindow
         _downloadRecheck = CreateTimer();
         _downloadRecheck.Interval = DownloadRecheckEvery;
         _downloadRecheck.IsRepeating = true;
-        _downloadRecheck.Tick += (_, _) => RecheckDownloads();
+        OnTick(_downloadRecheck, RecheckDownloads);
     }
 
     /// <summary>The badge and detail a row shows for its file's download, or none once it is whole.</summary>
@@ -87,7 +87,7 @@ public sealed partial class MainWindow
 
         var library = _library!;
         var scanner = _scanner!;
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             try
             {
@@ -104,7 +104,7 @@ public sealed partial class MainWindow
             {
                 Interlocked.Exchange(ref _recheckingDownloads, 0);
             }
-        });
+        }));
     }
 
     /// <summary>

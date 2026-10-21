@@ -229,6 +229,11 @@ public sealed partial class PlayerController
         {
             _log.Warning("sections", "Background analysis unavailable: " + ex.Message);
         }
+        catch (Exception ex)
+        {
+            // A reader's own fault leaves the episode without sections; on this thread it would end the player.
+            _log.Error("sections", $"Background analysis of {path} failed: {ex}");
+        }
     }
 
     /// <summary>
@@ -536,6 +541,11 @@ public sealed class LibrarySectionAnalysis : IDisposable
                 Rex.Media.Primitives.MediaFormatException or InvalidOperationException or ArgumentException)
             {
                 _log.Warning("sections", "Could not analyse library episode " + path + ": " + ex.Message);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A reader's own fault leaves this episode unanalysed; on this thread it would end the player.
+                _log.Error("sections", $"Analysing library episode {path} failed: {ex}");
             }
             finally
             {

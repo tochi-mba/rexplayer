@@ -54,7 +54,7 @@ public sealed partial class MainWindow
     {
         foreach (var path in _prefetch.Choose([_player.NextEpisode, _player.Playlist.PeekNext(automatic: true)?.Location]))
         {
-            _ = Task.Run(() => _prefetch.Read(path));
+            Forget(Task.Run(() => _prefetch.Read(path)));
         }
     }
 }

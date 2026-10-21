@@ -72,7 +72,7 @@ public sealed partial class MainWindow
         foreach (var kind in new[] { EpisodeSectionKind.Intro, EpisodeSectionKind.Credits })
         {
             var (name, noun) = kind == EpisodeSectionKind.Intro ? ("Intro", "intro") : ("Credits", "credits");
-            Add($"Edit {noun} times...", name + "Adjust", () => _ = AdjustEpisodeSectionAsync(kind), Video);
+            Add($"Edit {noun} times...", name + "Adjust", () => Forget(AdjustEpisodeSectionAsync(kind)), Video);
             Add($"Clear saved {noun}", name + "Clear", () => _player.ClearEpisodeSection(kind), () => View(kind)?.HasSavedBoundary == true);
         }
 
@@ -84,13 +84,13 @@ public sealed partial class MainWindow
                 () => View(kind) is { } view && (view.CanHide || view.Hidden), () => View(kind)?.Hidden == true);
         }
 
-        Add("Save intro and credits from chapter names...", "DetectChapters", () => _ = ConfirmChapterSuggestionsAsync(), Video);
+        Add("Save intro and credits from chapter names...", "DetectChapters", () => Forget(ConfirmChapterSuggestionsAsync()), Video);
         menu.Items.Add(new MenuFlyoutSeparator());
         Toggle("Always skip intros for this show", "ShowSkipIntros", skip => _player.SetShowSkipping(EpisodeSectionKind.Intro, skip),
             Episode, () => _player.CurrentShowSkipping.Intros);
         Toggle("Always skip credits for this show", "ShowSkipCredits", skip => _player.SetShowSkipping(EpisodeSectionKind.Credits, skip),
             Episode, () => _player.CurrentShowSkipping.Credits);
-        Add("Skip settings for every show...", "SkipPreferences", () => _ = ShowPreferencesAsync(), () => true);
+        Add("Skip settings for every show...", "SkipPreferences", () => Forget(ShowPreferencesAsync()), () => true);
         items.Add(new MenuFlyoutSeparator());
         items.Add(menu);
     }
@@ -179,7 +179,7 @@ public sealed partial class MainWindow
             Command("Keep these times", "Confirm", () => _player.ConfirmDetectedSection(kind));
         }
 
-        Command("Edit times...", "Adjust", () => _ = AdjustEpisodeSectionAsync(kind));
+        Command("Edit times...", "Adjust", () => Forget(AdjustEpisodeSectionAsync(kind)));
         if (view.Saved)
         {
             Command("Clear the saved " + view.Noun, "Clear", () => _player.ClearEpisodeSection(kind));
@@ -203,7 +203,7 @@ public sealed partial class MainWindow
             ShowEpisodeSkip();
         };
         menu.Items.Add(always);
-        Command("Skip settings for every show...", "Preferences", () => _ = ShowPreferencesAsync());
+        Command("Skip settings for every show...", "Preferences", () => Forget(ShowPreferencesAsync()));
         return menu;
     }
 
@@ -356,10 +356,10 @@ public sealed partial class MainWindow
         hereEnd.Click += (_, _) => endInput.Value = Math.Round(_player.Position.TotalSeconds, 2);
 
         var previews = new CancellationTokenSource();
-        startInput.ValueChanged += (_, _) => _ = ShowBoundaryAsync(startPicture.Image, startInput.Value, previews.Token);
-        endInput.ValueChanged += (_, _) => _ = ShowBoundaryAsync(endPicture.Image, endInput.Value, previews.Token);
-        _ = ShowBoundaryAsync(startPicture.Image, startInput.Value, previews.Token);
-        _ = ShowBoundaryAsync(endPicture.Image, endInput.Value, previews.Token);
+        startInput.ValueChanged += (_, _) => Forget(ShowBoundaryAsync(startPicture.Image, startInput.Value, previews.Token));
+        endInput.ValueChanged += (_, _) => Forget(ShowBoundaryAsync(endPicture.Image, endInput.Value, previews.Token));
+        Forget(ShowBoundaryAsync(startPicture.Image, startInput.Value, previews.Token));
+        Forget(ShowBoundaryAsync(endPicture.Image, endInput.Value, previews.Token));
 
         var columns = new Grid { ColumnSpacing = 12 };
         columns.ColumnDefinitions.Add(new ColumnDefinition());

@@ -124,7 +124,7 @@ public sealed partial class MainWindow
         AutomationProperties.SetName(frame, title);
         var backdrop = new Image { Stretch = Stretch.UniformToFill };
         frame.Children.Add(backdrop);
-        _ = ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source = picture, _libraryPictures.Token);
+        Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source = picture, _libraryPictures.Token));
 
         var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
         shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x10, 0x14, 0x1B), Offset = 0 });

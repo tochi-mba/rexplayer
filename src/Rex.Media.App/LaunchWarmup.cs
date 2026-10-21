@@ -89,7 +89,7 @@ internal sealed class LaunchWarmup
         where T : class => Interlocked.Exchange(ref task, null)?.GetAwaiter().GetResult();
 
     /// <summary>Warms something up off the window's thread; a failure is only noted, since the real use reports it.</summary>
-    private static void Quietly(string what, Action warm) => _ = Task.Run(() =>
+    private static void Quietly(string what, Action warm) => MainWindow.Forget(Task.Run(() =>
     {
         try
         {
@@ -99,5 +99,5 @@ internal sealed class LaunchWarmup
         {
             App.Log.Debug("app", $"Warming up {what} at launch failed: {ex.Message}");
         }
-    });
+    }));
 }

@@ -52,12 +52,12 @@ public sealed partial class MainWindow
         var key = location + "@" + bucket.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (key == _seekPreviewKey && _seekPreviewPng is { } cached)
         {
-            _ = SetSeekPreviewImageAsync(cached, token);
+            Forget(SetSeekPreviewImageAsync(cached, token));
             return;
         }
 
         SeekPreviewPicture.Visibility = Visibility.Collapsed;
-        _ = LoadSeekPreviewAsync(location, TimeSpan.FromSeconds(bucket), key, token);
+        Forget(LoadSeekPreviewAsync(location, TimeSpan.FromSeconds(bucket), key, token));
     }
 
     private void OnSeekAreaPointerExited(object sender, PointerRoutedEventArgs e) => HideSeekPreview();

@@ -17,6 +17,8 @@ pipeline the moment its number reaches `main`.
 
 ### Fixed
 
+- **No more silent exits from the window's own work.** A failure in work rexplayer hands to its window from elsewhere (a later launch's files, the library, downloads), in one of its clocks, in the library's background scan or in episode analysis used to close rexplayer without a trace; it is now written to the log with its details and the player carries on. A task left to finish on its own that fails is written down as it fails instead of being lost, and a script's request that fails is answered with why instead of being left waiting.
+
 - **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.
 - **Down in the library search moves into the results.** It chooses the first item found, so Enter plays it.
 - **No more crash while subtitles are being transcribed.** With a transcript being made for what plays, a seek, a pause or the next item could end rexplayer at once: the stretch to hear next sometimes held no sound at all (the file's sound lands later than asked, or there is none there), and the speech model was asked to hear nothing, which the model cannot survive. Such a stretch is now passed over as heard with no words, and the model is never asked to hear an empty piece.

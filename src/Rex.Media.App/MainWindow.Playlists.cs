@@ -12,10 +12,10 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.SavePlaylist:
-                _ = SavePlaylistAsync();
+                Forget(SavePlaylistAsync());
                 return true;
             case CommandCatalog.OpenPlaylist:
-                _ = OpenPlaylistAsync();
+                Forget(OpenPlaylistAsync());
                 return true;
             default:
                 return false;
