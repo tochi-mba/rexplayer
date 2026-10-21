@@ -24,7 +24,9 @@ public sealed partial class MainWindow
     private void ShowStreamingBrowse(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, bool sameRoute)
     {
         ShowViewOptions(true, choice, groupsView: false, LibraryKind.Video);
-        foreach (var control in new FrameworkElement[] { LibrarySortButton, LibraryGroupButton, LibraryFilterButton, LibrarySizePanel })
+        // Browse is a layout, not a dead end: ordering and filters remain available here. Grouping
+        // and card size do not describe shelves, so only those layout-only controls are hidden.
+        foreach (var control in new FrameworkElement[] { LibraryGroupButton, LibrarySizePanel })
         {
             control.Visibility = Visibility.Collapsed;
         }

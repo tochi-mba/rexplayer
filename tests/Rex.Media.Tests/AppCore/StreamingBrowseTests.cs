@@ -76,6 +76,17 @@ public sealed class StreamingBrowseTests
     }
 
     [Fact]
+    public void MovieFeaturesAreDeterministicUsefulAndNeverRepeated()
+    {
+        var browse = StreamingBrowse.Movies(
+            [Movie("Newest", addedDays: 4), Movie("Popular", plays: 8), Movie("Resume", addedDays: 2), Movie("Another", addedDays: 1)],
+            LeftAt("Resume"));
+
+        Assert.Equal(["Resume", "Popular", "Newest", "Another"], browse.Features.Select(movie => movie.Title));
+        Assert.Equal(browse.Features.Count, browse.Features.Select(movie => movie.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Fact]
     public void AnEmptyLibraryHasNoBillboardAndNoRows()
     {
         var browse = StreamingBrowse.Movies([], Nothing);
@@ -149,6 +160,16 @@ public sealed class StreamingBrowseTests
 
         Assert.Equal("Alpha", browse.Billboard?.Name);
         Assert.Empty(browse.ContinueWatching);
+    }
+
+    [Fact]
+    public void TvFeaturesStartWithTheResumableShowThenNewestShows()
+    {
+        var browse = StreamingBrowse.TvShows(
+            [Episode("Newest", 1, 1, addedDays: 9), Episode("Resume", 1, 1), Episode("Middle", 1, 1, addedDays: 4)],
+            LeftAt("Resume"));
+
+        Assert.Equal(["Resume", "Newest", "Middle"], browse.Features.Select(show => show.Name));
     }
 
     [Fact]
