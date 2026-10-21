@@ -52,7 +52,6 @@ public sealed partial class MainWindow
         var media = records.Select(record => record.Path)
             .Concat((_library?.Entries ?? []).Select(entry => entry.Path))
             .Append(_player.Item?.Location ?? "")
-            .Where(File.Exists)
             .ToArray();
         var models = Enum.GetValues<Rex.Media.Settings.TranscriptModelChoice>()
             .Select(choice => SpeechModels.For(choice).Id)
