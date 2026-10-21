@@ -209,6 +209,7 @@ public sealed partial class MainWindow
             var choices = MetadataChoices.Load(File.Exists(cache.ChoicesPath) ? await File.ReadAllTextAsync(cache.ChoicesPath, token).ConfigureAwait(false) : null);
             var known = fetcher.CachedShows();
             var knownAlbums = fetcher.CachedAlbums();
+            LoadCachedArtists(fetcher);
             lock (_metadataGate)
             {
                 _metadataChoices = choices;
@@ -341,8 +342,9 @@ public sealed partial class MainWindow
                     if (_metadataAlbums.TryGetValue(key, out var settled))
                     {
                         // With covers being replaced, an album once passed over for carrying its
-                        // own art is looked up after all; everything else settled stays settled.
-                        if (!metadata.ReplaceCovers || !settled.LocalArt)
+                        // own art is looked up after all; everything else settled stays settled,
+                        // unless it was settled by an older build that kept fewer facts.
+                        if (settled.Current && (!metadata.ReplaceCovers || !settled.LocalArt))
                         {
                             continue;
                         }
@@ -372,6 +374,8 @@ public sealed partial class MainWindow
                     }
                 }
             }
+
+            PlanArtistWork(entries, metadata);
         }
     }
 
@@ -419,7 +423,11 @@ public sealed partial class MainWindow
         var ok = false;
         try
         {
-            if (job.Kind == MetadataWork.Music)
+            if (IsArtistJob(job))
+            {
+                ok = await FetchArtistJobAsync(fetcher, job, token).ConfigureAwait(false);
+            }
+            else if (job.Kind == MetadataWork.Music)
             {
                 var (artist, album) = AlbumFromJobKey(job.Key);
                 var carryArt = !_settings.Metadata.ReplaceCovers && AlbumFilesCarryArt(artist, album);
@@ -471,7 +479,11 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (job.Kind == MetadataWork.Music)
+        if (IsArtistJob(job))
+        {
+            ArtistJobDone(fetcher, job);
+        }
+        else if (job.Kind == MetadataWork.Music)
         {
             var (artist, album) = AlbumFromJobKey(job.Key);
             if (fetcher.CachedAlbum(artist, album) is { } got)
@@ -481,7 +493,7 @@ public sealed partial class MainWindow
                     _metadataAlbums[MusicBrainz.AlbumKey(artist, album)] = got;
                 }
 
-                if (got.HasCover)
+                if (got.HasCover || got.ReleaseGroupId is not null)
                 {
                     RefreshLibraryFromMetadata();
                 }
