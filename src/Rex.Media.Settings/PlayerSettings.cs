@@ -185,6 +185,7 @@ public enum LibraryLook
 /// How one library view is shown, as the user last set it: its layout, order, grouping and card
 /// size, and which of its items it keeps (by watched state, by kind, by folder, and by whether
 /// the file has finished downloading).
+/// <see cref="LookChosen"/> says the layout itself was picked, not merely saved alongside another change.
 /// </summary>
 public sealed record LibraryViewChoice(
     LibraryLook Look = LibraryLook.Grid,
@@ -195,7 +196,8 @@ public sealed record LibraryViewChoice(
     LibraryFilter Filter = LibraryFilter.All,
     LibraryKindFilter Kinds = LibraryKindFilter.Any,
     string? Folder = null,
-    LibraryDownloadFilter Download = LibraryDownloadFilter.Any)
+    LibraryDownloadFilter Download = LibraryDownloadFilter.Any,
+    bool LookChosen = false)
 {
     /// <summary>The smallest and largest cards, in pixels across.</summary>
     public const int SmallestCard = 120;

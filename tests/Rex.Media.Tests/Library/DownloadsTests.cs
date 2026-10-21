@@ -218,10 +218,12 @@ public sealed class DownloadsTests
 
         // Film grew again; Show stopped at the same size; Gone is no longer there, so it is left as it was.
         var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { [film] = 300, [show] = 200 };
-        library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, _ => false, _ => null);
+        var markerChecks = new List<string>();
+        library.RecheckDownloads(path => sizes.TryGetValue(path, out var size) ? File(path, size, 2) : null, path => { markerChecks.Add(path); return false; }, _ => null);
         Assert.Equal((true, 300L), (library.Entry(film)!.Downloading, library.Entry(film)!.Size));
         Assert.Equal((false, false), (library.Entry(show)!.Downloading, library.Entry(show)!.Probed));
         Assert.True(library.Entry(gone)!.Downloading);
+        Assert.DoesNotContain(markerChecks, path => path.StartsWith(gone, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(1, changes);
 
         // A marker beside a file keeps it downloading however still it is.

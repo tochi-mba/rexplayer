@@ -12,6 +12,7 @@ using Rex.Media.Library;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Video;
+using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 using Windows.Storage.Streams;
@@ -21,7 +22,8 @@ namespace Rex.Media.App;
 /// <summary>
 /// A picture for every piece of media, wherever it is listed (the library, the playlist): Windows'
 /// own thumbnail when it has a real one, otherwise a frame of the video itself, the picture itself,
-/// or for music its cover, its folder's art or artwork drawn from its sound. Made pictures are kept
+/// or for music its cover, its folder's art or artwork drawn from its sound. A video's frame is cut
+/// free of the black or grey bars recorded into it, so a card filled by it shows picture. Made pictures are kept
 /// on disk until the file changes, and the latest few hundred in memory, so a list that redraws does
 /// not make them again. Two normal requests use bounded slots; a separate slot serves an
 /// urgent hovered or keyboard-focused row while those are occupied.
@@ -97,7 +99,7 @@ public sealed partial class MainWindow
             // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
             var image = poster is null ? null : await LocalPictureAsync(poster, decodeWidth, token);
             image ??= await ReadPictureCacheAsync(key, decodeWidth, token);
-            image ??= await ShellPictureAsync(path, kind, decodeWidth, token);
+            image ??= await ShellPictureAsync(path, kind, decodeWidth, key, token);
             if (image is null)
             {
                 var bytes = await Task.Run(() => MakePicture(path, kind, duration, key, settings, token), token);
@@ -181,14 +183,14 @@ public sealed partial class MainWindow
     /// Windows' thumbnail, when it is a picture of the media: for formats Windows has no thumbnailer
     /// for (WebM, Matroska and others) it gives the file type's icon, which is no picture of it.
     /// </summary>
-    private static async Task<ImageSource?> ShellPictureAsync(string path, LibraryKind kind, int decodeWidth, CancellationToken token)
+    private static async Task<ImageSource?> ShellPictureAsync(string path, LibraryKind kind, int decodeWidth, string key, CancellationToken token)
     {
         using var shellTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         shellTimeout.CancelAfter(TimeSpan.FromSeconds(2));
         try
         {
             var standardWidth = kind == LibraryKind.Music ? 192 : 256;
-            return await ReadShellPictureAsync(path, kind, (uint)Math.Min(decodeWidth, standardWidth), shellTimeout.Token);
+            return await ReadShellPictureAsync(path, kind, (uint)Math.Min(decodeWidth, standardWidth), key, shellTimeout.Token);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {
@@ -242,7 +244,7 @@ public sealed partial class MainWindow
     private static string PictureCachePath(string key) =>
         Path.Combine(App.DataRoot, "cache", "library-pictures", key + ".png");
 
-    private static async Task<ImageSource?> ReadShellPictureAsync(string path, LibraryKind kind, uint size, CancellationToken token)
+    private static async Task<ImageSource?> ReadShellPictureAsync(string path, LibraryKind kind, uint size, string key, CancellationToken token)
     {
         var mode = kind switch
         {
@@ -260,9 +262,55 @@ public sealed partial class MainWindow
             return null;
         }
 
+        if (kind == LibraryKind.Video && await ShellFrameWithoutBarsAsync(thumbnail, key, token) is { } png)
+        {
+            return await DecodePictureAsync(png, 0, token);
+        }
+
+        thumbnail.Seek(0);
         var image = new BitmapImage();
         await image.SetSourceAsync(thumbnail).AsTask(token);
         return image;
+    }
+
+    /// <summary>
+    /// Windows' frame of a video with the bars recorded into it cut away, kept on disk like a frame of
+    /// rexplayer's own; null when it has no bars, so the frame is shown as it is.
+    /// </summary>
+    private static async Task<byte[]?> ShellFrameWithoutBarsAsync(StorageItemThumbnail thumbnail, string key, CancellationToken token)
+    {
+        var decoder = await BitmapDecoder.CreateAsync(thumbnail).AsTask(token);
+        var (width, height) = ((int)decoder.OrientedPixelWidth, (int)decoder.OrientedPixelHeight);
+        var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, new BitmapTransform(),
+            ExifOrientationMode.RespectExifOrientation, ColorManagementMode.DoNotColorManage).AsTask(token);
+        var bgra = pixels.DetachPixelData();
+        return await Task.Run(() =>
+        {
+            using var frame = VideoFrame.Rent(PixelFormat.Bgra32, width, height);
+            for (var y = 0; y < height; y++)
+            {
+                bgra.AsSpan(y * width * 4, width * 4).CopyTo(frame.Row(0, y));
+            }
+
+            if (PictureBorders.Find(frame) == new PictureArea(0, 0, width, height))
+            {
+                return null;
+            }
+
+            using var output = new MemoryStream();
+            PictureBorders.WritePng(output, frame);
+            var png = output.ToArray();
+            try
+            {
+                AtomicFile.Write(PictureCachePath(key), png);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                App.Log.Debug(LogSource, "The thumbnail could not be cached: " + ex.Message);
+            }
+
+            return png;
+        }, token);
     }
 
     /// <summary>
@@ -287,7 +335,7 @@ public sealed partial class MainWindow
             var at = kind == LibraryKind.Picture || duration is not { } length
                 ? TimeSpan.Zero
                 : TimeSpan.FromSeconds(Math.Clamp(length.TotalSeconds * 0.2, Math.Min(1, length.TotalSeconds / 2), 30));
-            png = PreviewPng(path, at, token);
+            png = PreviewPng(path, at, token, withoutBars: kind == LibraryKind.Video);
         }
 
         token.ThrowIfCancellationRequested();
@@ -325,7 +373,9 @@ public sealed partial class MainWindow
             var posterInfo = new FileInfo(local);
             art += $"\n{local}\n{posterInfo.Length}\n{posterInfo.LastWriteTimeUtc.Ticks}";
         }
-        var identity = Encoding.UTF8.GetBytes($"4\n{path}\n{file.Length}\n{file.LastWriteTimeUtc.Ticks}{art}");
+        // Video thumbnails are made without the bars recorded into the picture since version 5.
+        var version = kind == LibraryKind.Video ? 5 : 4;
+        var identity = Encoding.UTF8.GetBytes($"{version}\n{path}\n{file.Length}\n{file.LastWriteTimeUtc.Ticks}{art}");
         return Convert.ToHexStringLower(SHA256.HashData(identity));
     }
 

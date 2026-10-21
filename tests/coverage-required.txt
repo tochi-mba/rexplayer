@@ -151,6 +151,7 @@ LibraryOpening.cs
 LibraryPlaces.cs
 LibraryScanner.cs
 LibrarySearchText.cs
+LibraryViewDefaults.cs
 LibraryViews.cs
 LightningScene.cs
 LightPaintingScene.cs
@@ -245,6 +246,7 @@ PlaylistFiles.cs
 PlaylistPaths.cs
 PlaylistText.cs
 Pls.cs
+PictureBorders.cs
 PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs

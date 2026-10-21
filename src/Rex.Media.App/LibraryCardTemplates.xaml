@@ -13,7 +13,7 @@
       <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
           <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="48" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
+          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
           <Border x:Name="CardPlay" Opacity="0" Width="44" Height="44" CornerRadius="22" Margin="10" HorizontalAlignment="Right" VerticalAlignment="Bottom"
@@ -74,14 +74,14 @@
       </StackPanel>
     </Grid>
   </DataTemplate>
-  <!-- Poster-height cards keep their image ratio. Hover or focus reveals Play but never hides the artwork. -->
+  <!-- Poster-height cards: the artwork fills the frame, cropped from the top so faces stay. Hover or focus reveals Play but never hides the artwork. -->
   <DataTemplate x:Key="LibraryMovieTemplate" x:DataType="local:LibraryRow">
     <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="12" Background="#20252D" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
         <Grid>
           <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="54" Opacity="0.36" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
+          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Top" />
           <Border Background="#BE17202C" CornerRadius="4" Padding="6,3" Margin="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                   Visibility="{x:Bind BadgeVisibility}">
             <TextBlock Text="{x:Bind Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />

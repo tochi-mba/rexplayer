@@ -720,7 +720,7 @@ public sealed partial class MainWindow
                         continue;
                     }
 
-                    var image = new Microsoft.UI.Xaml.Controls.Image { Width = 120, Height = 120, Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform };
+                    var image = new Microsoft.UI.Xaml.Controls.Image { Width = 120, Height = 120, Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill };
                     image.Source = await DecodePictureAsync(bytes, 120, CancellationToken.None);
                     var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
                     row.Children.Add(image);
