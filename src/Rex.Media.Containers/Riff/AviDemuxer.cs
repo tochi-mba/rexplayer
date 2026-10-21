@@ -20,6 +20,7 @@ public sealed class AviDemuxer : IDemuxer
     private readonly List<StreamHeader> _headers = [];
     private readonly List<(long Start, long End)> _movie = [];
     private readonly List<Chunk> _chunks = [];
+    private long _declaredEnd;
     private long[] _units = [];
     private int _next;
 
@@ -36,7 +37,15 @@ public sealed class AviDemuxer : IDemuxer
         _units = new long[_headers.Count];
         var tracks = _headers.Select((header, id) => header.Track(id)).ToList();
         var known = tracks.Select(track => track.Duration).Where(value => value.IsKnown).ToList();
-        Info = new MediaInfo { FormatName = "AVI", Tracks = tracks, Duration = known.Count == 0 ? MediaTime.Unknown : known.Max(), IsSeekable = _chunks.Any(chunk => chunk.Keyframe) };
+        Info = new MediaInfo
+        {
+            FormatName = "AVI",
+            Tracks = tracks,
+            Duration = known.Count == 0 ? MediaTime.Unknown : known.Max(),
+            IsSeekable = _chunks.Any(chunk => chunk.Keyframe),
+            // Where the last RIFF segment says it ends: past the file's end while it is still arriving.
+            DeclaredLength = _declaredEnd,
+        };
     }
 
     public MediaInfo Info { get; }
@@ -105,6 +114,7 @@ public sealed class AviDemuxer : IDemuxer
             var size = _stream.ReadUInt32LittleEndian();
             var type = _stream.ReadFourCC();
             if (type is not ("AVI " or "AVIX")) throw new MediaFormatException("The RIFF segment is not AVI or AVIX movie data.");
+            _declaredEnd = Math.Max(_declaredEnd, checked(position + 8L + size));
             var end = Math.Min(length, checked(position + 8L + size));
             ParseRange(_stream.Position, end, type == "AVI ", cancellationToken);
             position = Align2(end);
@@ -127,7 +137,8 @@ public sealed class AviDemuxer : IDemuxer
                 if (type == "hdrl" && headersAllowed) ParseHeaderList(_stream.Position, data + size, cancellationToken);
                 else if (type == "movi") _movie.Add((_stream.Position, data + size));
             }
-            else if (id == "idx1") ParseLegacyIndex(data, size);
+            // An index cut short (the end of a download not here yet) gives the entries that are.
+            else if (id == "idx1") ParseLegacyIndex(data, (uint)Math.Clamp(end - data, 0, size));
             if (next <= position) throw new MediaFormatException("An AVI chunk has an invalid size.");
             position = next;
         }

@@ -246,6 +246,11 @@ public sealed class MetadataFetcherTests : IDisposable
         Assert.Null(reloaded.ChosenShow("The Show"));
         Assert.Equal(7, reloaded.ChosenShow("Other"));
 
+        reloaded.ChooseMovie("Heat", 1995, 208572);
+        Assert.Equal(208572, MetadataChoices.Load(reloaded.Save()).ChosenMovie("heat", 1995));
+        Assert.Null(reloaded.ChosenMovie("Heat", null));
+        Assert.Null(reloaded.ChosenShow("Heat"));
+
         Assert.Equal(0, MetadataChoices.Load(null).Count);
         Assert.Equal(0, MetadataChoices.Load("  ").Count);
         Assert.Equal(0, MetadataChoices.Load("damaged{").Count);

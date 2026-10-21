@@ -34,6 +34,7 @@ public sealed partial class MainWindow
         (LibrarySource.Genres, new("\uE8EC", "Genres")),
         (LibrarySource.Movies, new("\uE714", "Movies")),
         (LibrarySource.TvShows, new("\uE80F", "TV Shows")),
+        (LibrarySource.OtherVideos, new("\uE722", "Other videos")),
         (LibrarySource.Videos, new("\uE8FD", "All videos")),
         (LibrarySource.Pictures, new("\uE91B", "Pictures")),
         (LibrarySource.ContinueWatching, new("\uE768", "Continue watching")),
@@ -269,7 +270,8 @@ public sealed partial class MainWindow
             IReadOnlyList<LibraryEntry>? list = _librarySource switch
             {
                 LibrarySource.Songs => LibraryViews.Songs(entries),
-                LibrarySource.Movies => LibraryViews.Movies(entries),
+                LibrarySource.Movies => LibraryViews.Movies(entries, MovieLookupOf),
+                LibrarySource.OtherVideos => LibraryViews.OtherVideos(entries, MovieLookupOf),
                 LibrarySource.Videos => LibraryViews.Videos(entries),
                 LibrarySource.Pictures => LibraryViews.Pictures(entries),
                 LibrarySource.ContinueWatching => LibraryViews.ContinueWatching(entries, _player.LeftAt),
@@ -289,8 +291,8 @@ public sealed partial class MainWindow
                     sections = EntrySections(list, choice);
                 }
 
-                kind = _librarySource switch { LibrarySource.Movies or LibrarySource.Videos or LibrarySource.ContinueWatching => LibraryKind.Video, LibrarySource.Pictures => LibraryKind.Picture, _ => LibraryKind.Music };
-                subtitle = Count(list.Count, _librarySource switch { LibrarySource.Pictures => "picture", LibrarySource.Movies => "movie", LibrarySource.Videos or LibrarySource.ContinueWatching => "video", _ => "item" })
+                kind = _librarySource switch { LibrarySource.Movies or LibrarySource.OtherVideos or LibrarySource.Videos or LibrarySource.ContinueWatching => LibraryKind.Video, LibrarySource.Pictures => LibraryKind.Picture, _ => LibraryKind.Music };
+                subtitle = Count(list.Count, _librarySource switch { LibrarySource.Pictures => "picture", LibrarySource.Movies => "movie", LibrarySource.OtherVideos or LibrarySource.Videos or LibrarySource.ContinueWatching => "video", _ => "item" })
                     + (kind == LibraryKind.Picture ? "" : " \u00B7 " + Total(list));
             }
             else if (_librarySource is LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres or LibrarySource.TvShows)
@@ -591,6 +593,8 @@ public sealed partial class MainWindow
         resetFilters.Click += (_, _) => KeepViewChoice(choice.Unfiltered());
         filterMenu.Items.Add(resetFilters);
         LibraryFilterButton.Content = LibraryArrangement.FilterLabel(choice);
+        // A screen reader hears which filters are on, as the button shows them.
+        AutomationProperties.SetName(LibraryFilterButton, choice.IsFiltered ? "Filter: " + LibraryArrangement.FilterLabel(choice) : "Filter by progress, type, folder or download");
         LibraryFilterButton.Flyout = filterMenu;
 
         LibrarySizePanel.Visibility = choice.Look == LibraryLook.List ? Visibility.Collapsed : Visibility.Visible;
@@ -715,8 +719,9 @@ public sealed partial class MainWindow
             (MostPlayedShelf, LibrarySource.Songs, [.. HomeShelves.MostPlayed(entries, 20).Select(EntryRow)], false),
             ("New in your library", LibrarySource.RecentlyAdded, [.. recent.Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
             ("Albums", LibrarySource.Albums, [.. LibraryArrangement.Sort(LibraryViews.Albums(entries), LibrarySort.Added, false).Take(20).Select(GroupRow)], false),
-            ("Movies", LibrarySource.Movies, [.. LibraryViews.Movies(recent).Take(20).Select(EntryRow)], false),
+            ("Movies", LibrarySource.Movies, [.. LibraryViews.Movies(recent, MovieLookupOf).Take(20).Select(EntryRow)], false),
             ("TV Shows", LibrarySource.TvShows, [.. LibraryViews.TvShows(entries).Take(20).Select(GroupRow)], false),
+            ("Other videos", LibrarySource.OtherVideos, [.. LibraryViews.RecentlyAdded(LibraryViews.OtherVideos(entries, MovieLookupOf)).Take(20).Select(EntryRow)], true),
             ("Videos", LibrarySource.Videos, [.. recent.Where(entry => entry.Kind == LibraryKind.Video).Take(20).Select(EntryRow)], true),
             ("Pictures", LibrarySource.Pictures, [.. recent.Where(entry => entry.Kind == LibraryKind.Picture).Take(24).Select(EntryRow)], false),
         };

@@ -88,6 +88,28 @@ public sealed class DetailOverrideTests
     }
 
     [Fact]
+    public void AMovieChoiceOutlivesRescansReopeningAndTagsWrittenIntoTheFile()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        library.AddFolder(".");
+        library.Scan(".", [new LibraryFile("IMG_1234.mp4", 1, Monday)], _ => LibraryKind.Video);
+
+        library.SetOverride(["IMG_1234.mp4"], new DetailOverride { Movie = true });
+        library.SetOverride(["IMG_1234.mp4"], new DetailOverride { Title = "Home Movie" });
+        library.Scan(".", [new LibraryFile("IMG_1234.mp4", 2, Monday)], _ => LibraryKind.Video);
+        library.SetDetails("IMG_1234.mp4", Tags("Old"));
+
+        var reopened = new MediaLibrary(store).Entry("IMG_1234.mp4")!;
+        Assert.Equal(new DetailOverride { Movie = true, Title = "Home Movie" }, reopened.Override);
+        Assert.Equal("Home Movie", reopened.Title);
+        library.ClearOverride(["IMG_1234.mp4"]);
+        Assert.Equal(new DetailOverride { Movie = true }, library.Entry("IMG_1234.mp4")!.Override);
+        Assert.Equal(new DetailOverride { Movie = false }, new DetailOverride { Movie = true }.Then(new DetailOverride { Movie = false }));
+        Assert.Null(new DetailOverride { Title = "Only tags" }.Kept());
+    }
+
+    [Fact]
     public void TheDialogSaysWhereTheDetailsGoAndNeverWritesIntoADownloadingFile()
     {
         Assert.Equal("Saved in rexplayer only, as Preferences asks; the files are not changed.", DetailsForm.Note(2, 0, 1, writing: false));

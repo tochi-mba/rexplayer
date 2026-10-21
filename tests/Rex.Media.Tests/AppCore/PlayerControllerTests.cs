@@ -118,6 +118,28 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void AQueuedLibraryFileStillDownloadingIsSkippedWithAStillDownloadingNotice()
+    {
+        using var harness = new ControllerHarness();
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["arriving.wav"] = [1, 2, 3, 4];
+        harness.Files["c.wav"] = Count(500, 400);
+        var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.InMemory());
+        library.Scan(".", [new("a.wav", 1, default), new("arriving.wav", 4, default), new("c.wav", 1, default)], _ => Rex.Media.Library.LibraryKind.Music);
+        library.SetDetails("arriving.wav", new MediaInfo { FormatName = "WAVE", Tracks = [], DeclaredLength = 20 });
+        harness.Controller.Library = library;
+
+        harness.Controller.PlayFromLibrary([.. new[] { "a.wav", "arriving.wav", "c.wav" }.Select(path => library.Entry(path)!)]);
+        harness.WaitForEngine<EndedEvent>();
+        harness.PumpUntil(controller => EndedOn(controller, "c"));
+
+        Assert.Contains(harness.Messages, m => m.EndsWith(". Still downloading: 20% so far", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Messages, m => m.Contains("could not be played", StringComparison.Ordinal));
+        Assert.Equal(Expected((0, 400), (500, 400)), harness.Played());
+    }
+
+    [Fact]
     public void FailuresBeforeTheUserOpensSomethingElseDoNotStopItsPlayableItems()
     {
         using var harness = new ControllerHarness();
@@ -499,6 +521,25 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "one");
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
         Assert.Equal("There is only one audio track.", harness.Messages[^1]);
+    }
+
+    [Fact]
+    [Capability("PB-17")]
+    public void ASecondPressWhileTheTrackChangeOpensMovesOnFromTheTrackJustChosen()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["two.mkv"] = TwoAudioTracks();
+        var controller = harness.Controller;
+        controller.Open(["two.mkv"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
+
+        // The reopened session has not reported its tracks yet when the second press comes.
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.Equal("Audio track 2 of 2: Commentary", harness.Messages[^1]);
+        Assert.Null(controller.Info);
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.StartsWith("Audio track 1 of 2: ", harness.Messages[^1], StringComparison.Ordinal);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
     }
 
     [Fact]

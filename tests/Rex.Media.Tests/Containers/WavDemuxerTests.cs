@@ -245,4 +245,30 @@ public sealed class WavDemuxerTests
         Assert.Equal(505, track.Audio!.SamplesPerBlock);
         Assert.Equal(MediaTime.FromSamples(1010, 8000), demuxer.Info.Duration);
     }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AWaveFileDeclaresItsRiffSizeUnlessItsWriterIsStillStreaming()
+    {
+        var whole = Pcm.RampWav(8000, 800);
+        using (var wav = Open(whole))
+        {
+            Assert.Equal(whole.Length, wav.Info.DeclaredLength);
+        }
+
+        var cut = whole[..^100];
+        using (var partial = Open(cut))
+        {
+            Assert.True(partial.Info.DeclaredLength > cut.Length, "a cut-short WAVE should declare more bytes than it holds");
+        }
+
+        // A writer still streaming leaves 0 or all ones; that says nothing either way.
+        foreach (var placeholder in new uint[] { 0, uint.MaxValue })
+        {
+            var streaming = (byte[])whole.Clone();
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(streaming.AsSpan(4), placeholder);
+            using var wav = Open(streaming);
+            Assert.Null(wav.Info.DeclaredLength);
+        }
+    }
 }

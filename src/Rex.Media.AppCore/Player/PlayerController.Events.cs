@@ -2,6 +2,7 @@ using System.Globalization;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Engine;
 using Rex.Media.IO;
+using Rex.Media.Library;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 
@@ -190,20 +191,28 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// The tracks and the track chosen by the last cycle, while the session reopens on it: until the
+    /// new session reports its tracks, a second press would otherwise find none (or no current one).
+    /// </summary>
+    private (IReadOnlyList<TrackInfo> Tracks, int Chosen)? _audioSwitch;
+
     /// <summary>Moves to the next audio track, carrying on from the same moment.</summary>
     private void CycleAudioTrack()
     {
-        var tracks = AudioTracks;
+        var tracks = Info is null && _audioSwitch is { } switching ? switching.Tracks : AudioTracks;
         if (tracks.Count < 2 || Item is null)
         {
             Say(tracks.Count == 1 ? "There is only one audio track." : "There are no audio tracks to choose from.");
             return;
         }
 
-        var current = tracks.ToList().FindIndex(track => track.Id == AudioTrack);
+        var chosen = AudioTrack ?? _audioSwitch?.Chosen;
+        var current = tracks.ToList().FindIndex(track => track.Id == chosen);
         var next = tracks[(current + 1) % tracks.Count];
         var position = Position;
         Start(Item, position, next.Id);
+        _audioSwitch = (tracks, next.Id);
         var name = next.Title ?? next.Language ?? next.Codec.DisplayName();
         Say($"Audio track {tracks.ToList().IndexOf(next) + 1} of {tracks.Count}: {name}");
     }
@@ -361,9 +370,13 @@ public sealed partial class PlayerController
                     Item = Playlist.Next(automatic: true);
                 }
 
+                // A library file still downloading is passed over for now, and the notice says so.
+                var partial = _queued?.Location is { } location ? Library?.Entry(location) : null;
                 _queued = null;
                 _log.Warning(LogSource, $"Skipped {skipped.Name}: {skipped.Reason}");
-                Say(DamageNotices.Failed(skipped.Name, skipped.Reason));
+                Say(partial is { Downloading: true }
+                    ? $"Skipped {skipped.Name}. {Downloads.NotYetNotice(partial.Size, partial.FinalSize, partial.Allocated)}"
+                    : DamageNotices.Failed(skipped.Name, skipped.Reason));
                 if (State == SessionState.Ended)
                 {
                     StartNext();

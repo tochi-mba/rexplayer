@@ -45,6 +45,75 @@ public sealed class ShellIntegrationTests
         }
     }
 
+    /// <summary>
+    /// A single-threaded apartment that lives until disposed, as the app's shell thread does. Windows'
+    /// media service reads the card's thumbnail after <c>Update</c> returns, by calling back into the
+    /// stream made on this thread; a thread that has already ended (as <see cref="OnShellThread"/>'s
+    /// does) cannot answer, and the card stays without its picture. Waiting here between pieces of
+    /// work answers those calls, since a wait on a single-threaded apartment dispatches them.
+    /// </summary>
+    private sealed class ShellApartment : IDisposable
+    {
+        private readonly AutoResetEvent _work = new(false);
+        private readonly AutoResetEvent _done = new(false);
+        private readonly Thread _thread;
+        private Action? _next;
+        private Exception? _failure;
+        private bool _stopping;
+
+        public ShellApartment()
+        {
+            _thread = new Thread(Serve) { IsBackground = true, Name = "rexplayer shell test" };
+            _thread.SetApartmentState(ApartmentState.STA);
+            _thread.Start();
+        }
+
+        /// <summary>Runs <paramref name="work"/> on the apartment and waits for it, rethrowing what it threw.</summary>
+        public void Run(Action work)
+        {
+            _failure = null;
+            _next = work;
+            _work.Set();
+            _done.WaitOne();
+            if (_failure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(_failure).Throw();
+            }
+        }
+
+        private void Serve()
+        {
+            while (true)
+            {
+                _work.WaitOne();
+                if (_stopping)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _next!();
+                }
+                catch (Exception ex)
+                {
+                    _failure = ex;
+                }
+
+                _done.Set();
+            }
+        }
+
+        public void Dispose()
+        {
+            _stopping = true;
+            _work.Set();
+            _thread.Join();
+            _work.Dispose();
+            _done.Dispose();
+        }
+    }
+
     private static Taskbar TaskbarOrSkip()
     {
         try
@@ -184,7 +253,8 @@ public sealed class ShellIntegrationTests
         var title = "rexplayer test " + Guid.NewGuid().ToString("N")[..8];
         var pressed = new List<MediaControlButton>();
         MediaTransportControls? controls = null;
-        OnShellThread(() =>
+        using var shell = new ShellApartment();
+        shell.Run(() =>
         {
             controls = ControlsOrSkip(window.Handle);
             controls.ButtonPressed += (_, button) =>
@@ -275,7 +345,7 @@ public sealed class ShellIntegrationTests
         }
         finally
         {
-            OnShellThread(() => controls?.Dispose());
+            shell.Run(() => controls?.Dispose());
         }
     }
 

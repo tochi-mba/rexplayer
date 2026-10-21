@@ -16,7 +16,14 @@ public enum LibraryKind
 }
 
 /// <summary>A file as the disk describes it: its size and when it last changed.</summary>
-public readonly record struct LibraryFile(string Path, long Size, DateTime Modified);
+public readonly record struct LibraryFile(string Path, long Size, DateTime Modified)
+{
+    /// <summary>The file is sparse: laid out at its full size with parts not yet written, as torrent clients make them.</summary>
+    public bool Sparse { get; init; }
+
+    /// <summary>The file is a cloud placeholder whose bytes are not on this computer; it is never opened to look at it, since that would fetch it.</summary>
+    public bool Placeholder { get; init; }
+}
 
 /// <summary>What a scan of a folder found against what the library knew.</summary>
 public readonly record struct ScanResult(int Added, int Changed, int Removed)
@@ -94,6 +101,12 @@ public sealed record LibraryEntry
     /// music read by an older one is read again in the background, after every file never read at all.
     /// </summary>
     public int TagReading { get; init; }
+
+    /// <summary>For a sparse file still filling in, how many of its bytes are on the disk; null otherwise.</summary>
+    public long? Allocated { get; init; }
+
+    /// <summary>A weak sign of a download (growth, a rewrite, a writer) was seen at the last look and waits for a second.</summary>
+    public bool Suspect { get; init; }
 
     /// <summary>The artist an album is filed under: its album artist, else its artist.</summary>
     [JsonIgnore]
@@ -266,7 +279,7 @@ public sealed class MediaLibrary
     /// last scan, and by what <paramref name="readMarker"/> reads of a downloader's sidecar; a
     /// partial file whose whole name is listed too is left to that one.
     /// </summary>
-    public ScanResult Scan(string folder, IEnumerable<LibraryFile> files, Func<string, LibraryKind?> kindOf, Func<string, byte[]?>? readMarker = null)
+    public ScanResult Scan(string folder, IEnumerable<LibraryFile> files, Func<string, LibraryKind?> kindOf, Func<string, byte[]?>? readMarker = null, Func<LibraryFile, FileLook>? inspect = null)
     {
         ArgumentNullException.ThrowIfNull(files);
         ArgumentNullException.ThrowIfNull(kindOf);
@@ -288,17 +301,31 @@ public sealed class MediaLibrary
                     continue;
                 }
 
-                var evidence = Downloads.Gather(file.Path, paths.Contains, readMarker ?? (_ => null));
-                if (!_entries.TryGetValue(file.Path, out var known))
+                var known = _entries.GetValueOrDefault(file.Path);
+                if (known is not null && known.Size == file.Size && known.Modified == file.Modified && !known.Downloading && !known.Suspect)
                 {
-                    var (downloading, finalSize) = Downloads.Judge(evidence, null, file.Size, null);
-                    written.Add(new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path), Downloading = downloading, FinalSize = finalSize });
+                    // Unchanged and not in question: nothing is opened or written.
+                    continue;
+                }
+
+                // A download renamed into place ("film.mp4.crdownload" to "film.mp4") keeps its entry,
+                // judged afresh: the rename itself says the download finished.
+                var carried = known is null ? RenamedPartial(file.Path, paths) : null;
+                var before = known;
+                var start = known ?? (carried is null
+                    ? new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path) }
+                    : carried with { Path = file.Path, Probed = false });
+                var evidence = Downloads.Gather(file.Path, paths.Contains, readMarker ?? (_ => null));
+                var looked = Looked(start, before, file, evidence, LookAt(file, evidence, inspect)) with { Kind = kind };
+                if (known is null && carried is null)
+                {
+                    written.Add(looked);
                     added++;
                 }
-                else if (known.Size != file.Size || known.Modified != file.Modified || known.Downloading != Downloads.Judge(evidence, known.Size, file.Size, known.FinalSize).Downloading)
+                else if (looked != known)
                 {
-                    written.Add(Looked(known, evidence, file.Size, file.Modified) with { Kind = kind });
-                    changed++;
+                    written.Add(looked);
+                    changed += known is null || known.Size != file.Size || known.Modified != file.Modified || known.Downloading != looked.Downloading ? 1 : 0;
                 }
             }
 
@@ -317,52 +344,76 @@ public sealed class MediaLibrary
     }
 
     /// <summary>
-    /// Looks again at every file marked as downloading: <paramref name="stat"/> gives its size now
-    /// (null when it is gone), and the markers beside it are read as a scan reads them. One that
-    /// stopped growing, with nothing marking it and no declared size left to reach, is whole; its
-    /// details are read again. For the window, which looks while such files are shown or opened.
+    /// Looks again at every file marked as downloading, or showing a first weak sign of it:
+    /// <paramref name="stat"/> gives it as the disk lists it now (null when it is gone), the markers
+    /// beside it are read as a scan reads them, and <paramref name="inspect"/> looks at the file
+    /// itself. One that stopped changing, with nothing marking it, nothing left to arrive and no
+    /// writer, is whole; its details are read again. Only entries that changed are written. For the
+    /// window, which looks while such files are shown or opened.
     /// </summary>
-    public void RecheckDownloads(Func<string, LibraryFile?> stat, Func<string, bool> exists, Func<string, byte[]?> readMarker)
+    public void RecheckDownloads(Func<string, LibraryFile?> stat, Func<string, bool> exists, Func<string, byte[]?> readMarker, Func<LibraryFile, FileLook>? inspect = null)
     {
         ArgumentNullException.ThrowIfNull(stat);
         ArgumentNullException.ThrowIfNull(exists);
         ArgumentNullException.ThrowIfNull(readMarker);
-        List<string> downloading;
+        List<LibraryEntry> inQuestion;
         lock (_gate)
         {
-            downloading = [.. _entries.Values.Where(entry => entry.Downloading).Select(entry => entry.Path)];
+            inQuestion = [.. _entries.Values.Where(entry => entry.Downloading || entry.Suspect)];
         }
 
-        var looked = new List<(string Path, LibraryFile File, DownloadEvidence Evidence)>();
-        foreach (var path in downloading)
+        var looked = new List<LibraryEntry>();
+        foreach (var known in inQuestion)
         {
             // A file can disappear while its folder is open. Do not probe downloader sidecars for a
             // path the filesystem has already said is gone; leave its remembered state for the next scan.
-            if (stat(path) is not { } file)
+            if (stat(known.Path) is not { } file)
             {
                 continue;
             }
 
-            looked.Add((path, file, Downloads.Gather(path, exists, readMarker)));
+            var evidence = Downloads.Gather(known.Path, exists, readMarker);
+            if (Looked(known, known, file, evidence, LookAt(file, evidence, inspect)) is var now && now != known)
+            {
+                looked.Add(now);
+            }
         }
 
-        Change(looked.Select(look => look.Path), known =>
-        {
-            var (_, file, evidence) = looked.First(look => string.Equals(look.Path, known.Path, StringComparison.OrdinalIgnoreCase));
-            return Looked(known, evidence, file.Size, file.Modified);
-        });
+        Change(looked.Select(entry => entry.Path), known => looked.First(entry => string.Equals(entry.Path, known.Path, StringComparison.OrdinalIgnoreCase)));
     }
 
+    /// <summary>The entry of a partial file that <paramref name="path"/> was renamed from, when that file is no longer listed.</summary>
+    private LibraryEntry? RenamedPartial(string path, HashSet<string> listed) =>
+        Downloads.PartialExtensions.Select(extension => path + extension)
+            .Where(partial => !listed.Contains(partial))
+            .Select(partial => _entries.GetValueOrDefault(partial))
+            .FirstOrDefault(entry => entry is not null);
+
+    /// <summary>What the file itself says, asked only when no name or marker settles it already, and never of a cloud placeholder.</summary>
+    private static FileLook LookAt(LibraryFile file, DownloadEvidence evidence, Func<LibraryFile, FileLook>? inspect) =>
+        inspect is null || evidence.Marked || file.Placeholder ? default : inspect(file);
+
     /// <summary>
-    /// <paramref name="known"/> as the disk shows it now. A file that changed is read again, except
-    /// while it downloads: its details are read once, then left until it is whole.
+    /// <paramref name="start"/> as the disk shows it now, judged against <paramref name="before"/>
+    /// (what was known at the last look; null for a file never seen). A file that changed is read
+    /// again, except while it downloads: its details are read once, then left until it is whole.
     /// </summary>
-    private static LibraryEntry Looked(LibraryEntry known, DownloadEvidence evidence, long size, DateTime modified)
+    private static LibraryEntry Looked(LibraryEntry start, LibraryEntry? before, LibraryFile file, DownloadEvidence evidence, FileLook look)
     {
-        var (downloading, finalSize) = Downloads.Judge(evidence, known.Size, size, known.FinalSize);
-        var changed = known.Size != size || known.Modified != modified;
-        var reread = downloading ? changed && !known.Downloading : changed || known.Downloading;
-        return known with { Size = size, Modified = modified, Downloading = downloading, FinalSize = finalSize, Probed = known.Probed && !reread };
+        var state = Downloads.Judge(evidence, look, before, file.Size, file.Modified);
+        var changed = before is null || before.Size != file.Size || before.Modified != file.Modified;
+        var wasDownloading = before is { Downloading: true };
+        var reread = state.Downloading ? changed && !wasDownloading : changed || wasDownloading;
+        return start with
+        {
+            Size = file.Size,
+            Modified = file.Modified,
+            Downloading = state.Downloading,
+            Suspect = state.Suspect,
+            FinalSize = state.FinalSize,
+            Allocated = state.Allocated,
+            Probed = start.Probed && !reread,
+        };
     }
 
     /// <summary>
@@ -419,11 +470,14 @@ public sealed class MediaLibrary
         });
     }
 
-    /// <summary>Drops the overrides of <paramref name="paths"/> (their files now hold the details) so their tags are read again.</summary>
+    /// <summary>
+    /// Drops the overrides of <paramref name="paths"/> (their files now hold the details) so their tags
+    /// are read again; a choice no file can hold, such as "This is a movie", is kept.
+    /// </summary>
     public void ClearOverride(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        Change(paths, known => known with { Override = null, Probed = false });
+        Change(paths, known => known with { Override = known.Override?.Kept(), Probed = false });
     }
 
     /// <summary>Counts a play of <paramref name="path"/>, now; one the library does not know is passed over.</summary>

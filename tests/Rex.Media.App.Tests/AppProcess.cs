@@ -266,6 +266,106 @@ internal sealed class AppProcess : IDisposable
         ((TogglePattern)element.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
     }
 
+    /// <summary>
+    /// Opens the menus along <paramref name="path"/> (a menu bar item, then any submenus) until
+    /// <paramref name="item"/> is on screen and enabled, and returns it. A flyout opens on the
+    /// window's thread after Expand returns, and one still closing from the last choice swallows a
+    /// new Expand (its menu still reads Expanded, or the opening flyout closes with the old one), so
+    /// each level is expanded again, from a fresh look-up, until the next level really shows.
+    /// </summary>
+    public AutomationElement OpenMenu(string item, params string[] path) => OpenMenu(ById(item), item, true, path);
+
+    /// <summary>
+    /// <see cref="OpenMenu(string, string[])"/> for an item found by <paramref name="item"/> (a list
+    /// item by its name, say), described as <paramref name="what"/> if it never shows. A long drop-down
+    /// list keeps items scrolled out of view off screen, so <paramref name="itemOnScreen"/> false asks
+    /// only that the item is in the open list.
+    /// </summary>
+    public AutomationElement OpenMenu(Condition item, string what, bool itemOnScreen, params string[] path)
+    {
+        var clock = Stopwatch.StartNew();
+        var tried = new List<string>();
+        while (true)
+        {
+            if (Reachable(item, itemOnScreen) is { } found)
+            {
+                return found;
+            }
+
+            for (var level = 0; level < path.Length; level++)
+            {
+                var (next, onScreen) = level + 1 < path.Length ? (ById(path[level + 1]), true) : (item, itemOnScreen);
+                if (Reachable(next, onScreen) is not null)
+                {
+                    continue;
+                }
+
+                if (!TryExpand(path[level], next, onScreen, tried))
+                {
+                    break;
+                }
+            }
+
+            Assert.True(clock.Elapsed < Patience,
+                $"The menu {string.Join(" > ", path)} never offered {what}. Tried: {string.Join("; ", tried.TakeLast(12))}");
+        }
+    }
+
+    /// <summary>Expands <paramref name="menu"/> and waits a moment for <paramref name="next"/> inside it; false if it did not come.</summary>
+    private bool TryExpand(string menu, Condition next, bool onScreen, List<string> tried)
+    {
+        if (Reachable(ById(menu)) is not { } element)
+        {
+            tried.Add(menu + " not on screen yet");
+            Thread.Sleep(50);
+            return false;
+        }
+
+        try
+        {
+            var expander = (ExpandCollapsePattern)element.GetCurrentPattern(ExpandCollapsePattern.Pattern);
+            var state = expander.Current.ExpandCollapseState;
+            if (state == ExpandCollapseState.Expanded)
+            {
+                // Open yet without the next level: a flyout on its way out. Close it and start afresh.
+                expander.Collapse();
+            }
+
+            expander.Expand();
+            tried.Add($"{menu} was {state}, expanded");
+        }
+        catch (Exception ex) when (ex is ElementNotAvailableException or InvalidOperationException)
+        {
+            // Replaced or disabled between the look-up and the call: look it up again.
+            tried.Add($"{menu}: {ex.GetType().Name}");
+            return false;
+        }
+
+        if (Wait.Within(TimeSpan.FromSeconds(2), () => Reachable(next, onScreen) is not null))
+        {
+            return true;
+        }
+
+        tried.Add(menu + " showed nothing");
+        return false;
+    }
+
+    private static PropertyCondition ById(string automationId) => new(AutomationElement.AutomationIdProperty, automationId);
+
+    /// <summary>The control matching <paramref name="condition"/> if it is in the tree, enabled and (unless <paramref name="onScreen"/> is false) on screen now; null otherwise (a stale element included).</summary>
+    private AutomationElement? Reachable(Condition condition, bool onScreen = true)
+    {
+        try
+        {
+            var element = Window.FindFirst(TreeScope.Descendants, condition);
+            return element is { Current.IsEnabled: true } && !(onScreen && element.Current.IsOffscreen) ? element : null;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return null;
+        }
+    }
+
     public void Toggle(string automationId) => ((TogglePattern)Find(automationId).GetCurrentPattern(TogglePattern.Pattern)).Toggle();
 
     public void SetValue(string automationId, double value) => ((RangeValuePattern)Find(automationId).GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(value);
@@ -319,6 +419,23 @@ internal static class Wait
             Assert.True(clock.Elapsed < AppProcess.Patience, "The window never got there.");
             Thread.Sleep(50);
         }
+    }
+
+    /// <summary>Whether <paramref name="condition"/> came true within <paramref name="limit"/>, for a step that is retried when it did not.</summary>
+    public static bool Within(TimeSpan limit, Func<bool> condition)
+    {
+        var clock = Stopwatch.StartNew();
+        while (!condition())
+        {
+            if (clock.Elapsed >= limit)
+            {
+                return false;
+            }
+
+            Thread.Sleep(50);
+        }
+
+        return true;
     }
 
     public static void For(Func<bool> condition, string what, Func<string>? diagnostic = null)
