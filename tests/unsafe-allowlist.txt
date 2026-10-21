@@ -1,2 +1,3 @@
 # Source files outside Rex.Media.Interop that may use the unsafe keyword, one per line, each followed
 # by the argument for why every pointer access in it stays in bounds. Interop needs no entry.
+src/Rex.Media.Video.Metal/MetalPresenter.cs Each upload pins a plane span of exactly stride x rows bytes and asks Metal for a region no wider than the plane and exactly rows tall at that stride; the vertex and colour bytes are a four-float stackalloc and the twelve-float rows array, each passed with its own length.
