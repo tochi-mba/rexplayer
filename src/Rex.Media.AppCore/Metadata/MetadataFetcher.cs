@@ -113,7 +113,8 @@ public sealed partial class MetadataFetcher(MetadataCache cache, Func<Uri, Cance
             var cast = ParseOptional(await TextAsync(TvMaze.CastUri(pick.Id), token).ConfigureAwait(false), TvMaze.ParseCast);
             var creators = ParseOptional(await TextAsync(TvMaze.CrewUri(pick.Id), token).ConfigureAwait(false), TvMaze.ParseCreators);
             var seasons = ParseOptional(await TextAsync(TvMaze.SeasonsUri(pick.Id), token).ConfigureAwait(false), TvMaze.ParseSeasons);
-            var poster = pick.ImageUrl is null ? null : await _fetch(new Uri(pick.ImageUrl), token).ConfigureAwait(false);
+            var poster = Uri.TryCreate(pick.ImageUrl, UriKind.Absolute, out var art) && art.Scheme is "https" or "http"
+                ? await _fetch(art, token).ConfigureAwait(false) : null;
             if (poster is not null)
             {
                 _cache.Write(ArtKind, key, ArtExtension, poster);
