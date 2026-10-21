@@ -30,6 +30,13 @@ public sealed class SubtitleHold
             return HoldAction.Nothing;
         }
 
+        // Play now waives only the gap the viewer chose to cross. Seeking is a new choice,
+        // and reaching ready captions rearms waiting for a later gap.
+        if (Overridden && (state == SessionState.Seeking || desired != HoldAction.Hold))
+        {
+            Overridden = false;
+        }
+
         if (Holding)
         {
             if (state == SessionState.Paused)

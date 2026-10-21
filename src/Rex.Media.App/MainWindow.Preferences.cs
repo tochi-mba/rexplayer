@@ -94,9 +94,6 @@ public sealed partial class MainWindow
             lastUpdated.Children.Add(whatsNew);
         }
 
-        var resume = Choice("Opening something left part-way through", ["Offer to go back there", "Always go back there", "Start from the top"], (int)s.ResumePlayback);
-        var resumeAudio = Number("Only resume audio longer than (minutes; 0 means all audio)", s.ResumeAudioLongerThanMinutes, 0, 180);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(resumeAudio, "PreferencesResumeAudioMinutes");
         var mediaOpenClick = Choice("Open media on", ["Single click", "Double click"], (int)s.MediaOpenClickMode);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(mediaOpenClick, "PreferencesMediaOpenClick");
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
@@ -266,7 +263,7 @@ public sealed partial class MainWindow
         });
 
         AddSection("History and resume");
-        foreach (var control in new UIElement[] { resume, resumeAudio, history, queue, sleep })
+        foreach (var control in new UIElement[] { history, queue, sleep })
         {
             content.Children.Add(control);
         }
@@ -397,8 +394,6 @@ public sealed partial class MainWindow
             EnqueueFromSecondLaunch = enqueue.IsChecked == true,
             UpdateChecks = (UpdateCadence)updates.SelectedIndex,
             UpdateMode = (UpdateMode)updateMode.SelectedIndex,
-            ResumePlayback = (ResumeChoice)resume.SelectedIndex,
-            ResumeAudioLongerThanMinutes = resumeAudio.Value,
             MediaOpenClickMode = (MediaOpenClick)Math.Max(0, mediaOpenClick.SelectedIndex),
             KeepHistory = history.IsChecked == true,
             OpenLibraryAtPlayingItem = libraryOpening.SelectedIndex == 0,

@@ -33,7 +33,7 @@ public sealed class SubtitleHoldTests
     }
 
     [Fact]
-    public void ASeekKeepsTheHoldAndManualPlayOverridesItUntilTheSettingChanges()
+    public void PlayNowWaivesOneGapAndASeekOrReadyStretchAllowsWaitingAgain()
     {
         var hold = new SubtitleHold();
         hold.Update(true, SessionState.Playing, HoldAction.Hold);
@@ -45,11 +45,15 @@ public sealed class SubtitleHoldTests
         Assert.True(hold.Overridden);
         Assert.False(hold.Holding);
         Assert.Equal(HoldAction.Nothing, hold.Update(true, SessionState.Playing, HoldAction.Hold));
-        hold.Update(false, SessionState.Paused, HoldAction.Nothing);
+        hold.Update(true, SessionState.Seeking, HoldAction.Hold);
         Assert.False(hold.Overridden);
         Assert.Equal(HoldAction.Hold, hold.Update(true, SessionState.Playing, HoldAction.Hold));
         hold.PlayNow();
+        Assert.True(hold.Overridden);
         hold.AllowWaiting();
+        Assert.False(hold.Overridden);
+        hold.PlayNow();
+        hold.Update(true, SessionState.Playing, HoldAction.Nothing);
         Assert.False(hold.Overridden);
     }
 

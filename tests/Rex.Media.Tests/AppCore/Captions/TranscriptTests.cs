@@ -25,10 +25,29 @@ public sealed class TranscriptTests : IDisposable
     [InlineData("tiny.en", false, "Fast — Original", "Transcript (tiny.en, original)")]
     [InlineData("base.en", true, "Default — Edited", "Transcript (base.en, edited)")]
     [InlineData("small.en", false, "Best — Original", "Transcript (small.en, original)")]
+    [InlineData("custom/model", true, "custom/model — Edited", "Transcript (custom/model, edited)")]
     public void TranscriptVariantsIdentifyTheirModelAndIndependentEdit(string model, bool edited, string display, string track)
     {
         var variant = new TranscriptVariant(model, edited);
         Assert.Equal((display, track), (variant.DisplayName, variant.TrackName));
+    }
+
+    [Theory]
+    [InlineData("Transcript (tiny.en, original)", "tiny.en", false)]
+    [InlineData("Transcript (base.en, edited)", "base.en", true)]
+    [InlineData("Transcript (small.en)", "small.en", false)]
+    public void ModelTranscriptTrackNamesIdentifyTheExactVariant(string name, string model, bool edited)
+    {
+        Assert.Equal(new TranscriptVariant(model, edited), TranscriptVariant.FromTrackName(name));
+    }
+
+    [Theory]
+    [InlineData("An authored subtitle track")]
+    [InlineData("Transcript (tiny.en")]
+    [InlineData("Transcript ()")]
+    public void OtherTrackNamesCannotClaimAnEditedTranscript(string name)
+    {
+        Assert.Null(TranscriptVariant.FromTrackName(name));
     }
 
     [Fact]
@@ -79,6 +98,22 @@ public sealed class TranscriptTests : IDisposable
         var read = SubtitleFile.Parse(vtt).Cues;
         Assert.Equal(3, read.Count);
         Assert.Equal([S(0), S(0.5), S(0.65), S(0.9)], read[0].Lines[0].Runs.Select(run => run.At!.Value));
+    }
+
+    [Theory]
+    [InlineData("tiny.en", "Film.transcript.fast.original.srt")]
+    [InlineData("base.en", "Film.transcript.default.original.srt")]
+    [InlineData("small.en", "Film.transcript.best.original.srt")]
+    [InlineData("custom/model", "Film.transcript.custom-model.original.srt")]
+    public void ModelLabelledSidecarsHaveStableSafeNames(string model, string expected)
+    {
+        var media = Path.Combine(_directory, "Film.mkv");
+        var path = Transcript.SidecarSrtPath(media, model);
+        Assert.Equal(Path.Combine(_directory, expected), path);
+        Assert.EndsWith(".edited.srt", Transcript.SidecarSrtPath(media, model, edited: true), StringComparison.Ordinal);
+
+        (Speech with { Model = model }).WriteSidecarSrt(media);
+        Assert.Equal(Speech.ToSrt(), File.ReadAllText(path));
     }
 
     [Fact]

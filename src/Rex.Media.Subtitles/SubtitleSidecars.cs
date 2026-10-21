@@ -34,6 +34,7 @@ public static class SubtitleSidecars
         var candidates = locations
             .SelectMany(location => Listed(list, location.Directory).Select(path => (Path: path, location.OwnFolder)))
             .Where(candidate => Extensions.Contains(Path.GetExtension(candidate.Path), StringComparer.OrdinalIgnoreCase))
+            .Where(candidate => !IsTranscriptExport(candidate.Path))
             .ToList();
 
         var found = new List<SubtitleSidecar>();
@@ -60,6 +61,15 @@ public static class SubtitleSidecars
 
     /// <summary>Whether a name is a subtitle file the player can read.</summary>
     public static bool IsSubtitle(string path) => Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Whether this is one of RexPlayer's model-labelled transcript exports.</summary>
+    public static bool IsTranscriptExport(string path)
+    {
+        var name = Path.GetFileName(path);
+        return name.Contains(".transcript.", StringComparison.OrdinalIgnoreCase)
+            && (name.EndsWith(".original.srt", StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith(".edited.srt", StringComparison.OrdinalIgnoreCase));
+    }
 
     private static bool IsMark(string mark) => mark.Equals("sdh", StringComparison.OrdinalIgnoreCase) || mark.Equals("cc", StringComparison.OrdinalIgnoreCase);
 

@@ -332,15 +332,6 @@ public enum VisualizerChoice
     Water,
 }
 
-/// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>
-public enum ResumeChoice
-{
-    /// <summary>Offer to go back there, in a bar over the picture.</summary>
-    Ask,
-    Always,
-    Never,
-}
-
 /// <summary>What the sleep timer does when its time comes (PB-21).</summary>
 public enum SleepChoice
 {
@@ -650,14 +641,6 @@ public sealed record PlayerSettings
 
     // Memory
 
-    public ResumeChoice ResumePlayback { get; init; } = ResumeChoice.Ask;
-
-    /// <summary>
-    /// Audio this many minutes long or shorter starts from the beginning instead of offering a
-    /// resume point. Zero applies the ordinary resume choice to every audio item.
-    /// </summary>
-    public double ResumeAudioLongerThanMinutes { get; init; } = 10;
-
     /// <summary>Only skip an offered intro without a click when the viewer opts in.</summary>
     public bool SkipIntrosAutomatically { get; init; }
 
@@ -775,9 +758,6 @@ public sealed record PlayerSettings
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
-            ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
-            ResumeAudioLongerThanMinutes = double.IsFinite(ResumeAudioLongerThanMinutes)
-                ? Math.Clamp(ResumeAudioLongerThanMinutes, 0, 180) : 10,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
             SubjectPanelSide = Enum.IsDefined(SubjectPanelSide) ? SubjectPanelSide : PanelSide.Right,
             SubjectSelection = Enum.IsDefined(SubjectSelection) ? SubjectSelection : SubjectSelectionMode.Click,

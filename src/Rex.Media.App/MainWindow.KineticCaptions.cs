@@ -390,9 +390,12 @@ public sealed partial class MainWindow
 
     private void SetKineticCaptions(KineticCaptionSettings kinetic)
     {
-        if (_settings.KineticCaptions.TranscriptModel != kinetic.TranscriptModel)
+        var modelChanged = _settings.KineticCaptions.TranscriptModel != kinetic.TranscriptModel;
+        if (modelChanged)
         {
-            // Recheck availability for the new model; an active transcript keeps its pinned model.
+            // Recheck availability and saved coverage for the newly selected model.
+            DetachGeneratedTranscript();
+            _playingModelChoice = null;
             _modelInstalled = null;
             _plannedTranscription = null;
             _queueDirty = true;
@@ -405,6 +408,10 @@ public sealed partial class MainWindow
         _toldNoWords = false;
         ApplyKineticCaptions();
         RememberLater();
+        if (modelChanged)
+        {
+            OpenTranscriptOf(_player.Item?.Location, preserveHold: true);
+        }
     }
 
     /// <summary>Every kinetic caption choice in one place, each showing at once behind the dialog; Cancel puts them back.</summary>

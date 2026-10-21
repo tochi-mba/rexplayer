@@ -9,10 +9,8 @@ using Microsoft.UI.Xaml.Shapes;
 using Microsoft.Windows.System.Power;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
-using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Codecs.MediaFoundation;
-using Rex.Media.Engine;
 using Rex.Media.Library;
 using Rex.Media.Settings;
 using Rex.Media.Speech;
@@ -50,6 +48,7 @@ public sealed partial class MainWindow
     private bool _queueRefreshing;
     private bool? _modelInstalled;
     private TranscriptModelChoice? _playingModelChoice;
+    private long _transcriptGeneration;
 
     // What plays, as the worker was last told, and whether its speech is wanted.
     private string? _playingTranscript;
@@ -70,7 +69,10 @@ public sealed partial class MainWindow
     private string? _workerPath;
 
     /// <summary>The model the settings name.</summary>
-    private SpeechModel TranscriptModel => SpeechModels.For(_playingModelChoice ?? _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel));
+    private SpeechModel TranscriptModel => SpeechModels.For(_playingModelChoice ?? _settings.KineticCaptions.TranscriptModel);
+
+    private TranscriptModelChoice ActiveTranscriptModelChoice =>
+        _playingModelChoice ?? _settings.KineticCaptions.TranscriptModel;
 
     /// <summary>Wires transcription without touching the disk: the first look happens once the launch has settled.</summary>
     private void WireTranscription()
@@ -129,10 +131,15 @@ public sealed partial class MainWindow
         };
 
         // Only what plays crosses to the window, and only the stretches heard: its track fills by itself.
-        worker.Opened += (_, e) => OnHearing(e);
-        worker.Heard += (_, e) => OnHearing(e);
+        worker.Opened += (_, e) => OnHearing(worker, e);
+        worker.Heard += (_, e) => OnHearing(worker, e);
         worker.Changed += (_, _) => OnWindowThread(() =>
         {
+            if (!ReferenceEquals(worker, _worker) || worker.Model != TranscriptModel.Id)
+            {
+                return;
+            }
+
             _queueDirty = true;
             ShowTranscriptionStatus();
             RefreshTranscriptBadges();
@@ -150,16 +157,17 @@ public sealed partial class MainWindow
         return worker;
     }
 
-    private void OnHearing(HearingEventArgs e)
+    private void OnHearing(TranscriptionWorker worker, HearingEventArgs e)
     {
-        if (!string.Equals(e.Path, _playingTranscript, StringComparison.OrdinalIgnoreCase))
+        WriteTranscriptSrt(worker, e.Path);
+        if (worker != _worker || !string.Equals(e.Path, _playingTranscript, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
         OnWindowThread(() =>
         {
-            if (!string.Equals(e.Path, _player.Item?.Location, StringComparison.OrdinalIgnoreCase))
+            if (!ReferenceEquals(worker, _worker) || worker.Model != TranscriptModel.Id || !string.Equals(e.Path, _player.Item?.Location, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
@@ -267,13 +275,28 @@ public sealed partial class MainWindow
     /// thread; then whether its speech is wanted (asked for, what plays is transcribed, or in the
     /// library's scope) goes to the worker, which hears it from the playhead.
     /// </summary>
-    private void OpenTranscriptOf(string? item)
+    private void OpenTranscriptOf(string? item, bool preserveHold = false)
     {
-        _subtitleHold.Reset();
+        // A new item or model invalidates pending exact-variant coverage reads.
+        ++_variantGeneration;
+        _coverageVariant = null;
+        _variantDone = null;
+        _variantDuration = null;
+        var generation = ++_transcriptGeneration;
+        if (preserveHold)
+        {
+            _subtitleHold.AllowWaiting();
+        }
+        else
+        {
+            _subtitleHold.Reset();
+        }
+
         (_bufferDone, _bufferDuration, _bufferHearing) = (null, null, false);
         ShowSubtitleBuffer();
         (_playingTranscript, _playingWanted) = (null, false);
         _playingModelChoice = null;
+        _modelInstalled = null;
         if (_askedPlaying != item)
         {
             _askedPlaying = null;
@@ -285,10 +308,12 @@ public sealed partial class MainWindow
             return;
         }
 
-        var modelChoice = _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
+        QueueTranscriptVariants(item, generation);
+        var modelChoice = _settings.KineticCaptions.TranscriptModel;
         var model = SpeechModels.For(modelChoice);
         var settings = _settings.Transcription;
         var asked = _askedPlaying == item;
+        var hasVideo = HasVideo;
         var entry = _library?.Entry(item);
         var folders = _library?.Folders ?? [];
         _ = Task.Run(() =>
@@ -297,13 +322,13 @@ public sealed partial class MainWindow
             var partial = full is null ? _transcripts.LoadPartial(item, model.Id) : null;
             var backgroundEligible = settings.Library && entry is not null
                 && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry))) == TranscriptionSkip.None;
-            var wanted = full is null && TranscriptionEligibility.Playing(asked, HasVideo, settings.WhatPlays, backgroundEligible);
+            var wanted = full is null && TranscriptionEligibility.Playing(asked, hasVideo, settings.WhatPlays, backgroundEligible);
             var track = full is not null ? full.ToTrack(TranscriptionWorker.TrackName(model.Id))
                 : !wanted && partial is not null ? partial.ToTranscript().ToTrack(TranscriptionWorker.TrackName(model.Id)) : null;
             return (full, track, partial?.Done, partial?.Duration, wanted);
         }).ContinueWith(task => OnWindowThread(() =>
         {
-            if (!task.IsCompletedSuccessfully || _player.Item?.Location != item)
+            if (!task.IsCompletedSuccessfully || generation != _transcriptGeneration || _player.Item?.Location != item || TranscriptModel.Id != model.Id)
             {
                 return;
             }
@@ -338,6 +363,19 @@ public sealed partial class MainWindow
         ApplyKineticCaptions();
     }
 
+    private void DetachGeneratedTranscript()
+    {
+        if (_transcript is { } generated)
+        {
+            _player.RemoveSubtitles(generated);
+        }
+
+        _transcript = null;
+        _heard = null;
+        _toldNoWords = false;
+        ApplyKineticCaptions();
+    }
+
     /// <summary>Transcribe: what plays is heard from here, its subtitles appearing as each piece is heard.</summary>
     private async Task TranscribeWhatPlaysAsync()
     {
@@ -360,7 +398,7 @@ public sealed partial class MainWindow
 
         StartTranscription();
         _askedPlaying = item;
-        _playingModelChoice = _budget.SpeechModel(_settings.KineticCaptions.TranscriptModel);
+        _playingModelChoice = _settings.KineticCaptions.TranscriptModel;
         (_playingTranscript, _playingWanted) = (item, true);
         Say("Transcribing from here: subtitles appear as the speech is heard, ahead of where you are.");
         TranscriptionTick();
@@ -795,159 +833,6 @@ public sealed partial class MainWindow
 
         TranscriptionTick();
         RefreshTranscriptBadges();
-    }
-
-    /// <summary>Paint contiguous caption coverage on a separate, labelled track beneath playback.</summary>
-    private void ShowSubtitleBuffer()
-    {
-        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
-        var key = string.Join(";", view.Spans);
-        TranscriptRail.Visibility = view.State == BufferState.None ? Visibility.Collapsed : Visibility.Visible;
-        if (key != _shownBuffer)
-        {
-            _shownBuffer = key;
-            while (_bufferMarks.Count < view.Spans.Count)
-            {
-                var mark = new Rectangle
-                {
-                    Height = 6,
-                    RadiusX = 3,
-                    RadiusY = 3,
-                    Fill = new SolidColorBrush(Microsoft.UI.Colors.MediumTurquoise),
-                    IsHitTestVisible = false,
-                };
-                SubtitleBuffer.Children.Add(mark);
-                _bufferMarks.Add(mark);
-            }
-
-            for (var i = 0; i < _bufferMarks.Count; i++)
-            {
-                _bufferMarks[i].Visibility = i < view.Spans.Count ? Visibility.Visible : Visibility.Collapsed;
-            }
-
-            PositionSubtitleBuffer();
-        }
-
-        ShowSubtitleBufferState(force: true);
-    }
-
-    private void PositionSubtitleBuffer()
-    {
-        if (TranscriptRail.Visibility != Visibility.Visible)
-        {
-            return;
-        }
-
-        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
-        var width = SubtitleBuffer.ActualWidth;
-        if (width <= 0)
-        {
-            return;
-        }
-
-        for (var i = 0; i < view.Spans.Count && i < _bufferMarks.Count; i++)
-        {
-            var (from, to) = view.Spans[i];
-            _bufferMarks[i].Width = Math.Max(2, (to - from) * width);
-            Canvas.SetLeft(_bufferMarks[i], from * width);
-            Canvas.SetTop(_bufferMarks[i], 0);
-        }
-    }
-
-    /// <summary>A short live readout; no floating message over the video or playback rail.</summary>
-    private void ShowSubtitleBufferState(bool force = false)
-    {
-        var duration = _bufferDuration ?? _player.Duration;
-        var state = Rex.Media.AppCore.Transcription.SubtitleBuffer.StateAt(_bufferDone, duration, _player.Position, _bufferHearing);
-        if (!force && state == _shownBufferState && state is BufferState.None or BufferState.Complete)
-        {
-            return;
-        }
-
-        _shownBufferState = state;
-        var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, duration, _player.Position, _bufferHearing);
-        var ahead = _bufferDone is null ? TimeSpan.Zero : Rex.Media.AppCore.Transcription.SubtitleBuffer.Ahead(_bufferDone, _player.Position);
-        var label = _holdingForSubtitles && _bufferDone is not null
-            ? $"Preparing captions · {Math.Round(ahead.TotalMinutes):0}/{Math.Ceiling(Rex.Media.AppCore.Transcription.SubtitleBuffer.ReleaseTarget(_worker?.Speed.SafeFactor, _player.Speed, _player.Position, duration).TotalMinutes):0} min"
-            : state switch
-            {
-                BufferState.Ahead => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s ahead",
-                BufferState.CatchingUp when ahead > TimeSpan.Zero => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s remaining",
-                BufferState.CatchingUp => "Catching up",
-                BufferState.Stalled => "Not ready here",
-                BufferState.Complete => "All ready",
-                _ => "",
-            };
-        if (SubtitleBufferState.Text != label)
-        {
-            SubtitleBufferState.Text = label;
-        }
-
-        CaptionBufferOverlay.Visibility = _holdingForSubtitles ? Visibility.Visible : Visibility.Collapsed;
-        CaptionBufferOverlayText.Text = _holdingForSubtitles
-            ? label + ". Playback will start automatically when enough captions are ready."
-            : "";
-
-        if (AutomationProperties.GetName(TranscriptRail) != view.ToolTip)
-        {
-            AutomationProperties.SetName(TranscriptRail, view.ToolTip);
-            ToolTipService.SetToolTip(TranscriptRail, view.ToolTip.Length > 0 ? view.ToolTip : null);
-        }
-    }
-
-    /// <summary>What the timeline preview says of the subtitles at the pointer, while any are being heard.</summary>
-    private void ShowSeekPreviewSubtitles(TimeSpan at)
-    {
-        var show = _bufferDone is not null && _bufferHearing;
-        SeekPreviewSubtitles.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        if (show)
-        {
-            SeekPreviewSubtitles.Text = Rex.Media.AppCore.Transcription.SubtitleBuffer.HintAt(_bufferDone!, at);
-        }
-    }
-
-    /// <summary>Playback held while it has caught up with the subtitles, when the user allows it.</summary>
-    private void HoldForSubtitles()
-    {
-        var done = _bufferDone ?? TimeRanges.Empty;
-        // A missing or failed speech model cannot make more coverage. Never strand the
-        // player behind an unavailable worker; the user may still choose to play manually.
-        var hearing = _bufferHearing && _modelInstalled == true && _worker?.Status.Error is null;
-        var hasUsableSubtitles = Rex.Media.AppCore.Transcription.SubtitleBuffer.HasUsableSubtitles(_player.SubtitleTracks);
-        var waitForTranscript = _playingWanted && Rex.Media.AppCore.Transcription.SubtitleBuffer.ShouldWaitForTranscript(
-            hasUsableSubtitles, _settings.KineticCaptions.Words);
-        var allowed = _settings.Transcription.HoldForSubtitles && waitForTranscript;
-        var desired = Rex.Media.AppCore.Transcription.SubtitleBuffer.Hold(allowed, _holdingForSubtitles,
-            hearing, done, _player.Position, _bufferDuration ?? _player.Duration, _worker?.Speed.SafeFactor, _player.Speed);
-        var action = _subtitleHold.Update(allowed, _player.State, desired);
-        ShowSubtitleBufferState(force: true);
-        switch (action)
-        {
-            case HoldAction.Hold:
-                _player.Pause();
-                Say("Preparing enough subtitles to play through without interruptions. This may take a while on slower computers.");
-                ShowSubtitleBufferState(force: true);
-                break;
-            case HoldAction.Release:
-                ShowSubtitleBufferState(force: true);
-                if (_player.State == SessionState.Paused)
-                {
-                    _player.Execute(CommandCatalog.PlayPause);
-                }
-
-                break;
-        }
-    }
-
-    /// <summary>Lets the viewer explicitly trade uninterrupted captions for immediate playback.</summary>
-    private void OnPlayWithoutCaptionBuffer(object sender, RoutedEventArgs e)
-    {
-        _subtitleHold.PlayNow();
-        ShowSubtitleBufferState(force: true);
-        if (!_player.IsPlaying)
-        {
-            _player.Execute(CommandCatalog.PlayPause);
-        }
     }
 
     private static bool OnBattery()
