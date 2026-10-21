@@ -28,6 +28,8 @@
     <ProjectReference Include="..\Rex.Media.Library\Rex.Media.Library.csproj" />
     <ProjectReference Include="..\Rex.Media.Settings\Rex.Media.Settings.csproj" />
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+    <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
+    <ProjectReference Include="..\Rex.Media.Video.Metal\Rex.Media.Video.Metal.csproj" />
   </ItemGroup>
 
 </Project>
