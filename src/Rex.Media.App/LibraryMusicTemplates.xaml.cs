@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 
 namespace Rex.Media.App;
@@ -30,4 +31,21 @@ public sealed partial class LibraryMusicTemplates : ResourceDictionary
     private void OnRowPlay(object sender, RoutedEventArgs e) => _owner.OnMusicRowPlay(sender, e);
 
     private void OnRowQueue(object sender, RoutedEventArgs e) => _owner.OnMusicRowQueue(sender, e);
+
+    private void OnArtistLink(object sender, RoutedEventArgs e) => _owner.OnMusicArtistLink(sender);
+
+    private void OnAlbumLink(object sender, RoutedEventArgs e) => _owner.OnMusicAlbumLink(sender);
+
+    /// <summary>An artist or album link is underlined while pointed at, as a link reads.</summary>
+    private void OnLinkPointerEntered(object sender, PointerRoutedEventArgs e) => Underline(sender, true);
+
+    private void OnLinkPointerExited(object sender, PointerRoutedEventArgs e) => Underline(sender, false);
+
+    private static void Underline(object sender, bool on)
+    {
+        if (sender is ContentControl { Content: TextBlock text })
+        {
+            text.TextDecorations = on ? Windows.UI.Text.TextDecorations.Underline : Windows.UI.Text.TextDecorations.None;
+        }
+    }
 }
