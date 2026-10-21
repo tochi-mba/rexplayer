@@ -247,6 +247,10 @@ public sealed class TranscriptTests : IDisposable
         Assert.Throws<ArgumentNullException>(() => TranscriptSidecarCleanup.Remove(null!, ["tiny.en"]));
         Assert.Throws<ArgumentNullException>(() => TranscriptSidecarCleanup.Remove([film], null!));
         Assert.Equal(0, TranscriptSidecarCleanup.Remove([""], [""]).Removed);
+        var failed = TranscriptSidecarCleanup.Remove([film], ["tiny.en"],
+            exists: _ => true, delete: _ => throw new UnauthorizedAccessException("Locked"));
+        Assert.Equal(0, failed.Removed);
+        Assert.Equal(2, failed.Failed);
     }
 
     [Fact]
