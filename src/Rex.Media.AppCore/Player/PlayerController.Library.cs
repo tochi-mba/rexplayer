@@ -56,7 +56,8 @@ public sealed partial class PlayerController
             return false;
         }
 
-        var position = Position;
+        var position = version.Duration is { } duration && duration > TimeSpan.Zero && Position > duration
+            ? duration : Position;
         var paused = State is SessionState.Paused or SessionState.Ready;
         var replacement = ItemOf(version);
         Playlist.Replace(index, replacement);
