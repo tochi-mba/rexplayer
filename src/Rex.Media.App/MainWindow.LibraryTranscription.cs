@@ -503,8 +503,9 @@ public sealed partial class MainWindow
             _plannedTranscription = null;
             return true;
         }
-        catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidDataException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidDataException or UnauthorizedAccessException or TaskCanceledException)
         {
+            // A connection that stops answering times out as a cancellation: said like any other failure.
             App.Log.Warning(LogSource, "The speech model could not be downloaded: " + ex.Message);
             Say("The speech model could not be downloaded: " + ex.Message);
             return false;

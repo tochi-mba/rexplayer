@@ -677,7 +677,8 @@ public sealed partial class MainWindow : Window
 
     private void RestorePlacement()
     {
-        if (_settings.Window is { } window)
+        // The screen it was left on may be gone (unplugged, or a remote session at another size).
+        if (Rex.Media.AppCore.Shell.WindowPlacementFit.Fit(_settings.Window, Screens()) is { } window)
         {
             AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(window.X, window.Y, window.Width, window.Height));
             if (window.Maximized && AppWindow.Presenter is OverlappedPresenter overlapped)
@@ -689,6 +690,29 @@ public sealed partial class MainWindow : Window
         {
             AppWindow.Resize(new Windows.Graphics.SizeInt32(1280, 800));
         }
+    }
+
+    /// <summary>Every screen's work area, the main screen first.</summary>
+    private static List<Rex.Media.AppCore.Shell.ScreenArea> Screens()
+    {
+        var screens = new List<Rex.Media.AppCore.Shell.ScreenArea>();
+        var all = DisplayArea.FindAll();
+        // Read by index: enumerating this list is not supported by its projection.
+        for (var i = 0; i < all.Count; i++)
+        {
+            var area = all[i].WorkArea;
+            var screen = new Rex.Media.AppCore.Shell.ScreenArea(area.X, area.Y, area.Width, area.Height);
+            if (all[i].IsPrimary)
+            {
+                screens.Insert(0, screen);
+            }
+            else
+            {
+                screens.Add(screen);
+            }
+        }
+
+        return screens;
     }
 
     /// <summary>
