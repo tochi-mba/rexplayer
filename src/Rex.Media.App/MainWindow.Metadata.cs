@@ -258,7 +258,7 @@ public sealed partial class MainWindow
         }
         catch (Exception ex)
         {
-            App.Log.Error(MetadataLogSource, "The metadata fetcher stopped: " + ex.Message);
+            App.Log.Error(MetadataLogSource, "The metadata fetcher stopped: " + ex);
         }
     }
 
@@ -457,7 +457,7 @@ public sealed partial class MainWindow
         {
             App.Log.Debug(MetadataLogSource, $"The catalogue took too long for {job.Key}.");
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             App.Log.Error(MetadataLogSource, $"The metadata cache could not be written for {job.Key}: {ex.Message}");
         }
@@ -738,7 +738,15 @@ public sealed partial class MainWindow
                     }
 
                     var image = new Microsoft.UI.Xaml.Controls.Image { Width = 120, Height = 120, Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill };
-                    image.Source = await DecodePictureAsync(bytes, 120, CancellationToken.None);
+                    try
+                    {
+                        image.Source = await DecodePictureAsync(bytes, 120, CancellationToken.None);
+                    }
+                    catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or ArgumentException or InvalidOperationException or NotSupportedException)
+                    {
+                        App.Log.Debug(MetadataLogSource, $"A cover offered for {album} could not be shown: {ex.Message}");
+                        continue;
+                    }
                     var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
                     row.Children.Add(image);
                     row.Children.Add(new TextBlock
