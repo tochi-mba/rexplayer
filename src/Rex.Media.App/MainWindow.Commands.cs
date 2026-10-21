@@ -46,7 +46,7 @@ public sealed partial class MainWindow
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null,
             CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse, null,
             SubMenu + "library-backup", CommandCatalog.ClearPlaylist, CommandCatalog.ClearHistory]),
-        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
+        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates, CommandCatalog.WhatsNew, null, CommandCatalog.About]),
     ];
 
     /// <summary>Marks a <see cref="MenuLayout"/> entry that opens one of <see cref="SubMenus"/>.</summary>
@@ -356,6 +356,12 @@ public sealed partial class MainWindow
             case CommandCatalog.CheckForUpdates:
                 _ = CheckForUpdatesAsync(asked: true);
                 break;
+            case CommandCatalog.WhatsNew:
+                _ = ShowWhatsNewAsync();
+                break;
+            case CommandCatalog.About:
+                _ = ShowAboutAsync();
+                break;
             case CommandCatalog.Effects:
                 _ = ShowEffectsAsync();
                 break;
@@ -453,6 +459,7 @@ public sealed partial class MainWindow
         if (IsFullScreen && Controls.Visibility == Visibility.Collapsed)
         {
             ShowPointer(false);
+            App.Log.Debug(LogSource, "Hid the pointer over the full-screen picture.");
         }
     }
 

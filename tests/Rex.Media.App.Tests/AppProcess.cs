@@ -95,19 +95,27 @@ internal sealed class AppProcess : IDisposable
     /// <summary>
     /// Starts the app with <paramref name="arguments"/>, reusing <paramref name="root"/> when given.
     /// A new root starts as someone who has used rexplayer before (no welcome, nothing new to show)
-    /// unless <paramref name="firstRun"/> asks for the very first start.
+    /// unless <paramref name="firstRun"/> asks for the very first start. <paramref name="extraSettings"/>
+    /// adds JSON properties to a new root's settings, such as <c>"theme": "Dark"</c>, and
+    /// <paramref name="environment"/> adds variables, such as REXPLAYER_FAKE_SPEECH.
     /// </summary>
-    public static AppProcess Start(string[]? arguments = null, string? root = null, bool firstRun = false)
+    public static AppProcess Start(string[]? arguments = null, string? root = null, bool firstRun = false, string? extraSettings = null, IReadOnlyDictionary<string, string>? environment = null)
     {
         root ??= Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
         var settings = Path.Combine(root, "settings.json");
         if (!firstRun && !File.Exists(settings))
         {
             Directory.CreateDirectory(root);
-            File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off" }""");
+            File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off"{{(extraSettings is null ? "" : ", " + extraSettings)}} }""");
         }
 
-        var process = Process.Start(StartInfo(arguments, root))!;
+        var start = StartInfo(arguments, root);
+        foreach (var (name, value) in environment ?? new Dictionary<string, string>())
+        {
+            start.Environment[name] = value;
+        }
+
+        var process = Process.Start(start)!;
         var window = Wait.Until(() =>
         {
             process.Refresh();
@@ -195,13 +203,21 @@ internal sealed class AppProcess : IDisposable
     }
 
     /// <summary>Runs a command through the player's automation pipe, as a script would (TOOL-03).</summary>
-    public Rex.Media.AppCore.Automation.AutomationReply Run(string command)
+    public Rex.Media.AppCore.Automation.AutomationReply Run(string command) =>
+        Send(new Rex.Media.AppCore.Automation.AutomationRequest { Command = "run", Id = command }, command);
+
+    /// <summary>What the player says it is doing now: its state, title, position and length, in seconds.</summary>
+    public Rex.Media.AppCore.Automation.AutomationReply Status() =>
+        Send(new Rex.Media.AppCore.Automation.AutomationRequest { Command = "status" }, "status");
+
+    /// <summary>The playing position in seconds, as the player reports it.</summary>
+    public double Position => Status().Position ?? 0;
+
+    private Rex.Media.AppCore.Automation.AutomationReply Send(Rex.Media.AppCore.Automation.AutomationRequest request, string what)
     {
         var reply = Rex.Media.AppCore.Automation.AutomationPipe.SendAsync(
-            "rexplayer-test-" + Path.GetFileName(Root),
-            new Rex.Media.AppCore.Automation.AutomationRequest { Command = "run", Id = command },
-            Patience).GetAwaiter().GetResult();
-        Assert.True(reply is { Ok: true }, $"The player did not run {command}: {reply?.Error ?? "no answer"}");
+            "rexplayer-test-" + Path.GetFileName(Root), request, Patience).GetAwaiter().GetResult();
+        Assert.True(reply is { Ok: true }, $"The player did not run {what}: {reply?.Error ?? "no answer"}");
         return reply!;
     }
 

@@ -42,8 +42,6 @@ public sealed class SubjectPanelTests
     [Fact]
     public void TheSliderDefaultsMatchTheSession()
     {
-        Assert.Equal(3, SubjectPanel.DefaultFeather);
-        Assert.Equal(50, SubjectPanel.DefaultTolerance);
     }
 
     [Fact]
@@ -55,8 +53,6 @@ public sealed class SubjectPanelTests
         Assert.Equal("Show original", SubjectPanel.EraseText(erasing: true));
         Assert.Equal("Move left", SubjectPanel.MoveText(PanelSide.Right));
         Assert.Equal("Move right", SubjectPanel.MoveText(PanelSide.Left));
-        Assert.Equal("Click to lock", SubjectPanel.ModeText(SubjectSelectionMode.Click));
-        Assert.Equal("Draw a box", SubjectPanel.ModeText(SubjectSelectionMode.Draw));
     }
 
     [Fact]

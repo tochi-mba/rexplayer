@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -6,7 +5,6 @@ using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using Microsoft.Windows.System.Power;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Player;
@@ -48,6 +46,7 @@ public sealed partial class MainWindow
     private bool _queueDirty = true;
     private bool _queueRefreshing;
     private bool? _modelInstalled;
+    private readonly Dictionary<string, Task<bool>> _modelDownloads = new(StringComparer.Ordinal);
     private TranscriptModelChoice? _playingModelChoice;
     private long _transcriptGeneration;
 
@@ -78,10 +77,10 @@ public sealed partial class MainWindow
     /// <summary>Wires transcription without touching the disk: the first look happens once the launch has settled.</summary>
     private void WireTranscription()
     {
-        _transcriptionTimer = DispatcherQueue.CreateTimer();
+        _transcriptionTimer = CreateTimer();
         _transcriptionTimer.Interval = WindowClocks.TranscriptionEvery;
         _transcriptionTimer.Tick += (_, _) => TranscriptionTick();
-        var first = DispatcherQueue.CreateTimer();
+        var first = CreateTimer();
         first.Interval = LaunchPlan.FirstLibraryScan;
         first.IsRepeating = false;
         first.Tick += (_, _) => StartTranscription();
@@ -125,7 +124,7 @@ public sealed partial class MainWindow
         _worker?.Dispose();
         var decoders = MediaRegistries.Decoders(new MfDecoderFactory(), new WicDecoderFactory());
         var path = _speechModels.PathOf(model);
-        var worker = new TranscriptionWorker(_transcripts, _ledger, file => new SpeechAudioReader(file, decoders, CancellationToken.None), () => new WhisperHearer(path), model.Id)
+        var worker = new TranscriptionWorker(_transcripts, _ledger, file => new SpeechAudioReader(file, decoders, CancellationToken.None), () => FakeSpeechHearer.PerPiece is { } perPiece ? new FakeSpeechHearer(perPiece) : (ISpeechHearer)new WhisperHearer(path), model.Id)
         {
             Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null,
             Log = message => App.Log.Warning(LogSource, message),
@@ -213,8 +212,8 @@ public sealed partial class MainWindow
         }
 
         var model = TranscriptModel;
-        _modelInstalled ??= _speechModels.IsInstalled(model);
-        var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, OnBattery(), EnergySaver(), _modelInstalled.Value), Environment.ProcessorCount);
+        _modelInstalled ??= SpeechModelHere(model);
+        var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, App.Power.OnBattery, App.Power.EnergySaver, _modelInstalled.Value), Environment.ProcessorCount);
         var worker = Worker();
         worker.Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null;
         if (plan != _plannedTranscription)
@@ -431,6 +430,9 @@ public sealed partial class MainWindow
         TranscriptionTick();
     }
 
+    /// <summary>Whether <paramref name="model"/> can hear now: downloaded, or stood in for in the window tests.</summary>
+    private bool SpeechModelHere(SpeechModel model) => FakeSpeechHearer.PerPiece is not null || _speechModels.IsInstalled(model);
+
     /// <summary>
     /// The speech model, downloaded once on the user's say-so (ADR-0020); on a connection that
     /// costs by the byte only when they asked there and then. False when it is not here.
@@ -438,7 +440,40 @@ public sealed partial class MainWindow
     private async Task<bool> EnsureSpeechModelAsync(bool askedNow, SpeechModel? requestedModel = null)
     {
         var model = requestedModel ?? TranscriptModel;
-        if (_speechModels.IsInstalled(model))
+        if (_modelDownloads.TryGetValue(model.Id, out var running))
+        {
+            // One download per model: a second request joins it rather than racing it for the file.
+            return await running;
+        }
+
+        var download = DownloadSpeechModelAsync(askedNow, model);
+        if (!download.IsCompleted)
+        {
+            _modelDownloads[model.Id] = download;
+        }
+
+        try
+        {
+            return await download;
+        }
+        finally
+        {
+            _modelDownloads.Remove(model.Id);
+        }
+    }
+
+    /// <summary>Another quality was chosen: its model is fetched (never on a metered connection unasked) when transcription is in use.</summary>
+    private void FetchModelForNewQuality()
+    {
+        if (TranscriptionConditions.FetchesModelForNewQuality(_settings.Transcription, _askedPlaying is not null || _askedTranscripts.Count > 0))
+        {
+            _ = EnsureSpeechModelAsync(askedNow: false);
+        }
+    }
+
+    private async Task<bool> DownloadSpeechModelAsync(bool askedNow, SpeechModel model)
+    {
+        if (SpeechModelHere(model))
         {
             if (model == TranscriptModel)
             {
@@ -880,29 +915,5 @@ public sealed partial class MainWindow
 
         TranscriptionTick();
         RefreshTranscriptBadges();
-    }
-
-    private static bool OnBattery()
-    {
-        try
-        {
-            return PowerManager.PowerSupplyStatus == PowerSupplyStatus.NotPresent && PowerManager.BatteryStatus != BatteryStatus.NotPresent;
-        }
-        catch (COMException)
-        {
-            return false;
-        }
-    }
-
-    private static bool EnergySaver()
-    {
-        try
-        {
-            return PowerManager.EnergySaverStatus == EnergySaverStatus.On;
-        }
-        catch (COMException)
-        {
-            return false;
-        }
     }
 }

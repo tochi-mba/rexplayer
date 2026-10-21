@@ -1,0 +1,110 @@
+using System.Globalization;
+using Rex.Media.Library;
+using Rex.Media.Primitives;
+
+namespace Rex.Media.AppCore.Library;
+
+/// <summary>One box of the Edit details dialog: what it holds now, or that the songs disagree.</summary>
+public sealed record DetailField(string Key, string Label, string Value, bool Several);
+
+/// <summary>
+/// The Edit details dialog's logic for one song or many: each field shows the songs' shared value,
+/// or "(several values)" when they differ, and only fields the person changed are saved.
+/// </summary>
+public static class DetailsForm
+{
+    /// <summary>What a box shows when the chosen songs hold different values.</summary>
+    public const string SeveralValues = "(several values)";
+
+    private static readonly (string Key, string Label)[] Layout =
+    [
+        (MetadataKeys.Title, "Title"),
+        (MetadataKeys.Artist, "Artist"),
+        (MetadataKeys.Album, "Album"),
+        (MetadataKeys.AlbumArtist, "Album artist"),
+        (MetadataKeys.Track, "Track"),
+        (MetadataKeys.Disc, "Disc"),
+        (MetadataKeys.Date, "Year"),
+        (MetadataKeys.Genre, "Genre"),
+    ];
+
+    /// <summary>The dialog's fields for <paramref name="entries"/> (at least one song).</summary>
+    public static IReadOnlyList<DetailField> Fields(IReadOnlyList<LibraryEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentOutOfRangeException.ThrowIfZero(entries.Count);
+        return [.. Layout.Select(field =>
+        {
+            var values = entries.Select(entry => ValueOf(entry, field.Key)).Distinct(StringComparer.Ordinal).ToList();
+            return new DetailField(field.Key, field.Label, values.Count == 1 ? values[0] : "", values.Count > 1);
+        })];
+    }
+
+    /// <summary>
+    /// The change the person made: <paramref name="typed"/> holds each box's text by key. A box left
+    /// as it was (or left empty over several values) changes nothing; an emptied box clears the field.
+    /// </summary>
+    public static DetailOverride Change(IReadOnlyList<DetailField> fields, IReadOnlyDictionary<string, string> typed)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
+        ArgumentNullException.ThrowIfNull(typed);
+        string? Changed(string key)
+        {
+            var field = fields.First(candidate => candidate.Key == key);
+            var text = typed.GetValueOrDefault(key, field.Value).Trim();
+            return text == field.Value || (field.Several && text.Length == 0) ? null : text;
+        }
+
+        return new DetailOverride
+        {
+            Title = Changed(MetadataKeys.Title),
+            Artist = Changed(MetadataKeys.Artist),
+            Album = Changed(MetadataKeys.Album),
+            AlbumArtist = Changed(MetadataKeys.AlbumArtist),
+            Track = Changed(MetadataKeys.Track),
+            Disc = Changed(MetadataKeys.Disc),
+            Year = Changed(MetadataKeys.Date),
+            Genre = Changed(MetadataKeys.Genre),
+        };
+    }
+
+    /// <summary>A file's metadata with an edit laid over it: a cleared field is dropped.</summary>
+    public static IReadOnlyDictionary<string, string> Apply(IReadOnlyDictionary<string, string> metadata, DetailOverride change)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        ArgumentNullException.ThrowIfNull(change);
+        var result = new Dictionary<string, string>(metadata, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in new[]
+        {
+            (MetadataKeys.Title, change.Title), (MetadataKeys.Artist, change.Artist), (MetadataKeys.Album, change.Album),
+            (MetadataKeys.AlbumArtist, change.AlbumArtist), (MetadataKeys.Track, change.Track), (MetadataKeys.Disc, change.Disc),
+            (MetadataKeys.Date, change.Year), (MetadataKeys.Genre, change.Genre),
+        })
+        {
+            if (value is { Length: > 0 })
+            {
+                result[key] = value;
+            }
+            else if (value is not null)
+            {
+                result.Remove(key);
+            }
+        }
+
+        return result;
+    }
+
+    private static string ValueOf(LibraryEntry entry, string key) => key switch
+    {
+        MetadataKeys.Title => entry.Title,
+        MetadataKeys.Artist => entry.Artist ?? "",
+        MetadataKeys.Album => entry.Album ?? "",
+        MetadataKeys.AlbumArtist => entry.AlbumArtist ?? "",
+        MetadataKeys.Track => Number(entry.Track),
+        MetadataKeys.Disc => Number(entry.Disc),
+        MetadataKeys.Date => Number(entry.Year),
+        _ => entry.Genre ?? "",
+    };
+
+    private static string Number(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "";
+}

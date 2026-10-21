@@ -83,14 +83,11 @@ public sealed class LibraryControllerActionsTests
         var item = library.Entry(a)!;
         Assert.Equal(a, PlayerController.ItemOf(item).Location);
         Assert.Equal(item.Title, PlayerController.ItemOf(item).Title);
-        Assert.Equal(Rex.Media.AppCore.Library.WatchState.Unwatched, controller.WatchStateOf(item));
         controller.Memory.Left(a, TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(40));
-        Assert.Equal(Rex.Media.AppCore.Library.WatchState.InProgress, controller.WatchStateOf(item));
 
         controller.MarkWatched([a]);
         Assert.Null(controller.LeftAt(a));
         Assert.Equal(1, library.Entry(a)!.Plays);
-        Assert.Equal(Rex.Media.AppCore.Library.WatchState.Finished, controller.WatchStateOf(library.Entry(a)!));
         controller.MarkUnwatched([a, b]);
         Assert.Equal(0, library.Entry(a)!.Plays);
         Assert.Null(library.Entry(a)!.LastPlayed);

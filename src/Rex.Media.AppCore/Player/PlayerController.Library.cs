@@ -9,6 +9,18 @@ public sealed partial class PlayerController
     /// <summary>The media library (LIB-05), when the window keeps one: what plays is counted in it.</summary>
     public MediaLibrary? Library { get; set; }
 
+    /// <summary>Shows details just edited for <paramref name="paths"/> on what plays, without reopening or interrupting it.</summary>
+    public void ShowEditedDetails(IEnumerable<string> paths, DetailOverride change)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(change);
+        if (Item is { } item && Info is { } info && paths.Contains(item.Location, StringComparer.OrdinalIgnoreCase))
+        {
+            Info = info with { Metadata = DetailsForm.Apply(info.Metadata, change) };
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     /// <summary>
     /// Plays <paramref name="entries"/> (a library view, in its order) from the one at
     /// <paramref name="start"/>, in place of the playlist, so the rest of the view follows it.
@@ -94,9 +106,6 @@ public sealed partial class PlayerController
 
     /// <summary>Where the library's <paramref name="path"/> was left, for "Continue watching".</summary>
     public TimeSpan? LeftAt(string path) => Memory.ResumePoint(path);
-
-    /// <summary>How far the library's <paramref name="entry"/> has been watched or played.</summary>
-    public WatchState WatchStateOf(LibraryEntry entry) => LibraryArrangement.StateOf(entry, LeftAt);
 
     /// <summary>Marks <paramref name="paths"/> as watched through: nowhere to go back to, and played at least once.</summary>
     public void MarkWatched(IReadOnlyList<string> paths)

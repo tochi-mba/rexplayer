@@ -68,8 +68,15 @@ public sealed partial class MainWindow
             timeout.CancelAfter(TimeSpan.FromSeconds(10));
             var (key, poster) = await Task.Run(() =>
             {
-                var local = kind == LibraryKind.Video ? LocalVideoPoster(path)
-                    : kind == LibraryKind.Music ? FolderArt.Find(path) : null;
+                // Artwork beside the file always wins; a fetched poster only fills the gap.
+                // The user's chosen cover beats everything shown; otherwise artwork beside the
+                // file wins, unless they asked fetched covers to replace existing ones.
+                var local = kind == LibraryKind.Video ? LocalVideoPoster(path) ?? FetchedPosterPath(path)
+                    : kind == LibraryKind.Music
+                        ? ChosenCoverPath(path) ?? (settings.Metadata.ReplaceCovers
+                            ? FetchedCoverPath(path) ?? FolderArt.Find(path)
+                            : FolderArt.Find(path) ?? FetchedCoverPath(path))
+                        : null;
                 return (PictureKey(path, kind, settings, local), local);
             }, token);
             token.ThrowIfCancellationRequested();

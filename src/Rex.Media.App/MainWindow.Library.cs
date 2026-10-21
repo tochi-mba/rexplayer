@@ -91,21 +91,22 @@ public sealed partial class MainWindow
             _player.SectionAnalyzer!, App.Log);
         _backgroundSections.SetPaused(_player.IsPlaying);
         _player.Changed += (_, _) => _backgroundSections?.SetPaused(_player.IsPlaying);
+        _player.Changed += (_, _) => OnPlayingChangedForDetailWrites();
 
         // A burst of changes (a scan's batches) shows once.
-        _libraryRefresh = DispatcherQueue.CreateTimer();
+        _libraryRefresh = CreateTimer();
         _libraryRefresh.Interval = TimeSpan.FromMilliseconds(400);
         _libraryRefresh.IsRepeating = false;
         _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
         _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
 
         // Files copied in arrive in many events; the folder is looked at once they settle.
-        _libraryChanges = DispatcherQueue.CreateTimer();
+        _libraryChanges = CreateTimer();
         _libraryChanges.Interval = TimeSpan.FromSeconds(3);
         _libraryChanges.IsRepeating = false;
         _libraryChanges.Tick += (_, _) => LookAtChangedFolders();
 
-        _libraryRescan = DispatcherQueue.CreateTimer();
+        _libraryRescan = CreateTimer();
         _libraryRescan.Interval = LibraryRescanEvery;
         _libraryRescan.Tick += (_, _) => _scanner.Request();
         _libraryRescan.Start();
@@ -114,17 +115,17 @@ public sealed partial class MainWindow
         WireLibraryView();
         LibrarySources.SelectedIndex = 0;
         var entries = new MenuFlyout();
-        entries.Opening += (_, _) => FillLibraryMenu(entries);
+        entries.Opening += (_, _) => FillLibraryMenu(entries, ChoosePointedLine());
         LibraryList.ContextFlyout = entries;
         LibraryCollage.ContextFlyout = entries;
-        LibraryList.ContextRequested += OnLibraryContextRequested;
-        LibraryCollage.ContextRequested += OnLibraryContextRequested;
+        LibraryList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
+        LibraryCollage.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();
         // Looked through once the launch has settled: a large library's scan reads every folder
         // and competes with the first picture and sound for the disk and the processor.
-        var firstScan = DispatcherQueue.CreateTimer();
+        var firstScan = CreateTimer();
         firstScan.Interval = Rex.Media.AppCore.LaunchPlan.FirstLibraryScan;
         firstScan.IsRepeating = false;
         firstScan.Tick += (_, _) =>
@@ -362,12 +363,27 @@ public sealed partial class MainWindow
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
             _libraryGroup = null;
             _librarySeason = null;
+            if (_shelfChoice?.Source != _librarySource)
+            {
+                _shelfChoice = null;
+            }
+
             LibrarySearch.Text = "";
             ShowLibrary();
         }
     }
 
-    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e) => ShowLibrary();
+    /// <summary>
+    /// The box reports a change after the fact, so clearing it while changing view would build the
+    /// new view twice; it is built again only when the search differs from the one it was built for.
+    /// </summary>
+    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_librarySearchText.Changes(LibrarySearch.Text))
+        {
+            ShowLibrary();
+        }
+    }
 
     private void OnLibraryBack(object sender, RoutedEventArgs e)
     {
@@ -466,7 +482,8 @@ public sealed partial class MainWindow
         _ => [],
     };
 
-    private static LibraryRow GroupRow(LibraryGroup group) => new(group.Name, group.Detail,
+    private LibraryRow GroupRow(LibraryGroup group) => new(group.Name,
+        MetadataBlurb(group) is { Length: > 0 } blurb ? (group.Detail is null ? blurb : group.Detail + " · " + blurb) : group.Detail,
         LibraryActions.Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
         group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
 
@@ -475,10 +492,12 @@ public sealed partial class MainWindow
         var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
         var name = _librarySource == LibrarySource.Movies && entry.Kind == LibraryKind.Video
             ? LibraryViews.MovieTitleOf(entry)
-            : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path) ? episode.DisplayName : entry.Title;
+            : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path)
+                ? FetchedEpisodeName(episode) ?? episode.DisplayName : entry.Title;
         var detail = entry.Kind == LibraryKind.Video
             ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
+                + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
                 + (episode is null ? "" : episode.Spoken + " · ")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
@@ -513,6 +532,12 @@ public sealed partial class MainWindow
         if (!args.InRecycleQueue)
         {
             RequestLibraryPicture(args.Item as LibraryRow);
+        }
+
+        // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
+        if (sender == LibraryList)
+        {
+            WireRowFocus(args.ItemContainer as Microsoft.UI.Xaml.Controls.Primitives.SelectorItem);
         }
     }
 
@@ -640,10 +665,9 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The list's right-click menu, for the lines chosen when it opens.</summary>
-    private void FillLibraryMenu(MenuFlyout menu)
+    private void FillLibraryMenu(MenuFlyout menu, List<LibraryRow> chosen)
     {
         menu.Items.Clear();
-        var chosen = SelectedLibraryRows();
         if (chosen.Count == 0)
         {
             menu.Items.Add(new MenuFlyoutItem { Text = "Choose something first", IsEnabled = false });
@@ -714,8 +738,11 @@ public sealed partial class MainWindow
                 () => CopyLibraryPaths(selectedEntries)));
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => _ = OpenLibraryFoldersAsync(selectedEntries)));
+            AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
+            AddMetadataMenuItems(menu, chosen);
+
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
                 () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Delete", selectedEntries.Count, tail: "to Recycle Bin..."), "LibraryMenuDelete",

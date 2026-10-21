@@ -12,6 +12,12 @@ internal sealed class VorbisCodebook
 {
     private const int TableBits = 10;
 
+    // Section 3.2.1: a codeword is at most 32 bits long.
+    private const int MaxCodewordLength = 32;
+
+    // Far beyond any real codebook (a few thousand entries of a few dimensions): a larger table is damage.
+    private const long MaxVectorValues = 1L << 22;
+
     // The tree: children per node (0 = none), and the entry a leaf decodes to (-1 for inner nodes).
     private readonly List<int> _zero = [0];
     private readonly List<int> _one = [0];
@@ -42,9 +48,10 @@ internal sealed class VorbisCodebook
             while (entry < Entries)
             {
                 var count = bits.ReadInt(Ilog(Entries - entry));
-                if (entry + count > Entries)
+                if (entry + count > Entries || length > MaxCodewordLength || bits.EndOfPacket)
                 {
-                    throw new MediaFormatException("A Vorbis codebook lists more entries than it has.");
+                    // A run of zero entries does not move on, so the lengths it could reach are bounded.
+                    throw new MediaFormatException("A Vorbis codebook's entry lengths are not valid.");
                 }
 
                 Array.Fill(lengths, length, entry, count);
@@ -54,10 +61,21 @@ internal sealed class VorbisCodebook
         }
         else
         {
+            // Every entry takes at least one bit, so more entries than bits left is damage.
+            if (Entries > bits.RemainingBits)
+            {
+                throw new MediaFormatException("A Vorbis codebook has more entries than its header has bits.");
+            }
+
             var sparse = bits.ReadFlag();
             for (var entry = 0; entry < Entries; entry++)
             {
                 lengths[entry] = !sparse || bits.ReadFlag() ? bits.ReadInt(5) + 1 : 0;
+            }
+
+            if (bits.EndOfPacket)
+            {
+                throw new MediaFormatException("The Vorbis setup header ends inside a codebook's entry lengths.");
             }
         }
 
@@ -86,14 +104,19 @@ internal sealed class VorbisCodebook
             var delta = Float32Unpack(bits.Read(32));
             var valueBits = bits.ReadInt(4) + 1;
             var sequence = bits.ReadFlag();
-            var lookupValues = LookupType == 1 ? Lookup1Values(Entries, Dimensions) : Entries * Dimensions;
+            var lookupValues = LookupType == 1 ? Lookup1Values(Entries, Dimensions) : (long)Entries * Dimensions;
+            if ((long)Entries * Dimensions > MaxVectorValues || lookupValues * valueBits > bits.RemainingBits)
+            {
+                throw new MediaFormatException("A Vorbis codebook's vector table is larger than its header or any real stream.");
+            }
+
             var multiplicands = new int[lookupValues];
             for (var i = 0; i < lookupValues; i++)
             {
                 multiplicands[i] = bits.ReadInt(valueBits);
             }
 
-            BuildVectors(minimum, delta, sequence, lookupValues, multiplicands);
+            BuildVectors(minimum, delta, sequence, (int)lookupValues, multiplicands);
         }
         else if (LookupType != 0)
         {

@@ -39,7 +39,9 @@ public partial class App : Application
                 Graphics = SoftwareGraphics ? Rex.Media.AppCore.Performance.GraphicsKind.Software : Rex.Media.AppCore.Performance.GraphicsKind.Unknown,
                 HardwareDecoding = GraphicsCardDecoding ? null : [],
             };
-            var tier = Rex.Media.AppCore.Performance.DeviceProfile.Choose(_startupSettings.Performance, facts);
+            // One read of the energy saver status, so a chosen mode gives way to Automatic at startup too.
+            var choice = Rex.Media.AppCore.Performance.EnergySaverMode.Start(_startupSettings.Performance, _startupSettings.AutomaticWhenEnergySaver).PowerChanged(Power.EnergySaver).Next.Effective;
+            var tier = Rex.Media.AppCore.Performance.DeviceProfile.Choose(choice, facts);
             var lean = Rex.Media.AppCore.Performance.DeviceProfile.For(tier, facts).LeanLaunch;
             Warmup = LaunchWarmup.Start(Environment.GetCommandLineArgs().Length > 1, Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") != "1", lean);
         }
@@ -106,6 +108,9 @@ public partial class App : Application
     /// which imitates a graphics card with no video decoding (scripts/measure-startup.ps1 -LowEnd).
     /// </summary>
     public static bool GraphicsCardDecoding { get; } = !string.Equals(Environment.GetEnvironmentVariable("REXPLAYER_HARDWARE_DECODING"), "off", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The battery and Windows' energy saver, as Windows reports them (or as REXPLAYER_FAKE_ENERGY_SAVER forces the latter).</summary>
+    public static Rex.Media.AppCore.Performance.IPowerSource Power { get; } = WindowsPowerSource.Create();
 
     /// <summary>The slow parts of this launch, started in the background before the window is built; null when it hands over.</summary>
     internal static LaunchWarmup? Warmup { get; private set; }

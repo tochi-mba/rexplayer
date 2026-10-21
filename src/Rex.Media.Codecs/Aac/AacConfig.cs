@@ -33,9 +33,6 @@ public sealed record AacConfig
     /// <summary>Samples per channel in one core frame: 1024, or 960 for the short-frame variant.</summary>
     public int FrameLength { get; init; } = 1024;
 
-    /// <summary>The channels a decoder produces: parametric stereo turns mono into stereo.</summary>
-    public int OutputChannels => Ps && Channels == 1 ? 2 : Channels;
-
     /// <summary>Reads an AudioSpecificConfig; false when it is cut short or not AAC at all.</summary>
     public static bool TryParse(ReadOnlySpan<byte> data, out AacConfig config)
     {

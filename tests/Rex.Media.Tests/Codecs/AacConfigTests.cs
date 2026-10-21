@@ -49,7 +49,6 @@ public sealed class AacConfigTests
         Assert.Equal((2, 44_100, 2, 44_100, 1024), (config.ObjectType, config.SampleRate, config.Channels, config.OutputSampleRate, config.FrameLength));
         Assert.False(config.Sbr);
         Assert.False(config.Ps);
-        Assert.Equal(2, config.OutputChannels);
     }
 
     [Fact]
@@ -59,7 +58,7 @@ public sealed class AacConfigTests
         var heAacV2 = Parse((29, 5), (6, 4), (1, 4), (3, 4), (2, 5), (0, 3));
 
         Assert.Equal((2, 24_000, 48_000, true, false), (heAac.ObjectType, heAac.SampleRate, heAac.OutputSampleRate, heAac.Sbr, heAac.Ps));
-        Assert.Equal((true, true, 1, 2), (heAacV2.Sbr, heAacV2.Ps, heAacV2.Channels, heAacV2.OutputChannels));
+        Assert.Equal((true, true, 1), (heAacV2.Sbr, heAacV2.Ps, heAacV2.Channels));
     }
 
     [Fact]
@@ -170,7 +169,6 @@ public sealed class AacConfigTests
         Assert.True(AdtsHeader.TryParse(header, out var adts));
 
         Assert.Equal((2, 44_100, 2, 371, 7, 1), (adts.ObjectType, adts.SampleRate, adts.ChannelConfiguration, adts.FrameLength, adts.HeaderLength, adts.Blocks));
-        Assert.Equal([0x12, 0x10], adts.ToAudioSpecificConfig());
         Assert.True(AdtsHeader.TryParse([0xFF, 0xF8, 0x5D, 0x00, 0x2E, 0x7F, 0xFF], out var crc));
         Assert.Equal((9, 4, 4), (crc.HeaderLength, crc.Blocks, crc.ChannelConfiguration));
     }

@@ -59,6 +59,11 @@ public sealed partial class MainWindow : Window
     private bool _closed;
     private volatile bool _closing;
 
+    // Every clock the window makes, so closing stops them all: a tick after Closed touches controls
+    // that are going, and the exception ends the process (0xC000027B) instead of reaching App.
+    private readonly List<DispatcherQueueTimer> _timers = [];
+    private readonly WindowTeardown _teardown = new((part, ex) => App.Log.Error(LogSource, $"Closing {part} failed: {ex}"));
+
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
     private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
@@ -205,11 +210,40 @@ public sealed partial class MainWindow : Window
 
     private DispatcherQueueTimer Timer(TimeSpan interval, Action tick)
     {
-        var timer = DispatcherQueue.CreateTimer();
+        var timer = CreateTimer();
         timer.Interval = interval;
         timer.IsRepeating = false;
-        timer.Tick += (_, _) => tick();
+        timer.Tick += (_, _) =>
+        {
+            if (!_closing)
+            {
+                tick();
+            }
+        };
         return timer;
+    }
+
+    /// <summary>A clock on the window's thread that closing stops.</summary>
+    private DispatcherQueueTimer CreateTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        _timers.Add(timer);
+        return timer;
+    }
+
+    /// <summary>Stops every clock and takes the window off the app-wide frame and window events.</summary>
+    private void StopClocksAndFrames()
+    {
+        foreach (var timer in _timers)
+        {
+            timer.Stop();
+        }
+
+        _probe?.Dispose();
+        _probe = null;
+        Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnCaptionRendering;
+        _captionsDrawing = false;
+        AppWindow.Changed -= OnAppWindowChanged;
     }
 
     /// <summary>Creates the presenter for the panel and hands its swap chain over, once the panel has a size.</summary>
@@ -627,7 +661,10 @@ public sealed partial class MainWindow : Window
     /// Runs <paramref name="action"/> on the window's thread, unless the window is closing by then:
     /// work queued from another thread as it closes must not wake timers or touch controls that are going.
     /// </summary>
-    private void OnWindowThread(Action action)
+    private void OnWindowThread(Action action) => OnWindowThread(DispatcherQueuePriority.Normal, action);
+
+    /// <inheritdoc cref="OnWindowThread(Action)"/>
+    private void OnWindowThread(DispatcherQueuePriority priority, Action action)
     {
         // Engine events may arrive after Closed, when WinUI has detached this window's
         // dispatcher. Never access that dispatcher after the window starts closing.
@@ -642,7 +679,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        dispatcher.TryEnqueue(() =>
+        dispatcher.TryEnqueue(priority, () =>
         {
             if (!_closing)
             {
@@ -653,37 +690,64 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        // Ordered: first nothing more can be queued or tick, then the parts that draw stop, then
+        // the settings are kept, then the workers and the player go, and the graphics device last.
+        // Each part closes on its own, so one failure is logged and the rest still close.
         _closing = true;
-        _saveTimer.Stop();
-        _resumeTimer.Stop();
-        _sleepTimer.Stop();
-        _probe?.Dispose();
-        _probe = null;
-        UnwirePerformance();
-        // The seek area can still see the pointer leave while the window goes, so its work is
-        // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
-        ResetSeekPreview();
-        _subjectTimer?.Stop();
-        _ = CloseSubjectModels();
-        StopVisualizing();
-        InstallAsWeClose();
-        SaveSettings();
-        _player.SaveQueue();
-        CloseTranscription();
-        CloseLibrary();
-        DisposeShell();
-        _globalHotkeys?.Dispose();
-        TryClearResumeMarker();
-        KeepAwake(false, false);
-        _player.Dispose();
-        // Presenter work is queued on a background thread. Finish its final disposal
-        // before WinUI tears down the window, or a late native callback may crash
-        // the process after the Close handler has already logged success.
+        AppDomain.CurrentDomain.FirstChanceException += LogLateException;
+        var failures = _teardown.Run(
+        [
+            ("the clocks", StopClocksAndFrames),
+            ("the performance watch", UnwirePerformance),
+            // The seek area can still see the pointer leave while the window goes, so its work is
+            // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
+            ("the seek preview", ResetSeekPreview),
+            ("the subject models", () => _ = CloseSubjectModels()),
+            ("the visualisation", StopVisualizing),
+            ("the update", InstallAsWeClose),
+            ("the settings", SaveSettings),
+            ("the queue", _player.SaveQueue),
+            ("transcription", CloseTranscription),
+            ("the library", CloseLibrary),
+            ("the shell", DisposeShell),
+            ("the global shortcuts", () => _globalHotkeys?.Dispose()),
+            ("the resume marker", TryClearResumeMarker),
+            ("keeping awake", () => KeepAwake(false, false)),
+            ("the player", _player.Dispose),
+            // Presenter work is queued on a background thread. Finish its final disposal before
+            // WinUI tears down the window, or a late native callback may crash the process.
+            ("the presenter", ClosePresenter),
+            ("the metadata", StopMetadata),
+        ]);
+        if (failures < 0)
+        {
+            return;
+        }
+
+        _closed = true;
+        App.Log.Info(LogSource, failures == 0 ? "rexplayer closed." : $"rexplayer closed; {failures} parts failed to close.");
+    }
+
+    private int _lateExceptions;
+
+    /// <summary>
+    /// Once closing begins, an exception thrown anywhere is written down at once (critical entries
+    /// reach the disk before returning): one that escapes a Windows callback now ends the process
+    /// without reaching App, and this line is all it leaves.
+    /// </summary>
+    private void LogLateException(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
+    {
+        if (Interlocked.Increment(ref _lateExceptions) <= 10)
+        {
+            App.Log.Critical(LogSource, $"While closing: {e.Exception.GetType().Name}: {e.Exception.Message} (0x{e.Exception.HResult:X8}) at{Environment.NewLine}{new System.Diagnostics.StackTrace(1, false)}");
+        }
+    }
+
+    private void ClosePresenter()
+    {
         OnPresenterThread(presenter => presenter.Dispose());
         _presenter = null;
         _presenterWork.GetAwaiter().GetResult();
-        _closed = true;
-        App.Log.Info(LogSource, "rexplayer closed.");
     }
 
     private void OnSeekBarChanged(object sender, RangeBaseValueChangedEventArgs e)

@@ -40,7 +40,7 @@ public sealed partial class MainWindow
             App.Milestones.Reach("first-paint");
 
             // Queued behind everything the launch has already asked of the window's thread.
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            OnWindowThread(DispatcherQueuePriority.Low, () =>
             {
                 App.Milestones.Reach("interactive");
                 StartShellSoon();

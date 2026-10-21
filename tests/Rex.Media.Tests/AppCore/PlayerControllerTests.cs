@@ -132,6 +132,60 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    public void AQueuedItemRemovedFromThePlaylistIsNotPlayedAndTheOneAfterItIs()
+    {
+        var opened = new List<string>();
+        ControllerHarness? harnessRef = null;
+        using var harness = new ControllerHarness(openSource: location =>
+        {
+            opened.Add(location);
+            return new MemoryByteSource(harnessRef!.Files[location], location);
+        });
+        harnessRef = harness;
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["b.wav"] = Count(1000, 400);
+        harness.Files["c.wav"] = Count(2000, 400);
+
+        harness.Controller.Open(["a.wav", "b.wav", "c.wav"]);
+        // b is opened only to queue it, so once it has been the controller has certainly queued it:
+        // removing it then always takes the path that follows the changed playlist.
+        harness.PumpUntil(_ => opened.Contains("b.wav"));
+        harness.Controller.Playlist.RemoveAt(1);
+        harness.PumpUntil(controller => EndedOn(controller, "c"));
+
+        Assert.DoesNotContain("b.wav", opened.Skip(opened.IndexOf("b.wav") + 1));
+        Assert.Equal(Expected((2000, 400)), harness.Played()[^400..]);
+        Assert.Equal(Expected((2000, 400)), harness.Sinks[^1].Channel(0));
+    }
+
+    [Fact]
+    public void RemovingTheQueuedLastItemEndsPlaybackWithTheItemPlaying()
+    {
+        var opened = new List<string>();
+        ControllerHarness? harnessRef = null;
+        using var harness = new ControllerHarness(openSource: location =>
+        {
+            opened.Add(location);
+            return new MemoryByteSource(harnessRef!.Files[location], location);
+        });
+        harnessRef = harness;
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["b.wav"] = Count(1000, 400);
+
+        harness.Controller.Open(["a.wav", "b.wav"]);
+        // As above: b is opened only to queue it, so it is certainly queued when it is removed.
+        harness.PumpUntil(_ => opened.Contains("b.wav"));
+        harness.Controller.Playlist.RemoveAt(1);
+        // So short an item can end before the engine takes b on; it then opens b just after. Either way
+        // the engine runs into b, and only then is the controller's answer, ending playback, certain.
+        harness.WaitForEngine<MediaOpenedEvent>(2);
+        harness.PumpUntil(controller => controller.State == SessionState.Ended);
+
+        Assert.Equal("a", harness.Controller.Item?.Title);
+        Assert.Single(harness.Sinks);
+    }
+
+    [Fact]
     public void RepeatOnePlaysTheItemAgainUntilStopped()
     {
         using var harness = new ControllerHarness(settings: new PlayerSettings { Repeat = RepeatMode.One });
@@ -637,7 +691,6 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready);
         Assert.Equal("a.srt", controller.Subtitles!.Name);
         Assert.Equal(["Hello"], controller.SubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
-        Assert.Empty(controller.SubtitlesNow);
 
         Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));
         Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));

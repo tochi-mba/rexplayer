@@ -17,6 +17,9 @@ public sealed partial class MainWindow
     {
         var s = _settings;
         Func<Task>? requestedEditor = null;
+
+        // What to show once Preferences has closed: WinUI shows one dialog at a time.
+        Func<Task>? afterClose = null;
         var veryShort = Jump("Very short jump (seconds)", s.VeryShortJumpSeconds, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardVeryShort);
         var shortJump = Jump("Short jump (seconds)", s.ShortJumpSeconds, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardShort);
         var medium = Jump("Medium jump (seconds)", s.MediumJumpSeconds, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardMedium);
@@ -34,14 +37,14 @@ public sealed partial class MainWindow
         lookSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: false));
+            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: false));
         };
         var effectSettings = new Button { Content = "Customize the current picture effect..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(effectSettings, "PreferencesEffectSettings");
         effectSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = ShowVideoStyleSettingsAsync(effect: true));
+            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: true));
         };
         var visualizer = VisualizerChoices(s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
@@ -79,7 +82,7 @@ public sealed partial class MainWindow
         installNow.Click += (_, _) =>
         {
             _dialog?.Hide();
-            DispatcherQueue.TryEnqueue(() => _ = InstallAsync(unattended: false));
+            OnWindowThread(() => _ = InstallAsync(unattended: false));
         };
         var updateButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         updateButtons.Children.Add(checkNow);
@@ -93,8 +96,8 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "PreferencesWhatsNew");
             whatsNew.Click += (_, _) =>
             {
+                afterClose = ShowWhatsNewAsync;
                 _dialog?.Hide();
-                DispatcherQueue.TryEnqueue(() => _ = ShowWhatsNewAsync());
             };
             lastUpdated.Children.Add(updatedText);
             lastUpdated.Children.Add(whatsNew);
@@ -105,6 +108,8 @@ public sealed partial class MainWindow
         var history = Check("Remember where things were left and what played recently", s.KeepHistory);
         var libraryOpening = Choice("When opening the library", ["Show the playing item", "Return to where I left the library"], s.OpenLibraryAtPlayingItem ? 0 : 1);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(libraryOpening, "PreferencesLibraryOpening");
+        var detailWriting = Choice("When I edit song details", ["Write them into the files", "Keep them in rexplayer only"], s.WriteDetailsIntoFiles ? 0 : 1);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(detailWriting, "PreferencesDetailWriting");
         var libraryFullScreen = Check("Leave full screen when the library opens", s.LeaveFullScreenWhenLibraryOpens);
         var libraryPlayback = Choice("When media starts from the library", ["Show the player", "Keep browsing while audio plays"], s.ShowPlayerWhenLibraryMediaStarts ? 0 : 1);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(libraryFullScreen, "PreferencesLibraryFullScreen");
@@ -156,15 +161,29 @@ public sealed partial class MainWindow
             Opacity = 0.75,
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(performanceTranscriptionNote, "PreferencesPerformanceTranscriptionNote");
+        var energySaverAutomatic = Check("When Energy Saver is on, use the Automatic performance mode", s.AutomaticWhenEnergySaver);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(energySaverAutomatic, "PreferencesEnergySaverAutomatic");
+        var energySaverHint = new TextBlock
+        {
+            Text = "The mode chosen above returns when Energy Saver turns off.",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(32, 0, 0, 8),
+            Opacity = 0.75,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(energySaverAutomatic, energySaverHint.Text);
         void ShowPerformance()
         {
+            // What would be in effect once saved: a mode chosen while Energy Saver holds Automatic wins.
             var choice = (PerformanceChoice)Math.Max(0, performance.SelectedIndex);
-            performanceNow.Text = Rex.Media.AppCore.Performance.DeviceProfile.Describe(choice, _facts);
-            var changes = Rex.Media.AppCore.Performance.DeviceProfile.Changes(Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Choose(choice, _facts), _facts));
+            var energy = _energy.WithChoice(choice, energySaverAutomatic.IsChecked == true);
+            performanceNow.Text = energy.Describe(_facts);
+            var changes = Rex.Media.AppCore.Performance.DeviceProfile.Changes(Rex.Media.AppCore.Performance.DeviceProfile.For(Rex.Media.AppCore.Performance.DeviceProfile.Choose(energy.Effective, _facts), _facts));
             performanceChanges.Text = changes.Count == 0 ? "Nothing is held back: every picture, effect and visualisation at full quality." : string.Join("\n", changes);
         }
 
         performance.SelectionChanged += (_, _) => ShowPerformance();
+        energySaverAutomatic.Checked += (_, _) => ShowPerformance();
+        energySaverAutomatic.Unchecked += (_, _) => ShowPerformance();
         ShowPerformance();
 
         var content = new StackPanel();
@@ -204,6 +223,10 @@ public sealed partial class MainWindow
             Opacity = 0.75,
         });
 
+        // Enhanced Subject Lock's optional models sit with the picture effects that Subject Lock belongs to.
+        content.Children.Add(Heading(Rex.Media.Vision.ModelDownloadText.Heading));
+        content.Children.Add(SubjectModelsSection());
+
         AddSection("Music and artwork");
         content.Children.Add(visualizer);
         content.Children.Add(generatedArt);
@@ -231,6 +254,8 @@ public sealed partial class MainWindow
         AddSection("Performance");
         content.Children.Add(new TextBlock { Text = "On a slower computer rexplayer can do a little less so playback stays smooth. Automatic decides from the computer and Windows' energy saver; choose a level to decide yourself.", TextWrapping = TextWrapping.Wrap });
         content.Children.Add(performance);
+        content.Children.Add(energySaverAutomatic);
+        content.Children.Add(energySaverHint);
         content.Children.Add(performanceNow);
         content.Children.Add(performanceChanges);
         content.Children.Add(performanceTranscriptionNote);
@@ -260,6 +285,7 @@ public sealed partial class MainWindow
 
         AddSection("Library");
         content.Children.Add(libraryOpening);
+        content.Children.Add(detailWriting);
         content.Children.Add(mediaOpenClick);
         content.Children.Add(libraryFullScreen);
         content.Children.Add(libraryPlayback);
@@ -272,6 +298,13 @@ public sealed partial class MainWindow
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.75,
         });
+
+        var metadata = MetadataPreferences();
+        AddSection("Metadata");
+        foreach (var control in metadata.Controls)
+        {
+            content.Children.Add(control);
+        }
 
         AddSection("History and resume");
         foreach (var control in new UIElement[] { history, queue })
@@ -357,6 +390,10 @@ public sealed partial class MainWindow
             var section = Choice("Settings section", [.. sections.Select(item => item.Name)], 0);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(section, "PreferencesSection");
             section.HorizontalAlignment = HorizontalAlignment.Stretch;
+            // Keep every section directly reachable when the picker reopens near the end. Once
+            // Metadata made this the eleventh item, the default-height popup virtualized Playback
+            // above the viewport instead of exposing it to keyboard and UI Automation selection.
+            section.MaxDropDownHeight = 560;
             var offsets = new double[sections.Count];
             var shownSection = 0;
             section.SelectionChanged += (_, _) =>
@@ -422,6 +459,10 @@ public sealed partial class MainWindow
                     }
                 }
                 while (requestedEditor is not null && !_closed);
+                if (afterClose is { } then && !_closed)
+                {
+                    await then();
+                }
             }
             finally
             {
@@ -439,7 +480,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var next = transcription.Apply((_settings with
+        var next = metadata.Apply(transcription.Apply((_settings with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,
@@ -472,6 +513,7 @@ public sealed partial class MainWindow
             MediaOpenClickMode = (MediaOpenClick)Math.Max(0, mediaOpenClick.SelectedIndex),
             KeepHistory = history.IsChecked == true,
             OpenLibraryAtPlayingItem = libraryOpening.SelectedIndex == 0,
+            WriteDetailsIntoFiles = detailWriting.SelectedIndex == 0,
             LeaveFullScreenWhenLibraryOpens = libraryFullScreen.IsChecked == true,
             ShowPlayerWhenLibraryMediaStarts = libraryPlayback.SelectedIndex == 0,
             PauseWhenLibraryOpens = pauseLibrary.IsChecked == true,
@@ -498,7 +540,8 @@ public sealed partial class MainWindow
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
             Performance = (PerformanceChoice)Math.Max(0, performance.SelectedIndex),
-        }).Normalize()).Normalize();
+            AutomaticWhenEnergySaver = energySaverAutomatic.IsChecked == true,
+        }).Normalize())).Normalize();
         var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
             || s.AudioArtworkStyle != next.AudioArtworkStyle
             || s.AudioArtworkColor != next.AudioArtworkColor
@@ -518,7 +561,7 @@ public sealed partial class MainWindow
         ApplyTheme();
         ApplyAlwaysOnTop();
         ApplyVideoLook(_settings.VideoLook);
-        ApplyBudget();
+        ApplyBudget(force: PerformanceChosen());
         ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
         LayOutSubtitles();
         SetView(_view);
@@ -526,6 +569,7 @@ public sealed partial class MainWindow
         ShowTaskbarSettingsChanged();
         SaveSettings();
         TranscriptionSaved(s);
+        MetadataSettingsSaved(s);
         Say("Preferences saved");
 
         // A changed mode or schedule may start, stop or allow a download or a prompt.

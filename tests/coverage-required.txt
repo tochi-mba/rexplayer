@@ -41,6 +41,7 @@ CaptionDirector.cs
 CaptionFrameGate.cs
 CaptionGlyphs.cs
 CaptionPresets.cs
+CastMember.cs
 Changelog.cs
 ChannelLayout.cs
 ChannelMixer.cs
@@ -78,7 +79,11 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+EnrichedAlbum.cs
+EnrichedMovie.cs
+EnrichedShow.cs
 EpisodeGrouping.cs
+EnergySaverMode.cs
 EpisodeNames.cs
 EpisodeSectionDetection.cs
 EpisodeSections.cs
@@ -88,6 +93,7 @@ Equalizer.cs
 ExceptionDiagnostics.cs
 ExecutionPolicy.cs
 ExifOrientation.cs
+FetchPlan.cs
 Fft.cs
 FileByteSource.cs
 FireworksScene.cs
@@ -113,6 +119,7 @@ HaloScene.cs
 HevcConfig.cs
 HevcSps.cs
 HiddenWindow.cs
+HomeShelves.cs
 Id3v2.cs
 InfinityMirrorScene.cs
 InkScene.cs
@@ -139,6 +146,7 @@ LibraryBackup.cs
 LibraryEmptyState.cs
 LibraryOpening.cs
 LibraryScanner.cs
+LibrarySearchText.cs
 LibraryViews.cs
 LightningScene.cs
 LightPaintingScene.cs
@@ -163,6 +171,12 @@ MediaSession.cs
 MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
+MetadataCache.cs
+MetadataChoices.cs
+MetadataFetcher.cs
+MetadataMatch.cs
+MetadataPolicy.cs
+MetadataSettings.cs
 MicroDvd.cs
 Milestones.cs
 MirrorScene.cs
@@ -182,6 +196,7 @@ MpegAudioHeader.cs
 MpegInfoTag.cs
 Mpl2.cs
 MurmurationScene.cs
+MusicBrainz.cs
 MusicPulse.cs
 NalUnits.cs
 NaturalOrder.cs
@@ -230,6 +245,7 @@ PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs
 Raster.cs
+RateGate.cs
 Rational.cs
 ReleaseNotes.cs
 RemovalPanel.cs
@@ -258,6 +274,7 @@ SharedModels.cs
 ShatterScene.cs
 ShortcutEditing.cs
 ShortcutRouting.cs
+ShowPage.cs
 SilentAudio.cs
 SilhouetteMask.cs
 SilhouetteScene.cs
@@ -273,6 +290,7 @@ SpeechPulse.cs
 SpotlightScene.cs
 StardustScene.cs
 StatsText.cs
+StreamingBrowse.cs
 StrobeScene.cs
 SubjectModelPolicy.cs
 SubjectPanel.cs
@@ -308,6 +326,7 @@ TimeRanges.cs
 TimeStretch.cs
 TimeText.cs
 TimeWarpScene.cs
+Tmdb.cs
 TrackInfo.cs
 Transcript.cs
 TranscriptAlignment.cs
@@ -324,6 +343,7 @@ TranscriptionStatus.cs
 TranscriptionWorker.cs
 TransferMeter.cs
 TransportAvailability.cs
+TvMaze.cs
 UpdateCheck.cs
 UpdateDownloader.cs
 UpdateFlow.cs
@@ -359,7 +379,15 @@ WavFileSink.cs
 WebVtt.cs
 WheelGestures.cs
 WindowClocks.cs
+WindowTeardown.cs
 WordAligner.cs
 Wpl.cs
 Xspf.cs
 YuvTransform.cs
+TagEdit.cs
+Id3v2Writer.cs
+FlacTagWriter.cs
+TagFileWriter.cs
+DetailOverride.cs
+DetailsForm.cs
+PendingDetailWrites.cs

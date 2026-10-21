@@ -30,7 +30,11 @@
 
   <PropertyGroup>
     <!-- The one version every build, the installer and the release job read. -->
+<<<<<<< HEAD
     <Version>0.25.9</Version>
+=======
+    <Version>0.26.0</Version>
+>>>>>>> b7bf2105ac7cc62b53649e38a0305731985fca55
     <Company>REX Technologies</Company>
     <Authors>REX Technologies</Authors>
     <Product>rexplayer</Product>

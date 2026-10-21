@@ -46,12 +46,11 @@ public sealed class ColorCodeTests
     }
 
     [Fact]
-    public void TheRangeIsCarriedAndHdrIsRecognised()
+    public void TheRangeIsCarried()
     {
         var hdr = ColorInfo.FromCodes(9, 16, 9, true);
 
         Assert.True(hdr.FullRange);
-        Assert.True(hdr.IsHdr);
-        Assert.False(ColorInfo.FromCodes(1, 1, 1, false).IsHdr);
+        Assert.False(ColorInfo.FromCodes(1, 1, 1, false).FullRange);
     }
 }

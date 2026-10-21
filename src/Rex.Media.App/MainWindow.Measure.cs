@@ -164,7 +164,7 @@ public sealed partial class MainWindow
     private Task ShownAsync()
     {
         var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        OnWindowThread(DispatcherQueuePriority.Low, () =>
         {
             EventHandler<object>? rendering = null;
             rendering = (_, _) =>
