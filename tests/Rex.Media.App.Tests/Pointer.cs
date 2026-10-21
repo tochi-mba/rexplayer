@@ -35,6 +35,27 @@ internal static partial class Pointer
         Send([Keyboard(key, 0), Keyboard(key, KeyUp)]);
     }
 
+    /// <summary>
+    /// Focuses a control by id before typing. WinUI can replace a control while its view is
+    /// refreshed, so a stale UI Automation element is looked up again instead of failing a test.
+    /// </summary>
+    public static void Key(AppProcess app, string automationId, ushort key)
+    {
+        Wait.For(() =>
+        {
+            try
+            {
+                Forward(app, app.Find(automationId));
+                return true;
+            }
+            catch (ElementNotAvailableException)
+            {
+                return false;
+            }
+        }, automationId + " to accept keyboard focus");
+        Key(key);
+    }
+
     /// <summary>Presses <paramref name="key"/> once wherever the keyboard focus already is.</summary>
     public static void Key(ushort key)
     {
