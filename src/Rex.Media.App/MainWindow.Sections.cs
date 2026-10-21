@@ -69,7 +69,8 @@ public sealed partial class MainWindow
             LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Count > 0, playlists > 0, folders > 0);
         var wasShown = _sections.Looked && IsSourceShown(_librarySource);
         var now = DateTimeOffset.UtcNow;
-        var changed = _sections.Observe(LibrarySections.Present(facts), _scanner?.IsBusy == true, now, immediate);
+        var present = LibrarySections.Present(facts);
+        var changed = _sections.Observe(present, _scanner?.IsBusy == true, now, immediate);
         if (_sections.NextLook is { } next)
         {
             _sectionsSettle!.Interval = TimeSpan.FromMilliseconds(Math.Max(50, (next - now).TotalMilliseconds));
@@ -87,7 +88,10 @@ public sealed partial class MainWindow
             }
         }
 
-        if (IsSourceShown(_librarySource))
+        // A direct navigation (including Home's See all) may reach its view while
+        // the sidebar is still settling the matching scan results. Keep that view
+        // open when it already has content; only return Home after it truly empties.
+        if (IsSourceShown(_librarySource) || (SectionOf(_librarySource) is { } current && present.Contains(current)))
         {
             return false;
         }
