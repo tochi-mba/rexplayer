@@ -73,8 +73,8 @@ public sealed class LibraryBrowsingTests : IDisposable
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 video", StringComparison.Ordinal), "the one video");
         app.Visit("Pictures");
         app.Line("Lagos");
-        app.Visit("Playlists");
-        Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText") == "Playlists you keep (Media, Playlists) show here.", "the empty playlists");
+        // With no playlist kept, the sidebar lists no Playlists view.
+        Assert.False(app.IsListed("Playlists"));
         Assert.Equal(0, app.Close());
     }
 

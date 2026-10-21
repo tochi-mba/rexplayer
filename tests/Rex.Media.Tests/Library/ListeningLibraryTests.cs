@@ -11,8 +11,7 @@ namespace Rex.Media.Tests.Library;
 
 /// <summary>
 /// What the audio classification needs from the tags and the library: the podcast and audiobook
-/// marks, chapters kept and read again for older music, moves that outlast written tags, and the
-/// sidebar's views appearing and going without blinking (LIB-05).
+/// marks, chapters kept and read again for older music, moves that outlast written tags, (LIB-05).
 /// </summary>
 public sealed class ListeningLibraryTests
 {
@@ -101,64 +100,5 @@ public sealed class ListeningLibraryTests
 
         // An override of tags alone leaves nothing to keep.
         Assert.Null(new DetailOverride { Title = "x" }.Kept());
-    }
-
-    [Fact]
-    [Capability("LIB-05")]
-    public void TheFirstLookShowsTheViewsThereAtOnce()
-    {
-        var sources = new ListeningSources();
-        var now = DateTimeOffset.UnixEpoch;
-        Assert.False(sources.Observe(new HashSet<AudioShelf>(), scanning: true, now));
-        Assert.Empty(sources.Shown);
-
-        var fresh = new ListeningSources();
-        Assert.True(fresh.Observe(new HashSet<AudioShelf> { AudioShelf.Recordings, AudioShelf.Audiobooks, AudioShelf.Music, AudioShelf.Sounds }, scanning: true, now));
-        Assert.Equal([AudioShelf.Audiobooks, AudioShelf.Recordings], fresh.Shown);
-        Assert.Null(fresh.NextLook);
-    }
-
-    [Fact]
-    [Capability("LIB-05")]
-    public void AViewAppearsAndGoesOnlyOnceTheChangeHasSettledAndNoScanRuns()
-    {
-        var sources = new ListeningSources();
-        var now = DateTimeOffset.UnixEpoch;
-        sources.Observe(new HashSet<AudioShelf>(), scanning: false, now);
-
-        // A scan finds a podcast: nothing changes while it runs, nor until the change has held.
-        var podcasts = new HashSet<AudioShelf> { AudioShelf.Podcasts };
-        Assert.False(sources.Observe(podcasts, scanning: true, now));
-        Assert.Equal(now + ListeningSources.Settle, sources.NextLook);
-        Assert.False(sources.Observe(podcasts, scanning: false, now + TimeSpan.FromSeconds(1)));
-        Assert.True(sources.Observe(podcasts, scanning: false, now + TimeSpan.FromSeconds(1) + ListeningSources.Settle));
-        Assert.Equal([AudioShelf.Podcasts], sources.Shown);
-        Assert.Null(sources.NextLook);
-
-        // A blink (gone, then back before settling) never shows.
-        var later = now + TimeSpan.FromMinutes(1);
-        Assert.False(sources.Observe(new HashSet<AudioShelf>(), scanning: false, later));
-        Assert.False(sources.Observe(podcasts, scanning: false, later + TimeSpan.FromSeconds(1)));
-        Assert.Null(sources.NextLook);
-
-        // A different change restarts the clock.
-        Assert.False(sources.Observe(new HashSet<AudioShelf>(), scanning: false, later + TimeSpan.FromSeconds(2)));
-        Assert.False(sources.Observe(new HashSet<AudioShelf> { AudioShelf.Recordings }, scanning: false, later + TimeSpan.FromSeconds(3)));
-        Assert.False(sources.Observe(new HashSet<AudioShelf> { AudioShelf.Recordings }, scanning: false, later + TimeSpan.FromSeconds(4)));
-        Assert.True(sources.Observe(new HashSet<AudioShelf> { AudioShelf.Recordings }, scanning: false, later + TimeSpan.FromSeconds(5)));
-        Assert.Equal([AudioShelf.Recordings], sources.Shown);
-    }
-
-    [Fact]
-    [Capability("LIB-05")]
-    public void APersonsMoveShowsAtOnce()
-    {
-        var sources = new ListeningSources();
-        var now = DateTimeOffset.UnixEpoch;
-        sources.Observe(new HashSet<AudioShelf> { AudioShelf.Recordings }, scanning: false, now);
-        Assert.True(sources.Observe(new HashSet<AudioShelf> { AudioShelf.Audiobooks }, scanning: true, now, immediate: true));
-        Assert.Equal([AudioShelf.Audiobooks], sources.Shown);
-        Assert.False(sources.Observe(new HashSet<AudioShelf> { AudioShelf.Audiobooks }, scanning: true, now, immediate: true));
-        Assert.Throws<ArgumentNullException>(() => sources.Observe(null!, false, now));
     }
 }

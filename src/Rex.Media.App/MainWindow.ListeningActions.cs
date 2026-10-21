@@ -64,7 +64,7 @@ public sealed partial class MainWindow
         _library!.SetOverride([.. entries.Select(entry => entry.Path)], new DetailOverride { Audio = AudioRules.StoredName(shelf) });
         Interlocked.Increment(ref _listeningVersion);
         Say(entries.Count == 1 ? $"{entries[0].Title} moved to {name}" : $"{Count(entries.Count, "file")} moved to {name}");
-        if (!UpdateListeningSources(immediate: true))
+        if (!UpdateSections(immediate: true))
         {
             ShowLibrary();
         }

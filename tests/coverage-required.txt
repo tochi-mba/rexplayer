@@ -156,10 +156,10 @@ LibraryEmptyState.cs
 LibraryOpening.cs
 LibraryPlaces.cs
 LibraryScanner.cs
+LibrarySections.cs
 LibrarySearchText.cs
 LibraryViewDefaults.cs
 LibraryViews.cs
-ListeningSources.cs
 ListeningViews.cs
 LightningScene.cs
 LightPaintingScene.cs

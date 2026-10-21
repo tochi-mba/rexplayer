@@ -12,6 +12,7 @@ pipeline the moment its number reaches `main`.
 
 ### Changed
 
+- **The library lists only the views that have something in them.** Home is always there, and an empty library shows its welcome alone; Songs, Artists, Albums (when a song has an album), Genres (when a song has a genre), Movies, TV Shows, All videos, Pictures, Continue watching, Recently played, Playlists (once you keep one) and Folders each appear when there is something for them, in the same order as before. During a scan the sidebar waits for the scan to settle, so nothing blinks; a view that empties while open returns to Home and says so, and a saved place in a view that has gone opens on Home.
 - **Songs, Albums, Artists and Genres hold only music.** An audio file is music when you say so, when the music lookups match its album, or when it has music tags (an artist with a title or album, or a track number; a file named "Artist - Title" counts) and is not marked as an audiobook, podcast or recording by its format, genre, tags, folder or name. Long tagged tracks such as DJ mixes and live sets stay music but no longer count towards "Your most played" or an artist's top songs. Music read before this change is read again in the background, after any new files, to pick up its chapters and podcast marks.
 
 ### Improved

@@ -49,7 +49,7 @@ so rescans, written tags and clearing fetched metadata never undo them.
 
 ## The listening views
 
-Source: `src/Rex.Media.AppCore/Library/ListeningViews.cs` and `ListeningSources.cs`, tested by
+Source: `src/Rex.Media.AppCore/Library/ListeningViews.cs`, tested by
 `tests/Rex.Media.Tests/AppCore/ListeningViewsTests.cs` and
 `tests/Rex.Media.Tests/Library/ListeningLibraryTests.cs`.
 
@@ -58,11 +58,8 @@ with groups: each is something people go to on purpose, and listing only the one
 in them keeps the sidebar as short as it was for a library of music alone. Sounds are a small group at
 the foot of Recordings rather than a fourth view, since a library rarely holds more than a few.
 
-- **Which views are listed.** Each view is listed, after the music views and always in the order
-  Audiobooks, Podcasts, Recordings, only while it has something in it. The first look shows what is
-  there at once; after that a change shows once it has held for two seconds with no scan running, so a
-  scan never makes a view blink in and out. A person's own move shows at once. A view that empties while
-  it is open returns to Home and says so.
+- **Where they are listed.** After the music views, always in the order Audiobooks, Podcasts,
+  Recordings, and only while each has something in it (see "Which views are listed" below).
 - **Books** are an album tag, a folder (a "Disc 2", "CD1" or "Part 3" folder belongs to the book above
   it) and an author, so several books in one folder part by album and a book in many files is one book.
   A loose book is named after its title without its part number. Parts are read in disc, track, then
@@ -75,3 +72,33 @@ the foot of Recordings rather than a fourth view, since a library rarely holds m
 - **Recordings** are newest first by a date in the name, else the file's date, under Today, Yesterday,
   This week and then each month; WhatsApp voice notes under WhatsApp; those with no date under Undated;
   sounds last.
+
+## Which views are listed
+
+Source: `src/Rex.Media.AppCore/Library/LibrarySections.cs`, tested by
+`tests/Rex.Media.Tests/AppCore/LibrarySectionsTests.cs` and the window's `LibrarySidebarTests`.
+
+Home is always listed; an empty library shows Home's welcome and nothing else. Every other view is
+listed only while it has something in it, judged on the whole library (a filter that empties a view
+keeps the view and says so), and always in the same order:
+
+| View | Listed when |
+|---|---|
+| Songs, Artists | There is music (audio the rules above call music) |
+| Albums | A song has an album tag |
+| Genres | A song has a genre tag |
+| Audiobooks, Podcasts | There is a book, an episode |
+| Recordings | There is a recording or a sound |
+| Movies, TV Shows, Other videos, All videos | There is a film, an episode, another video, any video |
+| Pictures | There is a picture |
+| Continue watching | A video was left part-way |
+| Recently played | Something played lately is still there |
+| Recently added | There is anything at all |
+| Playlists | A playlist is kept |
+| Folders | A folder is watched |
+
+The first look, when the library is first shown, lists what is there at once, and a saved place in a
+view that is not listed opens on Home. After that a change is listed once it has held for two seconds
+with no scan running, so a scan never makes a view blink in and out; what the person does themselves
+(moving a file, keeping the first playlist, adding or giving up a folder) shows at once. A view that
+empties while it is open returns to Home with a short notice.

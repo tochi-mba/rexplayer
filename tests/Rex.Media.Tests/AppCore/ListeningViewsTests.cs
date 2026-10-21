@@ -15,7 +15,7 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
-    public void TheShelvesHoldTheAudioThatIsNotMusicAndSayWhichViewsHaveSomething()
+    public void TheShelvesHoldTheAudioThatIsNotMusic()
     {
         var song = AudioFile("Music/Asake/Sungba.mp3", TimeSpan.FromMinutes(3), "Asake", "Mr. Money with the Vibe");
         var book = AudioFile("Audiobooks/Long Book.m4b", TimeSpan.FromHours(6), "An Author", "Long Book");
@@ -31,11 +31,6 @@ public sealed class ListeningViewsTests
         Assert.Equal(["The Daily"], shelves.Podcasts.Select(group => group.Name));
         Assert.Equal(["Voice 003", "Recording 001"], Titles(shelves.Recordings));
         Assert.Equal(["Chime", "ding"], Titles(shelves.Sounds));
-        Assert.Equal([AudioShelf.Audiobooks, AudioShelf.Podcasts, AudioShelf.Recordings], shelves.Present.Order());
-
-        // Sounds alone still show the Recordings view, where they sit; music alone shows none.
-        Assert.Equal([AudioShelf.Recordings], ListeningViews.Arrange([ding], AudioRules.Offline).Present);
-        Assert.Empty(ListeningViews.Arrange([song], AudioRules.Offline).Present);
     }
 
     [Fact]

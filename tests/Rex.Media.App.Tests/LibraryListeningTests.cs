@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
 
@@ -15,18 +14,6 @@ public sealed class LibraryListeningTests : IDisposable
     private readonly LibraryScene _scene = new();
 
     public void Dispose() => _scene.Dispose();
-
-    private static bool Listed(AppProcess app, string view)
-    {
-        try
-        {
-            return app.Find("LibrarySources").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, view)) is { Current.IsOffscreen: false };
-        }
-        catch (ElementNotAvailableException)
-        {
-            return false;
-        }
-    }
 
     [Fact]
     [Capability("LIB-05")]
@@ -45,7 +32,7 @@ public sealed class LibraryListeningTests : IDisposable
         app.Visit("Songs");
         Wait.For(() => app.Lines().Order().SequenceEqual(["Lonely At The Top", "Sungba", "Terminator"]), "only the three songs in Songs",
             () => string.Join(", ", app.Lines()));
-        Assert.True(Listed(app, "Audiobooks") && Listed(app, "Podcasts") && Listed(app, "Recordings"));
+        Assert.True(app.IsListed("Audiobooks") && app.IsListed("Podcasts") && app.IsListed("Recordings"));
 
         // The two parts are one book, with one place to resume from.
         app.Visit("Audiobooks");
@@ -84,9 +71,9 @@ public sealed class LibraryListeningTests : IDisposable
     {
         using (var app = _scene.WithAsake().Ready().Start())
         {
-            Assert.False(Listed(app, "Recordings"), "A library with no recordings lists no Recordings view.");
-            Assert.False(Listed(app, "Audiobooks"));
-            Assert.False(Listed(app, "Podcasts"));
+            Assert.False(app.IsListed("Recordings"), "A library with no recordings lists no Recordings view.");
+            Assert.False(app.IsListed("Audiobooks"));
+            Assert.False(app.IsListed("Podcasts"));
 
             app.Visit("Songs");
             Pointer.RightClick(app, app.Line("Sungba"));
@@ -94,21 +81,21 @@ public sealed class LibraryListeningTests : IDisposable
             Assert.False(app.IsShown("LibraryMenuMoveToMusic"), "Only the moves that move something are offered.");
             app.Press("LibraryMenuMoveToRecordings");
             Wait.For(() => !app.Lines().Contains("Sungba") && app.Lines().Length == 2, "the song to leave Songs", () => string.Join(", ", app.Lines()));
-            Wait.For(() => Listed(app, "Recordings"), "the Recordings view to appear at once");
+            Wait.For(() => app.IsListed("Recordings"), "the Recordings view to appear at once");
 
             // Moving its last file out empties the view: the library goes Home and says why.
             app.Visit("Recordings");
             Pointer.RightClick(app, app.Line("Sungba"));
             Wait.For(() => app.IsShown("LibraryMenuMoveToMusic"), "the recording's menu");
             app.Press("LibraryMenuMoveToMusic");
-            Wait.For(() => app.Text("LibraryTitle") == "Home" && !Listed(app, "Recordings"), "the library back Home without Recordings");
+            Wait.For(() => app.Text("LibraryTitle") == "Home" && !app.IsListed("Recordings"), "the library back Home without Recordings");
             Assert.Contains("Nothing is left in Recordings", app.Text("Osd"), StringComparison.Ordinal);
 
             app.Visit("Songs");
             Pointer.RightClick(app, app.Line("Terminator"));
             Wait.For(() => app.IsShown("LibraryMenuMoveToAudiobooks"), "the song's menu");
             app.Press("LibraryMenuMoveToAudiobooks");
-            Wait.For(() => Listed(app, "Audiobooks"), "the Audiobooks view to appear");
+            Wait.For(() => app.IsListed("Audiobooks"), "the Audiobooks view to appear");
             Assert.Equal(0, app.Close());
         }
 

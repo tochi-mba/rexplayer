@@ -190,6 +190,24 @@ internal static class LibraryNavigation
             || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard")), view + " to open");
     }
 
+    /// <summary>The views the sidebar lists now, in order.</summary>
+    public static string[] ListedViews(this AppProcess app)
+    {
+        try
+        {
+            return [.. app.Find("LibrarySources").FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
+                .Cast<AutomationElement>().Where(item => !item.Current.IsOffscreen && item.Current.BoundingRectangle.Height > 0)
+                .OrderBy(item => item.Current.BoundingRectangle.Top).Select(item => item.Current.Name)];
+        }
+        catch (ElementNotAvailableException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Whether the sidebar lists <paramref name="view"/> now.</summary>
+    public static bool IsListed(this AppProcess app, string view) => app.ListedViews().Contains(view);
+
     /// <summary>The line named <paramref name="name"/> in the list, once it is there.</summary>
     public static AutomationElement Line(this AppProcess app, string name, string list = "LibraryList") =>
         Wait.Until(() => app.Find(list).FindFirst(TreeScope.Descendants, new AndCondition(

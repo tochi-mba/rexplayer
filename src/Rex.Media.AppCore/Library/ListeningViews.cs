@@ -13,36 +13,7 @@ public sealed record ListeningShelves(
     IReadOnlyList<LibraryGroup> Audiobooks,
     IReadOnlyList<LibraryGroup> Podcasts,
     IReadOnlyList<LibraryEntry> Recordings,
-    IReadOnlyList<LibraryEntry> Sounds)
-{
-    /// <summary>
-    /// The views that have something to show: Audiobooks, Podcasts and Recordings, which holds the
-    /// sounds too, so a library with only a ringtone or two gains one view, not two.
-    /// </summary>
-    public IReadOnlySet<AudioShelf> Present
-    {
-        get
-        {
-            var present = new HashSet<AudioShelf>();
-            if (Audiobooks.Count > 0)
-            {
-                present.Add(AudioShelf.Audiobooks);
-            }
-
-            if (Podcasts.Count > 0)
-            {
-                present.Add(AudioShelf.Podcasts);
-            }
-
-            if (Recordings.Count + Sounds.Count > 0)
-            {
-                present.Add(AudioShelf.Recordings);
-            }
-
-            return present;
-        }
-    }
-}
+    IReadOnlyList<LibraryEntry> Sounds);
 
 /// <summary>One chapter of a book: in which part it is, where in that part it starts, and its title.</summary>
 public sealed record BookChapter(LibraryEntry Part, TimeSpan Start, string Title);
@@ -52,9 +23,6 @@ public readonly record struct BookPlace(int Part, TimeSpan At);
 
 /// <summary>Something part-way through: a book (<see cref="Book"/>, with its part to go on with) or a podcast episode.</summary>
 public sealed record InProgress(LibraryEntry Entry, LibraryGroup? Book);
-
-/// <summary>A heading over the entries under it.</summary>
-public sealed record EntrySection(string Header, IReadOnlyList<LibraryEntry> Entries);
 
 /// <summary>
 /// How the Audiobooks, Podcasts and Recordings views are arranged (<see cref="AudioRules"/> decides
@@ -268,7 +236,7 @@ public static partial class ListeningViews
     /// The Recordings view's headings, newest first: Today, Yesterday, This week, then each month; the
     /// messenger's voice notes under WhatsApp; recordings with no date under Undated; the sounds last.
     /// </summary>
-    public static IReadOnlyList<EntrySection> RecordingSections(IReadOnlyList<LibraryEntry> recordings, IReadOnlyList<LibraryEntry> sounds, DateTime nowLocal)
+    public static IReadOnlyList<LibrarySection> RecordingSections(IReadOnlyList<LibraryEntry> recordings, IReadOnlyList<LibraryEntry> sounds, DateTime nowLocal)
     {
         ArgumentNullException.ThrowIfNull(recordings);
         ArgumentNullException.ThrowIfNull(sounds);
@@ -296,11 +264,11 @@ public static partial class ListeningViews
             .OrderByDescending(recording => RecordedAt(recording) ?? DateTime.MinValue).ThenBy(recording => recording.Path, NaturalOrder.Instance)
             .GroupBy(HeaderOf)
             .OrderBy(section => section.Key == UndatedHeader ? 2 : section.Key == WhatsAppHeader ? 1 : 0)
-            .Select(section => new EntrySection(section.Key, [.. section]))
+            .Select(section => new LibrarySection(section.Key, [.. section]))
             .ToList();
         if (sounds.Count > 0)
         {
-            sections.Add(new EntrySection(SoundsHeader, sounds));
+            sections.Add(new LibrarySection(SoundsHeader, sounds));
         }
 
         return sections;

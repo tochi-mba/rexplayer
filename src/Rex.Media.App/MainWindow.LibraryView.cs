@@ -126,7 +126,7 @@ public sealed partial class MainWindow
         }
 
         StartMetadataWhenAllowed();
-        if (UpdateListeningSources(immediate: false))
+        if (UpdateSections(immediate: false))
         {
             return;
         }

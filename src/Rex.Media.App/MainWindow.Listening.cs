@@ -1,6 +1,4 @@
 using System.Globalization;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Metadata;
 using Rex.Media.AppCore.Player;
@@ -12,20 +10,18 @@ namespace Rex.Media.App;
 
 /// <summary>
 /// The Audiobooks, Podcasts and Recordings views (<see cref="AudioRules"/> decides what is in each).
-/// Each is listed in the sidebar only while it has something in it (<see cref="ListeningSources"/>),
+/// Each is listed in the sidebar only while it has something in it (<see cref="LibrarySections"/>),
 /// and the music views never show what is in them. Nothing is worked out until the library is
 /// opened: the classification is built from the stored entries when a view first asks, and again
 /// only after the library or the music lookups change.
 /// </summary>
 public sealed partial class MainWindow
 {
-    private readonly ListeningSources _listeningSources = new();
     private readonly Dictionary<string, AudioShelf> _audioShelfOf = new(StringComparer.OrdinalIgnoreCase);
     private ListeningShelves? _listening;
     private int _listeningVersion;
     private int _listeningBuiltAt = -1;
     private int _listeningAlbums = -1;
-    private DispatcherQueueTimer? _listeningSettle;
     private AudiobookMemory? _audiobookMemory;
 
     private AudiobookMemory Audiobooks => _audiobookMemory ??= new AudiobookMemory(_library!.Store);
@@ -43,16 +39,7 @@ public sealed partial class MainWindow
     {
         _library!.Changed += (_, _) => Interlocked.Increment(ref _listeningVersion);
         _player.Changed += (_, _) => FollowBookSpeed();
-        _listeningSettle = CreateTimer();
-        _listeningSettle.IsRepeating = false;
-        OnTick(_listeningSettle, ShowLibrary);
-        LibrarySources.ContainerContentChanging += (_, e) =>
-        {
-            if (e.ItemContainer is { } container && e.ItemIndex >= 0 && e.ItemIndex < LibrarySourceItems.Length)
-            {
-                container.Visibility = IsSourceShown(LibrarySourceItems[e.ItemIndex].Source) ? Visibility.Visible : Visibility.Collapsed;
-            }
-        };
+        WireSections();
     }
 
     /// <summary>What the music lookups said about an audio file's album, from memory only: safe on the window's thread.</summary>
@@ -117,44 +104,6 @@ public sealed partial class MainWindow
     {
         Listening();
         return _audioShelfOf.Count == 0 ? entries : [.. entries.Where(entry => !_audioShelfOf.ContainsKey(entry.Path))];
-    }
-
-    private bool IsSourceShown(LibrarySource source) => !IsListening(source) || _listeningSources.Shown.Contains(ShelfOfSource(source));
-
-    /// <summary>
-    /// Brings the sidebar in line with what the library holds; true when the open view emptied and
-    /// the library went Home instead (that view change builds Home itself).
-    /// </summary>
-    private bool UpdateListeningSources(bool immediate)
-    {
-        var now = DateTimeOffset.UtcNow;
-        var changed = _listeningSources.Observe(Listening().Present, _scanner?.IsBusy == true, now, immediate);
-        if (_listeningSources.NextLook is { } next)
-        {
-            _listeningSettle!.Interval = TimeSpan.FromMilliseconds(Math.Max(50, (next - now).TotalMilliseconds));
-            Restart(_listeningSettle);
-        }
-
-        if (changed)
-        {
-            for (var index = 0; index < LibrarySourceItems.Length; index++)
-            {
-                if (LibrarySources.ContainerFromIndex(index) is UIElement container)
-                {
-                    container.Visibility = IsSourceShown(LibrarySourceItems[index].Source) ? Visibility.Visible : Visibility.Collapsed;
-                }
-            }
-        }
-
-        if (IsSourceShown(_librarySource))
-        {
-            return false;
-        }
-
-        var name = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Name;
-        Say($"Nothing is left in {name}, so it has left the library");
-        LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == LibrarySource.Home);
-        return true;
     }
 
     /// <summary>The Audiobooks, Podcasts or Recordings view over <paramref name="entries"/> (already filtered as the view's choices say).</summary>
