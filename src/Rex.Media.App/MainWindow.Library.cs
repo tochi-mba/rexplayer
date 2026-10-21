@@ -53,6 +53,9 @@ public sealed partial class MainWindow
         Albums,
         Artists,
         Genres,
+        Audiobooks,
+        Podcasts,
+        Recordings,
         Movies,
         TvShows,
         Videos,
@@ -114,6 +117,7 @@ public sealed partial class MainWindow
 
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
         WireLibraryView();
+        WireListening();
         LibrarySources.SelectedIndex = 0;
         var entries = new MenuFlyout();
         entries.Opening += (_, _) => FillLibraryMenu(entries, ChoosePointedLine());
@@ -240,7 +244,7 @@ public sealed partial class MainWindow
 
         var source = located.Entry.Kind switch
         {
-            LibraryKind.Music => LibrarySource.Songs,
+            LibraryKind.Music => SourceOfAudio(located.Entry),
             LibraryKind.Picture => LibrarySource.Pictures,
             LibraryKind.Video when located.Show is not null => LibrarySource.TvShows,
             LibraryKind.Video => LibrarySource.Movies,
@@ -567,6 +571,7 @@ public sealed partial class MainWindow
     {
         LibraryEntry entry => entry,
         LibraryGroup { Entries.Count: > 0 } group => group.Entries[0],
+        BookChapter chapter => chapter.Part,
         _ => null,
     };
 
@@ -604,6 +609,7 @@ public sealed partial class MainWindow
         {
             LibraryEntry entry => [entry],
             LibraryGroup group => group.Entries,
+            BookChapter chapter => [chapter.Part],
             string folder => [.. LibraryViews.Songs(_library!.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Videos(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Pictures(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path)))],
             _ => [],
         }).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
@@ -710,6 +716,7 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => Forget(OpenLibraryFoldersAsync(selectedEntries))));
             AddEditDetailsMenuItem(menu, selectedEntries);
+            AddListeningMenuItems(menu, selectedEntries, chosen);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
             AddMetadataMenuItems(menu, chosen);

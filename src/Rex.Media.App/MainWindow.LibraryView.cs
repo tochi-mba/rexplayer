@@ -31,6 +31,9 @@ public sealed partial class MainWindow
         (LibrarySource.Albums, new("\uE93C", "Albums")),
         (LibrarySource.Artists, new("\uE77B", "Artists")),
         (LibrarySource.Genres, new("\uE8EC", "Genres")),
+        (LibrarySource.Audiobooks, new("\uE82D", "Audiobooks")),
+        (LibrarySource.Podcasts, new("\uE720", "Podcasts")),
+        (LibrarySource.Recordings, new("\uE1D6", "Recordings")),
         (LibrarySource.Movies, new("\uE714", "Movies")),
         (LibrarySource.TvShows, new("\uE80F", "TV Shows")),
         (LibrarySource.Videos, new("\uE8FD", "All videos")),
@@ -123,6 +126,11 @@ public sealed partial class MainWindow
         }
 
         StartMetadataWhenAllowed();
+        if (UpdateListeningSources(immediate: false))
+        {
+            return;
+        }
+
         var entries = library.Entries;
         var search = _librarySearchText.Build(LibrarySearch?.Text ?? string.Empty);
         ResolveShowPage(search);
@@ -143,6 +151,12 @@ public sealed partial class MainWindow
         if (!home)
         {
             entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
+        }
+
+        // The music views, and Home's music shelves, never hold audiobooks, podcasts or recordings.
+        if (home || source is LibrarySource.Songs or LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres)
+        {
+            entries = WithoutListening(entries);
         }
         var browse = !home && search.Length == 0 && BrowseOffered && choice.Look == LibraryLook.Browse;
         LibraryHome.Visibility = home || browse ? Visibility.Visible : Visibility.Collapsed;
@@ -174,6 +188,10 @@ public sealed partial class MainWindow
             var found = LibraryViews.Search(entries, search);
             sections = EntrySections(found, choice);
             subtitle = Count(found.Count, "result");
+        }
+        else if (IsListening(_librarySource))
+        {
+            (kicker, title, subtitle, sections, groupsView) = ListeningView(entries);
         }
         else if (_libraryGroup is { } opened)
         {
@@ -267,7 +285,7 @@ public sealed partial class MainWindow
                 }
                 else
                 {
-                    sections = EntrySections(list, choice);
+                    sections = _librarySource == LibrarySource.Songs ? SongSections(list, choice) : EntrySections(list, choice);
                 }
 
                 kind = _librarySource switch { LibrarySource.Movies or LibrarySource.Videos or LibrarySource.ContinueWatching => LibraryKind.Video, LibrarySource.Pictures => LibraryKind.Picture, _ => LibraryKind.Music };
@@ -689,6 +707,7 @@ public sealed partial class MainWindow
         {
             (DownloadingShelf, Enum.Parse<LibrarySource>(HomeShelves.SeeAllDownloading(downloading, ViewChoice).View), [.. downloading.Select(EntryRow)], downloading is [{ Kind: LibraryKind.Video }, ..]),
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
+            .. ListeningShelvesForHome(),
             ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
             (MostPlayedShelf, LibrarySource.Songs, [.. HomeShelves.MostPlayed(entries, 20).Select(EntryRow)], false),
             ("New in your library", LibrarySource.RecentlyAdded, [.. recent.Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
@@ -802,6 +821,10 @@ public sealed partial class MainWindow
     {
         switch (row.Item)
         {
+            case LibraryGroup book when see == LibrarySource.Audiobooks:
+                // Home's "Continue listening" goes on with the book.
+                PlayBook(book, null);
+                break;
             case LibraryGroup group:
                 KeepPlace();
                 _places.RememberSearch(see.ToString(), "");

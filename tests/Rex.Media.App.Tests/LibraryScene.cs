@@ -42,7 +42,9 @@ internal sealed class LibraryScene : IDisposable
     public string Song(string title, string album, int year, string genre, string artist = "Asake")
     {
         var path = Path.Combine(Media, title + ".wav");
-        File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
+        // The tags are in the file too, so a window that reads the folder itself finds music, not recordings.
+        File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20]))
+            .Info(("INAM", title), ("IART", "Asake"), ("IPRD", album), ("IGNR", genre), ("ICRD", year.ToString(System.Globalization.CultureInfo.InvariantCulture))).Build());
         _files.Add((path, LibraryKind.Music, new MediaInfo
         {
             FormatName = "WAVE",
@@ -70,6 +72,35 @@ internal sealed class LibraryScene : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", fixture), path);
         _files.Add((path, LibraryKind.Video, null));
+        return path;
+    }
+
+    /// <summary>
+    /// A short real sound at <paramref name="relative"/> under the watched folder, which the library
+    /// records as read with <paramref name="length"/> and the tags given, so the rules that weigh length
+    /// and tags (a song, an audiobook, a podcast, a recording) see it.
+    /// </summary>
+    public string Audio(string relative, TimeSpan length, string? artist = null, string? album = null, string? genre = null, int? year = null)
+    {
+        var path = Path.Combine(Media, relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
+        var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in new[] { (MetadataKeys.Artist, artist), (MetadataKeys.Album, album), (MetadataKeys.Genre, genre), (MetadataKeys.Date, year?.ToString(System.Globalization.CultureInfo.InvariantCulture)) })
+        {
+            if (value is not null)
+            {
+                tags[key] = value;
+            }
+        }
+
+        _files.Add((path, LibraryKind.Music, new MediaInfo
+        {
+            FormatName = "WAVE",
+            Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Pcm }],
+            Duration = MediaTime.FromSeconds(length.TotalSeconds),
+            Metadata = tags,
+        }));
         return path;
     }
 

@@ -3,9 +3,11 @@ using System.Globalization;
 namespace Rex.Media.Library;
 
 /// <summary>
-/// Song details a person changed that rexplayer keeps itself, because the file could not (or should
-/// not) be written to. A null field is not overridden; an empty one is cleared. The override is laid
-/// over whatever the file's tags say each time they are read, so a rescan keeps it.
+/// Details a person changed that rexplayer keeps itself, because the file could not (or should not) be
+/// written to: a song's tags, and where an audio file belongs. A null field is not overridden; an
+/// empty one is cleared. The override is laid over whatever the file's tags say each time they are
+/// read, so a rescan keeps it, and it lives in the library's own store, so clearing fetched metadata
+/// never touches it.
 /// </summary>
 public sealed record DetailOverride
 {
@@ -25,6 +27,15 @@ public sealed record DetailOverride
 
     public string? Year { get; init; }
 
+    /// <summary>
+    /// Where the person moved an audio file ("Move to Music", "Move to Audiobooks" and the rest): one of
+    /// the <see cref="AudioShelves"/>, over whatever the rules would say; null leaves it to them.
+    /// </summary>
+    public string? Audio { get; init; }
+
+    /// <summary>Only the choices no file can hold (<see cref="Audio"/>), for when the tags have been written into the file; null when there are none.</summary>
+    public DetailOverride? Kept() => Audio is { } audio ? new DetailOverride { Audio = audio } : null;
+
     /// <summary>Whether the override changes nothing.</summary>
     public bool IsEmpty => this == new DetailOverride();
 
@@ -42,6 +53,7 @@ public sealed record DetailOverride
             Track = later.Track ?? Track,
             Disc = later.Disc ?? Disc,
             Year = later.Year ?? Year,
+            Audio = later.Audio ?? Audio,
         };
     }
 
@@ -72,4 +84,14 @@ public sealed record DetailOverride
         var digits = new string([.. value.Trim().TakeWhile(char.IsAsciiDigit)]);
         return int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var number) && number > 0 ? number : null;
     }
+}
+
+/// <summary>The places an audio file can be moved to (<see cref="DetailOverride.Audio"/>), as the store keeps them.</summary>
+public static class AudioShelves
+{
+    public const string Music = "music";
+    public const string Audiobooks = "audiobooks";
+    public const string Podcasts = "podcasts";
+    public const string Recordings = "recordings";
+    public const string Sounds = "sounds";
 }

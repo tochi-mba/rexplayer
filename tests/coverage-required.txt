@@ -16,11 +16,13 @@ DataRoots.cs
 MenuBarLayout.cs
 AtomicFile.cs
 AudioArtwork.cs
+AudiobookMemory.cs
 AudioEffects.cs
 AudioFormat.cs
 AudioFrame.cs
 AudioGaps.cs
 AudioLandmarks.cs
+AudioRules.cs
 AudioPipeline.cs
 AudioScope.cs
 AuraScene.cs
@@ -157,6 +159,8 @@ LibraryScanner.cs
 LibrarySearchText.cs
 LibraryViewDefaults.cs
 LibraryViews.cs
+ListeningSources.cs
+ListeningViews.cs
 LightningScene.cs
 LightPaintingScene.cs
 Lyrics.cs

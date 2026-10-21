@@ -18,6 +18,21 @@ public enum LibraryKind
 /// <summary>A file as the disk describes it: its size and when it last changed.</summary>
 public readonly record struct LibraryFile(string Path, long Size, DateTime Modified);
 
+/// <summary>A named point in a library file: where a chapter starts, and its title.</summary>
+public sealed record LibraryChapter(TimeSpan Start, string Title)
+{
+    /// <summary>Chapters as <see cref="LibraryEntry.ChapterMarks"/> keeps them.</summary>
+    public static string Encode(IEnumerable<LibraryChapter> chapters) =>
+        string.Join('\n', chapters.Select(chapter => chapter.Start.Ticks.ToString(CultureInfo.InvariantCulture) + "\t" + chapter.Title.ReplaceLineEndings(" ").Replace('\t', ' ')));
+
+    /// <summary>The chapters <see cref="Encode"/> wrote; a line that is not one is passed over.</summary>
+    public static IReadOnlyList<LibraryChapter> Decode(string marks) =>
+        [.. marks.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Split('\t', 2))
+            .Where(parts => parts.Length == 2 && long.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            .Select(parts => new LibraryChapter(TimeSpan.FromTicks(long.Parse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture)), parts[1]))];
+}
+
 /// <summary>What a scan of a folder found against what the library knew.</summary>
 public readonly record struct ScanResult(int Added, int Changed, int Removed)
 {
@@ -95,6 +110,26 @@ public sealed record LibraryEntry
     /// </summary>
     public int TagReading { get; init; }
 
+    /// <summary>
+    /// The chapters the file marks (an audiobook's, most often), empty when it marks none; null until
+    /// it is read by a rexplayer that keeps them (<see cref="MediaLibrary.TagReading"/> 2).
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<LibraryChapter>? Chapters
+    {
+        get => ChapterMarks is null ? null : LibraryChapter.Decode(ChapterMarks);
+        init => ChapterMarks = value is null ? null : LibraryChapter.Encode(value);
+    }
+
+    /// <summary>
+    /// <see cref="Chapters"/> as the store keeps them: a line a chapter, its start in ticks and its
+    /// title apart by a tab; empty for none, null when not read. Text, so two entries alike are equal.
+    /// </summary>
+    public string? ChapterMarks { get; init; }
+
+    /// <summary>What the tags say the file is when it is not music ("podcast", "audiobook"); null when they say nothing.</summary>
+    public string? MediaType { get; init; }
+
     /// <summary>The artist an album is filed under: its album artist, else its artist.</summary>
     [JsonIgnore]
     public string? FiledArtist => AlbumArtist ?? Artist;
@@ -115,10 +150,11 @@ public sealed class MediaLibrary
 
     /// <summary>
     /// The version of the tag reading that fills in a song's details. It goes up when a reader starts
-    /// keeping something it used to drop (1: every artist value and the tag's list of artists), so
-    /// music read before is read again in the background rather than waiting for a rescan.
+    /// keeping something it used to drop (1: every artist value and the tag's list of artists; 2: the
+    /// chapters and the podcast and audiobook marks), so music read before is read again in the
+    /// background rather than waiting for a rescan.
     /// </summary>
-    public const int TagReading = 1;
+    public const int TagReading = 2;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
@@ -419,11 +455,14 @@ public sealed class MediaLibrary
         });
     }
 
-    /// <summary>Drops the overrides of <paramref name="paths"/> (their files now hold the details) so their tags are read again.</summary>
+    /// <summary>
+    /// Drops the overrides of <paramref name="paths"/> (their files now hold the details) so their tags
+    /// are read again; a choice no file can hold, such as "Move to Podcasts", is kept.
+    /// </summary>
     public void ClearOverride(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        Change(paths, known => known with { Override = null, Probed = false });
+        Change(paths, known => known with { Override = known.Override?.Kept(), Probed = false });
     }
 
     /// <summary>Counts a play of <paramref name="path"/>, now; one the library does not know is passed over.</summary>
@@ -636,6 +675,8 @@ public sealed class MediaLibrary
             Disc = Number(Tag(MetadataKeys.Disc)),
             Year = Number(Tag(MetadataKeys.Date)) is { } year && year is >= 1000 and <= 9999 ? year : null,
             Duration = info.Duration.IsKnown ? TimeSpan.FromTicks(info.Duration.Ticks) : null,
+            Chapters = [.. info.Chapters.Select(chapter => new LibraryChapter(TimeSpan.FromTicks(Math.Max(0, chapter.Start.Ticks)), chapter.Title))],
+            MediaType = Tag(MetadataKeys.MediaType),
         }) is var read && entry.Override is { } kept ? kept.ApplyTo(read) : read;
     }
 

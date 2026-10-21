@@ -1,0 +1,124 @@
+using System.IO;
+using System.Windows.Automation;
+using Rex.Media.AppCore.Commands;
+using Rex.Media.TestKit;
+
+namespace Rex.Media.App.Tests;
+
+/// <summary>
+/// Songs holds only songs; Audiobooks, Podcasts and Recordings hold the rest, each listed only while
+/// it has something in it; a book resumes where the book was left; a move lasts through a restart.
+/// </summary>
+[Collection("desktop")]
+public sealed class LibraryListeningTests : IDisposable
+{
+    private readonly LibraryScene _scene = new();
+
+    public void Dispose() => _scene.Dispose();
+
+    private static bool Listed(AppProcess app, string view)
+    {
+        try
+        {
+            return app.Find("LibrarySources").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, view)) is { Current.IsOffscreen: false };
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void SongsHoldsOnlySongsAndEachKindOfListeningHasItsOwnView()
+    {
+        _scene.WithAsake();
+        _scene.Audio(Path.Combine("Audiobooks", "The Long Road", "Part 1.wav"), TimeSpan.FromMinutes(50));
+        var second = _scene.Audio(Path.Combine("Audiobooks", "The Long Road", "Part 2.wav"), TimeSpan.FromMinutes(50));
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"), TimeSpan.FromMinutes(30), year: 2023);
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 2.wav"), TimeSpan.FromMinutes(30), year: 2024);
+        _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromMinutes(3));
+        _scene.Audio(Path.Combine("Downloads", "ding.wav"), TimeSpan.FromSeconds(2));
+
+        // The second part was listened to last, so the book goes on from there.
+        using var app = _scene.Ready(played: second).Start();
+        app.Visit("Songs");
+        Wait.For(() => app.Lines().Order().SequenceEqual(["Lonely At The Top", "Sungba", "Terminator"]), "only the three songs in Songs",
+            () => string.Join(", ", app.Lines()));
+        Assert.True(Listed(app, "Audiobooks") && Listed(app, "Podcasts") && Listed(app, "Recordings"));
+
+        // The two parts are one book, with one place to resume from.
+        app.Visit("Audiobooks");
+        Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 book", StringComparison.Ordinal), "one book", () => string.Join(", ", app.Lines()));
+        Assert.All(app.Lines(), line => Assert.Equal("The Long Road", line));
+        app.Open("The Long Road");
+        Wait.For(() => app.Lines().SequenceEqual(["Part 1", "Part 2"]), "a chapter a part", () => string.Join(", ", app.Lines()));
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 2", "the book to go on from its second part");
+        if (!app.IsShown("LibraryPane"))
+        {
+            app.Run(CommandCatalog.ToggleLibrary);
+        }
+
+        Wait.For(() => app.IsShown("LibraryPane"), "the library again");
+
+        // Episodes newest first; "Mark all played" leaves none unplayed.
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Wait.For(() => app.Lines().SequenceEqual(["Ep 2", "Ep 1"]), "the episodes newest first", () => string.Join(", ", app.Lines()));
+        Assert.Contains("2 unplayed", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Pointer.RightClick(app, app.Line("Ep 2"));
+        Wait.For(() => app.IsShown("LibraryMenuMarkAllPlayed"), "the episode's menu");
+        app.Press("LibraryMenuMarkAllPlayed");
+        Wait.For(() => app.Text("LibrarySubtitle").Contains("0 unplayed", StringComparison.Ordinal), "every episode played");
+
+        // Recordings, with the sounds at their foot.
+        app.Visit("Recordings");
+        Wait.For(() => app.Lines().SequenceEqual(["Recording 001", "ding"]), "the recording, then the sound", () => string.Join(", ", app.Lines()));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AMoveMakesAViewAppearEmptyingItGoesHomeAndTheMoveOutlastsARestart()
+    {
+        using (var app = _scene.WithAsake().Ready().Start())
+        {
+            Assert.False(Listed(app, "Recordings"), "A library with no recordings lists no Recordings view.");
+            Assert.False(Listed(app, "Audiobooks"));
+            Assert.False(Listed(app, "Podcasts"));
+
+            app.Visit("Songs");
+            Pointer.RightClick(app, app.Line("Sungba"));
+            Wait.For(() => app.IsShown("LibraryMenuMoveToRecordings"), "the song's menu");
+            Assert.False(app.IsShown("LibraryMenuMoveToMusic"), "Only the moves that move something are offered.");
+            app.Press("LibraryMenuMoveToRecordings");
+            Wait.For(() => !app.Lines().Contains("Sungba") && app.Lines().Length == 2, "the song to leave Songs", () => string.Join(", ", app.Lines()));
+            Wait.For(() => Listed(app, "Recordings"), "the Recordings view to appear at once");
+
+            // Moving its last file out empties the view: the library goes Home and says why.
+            app.Visit("Recordings");
+            Pointer.RightClick(app, app.Line("Sungba"));
+            Wait.For(() => app.IsShown("LibraryMenuMoveToMusic"), "the recording's menu");
+            app.Press("LibraryMenuMoveToMusic");
+            Wait.For(() => app.Text("LibraryTitle") == "Home" && !Listed(app, "Recordings"), "the library back Home without Recordings");
+            Assert.Contains("Nothing is left in Recordings", app.Text("Osd"), StringComparison.Ordinal);
+
+            app.Visit("Songs");
+            Pointer.RightClick(app, app.Line("Terminator"));
+            Wait.For(() => app.IsShown("LibraryMenuMoveToAudiobooks"), "the song's menu");
+            app.Press("LibraryMenuMoveToAudiobooks");
+            Wait.For(() => Listed(app, "Audiobooks"), "the Audiobooks view to appear");
+            Assert.Equal(0, app.Close());
+        }
+
+        // The move is kept with the library, so it holds after a restart.
+        using var again = AppProcess.Start(root: _scene.Root);
+        again.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => again.IsShown("LibraryPane") && again.Text("LibraryTitle") == "Songs", "the library back on Songs");
+        Wait.For(() => again.Lines().Order().SequenceEqual(["Lonely At The Top", "Sungba"]), "Songs without the moved song", () => string.Join(", ", again.Lines()));
+        again.Visit("Audiobooks");
+        Wait.For(() => again.Lines().Contains("Work of Art"), "the moved song as a book under its album", () => string.Join(", ", again.Lines()));
+        Assert.Equal(0, again.Close());
+    }
+}
