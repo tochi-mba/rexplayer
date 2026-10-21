@@ -5,6 +5,11 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Fixed
+
+- **A full disk or a locked file no longer stops rexplayer.** Resume points, bookmarks and the library are kept in memory when they cannot be written (a full disk, or another rexplayer window holding the file) and written in full as soon as they can; a library record missing its path or title is passed over instead of stopping rexplayer from opening; a song whose drive is unplugged while its details are written keeps the edit for later instead of losing it; and a transcript that cannot be saved says why.
+- **A settings file edited by hand with a setting twice opens.** rexplayer could not start at all; the last value written now wins.
+
 ## 0.27.0 - 2026-10-21
 
 ### Added
@@ -28,10 +33,6 @@ pipeline the moment its number reaches `main`.
 - **Shortcuts speak every platform's language.** A shortcut typed the Mac way (Cmd+O, Option+Left) is understood, and the shared player code can show any shortcut in Windows words or Mac words, so one settings file means the same keys on both.
 
 ### Fixed
-
-- **A full disk or a locked file no longer stops rexplayer.** Resume points, bookmarks and the library are kept in memory when they cannot be written (a full disk, or another rexplayer window holding the file) and written in full as soon as they can; a library record missing its path or title is passed over instead of stopping rexplayer from opening; a song whose drive is unplugged while its details are written keeps the edit for later instead of losing it; and a transcript that cannot be saved says why.
-
-- **A settings file edited by hand with a setting twice opens.** rexplayer could not start at all; the last value written now wins.
 
 - **No more silent exits from the window's own work.** A failure in work rexplayer hands to its window from elsewhere (a later launch's files, the library, downloads), in one of its clocks, in the library's background scan or in episode analysis used to close rexplayer without a trace; it is now written to the log with its details and the player carries on. A task left to finish on its own that fails is written down as it fails instead of being lost, and a script's request that fails is answered with why instead of being left waiting.
 
