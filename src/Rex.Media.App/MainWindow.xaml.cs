@@ -585,6 +585,8 @@ public sealed partial class MainWindow : Window
             _playlistRows.RemoveAt(_playlistRows.Count - 1);
         }
 
+        PlaylistEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
         if (current >= 0 && PlaylistPane.Visibility == Visibility.Visible)
         {
             PlaylistView.ScrollIntoView(_playlistRows[current]);

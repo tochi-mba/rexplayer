@@ -612,7 +612,8 @@
           <TextBlock Text="Drag to reorder · right-click for actions" FontSize="12"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
-        <ListView x:Name="PlaylistView" Grid.Row="1" SelectionMode="Extended" IsItemClickEnabled="False"
+        <Grid Grid.Row="1">
+        <ListView x:Name="PlaylistView" SelectionMode="Extended" IsItemClickEnabled="False"
                   CanDragItems="True" CanReorderItems="True" AllowDrop="True" ReorderMode="Enabled"
                   DragItemsStarting="OnPlaylistDragItemsStarting" DragItemsCompleted="OnPlaylistDragItemsCompleted"
                   Tapped="OnPlaylistTapped" DoubleTapped="OnPlaylistDoubleTapped" RightTapped="OnPlaylistRightTapped" KeyDown="OnPlaylistKeyDown"
@@ -662,6 +663,12 @@
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
+          <StackPanel x:Name="PlaylistEmpty" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" MaxWidth="250">
+            <TextBlock Text="Your playlist is empty" Style="{ThemeResource BodyStrongTextBlockStyle}" TextAlignment="Center" />
+            <TextBlock Text="Open or drop media here to start a playlist." TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
+        </Grid>
       </Grid>
       <!-- A downloaded update, or a newer version to decide about (TOOL-09): a compact card in the
            corner, never over the middle of the picture and never while a video plays. Escape inside
