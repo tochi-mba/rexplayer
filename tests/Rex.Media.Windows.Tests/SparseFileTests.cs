@@ -19,6 +19,16 @@ public sealed class SparseFileTests : IDisposable
 
     public void Dispose() => File.Delete(_path);
 
+    /// <summary>The file system's answer, as the app passes it to the byte sources and the scanner.</summary>
+    private sealed class Disk : IFileAllocation
+    {
+        public static Disk Instance { get; } = new();
+
+        public long Allocated(Microsoft.Win32.SafeHandles.SafeFileHandle file, long length) => FileAllocation.Allocated(file, length);
+
+        public long AllocatedEnd(Microsoft.Win32.SafeHandles.SafeFileHandle file, long position, long length) => FileAllocation.AllocatedEnd(file, position, length);
+    }
+
     private static void Fsutil(params string[] arguments)
     {
         using var process = Process.Start(new ProcessStartInfo("fsutil", arguments) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false })!;
@@ -49,15 +59,15 @@ public sealed class SparseFileTests : IDisposable
         MakeSparse();
         using (var handle = File.OpenHandle(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
         {
-            Assert.Equal(2 * Mb, FileAllocation.Instance.Allocated(handle, 4 * Mb));
-            Assert.Equal(Mb, FileAllocation.Instance.AllocatedEnd(handle, 0, 4 * Mb));
-            Assert.Equal(2 * Mb, FileAllocation.Instance.AllocatedEnd(handle, 2 * Mb, Mb));
-            Assert.Equal(4 * Mb, FileAllocation.Instance.AllocatedEnd(handle, 3 * Mb, Mb));
+            Assert.Equal(2 * Mb, FileAllocation.Allocated(handle, 4 * Mb));
+            Assert.Equal(Mb, FileAllocation.AllocatedEnd(handle, 0, 4 * Mb));
+            Assert.Equal(2 * Mb, FileAllocation.AllocatedEnd(handle, 2 * Mb, Mb));
+            Assert.Equal(4 * Mb, FileAllocation.AllocatedEnd(handle, 3 * Mb, Mb));
         }
 
         var listed = LibraryScanner.Listed(new FileInfo(_path));
         Assert.True(listed.Sparse);
-        var look = LibraryScanner.Inspect(listed, FileAllocation.Instance);
+        var look = LibraryScanner.Inspect(listed, Disk.Instance);
         Assert.Equal(new FileLook(false, 2 * Mb), look);
         var state = Downloads.Judge(new DownloadEvidence(false, null), look, null, listed.Size, listed.Modified);
         Assert.True(state.Downloading);
@@ -69,7 +79,7 @@ public sealed class SparseFileTests : IDisposable
     public void ReadingStopsAtTheHoleUntilItIsWritten()
     {
         MakeSparse();
-        using var source = new FileByteSource(_path, FileAllocation.Instance);
+        using var source = new FileByteSource(_path, Disk.Instance);
         var buffer = new byte[2 * Mb];
         Assert.Equal(Mb, source.Read(0, buffer, CancellationToken.None));
         Assert.Equal(0, source.Read(Mb, buffer, CancellationToken.None));
