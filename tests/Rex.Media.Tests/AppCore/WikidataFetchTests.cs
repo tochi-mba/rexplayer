@@ -110,6 +110,34 @@ public sealed class WikidataFetchTests : IDisposable
     }
 
     [Fact]
+    public async Task FindTheFilmOffersOnlyTheHitsDescribedAsFilms()
+    {
+        Answer(Wikidata.SearchUri("Matrix"), WikimediaFixtures.MatrixSearch);
+        Answer(Wikidata.SearchUri("Damaged"), "{ not json");
+
+        var offered = Assert.Single(await Fetcher.SearchMoviesAsync("Matrix", CancellationToken.None));
+
+        Assert.Equal((83495, "The Matrix", "1999 American science fiction action thriller film"), (offered.Id, offered.Name, offered.Summary));
+        Assert.Empty(await Fetcher.SearchMoviesAsync("Damaged", CancellationToken.None));
+        Assert.Empty(await Fetcher.SearchMoviesAsync("Unanswered", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task APickedFilmIsFetchedByItsItemWithNoSearch()
+    {
+        AnswerTheMatrix();
+        _answers.Remove(Wikidata.SearchUri("The Matrix").AbsoluteUri);
+
+        Assert.False(await Fetcher.FetchMovieAsync("Matrix Home Copy", null, CancellationToken.None, chosenId: 1));
+        Assert.True(await Fetcher.FetchMovieAsync("Matrix Home Copy", null, CancellationToken.None, chosenId: 83495));
+
+        var movie = Fetcher.CachedMovie("Matrix Home Copy", null)!;
+        Assert.True(movie.Found);
+        Assert.Equal(83495, movie.CatalogueId);
+        Assert.DoesNotContain(_asked, uri => uri.Contains("search", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task NothingMatchingIsRecordedOnceAndNotAskedAgain()
     {
         Answer(Wikidata.SearchUri("Not A Film At All"), WikimediaFixtures.MatrixSearch);

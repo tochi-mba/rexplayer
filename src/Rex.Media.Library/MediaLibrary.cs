@@ -419,11 +419,14 @@ public sealed class MediaLibrary
         });
     }
 
-    /// <summary>Drops the overrides of <paramref name="paths"/> (their files now hold the details) so their tags are read again.</summary>
+    /// <summary>
+    /// Drops the overrides of <paramref name="paths"/> (their files now hold the details) so their tags
+    /// are read again; a choice no file can hold, such as "This is a movie", is kept.
+    /// </summary>
     public void ClearOverride(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        Change(paths, known => known with { Override = null, Probed = false });
+        Change(paths, known => known with { Override = known.Override?.Kept(), Probed = false });
     }
 
     /// <summary>Counts a play of <paramref name="path"/>, now; one the library does not know is passed over.</summary>

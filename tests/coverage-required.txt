@@ -198,6 +198,7 @@ ModelSet.cs
 ModelStore.cs
 MovingMedian.cs
 MoreLikeThis.cs
+MovieRules.cs
 Mp3Decoder.cs
 Mp4Boxes.cs
 Mp4Demuxer.cs

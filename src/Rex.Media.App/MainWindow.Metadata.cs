@@ -210,6 +210,7 @@ public sealed partial class MainWindow
             var known = fetcher.CachedShows();
             var knownAlbums = fetcher.CachedAlbums();
             LoadCachedArtists(fetcher);
+            var knownMovies = fetcher.CachedMovies();
             lock (_metadataGate)
             {
                 _metadataChoices = choices;
@@ -223,13 +224,14 @@ public sealed partial class MainWindow
                     _metadataAlbums[MusicBrainz.AlbumKey(album.Artist, album.Album)] = album;
                 }
 
-                foreach (var movie in fetcher.CachedMovies())
+                foreach (var movie in knownMovies)
                 {
                     _metadataMovies[MetadataMatch.MovieKey(movie.Title, movie.Year)] = movie;
                 }
             }
 
-            if (known.Count > 0)
+            // Cached films move into Movies (and their posters show) as soon as they are read.
+            if (known.Count > 0 || knownMovies.Count > 0)
             {
                 RefreshLibraryFromMetadata();
             }
@@ -297,7 +299,7 @@ public sealed partial class MainWindow
 
         if (metadata.Movies)
         {
-            foreach (var entry in LibraryViews.Movies(entries))
+            foreach (var entry in LibraryViews.Standalone(entries).Where(MovieRules.WorthLookingUp))
             {
                 var title = LibraryViews.MovieTitleOf(entry);
                 var year = LibraryViews.MovieYearOf(entry);
@@ -436,7 +438,13 @@ public sealed partial class MainWindow
             else if (job.Kind == MetadataWork.Movie)
             {
                 var (title, year) = MovieFromJobKey(job.Key);
-                ok = await fetcher.FetchMovieAsync(title, year, token).ConfigureAwait(false);
+                int? film;
+                lock (_metadataGate)
+                {
+                    film = choices.ChosenMovie(title, year);
+                }
+
+                ok = await fetcher.FetchMovieAsync(title, year, token, film).ConfigureAwait(false);
             }
             else
             {
@@ -850,62 +858,11 @@ public sealed partial class MainWindow
     /// <summary>"Wrong match...": search the catalogue by any name and let the user pick; the pick outlives rescans.</summary>
     private async Task ChooseShowMatchAsync(string show)
     {
-        var box = new TextBox { Header = "Search the catalogue for", Text = show, MinWidth = 260 };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "WrongMatchSearchText");
-        var search = new Button { Content = "Search" };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(search, "WrongMatchSearch");
-        var results = new ListView { MaxHeight = 280, SelectionMode = ListViewSelectionMode.Single };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(results, "Shows the catalogue offers");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(results, "WrongMatchResults");
-        var status = new TextBlock { Text = "Search sends the name above to TVmaze.", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap, Opacity = 0.75 };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(status, "WrongMatchStatus");
-        var found = new List<ShowCandidate>();
-        async Task SearchNowAsync()
-        {
-            search.IsEnabled = false;
-            status.Text = "Searching…";
-            try
-            {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                http.DefaultRequestHeaders.UserAgent.ParseAdd($"rexplayer/{Version} (https://github.com/tochi-mba/rexplayer)");
-                var fetcher = new MetadataFetcher(MetadataCacheNow, async (uri, inner) =>
-                {
-                    using var response = await http.GetAsync(uri, inner).ConfigureAwait(false);
-                    return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync(inner).ConfigureAwait(false) : null;
-                });
-                var answer = await fetcher.SearchShowsAsync(box.Text, CancellationToken.None);
-                found.Clear();
-                found.AddRange(answer);
-                results.ItemsSource = found.Select(MetadataMatch.Describe).ToList();
-                status.Text = found.Count == 0 ? "The catalogue offered nothing for that name." : $"Pick the right show ({found.Count} offered).";
-            }
-            catch (HttpRequestException ex)
-            {
-                status.Text = "The catalogue could not be reached: " + ex.Message;
-            }
-            catch (TaskCanceledException)
-            {
-                status.Text = "The catalogue took too long to answer.";
-            }
-            finally
-            {
-                search.IsEnabled = true;
-            }
-        }
-
-        search.Click += (_, _) => Forget(SearchNowAsync());
-        var panel = new StackPanel { Spacing = 8, MinWidth = 300 };
-        panel.Children.Add(box);
-        panel.Children.Add(search);
-        panel.Children.Add(status);
-        panel.Children.Add(results);
-        if (!await Ask($"Wrong match: {show}", panel, "Use the selected show", "Cancel")
-            || results.SelectedIndex < 0 || results.SelectedIndex >= found.Count)
+        if (await PickFromCatalogueAsync($"Wrong match: {show}", show, "TVmaze", "show", (fetcher, name) => fetcher.SearchShowsAsync(name, CancellationToken.None)) is not { } pick)
         {
             return;
         }
 
-        var pick = found[results.SelectedIndex];
         var key = MetadataMatch.Normalize(show);
         string saved;
         lock (_metadataGate)
@@ -940,7 +897,7 @@ public sealed partial class MainWindow
     private List<Rex.Media.Library.LibraryEntry> MoviesLike(EnrichedMovie facts)
     {
         var known = new List<(Rex.Media.Library.LibraryEntry, EnrichedMovie)>();
-        foreach (var entry in LibraryViews.Movies(_library?.Entries ?? []))
+        foreach (var entry in LibraryViews.Movies(_library?.Entries ?? [], MovieLookupOf))
         {
             if (MetadataMovie(entry) is { } other)
             {

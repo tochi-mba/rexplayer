@@ -682,6 +682,8 @@ public sealed partial class AppWindowTests : IDisposable
             var info = new FileInfo(path);
             return new Rex.Media.Library.LibraryFile(path, info.Length, info.LastWriteTimeUtc);
         }), _ => Rex.Media.Library.LibraryKind.Video).Added);
+        // The film is read as feature length; the fixture itself lasts seconds, which says clip.
+        library.SetDetails(paths[0], LibraryScene.VideoInfo(TimeSpan.FromHours(2)));
 
         using var app = AppProcess.Start(root: root);
         app.Run(CommandCatalog.ToggleLibrary);
