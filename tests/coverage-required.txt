@@ -226,6 +226,7 @@ OpusHeaders.cs
 Packet.cs
 Particles.cs
 PcmDecoder.cs
+PresentationOrder.cs
 PendingUpdate.cs
 PictureBlock.cs
 PictureDemuxer.cs

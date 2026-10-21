@@ -20,7 +20,7 @@ public sealed class ArchitectureTests
         "Audio", "Audio.Wasapi", "Video", "Video.D3D11", "Subtitles", "Subtitles.DirectWrite", "Engine",
         "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Discs.Device", "Extensibility",
         "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML", "Faces", "Speech",
-        "Interop.Mac", "Audio.CoreAudio",
+        "Interop.Mac", "Audio.CoreAudio", "Codecs.Apple",
     ];
 
     private static readonly Dictionary<string, (string Framework, string[] Allowed)> Graph = new(StringComparer.Ordinal)
@@ -64,6 +64,7 @@ public sealed class ArchitectureTests
         // machine; they run only on a Mac, where the macOS adapter tests prove them.
         ["Interop.Mac"] = (Portable, []),
         ["Audio.CoreAudio"] = (Portable, ["Primitives", "Audio", "Interop.Mac"]),
+        ["Codecs.Apple"] = (Portable, ["Primitives", "Codecs", "Interop.Mac"]),
         ["Cli.Mac"] = (Portable, Everything),
         ["Cli"] = (WindowsApp, Everything),
         ["App"] = (WindowsApp, Everything),
