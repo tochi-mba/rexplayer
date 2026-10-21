@@ -60,4 +60,15 @@ public static class TranscriptionConditions
     /// the transcription off would let playback start (and run uncaptioned) before the wait.
     /// </summary>
     public static bool StartsAtOnce(bool requested, bool holdForSubtitles) => requested && holdForSubtitles;
+
+    /// <summary>
+    /// Whether choosing another transcription quality fetches its model: whenever transcription is
+    /// in use (what plays, the library, or files asked for), since without the model nothing is
+    /// heard and the new quality would silently make no subtitles.
+    /// </summary>
+    public static bool FetchesModelForNewQuality(TranscriptionSettings settings, bool askedForSomething)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return settings.WhatPlays || settings.Library || askedForSomething;
+    }
 }

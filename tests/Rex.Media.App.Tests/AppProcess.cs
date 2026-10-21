@@ -95,17 +95,18 @@ internal sealed class AppProcess : IDisposable
     /// <summary>
     /// Starts the app with <paramref name="arguments"/>, reusing <paramref name="root"/> when given.
     /// A new root starts as someone who has used rexplayer before (no welcome, nothing new to show)
-    /// unless <paramref name="firstRun"/> asks for the very first start. <paramref name="environment"/>
-    /// adds variables, such as REXPLAYER_FAKE_SPEECH.
+    /// unless <paramref name="firstRun"/> asks for the very first start. <paramref name="extraSettings"/>
+    /// adds JSON properties to a new root's settings, such as <c>"theme": "Dark"</c>, and
+    /// <paramref name="environment"/> adds variables, such as REXPLAYER_FAKE_SPEECH.
     /// </summary>
-    public static AppProcess Start(string[]? arguments = null, string? root = null, bool firstRun = false, IReadOnlyDictionary<string, string>? environment = null)
+    public static AppProcess Start(string[]? arguments = null, string? root = null, bool firstRun = false, string? extraSettings = null, IReadOnlyDictionary<string, string>? environment = null)
     {
         root ??= Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
         var settings = Path.Combine(root, "settings.json");
         if (!firstRun && !File.Exists(settings))
         {
             Directory.CreateDirectory(root);
-            File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off" }""");
+            File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off"{{(extraSettings is null ? "" : ", " + extraSettings)}} }""");
         }
 
         var start = StartInfo(arguments, root);

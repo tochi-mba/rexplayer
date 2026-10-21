@@ -164,6 +164,9 @@ public enum LibraryLook
 
     /// <summary>Dense, justified rows of differently shaped artwork, without empty grid columns.</summary>
     Collage,
+
+    /// <summary>A streaming-style browse: a featured billboard over horizontal rows by category.</summary>
+    Browse,
 }
 
 /// <summary>
@@ -609,6 +612,9 @@ public sealed record PlayerSettings
     /// <summary>The library's speech heard ahead of time, and what plays heard from where it plays (SUB-20, SUB-21).</summary>
     public TranscriptionSettings Transcription { get; init; } = new();
 
+    /// <summary>Online metadata enrichment: strictly off until the user turns a kind on.</summary>
+    public MetadataSettings Metadata { get; init; } = new();
+
     /// <summary>How much the player asks of the computer: decided from what the computer is, or chosen.</summary>
     public PerformanceChoice Performance { get; init; }
 
@@ -665,7 +671,11 @@ public sealed record PlayerSettings
 
     public bool FirstRunDone { get; init; }
 
-    /// <summary>Looking up artwork and details online: off until the user turns it on (§6.15).</summary>
+    /// <summary>
+    /// The old single switch for looking up artwork and details online (§6.15), saved but never
+    /// read. <see cref="Metadata"/> replaced it with a switch per kind; a file that says true turns
+    /// them all on once, in <see cref="Normalize"/>, and the old switch is cleared.
+    /// </summary>
     public bool OnlineLookups { get; init; }
 
     public UpdateCadence UpdateChecks { get; init; } = UpdateCadence.Daily;
@@ -723,6 +733,12 @@ public sealed record PlayerSettings
         // Settings from before schema 2 that kept the old default loudest volume get the new one; a
         // loudest volume the user chose stays.
         var maxVolume = Math.Clamp(Schema < 2 && MaxVolumePercent == OldMaxVolumeDefault ? 200 : MaxVolumePercent, 100, 200);
+        // The old single online-lookups switch becomes the per-kind metadata switches, once.
+        var metadata = (Metadata ?? new MetadataSettings()).Normalize();
+        if (OnlineLookups && metadata is { TvShows: false, Movies: false, Music: false })
+        {
+            metadata = metadata with { TvShows = true, Movies = true, Music = true };
+        }
         return this with
         {
             Schema = CurrentSchema,
@@ -792,6 +808,8 @@ public sealed record PlayerSettings
             SubtitleStyles = Enum.IsDefined(SubtitleStyles) ? SubtitleStyles : SubtitleStyleChoice.Respect,
             KineticCaptions = (KineticCaptions ?? new KineticCaptionSettings()).Normalize(),
             Transcription = (Transcription ?? new TranscriptionSettings()).Normalize(),
+            Metadata = metadata,
+            OnlineLookups = false,
             Performance = Enum.IsDefined(Performance) ? Performance : PerformanceChoice.Automatic,
         };
     }

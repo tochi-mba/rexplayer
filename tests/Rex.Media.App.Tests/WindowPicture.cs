@@ -36,6 +36,13 @@ internal static partial class WindowPicture
         }
     }
 
+    /// <summary>Where the window is on the screen, in pixels: the origin of its picture.</summary>
+    public static System.Windows.Rect Bounds(nint window)
+    {
+        Assert.True(GetWindowRect(window, out var rect), "The window has no place on the screen.");
+        return new System.Windows.Rect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+    }
+
     /// <summary>How bright a part of a picture is on average, 0 to 1.</summary>
     public static double Brightness((int Width, int Height, byte[] Bgra) picture, System.Windows.Rect area)
     {

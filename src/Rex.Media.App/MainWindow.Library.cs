@@ -514,6 +514,12 @@ public sealed partial class MainWindow
         {
             RequestLibraryPicture(args.Item as LibraryRow);
         }
+
+        // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
+        if (sender == LibraryList)
+        {
+            WireRowFocus(args.ItemContainer as Microsoft.UI.Xaml.Controls.Primitives.SelectorItem);
+        }
     }
 
     /// <summary>Only request artwork when the virtualizing panel actually realizes a tile.</summary>
@@ -714,6 +720,7 @@ public sealed partial class MainWindow
                 () => CopyLibraryPaths(selectedEntries)));
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => _ = OpenLibraryFoldersAsync(selectedEntries)));
+            AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",

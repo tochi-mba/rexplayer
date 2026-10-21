@@ -50,6 +50,11 @@ public sealed partial class MainWindow
     private void PlayChosen()
     {
         var chosen = SelectedLibraryRows();
+        if (chosen.Count == 0 && PlayShowPageNextUp())
+        {
+            return;
+        }
+
         if (chosen is [{ Item: LibraryEntry or NamedPlaylist }])
         {
             Activate(chosen[0]);

@@ -17,6 +17,9 @@ public sealed partial class MainWindow
     {
         var s = _settings;
         Func<Task>? requestedEditor = null;
+
+        // What to show once Preferences has closed: WinUI shows one dialog at a time.
+        Func<Task>? afterClose = null;
         var veryShort = Jump("Very short jump (seconds)", s.VeryShortJumpSeconds, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardVeryShort);
         var shortJump = Jump("Short jump (seconds)", s.ShortJumpSeconds, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardShort);
         var medium = Jump("Medium jump (seconds)", s.MediumJumpSeconds, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardMedium);
@@ -93,8 +96,8 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "PreferencesWhatsNew");
             whatsNew.Click += (_, _) =>
             {
+                afterClose = ShowWhatsNewAsync;
                 _dialog?.Hide();
-                DispatcherQueue.TryEnqueue(() => _ = ShowWhatsNewAsync());
             };
             lastUpdated.Children.Add(updatedText);
             lastUpdated.Children.Add(whatsNew);
@@ -204,6 +207,10 @@ public sealed partial class MainWindow
             Opacity = 0.75,
         });
 
+        // Enhanced Subject Lock's optional models sit with the picture effects that Subject Lock belongs to.
+        content.Children.Add(Heading(Rex.Media.Vision.ModelDownloadText.Heading));
+        content.Children.Add(SubjectModelsSection());
+
         AddSection("Music and artwork");
         content.Children.Add(visualizer);
         content.Children.Add(generatedArt);
@@ -272,6 +279,13 @@ public sealed partial class MainWindow
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.75,
         });
+
+        var metadata = MetadataPreferences();
+        AddSection("Metadata");
+        foreach (var control in metadata.Controls)
+        {
+            content.Children.Add(control);
+        }
 
         AddSection("History and resume");
         foreach (var control in new UIElement[] { history, queue })
@@ -357,6 +371,10 @@ public sealed partial class MainWindow
             var section = Choice("Settings section", [.. sections.Select(item => item.Name)], 0);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(section, "PreferencesSection");
             section.HorizontalAlignment = HorizontalAlignment.Stretch;
+            // Keep every section directly reachable when the picker reopens near the end. Once
+            // Metadata made this the eleventh item, the default-height popup virtualized Playback
+            // above the viewport instead of exposing it to keyboard and UI Automation selection.
+            section.MaxDropDownHeight = 560;
             var offsets = new double[sections.Count];
             var shownSection = 0;
             section.SelectionChanged += (_, _) =>
@@ -422,6 +440,10 @@ public sealed partial class MainWindow
                     }
                 }
                 while (requestedEditor is not null && !_closed);
+                if (afterClose is { } then && !_closed)
+                {
+                    await then();
+                }
             }
             finally
             {
@@ -439,7 +461,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var next = transcription.Apply((_settings with
+        var next = metadata.Apply(transcription.Apply((_settings with
         {
             VeryShortJumpSeconds = (int)veryShort.Value,
             ShortJumpSeconds = (int)shortJump.Value,
@@ -498,7 +520,7 @@ public sealed partial class MainWindow
             SubtitleStyles = (SubtitleStyleChoice)styles.SelectedIndex,
             SubtitleCodePage = codePages[Math.Max(0, codePage.SelectedIndex)].CodePage,
             Performance = (PerformanceChoice)Math.Max(0, performance.SelectedIndex),
-        }).Normalize()).Normalize();
+        }).Normalize())).Normalize();
         var artworkChanged = s.GenerateAudioArtwork != next.GenerateAudioArtwork
             || s.AudioArtworkStyle != next.AudioArtworkStyle
             || s.AudioArtworkColor != next.AudioArtworkColor

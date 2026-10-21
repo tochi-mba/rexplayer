@@ -64,6 +64,20 @@ A new measure has no `ci-windows` baseline until one is recorded from CI itself:
 `tests/perf-baselines.json`, saying in the commit where they came from. Numbers from a developer's
 machine never become CI's baselines.
 
+## Screenshots of the window
+
+The window suite also compares how the window looks with committed pictures, through
+`Screenshots.Match(app, "name")` (the whole window) or `Screenshots.Match(app, "name", "AutomationId")`
+(one control). A pixel counts as changed when a colour channel moves by more than 40 of 255, and a shot
+fails when more than 0.5 % of its pixels change, so antialiasing and graphics-driver noise never fail it.
+Baselines are kept per lane in `tests/screenshot-baselines/<lane>/`: CI's job sets
+`REXPLAYER_UI_LANE=ci-windows`, and any other machine only records. Every run writes its shots to
+`artifacts/screenshots/<lane>/actual/` and, for a failed one, a diff to `.../diff/`; CI keeps both as
+the `screenshots` artefact. A shot with no baseline passes and says so: copy CI's picture from that
+artefact into `tests/screenshot-baselines/ci-windows/` to start comparing it, and do the same, with
+the reason in the commit, when a change of look is meant. Pictures from a developer's machine never
+become baselines. Screenshots are for layout; behaviour is asserted through UI Automation.
+
 ## Measuring the whole player
 
 `./dev.ps1 measure` publishes the player as people get it and measures it with

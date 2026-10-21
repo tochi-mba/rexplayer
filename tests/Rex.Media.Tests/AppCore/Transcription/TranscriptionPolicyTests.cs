@@ -226,6 +226,17 @@ public sealed class TranscriptionPolicyTests
         Assert.Equal(expected, TranscriptionConditions.StartsAtOnce(requested, holdForSubtitles));
 
     [Fact]
+    public void ChoosingAnotherQualityFetchesItsModelWheneverTranscriptionIsInUse()
+    {
+        var off = new TranscriptionSettings { Library = false, WhatPlays = false };
+        Assert.False(TranscriptionConditions.FetchesModelForNewQuality(off, askedForSomething: false));
+        Assert.True(TranscriptionConditions.FetchesModelForNewQuality(off, askedForSomething: true));
+        Assert.True(TranscriptionConditions.FetchesModelForNewQuality(off with { WhatPlays = true }, askedForSomething: false));
+        Assert.True(TranscriptionConditions.FetchesModelForNewQuality(off with { Library = true }, askedForSomething: false));
+        Assert.Throws<ArgumentNullException>(() => TranscriptionConditions.FetchesModelForNewQuality(null!, false));
+    }
+
+    [Fact]
     [Capability("SUB-20")]
     public void BadgesAndTheQueueLineSayWhereEachFileStands()
     {

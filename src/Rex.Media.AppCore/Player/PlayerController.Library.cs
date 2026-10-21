@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Library;
 using Rex.Media.Engine;
 using Rex.Media.Library;
 
@@ -7,6 +8,18 @@ public sealed partial class PlayerController
 {
     /// <summary>The media library (LIB-05), when the window keeps one: what plays is counted in it.</summary>
     public MediaLibrary? Library { get; set; }
+
+    /// <summary>Shows details just edited for <paramref name="paths"/> on what plays, without reopening or interrupting it.</summary>
+    public void ShowEditedDetails(IEnumerable<string> paths, DetailOverride change)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(change);
+        if (Item is { } item && Info is { } info && paths.Contains(item.Location, StringComparer.OrdinalIgnoreCase))
+        {
+            Info = info with { Metadata = DetailsForm.Apply(info.Metadata, change) };
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     /// <summary>
     /// Plays <paramref name="entries"/> (a library view, in its order) from the one at

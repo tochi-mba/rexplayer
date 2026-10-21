@@ -218,6 +218,15 @@ public sealed class CaptionChoreography
     ];
 
     private readonly List<Placed> _words = [];
+
+    // Working lists a scene reuses from frame to frame, so drawing allocates only the words it returns.
+    private readonly List<List<Slot>> _rows = [];
+    private readonly List<double> _widths = [];
+    private readonly List<double> _heights = [];
+    private readonly List<Placed> _living = [];
+    private readonly List<Placed> _ordered = [];
+    private int _rowCount;
+    private Placed? _lastLiving;
     private readonly CaptionStyle _style;
     private int _nextId;
     private int _clusters;
@@ -373,11 +382,7 @@ public sealed class CaptionChoreography
     /// </summary>
     public IReadOnlyList<CaptionWord> Scene(double seconds, Area area, double fontSize, float pace = 0, PictureSpace? picture = null)
     {
-        _words.RemoveAll(word => word.Died is { } died && seconds - died >= FadeSeconds);
-        if (_style.Dissolve > 0)
-        {
-            _words.RemoveAll(word => seconds - word.Born >= _style.Dissolve + DissolveSeconds);
-        }
+        RemoveGone(seconds);
         if (_words.Count == 0 || area.Width <= 0 || area.Height <= 0)
         {
             return [];
@@ -402,9 +407,26 @@ public sealed class CaptionChoreography
         }
 
         var rows = Flow(em, area.Width * RowShare);
-        var widths = rows.Select(row => row.Sum(word => word.Width + word.Space) - row[^1].Space).ToList();
-        var heights = rows.Select(row => row.Max(word => word.Size) * rowGap * em).ToList();
-        var (boxWidth, boxHeight) = (Math.Min(area.Width, widths.Max() + (1.5 * em)), Math.Min(area.Height, heights.Sum()));
+        var (widths, heights) = (_widths, _heights);
+        widths.Clear();
+        heights.Clear();
+        var (widest, tallest) = (double.MinValue, 0.0);
+        for (var r = 0; r < _rowCount; r++)
+        {
+            var (width, size) = (0.0, double.MinValue);
+            foreach (var word in rows[r])
+            {
+                width += word.Width + word.Space;
+                size = Math.Max(size, word.Size);
+            }
+
+            widths.Add(width - rows[r][^1].Space);
+            heights.Add(size * rowGap * em);
+            widest = Math.Max(widest, widths[r]);
+            tallest += heights[r];
+        }
+
+        var (boxWidth, boxHeight) = (Math.Min(area.Width, widest + (1.5 * em)), Math.Min(area.Height, tallest));
         var needed = (Width: Math.Max(boxWidth, area.Width * 0.5) / area.Width, Height: Math.Max(boxHeight, 2.6 * rowGap * em) / area.Height);
         _reserve = (Math.Max(_reserve.Width, needed.Width), Math.Max(_reserve.Height, needed.Height));
 
@@ -438,7 +460,7 @@ public sealed class CaptionChoreography
         var reservedWidth = Math.Max(boxWidth, area.Width * 0.5);
         var scene = new List<CaptionWord>(_words.Count);
         var y = top;
-        for (var r = 0; r < rows.Count; r++)
+        for (var r = 0; r < _rowCount; r++)
         {
             var stagger = _style.Layout == CaptionLayout.Scatter && r % 2 == 1 ? 1.5 * em : 0;
             var left = (anchorX * area.Width) + (Centred ? (reservedWidth - widths[r]) / 2 : stagger);
@@ -510,7 +532,16 @@ public sealed class CaptionChoreography
     private IReadOnlyList<CaptionWord> Stairs(double seconds, Area area, double em, PictureSpace? picture)
     {
         var scene = new List<CaptionWord>(_words.Count);
-        var living = _words.Where(word => word.Died is null).ToList();
+        var living = _living;
+        living.Clear();
+        foreach (var word in _words)
+        {
+            if (word.Died is null)
+            {
+                living.Add(word);
+            }
+        }
+
         var step = 1.3 * em;
         var most = Math.Max(2, (int)((area.Height * 0.7) / step));
         var overflow = Math.Max(0, living.Count - most);
@@ -520,7 +551,9 @@ public sealed class CaptionChoreography
         }
 
         var bottom = area.Height * 0.86;
-        var ordered = _words.ToList();
+        var ordered = _ordered;
+        ordered.Clear();
+        ordered.AddRange(_words);
         var index = 0;
         foreach (var word in ordered)
         {
@@ -560,8 +593,7 @@ public sealed class CaptionChoreography
             var slot = new Slot(word, size, width, 0);
             var left = word.Spot.Value.X * area.Width;
             var centreY = (word.Spot.Value.Y * area.Height) + (height / 2);
-            var drawn = Draw(slot, left, centreY, seconds, em, area, picture);
-            scene.Add(drawn with { Color = Visualizers.PaletteColor(_style.Palette, (word.Id % 7) / 7.0, seconds, _style.Accent, 0) });
+            scene.Add(Draw(slot, left, centreY, seconds, em, area, picture, Visualizers.PaletteColor(_style.Palette, (word.Id % 7) / 7.0, seconds, _style.Accent, 0)));
         }
 
         return scene;
@@ -641,13 +673,13 @@ public sealed class CaptionChoreography
         return total;
     }
 
-    private CaptionWord Draw(Slot slot, double left, double centreY, double seconds, double em, Area area, PictureSpace? picture)
+    private CaptionWord Draw(Slot slot, double left, double centreY, double seconds, double em, Area area, PictureSpace? picture, Argb? color = null)
     {
         var word = slot.Word;
         var age = seconds - word.Born;
         var arriving = Math.Clamp(age / (word.Stretched ? PopSeconds * 2.5 : PopSeconds), 0, 1);
         var (scale, offsetX, offsetY, text) = Arrive(word.Lit ? _style.Motion : CaptionMotion.Pop, word.Lit ? arriving : 1, word.Text, age);
-        if (_style.Cursor && word.Died is null && word == _words.Last(w => w.Died is null))
+        if (_style.Cursor && word.Died is null && word == _lastLiving)
         {
             text += (seconds * 2) % 1 < 0.5 ? "\u258C" : "\u2007";
         }
@@ -681,7 +713,7 @@ public sealed class CaptionChoreography
             offsetY -= 0.12 * Math.Max(0, age);
         }
 
-        if (_style.Highlight && word.Died is null && word != _words.Last(w => w.Died is null))
+        if (_style.Highlight && word.Died is null && word != _lastLiving)
         {
             opacity *= 0.55;
         }
@@ -715,7 +747,7 @@ public sealed class CaptionChoreography
             centreY,
             slot.Size * scale,
             rotation,
-            word.Color,
+            color ?? word.Color,
             word.Bold,
             word.Italic,
             word.Serif,
@@ -771,7 +803,8 @@ public sealed class CaptionChoreography
     /// <summary>The words in rows no wider than <paramref name="rowWidth"/>, a shout alone on its row, every word shrunk to fit the row if it must.</summary>
     private List<List<Slot>> Flow(double em, double rowWidth)
     {
-        var rows = new List<List<Slot>>();
+        var rows = _rows;
+        _rowCount = 0;
         List<Slot>? row = null;
         var used = 0.0;
         var previousOwn = false;
@@ -782,8 +815,13 @@ public sealed class CaptionChoreography
             var space = 0.35 * size * em;
             if (row is null || word.Own || previousOwn || used + width > rowWidth)
             {
-                row = [];
-                rows.Add(row);
+                if (_rowCount == rows.Count)
+                {
+                    rows.Add([]);
+                }
+
+                row = rows[_rowCount++];
+                row.Clear();
                 used = 0;
             }
 
@@ -803,7 +841,30 @@ public sealed class CaptionChoreography
         _ => (0.5, 0.72),
     };
 
-    private sealed record Slot(Placed Word, double Size, double Width, double Space);
+    /// <summary>
+    /// Drops the words whose fade is over (and, dissolving, whose time is up), and notes the newest
+    /// living word, without the closures a predicate would allocate every frame.
+    /// </summary>
+    private void RemoveGone(double seconds)
+    {
+        var kept = 0;
+        _lastLiving = null;
+        for (var i = 0; i < _words.Count; i++)
+        {
+            var word = _words[i];
+            var gone = (word.Died is { } died && seconds - died >= FadeSeconds)
+                || (_style.Dissolve > 0 && seconds - word.Born >= _style.Dissolve + DissolveSeconds);
+            if (!gone)
+            {
+                _words[kept++] = word;
+                _lastLiving = word.Died is null ? word : _lastLiving;
+            }
+        }
+
+        _words.RemoveRange(kept, _words.Count - kept);
+    }
+
+    private readonly record struct Slot(Placed Word, double Size, double Width, double Space);
 
     private sealed class Placed(int id, string text, Stress stress, bool lilt, bool stretched, double born, double widthEm, double size, Argb color, string? glyph, bool italic, bool serif, bool bold, bool own)
     {

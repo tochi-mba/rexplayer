@@ -190,7 +190,20 @@ jobs:
         run: ./dev.ps1 build
 
       - name: Drive the window
+        env:
+          REXPLAYER_UI_LANE: ci-windows
         run: ./dev.ps1 ui
+
+      # Every screenshot as CI drew it, and a diff for any that failed: the only source of the
+      # baselines in tests/screenshot-baselines/ci-windows (see tests/Rex.Media.App.Tests/Screenshots.cs).
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots
+          path: artifacts/screenshots/
+          if-no-files-found: ignore
+          retention-days: 30
 
   release:
     name: Publish a new version

@@ -21,9 +21,18 @@ public readonly record struct TranscriptVariant(string Model, bool Edited)
         _ => Model,
     };
 
-    public string DisplayName => Edited ? $"{Quality} — Edited" : $"{Quality} — Original";
+    public string DisplayName => Edited ? $"{Quality} · Edited" : $"{Quality} · Original";
 
     public string TrackName => $"Transcript ({Model}, {(Edited ? "edited" : "original")})";
+
+    /// <summary>
+    /// Whether <paramref name="name"/> is the saved original of <paramref name="activeModel"/> that was
+    /// loaded while another quality was active. Once that model is active its live track (named
+    /// without the edition) carries the same words and keeps growing, so the saved copy would show
+    /// as a second, frozen "Original" of the same quality.
+    /// </summary>
+    public static bool ReplacedByLiveTrack(string name, string activeModel) =>
+        name == new TranscriptVariant(activeModel, false).TrackName;
 
     /// <summary>Recognises named variants, including generated tracks from older versions.</summary>
     public static TranscriptVariant? FromTrackName(string name)
