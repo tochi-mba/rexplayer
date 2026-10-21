@@ -57,7 +57,7 @@ public sealed class LibraryFoldersTests : IDisposable
         _scene.Video(Path.Combine("Harbour Lights", "Season 1", "Departure.mp4"));
         _scene.Video(Path.Combine("Harbour Lights", "Season 2", "Return.mp4"));
         _scene.Video(Path.Combine("Movies", "Night Desk", "Season 1", "Opening.mp4"));
-        _scene.Video(Path.Combine("Movies", "Small.Film.2023.mp4"));
+        _scene.Film(Path.Combine("Movies", "Small.Film.2023.mp4"));
         using var app = _scene.Ready().Start();
 
         // Movies and TV shows open on the streaming-style browse, a billboard over rows.

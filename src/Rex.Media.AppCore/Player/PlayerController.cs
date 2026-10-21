@@ -353,6 +353,7 @@ public sealed partial class PlayerController : IDisposable
         Item = item;
         Info = null;
         AudioTrack = null;
+        _audioSwitch = null;
         FindSubtitles(item);
         Failure = null;
         Position = startAt;

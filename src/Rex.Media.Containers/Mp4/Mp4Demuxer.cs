@@ -42,6 +42,7 @@ public sealed class Mp4Demuxer : IDemuxer
     private const int MaxSampleBytes = 64 << 20;
     private const int PcmFramesPerPacket = 4096;
 
+    private readonly IByteSource _source;
     private readonly ByteCursor _stream;
     private readonly List<Mp4Track> _tracks = [];
     private readonly int[] _next;
@@ -49,6 +50,7 @@ public sealed class Mp4Demuxer : IDemuxer
     public Mp4Demuxer(IByteSource source, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(source);
+        _source = source;
         _stream = new ByteCursor(source, cancellationToken);
         byte[]? moov = null;
         var fragments = new List<(long Start, byte[] Body)>();
@@ -263,6 +265,14 @@ public sealed class Mp4Demuxer : IDemuxer
             if (read < bytes)
             {
                 buffer.Dispose();
+                if (_source is IGrowingByteSource growing && growing.IsPending(offset, bytes))
+                {
+                    // Not on the disk yet (a sparse download filling in): stop here, as at the end
+                    // of a growing file, so playback waits for it instead of passing over it.
+                    _next[best] = first;
+                    return null;
+                }
+
                 continue;
             }
 

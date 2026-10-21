@@ -197,16 +197,31 @@ public static partial class LibraryViews
         [.. entries.Where(entry => entry.Kind == LibraryKind.Video).OrderBy(entry => entry.Title, NaturalOrder.Instance).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>
-    /// Standalone videos; only a positively identified episode leaves this view, and a tentative one
-    /// (a movie's extras, a "Special" title) leaves it only when it joins a show.
+    /// The videos that are not part of a show; only a positively identified episode leaves this set,
+    /// and a tentative one (a movie's extras, a "Special" title) leaves it only when it joins a show.
+    /// <see cref="Movies"/> and <see cref="OtherVideos"/> split it.
     /// </summary>
-    public static IReadOnlyList<LibraryEntry> Movies(IEnumerable<LibraryEntry> entries)
+    public static IReadOnlyList<LibraryEntry> Standalone(IEnumerable<LibraryEntry> entries)
     {
         var videos = Videos(entries);
         var joined = videos.Any(entry => EpisodeOf(entry) is { Tentative: true })
             ? ShowMembers(videos).Select(member => member.Entry).ToHashSet()
             : [];
         return [.. videos.Where(entry => EpisodeOf(entry) is not { } episode || episode.Tentative && !joined.Contains(entry))];
+    }
+
+    /// <summary>The films (<see cref="MovieRules"/>) among the standalone videos, given what the movie lookups said about each.</summary>
+    public static IReadOnlyList<LibraryEntry> Movies(IEnumerable<LibraryEntry> entries, Func<LibraryEntry, MovieLookup> lookup)
+    {
+        ArgumentNullException.ThrowIfNull(lookup);
+        return [.. Standalone(entries).Where(entry => MovieRules.IsMovie(entry, lookup))];
+    }
+
+    /// <summary>The standalone videos that are not films: clips, recordings, music videos and the rest.</summary>
+    public static IReadOnlyList<LibraryEntry> OtherVideos(IEnumerable<LibraryEntry> entries, Func<LibraryEntry, MovieLookup> lookup)
+    {
+        ArgumentNullException.ThrowIfNull(lookup);
+        return [.. Standalone(entries).Where(entry => MovieRules.IsOther(entry, lookup))];
     }
 
     /// <summary>

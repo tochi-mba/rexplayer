@@ -6,29 +6,20 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 148 rows differ (118 must), 2 not applicable, 0 gaps.
+Totals: 118 rows differ (92 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| PB-01 | Open & play any local file | must | verified | planned |  |
-| PB-02 | Play / pause / stop / toggle | must | verified | planned |  |
-| PB-03 | Precise seek (time) | must | verified | planned |  |
-| PB-04 | Relative jumps | must | verified | planned |  |
 | PB-05 | Go to time | must | verified | planned |  |
-| PB-06 | Playback rate | must | verified | planned |  |
 | PB-10 | Bookmarks (per file) | should | verified | planned |  |
 | PB-11 | Resume where you left off | must | verified | planned |  |
 | PB-12 | Repeat & shuffle | must | verified | planned |  |
-| PB-13 | Stop after current / pause after current | should | verified | planned |  |
-| PB-14 | Gapless playback | must | verified | planned |  |
 | PB-16 | Snapshot | must | verified | planned |  |
 | PB-17 | Track selection | must | built | planned |  |
 | PB-19 | Audio delay | must | built | planned |  |
 | PB-20 | Subtitle delay & sync | must | built | planned |  |
-| PB-21 | Sleep timer | should | verified | planned |  |
-| PB-22 | Play-and-exit / play-and-stop / play-and-pause | must | verified | planned |  |
 | PB-23 | Start/stop/run time per item | should | built | planned |  |
 | PB-27 | Media key / external control | must | built | planned |  |
 
@@ -36,12 +27,6 @@ Totals: 148 rows differ (118 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| FMT-C01 | WAV / RF64 / BW64 / Wave64 | must | verified | planned |  |
-| FMT-C02 | AIFF / AIFF-C | must | verified | planned |  |
-| FMT-C03 | MPEG audio elementary (MP1/2/3) | must | verified | planned |  |
-| FMT-C04 | FLAC native | must | verified | planned |  |
-| FMT-C05 | MP4 / MOV / 3GP / M4A / M4V / F4V | must | verified | planned |  |
-| FMT-C06 | Matroska / WebM | must | verified | planned |  |
 | FMT-C09 | Ogg (+OGM Could) | must | built | planned |  |
 | FMT-C19 | Image files as media | should | verified | planned |  |
 
@@ -56,11 +41,7 @@ Totals: 148 rows differ (118 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| FMT-A01 | PCM (u8/s16/s24/s32/f32/f64, LE/BE, A-law/µ-law) | must | verified | planned |  |
-| FMT-A02 | MP3 (incl. MPEG-2.5, free-format) | must | verified | planned |  |
-| FMT-A04 | FLAC (incl. 24/32-bit, up to 8 ch) | must | verified | planned |  |
 | FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | must | verified | planned |  |
-| FMT-A09 | Vorbis | must | verified | planned |  |
 | FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | must | built | planned |  |
 
 ## Formats: Subtitles & captions
@@ -80,26 +61,10 @@ Totals: 148 rows differ (118 must), 2 not applicable, 0 gaps.
 | SUB-20 | Library transcription | should | verified | planned |  |
 | SUB-21 | Progressive transcription from the playhead | should | verified | planned |  |
 
-## Formats: Playlists
-
-| ID | Capability | Priority | Windows | macOS | Note |
-|---|---|---|---|---|---|
-| PLF-01 | M3U / M3U8 (extended, `#EXTINF`, relative and absolute paths, UTF-8/ANSI) | must | verified | planned |  |
-| PLF-02 | PLS | must | verified | planned |  |
-| PLF-03 | XSPF (incl. per-track extension data) | must | verified | planned |  |
-| PLF-04 | CUE sheets (single-file albums as virtual tracks, multi-file cues) | must | verified | planned |  |
-| PLF-05 | ASX / WAX / WVX | should | verified | planned |  |
-| PLF-06 | WPL / ZPL | could | verified | planned |  |
-| PLF-09 | Directory / recursive folder as playlist | must | verified | planned |  |
-
 ## Formats: Metadata & artwork
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| META-01 | ID3v1/1.1, ID3v2.2/2.3/2.4 | must | verified | planned |  |
-| META-02 | Vorbis comments / FLAC blocks / METADATA_BLOCK_PICTURE | must | verified | planned |  |
-| META-03 | MP4 `ilst` atoms (incl. `covr`, `----` freeform) | must | verified | planned |  |
-| META-04 | Matroska tags + attachments | must | verified | planned |  |
 | META-06 | Folder art discovery | must | verified | planned |  |
 | META-09 | Lyrics display | could | verified | planned |  |
 

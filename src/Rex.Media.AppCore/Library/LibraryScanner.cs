@@ -26,6 +26,7 @@ public sealed class LibraryScanner : IDisposable
     private readonly MediaLibrary _library;
     private readonly Func<string, IEnumerable<LibraryFile>> _list;
     private readonly Func<string, CancellationToken, MediaInfo?> _probe;
+    private readonly Func<LibraryFile, FileLook>? _inspect;
     private readonly RexLog _log;
     private readonly bool _background;
     private readonly TimeSpan _probeTimeout;
@@ -42,8 +43,10 @@ public sealed class LibraryScanner : IDisposable
     /// <param name="log">Where what the scanner does is written down.</param>
     /// <param name="background">False leaves what is asked for to <see cref="RunPending"/>, for tests that run it themselves.</param>
     /// <param name="probeTimeout">How long one file's details may take (<see cref="DefaultProbeTimeout"/> when not given).</param>
-    public LibraryScanner(MediaLibrary library, Func<string, IEnumerable<LibraryFile>> list, Func<string, CancellationToken, MediaInfo?> probe, RexLog log, bool background = true, TimeSpan? probeTimeout = null)
+    /// <param name="inspect">A look at a file that changed or may be downloading (<see cref="Inspect"/> for the window); null looks at names and sizes only.</param>
+    public LibraryScanner(MediaLibrary library, Func<string, IEnumerable<LibraryFile>> list, Func<string, CancellationToken, MediaInfo?> probe, RexLog log, bool background = true, TimeSpan? probeTimeout = null, Func<LibraryFile, FileLook>? inspect = null)
     {
+        _inspect = inspect;
         _background = background;
         _probeTimeout = probeTimeout ?? DefaultProbeTimeout;
         _library = library ?? throw new ArgumentNullException(nameof(library));
@@ -222,7 +225,7 @@ public sealed class LibraryScanner : IDisposable
                 return;
             }
 
-            var result = _library.Scan(folder, files, MediaFiles.LibraryKindOf, ReadMarker);
+            var result = _library.Scan(folder, files, MediaFiles.LibraryKindOf, ReadMarker, _inspect);
             _log.Info(LogSource, $"Scanned {folder} (watched as {watched}): {result.Added} new, {result.Changed} changed, {result.Removed} gone.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -333,9 +336,71 @@ public sealed class LibraryScanner : IDisposable
         }
     }
 
-    /// <summary>Every file under <paramref name="folder"/> with its size and change time, passing over what cannot be read; for the window's scanner.</summary>
+    /// <summary>
+    /// Every file under <paramref name="folder"/> with its size and change time, and whether it is
+    /// sparse or a cloud placeholder (read from the listing, nothing opened), passing over what
+    /// cannot be read; for the window's scanner.
+    /// </summary>
     public static IEnumerable<LibraryFile> ListFolder(string folder) =>
         new DirectoryInfo(folder)
             .EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System })
-            .Select(file => new LibraryFile(file.FullName, file.Length, file.LastWriteTimeUtc));
+            .Select(Listed);
+
+    /// <summary>The library's view of a file the disk lists.</summary>
+    public static LibraryFile Listed(FileInfo file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        var attributes = file.Attributes;
+        return new LibraryFile(file.FullName, file.Length, file.LastWriteTimeUtc)
+        {
+            Sparse = (attributes & FileAttributes.SparseFile) != 0,
+            Placeholder = (attributes & (FileAttributes.Offline | PlaceholderAttributes)) != 0,
+        };
+    }
+
+    /// <summary>FILE_ATTRIBUTE_RECALL_ON_OPEN and FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: a cloud file whose bytes are elsewhere.</summary>
+    private const FileAttributes PlaceholderAttributes = (FileAttributes)0x00440000;
+
+    /// <summary>
+    /// A look at the file itself, for the scanner: whether another program holds it open for
+    /// writing (opening it while refusing writers fails with a sharing violation; rexplayer's own
+    /// readers share writing, so they never count), and, for a sparse file, how many of its bytes
+    /// are on the disk (from <paramref name="allocation"/>, when the system can tell).
+    /// </summary>
+    public static FileLook Inspect(LibraryFile file, IFileAllocation? allocation) =>
+        new(WriterHolds(file.Path), file.Sparse && allocation is not null ? AllocatedOf(file.Path, allocation) : null);
+
+    private const int SharingViolation = 32;
+
+    /// <summary>Whether another program holds <paramref name="path"/> open for writing: a look that shuts writers out is refused.</summary>
+    private static bool WriterHolds(string path)
+    {
+        try
+        {
+            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+            return false;
+        }
+        catch (IOException ex) when ((ex.HResult & 0xFFFF) == SharingViolation)
+        {
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>A sparse file's bytes on the disk, read through a handle that lets its writer go on writing; null when it cannot be opened.</summary>
+    private static long? AllocatedOf(string path, IFileAllocation allocation)
+    {
+        try
+        {
+            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return allocation.Allocated(handle, RandomAccess.GetLength(handle));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 }

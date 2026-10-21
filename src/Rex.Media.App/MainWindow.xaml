@@ -493,7 +493,7 @@
             <DropDownButton x:Name="LibraryLookButton" AutomationProperties.AutomationId="LibraryLook" ToolTipService.ToolTip="How the view is laid out" />
             <DropDownButton x:Name="LibrarySortButton" Grid.Column="1" AutomationProperties.AutomationId="LibrarySort" ToolTipService.ToolTip="What the view is ordered by" />
             <DropDownButton x:Name="LibraryGroupButton" Grid.Column="2" AutomationProperties.AutomationId="LibraryGroup" ToolTipService.ToolTip="What the view is gathered under" />
-            <DropDownButton x:Name="LibraryFilterButton" Grid.Column="3" AutomationProperties.AutomationId="LibraryFilter" AutomationProperties.Name="Filter by progress, type or folder" ToolTipService.ToolTip="Filter this view by progress, media type or folder" />
+            <DropDownButton x:Name="LibraryFilterButton" Grid.Column="3" AutomationProperties.AutomationId="LibraryFilter" AutomationProperties.Name="Filter by progress, type, folder or download" ToolTipService.ToolTip="Filter this view by progress, media type, folder or download" />
             <StackPanel x:Name="LibrarySizePanel" Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
               <FontIcon Glyph="&#xE71E;" FontSize="12" Opacity="0.7" />
               <Slider x:Name="LibraryCardSize" Width="110" Minimum="120" Maximum="360" StepFrequency="10" VerticalAlignment="Center"
@@ -580,6 +580,9 @@
             <StackPanel x:Name="LibraryFolderButtons" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" />
           </StackPanel>
         </Grid>
+        <!-- Words for what the library cannot do yet (a file still downloading): the player's own messages sit under the open library. -->
+        <InfoBar x:Name="LibraryNotice" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16" MaxWidth="560"
+                 IsOpen="False" IsClosable="True" Severity="Informational" AutomationProperties.AutomationId="LibraryNotice" />
       </Grid>
 
       <Grid x:Name="PlaylistPane" Grid.Column="1" Width="344" Visibility="Collapsed" Padding="10,8"

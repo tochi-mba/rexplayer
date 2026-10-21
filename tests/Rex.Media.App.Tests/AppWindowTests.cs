@@ -682,6 +682,8 @@ public sealed partial class AppWindowTests : IDisposable
             var info = new FileInfo(path);
             return new Rex.Media.Library.LibraryFile(path, info.Length, info.LastWriteTimeUtc);
         }), _ => Rex.Media.Library.LibraryKind.Video).Added);
+        // The film is read as feature length; the fixture itself lasts seconds, which says clip.
+        library.SetDetails(paths[0], LibraryScene.VideoInfo(TimeSpan.FromHours(2)));
 
         using var app = AppProcess.Start(root: root);
         app.Run(CommandCatalog.ToggleLibrary);
@@ -712,32 +714,20 @@ public sealed partial class AppWindowTests : IDisposable
         using var app = AppProcess.Start([Song(30)]);
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song to start");
 
-        void Open(params string[] menus)
-        {
-            foreach (var menu in menus)
-            {
-                Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, menu)));
-                ((ExpandCollapsePattern)app.Find(menu).GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-            }
-        }
-
         AutomationElement Wanted(string automationId) =>
             Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, automationId)))!;
 
-        Open("MediaMenu", "PlaylistsMenu");
-        ((InvokePattern)Wanted("NewNamedPlaylist").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        ((InvokePattern)app.OpenMenu("NewNamedPlaylist", "MediaMenu", "PlaylistsMenu").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         ((ValuePattern)Wanted("PlaylistName").GetCurrentPattern(ValuePattern.Pattern)).SetValue("Asake");
         app.Press("PrimaryButton");
         Wait.For(() => app.LogText.Contains("Made the playlist Asake", StringComparison.Ordinal), "the playlist to be made");
 
-        Open("MediaMenu", "PlaylistsMenu", "NamedPlaylist-Asake");
-        ((InvokePattern)Wanted("DeleteNamed-Asake").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        ((InvokePattern)app.OpenMenu("DeleteNamed-Asake", "MediaMenu", "PlaylistsMenu", "NamedPlaylist-Asake").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         Wanted("PrimaryButton");
         app.Press("PrimaryButton");
         Wait.For(() => app.LogText.Contains("Deleted the playlist Asake", StringComparison.Ordinal), "the playlist to be deleted");
 
-        Open("MediaMenu", "PlaylistsMenu");
-        Wanted("NewNamedPlaylist");
+        app.OpenMenu("NewNamedPlaylist", "MediaMenu", "PlaylistsMenu");
         Assert.Null(app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "NamedPlaylist-Asake")));
         Assert.Equal(0, app.Close());
     }

@@ -19,7 +19,7 @@ public sealed class LibraryCardsTests : IDisposable
     [Capability("LIB-05")]
     public void MoviesAndTvShowsOpenOnBrowseUntilAnotherLayoutIsPicked()
     {
-        _scene.Video(Path.Combine("Movies", "Small.Film.2023.mp4"));
+        _scene.Film(Path.Combine("Movies", "Small.Film.2023.mp4"));
         _scene.Video(Path.Combine("Harbour Lights", "Season 1", "Arrival.mp4"));
 
         // TV shows kept as cards only because their card size changed, as before Browse existed.
@@ -47,7 +47,7 @@ public sealed class LibraryCardsTests : IDisposable
     [Capability("LIB-05")]
     public void ALetterboxedFilmsCardAndEpisodeStillShowPictureNotBars()
     {
-        _scene.Video(Path.Combine("Movies", "Wide.Film.2024.mp4"), "h264-letterboxed.mp4");
+        _scene.Film(Path.Combine("Movies", "Wide.Film.2024.mp4"), "h264-letterboxed.mp4");
         _scene.Video(Path.Combine("Harbour Lights", "Season 1", "Arrival.mp4"), "h264-letterboxed.mp4");
         using var app = _scene.Ready().Start();
 

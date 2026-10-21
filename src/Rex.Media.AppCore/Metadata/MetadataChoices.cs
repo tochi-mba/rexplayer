@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Rex.Media.AppCore.Metadata;
 
 /// <summary>
-/// The user's own match corrections ("Wrong match..."): which catalogue entry each name means,
+/// The user's own match corrections ("Wrong match...", "Find the film..."): which catalogue entry each name means,
 /// kept as one small JSON file beside the downloads (<see cref="MetadataCache.ChoicesPath"/>), so
 /// a rescan or a cleared cache never undoes a pick. Not thread-safe; callers serialize access.
 /// </summary>
@@ -50,7 +50,15 @@ public sealed class MetadataChoices
     /// <summary>Forgets the pick, so the next fetch matches by name again.</summary>
     public void ForgetShow(string show) => _chosen.Remove(Key(show));
 
+    /// <summary>The Wikidata item number the user picked for this film's title and year, or null when they never picked one.</summary>
+    public int? ChosenMovie(string title, int? year) => _chosen.TryGetValue(MovieKey(title, year), out var id) ? id : null;
+
+    /// <summary>Remembers that the film named <paramref name="title"/> (<paramref name="year"/>) is Wikidata's item <paramref name="id"/>.</summary>
+    public void ChooseMovie(string title, int? year, int id) => _chosen[MovieKey(title, year)] = id;
+
     private static string Key(string show) => "tv/" + MetadataMatch.Normalize(show);
+
+    private static string MovieKey(string title, int? year) => "film/" + MetadataMatch.MovieKey(title, year);
 }
 
 [JsonSerializable(typeof(Dictionary<string, int>))]

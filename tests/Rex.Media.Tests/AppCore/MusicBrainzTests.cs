@@ -6,7 +6,7 @@ namespace Rex.Media.Tests.AppCore;
 /// <summary>
 /// Reading the music catalogue's answers and choosing carefully: exact titles (and artists, when
 /// both sides name one) win by the catalogue's score, anything doubtful stays unmatched, and the
-/// cover only ever fills a gap - files that carry their own art are recorded and never looked up.
+/// cover only ever fills a gap - files that carry their own art get their facts but never a cover.
 /// </summary>
 public sealed class MusicBrainzTests : IDisposable
 {
@@ -107,10 +107,11 @@ public sealed class MusicBrainzTests : IDisposable
         _answers["https://coverartarchive.org/release-group/rg-1/front-500"] = "cover-bytes";
         var fetcher = Fetcher;
 
-        // Files that carry their own art are recorded without a single request.
+        // Files that carry their own art get the album's facts but never a cover.
         Assert.True(await fetcher.FetchAlbumAsync("Asake", "Work of Art", filesCarryArt: true, CancellationToken.None));
-        Assert.True(fetcher.CachedAlbum("Asake", "Work of Art") is { LocalArt: true, HasCover: false, ReleaseGroupId: null });
-        Assert.Empty(_asked);
+        Assert.True(fetcher.CachedAlbum("Asake", "Work of Art") is { LocalArt: true, HasCover: false, ReleaseGroupId: "rg-1" });
+        Assert.DoesNotContain(_asked, asked => asked.Contains("coverartarchive", StringComparison.Ordinal));
+        Assert.False(File.Exists(fetcher.CoverPath("Asake", "Work of Art")));
 
         fetcher.ForgetAlbum("Asake", "Work of Art");
         Assert.Null(fetcher.CachedAlbum("Asake", "Work of Art"));
@@ -186,8 +187,8 @@ public sealed class MusicBrainzTests : IDisposable
     [Fact]
     public void TheAlbumRecordSurvivesItsJsonAndRefusesWhatIsNotOne()
     {
-        var album = new EnrichedAlbum { Album = "X", Artist = "Y", ReleaseGroupId = "rg", HasCover = true };
-        Assert.Equal(album, EnrichedAlbum.FromJson(album.ToJson()));
+        var album = new EnrichedAlbum { Album = "X", Artist = "Y", ReleaseGroupId = "rg", HasCover = true, Labels = ["YBNL Nation"] };
+        Assert.Equal(album.ToJson(), EnrichedAlbum.FromJson(album.ToJson())!.ToJson());
         Assert.Null(EnrichedAlbum.FromJson("broken"));
         Assert.Throws<ArgumentNullException>(() => EnrichedAlbum.FromJson(null!));
     }
