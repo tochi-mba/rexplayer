@@ -336,7 +336,7 @@
                 BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30"
                 AutomationProperties.AutomationId="DownloadBufferOverlay" AutomationProperties.Name="Waiting for download">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
-            <ProgressRing IsActive="True" Width="34" Height="34" HorizontalAlignment="Center"
+            <ProgressRing x:Name="DownloadBufferProgress" IsActive="True" Width="34" Height="34" HorizontalAlignment="Center"
                           AutomationProperties.AccessibilityView="Raw" />
             <TextBlock Text="Waiting for the download" FontSize="18" FontWeight="SemiBold" Foreground="White"
                        HorizontalAlignment="Center" />

@@ -46,8 +46,12 @@ public sealed partial class MediaSession
                     _session._log.Info(LogSource, $"{_demuxItem.Source.Name} changed while open; playback was repositioned.");
                     return true;
                 default:
-                    _session._log.Warning(LogSource, $"No more bytes arrived for {_demuxItem.Source.Name} before the download wait expired.");
-                    return false;
+                    // A writer can legitimately pause longer than one polling window. The
+                    // container still declares media beyond the point reached, so remain in the
+                    // recoverable buffer state and try again. Stop, seek and replacement all
+                    // cancel this loop through the generation token.
+                    _session._log.Info(LogSource, $"Still waiting for more bytes from {_demuxItem.Source.Name}; playback will retry.");
+                    return true;
             }
         }
 

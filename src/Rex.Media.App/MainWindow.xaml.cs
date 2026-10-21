@@ -455,9 +455,18 @@ public sealed partial class MainWindow : Window
         DownloadBufferOverlay.Visibility = waitingForDownload ? Visibility.Visible : Visibility.Collapsed;
         if (waitingForDownload)
         {
-            DownloadBufferOverlayText.Text = string.IsNullOrWhiteSpace(title)
-                ? "Playback will continue automatically when more of the file is available."
-                : $"{title} will continue automatically when more of the file is available.";
+            var download = _player.Item?.Location is { } location ? _library?.Entry(location) : null;
+            var fraction = download is { Downloading: true }
+                ? Downloads.Fraction(download.Size, download.FinalSize, download.Allocated)
+                : null;
+            DownloadBufferProgress.IsIndeterminate = fraction is null;
+            DownloadBufferProgress.Value = fraction.GetValueOrDefault() * 100;
+            var progress = download is { Downloading: true }
+                ? Downloads.Detail(download.Size, download.FinalSize, download.Allocated) + ". "
+                : "";
+            DownloadBufferOverlayText.Text = progress + (string.IsNullOrWhiteSpace(title)
+                ? "Playback will retry automatically as more becomes available."
+                : $"{title} will retry automatically as more becomes available.");
         }
 
         _updatingControls = true;

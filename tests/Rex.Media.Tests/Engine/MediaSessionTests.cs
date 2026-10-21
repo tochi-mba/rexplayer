@@ -80,9 +80,8 @@ public sealed class MediaSessionTests
     [Theory]
     [InlineData(ByteSourceChange.Truncated)]
     [InlineData(ByteSourceChange.Replaced)]
-    [InlineData(ByteSourceChange.TimedOut)]
     [InlineData(ByteSourceChange.Grew)]
-    public async Task AChangedOrStalledGrowingSourceFollowsItsWaitPolicy(ByteSourceChange firstChange)
+    public async Task AChangedGrowingSourceFollowsItsWaitPolicy(ByteSourceChange firstChange)
     {
         using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], firstChange, ByteSourceChange.TimedOut);
         using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
@@ -93,6 +92,21 @@ public sealed class MediaSessionTests
 
         Assert.Equal(SessionState.Ended, harness.Session.State);
         Assert.Contains(SessionState.Buffering, harness.States);
+    }
+
+    [Fact]
+    public async Task AStalledGrowingSourceKeepsRetryingUntilStopped()
+    {
+        using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], ByteSourceChange.TimedOut, ByteSourceChange.TimedOut);
+        using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.Zero);
+
+        await harness.Session.OpenAsync(source);
+        harness.WaitForState(SessionState.Buffering);
+        await harness.Session.StopAsync();
+
+        Assert.Equal(SessionState.Idle, harness.Session.State);
+        Assert.Contains(SessionState.Buffering, harness.States);
+        Assert.True(source.Waits >= 2);
     }
 
     [Fact]
@@ -542,6 +556,8 @@ public sealed class MediaSessionTests
         private ManualResetEventSlim? _waitEntered;
         private int _waits;
 
+        public int Waits => Volatile.Read(ref _waits);
+
         public ScriptedGrowingSource(byte[] data, bool cancelFirstWait) : this(data) => _cancelFirstWait = cancelFirstWait;
 
         public ScriptedGrowingSource(byte[] data, ManualResetEventSlim waitEntered) : this(data, ByteSourceChange.Grew)
@@ -572,6 +588,7 @@ public sealed class MediaSessionTests
 
         public ByteSourceChange WaitForChange(ByteSourceExtent observed, TimeSpan timeout, CancellationToken cancellationToken)
         {
+            Interlocked.Increment(ref _waits);
             if (_waitEntered is not null)
             {
                 _waitEntered.Set();
@@ -579,7 +596,7 @@ public sealed class MediaSessionTests
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
-            if (_cancelFirstWait && _waits++ == 0)
+            if (_cancelFirstWait && _waits == 1)
             {
                 cancellationToken.WaitHandle.WaitOne();
                 cancellationToken.ThrowIfCancellationRequested();
