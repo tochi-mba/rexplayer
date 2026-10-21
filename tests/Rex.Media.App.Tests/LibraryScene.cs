@@ -210,11 +210,37 @@ internal static class LibraryNavigation
     public static void Visit(this AppProcess app, string view, string? title = null)
     {
         // A section may exist in the item source but be collapsed until the scanner
-        // settles. UI Automation can find and select the hidden item, but a person
-        // cannot; wait for the actual visible sidebar entry before choosing it.
-        Wait.For(() => app.IsListed(view), view + " to appear in the sidebar");
-        var source = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.NameProperty, view)));
+        // settles. It can also be out of the viewport after visiting a lower view
+        // (such as Folders). Scroll a realised item into view, but wait until it
+        // actually becomes visible before selecting it.
+        var byName = new PropertyCondition(AutomationElement.NameProperty, view);
+        Wait.For(() =>
+        {
+            if (app.IsListed(view))
+            {
+                return true;
+            }
+
+            try
+            {
+                var item = app.Find("LibrarySources").FindFirst(TreeScope.Descendants, byName);
+                if (item?.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var scroll) == true)
+                {
+                    ((ScrollItemPattern)scroll).ScrollIntoView();
+                }
+            }
+            catch (ElementNotAvailableException)
+            {
+                // The list was rebuilt between finding the item and scrolling it.
+            }
+            catch (InvalidOperationException)
+            {
+                // A collapsed section cannot be scrolled to until the scan settles.
+            }
+
+            return app.IsListed(view);
+        }, view + " to appear in the sidebar", () => "Visible views: " + string.Join(", ", app.ListedViews()));
+        var source = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants, byName));
         ((SelectionItemPattern)source.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         // The streaming browse of Movies and TV shows has a billboard in place of the title.
         Wait.For(() => (app.IsShown("LibraryTitle") && app.Text("LibraryTitle") == (title ?? view))
