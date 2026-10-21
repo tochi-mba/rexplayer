@@ -145,7 +145,16 @@ public partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPlaying)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PlayingVisibility)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AccessibilityName)));
+        PlayingChanged();
     }
+
+    /// <summary>Lets a kind of line say what else changes with the now-playing mark.</summary>
+    protected virtual void PlayingChanged()
+    {
+    }
+
+    /// <summary>Tells the line's template that <paramref name="property"/> changed.</summary>
+    protected void Changed(string property) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
 
     /// <summary>
     /// What a screen reader says for the line, and what the window tests find it by: a list's item

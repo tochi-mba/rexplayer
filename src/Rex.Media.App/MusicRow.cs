@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 
 namespace Rex.Media.App;
 
@@ -38,6 +39,24 @@ public sealed partial class MusicRow(
     public double PlayBar => Math.Round(PlayShare * PlayBarWidth);
 
     public const double PlayBarWidth = 48;
+
+    /// <summary>The title's colour: the accent while it plays, the usual text colour otherwise.</summary>
+    public Brush TitleBrush => (Brush)Application.Current.Resources[IsPlaying ? "AccentTextFillColorPrimaryBrush" : "TextFillColorPrimaryBrush"];
+
+    /// <summary>The number in an album's leading column, hidden while the equaliser stands in its place.</summary>
+    public Visibility NumberVisibility => IsPlaying ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>The plays as a bare number for the table's narrow column; empty for never played.</summary>
+    public string PlaysNumber { get; init; } = "";
+
+    /// <summary>The first artist the song is by, which its artist link opens.</summary>
+    public string? ArtistLink { get; init; }
+
+    protected override void PlayingChanged()
+    {
+        Changed(nameof(TitleBrush));
+        Changed(nameof(NumberVisibility));
+    }
 
     /// <summary>A card's round frame, for an artist's portrait; square for the rest.</summary>
     public bool Round { get; init; }
