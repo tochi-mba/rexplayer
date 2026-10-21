@@ -1,22 +1,13 @@
-using System.Runtime.InteropServices;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
-using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using Microsoft.Windows.System.Power;
-using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Transcription;
-using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.Engine;
-using Rex.Media.Library;
 using Rex.Media.Settings;
-using Rex.Media.Speech;
-using Rex.Media.Subtitles;
 
 namespace Rex.Media.App;
 
@@ -29,7 +20,8 @@ public sealed partial class MainWindow
         ShowTranscriptModelChoice();
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(_bufferDone, _bufferDuration ?? _player.Duration, _player.Position, _bufferHearing);
         var key = string.Join(";", view.Spans);
-        TranscriptRail.Visibility = view.State == BufferState.None ? Visibility.Collapsed : Visibility.Visible;
+        // Keep the quality picker available even before this model has any saved coverage.
+        TranscriptRail.Visibility = _player.Item is not null || view.State != BufferState.None ? Visibility.Visible : Visibility.Collapsed;
         if (key != _shownBuffer)
         {
             _shownBuffer = key;
@@ -165,6 +157,20 @@ public sealed partial class MainWindow
     /// <summary>Playback held while it has caught up with the subtitles, when the user allows it.</summary>
     private void HoldForSubtitles()
     {
+        // A cached, complete transcript can arrive before the media reader reports its duration.
+        // At that point its coverage is empty and the rail is hidden; restore the full span as
+        // soon as the duration becomes known, without waiting for a new transcription event.
+        if (_bufferDuration is { } previous && previous <= TimeSpan.Zero && _player.Duration > TimeSpan.Zero)
+        {
+            _bufferDuration = _player.Duration;
+            if (_heard is { IsEmpty: false } && !_bufferHearing)
+            {
+                _bufferDone = Rex.Media.AppCore.Transcription.SubtitleBuffer.Coverage(true, null, false, _player.Duration);
+            }
+
+            ShowSubtitleBuffer();
+        }
+
         var done = _bufferDone ?? TimeRanges.Empty;
         // A missing or failed speech model cannot make more coverage. Never strand the
         // player behind an unavailable worker; the user may still choose to play manually.

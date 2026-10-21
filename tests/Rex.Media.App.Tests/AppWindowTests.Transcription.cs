@@ -2,7 +2,6 @@ using System.IO;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Settings;
-using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
 
@@ -26,7 +25,8 @@ public sealed partial class AppWindowTests
         cache.SavePartial(media, partial);
         cache.Save(media, new Transcript("en", "tiny.en", [new TranscriptWord("Fast words", TimeSpan.Zero, TimeSpan.FromSeconds(1))]));
         using var app = AppProcess.Start([media], root);
-        Wait.For(() => app.Text("SubtitleBufferState") == "All ready", "Default cached coverage");
+        Wait.For(() => app.Text("SubtitleBufferState") == "All ready", "Default cached coverage",
+            () => $"State: {app.Text("SubtitleBufferState")}; model: {app.Text("TranscriptModelButton")}; rail: {app.Text("TranscriptRail")}; log: {app.LogText}");
         Assert.Equal("Transcription quality: Default", app.Text("TranscriptModelButton"));
         app.Press("TranscriptModelButton");
         app.Press("TranscriptModelBest");

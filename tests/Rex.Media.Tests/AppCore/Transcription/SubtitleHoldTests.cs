@@ -49,6 +49,10 @@ public sealed class SubtitleHoldTests
         Assert.False(hold.Overridden);
         Assert.Equal(HoldAction.Hold, hold.Update(true, SessionState.Playing, HoldAction.Hold));
         hold.PlayNow();
+        Assert.True(hold.Overridden);
+        hold.AllowWaiting();
+        Assert.False(hold.Overridden);
+        hold.PlayNow();
         hold.Update(true, SessionState.Playing, HoldAction.Nothing);
         Assert.False(hold.Overridden);
     }

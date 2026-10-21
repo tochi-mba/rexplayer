@@ -9,10 +9,8 @@ using Microsoft.UI.Xaml.Shapes;
 using Microsoft.Windows.System.Power;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
-using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Codecs.MediaFoundation;
-using Rex.Media.Engine;
 using Rex.Media.Library;
 using Rex.Media.Settings;
 using Rex.Media.Speech;
@@ -161,6 +159,7 @@ public sealed partial class MainWindow
 
     private void OnHearing(TranscriptionWorker worker, HearingEventArgs e)
     {
+        WriteTranscriptSrt(worker, e.Path);
         if (worker != _worker || !string.Equals(e.Path, _playingTranscript, StringComparison.OrdinalIgnoreCase))
         {
             return;

@@ -13,9 +13,9 @@ public sealed class MemoryControllerTests
 {
     private static readonly byte[] HalfMinute = Count(0, 8000 * 30);
 
-    private static ControllerHarness Harness(RexStore store, ResumeChoice resume = ResumeChoice.Ask, bool autoPlay = false, bool keepHistory = true, bool restoreQueue = true, double resumeAudioMinutes = 0)
+    private static ControllerHarness Harness(RexStore store, bool autoPlay = false, bool keepHistory = true, bool restoreQueue = true)
     {
-        var harness = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0, ResumePlayback = resume, ResumeAudioLongerThanMinutes = resumeAudioMinutes, KeepHistory = keepHistory, RestoreQueue = restoreQueue }, store: store);
+        var harness = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0, KeepHistory = keepHistory, RestoreQueue = restoreQueue }, store: store);
         harness.Files["a.wav"] = HalfMinute;
         harness.Files["b.wav"] = HalfMinute;
         return harness;
@@ -37,115 +37,35 @@ public sealed class MemoryControllerTests
 
     [Fact]
     [Capability("PB-11")]
-    public void TheWindowMayOfferToGoBackToWhereAFileWasLeft()
+    public void UnfinishedAudioResumesAutomaticallyWithoutAnOffer()
     {
         using var harness = Harness(RexStore.InMemory());
-        var controller = harness.Controller;
-        Assert.True(controller.Execute(CommandCatalog.Resume));
-        Assert.Equal("There is nowhere to go back to.", harness.Messages[^1]);
-
         LeaveAHalfWay(harness);
-        Assert.Null(controller.ResumeOffer);
         OpenReady(harness, "a.wav");
-
-        Assert.Equal(TimeSpan.FromSeconds(15), controller.ResumeOffer);
-        Assert.Equal(TimeSpan.Zero, controller.Position);
-        Assert.True(controller.Execute(CommandCatalog.Resume));
-        Assert.Equal((TimeSpan.FromSeconds(15), (TimeSpan?)null), (controller.Position, controller.ResumeOffer));
-        Assert.Equal("Resumed at 0:15", harness.Messages[^1]);
-
-        // Declined, the offer goes; stopped near the start, the point is forgotten.
-        OpenReady(harness, "b.wav");
-        OpenReady(harness, "a.wav");
-        controller.DeclineResume();
-        Assert.Null(controller.ResumeOffer);
-        Assert.False(controller.AcceptResume());
-        controller.Stop();
-        OpenReady(harness, "a.wav");
-        Assert.Null(controller.ResumeOffer);
+        Assert.Equal(TimeSpan.FromSeconds(15), harness.Controller.Position);
+        Assert.Contains("Resuming at 0:15", harness.Messages);
     }
 
     [Fact]
     [Capability("PB-11")]
-    public void ResumingCanBeAlwaysOrNever()
+    public void StartOverForgetsTheOldPositionAndKeepsPlaybackPaused()
     {
-        var store = RexStore.InMemory();
-        using (var always = Harness(store, ResumeChoice.Always))
-        {
-            LeaveAHalfWay(always);
-            OpenReady(always, "a.wav");
-            Assert.Equal(TimeSpan.FromSeconds(15), always.Controller.Position);
-            Assert.Equal("Resuming at 0:15", always.Messages[^1]);
-            Assert.Null(always.Controller.ResumeOffer);
-        }
-
-        using var never = Harness(store, ResumeChoice.Never);
-        OpenReady(never, "a.wav");
-        Assert.Equal((TimeSpan.Zero, (TimeSpan?)null), (never.Controller.Position, never.Controller.ResumeOffer));
-    }
-
-    [Theory]
-    [InlineData(ResumeChoice.Ask)]
-    [InlineData(ResumeChoice.Always)]
-    public void ShortAudioStartsOverWithoutAResumePrompt(ResumeChoice choice)
-    {
-        var store = RexStore.InMemory();
-        using var harness = Harness(store, choice, resumeAudioMinutes: 10);
+        using var harness = Harness(RexStore.InMemory());
+        var controller = harness.Controller;
+        controller.StartOver(); // With no media there is nothing to seek.
+        Assert.True(controller.Execute(CommandCatalog.Resume));
+        Assert.Equal("There is nowhere to go back to.", harness.Messages[^1]);
         LeaveAHalfWay(harness);
         OpenReady(harness, "a.wav");
-
-        Assert.Equal(TimeSpan.Zero, harness.Controller.Position);
-        Assert.Null(harness.Controller.ResumeOffer);
-    }
-
-    [Fact]
-    public void LongAudioResumesAutomaticallyWhenAlwaysIsChosen()
-    {
-        using var harness = Harness(RexStore.InMemory(), ResumeChoice.Always, resumeAudioMinutes: 0.25);
-        LeaveAHalfWay(harness);
-
-        // The automatic resume seeks as soon as the file opens. By the time events
-        // are pumped, the controller may already be Paused rather than Ready.
-        harness.Controller.Open(["a.wav"]);
-        harness.PumpUntil(c => c.Item?.Location == "a.wav"
-            && c.State == SessionState.Paused
-            && c.Position == TimeSpan.FromSeconds(15));
-
-        Assert.Contains("Resuming at 0:15", harness.Messages);
-        Assert.Null(harness.Controller.ResumeOffer);
-    }
-
-    [Fact]
-    public void AudioExactlyAtTheChosenThresholdStartsFromTheBeginning()
-    {
-        using var harness = Harness(RexStore.InMemory(), resumeAudioMinutes: 0.5);
-        LeaveAHalfWay(harness);
+        Assert.True(controller.Execute(CommandCatalog.Resume));
+        harness.PumpUntil(c => c.State == SessionState.Paused);
+        Assert.Equal("Resumed at 0:15", harness.Messages[^1]);
+        controller.StartOver();
+        harness.PumpUntil(c => c.State == SessionState.Paused && c.Position == TimeSpan.Zero);
+        Assert.Null(controller.Memory.ResumePoint("a.wav"));
+        OpenReady(harness, "b.wav");
         OpenReady(harness, "a.wav");
-
-        Assert.Equal(TimeSpan.Zero, harness.Controller.Position);
-        Assert.Null(harness.Controller.ResumeOffer);
-    }
-
-    [Fact]
-    public void AudioThresholdCanBeDisabled()
-    {
-        var store = RexStore.InMemory();
-        using var harness = Harness(store, resumeAudioMinutes: 0);
-        LeaveAHalfWay(harness);
-        OpenReady(harness, "a.wav");
-
-        Assert.Equal(TimeSpan.FromSeconds(15), harness.Controller.ResumeOffer);
-    }
-
-    [Fact]
-    public void AudioLongerThanTheChosenThresholdStillOffersToResume()
-    {
-        var store = RexStore.InMemory();
-        using var harness = Harness(store, resumeAudioMinutes: 0.25);
-        LeaveAHalfWay(harness);
-        OpenReady(harness, "a.wav");
-
-        Assert.Equal(TimeSpan.FromSeconds(15), harness.Controller.ResumeOffer);
+        Assert.Equal(TimeSpan.Zero, controller.Position);
     }
 
     [Fact]
@@ -271,7 +191,7 @@ public sealed class MemoryControllerTests
     public void TheQueueComesBackReadyToPlayOnFromWhereItWas()
     {
         var store = RexStore.InMemory();
-        using (var before = Harness(store, ResumeChoice.Never))
+        using (var before = Harness(store))
         {
             Assert.False(before.Controller.RestoreQueue());
             before.Controller.Open(["a.wav", "b.wav"]);
@@ -281,7 +201,7 @@ public sealed class MemoryControllerTests
             before.Controller.SaveQueue();
         }
 
-        using var after = Harness(store, ResumeChoice.Never);
+        using var after = Harness(store);
         var controller = after.Controller;
         Assert.True(controller.RestoreQueue());
         Assert.Equal(["a.wav", "b.wav"], controller.Playlist.Items.Select(item => item.Location));
@@ -291,7 +211,11 @@ public sealed class MemoryControllerTests
         after.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "b.wav");
         Assert.Equal(TimeSpan.FromSeconds(12), controller.Position);
 
-        // The restored place is used once; later starts are ordinary.
+        // Automatic resume remains active on later starts until Start over clears the bookmark.
+        controller.PlayAt(1);
+        after.PumpUntil(c => c.State == SessionState.Ready && c.Position == TimeSpan.FromSeconds(12));
+        controller.StartOver();
+        after.PumpUntil(c => c.State == SessionState.Ready && c.Position == TimeSpan.Zero);
         controller.PlayAt(1);
         after.PumpUntil(c => c.State == SessionState.Ready && c.Position == TimeSpan.Zero);
     }
@@ -300,7 +224,7 @@ public sealed class MemoryControllerTests
     [Capability("LIB-03")]
     public void RestoringAQueueDoesNotApplyItsPositionToADifferentItem()
     {
-        using var harness = Harness(RexStore.InMemory(), ResumeChoice.Never);
+        using var harness = Harness(RexStore.InMemory());
         var controller = harness.Controller;
         controller.Memory.Queue = new QueueSnapshot(
             [new QueuedItem("a.wav", "A", null, TimeSpan.Zero, null),
@@ -322,7 +246,7 @@ public sealed class MemoryControllerTests
     public void AnUpgradeRestoresTheQueuePositionAndWorkspaceEvenWhenRegularRestoreIsOff()
     {
         var store = RexStore.InMemory();
-        using (var before = Harness(store, ResumeChoice.Never, restoreQueue: false))
+        using (var before = Harness(store, restoreQueue: false))
         {
             before.Controller.Open(["a.wav", "b.wav"]);
             before.Controller.PlayAt(1);
@@ -338,7 +262,7 @@ public sealed class MemoryControllerTests
             Assert.False(before.Controller.Memory.Updating!.Playing);
         }
 
-        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        using var after = Harness(store, restoreQueue: false);
         Assert.False(after.Controller.RestoreQueue());
         var state = after.Controller.RestoreAfterUpdate();
         Assert.NotNull(state);
@@ -359,7 +283,7 @@ public sealed class MemoryControllerTests
     public void AnUpgradeRestoredPausedAnnouncesItsPositionOnceTheLengthIsKnown()
     {
         var store = RexStore.InMemory();
-        using (var before = Harness(store, ResumeChoice.Never, restoreQueue: false))
+        using (var before = Harness(store, restoreQueue: false))
         {
             OpenReady(before, "a.wav");
             before.Controller.Seek(TimeSpan.FromSeconds(13));
@@ -368,7 +292,7 @@ public sealed class MemoryControllerTests
 
         // The window draws the seek bar from the position and the length together, on each
         // PositionChanged; a paused session reports no position of its own until it plays.
-        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        using var after = Harness(store, restoreQueue: false);
         var announced = new List<(TimeSpan Position, TimeSpan Duration)>();
         after.Controller.PositionChanged += (_, _) => announced.Add((after.Controller.Position, after.Controller.Duration));
         Assert.NotNull(after.Controller.RestoreAfterUpdate());
@@ -383,7 +307,7 @@ public sealed class MemoryControllerTests
     public void RestartingForAnUpdateWhilePlayingComesBackPausedAtTheSamePlace()
     {
         var store = RexStore.InMemory();
-        using (var before = Harness(store, ResumeChoice.Never, autoPlay: true, restoreQueue: false))
+        using (var before = Harness(store, autoPlay: true, restoreQueue: false))
         {
             before.Controller.Open(["a.wav"]);
             before.PumpUntil(c => c.IsPlaying && c.Position > TimeSpan.Zero);
@@ -395,7 +319,7 @@ public sealed class MemoryControllerTests
             Assert.True(before.Controller.Memory.Updating.Active);
         }
 
-        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        using var after = Harness(store, restoreQueue: false);
         Assert.NotNull(after.Controller.RestoreAfterUpdate("0.16.0"));
         after.PumpUntil(c => c.State == SessionState.Ready && c.Duration > TimeSpan.Zero);
         Assert.False(after.Controller.IsPlaying);
@@ -406,7 +330,7 @@ public sealed class MemoryControllerTests
     public void AnUpgradeMarkerOnlyRestoresIntoItsVerifiedTargetVersion()
     {
         var store = RexStore.InMemory();
-        using var before = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        using var before = Harness(store, restoreQueue: false);
         before.Controller.Open(["a.wav"]);
         before.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "a.wav");
         before.Controller.Seek(TimeSpan.FromSeconds(14));
@@ -420,7 +344,7 @@ public sealed class MemoryControllerTests
 
         before.Controller.SaveForUpdate("Home", false, "", null, null, null, false,
             targetVersion: "0.14.0");
-        using var after = Harness(store, ResumeChoice.Never, restoreQueue: false);
+        using var after = Harness(store, restoreQueue: false);
         Assert.NotNull(after.Controller.RestoreAfterUpdate("0.14.0"));
         after.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "a.wav");
         Assert.Equal(TimeSpan.FromSeconds(14), after.Controller.Position);

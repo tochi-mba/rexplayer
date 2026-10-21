@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Rex.Media.IO;
 using Rex.Media.Subtitles;
 
 namespace Rex.Media.AppCore.Captions;
@@ -33,6 +34,35 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
 
     /// <summary>Whether anything was heard.</summary>
     public bool IsEmpty => Words.Count == 0;
+
+    /// <summary>The model-labelled SubRip path beside a media file, kept distinct from authored subtitles.</summary>
+    public static string SidecarSrtPath(string mediaPath, string model, bool edited = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        var quality = model switch
+        {
+            "tiny.en" => "fast",
+            "base.en" => "default",
+            "small.en" => "best",
+            _ => SanitizeModel(model),
+        };
+        var directory = Path.GetDirectoryName(mediaPath);
+        var version = edited ? "edited" : "original";
+        var name = $"{Path.GetFileNameWithoutExtension(mediaPath)}.transcript.{quality}.{version}.srt";
+        return string.IsNullOrEmpty(directory) ? name : Path.Combine(directory, name);
+    }
+
+    /// <summary>Atomically replaces the model-labelled SubRip copy beside the media.</summary>
+    public void WriteSidecarSrt(string mediaPath) =>
+        AtomicFile.Write(SidecarSrtPath(mediaPath, Model), Encoding.UTF8.GetBytes(ToSrt()));
+
+    private static string SanitizeModel(string model)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var safe = new string(model.Trim().ToLowerInvariant().Select(c => c is '/' or '\\' || invalid.Contains(c) ? '-' : c).ToArray());
+        return string.IsNullOrWhiteSpace(safe) ? "unknown" : safe;
+    }
 
     /// <summary>
     /// The words as cues: a cue ends at a sentence's end, a breath, the most words, or the longest
