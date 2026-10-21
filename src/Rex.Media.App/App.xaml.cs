@@ -22,7 +22,7 @@ public partial class App : Application
     public App()
     {
         // Sparse downloads (a torrent's file at full size) read only as far as their bytes on the disk go.
-        Rex.Media.IO.FileByteSource.Allocation = Rex.Media.Interop.Storage.FileAllocation.Instance;
+        Rex.Media.IO.FileByteSource.Allocation = WindowsFileAllocation.Instance;
         // Register handlers before loading settings, caches and shaders.
         UnhandledException += (_, e) =>
         {

@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
-using Rex.Media.IO;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Ioctl;
@@ -14,14 +13,13 @@ namespace Rex.Media.Interop.Storage;
 /// say (not NTFS, not sparse, an error), every byte counts as there, so nothing waits on a guess.
 /// </summary>
 [SupportedOSPlatform("windows5.1.2600")]
-public sealed class FileAllocation : IFileAllocation
+public static class FileAllocation
 {
     private const int MoreData = 234;
     private const int Batch = 32;
 
-    public static FileAllocation Instance { get; } = new();
-
-    public unsafe long Allocated(SafeFileHandle file, long length)
+    /// <summary>How many of the first <paramref name="length"/> bytes of <paramref name="file"/> are on the disk.</summary>
+    public static unsafe long Allocated(SafeFileHandle file, long length)
     {
         ArgumentNullException.ThrowIfNull(file);
         var ranges = stackalloc FILE_ALLOCATED_RANGE_BUFFER[Batch];
@@ -50,7 +48,8 @@ public sealed class FileAllocation : IFileAllocation
         return Math.Clamp(total, 0, length);
     }
 
-    public unsafe long AllocatedEnd(SafeFileHandle file, long position, long length)
+    /// <summary>Where the run of bytes on the disk starting at <paramref name="position"/> ends, within <paramref name="length"/> bytes: <paramref name="position"/> when a hole starts there.</summary>
+    public static unsafe long AllocatedEnd(SafeFileHandle file, long position, long length)
     {
         ArgumentNullException.ThrowIfNull(file);
         var ranges = stackalloc FILE_ALLOCATED_RANGE_BUFFER[Batch];
