@@ -516,7 +516,7 @@
             </StackPanel>
             <TextBlock x:Name="LibraryStatus" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus"
-                       AutomationProperties.LiveSetting="Polite" />
+                       AutomationProperties.Name="Library scan status" AutomationProperties.LiveSetting="Polite" />
             <!-- A compact, clickable job count. Open it for the real queue, filenames and progress. -->
             <DropDownButton x:Name="LibraryTranscription" Grid.Column="6" Visibility="Collapsed" MaxWidth="240"
                             AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription queue"
