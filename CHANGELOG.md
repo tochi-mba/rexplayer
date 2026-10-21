@@ -11,6 +11,8 @@ pipeline the moment its number reaches `main`.
 
 ### Improved
 
+- **The menu bar is one list for every shell.** The menus, their groups and which items carry a tick now live in the shared player code, so the coming macOS build shows exactly the menus Windows does.
+
 - **Shortcuts speak every platform's language.** A shortcut typed the Mac way (Cmd+O, Option+Left) is understood, and the shared player code can show any shortcut in Windows words or Mac words, so one settings file means the same keys on both.
 
 ### Fixed
