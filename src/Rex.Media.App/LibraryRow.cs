@@ -8,7 +8,7 @@ namespace Rex.Media.App;
 /// One item in a library view: a track, video, picture, album, artist, genre, playlist or watched
 /// folder (<see cref="Item"/> says which), with artwork once it is loaded.
 /// </summary>
-public sealed partial class LibraryRow(
+public partial class LibraryRow(
     string name,
     string? detail,
     string extra,
