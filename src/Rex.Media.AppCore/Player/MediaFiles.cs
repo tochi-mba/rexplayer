@@ -84,10 +84,10 @@ public static class MediaFiles
     /// <summary>Whether a file with this name is a picture; asked as often as the position moves, so it allocates nothing.</summary>
     public static bool IsPicture(string path) => PictureLookup.Contains(Path.GetExtension(path.AsSpan()));
 
-    /// <summary>What the library files a file as, by its name; null for a file that is not media.</summary>
+    /// <summary>What the library files a file as, by its name ("film.mp4.part" as the video it will be); null for a file that is not media.</summary>
     public static Rex.Media.Library.LibraryKind? LibraryKindOf(string path)
     {
-        var extension = Path.GetExtension(path);
+        var extension = Path.GetExtension(Rex.Media.Library.Downloads.WholeNameOf(path) ?? path);
         return VideoSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Video
             : AudioSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Music
             : PictureSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Picture

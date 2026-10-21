@@ -28,6 +28,40 @@ public static class DetailsForm
         (MetadataKeys.Genre, "Genre"),
     ];
 
+    /// <summary>
+    /// What the dialog says about where the details go: into the files, or kept in rexplayer, and
+    /// why. A file still downloading (<paramref name="downloading"/> of them) is never written into.
+    /// </summary>
+    public static string Note(int songs, int writable, int downloading, bool writing)
+    {
+        if (!writing)
+        {
+            return "Saved in rexplayer only, as Preferences asks; the files are not changed.";
+        }
+
+        if (writable == songs)
+        {
+            return "Saved into the files.";
+        }
+
+        if (downloading == songs)
+        {
+            return songs == 1
+                ? "This file is still downloading, so its details are saved in rexplayer only until it is whole."
+                : "These files are still downloading, so their details are saved in rexplayer only until they are whole.";
+        }
+
+        if (writable == 0 && downloading == 0)
+        {
+            return Containers.Tags.TagFileWriter.LibraryOnlyMessage;
+        }
+
+        var held = songs - writable;
+        return downloading > 0
+            ? $"{held} of these files can't be written to ({downloading} still downloading); their details are saved in rexplayer only."
+            : $"{held} of these files can't be written to; their details are saved in rexplayer only.";
+    }
+
     /// <summary>The dialog's fields for <paramref name="entries"/> (at least one song).</summary>
     public static IReadOnlyList<DetailField> Fields(IReadOnlyList<LibraryEntry> entries)
     {

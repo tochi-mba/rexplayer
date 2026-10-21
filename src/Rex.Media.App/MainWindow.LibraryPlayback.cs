@@ -90,6 +90,12 @@ public sealed partial class MainWindow
         }
 
         var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
+        if (NotYetPlayable(chosen) is { } notYet)
+        {
+            Say(notYet);
+            return;
+        }
+
         var resumeAt = resume || _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
         if (_settings.ShowPlayerWhenLibraryMediaStarts || chosen.Kind is LibraryKind.Video or LibraryKind.Picture)
         {

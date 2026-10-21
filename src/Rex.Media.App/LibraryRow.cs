@@ -22,13 +22,18 @@ public sealed partial class LibraryRow(
     private ImageSource? _picture;
     private string _transcriptGlyph = "";
     private string _transcriptText = "";
+    private string? _downloadText;
     private bool _isPlaying = isPlaying;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public string Name { get; } = name;
 
-    public string Detail { get; } = detail ?? "";
+    /// <summary>What the line says under its name; while its file is still downloading, how far that is.</summary>
+    public string Detail => _downloadText ?? PlainDetail;
+
+    /// <summary>What the line says under its name once its file is whole.</summary>
+    public string PlainDetail { get; } = detail ?? "";
 
     public string Extra { get; } = extra;
 
@@ -36,6 +41,14 @@ public sealed partial class LibraryRow(
     public object Item { get; } = item;
 
     public Visibility DetailVisibility => Detail.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The download badge's words ("Downloading · 1.2 GB of 3.4 GB"), empty once the file is whole.</summary>
+    public string DownloadText => _downloadText ?? "";
+
+    public Visibility DownloadVisibility => _downloadText is null ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>How far the download is, 0 to 100, for the badge's ring; 0 while nothing says how big the file will be.</summary>
+    public double DownloadPercent { get; private set; }
 
     public bool HasPicture { get; } = hasPicture;
 
@@ -98,6 +111,26 @@ public sealed partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptGlyph)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptVisibility)));
+    }
+
+    /// <summary>
+    /// Shows the download badge and detail for a file still arriving (<paramref name="fraction"/>
+    /// of it so far, when known), or takes them off with null; nothing is raised when nothing changed.
+    /// </summary>
+    public void SetDownload(string? text, double? fraction)
+    {
+        var percent = fraction is { } part ? Math.Round(part * 100) : 0;
+        if (text == _downloadText && percent == DownloadPercent)
+        {
+            return;
+        }
+
+        _downloadText = text;
+        DownloadPercent = percent;
+        foreach (var property in new[] { nameof(DownloadText), nameof(DownloadVisibility), nameof(DownloadPercent), nameof(Detail), nameof(DetailVisibility) })
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
     }
 
     /// <summary>Updates the durable now-playing treatment without rebuilding or moving the view.</summary>

@@ -58,9 +58,37 @@ public sealed class HomeShelvesTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void TheDownloadingShelfHoldsPartialFilesNewestFirstAndSeeAllOpensTheirViewSoFiltered()
+    {
+        var older = Entry("Sungba (live)", 0, kind: LibraryKind.Video) with { Downloading = true, Added = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc) };
+        var newer = Entry("Lungu Boy (film)", 0, kind: LibraryKind.Video) with { Downloading = true, Added = new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc) };
+        var song = Entry("Joha", 0) with { Downloading = true, Added = new DateTime(2026, 10, 2, 0, 0, 0, DateTimeKind.Utc) };
+        var library = new[] { Entry("Terminator", 2), older, song, newer };
+
+        Assert.Equal(["Lungu Boy (film)", "Joha", "Sungba (live)"], Titles(HomeShelves.Downloading(library, 20)));
+        Assert.Equal(["Lungu Boy (film)"], Titles(HomeShelves.Downloading(library, 1)));
+        Assert.Empty(HomeShelves.Downloading(Library, 20));
+
+        // The view with most of what is downloading opens, filtered to it and in the shelf's order; the user's own layout stays.
+        var kept = new Dictionary<string, LibraryViewChoice> { ["Videos"] = new(LibraryLook.Wall, LibrarySort.Title, Grouping: LibraryGrouping.Folder, Filter: LibraryFilter.Unwatched) };
+        var (view, choice) = HomeShelves.SeeAllDownloading(HomeShelves.Downloading(library, 20), key => kept.GetValueOrDefault(key) ?? new LibraryViewChoice());
+        Assert.Equal("Videos", view);
+        Assert.Equal(kept["Videos"] with { Download = LibraryDownloadFilter.Downloading, Sort = LibrarySort.Added, Grouping = LibraryGrouping.None }, choice);
+        Assert.Equal(Titles(HomeShelves.Downloading(library, 20)).Where(title => title != "Joha"),
+            Titles(LibraryArrangement.Sort(LibraryArrangement.Filter(LibraryViews.Videos(library), choice, _ => null), choice.Sort, choice.Descending)));
+        Assert.Equal("Songs", HomeShelves.SeeAllDownloading([song], _ => new LibraryViewChoice()).View);
+        Assert.Equal("Pictures", HomeShelves.SeeAllDownloading([song with { Kind = LibraryKind.Picture }], _ => new LibraryViewChoice()).View);
+        Assert.Equal("Videos", HomeShelves.SeeAllDownloading([], _ => new LibraryViewChoice()).View);
+    }
+
+    [Fact]
     public void NothingIsArrangedWithoutAnArgument()
     {
         Assert.Throws<ArgumentNullException>(() => HomeShelves.MostPlayed(null!, 20));
         Assert.Throws<ArgumentNullException>(() => HomeShelves.SeeAllMostPlayed(null!));
+        Assert.Throws<ArgumentNullException>(() => HomeShelves.Downloading(null!, 20));
+        Assert.Throws<ArgumentNullException>(() => HomeShelves.SeeAllDownloading(null!, _ => new LibraryViewChoice()));
+        Assert.Throws<ArgumentNullException>(() => HomeShelves.SeeAllDownloading([], null!));
     }
 }

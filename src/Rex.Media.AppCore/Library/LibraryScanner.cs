@@ -207,7 +207,7 @@ public sealed class LibraryScanner : IDisposable
                 return;
             }
 
-            var result = _library.Scan(folder, files, MediaFiles.LibraryKindOf);
+            var result = _library.Scan(folder, files, MediaFiles.LibraryKindOf, ReadMarker);
             _log.Info(LogSource, $"Scanned {folder} (watched as {watched}): {result.Added} new, {result.Changed} changed, {result.Removed} gone.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -301,6 +301,21 @@ public sealed class LibraryScanner : IDisposable
         using var source = new FileByteSource(path);
         using var demuxer = MediaRegistries.Demuxers().Open(source, cancellationToken);
         return demuxer.Info;
+    }
+
+    /// <summary>The head of a downloader's marker file, enough to read the size it declares; null when it cannot be read.</summary>
+    public static byte[]? ReadMarker(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var head = new byte[2048];
+            return head[..stream.Read(head, 0, head.Length)];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Every file under <paramref name="folder"/> with its size and change time, passing over what cannot be read; for the window's scanner.</summary>

@@ -250,6 +250,28 @@ public sealed class LibraryArrangementTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void TheDownloadFilterKeepsWholeOrStillDownloadingFilesAndJoinsTheOthers()
+    {
+        var arriving = Song("Film", folder: "Films") with { Kind = LibraryKind.Video, Downloading = true, FinalSize = 1000 };
+        var entries = new[] { Asake[0], arriving, Asake[3] with { Downloading = true } };
+        TimeSpan? LeftAt(string path) => null;
+        var all = new LibraryViewChoice();
+
+        Assert.Equal(["Film", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Downloading }, LeftAt)));
+        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Complete }, LeftAt)));
+        Assert.Equal(["Film"], Titles(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Downloading, Kinds = LibraryKindFilter.Video }, LeftAt)));
+        Assert.Empty(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Downloading, Filter = LibraryFilter.Finished }, LeftAt));
+
+        Assert.Equal("Still downloading", LibraryArrangement.FilterLabel(all with { Download = LibraryDownloadFilter.Downloading }));
+        Assert.Equal("Music \u00B7 Fully downloaded", LibraryArrangement.FilterLabel(all with { Kinds = LibraryKindFilter.Music, Download = LibraryDownloadFilter.Complete }));
+        Assert.Equal("All files", LibraryArrangement.DownloadName(LibraryDownloadFilter.Any));
+        Assert.True((all with { Download = LibraryDownloadFilter.Complete }).IsFiltered);
+        Assert.Equal(all, (all with { Download = LibraryDownloadFilter.Complete }).Unfiltered());
+        Assert.Equal(LibraryDownloadFilter.Any, (all with { Download = (LibraryDownloadFilter)9 }).Normalize().Download);
+    }
+
+    [Fact]
     public void AViewsChoicesAreKeptInRange()
     {
         var wild = new LibraryViewChoice((LibraryLook)9, (LibrarySort)99, true, (LibraryGrouping)42, 5000, (LibraryFilter)7, (LibraryKindFilter)8, "  ").Normalize();

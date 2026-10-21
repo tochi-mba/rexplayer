@@ -25,7 +25,8 @@ public enum WatchState
 /// <summary>
 /// Orders, filters and groups a library view as the user asks (LIB-05): by title, artist, album,
 /// year, when it was added, changed or last played, how often, how long, how big, or where it is;
-/// keeping only what is unwatched, part-way or finished, of one kind, or in one folder; under its
+/// keeping only what is unwatched, part-way or finished, of one kind, in one folder, or whole or
+/// still downloading; under its
 /// first letter, artist, album, genre, year, decade, folder, when it was
 /// added, or its length. Sorting keeps ties in the view's own order; headings come in the order
 /// that reads naturally (A to Z, newest first, shortest first), and what falls under no heading
@@ -45,7 +46,7 @@ public static class LibraryArrangement
 
     /// <summary>
     /// The entries of <paramref name="entries"/> that <paramref name="choice"/>'s quick filters keep
-    /// (watched state, kind and folder), in their order.
+    /// (watched state, kind, folder and download state), in their order.
     /// </summary>
     public static IReadOnlyList<LibraryEntry> Filter(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, Func<string, TimeSpan?> leftAt)
     {
@@ -75,11 +76,29 @@ public static class LibraryArrangement
             parts.Add(Path.GetFileName(folder) is { Length: > 0 } name ? name : folder);
         }
 
+        if (choice.Download != LibraryDownloadFilter.Any)
+        {
+            parts.Add(DownloadName(choice.Download));
+        }
+
         return parts.Count == 0 ? "Filter" : string.Join(" \u00B7 ", parts);
     }
 
+    /// <summary>The download filter's name in the menu and the filter button: "Fully downloaded" or "Still downloading".</summary>
+    public static string DownloadName(LibraryDownloadFilter download) => download switch
+    {
+        LibraryDownloadFilter.Complete => "Fully downloaded",
+        LibraryDownloadFilter.Downloading => "Still downloading",
+        _ => "All files",
+    };
+
     private static bool Keeps(LibraryEntry entry, LibraryViewChoice choice, Func<string, TimeSpan?> leftAt)
     {
+        if (choice.Download != LibraryDownloadFilter.Any && entry.Downloading != (choice.Download == LibraryDownloadFilter.Downloading))
+        {
+            return false;
+        }
+
         if (choice.Kinds != LibraryKindFilter.Any && entry.Kind != choice.Kinds switch { LibraryKindFilter.Music => LibraryKind.Music, LibraryKindFilter.Video => LibraryKind.Video, _ => LibraryKind.Picture })
         {
             return false;

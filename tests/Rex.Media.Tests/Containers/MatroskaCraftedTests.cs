@@ -102,6 +102,7 @@ public sealed class MatroskaCraftedTests
                 Element(Id.BlockGroup, UInt(Id.BlockDuration, 1)),
                 Element(Id.SimpleBlock, Block(Audio, 8, 0, 1, [9], [10]))));
         using var demuxer = Open(file);
+        Assert.Equal(file.Length, demuxer.Info.DeclaredLength);
 
         var packets = ReadAll(demuxer);
 
@@ -410,6 +411,7 @@ public sealed class MatroskaCraftedTests
         using var live = new MatroskaDemuxer(new LiveSource(file), CancellationToken.None);
 
         Assert.Equal("WebM", demuxer.Info.FormatName);
+        Assert.Null(demuxer.Info.DeclaredLength);
         Assert.Equal("Asake", demuxer.Info.Metadata["artist"]);
         Assert.Equal("Sungba", demuxer.Info.Metadata["title"]);
         Assert.Equal(MediaTime.FromSeconds(0.5), demuxer.Info.Duration);

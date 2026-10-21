@@ -135,6 +135,18 @@ public enum LibraryKindFilter
     Picture,
 }
 
+/// <summary>Which items a library view keeps, by whether their files have finished downloading.</summary>
+public enum LibraryDownloadFilter
+{
+    Any,
+
+    /// <summary>Files that are whole.</summary>
+    Complete,
+
+    /// <summary>Files still being downloaded into their folder.</summary>
+    Downloading,
+}
+
 /// <summary>What a library view gathers its items under, each under a heading.</summary>
 public enum LibraryGrouping
 {
@@ -171,7 +183,8 @@ public enum LibraryLook
 
 /// <summary>
 /// How one library view is shown, as the user last set it: its layout, order, grouping and card
-/// size, and which of its items it keeps (by watched state, by kind, and by folder).
+/// size, and which of its items it keeps (by watched state, by kind, by folder, and by whether
+/// the file has finished downloading).
 /// </summary>
 public sealed record LibraryViewChoice(
     LibraryLook Look = LibraryLook.Grid,
@@ -181,17 +194,18 @@ public sealed record LibraryViewChoice(
     int CardSize = 180,
     LibraryFilter Filter = LibraryFilter.All,
     LibraryKindFilter Kinds = LibraryKindFilter.Any,
-    string? Folder = null)
+    string? Folder = null,
+    LibraryDownloadFilter Download = LibraryDownloadFilter.Any)
 {
     /// <summary>The smallest and largest cards, in pixels across.</summary>
     public const int SmallestCard = 120;
     public const int LargestCard = 360;
 
     /// <summary>Whether any of the quick filters narrows the view.</summary>
-    public bool IsFiltered => Filter != LibraryFilter.All || Kinds != LibraryKindFilter.Any || Folder is not null;
+    public bool IsFiltered => Filter != LibraryFilter.All || Kinds != LibraryKindFilter.Any || Folder is not null || Download != LibraryDownloadFilter.Any;
 
     /// <summary>The same view with every quick filter off.</summary>
-    public LibraryViewChoice Unfiltered() => this with { Filter = LibraryFilter.All, Kinds = LibraryKindFilter.Any, Folder = null };
+    public LibraryViewChoice Unfiltered() => this with { Filter = LibraryFilter.All, Kinds = LibraryKindFilter.Any, Folder = null, Download = LibraryDownloadFilter.Any };
 
     public LibraryViewChoice Normalize() => this with
     {
@@ -202,6 +216,7 @@ public sealed record LibraryViewChoice(
         Filter = Enum.IsDefined(Filter) ? Filter : LibraryFilter.All,
         Kinds = Enum.IsDefined(Kinds) ? Kinds : LibraryKindFilter.Any,
         Folder = string.IsNullOrWhiteSpace(Folder) ? null : Folder.Trim(),
+        Download = Enum.IsDefined(Download) ? Download : LibraryDownloadFilter.Any,
     };
 }
 
