@@ -145,8 +145,11 @@ public sealed class LibraryViewsTests
         Assert.Equal(["pasted", "Sungba", "Lonely At The Top", "Terminator"], Titles(pasted));
         Assert.Equal(LibraryKind.Video, pasted[0].Kind);
 
+        var wholeHistory = Enumerable.Range(0, 75).Select(i => Song($"History {i}", null, null) with { LastPlayed = Monday.AddMinutes(i) }).ToList();
+        Assert.Equal(75, LibraryViews.RecentlyPlayed(wholeHistory).Count);
+
         var added = Entries.Select((entry, i) => entry with { Added = Monday.AddDays(-i) }).ToList();
-        Assert.Equal(LibraryViews.Lately, LibraryViews.RecentlyAdded(Enumerable.Repeat(added, 10).SelectMany(x => x)).Count);
+        Assert.Equal(added.Count * 10, LibraryViews.RecentlyAdded(Enumerable.Repeat(added, 10).SelectMany(x => x)).Count);
         Assert.Equal("Terminator", LibraryViews.RecentlyAdded(added)[0].Title);
 
         var left = LibraryViews.ContinueWatching(Entries, path => path.Contains("Episode", StringComparison.Ordinal) || path.Contains("Sungba", StringComparison.Ordinal) ? TimeSpan.FromMinutes(5) : null);

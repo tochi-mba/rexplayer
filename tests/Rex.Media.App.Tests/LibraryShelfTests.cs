@@ -27,7 +27,8 @@ public sealed class LibraryShelfTests : IDisposable
         var terminator = Path.Combine(_media, "Terminator.wav");
         foreach (var path in new[] { lonely, terminator })
         {
-            File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 30])).Build());
+            // Tagged as songs, so the window files them under music rather than recordings.
+            File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 30])).Info(("INAM", Path.GetFileNameWithoutExtension(path)), ("IART", "Asake"), ("IPRD", "Work of Art")).Build());
         }
 
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));

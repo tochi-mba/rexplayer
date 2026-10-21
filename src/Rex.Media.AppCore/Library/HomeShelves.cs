@@ -11,7 +11,8 @@ public static class HomeShelves
 {
     /// <summary>
     /// "Your most played": the songs played at least once, most played first, the way the Songs view
-    /// orders them by Most played (ties keep the Songs view's order).
+    /// orders them by Most played (ties keep the Songs view's order). Long mixes and sets
+    /// (<see cref="AudioRules.IsLongMix"/>) are left out, so one long play does not skew it.
     /// </summary>
     /// <param name="entries">The library's entries.</param>
     /// <param name="count">How many the shelf holds.</param>
@@ -20,7 +21,7 @@ public static class HomeShelves
         ArgumentNullException.ThrowIfNull(entries);
 
         // Only played songs are ordered: a subset keeps the Songs view's relative order.
-        var played = LibraryViews.Songs(entries.Where(entry => entry.Plays > 0));
+        var played = LibraryViews.Songs(AudioRules.Ranked(entries.Where(entry => entry.Plays > 0)));
         return [.. LibraryArrangement.Sort(played, LibrarySort.MostPlayed, descending: false).Take(count)];
     }
 

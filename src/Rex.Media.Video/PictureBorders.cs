@@ -25,6 +25,16 @@ public static class PictureBorders
     /// <summary>The picture left must keep at least this share of each side.</summary>
     private const int KeptShare = 3;
 
+    /// <summary>
+    /// How many lines past a bar may still be its fringe: where a decoder's colour, shared by
+    /// neighbouring lines, bleeds from the picture into the bar's last lines, so they are no longer
+    /// one colour but still dark.
+    /// </summary>
+    private const int Fringe = 3;
+
+    /// <summary>The brightest a fringe line's pixels may be: far darker than any picture worth keeping.</summary>
+    private const int FringeDarkest = 48;
+
     /// <summary>The part of <paramref name="frame"/> (BGRA) inside its bars; the whole picture when it has none.</summary>
     public static PictureArea Find(VideoFrame frame)
     {
@@ -67,12 +77,36 @@ public static class PictureBorders
         }
 
         var lines = 0;
-        for (var line = from; lines < limit && Uniform(frame, horizontal, line, length, blue, green, red); line += step)
+        var at = from;
+        for (; lines < limit && Uniform(frame, horizontal, at, length, blue, green, red); at += step)
+        {
+            lines++;
+        }
+
+        // A bar's last lines, tinted by the picture beside them, are bar too: shown magnified on a
+        // card they would be a dark band along its edge.
+        for (var fringe = 0; lines > 0 && fringe < Fringe && lines < limit && Dark(frame, horizontal, at, length); fringe++, at += step)
         {
             lines++;
         }
 
         return lines;
+    }
+
+    /// <summary>Whether every pixel of a line but the odd stray is dark in every channel.</summary>
+    private static bool Dark(VideoFrame frame, bool horizontal, int line, int length)
+    {
+        var strays = 0;
+        for (var i = 0; i < length; i++)
+        {
+            var (b, g, r) = Pixel(frame, horizontal, line, i);
+            if (Math.Max(r, Math.Max(g, b)) > FringeDarkest && ++strays * Strays > length)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>The average colour of one line.</summary>

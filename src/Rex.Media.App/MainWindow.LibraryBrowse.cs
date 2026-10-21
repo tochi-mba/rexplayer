@@ -10,8 +10,8 @@ namespace Rex.Media.App;
 
 /// <summary>
 /// The streaming-style browse of the Movies and TV shows views: a featured billboard (what was left
-/// part-way, else what is watched most, else what arrived last) with Play and More, over horizontal
-/// rows by category. <see cref="StreamingBrowse"/> decides what goes where; this file only draws it
+/// part-way, else what is watched most, else what arrived last) with its synopsis, its facts, Play
+/// and More info, over horizontal rows by category. <see cref="StreamingBrowse"/> decides what goes where; this file only draws it
 /// on the same virtualised shelves Home uses, so artwork still loads lazily per visible card.
 /// </summary>
 public sealed partial class MainWindow
@@ -37,20 +37,24 @@ public sealed partial class MainWindow
         string billboardTitle, billboardLine;
         var shelves = new List<(string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide, string Id)>();
         Action? play = null, more = null;
-        string moreLabel;
+        Description? synopsis = null;
+        Uri? backdrop = null;
         if (movies)
         {
             var browse = StreamingBrowse.Movies(LibraryViews.Movies(entries, MovieLookupOf), _player.LeftAt);
             billboardArt = browse.Billboard;
             billboardTitle = browse.Billboard is null ? "" : LibraryViews.MovieTitleOf(browse.Billboard);
-            billboardLine = browse.Billboard is null ? "" : StreamingBrowse.MovieLine(browse.Billboard);
+            billboardLine = "";
             if (browse.Billboard is { } movie)
             {
+                var facts = MetadataMovie(movie);
+                billboardLine = TitleFacts.Movie(movie, facts);
+                synopsis = TitleSections.MovieSynopsis(facts);
+                backdrop = TitleSections.AbsoluteUri(facts?.BackdropUrl);
                 play = () => Play([movie], 0, resume: true);
-                more = () => RevealInCards(movie);
+                more = () => OpenMovieDetails(movie);
             }
 
-            moreLabel = "Show in the grid";
             foreach (var shelf in browse.Shelves)
             {
                 var continues = shelf.Title == "Continue watching";
@@ -66,11 +70,13 @@ public sealed partial class MainWindow
             billboardLine = browse.Billboard?.Detail ?? "";
             if (browse.Billboard is { } featured)
             {
+                var facts = ShowFacts(featured.Name);
+                billboardLine = TitleFacts.ShowLine(facts, featured.Detail ?? "");
+                synopsis = TitleSections.ShowSynopsis(facts);
                 play = () => PlayShowFromNextUp(featured);
                 more = () => OpenShow(featured);
             }
 
-            moreLabel = "Episodes";
             if (browse.ContinueWatching.Count > 0)
             {
                 shelves.Add(("Continue watching", LibrarySource.ContinueWatching, [.. browse.ContinueWatching.Select(EntryRow)], true, "TvShows-Continue watching"));
@@ -83,7 +89,7 @@ public sealed partial class MainWindow
         }
 
         ShowLibraryEmpty(shelves.Count == 0, false, _librarySource);
-        var shown = "Browse\n" + billboardArt?.Path + "\n" + billboardTitle + "\n" + billboardLine + "\n"
+        var shown = "Browse\n" + billboardArt?.Path + "\n" + billboardTitle + "\n" + billboardLine + "\n" + synopsis + "\n" + backdrop + "\n"
             + string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(RowIdentity))));
         if (shown == _shownLibrary)
         {
@@ -99,7 +105,7 @@ public sealed partial class MainWindow
         if (billboardArt is not null)
         {
             LibraryShelves.Children.Add(Billboard(movies ? "FEATURED MOVIE" : "FEATURED SHOW",
-                billboardTitle, billboardLine, billboardArt, play!, moreLabel, more!));
+                billboardTitle, billboardLine, synopsis, billboardArt, backdrop, play!, more!));
         }
 
         foreach (var (title, see, rows, wide, id) in shelves)
@@ -114,17 +120,24 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// The billboard: the featured item's artwork filling a wide frame, a gradient keeping its
-    /// words readable over any picture, its title and facts, and Play with one more action.
+    /// The billboard: the featured item's backdrop (else its own artwork) filling a wide frame, a
+    /// gradient keeping its words readable over any picture, its title, facts and synopsis (with
+    /// Wikipedia's credit when the synopsis is theirs), Play and More info.
     /// </summary>
-    private Grid Billboard(string kicker, string title, string line, LibraryEntry art, Action play, string moreLabel, Action more)
+    private Grid Billboard(string kicker, string title, string line, Description? synopsis, LibraryEntry art, Uri? wide, Action play, Action more)
     {
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
         var backdrop = new Image { Stretch = Stretch.UniformToFill };
         frame.Children.Add(backdrop);
-        Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source = picture, _libraryPictures.Token));
+        var token = _libraryPictures.Token;
+        Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source ??= picture, token));
+        if (wide is not null)
+        {
+            // The backdrop, once it comes, takes the place of the artwork shown meanwhile.
+            ShowRemotePicture(wide, ShownWidth(LibraryShelves), picture => backdrop.Source = picture, token);
+        }
 
         var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
         shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x10, 0x14, 0x1B), Offset = 0 });
@@ -150,6 +163,35 @@ public sealed partial class MainWindow
             words.Children.Add(facts);
         }
 
+        if (synopsis is not null)
+        {
+            var about = new TextBlock
+            {
+                Text = synopsis.Text,
+                TextWrapping = TextWrapping.Wrap,
+                MaxLines = 3,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 2, 0, 0),
+                Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+            };
+            AutomationProperties.SetAutomationId(about, "LibraryBillboardSynopsis");
+            words.Children.Add(about);
+            if (synopsis.Source == DescriptionSource.Wikipedia)
+            {
+                var credit = new HyperlinkButton
+                {
+                    Content = Rex.Media.AppCore.Metadata.Wikipedia.DescriptionCredit,
+                    NavigateUri = synopsis.Link,
+                    Padding = new Thickness(0),
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)),
+                };
+                AutomationProperties.SetAutomationId(credit, "LibraryBillboardCredit");
+                AutomationProperties.SetName(credit, Rex.Media.AppCore.Metadata.Wikipedia.DescriptionCredit);
+                words.Children.Add(credit);
+            }
+        }
+
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
         var playButton = new Button { Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
         playButton.Content = new StackPanel
@@ -161,7 +203,15 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(playButton, "LibraryBillboardPlay");
         playButton.Click += (_, _) => play();
         actions.Children.Add(playButton);
-        var moreButton = new Button { Content = moreLabel };
+        var moreButton = new Button
+        {
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 6,
+                Children = { new FontIcon { Glyph = "\uE946", FontSize = 14 }, new TextBlock { Text = "More info" } },
+            },
+        };
         AutomationProperties.SetAutomationId(moreButton, "LibraryBillboardMore");
         moreButton.Click += (_, _) => more();
         actions.Children.Add(moreButton);
@@ -198,12 +248,5 @@ public sealed partial class MainWindow
         _libraryGroup = show;
         _librarySeason = null;
         ShowLibraryAtPlace();
-    }
-
-    /// <summary>Shows the featured movie among all of them: the grid, with the movie selected and on screen.</summary>
-    private void RevealInCards(LibraryEntry movie)
-    {
-        KeepViewChoice(ViewChoice(_libraryViewKey) with { Look = LibraryLook.Grid });
-        RevealLibraryRow(movie.Path);
     }
 }

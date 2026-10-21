@@ -32,6 +32,9 @@ public sealed partial class MainWindow
         (LibrarySource.Albums, new("\uE93C", "Albums")),
         (LibrarySource.Artists, new("\uE77B", "Artists")),
         (LibrarySource.Genres, new("\uE8EC", "Genres")),
+        (LibrarySource.Audiobooks, new("\uE82D", "Audiobooks")),
+        (LibrarySource.Podcasts, new("\uE720", "Podcasts")),
+        (LibrarySource.Recordings, new("\uE1D6", "Recordings")),
         (LibrarySource.Movies, new("\uE714", "Movies")),
         (LibrarySource.TvShows, new("\uE80F", "TV Shows")),
         (LibrarySource.OtherVideos, new("\uE722", "Other videos")),
@@ -125,6 +128,11 @@ public sealed partial class MainWindow
         }
 
         StartMetadataWhenAllowed();
+        if (UpdateSections(immediate: false))
+        {
+            return;
+        }
+
         var entries = library.Entries;
         var search = _librarySearchText.Build(LibrarySearch?.Text ?? string.Empty);
         ResolveShowPage(search);
@@ -138,6 +146,11 @@ public sealed partial class MainWindow
         _selectionView = selectionView;
         _placeKey = LibraryPlaces.Key(_librarySource.ToString(), _libraryGroup?.Name,
             _librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null, _librarySeason?.Name, search);
+        if (ShowDetailsPage(search, entries))
+        {
+            return;
+        }
+
         var source = search.Length > 0 ? (LibrarySource?)null : _librarySource;
         _libraryViewKey = ViewKey(search.Length > 0);
         var choice = ViewChoice(_libraryViewKey);
@@ -147,6 +160,12 @@ public sealed partial class MainWindow
         if (!home && !musicHome)
         {
             entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
+        }
+
+        // The music views, and Home's music shelves, never hold audiobooks, podcasts or recordings.
+        if (home || source is LibrarySource.Songs or LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres)
+        {
+            entries = WithoutListening(entries);
         }
         var browse = !home && search.Length == 0 && BrowseOffered && choice.Look == LibraryLook.Browse;
         LibraryHome.Visibility = home || browse || musicHome ? Visibility.Visible : Visibility.Collapsed;
@@ -190,6 +209,10 @@ public sealed partial class MainWindow
             var found = LibraryViews.Search(entries, search);
             sections = EntrySections(found, choice);
             subtitle = Count(found.Count, "result");
+        }
+        else if (IsListening(_librarySource))
+        {
+            (kicker, title, subtitle, sections, groupsView) = ListeningView(entries);
         }
         else if (_libraryGroup is { } opened)
         {
@@ -288,7 +311,7 @@ public sealed partial class MainWindow
                 }
                 else
                 {
-                    sections = EntrySections(list, choice);
+                    sections = _librarySource == LibrarySource.Songs ? SongSections(list, choice) : EntrySections(list, choice);
                 }
 
                 kind = _librarySource switch { LibrarySource.Movies or LibrarySource.OtherVideos or LibrarySource.Videos or LibrarySource.ContinueWatching => LibraryKind.Video, LibrarySource.Pictures => LibraryKind.Picture, _ => LibraryKind.Music };
@@ -321,7 +344,11 @@ public sealed partial class MainWindow
         LibraryList.Visibility = collage ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
-        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
+        // A show's page wears the show's poster, never its first episode's frame.
+        var showArt = search.Length == 0 && _librarySource == LibrarySource.TvShows && _libraryGroup is { Entries: [var first, ..] } ? first : null;
+        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph,
+            showArt ?? rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null),
+            showArt is null ? PictureArt.Natural : PictureArt.ShowPoster);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
         LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -464,13 +491,13 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The banner: kicker, title and what the view holds, with the first item's picture in front and filling the banner behind.</summary>
-    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art)
+    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art, PictureArt shape = PictureArt.Natural)
     {
         LibraryKicker.Text = kicker;
         LibraryTitle.Text = title;
         LibrarySubtitle.Text = subtitle;
         LibraryHeroGlyph.Glyph = glyph;
-        var key = title + "\n" + art?.Path;
+        var key = title + "\n" + art?.Path + "\n" + shape;
         if (key == _shownHero)
         {
             return;
@@ -493,7 +520,7 @@ public sealed partial class MainWindow
                     LibraryHeroArt.Opacity = 1;
                     LibraryHeroBackdrop.Opacity = 0.6;
                 }
-            }, CancellationToken.None));
+            }, CancellationToken.None, art: shape, side: Math.Max(1600, _budget.LibraryPictureSide)));
         }
     }
 
@@ -711,10 +738,11 @@ public sealed partial class MainWindow
         ShowLibraryEmpty(entries.Count == 0, false, LibrarySource.Home);
 
         var downloading = HomeShelves.Downloading(entries, 20);
-        var shelves = new (string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)[]
-        {
+        (string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)[] shelves =
+        [
             (DownloadingShelf, Enum.Parse<LibrarySource>(HomeShelves.SeeAllDownloading(downloading, ViewChoice).View), [.. downloading.Select(EntryRow)], downloading is [{ Kind: LibraryKind.Video }, ..]),
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
+            .. ListeningShelvesForHome(),
             ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
             (MostPlayedShelf, LibrarySource.Songs, [.. HomeShelves.MostPlayed(entries, 20).Select(EntryRow)], false),
             ("New in your library", LibrarySource.RecentlyAdded, [.. recent.Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
@@ -724,7 +752,7 @@ public sealed partial class MainWindow
             ("Other videos", LibrarySource.OtherVideos, [.. LibraryViews.RecentlyAdded(LibraryViews.OtherVideos(entries, MovieLookupOf)).Take(20).Select(EntryRow)], true),
             ("Videos", LibrarySource.Videos, [.. recent.Where(entry => entry.Kind == LibraryKind.Video).Take(20).Select(EntryRow)], true),
             ("Pictures", LibrarySource.Pictures, [.. recent.Where(entry => entry.Kind == LibraryKind.Picture).Take(24).Select(EntryRow)], false),
-        };
+        ];
         var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(RowIdentity))));
         if (shown == _shownLibrary)
         {
@@ -824,11 +852,21 @@ public sealed partial class MainWindow
         return style;
     }
 
-    /// <summary>A card on a shelf: an album opens, a song or video plays with the rest of its shelf after it.</summary>
+    /// <summary>
+    /// A card on a shelf: an album opens, a song or video plays with the rest of its shelf after it;
+    /// on a details page, a movie opens its own page.
+    /// </summary>
     private void OpenFromShelf(LibrarySource see, IReadOnlyList<LibraryRow> rows, LibraryRow row)
     {
         switch (row.Item)
         {
+            case LibraryEntry movie when _details.Count > 0 && IsMovie(movie):
+                OpenMovieDetails(movie);
+                break;
+            case LibraryGroup book when see == LibrarySource.Audiobooks:
+                // Home's "Continue listening" goes on with the book.
+                PlayBook(book, null);
+                break;
             case LibraryGroup group:
                 KeepPlace();
                 _places.RememberSearch(see.ToString(), "");
@@ -841,13 +879,13 @@ public sealed partial class MainWindow
                 break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);
-                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see == LibrarySource.ContinueWatching);
+                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks or LibrarySource.Podcasts);
                 break;
         }
     }
 
     /// <summary>What tells one row from another when a view is rebuilt; a download's progress is not in it, since the row shows that as it changes.</summary>
-    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}";
+    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}|{row.Summary}";
 
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)

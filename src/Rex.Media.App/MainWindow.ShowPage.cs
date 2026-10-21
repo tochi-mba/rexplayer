@@ -49,6 +49,7 @@ public sealed partial class MainWindow
         _librarySeason ??= ShowPage.DefaultSeason(_showPageSeasons, _showPageNextUp);
         _showPageOf = _librarySeason is null ? null : show.Name;
         LibraryPlayText.Text = ShowPage.PlayLabel(_showPageNextUp, _showPageNextUp is not null && _player.LeftAt(_showPageNextUp.Path) is not null);
+        ShowShowDetails(show, _librarySeason);
 
         var picker = string.Join("\n", _showPageSeasons.Select(season => season.Name)) + "\n" + _librarySeason?.Name;
         LibrarySeasonPicker.Visibility = _showPageSeasons.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
@@ -73,6 +74,7 @@ public sealed partial class MainWindow
         _shownSeasonPicker = "";
         LibrarySeasonPicker.Visibility = Visibility.Collapsed;
         LibraryPlayText.Text = "Play";
+        ClearShowDetails();
     }
 
     /// <summary>Another season chosen in the picker: the page shows its episodes.</summary>
@@ -116,12 +118,13 @@ public sealed partial class MainWindow
             entry.Duration is { } duration ? Rex.Media.AppCore.Player.TimeText.Format(duration, duration) : "",
             entry,
             hasPicture: true,
-            picturePlaceholder: "▶",
+            picturePlaceholder: episode is { Episode: not null } ? ShowPage.Number(episode) : "▶",
             badge: episode is null ? "" : ShowPage.Number(episode),
             progress: ShowPage.Progress(entry, left),
             isPlaying: LibraryViews.SameLocation(entry.Path, _player.Playlist.Current?.Location));
         var (glyph, text) = TranscriptBadgeOf(entry);
         row.SetTranscript(glyph, text);
+        row.SetSummary(TitleSections.EpisodeSynopsis(episode is null ? null : ShowFacts(episode.Series), episode));
         return row;
     }
 

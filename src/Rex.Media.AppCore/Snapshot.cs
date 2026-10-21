@@ -52,8 +52,13 @@ public static class Snapshot
         return path;
     }
 
-    /// <summary>The picture at <paramref name="at"/>, and the decoder that made it. The caller disposes the picture.</summary>
-    public static (VideoFrame Picture, string Decoder) Take(IDemuxer demuxer, DecoderRegistry decoders, MediaTime at, CancellationToken cancellationToken)
+    /// <summary>
+    /// The picture at <paramref name="at"/>, and the decoder that made it. The caller disposes the
+    /// picture. With <paramref name="nearest"/> it is the first picture decoded after the seek (the
+    /// key picture before the moment), which a thumbnail takes because it needs no exact moment and
+    /// is spared decoding up to it.
+    /// </summary>
+    public static (VideoFrame Picture, string Decoder) Take(IDemuxer demuxer, DecoderRegistry decoders, MediaTime at, CancellationToken cancellationToken, bool nearest = false)
     {
         ArgumentNullException.ThrowIfNull(demuxer);
         ArgumentNullException.ThrowIfNull(decoders);
@@ -80,7 +85,7 @@ public static class Snapshot
                     }
                 }
 
-                done = Choose(frames, at, ref chosen);
+                done = Choose(frames, at, ref chosen) || (nearest && chosen is not null);
             }
 
             while (!done)

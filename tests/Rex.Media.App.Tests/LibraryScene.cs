@@ -42,7 +42,9 @@ internal sealed class LibraryScene : IDisposable
     public string Song(string title, string album, int year, string genre, string artist = "Asake")
     {
         var path = Path.Combine(Media, title + ".wav");
-        File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
+        // The tags are in the file too, so a window that reads the folder itself finds music, not recordings.
+        File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20]))
+            .Info(("INAM", title), ("IART", artist), ("IPRD", album), ("IGNR", genre), ("ICRD", year.ToString(System.Globalization.CultureInfo.InvariantCulture))).Build());
         _files.Add((path, LibraryKind.Music, new MediaInfo
         {
             FormatName = "WAVE",
@@ -76,14 +78,44 @@ internal sealed class LibraryScene : IDisposable
     /// A short real video at <paramref name="relative"/> under the watched folder, which names what it is,
     /// copied from <paramref name="fixture"/> in tests/fixtures/mp4. With a <paramref name="length"/>, the
     /// library records it as read with that running time, so the rules that weigh length (a film lasts
-    /// 40 minutes or more) see it; without one, the window reads the fixture's own few seconds.
+    /// 40 minutes or more) see it; with <paramref name="info"/>, those are its details, so the window never
+    /// reads the fixture's own tags in their place; with neither, the window reads the fixture's own few seconds.
     /// </summary>
-    public string Video(string relative, string fixture = "h264-aac.mp4", TimeSpan? length = null)
+    public string Video(string relative, string fixture = "h264-aac.mp4", TimeSpan? length = null, MediaInfo? info = null)
     {
         var path = Path.Combine(Media, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", fixture), path);
-        _files.Add((path, LibraryKind.Video, length is { } running ? VideoInfo(running) : null));
+        _files.Add((path, LibraryKind.Video, info ?? (length is { } running ? VideoInfo(running) : null)));
+        return path;
+    }
+
+    /// <summary>
+    /// A short real sound at <paramref name="relative"/> under the watched folder, which the library
+    /// records as read with <paramref name="length"/> and the tags given, so the rules that weigh length
+    /// and tags (a song, an audiobook, a podcast, a recording) see it.
+    /// </summary>
+    public string Audio(string relative, TimeSpan length, string? artist = null, string? album = null, string? genre = null, int? year = null)
+    {
+        var path = Path.Combine(Media, relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
+        var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in new[] { (MetadataKeys.Artist, artist), (MetadataKeys.Album, album), (MetadataKeys.Genre, genre), (MetadataKeys.Date, year?.ToString(System.Globalization.CultureInfo.InvariantCulture)) })
+        {
+            if (value is not null)
+            {
+                tags[key] = value;
+            }
+        }
+
+        _files.Add((path, LibraryKind.Music, new MediaInfo
+        {
+            FormatName = "WAVE",
+            Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Pcm }],
+            Duration = MediaTime.FromSeconds(length.TotalSeconds),
+            Metadata = tags,
+        }));
         return path;
     }
 
@@ -146,9 +178,10 @@ internal sealed class LibraryScene : IDisposable
         SettingsStore.Save(Path.Combine(root, "settings.json"), settings is null ? start : settings(start));
     }
 
-    public AppProcess Start()
+    /// <summary>Starts the window on the library's home; <paramref name="environment"/> adds variables, such as REXPLAYER_FAKE_SPEECH.</summary>
+    public AppProcess Start(IReadOnlyDictionary<string, string>? environment = null)
     {
-        var app = AppProcess.Start(root: Root);
+        var app = AppProcess.Start(root: Root, environment: environment);
         app.Run(CommandCatalog.ToggleLibrary);
         Wait.For(() => app.IsShown("LibraryPane") && app.Text("LibraryTitle") == "Home", "the library's home");
         return app;
@@ -176,6 +209,10 @@ internal static class LibraryNavigation
     /// <summary>Chooses a view in the sidebar and waits for its title.</summary>
     public static void Visit(this AppProcess app, string view, string? title = null)
     {
+        // A section may exist in the item source but be collapsed until the scanner
+        // settles. UI Automation can find and select the hidden item, but a person
+        // cannot; wait for the actual visible sidebar entry before choosing it.
+        Wait.For(() => app.IsListed(view), view + " to appear in the sidebar");
         var source = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, view)));
         ((SelectionItemPattern)source.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
@@ -184,6 +221,24 @@ internal static class LibraryNavigation
             || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard"))
             || (view == "Music" && app.IsShown("MusicHero")), view + " to open");
     }
+
+    /// <summary>The views the sidebar lists now, in order.</summary>
+    public static string[] ListedViews(this AppProcess app)
+    {
+        try
+        {
+            return [.. app.Find("LibrarySources").FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
+                .Cast<AutomationElement>().Where(item => !item.Current.IsOffscreen && item.Current.BoundingRectangle.Height > 0)
+                .OrderBy(item => item.Current.BoundingRectangle.Top).Select(item => item.Current.Name)];
+        }
+        catch (ElementNotAvailableException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Whether the sidebar lists <paramref name="view"/> now.</summary>
+    public static bool IsListed(this AppProcess app, string view) => app.ListedViews().Contains(view);
 
     /// <summary>The line named <paramref name="name"/> in the list, once it is there.</summary>
     public static AutomationElement Line(this AppProcess app, string name, string list = "LibraryList") =>

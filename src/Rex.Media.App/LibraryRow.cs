@@ -19,11 +19,17 @@ public partial class LibraryRow(
     double progress = 0,
     bool isPlaying = false) : INotifyPropertyChanged
 {
+    [ThreadStatic]
+    private static Brush? s_defaultTile;
+
     private ImageSource? _picture;
+    private ImageSource? _backdrop;
+    private Brush? _tint;
     private string _transcriptGlyph = "";
     private string _transcriptText = "";
     private string? _downloadText;
     private bool _isPlaying = isPlaying;
+    private bool _summaryOpen;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -81,6 +87,42 @@ public partial class LibraryRow(
 
     /// <summary>Whether loading the picture has been started, so it is asked for once.</summary>
     public bool PictureAsked { get; set; }
+
+    /// <summary>The row itself, which a compiled collage template binds as its tile's data context.</summary>
+    public LibraryRow Self => this;
+
+    /// <summary>The picture asked for: the media's own or a poster.</summary>
+    internal PictureArt Shape { get; set; }
+
+    /// <summary>The picture's request while it is under way, which the card lets go when it leaves the view.</summary>
+    internal CancellationTokenSource? PictureWork { get; set; }
+
+    /// <summary>A blurred picture behind the placeholder until the picture comes: on a show's page, its poster.</summary>
+    public ImageSource? Backdrop
+    {
+        get => _backdrop;
+        set
+        {
+            _backdrop = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Backdrop)));
+        }
+    }
+
+    /// <summary>The tile's colour before its picture: its show's own tint, else the library's dark grey.</summary>
+    public Brush TileBackground => _tint ?? DefaultTile;
+
+    /// <summary>A tint of the item's own for its tile.</summary>
+    public Brush? Tint
+    {
+        get => _tint;
+        set
+        {
+            _tint = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TileBackground)));
+        }
+    }
+
+    private static Brush DefaultTile => s_defaultTile ??= new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x20, 0x25, 0x2D));
 
     public ImageSource? Picture
     {
@@ -155,6 +197,32 @@ public partial class LibraryRow(
 
     /// <summary>Tells the line's template that <paramref name="property"/> changed.</summary>
     protected void Changed(string property) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+
+    /// <summary>An episode's synopsis under its line, two lines until it is opened; empty for none.</summary>
+    public string Summary { get; private set; } = "";
+
+    public Visibility SummaryVisibility => Summary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>How many lines the synopsis shows: two, or all of it once opened.</summary>
+    public int SummaryLines => _summaryOpen ? 0 : 2;
+
+    /// <summary>
+    /// Whether the line is a movie's card, which offers its details page. A line has no window to ask the
+    /// catalogue answers, so it judges by the film rules alone (title, length and folder).
+    /// </summary>
+    public Visibility InfoVisibility => Item is Rex.Media.Library.LibraryEntry entry
+        && Rex.Media.AppCore.Library.LibraryViews.Movies([entry], Rex.Media.AppCore.Library.MovieRules.Offline).Count == 1
+        ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Gives the line its synopsis as it is made, before any list shows it.</summary>
+    public void SetSummary(string? summary) => Summary = summary ?? "";
+
+    /// <summary>Opens the synopsis to its full length, or folds it back to two lines.</summary>
+    public void ToggleSummary()
+    {
+        _summaryOpen = !_summaryOpen;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SummaryLines)));
+    }
 
     /// <summary>
     /// What a screen reader says for the line, and what the window tests find it by: a list's item

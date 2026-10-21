@@ -266,7 +266,7 @@ public sealed partial class MainWindow
             TransportMedia.Video => LibraryKind.Video,
             _ => LibraryKind.Music,
         };
-        var local = kind == LibraryKind.Video ? LocalVideoPoster(path) : kind == LibraryKind.Music ? FolderArt.Find(path) : null;
+        var local = kind == LibraryKind.Video ? VideoArtwork(path, PictureArt.Natural, null) : kind == LibraryKind.Music ? FolderArt.Find(path) : null;
         if (PictureKey(path, kind, settings, local) is not { } key)
         {
             return null;

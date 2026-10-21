@@ -207,7 +207,7 @@ public sealed class MediaLibraryTests
         // file, videos are not, and a song that cannot be read again is not tried a second time.
         foreach (var (key, json) in store.WithPrefix("entry/").ToList())
         {
-            store.Set(key, json.Replace("\"TagReading\":1", "\"TagReading\":0", StringComparison.Ordinal));
+            store.Set(key, json.Replace("\"TagReading\":" + MediaLibrary.TagReading.ToString(System.Globalization.CultureInfo.InvariantCulture), "\"TagReading\":0", StringComparison.Ordinal));
         }
 
         var older = new MediaLibrary(store);

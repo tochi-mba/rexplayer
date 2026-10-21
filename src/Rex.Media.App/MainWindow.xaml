@@ -412,8 +412,13 @@
           </Grid.RowDefinitions>
 
           <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
-          <Grid x:Name="LibraryHero" Height="196" AutomationProperties.AutomationId="LibraryHero">
-            <Image x:Name="LibraryHeroBackdrop" Height="196" Stretch="UniformToFill" Opacity="0.6">
+          <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero">
+            <Image x:Name="LibraryHeroBackdrop" Height="196" VerticalAlignment="Top" Stretch="UniformToFill" Opacity="0.6">
+              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
+            </Image>
+            <!-- A title's own wide backdrop, fetched lazily at the banner's size, over the blurred artwork. The pictures take
+                 the height of the words beside them (OnLibraryHeroSized), so a tall picture never stretches the banner. -->
+            <Image x:Name="LibraryHeroWide" Height="196" VerticalAlignment="Top" Stretch="UniformToFill" Opacity="0">
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
             </Image>
             <Rectangle>
@@ -424,7 +429,7 @@
                 </LinearGradientBrush>
               </Rectangle.Fill>
             </Rectangle>
-            <Grid Padding="24,16,24,14" ColumnSpacing="22">
+            <Grid x:Name="LibraryHeroContent" Padding="24,16,24,14" ColumnSpacing="22" SizeChanged="OnLibraryHeroSized">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -450,6 +455,13 @@
                            AutomationProperties.AutomationId="LibraryTitle" />
                 <TextBlock x:Name="LibrarySubtitle" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                            AutomationProperties.AutomationId="LibrarySubtitle" />
+                <!-- A title's details, each hidden when there is nothing to say: its facts or its makers, its synopsis and the synopsis's credit. -->
+                <TextBlock x:Name="LibraryFacts" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" MaxLines="2"
+                           TextTrimming="CharacterEllipsis" MaxWidth="760" HorizontalAlignment="Left" AutomationProperties.AutomationId="LibraryFacts" />
+                <TextBlock x:Name="LibraryOverview" Visibility="Collapsed" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" MaxWidth="760"
+                           HorizontalAlignment="Left" Margin="0,6,0,0" AutomationProperties.AutomationId="LibraryOverview" />
+                <HyperlinkButton x:Name="LibraryCredit" Visibility="Collapsed" Padding="0" FontSize="11" Margin="0,2,0,0"
+                                 AutomationProperties.AutomationId="LibraryCredit" />
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
                   <Button x:Name="LibraryPlay" Click="OnLibraryPlay" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="LibraryPlay"
                           ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
@@ -461,9 +473,12 @@
                   <Button x:Name="LibraryEnqueue" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to the playlist" /></StackPanel>
                   </Button>
+                  <Button x:Name="LibraryTrailer" Visibility="Collapsed" Click="OnLibraryTrailer" AutomationProperties.AutomationId="LibraryTrailer" ToolTipService.ToolTip="Open the trailer in the browser">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE714;" FontSize="14" /><TextBlock Text="Watch trailer" /></StackPanel>
+                  </Button>
                   <ComboBox x:Name="LibrarySeasonPicker" Visibility="Collapsed" MinWidth="140" SelectionChanged="OnLibrarySeasonPicked" AutomationProperties.AutomationId="LibrarySeasonPicker" AutomationProperties.Name="Season" />
                   <StackPanel x:Name="LibraryFolderActions" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
-                    <Button x:Name="LibraryAddFolder" Content="Add a folder..." Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryAddFolder" />
+                    <Button x:Name="LibraryAddFolder" Content="Add folders..." Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryAddFolder" />
                     <Button x:Name="LibraryRemoveFolder" Content="Stop watching" Click="OnLibraryRemoveFolder" AutomationProperties.AutomationId="LibraryRemoveFolder"
                             ToolTipService.ToolTip="The library forgets the chosen folders; the files stay where they are" />
                     <Button x:Name="LibraryRescan" Content="Look again" Click="OnLibraryRescan" AutomationProperties.AutomationId="LibraryRescan"
@@ -500,7 +515,8 @@
                       ValueChanged="OnLibraryCardSizeChanged" AutomationProperties.AutomationId="LibraryCardSize" AutomationProperties.Name="Card size" />
             </StackPanel>
             <TextBlock x:Name="LibraryStatus" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus" />
+                       TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus"
+                       AutomationProperties.LiveSetting="Polite" />
             <!-- A compact, clickable job count. Open it for the real queue, filenames and progress. -->
             <DropDownButton x:Name="LibraryTranscription" Grid.Column="6" Visibility="Collapsed" MaxWidth="240"
                             AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription queue"
@@ -591,38 +607,57 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="6,2,0,10" />
-        <ListView x:Name="PlaylistView" Grid.Row="1" SelectionMode="Extended" IsItemClickEnabled="False" CanReorderItems="False"
-                  Tapped="OnPlaylistTapped" DoubleTapped="OnPlaylistDoubleTapped" KeyDown="OnPlaylistKeyDown"
-                  AutomationProperties.AutomationId="PlaylistView" AutomationProperties.Name="Playlist">
+        <StackPanel Margin="6,2,0,10" Spacing="2">
+          <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" />
+          <TextBlock Text="Drag to reorder · right-click for actions" FontSize="12"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <ListView x:Name="PlaylistView" Grid.Row="1" SelectionMode="Extended" IsItemClickEnabled="False"
+                  CanDragItems="True" CanReorderItems="True" AllowDrop="True" ReorderMode="Enabled"
+                  DragItemsStarting="OnPlaylistDragItemsStarting" DragItemsCompleted="OnPlaylistDragItemsCompleted"
+                  Tapped="OnPlaylistTapped" DoubleTapped="OnPlaylistDoubleTapped" RightTapped="OnPlaylistRightTapped" KeyDown="OnPlaylistKeyDown"
+                  HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                  AutomationProperties.AutomationId="PlaylistView" AutomationProperties.Name="Playlist, drag entries to reorder">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:PlaylistRow">
-              <Grid ColumnSpacing="10" Padding="0,5,8,5" MinHeight="58" Opacity="{x:Bind Opacity}"
+              <Grid ColumnSpacing="8" Padding="2,5,8,5" MinHeight="58" Opacity="{x:Bind Opacity}"
                     ToolTipService.ToolTip="{x:Bind Title}" AutomationProperties.Name="{x:Bind AccessibleName}">
                 <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="16" />
                   <ColumnDefinition Width="3" />
                   <ColumnDefinition Width="64" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border Width="3" Margin="0,3,0,3" CornerRadius="2" Background="{ThemeResource AccentFillColorDefaultBrush}"
+                <TextBlock Text="⠿" FontSize="16" Opacity="0.42" VerticalAlignment="Center" HorizontalAlignment="Center"
+                           ToolTipService.ToolTip="Drag to reorder" AutomationProperties.Name="Drag to reorder" />
+                <Border Grid.Column="1" Width="3" Margin="0,3,0,3" CornerRadius="2" Background="{ThemeResource AccentFillColorDefaultBrush}"
                         Visibility="{x:Bind CurrentVisibility}" />
-                <Border Grid.Column="1" Width="64" Height="40" CornerRadius="5" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <Border Grid.Column="2" Width="64" Height="40" CornerRadius="5" Background="{ThemeResource LayerFillColorDefaultBrush}">
                   <Grid>
                     <TextBlock Text="{x:Bind Placeholder}" FontSize="16" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
                   </Grid>
                 </Border>
-                <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
-                  <TextBlock Text="{x:Bind Title}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" LineHeight="18" />
-                  <StackPanel Orientation="Horizontal" Spacing="6">
+                <Grid Grid.Column="3" RowSpacing="2" VerticalAlignment="Center" MinWidth="0">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <TextBlock Text="{x:Bind Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                  <Grid Grid.Row="1" ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
                     <TextBlock Text="Playing" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                Visibility="{x:Bind CurrentVisibility}" />
-                    <TextBlock Text="{x:Bind Secondary}" FontSize="12" TextTrimming="CharacterEllipsis"
+                    <TextBlock Grid.Column="1" Text="{x:Bind Secondary}" FontSize="12" TextTrimming="CharacterEllipsis"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="{x:Bind SecondaryVisibility}" />
-                    <TextBlock Text="Missing" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                    <TextBlock Grid.Column="2" Text="Missing" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                                Visibility="{x:Bind MissingVisibility}" />
-                  </StackPanel>
-                </StackPanel>
+                  </Grid>
+                </Grid>
               </Grid>
             </DataTemplate>
           </ListView.ItemTemplate>

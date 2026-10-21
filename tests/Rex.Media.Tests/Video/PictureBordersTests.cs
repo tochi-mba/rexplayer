@@ -61,6 +61,39 @@ public sealed class PictureBordersTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void ABarsFringeTintedByThePictureIsCutAwayWithIt()
+    {
+        // A decoder shares colour between neighbouring lines, so the bar's last lines beside the
+        // picture are dark but tinted: still bar, and a dark band if kept.
+        var inside = new PictureArea(0, 12, 128, 48);
+        using var frame = Picture(128, 72, inside, (0, 0, 0));
+        for (var x = 0; x < 128; x++)
+        {
+            foreach (var y in new[] { 58, 59, 12, 13 })
+            {
+                var row = frame.Row(0, y);
+                (row[x * 4], row[(x * 4) + 1], row[(x * 4) + 2]) = ((byte)(x % 3 * 15), 4, (byte)(x % 2 * 35));
+            }
+        }
+
+        Assert.Equal(new PictureArea(0, 14, 128, 44), PictureBorders.Find(frame));
+
+        // No more than three lines of it: darker picture lines beyond those stay.
+        using var deep = Picture(128, 72, inside, (0, 0, 0));
+        for (var x = 0; x < 128; x++)
+        {
+            for (var y = 55; y < 60; y++)
+            {
+                var row = deep.Row(0, y);
+                (row[x * 4], row[(x * 4) + 1], row[(x * 4) + 2]) = ((byte)(x % 3 * 15), 4, (byte)(x % 2 * 35));
+            }
+        }
+
+        Assert.Equal(new PictureArea(0, 12, 128, 45), PictureBorders.Find(deep));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void BrightOrColouredEdgesAndAllDarkPicturesStayWhole()
     {
         using var sky = Picture(64, 48, new PictureArea(0, 8, 64, 40), (250, 250, 250));
