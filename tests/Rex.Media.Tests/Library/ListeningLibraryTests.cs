@@ -68,7 +68,7 @@ public sealed class ListeningLibraryTests
         var read = library.Entry(book)!;
         Assert.Equal([new LibraryChapter(TimeSpan.Zero, "Opening"), new LibraryChapter(TimeSpan.FromMinutes(10), "Two")], read.Chapters);
         Assert.Equal(MetadataKeys.Audiobook, read.MediaType);
-        Assert.Equal([], library.Entry(damaged)!.Chapters);
+        Assert.Null(library.Entry(damaged)!.Chapters);
 
         // Music read before chapters were kept is read again, after every file never read at all;
         // a video never is, and music read by this reading is done.
