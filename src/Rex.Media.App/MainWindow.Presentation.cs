@@ -5,8 +5,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
+using Rex.Media.Library;
 using Rex.Media.Primitives;
 using Windows.Storage.Streams;
 
@@ -27,9 +29,48 @@ public sealed partial class MainWindow
     private void ShowPresentation()
     {
         var music = _player.Item is not null && !HasVideo && _player.Info is not null;
+        var entry = _player.Item?.Location is { } location ? _library?.Entry(location) : null;
+        var episode = entry is null ? null : LibraryViews.EpisodeOf(entry);
+        var kind = entry?.Kind switch
+        {
+            LibraryKind.Picture => "PICTURE",
+            LibraryKind.Video when episode is not null => "TV EPISODE",
+            LibraryKind.Video => "VIDEO",
+            LibraryKind.Music => ShelfOf(entry) switch
+            {
+                AudioShelf.Audiobooks => "AUDIOBOOK",
+                AudioShelf.Podcasts => "PODCAST",
+                AudioShelf.Recordings => "RECORDING",
+                AudioShelf.Sounds => "AUDIO",
+                _ => "NOW PLAYING",
+            },
+            _ when _player.Item is not null && HasVideo => "VIDEO",
+            _ when music => "NOW PLAYING",
+            _ => "WELCOME",
+        };
+        IdleKicker.Text = kind;
+
         var album = music ? _player.Info!.Metadata.GetValueOrDefault(MetadataKeys.Album) : null;
         IdleAlbum.Text = album ?? "";
         IdleAlbum.Visibility = string.IsNullOrEmpty(album) ? Visibility.Collapsed : Visibility.Visible;
+
+        var context = episode is not null
+            ? string.Join(" · ", new[] { episode.Series, episode.Spoken }.Where(part => !string.IsNullOrWhiteSpace(part)))
+            : string.Join(" · ", new[] { _player.Artist, album }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        NowPlayingContext.Text = context;
+        NowPlayingContext.Visibility = string.IsNullOrWhiteSpace(context) ? Visibility.Collapsed : Visibility.Visible;
+
+        string[] facts = entry is null ? [] : new string?[]
+            {
+                entry.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                entry.Genre,
+                entry.Duration is { } duration && duration > TimeSpan.Zero ? TimeText.Format(duration, duration) : null,
+            }
+            .Where(part => !string.IsNullOrWhiteSpace(part))
+            .Select(part => part!)
+            .ToArray();
+        IdleMeta.Text = string.Join(" · ", facts);
+        IdleMeta.Visibility = facts.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
 
         var cover = music ? _player.CoverArt : null;
         if (!ReferenceEquals(cover, _shownCover))
@@ -152,7 +193,7 @@ public sealed partial class MainWindow
         // With a cover the details sit beside it, left-aligned; without, they are centred.
         var alignment = shown ? HorizontalAlignment.Left : HorizontalAlignment.Center;
         var textAlignment = shown ? TextAlignment.Left : TextAlignment.Center;
-        foreach (var text in new[] { IdleTitle, IdleHint, IdleAlbum })
+        foreach (var text in new[] { IdleKicker, IdleTitle, IdleHint, IdleAlbum, IdleMeta })
         {
             text.HorizontalAlignment = alignment;
             text.TextAlignment = textAlignment;
