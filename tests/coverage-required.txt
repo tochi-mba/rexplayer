@@ -4,6 +4,7 @@ AacConfig.cs
 AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+ArtistPages.cs
 AuDemuxer.cs
 AnalysisConverter.cs
 Ass.cs
@@ -87,6 +88,7 @@ Equalizer.cs
 ExceptionDiagnostics.cs
 ExecutionPolicy.cs
 ExifOrientation.cs
+FetchPlan.cs
 Fft.cs
 FileByteSource.cs
 FireworksScene.cs
@@ -162,6 +164,9 @@ MediaSession.cs
 MediaSession.Items.cs
 MediaTime.cs
 MemoryByteSource.cs
+MetadataCache.cs
+MetadataPolicy.cs
+MetadataSettings.cs
 MicroDvd.cs
 Milestones.cs
 MirrorScene.cs
@@ -257,6 +262,7 @@ SharedModels.cs
 ShatterScene.cs
 ShortcutEditing.cs
 ShortcutRouting.cs
+ShowPage.cs
 SilentAudio.cs
 SilhouetteMask.cs
 SilhouetteScene.cs
@@ -272,6 +278,7 @@ SpeechPulse.cs
 SpotlightScene.cs
 StardustScene.cs
 StatsText.cs
+StreamingBrowse.cs
 StrobeScene.cs
 SubjectModelPolicy.cs
 SubjectPanel.cs
@@ -362,3 +369,9 @@ WordAligner.cs
 Wpl.cs
 Xspf.cs
 YuvTransform.cs
+TagEdit.cs
+Id3v2Writer.cs
+FlacTagWriter.cs
+TagFileWriter.cs
+DetailOverride.cs
+DetailsForm.cs

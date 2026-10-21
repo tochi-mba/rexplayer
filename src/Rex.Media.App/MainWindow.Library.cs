@@ -39,6 +39,8 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _libraryRescan;
     private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
+
+    /// <summary>The group opened inside <see cref="_libraryGroup"/>: a show's season, or an artist's album.</summary>
     private LibraryGroup? _librarySeason;
     private string _shownLibrary = "";
     private (bool Searching, LibrarySource? Source, LibraryViewChoice? Choice)? _emptyView;
@@ -512,6 +514,12 @@ public sealed partial class MainWindow
         {
             RequestLibraryPicture(args.Item as LibraryRow);
         }
+
+        // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
+        if (sender == LibraryList)
+        {
+            WireRowFocus(args.ItemContainer as Microsoft.UI.Xaml.Controls.Primitives.SelectorItem);
+        }
     }
 
     /// <summary>Only request artwork when the virtualizing panel actually realizes a tile.</summary>
@@ -596,7 +604,11 @@ public sealed partial class MainWindow
         return chosen.Count > 0 ? [.. rows.Where(chosen.Contains)] : rows;
     }
 
-    /// <summary>The media the lines stand for, in order: an album's songs, or a folder's media by kind.</summary>
+    /// <summary>
+    /// The media the lines stand for, in order: an album's songs, or a folder's media by kind. A
+    /// file several lines share (an artist page's top song inside one of its albums) plays once,
+    /// at its first place.
+    /// </summary>
     private List<LibraryEntry> EntriesOf(IEnumerable<LibraryRow> rows) =>
         [.. rows.SelectMany(row => row.Item switch
         {
@@ -604,7 +616,7 @@ public sealed partial class MainWindow
             LibraryGroup group => group.Entries,
             string folder => [.. LibraryViews.Songs(_library!.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Videos(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Pictures(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path)))],
             _ => [],
-        })];
+        }).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
     private void OnLibraryPlay(object sender, RoutedEventArgs e) => PlayChosen();
 
@@ -708,6 +720,7 @@ public sealed partial class MainWindow
                 () => CopyLibraryPaths(selectedEntries)));
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => _ = OpenLibraryFoldersAsync(selectedEntries)));
+            AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",

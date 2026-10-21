@@ -576,15 +576,28 @@ public sealed partial class MainWindow
             case VisualizerChoice.Oscilloscope when _wave is not null:
                 // The newest twentieth of a second, drawn across the width.
                 var span = Math.Min(_soundMono.Length, Math.Max(64, rate / 20));
-                var points = new PointCollection();
+                // The line's own points are rewritten in place, so a frame allocates no new collection.
+                var points = _wave.Points ??= [];
                 var steps = Math.Max(2, (int)Math.Min(width / 2, span));
+                while (points.Count > steps)
+                {
+                    points.RemoveAt(points.Count - 1);
+                }
+
                 for (var step = 0; step < steps; step++)
                 {
                     var sample = _soundMono[_soundMono.Length - span + (step * (span - 1) / (steps - 1))];
-                    points.Add(new Point(step * width / (steps - 1), (height / 2) - (sample * height * 0.45)));
+                    var point = new Point(step * width / (steps - 1), (height / 2) - (sample * height * 0.45));
+                    if (step < points.Count)
+                    {
+                        points[step] = point;
+                    }
+                    else
+                    {
+                        points.Add(point);
+                    }
                 }
 
-                _wave.Points = points;
                 break;
             case VisualizerChoice.Meters:
                 // A meter shows what has just been heard: the newest twentieth of a second.
@@ -597,12 +610,8 @@ public sealed partial class MainWindow
 
                 _meterLeft.Update(_soundLeft.AsSpan(^recent..), elapsed);
                 _meterRight.Update(_soundRight.AsSpan(^recent..), elapsed);
-                foreach (var (meter, at) in new[] { (_meterLeft, 0), (_meterRight, 3) })
-                {
-                    _meterShapes[at].Width = LevelMeter.Position(meter.PeakDb) * width;
-                    _meterShapes[at + 1].Width = LevelMeter.Position(meter.RmsDb) * width;
-                    Canvas.SetLeft(_meterShapes[at + 2], Math.Max(0, (LevelMeter.Position(meter.HoldDb) * width) - 3));
-                }
+                ShowMeter(_meterLeft, 0, width);
+                ShowMeter(_meterRight, 3, width);
 
                 break;
             case VisualizerChoice.Spectrogram when _visualBitmap is not null:
@@ -610,6 +619,14 @@ public sealed partial class MainWindow
                 DrawSpectrogramColumn(_visualBitmap);
                 break;
         }
+    }
+
+    /// <summary>Sizes one channel's peak, average and hold shapes, starting at <paramref name="at"/>, to its meter.</summary>
+    private void ShowMeter(LevelMeter meter, int at, double width)
+    {
+        _meterShapes[at].Width = LevelMeter.Position(meter.PeakDb) * width;
+        _meterShapes[at + 1].Width = LevelMeter.Position(meter.RmsDb) * width;
+        Canvas.SetLeft(_meterShapes[at + 2], Math.Max(0, (LevelMeter.Position(meter.HoldDb) * width) - 3));
     }
 
     /// <summary>

@@ -13,11 +13,13 @@
     <ItemsPanelTemplate x:Key="LibraryVideoPanel"><ItemsWrapGrid Orientation="Horizontal" ItemWidth="270" ItemHeight="218" /></ItemsPanelTemplate>
     <ItemsPanelTemplate x:Key="LibraryPhotoPanel"><ItemsWrapGrid Orientation="Horizontal" ItemWidth="226" ItemHeight="220" /></ItemsPanelTemplate>
     <DataTemplate x:Key="LibrarySongTemplate" x:DataType="local:LibraryRow">
-      <Grid ColumnSpacing="12" Padding="2,5" MinHeight="64" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}">
+      <Grid ColumnSpacing="12" Padding="2,5" MinHeight="64" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}"
+            PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="32" />
           <ColumnDefinition Width="54" />
           <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
@@ -26,169 +28,39 @@
         <Border Grid.Column="1" Width="54" Height="54" CornerRadius="5" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="22" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
+              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
+            </Image>
           </Grid>
         </Border>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
           <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
           <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility}" />
         </StackPanel>
-        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <!-- Quick actions show on the line pointed at or focused, exactly like a card's play mark. -->
+        <StackPanel x:Name="CardPlay" Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Opacity="0">
+          <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowPlay" IsTabStop="False" AllowFocusOnInteraction="False"
+                  AutomationProperties.AutomationId="LibraryRowPlay" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play this, with the rest of the view after it">
+            <FontIcon Glyph="&#xE768;" FontSize="14" />
+          </Button>
+          <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowQueue" IsTabStop="False" AllowFocusOnInteraction="False"
+                  AutomationProperties.AutomationId="LibraryRowQueue" AutomationProperties.Name="Add to queue" ToolTipService.ToolTip="Add to the end of the playlist">
+            <FontIcon Glyph="&#xE710;" FontSize="14" />
+          </Button>
+        </StackPanel>
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
                     AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}" />
           <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
         </StackPanel>
-        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Visibility="{x:Bind PlayingVisibility, Mode=OneWay}">
+        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Visibility="{x:Bind PlayingVisibility, Mode=OneWay}">
           <FontIcon Glyph="&#xE768;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
           <TextBlock Text="Now playing" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
         </StackPanel>
       </Grid>
     </DataTemplate>
-    <DataTemplate x:Key="LibraryBrowseTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
-        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
-          <Grid>
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="48" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
-            <Border x:Name="CardPlay" Opacity="0" Width="44" Height="44" CornerRadius="22" Margin="10" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
-              <FontIcon Glyph="&#xE768;" FontSize="18" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-            </Border>
-            <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="9" HorizontalAlignment="Left" VerticalAlignment="Top">
-              <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-            </Border>
-          </Grid>
-        </Border>
-        <StackPanel Grid.Row="1">
-          <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
-          <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility}" />
-          <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
-        </StackPanel>
-      </Grid>
-    </DataTemplate>
-    <DataTemplate x:Key="LibraryVideoTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
-        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
-          <Grid>
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
-            <Border Visibility="{x:Bind BadgeVisibility}" Background="#C0181818" CornerRadius="4" Padding="6,2" Margin="7" HorizontalAlignment="Left" VerticalAlignment="Bottom">
-              <TextBlock Text="{x:Bind Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
-            </Border>
-            <Border Background="#C0181818" CornerRadius="4" Padding="6,2" Margin="7" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-              <TextBlock Text="{x:Bind Extra}" Foreground="White" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
-            </Border>
-            <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" Margin="0" />
-            <Border Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" Background="#C0181818" CornerRadius="4" Padding="5,3" Margin="7"
-                    HorizontalAlignment="Right" VerticalAlignment="Top" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
-                    AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}">
-              <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" FontSize="13" Foreground="White" />
-            </Border>
-            <Border x:Name="CardPlay" Opacity="0" Width="48" Height="48" CornerRadius="24" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
-              <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-            </Border>
-            <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="7" HorizontalAlignment="Left" VerticalAlignment="Top">
-              <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-            </Border>
-          </Grid>
-        </Border>
-        <StackPanel Grid.Row="1">
-          <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
-          <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility}" FontSize="12" />
-        </StackPanel>
-      </Grid>
-    </DataTemplate>
-    <!-- Poster-height cards keep their image ratio. Hover or focus reveals Play but never hides the artwork. -->
-    <DataTemplate x:Key="LibraryMovieTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
-        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <Border CornerRadius="12" Background="#20252D" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
-          <Grid>
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="54" Opacity="0.36" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
-            <Border Background="#BE17202C" CornerRadius="4" Padding="6,3" Margin="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                    Visibility="{x:Bind BadgeVisibility}">
-              <TextBlock Text="{x:Bind Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
-            </Border>
-            <Border Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" Background="#C0181818" CornerRadius="4" Padding="5,3" Margin="9"
-                    HorizontalAlignment="Right" VerticalAlignment="Top" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
-                    AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}">
-              <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" FontSize="13" Foreground="White" />
-            </Border>
-            <Border x:Name="CardPlay" Opacity="0" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
-              <FontIcon Glyph="&#xE768;" FontSize="22" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-            </Border>
-            <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="9" HorizontalAlignment="Left" VerticalAlignment="Top">
-              <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-            </Border>
-          </Grid>
-        </Border>
-        <StackPanel Grid.Row="1" Spacing="2">
-          <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-          <TextBlock Text="{x:Bind Detail}" Visibility="{x:Bind DetailVisibility}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" FontSize="12" />
-        </StackPanel>
-      </Grid>
-    </DataTemplate>
-    <!-- Justified collage: variable-width items, virtualized by ItemsView and LinedFlowLayout. -->
-    <DataTemplate x:Key="LibraryCollageTemplate" x:DataType="local:LibraryRow">
-      <ItemContainer AutomationProperties.Name="{x:Bind Name}" Loaded="OnCollageItemLoaded" DataContextChanged="OnCollageItemDataChanged">
-        <Grid Margin="2" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
-          <Border CornerRadius="9" Background="#20252D">
-            <Grid>
-              <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-              <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
-              <Border VerticalAlignment="Bottom">
-                <Border.Background>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#00000000" Offset="0" />
-                    <GradientStop Color="#E5151A22" Offset="1" />
-                  </LinearGradientBrush>
-                </Border.Background>
-                <StackPanel Padding="12,28,12,11" Spacing="2">
-                  <TextBlock Text="{x:Bind Name}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
-                  <TextBlock Text="{x:Bind Detail}" Foreground="#DCE3ED" Visibility="{x:Bind DetailVisibility}" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="12" />
-                </StackPanel>
-              </Border>
-              <Border x:Name="CardPlay" Opacity="0" Width="48" Height="48" CornerRadius="24" HorizontalAlignment="Center" VerticalAlignment="Center"
-                      Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
-                <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-              </Border>
-              <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" />
-              <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="9" HorizontalAlignment="Left" VerticalAlignment="Top">
-                <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-              </Border>
-            </Grid>
-          </Border>
-        </Grid>
-      </ItemContainer>
-    </DataTemplate>
-    <DataTemplate x:Key="LibraryPhotoTemplate" x:DataType="local:LibraryRow">
-      <Grid Padding="4" AutomationProperties.Name="{x:Bind Name}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus">
-        <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
-          <Grid>
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
-            <Border x:Name="CardPlay" Opacity="0" VerticalAlignment="Bottom" Padding="10,6" IsHitTestVisible="False">
-              <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                  <GradientStop Color="#00000000" Offset="0" />
-                  <GradientStop Color="#C0000000" Offset="1" />
-                </LinearGradientBrush>
-              </Border.Background>
-              <TextBlock Text="{x:Bind Name}" Foreground="White" FontSize="12" TextTrimming="CharacterEllipsis" />
-            </Border>
-            <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="8" HorizontalAlignment="Left" VerticalAlignment="Top">
-              <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-            </Border>
-          </Grid>
-        </Border>
-      </Grid>
-    </DataTemplate>
+    <!-- The card and grid templates live in LibraryCardTemplates.xaml, loaded when the library first lays out cards. -->
     <DataTemplate x:Key="LibrarySourceTemplate" x:DataType="local:LibrarySourceItem">
       <Grid ColumnSpacing="12" Padding="4,6" AutomationProperties.Name="{x:Bind Name}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -537,7 +409,9 @@
 
           <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
           <Grid x:Name="LibraryHero" Height="196" AutomationProperties.AutomationId="LibraryHero">
-            <Image x:Name="LibraryHeroBackdrop" Height="196" Stretch="UniformToFill" Opacity="0.6" />
+            <Image x:Name="LibraryHeroBackdrop" Height="196" Stretch="UniformToFill" Opacity="0.6">
+              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
+            </Image>
             <Rectangle>
               <Rectangle.Fill>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -554,7 +428,9 @@
               <Border x:Name="LibraryHeroArtBox" Width="150" Height="150" CornerRadius="12" VerticalAlignment="Bottom" Background="{ThemeResource LayerFillColorDefaultBrush}">
                 <Grid>
                   <FontIcon x:Name="LibraryHeroGlyph" Glyph="&#xE8D6;" FontSize="56" Opacity="0.45" />
-                  <Image x:Name="LibraryHeroArt" Stretch="UniformToFill" />
+                  <Image x:Name="LibraryHeroArt" Stretch="UniformToFill">
+                    <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
+                  </Image>
                 </Grid>
               </Border>
               <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Spacing="2">
@@ -573,7 +449,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
                   <Button x:Name="LibraryPlay" Click="OnLibraryPlay" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="LibraryPlay"
                           ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
-                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock Text="Play" /></StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock x:Name="LibraryPlayText" Text="Play" /></StackPanel>
                   </Button>
                   <Button x:Name="LibraryShuffle" Click="OnLibraryShuffle" AutomationProperties.AutomationId="LibraryShuffle" ToolTipService.ToolTip="Play the chosen items, or all of them, shuffled">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8B1;" FontSize="14" /><TextBlock Text="Shuffle" /></StackPanel>
@@ -581,6 +457,7 @@
                   <Button x:Name="LibraryEnqueue" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to the playlist" /></StackPanel>
                   </Button>
+                  <ComboBox x:Name="LibrarySeasonPicker" Visibility="Collapsed" MinWidth="140" SelectionChanged="OnLibrarySeasonPicked" AutomationProperties.AutomationId="LibrarySeasonPicker" AutomationProperties.Name="Season" />
                   <StackPanel x:Name="LibraryFolderActions" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
                     <Button x:Name="LibraryAddFolder" Content="Add a folder..." Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryAddFolder" />
                     <Button x:Name="LibraryRemoveFolder" Content="Stop watching" Click="OnLibraryRemoveFolder" AutomationProperties.AutomationId="LibraryRemoveFolder"
@@ -679,7 +556,7 @@
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
 
           <ItemsView x:Name="LibraryCollage" Grid.Row="2" Visibility="Collapsed" Padding="18,0,18,8"
-                     SelectionMode="Extended" ItemTemplate="{StaticResource LibraryCollageTemplate}"
+                     SelectionMode="Extended"
                      Tapped="OnCollageTapped" DoubleTapped="OnCollageDoubleTapped" KeyDown="OnCollageKeyDown"
                      AutomationProperties.AutomationId="LibraryCollage" AutomationProperties.Name="Justified collage, select or open media">
             <ItemsView.Layout>

@@ -23,6 +23,7 @@ public static class FuzzTargets
     {
         ["demux"] = (Demux, ["smoke", "flac", "mp3", "mp4", "mkv", "video", "ogg", "picture"]),
         ["picture"] = (Picture, ["picture"]),
+        ["tag-writers"] = (TagWriters, ["mp3", "flac"]),
         ["exif"] = (bytes => _ = Rex.Media.Codecs.Pictures.ExifOrientation.Of(bytes), ["picture"]),
         ["aac-config"] = (bytes => _ = AacConfig.TryParse(bytes, out _), []),
         ["adts"] = (bytes => _ = AdtsHeader.TryParse(bytes, out _), []),
@@ -44,6 +45,27 @@ public static class FuzzTargets
         catch (MediaFormatException)
         {
             // A clean refusal is the right answer for bytes that are not media.
+        }
+    }
+
+    /// <summary>Rewrites the bytes as an ID3v2 tag and as FLAC metadata: a refusal is fine, any other failure is not.</summary>
+    private static void TagWriters(byte[] input)
+    {
+        var edit = new Rex.Media.Containers.Tags.TagEdit { Title = "Sungba", Artist = "Asake", Cover = new Rex.Media.Containers.Tags.PictureBlock(3, "image/png", [1]) };
+        var tagLength = (int)Math.Min(Rex.Media.Containers.Tags.Id3v2.TagLength(input), input.Length);
+        Refusing(() => Rex.Media.Containers.Tags.Id3v2Writer.Rewrite(input.AsSpan(0, tagLength), edit));
+        Refusing(() => Rex.Media.Containers.Tags.FlacTagWriter.Rewrite(input, edit));
+    }
+
+    private static void Refusing(Action write)
+    {
+        try
+        {
+            write();
+        }
+        catch (Rex.Media.Containers.Tags.TagWriteException)
+        {
+            // Damaged tags are refused, never rewritten.
         }
     }
 

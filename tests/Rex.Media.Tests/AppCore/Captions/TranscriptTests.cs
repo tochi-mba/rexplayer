@@ -42,6 +42,15 @@ public sealed class TranscriptTests : IDisposable
     }
 
     [Theory]
+    [InlineData("Transcript (small.en, original)", "small.en", true)]
+    [InlineData("Transcript (small.en)", "small.en", false)]
+    [InlineData("Transcript (small.en, edited)", "small.en", false)]
+    [InlineData("Transcript (base.en, original)", "small.en", false)]
+    [InlineData("An authored subtitle track", "small.en", false)]
+    public void OnlyTheSavedOriginalOfTheNewlyActiveQualityGivesWayToItsLiveTrack(string name, string active, bool replaced) =>
+        Assert.Equal(replaced, TranscriptVariant.ReplacedByLiveTrack(name, active));
+
+    [Theory]
     [InlineData("An authored subtitle track")]
     [InlineData("Transcript (tiny.en")]
     [InlineData("Transcript ()")]

@@ -69,7 +69,9 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The key a view's choices are kept under: its name, or the kind of group opened in it, or the search.</summary>
-    private string ViewKey(bool searching) => searching ? "Search" : _librarySeason is not null ? "TvShows season" : _libraryGroup is not null ? _librarySource + " group" : _librarySource.ToString();
+    private string ViewKey(bool searching) => searching ? "Search"
+        : _librarySeason is not null ? (_librarySource == LibrarySource.Artists ? "Artists album" : "TvShows page")
+        : _libraryGroup is not null ? _librarySource + " group" : _librarySource.ToString();
 
     /// <summary>How the view is shown: as the user last set it, else as suits what it holds.</summary>
     private LibraryViewChoice ViewChoice(string key)
@@ -81,10 +83,10 @@ public sealed partial class MainWindow
 
         return key switch
         {
-            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Genres group" => new LibraryViewChoice(LibraryLook.List),
+            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" or "TvShows page" => new LibraryViewChoice(LibraryLook.List),
             "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
-            "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200),
-            "Videos" or "ContinueWatching" or "TvShows group" or "TvShows season" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
+            "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Browse, CardSize: 200),
+            "Videos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
             _ => new LibraryViewChoice(LibraryLook.Grid),
         };
     }
@@ -107,6 +109,7 @@ public sealed partial class MainWindow
 
         var entries = _library.Entries;
         var search = LibrarySearch.Text.Trim();
+        ResolveShowPage(search);
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
         var selected = selectionView == _selectionView
             ? SelectedLibraryRows().Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)
@@ -120,12 +123,21 @@ public sealed partial class MainWindow
         {
             entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
         }
-        LibraryHome.Visibility = home ? Visibility.Visible : Visibility.Collapsed;
-        LibraryList.Visibility = home ? Visibility.Collapsed : Visibility.Visible;
+        var browse = !home && search.Length == 0 && BrowseOffered && choice.Look == LibraryLook.Browse;
+        LibraryHome.Visibility = home || browse ? Visibility.Visible : Visibility.Collapsed;
+        LibraryList.Visibility = home || browse ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
+        LibraryHero.Visibility = browse ? Visibility.Collapsed : Visibility.Visible;
         if (home)
         {
             ShowHome(entries);
+            return;
+        }
+
+        if (browse)
+        {
+            LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = Visibility.Collapsed;
+            ShowStreamingBrowse(entries, choice);
             return;
         }
 
@@ -134,6 +146,7 @@ public sealed partial class MainWindow
         var kind = LibraryKind.Music;
         var options = true;
         var groupsView = false;
+        var artistPage = false;
         if (search.Length > 0)
         {
             (kicker, title) = ("SEARCH", search);
@@ -146,7 +159,7 @@ public sealed partial class MainWindow
             // The group again, as the library has it now.
             var fresh = LibraryViews.RefreshGroup(Groups(_librarySource, entries), opened, _librarySource == LibrarySource.Albums);
             _libraryGroup = fresh;
-            kicker = _librarySource switch { LibrarySource.Albums => "ALBUM", LibrarySource.Artists => "ARTIST", LibrarySource.TvShows when _librarySeason is not null => "SEASON", LibrarySource.TvShows => "TV SHOW", _ => "GENRE" };
+            kicker = _librarySource switch { LibrarySource.Albums => "ALBUM", LibrarySource.Artists when _librarySeason is not null => "ALBUM", LibrarySource.Artists => "ARTIST", LibrarySource.TvShows => "TV SHOW", _ => "GENRE" };
             title = fresh.Name;
             var members = fresh.Entries;
             if (_librarySource == LibrarySource.TvShows)
@@ -156,9 +169,8 @@ public sealed partial class MainWindow
                 {
                     var season = LibraryViews.RefreshGroup(LibraryViews.TvSeasons(fresh), openedSeason);
                     _librarySeason = season;
-                    title += " · " + season.Name;
-                    subtitle = Count(season.Entries.Count, "episode");
-                    sections = EntrySections(season.Entries, choice);
+                    subtitle = ShowPage.Subtitle(fresh, season);
+                    sections = EpisodeSections(season.Entries, choice);
                 }
                 else
                 {
@@ -166,6 +178,35 @@ public sealed partial class MainWindow
                     sections = [new LibraryRowGroup("", seasons.Select(GroupRow))];
                     subtitle = Count(seasons.Count, "season");
                     groupsView = true;
+                }
+            }
+            else if (_librarySource == LibrarySource.Artists)
+            {
+                // The artist page: their most played songs, then their albums, newest first; an
+                // album opened from it shows its own track list, with Back returning to the artist.
+                var albums = ArtistPages.Albums(fresh);
+                if (_librarySeason is { } openedAlbum)
+                {
+                    var album = LibraryViews.RefreshGroup([.. albums.Select(artistAlbum => artistAlbum.Album)], openedAlbum);
+                    _librarySeason = album;
+                    kicker = "ALBUM";
+                    title = album.Name;
+                    var albumYear = albums.FirstOrDefault(artistAlbum => artistAlbum.Album == album)?.Year ?? album.Entries.Max(entry => entry.Year);
+                    subtitle = string.Join(" \u00B7 ", new[] { fresh.Name, albumYear?.ToString(CultureInfo.CurrentCulture), Count(album.Entries.Count, "song"), Total(album.Entries) }.Where(part => !string.IsNullOrEmpty(part)));
+                    sections = EntrySections(album.Entries, choice);
+                }
+                else
+                {
+                    artistPage = true;
+                    var top = ArtistPages.TopSongs(fresh);
+                    sections = [];
+                    if (top.Count > 0)
+                    {
+                        sections.Add(new LibraryRowGroup("Top songs", top.Select(EntryRow)));
+                    }
+
+                    sections.Add(new LibraryRowGroup("Albums", albums.Select(ArtistAlbumRow)));
+                    subtitle = string.Join(" \u00B7 ", new[] { Count(albums.Count, "album"), Count(members.Count, "song"), Total(members) }.Where(part => !string.IsNullOrEmpty(part)));
                 }
             }
             else
@@ -233,14 +274,14 @@ public sealed partial class MainWindow
         LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
         ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
-        ShowViewOptions(options, choice, groupsView, kind);
+        ShowViewOptions(options && !artistPage, choice, groupsView, kind);
         LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
-        var look = SetLibraryLook(options ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
+        var look = SetLibraryLook(options && !artistPage ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
         var shown = look + "\n" + title + "\n" + grouped + "\n" + string.Join("\n", sections.Select(section => section.Header + ":" + string.Join("\n", section.Select(RowIdentity))));
         if (shown == _shownLibrary)
@@ -257,6 +298,7 @@ public sealed partial class MainWindow
             // at once or replace the collection on every playback-position update.
             LibraryList.ItemsSource = null;
             LibraryList.GroupStyle.Clear();
+            LibraryCollage.ItemTemplate ??= LibraryTemplate("LibraryCollageTemplate");
             LibraryCollage.ItemsSource = _libraryRows;
             RestoreLibrarySelection(selected, collage: true);
             return;
@@ -347,6 +389,13 @@ public sealed partial class MainWindow
         [.. LibraryArrangement.Group(LibraryArrangement.Sort(entries, choice.Sort, choice.Descending), choice.Grouping, DateTime.UtcNow)
             .Select(section => new LibraryRowGroup(section.Header, section.Entries.Select(EntryRow)))];
 
+    /// <summary>An album's line on its artist's page: artwork, name, year, how many songs and how long.</summary>
+    private static LibraryRow ArtistAlbumRow(ArtistAlbum album) => new(album.Album.Name,
+        string.Join(" · ", new[] { album.Year?.ToString(CultureInfo.CurrentCulture), Count(album.Album.Entries.Count, "song") }.Where(part => part is not null)),
+        Total(album.Album.Entries), album.Album, hasPicture: true, picturePlaceholder: "♪");
+
+    private static string FirstLetter(string name) => name.TrimStart().FirstOrDefault() is var first && char.IsLetter(first) ? char.ToUpper(first, CultureInfo.CurrentCulture).ToString() : "#";
+
     /// <summary>How long it all lasts together: "48 min", "3 h 12 min".</summary>
     private static string Total(IEnumerable<LibraryEntry> entries)
     {
@@ -369,8 +418,11 @@ public sealed partial class MainWindow
 
         _shownHero = key;
         var request = ++_heroRequest;
+        // The banner's artwork fades in when decoded instead of popping over the glyph.
         LibraryHeroArt.Source = null;
         LibraryHeroBackdrop.Source = null;
+        LibraryHeroArt.Opacity = 0;
+        LibraryHeroBackdrop.Opacity = 0;
         if (art is not null)
         {
             _ = ShowPictureAsync(art.Path, art.Kind, art.Duration, picture =>
@@ -378,6 +430,8 @@ public sealed partial class MainWindow
                 if (_shownHero == key && request == _heroRequest)
                 {
                     (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
+                    LibraryHeroArt.Opacity = 1;
+                    LibraryHeroBackdrop.Opacity = 0.6;
                 }
             }, CancellationToken.None);
         }
@@ -396,9 +450,14 @@ public sealed partial class MainWindow
             return;
         }
 
-        LibraryLookButton.Content = choice.Look switch { LibraryLook.List => "List", LibraryLook.Wall => "Big cards", LibraryLook.Collage => "Collage", _ => "Cards" };
-        LibraryLookButton.Flyout = Choices("LibraryLook",
-            [(LibraryLook.List, "List"), (LibraryLook.Grid, "Cards"), (LibraryLook.Wall, "Big cards"), (LibraryLook.Collage, "Collage")],
+        LibraryLookButton.Content = choice.Look switch { LibraryLook.List => "List", LibraryLook.Wall => "Big cards", LibraryLook.Collage => "Collage", LibraryLook.Browse => "Browse", _ => "Cards" };
+        var looks = new List<(LibraryLook Look, string Name)> { (LibraryLook.List, "List"), (LibraryLook.Grid, "Cards"), (LibraryLook.Wall, "Big cards"), (LibraryLook.Collage, "Collage") };
+        if (BrowseOffered)
+        {
+            looks.Insert(0, (LibraryLook.Browse, "Browse"));
+        }
+
+        LibraryLookButton.Flyout = Choices("LibraryLook", looks,
             choice.Look, look => KeepViewChoice(choice with { Look = look, Grouping = look == LibraryLook.Collage ? LibraryGrouping.None : choice.Grouping }));
 
         // Each view offers the orders and groups that mean something for what it holds.
@@ -544,6 +603,7 @@ public sealed partial class MainWindow
         var kind = sample switch { LibraryEntry entry => entry.Kind, LibraryGroup => _librarySource == LibrarySource.TvShows ? LibraryKind.Video : LibraryKind.Music, _ => (LibraryKind?)null };
         var size = choice.Look == LibraryLook.Wall ? Math.Min(LibraryViewChoice.LargestCard * 1.4, choice.CardSize * 1.6) : choice.CardSize;
         var (template, width, height, name) = !media || kind is null ? ("LibraryGenericTemplate", 0.0, 0.0, "Library items, list")
+            : choice.Look == LibraryLook.List && kind == LibraryKind.Video && _librarySeason is not null ? ("LibraryEpisodeTemplate", 0.0, 0.0, "Episodes, list")
             : choice.Look == LibraryLook.List ? ("LibrarySongTemplate", 0.0, 0.0, "Compact list")
             : kind == LibraryKind.Video && (_librarySource == LibrarySource.Movies || (_librarySource == LibrarySource.TvShows && _libraryGroup is null)) ? ("LibraryMovieTemplate", size + 12, (size * 1.5) + 68, "Movies and TV shows, poster grid")
             : kind == LibraryKind.Video ? ("LibraryVideoTemplate", (size * 1.45) + 12, (size * 1.45 * 9 / 16) + 64, "Episodes, thumbnail grid")
@@ -556,7 +616,7 @@ public sealed partial class MainWindow
         }
 
         _shownLook = look;
-        LibraryList.ItemTemplate = (DataTemplate)Root.Resources[template];
+        LibraryList.ItemTemplate = LibraryTemplate(template);
         LibraryList.ItemsPanel = width == 0
             ? (ItemsPanelTemplate)Root.Resources["LibraryListPanel"]
             : (ItemsPanelTemplate)XamlReader.Load(string.Create(CultureInfo.InvariantCulture,
@@ -610,15 +670,20 @@ public sealed partial class MainWindow
     }
 
     /// <summary>One shelf: its title and a way to see all of it, over a row of cards that scrolls sideways.</summary>
-    private StackPanel Shelf(string title, LibrarySource see, IReadOnlyList<LibraryRow> rows, bool wide)
+    private StackPanel Shelf(string title, LibrarySource see, IReadOnlyList<LibraryRow> rows, bool wide, bool seeAll = true, string? id = null)
     {
+        id ??= see.ToString();
         var shelf = new StackPanel { Spacing = 6 };
         var heading = new Grid();
         heading.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"] });
-        var all = new HyperlinkButton { Content = "See all", HorizontalAlignment = HorizontalAlignment.Right };
-        AutomationProperties.SetAutomationId(all, "LibraryShelf-" + see);
-        all.Click += (_, _) => LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
-        heading.Children.Add(all);
+        if (seeAll)
+        {
+            var all = new HyperlinkButton { Content = "See all", HorizontalAlignment = HorizontalAlignment.Right };
+            AutomationProperties.SetAutomationId(all, "LibraryShelf-" + id);
+            all.Click += (_, _) => LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
+            heading.Children.Add(all);
+        }
+
         shelf.Children.Add(heading);
 
         var picture = rows.FirstOrDefault()?.Item is LibraryEntry { Kind: LibraryKind.Picture };
@@ -627,7 +692,7 @@ public sealed partial class MainWindow
         var cards = new ListView
         {
             ItemsSource = rows,
-            ItemTemplate = (DataTemplate)Root.Resources[template],
+            ItemTemplate = LibraryTemplate(template),
             ItemsPanel = (ItemsPanelTemplate)XamlReader.Load("""<ItemsPanelTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><ItemsStackPanel Orientation="Horizontal" /></ItemsPanelTemplate>"""),
             SelectionMode = ListViewSelectionMode.None,
             IsItemClickEnabled = _settings.MediaOpenClickMode == MediaOpenClick.SingleClick,
@@ -639,7 +704,7 @@ public sealed partial class MainWindow
         ScrollViewer.SetVerticalScrollMode(cards, ScrollMode.Disabled);
         ScrollViewer.SetVerticalScrollBarVisibility(cards, ScrollBarVisibility.Disabled);
         AutomationProperties.SetName(cards, title);
-        AutomationProperties.SetAutomationId(cards, "LibraryShelfCards-" + see);
+        AutomationProperties.SetAutomationId(cards, "LibraryShelfCards-" + id);
         cards.ContainerContentChanging += OnLibraryRowShown;
         if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
         {
@@ -710,7 +775,26 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A card shows its play mark while pointed at.</summary>
-    private void OnCardPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    /// <summary>
+    /// A library item template by key: the window's own list templates, else the show page's episode
+    /// lines or the card layouts, each dictionary created the first time one of its templates is needed.
+    /// </summary>
+    private DataTemplate LibraryTemplate(string key)
+    {
+        if (Root.Resources.TryGetValue(key, out var own))
+        {
+            return (DataTemplate)own;
+        }
+
+        ResourceDictionary templates = key.StartsWith("LibraryEpisode", StringComparison.Ordinal)
+            ? _episodeTemplates ??= new LibraryEpisodeTemplates()
+            : _cardTemplates ??= new LibraryCardTemplates(this);
+        return (DataTemplate)templates[key];
+    }
+
+    private LibraryCardTemplates? _cardTemplates;
+
+    internal void OnCardPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
         SetCardPlay(sender, 1);
         if (sender is FrameworkElement { DataContext: LibraryRow row })
@@ -719,7 +803,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnCardGettingFocus(object sender, Microsoft.UI.Xaml.Input.GettingFocusEventArgs e)
+    internal void OnCardGettingFocus(object sender, Microsoft.UI.Xaml.Input.GettingFocusEventArgs e)
     {
         SetCardPlay(sender, 1);
         if (sender is FrameworkElement { DataContext: LibraryRow row })
@@ -728,14 +812,29 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnCardPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => SetCardPlay(sender, 0);
+    internal void OnCardPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => SetCardPlay(sender, 0);
 
+    internal void OnCardLosingFocus(object sender, Microsoft.UI.Xaml.Input.LosingFocusEventArgs e) => SetCardPlay(sender, 0);
+
+    /// <summary>
+    /// Pointing at a card, or focusing it with the keyboard, reveals its play mark and lifts it a
+    /// little. Both are composition transitions the GPU runs on its own: no timers, no per-frame code.
+    /// </summary>
     private static void SetCardPlay(object card, double opacity)
     {
-        if (card is FrameworkElement element && element.FindName("CardPlay") is UIElement play)
+        if (card is not FrameworkElement element)
+        {
+            return;
+        }
+
+        if (element.FindName("CardPlay") is UIElement play)
         {
             play.OpacityTransition ??= new ScalarTransition { Duration = TimeSpan.FromMilliseconds(120) };
             play.Opacity = opacity;
         }
+
+        element.ScaleTransition ??= new Vector3Transition { Duration = TimeSpan.FromMilliseconds(140) };
+        element.CenterPoint = new System.Numerics.Vector3((float)(element.ActualWidth / 2), (float)(element.ActualHeight / 2), 0);
+        element.Scale = opacity > 0 ? new System.Numerics.Vector3(1.03f, 1.03f, 1f) : System.Numerics.Vector3.One;
     }
 }

@@ -21,9 +21,6 @@ public static class PlaylistFiles
     /// <summary>The names playlist files have.</summary>
     public static IReadOnlyList<string> Extensions { get; } = [".m3u", ".m3u8", ".pls", ".xspf", ".cue", ".asx", ".wax", ".wvx", ".wpl", ".zpl"];
 
-    /// <summary>The formats <see cref="Write"/> writes.</summary>
-    public static IReadOnlyList<PlaylistFormat> Writable { get; } = [PlaylistFormat.M3u, PlaylistFormat.Pls, PlaylistFormat.Xspf];
-
     /// <summary>Whether a file with this name is a playlist.</summary>
     public static bool IsPlaylist(string path) => Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
