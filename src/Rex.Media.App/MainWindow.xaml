@@ -412,8 +412,13 @@
           </Grid.RowDefinitions>
 
           <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
-          <Grid x:Name="LibraryHero" Height="196" AutomationProperties.AutomationId="LibraryHero">
-            <Image x:Name="LibraryHeroBackdrop" Height="196" Stretch="UniformToFill" Opacity="0.6">
+          <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero">
+            <Image x:Name="LibraryHeroBackdrop" Height="196" VerticalAlignment="Top" Stretch="UniformToFill" Opacity="0.6">
+              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
+            </Image>
+            <!-- A title's own wide backdrop, fetched lazily at the banner's size, over the blurred artwork. The pictures take
+                 the height of the words beside them (OnLibraryHeroSized), so a tall picture never stretches the banner. -->
+            <Image x:Name="LibraryHeroWide" Height="196" VerticalAlignment="Top" Stretch="UniformToFill" Opacity="0">
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
             </Image>
             <Rectangle>
@@ -424,7 +429,7 @@
                 </LinearGradientBrush>
               </Rectangle.Fill>
             </Rectangle>
-            <Grid Padding="24,16,24,14" ColumnSpacing="22">
+            <Grid x:Name="LibraryHeroContent" Padding="24,16,24,14" ColumnSpacing="22" SizeChanged="OnLibraryHeroSized">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -450,6 +455,13 @@
                            AutomationProperties.AutomationId="LibraryTitle" />
                 <TextBlock x:Name="LibrarySubtitle" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                            AutomationProperties.AutomationId="LibrarySubtitle" />
+                <!-- A title's details, each hidden when there is nothing to say: its facts or its makers, its synopsis and the synopsis's credit. -->
+                <TextBlock x:Name="LibraryFacts" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" MaxLines="2"
+                           TextTrimming="CharacterEllipsis" MaxWidth="760" HorizontalAlignment="Left" AutomationProperties.AutomationId="LibraryFacts" />
+                <TextBlock x:Name="LibraryOverview" Visibility="Collapsed" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" MaxWidth="760"
+                           HorizontalAlignment="Left" Margin="0,6,0,0" AutomationProperties.AutomationId="LibraryOverview" />
+                <HyperlinkButton x:Name="LibraryCredit" Visibility="Collapsed" Padding="0" FontSize="11" Margin="0,2,0,0"
+                                 AutomationProperties.AutomationId="LibraryCredit" />
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
                   <Button x:Name="LibraryPlay" Click="OnLibraryPlay" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="LibraryPlay"
                           ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
@@ -460,6 +472,9 @@
                   </Button>
                   <Button x:Name="LibraryEnqueue" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to the playlist" /></StackPanel>
+                  </Button>
+                  <Button x:Name="LibraryTrailer" Visibility="Collapsed" Click="OnLibraryTrailer" AutomationProperties.AutomationId="LibraryTrailer" ToolTipService.ToolTip="Open the trailer in the browser">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE714;" FontSize="14" /><TextBlock Text="Watch trailer" /></StackPanel>
                   </Button>
                   <ComboBox x:Name="LibrarySeasonPicker" Visibility="Collapsed" MinWidth="140" SelectionChanged="OnLibrarySeasonPicked" AutomationProperties.AutomationId="LibrarySeasonPicker" AutomationProperties.Name="Season" />
                   <StackPanel x:Name="LibraryFolderActions" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">

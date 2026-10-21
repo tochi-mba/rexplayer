@@ -138,6 +138,11 @@ public sealed partial class MainWindow
         _selectionView = selectionView;
         _placeKey = LibraryPlaces.Key(_librarySource.ToString(), _libraryGroup?.Name,
             _librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null, _librarySeason?.Name, search);
+        if (ShowDetailsPage(search, entries))
+        {
+            return;
+        }
+
         var source = search.Length > 0 ? (LibrarySource?)null : _librarySource;
         _libraryViewKey = ViewKey(search.Length > 0);
         var choice = ViewChoice(_libraryViewKey);
@@ -321,7 +326,11 @@ public sealed partial class MainWindow
         LibraryList.Visibility = collage ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
-        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
+        // A show's page wears the show's poster, never its first episode's frame.
+        var showArt = search.Length == 0 && _librarySource == LibrarySource.TvShows && _libraryGroup is { Entries: [var first, ..] } ? first : null;
+        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph,
+            showArt ?? rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null),
+            showArt is null ? PictureArt.Natural : PictureArt.ShowPoster);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
         LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -464,13 +473,13 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The banner: kicker, title and what the view holds, with the first item's picture in front and filling the banner behind.</summary>
-    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art)
+    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art, PictureArt shape = PictureArt.Natural)
     {
         LibraryKicker.Text = kicker;
         LibraryTitle.Text = title;
         LibrarySubtitle.Text = subtitle;
         LibraryHeroGlyph.Glyph = glyph;
-        var key = title + "\n" + art?.Path;
+        var key = title + "\n" + art?.Path + "\n" + shape;
         if (key == _shownHero)
         {
             return;
@@ -493,7 +502,7 @@ public sealed partial class MainWindow
                     LibraryHeroArt.Opacity = 1;
                     LibraryHeroBackdrop.Opacity = 0.6;
                 }
-            }, CancellationToken.None));
+            }, CancellationToken.None, art: shape));
         }
     }
 
@@ -824,11 +833,17 @@ public sealed partial class MainWindow
         return style;
     }
 
-    /// <summary>A card on a shelf: an album opens, a song or video plays with the rest of its shelf after it.</summary>
+    /// <summary>
+    /// A card on a shelf: an album opens, a song or video plays with the rest of its shelf after it;
+    /// on a details page, a movie opens its own page.
+    /// </summary>
     private void OpenFromShelf(LibrarySource see, IReadOnlyList<LibraryRow> rows, LibraryRow row)
     {
         switch (row.Item)
         {
+            case LibraryEntry movie when _details.Count > 0 && IsMovie(movie):
+                OpenMovieDetails(movie);
+                break;
             case LibraryGroup group:
                 KeepPlace();
                 _places.RememberSearch(see.ToString(), "");
@@ -847,7 +862,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>What tells one row from another when a view is rebuilt; a download's progress is not in it, since the row shows that as it changes.</summary>
-    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}";
+    private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}|{row.Summary}";
 
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)

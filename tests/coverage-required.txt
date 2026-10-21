@@ -420,3 +420,7 @@ DetailOverride.cs
 DetailsForm.cs
 Downloads.cs
 PendingDetailWrites.cs
+TitleFacts.cs
+TitleSections.cs
+ArtworkChoice.cs
+FrameChoice.cs

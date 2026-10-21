@@ -121,6 +121,9 @@ public sealed record EnrichedShow
     /// <summary>The fetched synopsis of one episode, or null when the catalogue does not know it.</summary>
     public string? EpisodeSummary(int season, int? number) => Episode(season, number)?.Summary;
 
+    /// <summary>The address of the catalogue's still of one episode, or null when it has none.</summary>
+    public string? EpisodeStill(int season, int? number) => Episode(season, number)?.StillUrl;
+
     /// <summary>A short line for a show's card: its genres and its rating, whichever it has.</summary>
     public string Blurb()
     {

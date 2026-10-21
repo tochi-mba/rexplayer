@@ -53,11 +53,18 @@ public sealed partial class MainWindow
 
     private void LoadCollagePicture(object sender)
     {
-        if (sender is FrameworkElement { DataContext: LibraryRow row })
+        // The tile's data context is its row (the template binds it): an items view never sets it
+        // for a compiled template, so without that binding no tile would ask for its picture.
+        if (sender is FrameworkElement { DataContext: LibraryRow row } tile)
         {
-            RequestLibraryPicture(row);
+            FollowCollageTile(tile, row);
+            RequestLibraryPicture(row, CollagePosters(row));
         }
     }
+
+    /// <summary>Whether a collage tile is poster-shaped, as the collage lays it out.</summary>
+    private bool CollagePosters(LibraryRow row) =>
+        _librarySource == LibrarySource.Movies || (row.Item is LibraryGroup && _librarySource == LibrarySource.TvShows);
 
     private void OnCollageDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {

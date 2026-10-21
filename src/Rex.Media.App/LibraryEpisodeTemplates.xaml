@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A show page's episode lines: the episode's number, a wide frame with its picture and how much
-     of it was watched, its title, where it was left, and its length. Loaded the first time a show
+     of it was watched, its title, where it was left, its synopsis, and its length. Loaded the first time a show
      page is opened, never at launch; the lines stay in the library's virtualised list. -->
 <ResourceDictionary
     x:Class="Rex.Media.App.LibraryEpisodeTemplates"
@@ -35,6 +35,10 @@
       <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
         <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
         <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" FontSize="12" />
+        <!-- The episode's synopsis: two lines, the whole of it when clicked. -->
+        <TextBlock Text="{x:Bind Summary}" Visibility="{x:Bind SummaryVisibility}" MaxLines="{x:Bind SummaryLines, Mode=OneWay}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                   FontSize="12" Margin="0,4,0,0" Tapped="OnSummaryTapped" ToolTipService.ToolTip="Click to read all of it, again to fold it"
+                   AutomationProperties.AutomationId="LibraryEpisodeSummary" />
       </StackPanel>
       <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
         <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"

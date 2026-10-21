@@ -25,6 +25,8 @@ public sealed partial class LibraryCardTemplates : ResourceDictionary
 
     private void OnCardLosingFocus(object sender, LosingFocusEventArgs e) => _owner.OnCardLosingFocus(sender, e);
 
+    private void OnCardInfoClick(object sender, RoutedEventArgs e) => _owner.OnCardInfoClick(sender, e);
+
     private void OnCollageItemLoaded(object sender, RoutedEventArgs e) => _owner.OnCollageItemLoaded(sender, e);
 
     private void OnCollageItemDataChanged(FrameworkElement sender, DataContextChangedEventArgs args) => _owner.OnCollageItemDataChanged(sender, args);

@@ -76,14 +76,15 @@ internal sealed class LibraryScene : IDisposable
     /// A short real video at <paramref name="relative"/> under the watched folder, which names what it is,
     /// copied from <paramref name="fixture"/> in tests/fixtures/mp4. With a <paramref name="length"/>, the
     /// library records it as read with that running time, so the rules that weigh length (a film lasts
-    /// 40 minutes or more) see it; without one, the window reads the fixture's own few seconds.
+    /// 40 minutes or more) see it; with <paramref name="info"/>, those are its details, so the window never
+    /// reads the fixture's own tags in their place; with neither, the window reads the fixture's own few seconds.
     /// </summary>
-    public string Video(string relative, string fixture = "h264-aac.mp4", TimeSpan? length = null)
+    public string Video(string relative, string fixture = "h264-aac.mp4", TimeSpan? length = null, MediaInfo? info = null)
     {
         var path = Path.Combine(Media, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", fixture), path);
-        _files.Add((path, LibraryKind.Video, length is { } running ? VideoInfo(running) : null));
+        _files.Add((path, LibraryKind.Video, info ?? (length is { } running ? VideoInfo(running) : null)));
         return path;
     }
 
@@ -146,9 +147,10 @@ internal sealed class LibraryScene : IDisposable
         SettingsStore.Save(Path.Combine(root, "settings.json"), settings is null ? start : settings(start));
     }
 
-    public AppProcess Start()
+    /// <summary>Starts the window on the library's home; <paramref name="environment"/> adds variables, such as REXPLAYER_FAKE_SPEECH.</summary>
+    public AppProcess Start(IReadOnlyDictionary<string, string>? environment = null)
     {
-        var app = AppProcess.Start(root: Root);
+        var app = AppProcess.Start(root: Root, environment: environment);
         app.Run(CommandCatalog.ToggleLibrary);
         Wait.For(() => app.IsShown("LibraryPane") && app.Text("LibraryTitle") == "Home", "the library's home");
         return app;
