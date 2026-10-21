@@ -66,8 +66,10 @@ public sealed partial class MainWindow
         var row = new MusicRow(plain.Name, plain.PlainDetail, plain.Extra, song, badge: plain.Badge, isPlaying: plain.IsPlaying)
         {
             Artist = ArtistNames.Display(song.Artists ?? song.Artist) ?? "",
+            ArtistLink = song.Artists?.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? song.Artist,
             Album = song.Album ?? "",
             PlaysText = PlaysText(song.Plays),
+            PlaysNumber = song.Plays > 0 ? song.Plays.ToString("N0", CultureInfo.CurrentCulture) : "",
         };
         row.SetTranscript(plain.TranscriptGlyph, plain.TranscriptText);
         ShowDownload(row, song);
@@ -245,13 +247,15 @@ public sealed partial class MainWindow
         return footer;
     }
 
-    /// <summary>The Songs table's column headings, lined up with its lines.</summary>
-    private static Grid SongsTableHeader()
+    /// <summary>
+    /// The Songs table's column headings, in a list line of their own so they get exactly the lines'
+    /// padding and columns; screen readers skip it, since each line names its own columns.
+    /// </summary>
+    private static ListViewItem SongsTableHeader()
     {
-        var header = new Grid { ColumnSpacing = 12, Padding = new Thickness(10, 4, 10, 6) };
+        var header = new Grid { ColumnSpacing = 14, Padding = new Thickness(0, 4, 0, 4) };
         AutomationProperties.SetAutomationId(header, "SongsTableHeader");
-        AutomationProperties.SetName(header, "Columns");
-        foreach (var width in new[] { new GridLength(44), new GridLength(2, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(72), new GridLength(76), new GridLength(64) })
+        foreach (var width in new[] { new GridLength(40), new GridLength(2, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(56), new GridLength(72), new GridLength(52) })
         {
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         }
@@ -259,12 +263,33 @@ public sealed partial class MainWindow
         var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         foreach (var (text, column, right) in new[] { ("Title", 1, false), ("Artist", 2, false), ("Album", 3, false), ("Plays", 4, true), ("Length", 6, true) })
         {
-            var heading = new TextBlock { Text = text, Foreground = secondary, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left };
+            var heading = new TextBlock { Text = text, Foreground = secondary, FontSize = 12, HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
             AutomationProperties.SetAutomationId(heading, "SongsTableHeading-" + text);
             Grid.SetColumn(heading, column);
             header.Children.Add(heading);
         }
 
-        return header;
+        var line = new ListViewItem { Content = header, IsHitTestVisible = false, IsTabStop = false, HorizontalContentAlignment = HorizontalAlignment.Stretch, MinHeight = 0 };
+        AutomationProperties.SetAccessibilityView(line, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        return line;
+    }
+
+    /// <summary>A Songs line's artist link: the artist's page.</summary>
+    internal void OnMusicArtistLink(object sender)
+    {
+        if (sender is FrameworkElement { DataContext: MusicRow { ArtistLink: { } artist } })
+        {
+            OpenArtistNamed(artist);
+        }
+    }
+
+    /// <summary>A Songs line's album link: the album's page.</summary>
+    internal void OnMusicAlbumLink(object sender)
+    {
+        if (sender is FrameworkElement { DataContext: MusicRow { Item: LibraryEntry { Album: { } name } song } } && _library is not null
+            && LibraryViews.Albums(_library.Entries).FirstOrDefault(album => album.Entries.Any(entry => LibraryViews.SameLocation(entry.Path, song.Path))) is { } found)
+        {
+            OpenMusicGroup(found, artist: false);
+        }
     }
 }

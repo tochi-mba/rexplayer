@@ -27,7 +27,28 @@ public sealed partial class MainWindow
     private long _musicHeroRequest;
 
     /// <summary>The music pages' templates, created the first time one is laid out.</summary>
-    private DataTemplate MusicTemplate(string key) => (DataTemplate)(_musicTemplates ??= new LibraryMusicTemplates(this))[key];
+    private DataTemplate MusicTemplate(string key)
+    {
+        if (_musicTemplates is null)
+        {
+            _musicTemplates = new LibraryMusicTemplates(this);
+            // The playing mark's equaliser holds still while playback is paused.
+            PlayingBars.SetPaused(!_player.IsPlaying);
+            _player.Changed += (_, _) =>
+            {
+                var paused = !_player.IsPlaying;
+                if (paused != _barsPaused)
+                {
+                    _barsPaused = paused;
+                    OnWindowThread(() => PlayingBars.SetPaused(paused));
+                }
+            };
+        }
+
+        return (DataTemplate)_musicTemplates[key];
+    }
+
+    private volatile bool _barsPaused;
 
     /// <summary>Draws the music Home; rebuilt only when what it shows has changed.</summary>
     private void ShowMusicHome(IReadOnlyList<LibraryEntry> entries, bool sameRoute)

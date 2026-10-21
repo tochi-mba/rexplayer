@@ -116,11 +116,17 @@ public sealed class LibraryMusicTests : IDisposable
                 .Select(element => element.Current.AutomationId + "=" + element.Current.Name)));
         var terminator = app.Line("Terminator");
         Assert.NotNull(terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "3 plays")));
+        Assert.NotNull(terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Asake")));
         Assert.NotNull(terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Work of Art")));
 
         var play = terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "MusicSongArtPlay"));
         ((InvokePattern)play.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         Wait.For(() => app.Text("NowPlaying") == "Terminator", "the song to play from its art");
+
+        // The playing line tells a screen reader it is playing, and its plays read as a number.
+        Wait.For(() => app.Lines().Contains("Terminator, now playing"), "the playing line named as playing");
+        Assert.NotNull(app.Line("Terminator, now playing").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Work of Art")));
+        Screenshots.Match(app, "songs-table", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 }

@@ -86,7 +86,7 @@ public sealed class LibraryBrowsingTests : IDisposable
         app.Visit("Songs");
 
         app.Pick("LibraryLook", "List");
-        Wait.For(() => app.Find("LibraryList").Current.Name == "Compact list" && app.Text("LibraryLook") == "List", "the list");
+        Wait.For(() => app.Find("LibraryList").Current.Name == "Songs, table" && app.Text("LibraryLook") == "List", "the list");
         Assert.False(app.IsShown("LibraryCardSize"), "A list has no card size.");
         app.Pick("LibraryLook", "Grid");
         Wait.For(() => app.Find("LibraryList").Current.Name == "Cover grid" && app.Text("LibraryLook") == "Cards", "the cards");
