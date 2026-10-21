@@ -13,6 +13,7 @@ using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.Engine;
 using Rex.Media.Interop.Graphics;
 using Rex.Media.IO;
+using Rex.Media.Library;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Video;
