@@ -143,7 +143,10 @@ public sealed class LibraryControllerActionsTests
     [Fact]
     public void ForgettingAnActivelyPlayingFileStopsTheSessionAndRemovesQueueReferences()
     {
-        using var test = Harness(autoPlay: true);
+        // The in-memory recording sink can play both tiny files before a slow CI runner
+        // observes Playing. Keep the first audio write blocked until the deletion is tested.
+        using var audioGate = new ManualResetEventSlim(false);
+        using var test = Harness(autoPlay: true, beforeAudioWrite: (_, token) => audioGate.Wait(token));
         var controller = test.Controller;
         controller.Open(["a.wav", "b.wav"]);
         test.PumpUntil(c => c.State == SessionState.Playing && c.Item?.Location == "a.wav");
@@ -153,6 +156,7 @@ public sealed class LibraryControllerActionsTests
         Assert.False(controller.IsPlaying);
         Assert.DoesNotContain(controller.Playlist.Items, item => item.Location == "a.wav");
         Assert.Single(controller.Playlist.Items);
+        audioGate.Set();
     }
 
     [Fact]
