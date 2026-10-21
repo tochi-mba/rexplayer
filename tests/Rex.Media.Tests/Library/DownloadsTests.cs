@@ -84,6 +84,23 @@ public sealed class DownloadsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void AnAria2MarkerWithoutAReaderStillMarksTheDownload()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        library.AddFolder(Videos);
+        var film = In("Film.mp4");
+
+        // A caller may omit the optional reader even when a marker file was listed.
+        // The fallback reader returns no bytes; the marker must still be noticed.
+        var scan = library.Scan(Videos, [File(film, 400), File(film + ".aria2", 60)], MediaFiles.LibraryKindOf);
+
+        Assert.Equal(new ScanResult(1, 0, 0), scan);
+        Assert.True(library.Entry(film)!.Downloading);
+        Assert.Null(library.Entry(film)!.FinalSize);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AFileIsDownloadingWhileMarkedShortOfItsDeclaredSizeOrGrowing()
     {
         var plain = new DownloadEvidence(false, null);
