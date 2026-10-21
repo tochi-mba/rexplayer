@@ -92,6 +92,7 @@ public sealed class MediaSessionTests
 
         Assert.Equal(SessionState.Ended, harness.Session.State);
         Assert.Contains(SessionState.Buffering, harness.States);
+        Assert.Equal(1, source.Waits);
     }
 
     [Fact]
@@ -143,11 +144,12 @@ public sealed class MediaSessionTests
         await harness.Session.OpenAsync(source);
         harness.WaitForState(SessionState.Buffering);
         await harness.Session.SeekAsync(MediaTime.FromSeconds(5));
-        harness.WaitFor<SeekCompletedEvent>();
-        await harness.FinishAsync();
+        SpinWait.SpinUntil(() => source.Waits >= 2, TimeSpan.FromSeconds(5));
+        await harness.Session.StopAsync();
 
-        Assert.Equal(SessionState.Ended, harness.Session.State);
+        Assert.Equal(SessionState.Idle, harness.Session.State);
         Assert.Contains(SessionState.Seeking, harness.States);
+        Assert.True(source.Waits >= 2);
     }
 
     [Fact]

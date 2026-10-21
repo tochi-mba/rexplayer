@@ -35,6 +35,17 @@ public sealed partial class MediaSession
             }
 
             StopFileBuffering();
+            var changedExtent = growing.Extent;
+            if (change is not ByteSourceChange.TimedOut && changedExtent == observed)
+            {
+                // A change notification with no corresponding extent change means the source has
+                // already settled at this EOF. Do not turn that definitive end into an endless
+                // buffering loop. Real growth, truncation and replacement all change length or
+                // revision and remain recoverable.
+                _session._log.Info(LogSource, $"{_demuxItem.Source.Name} settled at end of file.");
+                return false;
+            }
+
             switch (change)
             {
                 case ByteSourceChange.Grew:
