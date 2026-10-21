@@ -207,6 +207,9 @@ public sealed class FileByteSource : IGrowingByteSource
         }
 
         _allocated = allocated;
+        // Sparse downloads grow in readable bytes without changing the file length. Update
+        // the extent so a player waiting at a hole can distinguish new bytes from settled EOF.
+        _revision++;
         _filling = allocated < length;
         return true;
     }

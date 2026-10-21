@@ -30,8 +30,16 @@ public sealed class LibraryCardsTests : IDisposable
 
         app.Visit("Movies");
         Wait.For(() => app.IsShown("LibraryBillboard") && app.Text("LibraryLook") == "Browse", "Movies to open on Browse");
+        Assert.True(app.IsShown("LibrarySort"), "Browse keeps sorting available.");
+        Assert.True(app.IsShown("LibraryFilter"), "Browse keeps progress, type, folder and download filters available.");
+        Assert.Equal("Collapse library navigation", app.Find("LibraryNavigationToggle").Current.Name);
+        app.Press("LibraryNavigationToggle");
+        Assert.Equal("Expand library navigation", app.Find("LibraryNavigationToggle").Current.Name);
+        Wait.For(() => app.SavedSettings.LibraryNavigationCollapsed, "the compact navigation preference to be saved");
         app.Visit("TV Shows");
         Wait.For(() => app.IsShown("LibraryBillboard") && app.Text("LibraryLook") == "Browse", "TV shows to open on Browse over cards never picked");
+        Assert.True(app.IsShown("LibrarySort"), "TV Browse keeps sorting available.");
+        Assert.True(app.IsShown("LibraryFilter"), "TV Browse keeps filters available.");
 
         // A layout picked is kept as a pick, and the view opens in it from then on.
         app.Pick("LibraryLook", "Grid");

@@ -343,12 +343,14 @@ public sealed partial class MainWindow
     private void OpenMusicGroup(LibraryGroup group, bool artist)
     {
         var source = artist ? LibrarySource.Artists : LibrarySource.Albums;
-        KeepPlace();
+        KeepLibraryParent();
         _places.RememberSearch(source.ToString(), "");
+        _changingLibraryRoute = true;
         _librarySource = source;
         _librarySeason = null;
         _libraryGroup = group;
         LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == source);
+        _changingLibraryRoute = false;
         _libraryGroup = group;
         ShowLibraryAtPlace();
     }

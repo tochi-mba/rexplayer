@@ -13,6 +13,7 @@ using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.Engine;
 using Rex.Media.Interop.Graphics;
 using Rex.Media.IO;
+using Rex.Media.Library;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Video;
@@ -455,9 +456,18 @@ public sealed partial class MainWindow : Window
         DownloadBufferOverlay.Visibility = waitingForDownload ? Visibility.Visible : Visibility.Collapsed;
         if (waitingForDownload)
         {
-            DownloadBufferOverlayText.Text = string.IsNullOrWhiteSpace(title)
-                ? "Playback will continue automatically when more of the file is available."
-                : $"{title} will continue automatically when more of the file is available.";
+            var download = _player.Item?.Location is { } location ? _library?.Entry(location) : null;
+            var fraction = download is { Downloading: true }
+                ? Downloads.Fraction(download.Size, download.FinalSize, download.Allocated)
+                : null;
+            DownloadBufferProgress.IsIndeterminate = fraction is null;
+            DownloadBufferProgress.Value = fraction.GetValueOrDefault() * 100;
+            var progress = download is { Downloading: true }
+                ? Downloads.Detail(download.Size, download.FinalSize, download.Allocated) + ". "
+                : "";
+            DownloadBufferOverlayText.Text = progress + (string.IsNullOrWhiteSpace(title)
+                ? "Playback will retry automatically as more becomes available."
+                : $"{title} will retry automatically as more becomes available.");
         }
 
         _updatingControls = true;
@@ -584,6 +594,8 @@ public sealed partial class MainWindow : Window
         {
             _playlistRows.RemoveAt(_playlistRows.Count - 1);
         }
+
+        PlaylistEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         if (current >= 0 && PlaylistPane.Visibility == Visibility.Visible)
         {

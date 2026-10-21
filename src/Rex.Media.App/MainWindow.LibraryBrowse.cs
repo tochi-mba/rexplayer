@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
 using Rex.Media.Settings;
@@ -16,6 +17,13 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _browseHeroTimer;
+    private int _browseHeroIndex;
+    private string _browseHeroSet = "";
+    private bool _browseHeroHeld;
+    private bool _browseHeroPointerHeld;
+    private bool _browseHeroFocusHeld;
+
     /// <summary>Whether the open view can be laid out as a streaming-style browse.</summary>
     private bool BrowseOffered => _libraryGroup is null && LibrarySearch.Text.Trim().Length == 0
         && _librarySource is LibrarySource.Movies or LibrarySource.TvShows;
@@ -24,7 +32,9 @@ public sealed partial class MainWindow
     private void ShowStreamingBrowse(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, bool sameRoute)
     {
         ShowViewOptions(true, choice, groupsView: false, LibraryKind.Video);
-        foreach (var control in new FrameworkElement[] { LibrarySortButton, LibraryGroupButton, LibraryFilterButton, LibrarySizePanel })
+        // Browse is a layout, not a dead end: ordering and filters remain available here. Grouping
+        // and card size do not describe shelves, so only those layout-only controls are hidden.
+        foreach (var control in new FrameworkElement[] { LibraryGroupButton, LibrarySizePanel })
         {
             control.Visibility = Visibility.Collapsed;
         }
@@ -37,21 +47,24 @@ public sealed partial class MainWindow
         string billboardTitle, billboardLine;
         var shelves = new List<(string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide, string Id)>();
         Action? play = null, more = null;
+        var playLabel = "Play";
         Description? synopsis = null;
         Uri? backdrop = null;
         if (movies)
         {
             var browse = StreamingBrowse.Movies(LibraryViews.Movies(entries, MovieLookupOf), _player.LeftAt);
-            billboardArt = browse.Billboard;
-            billboardTitle = browse.Billboard is null ? "" : LibraryViews.MovieTitleOf(browse.Billboard);
+            SetBrowseHeroSet(string.Join("\n", browse.Features.Select(feature => feature.Path)), browse.Features.Count);
+            billboardArt = PickFeature(browse.Features);
+            billboardTitle = billboardArt is null ? "" : LibraryViews.MovieTitleOf(billboardArt);
             billboardLine = "";
-            if (browse.Billboard is { } movie)
+            if (billboardArt is { } movie)
             {
                 var facts = MetadataMovie(movie);
                 billboardLine = TitleFacts.Movie(movie, facts);
                 synopsis = TitleSections.MovieSynopsis(facts);
                 backdrop = TitleSections.AbsoluteUri(facts?.BackdropUrl);
                 play = () => Play([movie], 0, resume: true);
+                playLabel = _player.LeftAt(movie.Path) is null ? "Play" : "Resume";
                 more = () => OpenMovieDetails(movie);
             }
 
@@ -65,15 +78,23 @@ public sealed partial class MainWindow
         else
         {
             var browse = StreamingBrowse.TvShows(entries, _player.LeftAt);
-            billboardArt = browse.Billboard is { Entries.Count: > 0 } show ? show.Entries[0] : null;
-            billboardTitle = browse.Billboard?.Name ?? "";
-            billboardLine = browse.Billboard?.Detail ?? "";
-            if (browse.Billboard is { } featured)
+            SetBrowseHeroSet(string.Join("\n", browse.Features.Select(feature => feature.Name)), browse.Features.Count);
+            var featured = PickFeature(browse.Features);
+            billboardArt = featured is { Entries.Count: > 0 } show ? show.Entries[0] : null;
+            billboardTitle = featured?.Name ?? "";
+            billboardLine = featured?.Detail ?? "";
+            if (featured is not null)
             {
                 var facts = ShowFacts(featured.Name);
                 billboardLine = TitleFacts.ShowLine(facts, featured.Detail ?? "");
                 synopsis = TitleSections.ShowSynopsis(facts);
                 play = () => PlayShowFromNextUp(featured);
+                if (StreamingBrowse.NextUp(featured, _player.LeftAt) is { } next)
+                {
+                    var episode = LibraryViews.EpisodeOf(next);
+                    var context = episode is null ? "" : $" S{episode.Season:00} E{episode.Episode:00}";
+                    playLabel = (_player.LeftAt(next.Path) is null ? "Play" : "Resume") + context;
+                }
                 more = () => OpenShow(featured);
             }
 
@@ -105,7 +126,7 @@ public sealed partial class MainWindow
         if (billboardArt is not null)
         {
             LibraryShelves.Children.Add(Billboard(movies ? "FEATURED MOVIE" : "FEATURED SHOW",
-                billboardTitle, billboardLine, synopsis, billboardArt, backdrop, play!, more!));
+                billboardTitle, billboardLine, synopsis, billboardArt, backdrop, playLabel, play!, more!));
         }
 
         foreach (var (title, see, rows, wide, id) in shelves)
@@ -119,16 +140,109 @@ public sealed partial class MainWindow
         }
     }
 
+    private T? PickFeature<T>(IReadOnlyList<T> features) => features.Count == 0 ? default : features[_browseHeroIndex % features.Count];
+
+    /// <summary>Keeps a stable hero selection until the slow rotation advances it.</summary>
+    private void SetBrowseHeroSet(string identity, int count)
+    {
+        if (!string.Equals(identity, _browseHeroSet, StringComparison.Ordinal))
+        {
+            _browseHeroSet = identity;
+            _browseHeroIndex = 0;
+        }
+
+        _browseHeroTimer ??= Timer(TimeSpan.FromSeconds(12), AdvanceBrowseHero);
+        _browseHeroTimer.IsRepeating = true;
+        Run(_browseHeroTimer, count > 1 && !_browseHeroHeld && AppWindow.IsVisible);
+    }
+
+    private void AdvanceBrowseHero()
+    {
+        if (_browseHeroHeld || !AppWindow.IsVisible || !BrowseOffered)
+        {
+            return;
+        }
+
+        _browseHeroIndex++;
+        _shownLibrary = "";
+        ShowLibrary();
+    }
+
+    private void StopBrowseHeroRotation()
+    {
+        if (_browseHeroTimer is not null)
+        {
+            _browseHeroTimer.Stop();
+        }
+    }
+
+    private void EndBrowseHeroRotation()
+    {
+        StopBrowseHeroRotation();
+        _browseHeroPointerHeld = false;
+        _browseHeroFocusHeld = false;
+        _browseHeroHeld = false;
+    }
+
+    private void UpdateBrowseHeroHold()
+    {
+        _browseHeroHeld = _browseHeroPointerHeld || _browseHeroFocusHeld;
+        if (_browseHeroHeld)
+        {
+            StopBrowseHeroRotation();
+        }
+        else if (_browseHeroTimer is not null && AppWindow.IsVisible && BrowseOffered)
+        {
+            _browseHeroTimer.Start();
+        }
+    }
+
     /// <summary>
     /// The billboard: the featured item's backdrop (else its own artwork) filling a wide frame, a
     /// gradient keeping its words readable over any picture, its title, facts and synopsis (with
     /// Wikipedia's credit when the synopsis is theirs), Play and More info.
     /// </summary>
-    private Grid Billboard(string kicker, string title, string line, Description? synopsis, LibraryEntry art, Uri? wide, Action play, Action more)
+    private Grid Billboard(string kicker, string title, string line, Description? synopsis, LibraryEntry art, Uri? wide, string playLabel, Action play, Action more)
     {
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
+        frame.Tapped += (_, _) => more();
+        frame.PointerEntered += (_, _) =>
+        {
+            _browseHeroPointerHeld = true;
+            UpdateBrowseHeroHold();
+        };
+        frame.PointerExited += (_, _) =>
+        {
+            _browseHeroPointerHeld = false;
+            UpdateBrowseHeroHold();
+        };
+        frame.GotFocus += (_, _) =>
+        {
+            _browseHeroFocusHeld = true;
+            UpdateBrowseHeroHold();
+        };
+        frame.LostFocus += (_, _) =>
+        {
+            // A focus move between the hero's buttons is still inside the hero. Check after
+            // focus settles rather than restarting the carousel between keyboard actions.
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                _browseHeroFocusHeld = HasFocusIn(frame);
+                UpdateBrowseHeroHold();
+            });
+        };
+        if (_budget.Animations)
+        {
+            frame.Opacity = 0;
+            var fade = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(240), EasingFunction = new QuadraticEase() };
+            Storyboard.SetTarget(fade, frame);
+            Storyboard.SetTargetProperty(fade, "Opacity");
+            var transition = new Storyboard();
+            transition.Children.Add(fade);
+            frame.Loaded += (_, _) => transition.Begin();
+        }
         var backdrop = new Image { Stretch = Stretch.UniformToFill };
         frame.Children.Add(backdrop);
         var token = _libraryPictures.Token;
@@ -198,7 +312,7 @@ public sealed partial class MainWindow
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
-            Children = { new FontIcon { Glyph = "", FontSize = 14 }, new TextBlock { Text = "Play" } },
+            Children = { new FontIcon { Glyph = "", FontSize = 14 }, new TextBlock { Text = playLabel } },
         };
         AutomationProperties.SetAutomationId(playButton, "LibraryBillboardPlay");
         playButton.Click += (_, _) => play();
@@ -244,7 +358,7 @@ public sealed partial class MainWindow
     /// <summary>Opens a show's own page from the billboard.</summary>
     private void OpenShow(LibraryGroup show)
     {
-        KeepPlace();
+        KeepLibraryParent();
         _libraryGroup = show;
         _librarySeason = null;
         ShowLibraryAtPlace();

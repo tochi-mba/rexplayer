@@ -168,6 +168,10 @@ public sealed partial class MainWindow
             entries = WithoutListening(entries);
         }
         var browse = !home && search.Length == 0 && BrowseOffered && choice.Look == LibraryLook.Browse;
+        if (!browse)
+        {
+            EndBrowseHeroRotation();
+        }
         LibraryHome.Visibility = home || browse || musicHome ? Visibility.Visible : Visibility.Collapsed;
         LibraryList.Visibility = home || browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
@@ -351,7 +355,7 @@ public sealed partial class MainWindow
             showArt is null ? PictureArt.Natural : PictureArt.ShowPoster);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
-        LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
@@ -868,12 +872,14 @@ public sealed partial class MainWindow
                 PlayBook(book, null);
                 break;
             case LibraryGroup group:
-                KeepPlace();
+                KeepLibraryParent();
                 _places.RememberSearch(see.ToString(), "");
+                _changingLibraryRoute = true;
                 _librarySource = see;
                 _librarySeason = null;
                 _libraryGroup = group;
                 LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
+                _changingLibraryRoute = false;
                 _libraryGroup = group;
                 ShowLibraryAtPlace();
                 break;

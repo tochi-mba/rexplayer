@@ -122,7 +122,12 @@ public sealed partial class MainWindow
 
         _library!.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker, InspectFile);
         var fresh = _library.Entry(entry.Path) ?? entry;
-        return fresh.Downloading && (fresh.Problem is not null || !fresh.Probed) ? Downloads.NotYetNotice(fresh.Size, fresh.FinalSize, fresh.Allocated) : null;
+        // A changed partial file is deliberately marked unprobed: its earlier failed probe is
+        // stale, and the bytes which just arrived may now include enough of the header to open.
+        // Only a completed probe of the current bytes is a safe reason to refuse playback.
+        return fresh.Downloading && fresh.Probed && fresh.Problem is not null
+            ? Downloads.NotYetNotice(fresh.Size, fresh.FinalSize, fresh.Allocated)
+            : null;
     }
 
     /// <summary>The scanner's look at a file: a writer holding it, and a sparse file's bytes on the disk.</summary>

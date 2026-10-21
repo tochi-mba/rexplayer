@@ -13,13 +13,19 @@ public sealed record BrowseGroupShelf(string Title, IReadOnlyList<LibraryGroup> 
 /// The streaming-style Movies view: one movie on the billboard and the rows under it.
 /// Rows a library cannot fill are left out rather than shown empty.
 /// </summary>
-public sealed record MovieBrowse(LibraryEntry? Billboard, IReadOnlyList<BrowseShelf> Shelves);
+public sealed record MovieBrowse(IReadOnlyList<LibraryEntry> Features, IReadOnlyList<BrowseShelf> Shelves)
+{
+    public LibraryEntry? Billboard => Features.FirstOrDefault();
+}
 
 /// <summary>
 /// The streaming-style TV view: one show on the billboard, the episodes left part-way, and the
 /// rows of shows under them.
 /// </summary>
-public sealed record TvBrowse(LibraryGroup? Billboard, IReadOnlyList<LibraryEntry> ContinueWatching, IReadOnlyList<BrowseGroupShelf> Shelves);
+public sealed record TvBrowse(IReadOnlyList<LibraryGroup> Features, IReadOnlyList<LibraryEntry> ContinueWatching, IReadOnlyList<BrowseGroupShelf> Shelves)
+{
+    public LibraryGroup? Billboard => Features.FirstOrDefault();
+}
 
 /// <summary>
 /// What the streaming-style Movies and TV shows views put where: the billboard (what was left
@@ -49,7 +55,7 @@ public static class StreamingBrowse
             .OrderByDescending(movie => movie.Plays)
             .ThenByDescending(movie => movie.LastPlayed ?? DateTime.MinValue)
             .ThenBy(movie => movie.Title, NaturalOrder.Instance).Take(ShelfSize).ToArray();
-        var billboard = continueWatching.FirstOrDefault() ?? mostWatched.FirstOrDefault() ?? recentlyAdded.FirstOrDefault();
+        var features = DistinctEntries(continueWatching.Concat(mostWatched).Concat(recentlyAdded)).Take(5).ToArray();
 
         var shelves = new List<BrowseShelf>();
         Add(shelves, "Continue watching", continueWatching);
@@ -57,7 +63,7 @@ public static class StreamingBrowse
         Add(shelves, "Most watched", mostWatched);
         shelves.AddRange(GenreShelves(movies));
         Add(shelves, "All movies", movies);
-        return new MovieBrowse(billboard, shelves);
+        return new MovieBrowse(features, shelves);
     }
 
     /// <summary>The TV shows view: the show to go on with, the episodes left part-way, and the rows of shows.</summary>
@@ -71,6 +77,9 @@ public static class StreamingBrowse
         var billboard = continueWatching.Length > 0
             ? shows.FirstOrDefault(show => show.Entries.Any(entry => LibraryViews.SameLocation(entry.Path, continueWatching[0].Path)))
             : shows.OrderByDescending(show => show.Entries.Max(entry => entry.Added)).FirstOrDefault();
+        var features = (billboard is null ? [] : new[] { billboard })
+            .Concat(shows.OrderByDescending(show => show.Entries.Max(entry => entry.Added)))
+            .DistinctBy(show => show.Name, StringComparer.OrdinalIgnoreCase).Take(5).ToArray();
 
         var shelves = new List<BrowseGroupShelf>();
         var recentlyAdded = shows.OrderByDescending(show => show.Entries.Max(entry => entry.Added)).Take(ShelfSize).ToArray();
@@ -80,7 +89,7 @@ public static class StreamingBrowse
             shelves.Add(new BrowseGroupShelf("All shows", shows));
         }
 
-        return new TvBrowse(billboard, continueWatching, shelves);
+        return new TvBrowse(features, continueWatching, shelves);
     }
 
     /// <summary>The episode of a show to play next: the one left part-way last, else the first unseen one, else the first.</summary>
@@ -121,6 +130,9 @@ public static class StreamingBrowse
             shelves.Add(new BrowseShelf(title, entries));
         }
     }
+
+    private static IEnumerable<LibraryEntry> DistinctEntries(IEnumerable<LibraryEntry> entries) =>
+        entries.DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The genre rows, fullest first, each newest first; a genre too thin to be a row is left out.</summary>
     private static IEnumerable<BrowseShelf> GenreShelves(IReadOnlyList<LibraryEntry> movies) =>

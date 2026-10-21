@@ -66,7 +66,7 @@
     </DataTemplate>
     <!-- The card and grid templates live in LibraryCardTemplates.xaml, loaded when the library first lays out cards. -->
     <DataTemplate x:Key="LibrarySourceTemplate" x:DataType="local:LibrarySourceItem">
-      <Grid ColumnSpacing="12" Padding="4,6" AutomationProperties.Name="{x:Bind Name}">
+      <Grid ColumnSpacing="12" Padding="4,6" AutomationProperties.Name="{x:Bind Name}" ToolTipService.ToolTip="{x:Bind Name}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
         <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
         <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" />
@@ -281,21 +281,27 @@
           <StackPanel x:Name="SubtitlesBottom" VerticalAlignment="Bottom" HorizontalAlignment="Center" Spacing="2" />
         </Grid>
         <!-- Before anything plays, a hint; while music plays, its picture and details (AU-19). -->
-        <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" ColumnSpacing="28" Margin="24" AutomationProperties.AutomationId="Idle">
+        <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" ColumnSpacing="32" Margin="32" AutomationProperties.AutomationId="Idle">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <Border x:Name="CoverBox" Grid.Column="0" Width="200" Height="200" CornerRadius="8" Visibility="Collapsed" Background="#20FFFFFF">
+          <Border x:Name="CoverBox" Grid.Column="0" Width="240" Height="240" CornerRadius="18" Visibility="Collapsed"
+                  Background="#20FFFFFF" BorderBrush="#24FFFFFF" BorderThickness="1">
             <Image x:Name="CoverImage" Stretch="UniformToFill" AutomationProperties.AutomationId="Cover" AutomationProperties.Name="Cover" />
           </Border>
-          <StackPanel x:Name="IdleText" Grid.Column="1" VerticalAlignment="Center" Spacing="6" MaxWidth="560">
-            <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="28" FontWeight="SemiBold" Foreground="White"
-                       HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
+          <StackPanel x:Name="IdleText" Grid.Column="1" VerticalAlignment="Center" Spacing="7" MaxWidth="560">
+            <TextBlock x:Name="IdleKicker" Text="WELCOME" FontSize="11" FontWeight="SemiBold" CharacterSpacing="120"
+                       Foreground="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center" TextAlignment="Center"
+                       AutomationProperties.AutomationId="IdleKicker" />
+            <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="34" FontWeight="SemiBold" Foreground="White"
+                       HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxLines="2" TextTrimming="CharacterEllipsis" />
             <TextBlock x:Name="IdleHint" Text="Drop media here, or press Ctrl+O to open a file." Foreground="#D0D8CE" HorizontalAlignment="Center"
                        TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.AutomationId="IdleHint" />
             <TextBlock x:Name="IdleAlbum" Foreground="#A0A8A0" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
                        Visibility="Collapsed" AutomationProperties.AutomationId="IdleAlbum" />
+            <TextBlock x:Name="IdleMeta" Foreground="#90FFFFFF" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                       Visibility="Collapsed" AutomationProperties.AutomationId="IdleMeta" />
           </StackPanel>
         </Grid>
         <!-- Lyrics, the line being sung marked and kept in the middle (META-09). -->
@@ -330,7 +336,7 @@
                 BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30"
                 AutomationProperties.AutomationId="DownloadBufferOverlay" AutomationProperties.Name="Waiting for download">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
-            <ProgressRing IsActive="True" Width="34" Height="34" HorizontalAlignment="Center"
+            <ProgressRing x:Name="DownloadBufferProgress" IsActive="True" Width="34" Height="34" HorizontalAlignment="Center"
                           AutomationProperties.AccessibilityView="Raw" />
             <TextBlock Text="Waiting for the download" FontSize="18" FontWeight="SemiBold" Foreground="White"
                        HorizontalAlignment="Center" />
@@ -393,16 +399,24 @@
       </Grid>
 
       <!-- The media library (LIB-05), over the picture while it is open; playback follows the library preference. -->
-      <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+      <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" SizeChanged="OnLibraryPaneSized"
             AutomationProperties.AutomationId="LibraryPane" AutomationProperties.Name="Library">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="200" />
+          <ColumnDefinition x:Name="LibraryNavigationColumn" Width="200" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <ListView x:Name="LibrarySources" Grid.Column="0" SelectionMode="Single" Padding="0,8" Background="{ThemeResource LayerFillColorDefaultBrush}"
-                  ItemTemplate="{StaticResource LibrarySourceTemplate}"
-                  SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
+        <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}">
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" HorizontalAlignment="Right"
+                  Click="OnLibraryNavigationToggle" ToolTipService.ToolTip="Collapse library navigation"
+                  AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
+            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
+          </Button>
+          <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8" Background="Transparent"
+                    ItemTemplate="{StaticResource LibrarySourceTemplate}"
+                    SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
+        </Grid>
 
         <Grid Grid.Column="1">
           <Grid.RowDefinitions>
@@ -445,8 +459,14 @@
               <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Spacing="2">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button x:Name="LibraryBack" Visibility="Collapsed" Click="OnLibraryBack" AutomationProperties.AutomationId="LibraryBack" AutomationProperties.Name="Back"
-                          ToolTipService.ToolTip="Back" Padding="8,4">
-                    <FontIcon Glyph="&#xE72B;" FontSize="12" />
+                          ToolTipService.ToolTip="Back (Alt+Left)" Padding="10,5">
+                    <Button.KeyboardAccelerators>
+                      <KeyboardAccelerator Key="Left" Modifiers="Menu" />
+                    </Button.KeyboardAccelerators>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <FontIcon Glyph="&#xE72B;" FontSize="12" />
+                      <TextBlock x:Name="LibraryBackText" Text="Back" />
+                    </StackPanel>
                   </Button>
                   <TextBlock x:Name="LibraryKicker" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" CharacterSpacing="80"
                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AutomationId="LibraryKicker" />
@@ -516,7 +536,7 @@
             </StackPanel>
             <TextBlock x:Name="LibraryStatus" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus"
-                       AutomationProperties.LiveSetting="Polite" />
+                       AutomationProperties.Name="Library scan status" AutomationProperties.LiveSetting="Polite" />
             <!-- A compact, clickable job count. Open it for the real queue, filenames and progress. -->
             <DropDownButton x:Name="LibraryTranscription" Grid.Column="6" Visibility="Collapsed" MaxWidth="240"
                             AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription queue"
@@ -612,7 +632,8 @@
           <TextBlock Text="Drag to reorder · right-click for actions" FontSize="12"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
-        <ListView x:Name="PlaylistView" Grid.Row="1" SelectionMode="Extended" IsItemClickEnabled="False"
+        <Grid Grid.Row="1">
+        <ListView x:Name="PlaylistView" SelectionMode="Extended" IsItemClickEnabled="False"
                   CanDragItems="True" CanReorderItems="True" AllowDrop="True" ReorderMode="Enabled"
                   DragItemsStarting="OnPlaylistDragItemsStarting" DragItemsCompleted="OnPlaylistDragItemsCompleted"
                   Tapped="OnPlaylistTapped" DoubleTapped="OnPlaylistDoubleTapped" RightTapped="OnPlaylistRightTapped" KeyDown="OnPlaylistKeyDown"
@@ -662,6 +683,12 @@
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
+          <StackPanel x:Name="PlaylistEmpty" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" MaxWidth="250">
+            <TextBlock Text="Your playlist is empty" Style="{ThemeResource BodyStrongTextBlockStyle}" TextAlignment="Center" />
+            <TextBlock Text="Open or drop media here to start a playlist." TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
+        </Grid>
       </Grid>
       <!-- A downloaded update, or a newer version to decide about (TOOL-09): a compact card in the
            corner, never over the middle of the picture and never while a video plays. Escape inside
@@ -703,7 +730,8 @@
       </Border>
     </Grid>
 
-    <Grid x:Name="Controls" Grid.Row="2" Padding="12,4,12,8" ColumnSpacing="8" VerticalAlignment="Bottom">
+    <Grid x:Name="Controls" Grid.Row="2" Padding="16,10,16,12" ColumnSpacing="12" RowSpacing="8" VerticalAlignment="Bottom"
+          Background="{ThemeResource LayerFillColorAltBrush}">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
@@ -727,7 +755,7 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False"
+        <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False" MinHeight="32"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
         <!-- A second aligned rail for transcript coverage. The whole width maps to the same
              timeline as SeekBar; labels are on their own row and never shift the spans. -->
@@ -825,8 +853,13 @@
         <Button x:Name="FullScreenButton" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen">
           <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
         </Button>
-        <TextBlock x:Name="NowPlaying" Margin="12,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="480"
-                   AutomationProperties.AutomationId="NowPlaying" />
+        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center" Spacing="1" MaxWidth="480">
+          <TextBlock x:Name="NowPlaying" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                     AutomationProperties.AutomationId="NowPlaying" />
+          <TextBlock x:Name="NowPlayingContext" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                     TextTrimming="CharacterEllipsis" Visibility="Collapsed"
+                     AutomationProperties.AutomationId="NowPlayingContext" />
+        </StackPanel>
       </StackPanel>
 
       <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
