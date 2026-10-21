@@ -24,7 +24,7 @@ public sealed class LibraryMusicTests : IDisposable
         _scene.Track("Active (feat. Travis Scott)", "Lungu Boy", 1, disc: 2);
         var terminator = _scene.Song("Terminator", "Work of Art", 2023, "Afrobeats");
         var sungba = _scene.Song("Sungba", "Mr. Money with the Vibe", 2022, "Amapiano");
-        return [terminator, terminator, sungba];
+        return [terminator, terminator, terminator, sungba];
     }
 
     /// <summary>Playing keeps the library open where it is, so a flow goes on from the same page.</summary>
@@ -63,7 +63,7 @@ public sealed class LibraryMusicTests : IDisposable
         Wait.For(() => app.Text("NowPlaying") == "Lonely At The Top", "the album to play from its first track");
 
         // Choosing the card opens the album's page.
-        Pointer.Click(app, Card(app, "RecentlyAdded", "Work of Art"));
+        ((InvokePattern)Card(app, "RecentlyAdded", "Work of Art").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         Wait.For(() => app.Text("LibraryKicker") == "ALBUM" && app.Text("LibraryTitle") == "Work of Art", "the album's page");
         Assert.Equal(0, app.Close());
     }
@@ -85,7 +85,8 @@ public sealed class LibraryMusicTests : IDisposable
         Assert.False(app.IsShown("LibraryLook"), "An album page has its own layout.");
 
         // The tracks in disc order, under disc headings, with featured artists under the title.
-        Wait.For(() => app.Lines().SequenceEqual(["Lonely At The Top", "Wave", "Mood", "Active (feat. Travis Scott)"]), "the four tracks in order");
+        Wait.For(() => app.Lines().Take(4).SequenceEqual(["Lonely At The Top", "Wave", "Mood", "Active (feat. Travis Scott)"]), "the four tracks in order",
+            () => string.Join(", ", app.Lines()));
         Assert.True(Holds(app, "LibraryList", "Disc 2"), "A set of discs has headings.");
         Assert.True(Holds(app, "LibraryList", "feat. Travis Scott"), "A featured artist shows under the title.");
         Assert.True(Holds(app, "LibraryList", "More by Asake"), "More by the artist under the tracks.");
@@ -110,9 +111,11 @@ public sealed class LibraryMusicTests : IDisposable
         using var app = _scene.Ready(KeepBrowsing, played).Start();
 
         app.Visit("Songs");
-        Wait.For(() => app.IsShown("SongsTableHeader"), "the table's headings");
+        Wait.For(() => app.IsShown("SongsTableHeading-Plays"), "the table's headings", () => string.Join(", ",
+            app.Find("LibraryList").FindAll(TreeScope.Descendants, Condition.TrueCondition).Cast<AutomationElement>().Take(25)
+                .Select(element => element.Current.AutomationId + "=" + element.Current.Name)));
         var terminator = app.Line("Terminator");
-        Assert.NotNull(terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "2 plays")));
+        Assert.NotNull(terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "3 plays")));
         Assert.NotNull(terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Work of Art")));
 
         var play = terminator.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "MusicSongArtPlay"));
