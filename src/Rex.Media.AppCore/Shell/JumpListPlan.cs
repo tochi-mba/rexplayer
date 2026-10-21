@@ -109,13 +109,15 @@ public static class JumpListPlan
             }
         }
 
+        // A blank argument (a shortcut or script that passes "") names no file; made absolute it
+        // would stop the launch before its window showed.
         if (at < 0)
         {
-            return (arguments, null);
+            return ([.. arguments.Where(argument => !string.IsNullOrWhiteSpace(argument))], null);
         }
 
         var command = at + 1 < arguments.Count && TaskCommands.Any(task => task.Command == arguments[at + 1]) ? arguments[at + 1] : null;
-        return ([.. arguments.Take(at)], command);
+        return ([.. arguments.Take(at).Where(argument => !string.IsNullOrWhiteSpace(argument))], command);
     }
 
     private static bool IsWebAddress(string location) =>

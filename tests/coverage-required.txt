@@ -393,6 +393,7 @@ Wikidata.cs
 WikidataFacts.cs
 Wikipedia.cs
 WindowClocks.cs
+WindowPlacementFit.cs
 WindowTeardown.cs
 WordAligner.cs
 Wpl.cs
