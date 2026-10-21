@@ -100,7 +100,11 @@ public sealed class LibraryControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == source.Path && c.Info is not null);
         Assert.Equal(TimeSpan.FromSeconds(1), player.Position);
         Assert.Equal([source.Path, next.Path], player.Playlist.Items.Select(item => item.Location));
-        Assert.False(player.SwitchLibraryVersion(source));
+        player.Seek(TimeSpan.FromSeconds(4));
+        Assert.True(player.SwitchLibraryVersion(higher with { Duration = TimeSpan.FromSeconds(3) }));
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == higher.Path && c.Info is not null);
+        Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
+        Assert.False(player.SwitchLibraryVersion(higher));
         Assert.False(player.SwitchLibraryVersion(source with { Path = "missing.wav" }));
         Assert.False(player.SwitchLibraryVersion(source with { Kind = LibraryKind.Picture }));
         Assert.Throws<ArgumentNullException>(() => player.SwitchLibraryVersion(null!));
