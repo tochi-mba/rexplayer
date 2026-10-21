@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- macOS's audio and media frameworks are C APIs, reached with LibraryImport from plain .NET:
+         this project needs no platform workload, builds on any machine and runs only on a Mac
+         (ADR-0021). Named explicitly so the coverage gate, which can only run it on a Mac, leaves
+         it to the macOS adapter tests. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Rex.Media.Interop.Mac</RootNamespace>
+    <!-- Render callbacks receive pointers; this and Rex.Media.Interop are the projects allowed them. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+</Project>

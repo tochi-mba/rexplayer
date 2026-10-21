@@ -270,6 +270,7 @@ RidgelinesScene.cs
 RipplesScene.cs
 Sami.cs
 SampleConverter.cs
+SampleRing.cs
 ScannerScene.cs
 ScanWindow.cs
 SectionAnalysis.cs

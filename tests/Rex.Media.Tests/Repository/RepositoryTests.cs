@@ -196,6 +196,9 @@ public sealed partial class RepositoryTests
         Assert.True(missing.Count == 0, "Add a '// Spec:' line naming the standard and clause to: " + string.Join(", ", missing));
     }
 
+    /// <summary>The projects where native declarations and pointers live: Windows' and the Mac's interop (ADR-0008, ADR-0021).</summary>
+    private static readonly string[] InteropProjects = ["src/Rex.Media.Interop/", "src/Rex.Media.Interop.Mac/"];
+
     [Fact]
     public void UnsafeCodeLivesOnlyInInteropAndListedKernels()
     {
@@ -206,7 +209,7 @@ public sealed partial class RepositoryTests
             .ToHashSet(StringComparer.Ordinal);
         var offenders = RepoPaths.SourceFiles()
             .Where(path => path.StartsWith("src/", StringComparison.Ordinal) && path.EndsWith(".cs", StringComparison.Ordinal))
-            .Where(path => !path.StartsWith("src/Rex.Media.Interop/", StringComparison.Ordinal))
+            .Where(path => !InteropProjects.Any(project => path.StartsWith(project, StringComparison.Ordinal)))
             .Where(path => !allowed.Contains(path))
             .Where(path => UnsafeKeyword().IsMatch(File.ReadAllText(RepoPaths.Combine(path))))
             .ToList();
@@ -219,7 +222,7 @@ public sealed partial class RepositoryTests
     {
         var offenders = RepoPaths.SourceFiles()
             .Where(path => path.StartsWith("src/", StringComparison.Ordinal) && path.EndsWith(".cs", StringComparison.Ordinal))
-            .Where(path => !path.StartsWith("src/Rex.Media.Interop/", StringComparison.Ordinal))
+            .Where(path => !InteropProjects.Any(project => path.StartsWith(project, StringComparison.Ordinal)))
             .Where(path => NativeImport().IsMatch(File.ReadAllText(RepoPaths.Combine(path))))
             .ToList();
 

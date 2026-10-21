@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- rexplay for macOS: the same command line as Windows' (Rex.Media.AppCore), composed with the
+         Mac's audio output. Plain .NET, so it builds anywhere and runs on a Mac (ADR-0021). -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Rex.Media.Cli.Mac</RootNamespace>
+    <AssemblyName>rexplay</AssemblyName>
+    <AssemblyTitle>rexplayer command line</AssemblyTitle>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio.CoreAudio\Rex.Media.Audio.CoreAudio.csproj" />
+    <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
+  </ItemGroup>
+
+</Project>

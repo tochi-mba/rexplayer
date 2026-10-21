@@ -131,6 +131,13 @@ jobs:
       - name: Run them
         run: dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release --no-build
 
+      - name: Build the Mac command line
+        run: dotnet build src/Rex.Media.Cli.Mac/Rex.Media.Cli.Mac.csproj -c Release -nologo
+
+      - name: Smoke test it against the same contract as Windows'
+        shell: pwsh
+        run: ./dev.ps1 smoke
+
   site:
     name: Website
     runs-on: ubuntu-latest
