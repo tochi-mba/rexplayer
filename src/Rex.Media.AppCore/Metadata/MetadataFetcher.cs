@@ -4,13 +4,13 @@ using System.Text.Json;
 namespace Rex.Media.AppCore.Metadata;
 
 /// <summary>
-/// Brings one show's metadata into the cache: search (or the user's own pick), match, episodes and
-/// poster, each kept on disk so nothing is asked twice and everything works offline afterwards. A
+/// Brings one show's, album's or movie's metadata into the cache: search (or the user's own pick),
+/// match, details and artwork, each kept on disk so nothing is asked twice and everything works offline afterwards. A
 /// lookup that finds nothing is recorded too, so an unknown name is not searched again and again.
 /// The network itself is behind <paramref name="fetch"/> (null for an answer that is no use), so
 /// the window gives it a real HTTP client and tests give it canned answers.
 /// </summary>
-public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationToken, Task<byte[]?>> fetch)
+public sealed partial class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationToken, Task<byte[]?>> fetch)
 {
     /// <summary>The cache kind a show's record lives under.</summary>
     public const string ShowKind = "tv";
@@ -98,8 +98,8 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
                 pick = MetadataMatch.Pick(show, year, TvMaze.ParseSearch(answer));
                 if (pick is null)
                 {
-                    _cache.WriteText(ShowKind, key, new EnrichedShow { CatalogueId = 0, Name = show }.ToJson());
-                    return true;
+                    // A show TVmaze does not know may still be on Wikidata and Wikipedia.
+                    return await FetchShowFromWikidataAsync(show, year, token).ConfigureAwait(false);
                 }
             }
 
@@ -267,116 +267,6 @@ public sealed class MetadataFetcher(MetadataCache cache, Func<Uri, CancellationT
         var key = MusicBrainz.AlbumKey(artist, album);
         _cache.Remove(MusicKind, key, ".json");
         _cache.Remove(CoverKind, key, ArtExtension);
-    }
-
-    /// <summary>The cache kind a movie's record lives under.</summary>
-    public const string MovieKind = "movie";
-
-    /// <summary>The cache kind a movie's fetched poster lives under, with <see cref="ArtExtension"/>.</summary>
-    public const string MovieArtKind = "movieart";
-
-    /// <summary>The movie's cached record, or null before its fetch.</summary>
-    public EnrichedMovie? CachedMovie(string title, int? year) =>
-        _cache.ReadText(MovieKind, Tmdb.MovieKey(title, year)) is { } json ? EnrichedMovie.FromJson(json) : null;
-
-    /// <summary>Where a movie's fetched poster lives, fetched or not.</summary>
-    public string MoviePosterPath(string title, int? year) =>
-        _cache.PathFor(MovieArtKind, Tmdb.MovieKey(title, year), ArtExtension);
-
-    /// <summary>Every movie already in the cache, for filling a lookup table at launch without the network.</summary>
-    public IReadOnlyList<EnrichedMovie> CachedMovies()
-    {
-        var folder = Path.Combine(_cache.Downloads, MovieKind);
-        if (!Directory.Exists(folder))
-        {
-            return [];
-        }
-
-        return [.. Directory.EnumerateFiles(folder, "*.json")
-            .Select(file => EnrichedMovie.FromJson(File.ReadAllText(file)))
-            .Where(movie => movie is not null)!];
-    }
-
-    /// <summary>Forgets the movie's record and poster, for a refresh.</summary>
-    public void ForgetMovie(string title, int? year)
-    {
-        _cache.Remove(MovieKind, Tmdb.MovieKey(title, year), ".json");
-        _cache.Remove(MovieArtKind, Tmdb.MovieKey(title, year), ArtExtension);
-    }
-
-    /// <summary>
-    /// Fetches one movie into the cache with the user's own TMDB key: the best search match, its
-    /// poster, and genre names from a map fetched once. The movie already cached is left alone.
-    /// False means the catalogue could not answer and the fetch should be tried again later; a
-    /// clean "nothing matched" is recorded and true.
-    /// </summary>
-    public async Task<bool> FetchMovieAsync(string apiKey, string title, int? year, CancellationToken token)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
-        ArgumentNullException.ThrowIfNull(title);
-        var key = Tmdb.MovieKey(title, year);
-        if (_cache.ReadText(MovieKind, key) is { } cached && EnrichedMovie.FromJson(cached) is { Current: true })
-        {
-            return true;
-        }
-
-        try
-        {
-            if (await TextAsync(Tmdb.SearchUri(apiKey, title, year), token).ConfigureAwait(false) is not { } answer)
-            {
-                return false;
-            }
-
-            if (Tmdb.Pick(title, year, Tmdb.ParseSearch(answer)) is not { } pick)
-            {
-                _cache.WriteText(MovieKind, key, new EnrichedMovie { CatalogueId = 0, Title = title, Year = year }.ToJson());
-                return true;
-            }
-
-            // One details answer carries the facts, credits, trailers and suggestions together.
-            if (await TextAsync(Tmdb.DetailsUri(apiKey, pick.Id), token).ConfigureAwait(false) is not { } full
-                || Tmdb.ParseDetails(full) is not { } details)
-            {
-                return false;
-            }
-
-            var poster = pick.PosterPath is null ? null : await _fetch(Tmdb.PosterUri(pick.PosterPath), token).ConfigureAwait(false);
-            if (poster is not null)
-            {
-                _cache.Write(MovieArtKind, key, ArtExtension, poster);
-            }
-
-            _cache.WriteText(MovieKind, key, new EnrichedMovie
-            {
-                Schema = EnrichedMovie.CurrentSchema,
-                CatalogueId = pick.Id,
-                Title = pick.Title,
-                Year = pick.Year ?? year,
-                Overview = pick.Overview,
-                Genres = details.Genres,
-                Rating = pick.Rating,
-                HasPoster = poster is not null,
-                Tagline = details.Tagline,
-                RuntimeMinutes = details.RuntimeMinutes,
-                Status = details.Status,
-                Studio = details.Studio,
-                OriginalLanguage = details.OriginalLanguage,
-                ContentRating = details.ContentRating,
-                BackdropUrl = details.BackdropUrl,
-                Cast = details.Cast,
-                Directors = details.Directors,
-                Writers = details.Writers,
-                TrailerKeys = details.TrailerKeys,
-                Recommendations = details.Recommendations,
-                Collection = details.Collection,
-            }.ToJson());
-            return true;
-        }
-        catch (JsonException)
-        {
-            // The catalogue answered with something that is not its usual shape; try again later.
-            return false;
-        }
     }
 
     private async Task<string?> TextAsync(Uri uri, CancellationToken token) =>

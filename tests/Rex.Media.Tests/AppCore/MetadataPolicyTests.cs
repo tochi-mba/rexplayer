@@ -4,8 +4,8 @@ using Rex.Media.Settings;
 namespace Rex.Media.Tests.AppCore;
 
 /// <summary>
-/// Online lookups are strictly off by default, each kind has its own switch, movies also need a
-/// TMDB key, and a file under an excluded folder is never looked up at all.
+/// Online lookups are strictly off by default, each kind has its own switch and needs nothing else
+/// (no key, no sign-up), and a file under an excluded folder is never looked up at all.
 /// </summary>
 public sealed class MetadataPolicyTests
 {
@@ -19,7 +19,6 @@ public sealed class MetadataPolicyTests
         Assert.False(fresh.TvShows);
         Assert.False(fresh.Movies);
         Assert.False(fresh.Music);
-        Assert.Equal("", fresh.TmdbApiKey);
         Assert.Empty(fresh.Excluded);
         foreach (var kind in Enum.GetValues<MetadataWork>())
         {
@@ -29,12 +28,14 @@ public sealed class MetadataPolicyTests
 
     [Theory]
     [InlineData(MetadataWork.TvShow)]
+    [InlineData(MetadataWork.Movie)]
     [InlineData(MetadataWork.Music)]
-    public void EachSwitchAllowsOnlyItsOwnKind(MetadataWork kind)
+    public void EachSwitchAloneAllowsOnlyItsOwnKind(MetadataWork kind)
     {
         var settings = new MetadataSettings
         {
             TvShows = kind == MetadataWork.TvShow,
+            Movies = kind == MetadataWork.Movie,
             Music = kind == MetadataWork.Music,
         };
 
@@ -45,13 +46,27 @@ public sealed class MetadataPolicyTests
     }
 
     [Fact]
-    public void MoviesNeedTheSwitchAndAKey()
+    public void AKeyStoredByAnEarlierVersionIsDroppedAndItsMoviesSwitchKept()
     {
-        Assert.False(MetadataPolicy.MoviesReady(new MetadataSettings { Movies = true }));
-        Assert.False(MetadataPolicy.MoviesReady(new MetadataSettings { TmdbApiKey = "abc123" }));
-        Assert.True(MetadataPolicy.MoviesReady(new MetadataSettings { Movies = true, TmdbApiKey = "abc123" }));
-        Assert.False(MetadataPolicy.Allows(new MetadataSettings { Movies = true }, MetadataWork.Movie, Show));
-        Assert.True(MetadataPolicy.Allows(new MetadataSettings { Movies = true, TmdbApiKey = "abc123" }, MetadataWork.Movie, Show));
+        var folder = Path.Combine(Path.GetTempPath(), "rexplayer-metadata-settings-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var path = Path.Combine(folder, "settings.json");
+            File.WriteAllText(path, """{"schema":3,"metadata":{"movies":true,"tvShows":false,"tmdbApiKey":"abc123"}}""");
+
+            var loaded = SettingsStore.Load(path);
+            SettingsStore.Save(path, loaded);
+
+            Assert.True(loaded.Metadata.Movies);
+            Assert.True(MetadataPolicy.Allows(loaded.Metadata, MetadataWork.Movie, Show));
+            Assert.DoesNotContain("tmdb", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
+            Assert.True(SettingsStore.Load(path).Metadata.Movies);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
     }
 
     [Fact]
@@ -78,36 +93,32 @@ public sealed class MetadataPolicyTests
 
     [Fact]
     public void AnUnknownKindIsNeverAllowed() =>
-        Assert.False(MetadataPolicy.Allows(new MetadataSettings { TvShows = true, Movies = true, Music = true, TmdbApiKey = "k" }, (MetadataWork)99, Show));
+        Assert.False(MetadataPolicy.Allows(new MetadataSettings { TvShows = true, Movies = true, Music = true }, (MetadataWork)99, Show));
 
     [Fact]
     public void NullsAreRefusedPlainly()
     {
         Assert.Throws<ArgumentNullException>(() => MetadataPolicy.Excludes(null!, Show));
         Assert.Throws<ArgumentNullException>(() => MetadataPolicy.Excludes([], null!));
-        Assert.Throws<ArgumentNullException>(() => MetadataPolicy.MoviesReady(null!));
         Assert.Throws<ArgumentNullException>(() => MetadataPolicy.Allows(null!, MetadataWork.TvShow, Show));
     }
 
     [Fact]
-    public void NormalizeTrimsTheKeyAndCleansTheFolders()
+    public void NormalizeCleansTheFolders()
     {
         var settings = new MetadataSettings
         {
-            TmdbApiKey = "  abc123  ",
             Excluded = [@" D:\Media ", "", "   ", @"D:\Media", @"d:\media", @"E:\Other"],
         }.Normalize();
 
-        Assert.Equal("abc123", settings.TmdbApiKey);
         Assert.Equal([@"D:\Media", @"E:\Other"], settings.Excluded);
     }
 
     [Fact]
     public void NormalizeSurvivesNullsReadFromDisk()
     {
-        var settings = (new MetadataSettings { TmdbApiKey = null!, Excluded = null! }).Normalize();
+        var settings = (new MetadataSettings { Excluded = null! }).Normalize();
 
-        Assert.Equal("", settings.TmdbApiKey);
         Assert.Empty(settings.Excluded);
     }
 

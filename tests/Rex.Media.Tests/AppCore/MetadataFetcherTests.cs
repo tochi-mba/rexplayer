@@ -87,6 +87,8 @@ public sealed class MetadataFetcherTests : IDisposable
     public async Task NoMatchIsRecordedOnceAndNotAskedAgain()
     {
         _answers["https://api.tvmaze.com/search/shows?q=Obscure"] = "[]";
+        // TVmaze has no match, and Wikidata also confirms no matching series.
+        _answers[Wikidata.SearchUri("Obscure").AbsoluteUri] = """{"search":[]}""";
         var fetcher = Fetcher;
         Assert.True(await fetcher.FetchShowAsync("Obscure", null, null, CancellationToken.None));
 
