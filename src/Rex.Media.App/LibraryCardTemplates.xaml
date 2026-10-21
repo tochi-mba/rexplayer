@@ -42,7 +42,9 @@
       <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
           <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
+            <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
+          </Image>
           <Border Visibility="{x:Bind BadgeVisibility}" Background="#C0181818" CornerRadius="4" Padding="6,2" Margin="7" HorizontalAlignment="Left" VerticalAlignment="Bottom">
             <TextBlock Text="{x:Bind Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
           </Border>
@@ -78,10 +80,12 @@
   <DataTemplate x:Key="LibraryMovieTemplate" x:DataType="local:LibraryRow">
     <Grid Padding="7" RowSpacing="8" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-      <Border CornerRadius="12" Background="#20252D" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+      <Border CornerRadius="12" Background="{x:Bind TileBackground, Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
         <Grid>
-          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="54" Opacity="0.36" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Top" />
+          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="54" Opacity="0.36" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Top" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
+            <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
+          </Image>
           <Border Background="#BE17202C" CornerRadius="4" Padding="6,3" Margin="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                   Visibility="{x:Bind BadgeVisibility}">
             <TextBlock Text="{x:Bind Badge}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
@@ -118,20 +122,27 @@
   </DataTemplate>
   <!-- Justified collage: variable-width items, virtualized by ItemsView and LinedFlowLayout. -->
   <DataTemplate x:Key="LibraryCollageTemplate" x:DataType="local:LibraryRow">
-    <ItemContainer AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" Loaded="OnCollageItemLoaded" DataContextChanged="OnCollageItemDataChanged">
+    <!-- An items view sets no data context for a compiled template, so the tile binds its row as one:
+         loading, hover and taps find the row through it. -->
+    <ItemContainer DataContext="{x:Bind Self}" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" Loaded="OnCollageItemLoaded" DataContextChanged="OnCollageItemDataChanged">
       <Grid Margin="2" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
-        <Border CornerRadius="9" Background="#20252D">
+        <Border CornerRadius="9" Background="{x:Bind TileBackground, Mode=OneWay}">
           <Grid>
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+            <Image Source="{x:Bind Backdrop, Mode=OneWay}" Stretch="UniformToFill" Opacity="0.45" />
+            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" FontWeight="SemiBold" Foreground="White" Opacity="0.55" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
+              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
+            </Image>
+            <!-- A scrim under the words keeps them readable over any picture. -->
             <Border VerticalAlignment="Bottom">
               <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                   <GradientStop Color="#00000000" Offset="0" />
+                  <GradientStop Color="#99151A22" Offset="0.45" />
                   <GradientStop Color="#E5151A22" Offset="1" />
                 </LinearGradientBrush>
               </Border.Background>
-              <StackPanel Padding="12,28,12,11" Spacing="2">
+              <StackPanel Padding="12,36,12,11" Spacing="2">
                 <TextBlock Text="{x:Bind Name}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
                 <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="#DCE3ED" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="12" />
               </StackPanel>

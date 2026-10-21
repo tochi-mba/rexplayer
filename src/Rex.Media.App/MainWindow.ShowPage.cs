@@ -118,7 +118,7 @@ public sealed partial class MainWindow
             entry.Duration is { } duration ? Rex.Media.AppCore.Player.TimeText.Format(duration, duration) : "",
             entry,
             hasPicture: true,
-            picturePlaceholder: "▶",
+            picturePlaceholder: episode is { Episode: not null } ? ShowPage.Number(episode) : "▶",
             badge: episode is null ? "" : ShowPage.Number(episode),
             progress: ShowPage.Progress(entry, left),
             isPlaying: LibraryViews.SameLocation(entry.Path, _player.Playlist.Current?.Location));

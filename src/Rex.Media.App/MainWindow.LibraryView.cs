@@ -326,7 +326,11 @@ public sealed partial class MainWindow
         LibraryList.Visibility = collage ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
-        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
+        // A show's page wears the show's poster, never its first episode's frame.
+        var showArt = search.Length == 0 && _librarySource == LibrarySource.TvShows && _libraryGroup is { Entries: [var first, ..] } ? first : null;
+        ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph,
+            showArt ?? rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null),
+            showArt is null ? PictureArt.Natural : PictureArt.ShowPoster);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
         LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -469,13 +473,13 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The banner: kicker, title and what the view holds, with the first item's picture in front and filling the banner behind.</summary>
-    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art)
+    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art, PictureArt shape = PictureArt.Natural)
     {
         LibraryKicker.Text = kicker;
         LibraryTitle.Text = title;
         LibrarySubtitle.Text = subtitle;
         LibraryHeroGlyph.Glyph = glyph;
-        var key = title + "\n" + art?.Path;
+        var key = title + "\n" + art?.Path + "\n" + shape;
         if (key == _shownHero)
         {
             return;
@@ -498,7 +502,7 @@ public sealed partial class MainWindow
                     LibraryHeroArt.Opacity = 1;
                     LibraryHeroBackdrop.Opacity = 0.6;
                 }
-            }, CancellationToken.None));
+            }, CancellationToken.None, art: shape));
         }
     }
 

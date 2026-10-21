@@ -147,9 +147,10 @@ internal sealed class LibraryScene : IDisposable
         SettingsStore.Save(Path.Combine(root, "settings.json"), settings is null ? start : settings(start));
     }
 
-    public AppProcess Start()
+    /// <summary>Starts the window on the library's home; <paramref name="environment"/> adds variables, such as REXPLAYER_FAKE_SPEECH.</summary>
+    public AppProcess Start(IReadOnlyDictionary<string, string>? environment = null)
     {
-        var app = AppProcess.Start(root: Root);
+        var app = AppProcess.Start(root: Root, environment: environment);
         app.Run(CommandCatalog.ToggleLibrary);
         Wait.For(() => app.IsShown("LibraryPane") && app.Text("LibraryTitle") == "Home", "the library's home");
         return app;

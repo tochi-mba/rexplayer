@@ -511,9 +511,13 @@ public sealed partial class MainWindow
     /// <summary>A visible media line asks for its picture once; recycled, off-screen rows ask for nothing.</summary>
     private void OnLibraryRowShown(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (!args.InRecycleQueue)
+        if (args.InRecycleQueue)
         {
-            RequestLibraryPicture(args.Item as LibraryRow);
+            LetPictureGo(args.Item as LibraryRow);
+        }
+        else
+        {
+            RequestLibraryPicture(args.Item as LibraryRow, ShowsPosters(sender));
         }
 
         // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
@@ -523,13 +527,17 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Only request artwork when the virtualizing panel actually realizes a tile.</summary>
-    private void RequestLibraryPicture(LibraryRow? row)
+    /// <summary>
+    /// Only request artwork when the virtualizing panel actually realizes a tile; a movie on a poster
+    /// card (<paramref name="posterCard"/>) asks for a poster's shape.
+    /// </summary>
+    private void RequestLibraryPicture(LibraryRow? row, bool posterCard = false)
     {
         if (row is { HasPicture: true, PictureAsked: false } && PictureEntry(row.Item) is { } entry)
         {
             row.PictureAsked = true;
-            Forget(ShowPictureAsync(entry.Path, entry.Kind, entry.Duration, picture => row.Picture = picture, _libraryPictures.Token));
+            row.Shape = PictureArtOf(row, posterCard || row.Shape == PictureArt.MoviePoster);
+            Forget(LoadRowPictureAsync(row, entry, urgent: false, _libraryPictures.Token));
         }
     }
 
@@ -552,8 +560,7 @@ public sealed partial class MainWindow
             }
 
             item.PictureAsked = true;
-            Forget(ShowPictureAsync(entry.Path, entry.Kind, entry.Duration,
-                picture => item.Picture = picture, token, urgent: true));
+            Forget(LoadRowPictureAsync(item, entry, urgent: true, token));
         }
 
         Request(row);

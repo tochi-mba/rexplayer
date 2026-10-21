@@ -19,7 +19,12 @@ public partial class LibraryRow(
     double progress = 0,
     bool isPlaying = false) : INotifyPropertyChanged
 {
+    [ThreadStatic]
+    private static Brush? s_defaultTile;
+
     private ImageSource? _picture;
+    private ImageSource? _backdrop;
+    private Brush? _tint;
     private string _transcriptGlyph = "";
     private string _transcriptText = "";
     private string? _downloadText;
@@ -82,6 +87,42 @@ public partial class LibraryRow(
 
     /// <summary>Whether loading the picture has been started, so it is asked for once.</summary>
     public bool PictureAsked { get; set; }
+
+    /// <summary>The row itself, which a compiled collage template binds as its tile's data context.</summary>
+    public LibraryRow Self => this;
+
+    /// <summary>The picture asked for: the media's own or a poster.</summary>
+    internal PictureArt Shape { get; set; }
+
+    /// <summary>The picture's request while it is under way, which the card lets go when it leaves the view.</summary>
+    internal CancellationTokenSource? PictureWork { get; set; }
+
+    /// <summary>A blurred picture behind the placeholder until the picture comes: on a show's page, its poster.</summary>
+    public ImageSource? Backdrop
+    {
+        get => _backdrop;
+        set
+        {
+            _backdrop = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Backdrop)));
+        }
+    }
+
+    /// <summary>The tile's colour before its picture: its show's own tint, else the library's dark grey.</summary>
+    public Brush TileBackground => _tint ?? DefaultTile;
+
+    /// <summary>A tint of the item's own for its tile.</summary>
+    public Brush? Tint
+    {
+        get => _tint;
+        set
+        {
+            _tint = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TileBackground)));
+        }
+    }
+
+    private static Brush DefaultTile => s_defaultTile ??= new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x20, 0x25, 0x2D));
 
     public ImageSource? Picture
     {

@@ -20,13 +20,15 @@ using Windows.Storage.Streams;
 namespace Rex.Media.App;
 
 /// <summary>
-/// A picture for every piece of media, wherever it is listed (the library, the playlist): Windows'
-/// own thumbnail when it has a real one, otherwise a frame of the video itself, the picture itself,
-/// or for music its cover, its folder's art or artwork drawn from its sound. A video's frame is cut
-/// free of the black or grey bars recorded into it, so a card filled by it shows picture. Made pictures are kept
-/// on disk until the file changes, and the latest few hundred in memory, so a list that redraws does
-/// not make them again. Two normal requests use bounded slots; a separate slot serves an
-/// urgent hovered or keyboard-focused row while those are occupied.
+/// A picture for every piece of media, wherever it is listed (the library, the playlist): for a
+/// video its artwork as <see cref="ArtworkChoice"/> orders it, else a strong frame of its own (Windows'
+/// thumbnail only when rexplayer cannot read the file); the picture itself; or for music its cover,
+/// its folder's art or artwork drawn from its sound. A video's frame is cut free of the black or
+/// grey bars recorded into it, so a card filled by it shows picture. Made pictures are kept on disk
+/// until the file changes, and the latest few hundred in memory, so a list that redraws does not
+/// make them again. Two normal requests use bounded slots; a separate slot serves an urgent hovered
+/// or keyboard-focused row while those are occupied. Nothing else waits in these slots: background
+/// work (transcription, section analysis) runs on threads of its own below normal priority.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -50,8 +52,14 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Finds or makes the picture for <paramref name="path"/>, and hands it to <paramref name="show"/> on the window's thread.</summary>
-    private async Task ShowPictureAsync(string path, LibraryKind kind, TimeSpan? duration, Action<ImageSource> show, CancellationToken viewToken, bool urgent = false)
+    /// <summary>
+    /// Finds or makes the picture for <paramref name="path"/> as <paramref name="art"/> asks, and hands
+    /// it to <paramref name="show"/> on the window's thread, decoded <paramref name="side"/> pixels wide
+    /// (the performance tier's size when null). <paramref name="missed"/> is told when it took too
+    /// long, so the card may ask again the next time it is shown.
+    /// </summary>
+    private async Task ShowPictureAsync(string path, LibraryKind kind, TimeSpan? duration, Action<ImageSource> show, CancellationToken viewToken,
+        bool urgent = false, PictureArt art = PictureArt.Natural, int? side = null, Action? missed = null)
     {
         var settings = _settings;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(viewToken);
@@ -68,18 +76,20 @@ public sealed partial class MainWindow
             }
 
             timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            var video = kind == LibraryKind.Video;
+            var still = video && art == PictureArt.Natural ? await EpisodeStillAsync(path, token) : null;
+            var sections = video ? _player.Memory.Sections(path) : null;
             var (key, poster) = await Task.Run(() =>
             {
-                // Artwork beside the file always wins; a fetched poster only fills the gap.
                 // The user's chosen cover beats everything shown; otherwise artwork beside the
                 // file wins, unless they asked fetched covers to replace existing ones.
-                var local = kind == LibraryKind.Video ? LocalVideoPoster(path) ?? FetchedPosterPath(path)
+                var local = video ? VideoArtwork(path, art, still)
                     : kind == LibraryKind.Music
                         ? ChosenCoverPath(path) ?? (settings.Metadata.ReplaceCovers
                             ? FetchedCoverPath(path) ?? FolderArt.Find(path)
                             : FolderArt.Find(path) ?? FetchedCoverPath(path))
                         : null;
-                return (PictureKey(path, kind, settings, local), local);
+                return (PictureKey(path, kind, settings, local, art), local);
             }, token);
             token.ThrowIfCancellationRequested();
             if (key is null || _closed)
@@ -87,7 +97,7 @@ public sealed partial class MainWindow
                 return;
             }
 
-            var decodeWidth = _budget.LibraryPictureSide;
+            var decodeWidth = side ?? _budget.LibraryPictureSide;
             // A picture already decoded for another performance tier must not keep the
             // old resolution when the budget changes.
             var memoryKey = key + ":" + decodeWidth.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -99,6 +109,14 @@ public sealed partial class MainWindow
             // A local poster/cover belongs to the media. Prefer it over an arbitrary video frame.
             var image = poster is null ? null : await LocalPictureAsync(poster, decodeWidth, token);
             image ??= await ReadPictureCacheAsync(key, decodeWidth, token);
+            if (image is null && video)
+            {
+                // A frame chosen by rexplayer, not Windows' first one: Windows' stands in only for a
+                // file rexplayer cannot read.
+                var made = await Task.Run(() => MadeOrNull(() => MakePicture(path, kind, duration, key, settings, token, art, sections)), token);
+                image = made is null ? null : await DecodePictureAsync(made, decodeWidth, token);
+            }
+
             image ??= await ShellPictureAsync(path, kind, decodeWidth, key, token);
             if (image is null)
             {
@@ -116,6 +134,11 @@ public sealed partial class MainWindow
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             // A slow codec or a row that left the view keeps its placeholder; neither is an error.
+            // Only the slow one is worth asking again, the next time its card is shown.
+            if (!viewToken.IsCancellationRequested && !_closed)
+            {
+                missed?.Invoke();
+            }
         }
         catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or MediaFormatException or InvalidOperationException)
         {
@@ -128,55 +151,6 @@ public sealed partial class MainWindow
                 lane.Release();
             }
         }
-    }
-
-    /// <summary>
-    /// Use artwork the user put beside the video, without any network metadata lookups. A
-    /// same-name poster takes precedence over folder artwork; no poster leaves video-frame
-    /// thumbnails working exactly as before.
-    /// </summary>
-    private static string? LocalVideoPoster(string path)
-    {
-        var folder = Path.GetDirectoryName(path);
-        if (folder is null)
-        {
-            return null;
-        }
-
-        var stem = Path.GetFileNameWithoutExtension(path);
-        foreach (var name in new[] { stem + ".poster.jpg", stem + ".jpg", stem + ".png", stem + ".webp" })
-        {
-            var candidate = Path.Combine(folder, name);
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        var folders = new List<string> { folder };
-        var folderName = Path.GetFileName(folder);
-        if (folderName.StartsWith("Season ", StringComparison.OrdinalIgnoreCase)
-            || (folderName.Length == 3 && (folderName[0] is 's' or 'S') && char.IsAsciiDigit(folderName[1]) && char.IsAsciiDigit(folderName[2])))
-        {
-            if (Directory.GetParent(folder)?.FullName is { } showFolder)
-            {
-                folders.Add(showFolder);
-            }
-        }
-
-        foreach (var root in folders)
-        {
-            foreach (var name in new[] { "poster.jpg", "poster.png", "folder.jpg", "cover.jpg" })
-            {
-                var candidate = Path.Combine(root, name);
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -314,11 +288,13 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Makes the picture with rexplayer's own decoders: a frame a fifth of the way into a video (at
-    /// least a second, at most half a minute), a picture itself, or for music its folder's art or
-    /// artwork drawn from its sound. Kept on disk under <paramref name="key"/> until the file changes.
+    /// Makes the picture with rexplayer's own decoders: a strong frame from inside a video, past its
+    /// intro (<see cref="FrameChoice"/>), cut to a poster's shape when <paramref name="art"/> asks for a
+    /// poster; a picture itself; or for music its folder's art or artwork drawn from its sound. Kept
+    /// on disk under <paramref name="key"/> until the file changes.
     /// </summary>
-    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token)
+    private byte[] MakePicture(string path, LibraryKind kind, TimeSpan? duration, string key, PlayerSettings settings, CancellationToken token,
+        PictureArt art = PictureArt.Natural, Rex.Media.AppCore.Player.EpisodeSections? sections = null)
     {
         byte[] png;
         if (kind == LibraryKind.Music)
@@ -332,10 +308,9 @@ public sealed partial class MainWindow
         }
         else
         {
-            var at = kind == LibraryKind.Picture || duration is not { } length
-                ? TimeSpan.Zero
-                : TimeSpan.FromSeconds(Math.Clamp(length.TotalSeconds * 0.2, Math.Min(1, length.TotalSeconds / 2), 30));
-            png = PreviewPng(path, at, token, withoutBars: kind == LibraryKind.Video);
+            png = kind == LibraryKind.Video
+                ? VideoFramePng(path, duration, sections, art != PictureArt.Natural, token)
+                : PreviewPng(path, TimeSpan.Zero, token);
         }
 
         token.ThrowIfCancellationRequested();
@@ -354,9 +329,10 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// Names a picture by the file's path, size and time of change (and, for music, the artwork
-    /// settings), so a changed file gets a new one; null when the file is not there.
+    /// settings; for a video, the shape asked for), so a changed file gets a new one; null when the
+    /// file is not there.
     /// </summary>
-    private static string? PictureKey(string path, LibraryKind kind, PlayerSettings settings, string? local)
+    private static string? PictureKey(string path, LibraryKind kind, PlayerSettings settings, string? local, PictureArt shape = PictureArt.Natural)
     {
         var file = new FileInfo(path);
         if (!file.Exists)
@@ -373,8 +349,10 @@ public sealed partial class MainWindow
             var posterInfo = new FileInfo(local);
             art += $"\n{local}\n{posterInfo.Length}\n{posterInfo.LastWriteTimeUtc.Ticks}";
         }
-        // Video thumbnails are made without the bars recorded into the picture since version 5.
-        var version = kind == LibraryKind.Video ? 5 : 4;
+        // Video thumbnails are made without the bars recorded into the picture since version 5, and
+        // from a strong frame past the intro, posters cut to shape, since version 6.
+        art += kind == LibraryKind.Video && shape != PictureArt.Natural ? "\n" + shape : "";
+        var version = kind == LibraryKind.Video ? 6 : 4;
         var identity = Encoding.UTF8.GetBytes($"{version}\n{path}\n{file.Length}\n{file.LastWriteTimeUtc.Ticks}{art}");
         return Convert.ToHexStringLower(SHA256.HashData(identity));
     }
