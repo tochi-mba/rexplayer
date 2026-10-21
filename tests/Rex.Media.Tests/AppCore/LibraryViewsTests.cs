@@ -245,7 +245,12 @@ public sealed class LibraryViewsTests
         };
         var all = movies.Concat(tv).ToArray();
 
-        Assert.Equal([movies[1], movies[0]], LibraryViews.Movies(all));
+        // Without a match only the release-style name is a film; matched, both are, in title order.
+        Assert.Equal([movies[0]], LibraryViews.Movies(all, MovieRules.Offline));
+        Assert.Equal([movies[1]], LibraryViews.OtherVideos(all, MovieRules.Offline));
+        Assert.Equal([movies[1], movies[0]], LibraryViews.Movies(all, _ => MovieLookup.Matched));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.Movies(all, null!));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.OtherVideos(all, null!));
         var shows = LibraryViews.TvShows(all);
         Assert.Equal(["North Shore", "Sky City"], shows.Select(show => show.Name));
         Assert.Equal("2 seasons · 4 episodes", shows[0].Detail);

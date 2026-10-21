@@ -26,7 +26,7 @@ public sealed class LibraryBrowsingTests : IDisposable
     public void HomeShelvesSeeAllAndEveryViewShowWhatTheLibraryHolds()
     {
         var sungba = _scene.WithAsake().Song("Sungba (Remix)", "Mr. Money with the Vibe", 2022, "Amapiano");
-        _scene.Video("Small.Film.2023.mp4");
+        _scene.Film("Small.Film.2023.mp4");
         _scene.Picture("Lagos.jpg");
         using var app = _scene.Ready(played: sungba).Start();
 

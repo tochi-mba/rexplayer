@@ -55,6 +55,7 @@ public sealed partial class MainWindow
         Genres,
         Movies,
         TvShows,
+        OtherVideos,
         Videos,
         Pictures,
         ContinueWatching,
@@ -243,7 +244,7 @@ public sealed partial class MainWindow
             LibraryKind.Music => LibrarySource.Songs,
             LibraryKind.Picture => LibrarySource.Pictures,
             LibraryKind.Video when located.Show is not null => LibrarySource.TvShows,
-            LibraryKind.Video => LibrarySource.Movies,
+            LibraryKind.Video => SectionOf(located.Entry),
             _ => LibrarySource.Home,
         };
         var index = Array.FindIndex(LibrarySourceItems, pair => pair.Source == source);
@@ -468,6 +469,7 @@ public sealed partial class MainWindow
             ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
+                + (_librarySource == LibrarySource.Movies && MovieRules.NotMatched(entry, MovieLookupOf(entry)) ? "Not matched · " : "")
                 + (episode is null ? "" : episode.Spoken + " · ")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
@@ -710,6 +712,7 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
                 () => Forget(OpenLibraryFoldersAsync(selectedEntries))));
             AddEditDetailsMenuItem(menu, selectedEntries);
+            AddMovieChoiceMenuItems(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
             AddMetadataMenuItems(menu, chosen);

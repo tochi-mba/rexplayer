@@ -37,12 +37,11 @@ public static class StreamingBrowse
     /// <summary>A genre row exists only when this many movies share the genre.</summary>
     public const int SmallestGenreShelf = 2;
 
-    /// <summary>The Movies view: billboard first, then its rows in a fixed, familiar order.</summary>
-    public static MovieBrowse Movies(IEnumerable<LibraryEntry> entries, Func<string, TimeSpan?> leftAt)
+    /// <summary>The Movies view over its films (<see cref="LibraryViews.Movies"/>): billboard first, then its rows in a fixed, familiar order.</summary>
+    public static MovieBrowse Movies(IReadOnlyList<LibraryEntry> movies, Func<string, TimeSpan?> leftAt)
     {
-        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(movies);
         ArgumentNullException.ThrowIfNull(leftAt);
-        var movies = LibraryViews.Movies(entries);
         var continueWatching = LibraryViews.ContinueWatching(movies, leftAt).Take(ShelfSize).ToArray();
         var recentlyAdded = movies.OrderByDescending(movie => movie.Added)
             .ThenBy(movie => movie.Title, NaturalOrder.Instance).Take(ShelfSize).ToArray();

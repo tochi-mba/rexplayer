@@ -45,12 +45,33 @@ public sealed partial class MetadataFetcher
     }
 
     /// <summary>
-    /// Fetches one movie into the cache: the best Wikidata match, the names its facts point at, its
-    /// Wikipedia summary and poster. The movie already cached in this build's shape is left alone.
-    /// False means a service could not answer and the fetch should be tried again later; a clean
-    /// "nothing matched" is recorded and true.
+    /// The films a name could mean, for the person to pick from ("Find the film..."): Wikidata's
+    /// search hits described as films, whatever their exact names; none when it could not answer.
     /// </summary>
-    public async Task<bool> FetchMovieAsync(string title, int? year, CancellationToken token)
+    public async Task<IReadOnlyList<ShowCandidate>> SearchMoviesAsync(string name, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var answer = await TextAsync(Wikidata.SearchUri(name), token).ConfigureAwait(false);
+        try
+        {
+            return answer is null ? [] : [.. Wikidata.ParseSearch(answer)
+                .Where(hit => WikidataFacts.Describes(hit.Description, WikidataWork.Film))
+                .Select(hit => new ShowCandidate(Wikidata.Number(hit.Id), hit.Label, null, hit.Description, [], null, null))];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Fetches one movie into the cache: the person's pick (<paramref name="chosenId"/>, a Wikidata
+    /// item's number) when there is one, the best Wikidata match otherwise, then the names its facts
+    /// point at, its Wikipedia summary and poster. The movie already cached in this build's shape is
+    /// left alone. False means a service could not answer and the fetch should be tried again later;
+    /// a clean "nothing matched" is recorded and true.
+    /// </summary>
+    public async Task<bool> FetchMovieAsync(string title, int? year, CancellationToken token, int? chosenId = null)
     {
         ArgumentNullException.ThrowIfNull(title);
         var key = MetadataMatch.MovieKey(title, year);
@@ -61,7 +82,8 @@ public sealed partial class MetadataFetcher
 
         try
         {
-            if (await FindAsync(title, year, WikidataWork.Film, token).ConfigureAwait(false) is not { } found)
+            var find = chosenId is { } id ? ChosenAsync(id, token) : FindAsync(title, year, WikidataWork.Film, token);
+            if (await find.ConfigureAwait(false) is not { } found)
             {
                 return false;
             }
@@ -167,6 +189,12 @@ public sealed partial class MetadataFetcher
             ? new WikidataFind(WikidataFacts.Pick(year, work, candidates, Wikidata.ParseEntities(items)))
             : null;
     }
+
+    /// <summary>The item the person picked by its number; null when Wikidata could not answer.</summary>
+    private async Task<WikidataFind?> ChosenAsync(int id, CancellationToken token) =>
+        await TextAsync(Wikidata.EntitiesUri([$"Q{id}"]), token).ConfigureAwait(false) is { } items
+            ? new WikidataFind(Wikidata.ParseEntities(items).FirstOrDefault())
+            : null;
 
     /// <summary>The English names and pictures of the items a work points at, in as few queries as the cap allows; null when the query service could not answer.</summary>
     private async Task<IReadOnlyDictionary<string, WikidataLabel>?> LabelsAsync(IReadOnlyList<string> ids, CancellationToken token)

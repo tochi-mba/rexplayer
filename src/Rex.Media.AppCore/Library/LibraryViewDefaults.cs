@@ -16,7 +16,7 @@ public static class LibraryViewDefaults
         "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" or "TvShows page" => new LibraryViewChoice(LibraryLook.List),
         "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
         "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Browse, CardSize: 200),
-        "Videos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
+        "Videos" or "OtherVideos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
         _ => new LibraryViewChoice(LibraryLook.Grid),
     };
 
