@@ -203,16 +203,18 @@ public sealed partial class MainWindow
             }
             else if (_librarySource == LibrarySource.Artists)
             {
-                // The artist page: their most played songs, then their albums, newest first; an
-                // album opened from it shows its own track list, with Back returning to the artist.
+                // The artist page: their most played songs, then their albums, newest first, then the
+                // albums of others they are on; an album opened from it shows its own track list,
+                // with Back returning to the artist.
                 var albums = ArtistPages.Albums(fresh);
+                var featuredOn = ArtistPages.FeaturedOn(fresh);
                 if (_librarySeason is { } openedAlbum)
                 {
-                    var album = LibraryViews.RefreshGroup([.. albums.Select(artistAlbum => artistAlbum.Album)], openedAlbum);
+                    var album = LibraryViews.RefreshGroup([.. albums.Concat(featuredOn).Select(artistAlbum => artistAlbum.Album)], openedAlbum, detailIdentifiesGroup: true);
                     _librarySeason = album;
                     kicker = "ALBUM";
                     title = album.Name;
-                    var albumYear = albums.FirstOrDefault(artistAlbum => artistAlbum.Album == album)?.Year ?? album.Entries.Max(entry => entry.Year);
+                    var albumYear = albums.Concat(featuredOn).FirstOrDefault(artistAlbum => artistAlbum.Album == album)?.Year ?? album.Entries.Max(entry => entry.Year);
                     subtitle = string.Join(" \u00B7 ", new[] { fresh.Name, albumYear?.ToString(CultureInfo.CurrentCulture), Count(album.Entries.Count, "song"), Total(album.Entries) }.Where(part => !string.IsNullOrEmpty(part)));
                     sections = EntrySections(album.Entries, choice);
                 }
@@ -227,6 +229,10 @@ public sealed partial class MainWindow
                     }
 
                     sections.Add(new LibraryRowGroup("Albums", albums.Select(ArtistAlbumRow)));
+                    if (featuredOn.Count > 0)
+                    {
+                        sections.Add(new LibraryRowGroup("Featured on", featuredOn.Select(ArtistAlbumRow)));
+                    }
                     subtitle = string.Join(" \u00B7 ", new[] { Count(albums.Count, "album"), Count(members.Count, "song"), Total(members) }.Where(part => !string.IsNullOrEmpty(part)));
                 }
             }

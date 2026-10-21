@@ -4,6 +4,7 @@ AacConfig.cs
 AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+ArtistNames.cs
 ArtistPages.cs
 AuDemuxer.cs
 AnalysisConverter.cs

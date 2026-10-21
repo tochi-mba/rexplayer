@@ -201,6 +201,8 @@ public static class Id3v2
         {
             case "TXXX" or "TXX":
                 var (description, value) = SplitDescribed(content);
+                // ID3v2.4 separates several values with a NUL, as in text frames (TXXX:ARTISTS lists each artist).
+                value = string.Join(VorbisComments.Separator, value.Split('\0', StringSplitOptions.RemoveEmptyEntries));
                 if (description.Length > 0 && value.Length > 0)
                 {
                     metadata[description.ToLowerInvariant()] = value;

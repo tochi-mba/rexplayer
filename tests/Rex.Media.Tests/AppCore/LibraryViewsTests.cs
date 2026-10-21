@@ -97,6 +97,43 @@ public sealed class LibraryViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void CombinedCreditsCountUnderEachArtistAndNoCombinedGroupIsLeft()
+    {
+        // The screenshots' library: one song each by A$AP Rocky, A$AP Rocky/Brent Faiyaz and beabadoobee/The Marías.
+        var alone = Song("L$D", "A$AP Rocky", "At.Long.Last.A$AP");
+        var together = Song("Slip", "A$AP Rocky/Brent Faiyaz", "Singles");
+        var marias = Song("Ballerina", "beabadoobee/The Marias", "Singles");
+        var artists = LibraryViews.Artists([alone, together, marias, Song("Sungba", "Asake", "Mr. Money with the Vibe")]);
+
+        Assert.Equal(["A$AP Rocky", "Asake", "beabadoobee", "Brent Faiyaz", "The Marias"], artists.Select(artist => artist.Name));
+        Assert.Equal(["L$D", "Slip"], Titles(artists[0].Entries));
+        Assert.Equal(["Slip"], Titles(artists[3].Entries));
+        Assert.Equal(["Ballerina"], Titles(artists[2].Entries));
+        Assert.Equal(["Ballerina"], Titles(artists[4].Entries));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void SpellingsOfOneArtistAreOneGroupNamedAsMostSongsSpellIt()
+    {
+        var artists = LibraryViews.Artists([
+            Song("One", "The Marías", "A"),
+            Song("Two", "The Marías", "B"),
+            Song("Three", "the marias", "C"),
+            Song("Four (feat. Asake)", "Burna Boy & Asake", "D"),
+            Song("Five", "Burna Boy", "E"),
+            Song("Six", "Simon & Garfunkel", "F"),
+            Song("Seven", "Simon", "G"),
+        ]);
+
+        Assert.Equal(["Asake", "Burna Boy", "Simon", "Simon & Garfunkel", "The Marías"], artists.Select(artist => artist.Name));
+        Assert.Equal(["Four (feat. Asake)"], Titles(artists[0].Entries));
+        Assert.Equal(["Five", "Four (feat. Asake)"], Titles(artists[1].Entries));
+        Assert.Equal(3, artists[4].Entries.Count);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void VideosLatelyAndPartWay()
     {
         Assert.Equal(["Episode 2", "Episode 10"], Titles(LibraryViews.Videos(Entries)));

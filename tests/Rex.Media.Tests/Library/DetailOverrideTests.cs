@@ -40,6 +40,10 @@ public sealed class DetailOverrideTests
         Assert.Null(applied.Year);
         Assert.Equal(2024, new DetailOverride { Year = "2024-01-01" }.ApplyTo(entry).Year);
         Assert.Equal(entry, new DetailOverride().ApplyTo(entry));
+        // A typed artist replaces the file's list of artists; other changes keep it.
+        var listed = entry with { Artists = "Asake; Olamide" };
+        Assert.Null(change.ApplyTo(listed).Artists);
+        Assert.Equal("Asake; Olamide", new DetailOverride { Genre = "Afro" }.ApplyTo(listed).Artists);
         Assert.True(new DetailOverride().IsEmpty);
         Assert.False(change.IsEmpty);
     }

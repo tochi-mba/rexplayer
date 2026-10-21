@@ -53,6 +53,8 @@ public sealed record DetailOverride
         {
             Title = Title is null ? entry.Title : Text(Title) ?? MediaLibrary.TitleOf(entry.Path),
             Artist = Artist is null ? entry.Artist : Text(Artist),
+            // An artist the person typed replaces the file's list of artists as well.
+            Artists = Artist is null ? entry.Artists : null,
             Album = Album is null ? entry.Album : Text(Album),
             AlbumArtist = AlbumArtist is null ? entry.AlbumArtist : Text(AlbumArtist),
             Genre = Genre is null ? entry.Genre : Text(Genre),
