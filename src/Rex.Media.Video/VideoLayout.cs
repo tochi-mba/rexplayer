@@ -22,6 +22,25 @@ public static class VideoLayout
     }
 
     /// <summary>
+    /// A rectangle of a target in a GPU's clip space, where the target runs from -1 to 1 both
+    /// ways with up positive: its left edge, top edge, width and height, for a quad drawn from
+    /// (left, top) across and down. Both platforms' presenters place pictures this way.
+    /// </summary>
+    public static (float Left, float Top, float Width, float Height) ToClipSpace((int X, int Y, int Width, int Height) rectangle, int targetWidth, int targetHeight)
+    {
+        if (targetWidth <= 0 || targetHeight <= 0)
+        {
+            return (-1, 1, 2, 2);
+        }
+
+        return (
+            -1f + (2f * rectangle.X / targetWidth),
+            1f - (2f * rectangle.Y / targetHeight),
+            2f * rectangle.Width / targetWidth,
+            2f * rectangle.Height / targetHeight);
+    }
+
+    /// <summary>
     /// The rectangle a picture shaped <paramref name="across"/> : <paramref name="down"/> fills in a
     /// target of the given size, in whole pixels, centred.
     /// </summary>

@@ -21,7 +21,7 @@ public sealed class ArchitectureTests
         "Audio", "Audio.Wasapi", "Video", "Video.D3D11", "Subtitles", "Subtitles.DirectWrite", "Engine",
         "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Discs.Device", "Extensibility",
         "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML", "Faces", "Speech",
-        "Interop.Mac", "Audio.CoreAudio", "Codecs.Apple",
+        "Interop.Mac", "Audio.CoreAudio", "Codecs.Apple", "Video.Metal",
     ];
 
     private static readonly Dictionary<string, (string Framework, string[] Allowed)> Graph = new(StringComparer.Ordinal)
@@ -71,6 +71,7 @@ public sealed class ArchitectureTests
         ["App"] = (WindowsApp, Everything),
         // ADR-0021: the macOS window, the one project that needs the platform SDK.
         ["App.Mac"] = (MacApp, Everything),
+        ["Video.Metal"] = (MacApp, ["Primitives", "Video"]),
     };
 
     [Fact]

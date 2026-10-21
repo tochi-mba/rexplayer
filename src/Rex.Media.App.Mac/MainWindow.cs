@@ -12,6 +12,8 @@ using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Library;
 using Rex.Media.Settings;
+using Rex.Media.Video;
+using Rex.Media.Video.Metal;
 
 namespace Rex.Media.App.Mac;
 
@@ -19,8 +21,8 @@ namespace Rex.Media.App.Mac;
 /// The player window on a Mac. It shows what the <see cref="PlayerController"/> is doing and turns
 /// clicks, keys and menus into its commands, exactly as the Windows window does: the menus are
 /// <see cref="MenuBarLayout"/>, the shortcuts the shared <see cref="Keymap"/>, the decisions
-/// AppCore's. This class only wires them to AppKit. Pictures arrive with the Metal presenter;
-/// until then video files play their sound.
+/// AppCore's. This class only wires them to AppKit. Pictures are drawn by the Metal presenter, with
+/// the same colours and placement as on Windows.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000", Justification = "AppKit owns the views once they are in the window's tree.")]
 public sealed class MainWindow : IDisposable
@@ -42,6 +44,7 @@ public sealed class MainWindow : IDisposable
     private readonly List<(NSMenuItem Item, string Command)> _checks = [];
     private PlayerSettings _settings;
     private NSTimer? _clearMessage;
+    private PictureView? _picture;
     private bool _moving;
 
     public MainWindow(DataRoots roots, RexLog log)
@@ -101,6 +104,7 @@ public sealed class MainWindow : IDisposable
         }
 
         _player.Dispose();
+        _picture?.Presenter?.Dispose();
         _window.Dispose();
     }
 
@@ -169,6 +173,7 @@ public sealed class MainWindow : IDisposable
             Demuxers = MediaRegistries.Demuxers(TimeSpan.FromSeconds(_settings.PictureSeconds)),
             Decoders = MediaRegistries.Decoders(new AppleDecoderFactory()),
             AudioSinkFactory = NewAudioSink,
+            VideoPresenterFactory = _picture?.Presenter is { } presenter ? () => new BorrowedPresenter(presenter) : null,
             Log = _log,
         },
         listener);
@@ -211,7 +216,13 @@ public sealed class MainWindow : IDisposable
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
         var content = new DropView(paths => _player.Open(paths));
+        _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
+        content.AddSubview(_picture);
         content.AddSubview(stack);
+        _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
+        _picture.LeadingAnchor.ConstraintEqualTo(content.LeadingAnchor).Active = true;
+        _picture.TrailingAnchor.ConstraintEqualTo(content.TrailingAnchor).Active = true;
+        _picture.BottomAnchor.ConstraintEqualTo(stack.TopAnchor).Active = true;
         stack.LeadingAnchor.ConstraintEqualTo(content.LeadingAnchor).Active = true;
         stack.TrailingAnchor.ConstraintEqualTo(content.TrailingAnchor).Active = true;
         stack.BottomAnchor.ConstraintEqualTo(content.BottomAnchor).Active = true;
@@ -416,6 +427,46 @@ public sealed class MainWindow : IDisposable
         _message.StringValue = text;
         _clearMessage?.Invalidate();
         _clearMessage = NSTimer.CreateScheduledTimer(TimeSpan.FromSeconds(3), _ => _message.StringValue = "");
+    }
+
+    /// <summary>
+    /// The picture: a view backed by a CAMetalLayer the presenter draws into, its drawable kept at
+    /// the view's size in the screen's own pixels.
+    /// </summary>
+    private sealed class PictureView : NSView
+    {
+        private readonly CoreAnimation.CAMetalLayer _layer = new();
+
+        public PictureView(RexLog log)
+        {
+            WantsLayer = true;
+            Layer = _layer;
+            _layer.BackgroundColor = NSColor.Black.CGColor;
+            try
+            {
+                Presenter = MetalPresenter.ForLayer(_layer);
+            }
+            catch (InvalidOperationException ex)
+            {
+                log.Error("window", "Pictures cannot be shown: " + ex.Message);
+            }
+
+            if (Presenter is null)
+            {
+                log.Warning("window", "This Mac has no Metal device; videos play their sound only.");
+            }
+        }
+
+        public MetalPresenter? Presenter { get; }
+
+        public override void Layout()
+        {
+            base.Layout();
+            var scale = Window?.BackingScaleFactor ?? 1;
+            _layer.ContentsScale = scale;
+            Presenter?.Resize((int)(Bounds.Width * scale), (int)(Bounds.Height * scale));
+            Presenter?.Redraw();
+        }
     }
 
     /// <summary>The window's content: takes files and folders dropped on it.</summary>
