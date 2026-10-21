@@ -38,7 +38,8 @@ internal sealed class LibraryScene : IDisposable
         return this;
     }
 
-    public string Song(string title, string album, int year, string genre)
+    /// <summary>A song tagged with <paramref name="artist"/> (Asake unless said otherwise).</summary>
+    public string Song(string title, string album, int year, string genre, string artist = "Asake")
     {
         var path = Path.Combine(Media, title + ".wav");
         File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
@@ -50,7 +51,7 @@ internal sealed class LibraryScene : IDisposable
             Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [MetadataKeys.Title] = title,
-                [MetadataKeys.Artist] = "Asake",
+                [MetadataKeys.Artist] = artist,
                 [MetadataKeys.Album] = album,
                 [MetadataKeys.Date] = year.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 [MetadataKeys.Genre] = genre,

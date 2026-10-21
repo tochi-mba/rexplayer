@@ -188,6 +188,37 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void TheTagsListOfArtistsIsKeptAndMusicReadByAnOlderReadingIsReadAgainLast()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        library.AddFolder(Music);
+        library.Scan(Music, [File(In("a.mp3")), File(In("b.mp3")), File(In("c.mp4")), File(In("d.mp3"))], KindOf);
+        var listed = Song("Slip", "A$AP Rocky/Brent Faiyaz");
+        listed = listed with { Metadata = new Dictionary<string, string>(listed.Metadata) { [MetadataKeys.Artists] = "A$AP Rocky; Brent Faiyaz" } };
+        library.SetDetails([(In("a.mp3"), listed), (In("b.mp3"), Song("Sungba")), (In("c.mp4"), Song("Video", video: true))]);
+
+        var a = library.Entry(In("a.mp3"))!;
+        Assert.Equal(("A$AP Rocky/Brent Faiyaz", "A$AP Rocky; Brent Faiyaz", MediaLibrary.TagReading), (a.Artist, a.Artists, a.TagReading));
+        Assert.Null(library.Entry(In("b.mp3"))!.Artists);
+        Assert.Equal([In("d.mp3")], library.Unprobed.Select(entry => entry.Path));
+
+        // Read before the readers kept every artist: the songs are read again after the never-read
+        // file, videos are not, and a song that cannot be read again is not tried a second time.
+        foreach (var (key, json) in store.WithPrefix("entry/").ToList())
+        {
+            store.Set(key, json.Replace("\"TagReading\":1", "\"TagReading\":0", StringComparison.Ordinal));
+        }
+
+        var older = new MediaLibrary(store);
+
+        Assert.Equal([In("d.mp3"), In("a.mp3"), In("b.mp3")], older.Unprobed.Select(entry => entry.Path));
+        older.SetReadDetails([(In("a.mp3"), listed, null), (In("b.mp3"), null, "Gone bad")]);
+        Assert.Equal([In("d.mp3")], older.Unprobed.Select(entry => entry.Path));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void FoldersHoldingOthersTakeTheirPlaceAndRemovingOneForgetsItsFiles()
     {
         var library = new MediaLibrary(RexStore.InMemory());

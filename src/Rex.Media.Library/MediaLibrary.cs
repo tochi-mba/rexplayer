@@ -52,6 +52,12 @@ public sealed record LibraryEntry
 
     public string? Artist { get; init; }
 
+    /// <summary>
+    /// The tag's own list of the song's artists (ARTISTS in Vorbis comments, TXXX:ARTISTS in ID3 and
+    /// the MP4 freeform item), separate values joined with "; "; null when the file has none.
+    /// </summary>
+    public string? Artists { get; init; }
+
     public string? Album { get; init; }
 
     public string? AlbumArtist { get; init; }
@@ -83,6 +89,12 @@ public sealed record LibraryEntry
     /// <summary>How many bytes it will be once whole, when a downloader's sidecar or its container says; null when nothing does, or it is whole.</summary>
     public long? FinalSize { get; init; }
 
+    /// <summary>
+    /// The version of rexplayer's tag reading that filled in the details (<see cref="MediaLibrary.TagReading"/>);
+    /// music read by an older one is read again in the background, after every file never read at all.
+    /// </summary>
+    public int TagReading { get; init; }
+
     /// <summary>The artist an album is filed under: its album artist, else its artist.</summary>
     [JsonIgnore]
     public string? FiledArtist => AlbumArtist ?? Artist;
@@ -100,6 +112,13 @@ public sealed class MediaLibrary
     private const string FoldersKey = "folders";
     private const string HiddenKey = "hidden";
     private const string EntryPrefix = "entry/";
+
+    /// <summary>
+    /// The version of the tag reading that fills in a song's details. It goes up when a reader starts
+    /// keeping something it used to drop (1: every artist value and the tag's list of artists), so
+    /// music read before is read again in the background rather than waiting for a rescan.
+    /// </summary>
+    public const int TagReading = 1;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
@@ -163,14 +182,18 @@ public sealed class MediaLibrary
         }
     }
 
-    /// <summary>The files whose details are still to be read, those found first first.</summary>
+    /// <summary>
+    /// The files whose details are still to be read, those found first first, then the music an
+    /// older tag reading read (<see cref="TagReading"/>), so a new file never waits behind them.
+    /// </summary>
     public IReadOnlyList<LibraryEntry> Unprobed
     {
         get
         {
             lock (_gate)
             {
-                return [.. _entries.Values.Where(entry => !entry.Probed).OrderBy(entry => entry.Added).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
+                return [.. _entries.Values.Where(entry => !entry.Probed || (entry.Kind == LibraryKind.Music && entry.TagReading < TagReading))
+                    .OrderBy(entry => entry.Probed).ThenBy(entry => entry.Added).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
             }
         }
     }
@@ -369,7 +392,7 @@ public sealed class MediaLibrary
             {
                 if (_entries.TryGetValue(path, out var known))
                 {
-                    written.Add(info is null ? known with { Probed = true, Problem = problem } : WithDetails(known, info) with { Problem = null });
+                    written.Add(info is null ? known with { Probed = true, Problem = problem, TagReading = TagReading } : WithDetails(known, info) with { Problem = null });
                 }
             }
 
@@ -600,10 +623,12 @@ public sealed class MediaLibrary
             Probed = true,
             Downloading = downloading,
             FinalSize = finalSize,
+            TagReading = TagReading,
             // A video file with only sound in it (an .mp4 of a song) is music.
             Kind = info.FirstTrack(MediaKind.Video) is null && info.FirstTrack(MediaKind.Audio) is not null ? LibraryKind.Music : entry.Kind,
             Title = Tag(MetadataKeys.Title) ?? TitleOf(entry.Path),
             Artist = Tag(MetadataKeys.Artist),
+            Artists = Tag(MetadataKeys.Artists),
             Album = Tag(MetadataKeys.Album),
             AlbumArtist = Tag(MetadataKeys.AlbumArtist),
             Genre = Tag(MetadataKeys.Genre),
