@@ -27,6 +27,7 @@ public sealed partial class MainWindow
     private static readonly (LibrarySource Source, LibrarySourceItem Item)[] LibrarySourceItems =
     [
         (LibrarySource.Home, new("\uE80F", "Home")),
+        (LibrarySource.Music, new("\uE189", "Music")),
         (LibrarySource.Songs, new("\uE8D6", "Songs")),
         (LibrarySource.Albums, new("\uE93C", "Albums")),
         (LibrarySource.Artists, new("\uE77B", "Artists")),
@@ -141,18 +142,31 @@ public sealed partial class MainWindow
         _libraryViewKey = ViewKey(search.Length > 0);
         var choice = ViewChoice(_libraryViewKey);
         var home = source == LibrarySource.Home;
-        if (!home)
+        var musicHome = source == LibrarySource.Music;
+        _songsTable = source == LibrarySource.Songs && _libraryGroup is null;
+        if (!home && !musicHome)
         {
             entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
         }
         var browse = !home && search.Length == 0 && BrowseOffered && choice.Look == LibraryLook.Browse;
-        LibraryHome.Visibility = home || browse ? Visibility.Visible : Visibility.Collapsed;
-        LibraryList.Visibility = home || browse ? Visibility.Collapsed : Visibility.Visible;
+        LibraryHome.Visibility = home || browse || musicHome ? Visibility.Visible : Visibility.Collapsed;
+        LibraryList.Visibility = home || browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
-        LibraryHero.Visibility = browse ? Visibility.Collapsed : Visibility.Visible;
+        LibraryHero.Visibility = browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
+        if (home || browse || musicHome)
+        {
+            ShowMusicPageExtras(null, songsTable: false);
+        }
+
         if (home)
         {
             ShowHome(entries, sameRoute);
+            return;
+        }
+
+        if (musicHome)
+        {
+            ShowMusicHome(entries, sameRoute);
             return;
         }
 
@@ -169,6 +183,7 @@ public sealed partial class MainWindow
         var options = true;
         var groupsView = false;
         var artistPage = false;
+        LibraryGroup? albumPage = null;
         if (search.Length > 0)
         {
             (kicker, title) = ("SEARCH", search);
@@ -215,9 +230,8 @@ public sealed partial class MainWindow
                     _librarySeason = album;
                     kicker = "ALBUM";
                     title = album.Name;
-                    var albumYear = albums.Concat(featuredOn).FirstOrDefault(artistAlbum => artistAlbum.Album == album)?.Year ?? album.Entries.Max(entry => entry.Year);
-                    subtitle = string.Join(" \u00B7 ", new[] { fresh.Name, albumYear?.ToString(CultureInfo.CurrentCulture), Count(album.Entries.Count, "song"), Total(album.Entries) }.Where(part => !string.IsNullOrEmpty(part)));
-                    sections = EntrySections(album.Entries, choice);
+                    albumPage = album;
+                    (subtitle, sections) = AlbumPageParts(album);
                 }
                 else
                 {
@@ -236,6 +250,11 @@ public sealed partial class MainWindow
                     }
                     subtitle = string.Join(" \u00B7 ", new[] { Count(albums.Count, "album"), Count(members.Count, "song"), Total(members) }.Where(part => !string.IsNullOrEmpty(part)));
                 }
+            }
+            else if (_librarySource == LibrarySource.Albums)
+            {
+                albumPage = fresh;
+                (subtitle, sections) = AlbumPageParts(fresh);
             }
             else
             {
@@ -303,7 +322,8 @@ public sealed partial class MainWindow
         LibraryCollage.Visibility = collage ? Visibility.Visible : Visibility.Collapsed;
         var glyph = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Glyph;
         ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph, rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null));
-        ShowViewOptions(options && !artistPage, choice, groupsView, kind);
+        ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
+        ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
         LibraryBack.Visibility = _libraryGroup is not null && search.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
@@ -313,7 +333,7 @@ public sealed partial class MainWindow
         // Scroll anchors are for rebuilding the same layout; a layout change (for
         // instance from list to collage) must first let its new panel realise items.
         var previousLook = _shownLook;
-        var look = SetLibraryLook(options && !artistPage ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
+        var look = SetLibraryLook(options && !artistPage && albumPage is null ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
         var shown = look + "\n" + title + "\n" + grouped + "\n" + string.Join("\n", sections.Select(section => section.Header + ":" + string.Join("\n", section.Select(RowIdentity))));
         if (shown == _shownLibrary)
@@ -427,7 +447,7 @@ public sealed partial class MainWindow
     /// <summary>A list of entries, ordered and grouped as the view's choices say.</summary>
     private List<LibraryRowGroup> EntrySections(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice) =>
         [.. LibraryArrangement.Group(LibraryArrangement.Sort(entries, choice.Sort, choice.Descending), choice.Grouping, DateTime.UtcNow)
-            .Select(section => new LibraryRowGroup(section.Header, section.Entries.Select(EntryRow)))];
+            .Select(section => new LibraryRowGroup(section.Header, section.Entries.Select(entry => _songsTable ? SongRow(entry) : EntryRow(entry))))];
 
     /// <summary>An album's line on its artist's page: artwork, name, year, how many songs and how long.</summary>
     private static LibraryRow ArtistAlbumRow(ArtistAlbum album) => new(album.Album.Name,
@@ -651,6 +671,8 @@ public sealed partial class MainWindow
         var size = choice.Look == LibraryLook.Wall ? Math.Min(LibraryViewChoice.LargestCard * 1.4, choice.CardSize * 1.6) : choice.CardSize;
         var (template, width, height, name) = !media || kind is null ? ("LibraryGenericTemplate", 0.0, 0.0, "Library items, list")
             : choice.Look == LibraryLook.List && kind == LibraryKind.Video && _librarySeason is not null ? ("LibraryEpisodeTemplate", 0.0, 0.0, "Episodes, list")
+            : choice.Look == LibraryLook.List && _shownMusicPage.StartsWith("album", StringComparison.Ordinal) ? ("MusicTrackTemplate", 0.0, 0.0, "Album tracks, list")
+            : choice.Look == LibraryLook.List && _songsTable ? ("MusicSongRowTemplate", 0.0, 0.0, "Songs, table")
             : choice.Look == LibraryLook.List ? ("LibrarySongTemplate", 0.0, 0.0, "Compact list")
             : kind == LibraryKind.Video && (_librarySource == LibrarySource.Movies || (_librarySource == LibrarySource.TvShows && _libraryGroup is null)) ? ("LibraryMovieTemplate", size + 12, (size * 1.5) + 68, "Movies and TV shows, poster grid")
             : kind == LibraryKind.Video ? ("LibraryVideoTemplate", (size * 1.45) + 12, (size * 1.45 * 9 / 16) + 64, "Episodes, thumbnail grid")
@@ -852,6 +874,11 @@ public sealed partial class MainWindow
         if (Root.Resources.TryGetValue(key, out var own))
         {
             return (DataTemplate)own;
+        }
+
+        if (key.StartsWith("Music", StringComparison.Ordinal))
+        {
+            return MusicTemplate(key);
         }
 
         ResourceDictionary templates = key.StartsWith("LibraryEpisode", StringComparison.Ordinal)

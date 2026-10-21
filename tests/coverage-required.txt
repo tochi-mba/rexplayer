@@ -4,7 +4,9 @@ AacConfig.cs
 AdaptiveRange.cs
 AdtsHeader.cs
 AiffDemuxer.cs
+AlbumPage.cs
 ArtistEnrichment.cs
+ArtistKinship.cs
 ArtistNames.cs
 ArtistPages.cs
 AuDemuxer.cs
@@ -85,6 +87,7 @@ DiagnosticsBundle.cs
 Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
+DominantColour.cs
 EnrichedAlbum.cs
 EnrichedArtist.cs
 EnrichedMovie.cs
@@ -211,6 +214,7 @@ Mpl2.cs
 MurmurationScene.cs
 MusicBrainz.cs
 MusicBrainzFacts.cs
+MusicHome.cs
 MusicPulse.cs
 NalUnits.cs
 NaturalOrder.cs

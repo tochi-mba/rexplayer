@@ -63,6 +63,7 @@ public sealed partial class MainWindow
         RecentlyAdded,
         Playlists,
         Folders,
+        Music,
     }
 
     private bool LibraryOpen => LibraryPane.Visibility == Visibility.Visible;
