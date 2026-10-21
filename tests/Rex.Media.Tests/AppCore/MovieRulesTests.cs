@@ -95,6 +95,7 @@ public sealed class MovieRulesTests
         Assert.Equal([second, first], LibraryViews.MovieVersions([first, second, later, unrelated, extended, unfinished, excluded, clip, unknown], first));
         Assert.Empty(LibraryViews.MovieVersions([unknown, first], unknown));
         Assert.Empty(LibraryViews.MovieVersions([first, second], unfinished));
+        Assert.Empty(LibraryViews.MovieVersions([first], first with { Title = "", Year = 2026 }));
         Assert.Equal("Unknown", LibraryViews.MovieResolution(unknown));
         Assert.Equal("2160p", LibraryViews.MovieResolution(Video(@"D:\Movies\Iron.Lung.2026.UHD.WEB.mkv")));
     }
