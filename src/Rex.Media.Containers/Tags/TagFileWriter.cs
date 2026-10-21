@@ -102,18 +102,34 @@ public static class TagFileWriter
         }
         catch (TagWriteException exception)
         {
-            File.Delete(temporary);
+            Discard(temporary);
             return new TagWriteResult(TagWriteStatus.Refused, exception.Message);
         }
         catch (MediaFormatException exception)
         {
-            File.Delete(temporary);
+            Discard(temporary);
             return new TagWriteResult(TagWriteStatus.Refused, "The file is damaged: " + exception.Message);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            File.Delete(temporary);
+            Discard(temporary);
             return new TagWriteResult(TagWriteStatus.Busy, "The file could not be written now: " + exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// Removes the half-made copy. Its folder may have gone with the file (a drive unplugged
+    /// mid-write), and tidying up must not turn the refusal into a failure of its own.
+    /// </summary>
+    private static void Discard(string temporary)
+    {
+        try
+        {
+            File.Delete(temporary);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Nothing was replaced; a leftover copy starts with a dot and is the only trace.
         }
     }
 

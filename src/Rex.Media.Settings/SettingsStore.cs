@@ -39,17 +39,20 @@ public static class SettingsStore
         try
         {
             // Editors such as Notepad may save with a byte-order mark, which the JSON reader refuses.
-            ReadOnlySpan<byte> json = bytes;
-            json = json.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) ? json[3..] : json;
-            if (JsonNode.Parse(json, documentOptions: Lenient) is not JsonObject given)
+            ReadOnlyMemory<byte> json = bytes;
+            json = json.Span.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) ? json[3..] : json;
+            using var given = JsonDocument.Parse(json, Lenient);
+            if (given.RootElement.ValueKind != JsonValueKind.Object)
             {
                 return null;
             }
 
+            // Read property by property: a setting written twice by hand takes its last value,
+            // where a JSON object would refuse the whole file and the start with it.
             var merged = JsonSerializer.SerializeToNode(new PlayerSettings(), SettingsJson.Default.PlayerSettings)!.AsObject();
-            foreach (var (name, value) in given)
+            foreach (var setting in given.RootElement.EnumerateObject())
             {
-                merged[name] = value?.DeepClone();
+                merged[setting.Name] = JsonNode.Parse(setting.Value.GetRawText());
             }
 
             return merged.Deserialize(SettingsJson.Default.PlayerSettings);

@@ -405,14 +405,14 @@ public sealed class MatroskaCraftedTests
         var length = Head(0, 0, 0).Length;
         var head = Head(length + tracks.Length + info.Length + cluster.Length, length + tracks.Length + info.Length + cluster.Length + tags.Length, length);
         Assert.Equal(length, head.Length);
-        var file = File("webm", [head, tracks, info, cluster, tags, chapters]);
+        var file = File("webm", [head, tracks, info, cluster, tags, chapters], unsizedSegment: true);
 
         using var demuxer = Open(file);
         using var live = new MatroskaDemuxer(new LiveSource(file), CancellationToken.None);
 
         Assert.Equal("WebM", demuxer.Info.FormatName);
         // The chapter has unknown size, but the enclosing segment declares the full file length.
-        Assert.Equal(file.Length, demuxer.Info.DeclaredLength);
+        Assert.Null(demuxer.Info.DeclaredLength);
         Assert.Equal("Asake", demuxer.Info.Metadata["artist"]);
         Assert.Equal("Sungba", demuxer.Info.Metadata["title"]);
         Assert.Equal(MediaTime.FromSeconds(0.5), demuxer.Info.Duration);

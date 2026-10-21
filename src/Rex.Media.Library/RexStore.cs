@@ -28,6 +28,13 @@ public sealed class RexStore
     /// <summary>Lines of the log that were damaged and skipped when it was read.</summary>
     public int Skipped { get; private set; }
 
+    /// <summary>
+    /// Why the last change could not reach the disk (a full disk, the log locked by another
+    /// window), or null once it could. Changes are kept in memory meanwhile, and the next change
+    /// that can be written rewrites the whole log with them.
+    /// </summary>
+    public string? WriteProblem { get; private set; }
+
     public int Count
     {
         get
@@ -205,10 +212,18 @@ public sealed class RexStore
                 text.Append(Line(key, value)).Append('\n');
             }
 
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
-            AtomicFile.Write(Path, Encoding.UTF8.GetBytes(text.ToString()));
-            _lines = _values.Count;
-            Skipped = 0;
+            try
+            {
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
+                AtomicFile.Write(Path, Encoding.UTF8.GetBytes(text.ToString()));
+                _lines = _values.Count;
+                Skipped = 0;
+                WriteProblem = null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                WriteProblem = ex.Message;
+            }
         }
     }
 
@@ -219,24 +234,34 @@ public sealed class RexStore
             return;
         }
 
-        // Rewritten once the log is mostly lines that no longer count.
-        if (_lines >= 64 && _lines > _values.Count * 4)
+        // Rewritten once the log is mostly lines that no longer count, or when earlier changes
+        // could not be written: the rewrite holds every live value, theirs included.
+        if (WriteProblem is not null || (_lines >= 64 && _lines > _values.Count * 4))
         {
             Compact();
             return;
         }
 
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
-        using var stream = new FileStream(Path, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
         var text = new StringBuilder();
         foreach (var (key, value) in changes)
         {
             text.Append(Line(key, value)).Append('\n');
         }
 
-        stream.Write(Encoding.UTF8.GetBytes(text.ToString()));
-        stream.Flush(flushToDisk: true);
-        _lines += changes.Count;
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
+            using var stream = new FileStream(Path, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
+            stream.Write(Encoding.UTF8.GetBytes(text.ToString()));
+            stream.Flush(flushToDisk: true);
+            _lines += changes.Count;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A full disk or a log another window holds must not fail what the player was doing:
+            // the change stays in memory and goes to the disk with the next one that can.
+            WriteProblem = ex.Message;
+        }
     }
 
     /// <summary>"checksum json": the CRC-32 of the JSON in hexadecimal, a space, then the record.</summary>

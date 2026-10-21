@@ -21,6 +21,25 @@ public partial class App : Application
 
     public App()
     {
+        // Register handlers before loading settings, caches and shaders.
+        UnhandledException += (_, e) =>
+        {
+            // A failure on the window's thread (an event handler, the rest of an awaited call) is
+            // written down and the player carries on: one broken file or click must not close it.
+            Log.Critical("app", e.Exception.ToString());
+            e.Handled = true;
+        };
+
+        // Off the window's thread too: the log is the only trace a crash on an engine thread leaves.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Critical("app", e.ExceptionObject is Exception ex ? ex.ToString() : "An unknown failure.");
+
+        // A failed task nobody waited for would otherwise vanish without a trace.
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Log.Error("app", "A background task failed: " + e.Exception);
+            e.SetObserved();
+        };
+
         Milestones.Reach("app");
 
         // Compiling the picture shaders takes seconds; they are kept between runs.
@@ -48,23 +67,7 @@ public partial class App : Application
         }
 
         InitializeComponent();
-        UnhandledException += (_, e) =>
-        {
-            // A failure on the window's thread (an event handler, the rest of an awaited call) is
-            // written down and the player carries on: one broken file or click must not close it.
-            Log.Critical("app", e.Exception.ToString());
-            e.Handled = true;
-        };
 
-        // Off the window's thread too: the log is the only trace a crash on an engine thread leaves.
-        AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Critical("app", e.ExceptionObject is Exception ex ? ex.ToString() : "An unknown failure.");
-
-        // A failed task nobody waited for would otherwise vanish without a trace.
-        TaskScheduler.UnobservedTaskException += (_, e) =>
-        {
-            Log.Error("app", "A background task failed: " + e.Exception);
-            e.SetObserved();
-        };
     }
 
     /// <summary>

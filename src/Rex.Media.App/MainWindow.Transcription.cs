@@ -73,7 +73,14 @@ public sealed partial class MainWindow
             ".json" => transcript.ToJson(),
             _ => transcript.ToSrt(),
         };
-        await File.WriteAllTextAsync(file.Path, text);
-        Say("Saved the transcript to " + file.Path);
+        try
+        {
+            await File.WriteAllTextAsync(file.Path, text);
+            Say("Saved the transcript to " + file.Path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Say("The transcript could not be saved: " + ex.Message);
+        }
     }
 }

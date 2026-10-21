@@ -111,11 +111,11 @@ public sealed class MediaLibrary
     {
         Store = store ?? throw new ArgumentNullException(nameof(store));
         _time = time ?? TimeProvider.System;
-        _folders = Parse(Store.Get(FoldersKey), LibraryJson.Default.ListString) ?? [];
-        _hidden.UnionWith(Parse(Store.Get(HiddenKey), LibraryJson.Default.ListString) ?? []);
+        _folders = [.. (Parse(Store.Get(FoldersKey), LibraryJson.Default.ListString) ?? []).Where(folder => !string.IsNullOrEmpty(folder))];
+        _hidden.UnionWith((Parse(Store.Get(HiddenKey), LibraryJson.Default.ListString) ?? []).Where(path => !string.IsNullOrEmpty(path)));
         foreach (var (_, json) in Store.WithPrefix(EntryPrefix))
         {
-            if (Parse(json, LibraryJson.Default.LibraryEntry) is { } entry)
+            if (Parse(json, LibraryJson.Default.LibraryEntry) is { Path.Length: > 0, Title: not null } entry)
             {
                 _entries[entry.Path] = entry;
             }
