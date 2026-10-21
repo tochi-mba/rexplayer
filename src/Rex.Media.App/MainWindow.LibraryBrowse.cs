@@ -21,6 +21,8 @@ public sealed partial class MainWindow
     private int _browseHeroIndex;
     private string _browseHeroSet = "";
     private bool _browseHeroHeld;
+    private bool _browseHeroPointerHeld;
+    private bool _browseHeroFocusHeld;
 
     /// <summary>Whether the open view can be laid out as a streaming-style browse.</summary>
     private bool BrowseOffered => _libraryGroup is null && LibrarySearch.Text.Trim().Length == 0
@@ -174,6 +176,27 @@ public sealed partial class MainWindow
         }
     }
 
+    private void EndBrowseHeroRotation()
+    {
+        StopBrowseHeroRotation();
+        _browseHeroPointerHeld = false;
+        _browseHeroFocusHeld = false;
+        _browseHeroHeld = false;
+    }
+
+    private void UpdateBrowseHeroHold()
+    {
+        _browseHeroHeld = _browseHeroPointerHeld || _browseHeroFocusHeld;
+        if (_browseHeroHeld)
+        {
+            StopBrowseHeroRotation();
+        }
+        else if (_browseHeroTimer is not null && AppWindow.IsVisible && BrowseOffered)
+        {
+            _browseHeroTimer.Start();
+        }
+    }
+
     /// <summary>
     /// The billboard: the featured item's backdrop (else its own artwork) filling a wide frame, a
     /// gradient keeping its words readable over any picture, its title, facts and synopsis (with
@@ -187,16 +210,28 @@ public sealed partial class MainWindow
         frame.Tapped += (_, _) => more();
         frame.PointerEntered += (_, _) =>
         {
-            _browseHeroHeld = true;
-            StopBrowseHeroRotation();
+            _browseHeroPointerHeld = true;
+            UpdateBrowseHeroHold();
         };
         frame.PointerExited += (_, _) =>
         {
-            _browseHeroHeld = false;
-            if (_browseHeroTimer is not null && AppWindow.IsVisible)
+            _browseHeroPointerHeld = false;
+            UpdateBrowseHeroHold();
+        };
+        frame.GotFocus += (_, _) =>
+        {
+            _browseHeroFocusHeld = true;
+            UpdateBrowseHeroHold();
+        };
+        frame.LostFocus += (_, _) =>
+        {
+            // A focus move between the hero's buttons is still inside the hero. Check after
+            // focus settles rather than restarting the carousel between keyboard actions.
+            DispatcherQueue.TryEnqueue(() =>
             {
-                _browseHeroTimer.Start();
-            }
+                _browseHeroFocusHeld = HasFocusIn(frame);
+                UpdateBrowseHeroHold();
+            });
         };
         if (_budget.Animations)
         {
