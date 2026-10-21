@@ -199,6 +199,16 @@ jobs:
           ditto -c -k --keepParent "$app" "dist/rexplayer-mac-${{ matrix.rid }}.zip"
           (cd dist && shasum -a 256 "rexplayer-mac-${{ matrix.rid }}.zip" > "rexplayer-mac-${{ matrix.rid }}.zip.sha256")
 
+      # The real app, launched on the runner's desktop and driven through its automation pipe: it
+      # must come up, play a video and quit when asked. The runner is Apple Silicon, so the
+      # arm64 build is the one that runs here.
+      - name: Start the app and drive it
+        if: matrix.rid == 'osx-arm64'
+        run: |
+          app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/osx-arm64 -maxdepth 1 -name '*.app' | head -1)
+          export REXPLAYER_MAC_APP="$PWD/$app"
+          dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
+
       - name: Keep the app
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
