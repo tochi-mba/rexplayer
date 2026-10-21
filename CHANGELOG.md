@@ -5,6 +5,10 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+### Fixed
+
+- **Specials and extras join their show.** A special such as `Futurama S07X01 Simpsorama` no longer appears as a one-episode show of its own: specials marked `S07X01`, `S07 SP01`, `S07 Special 1`, `S07E00`, `S07.5`, `S00E05`, `SP01`, `Special`, `OVA` or `OAD`, and videos in Extras, Featurettes or Behind the Scenes folders, go in the show's Specials, labelled "S07 Special 1" ("Season 7, special 1"). Show names that differ only in case, accents or punctuation are one show, a lone episode named after a show and a season mark joins that show, and a movie's extras stay with the movies.
+
 ### Improved
 
 - **Songs by several artists show under each of them.** "beabadoobee/The Marías" or "A$AP Rocky/Brent Faiyaz" no longer appear as artists of their own: the song is counted once under every artist it names, as are artists named with feat., ft., featuring or " x ", those a title features ("Song (feat. Asake)"), and "&", "and" or "," credits whose artists each have songs of their own, while names such as AC/DC, Tyler, The Creator and Earth, Wind & Fire stay whole. Spellings that differ only in case, accents or punctuation are one artist, every value of a multi-artist tag is read (with ARTISTS lists in FLAC, Ogg, MP3 and MP4 files, read again in the background once), an artist page's top songs take in the songs they are featured on and a Featured on section lists other artists' albums they are on, and a song's artist line lists its artists ("beabadoobee, The Marías").

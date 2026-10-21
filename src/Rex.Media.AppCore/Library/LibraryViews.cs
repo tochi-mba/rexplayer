@@ -21,18 +21,34 @@ public sealed record VideoEpisode(string Series, int Season, int? Episode, int? 
     /// <summary>The last episode a double episode holds; null for a single one.</summary>
     public int? Through { get; init; }
 
-    /// <summary>"S06E01", "S06E01-E02", or "S06" when the episode has no number.</summary>
-    public string Code => string.Create(CultureInfo.InvariantCulture,
+    /// <summary>For a special (season 0), the season it names ("S07X01" names 7); null when it names none.</summary>
+    public int? SpecialOf { get; init; }
+
+    /// <summary>
+    /// Read from weak evidence (a "Special" or an extras folder outside any season folder), so it joins a
+    /// show only when the library already has that show, and is otherwise a movie.
+    /// </summary>
+    public bool Tentative { get; init; }
+
+    /// <summary>"S06E01", "S06E01-E02", "S06" when the episode has no number, "S07 Special 1" for a season's special.</summary>
+    public string Code => SpecialOf is not null ? Badge : string.Create(CultureInfo.InvariantCulture,
         $"S{Season:00}{(Episode is { } first ? $"E{first:00}" : "")}{(Through is { } last ? $"-E{last:00}" : "")}");
 
     public string DisplayName => $"{Series}{(SeriesYear is { } year ? $" ({year})" : "")} · {Code}";
 
-    /// <summary>The short mark on a tile: "S06 E01", or "S06".</summary>
-    public string Badge => string.Create(CultureInfo.InvariantCulture, $"S{Season:00}{(Episode is { } first ? $" E{first:00}" : "")}");
+    /// <summary>The short mark on a tile: "S06 E01", "S06", "Special 2" or "S07 Special 1".</summary>
+    public string Badge => Season == 0
+        ? string.Create(CultureInfo.InvariantCulture, $"{(SpecialOf is { } season ? $"S{season:00} " : "")}Special{SpecialNumber}")
+        : string.Create(CultureInfo.InvariantCulture, $"S{Season:00}{(Episode is { } first ? $" E{first:00}" : "")}");
 
-    /// <summary>"Season 6 · Episode 1", "Season 7 · Episodes 1-2", "Specials", as the detail line says it.</summary>
-    public string Spoken => string.Create(CultureInfo.InvariantCulture,
-        $"{(Season == 0 ? "Specials" : $"Season {Season}")}{(Episode is not { } first ? "" : Through is { } last ? $" · Episodes {first}-{last}" : $" · Episode {first}")}");
+    /// <summary>"Season 6 · Episode 1", "Season 7 · Episodes 1-2", "Special 2", "Season 7, special 1", as the detail line says it.</summary>
+    public string Spoken => Season != 0
+        ? string.Create(CultureInfo.InvariantCulture, $"Season {Season}{(Episode is not { } first ? "" : Through is { } last ? $" · Episodes {first}-{last}" : $" · Episode {first}")}")
+        : SpecialOf is { } season ? string.Create(CultureInfo.InvariantCulture, $"Season {season}, special{SpecialNumber}") : "Special" + SpecialNumber;
+
+    /// <summary>" 1", " 1-2", or nothing for a special without a number.</summary>
+    private string SpecialNumber => string.Create(CultureInfo.InvariantCulture,
+        $"{(Episode is { } first ? $" {first}" : "")}{(Through is { } last ? $"-{last}" : "")}");
 }
 
 /// <summary>
@@ -180,28 +196,95 @@ public static partial class LibraryViews
     public static IReadOnlyList<LibraryEntry> Videos(IEnumerable<LibraryEntry> entries) =>
         [.. entries.Where(entry => entry.Kind == LibraryKind.Video).OrderBy(entry => entry.Title, NaturalOrder.Instance).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
-    /// <summary>Standalone videos; only a positively identified episode leaves this view.</summary>
-    public static IReadOnlyList<LibraryEntry> Movies(IEnumerable<LibraryEntry> entries) =>
-        [.. Videos(entries).Where(entry => EpisodeOf(entry) is null)];
-
-    /// <summary>Series inferred locally from filenames, without contacting an online catalogue.</summary>
-    public static IReadOnlyList<LibraryGroup> TvShows(IEnumerable<LibraryEntry> entries)
+    /// <summary>
+    /// Standalone videos; only a positively identified episode leaves this view, and a tentative one
+    /// (a movie's extras, a "Special" title) leaves it only when it joins a show.
+    /// </summary>
+    public static IReadOnlyList<LibraryEntry> Movies(IEnumerable<LibraryEntry> entries)
     {
-        var episodes = Videos(entries)
-            .Select(entry => (Entry: entry, Episode: EpisodeOf(entry)))
-            .Where(pair => pair.Episode is not null)
-            .ToList();
-        return [.. episodes
-            .GroupBy(pair => SeriesGroupKey(pair.Episode!, episodes.Select(item => item.Episode!)), ByName)
+        var videos = Videos(entries);
+        var joined = videos.Any(entry => EpisodeOf(entry) is { Tentative: true })
+            ? ShowMembers(videos).Select(member => member.Entry).ToHashSet()
+            : [];
+        return [.. videos.Where(entry => EpisodeOf(entry) is not { } episode || episode.Tentative && !joined.Contains(entry))];
+    }
+
+    /// <summary>
+    /// Series inferred locally from filenames, without contacting an online catalogue. Names that differ
+    /// only in case, accents or punctuation are one show (<see cref="ShowNames.Key"/>), named the way
+    /// most of its episodes spell it; a lone episode filed under a longer name joins the show it extends
+    /// (<see cref="ShowNames.Extends"/>); tentative specials and extras join a show that is already there.
+    /// </summary>
+    public static IReadOnlyList<LibraryGroup> TvShows(IEnumerable<LibraryEntry> entries) =>
+        [.. ShowMembers(Videos(entries))
+            .GroupBy(member => member.Show, StringComparer.Ordinal)
             .Select(group =>
             {
-                var ordered = InEpisodeOrder(group).ToList();
+                var ordered = InEpisodeOrder(group.Select(member => (member.Entry, (VideoEpisode?)member.Episode))).ToList();
                 var seasons = ordered.Select(pair => pair.Episode!.Season).Distinct().Count();
                 return new LibraryGroup(group.Key,
                     $"{seasons} {(seasons == 1 ? "season" : "seasons")} · {ordered.Count} {(ordered.Count == 1 ? "episode" : "episodes")}",
                     [.. ordered.Select(pair => pair.Entry)]);
             })
             .OrderBy(group => group.Name, ByName)];
+
+    /// <summary>Every episode of <paramref name="videos"/> that belongs to a show, with the show's name.</summary>
+    private static List<(LibraryEntry Entry, VideoEpisode Episode, string Show)> ShowMembers(IReadOnlyList<LibraryEntry> videos)
+    {
+        var parsed = videos.Select(entry => (Entry: entry, Episode: EpisodeOf(entry))).Where(pair => pair.Episode is not null).ToList();
+        var firm = parsed.Where(pair => !pair.Episode!.Tentative).ToList();
+        var firmEpisodes = firm.Select(pair => pair.Episode!).ToList();
+        var shows = new Dictionary<string, (List<string> Names, List<(LibraryEntry Entry, VideoEpisode Episode)> Members)>(StringComparer.Ordinal);
+        foreach (var (entry, episode) in firm)
+        {
+            var name = SeriesGroupKey(episode!, firmEpisodes);
+            var key = ShowNames.Key(name);
+            if (!shows.TryGetValue(key, out var show))
+            {
+                shows[key] = show = ([], []);
+            }
+
+            show.Names.Add(name);
+            show.Members.Add((entry, episode!));
+        }
+
+        // A lone episode whose show name is another show's followed by a season mark is that show's.
+        foreach (var key in shows.Keys.OrderByDescending(key => key.Length).ToList())
+        {
+            if (shows[key].Members.Count == 1 && shows.Keys.Where(host => ShowNames.Extends(key, host)).MaxBy(host => host.Length) is { } found)
+            {
+                shows[found].Members.Add(shows[key].Members[0]);
+                shows.Remove(key);
+            }
+        }
+
+        foreach (var (entry, episode) in parsed.Where(pair => pair.Episode!.Tentative))
+        {
+            if (HostOf(episode!, shows) is { } found)
+            {
+                shows[found].Members.Add((entry, episode!));
+            }
+        }
+
+        return [.. shows.Values.SelectMany(show =>
+        {
+            var name = MostSpelled(show.Names);
+            return show.Members.Select(member => (member.Entry, member.Episode, name));
+        })];
+    }
+
+    /// <summary>
+    /// The show a tentative special joins: one of its name (or extended by it), and with its year when
+    /// it has one, so "X-Men (2000)\Extras" stays the movie's beside a show called "X-Men".
+    /// </summary>
+    private static string? HostOf(VideoEpisode episode, Dictionary<string, (List<string> Names, List<(LibraryEntry Entry, VideoEpisode Episode)> Members)> shows)
+    {
+        var key = ShowNames.Key(episode.Series);
+        var keyed = episode.SeriesYear is { } year ? ShowNames.Key($"{episode.Series} ({year})") : key;
+        return shows.Keys
+            .Where(host => host == key || host == keyed || ShowNames.Extends(key, host))
+            .Where(host => episode.SeriesYear is not { } wanted || shows[host].Members.Any(member => member.Episode.SeriesYear == wanted))
+            .MaxBy(host => host.Length);
     }
 
     /// <summary>
@@ -220,9 +303,10 @@ public static partial class LibraryViews
                 [.. InEpisodeOrder(group).Select(pair => pair.Entry)]))];
     }
 
-    /// <summary>By season; in each, numbered episodes by number, then unnumbered ones by file name in natural order, then by path.</summary>
+    /// <summary>By season (specials by the season they name); in each, numbered episodes by number, then unnumbered ones by file name in natural order, then by path.</summary>
     private static IOrderedEnumerable<(LibraryEntry Entry, VideoEpisode? Episode)> InEpisodeOrder(IEnumerable<(LibraryEntry Entry, VideoEpisode? Episode)> pairs) =>
         pairs.OrderBy(pair => pair.Episode!.Season)
+            .ThenBy(pair => pair.Episode!.SpecialOf ?? 0)
             .ThenBy(pair => pair.Episode!.Episode is null)
             .ThenBy(pair => pair.Episode!.Episode)
             .ThenBy(pair => pair.Episode!.Episode is null ? Path.GetFileNameWithoutExtension(pair.Entry.Path) : "", NaturalOrder.Instance)

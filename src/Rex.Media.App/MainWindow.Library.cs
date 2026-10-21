@@ -458,7 +458,8 @@ public sealed partial class MainWindow
 
     private LibraryRow EntryRow(LibraryEntry entry)
     {
-        var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
+        // A tentative special (a movie's extras, perhaps) is labelled only on its show's page.
+        var episode = entry.Kind == LibraryKind.Video && LibraryViews.EpisodeOf(entry) is { Tentative: false } found ? found : null;
         var name = _librarySource == LibrarySource.Movies && entry.Kind == LibraryKind.Video
             ? LibraryViews.MovieTitleOf(entry)
             : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path)

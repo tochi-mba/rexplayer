@@ -191,7 +191,21 @@ internal sealed class AppProcess : IDisposable
         }
     }
 
-    public string Text(string automationId) => Find(automationId).Current.Name;
+    /// <summary>
+    /// The control's text. A control WinUI replaces between finding it and reading it (the subtitle line
+    /// as playback starts) is found again, so a read never fails on a stale element.
+    /// </summary>
+    public string Text(string automationId) => Wait.Until(() =>
+    {
+        try
+        {
+            return Find(automationId).Current.Name;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return null;
+        }
+    });
 
     public string Title
     {
