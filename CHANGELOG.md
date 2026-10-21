@@ -9,6 +9,12 @@ pipeline the moment its number reaches `main`.
 
 - **Automatic performance mode while Energy Saver is on.** When Windows' Energy Saver turns on, a chosen Best quality, Balanced or Fastest gives way to Automatic so the device budget adapts, with a short notice over the picture; the chosen mode comes back, and is announced, when Energy Saver turns off. Preferences > Performance shows which mode is in effect and why, and "When Energy Saver is on, use the Automatic performance mode" turns the behaviour off.
 
+### Changed
+
+- **Artwork fills its card.** Posters, covers, video thumbnails, episode stills, the billboard and the timeline preview now fill their frames edge to edge, cropped rather than shrunk inside grey bars; poster cards keep the top of the picture, where faces usually are. A card with no picture yet keeps its clean placeholder.
+- **Thumbnails without recorded bars.** A letterboxed film or a 4:3 programme in a wide frame gets a thumbnail cut from the picture inside its black or grey bars, so a card shows picture, not bars; video thumbnails are made once more to pick this up.
+- **Movies and TV shows open on Browse.** The billboard and rows are the layout for both views unless you pick another: a Cards layout saved only because an order or card size changed, or kept from before Browse existed, opens as Browse; a layout you pick stays.
+
 ### Improved
 
 - **Shortcuts speak every platform's language.** A shortcut typed the Mac way (Cmd+O, Option+Left) is understood, and the shared player code can show any shortcut in Windows words or Mac words, so one settings file means the same keys on both.

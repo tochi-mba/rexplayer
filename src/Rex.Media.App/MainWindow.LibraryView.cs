@@ -73,7 +73,6 @@ public sealed partial class MainWindow
     private void WireLibraryView()
     {
         LibraryCardSize.Value = 180;
-        _places = new LibraryPlaces(_settings.LibraryPlaces);
     }
 
     /// <summary>The key a view's choices are kept under: its name, or the kind of group opened in it, or the search.</summary>
@@ -89,23 +88,12 @@ public sealed partial class MainWindow
             return shelf.Choice;
         }
 
-        if (_settings.LibraryViews.TryGetValue(key, out var kept))
-        {
-            return kept;
-        }
-
-        return key switch
-        {
-            "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" or "TvShows page" => new LibraryViewChoice(LibraryLook.List),
-            "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
-            "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Browse, CardSize: 200),
-            "Videos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
-            _ => new LibraryViewChoice(LibraryLook.Grid),
-        };
+        return LibraryViewDefaults.Resolve(key, _settings.LibraryViews.GetValueOrDefault(key));
     }
 
     private void KeepViewChoice(LibraryViewChoice choice)
     {
+        choice = LibraryViewDefaults.Keep(ViewChoice(_libraryViewKey), choice);
         _shelfChoice = null;
         _settings = _settings with { LibraryViews = new Dictionary<string, LibraryViewChoice>(_settings.LibraryViews, StringComparer.Ordinal) { [_libraryViewKey] = choice.Normalize() } };
         RememberLater();
@@ -138,15 +126,10 @@ public sealed partial class MainWindow
         var search = _librarySearchText.Build(LibrarySearch.Text);
         ResolveShowPage(search);
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
-        var sameRoute = selectionView == _selectionView;
-        var selected = sameRoute
+        var selected = selectionView == _selectionView
             ? SelectedLibraryRows().Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)
             : [];
-        // Built again around the same things, the list stays anchored on the line in view.
-        var anchors = sameRoute ? AnchorCandidates() : [];
         _selectionView = selectionView;
-        _placeKey = LibraryPlaces.Key(_librarySource.ToString(), _libraryGroup?.Name,
-            _librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null, _librarySeason?.Name, search);
         var source = search.Length > 0 ? (LibrarySource?)null : _librarySource;
         _libraryViewKey = ViewKey(search.Length > 0);
         var choice = ViewChoice(_libraryViewKey);
@@ -162,14 +145,14 @@ public sealed partial class MainWindow
         LibraryHero.Visibility = browse ? Visibility.Collapsed : Visibility.Visible;
         if (home)
         {
-            ShowHome(entries, sameRoute);
+            ShowHome(entries);
             return;
         }
 
         if (browse)
         {
             LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = Visibility.Collapsed;
-            ShowStreamingBrowse(entries, choice, sameRoute);
+            ShowStreamingBrowse(entries, choice);
             return;
         }
 
@@ -313,9 +296,6 @@ public sealed partial class MainWindow
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
-        // Scroll anchors are for rebuilding the same layout; a layout change (for
-        // instance from list to collage) must first let its new panel realise items.
-        var previousLook = _shownLook;
         var look = SetLibraryLook(options && !artistPage ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
         var shown = look + "\n" + title + "\n" + grouped + "\n" + string.Join("\n", sections.Select(section => section.Header + ":" + string.Join("\n", section.Select(RowIdentity))));
@@ -336,10 +316,6 @@ public sealed partial class MainWindow
             LibraryCollage.ItemTemplate ??= LibraryTemplate("LibraryCollageTemplate");
             LibraryCollage.ItemsSource = _libraryRows;
             RestoreLibrarySelection(selected, collage: true);
-            if (previousLook == look)
-            {
-                HoldSurvivingAnchor(anchors, collage: true);
-            }
             return;
         }
 
@@ -356,10 +332,6 @@ public sealed partial class MainWindow
         }
 
         RestoreLibrarySelection(selected, collage: false);
-        if (previousLook == look)
-        {
-            HoldSurvivingAnchor(anchors, collage: false);
-        }
     }
 
     private string SelectionIdentity(LibraryRow row) => row.Item switch
@@ -674,7 +646,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Home: shelves of what to play next, each with a way to see all of it.</summary>
-    private void ShowHome(IReadOnlyList<LibraryEntry> entries, bool sameRoute)
+    private void ShowHome(IReadOnlyList<LibraryEntry> entries)
     {
         var music = entries.Count(entry => entry.Kind == LibraryKind.Music);
         var videos = entries.Count(entry => entry.Kind == LibraryKind.Video);
@@ -712,17 +684,10 @@ public sealed partial class MainWindow
         CancelLibraryPictures();
         _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
         _shownLibrary = shown;
-        // New shelves start at their left edges; the ones in view stay where they were scrolled.
-        var place = sameRoute ? CapturePlace() : null;
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
         {
             LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide, id: shelfTitle == DownloadingShelf ? "Downloading" : null));
-        }
-
-        if (place is not null)
-        {
-            ApplyPlaceAfterLayout(place);
         }
     }
 
@@ -808,14 +773,12 @@ public sealed partial class MainWindow
         switch (row.Item)
         {
             case LibraryGroup group:
-                KeepPlace();
-                _places.RememberSearch(see.ToString(), "");
                 _librarySource = see;
                 _librarySeason = null;
                 _libraryGroup = group;
                 LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == see);
                 _libraryGroup = group;
-                ShowLibraryAtPlace();
+                ShowLibrary();
                 break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);

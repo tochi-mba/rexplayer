@@ -310,11 +310,23 @@ public sealed class MediaLibrary
             downloading = [.. _entries.Values.Where(entry => entry.Downloading).Select(entry => entry.Path)];
         }
 
-        var looked = downloading.Select(path => (Path: path, File: stat(path), Evidence: Downloads.Gather(path, exists, readMarker))).Where(look => look.File is not null).ToList();
+        var looked = new List<(string Path, LibraryFile File, DownloadEvidence Evidence)>();
+        foreach (var path in downloading)
+        {
+            // A file can disappear while its folder is open. Do not probe downloader sidecars for a
+            // path the filesystem has already said is gone; leave its remembered state for the next scan.
+            if (stat(path) is not { } file)
+            {
+                continue;
+            }
+
+            looked.Add((path, file, Downloads.Gather(path, exists, readMarker)));
+        }
+
         Change(looked.Select(look => look.Path), known =>
         {
             var (_, file, evidence) = looked.First(look => string.Equals(look.Path, known.Path, StringComparison.OrdinalIgnoreCase));
-            return Looked(known, evidence, file!.Value.Size, file.Value.Modified);
+            return Looked(known, evidence, file.Size, file.Modified);
         });
     }
 

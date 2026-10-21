@@ -666,8 +666,8 @@ public sealed partial class AppWindowTests : IDisposable
 
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        // Cards rather than the streaming browse, so each view's title, count and list can be read.
-        var cards = new Rex.Media.Settings.LibraryViewChoice(Rex.Media.Settings.LibraryLook.Grid, CardSize: 200);
+        // Cards picked over the streaming browse, so each view's title, count and list can be read.
+        var cards = new Rex.Media.Settings.LibraryViewChoice(Rex.Media.Settings.LibraryLook.Grid, CardSize: 200) { LookChosen = true };
         Rex.Media.Settings.SettingsStore.Save(Path.Combine(root, "settings.json"), new Rex.Media.Settings.PlayerSettings
         {
             FirstRunDone = true,
