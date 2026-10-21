@@ -287,7 +287,7 @@ public sealed partial class PlayerController
     /// The start of an item: what was playing before is remembered, and where this one was left
     /// is resumed automatically unless the caller supplied an explicit position.
     /// </summary>
-    private TimeSpan BeforeStart(PlaylistItem item, TimeSpan startAt, int? audioTrack)
+    private TimeSpan BeforeStart(PlaylistItem item, TimeSpan startAt, int? audioTrack, bool exactPosition = false)
     {
         RememberPosition();
         if (_restoredAt is { } restored && _restoredItem == item && startAt == TimeSpan.Zero)
@@ -299,7 +299,7 @@ public sealed partial class PlayerController
 
         _restoredAt = null;
         _restoredItem = null;
-        if (startAt > TimeSpan.Zero || audioTrack is not null || Memory.ResumePoint(MemoryKey(item)) is not { } at)
+        if (exactPosition || startAt > TimeSpan.Zero || audioTrack is not null || Memory.ResumePoint(MemoryKey(item)) is not { } at)
         {
             return startAt;
         }
