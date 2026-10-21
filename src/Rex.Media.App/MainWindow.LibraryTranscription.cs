@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -6,7 +5,6 @@ using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using Microsoft.Windows.System.Power;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Player;
@@ -215,7 +213,7 @@ public sealed partial class MainWindow
 
         var model = TranscriptModel;
         _modelInstalled ??= SpeechModelHere(model);
-        var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, OnBattery(), EnergySaver(), _modelInstalled.Value), Environment.ProcessorCount);
+        var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, App.Power.OnBattery, App.Power.EnergySaver, _modelInstalled.Value), Environment.ProcessorCount);
         var worker = Worker();
         worker.Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null;
         if (plan != _plannedTranscription)
@@ -917,29 +915,5 @@ public sealed partial class MainWindow
 
         TranscriptionTick();
         RefreshTranscriptBadges();
-    }
-
-    private static bool OnBattery()
-    {
-        try
-        {
-            return PowerManager.PowerSupplyStatus == PowerSupplyStatus.NotPresent && PowerManager.BatteryStatus != BatteryStatus.NotPresent;
-        }
-        catch (COMException)
-        {
-            return false;
-        }
-    }
-
-    private static bool EnergySaver()
-    {
-        try
-        {
-            return PowerManager.EnergySaverStatus == EnergySaverStatus.On;
-        }
-        catch (COMException)
-        {
-            return false;
-        }
     }
 }

@@ -7,12 +7,14 @@ pipeline the moment its number reaches `main`.
 
 ### Added
 
-- **Files still downloading show as such.** A file arriving in a watched folder (named by a downloader, marked by its control file, short of the size its container or downloader declares, or still growing) wears a down-arrow badge with a progress ring on its card, line and shelf tile, and its detail line reads "Downloading · 1.2 GB of 3.4 GB" as it grows, until the moment it is whole. The library's Filter menu gains a Download group (Fully downloaded, Still downloading) that combines with the others and is remembered per view; Home shows a Downloading shelf while anything is partial, newest first, with See all opening the view filtered to it; Play on a file too incomplete to open says "Still downloading: 20% so far" instead of failing; and Edit details never writes into a file that is still downloading, and says so.
+- **Automatic performance mode while Energy Saver is on.** When Windows' Energy Saver turns on, a chosen Best quality, Balanced or Fastest gives way to Automatic so the device budget adapts, with a short notice over the picture; the chosen mode comes back, and is announced, when Energy Saver turns off. Preferences > Performance shows which mode is in effect and why, and "When Energy Saver is on, use the Automatic performance mode" turns the behaviour off.
 
 ### Fixed
 
 - **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.
 - **Down in the library search moves into the results.** It chooses the first item found, so Enter plays it.
+- **No more crash while subtitles are being transcribed.** With a transcript being made for what plays, a seek, a pause or the next item could end rexplayer at once: the stretch to hear next sometimes held no sound at all (the file's sound lands later than asked, or there is none there), and the speech model was asked to hear nothing, which the model cannot survive. Such a stretch is now passed over as heard with no words, and the model is never asked to hear an empty piece.
+
 
 ## 0.26.0 - 2026-10-20
 
