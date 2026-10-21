@@ -17,7 +17,7 @@ public sealed partial class MainWindow
             _player.RemoveSubtitles(stale);
         }
 
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             var tracks = new List<SubtitleTrack>();
             foreach (var choice in Enum.GetValues<TranscriptModelChoice>())
@@ -52,6 +52,6 @@ public sealed partial class MainWindow
             {
                 _player.AddSubtitles(track, show: false);
             }
-        }), TaskScheduler.Default);
+        }), TaskScheduler.Default));
     }
 }

@@ -44,7 +44,7 @@ public sealed partial class MainWindow
         {
             row.PictureAsked = true;
             var duration = _player.Item?.Location == row.Location && _player.Duration > TimeSpan.Zero ? _player.Duration : (TimeSpan?)null;
-            _ = ShowPictureAsync(row.Location, row.Kind, duration, picture => row.Picture = picture, CancellationToken.None);
+            Forget(ShowPictureAsync(row.Location, row.Kind, duration, picture => row.Picture = picture, CancellationToken.None));
         }
     }
 

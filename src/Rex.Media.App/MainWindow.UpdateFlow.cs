@@ -58,11 +58,11 @@ public sealed partial class MainWindow
         }
 
         var keep = UpdateFlow.KeptFiles(outcome.Pending);
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             UpdateDownloader.Clean(UpdateFolder, keep);
             CleanOldUpdateFolders();
-        });
+        }));
         return outcome;
     }
 
@@ -172,7 +172,7 @@ public sealed partial class MainWindow
         SetPending(plan.Pending);
         if (plan.Check)
         {
-            _ = CheckForUpdatesAsync(asked: false);
+            Forget(CheckForUpdatesAsync(asked: false));
             return;
         }
 
@@ -189,7 +189,7 @@ public sealed partial class MainWindow
 
         if (plan.Install)
         {
-            _ = InstallAsync(unattended: true);
+            Forget(InstallAsync(unattended: true));
         }
 
         ShowUpdates();
@@ -300,7 +300,7 @@ public sealed partial class MainWindow
             }
 
             var keep = UpdateFlow.KeptFiles(outcome.Pending);
-            _ = Task.Run(() => UpdateDownloader.Clean(UpdateFolder, keep));
+            Forget(Task.Run(() => UpdateDownloader.Clean(UpdateFolder, keep)));
         }
 
         _settings = _settings with
@@ -411,7 +411,7 @@ public sealed partial class MainWindow
 
         // Files this attempt held (a cancelled download, a version a check replaced) can go now.
         var keep = UpdateFlow.KeptFiles(Pending);
-        _ = Task.Run(() => UpdateDownloader.Clean(UpdateFolder, keep));
+        Forget(Task.Run(() => UpdateDownloader.Clean(UpdateFolder, keep)));
         ShowUpdates();
     }
 

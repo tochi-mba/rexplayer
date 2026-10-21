@@ -18,7 +18,7 @@ public sealed partial class MainWindow
 
         var edit = new MenuFlyoutItem { Text = "Edit transcript..." };
         AutomationProperties.SetAutomationId(edit, "EditTranscript");
-        edit.Click += (_, _) => _ = ShowTranscriptEditorAsync();
+        edit.Click += (_, _) => Forget(ShowTranscriptEditorAsync());
         subtitles.Items.Insert(1, edit);
         subtitles.Items.Insert(2, new MenuFlyoutSeparator());
         RefreshTranscriptMenus();

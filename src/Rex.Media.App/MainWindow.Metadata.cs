@@ -119,7 +119,7 @@ public sealed partial class MainWindow
     {
         var title = LibraryViews.MovieTitleOf(entry);
         var year = LibraryViews.MovieYearOf(entry);
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             try
             {
@@ -131,7 +131,7 @@ public sealed partial class MainWindow
             {
                 App.Log.Error(MetadataLogSource, $"The cached metadata for {title} could not be removed: {ex.Message}");
             }
-        });
+        }));
         lock (_metadataGate)
         {
             _metadataMovies.Remove(Tmdb.MovieKey(title, year));
@@ -585,7 +585,7 @@ public sealed partial class MainWindow
     private void RefreshAlbumMetadata(string? artist, string album)
     {
         var key = MusicBrainz.AlbumKey(artist, album);
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             try
             {
@@ -597,7 +597,7 @@ public sealed partial class MainWindow
             {
                 App.Log.Error(MetadataLogSource, $"The cached metadata for {album} could not be removed: {ex.Message}");
             }
-        });
+        }));
         lock (_metadataGate)
         {
             _metadataAlbums.Remove(key);
@@ -799,7 +799,7 @@ public sealed partial class MainWindow
     private void RefreshShowMetadata(string show)
     {
         var key = MetadataMatch.Normalize(show);
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             try
             {
@@ -811,7 +811,7 @@ public sealed partial class MainWindow
             {
                 App.Log.Error(MetadataLogSource, $"The cached metadata for {show} could not be removed: {ex.Message}");
             }
-        });
+        }));
         lock (_metadataGate)
         {
             _metadataShows.Remove(key);
@@ -868,7 +868,7 @@ public sealed partial class MainWindow
             }
         }
 
-        search.Click += (_, _) => _ = SearchNowAsync();
+        search.Click += (_, _) => Forget(SearchNowAsync());
         var panel = new StackPanel { Spacing = 8, MinWidth = 300 };
         panel.Children.Add(box);
         panel.Children.Add(search);
@@ -917,13 +917,13 @@ public sealed partial class MainWindow
         if (IsShowRow(chosen, out var show))
         {
             menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshShowMetadata(show.Name)));
-            menu.Items.Add(MenuItem("Wrong match...", "LibraryMenuWrongMatch", () => _ = ChooseShowMatchAsync(show.Name)));
+            menu.Items.Add(MenuItem("Wrong match...", "LibraryMenuWrongMatch", () => Forget(ChooseShowMatchAsync(show.Name))));
             menu.Items.Add(new MenuFlyoutSeparator());
         }
         else if (IsAlbumRow(chosen, out var albumArtist, out var album))
         {
             menu.Items.Add(MenuItem("Refresh metadata", "LibraryMenuRefreshMetadata", () => RefreshAlbumMetadata(albumArtist, album)));
-            menu.Items.Add(MenuItem("Replace cover...", "LibraryMenuReplaceCover", () => _ = ReplaceAlbumCoverAsync(albumArtist, album)));
+            menu.Items.Add(MenuItem("Replace cover...", "LibraryMenuReplaceCover", () => Forget(ReplaceAlbumCoverAsync(albumArtist, album))));
             if (HasChosenCover(albumArtist, album))
             {
                 menu.Items.Add(MenuItem("Restore original cover", "LibraryMenuRestoreCover", () => RestoreAlbumCover(albumArtist, album)));

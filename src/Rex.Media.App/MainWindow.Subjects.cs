@@ -60,7 +60,7 @@ public sealed partial class MainWindow
         _subjectTimer = CreateTimer();
         _subjectTimer.Interval = TimeSpan.FromMilliseconds(200);
         _subjectTimer.IsRepeating = true;
-        _subjectTimer.Tick += (_, _) => PollSubjectOverlay();
+        OnTick(_subjectTimer, PollSubjectOverlay);
         WireRemovalTools();
     }
 

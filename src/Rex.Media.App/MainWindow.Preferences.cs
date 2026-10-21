@@ -37,14 +37,14 @@ public sealed partial class MainWindow
         lookSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: false));
+            OnWindowThread(() => Forget(ShowVideoStyleSettingsAsync(effect: false)));
         };
         var effectSettings = new Button { Content = "Customize the current picture effect..." };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(effectSettings, "PreferencesEffectSettings");
         effectSettings.Click += (_, _) =>
         {
             _dialog?.Hide();
-            OnWindowThread(() => _ = ShowVideoStyleSettingsAsync(effect: true));
+            OnWindowThread(() => Forget(ShowVideoStyleSettingsAsync(effect: true)));
         };
         var visualizer = VisualizerChoices(s.Visualizer);
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
@@ -76,13 +76,13 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updateStatus, "PreferencesUpdateStatus");
         var checkNow = new Button { Content = "Check for updates now" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(checkNow, "PreferencesCheckUpdates");
-        checkNow.Click += (_, _) => _ = CheckForUpdatesAsync(asked: true);
+        checkNow.Click += (_, _) => Forget(CheckForUpdatesAsync(asked: true));
         var installNow = new Button { Content = "Restart and install now", Visibility = Pending is { Stage: Rex.Media.Settings.UpdateStage.Ready } ? Visibility.Visible : Visibility.Collapsed };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(installNow, "PreferencesInstallUpdate");
         installNow.Click += (_, _) =>
         {
             _dialog?.Hide();
-            OnWindowThread(() => _ = InstallAsync(unattended: false));
+            OnWindowThread(() => Forget(InstallAsync(unattended: false)));
         };
         var updateButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         updateButtons.Children.Add(checkNow);

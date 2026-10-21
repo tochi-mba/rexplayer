@@ -86,11 +86,11 @@ public sealed partial class MainWindow
                 args.Handled = true;
                 break;
             case VirtualKey.F2 when LibraryCollage.SelectedItem is LibraryRow { Item: NamedPlaylist playlist }:
-                _ = RenamePlaylistAsync(playlist.Id);
+                Forget(RenamePlaylistAsync(playlist.Id));
                 args.Handled = true;
                 break;
             case VirtualKey.Delete when LibraryCollage.SelectedItems.Count > 0:
-                _ = ChooseLibraryDeletionAsync();
+                Forget(ChooseLibraryDeletionAsync());
                 args.Handled = true;
                 break;
             case VirtualKey.Back when _libraryGroup is not null:

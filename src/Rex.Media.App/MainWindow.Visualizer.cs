@@ -90,7 +90,7 @@ public sealed partial class MainWindow
             foreach (var choice in Enum.GetValues<VisualizerChoice>().Where(choice => choice != VisualizerChoice.Off))
             {
                 var item = new ToggleMenuFlyoutItem { Text = Visualizers.Name(choice), IsChecked = choice == _settings.Visualizer };
-                item.Click += (_, _) => _ = ChooseVisualizerAsync(choice);
+                item.Click += (_, _) => Forget(ChooseVisualizerAsync(choice));
                 menu.Items.Add(item);
             }
 
@@ -102,8 +102,8 @@ public sealed partial class MainWindow
                 menu.Items.Add(lyrics);
             }
 
-            menu.Items.Add(MenuItem("Settings of this visualisation...", "VisualizerMenuSettings", () => _ = ShowVisualizerSettingsAsync()));
-            menu.Items.Add(MenuItem("No visualisation", null, () => _ = ChooseVisualizerAsync(VisualizerChoice.Off)));
+            menu.Items.Add(MenuItem("Settings of this visualisation...", "VisualizerMenuSettings", () => Forget(ShowVisualizerSettingsAsync())));
+            menu.Items.Add(MenuItem("No visualisation", null, () => Forget(ChooseVisualizerAsync(VisualizerChoice.Off))));
         };
         return menu;
     }
@@ -200,10 +200,10 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.CycleVisualizer:
-                _ = ChooseVisualizerAsync(Visualizers.Next(_settings.Visualizer), cycling: true);
+                Forget(ChooseVisualizerAsync(Visualizers.Next(_settings.Visualizer), cycling: true));
                 return true;
             case CommandCatalog.VisualizerSettings:
-                _ = ShowVisualizerSettingsAsync();
+                Forget(ShowVisualizerSettingsAsync());
                 return true;
             case CommandCatalog.ToggleLyrics:
                 _settings = _settings with { ShowLyrics = !_settings.ShowLyrics };
@@ -469,7 +469,7 @@ public sealed partial class MainWindow
             var camera = new CameraFeed();
             ConfigureCamera(camera);
             _camera = camera;
-            _ = StartCameraAsync(camera);
+            Forget(StartCameraAsync(camera));
         }
     }
 

@@ -97,7 +97,7 @@ public sealed partial class MainWindow
         _libraryRefresh = CreateTimer();
         _libraryRefresh.Interval = TimeSpan.FromMilliseconds(400);
         _libraryRefresh.IsRepeating = false;
-        _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
+        OnTick(_libraryRefresh, RefreshLibraryAfterChanges);
         _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
         WireDownloadRechecks();
 
@@ -105,11 +105,11 @@ public sealed partial class MainWindow
         _libraryChanges = CreateTimer();
         _libraryChanges.Interval = TimeSpan.FromSeconds(3);
         _libraryChanges.IsRepeating = false;
-        _libraryChanges.Tick += (_, _) => LookAtChangedFolders();
+        OnTick(_libraryChanges, LookAtChangedFolders);
 
         _libraryRescan = CreateTimer();
         _libraryRescan.Interval = LibraryRescanEvery;
-        _libraryRescan.Tick += (_, _) => _scanner.Request();
+        OnTick(_libraryRescan, () => _scanner.Request());
         _libraryRescan.Start();
 
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
@@ -129,11 +129,11 @@ public sealed partial class MainWindow
         var firstScan = CreateTimer();
         firstScan.Interval = Rex.Media.AppCore.LaunchPlan.FirstLibraryScan;
         firstScan.IsRepeating = false;
-        firstScan.Tick += (_, _) =>
+        OnTick(firstScan, () =>
         {
             _scanner?.Request();
             QueueLibrarySections();
-        };
+        });
         firstScan.Start();
         App.Log.Info(LogSource, $"The library watches {_library.Folders.Count} folder(s) and knows {_library.Entries.Count} file(s).");
     }
@@ -145,7 +145,7 @@ public sealed partial class MainWindow
         if (sections is not null)
         {
             // A decoder may be cancelling on another thread. Never hold the window open for it.
-            _ = Task.Run(sections.Dispose);
+            Forget(Task.Run(sections.Dispose));
         }
 
         CancelLibraryPictures();
@@ -162,7 +162,7 @@ public sealed partial class MainWindow
         {
             _scanner = null;
             // Closing a scan can join a slow filesystem worker; never hold up the window or updater.
-            _ = Task.Run(scanner.Dispose);
+            Forget(Task.Run(scanner.Dispose));
         }
     }
 
@@ -517,7 +517,7 @@ public sealed partial class MainWindow
         if (row is { HasPicture: true, PictureAsked: false } && PictureEntry(row.Item) is { } entry)
         {
             row.PictureAsked = true;
-            _ = ShowPictureAsync(entry.Path, entry.Kind, entry.Duration, picture => row.Picture = picture, _libraryPictures.Token);
+            Forget(ShowPictureAsync(entry.Path, entry.Kind, entry.Duration, picture => row.Picture = picture, _libraryPictures.Token));
         }
     }
 
@@ -540,8 +540,8 @@ public sealed partial class MainWindow
             }
 
             item.PictureAsked = true;
-            _ = ShowPictureAsync(entry.Path, entry.Kind, entry.Duration,
-                picture => item.Picture = picture, token, urgent: true);
+            Forget(ShowPictureAsync(entry.Path, entry.Kind, entry.Duration,
+                picture => item.Picture = picture, token, urgent: true));
         }
 
         Request(row);
@@ -624,11 +624,11 @@ public sealed partial class MainWindow
                 e.Handled = true;
                 break;
             case VirtualKey.F2 when LibraryList.SelectedItem is LibraryRow { Item: NamedPlaylist playlist }:
-                _ = RenamePlaylistAsync(playlist.Id);
+                Forget(RenamePlaylistAsync(playlist.Id));
                 e.Handled = true;
                 break;
             case VirtualKey.Delete when SelectedLibraryRows() is { Count: > 0 } lines && lines.All(line => LibraryActions.DeletesFiles(line.Item)) && EntriesOf(lines).Count > 0:
-                _ = ChooseLibraryDeletionAsync();
+                Forget(ChooseLibraryDeletionAsync());
                 e.Handled = true;
                 break;
         }
@@ -657,9 +657,9 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", () => _player.PlayPlaylist(playlist.Id)));
             menu.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(playlist.Id, enqueue: true)));
             menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(MenuItem("Rename...", null, () => _ = RenamePlaylistAsync(playlist.Id)));
+            menu.Items.Add(MenuItem("Rename...", null, () => Forget(RenamePlaylistAsync(playlist.Id))));
             menu.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(playlist.Id)));
-            menu.Items.Add(MenuItem("Delete...", null, () => _ = DeletePlaylistAsync(playlist.Id)));
+            menu.Items.Add(MenuItem("Delete...", null, () => Forget(DeletePlaylistAsync(playlist.Id))));
             return;
         }
 
@@ -693,7 +693,7 @@ public sealed partial class MainWindow
             addTo.Items.Add(new MenuFlyoutSeparator());
         }
 
-        addTo.Items.Add(MenuItem("New playlist...", "LibraryMenuAddToNew", () => _ = NewPlaylistAsync(items)));
+        addTo.Items.Add(MenuItem("New playlist...", "LibraryMenuAddToNew", () => Forget(NewPlaylistAsync(items))));
         menu.Items.Add(addTo);
         if (selectedEntries.Count > 0)
         {
@@ -707,16 +707,16 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Copy", selectedEntries.Count, tail: "paths"), "LibraryMenuCopyPath",
                 () => CopyLibraryPaths(selectedEntries)));
             menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
-                () => _ = OpenLibraryFoldersAsync(selectedEntries)));
+                () => Forget(OpenLibraryFoldersAsync(selectedEntries))));
             AddEditDetailsMenuItem(menu, selectedEntries);
             AddTranscriptionMenuItems(menu, selectedEntries, null);
             menu.Items.Add(new MenuFlyoutSeparator());
             AddMetadataMenuItems(menu, chosen);
 
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
-                () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
+                () => Forget(RemoveLibraryEntriesAsync(selectedEntries))));
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Delete", selectedEntries.Count, tail: "to Recycle Bin..."), "LibraryMenuDelete",
-                () => _ = DeleteLibraryEntriesAsync(selectedEntries)));
+                () => Forget(DeleteLibraryEntriesAsync(selectedEntries))));
         }
     }
 
@@ -886,9 +886,9 @@ public sealed partial class MainWindow
 
     private void OnLibraryRescan(object sender, RoutedEventArgs e) => _scanner!.Request();
 
-    private void OnLibraryBackUp(object sender, RoutedEventArgs e) => _ = BackUpLibraryAsync();
+    private void OnLibraryBackUp(object sender, RoutedEventArgs e) => Forget(BackUpLibraryAsync());
 
-    private void OnLibraryRestore(object sender, RoutedEventArgs e) => _ = RestoreLibraryAsync();
+    private void OnLibraryRestore(object sender, RoutedEventArgs e) => Forget(RestoreLibraryAsync());
 
     /// <summary>Keeps the library and the named playlists in a folder the user chooses (LIB-10).</summary>
     private async Task BackUpLibraryAsync()

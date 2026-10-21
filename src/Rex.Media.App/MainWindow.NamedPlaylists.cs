@@ -47,7 +47,7 @@ public sealed partial class MainWindow
 
         _shownPlaylists = shown;
         _playlistsMenu.Items.Clear();
-        _playlistsMenu.Items.Add(MenuItem("New playlist from this one...", "NewNamedPlaylist", () => _ = NewPlaylistAsync(null)));
+        _playlistsMenu.Items.Add(MenuItem("New playlist from this one...", "NewNamedPlaylist", () => Forget(NewPlaylistAsync(null))));
         if (playlists.Count > 0)
         {
             _playlistsMenu.Items.Add(new MenuFlyoutSeparator());
@@ -61,9 +61,9 @@ public sealed partial class MainWindow
             sub.Items.Add(MenuItem("Play", "PlayNamed-" + playlist.Name, () => _player.PlayPlaylist(id)));
             sub.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(id, enqueue: true)));
             sub.Items.Add(new MenuFlyoutSeparator());
-            sub.Items.Add(MenuItem("Rename...", null, () => _ = RenamePlaylistAsync(id)));
+            sub.Items.Add(MenuItem("Rename...", null, () => Forget(RenamePlaylistAsync(id))));
             sub.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(id)));
-            sub.Items.Add(MenuItem("Delete...", "DeleteNamed-" + playlist.Name, () => _ = DeletePlaylistAsync(id)));
+            sub.Items.Add(MenuItem("Delete...", "DeleteNamed-" + playlist.Name, () => Forget(DeletePlaylistAsync(id))));
             _playlistsMenu.Items.Add(sub);
         }
 
@@ -79,7 +79,7 @@ public sealed partial class MainWindow
             _addToPlaylistMenu.Items.Add(new MenuFlyoutSeparator());
         }
 
-        _addToPlaylistMenu.Items.Add(MenuItem("New playlist...", "AddToNew", () => _ = NewPlaylistAsync(_player.Item is { } item ? [item] : [])));
+        _addToPlaylistMenu.Items.Add(MenuItem("New playlist...", "AddToNew", () => Forget(NewPlaylistAsync(_player.Item is { } item ? [item] : []))));
     }
 
     /// <summary>The playlist's right-click menu, for the entries chosen when it opens.</summary>
@@ -107,18 +107,18 @@ public sealed partial class MainWindow
             addTo.Items.Add(new MenuFlyoutSeparator());
         }
 
-        addTo.Items.Add(MenuItem("New playlist...", "EntryAddToNew", () => _ = NewPlaylistAsync(chosen)));
+        addTo.Items.Add(MenuItem("New playlist...", "EntryAddToNew", () => Forget(NewPlaylistAsync(chosen))));
         menu.Items.Add(addTo);
         menu.Items.Add(new MenuFlyoutSeparator());
         if (chosen is [var lone] && _player.IsMissing(lone))
         {
             var index = _player.Playlist.Items.ToList().IndexOf(lone);
-            menu.Items.Add(MenuItem("Find it...", "EntryLocate", () => _ = LocateAsync(index)));
+            menu.Items.Add(MenuItem("Find it...", "EntryLocate", () => Forget(LocateAsync(index))));
         }
 
         if (_player.Playlist.Items.Any(_player.IsMissing))
         {
-            menu.Items.Add(MenuItem("Look for the missing files in a folder...", "EntryRelink", () => _ = RelinkAsync()));
+            menu.Items.Add(MenuItem("Look for the missing files in a folder...", "EntryRelink", () => Forget(RelinkAsync())));
         }
 
         menu.Items.Add(MenuItem("Remove", "EntryRemove", RemoveSelected));

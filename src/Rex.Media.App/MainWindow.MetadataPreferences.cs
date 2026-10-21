@@ -123,7 +123,7 @@ public sealed partial class MainWindow
             cacheLine.Text = text;
         }
 
-        _ = MeasureAsync();
+        Forget(MeasureAsync());
         var clear = new Button { Content = "Clear downloaded metadata" };
         AutomationProperties.SetAutomationId(clear, "PreferencesMetadataClear");
         clear.Click += async (_, _) =>

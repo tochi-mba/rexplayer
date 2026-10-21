@@ -26,21 +26,21 @@ public sealed partial class MainWindow
     /// <summary>Answers the requests that measure, on the window's thread; null for any other request.</summary>
     private Task<AutomationReply>? AnswerMeasurement(AutomationRequest request) => request.Command switch
     {
-        "metrics" => OnWindow(async () => Measured(await MetricsAsync(request.Id == "start"))),
-        "seek" when request.To is { } to && double.IsFinite(to) && to >= 0 => OnWindow(() =>
+        "metrics" => OnWindow(request, async () => Measured(await MetricsAsync(request.Id == "start"))),
+        "seek" when request.To is { } to && double.IsFinite(to) && to >= 0 => OnWindow(request, () =>
         {
             _player.Seek(TimeSpan.FromSeconds(to));
             return Task.FromResult(new AutomationReply { Ok = true, Position = to });
         }),
         "seek" => Task.FromResult(AutomationReply.Failed("A seek needs \"to\", a time in seconds.")),
-        "measure" => OnWindow(() => MeasureAsync(request)),
+        "measure" => OnWindow(request, () => MeasureAsync(request)),
         _ => null,
     };
 
     private static AutomationReply Measured(IReadOnlyDictionary<string, double> metrics) => new() { Ok = true, Metrics = metrics };
 
     /// <summary>Runs <paramref name="work"/> on the window's thread and hands back its answer.</summary>
-    private Task<AutomationReply> OnWindow(Func<Task<AutomationReply>> work)
+    private Task<AutomationReply> OnWindow(AutomationRequest request, Func<Task<AutomationReply>> work)
     {
         var answered = new TaskCompletionSource<AutomationReply>(TaskCreationOptions.RunContinuationsAsynchronously);
         var queued = DispatcherQueue.TryEnqueue(async () =>
@@ -49,8 +49,10 @@ public sealed partial class MainWindow
             {
                 answered.SetResult(await work());
             }
-            catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException)
+            catch (Exception ex)
             {
+                // Answered with why, never left waiting; a failure here must not end the window either.
+                App.Log.Error(LogSource, $"The automation request \"{request.Command}\" failed: {ex}");
                 answered.SetResult(AutomationReply.Failed(ex.Message));
             }
         });
@@ -126,16 +128,16 @@ public sealed partial class MainWindow
                 SetLibraryOpen(true);
                 break;
             case "open:preferences":
-                _ = ShowPreferencesAsync();
+                Forget(ShowPreferencesAsync());
                 break;
             case "open:subject-lock":
                 OpenSubjectTools();
                 break;
             case "open:effect-picker":
-                _ = ShowVideoStyleSettingsAsync(effect: true);
+                Forget(ShowVideoStyleSettingsAsync(effect: true));
                 break;
             case "open:effects":
-                _ = ShowEffectsAsync();
+                Forget(ShowEffectsAsync());
                 break;
             default:
                 return AutomationReply.Failed($"There is nothing called \"{request.Id}\" to measure.");

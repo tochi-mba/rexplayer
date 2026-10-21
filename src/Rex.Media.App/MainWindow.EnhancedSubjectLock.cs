@@ -40,7 +40,7 @@ public sealed partial class MainWindow
 
         var cancel = _subjectModelsDownload = new CancellationTokenSource();
         var models = SubjectModels;
-        _ = Task.Run(async () =>
+        Forget(Task.Run(async () =>
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd($"rexplayer/{Version}");
@@ -69,7 +69,7 @@ public sealed partial class MainWindow
                     }
                 });
             }
-        });
+        }));
     }
 
     private void StopSubjectModelsDownload() => _subjectModelsDownload?.Cancel();
@@ -110,7 +110,7 @@ public sealed partial class MainWindow
         }
 
         _subjectModelsOpening = true;
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             var segmenter = OpenModel("segmentation", () => PromptSegmenter.Open(SubjectModelStore) is { } model ? new SharedSegmenter(model) : null);
             var inpainter = OpenModel("inpainting", () => Inpainter.Open(SubjectModelStore) is { } model ? new SharedInpainter(model) : null);
@@ -127,7 +127,7 @@ public sealed partial class MainWindow
                 segmenter?.Dispose();
                 inpainter?.Dispose();
             }
-        });
+        }));
     }
 
     private static T? OpenModel<T>(string kind, Func<T?> open)

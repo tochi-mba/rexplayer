@@ -88,7 +88,7 @@ public sealed partial class MainWindow
             var go = new MenuFlyoutItem { Text = "Go there" };
             go.Click += (_, _) => _player.GoToBookmark(index);
             var rename = new MenuFlyoutItem { Text = "Rename..." };
-            rename.Click += (_, _) => _ = RenameBookmarkAsync(index);
+            rename.Click += (_, _) => Forget(RenameBookmarkAsync(index));
             var delete = new MenuFlyoutItem { Text = "Delete" };
             delete.Click += (_, _) => _player.DeleteBookmark(index);
             bookmark.Items.Add(go);

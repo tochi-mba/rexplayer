@@ -112,7 +112,7 @@ public sealed partial class MainWindow : Window
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
         _controlsTimer = Timer(TimeSpan.FromSeconds(_settings.ControlsHideSeconds), HideFullScreenControls);
         _pointerTimer = Timer(TimeSpan.FromSeconds(1.5), HideFullScreenPointer);
-        _statsTimer = Timer(TimeSpan.FromSeconds(1), () => _ = RefreshStatsAsync());
+        _statsTimer = Timer(TimeSpan.FromSeconds(1), () => Forget(RefreshStatsAsync()));
         _statsTimer.IsRepeating = true;
         // Started and stopped by KeepClocks as the player's state asks; idle, neither ticks.
         _resumeTimer = Timer(WindowClocks.ResumeEvery, RememberWhereWeAre);
@@ -213,15 +213,47 @@ public sealed partial class MainWindow : Window
         var timer = CreateTimer();
         timer.Interval = interval;
         timer.IsRepeating = false;
-        timer.Tick += (_, _) =>
-        {
-            if (!_closing)
-            {
-                tick();
-            }
-        };
+        OnTick(timer, tick);
         return timer;
     }
+
+    /// <summary>What <paramref name="timer"/> does at each tick, guarded as every window callback is (<see cref="OnWindowCallback"/>).</summary>
+    private void OnTick(DispatcherQueueTimer timer, Action tick) => timer.Tick += (_, _) => OnWindowCallback(tick);
+
+    /// <summary>
+    /// Runs work Windows calls back on the window's thread: a queued action or a clock's tick. An
+    /// exception escaping such a callback ends the process (0xC000027B) without ever reaching App,
+    /// so it is written down here with its stack and the window carries on, as App does for an
+    /// event handler's. Nothing runs once the window is closing.
+    /// </summary>
+    private void OnWindowCallback(Action work)
+    {
+        if (_closing)
+        {
+            return;
+        }
+
+        try
+        {
+            work();
+        }
+        catch (Exception ex)
+        {
+            App.Log.Critical(LogSource, "Work on the window's thread failed; the window carries on: " + ex);
+        }
+    }
+
+    /// <summary>
+    /// Lets <paramref name="task"/> run on without being waited for. A failure is written down with
+    /// its stack as it happens, instead of vanishing until the collector finds the task.
+    /// </summary>
+    internal static void Forget(Task task, [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(task))] string what = "") =>
+        task.ContinueWith(
+            static (failed, state) => App.Log.Error(LogSource, $"{((string)state!).Split('\n', 2)[0].Trim()} failed: {failed.Exception!.InnerException}"),
+            what,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
 
     /// <summary>A clock on the window's thread that closing stops.</summary>
     private DispatcherQueueTimer CreateTimer()
@@ -268,7 +300,7 @@ public sealed partial class MainWindow : Window
         {
             _ready.TrySetResult();
             _startupFiles = null;
-            _ = GreetThenRecoverAsync(started.Count > 0);
+            Forget(GreetThenRecoverAsync(started.Count > 0));
         }
     }
 
@@ -315,7 +347,7 @@ public sealed partial class MainWindow : Window
                 presenter.Redraw();
             });
             App.Milestones.Reach("presenter");
-            _ = CompleteFactsAsync();
+            Forget(CompleteFactsAsync());
             App.Log.Info(LogSource, $"Pictures are drawn by {_presenter.Name}.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or COMException)
@@ -681,13 +713,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        dispatcher.TryEnqueue(priority, () =>
-        {
-            if (!_closing)
-            {
-                action();
-            }
-        });
+        dispatcher.TryEnqueue(priority, () => OnWindowCallback(action));
     }
 
     private void OnClosed(object sender, WindowEventArgs args)

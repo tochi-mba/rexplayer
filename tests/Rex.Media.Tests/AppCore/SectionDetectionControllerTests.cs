@@ -287,7 +287,7 @@ public sealed class SectionDetectionControllerTests
     }
 
 
-    private static byte[] TestVideo()
+    internal static byte[] TestVideo()
     {
         var video = EbmlWriter.Element(MatroskaId.TrackEntry,
             EbmlWriter.UInt(MatroskaId.TrackNumber, 2),

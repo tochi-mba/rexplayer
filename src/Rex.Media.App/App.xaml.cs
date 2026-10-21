@@ -155,7 +155,7 @@ public partial class App : Application
         {
             // Served before the window is built, so a launch a moment after this one finds the pipe
             // and hands its files over; they are answered once the window has opened its own.
-            _ = AutomationPipe.ServeAsync(pipe, async request => await (await answering.Task).AnswerWhenReadyAsync(request), closing.Token);
+            MainWindow.Forget(AutomationPipe.ServeAsync(pipe, async request => await (await answering.Task).AnswerWhenReadyAsync(request), closing.Token));
         }
         catch (IOException ex)
         {

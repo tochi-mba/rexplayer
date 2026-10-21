@@ -79,11 +79,11 @@ public sealed partial class MainWindow
     {
         _transcriptionTimer = CreateTimer();
         _transcriptionTimer.Interval = WindowClocks.TranscriptionEvery;
-        _transcriptionTimer.Tick += (_, _) => TranscriptionTick();
+        OnTick(_transcriptionTimer, TranscriptionTick);
         var first = CreateTimer();
         first.Interval = LaunchPlan.FirstLibraryScan;
         first.IsRepeating = false;
-        first.Tick += (_, _) => StartTranscription();
+        OnTick(first, StartTranscription);
         first.Start();
         _player.PositionChanged += (_, _) => MoveTranscriptionPlayhead();
         _player.Changed += (_, _) => HoldForSubtitles();
@@ -101,7 +101,7 @@ public sealed partial class MainWindow
 
         // The ledger is read off the window's thread, then the badges show. The tick starts the
         // clock when there is something to look after.
-        _ = Task.Run(() => _ledger.All).ContinueWith(_ => OnWindowThread(RefreshTranscriptBadges), TaskScheduler.Default);
+        Forget(Task.Run(() => _ledger.All).ContinueWith(_ => OnWindowThread(RefreshTranscriptBadges), TaskScheduler.Default));
         TranscriptionTick();
     }
 
@@ -266,7 +266,7 @@ public sealed partial class MainWindow
 
         // Where videos were left is the player's to say, on its own thread: asked here, once.
         var leftPartWay = entries.Where(entry => entry.Kind == LibraryKind.Video && _player.LeftAt(entry.Path) is not null).Select(entry => entry.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        _ = Task.Run(() => TranscriptionOrder.Order(entries, asked, settings, folders, _ledger.Find, leftPartWay.Contains, now)).ContinueWith(task => OnWindowThread(() =>
+        Forget(Task.Run(() => TranscriptionOrder.Order(entries, asked, settings, folders, _ledger.Find, leftPartWay.Contains, now)).ContinueWith(task => OnWindowThread(() =>
         {
             _queueRefreshing = false;
             if (task.IsCompletedSuccessfully)
@@ -278,7 +278,7 @@ public sealed partial class MainWindow
                 RefreshTranscriptBadges();
                 ShowTranscriptionStatus();
             }
-        }), TaskScheduler.Default);
+        }), TaskScheduler.Default));
     }
 
     /// <summary>
@@ -329,7 +329,7 @@ public sealed partial class MainWindow
         var hasVideo = HasVideo;
         var entry = _library?.Entry(item);
         var folders = _library?.Folders ?? [];
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             var full = _transcripts.Load(item, model.Id);
             var partial = full is null ? _transcripts.LoadPartial(item, model.Id) : null;
@@ -376,7 +376,7 @@ public sealed partial class MainWindow
 
             TranscriptionTick();
             HoldForSubtitles();
-        }), TaskScheduler.Default);
+        }), TaskScheduler.Default));
     }
 
     /// <summary>A transcript's track joins what plays, shown when no other subtitles were.</summary>
@@ -467,7 +467,7 @@ public sealed partial class MainWindow
     {
         if (TranscriptionConditions.FetchesModelForNewQuality(_settings.Transcription, _askedPlaying is not null || _askedTranscripts.Count > 0))
         {
-            _ = EnsureSpeechModelAsync(askedNow: false);
+            Forget(EnsureSpeechModelAsync(askedNow: false));
         }
     }
 
@@ -554,7 +554,7 @@ public sealed partial class MainWindow
     {
         var model = TranscriptModel.Id;
         var signatures = entries.Select(TranscriptionOrder.Sign).ToHashSet();
-        _ = Task.Run(() =>
+        Forget(Task.Run(() =>
         {
             foreach (var record in _ledger.Remove(record => signatures.Contains(record.Signature)))
             {
@@ -571,7 +571,7 @@ public sealed partial class MainWindow
             _queueDirty = true;
             RefreshTranscriptBadges();
             Say(entries.Count == 1 ? "Its transcript is forgotten" : $"{entries.Count} transcripts are forgotten");
-        }), TaskScheduler.Default);
+        }), TaskScheduler.Default));
     }
 
     /// <summary>The library menu's transcription items, for the files chosen or a watched folder.</summary>
@@ -586,13 +586,13 @@ public sealed partial class MainWindow
         menu.Items.Add(new MenuFlyoutSeparator());
         if (folder is not null)
         {
-            menu.Items.Add(MenuItem("Transcribe this folder now", "LibraryMenuTranscribeFolder", () => _ = TranscribeNowAsync([.. heard.Where(entry => entry.Kind == LibraryKind.Video)])));
+            menu.Items.Add(MenuItem("Transcribe this folder now", "LibraryMenuTranscribeFolder", () => Forget(TranscribeNowAsync([.. heard.Where(entry => entry.Kind == LibraryKind.Video)]))));
             var left = _settings.Transcription.Excluded.Contains(folder, StringComparer.OrdinalIgnoreCase);
             menu.Items.Add(MenuItem(left ? "Transcribe this folder in the background again" : "Never transcribe this folder in the background", "LibraryMenuExcludeFolder", () => LeaveOutFolder(folder, !left)));
             return;
         }
 
-        menu.Items.Add(MenuItem(heard.Count == 1 ? "Transcribe now" : $"Transcribe {heard.Count} now", "LibraryMenuTranscribe", () => _ = TranscribeNowAsync(heard)));
+        menu.Items.Add(MenuItem(heard.Count == 1 ? "Transcribe now" : $"Transcribe {heard.Count} now", "LibraryMenuTranscribe", () => Forget(TranscribeNowAsync(heard))));
         var records = heard.Select(entry => _ledger.Loaded ? _ledger.Find(TranscriptionOrder.Sign(entry)) : null).ToList();
         if (records.Any(record => record?.State == TranscriptState.Failed))
         {
@@ -899,7 +899,7 @@ public sealed partial class MainWindow
     private void OnTranscriptionSettingsClick(object sender, RoutedEventArgs e)
     {
         TranscriptionDetails.Hide();
-        _ = ShowPreferencesAsync();
+        Forget(ShowPreferencesAsync());
     }
 
     private void SetTranscription(TranscriptionSettings settings)

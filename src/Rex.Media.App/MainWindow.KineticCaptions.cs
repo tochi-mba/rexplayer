@@ -336,11 +336,11 @@ public sealed partial class MainWindow
         _pictureScan = scan;
         _pictureScanItem = location;
         var token = scan.Token;
-        _ = Task.Run(() => ScanPictures(location, token), token).ContinueWith(
+        Forget(Task.Run(() => ScanPictures(location, token), token).ContinueWith(
             task => App.Log.Debug(LogSource, "The picture was not read for captions: " + task.Exception?.GetBaseException().Message),
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
-            TaskScheduler.Default);
+            TaskScheduler.Default));
     }
 
     private void StopPictureScan()
@@ -427,7 +427,7 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.KineticCaptionSettings:
-                _ = ShowKineticCaptionSettingsAsync();
+                Forget(ShowKineticCaptionSettingsAsync());
                 return true;
             case CommandCatalog.Transcribe or CommandCatalog.SaveTranscript:
                 RunTranscriptCommand(command);

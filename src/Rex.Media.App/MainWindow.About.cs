@@ -43,14 +43,14 @@ public sealed partial class MainWindow
             return link;
         }
 
-        Link("What's new", "AboutWhatsNew", () => _ = ShowWhatsNewAsync());
+        Link("What's new", "AboutWhatsNew", () => Forget(ShowWhatsNewAsync()));
         Link("Website and help", "AboutWebsite", () => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(HelpUrl)));
         Link("Open the log folder", "AboutLogFolder", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.OpenLogFolder));
         panel.Children.Add(links);
 
         if (await Ask("About rexplayer", panel, "Check for updates"))
         {
-            _ = CheckForUpdatesAsync(asked: true);
+            Forget(CheckForUpdatesAsync(asked: true));
         }
     }
 }
