@@ -242,7 +242,7 @@ public sealed partial class MainWindow
     }
 
     private static string PictureCachePath(string key) =>
-        Path.Combine(App.DataRoot, "cache", "library-pictures", key + ".png");
+        App.Roots.LibraryPicture(key);
 
     private static async Task<ImageSource?> ReadShellPictureAsync(string path, LibraryKind kind, uint size, string key, CancellationToken token)
     {
