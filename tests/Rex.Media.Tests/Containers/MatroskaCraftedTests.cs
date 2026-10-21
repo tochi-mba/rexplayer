@@ -411,7 +411,8 @@ public sealed class MatroskaCraftedTests
         using var live = new MatroskaDemuxer(new LiveSource(file), CancellationToken.None);
 
         Assert.Equal("WebM", demuxer.Info.FormatName);
-        Assert.Null(demuxer.Info.DeclaredLength);
+        // The chapter has unknown size, but the enclosing segment declares the full file length.
+        Assert.Equal(file.Length, demuxer.Info.DeclaredLength);
         Assert.Equal("Asake", demuxer.Info.Metadata["artist"]);
         Assert.Equal("Sungba", demuxer.Info.Metadata["title"]);
         Assert.Equal(MediaTime.FromSeconds(0.5), demuxer.Info.Duration);
