@@ -471,7 +471,7 @@ public sealed partial class MainWindow
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
                 ? string.Join(" · ", new[] { Path.GetFileName(Path.GetDirectoryName(entry.Path)), entry.Modified == default ? null : entry.Modified.ToLocalTime().ToString("d", CultureInfo.CurrentCulture) }.Where(part => part is not null))
-                : string.Join(" · ", new[] { entry.Artist, entry.Album }.Where(part => part is not null));
+                : string.Join(" · ", new[] { ArtistNames.Display(entry.Artist), entry.Album }.Where(part => part is not null));
         if (entry.Problem is { } problem)
         {
             // A file whose details could not be read (damaged, most often) says why instead.

@@ -8,8 +8,9 @@ public sealed record ArtistAlbum(LibraryGroup Album, int? Year);
 
 /// <summary>
 /// What an artist's page shows (LIB-05): the songs of theirs played the most, then their albums
-/// with the newest first, the way a streaming-style artist screen reads. Both are plain queries
-/// over the artist's songs; the window only lays them out.
+/// with the newest first, then other artists' albums they are featured on, the way a
+/// streaming-style artist screen reads. All are plain queries over the artist's songs, which take
+/// in the songs they are a featured or second artist on; the window only lays them out.
 /// </summary>
 public static class ArtistPages
 {
@@ -33,12 +34,25 @@ public static class ArtistPages
     /// <summary>
     /// The artist's albums, the newest year first; albums without a year after those with one,
     /// by name, and songs filed under no album last of all. An album's year is the latest its
-    /// songs carry, so a deluxe reissue's bonus tracks do not pull the album back in time.
+    /// songs carry, so a deluxe reissue's bonus tracks do not pull the album back in time. An album
+    /// is theirs when the artist it is filed under names them ("A$AP Rocky/Brent Faiyaz" is both's).
     /// </summary>
-    public static IReadOnlyList<ArtistAlbum> Albums(LibraryGroup artist)
+    public static IReadOnlyList<ArtistAlbum> Albums(LibraryGroup artist) => Arranged(artist, theirs: true);
+
+    /// <summary>
+    /// Other artists' albums with songs the artist is on, in the same order as <see cref="Albums"/>;
+    /// each holds only those songs.
+    /// </summary>
+    public static IReadOnlyList<ArtistAlbum> FeaturedOn(LibraryGroup artist) => Arranged(artist, theirs: false);
+
+    private static List<ArtistAlbum> Arranged(LibraryGroup artist, bool theirs)
     {
         ArgumentNullException.ThrowIfNull(artist);
+        var names = ArtistNames.Learn(artist.Entries);
+        var key = ArtistNames.Key(artist.Name);
         return [.. LibraryViews.Albums(artist.Entries)
+            .Where(album => (album.Detail is null || album.Name == LibraryViews.UnknownAlbum
+                || names.Split(album.Detail).Any(name => names.KeyOf(name) == key)) == theirs)
             .Select(album => new ArtistAlbum(album, album.Entries.Max(entry => entry.Year)))
             .OrderBy(album => album.Album.Name == LibraryViews.UnknownAlbum)
             .ThenBy(album => album.Year is null)

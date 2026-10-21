@@ -69,20 +69,17 @@ internal static class Mp4Metadata
                     if (Mp4Boxes.Find(body, "name") is { } nameBox && nameBox.Length > 4)
                     {
                         var key = Encoding.UTF8.GetString(body[(nameBox.Start + 4)..nameBox.End]).ToLowerInvariant();
-                        metadata[key] = Encoding.UTF8.GetString(value).Trim();
+                        metadata[key] = Texts(body);
                     }
 
                     break;
                 default:
                     // Item types start with the copyright sign (0xA9), which box types in general may not
                     // carry, so the four bytes are read as Latin-1 here rather than through FourCC.
-                    if (TextItems.TryGetValue(Encoding.Latin1.GetString(ilst.Slice(item.Start - 4, 4)), out var textKey))
+                    if (TextItems.TryGetValue(Encoding.Latin1.GetString(ilst.Slice(item.Start - 4, 4)), out var textKey)
+                        && Texts(body) is { Length: > 0 } text)
                     {
-                        var text = Encoding.UTF8.GetString(value).Trim('\0', ' ');
-                        if (text.Length > 0)
-                        {
-                            metadata[textKey] = text;
-                        }
+                        metadata[textKey] = text;
                     }
 
                     break;
@@ -90,6 +87,24 @@ internal static class Mp4Metadata
         }
 
         return cover;
+    }
+
+    /// <summary>
+    /// An item's text: every data atom it holds (a tagger lists several artists as several atoms),
+    /// joined with "; " the way repeated Vorbis fields are.
+    /// </summary>
+    private static string Texts(ReadOnlySpan<byte> item)
+    {
+        var texts = new List<string>();
+        foreach (var data in Mp4Boxes.Children(item))
+        {
+            if (data.Type == "data" && data.Length > 8 && Encoding.UTF8.GetString(item[(data.Start + 8)..data.End]).Trim('\0', ' ') is { Length: > 0 } text)
+            {
+                texts.Add(text);
+            }
+        }
+
+        return string.Join(VorbisComments.Separator, texts);
     }
 
     /// <summary>

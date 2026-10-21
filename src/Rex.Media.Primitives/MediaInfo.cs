@@ -38,6 +38,9 @@ public static class MetadataKeys
 {
     public const string Title = "title";
     public const string Artist = "artist";
+
+    /// <summary>The tag's own list of a song's artists (ARTISTS), each value apart from "artist", which is one credit.</summary>
+    public const string Artists = "artists";
     public const string Album = "album";
     public const string AlbumArtist = "album_artist";
     public const string Genre = "genre";

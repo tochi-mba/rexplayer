@@ -372,6 +372,22 @@ public sealed class Mp4CraftedTests
     }
 
     [Fact]
+    [Capability("META-01")]
+    public void AnItemWithSeveralDataAtomsKeepsEveryValue()
+    {
+        var mark = Encoding.Latin1.GetString([0xA9]);
+        var ilst = Box("ilst",
+            Box(mark + "ART", Box("data", U32(1), U32(0), Ascii("A$AP Rocky")), Box("data", U32(1), U32(0), Ascii("Brent Faiyaz")), Box("data", U32(1), U32(0)), Box("free")),
+            Box("----", Box("mean", U32(0), Ascii("com.apple.iTunes")), Box("name", U32(0), Ascii("ARTISTS")), Box("data", U32(1), U32(0), Ascii("A$AP Rocky")), Box("data", U32(1), U32(0), Ascii("Brent Faiyaz"))));
+        var metadata = new Dictionary<string, string>();
+
+        Mp4Metadata.ReadItems(ilst.AsSpan(8), metadata);
+
+        Assert.Equal("A$AP Rocky; Brent Faiyaz", metadata[MetadataKeys.Artist]);
+        Assert.Equal("A$AP Rocky; Brent Faiyaz", metadata[MetadataKeys.Artists]);
+    }
+
+    [Fact]
     public void GenresOutsideTheNumberedListAreLeftOut()
     {
         var ilst = Box("ilst", Box("gnre", Box("data", U32(0), U32(0), U16(0))), Box("gnre", Box("data", U32(0), U32(0), U16(200))), Box("trkn", Box("data", U32(0), U32(0), [0, 0, 0, 0, 0, 0])));

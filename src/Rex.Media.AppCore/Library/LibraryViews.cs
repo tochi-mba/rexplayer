@@ -145,18 +145,24 @@ public static partial class LibraryViews
             .ThenBy(group => group.Detail ?? "", ByName)];
 
     /// <summary>
-    /// The artists, by name, each with their songs. Tag formats can carry several artist values;
-    /// rexplayer's canonical metadata joins those with semicolons, so every credited artist gets a
-    /// library entry while the song keeps its original combined credit. A song is filed under its
-    /// album's artist and under its own artists too ("Various Artists" and "Asake"), once under each.
+    /// The artists, by name, each with their songs. A song is filed under everyone it is by, once
+    /// under each: its album's artist and its own artists ("Various Artists" and "Asake"), every
+    /// artist a combined credit names ("beabadoobee/The Marías") and those its title features, as
+    /// <see cref="ArtistNames"/> reads them. Spellings that differ only in case, accents or
+    /// punctuation are one artist, named the way most of their songs spell it. It is worked out from
+    /// the stored tags each time, so a library read under older rules shows the current ones at once.
     /// </summary>
-    public static IReadOnlyList<LibraryGroup> Artists(IEnumerable<LibraryEntry> entries) =>
-        [.. Songs(entries)
-            .SelectMany(entry => ArtistNames(entry.AlbumArtist + ";" + entry.Artist).Select(name => (Name: name, Entry: entry)))
-            .GroupBy(pair => pair.Name, ByName)
-            .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Name)), null, [.. group.Select(pair => pair.Entry).Distinct()]))
+    public static IReadOnlyList<LibraryGroup> Artists(IEnumerable<LibraryEntry> entries)
+    {
+        var songs = Songs(entries);
+        var names = ArtistNames.Learn(songs);
+        return [.. songs
+            .SelectMany(entry => names.Of(entry).DefaultIfEmpty(UnknownArtist).Select(name => (Name: name, Entry: entry)))
+            .GroupBy(pair => names.KeyOf(pair.Name), StringComparer.Ordinal)
+            .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Name)), null, [.. group.Select(pair => pair.Entry)]))
             .OrderBy(group => group.Name == UnknownArtist)
             .ThenBy(group => group.Name, ByName)];
+    }
 
     /// <summary>
     /// The genres, by name, each with its songs. A song tagged with several genres ("Dance;Pop")
@@ -393,12 +399,6 @@ public static partial class LibraryViews
         var years = peers.Where(peer => ByName.Equals(peer.Series, episode.Series) && peer.SeriesYear is not null)
             .Select(peer => peer.SeriesYear!.Value).Distinct().Take(2).ToList();
         return years.Count < 2 ? episode.Series : episode.SeriesYear is { } year ? $"{episode.Series} ({year})" : episode.Series;
-    }
-
-    private static IEnumerable<string> ArtistNames(string? credit)
-    {
-        var names = (credit ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(ByName).ToList();
-        return names.Count == 0 ? [UnknownArtist] : names;
     }
 
     /// <summary>A group's name as most of its songs spell it ("Asake" over one "asake"), the first in order on a tie.</summary>

@@ -79,4 +79,22 @@ public sealed class ArtistPagesTests
 
         Assert.Equal([2024, 2022], ArtistPages.Albums(artist).Select(album => album.Year));
     }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void SongsTheArtistIsFeaturedOnCountAndOtherArtistsAlbumsAreFeaturedOn()
+    {
+        var own = Song("Terminator", "Work of Art", 2023, plays: 3);
+        var shared = Song("Basquiat", "Lungu Boy", 2024, plays: 1) with { Artist = "Asake/Olamide" };
+        var guest = Song("Ballerina (feat. Asake)", "Unruly", 2022, plays: 9) with { Artist = "Olamide", AlbumArtist = "Olamide" };
+        var loose = Song("Loose (feat. Asake)", null, plays: 0) with { Artist = "Wizkid" };
+        var artist = LibraryViews.Artists([own, shared, guest, loose]).Single(group => group.Name == "Asake");
+
+        Assert.Equal(["Ballerina (feat. Asake)", "Terminator", "Basquiat"], ArtistPages.TopSongs(artist).Select(song => song.Title));
+        // Filed under "Asake/Olamide", Lungu Boy is Asake's; a song with no album stays with the artist's own.
+        Assert.Equal(["Lungu Boy", "Work of Art", LibraryViews.UnknownAlbum], ArtistPages.Albums(artist).Select(album => album.Album.Name));
+        var featured = Assert.Single(ArtistPages.FeaturedOn(artist));
+        Assert.Equal(("Unruly", "Olamide", 2022), (featured.Album.Name, featured.Album.Detail, featured.Year));
+        Assert.Throws<ArgumentNullException>(() => ArtistPages.FeaturedOn(null!));
+    }
 }
