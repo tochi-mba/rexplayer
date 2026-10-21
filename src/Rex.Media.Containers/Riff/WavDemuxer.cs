@@ -54,7 +54,10 @@ public sealed class WavDemuxer : IDemuxer
         long? ds64DataLength = null;
         var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        while (!_stream.EndOfStream && (dataStart is null || format is null))
+        // Seekable files can keep LIST/INFO tags after the audio data. A live stream must
+        // start playback as soon as its format and data are known, without reading ahead.
+        var readTrailingChunks = source.CanSeek && source.Length is not null;
+        while (!_stream.EndOfStream && (dataStart is null || format is null || readTrailingChunks))
         {
             var id = _stream.ReadFourCC();
             long size = bigEndian ? _stream.ReadUInt32BigEndian() : _stream.ReadUInt32LittleEndian();
@@ -84,7 +87,7 @@ public sealed class WavDemuxer : IDemuxer
                     break;
             }
 
-            if (dataStart is not null && format is not null)
+            if (dataStart is not null && format is not null && !readTrailingChunks)
             {
                 break;
             }
