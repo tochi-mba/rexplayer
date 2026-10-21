@@ -209,6 +209,10 @@ internal static class LibraryNavigation
     /// <summary>Chooses a view in the sidebar and waits for its title.</summary>
     public static void Visit(this AppProcess app, string view, string? title = null)
     {
+        // A section may exist in the item source but be collapsed until the scanner
+        // settles. UI Automation can find and select the hidden item, but a person
+        // cannot; wait for the actual visible sidebar entry before choosing it.
+        Wait.For(() => app.IsListed(view), view + " to appear in the sidebar");
         var source = Wait.Until(() => app.Find("LibrarySources").FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, view)));
         ((SelectionItemPattern)source.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
