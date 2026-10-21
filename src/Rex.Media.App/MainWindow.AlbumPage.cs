@@ -260,6 +260,7 @@ public sealed partial class MainWindow
         foreach (var (text, column, right) in new[] { ("Title", 1, false), ("Artist", 2, false), ("Album", 3, false), ("Plays", 4, true), ("Length", 6, true) })
         {
             var heading = new TextBlock { Text = text, Foreground = secondary, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left };
+            AutomationProperties.SetAutomationId(heading, "SongsTableHeading-" + text);
             Grid.SetColumn(heading, column);
             header.Children.Add(heading);
         }
