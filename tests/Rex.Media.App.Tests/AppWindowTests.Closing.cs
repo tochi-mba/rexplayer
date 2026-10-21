@@ -1,5 +1,4 @@
 using System.IO;
-using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
 
@@ -13,8 +12,9 @@ public sealed partial class AppWindowTests
     [Fact]
     public void ClosingWhilePlayingSoundVideoOrAVisualisationExitsCleanly()
     {
-        var film = Path.Combine(_media, "Film.mp4");
-        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), film);
+        // A film long enough to be still playing when the window is first read: the 0.4 s fixture
+        // could start and end between two reads on a busy runner, so "Pause" was never seen.
+        var film = LongFilm("Film", 60);
         var song = Song(30);
         var music = Music(30);
 

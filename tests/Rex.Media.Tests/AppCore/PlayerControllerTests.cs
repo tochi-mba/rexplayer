@@ -502,6 +502,25 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    [Capability("PB-17")]
+    public void ASecondPressWhileTheTrackChangeOpensMovesOnFromTheTrackJustChosen()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["two.mkv"] = TwoAudioTracks();
+        var controller = harness.Controller;
+        controller.Open(["two.mkv"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
+
+        // The reopened session has not reported its tracks yet when the second press comes.
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.Equal("Audio track 2 of 2: Commentary", harness.Messages[^1]);
+        Assert.Null(controller.Info);
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.StartsWith("Audio track 1 of 2: ", harness.Messages[^1], StringComparison.Ordinal);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
+    }
+
+    [Fact]
     [Capability("AU-18")]
     public void TheSoundBeingHeardCanBeReadForAVisualisation()
     {

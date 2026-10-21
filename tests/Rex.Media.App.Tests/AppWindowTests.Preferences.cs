@@ -134,12 +134,12 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.Preferences);
         ChoosePreferencesSection(app, "Video and pictures");
         // Only the chosen section is in the window, so finding the models at all puts them under Video and
-        // pictures; they sit at its foot, below the part scrolled into view.
-        Wait.For(() => app.Window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesSubjectModelsNote")) is not null,
-            "the Enhanced Subject Lock models to show under Video and pictures");
-        Assert.NotNull(app.Window.FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesSubjectModelsDownload")));
+        // pictures; they sit at its foot, below the part scrolled into view. The section reaches UI
+        // Automation a piece at a time as it lays out, so the note can be there before its buttons.
+        bool Present(string id) => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, id)) is not null;
+        Wait.For(() => Present("PreferencesSubjectModelsNote") && Present("PreferencesSubjectModelsDownload"),
+            "the Enhanced Subject Lock models and their download to show under Video and pictures");
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }
@@ -148,13 +148,13 @@ public sealed partial class AppWindowTests
     {
         var selector = app.Find("PreferencesSection");
         Assert.False(selector.Current.IsOffscreen);
-        var expand = (ExpandCollapsePattern)selector.GetCurrentPattern(ExpandCollapsePattern.Pattern);
-        expand.Expand();
-        var item = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new AndCondition(
+        // The list drops down on the window's thread after Expand returns, and can close again as
+        // focus settles, so it is opened until the section is really on offer.
+        var item = app.OpenMenu(new AndCondition(
             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
-            new PropertyCondition(AutomationElement.NameProperty, name))));
+            new PropertyCondition(AutomationElement.NameProperty, name)), "the section " + name, false, "PreferencesSection");
         ((SelectionItemPattern)item.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
-        expand.Collapse();
+        ((ExpandCollapsePattern)app.Find("PreferencesSection").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Collapse();
         Wait.For(() => !app.Find("PreferencesSection").Current.IsOffscreen, "section navigation to stay visible");
     }
 
