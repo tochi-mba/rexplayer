@@ -45,6 +45,7 @@ public sealed partial class MainWindow
         string billboardTitle, billboardLine;
         var shelves = new List<(string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide, string Id)>();
         Action? play = null, more = null;
+        var playLabel = "Play";
         Description? synopsis = null;
         Uri? backdrop = null;
         if (movies)
@@ -61,6 +62,7 @@ public sealed partial class MainWindow
                 synopsis = TitleSections.MovieSynopsis(facts);
                 backdrop = TitleSections.AbsoluteUri(facts?.BackdropUrl);
                 play = () => Play([movie], 0, resume: true);
+                playLabel = _player.LeftAt(movie.Path) is null ? "Play" : "Resume";
                 more = () => OpenMovieDetails(movie);
             }
 
@@ -85,6 +87,12 @@ public sealed partial class MainWindow
                 billboardLine = TitleFacts.ShowLine(facts, featured.Detail ?? "");
                 synopsis = TitleSections.ShowSynopsis(facts);
                 play = () => PlayShowFromNextUp(featured);
+                if (StreamingBrowse.NextUp(featured, _player.LeftAt) is { } next)
+                {
+                    var episode = LibraryViews.EpisodeOf(next);
+                    var context = episode is null ? "" : $" S{episode.Season:00} E{episode.Episode:00}";
+                    playLabel = (_player.LeftAt(next.Path) is null ? "Play" : "Resume") + context;
+                }
                 more = () => OpenShow(featured);
             }
 
@@ -116,7 +124,7 @@ public sealed partial class MainWindow
         if (billboardArt is not null)
         {
             LibraryShelves.Children.Add(Billboard(movies ? "FEATURED MOVIE" : "FEATURED SHOW",
-                billboardTitle, billboardLine, synopsis, billboardArt, backdrop, play!, more!));
+                billboardTitle, billboardLine, synopsis, billboardArt, backdrop, playLabel, play!, more!));
         }
 
         foreach (var (title, see, rows, wide, id) in shelves)
@@ -171,7 +179,7 @@ public sealed partial class MainWindow
     /// gradient keeping its words readable over any picture, its title, facts and synopsis (with
     /// Wikipedia's credit when the synopsis is theirs), Play and More info.
     /// </summary>
-    private Grid Billboard(string kicker, string title, string line, Description? synopsis, LibraryEntry art, Uri? wide, Action play, Action more)
+    private Grid Billboard(string kicker, string title, string line, Description? synopsis, LibraryEntry art, Uri? wide, string playLabel, Action play, Action more)
     {
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
@@ -269,7 +277,7 @@ public sealed partial class MainWindow
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
-            Children = { new FontIcon { Glyph = "", FontSize = 14 }, new TextBlock { Text = "Play" } },
+            Children = { new FontIcon { Glyph = "", FontSize = 14 }, new TextBlock { Text = playLabel } },
         };
         AutomationProperties.SetAutomationId(playButton, "LibraryBillboardPlay");
         playButton.Click += (_, _) => play();
