@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
 using Rex.Media.Settings;
@@ -16,6 +17,11 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _browseHeroTimer;
+    private int _browseHeroIndex;
+    private string _browseHeroSet = "";
+    private bool _browseHeroHeld;
+
     /// <summary>Whether the open view can be laid out as a streaming-style browse.</summary>
     private bool BrowseOffered => _libraryGroup is null && LibrarySearch.Text.Trim().Length == 0
         && _librarySource is LibrarySource.Movies or LibrarySource.TvShows;
@@ -44,10 +50,11 @@ public sealed partial class MainWindow
         if (movies)
         {
             var browse = StreamingBrowse.Movies(LibraryViews.Movies(entries, MovieLookupOf), _player.LeftAt);
-            billboardArt = browse.Billboard;
-            billboardTitle = browse.Billboard is null ? "" : LibraryViews.MovieTitleOf(browse.Billboard);
+            SetBrowseHeroSet(string.Join("\n", browse.Features.Select(feature => feature.Path)), browse.Features.Count);
+            billboardArt = PickFeature(browse.Features);
+            billboardTitle = billboardArt is null ? "" : LibraryViews.MovieTitleOf(billboardArt);
             billboardLine = "";
-            if (browse.Billboard is { } movie)
+            if (billboardArt is { } movie)
             {
                 var facts = MetadataMovie(movie);
                 billboardLine = TitleFacts.Movie(movie, facts);
@@ -67,10 +74,12 @@ public sealed partial class MainWindow
         else
         {
             var browse = StreamingBrowse.TvShows(entries, _player.LeftAt);
-            billboardArt = browse.Billboard is { Entries.Count: > 0 } show ? show.Entries[0] : null;
-            billboardTitle = browse.Billboard?.Name ?? "";
-            billboardLine = browse.Billboard?.Detail ?? "";
-            if (browse.Billboard is { } featured)
+            SetBrowseHeroSet(string.Join("\n", browse.Features.Select(feature => feature.Name)), browse.Features.Count);
+            var featured = PickFeature(browse.Features);
+            billboardArt = featured is { Entries.Count: > 0 } show ? show.Entries[0] : null;
+            billboardTitle = featured?.Name ?? "";
+            billboardLine = featured?.Detail ?? "";
+            if (featured is not null)
             {
                 var facts = ShowFacts(featured.Name);
                 billboardLine = TitleFacts.ShowLine(facts, featured.Detail ?? "");
@@ -121,6 +130,42 @@ public sealed partial class MainWindow
         }
     }
 
+    private T? PickFeature<T>(IReadOnlyList<T> features) => features.Count == 0 ? default : features[_browseHeroIndex % features.Count];
+
+    /// <summary>Keeps a stable hero selection until the slow rotation advances it.</summary>
+    private void SetBrowseHeroSet(string identity, int count)
+    {
+        if (!string.Equals(identity, _browseHeroSet, StringComparison.Ordinal))
+        {
+            _browseHeroSet = identity;
+            _browseHeroIndex = 0;
+        }
+
+        _browseHeroTimer ??= Timer(TimeSpan.FromSeconds(12), AdvanceBrowseHero);
+        _browseHeroTimer.IsRepeating = true;
+        Run(_browseHeroTimer, count > 1 && !_browseHeroHeld && AppWindow.IsVisible);
+    }
+
+    private void AdvanceBrowseHero()
+    {
+        if (_browseHeroHeld || !AppWindow.IsVisible || !BrowseOffered)
+        {
+            return;
+        }
+
+        _browseHeroIndex++;
+        _shownLibrary = "";
+        ShowLibrary();
+    }
+
+    private void StopBrowseHeroRotation()
+    {
+        if (_browseHeroTimer is not null)
+        {
+            _browseHeroTimer.Stop();
+        }
+    }
+
     /// <summary>
     /// The billboard: the featured item's backdrop (else its own artwork) filling a wide frame, a
     /// gradient keeping its words readable over any picture, its title, facts and synopsis (with
@@ -131,6 +176,30 @@ public sealed partial class MainWindow
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
+        frame.Tapped += (_, _) => more();
+        frame.PointerEntered += (_, _) =>
+        {
+            _browseHeroHeld = true;
+            StopBrowseHeroRotation();
+        };
+        frame.PointerExited += (_, _) =>
+        {
+            _browseHeroHeld = false;
+            if (_browseHeroTimer is not null && AppWindow.IsVisible)
+            {
+                _browseHeroTimer.Start();
+            }
+        };
+        if (_budget.Animations)
+        {
+            frame.Opacity = 0;
+            var fade = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(240), EasingFunction = new QuadraticEase() };
+            Storyboard.SetTarget(fade, frame);
+            Storyboard.SetTargetProperty(fade, "Opacity");
+            var transition = new Storyboard();
+            transition.Children.Add(fade);
+            frame.Loaded += (_, _) => transition.Begin();
+        }
         var backdrop = new Image { Stretch = Stretch.UniformToFill };
         frame.Children.Add(backdrop);
         var token = _libraryPictures.Token;

@@ -168,6 +168,10 @@ public sealed partial class MainWindow
             entries = WithoutListening(entries);
         }
         var browse = !home && search.Length == 0 && BrowseOffered && choice.Look == LibraryLook.Browse;
+        if (!browse)
+        {
+            StopBrowseHeroRotation();
+        }
         LibraryHome.Visibility = home || browse || musicHome ? Visibility.Visible : Visibility.Collapsed;
         LibraryList.Visibility = home || browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
