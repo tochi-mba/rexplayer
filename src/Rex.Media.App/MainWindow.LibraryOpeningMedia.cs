@@ -14,10 +14,30 @@ public sealed partial class MainWindow
 
     private void OnLibraryTapped(object sender, TappedRoutedEventArgs e)
     {
-        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick && !IsDown(VirtualKey.Control) && !IsDown(VirtualKey.Shift)
+            && !TapCameFromAction(e.OriginalSource))
         {
             Activate(TappedRow(e.OriginalSource));
         }
+    }
+
+    /// <summary>A button inside a row owns its click; activating the row as well would play two commands.</summary>
+    private static bool TapCameFromAction(object source)
+    {
+        for (var current = source as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase or TextBox or ComboBox or Slider)
+            {
+                return true;
+            }
+
+            if (current is FrameworkElement { DataContext: LibraryRow })
+            {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     private void OnLibraryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

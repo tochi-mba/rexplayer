@@ -437,7 +437,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var add = new Button { Content = "Add a folder..." };
+        var add = new Button { Content = "Add folders..." };
         AutomationProperties.SetAutomationId(add, "LibraryEmptyAddFolder");
         add.Click += OnLibraryAddFolder;
         LibraryFolderButtons.Children.Add(add);
@@ -869,38 +869,6 @@ public sealed partial class MainWindow
         {
             Say($"{failed.Count} file(s) could not be moved to the Recycle Bin: " + string.Join("; ", failed.Take(3)));
         }
-    }
-
-    private async void OnLibraryAddFolder(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary });
-            picker.FileTypeFilter.Add("*");
-            if (await picker.PickSingleFolderAsync() is { } folder)
-            {
-                AddLibraryFolder(folder.Path);
-            }
-        }
-        catch (Exception ex)
-        {
-            App.Log.Error(LogSource, "A folder could not be added: " + ex);
-            Say("The folder could not be added: " + Rex.Media.AppCore.Player.DamageNotices.Short(ex.Message));
-        }
-    }
-
-    private void AddLibraryFolder(string path)
-    {
-        if (!_library!.AddFolder(path))
-        {
-            Say($"The library already watches {path}.");
-            return;
-        }
-
-        App.Log.Info(LogSource, "The library now watches " + path);
-        Say("The library now watches " + path);
-        WatchLibraryFolders();
-        _scanner!.Request();
     }
 
     private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => RemoveChosenFolders();
