@@ -11,7 +11,15 @@ public sealed class AutomationPipeTests
 
     private static readonly System.Text.Json.JsonSerializerOptions Web = new(System.Text.Json.JsonSerializerDefaults.Web);
 
-    private static string NewPipe() => "rexplayer-test-" + Guid.NewGuid().ToString("N");
+    /// <summary>
+    /// A pipe of the test's own, short enough for a Mac: there a pipe is a socket file in the
+    /// temporary folder (itself some 50 characters deep), and a socket's whole path may hold at
+    /// most 104. Twelve hex digits keep collisions out of reach.
+    /// </summary>
+    private static string NewPipe() => "rexplayer-test-" + Guid.NewGuid().ToString("N")[..12];
+
+    /// <summary>The longest name a pipe may have and still fit a socket path on macOS, under its usual temporary folder.</summary>
+    private const int LongestPortablePipeName = 40;
 
     [Fact]
     [Capability("TOOL-03")]
@@ -250,6 +258,14 @@ public sealed class AutomationPipeTests
         Assert.Matches("^rexplayer-[0-9a-f]{16}$", Environment.GetEnvironmentVariable("REXPLAYER_PIPE_NAME") is { Length: > 0 } ? "rexplayer-0000000000000000" : name);
         Assert.Equal(name, AutomationPipe.NameForCurrentUser);
         Assert.False(AutomationReply.Failed("why").Ok);
+    }
+
+    [Fact]
+    public void EveryPipeNameFitsASocketPathOnAMac()
+    {
+        // The player's own name and every test's, so a macOS build can always open its pipe.
+        Assert.InRange("rexplayer-0000000000000000".Length, 1, LongestPortablePipeName);
+        Assert.InRange(NewPipe().Length, 1, LongestPortablePipeName);
     }
 
     [Fact]

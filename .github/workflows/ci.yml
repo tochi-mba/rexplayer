@@ -112,6 +112,25 @@ jobs:
       - name: Run them
         run: dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release --no-build
 
+  # The same portable suite on a Mac (Apple Silicon), so the engine every macOS build stands on
+  # is proved there before any macOS code exists, and stays proved (ADR-0020).
+  macos-pure:
+    name: Portable engine tests (macOS)
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build the portable engine and its tests
+        run: dotnet build tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -nologo
+
+      - name: Run them
+        run: dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release --no-build
+
   site:
     name: Website
     runs-on: ubuntu-latest
@@ -208,7 +227,7 @@ jobs:
   release:
     name: Publish a new version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [windows, linux-pure, site, perf, desktop]
+    needs: [windows, linux-pure, macos-pure, site, perf, desktop]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
