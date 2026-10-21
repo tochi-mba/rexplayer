@@ -367,27 +367,31 @@ public sealed class LibraryScanner : IDisposable
     /// readers share writing, so they never count), and, for a sparse file, how many of its bytes
     /// are on the disk (from <paramref name="allocation"/>, when the system can tell).
     /// </summary>
-    public static FileLook Inspect(LibraryFile file, IFileAllocation? allocation)
-    {
-        try
-        {
-            using var handle = File.OpenHandle(file.Path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
-            return new FileLook(false, file.Sparse && allocation is not null ? allocation.Allocated(handle, RandomAccess.GetLength(handle)) : null);
-        }
-        catch (IOException ex) when ((ex.HResult & 0xFFFF) == SharingViolation)
-        {
-            return new FileLook(true, file.Sparse && allocation is not null ? AllocatedShared(file.Path, allocation) : null);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return default;
-        }
-    }
+    public static FileLook Inspect(LibraryFile file, IFileAllocation? allocation) =>
+        new(WriterHolds(file.Path), file.Sparse && allocation is not null ? AllocatedOf(file.Path, allocation) : null);
 
     private const int SharingViolation = 32;
 
-    /// <summary>A sparse file's bytes on the disk, read through a handle that lets its writer go on writing.</summary>
-    private static long? AllocatedShared(string path, IFileAllocation allocation)
+    /// <summary>Whether another program holds <paramref name="path"/> open for writing: a look that shuts writers out is refused.</summary>
+    private static bool WriterHolds(string path)
+    {
+        try
+        {
+            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+            return false;
+        }
+        catch (IOException ex) when ((ex.HResult & 0xFFFF) == SharingViolation)
+        {
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>A sparse file's bytes on the disk, read through a handle that lets its writer go on writing; null when it cannot be opened.</summary>
+    private static long? AllocatedOf(string path, IFileAllocation allocation)
     {
         try
         {
@@ -398,5 +402,6 @@ public sealed class LibraryScanner : IDisposable
         {
             return null;
         }
+    }
     }
 }
