@@ -88,11 +88,12 @@ public sealed class MovieRulesTests
         var later = Video(@"D:\Movies\Iron.Lung.2027.2160p.mkv", Feature);
         var unrelated = Video(@"D:\Movies\Iron.Will.2026.2160p.mkv", Feature);
         var extended = Video(@"D:\Movies\Iron.Lung.2026.720p.Extended.mkv", Feature + TimeSpan.FromMinutes(16));
+        var nearCut = Video(@"D:\Movies\Iron.Lung.2026.720p.Directors.Cut.mkv", Feature);
         var unfinished = Video(@"D:\Movies\Iron.Lung.2026.480p.mkv", Feature) with { Downloading = true };
         var excluded = Video(@"D:\Movies\Iron.Lung.2026.1440p.mkv", Feature, movie: false);
         var clip = Video(@"D:\Movies\Iron.Lung.2026.360p.mkv", TimeSpan.FromMinutes(3));
         var unknown = Video(@"D:\Movies\Iron Lung.mkv", Feature);
-        Assert.Equal([second, first], LibraryViews.MovieVersions([first, second, later, unrelated, extended, unfinished, excluded, clip, unknown], first));
+        Assert.Equal([second, first], LibraryViews.MovieVersions([first, second, later, unrelated, extended, nearCut, unfinished, excluded, clip, unknown], first));
         Assert.Empty(LibraryViews.MovieVersions([unknown, first], unknown));
         Assert.Empty(LibraryViews.MovieVersions([first, second], unfinished));
         Assert.Empty(LibraryViews.MovieVersions([first], first with { Title = "", Year = 2026 }));
