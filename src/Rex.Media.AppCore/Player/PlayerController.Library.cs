@@ -51,7 +51,7 @@ public sealed partial class PlayerController
         ArgumentNullException.ThrowIfNull(version);
         var index = Playlist.CurrentIndex;
         if (Item is not { } current || index < 0 || version.Kind != LibraryKind.Video
-            || !File.Exists(version.Path) || string.Equals(current.Location, version.Path, StringComparison.OrdinalIgnoreCase))
+            || !_exists(version.Path) || string.Equals(current.Location, version.Path, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
