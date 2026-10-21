@@ -33,8 +33,13 @@ public sealed class AlbumPageTests
 
     private static readonly EnrichedAlbum LunguBoy = new()
     {
-        Album = "Lungu Boy", Artist = "Asake", ReleaseGroupId = "rg", Type = "Album", FirstReleased = "2024-08-08",
-        Labels = ["EMPIRE", "YBNL Nation"], Genres = ["afro-fusion"],
+        Album = "Lungu Boy",
+        Artist = "Asake",
+        ReleaseGroupId = "rg",
+        Type = "Album",
+        FirstReleased = "2024-08-08",
+        Labels = ["EMPIRE", "YBNL Nation"],
+        Genres = ["afro-fusion"],
     };
 
     private static LibraryGroup FullAlbum => Album([.. Enumerable.Range(1, 8).Select(n => Song($"Track {n}", track: n, minutes: 4))]);
