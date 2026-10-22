@@ -60,7 +60,7 @@ public static partial class BookCredits
         ArgumentNullException.ThrowIfNull(title);
         var match = BylinePattern().Match(title);
         return match.Success && CredibleName(match.Groups["name"].Value)
-            ? title[..match.Index].TrimEnd(' ', '-', '–', '—', '(', '[', ',', ':')
+            ? title[..match.Index].TrimEnd(' ', '-', '–', (char)0x2014, '(', '[', ',', ':')
             : title;
     }
 
@@ -154,7 +154,7 @@ public static partial class BookCredits
 
     private static bool PartFile(string file) => PartFilePattern().IsMatch(Path.GetFileNameWithoutExtension(file));
 
-    [GeneratedRegex(@"(?:\s+[-–—]\s*|\s+|[\[(])(?:written\s+)?by\s+(?<name>[\p{L}\p{M}. '\-]+)[\])]?\s*$",
+    [GeneratedRegex(@"(?:\s+[-–\u2014]\s*|\s+|[\[(])(?:written\s+)?by\s+(?<name>[\p{L}\p{M}. '\-]+)[\])]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BylinePattern();
 
