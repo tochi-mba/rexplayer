@@ -51,6 +51,13 @@ public sealed class LibraryCardsTests : IDisposable
         app.Press("LibraryNavigationToggle");
         Assert.Equal("Expand library navigation", app.Find("LibraryNavigationToggle").Current.Name);
         Wait.For(() => app.SavedSettings.LibraryNavigationCollapsed, "the compact navigation preference to be saved");
+        transform.Resize(720, Math.Max(640, original.Height));
+        Wait.For(() => app.Window.Current.BoundingRectangle.Width < 760, "the window to become narrow again");
+        app.Press("LibraryNavigationToggle");
+        Assert.Equal("Collapse library navigation", app.Find("LibraryNavigationToggle").Current.Name);
+        Assert.True(app.SavedSettings.LibraryNavigationCollapsed, "expanding the narrow rail preserves the saved collapsed preference");
+        transform.Resize(original.Width, original.Height);
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation", "wide navigation to restore the saved collapsed preference");
         app.Visit("TV Shows");
         Wait.For(() => app.IsShown("LibraryBillboard") && app.Text("LibraryLook") == "Browse", "TV shows to open on Browse over cards never picked");
         Assert.True(app.IsShown("LibrarySort"), "TV Browse keeps sorting available.");

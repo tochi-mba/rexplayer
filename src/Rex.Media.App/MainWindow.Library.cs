@@ -147,51 +147,6 @@ public sealed partial class MainWindow
         App.Log.Info(LogSource, $"The library watches {_library.Folders.Count} folder(s) and knows {_library.Entries.Count} file(s).");
     }
 
-    // A narrow window starts with an icon rail, but the person can still open it for this window.
-    // This is deliberately transient: resizing a window must not overwrite their desktop preference.
-    private bool _libraryNavigationExpandedWhileNarrow;
-
-    private void OnLibraryNavigationToggle(object sender, RoutedEventArgs e)
-    {
-        var narrow = LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
-        if (narrow && !_settings.LibraryNavigationCollapsed)
-        {
-            _libraryNavigationExpandedWhileNarrow = !_libraryNavigationExpandedWhileNarrow;
-        }
-        else
-        {
-            _settings = _settings with { LibraryNavigationCollapsed = !_settings.LibraryNavigationCollapsed };
-            _libraryNavigationExpandedWhileNarrow = false;
-            RememberLater();
-        }
-
-        ApplyLibraryNavigationWidth();
-    }
-
-    private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e) => ApplyLibraryNavigationWidth();
-
-    /// <summary>Uses an icon rail by choice or when the window is narrow, without removing navigation.</summary>
-    private void ApplyLibraryNavigationWidth()
-    {
-        if (LibraryNavigationColumn is null || LibraryNavigationToggle is null)
-        {
-            return;
-        }
-
-        var narrow = LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
-        if (!narrow)
-        {
-            _libraryNavigationExpandedWhileNarrow = false;
-        }
-
-        var compact = _settings.LibraryNavigationCollapsed || (narrow && !_libraryNavigationExpandedWhileNarrow);
-        LibraryNavigationColumn.Width = new GridLength(compact ? 64 : 200);
-        LibraryNavigationToggleIcon.Glyph = compact ? "\uE76C" : "\uE76B";
-        var action = compact ? "Expand library navigation" : "Collapse library navigation";
-        ToolTipService.SetToolTip(LibraryNavigationToggle, action);
-        AutomationProperties.SetName(LibraryNavigationToggle, action);
-    }
-
     private void CloseLibrary()
     {
         var sections = _backgroundSections;
