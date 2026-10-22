@@ -272,7 +272,10 @@ public sealed partial class MainWindow
             {
                 _librarySeason = source == LibrarySource.Artists
                     ? ArtistPages.Albums(_libraryGroup).Select(album => album.Album).FirstOrDefault(album => album.Name == route.Page)
-                    : LibraryViews.TvSeasons(_libraryGroup).FirstOrDefault(season => season.Name == route.Page);
+                    : source == LibrarySource.Authors
+                        ? ListeningViews.BooksByAuthor(Listening().Audiobooks, _libraryGroup.Name)
+                            .FirstOrDefault(book => book.Name == route.Page)
+                        : LibraryViews.TvSeasons(_libraryGroup).FirstOrDefault(season => season.Name == route.Page);
             }
         }
 

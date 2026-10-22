@@ -33,6 +33,7 @@ public sealed partial class MainWindow
         (LibrarySource.Artists, new("\uE77B", "Artists")),
         (LibrarySource.Genres, new("\uE8EC", "Genres")),
         (LibrarySource.Audiobooks, new("\uE82D", "Audiobooks")),
+        (LibrarySource.Authors, new("\uE77B", "Authors")),
         (LibrarySource.Podcasts, new("\uE720", "Podcasts")),
         (LibrarySource.Recordings, new("\uE1D6", "Recordings")),
         (LibrarySource.Movies, new("\uE714", "Movies")),
@@ -214,7 +215,7 @@ public sealed partial class MainWindow
             // library view must also offer matching artists, albums, genres or shows as
             // navigable results. Otherwise finding an artist can only play one of their
             // songs and there is no artist page to return from.
-            var matchingGroups = _librarySource is LibrarySource.Artists or LibrarySource.Albums or LibrarySource.Genres or LibrarySource.TvShows
+            var matchingGroups = _librarySource is LibrarySource.Artists or LibrarySource.Albums or LibrarySource.Genres or LibrarySource.Authors or LibrarySource.TvShows
                 ? Groups(_librarySource, entries).Where(group => group.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList()
                 : [];
             sections = matchingGroups.Count == 0
@@ -360,9 +361,35 @@ public sealed partial class MainWindow
         var showArt = search.Length == 0 && _librarySource == LibrarySource.TvShows && _libraryGroup is { Entries: [var first, ..] } ? first : null;
         ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph,
             showArt ?? rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null),
-            showArt is null ? PictureArt.Natural : PictureArt.ShowPoster);
+            showArt is null ? PictureArt.Natural : PictureArt.ShowPoster,
+            artistPage ? ArtistPhotoPathIfKnown(title) : null);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
+        if (search.Length == 0
+            && (_librarySource == LibrarySource.Audiobooks ? _libraryGroup : _librarySource == LibrarySource.Authors ? _librarySeason : null) is { } book)
+        {
+            ShowTitleExtras("", TitleSections.BookSynopsis(MetadataBook(book)), credit: null,
+                trailer: null, poster: false, backdrop: null);
+        }
+        else if (artistPage)
+        {
+            var artist = MetadataArtist(title);
+            ShowTitleExtras(Rex.Media.AppCore.Library.TitleSections.ArtistFacts(artist),
+                Rex.Media.AppCore.Library.TitleSections.ArtistBiography(artist), credit: null,
+                trailer: null, poster: false, backdrop: null);
+            LibraryHeroArtBox.CornerRadius = new CornerRadius(75);
+        }
+        else
+        {
+            LibraryHeroArtBox.CornerRadius = new CornerRadius(12);
+            if (_librarySource != LibrarySource.TvShows)
+            {
+                ShowText(LibraryFacts, "");
+                ShowText(LibraryOverview, "");
+                LibraryCredit.Visibility = Visibility.Collapsed;
+            }
+        }
+
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
@@ -465,39 +492,6 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The banner: kicker, title and what the view holds, with the first item's picture in front and filling the banner behind.</summary>
-    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art, PictureArt shape = PictureArt.Natural)
-    {
-        LibraryKicker.Text = kicker;
-        LibraryTitle.Text = title;
-        LibrarySubtitle.Text = subtitle;
-        LibraryHeroGlyph.Glyph = glyph;
-        var key = title + "\n" + art?.Path + "\n" + shape;
-        if (key == _shownHero)
-        {
-            return;
-        }
-
-        _shownHero = key;
-        var request = ++_heroRequest;
-        // The banner's artwork fades in when decoded instead of popping over the glyph.
-        LibraryHeroArt.Source = null;
-        LibraryHeroBackdrop.Source = null;
-        LibraryHeroArt.Opacity = 0;
-        LibraryHeroBackdrop.Opacity = 0;
-        if (art is not null)
-        {
-            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture =>
-            {
-                if (_shownHero == key && request == _heroRequest)
-                {
-                    (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
-                    LibraryHeroArt.Opacity = 1;
-                    LibraryHeroBackdrop.Opacity = 0.6;
-                }
-            }, CancellationToken.None, art: shape, side: Math.Max(1600, _budget.LibraryPictureSide)));
-        }
-    }
-
     /// <summary>The layout, order and grouping menus, each ticking the choice in use, and the card size.</summary>
     private void ShowViewOptions(bool shown, LibraryViewChoice choice, bool groupsView, LibraryKind kind)
     {

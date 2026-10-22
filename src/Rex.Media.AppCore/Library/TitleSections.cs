@@ -10,6 +10,9 @@ public enum DescriptionSource
 
     /// <summary>TVmaze: the show page carries a "Data from TVmaze" line.</summary>
     TvMaze,
+
+    /// <summary>An exact audiobook work match, credited and linked to Open Library.</summary>
+    OpenLibrary,
 }
 
 /// <summary>A synopsis as a screen shows it: its words, where they came from and the page its credit links to.</summary>
@@ -54,6 +57,33 @@ public static class TitleSections
         AbsoluteUri(facts?.BackdropUrl),
         alike > 0,
         seriesMates > 0 && facts?.Collection is { } series && !string.IsNullOrWhiteSpace(series) ? SeriesHeading(series) : null);
+
+    /// <summary>An audiobook's synopsis when Open Library matched both its title and author.</summary>
+    public static Description? BookSynopsis(EnrichedBook? book) =>
+        book is { WorkId: { } id, Synopsis: { } text } && !string.IsNullOrWhiteSpace(text)
+            ? new Description(text.Trim(), DescriptionSource.OpenLibrary, OpenLibraryBooks.PageUri(id))
+            : null;
+
+    /// <summary>An artist's biography, shown only when the Wikipedia source can be credited and opened.</summary>
+    public static Description? ArtistBiography(EnrichedArtist? facts) =>
+        facts?.Bio is { } bio && !string.IsNullOrWhiteSpace(bio) && AbsoluteUri(facts.ArticleUrl) is { } link
+            ? new Description(bio.Trim(), DescriptionSource.Wikipedia, link)
+            : null;
+
+    /// <summary>Where they come from, when they worked, and their genres, without blank separators.</summary>
+    public static string ArtistFacts(EnrichedArtist? facts)
+    {
+        if (facts is null)
+        {
+            return "";
+        }
+
+        var years = facts.ActiveFrom is { } first
+            ? facts.ActiveTo is { } last ? first.ToString(System.Globalization.CultureInfo.CurrentCulture) + "–" + last.ToString(System.Globalization.CultureInfo.CurrentCulture)
+                : "Active since " + first.ToString(System.Globalization.CultureInfo.CurrentCulture)
+            : null;
+        return string.Join(" · ", new[] { facts.Origin, years, string.Join(", ", facts.Genres.Take(3)) }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
 
     /// <summary>A movie's synopsis, which is Wikipedia's and so shown only when its article can be credited and linked.</summary>
     public static Description? MovieSynopsis(EnrichedMovie? facts) =>

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Automation;
 using Rex.Media.TestKit;
 
@@ -100,6 +101,50 @@ public sealed class LibraryMusicTests : IDisposable
         // The artist's link opens their page.
         app.Press("LibraryHeroArtist-Asake");
         Wait.For(() => app.Text("LibraryKicker") == "ARTIST" && app.Text("LibraryTitle") == "Asake", "the artist's page");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ArtistPagesPreferTheirPortraitsAndShowTheirCreditedBiography()
+    {
+        AsakeAcrossAlbums();
+        var cache = new Rex.Media.AppCore.Metadata.MetadataCache(Path.Combine(_scene.Root, "metadata"));
+        var artist = new Rex.Media.AppCore.Metadata.EnrichedArtist
+        {
+            Schema = Rex.Media.AppCore.Metadata.EnrichedArtist.CurrentSchema,
+            Name = "Asake",
+            MusicBrainzId = "known-artist",
+            Origin = "Lagos, Nigeria",
+            ActiveFrom = 2018,
+            Genres = ["Afrobeats"],
+            Bio = "  A Nigerian singer and songwriter.  ",
+            ArticleUrl = "https://en.wikipedia.org/wiki/Asake",
+            HasPhoto = true,
+        };
+        cache.WriteText(Rex.Media.AppCore.Metadata.MetadataFetcher.ArtistKind,
+            Rex.Media.AppCore.Metadata.MetadataFetcher.ArtistKey("Asake"), artist.ToJson());
+        cache.Write(Rex.Media.AppCore.Metadata.MetadataFetcher.ArtistPhotoKind,
+            Rex.Media.AppCore.Metadata.MetadataFetcher.ArtistKey("Asake"),
+            Rex.Media.AppCore.Metadata.MetadataFetcher.ArtExtension,
+            File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "picture", "still.jpg")));
+
+        using var app = _scene.Ready(s => s with
+        {
+            Metadata = new Rex.Media.Settings.MetadataSettings { Music = true },
+            ShowPlayerWhenLibraryMediaStarts = false,
+        }).Start();
+        app.Visit("Artists");
+        app.Open("Asake");
+        Wait.For(() => app.Text("LibraryKicker") == "ARTIST"
+            && app.Text("LibraryFacts").Contains("Lagos, Nigeria", StringComparison.Ordinal)
+            && app.Text("LibraryOverview") == "A Nigerian singer and songwriter.",
+            "the artist's cached facts and biography");
+        Assert.Equal("Description from Wikipedia", app.Text("LibraryCredit"));
+        Wait.For(() => app.IsShown("LibraryHeroArt") && app.Text("LibraryHeroArt") == "Portrait of Asake", "the decoded portrait to be accessible");
+        app.Press("LibraryBack");
+        Wait.For(() => app.Text("LibraryTitle") == "Artists" && !app.IsShown("LibraryOverview"),
+            "the biography clears when leaving the artist page");
         Assert.Equal(0, app.Close());
     }
 

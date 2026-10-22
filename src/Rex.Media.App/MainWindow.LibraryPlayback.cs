@@ -16,7 +16,7 @@ public sealed partial class MainWindow
                 // The parent is kept with this line chosen, so Back finds it chosen and on screen.
                 KeepLibraryParent(SelectionIdentity(row));
                 // A group inside an open group nests: a show's season, or an artist's album.
-                if (_librarySource is LibrarySource.TvShows or LibrarySource.Artists && _libraryGroup is not null && _librarySeason is null)
+                if (_librarySource is LibrarySource.TvShows or LibrarySource.Artists or LibrarySource.Authors && _libraryGroup is not null && _librarySeason is null)
                 {
                     _librarySeason = group;
                 }

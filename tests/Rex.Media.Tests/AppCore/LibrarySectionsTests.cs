@@ -58,7 +58,7 @@ public sealed class LibrarySectionsTests
         var book = AudioFile("Audiobooks/Book.m4b", TimeSpan.FromHours(6));
         var ding = AudioFile("Downloads/ding.mp3", TimeSpan.FromSeconds(2));
         var listening = ListeningViews.Arrange([book, ding], AudioRules.Offline);
-        Assert.Equal([SidebarView.Home, SidebarView.Audiobooks, SidebarView.Recordings, SidebarView.RecentlyAdded],
+        Assert.Equal([SidebarView.Home, SidebarView.Audiobooks, SidebarView.Authors, SidebarView.Recordings, SidebarView.RecentlyAdded],
             LibrarySections.Present(Facts([book, ding], listening)).Order());
         var show = ListeningViews.Arrange([AudioFile("Podcasts/Show/Ep 1.mp3", TimeSpan.FromMinutes(30))], AudioRules.Offline);
         Assert.Contains(SidebarView.Podcasts, LibrarySections.Present(Facts([], show)));

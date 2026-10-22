@@ -44,7 +44,9 @@ public sealed partial class MainWindow
             }
         }
 
-        if (_librarySource == LibrarySource.Audiobooks && (chosen is [{ Item: LibraryGroup book }] ? book : _libraryGroup) is { Entries.Count: > 0 } chosenBook)
+        if ((_librarySource is LibrarySource.Audiobooks or LibrarySource.Authors)
+            && (chosen is [{ Item: LibraryGroup book }] ? book
+                : _librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup) is { Entries.Count: > 0 } chosenBook)
         {
             var finished = Audiobooks.Finished(chosenBook);
             menu.Items.Add(MenuItem(finished ? "Mark as unfinished" : "Mark as finished", finished ? "LibraryMenuBookUnfinished" : "LibraryMenuBookFinished",
@@ -98,7 +100,9 @@ public sealed partial class MainWindow
     /// <summary>Play on an open book: from the chapter chosen, else on from where the book was left.</summary>
     private bool PlayOpenBook(IReadOnlyList<LibraryRow> chosen)
     {
-        if (_librarySource != LibrarySource.Audiobooks || _libraryGroup is not { Entries.Count: > 0 } book || LibrarySearch.Text.Length > 0)
+        if (LibrarySearch.Text.Length > 0 ||
+            (_librarySource == LibrarySource.Audiobooks ? _libraryGroup
+                : _librarySource == LibrarySource.Authors ? _librarySeason : null) is not { Entries.Count: > 0 } book)
         {
             return false;
         }
