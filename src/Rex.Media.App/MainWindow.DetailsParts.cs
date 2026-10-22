@@ -56,6 +56,13 @@ public sealed partial class MainWindow
         LibraryTrailer.Visibility = trailer is null ? Visibility.Collapsed : Visibility.Visible;
         LibraryHeroArtBox.Height = poster ? 225 : 150;
 
+        // A metadata refresh can arrive while the page is scrolled. Keep the compact header's
+        // deliberate visibility choices instead of letting newly populated text expand it.
+        if (_libraryHeaderCompact)
+        {
+            ApplyLibraryHeaderState();
+        }
+
         var wide = backdrop?.AbsoluteUri ?? "";
         if (wide == _shownWide)
         {

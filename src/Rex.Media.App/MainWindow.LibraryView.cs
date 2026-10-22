@@ -79,6 +79,7 @@ public sealed partial class MainWindow
     {
         LibraryCardSize.Value = 180;
         _places = new LibraryPlaces(_settings.LibraryPlaces);
+        WireLibraryHeaderScrolling();
     }
 
     /// <summary>The key a view's choices are kept under: its name, or the kind of group opened in it, or the search.</summary>
@@ -138,6 +139,10 @@ public sealed partial class MainWindow
         ResolveShowPage(search);
         var selectionView = $"{_librarySource}\n{_libraryGroup?.Name}\n{(_librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null)}\n{_librarySeason?.Name}\n{search}";
         var sameRoute = selectionView == _selectionView;
+        if (!sameRoute)
+        {
+            SetLibraryHeaderCompact(false);
+        }
         var selected = sameRoute
             ? SelectedLibraryRows().Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)
             : [];

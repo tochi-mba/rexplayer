@@ -99,7 +99,7 @@ public sealed partial class MainWindow
         {
             ++_albumTintRequest;
             LibraryHero.Background = null;
-            LibraryHero.Height = LibraryHeroBackdrop.Height = HeroHeight;
+            SetExpandedLibraryHeaderHeight(HeroHeight);
             LibraryHeroArtBox.Width = LibraryHeroArtBox.Height = HeroCoverSide;
             LibraryHeroBackdrop.Visibility = Visibility.Visible;
             LibraryList.Footer = null;
@@ -116,7 +116,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        LibraryHero.Height = LibraryHeroBackdrop.Height = AlbumHeroHeight;
+        SetExpandedLibraryHeaderHeight(AlbumHeroHeight);
         LibraryHeroArtBox.Width = LibraryHeroArtBox.Height = AlbumCoverSide;
         LibraryHeroBackdrop.Visibility = Visibility.Collapsed;
         var request = ++_albumTintRequest;
