@@ -141,7 +141,7 @@ public sealed class LibraryMusicTests : IDisposable
             && app.Text("LibraryOverview") == "A Nigerian singer and songwriter.",
             "the artist's cached facts and biography");
         Assert.Equal("Description from Wikipedia", app.Text("LibraryCredit"));
-        Assert.True(app.IsShown("LibraryHeroArtBox"), "the artist's portrait frame remains visible");
+        Wait.For(() => app.IsShown("LibraryHeroArt") && app.Text("LibraryHeroArt") == "Portrait of Asake", "the decoded portrait to be accessible");
         app.Press("LibraryBack");
         Wait.For(() => app.Text("LibraryTitle") == "Artists" && !app.IsShown("LibraryOverview"),
             "the biography clears when leaving the artist page");
