@@ -435,20 +435,28 @@ public sealed class MainWindow : IDisposable
     /// </summary>
     private sealed class PictureView : NSView
     {
-        private readonly CoreAnimation.CAMetalLayer _layer = new();
+        private readonly CoreAnimation.CAMetalLayer? _metalLayer;
 
         public PictureView(RexLog log)
         {
             WantsLayer = true;
-            Layer = _layer;
-            _layer.BackgroundColor = NSColor.Black.CGColor;
             try
             {
-                Presenter = MetalPresenter.ForLayer(_layer);
+                _metalLayer = new CoreAnimation.CAMetalLayer
+                {
+                    BackgroundColor = NSColor.Black.CGColor,
+                };
+                Layer = _metalLayer;
+                Presenter = MetalPresenter.ForLayer(_metalLayer);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
-                log.Error("window", "Pictures cannot be shown: " + ex.Message);
+                // Metal is optional: unsupported/disabled GPUs and driver failures must not take
+                // the whole application down while its first window is being constructed.
+                _metalLayer?.Dispose();
+                _metalLayer = null;
+                Layer = new CoreAnimation.CALayer { BackgroundColor = NSColor.Black.CGColor };
+                log.Error("window", $"Pictures cannot be shown ({ex.GetType().Name}): {ex.Message}");
             }
 
             if (Presenter is null)
@@ -463,7 +471,10 @@ public sealed class MainWindow : IDisposable
         {
             base.Layout();
             var scale = Window?.BackingScaleFactor ?? 1;
-            _layer.ContentsScale = scale;
+            if (_metalLayer is not null)
+            {
+                _metalLayer.ContentsScale = scale;
+            }
             Presenter?.Resize((int)(Bounds.Width * scale), (int)(Bounds.Height * scale));
             Presenter?.Redraw();
         }
