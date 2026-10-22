@@ -71,12 +71,6 @@ public sealed partial class MainWindow
     private long _heroRequest;
     private bool _settingCardSize;
     private readonly LibrarySearchText _librarySearchText = new();
-    // Collapse state belongs to a route and grouping choice, never to a row, so it survives sort,
-    // filter, refresh and navigation without affecting the same letter on another library screen.
-    private readonly Dictionary<string, HashSet<string>> _collapsedLibraryGroups = new(StringComparer.Ordinal);
-    private IReadOnlyList<LibraryRowGroup> _shownLibraryGroups = [];
-    private string _shownLibraryGroupScope = "";
-
     /// <summary>A view opened by a shelf's "See all" in the shelf's order, until the user leaves it or keeps a choice of their own.</summary>
     private (LibrarySource Source, LibraryViewChoice Choice)? _shelfChoice;
 
@@ -430,48 +424,6 @@ public sealed partial class MainWindow
         if (previousLook == look)
         {
             HoldSurvivingAnchor(anchors, collage: false);
-        }
-    }
-
-    /// <summary>Folds the group whose header was invoked, by mouse, touch, keyboard or UI Automation.</summary>
-    private void OnLibraryGroupToggle(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: LibraryRowGroup group })
-        {
-            SetLibraryGroupExpanded(group, !group.IsExpanded);
-        }
-    }
-
-    private void SetLibraryGroupExpanded(LibraryRowGroup group, bool expanded)
-    {
-        if (group.IsExpanded == expanded || !_shownLibraryGroups.Contains(group))
-        {
-            return;
-        }
-
-        if (!_collapsedLibraryGroups.TryGetValue(_shownLibraryGroupScope, out var collapsed))
-        {
-            _collapsedLibraryGroups[_shownLibraryGroupScope] = collapsed = new HashSet<string>(StringComparer.Ordinal);
-        }
-
-        if (expanded)
-        {
-            collapsed.Remove(group.Header);
-        }
-        else
-        {
-            collapsed.Add(group.Header);
-        }
-
-        group.SetExpanded(expanded);
-    }
-
-    /// <summary>One quick choice for large grouped views, without recreating the virtualised list.</summary>
-    private void SetAllLibraryGroupsExpanded(bool expanded)
-    {
-        foreach (var group in _shownLibraryGroups)
-        {
-            SetLibraryGroupExpanded(group, expanded);
         }
     }
 
