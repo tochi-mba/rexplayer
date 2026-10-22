@@ -69,8 +69,12 @@ public sealed class TitleSectionsTests
     {
         var artist = new EnrichedArtist
         {
-            Name = "Asake", MusicBrainzId = "id", Origin = "Lagos, Nigeria", ActiveFrom = 2018,
-            Genres = ["Afrobeats", "Pop"], Bio = "  An artist from Nigeria.  ",
+            Name = "Asake",
+            MusicBrainzId = "id",
+            Origin = "Lagos, Nigeria",
+            ActiveFrom = 2018,
+            Genres = ["Afrobeats", "Pop"],
+            Bio = "  An artist from Nigeria.  ",
             ArticleUrl = "https://en.wikipedia.org/wiki/Asake",
         };
         Assert.Equal("Lagos, Nigeria · Active since 2018 · Afrobeats, Pop", TitleSections.ArtistFacts(artist));
@@ -92,8 +96,13 @@ public sealed class TitleSectionsTests
     [Fact]
     public void AudiobookSynopsisNeedsAConfirmedWorkId()
     {
-        var book = new EnrichedBook { Title = "The Hobbit", Author = "J. R. R. Tolkien",
-            WorkId = "OL123W", Synopsis = "  A hobbit goes on a journey.  " };
+        var book = new EnrichedBook
+        {
+            Title = "The Hobbit",
+            Author = "J. R. R. Tolkien",
+            WorkId = "OL123W",
+            Synopsis = "  A hobbit goes on a journey.  ",
+        };
         Assert.Equal(new Description("A hobbit goes on a journey.", DescriptionSource.OpenLibrary,
             new Uri("https://openlibrary.org/works/OL123W")), TitleSections.BookSynopsis(book));
         Assert.Null(TitleSections.BookSynopsis(null));
