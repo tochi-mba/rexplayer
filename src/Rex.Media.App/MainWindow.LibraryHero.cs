@@ -29,14 +29,14 @@ public sealed partial class MainWindow
         LibraryHeroBackdrop.Source = null;
         LibraryHeroArt.Opacity = 0;
         LibraryHeroBackdrop.Opacity = 0;
-        void ShowPicture(Microsoft.UI.Xaml.Media.ImageSource picture, bool portrait = false)
+        void ShowPicture(Microsoft.UI.Xaml.Media.ImageSource picture)
         {
             if (_shownHero == key && request == _heroRequest)
             {
                 (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
                 LibraryHeroArt.Opacity = 1;
                 LibraryHeroBackdrop.Opacity = 0.6;
-                AutomationProperties.SetName(LibraryHeroArt, portrait ? "Portrait of " + title : "Artwork for " + title);
+                AutomationProperties.SetName(LibraryHeroArt, "Artwork for " + title);
             }
         }
 
@@ -54,7 +54,11 @@ public sealed partial class MainWindow
         {
             if (await LocalPictureAsync(artistPhoto!, Math.Max(1600, _budget.LibraryPictureSide), CancellationToken.None) is { } portrait)
             {
-                ShowPicture(portrait, portrait: true);
+                ShowPicture(portrait);
+                if (_shownHero == key && request == _heroRequest)
+                {
+                    AutomationProperties.SetName(LibraryHeroArt, "Portrait of " + title);
+                }
             }
             else if (art is not null && _shownHero == key)
             {
