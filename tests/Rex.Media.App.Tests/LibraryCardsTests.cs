@@ -53,6 +53,15 @@ public sealed class LibraryCardsTests : IDisposable
         Wait.For(() => app.SavedSettings.LibraryNavigationCollapsed, "the compact navigation preference to be saved");
         transform.Resize(720, Math.Max(640, original.Height));
         Wait.For(() => app.Window.Current.BoundingRectangle.Width < 760, "the window to become narrow again");
+        // The saved compact preference already says "Expand" in a wide window, so that
+        // label alone cannot prove the second resize reached the actual library layout.
+        Wait.For(() =>
+        {
+            var pane = app.Find("LibraryPane").Current.BoundingRectangle;
+            var window = app.Window.Current.BoundingRectangle;
+            return pane.Width > 0 && pane.Width < window.Width;
+        }, "the library viewport to settle before expanding its temporary navigation",
+            () => $"Window: {app.Window.Current.BoundingRectangle}; library: {app.Find("LibraryPane").Current.BoundingRectangle}");
         app.Press("LibraryNavigationToggle");
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation", "saved compact navigation to expand temporarily");
         Assert.True(app.SavedSettings.LibraryNavigationCollapsed, "expanding the narrow rail preserves the saved collapsed preference");
