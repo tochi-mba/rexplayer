@@ -210,6 +210,7 @@ public sealed partial class MainWindow
             var known = fetcher.CachedShows();
             var knownAlbums = fetcher.CachedAlbums();
             LoadCachedArtists(fetcher);
+            LoadCachedBooks(fetcher);
             var knownMovies = fetcher.CachedMovies();
             lock (_metadataGate)
             {
@@ -377,6 +378,7 @@ public sealed partial class MainWindow
             }
 
             PlanArtistWork(entries, metadata);
+            PlanBookWork(entries, metadata);
         }
     }
 
@@ -424,7 +426,11 @@ public sealed partial class MainWindow
         var ok = false;
         try
         {
-            if (IsArtistJob(job))
+            if (IsBookJob(job))
+            {
+                ok = await FetchBookJobAsync(fetcher, job, token).ConfigureAwait(false);
+            }
+            else if (IsArtistJob(job))
             {
                 ok = await FetchArtistJobAsync(fetcher, job, token).ConfigureAwait(false);
             }
@@ -486,7 +492,11 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (IsArtistJob(job))
+        if (IsBookJob(job))
+        {
+            BookJobDone(fetcher, job);
+        }
+        else if (IsArtistJob(job))
         {
             ArtistJobDone(fetcher, job);
         }
