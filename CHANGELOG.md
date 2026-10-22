@@ -3,6 +3,17 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.30.2 - 2026-10-22
+
+### Improved
+
+- **Audiobook writer credits (#445).** Prefer dedicated author tags over performer or narrator credits, recognize explicit written-by bylines and author/book folders, and carry a single confirmed writer across a book's untagged chapters.
+- **Conservative book matching (#445).** Use an exact-title catalogue match to fill in a missing author only when a complete Open Library response confirms one work and one writer; keep ambiguous books under Unknown author and cache credited book information across restarts.
+
+### Fixed
+
+- **Disc and part folders (#446).** Keep book titles intact and avoid mistaking disc or chapter folders for writers, while keeping conflicting author credits separate.
+
 ## 0.30.1 - 2026-10-22
 
 ### Improved
