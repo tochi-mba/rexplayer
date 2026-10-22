@@ -19,6 +19,7 @@ MenuBarLayout.cs
 MacKeyEquivalents.cs
 AtomicFile.cs
 AudioArtwork.cs
+BookCredits.cs
 AudioEffects.cs
 AudioFormat.cs
 AudioFrame.cs
