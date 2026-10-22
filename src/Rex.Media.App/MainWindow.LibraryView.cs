@@ -33,6 +33,7 @@ public sealed partial class MainWindow
         (LibrarySource.Artists, new("\uE77B", "Artists")),
         (LibrarySource.Genres, new("\uE8EC", "Genres")),
         (LibrarySource.Audiobooks, new("\uE82D", "Audiobooks")),
+        (LibrarySource.Authors, new("\uE77B", "Authors")),
         (LibrarySource.Podcasts, new("\uE720", "Podcasts")),
         (LibrarySource.Recordings, new("\uE1D6", "Recordings")),
         (LibrarySource.Movies, new("\uE714", "Movies")),
@@ -214,7 +215,7 @@ public sealed partial class MainWindow
             // library view must also offer matching artists, albums, genres or shows as
             // navigable results. Otherwise finding an artist can only play one of their
             // songs and there is no artist page to return from.
-            var matchingGroups = _librarySource is LibrarySource.Artists or LibrarySource.Albums or LibrarySource.Genres or LibrarySource.TvShows
+            var matchingGroups = _librarySource is LibrarySource.Artists or LibrarySource.Albums or LibrarySource.Genres or LibrarySource.Authors or LibrarySource.TvShows
                 ? Groups(_librarySource, entries).Where(group => group.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList()
                 : [];
             sections = matchingGroups.Count == 0
@@ -364,7 +365,8 @@ public sealed partial class MainWindow
             artistPage ? ArtistPhotoPathIfKnown(title) : null);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
-        if (search.Length == 0 && _librarySource == LibrarySource.Audiobooks && _libraryGroup is { } book)
+        if (search.Length == 0
+            && (_librarySource == LibrarySource.Audiobooks ? _libraryGroup : _librarySource == LibrarySource.Authors ? _librarySeason : null) is { } book)
         {
             ShowTitleExtras("", TitleSections.BookSynopsis(MetadataBook(book)), credit: null,
                 trailer: null, poster: false, backdrop: null);
