@@ -33,6 +33,22 @@ public sealed class ListeningViewsTests
         Assert.Equal(["Chime", "ding"], Titles(shelves.Sounds));
     }
 
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void WholeLengthMp3AndNamedM4aBooksAppearOnTheAudiobooksShelf()
+    {
+        var book = AudioFile("Downloads/A Long Story.mp3", TimeSpan.FromHours(6), "An Author", "A Long Story");
+        var labelled = AudioFile("Downloads/Another (Unabridged).m4a", TimeSpan.FromHours(3), "Another Author", "Another");
+        var song = AudioFile("Music/Single.mp3", TimeSpan.FromMinutes(3), "Singer", "Album");
+        var shelves = ListeningViews.Arrange([book, labelled, song], AudioRules.Offline);
+
+        Assert.Equal(["A Long Story", "Another"], shelves.Audiobooks.Select(group => group.Name));
+        Assert.All(shelves.Audiobooks, group => Assert.Single(group.Entries));
+        Assert.Empty(shelves.Podcasts);
+        Assert.Empty(shelves.Recordings);
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void ABooksPartsInDiscFoldersOrPartFilesAreOneBookInReadingOrder()
