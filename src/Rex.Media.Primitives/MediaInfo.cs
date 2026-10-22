@@ -43,6 +43,9 @@ public static class MetadataKeys
     public const string Artists = "artists";
     public const string Album = "album";
     public const string AlbumArtist = "album_artist";
+    /// <summary>The writer of an audiobook, separate from its narrator or performing artist.</summary>
+    public const string Author = "author";
+    public const string Narrator = "narrator";
     public const string Genre = "genre";
     public const string Date = "date";
     public const string Track = "track";
