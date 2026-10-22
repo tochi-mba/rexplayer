@@ -210,7 +210,7 @@ public sealed partial class MainWindow
             var known = fetcher.CachedShows();
             var knownAlbums = fetcher.CachedAlbums();
             LoadCachedArtists(fetcher);
-            LoadCachedBooks(fetcher);
+            var cachedBooks = LoadCachedBooks(fetcher);
             var knownMovies = fetcher.CachedMovies();
             lock (_metadataGate)
             {
@@ -231,7 +231,7 @@ public sealed partial class MainWindow
                 }
             }
 
-            if (known.Count > 0 || knownMovies.Count > 0)
+            if (known.Count > 0 || knownMovies.Count > 0 || cachedBooks)
             {
                 RefreshLibraryFromMetadata();
             }
