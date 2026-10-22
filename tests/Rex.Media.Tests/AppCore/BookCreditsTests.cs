@@ -65,6 +65,17 @@ public sealed class BookCreditsTests
     }
 
     [Fact]
+    public void LooseAudiobooksInDownloadsDoNotBecomeOneBookNamedDownloads()
+    {
+        var matilda = AudioFile("Downloads/Matilda (by Roald Dahl).m4b", TimeSpan.FromHours(5));
+        var twits = AudioFile("Downloads/The Twits.m4b", TimeSpan.FromHours(4));
+        var books = ListeningViews.Books([matilda, twits]);
+        Assert.Equal([("Matilda", "Roald Dahl"), ("The Twits", null)],
+            books.Select(book => (book.Name, book.Detail)));
+        Assert.All(books, book => Assert.Single(book.Entries));
+    }
+
+    [Fact]
     public void CreditPriorityRejectsNarratorsAndSupportsUserEdits()
     {
         var part = AudioFile("Downloads/Book.m4b", TimeSpan.FromHours(4), "Narrator Name", "Book") with
