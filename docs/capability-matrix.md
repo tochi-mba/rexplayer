@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 258 planned, 3 built, 32 verified, 27 post-1.0, 2 not-applicable.
+macOS: 254 planned, 7 built, 32 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -22,7 +22,7 @@ macOS: 258 planned, 3 built, 32 verified, 27 post-1.0, 2 not-applicable.
 | PB-09 | Titles & chapters | Next/previous chapter and title; chapter menu; chapter marks on the seek bar | M3/M11 | must | planned | planned |
 | PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | verified | planned |
 | PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | verified | planned |
-| PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified | planned |
+| PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified | built |
 | PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | verified | verified |
 | PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified | verified |
 | PB-15 | Crossfade between tracks | 0–12 s setting (default off) | M6 | could | planned | planned |
@@ -174,7 +174,7 @@ macOS: 258 planned, 3 built, 32 verified, 27 post-1.0, 2 not-applicable.
 | AU-03 | Exclusive mode (bit-perfect) | Opt-in; format negotiation ladder; volume becomes digital-in-graph or locked (setting) | M11 | should | planned | planned |
 | AU-04 | Bitstream passthrough | AC-3, E-AC-3, DTS, DTS-HD, TrueHD as IEC 61937 over HDMI/S/PDIF; per-format toggles; DSP bypass indicated | M11 | should | planned | planned |
 | AU-05 | Volume | 0–200% (slider tops at 125% by default, configurable to 200%); 5% steps (configurable); wheel over the video; soft-clip above 100%; remembered across sessions (setting); OSD feedback | M4 | must | verified | planned |
-| AU-06 | Mute | Digital silence; unmute restores the level | M4 | must | verified | planned |
+| AU-06 | Mute | Digital silence; unmute restores the level | M4 | must | verified | built |
 | AU-07 | 10-band graphic equaliser | ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered | M5 | must | verified | planned |
 | AU-08 | Dynamic range compressor | RMS/peak blend, attack 1.5–400 ms (25), release 2–800 ms (100), threshold −30–0 dB (−11), ratio 1–20 (4), knee 1–10 dB (5), make-up 0–24 dB (7) | M11 | should | planned | planned |
 | AU-09 | Room reverb / spatialiser | Room size, width, wet, dry, damping | M11 | could | planned | planned |
@@ -327,7 +327,7 @@ macOS: 258 planned, 3 built, 32 verified, 27 post-1.0, 2 not-applicable.
 | LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified | planned |
 | LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | verified | planned |
 | LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | verified | planned |
-| LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified | planned |
+| LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified | built |
 | LIB-12 | Ratings, duplicates finder | - | post | could | post-1.0 | post-1.0 |
 
 ## UI surface
@@ -422,4 +422,4 @@ macOS: 258 planned, 3 built, 32 verified, 27 post-1.0, 2 not-applicable.
 | SEC-04 | Network services off by default | Web remote and stream-out need explicit enabling and show a firewall explanation | M9/M14 | must | planned | planned |
 | SEC-05 | Update integrity | HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11) | M4 | must | verified | planned |
 | SYS-01 | Logging | House rotating logger (never throws, critical always written) + ETW EventSource | M1 | must | built | planned |
-| SYS-02 | Settings safety | Atomic writes, cross-process lock, `.rex-backup`, schema version + migrations, Normalize() clamps (house patterns) | M4 | must | built | planned |
+| SYS-02 | Settings safety | Atomic writes, cross-process lock, `.rex-backup`, schema version + migrations, Normalize() clamps (house patterns) | M4 | must | built | built |
