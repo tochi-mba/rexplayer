@@ -833,6 +833,11 @@
       </StackPanel>
 
       <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4">
+        <Button x:Name="MinimalInterfaceButton" Visibility="Collapsed" Click="OnRestoreFullInterface"
+                AutomationProperties.AutomationId="MinimalInterfaceButton" AutomationProperties.Name="Restore full interface"
+                ToolTipService.ToolTip="Restore the full interface (Ctrl+H)">
+          <FontIcon Glyph="&#xE8A7;" />
+        </Button>
         <Button x:Name="PreviousButton" Click="OnPrevious" AutomationProperties.AutomationId="PreviousButton" AutomationProperties.Name="Previous">
           <FontIcon Glyph="&#xE892;" />
         </Button>
