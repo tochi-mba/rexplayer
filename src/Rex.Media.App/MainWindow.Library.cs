@@ -54,6 +54,7 @@ public sealed partial class MainWindow
         Artists,
         Genres,
         Audiobooks,
+        Authors,
         Podcasts,
         Recordings,
         Movies,
@@ -484,11 +485,12 @@ public sealed partial class MainWindow
         }
     }
 
-    private static IReadOnlyList<LibraryGroup> Groups(LibrarySource source, IReadOnlyList<LibraryEntry> entries) => source switch
+    private IReadOnlyList<LibraryGroup> Groups(LibrarySource source, IReadOnlyList<LibraryEntry> entries) => source switch
     {
         LibrarySource.Albums => LibraryViews.Albums(entries),
         LibrarySource.Artists => LibraryViews.Artists(entries),
         LibrarySource.Genres => LibraryViews.Genres(entries),
+        LibrarySource.Authors => ListeningViews.Authors(Listening().Audiobooks),
         LibrarySource.TvShows => LibraryViews.TvShows(entries),
         _ => [],
     };
