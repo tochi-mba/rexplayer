@@ -75,10 +75,7 @@ public static partial class BookCredits
         var path = part.Path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
         for (var index = path.Length - 3; index >= 0; index--)
         {
-            if (path[index].Equals("Audiobooks", StringComparison.OrdinalIgnoreCase)
-                || path[index].Equals("Audio Books", StringComparison.OrdinalIgnoreCase)
-                || path[index].Equals("Audio-Books", StringComparison.OrdinalIgnoreCase)
-                || path[index].Equals("Books", StringComparison.OrdinalIgnoreCase))
+            if (AudiobookRootPattern().IsMatch(path[index]))
             {
                 // Need an author directory and at least a separately named book file.
                 if (index + 2 < path.Length && CredibleName(path[index + 1])
@@ -109,7 +106,8 @@ public static partial class BookCredits
 
         var name = raw.Trim();
         if (name.Length > 180 || Placeholder(name) || NarratorLabelPattern().IsMatch(name)
-            || (narrator is { Length: > 0 } && name.Equals(narrator.Trim(), StringComparison.OrdinalIgnoreCase)))
+            || (narrator is { Length: > 0 } && name.Equals(
+                NarratorLabelPattern().Replace(narrator.Trim(), "").Trim(), StringComparison.OrdinalIgnoreCase)))
         {
             return null;
         }
@@ -158,6 +156,9 @@ public static partial class BookCredits
             or "collection" or "series" or "volume 1" or "volume 2";
 
     private static bool PartFile(string file) => PartFilePattern().IsMatch(Path.GetFileNameWithoutExtension(file));
+
+    [GeneratedRegex(@"^(?:audio[ _-]?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex AudiobookRootPattern();
 
     [GeneratedRegex(@"(?:\s+[-–\u2014]\s*|\s+|[\[(])(?:written\s+)?by\s+(?<name>[\p{L}\p{M}. '\-]+)[\])]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
