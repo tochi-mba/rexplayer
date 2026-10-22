@@ -13,6 +13,92 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    /// <summary>Book jobs share the music metadata switch but are distinct from artists and albums.</summary>
+    private const char BookJobMark = '\u001d';
+
+    private readonly Dictionary<string, EnrichedBook> _metadataBooks = new(StringComparer.Ordinal);
+
+    private EnrichedBook? MetadataBook(LibraryGroup book)
+    {
+        if (!_settings.Metadata.Music)
+        {
+            return null;
+        }
+
+        lock (_metadataGate)
+        {
+            return _metadataBooks.TryGetValue(OpenLibraryBooks.BookKey(book.Name, book.Detail), out var found) && found.WorkId is not null ? found : null;
+        }
+    }
+
+    private void LoadCachedBooks(MetadataFetcher fetcher)
+    {
+        lock (_metadataGate)
+        {
+            foreach (var book in fetcher.CachedBooks())
+            {
+                _metadataBooks[OpenLibraryBooks.BookKey(book.Title, book.Author)] = book;
+            }
+        }
+    }
+
+    /// <summary>Books are looked up only with an author and only from included folders.</summary>
+    private void PlanBookWork(IReadOnlyList<LibraryEntry> entries, MetadataSettings settings)
+    {
+        foreach (var book in ListeningViews.Arrange(entries, MusicLookupOf).Audiobooks.Where(book => !string.IsNullOrWhiteSpace(book.Detail)))
+        {
+            lock (_metadataGate)
+            {
+                if (_metadataBooks.TryGetValue(OpenLibraryBooks.BookKey(book.Name, book.Detail), out var known) && known.Current)
+                {
+                    continue;
+                }
+            }
+
+            if (book.Entries.Any(entry => MetadataPolicy.Allows(settings, MetadataWork.Music, entry.Path)))
+            {
+                lock (_metadataGate)
+                {
+                    _metadataPlan.Add(new MetadataJob(MetadataWork.Music, BookJobMark + book.Name + "\u001f" + book.Detail));
+                }
+            }
+        }
+    }
+
+    private static bool IsBookJob(MetadataJob job) => job.Kind == MetadataWork.Music
+        && job.Key.Length > 1 && job.Key[0] == BookJobMark;
+
+    private static (string Title, string Author) BookFromJob(MetadataJob job)
+    {
+        var split = job.Key.IndexOf('\u001f', 1);
+        return (job.Key[1..split], job.Key[(split + 1)..]);
+    }
+
+    private static Task<bool> FetchBookJobAsync(MetadataFetcher fetcher, MetadataJob job, CancellationToken token)
+    {
+        var (title, author) = BookFromJob(job);
+        return fetcher.FetchBookAsync(title, author, token);
+    }
+
+    private void BookJobDone(MetadataFetcher fetcher, MetadataJob job)
+    {
+        var (title, author) = BookFromJob(job);
+        if (fetcher.CachedBook(title, author) is not { } book)
+        {
+            return;
+        }
+
+        lock (_metadataGate)
+        {
+            _metadataBooks[OpenLibraryBooks.BookKey(title, author)] = book;
+        }
+
+        if (book.Synopsis is not null)
+        {
+            RefreshLibraryFromMetadata();
+        }
+    }
+
     /// <summary>Marks an artist's job apart from an album's, whose key holds artist and album apart.</summary>
     private const char ArtistJobMark = '\u001e';
 
