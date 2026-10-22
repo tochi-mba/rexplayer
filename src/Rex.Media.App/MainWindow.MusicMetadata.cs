@@ -45,7 +45,7 @@ public sealed partial class MainWindow
         {
             foreach (var book in fetcher.CachedBooks())
             {
-                _metadataBooks[OpenLibraryBooks.BookKey(book.Title, book.Author)] = book;
+                _metadataBooks[OpenLibraryBooks.BookKey(book.Title, book.InferredAuthor ? null : book.Author)] = book;
             }
         }
     }
