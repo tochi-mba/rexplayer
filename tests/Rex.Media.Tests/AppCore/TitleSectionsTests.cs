@@ -65,6 +65,31 @@ public sealed class TitleSectionsTests
     }
 
     [Fact]
+    public void AnArtistBiographyHasRealFactsAndItsWikipediaCredit()
+    {
+        var artist = new EnrichedArtist
+        {
+            Name = "Asake", MusicBrainzId = "id", Origin = "Lagos, Nigeria", ActiveFrom = 2018,
+            Genres = ["Afrobeats", "Pop"], Bio = "  An artist from Nigeria.  ",
+            ArticleUrl = "https://en.wikipedia.org/wiki/Asake",
+        };
+        Assert.Equal("Lagos, Nigeria · Active since 2018 · Afrobeats, Pop", TitleSections.ArtistFacts(artist));
+        Assert.Equal(new Description("An artist from Nigeria.", DescriptionSource.Wikipedia,
+            new Uri("https://en.wikipedia.org/wiki/Asake")), TitleSections.ArtistBiography(artist));
+        Assert.Equal("Lagos, Nigeria · 2018–2024 · Afrobeats, Pop",
+            TitleSections.ArtistFacts(artist with { ActiveTo = 2024 }));
+        Assert.Equal("Lagos, Nigeria · Afrobeats, Pop",
+            TitleSections.ArtistFacts(artist with { ActiveFrom = null }));
+        Assert.Equal("", TitleSections.ArtistFacts(null));
+        Assert.Equal("", TitleSections.ArtistFacts(new EnrichedArtist { Name = "Unknown" }));
+        Assert.Null(TitleSections.ArtistBiography(null));
+        Assert.Null(TitleSections.ArtistBiography(artist with { Bio = " " }));
+        Assert.Null(TitleSections.ArtistBiography(artist with { Bio = null }));
+        Assert.Null(TitleSections.ArtistBiography(artist with { ArticleUrl = null }));
+        Assert.Null(TitleSections.ArtistBiography(artist with { ArticleUrl = "file:///bad" }));
+    }
+
+    [Fact]
     public void AShowsSynopsisIsCreditedToWhereItCameFrom()
     {
         var tvmaze = new EnrichedShow { CatalogueId = 82, Name = "Game of Thrones", Summary = " Seven noble families. " };
