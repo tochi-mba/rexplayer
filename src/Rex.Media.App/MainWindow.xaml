@@ -72,11 +72,19 @@
         <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" />
       </Grid>
     </DataTemplate>
+    <!-- One full-width, keyboard-operable group header; the chevron, heading and total all click. -->
     <DataTemplate x:Key="LibraryGroupHeaderTemplate" x:DataType="local:LibraryRowGroup">
-      <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,4">
-        <TextBlock Text="{x:Bind Header}" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <TextBlock Text="{x:Bind CountText}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3" />
-      </StackPanel>
+      <Button Tag="{Binding}" Click="OnLibraryGroupToggle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+              BorderThickness="0" Background="Transparent" Padding="4,8" Margin="0,4,0,2"
+              AutomationProperties.AutomationId="{x:Bind ToggleId}"
+              AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}"
+              ToolTipService.ToolTip="{x:Bind ToggleName, Mode=OneWay}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Text="{x:Bind Header}" Style="{ThemeResource SubtitleTextBlockStyle}" />
+          <TextBlock Text="{x:Bind CountText}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
     </DataTemplate>
     <DataTemplate x:Key="LibraryGenericTemplate" x:DataType="local:LibraryRow">
       <Grid ColumnSpacing="12" Padding="2,7" AutomationProperties.Name="{x:Bind Name}">

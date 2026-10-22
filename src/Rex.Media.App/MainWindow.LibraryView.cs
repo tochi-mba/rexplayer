@@ -71,7 +71,6 @@ public sealed partial class MainWindow
     private long _heroRequest;
     private bool _settingCardSize;
     private readonly LibrarySearchText _librarySearchText = new();
-
     /// <summary>A view opened by a shelf's "See all" in the shelf's order, until the user leaves it or keeps a choice of their own.</summary>
     private (LibrarySource Source, LibraryViewChoice Choice)? _shelfChoice;
 
@@ -384,6 +383,15 @@ public sealed partial class MainWindow
         CancelLibraryPictures();
         _libraryRows = rowsForView;
         _shownLibrary = shown;
+        _shownLibraryGroups = grouped ? sections : [];
+        _shownLibraryGroupScope = grouped ? _placeKey + "\n" + choice.Grouping : "";
+        if (grouped && _collapsedLibraryGroups.TryGetValue(_shownLibraryGroupScope, out var collapsed))
+        {
+            foreach (var section in sections.Where(section => collapsed.Contains(section.Header)))
+            {
+                section.SetExpanded(false);
+            }
+        }
         if (collage)
         {
             // ItemsView keeps selection, focus and virtualized rows. Never build all card visuals
@@ -404,7 +412,7 @@ public sealed partial class MainWindow
         LibraryList.GroupStyle.Clear();
         if (grouped)
         {
-            LibraryList.GroupStyle.Add(new GroupStyle { HeaderTemplate = (DataTemplate)Root.Resources["LibraryGroupHeaderTemplate"], HidesIfEmpty = true });
+            LibraryList.GroupStyle.Add(new GroupStyle { HeaderTemplate = (DataTemplate)Root.Resources["LibraryGroupHeaderTemplate"], HidesIfEmpty = false });
             LibraryList.ItemsSource = new CollectionViewSource { IsSourceGrouped = true, Source = sections }.View;
         }
         else
@@ -426,53 +434,6 @@ public sealed partial class MainWindow
         Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
         _ => "folder:" + row.Item,
     };
-
-    /// <summary>Sorting, layout changes and scan refreshes retain the selection of surviving items.</summary>
-    private void RestoreLibrarySelection(HashSet<string> selected, bool collage)
-    {
-        for (var index = 0; index < _libraryRows.Count; index++)
-        {
-            var row = _libraryRows[index];
-            if (!selected.Contains(SelectionIdentity(row)))
-            {
-                continue;
-            }
-
-            if (collage)
-            {
-                LibraryCollage.Select(index);
-            }
-            else
-            {
-                LibraryList.SelectedItems.Add(row);
-            }
-        }
-    }
-
-    /// <summary>Selects the current item and asks the virtualised view to bring it on screen.</summary>
-    private void RevealLibraryRow(string path)
-    {
-        var index = _libraryRows.FindIndex(row => row.Item is LibraryEntry entry && LibraryViews.SameLocation(entry.Path, path));
-        if (index < 0)
-        {
-            return;
-        }
-
-        var row = _libraryRows[index];
-        OnWindowThread(() =>
-        {
-            if (LibraryCollage.Visibility == Visibility.Visible)
-            {
-                LibraryCollage.Select(index);
-                LibraryCollage.StartBringItemIntoView(index, new BringIntoViewOptions());
-            }
-            else
-            {
-                LibraryList.SelectedItem = row;
-                LibraryList.ScrollIntoView(row, ScrollIntoViewAlignment.Leading);
-            }
-        });
-    }
 
     /// <summary>Updates every visible representation when playback changes without moving the view.</summary>
     private void ShowCurrentLibraryItem()
@@ -587,8 +548,22 @@ public sealed partial class MainWindow
         sortMenu.Items.Add(reverse);
         LibrarySortButton.Flyout = sortMenu;
         LibraryGroupButton.Content = GroupingNames.First(pair => pair.Grouping == choice.Grouping).Name;
-        LibraryGroupButton.Flyout = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping,
+        var groupMenu = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping,
             grouping => KeepViewChoice(choice with { Grouping = grouping, Look = grouping != LibraryGrouping.None && choice.Look == LibraryLook.Collage ? LibraryLook.Grid : choice.Look }));
+        if (choice.Grouping != LibraryGrouping.None)
+        {
+            groupMenu.Items.Add(new MenuFlyoutSeparator());
+            var collapseAll = new MenuFlyoutItem { Text = "Collapse all groups" };
+            AutomationProperties.SetAutomationId(collapseAll, "LibraryGroup-CollapseAll");
+            collapseAll.Click += (_, _) => SetAllLibraryGroupsExpanded(false);
+            groupMenu.Items.Add(collapseAll);
+            var expandAll = new MenuFlyoutItem { Text = "Expand all groups" };
+            AutomationProperties.SetAutomationId(expandAll, "LibraryGroup-ExpandAll");
+            expandAll.Click += (_, _) => SetAllLibraryGroupsExpanded(true);
+            groupMenu.Items.Add(expandAll);
+        }
+
+        LibraryGroupButton.Flyout = groupMenu;
 
         var filterMenu = new MenuFlyout();
         filterMenu.Items.Add(FilterGroup("Progress", "LibraryFilterProgress",
