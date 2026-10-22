@@ -128,7 +128,7 @@ public sealed class BookCreditsTests
     {
         var blank = AudioFile("Audiobooks/Chocolate/1.mp3", TimeSpan.FromMinutes(45), album: "Chocolate");
         var other = AudioFile("Audiobooks/Chocolate/2.mp3", TimeSpan.FromMinutes(45), album: "Chocolate");
-        var known = blank with { Path = blank.Path.Replace("/1.mp3", "/3.mp3", StringComparison.Ordinal), Author = "Another Writer" };
+        var known = AudioFile("Audiobooks/Chocolate/3.mp3", TimeSpan.FromMinutes(45), album: "Chocolate") with { Author = "Another Writer" };
         var none = ListeningViews.Books([blank, other]);
         Assert.Null(Assert.Single(none).Detail);
         var found = ListeningViews.Books([blank, other], book => book.Name == "Chocolate" ? "Roald Dahl" : null);
