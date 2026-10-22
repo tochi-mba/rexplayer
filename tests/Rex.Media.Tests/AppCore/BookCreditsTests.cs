@@ -209,6 +209,22 @@ public sealed class BookCreditsTests
         Assert.Equal("Novel", BookCredits.Title("Novel [written by Roald Dahl]"));
     }
 
+    [Fact]
+    public void FilenameWriterCreditsAreUsedWhenEmbeddedTitlesHaveNoByline()
+    {
+        var entry = AudioFile("Downloads/Matilda (written by Roald Dahl).m4b", TimeSpan.FromHours(4),
+            title: "Opening Chapter");
+        Assert.Equal("Roald Dahl", BookCredits.Author(entry));
+    }
+
+    [Fact]
+    public void APlaceholderInAnExplicitBylineIsNotARealWriter()
+    {
+        var entry = AudioFile("Downloads/01.m4b", TimeSpan.FromHours(4), album: "A Tale by Unknown author");
+        Assert.Null(BookCredits.Author(entry));
+        Assert.Equal("A Tale by Unknown author", BookCredits.Title(entry.Album!));
+    }
+
     [Theory]
     [InlineData("Unknown author")]
     [InlineData("Various")]
