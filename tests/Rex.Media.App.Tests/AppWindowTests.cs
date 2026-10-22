@@ -812,6 +812,7 @@ public sealed partial class AppWindowTests : IDisposable
             && app.IsShown("Elapsed") && app.IsShown("Remaining")
             && app.IsShown("VolumeBar") && !app.IsShown("Menu")
             && app.IsShown("MinimalInterfaceButton")
+            && app.IsShown("LibraryButton") && app.IsShown("FullScreenButton")
             && !app.IsShown("StopButton") && !app.IsShown("ShuffleButton"),
             "the timeline and essential controls to remain in compact mode");
         Assert.True(app.Find("SeekBar").Current.IsEnabled);

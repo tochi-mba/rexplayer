@@ -429,7 +429,7 @@ public sealed partial class MainWindow
         foreach (var secondary in new UIElement[]
         {
             StartOverButton, PreviousButton, StopButton, NextButton, ShuffleButton,
-            RepeatButton, PlaylistButton, LibraryButton, FullScreenButton,
+            RepeatButton, PlaylistButton, TransportSeparator,
         })
         {
             secondary.Visibility = minimal ? Visibility.Collapsed : Visibility.Visible;
@@ -444,8 +444,12 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>A discoverable way out of minimal mode for people who do not know Ctrl+H.</summary>
-    private void OnRestoreFullInterface(object sender, RoutedEventArgs e) => Run(CommandCatalog.MinimalInterface);
+    /// <summary>Restore the controls and keep keyboard focus on a visible playback action.</summary>
+    private void OnRestoreFullInterface(object sender, RoutedEventArgs e)
+    {
+        Run(CommandCatalog.MinimalInterface);
+        PlayPauseButton.Focus(FocusState.Programmatic);
+    }
 
     private void ApplyAlwaysOnTop()
     {
