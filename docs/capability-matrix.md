@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 261 planned, 32 verified, 27 post-1.0, 2 not-applicable.
+macOS: 258 planned, 3 built, 32 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
