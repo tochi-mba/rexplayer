@@ -3,12 +3,13 @@
 export const REPOSITORY = 'tochi-mba/rexplayer';
 export const RELEASE_API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
 const DOWNLOAD_PREFIX = `https://github.com/${REPOSITORY}/releases/download/`;
+const LATEST_PREFIX = `https://github.com/${REPOSITORY}/releases/latest/download/`;
 
 export const DOWNLOADS = {
-  windows: { pattern: /^rexplayer-Setup-(?!.*\.sha256$).*\.exe$/, stable: `${DOWNLOAD_PREFIX}latest/rexplayer-Setup.exe`, label: 'Download for Windows', detail: 'Windows 10 and 11 · 64-bit' },
-  macUniversal: { pattern: /^rexplayer-mac-universal\.zip$/, stable: `${DOWNLOAD_PREFIX}latest/rexplayer-mac-universal.zip`, label: 'Download for Mac', detail: 'macOS 12 or later · Apple silicon and Intel' },
-  macArm64: { pattern: /^rexplayer-mac-osx-arm64\.zip$/, stable: `${DOWNLOAD_PREFIX}latest/rexplayer-mac-osx-arm64.zip`, label: 'Download for Apple silicon', detail: 'macOS · Apple silicon' },
-  macX64: { pattern: /^rexplayer-mac-osx-x64\.zip$/, stable: `${DOWNLOAD_PREFIX}latest/rexplayer-mac-osx-x64.zip`, label: 'Download for Intel Mac', detail: 'macOS · Intel' },
+  windows: { pattern: /^rexplayer-Setup-(?!.*\.sha256$).*\.exe$/, stable: `${LATEST_PREFIX}rexplayer-Setup.exe`, label: 'Download for Windows', detail: 'Windows 10 and 11 · 64-bit' },
+  macUniversal: { pattern: /^rexplayer-mac-universal\.zip$/, stable: `${LATEST_PREFIX}rexplayer-mac-universal.zip`, label: 'Download for Mac', detail: 'macOS 12 or later · Apple silicon and Intel' },
+  macArm64: { pattern: /^rexplayer-mac-osx-arm64\.zip$/, stable: `${LATEST_PREFIX}rexplayer-mac-osx-arm64.zip`, label: 'Download for Apple silicon', detail: 'macOS · Apple silicon' },
+  macX64: { pattern: /^rexplayer-mac-osx-x64\.zip$/, stable: `${LATEST_PREFIX}rexplayer-mac-osx-x64.zip`, label: 'Download for Intel Mac', detail: 'macOS · Intel' },
 };
 
 function isRepositoryAsset(asset) {
@@ -33,8 +34,11 @@ export function describeRelease(release, asset, kind = 'windows') {
 export function platformFromNavigator(nav = {}) {
   const platform = String(nav.userAgentData?.platform ?? nav.platform ?? '');
   const userAgent = String(nav.userAgent ?? '');
-  if (/mac/i.test(platform) || /macintosh|mac os x/i.test(userAgent)) return 'mac';
-  if (/win/i.test(platform) || /windows/i.test(userAgent)) return 'windows';
+  if (/mac/i.test(platform)) return 'mac';
+  if (/win/i.test(platform)) return 'windows';
+  if (platform) return 'other';
+  if (/macintosh|mac os x/i.test(userAgent)) return 'mac';
+  if (/windows/i.test(userAgent)) return 'windows';
   return 'other';
 }
 
@@ -59,11 +63,11 @@ export async function fetchRelease(fetcher) {
   } catch { return null; }
 }
 
-function setLink(link, kind, asset = null) {
+function setLink(link, kind, asset = null, updateLabel = true) {
   const config = DOWNLOADS[kind];
   link.setAttribute('href', asset?.browser_download_url ?? config.stable);
   if (asset?.name) link.setAttribute('download', asset.name);
-  link.textContent = config.label;
+  if (updateLabel) link.textContent = config.label;
 }
 
 export function showDownloadChoice(doc, platform, kind) {
@@ -87,7 +91,7 @@ export async function decorateDownload(doc, fetcher, kind = 'windows', platform 
   for (const key of Object.keys(DOWNLOADS)) {
     const asset = findDownload(release, key);
     if (!asset) continue;
-    doc.querySelectorAll(`[data-download="${key}"]`).forEach(link => setLink(link, key, asset));
+    doc.querySelectorAll(`[data-download="${key}"]`).forEach(link => setLink(link, key, asset, false));
     if (key === kind) {
       const primary = doc.getElementById('download');
       if (primary) setLink(primary, key, asset);

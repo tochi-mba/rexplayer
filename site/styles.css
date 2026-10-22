@@ -104,6 +104,7 @@ pre code{padding:0;background:none}
 /* Sections */
 .section-heading{display:flex;flex-direction:column;gap:12px;max-width:72ch;margin-bottom:clamp(28px,4vw,44px)}
 .section-heading p{color:var(--muted);font-size:17px}
+.section p a,.faq p a{text-decoration:underline;text-underline-offset:3px}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-l);padding:24px;display:flex;flex-direction:column;gap:12px}
 .step p{color:var(--muted)}
