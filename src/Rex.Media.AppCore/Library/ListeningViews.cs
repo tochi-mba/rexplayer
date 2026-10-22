@@ -45,7 +45,8 @@ public static partial class ListeningViews
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
 
     /// <summary>The audio among <paramref name="entries"/> that is not music, shelf by shelf.</summary>
-    public static ListeningShelves Arrange(IReadOnlyCollection<LibraryEntry> entries, Func<LibraryEntry, MusicLookup> lookup)
+    public static ListeningShelves Arrange(IReadOnlyCollection<LibraryEntry> entries, Func<LibraryEntry, MusicLookup> lookup,
+        Func<LibraryGroup, string?>? unknownAuthor = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(lookup);
@@ -54,14 +55,15 @@ public static partial class ListeningViews
             .Where(pair => pair.Verdict is { IsMusic: false })
             .ToLookup(pair => pair.Verdict!.Value.Shelf, pair => pair.Entry);
         return new ListeningShelves(
-            Books(shelves[AudioShelf.Audiobooks]),
+            Books(shelves[AudioShelf.Audiobooks], unknownAuthor),
             Shows(shelves[AudioShelf.Podcasts]),
             [.. shelves[AudioShelf.Recordings].OrderByDescending(entry => RecordedAt(entry) ?? DateTime.MinValue).ThenBy(entry => entry.Path, NaturalOrder.Instance)],
             [.. shelves[AudioShelf.Sounds].OrderBy(entry => entry.Title, NaturalOrder.Instance).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)]);
     }
 
     /// <summary>The books <paramref name="parts"/> make, by name, each with its parts in reading order and its author as the detail.</summary>
-    public static IReadOnlyList<LibraryGroup> Books(IEnumerable<LibraryEntry> parts)
+    public static IReadOnlyList<LibraryGroup> Books(IEnumerable<LibraryEntry> parts,
+        Func<LibraryGroup, string?>? unknownAuthor = null)
     {
         ArgumentNullException.ThrowIfNull(parts);
         return [.. parts
@@ -72,7 +74,9 @@ public static partial class ListeningViews
                 var authors = credited.Select(credit => credit.Author).OfType<string>().Distinct(ByName).ToList();
                 // Missing credits on chapters join a single known writer; conflicts remain separate.
                 // Never silently give an uncredited chapter to one of two disagreeing writers.
-                var unambiguous = authors.Count == 1 ? authors[0] : null;
+                var unambiguous = authors.Count == 1 ? authors[0]
+                    : authors.Count == 0 && unknownAuthor is not null
+                        ? unknownAuthor(new LibraryGroup(partsOfTitle.Key.Name, null, [.. partsOfTitle])) : null;
                 return credited.GroupBy(credit => credit.Author ?? unambiguous ?? "", ByName)
                     .Select(book => new LibraryGroup(partsOfTitle.Key.Name, book.Key.Length > 0 ? book.Key : null,
                         [.. book.Select(credit => credit.Part).OrderBy(DiscOf)
