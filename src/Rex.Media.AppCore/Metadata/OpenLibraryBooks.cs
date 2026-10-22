@@ -14,6 +14,9 @@ public sealed record EnrichedBook
 
     public string? Author { get; init; }
 
+    /// <summary>True when a writer was learned from a title-only lookup rather than local tags.</summary>
+    public bool InferredAuthor { get; init; }
+
     public string? WorkId { get; init; }
 
     public string? Synopsis { get; init; }
