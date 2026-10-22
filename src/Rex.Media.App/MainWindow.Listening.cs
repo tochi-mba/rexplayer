@@ -26,11 +26,11 @@ public sealed partial class MainWindow
 
     private AudiobookMemory Audiobooks => _audiobookMemory ??= new AudiobookMemory(_library!.Store);
 
-    private static bool IsListening(LibrarySource source) => source is LibrarySource.Audiobooks or LibrarySource.Podcasts or LibrarySource.Recordings;
+    private static bool IsListening(LibrarySource source) => source is LibrarySource.Audiobooks or LibrarySource.Authors or LibrarySource.Podcasts or LibrarySource.Recordings;
 
     private static AudioShelf ShelfOfSource(LibrarySource source) => source switch
     {
-        LibrarySource.Audiobooks => AudioShelf.Audiobooks,
+        LibrarySource.Audiobooks or LibrarySource.Authors => AudioShelf.Audiobooks,
         LibrarySource.Podcasts => AudioShelf.Podcasts,
         _ => AudioShelf.Recordings,
     };
@@ -114,6 +114,32 @@ public sealed partial class MainWindow
         var mine = entries.Where(entry => _audioShelfOf.TryGetValue(entry.Path, out var shelf) && (shelf == ShelfOfSource(_librarySource) || (shelf == AudioShelf.Sounds && _librarySource == LibrarySource.Recordings))).ToList();
         switch (_librarySource)
         {
+            case LibrarySource.Authors:
+                var authoredBooks = ListeningViews.Books(mine);
+                var authors = ListeningViews.Authors(authoredBooks);
+                if (_libraryGroup is { } openedAuthor)
+                {
+                    var author = LibraryViews.RefreshGroup(authors, openedAuthor);
+                    _libraryGroup = author;
+                    var theirBooks = ListeningViews.BooksByAuthor(authoredBooks, author.Name);
+                    if (_librarySeason is { } openedAuthorBook)
+                    {
+                        var book = LibraryViews.RefreshGroup(theirBooks, openedAuthorBook, detailIdentifiesGroup: true);
+                        _librarySeason = book;
+                        var chapters = book.Entries.Count == 0 ? [] : ListeningViews.Chapters(book);
+                        var place = book.Entries.Count == 0 ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
+                        return ("AUDIOBOOK", book.Name, BookLine(book, chapters.Count),
+                            [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, place)))], false);
+                    }
+
+                    return ("AUTHOR", author.Name, Count(theirBooks.Count, "book") + " · " + Total(author.Entries),
+                        [new LibraryRowGroup("", theirBooks.Select(BookRow))], true);
+                }
+
+                return ("LIBRARY", title, Count(authors.Count, "author"),
+                    [new LibraryRowGroup("", authors.Select(author =>
+                        new LibraryRow(author.Name, Count(ListeningViews.BooksByAuthor(authoredBooks, author.Name).Count, "book"),
+                            "", author, hasPicture: false, picturePlaceholder: "✎")))], true);
             case LibrarySource.Audiobooks:
                 var books = ListeningViews.Books(mine);
                 if (_libraryGroup is { } openedBook)
