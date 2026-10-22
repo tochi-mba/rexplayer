@@ -121,6 +121,30 @@ public sealed class LibraryViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void AConflictingAlbumArtistTagWinsOverATrackCreditMajority()
+    {
+        var songs = new[]
+        {
+            Song("Lead 1", "Rihanna", "Same Name"),
+            Song("Lead 2", "Rihanna", "Same Name"),
+            Song("Other", "Maroon 5", "Same Name", albumArtist: "Maroon 5"),
+        };
+        var groups = LibraryViews.Albums(songs);
+        Assert.Equal(["Maroon 5", "Rihanna"], groups.Select(group => group.Detail));
+        Assert.Equal([1, 2], groups.Select(group => group.Entries.Count));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AnAlbumWithoutAnyArtistRemainsUnknown()
+    {
+        var album = Assert.Single(LibraryViews.Albums([Song("Mystery", null, "Untitled")]));
+        Assert.Equal("Untitled", album.Name);
+        Assert.Null(album.Detail);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void EveryCreditedArtistGetsTheirOwnGroup()
     {
         var together = Song("Peace Be Unto You", "Asake; DJ Snake; asake", "Singles");
