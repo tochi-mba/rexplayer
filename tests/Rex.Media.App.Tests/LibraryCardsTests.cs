@@ -83,7 +83,9 @@ public sealed class LibraryCardsTests : IDisposable
         LibraryPictures.WaitFor(app, new System.Windows.Rect(episode.Left + (100 * scale), episode.Top + (14 * scale), 110 * scale, 10 * scale),
             "the episode still to show picture at its top edge");
         // Decoding the still can vary slightly (0.53% on CI versus the 0.50% baseline).
-        Screenshots.Match(app, "library-episode-still-letterboxed", "LibraryList", maxDifferingRatio: 0.01);
+        // The same 18-pixel viewport reduction covered by the movie-card assertion also
+        // affects an opened episode: compare the visible pixels, not the old empty tail.
+        Screenshots.Match(app, "library-episode-still-letterboxed", "LibraryList", maxDifferingRatio: 0.01, maxViewportHeightChange: 24);
         Assert.Equal(0, app.Close());
     }
 }
