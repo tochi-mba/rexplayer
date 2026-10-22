@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Rex.Media.AppCore.Library;
 
 namespace Rex.Media.AppCore.Metadata;
 
