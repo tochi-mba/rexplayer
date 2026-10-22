@@ -125,4 +125,52 @@ public sealed class OpenLibraryBooksTests : IDisposable
         Assert.False(new EnrichedBook { Title = "Old" }.Current);
         Assert.True(new EnrichedBook { Title = "Current", Schema = EnrichedBook.CurrentSchema }.Current);
     }
+    [Theory]
+    [InlineData("""{"numFound":1,"docs":[{"title":"Charlie and the Chocolate Factory","author_name":["Roald Dahl"],"key":"/works/OL42W"}]}""", true)]
+    [InlineData("""{"numFound":2,"docs":[{"title":"Charlie and the Chocolate Factory","author_name":["Roald Dahl"],"key":"/works/OL42W"},{"title":"Charlie and the Chocolate Factory","author_name":["Another Writer"],"key":"/works/OL44W"}]}""", false)]
+    [InlineData("""{"numFound":2,"docs":[{"title":"Charlie and the Chocolate Factory","author_name":["Roald Dahl"],"key":"/works/OL42W"}]}""", false)]
+    [InlineData("""{"numFound":1,"docs":[{"title":"Charlie and the Chocolate Factory","author_name":["Roald Dahl","Another Writer"],"key":"/works/OL42W"}]}""", false)]
+    [InlineData("""{"numFound":1,"docs":[{"title":"Charlie and the Chocolate Factory","author_name":["Roald Dahl"],"key":"not a work"}]}""", false)]
+    [InlineData("""{"docs":[{"title":"Charlie and the Chocolate Factory","author_name":["Roald Dahl"],"key":"/works/OL42W"}]}""", false)]
+    [InlineData("""{"numFound":1,"docs":[{"title":"Charlie and the Chocolate Factory","author_name":[],"key":"/works/OL42W"}]}""", false)]
+    [InlineData("""{"numFound":1,"docs":[{"title":"Charlie and Chocolate","author_name":["Roald Dahl"],"key":"/works/OL42W"}]}""", false)]
+    public void MissingAuthorLookupRejectsPartialAndConflictingCatalogueMatches(string json, bool accepts)
+    {
+        var found = OpenLibraryBooks.MatchUnknownAuthor("Charlie and the Chocolate Factory", json);
+        Assert.Equal(accepts, found is not null);
+        if (accepts)
+        {
+            Assert.Equal(("Roald Dahl", "OL42W"), found!.Value);
+        }
+
+        Assert.Contains("title=Charlie%20and%20the%20Chocolate%20Factory",
+            OpenLibraryBooks.UnknownAuthorUri("Charlie and the Chocolate Factory").AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MissingAuthorCanBeRecoveredOnlyFromOneVerifiedOpenLibraryWork()
+    {
+        const string title = "Charlie and the Chocolate Factory";
+        Answer(OpenLibraryBooks.UnknownAuthorUri(title), """{"numFound":1,"docs":[{"title":"Charlie and the Chocolate Factory","author_name":["Roald Dahl"],"key":"/works/OL42W"}]}""");
+        Answer(OpenLibraryBooks.WorkUri("OL42W"), """{"description":"A chocolate factory story."}""");
+        var fetcher = Fetcher;
+        Assert.True(await fetcher.FetchUnknownBookAsync(title, CancellationToken.None));
+        var recovered = fetcher.CachedBook(title, null);
+        Assert.Equal(("Roald Dahl", "OL42W", "A chocolate factory story."),
+            (recovered?.Author, recovered?.WorkId, recovered?.Synopsis));
+        Assert.Null(fetcher.CachedBook(title, "Roald Dahl"));
+        Assert.True(await Fetcher.FetchUnknownBookAsync(title, CancellationToken.None));
+        Assert.Equal(2, _calls.Count);
+
+        Answer(OpenLibraryBooks.UnknownAuthorUri("Matilda"),
+            """{"numFound":2,"docs":[{"title":"Matilda","author_name":["Roald Dahl"],"key":"/works/OL42W"},{"title":"Matilda","author_name":["Another Writer"],"key":"/works/OL50W"}]}""");
+        Assert.True(await fetcher.FetchUnknownBookAsync("Matilda", CancellationToken.None));
+        Assert.Null(fetcher.CachedBook("Matilda", null)?.Author);
+        Assert.Null(fetcher.CachedBook("Matilda", null)?.WorkId);
+        Assert.True(await Fetcher.FetchUnknownBookAsync("Matilda", CancellationToken.None));
+        Assert.Equal(3, _calls.Count);
+        Assert.False(await fetcher.FetchUnknownBookAsync("Missing", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => fetcher.FetchUnknownBookAsync("", CancellationToken.None));
+    }
+
 }
