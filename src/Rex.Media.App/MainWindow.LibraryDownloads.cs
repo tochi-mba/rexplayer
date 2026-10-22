@@ -19,6 +19,16 @@ public sealed partial class MainWindow
 
     private DispatcherQueueTimer? _downloadRecheck;
     private int _recheckingDownloads;
+    private int _downloadWakePending;
+
+    /// <summary>Coalesces watcher notifications before they reach the UI dispatcher.</summary>
+    private void QueueDownloadRecheck()
+    {
+        if (Interlocked.Exchange(ref _downloadWakePending, 1) == 0)
+        {
+            OnWindowThread(StartDownloadRechecks);
+        }
+    }
 
     private void WireDownloadRechecks()
     {
@@ -40,7 +50,6 @@ public sealed partial class MainWindow
     private void ShowDownloads()
     {
         var downloading = _library!.Entries.Where(entry => entry.Downloading).ToDictionary(entry => entry.Path, StringComparer.OrdinalIgnoreCase);
-        var shown = false;
         foreach (var row in _libraryRows.Concat(_homeShelfRows))
         {
             if (row.Item is not LibraryEntry entry)
@@ -51,7 +60,6 @@ public sealed partial class MainWindow
             if (downloading.GetValueOrDefault(entry.Path) is { } fresh)
             {
                 ShowDownload(row, fresh);
-                shown = true;
             }
             else
             {
@@ -59,28 +67,30 @@ public sealed partial class MainWindow
             }
         }
 
-        if (shown)
+        if (downloading.Count > 0 || _library.Entries.Any(entry => entry.Suspect))
         {
-            if (!_downloadRecheck!.IsRunning)
-            {
-                _downloadRecheck.Start();
-            }
+            StartDownloadRechecks();
         }
         else
         {
             _downloadRecheck?.Stop();
+            Interlocked.Exchange(ref _downloadWakePending, 0);
+        }
+    }
+
+    /// <summary>Starts the cheap per-file watch used instead of repeatedly scanning whole folders.</summary>
+    private void StartDownloadRechecks()
+    {
+        if (_downloadRecheck is not null && !_downloadRecheck.IsRunning)
+        {
+            _downloadRecheck.Start();
         }
     }
 
     /// <summary>Looks at the downloading files again, off the window's thread; the library's change brings the rows up to date.</summary>
     private void RecheckDownloads()
     {
-        if (!LibraryOpen)
-        {
-            _downloadRecheck!.Stop();
-            return;
-        }
-
+        Interlocked.Exchange(ref _downloadWakePending, 0);
         if (Interlocked.Exchange(ref _recheckingDownloads, 1) != 0)
         {
             return;
@@ -92,13 +102,27 @@ public sealed partial class MainWindow
         {
             try
             {
-                var looked = library.Entries.Where(entry => entry.Downloading).Select(entry => entry.Path).ToList();
+                var looked = library.Entries.Where(entry => entry.Downloading || entry.Suspect).Select(entry => entry.Path).ToList();
                 library.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker, InspectFile);
 
                 // A file found whole is read again, for its details and to be sure it opens.
                 foreach (var folder in looked.Where(path => library.Entry(path) is { Downloading: false, Probed: false }).Select(Path.GetDirectoryName).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     scanner.Request(folder);
+                }
+
+                if (!library.Entries.Any(entry => entry.Downloading || entry.Suspect))
+                {
+                    OnWindowThread(() =>
+                    {
+                        // Revalidate on the UI thread: a scan may have discovered another download
+                        // while this completion callback was waiting behind other work.
+                        if (!library.Entries.Any(entry => entry.Downloading || entry.Suspect))
+                        {
+                            _downloadRecheck?.Stop();
+                            Interlocked.Exchange(ref _downloadWakePending, 0);
+                        }
+                    });
                 }
             }
             finally

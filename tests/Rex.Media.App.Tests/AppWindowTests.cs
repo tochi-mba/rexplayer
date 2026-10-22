@@ -811,13 +811,15 @@ public sealed partial class AppWindowTests : IDisposable
         Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
             && app.IsShown("Elapsed") && app.IsShown("Remaining")
             && app.IsShown("VolumeBar") && !app.IsShown("Menu")
+            && app.IsShown("MinimalInterfaceButton")
+            && app.IsShown("LibraryButton") && app.IsShown("FullScreenButton")
             && !app.IsShown("StopButton") && !app.IsShown("ShuffleButton"),
             "the timeline and essential controls to remain in compact mode");
         Assert.True(app.Find("SeekBar").Current.IsEnabled);
-        app.Run(CommandCatalog.MinimalInterface);
+        app.Press("MinimalInterfaceButton");
         Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
             && app.IsShown("StopButton") && app.IsShown("ShuffleButton")
-            && app.IsShown("Menu"), "the complete controls to come back");
+            && app.IsShown("Menu") && !app.IsShown("MinimalInterfaceButton"), "the complete controls to come back");
         Assert.Equal(0, app.Close());
     }
 

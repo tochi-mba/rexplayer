@@ -33,9 +33,31 @@ public sealed class LibraryCardsTests : IDisposable
         Assert.True(app.IsShown("LibrarySort"), "Browse keeps sorting available.");
         Assert.True(app.IsShown("LibraryFilter"), "Browse keeps progress, type, folder and download filters available.");
         Assert.Equal("Collapse library navigation", app.Find("LibraryNavigationToggle").Current.Name);
+
+        // Responsive compaction remains reversible. Expanding a narrow window is temporary and
+        // must not turn an automatic layout choice into the person's saved desktop preference.
+        var original = app.Window.Current.BoundingRectangle;
+        var transform = (System.Windows.Automation.TransformPattern)app.Window.GetCurrentPattern(System.Windows.Automation.TransformPattern.Pattern);
+        transform.Resize(720, Math.Max(640, original.Height));
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation", "narrow navigation to compact");
+        app.Press("LibraryNavigationToggle");
+        Assert.Equal("Collapse library navigation", app.Find("LibraryNavigationToggle").Current.Name);
+        Assert.False(app.SavedSettings.LibraryNavigationCollapsed, "temporarily expanding a narrow rail must not change the saved preference");
+        app.Press("LibraryNavigationToggle");
+        Assert.Equal("Expand library navigation", app.Find("LibraryNavigationToggle").Current.Name);
+        transform.Resize(original.Width, original.Height);
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation", "wide navigation to expand again");
+
         app.Press("LibraryNavigationToggle");
         Assert.Equal("Expand library navigation", app.Find("LibraryNavigationToggle").Current.Name);
         Wait.For(() => app.SavedSettings.LibraryNavigationCollapsed, "the compact navigation preference to be saved");
+        transform.Resize(720, Math.Max(640, original.Height));
+        Wait.For(() => app.Window.Current.BoundingRectangle.Width < 760, "the window to become narrow again");
+        app.Press("LibraryNavigationToggle");
+        Assert.Equal("Collapse library navigation", app.Find("LibraryNavigationToggle").Current.Name);
+        Assert.True(app.SavedSettings.LibraryNavigationCollapsed, "expanding the narrow rail preserves the saved collapsed preference");
+        transform.Resize(original.Width, original.Height);
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation", "wide navigation to restore the saved collapsed preference");
         app.Visit("TV Shows");
         Wait.For(() => app.IsShown("LibraryBillboard") && app.Text("LibraryLook") == "Browse", "TV shows to open on Browse over cards never picked");
         Assert.True(app.IsShown("LibrarySort"), "TV Browse keeps sorting available.");

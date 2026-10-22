@@ -3,6 +3,14 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.30.1 - 2026-10-22
+
+### Improved
+
+- **A calmer library during downloads.** Bursts of file changes are batched so large download queues do not repeatedly rebuild the library. New, renamed and removed files still appear, while growing downloads keep their progress and become playable as usable data arrives.
+- **Reversible library navigation.** The sidebar expands with one click even in a narrow window with a saved collapsed preference. Widening the window restores the desktop preference without losing your place.
+- **Minimal interface controls stay within reach.** A visible Restore full interface button makes minimal mode easy to leave. Library and fullscreen controls remain available, compact volume controls fit beside playback, and long titles are bounded so they cannot push essential actions out of view.
+
 ## 0.30.0 - 2026-10-22
 
 ### Added
@@ -968,32 +976,4 @@ pipeline the moment its number reaches `main`.
   it works best after calibrating on an empty, stable room. Ghost Peel remains a
   non-destructive preview, not edited-video export.
 
-## 0.15.0 - 2026-10-10
-
-### Added
-
-- **Ghostwire mask mode.** A separately selectable, adjustable GPU contour effect turns
-  visible gradients into fine luminous filaments and a subdued, glass-like image mask.
-  Switching it off restores the recorded frame without changing the source file.
-
-### Improved
-
-- **Subject Lock selection.** Dragging a selection no longer conflicts with the picture's
-  pointer capture or touch-pan handlers. A keyboard-accessible control can lock the centre
-  of the visible picture. Reselecting resets the previous removal preview immediately.
-- **Tracking safeguards.** Featureless patches without distinguishing visible detail are
-  rejected instead of falsely reporting a reliable lock. Texture matching favours
-  continuity when multiple locations look alike.
-- **Paused-frame editing.** Selecting and resetting a subject on a decoded video frame
-  avoids reapplying YUV colour conversion to an already converted BGRA picture.
-- **Verification.** Additional WARP and UI tests cover the separate mask effect, restoring
-  the original image, centre selection, weak-texture refusal and re-acquisition. Tests
-  and source-size quality gates were updated for the additional effect.
-
-### Limitations
-
-- Ghostwire mask mode only stylizes recorded pixels; it cannot reveal hidden surfaces.
-  Subject Lock does not provide semantic person/limb/garment segmentation or guaranteed
-  tracking through occlusion. Ghost Peel is a non-destructive preview, not video export.
-
-Versions before 0.15.0 are in [docs/changelog-archive.md](docs/changelog-archive.md).
+Versions before 0.15.1 are in [docs/changelog-archive.md](docs/changelog-archive.md).

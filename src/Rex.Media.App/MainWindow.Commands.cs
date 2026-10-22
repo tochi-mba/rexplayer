@@ -425,10 +425,11 @@ public sealed partial class MainWindow
     {
         var minimal = _settings.MinimalInterface && !IsFullScreen;
         Menu.Visibility = minimal || IsFullScreen ? Visibility.Collapsed : Visibility.Visible;
+        MinimalInterfaceButton.Visibility = minimal ? Visibility.Visible : Visibility.Collapsed;
         foreach (var secondary in new UIElement[]
         {
             StartOverButton, PreviousButton, StopButton, NextButton, ShuffleButton,
-            RepeatButton, PlaylistButton, LibraryButton, FullScreenButton,
+            RepeatButton, PlaylistButton, TransportSeparator,
         })
         {
             secondary.Visibility = minimal ? Visibility.Collapsed : Visibility.Visible;
@@ -436,10 +437,18 @@ public sealed partial class MainWindow
 
         Controls.Padding = minimal ? new Thickness(12, 3, 12, 5) : new Thickness(16, 10, 16, 12);
         Controls.RowSpacing = minimal ? 1 : 8;
+        VolumeBar.Width = minimal ? 88 : 120;
         if (!IsFullScreen)
         {
             Controls.Visibility = Visibility.Visible;
         }
+    }
+
+    /// <summary>Restore the controls and keep keyboard focus on a visible playback action.</summary>
+    private void OnRestoreFullInterface(object sender, RoutedEventArgs e)
+    {
+        Run(CommandCatalog.MinimalInterface);
+        PlayPauseButton.Focus(FocusState.Programmatic);
     }
 
     private void ApplyAlwaysOnTop()

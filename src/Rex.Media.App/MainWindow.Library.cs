@@ -147,31 +147,6 @@ public sealed partial class MainWindow
         App.Log.Info(LogSource, $"The library watches {_library.Folders.Count} folder(s) and knows {_library.Entries.Count} file(s).");
     }
 
-    private void OnLibraryNavigationToggle(object sender, RoutedEventArgs e)
-    {
-        _settings = _settings with { LibraryNavigationCollapsed = !_settings.LibraryNavigationCollapsed };
-        ApplyLibraryNavigationWidth();
-        RememberLater();
-    }
-
-    private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e) => ApplyLibraryNavigationWidth();
-
-    /// <summary>Uses an icon rail by choice or when the window is narrow, without removing navigation.</summary>
-    private void ApplyLibraryNavigationWidth()
-    {
-        if (LibraryNavigationColumn is null || LibraryNavigationToggle is null)
-        {
-            return;
-        }
-
-        var compact = _settings.LibraryNavigationCollapsed || (LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760);
-        LibraryNavigationColumn.Width = new GridLength(compact ? 64 : 200);
-        LibraryNavigationToggleIcon.Glyph = compact ? "\uE76C" : "\uE76B";
-        var action = compact ? "Expand library navigation" : "Collapse library navigation";
-        ToolTipService.SetToolTip(LibraryNavigationToggle, action);
-        AutomationProperties.SetName(LibraryNavigationToggle, action);
-    }
-
     private void CloseLibrary()
     {
         var sections = _backgroundSections;
@@ -347,10 +322,10 @@ public sealed partial class MainWindow
                     IncludeSubdirectories = true,
                     NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
                 };
-                FileSystemEventHandler changed = (_, _) => FolderChanged(folder);
-                watcher.Created += changed;
-                watcher.Deleted += changed;
-                watcher.Changed += changed;
+                FileSystemEventHandler structural = (_, _) => FolderChanged(folder);
+                watcher.Created += structural;
+                watcher.Deleted += structural;
+                watcher.Changed += (_, change) => FileContentsChanged(folder, change.FullPath);
                 watcher.Renamed += (_, _) => FolderChanged(folder);
 
                 // Too many changes at once to list (a whole album copied in): look at all of it.
@@ -365,12 +340,38 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// A downloader can raise thousands of LastWrite and Size notifications for one file. Once a
+    /// scan knows that file is downloading, the lightweight download recheck owns its progress and
+    /// completion; rescanning its entire folder for every write would repeatedly enumerate and
+    /// probe unrelated media. Creates, deletes and renames still take the structural path above.
+    /// </summary>
+    private void FileContentsChanged(string folder, string path)
+    {
+        var partial = Downloads.WholeNameOf(path);
+        var marker = path.EndsWith(Downloads.Aria2Marker, StringComparison.OrdinalIgnoreCase)
+            ? path[..^Downloads.Aria2Marker.Length]
+            : null;
+        var media = partial ?? marker ?? path;
+        var known = _library?.Entry(path) ?? _library?.Entry(media);
+        if (known is { Downloading: true } or { Suspect: true })
+        {
+            QueueDownloadRecheck();
+            return;
+        }
+
+        FolderChanged(folder);
+    }
+
     /// <summary>On a watcher's thread: notes the folder and looks at it once the changes settle.</summary>
     private void FolderChanged(string folder)
     {
         lock (_changedFolders)
         {
-            _changedFolders.Add(folder);
+            if (!_changedFolders.Add(folder))
+            {
+                return;
+            }
         }
 
         // Settle from the first change, not the last: a download writes without pause, and
