@@ -398,9 +398,10 @@ public sealed partial class MainWindow
             ? path[..^Downloads.Aria2Marker.Length]
             : null;
         var media = partial ?? marker ?? path;
-        if (partial is not null || marker is not null || _library?.Entry(media) is { Downloading: true })
+        var known = _library?.Entry(path) ?? _library?.Entry(media);
+        if (known is { Downloading: true } or { Suspect: true })
         {
-            OnWindowThread(StartDownloadRechecks);
+            QueueDownloadRecheck();
             return;
         }
 
@@ -412,7 +413,10 @@ public sealed partial class MainWindow
     {
         lock (_changedFolders)
         {
-            _changedFolders.Add(folder);
+            if (!_changedFolders.Add(folder))
+            {
+                return;
+            }
         }
 
         // Settle from the first change, not the last: a download writes without pause, and

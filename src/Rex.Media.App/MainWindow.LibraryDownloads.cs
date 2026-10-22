@@ -19,6 +19,16 @@ public sealed partial class MainWindow
 
     private DispatcherQueueTimer? _downloadRecheck;
     private int _recheckingDownloads;
+    private int _downloadWakePending;
+
+    /// <summary>Coalesces watcher notifications before they reach the UI dispatcher.</summary>
+    private void QueueDownloadRecheck()
+    {
+        if (Interlocked.Exchange(ref _downloadWakePending, 1) == 0)
+        {
+            OnWindowThread(StartDownloadRechecks);
+        }
+    }
 
     private void WireDownloadRechecks()
     {
@@ -79,6 +89,7 @@ public sealed partial class MainWindow
     /// <summary>Looks at the downloading files again, off the window's thread; the library's change brings the rows up to date.</summary>
     private void RecheckDownloads()
     {
+        Interlocked.Exchange(ref _downloadWakePending, 0);
         if (Interlocked.Exchange(ref _recheckingDownloads, 1) != 0)
         {
             return;
