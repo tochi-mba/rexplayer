@@ -77,7 +77,7 @@ internal static class Mp4Metadata
                     if (Mp4Boxes.Find(body, "name") is { } nameBox && nameBox.Length > 4)
                     {
                         var key = Encoding.UTF8.GetString(body[(nameBox.Start + 4)..nameBox.End]).ToLowerInvariant();
-                        metadata[key] = Texts(body);
+                        metadata[VorbisComments.CanonicalName(key)] = Texts(body);
                     }
 
                     break;
