@@ -22,6 +22,7 @@ public sealed partial class MainWindow
     private int _listeningVersion;
     private int _listeningBuiltAt = -1;
     private int _listeningAlbums = -1;
+    private int _listeningBooks = -1;
     private AudiobookMemory? _audiobookMemory;
 
     private AudiobookMemory Audiobooks => _audiobookMemory ??= new AudiobookMemory(_library!.Store);
@@ -63,16 +64,32 @@ public sealed partial class MainWindow
     {
         var version = Volatile.Read(ref _listeningVersion);
         int albums;
+        int books;
         lock (_metadataGate)
         {
             albums = _metadataAlbums.Count;
+            books = _metadataBooks.Count;
         }
 
-        if (_listening is null || version != _listeningBuiltAt || albums != _listeningAlbums)
+        if (_listening is null || version != _listeningBuiltAt || albums != _listeningAlbums || books != _listeningBooks)
         {
-            _listening = ListeningViews.Arrange(_library!.Entries, MusicLookupOf);
+            _listening = ListeningViews.Arrange(_library!.Entries, MusicLookupOf, book =>
+            {
+                if (!_settings.Metadata.Music || !book.Entries.Any(entry =>
+                    MetadataPolicy.Allows(_settings.Metadata, MetadataWork.Music, entry.Path)))
+                {
+                    return null;
+                }
+
+                lock (_metadataGate)
+                {
+                    return _metadataBooks.TryGetValue(OpenLibraryBooks.BookKey(book.Name, null), out var found)
+                        && found.Current && found.WorkId is not null ? found.Author : null;
+                }
+            });
             _listeningBuiltAt = version;
             _listeningAlbums = albums;
+            _listeningBooks = books;
             _audioShelfOf.Clear();
             foreach (var (shelf, files) in new (AudioShelf, IEnumerable<LibraryEntry>)[]
             {
