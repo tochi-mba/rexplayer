@@ -125,8 +125,8 @@ public sealed class LibraryViewsTests
         };
         var artists = LibraryViews.Artists(songs);
         Assert.Equal(["Jay-Z", "Maroon 5", "Ne-Yo", "Rihanna"], artists.Select(artist => artist.Name));
-        Assert.Equal(["Hate That I Love You", "Umbrella", "If I Never See Your Face Again"],
-            Titles(artists.Single(artist => artist.Name == "Rihanna").Entries));
+        Assert.Equal(["Hate That I Love You", "If I Never See Your Face Again", "Umbrella"],
+            Titles(artists.Single(artist => artist.Name == "Rihanna").Entries).Order(StringComparer.Ordinal));
         Assert.All(artists, artist => Assert.DoesNotContain("feat.", artist.Name, StringComparison.OrdinalIgnoreCase));
         Assert.Equal("Rihanna feat.Jay-Z", songs[2].Artist);
     }

@@ -44,4 +44,25 @@ public sealed class LibraryArtistsTests : IDisposable
         app.Line("Singles");
         Assert.Equal(0, app.Close());
     }
+    [Fact]
+    [Capability("LIB-05")]
+    public void NoSpaceAfterFeaturedCreditKeepsEveryGuestOnTheirOwnArtistCard()
+    {
+        _scene.Song("If I Never See Your Face Again", "It Won't Be Soon Before Long", 2008, "Pop", "Maroon 5 feat.Rihanna");
+        _scene.Song("Hate That I Love You", "Good Girl Gone Bad", 2007, "Pop", "Rihanna feat.Ne-Yo");
+        _scene.Song("Umbrella", "Good Girl Gone Bad", 2007, "Pop", "Rihanna feat.Jay-Z");
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Artists");
+        Wait.For(() => app.Lines().Length == 4, "four separate credited artists");
+        Assert.Equal(["Jay-Z", "Maroon 5", "Ne-Yo", "Rihanna"],
+            app.Lines().Order(StringComparer.CurrentCultureIgnoreCase));
+        Assert.True(Shows(app, "Rihanna", "3 songs"), "Rihanna counts her own and featured songs.");
+        Assert.True(Shows(app, "Jay-Z", "1 song"), "Jay-Z has his own card.");
+        Assert.True(Shows(app, "Ne-Yo", "1 song"), "Ne-Yo has his own card.");
+        Assert.True(Shows(app, "Maroon 5", "1 song"), "Maroon 5 has its own card.");
+        Assert.DoesNotContain(app.Lines(), line => line.Contains("feat.", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(0, app.Close());
+    }
+
 }
