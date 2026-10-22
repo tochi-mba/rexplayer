@@ -216,6 +216,7 @@ Mpl2.cs
 MurmurationScene.cs
 MusicBrainz.cs
 MusicBrainzFacts.cs
+OpenLibraryBooks.cs
 MusicHome.cs
 MusicPulse.cs
 NalUnits.cs
