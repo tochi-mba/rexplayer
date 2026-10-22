@@ -113,8 +113,8 @@ public sealed class OpenLibraryBooksTests : IDisposable
         Answer(OpenLibraryBooks.WorkUri("OL77W"), """{"description":null}""");
         Assert.True(await fetcher.FetchBookAsync("Found", "B", CancellationToken.None));
         Assert.Null(fetcher.CachedBook("Found", "B")?.Synopsis);
-        Assert.Throws<ArgumentException>(() => fetcher.FetchBookAsync("", "B", CancellationToken.None));
-        Assert.Throws<ArgumentException>(() => fetcher.FetchBookAsync("X", " ", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => fetcher.FetchBookAsync("", "B", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => fetcher.FetchBookAsync("X", " ", CancellationToken.None));
     }
 
     [Fact]
