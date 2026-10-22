@@ -1,4 +1,3 @@
-using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
 
 namespace Rex.Media.App;
