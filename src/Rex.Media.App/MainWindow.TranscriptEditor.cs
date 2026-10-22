@@ -40,7 +40,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        var history = new TranscriptEditHistory(source, loaded.edited?.Content);
+        // Recognition may have continued since the saved correction. Keep the edited words in
+        // ranges that were already heard, but show newly recognised words after those ranges.
+        var edited = loaded.edited?.MergeGenerated(source.Content, source.Done, source.Duration, source.Complete);
+        var history = new TranscriptEditHistory(source, edited?.Content);
         var variant = new TranscriptVariant(model, true);
         var container = new StackPanel { Spacing = 10, MinWidth = 570 };
         var instructions = new TextBlock
