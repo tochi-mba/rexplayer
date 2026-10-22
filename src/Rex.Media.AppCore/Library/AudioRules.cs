@@ -194,6 +194,14 @@ public static partial class AudioRules
             return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.MediaMark);
         }
 
+        // Common audiobook rips are MP3 or M4A without the dedicated media-kind tag.
+        if (BookLabelPattern().IsMatch(MediaLibrary.TitleOf(entry.Path))
+            || (entry.Title is { } title && BookLabelPattern().IsMatch(title))
+            || (entry.Album is { } album && BookLabelPattern().IsMatch(album)))
+        {
+            return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Name);
+        }
+
         if (genres.Any(PodcastGenrePattern().IsMatch))
         {
             return new AudioVerdict(AudioShelf.Podcasts, AudioRule.Genre);
@@ -347,6 +355,16 @@ public static partial class AudioRules
             return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Chapters);
         }
 
+        // A whole book in one file may only have author/title and album tags. Use a conservative
+        // fallback so a long DJ mix or numbered track does not become a book.
+        if (entry.Duration >= TimeSpan.FromHours(2) && entry.Track is null
+            && entry.Genre is null && entry.FiledArtist is not null && entry.Album is not null
+            && ArtistNames.Key(entry.Title) == ArtistNames.Key(entry.Album)
+            && !MusicSetPattern().IsMatch(entry.Title) && !MusicSetPattern().IsMatch(entry.Album))
+        {
+            return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Name);
+        }
+
         return !tagged && entry.Duration < LongestRecording && RecorderFormatPattern().IsMatch(extension)
             ? new AudioVerdict(AudioShelf.Recordings, AudioRule.RecorderFormat)
             : null;
@@ -359,15 +377,23 @@ public static partial class AudioRules
         || SongNamePattern().IsMatch(MediaLibrary.TitleOf(entry.Path));
 
     /// <summary>The audiobook genres: "Audiobook", "Audiobooks", "Audio book", "Spoken word", "Spoken &amp; Audio", "Speech".</summary>
-    [GeneratedRegex(@"^(?:audio ?books?|spoken(?: ?word| & audio)?|speech)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?:audio[ _-]?books?|books? & spoken(?: word)?|spoken(?: ?word| & audio)?|speech)(?::\s*\S.*)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AudiobookGenrePattern();
+
+    /// <summary>Explicit audiobook wording in an album, title or filename.</summary>
+    [GeneratedRegex(@"(?:^|[^\p{L}])(?:audio[ _.-]*books?|unabridged|abridged)(?:$|[^\p{L}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex BookLabelPattern();
+
+    /// <summary>A live concert or DJ mix is not inferred to be an audiobook from its length.</summary>
+    [GeneratedRegex(@"(?:^|[^\p{L}])(?:mix|dj|live|concert|set|session|compilation)(?:$|[^\p{L}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex MusicSetPattern();
 
     /// <summary>"Podcast", "Podcasts".</summary>
     [GeneratedRegex(@"^podcasts?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PodcastGenrePattern();
 
     /// <summary>The folders books are kept in: "Audiobooks", "Audio Books", "Books".</summary>
-    [GeneratedRegex(@"^(?:audio ?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?:audio[ _-]?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AudiobookFolderPattern();
 
     /// <summary>The folders podcast apps download into: "Podcasts".</summary>

@@ -15,6 +15,7 @@ inside a video (a video podcast included) stays with its video. The first rule t
 |---|---|---|
 | 1 | The person moved it: right-click "Move to Music", "Move to Audiobooks", "Move to Podcasts" or "Move to Recordings" | As chosen |
 | 2 | An `.m4b`; a genre of Audiobook, Audio book, Spoken word or Speech; the tags' audiobook mark (MP4 media kind 2) | Audiobooks |
+| 2b | Explicit audiobook or (un)abridged wording in the title, album or filename, including MP3 and M4A | Audiobooks |
 | 3 | A Podcast genre; the tags' podcast mark (MP4 `pcst`, media kind 21, `purl` or `egid`; ID3 `PCST` or `WFED`) | Podcasts |
 | 4 | The music lookups matched its album in MusicBrainz | Music |
 | 5 | A folder at any depth (the nearest speaks first): Audiobooks, Audio books, Books / Podcasts / Voice Memos, Recordings, Voice Notes, WhatsApp Voice Notes / Ringtones, Notifications, Alarms, Samples, SFX, Sound effects | Audiobooks / Podcasts / Recordings / Sounds |
@@ -23,6 +24,7 @@ inside a video (a video podcast included) stays with its video. The first rule t
 | 6c | An episode code ("Ep 12", "Episode 3", "#123", "E045") on a file over 10 minutes, when another file in the same folder has one too | Podcasts |
 | 6d | Two or more chapter marks on a file over 20 minutes | Audiobooks |
 | 6e | No music tags, a recorder's format (`.m4a`, `.amr`, `.3gp`, `.opus`) and under 2 hours | Recordings |
+| 6f | A two-hour, single-file book with an author, matching title and album, no track or genre, and no live/mix wording | Audiobooks |
 | 7 | Music tags and a length of 30 seconds to 20 minutes; tagged files over 20 minutes stay music as long mixes and sets | Music |
 | 8 | The fallback: music tags make it music; else under 10 seconds it is a sound; else a recording | Music / Sounds / Recordings |
 

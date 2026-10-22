@@ -98,6 +98,55 @@ public sealed class AudioRulesTests
         Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre), Judge(AudioFile("Inbox/Both.mp3", ThreeMinutes, genre: "Podcast;Audiobook")));
     }
 
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ExplicitAudiobookLabelsWorkForMp3AndM4aWithoutAnAudiobookMediaKind()
+    {
+        foreach (var file in new[]
+        {
+            AudioFile("Inbox/A Story (Unabridged).mp3", TimeSpan.FromHours(9)),
+            AudioFile("Inbox/A Story (Audiobook).m4a", TimeSpan.FromMinutes(50)),
+            AudioFile("Inbox/Chapter 1.mp3", TimeSpan.FromMinutes(18), album: "A Story - Audio Book"),
+            AudioFile("Inbox/Chapter 2.mp3", TimeSpan.FromMinutes(18), title: "Abridged edition"),
+        })
+        {
+            Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Name), Judge(file, MusicLookup.Matched));
+        }
+
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre),
+            Judge(AudioFile("Inbox/Story.mp3", ThreeMinutes, genre: "Books & Spoken Word")));
+        // A short Roald Dahl chapter with the literal audiobook genre from a real tag.
+        var chapter = AudioFile("Downloads/Chapter Twenty-Seven.mp3", TimeSpan.FromMinutes(1),
+            "Roald Dahl", "Charlie and the Chocolate Factory", "Chapter Twenty-Seven",
+            genre: "Audio Book: Children & Young Adult", track: 6, year: 2004);
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre), Judge(chapter, MusicLookup.Matched));
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre),
+            Judge(chapter with { Genre = "Audiobook: Fiction" }));
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Folder),
+            Judge(AudioFile("Downloads/Audio-Books/Story.mp3", ThreeMinutes)));
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Folder),
+            Judge(AudioFile("Downloads/Audio_Books/Story.mp3", ThreeMinutes)));
+        Assert.Equal(Verdict(AudioShelf.Music, AudioRule.Tags),
+            Judge(AudioFile("Music/Audiobookish.mp3", ThreeMinutes, "Band", "Album")));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void WholeLengthBooksWithoutChaptersDoNotTurnLiveMixesIntoAudiobooks()
+    {
+        var book = AudioFile("Downloads/A Long Story.mp3", TimeSpan.FromHours(7), "An Author", "A Long Story");
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Name), Judge(book));
+        Assert.Equal(Verdict(AudioShelf.Music, AudioRule.Match), Judge(book, MusicLookup.Matched));
+        Assert.Equal(Verdict(AudioShelf.Music, AudioRule.Tags),
+            Judge(AudioFile("Music/Live Concert.mp3", TimeSpan.FromHours(3), "Band", "Live Concert")));
+        Assert.Equal(Verdict(AudioShelf.Music, AudioRule.Tags),
+            Judge(AudioFile("Music/Mix.mp3", TimeSpan.FromHours(3), "DJ", "Mix")));
+        Assert.Equal(Verdict(AudioShelf.Music, AudioRule.Tags), Judge(book with { Track = 1 }));
+        Assert.Equal(Verdict(AudioShelf.Music, AudioRule.Tags), Judge(book with { Genre = "Classical" }));
+        Assert.Equal(Verdict(AudioShelf.Music, AudioRule.Tags), Judge(book with { Album = "Different album" }));
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void Rule3APodcastGenreOrTagsIsAPodcast()
