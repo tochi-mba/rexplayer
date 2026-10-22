@@ -90,6 +90,19 @@ public sealed class TitleSectionsTests
     }
 
     [Fact]
+    public void AudiobookSynopsisNeedsAConfirmedWorkId()
+    {
+        var book = new EnrichedBook { Title = "The Hobbit", Author = "J. R. R. Tolkien",
+            WorkId = "OL123W", Synopsis = "  A hobbit goes on a journey.  " };
+        Assert.Equal(new Description("A hobbit goes on a journey.", DescriptionSource.OpenLibrary,
+            new Uri("https://openlibrary.org/works/OL123W")), TitleSections.BookSynopsis(book));
+        Assert.Null(TitleSections.BookSynopsis(null));
+        Assert.Null(TitleSections.BookSynopsis(book with { WorkId = null }));
+        Assert.Null(TitleSections.BookSynopsis(book with { Synopsis = "  " }));
+        Assert.Null(TitleSections.BookSynopsis(book with { Synopsis = null }));
+    }
+
+    [Fact]
     public void AShowsSynopsisIsCreditedToWhereItCameFrom()
     {
         var tvmaze = new EnrichedShow { CatalogueId = 82, Name = "Game of Thrones", Summary = " Seven noble families. " };
