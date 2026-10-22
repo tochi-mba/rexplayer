@@ -17,6 +17,10 @@ public sealed class GenreNamesTests
     [InlineData("Pop, Rock", new[] { "Pop", "Rock" })]
     [InlineData("Afrobeats; Pop", new[] { "Afrobeats", "Pop" })]
     [InlineData("Pop|Dance\\House", new[] { "Pop", "Dance", "House" })]
+    [InlineData("Hip-Hop • Rap", new[] { "Hip-Hop", "Rap" })]
+    [InlineData("Jazz · Funk", new[] { "Jazz", "Funk" })]
+    [InlineData("Dance\nPop", new[] { "Dance", "Pop" })]
+    [InlineData("Alt Rock;Neo-Soul", new[] { "Alternative Rock", "Neo Soul" })]
     public void SeveralGenresInOneTagAreEachTheirOwn(string field, string[] expected) =>
         Assert.Equal(expected, GenreNames.Split(field));
 
@@ -34,6 +38,9 @@ public sealed class GenreNamesTests
     [InlineData("(13)", "Pop")]
     [InlineData("17", "Rock")]
     [InlineData("Pop/Funk", "Pop/Funk")]
+    [InlineData("alt. rock", "Alternative Rock")]
+    [InlineData("lo fi", "Lo-Fi")]
+    [InlineData("Contemporary RnB", "Contemporary R&B")]
     public void OneGenreIsSpelledOneWay(string field, string expected) =>
         Assert.Equal([expected], GenreNames.Split(field));
 
