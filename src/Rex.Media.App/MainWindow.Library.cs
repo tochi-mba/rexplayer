@@ -147,11 +147,25 @@ public sealed partial class MainWindow
         App.Log.Info(LogSource, $"The library watches {_library.Folders.Count} folder(s) and knows {_library.Entries.Count} file(s).");
     }
 
+    // A narrow window starts with an icon rail, but the person can still open it for this window.
+    // This is deliberately transient: resizing a window must not overwrite their desktop preference.
+    private bool _libraryNavigationExpandedWhileNarrow;
+
     private void OnLibraryNavigationToggle(object sender, RoutedEventArgs e)
     {
-        _settings = _settings with { LibraryNavigationCollapsed = !_settings.LibraryNavigationCollapsed };
+        var narrow = LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
+        if (narrow && !_settings.LibraryNavigationCollapsed)
+        {
+            _libraryNavigationExpandedWhileNarrow = !_libraryNavigationExpandedWhileNarrow;
+        }
+        else
+        {
+            _settings = _settings with { LibraryNavigationCollapsed = !_settings.LibraryNavigationCollapsed };
+            _libraryNavigationExpandedWhileNarrow = false;
+            RememberLater();
+        }
+
         ApplyLibraryNavigationWidth();
-        RememberLater();
     }
 
     private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e) => ApplyLibraryNavigationWidth();
@@ -164,7 +178,13 @@ public sealed partial class MainWindow
             return;
         }
 
-        var compact = _settings.LibraryNavigationCollapsed || (LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760);
+        var narrow = LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
+        if (!narrow)
+        {
+            _libraryNavigationExpandedWhileNarrow = false;
+        }
+
+        var compact = _settings.LibraryNavigationCollapsed || (narrow && !_libraryNavigationExpandedWhileNarrow);
         LibraryNavigationColumn.Width = new GridLength(compact ? 64 : 200);
         LibraryNavigationToggleIcon.Glyph = compact ? "\uE76C" : "\uE76B";
         var action = compact ? "Expand library navigation" : "Collapse library navigation";
@@ -347,10 +367,10 @@ public sealed partial class MainWindow
                     IncludeSubdirectories = true,
                     NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
                 };
-                FileSystemEventHandler changed = (_, _) => FolderChanged(folder);
-                watcher.Created += changed;
-                watcher.Deleted += changed;
-                watcher.Changed += changed;
+                FileSystemEventHandler structural = (_, _) => FolderChanged(folder);
+                watcher.Created += structural;
+                watcher.Deleted += structural;
+                watcher.Changed += (_, change) => FileContentsChanged(folder, change.FullPath);
                 watcher.Renamed += (_, _) => FolderChanged(folder);
 
                 // Too many changes at once to list (a whole album copied in): look at all of it.
@@ -363,6 +383,28 @@ public sealed partial class MainWindow
                 App.Log.Warning(LogSource, $"{folder} cannot be watched, so it is looked through every {LibraryRescanEvery.TotalMinutes} minutes instead: {ex.Message}");
             }
         }
+    }
+
+    /// <summary>
+    /// A downloader can raise thousands of LastWrite and Size notifications for one file. Once a
+    /// scan knows that file is downloading, the lightweight download recheck owns its progress and
+    /// completion; rescanning its entire folder for every write would repeatedly enumerate and
+    /// probe unrelated media. Creates, deletes and renames still take the structural path above.
+    /// </summary>
+    private void FileContentsChanged(string folder, string path)
+    {
+        var partial = Downloads.WholeNameOf(path);
+        var marker = path.EndsWith(Downloads.Aria2Marker, StringComparison.OrdinalIgnoreCase)
+            ? path[..^Downloads.Aria2Marker.Length]
+            : null;
+        var media = partial ?? marker ?? path;
+        if (partial is not null || marker is not null || _library?.Entry(media) is { Downloading: true })
+        {
+            OnWindowThread(StartDownloadRechecks);
+            return;
+        }
+
+        FolderChanged(folder);
     }
 
     /// <summary>On a watcher's thread: notes the folder and looks at it once the changes settle.</summary>

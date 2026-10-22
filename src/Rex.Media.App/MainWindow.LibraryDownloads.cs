@@ -40,7 +40,6 @@ public sealed partial class MainWindow
     private void ShowDownloads()
     {
         var downloading = _library!.Entries.Where(entry => entry.Downloading).ToDictionary(entry => entry.Path, StringComparer.OrdinalIgnoreCase);
-        var shown = false;
         foreach (var row in _libraryRows.Concat(_homeShelfRows))
         {
             if (row.Item is not LibraryEntry entry)
@@ -51,7 +50,6 @@ public sealed partial class MainWindow
             if (downloading.GetValueOrDefault(entry.Path) is { } fresh)
             {
                 ShowDownload(row, fresh);
-                shown = true;
             }
             else
             {
@@ -59,12 +57,9 @@ public sealed partial class MainWindow
             }
         }
 
-        if (shown)
+        if (downloading.Count > 0)
         {
-            if (!_downloadRecheck!.IsRunning)
-            {
-                _downloadRecheck.Start();
-            }
+            StartDownloadRechecks();
         }
         else
         {
@@ -72,15 +67,18 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Starts the cheap per-file watch used instead of repeatedly scanning whole folders.</summary>
+    private void StartDownloadRechecks()
+    {
+        if (_downloadRecheck is not null && !_downloadRecheck.IsRunning)
+        {
+            _downloadRecheck.Start();
+        }
+    }
+
     /// <summary>Looks at the downloading files again, off the window's thread; the library's change brings the rows up to date.</summary>
     private void RecheckDownloads()
     {
-        if (!LibraryOpen)
-        {
-            _downloadRecheck!.Stop();
-            return;
-        }
-
         if (Interlocked.Exchange(ref _recheckingDownloads, 1) != 0)
         {
             return;
@@ -99,6 +97,11 @@ public sealed partial class MainWindow
                 foreach (var folder in looked.Where(path => library.Entry(path) is { Downloading: false, Probed: false }).Select(Path.GetDirectoryName).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     scanner.Request(folder);
+                }
+
+                if (!library.Entries.Any(entry => entry.Downloading || entry.Suspect))
+                {
+                    OnWindowThread(() => _downloadRecheck?.Stop());
                 }
             }
             finally
