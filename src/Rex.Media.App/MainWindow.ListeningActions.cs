@@ -100,7 +100,9 @@ public sealed partial class MainWindow
     /// <summary>Play on an open book: from the chapter chosen, else on from where the book was left.</summary>
     private bool PlayOpenBook(IReadOnlyList<LibraryRow> chosen)
     {
-        if (_librarySource != LibrarySource.Audiobooks || _libraryGroup is not { Entries.Count: > 0 } book || LibrarySearch.Text.Length > 0)
+        if (LibrarySearch.Text.Length > 0 ||
+            (_librarySource == LibrarySource.Audiobooks ? _libraryGroup
+                : _librarySource == LibrarySource.Authors ? _librarySeason : null) is not { Entries.Count: > 0 } book)
         {
             return false;
         }
