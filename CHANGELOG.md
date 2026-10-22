@@ -3,6 +3,19 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.30.4 - 2026-10-23
+
+### Fixed
+
+- **Mac launch on Sequoia (#454).** Ad-hoc-signed Intel, Apple Silicon and universal app bundles include the .NET JIT entitlement needed to prevent a runtime abort before the window opens.
+- **Mac bundle validation (#454).** Parse the actual code-signing entitlements separately from diagnostic output, retaining strict checks for signed entitlements, supported architectures, minimum macOS version and package layout.
+- **Mac media information (#454).** Restore codec display names in the Mac media-information window.
+
+### Improved
+
+- **Sequoia launch verification (#454).** The final signed universal download is launched and tested for video playback and clean shutdown on a macOS 15 CI runner, in addition to per-architecture build checks.
+- **Finder integration and parity tracking (#454).** Expand supported Open With file associations, clarify actual Mac feature coverage and update the generated parity and capability documents without claiming unfinished features are complete.
+
 ## 0.30.3 - 2026-10-22
 
 ### Improved

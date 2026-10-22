@@ -6,16 +6,16 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 116 rows differ (90 must), 2 not applicable, 0 gaps.
+Totals: 113 rows differ (87 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| PB-05 | Go to time | must | verified | planned |  |
+| PB-05 | Go to time | must | verified | built |  |
 | PB-10 | Bookmarks (per file) | should | verified | planned |  |
 | PB-11 | Resume where you left off | must | verified | planned |  |
-| PB-12 | Repeat & shuffle | must | verified | planned |  |
+| PB-12 | Repeat & shuffle | must | verified | built |  |
 | PB-16 | Snapshot | must | verified | planned |  |
 | PB-17 | Track selection | must | built | planned |  |
 | PB-19 | Audio delay | must | built | planned |  |
@@ -67,7 +67,7 @@ Totals: 116 rows differ (90 must), 2 not applicable, 0 gaps.
 |---|---|---|---|---|---|
 | AU-01 | Default-device output | must | verified-hardware | planned |  |
 | AU-05 | Volume | must | verified | planned |  |
-| AU-06 | Mute | must | verified | planned |  |
+| AU-06 | Mute | must | verified | built |  |
 | AU-07 | 10-band graphic equaliser | must | verified | planned |  |
 | AU-11 | Stereo mode | must | verified | planned |  |
 | AU-12 | Channel layouts & downmix | must | verified | planned |  |
@@ -122,7 +122,7 @@ Totals: 116 rows differ (90 must), 2 not applicable, 0 gaps.
 | LIB-08 | Playlist quick slots | could | verified | planned |  |
 | LIB-09 | Missing files | should | verified | planned |  |
 | LIB-10 | Library backup / export | should | verified | planned |  |
-| LIB-11 | Crash-safe store | must | verified | planned |  |
+| LIB-11 | Crash-safe store | must | verified | built |  |
 
 ## UI surface
 
@@ -134,7 +134,6 @@ Totals: 116 rows differ (90 must), 2 not applicable, 0 gaps.
 | UI-04 | Fullscreen controller | must | verified | planned |  |
 | UI-05 | Minimal interface | must | verified | planned |  |
 | UI-07 | Effects & filters panel (Ctrl+E) | must | built | planned |  |
-| UI-08 | Media information (Ctrl+I) | must | built | planned |  |
 | UI-09 | Log console (Ctrl+M) | must | verified | planned |  |
 | UI-10 | Preferences | must | built | planned |  |
 | UI-11 | Hotkey editor | must | verified | planned |  |
@@ -162,7 +161,6 @@ Totals: 116 rows differ (90 must), 2 not applicable, 0 gaps.
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
 | WIN-01 | Distribution | must | built | planned |  |
-| WIN-02 | File associations | must | built | planned |  |
 | WIN-03 | Explorer verbs | must | planned | not-applicable | Explorer verbs are Windows' own; on macOS the Finder's Open With comes from the file associations (WIN-02). |
 | WIN-04 | AutoPlay handlers | should | planned | not-applicable | AutoPlay has no macOS equivalent. |
 | WIN-05 | System Media Transport Controls | must | built | planned |  |
@@ -192,4 +190,3 @@ Totals: 116 rows differ (90 must), 2 not applicable, 0 gaps.
 | SEC-01 | Hostile-input hardening | must | built | planned |  |
 | SEC-05 | Update integrity | must | verified | planned |  |
 | SYS-01 | Logging | must | built | planned |  |
-| SYS-02 | Settings safety | must | built | planned |  |

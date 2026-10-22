@@ -9,6 +9,7 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+from xml.parsers.expat import ExpatError
 
 
 ARCHITECTURES = {
@@ -27,6 +28,34 @@ def version(value: str) -> tuple[int, ...]:
 
 def fail(message: str) -> None:
     raise SystemExit(message)
+
+
+
+def signed_entitlements(stdout: bytes, stderr: bytes) -> dict:
+    """Read only the plist, not codesign's version-dependent progress/diagnostic text.
+
+    codesign -d --entitlements :- writes the property list to stdout on some
+    macOS versions and stderr on others, sometimes surrounded by other messages.
+    Concatenating the streams corrupts otherwise valid XML and blocks release.
+    """
+    closing = b"</plist>"
+    for output in (stdout, stderr):
+        start = output.find(b"<?xml")
+        if start < 0:
+            start = output.find(b"<plist")
+        if start < 0:
+            continue
+        end = output.find(closing, start)
+        if end < 0:
+            continue
+        try:
+            value = plistlib.loads(output[start : end + len(closing)])
+        except (ValueError, TypeError, ExpatError, plistlib.InvalidFileException):
+            continue
+        if isinstance(value, dict):
+            return value
+
+    fail("Bundle signature has no readable entitlements plist")
 
 
 def main() -> None:
@@ -59,6 +88,15 @@ def main() -> None:
     executable = args.app / "Contents" / "MacOS" / str(executable_name)
     if not executable.is_file():
         fail(f"Bundle executable is missing: {executable}")
+
+    signed = subprocess.run(
+        ["codesign", "-d", "--entitlements", ":-", str(args.app)],
+        check=True,
+        capture_output=True,
+    )
+    entitlements = signed_entitlements(signed.stdout, signed.stderr)
+    if entitlements.get("com.apple.security.cs.allow-jit") is not True:
+        fail("Bundle does not allow the .NET runtime to JIT managed code")
 
     result = subprocess.run(
         ["lipo", "-archs", str(executable)],

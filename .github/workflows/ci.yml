@@ -193,7 +193,7 @@ jobs:
           app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/${{ matrix.rid }} -maxdepth 1 -name '*.app' | head -1)
           test -n "$app" || { echo "No rexplayer.app was built." >&2; exit 1; }
           echo "Bundling $app"
-          codesign --force --deep --sign - "$app"
+          codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist "$app"
           codesign --verify --deep --strict "$app"
           mkdir -p dist
           ditto -c -k --keepParent "$app" "dist/rexplayer-mac-${{ matrix.rid }}.zip"
@@ -224,10 +224,15 @@ jobs:
   macos-universal:
     name: The universal Mac app, assembled and verified (macOS)
     needs: macos-app
+    # Launch the exact downloadable universal bundle on Sequoia, not just the macOS 26 build host.
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -251,7 +256,7 @@ jobs:
             --arm64 "$arm_app" \
             --x64 "$x64_app" \
             --output rexplayer.app
-          codesign --force --deep --sign - rexplayer.app
+          codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist rexplayer.app
           codesign --verify --deep --strict rexplayer.app
           ditto -c -k --keepParent rexplayer.app dist/rexplayer-mac-universal.zip
           python3 scripts/verify-mac-bundle.py \
@@ -260,6 +265,15 @@ jobs:
             --minimum 12.0 \
             --zip dist/rexplayer-mac-universal.zip
           (cd dist && shasum -a 256 rexplayer-mac-universal.zip > rexplayer-mac-universal.zip.sha256)
+
+      # Signing validity alone does not prove the .NET runtime starts on Sequoia.
+      # Launch the final, re-signed universal bundle and exercise playback + a clean quit.
+      - name: Launch the release bundle on macOS 15 Sequoia
+        run: |
+          sw_vers
+          test "$(sw_vers -productVersion | cut -d . -f 1)" = "15"
+          export REXPLAYER_MAC_APP="$PWD/rexplayer.app"
+          dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
 
       - name: Keep the universal app
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

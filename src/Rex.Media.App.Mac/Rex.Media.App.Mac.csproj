@@ -16,6 +16,7 @@
     <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
     <ApplicationVersion>$(Version)</ApplicationVersion>
     <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+    <CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
   </PropertyGroup>
 
   <ItemGroup>

@@ -11,6 +11,7 @@ using Rex.Media.Diagnostics;
 using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Library;
+using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Video;
 using Rex.Media.Video.Metal;
@@ -328,6 +329,12 @@ public sealed class MainWindow : IDisposable
             case CommandCatalog.ToggleAlwaysOnTop:
                 _window.Level = _window.Level == NSWindowLevel.Floating ? NSWindowLevel.Normal : NSWindowLevel.Floating;
                 return true;
+            case CommandCatalog.GoToTime:
+                GoToTime();
+                return true;
+            case CommandCatalog.MediaInformation:
+                ShowMediaInformation();
+                return true;
             case CommandCatalog.Help:
                 NSWorkspace.SharedWorkspace.OpenUrl(new NSUrl(HelpUrl));
                 return true;
@@ -344,6 +351,80 @@ public sealed class MainWindow : IDisposable
     }
 
     private bool IsFullScreen => (_window.StyleMask & NSWindowStyle.FullScreenWindow) != 0;
+
+    private void GoToTime()
+    {
+        if (!_player.CanSeek)
+        {
+            if (_player.Item is not null)
+            {
+                Say(PlayerController.CannotSeekNotice);
+            }
+
+            return;
+        }
+
+        using var box = new NSTextField(new CGRect(0, 0, 240, 24))
+        {
+            StringValue = TimeText.Format(_player.Position, _player.Duration),
+        };
+        using var dialog = new NSAlert
+        {
+            MessageText = "Go to a time",
+            InformativeText = "Enter seconds, mm:ss or h:mm:ss.",
+            AccessoryView = box,
+        };
+        dialog.AddButton("Go");
+        dialog.AddButton("Cancel");
+        _window.MakeFirstResponder(box);
+        box.SelectText(null);
+        if (dialog.RunModal() != 1000)
+        {
+            return;
+        }
+
+        if (TimeText.TryParse(box.StringValue) is { } time)
+        {
+            _player.Seek(time);
+        }
+        else
+        {
+            Say($"\"{box.StringValue}\" is not a time. Try 1:23 or 1:02:03.");
+        }
+    }
+
+    private void ShowMediaInformation()
+    {
+        if (_player.Info is not { } info)
+        {
+            Say("Open something to see its media information.");
+            return;
+        }
+
+        var lines = new List<string>
+        {
+            $"Title: {_player.Title}",
+            $"Location: {_player.Item?.Location}",
+            $"Format: {info.FormatName}",
+            $"Length: {(_player.Duration > TimeSpan.Zero ? TimeText.Format(_player.Duration) : "unknown")}",
+        };
+        foreach (var track in info.Tracks)
+        {
+            var detail = track.Video is { } video ? $"{video.Width}×{video.Height}"
+                : track.Audio is { } audio ? $"{audio.SampleRate} Hz, {audio.Channels} channel(s)"
+                : "";
+            lines.Add($"Track {track.Id}: {track.Kind} {track.Codec.DisplayName()} {detail}".TrimEnd());
+        }
+
+        lines.AddRange(info.Metadata.Select(metadata => $"{metadata.Key}: {metadata.Value}"));
+        using var dialog = new NSAlert
+        {
+            MessageText = "Media information",
+            InformativeText = string.Join(Environment.NewLine, lines),
+        };
+        dialog.AddButton("OK");
+        dialog.RunModal();
+    }
 
     private void OpenWithPanel(bool folders)
     {
