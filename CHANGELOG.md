@@ -1,5 +1,8 @@
 # Changelog
 
+Every version of rexplayer that reaches users, newest first. A version is published by the CI
+pipeline the moment its number reaches `main`.
+
 ## 0.30.0 - 2026-10-22
 
 ### Added
@@ -12,16 +15,10 @@
 - **Authors, book descriptions and artist profiles (#441).** Audiobook Authors navigation leads from author to book to chapters, including an Unknown author fallback. Conservatively matched Open Library book synopses show attribution and a source link. Music artists can display real Wikimedia Commons portraits and credited biographies.
 
 ### Changed
-
 - **Minimal UI and movie details (#440).** Refined the library's visual presentation and made movie information and navigation more useful.
 
 ### Fixed
-
 - **Edited transcript preservation (#421).** Preserve user-edited transcript content instead of overwriting those edits during subsequent processing.
-
-
-Every version of rexplayer that reaches users, newest first. A version is published by the CI
-pipeline the moment its number reaches `main`.
 
 ## 0.29.0 - 2026-10-22
 
