@@ -56,7 +56,7 @@ public sealed class GenreNamesTests
     [Fact]
     public void AGenreWithBrokenUnicodeRemainsAsTagged()
     {
-        var broken = "Unrecognized" + '\\uD800';
+        var broken = "Unrecognized" + (char)0xD800;
         Assert.Equal([broken], GenreNames.Split(broken));
     }
 
