@@ -82,6 +82,11 @@ public static partial class BookCredits
                     && !GenericFolder(path[index + 1]))
                 {
                     // A book folder follows the author, or a whole book file follows it.
+                    if (index + 3 < path.Length && (PartFile(path[index + 2]) || GenericFolder(path[index + 2])))
+                    {
+                        return null;
+                    }
+
                     if (index + 3 < path.Length ||
                         (!PartFile(path[index + 2]) && !GenericFolder(Path.GetFileNameWithoutExtension(path[index + 2]))))
                     {
