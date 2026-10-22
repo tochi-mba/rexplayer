@@ -79,7 +79,7 @@ pre code{padding:0;background:none}
 .hero-lede{font-size:clamp(17px,1.6vw,20px);color:var(--muted);max-width:56ch}
 .hero-actions{display:flex;flex-wrap:wrap;gap:12px}
 .hero-meta{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:13px;font-weight:600}
-.hero-meta span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--signal);margin-right:8px;vertical-align:middle}
+.hero-meta::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--signal);margin:7px 1px 0 0;vertical-align:middle}
 .button{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 20px;border-radius:var(--radius-m);font-weight:700;border:1px solid transparent}
 .button:hover{text-decoration:none}
 .button-primary{background:var(--signal);color:var(--ink)}
@@ -87,11 +87,12 @@ pre code{padding:0;background:none}
 .button-secondary{background:var(--raised);color:var(--text);border-color:var(--line)}
 .button-secondary:hover{border-color:var(--muted)}
 
-/* A window showing a conversation or a plan */
-.console{margin:0;padding:22px;border-radius:var(--radius-l);background:var(--panel);border:1px solid var(--line);overflow:auto;font-size:13.5px;line-height:1.7;color:var(--text);box-shadow:0 30px 80px rgba(0,0,0,.5)}
-.console .you{color:var(--muted)}
-.console .k{color:var(--signal)}
-.console .s{color:var(--live)}
+.product-frame{min-height:360px;border:1px solid var(--line);border-radius:var(--radius-l);overflow:hidden;background:var(--panel);box-shadow:0 30px 80px rgba(0,0,0,.5);transform:perspective(1200px) rotateY(-2deg)}
+.mock-toolbar{height:48px;display:flex;align-items:center;gap:7px;padding:0 16px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px}
+.mock-toolbar i{width:8px;height:8px;border-radius:50%;background:var(--line)}.mock-toolbar i:first-child{background:var(--live)}.mock-toolbar span{margin-left:auto}
+.mock-shell{display:grid;grid-template-columns:116px 1fr;min-height:312px}.mock-rail{border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:16px;color:var(--muted);font-size:11px}.mock-rail b{color:var(--signal)}
+.mock-content{padding:32px 24px;background:radial-gradient(circle at 75% 0,rgba(215,255,63,.13),transparent 45%);display:flex;flex-direction:column;gap:12px}.mock-content small{color:var(--signal);font-weight:700;letter-spacing:.12em}.mock-content strong{max-width:13ch;font-size:25px;line-height:1.2}
+.mock-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}.mock-cards i{height:112px;border-radius:9px;background:linear-gradient(145deg,var(--raised),#303a31)}.mock-cards i:nth-child(2){background:linear-gradient(145deg,#343329,var(--raised))}.mock-cards i:nth-child(3){background:linear-gradient(145deg,#352820,var(--raised))}
 
 /* Trust strip */
 .trust-strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--panel)}
@@ -107,13 +108,20 @@ pre code{padding:0;background:none}
 .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-l);padding:24px;display:flex;flex-direction:column;gap:12px}
 .step p{color:var(--muted)}
 .step-number{font-family:var(--mono);color:var(--signal);font-weight:700;font-size:13px}
-.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
 .feature-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-l);padding:24px;display:flex;flex-direction:column;gap:10px}
 .feature-card p{color:var(--muted)}
 .feature-card.link:hover{border-color:var(--muted);text-decoration:none}
 .feature-card .meta{font-family:var(--mono);font-size:12px;color:var(--signal)}
 
-/* Install */
+/* Downloads and install */
+.download-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.download-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-l);padding:26px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.download-card>span{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--signal)}
+.download-card p{color:var(--muted);margin-bottom:8px}.download-card .button{width:100%;justify-content:center}
+.architecture-links{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;margin-top:2px}.architecture-links a{text-decoration:underline;text-underline-offset:3px}
+.install-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:28px}.install-grid>div{padding:20px 22px;border-left:2px solid var(--signal);background:var(--signal-wash)}.install-grid p{color:var(--muted);margin-top:7px}.install-grid a{text-decoration:underline;text-underline-offset:3px}
+.private-panel{display:grid;grid-template-columns:.8fr 1.2fr;gap:clamp(28px,7vw,90px);align-items:center;background:linear-gradient(120deg,var(--panel),transparent);border-radius:var(--radius-l);padding-inline:clamp(22px,4vw,48px)}.private-panel>div{display:flex;flex-direction:column;gap:10px}.private-panel>p{color:var(--muted);font-size:17px}
 .install-steps{margin:0;padding-left:0;list-style:none;counter-reset:step;display:grid;gap:14px;max-width:80ch}
 .install-steps li{counter-increment:step;position:relative;padding-left:48px;color:var(--muted)}
 .install-steps li::before{content:counter(step,decimal-leading-zero);position:absolute;left:0;top:2px;font-family:var(--mono);font-weight:700;color:var(--signal)}
@@ -160,7 +168,8 @@ pre code{padding:0;background:none}
   .site-nav a{min-height:46px}
   .nav-github{margin-left:0;justify-content:center}
   .brand-name{font-size:14px}
-  .steps,.feature-grid{grid-template-columns:1fr}
+  .steps,.feature-grid,.download-grid,.install-grid,.private-panel{grid-template-columns:1fr}
+  .product-frame{min-height:300px;transform:none}.mock-shell{min-height:252px;grid-template-columns:84px 1fr}.mock-rail{padding-inline:9px}.mock-content{padding:24px 16px}.mock-cards i{height:86px}
 }
 @media(max-width:420px){
   .trust-grid{grid-template-columns:1fr}
