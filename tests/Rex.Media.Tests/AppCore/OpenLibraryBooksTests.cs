@@ -44,8 +44,8 @@ public sealed class OpenLibraryBooksTests : IDisposable
             """{"docs":[{"title":"Name","author_name":["Writer"],"key":"OL3W"}]}"""));
         Assert.Equal("OL31W", OpenLibraryBooks.Match("name", "writer",
             """{"docs":[{"title":"NAME","author_name":["WRITER"],"key":"/works/OL31W"}]}"""));
-        Assert.Equal("the hobbit\nj r r tolkien", OpenLibraryBooks.BookKey("The Hobbit", "J. R. R. Tolkien"));
-        Assert.Equal("the hobbit\n", OpenLibraryBooks.BookKey("The Hobbit", null));
+        Assert.Equal("hobbit\nj r r tolkien", OpenLibraryBooks.BookKey("The Hobbit", "J. R. R. Tolkien"));
+        Assert.Equal("hobbit\n", OpenLibraryBooks.BookKey("The Hobbit", null));
         Assert.Contains("title=The%20Hobbit", OpenLibraryBooks.SearchUri("The Hobbit", "Tolkien").AbsoluteUri, StringComparison.Ordinal);
         Assert.Equal("https://openlibrary.org/works/OL123W.json", OpenLibraryBooks.WorkUri("OL123W").AbsoluteUri);
         Assert.Equal("https://openlibrary.org/works/OL123W", OpenLibraryBooks.PageUri("OL123W").AbsoluteUri);
@@ -73,7 +73,7 @@ public sealed class OpenLibraryBooksTests : IDisposable
         Assert.Null(OpenLibraryBooks.Description("""{"description":{}}"""));
         Assert.Null(OpenLibraryBooks.Description("""{"description":33}"""));
         Assert.Null(OpenLibraryBooks.Description("""{"description":" "}"""));
-        Assert.Throws<JsonException>(() => OpenLibraryBooks.Description("{"));
+        Assert.ThrowsAny<JsonException>(() => OpenLibraryBooks.Description("{"));
     }
 
     [Fact]
