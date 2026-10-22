@@ -39,15 +39,18 @@ public sealed partial class MainWindow
         }
     }
 
-    private void LoadCachedBooks(MetadataFetcher fetcher)
+    private bool LoadCachedBooks(MetadataFetcher fetcher)
     {
+        var cached = fetcher.CachedBooks();
         lock (_metadataGate)
         {
-            foreach (var book in fetcher.CachedBooks())
+            foreach (var book in cached)
             {
                 _metadataBooks[OpenLibraryBooks.BookKey(book.Title, book.InferredAuthor ? null : book.Author)] = book;
             }
         }
+
+        return cached.Count > 0;
     }
 
     /// <summary>Look up known writers directly; unknown writers only by a complete, exact-title result.</summary>
