@@ -137,6 +137,61 @@ public sealed class EpisodeNamesTests
         Assert.Equal((series, season, (int?)episode, through), (found.Series, found.Season, found.Episode, found.Through));
     }
 
+    [Fact]
+    [Capability("LIB-05")]
+    public void NumberedAnimeReleaseFilesFormShowsWithoutSeasonMarks()
+    {
+        LibraryEntry[] library =
+        [
+            Video(@"D:\Downloads\Panty & Stocking With Garterbelt (1080p) V2\Panty & Stocking With Garterbelt - 01 - Excretion Without Honor And Humanity - Death Race 2010 [DarkDream].mkv"),
+            Video(@"D:\Downloads\Panty & Stocking With Garterbelt (1080p) V2\Panty & Stocking With Garterbelt - 13 - Bitch Girls - Bitch Girls, 2 Bitch [DarkDream].mkv"),
+            Video(@"D:\Downloads\Golden Boy\Golden Boy (sigla) [Anime ITA - Dvd Rip] [tntvillage.org].mkv"),
+            Video(@"D:\Downloads\Golden Boy\Golden Boy 1 [Anime ITA - Dvd Rip] [tntvillage.org].mkv"),
+            Video(@"D:\Downloads\Golden Boy\Golden Boy 2 [Anime ITA - Dvd Rip] [tntvillage.org].mkv"),
+        ];
+
+        var shows = LibraryViews.TvShows(library);
+        Assert.Equal(["Golden Boy", "Panty & Stocking With Garterbelt"], shows.Select(show => show.Name));
+        Assert.Equal([3, 2], shows.Select(show => show.Entries.Count));
+        Assert.Empty(LibraryViews.Standalone(library));
+        Assert.Equal((1, (int?)1), (LibraryViews.EpisodeOf(library[0])!.Season, LibraryViews.EpisodeOf(library[0])!.Episode));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ASeasonMarkerInsideAReleaseFolderGroupsEveryEpisode()
+    {
+        LibraryEntry[] library =
+        [
+            Video(@"D:\Downloads\Nathan for You S00 Nathan on Your Side (240p re-tvrip)\Nathan on Your Side - Advertising.mkv"),
+            Video(@"D:\Downloads\Nathan for You S00 Nathan on Your Side (240p re-tvrip)\Nathan on Your Side - Buying an MP3 Player.mkv"),
+        ];
+
+        var show = Assert.Single(LibraryViews.TvShows(library));
+        Assert.Equal(("Nathan for You", "1 season · 2 episodes"), (show.Name, show.Detail));
+        Assert.All(show.Entries, entry => Assert.Equal(0, LibraryViews.EpisodeOf(entry)!.Season));
+        Assert.Empty(LibraryViews.Standalone(library));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void NamedShowPresentationsInTheShowsFolderAreSpecials()
+    {
+        LibraryEntry[] library =
+        [
+            Video(@"D:\TV\Family Guy\Family Guy - Stewie Griffin- The Untold Story.mkv"),
+            Video(@"D:\TV\Family Guy\Family Guy Presents Seth and Alex's Almost Live Comedy Show.mkv"),
+        ];
+
+        var show = Assert.Single(LibraryViews.TvShows(library));
+        Assert.Equal("Family Guy", show.Name);
+        var specials = Assert.Single(LibraryViews.TvSeasons(show));
+        Assert.Equal("Specials", specials.Name);
+        Assert.Equal(["Family Guy - Stewie Griffin- The Untold Story", "Family Guy Presents Seth and Alex's Almost Live Comedy Show"],
+            Titles(specials.Entries));
+        Assert.All(specials.Entries, entry => Assert.Equal(0, LibraryViews.EpisodeOf(entry)!.Season));
+    }
+
     [Theory]
     [Capability("LIB-05")]
     [InlineData(Root + @"\Movie Title (2007).mkv")]
