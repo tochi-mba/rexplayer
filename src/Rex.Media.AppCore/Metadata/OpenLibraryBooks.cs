@@ -67,10 +67,11 @@ public static class OpenLibraryBooks
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-        if (!root.TryGetProperty("docs", out var docs) || docs.ValueKind != JsonValueKind.Array
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("docs", out var docs) || docs.ValueKind != JsonValueKind.Array
             || !(root.TryGetProperty("numFound", out var total) || root.TryGetProperty("num_found", out total))
             || total.ValueKind != JsonValueKind.Number || !total.TryGetInt32(out var count)
-            || count > docs.GetArrayLength())
+            || count < 0 || count > docs.GetArrayLength())
         {
             return null;
         }
