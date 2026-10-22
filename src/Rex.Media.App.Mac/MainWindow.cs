@@ -328,6 +328,9 @@ public sealed class MainWindow : IDisposable
             case CommandCatalog.ToggleAlwaysOnTop:
                 _window.Level = _window.Level == NSWindowLevel.Floating ? NSWindowLevel.Normal : NSWindowLevel.Floating;
                 return true;
+            case CommandCatalog.GoToTime:
+                GoToTime();
+                return true;
             case CommandCatalog.Help:
                 NSWorkspace.SharedWorkspace.OpenUrl(new NSUrl(HelpUrl));
                 return true;
@@ -344,6 +347,47 @@ public sealed class MainWindow : IDisposable
     }
 
     private bool IsFullScreen => (_window.StyleMask & NSWindowStyle.FullScreenWindow) != 0;
+
+    private void GoToTime()
+    {
+        if (!_player.CanSeek)
+        {
+            if (_player.Item is not null)
+            {
+                Say(PlayerController.CannotSeekNotice);
+            }
+
+            return;
+        }
+
+        using var box = new NSTextField(new CGRect(0, 0, 240, 24))
+        {
+            StringValue = TimeText.Format(_player.Position, _player.Duration),
+        };
+        using var dialog = new NSAlert
+        {
+            MessageText = "Go to a time",
+            InformativeText = "Enter seconds, mm:ss or h:mm:ss.",
+            AccessoryView = box,
+        };
+        dialog.AddButton("Go");
+        dialog.AddButton("Cancel");
+        _window.MakeFirstResponder(box);
+        box.SelectText(null);
+        if (dialog.RunModal() != 1000)
+        {
+            return;
+        }
+
+        if (TimeText.TryParse(box.StringValue) is { } time)
+        {
+            _player.Seek(time);
+        }
+        else
+        {
+            Say($"\"{box.StringValue}\" is not a time. Try 1:23 or 1:02:03.");
+        }
+    }
 
     private void OpenWithPanel(bool folders)
     {
