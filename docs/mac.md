@@ -1,8 +1,10 @@
 # rexplayer on a Mac
 
-rexplayer runs on macOS 12 Monterey and later, on Apple Silicon and on Intel Macs. It is the same
-player as on Windows: the same menus, shortcuts (Cmd where Windows says Ctrl, Option where it says
-Alt), settings and library. What is still Windows-only is listed in the [parity ledger](parity.md).
+rexplayer targets macOS 12 Monterey and later, on Apple Silicon and Intel Macs. Its playback
+engine, command semantics and persistence share code with Windows, but **the current Mac window
+does not yet provide every Windows control, preference or library view**. The
+[capability matrix](capability-matrix.md) and [Mac parity ledger](parity.md) distinguish features
+that are implemented, independently verified and still planned.
 
 ## Which download
 
@@ -14,6 +16,21 @@ Open the Apple menu, then **About This Mac**.
 | Processor: Intel | `rexplayer-mac-osx-x64.zip` |
 
 It also shows the macOS version. Below macOS 12, see [an older Mac](#an-older-mac).
+
+## Current Mac feature coverage
+
+The Mac app provides the basic AppKit playback window, transport and seek controls, volume and
+mute, a Metal video surface, native audio output and codecs, Finder open/drop handling, selected
+shared playback commands, and basic media information. Support for richer library pages,
+subtitle rendering and editing, the complete Windows preferences and effects interface, and
+many platform-specific conveniences is still in progress. A capability is not considered
+**verified** just because a shared engine has its implementation.
+
+One signed, universal download supports both Intel and Apple Silicon; separate architecture
+packages are available too. A Mac package is built with the macOS 26 toolchain, but the final
+universal app must also **launch, play a test video and quit on a macOS 15 Sequoia runner** in
+CI. That detects crashes the build-host smoke test alone would miss. Passing macOS 15 CI is
+not a substitute for checking the originally affected physical Mac running 15.8.1.
 
 ## Installing
 
@@ -43,6 +60,24 @@ it quarantined. Open **Terminal** and run, once:
 ```sh
 xattr -dr com.apple.quarantine /Applications/rexplayer.app
 ```
+
+## If the app closes immediately
+
+If there is no rexplayer window or log, the process may have stopped before managed startup.
+On an ad-hoc-signed .NET app, the JIT entitlement is required even when macOS accepts the
+signature. To inspect a downloaded bundle from a trusted release, use:
+
+```sh
+codesign --verify --deep --strict /Applications/rexplayer.app
+codesign -d --entitlements :- /Applications/rexplayer.app
+```
+
+The second command should show `com.apple.security.cs.allow-jit` set to `true`. If it is
+missing, use a corrected release rather than trying to change the app signature yourself.
+The app is not Developer ID signed or notarised yet, so Gatekeeper still requires the
+one-time approval described above. If the entitlement is present but the app still aborts,
+the macOS crash report and the exact Mac model, CPU architecture and macOS patch version
+are needed to diagnose the remaining failure.
 
 ## Where rexplayer keeps its files
 
