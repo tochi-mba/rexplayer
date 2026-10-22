@@ -44,7 +44,9 @@ public sealed partial class MainWindow
             }
         }
 
-        if (_librarySource == LibrarySource.Audiobooks && (chosen is [{ Item: LibraryGroup book }] ? book : _libraryGroup) is { Entries.Count: > 0 } chosenBook)
+        if ((_librarySource is LibrarySource.Audiobooks or LibrarySource.Authors)
+            && (chosen is [{ Item: LibraryGroup book }] ? book
+                : _librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup) is { Entries.Count: > 0 } chosenBook)
         {
             var finished = Audiobooks.Finished(chosenBook);
             menu.Items.Add(MenuItem(finished ? "Mark as unfinished" : "Mark as finished", finished ? "LibraryMenuBookUnfinished" : "LibraryMenuBookFinished",
