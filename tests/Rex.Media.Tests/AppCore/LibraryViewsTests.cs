@@ -112,6 +112,25 @@ public sealed class LibraryViewsTests
         Assert.Equal(["Ballerina"], Titles(artists[4].Entries));
     }
 
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void MissingSpaceAfterFeaturedCreditDoesNotMakeExtraArtistCards()
+    {
+        var songs = new[]
+        {
+            Song("If I Never See Your Face Again", "Maroon 5 feat.Rihanna", "It Won't Be Soon Before Long"),
+            Song("Hate That I Love You", "Rihanna feat.Ne-Yo", "Good Girl Gone Bad"),
+            Song("Umbrella", "Rihanna feat.Jay-Z", "Good Girl Gone Bad"),
+        };
+        var artists = LibraryViews.Artists(songs);
+        Assert.Equal(["Jay-Z", "Maroon 5", "Ne-Yo", "Rihanna"], artists.Select(artist => artist.Name));
+        Assert.Equal(["Hate That I Love You", "If I Never See Your Face Again", "Umbrella"],
+            Titles(artists.Single(artist => artist.Name == "Rihanna").Entries).Order(StringComparer.Ordinal));
+        Assert.All(artists, artist => Assert.DoesNotContain("feat.", artist.Name, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("Rihanna feat.Jay-Z", songs[2].Artist);
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void SpellingsOfOneArtistAreOneGroupNamedAsMostSongsSpellIt()

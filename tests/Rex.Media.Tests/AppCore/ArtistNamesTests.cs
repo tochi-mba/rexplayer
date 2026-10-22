@@ -26,6 +26,37 @@ public sealed class ArtistNamesTests
         Assert.Equal(["A$AP Rocky"], names.Split("A$AP Rocky"));
     }
 
+
+    [Theory]
+    [InlineData("Maroon 5 feat.Rihanna", "Maroon 5", "Rihanna")]
+    [InlineData("Rihanna feat.Ne-Yo", "Rihanna", "Ne-Yo")]
+    [InlineData("Rihanna feat.Jay-Z", "Rihanna", "Jay-Z")]
+    [InlineData("Rihanna feat. Jay-Z", "Rihanna", "Jay-Z")]
+    [InlineData("Rihanna ft.Ne-Yo", "Rihanna", "Ne-Yo")]
+    [InlineData("Rihanna FEAT.JAY-Z", "Rihanna", "JAY-Z")]
+    [InlineData("Maroon 5 (feat.Rihanna)", "Maroon 5", "Rihanna")]
+    [InlineData("Maroon 5 [ft.Rihanna]", "Maroon 5", "Rihanna")]
+    public void FeaturedCreditsWithoutSpaceAfterTheDotNameSeparateArtists(string credit, string main, string guest)
+    {
+        Assert.Equal([main, guest], Nobody.Split(credit));
+        Assert.Equal([main, guest], ArtistNames.Learn([Song("Song", credit)]).Split(credit));
+    }
+
+    [Theory]
+    [InlineData("Umbrella (feat.Jay-Z)", new[] { "Jay-Z" })]
+    [InlineData("Umbrella ft.Jay-Z", new[] { "Jay-Z" })]
+    [InlineData("A Song [feat.Rihanna]", new[] { "Rihanna" })]
+    [InlineData("A Song feat.Ne-Yo", new[] { "Ne-Yo" })]
+    public void FeaturedArtistsInTitlesDoNotRequireSpaceAfterPeriod(string title, string[] expected) =>
+        Assert.Equal(expected, ArtistNames.Featured(title));
+
+    [Theory]
+    [InlineData("Rihanna featuringNe-Yo")]
+    [InlineData("The Featurettes")]
+    [InlineData("Rihanna featNe-Yo")]
+    [InlineData("Ft.King")]
+    public void NonSeparatorTextRemainsOneArtist(string credit) => Assert.Equal([credit], Nobody.Split(credit));
+
     [Theory]
     [InlineData("Asake/Olamide")]
     [InlineData("Asake / Olamide")]
