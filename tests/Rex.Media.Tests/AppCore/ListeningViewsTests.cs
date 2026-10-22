@@ -97,6 +97,29 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void AuthorsKeepTheirBooksAndUnknownCreditsSeparate()
+    {
+        var annOne = AudioFile("Audiobooks/Mixed/one.mp3", TimeSpan.FromHours(1), "Ann Writer", "First Book");
+        var annTwo = AudioFile("Audiobooks/Mixed/two.mp3", TimeSpan.FromHours(1), "ann writer", "Second Book");
+        var bob = AudioFile("Audiobooks/Mixed/three.mp3", TimeSpan.FromHours(1), "Bob Writer", "First Book");
+        var unknown = AudioFile("Audiobooks/Mixed/four.mp3", TimeSpan.FromHours(1), album: "Mystery Book");
+        var books = ListeningViews.Books([annOne, annTwo, bob, unknown]);
+
+        var authors = ListeningViews.Authors(books);
+        Assert.Equal(["Ann Writer", "Bob Writer", ListeningViews.UnknownAuthor], authors.Select(author => author.Name));
+        Assert.Equal(2, authors[0].Entries.Count);
+        Assert.Equal([annOne.Path, annTwo.Path], authors[0].Entries.Select(entry => entry.Path).Order(StringComparer.Ordinal));
+        Assert.Equal(["First Book", "Second Book"], ListeningViews.BooksByAuthor(books, "ANN WRITER").Select(book => book.Name));
+        Assert.Equal(["First Book"], ListeningViews.BooksByAuthor(books, "Bob Writer").Select(book => book.Name));
+        Assert.Equal(["Mystery Book"], ListeningViews.BooksByAuthor(books, ListeningViews.UnknownAuthor).Select(book => book.Name));
+        Assert.Empty(ListeningViews.BooksByAuthor(books, "Someone Else"));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.Authors(null!));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.BooksByAuthor(null!, "A"));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.BooksByAuthor(books, null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookHasChaptersOnePlaceToResumeFromAndItsProgress()
     {
         var day = new DateTime(2024, 3, 1, 9, 0, 0, DateTimeKind.Utc);
