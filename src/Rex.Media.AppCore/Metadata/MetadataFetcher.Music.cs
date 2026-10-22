@@ -114,6 +114,7 @@ public sealed partial class MetadataFetcher
                 Schema = EnrichedBook.CurrentSchema,
                 Title = title,
                 Author = match?.Author,
+                InferredAuthor = true,
                 WorkId = match?.WorkId,
                 Synopsis = synopsis,
             }.ToJson());
