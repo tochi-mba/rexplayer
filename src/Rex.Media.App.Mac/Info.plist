@@ -20,7 +20,7 @@
   <array>
     <dict>
       <key>CFBundleTypeName</key>
-      <string>Media</string>
+      <string>Video</string>
       <key>CFBundleTypeRole</key>
       <string>Viewer</string>
       <key>LSHandlerRank</key>
@@ -28,8 +28,80 @@
       <key>LSItemContentTypes</key>
       <array>
         <string>public.movie</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>mp4</string><string>m4v</string><string>mkv</string><string>webm</string>
+        <string>avi</string><string>mov</string><string>wmv</string><string>asf</string>
+        <string>ts</string><string>m2ts</string><string>mts</string><string>mpg</string>
+        <string>mpeg</string><string>vob</string><string>flv</string><string>3gp</string>
+        <string>ogv</string><string>y4m</string><string>264</string><string>h264</string>
+        <string>265</string><string>hevc</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Audio</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
         <string>public.audio</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>mp3</string><string>flac</string><string>m4a</string><string>aac</string>
+        <string>adts</string><string>wav</string><string>ogg</string><string>oga</string>
+        <string>opus</string><string>wma</string><string>aif</string><string>aiff</string>
+        <string>aifc</string><string>caf</string><string>au</string><string>snd</string>
+        <string>ac3</string><string>eac3</string><string>dts</string><string>mka</string>
+        <string>mp2</string><string>rf64</string><string>w64</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Picture</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
         <string>public.image</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>jpg</string><string>jpeg</string><string>jpe</string><string>jfif</string>
+        <string>png</string><string>gif</string><string>webp</string><string>bmp</string>
+        <string>dib</string><string>tif</string><string>tiff</string><string>heic</string>
+        <string>heif</string><string>avif</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Playlist</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>m3u</string><string>m3u8</string><string>pls</string><string>xspf</string>
+        <string>cue</string><string>asx</string><string>wax</string><string>wvx</string>
+        <string>wpl</string><string>zpl</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Folder</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
         <string>public.folder</string>
       </array>
     </dict>

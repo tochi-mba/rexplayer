@@ -376,7 +376,7 @@ macOS: 261 planned, 32 verified, 27 post-1.0, 2 not-applicable.
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
 | WIN-01 | Distribution | Per-user Inno installer (no admin), portable zip, winget manifest at 1.0 | M0/M15 | must | built | planned |
-| WIN-02 | File associations | Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps | M15 | must | built | planned |
+| WIN-02 | File associations | Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps | M15 | must | built | built |
 | WIN-03 | Explorer verbs | "Play with rexplayer", "Add to rexplayer playlist" (classic menu, HKCU); modern top-level Windows 11 menu through a sparse package (C, post-1.0) | M15 | must | planned | not-applicable |
 | WIN-04 | AutoPlay handlers | Audio CD, DVD movie, Blu-ray movie, removable-media folders | M15 | should | planned | not-applicable |
 | WIN-05 | System Media Transport Controls | Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget | M15 | must | built | planned |
