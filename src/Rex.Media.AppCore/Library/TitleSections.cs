@@ -10,6 +10,9 @@ public enum DescriptionSource
 
     /// <summary>TVmaze: the show page carries a "Data from TVmaze" line.</summary>
     TvMaze,
+
+    /// <summary>An exact audiobook work match, credited and linked to Open Library.</summary>
+    OpenLibrary,
 }
 
 /// <summary>A synopsis as a screen shows it: its words, where they came from and the page its credit links to.</summary>
@@ -54,6 +57,12 @@ public static class TitleSections
         AbsoluteUri(facts?.BackdropUrl),
         alike > 0,
         seriesMates > 0 && facts?.Collection is { } series && !string.IsNullOrWhiteSpace(series) ? SeriesHeading(series) : null);
+
+    /// <summary>An audiobook's synopsis when Open Library matched both its title and author.</summary>
+    public static Description? BookSynopsis(EnrichedBook? book) =>
+        book is { WorkId: { } id, Synopsis: { } text } && !string.IsNullOrWhiteSpace(text)
+            ? new Description(text.Trim(), DescriptionSource.OpenLibrary, OpenLibraryBooks.PageUri(id))
+            : null;
 
     /// <summary>An artist's biography, shown only when the Wikipedia source can be credited and opened.</summary>
     public static Description? ArtistBiography(EnrichedArtist? facts) =>
