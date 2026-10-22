@@ -103,11 +103,12 @@ public sealed class BookCreditsTests
     [Fact]
     public void ExplicitBookAuthorTagsSurviveLibraryReadsAndCacheRestarts()
     {
-        var path = Path.Combine("D:", "Books", "Matilda.m4b");
+        var root = Path.Combine("D:" + Path.DirectorySeparatorChar, "Books");
+        var path = Path.Combine(root, "Matilda.m4b");
         var store = RexStore.InMemory();
         var library = new MediaLibrary(store);
-        library.AddFolder(Path.Combine("D:", "Books"));
-        library.Scan(Path.Combine("D:", "Books"), [new LibraryFile(path, 1000, new DateTime(2025, 1, 2))], _ => LibraryKind.Music);
+        library.AddFolder(root);
+        library.Scan(root, [new LibraryFile(path, 1000, new DateTime(2025, 1, 2))], _ => LibraryKind.Music);
         var tags = new Dictionary<string, string>
         {
             [MetadataKeys.Title] = "Matilda",
@@ -122,4 +123,31 @@ public sealed class BookCreditsTests
         Assert.Equal("Roald Dahl", Assert.Single(ListeningViews.Books([read])).Detail);
         Assert.Equal("Roald Dahl", Assert.Single(ListeningViews.Books(new MediaLibrary(store).Entries)).Detail);
     }
+    [Fact]
+    public void VerifiedOnlineAuthorFillsOnlyEntirelyUncreditedBooks()
+    {
+        var blank = AudioFile("Audiobooks/Chocolate/1.mp3", TimeSpan.FromMinutes(45), album: "Chocolate");
+        var other = AudioFile("Audiobooks/Chocolate/2.mp3", TimeSpan.FromMinutes(45), album: "Chocolate");
+        var known = blank with { Path = blank.Path.Replace("/1.mp3", "/3.mp3", StringComparison.Ordinal), Author = "Another Writer" };
+        var none = ListeningViews.Books([blank, other]);
+        Assert.Null(Assert.Single(none).Detail);
+        var found = ListeningViews.Books([blank, other], book => book.Name == "Chocolate" ? "Roald Dahl" : null);
+        Assert.Equal("Roald Dahl", Assert.Single(found).Detail);
+        Assert.Equal(2, Assert.Single(found).Entries.Count);
+        var conflict = ListeningViews.Books([blank, other, known], _ => "Roald Dahl");
+        Assert.Equal("Another Writer", Assert.Single(conflict).Detail);
+        Assert.Equal(3, Assert.Single(conflict).Entries.Count);
+    }
+
+    [Fact]
+    public void ABookInACollectionWithTwoCreditedWritersRemainsSeparated()
+    {
+        var first = AudioFile("Audiobooks/Mixed/book/1.mp3", TimeSpan.FromMinutes(15), album: "Book") with { Author = "Author One" };
+        var second = AudioFile("Audiobooks/Mixed/book/2.mp3", TimeSpan.FromMinutes(15), album: "Book") with { Author = "Author Two" };
+        var third = AudioFile("Audiobooks/Mixed/book/3.mp3", TimeSpan.FromMinutes(15), album: "Book");
+        var books = ListeningViews.Books([first, second, third], _ => "Wrong Catalogue Writer");
+        Assert.Equal(3, books.Count);
+        Assert.DoesNotContain(books, book => book.Detail == "Wrong Catalogue Writer");
+    }
+
 }
