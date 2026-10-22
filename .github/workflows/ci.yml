@@ -197,6 +197,11 @@ jobs:
           codesign --verify --deep --strict "$app"
           mkdir -p dist
           ditto -c -k --keepParent "$app" "dist/rexplayer-mac-${{ matrix.rid }}.zip"
+          python3 scripts/verify-mac-bundle.py \
+            --app "$app" \
+            --rid "${{ matrix.rid }}" \
+            --minimum 12.0 \
+            --zip "dist/rexplayer-mac-${{ matrix.rid }}.zip"
           (cd dist && shasum -a 256 "rexplayer-mac-${{ matrix.rid }}.zip" > "rexplayer-mac-${{ matrix.rid }}.zip.sha256")
 
       # The real app, launched on the runner's desktop and driven through its automation pipe: it
