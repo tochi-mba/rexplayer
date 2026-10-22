@@ -173,4 +173,38 @@ public sealed class OpenLibraryBooksTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => fetcher.FetchUnknownBookAsync("", CancellationToken.None));
     }
 
+    [Fact]
+    public void TitleOnlyLookupsNeedACompleteConsistentWorkAndRecoverFromServiceErrors()
+    {
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", "[]"));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", "null"));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":-1,"docs":[]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":"1","docs":[]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":1,"docs":null}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":1,"docs":[null]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":1,"docs":[{"title":"Book","author_name":"Writer","key":"OL9W"}]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":1,"docs":[{"title":"Book","author_name":[null],"key":"OL9W"}]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":1,"docs":[{"title":"Book","author_name":["  "],"key":"OL9W"}]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":1,"docs":[{"title":"Book","author_name":["Writer"],"key":9}]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":1,"docs":[{"title":"Book","author_name":["Writer"],"key":"OLbadW"}]}"""));
+        Assert.Null(OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":2,"docs":[{"title":"Book","author_name":["Writer One"],"key":"OL9W"},{"title":"Book","author_name":["Writer One"],"key":"OL10W"}]}"""));
+        Assert.Equal(("Writer One", "OL9W"),
+            OpenLibraryBooks.MatchUnknownAuthor("Book", """{"numFound":2,"docs":[{"title":"Book","author_name":["Writer One"],"key":"OL9W"},{"title":"BOOK","author_name":["writer one"],"key":"OL9W"}]}""")!.Value);
+    }
+
+    [Fact]
+    public async Task FailedTitleOnlyRequestsRetryWithoutPoisoningTheCache()
+    {
+        var fetcher = Fetcher;
+        Assert.False(await fetcher.FetchUnknownBookAsync("Lost", CancellationToken.None));
+        Answer(OpenLibraryBooks.UnknownAuthorUri("Corrupt"), "{");
+        Assert.False(await fetcher.FetchUnknownBookAsync("Corrupt", CancellationToken.None));
+        Answer(OpenLibraryBooks.UnknownAuthorUri("The Twits"),
+            """{"numFound":1,"docs":[{"title":"The Twits","author_name":["Roald Dahl"],"key":"OL92W"}]}""");
+        Assert.False(await fetcher.FetchUnknownBookAsync("The Twits", CancellationToken.None));
+        Answer(OpenLibraryBooks.WorkUri("OL92W"), """{"description":null}""");
+        Assert.True(await fetcher.FetchUnknownBookAsync("The Twits", CancellationToken.None));
+        Assert.Equal("Roald Dahl", fetcher.CachedBook("The Twits", null)?.Author);
+    }
+
 }
