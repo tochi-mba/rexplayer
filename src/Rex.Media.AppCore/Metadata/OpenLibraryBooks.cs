@@ -112,7 +112,7 @@ public static class OpenLibraryBooks
                 return null;
             }
 
-            found = (author, id);
+            found ??= (author, id);
         }
 
         return found;
