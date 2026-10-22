@@ -72,6 +72,32 @@ public static partial class ListeningViews
             .ThenBy(book => book.Detail ?? "", ByName)];
     }
 
+    public const string UnknownAuthor = "Unknown author";
+
+    /// <summary>
+    /// One author card per distinct credited author, holding their books' parts. Unknown authors
+    /// stay separate from real authors and are displayed after them.
+    /// </summary>
+    public static IReadOnlyList<LibraryGroup> Authors(IEnumerable<LibraryGroup> books)
+    {
+        ArgumentNullException.ThrowIfNull(books);
+        return [.. books
+            .GroupBy(book => string.IsNullOrWhiteSpace(book.Detail) ? UnknownAuthor : book.Detail.Trim(), ByName)
+            .Select(group => new LibraryGroup(group.Key, null,
+                [.. group.SelectMany(book => book.Entries).DistinctBy(part => part.Path, StringComparer.OrdinalIgnoreCase)]))
+            .OrderBy(author => author.Name == UnknownAuthor)
+            .ThenBy(author => author.Name, ByName)];
+    }
+
+    /// <summary>The specific books credited to an author, without joining chapters from different titles.</summary>
+    public static IReadOnlyList<LibraryGroup> BooksByAuthor(IEnumerable<LibraryGroup> books, string author)
+    {
+        ArgumentNullException.ThrowIfNull(books);
+        ArgumentNullException.ThrowIfNull(author);
+        return [.. books.Where(book => ByName.Equals(string.IsNullOrWhiteSpace(book.Detail) ? UnknownAuthor : book.Detail.Trim(), author))
+            .OrderBy(book => book.Name, ByName)];
+    }
+
     /// <summary>The shows <paramref name="episodes"/> belong to, by name, each with its episodes newest first and its host as the detail.</summary>
     public static IReadOnlyList<LibraryGroup> Shows(IEnumerable<LibraryEntry> episodes)
     {
