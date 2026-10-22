@@ -43,7 +43,7 @@ internal static class Screenshots
     /// settle first (a condition on the controls shown), since a shot is taken at once.
     /// </summary>
     public static void Match(AppProcess app, string name, string? automationId = null,
-        int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio)
+        int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
     {
         var picture = WindowPicture.Take(app.Handle);
         if (automationId is not null)
@@ -51,12 +51,12 @@ internal static class Screenshots
             picture = Crop(picture, WindowPicture.Bounds(app.Handle), app.Find(automationId).Current.BoundingRectangle);
         }
 
-        Compare(name, picture, pixelThreshold, maxDifferingRatio);
+        Compare(name, picture, pixelThreshold, maxDifferingRatio, maxViewportHeightChange);
     }
 
     /// <summary>The comparison itself, for a picture already taken.</summary>
     public static void Compare(string name, (int Width, int Height, byte[] Bgra) picture,
-        int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio)
+        int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
     {
         Assert.Matches("^[A-Za-z0-9-]+$", name);
         var actual = Path.Combine(Output, "actual", name + ".png");
@@ -77,8 +77,18 @@ internal static class Screenshots
         }
 
         var expected = Load(baseline);
-        Assert.True(expected.Width == picture.Width && expected.Height == picture.Height,
+        Assert.True(expected.Width == picture.Width && Math.Abs(expected.Height - picture.Height) <= maxViewportHeightChange,
             $"Screenshot {name} is {picture.Width}x{picture.Height}, its baseline {expected.Width}x{expected.Height}. The picture is in {actual}.");
+        if (expected.Height != picture.Height)
+        {
+            // A responsive list can gain or lose blank viewport below its realized cards.
+            // Compare every pixel in the shared top-aligned area, not an outdated empty
+            // strip at the bottom. This is opt-in for the specific view whose height moved.
+            var sharedHeight = Math.Min(expected.Height, picture.Height);
+            expected = (expected.Width, sharedHeight, expected.Bgra[..(expected.Width * sharedHeight * 4)]);
+            picture = (picture.Width, sharedHeight, picture.Bgra[..(picture.Width * sharedHeight * 4)]);
+        }
+
         var (differing, diff) = Difference(expected, picture, pixelThreshold);
         var ratio = differing / (double)(picture.Width * picture.Height);
         if (ratio > maxDifferingRatio)
