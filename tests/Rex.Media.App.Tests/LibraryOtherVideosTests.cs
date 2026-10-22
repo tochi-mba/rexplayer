@@ -39,7 +39,7 @@ public sealed class LibraryOtherVideosTests : IDisposable
             Wait.Until(() => app.Find("LibraryShelfCards-OtherVideos"));
 
             app.Visit("Movies");
-            Wait.For(() => app.Lines() is ["harbour-night", "Small Film"], "only the two films in Movies",
+            Wait.For(() => app.Lines() is ["Harbour Night", "Small Film"], "only the two films in Movies, using the titled release folder",
                 () => string.Join(", ", app.Lines()));
             Assert.StartsWith("2 movies", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
 

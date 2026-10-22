@@ -71,6 +71,80 @@ public sealed class LibraryViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void GuestCreditsDoNotSplitOneAlbumIntoSeveralCards()
+    {
+        var songs = new[]
+        {
+            Song("Umbrella", "Rihanna feat.Jay-Z", "Good Girl Gone Bad: Reloaded", track: 1),
+            Song("Hate That I Love You", "Rihanna feat.Ne-Yo", "Good Girl Gone Bad: Reloaded", track: 2),
+            Song("Disturbia", "Rihanna", "Good Girl Gone Bad: Reloaded", track: 3),
+            Song("If I Never See Your Face Again", "Maroon 5 feat.Rihanna", "Good Girl Gone Bad: Reloaded", track: 4),
+        };
+
+        var album = Assert.Single(LibraryViews.Albums(songs));
+        Assert.Equal("Good Girl Gone Bad: Reloaded", album.Name);
+        Assert.Equal("Rihanna", album.Detail);
+        Assert.Equal(4, album.Entries.Count);
+        Assert.Equal("Rihanna feat.Jay-Z", songs[0].Artist);
+        Assert.Equal("Maroon 5 feat.Rihanna", songs[3].Artist);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void GuestCreditsShareAlbumEvenWhenEverySongHasADifferentFeaturedArtist()
+    {
+        var songs = new[]
+        {
+            Song("First", "Rihanna feat.Ne-Yo", "Reloaded"),
+            Song("Second", "Rihanna feat.Jay-Z", "Reloaded"),
+        };
+
+        var album = Assert.Single(LibraryViews.Albums(songs));
+        Assert.Equal("Rihanna", album.Detail);
+        Assert.Equal(2, album.Entries.Count);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void DifferentArtistsSameAlbumNameStaySeparateWithoutConsensus()
+    {
+        var songs = new[]
+        {
+            Song("One", "A", "Greatest Hits"),
+            Song("Two", "B", "Greatest Hits"),
+            Song("Three", "A", "Greatest Hits", albumArtist: "A"),
+            Song("Four", "B", "Greatest Hits", albumArtist: "B"),
+        };
+
+        Assert.Equal(["A", "B"], LibraryViews.Albums(songs).Select(album => album.Detail));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AConflictingAlbumArtistTagWinsOverATrackCreditMajority()
+    {
+        var songs = new[]
+        {
+            Song("Lead 1", "Rihanna", "Same Name"),
+            Song("Lead 2", "Rihanna", "Same Name"),
+            Song("Other", "Maroon 5", "Same Name", albumArtist: "Maroon 5"),
+        };
+        var groups = LibraryViews.Albums(songs);
+        Assert.Equal(["Maroon 5", "Rihanna"], groups.Select(group => group.Detail));
+        Assert.Equal([1, 2], groups.Select(group => group.Entries.Count));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AnAlbumWithoutAnyArtistRemainsUnknown()
+    {
+        var album = Assert.Single(LibraryViews.Albums([Song("Mystery", null, "Untitled")]));
+        Assert.Equal("Untitled", album.Name);
+        Assert.Null(album.Detail);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void EveryCreditedArtistGetsTheirOwnGroup()
     {
         var together = Song("Peace Be Unto You", "Asake; DJ Snake; asake", "Singles");

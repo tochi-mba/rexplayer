@@ -17,6 +17,10 @@ public sealed class GenreNamesTests
     [InlineData("Pop, Rock", new[] { "Pop", "Rock" })]
     [InlineData("Afrobeats; Pop", new[] { "Afrobeats", "Pop" })]
     [InlineData("Pop|Dance\\House", new[] { "Pop", "Dance", "House" })]
+    [InlineData("Hip-Hop • Rap", new[] { "Hip-Hop", "Rap" })]
+    [InlineData("Jazz · Funk", new[] { "Jazz", "Funk" })]
+    [InlineData("Dance\nPop", new[] { "Dance", "Pop" })]
+    [InlineData("Alt Rock;Neo-Soul", new[] { "Alternative Rock", "Neo Soul" })]
     public void SeveralGenresInOneTagAreEachTheirOwn(string field, string[] expected) =>
         Assert.Equal(expected, GenreNames.Split(field));
 
@@ -34,6 +38,9 @@ public sealed class GenreNamesTests
     [InlineData("(13)", "Pop")]
     [InlineData("17", "Rock")]
     [InlineData("Pop/Funk", "Pop/Funk")]
+    [InlineData("alt. rock", "Alternative Rock")]
+    [InlineData("lo fi", "Lo-Fi")]
+    [InlineData("Contemporary RnB", "Contemporary R&B")]
     public void OneGenreIsSpelledOneWay(string field, string expected) =>
         Assert.Equal([expected], GenreNames.Split(field));
 
@@ -44,6 +51,13 @@ public sealed class GenreNamesTests
         // Not every piece is a genre, so the slash and the comma are part of the name.
         Assert.Equal(["AC/DC Tribute"], GenreNames.Split("AC/DC Tribute"));
         Assert.Equal(["Folk, World, & Country"], GenreNames.Split("Folk, World, & Country"));
+    }
+
+    [Fact]
+    public void AGenreWithBrokenUnicodeRemainsAsTagged()
+    {
+        var broken = "Unrecognized" + (char)0xD800;
+        Assert.Equal([broken], GenreNames.Split(broken));
     }
 
     [Fact]

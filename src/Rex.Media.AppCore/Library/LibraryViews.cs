@@ -147,18 +147,50 @@ public static partial class LibraryViews
             .ThenBy(entry => entry.Title, NaturalOrder.Instance)];
 
     /// <summary>
-    /// The albums, by name, each with its artist and its songs in order. An album is its name and the
-    /// artist it is filed under (its album artist, else its artist), so two artists' albums of one
-    /// name stay apart and a compilation tagged with an album artist stays together.
+    /// Albums are primarily identified by the album artist tag. Without one, use the lead artist
+    /// rather than the whole track credit ("Rihanna feat.Jay-Z" is filed under Rihanna). If most
+    /// tracks of a named release agree, include its differently credited guest tracks too. A tie
+    /// leaves same-named releases by different artists separate; the original tags are unchanged.
     /// </summary>
-    public static IReadOnlyList<LibraryGroup> Albums(IEnumerable<LibraryEntry> entries) =>
-        [.. Songs(entries)
-            .GroupBy(entry => (entry.Album ?? UnknownAlbum) + "\n" + entry.FiledArtist, ByName)
-            .Select(group => new LibraryGroup(MostSpelled(group.Select(entry => entry.Album ?? UnknownAlbum)), group.Any(entry => entry.FiledArtist is not null) ? MostSpelled(group.Select(entry => entry.FiledArtist)) : null, [.. group]))
+    public static IReadOnlyList<LibraryGroup> Albums(IEnumerable<LibraryEntry> entries)
+    {
+        var songs = Songs(entries);
+        var names = ArtistNames.Learn(songs);
+        var credited = songs.Select(song => (Song: song, Artist: song.AlbumArtist ?? names.Split(song.Artist).FirstOrDefault())).ToList();
+        var releaseArtists = new Dictionary<string, string>(ByName);
+        foreach (var release in credited.Where(pair => pair.Song.Album is not null).GroupBy(pair => pair.Song.Album!, ByName))
+        {
+            var explicitArtists = release.Select(pair => pair.Song.AlbumArtist).OfType<string>()
+                .Select(names.KeyOf).Distinct(StringComparer.Ordinal).ToList();
+            if (explicitArtists.Count > 1)
+            {
+                continue;
+            }
+
+            var leading = release.Where(pair => pair.Artist is not null)
+                .GroupBy(pair => names.KeyOf(pair.Artist!), StringComparer.Ordinal)
+                .OrderByDescending(group => group.Count()).FirstOrDefault();
+            if (leading is null || leading.Count() < 2 || leading.Count() * 2 <= release.Count()
+                || (explicitArtists.Count == 1 && leading.Key != explicitArtists[0]))
+            {
+                continue;
+            }
+
+            releaseArtists[release.Key] = MostSpelled(leading.Select(pair => pair.Artist));
+        }
+
+        return [.. credited
+            .Select(pair => (pair.Song, Artist: pair.Song.AlbumArtist
+                ?? (pair.Song.Album is { } album && releaseArtists.TryGetValue(album, out var preferred) ? preferred : pair.Artist)))
+            .GroupBy(pair => (pair.Song.Album ?? UnknownAlbum) + "\n" + pair.Artist, ByName)
+            .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Song.Album ?? UnknownAlbum)),
+                group.Any(pair => pair.Artist is not null) ? MostSpelled(group.Select(pair => pair.Artist)) : null,
+                [.. group.Select(pair => pair.Song)]))
             .OrderBy(group => group.Name == UnknownAlbum)
             .ThenBy(group => group.Name, ByName)
             .ThenBy(group => group.Detail is null)
             .ThenBy(group => group.Detail ?? "", ByName)];
+    }
 
     /// <summary>
     /// The artists, by name, each with their songs. A song is filed under everyone it is by, once
@@ -370,9 +402,18 @@ public static partial class LibraryViews
     /// </summary>
     private static string MovieReleaseName(string path)
     {
-        var name = Path.GetFileNameWithoutExtension(path.Replace('\\', '/'));
+        var normalized = path.Replace('\\', '/');
+        var name = Path.GetFileNameWithoutExtension(normalized);
         var withoutGroup = ReleaseGroupPrefix().Replace(name, "");
-        return MovieYearPattern().IsMatch(withoutGroup) ? withoutGroup : name;
+        if (MovieYearPattern().IsMatch(withoutGroup))
+        {
+            return withoutGroup;
+        }
+
+        // Disc files and quality-only rips often omit a year that their release folder contains.
+        // Prefer that folder's title and year, rather than searching for "feature" or "1080p".
+        var folder = Path.GetFileName(Path.GetDirectoryName(normalized));
+        return folder is not null && MovieYearPattern().IsMatch(folder) ? folder : name;
     }
 
     /// <summary>
@@ -555,7 +596,7 @@ public static partial class LibraryViews
     [GeneratedRegex(@"^(?<title>.+)[ ._(\-]+(?<year>19\d{2}|20\d{2})(?=[ ._)\-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MovieYearPattern();
 
-    [GeneratedRegex(@"[ ._-]+(?:2160p|1080p|720p|480p|BluRay|WEBRip|WEB[.-]DL)(?=[ ._-]|$).*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"[ ._-]+(?:4320p|2160p|1440p|1080p|720p|576p|480p|360p|4K|UHD|BluRay|Blu-Ray|BDRip|BRRip|WEBRip|WEB[ ._-]?DL|HDRip|DVDRip|HDTV|REMUX|x26[45]|H[ ._]?26[45]|HEVC|AVC|HDR)(?=[ ._-]|$).*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex QualitySuffixPattern();
 
     [GeneratedRegex(@"^(?:\[[A-Za-z0-9][A-Za-z0-9._-]{1,17}\][ ._-]+)+", RegexOptions.CultureInvariant)]
