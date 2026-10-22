@@ -75,7 +75,9 @@ public sealed class LibraryListeningTests : IDisposable
         var book = new Rex.Media.AppCore.Metadata.EnrichedBook
         {
             Schema = Rex.Media.AppCore.Metadata.EnrichedBook.CurrentSchema,
-            Title = "The Hobbit", Author = "J. R. R. Tolkien", WorkId = "OL123W",
+            Title = "The Hobbit",
+            Author = "J. R. R. Tolkien",
+            WorkId = "OL123W",
             Synopsis = "A hobbit travels across Middle-earth.",
         };
         cache.WriteText(Rex.Media.AppCore.Metadata.MetadataFetcher.BookKind,
