@@ -294,7 +294,7 @@ public sealed partial class ArtistNames
         return restored.ToString();
     }
 
-    [GeneratedRegex(@"\s*[;/\x00]\s*|\s+(?:feat\.?|ft\.?|featuring|(?-i:x))\s+|\s*[(\[]\s*(?:feat\.?|ft\.?|featuring)\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\s*[;/\x00]\s*|\s+(?:(?:feat|ft)\.\s*|(?:feat|ft|featuring)\s+|(?-i:x)\s+)|\s*[(\[]\s*(?:(?:feat|ft)\.\s*|(?:feat|ft|featuring)\s+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Always();
 
     [GeneratedRegex(@"\s*,\s*|\s+(?:&|and)\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -310,12 +310,12 @@ public sealed partial class ArtistNames
     [GeneratedRegex(@"(?:^|[/;,&+(\[\x00]|\s(?:and|x|feat\.?|ft\.?|featuring|vs\.?))\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex StandsBefore();
 
-    [GeneratedRegex(@"^\s*(?:$|[/;,&+)\]\x00]|(?:and|x|feat\.?|ft\.?|featuring|vs\.?)\s)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\s*(?:$|[/;,&+)\]\x00]|(?:feat|ft)\.\s*|(?:and|x|feat|ft|featuring|vs\.?)\s)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex StandsAfter();
 
-    [GeneratedRegex(@"[(\[]\s*(?:feat\.?|ft\.?|featuring)\s+(?<who>[^)\]]+)[)\]]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"[(\[]\s*(?:(?:feat|ft)\.\s*|(?:feat|ft|featuring)\s+)(?<who>[^)\]]+)[)\]]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BracketedFeature();
 
-    [GeneratedRegex(@"\s(?:feat\.|ft\.|featuring)\s+(?<who>[^()\[\]]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\s(?:(?:feat|ft)\.\s*|(?:feat|ft|featuring)\s+)(?<who>[^()\[\]]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TrailingFeature();
 }
