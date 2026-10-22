@@ -323,7 +323,7 @@ public static partial class ListeningViews
         }
 
         var folder = Path.GetFileName(BookFolderOf(part));
-        if (BooksFolderPattern().IsMatch(folder)
+        if (LooseFolderPattern().IsMatch(folder)
             || (BookCredits.AuthorFolder(part) is { } writer && ByName.Equals(writer, folder)))
         {
             // In Audiobooks/Author/Title.m4b the author directory is not the book title.
@@ -384,9 +384,13 @@ public static partial class ListeningViews
     [GeneratedRegex(@"^(?:dis[ck]|cd|part)[ _\-]*(?<n>\d{1,6})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PartFolderPattern();
 
-    /// <summary>Folders that collect loose files rather than naming a book.</summary>
-    [GeneratedRegex(@"^(?:audio ?books?|books|downloads?|inbox|incoming)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>The generic book collection root: not the title of a book.</summary>
+    [GeneratedRegex(@"^(?:audio ?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BooksFolderPattern();
+
+    /// <summary>A loose-download folder never serves as a book's title.</summary>
+    [GeneratedRegex(@"^(?:downloads?|inbox|incoming)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LooseFolderPattern();
 
     /// <summary>The folder every show is in, which names none of them: "Podcasts".</summary>
     [GeneratedRegex(@"^podcasts?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
