@@ -58,7 +58,8 @@ test('nothing scrolls sideways at phone, tablet or desktop widths', async ({ pag
   }
 });
 
-test('the download button works without the release API and is decorated with it', async ({ page }) => {
+test('Windows receives its installer and release details', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: { platform: 'Windows' } }));
   await page.goto('./');
   await expect(page.locator('#download')).toHaveAttribute('href', 'https://github.com/tochi-mba/rexplayer/releases/latest/download/rexplayer-Setup.exe');
 
@@ -73,7 +74,44 @@ test('the download button works without the release API and is decorated with it
   await page.goto('./');
 
   await expect(page.locator('#download')).toHaveAttribute('download', 'rexplayer-Setup-0.1.0.exe');
-  await expect(page.locator('#download-meta')).toHaveText('v0.1.0 · 41 MB · Windows 10 and 11, 64-bit');
+  await expect(page.locator('#download-meta')).toHaveText('v0.1.0 · 41 MB · Windows 10 and 11 · 64-bit');
+});
+
+test('a Mac receives the universal app and can still choose an architecture build', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'platform', { configurable: true, value: 'MacIntel' });
+  });
+  await page.unroute('https://api.github.com/**');
+  await page.route('https://api.github.com/**', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      tag_name: 'v0.30.3',
+      assets: [
+        { name: 'rexplayer-mac-universal.zip', size: 61000000, browser_download_url: 'https://github.com/tochi-mba/rexplayer/releases/download/v0.30.3/rexplayer-mac-universal.zip' },
+        { name: 'rexplayer-mac-osx-arm64.zip', size: 39000000, browser_download_url: 'https://github.com/tochi-mba/rexplayer/releases/download/v0.30.3/rexplayer-mac-osx-arm64.zip' },
+        { name: 'rexplayer-mac-osx-x64.zip', size: 41000000, browser_download_url: 'https://github.com/tochi-mba/rexplayer/releases/download/v0.30.3/rexplayer-mac-osx-x64.zip' },
+      ],
+    }),
+  }));
+  await page.goto('./');
+
+  await expect(page.locator('#download')).toHaveAttribute('download', 'rexplayer-mac-universal.zip');
+  await expect(page.locator('#download')).toHaveText('Download for Mac');
+  await expect(page.locator('#download-meta')).toContainText('Apple silicon and Intel');
+  await expect(page.getByRole('link', { name: 'Apple silicon', exact: true })).toHaveAttribute('href', /osx-arm64\.zip$/);
+  await expect(page.getByRole('link', { name: 'Intel Mac', exact: true })).toHaveAttribute('href', /osx-x64\.zip$/);
+});
+
+test('an unknown operating system is asked to choose instead of receiving an incompatible file', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Linux x86_64' });
+  });
+  await page.goto('./');
+  await expect(page.locator('#download')).toHaveText('Choose your download');
+  await expect(page.locator('#download')).toHaveAttribute('href', '#downloads');
+  await expect(page.locator('#download-chooser')).toBeVisible();
 });
 
 test('a missing address shows the styled 404 page', async ({ page }) => {
@@ -83,7 +121,7 @@ test('a missing address shows the styled 404 page', async ({ page }) => {
   await expect(page).toHaveTitle(/Not found - rexplayer/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(8, 10, 9)');
   await page.getByRole('link', { name: 'Back to rexplayer' }).click();
-  await expect(page).toHaveTitle(/rexplayer - every file/);
+  await expect(page).toHaveTitle(/rexplayer.*your media/);
 });
 
 test('every FAQ answer opens and the first is open already', async ({ page }) => {
