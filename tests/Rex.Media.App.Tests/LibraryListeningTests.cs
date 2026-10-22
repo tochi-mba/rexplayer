@@ -67,6 +67,36 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
+            artist: "J. R. R. Tolkien", album: "The Hobbit");
+        var cache = new Rex.Media.AppCore.Metadata.MetadataCache(Path.Combine(_scene.Root, "metadata"));
+        var book = new Rex.Media.AppCore.Metadata.EnrichedBook
+        {
+            Schema = Rex.Media.AppCore.Metadata.EnrichedBook.CurrentSchema,
+            Title = "The Hobbit", Author = "J. R. R. Tolkien", WorkId = "OL123W",
+            Synopsis = "A hobbit travels across Middle-earth.",
+        };
+        cache.WriteText(Rex.Media.AppCore.Metadata.MetadataFetcher.BookKind,
+            Rex.Media.AppCore.Metadata.OpenLibraryBooks.BookKey(book.Title, book.Author), book.ToJson());
+
+        using var app = _scene.Ready(settings => settings with
+        {
+            Metadata = new Rex.Media.Settings.MetadataSettings { Music = true },
+        }).Start();
+        app.Visit("Audiobooks");
+        app.Open("The Hobbit");
+        Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
+            && app.Text("LibraryOverview") == "A hobbit travels across Middle-earth.",
+            "a trusted description under the audiobook title");
+        Assert.Equal("Description from Open Library", app.Text("LibraryCredit"));
+        Assert.True(app.IsShown("LibraryPlay"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AMoveMakesAViewAppearEmptyingItGoesHomeAndTheMoveOutlastsARestart()
     {
         using (var app = _scene.WithAsake().Ready().Start())
