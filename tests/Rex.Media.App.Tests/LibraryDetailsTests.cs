@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows.Automation;
 using Rex.Media.AppCore.Metadata;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
@@ -125,6 +126,23 @@ public sealed class LibraryDetailsTests : IDisposable
         Assert.Equal("Part of The Matrix series", app.Find("LibraryShelfCards-Details-Series").Current.Name);
         app.Line("The Matrix Reloaded", "LibraryShelfCards-Details-Series");
         app.Line("Speed", "LibraryShelfCards-Details-MoreLikeThis");
+
+        // Rich metadata must grow down from the command bar instead of pushing Back and the
+        // title underneath it. Scrolling then keeps a smaller, useful header pinned above the
+        // shelves, and returning to the top restores the full context.
+        var expandedHeader = app.Find("LibraryHero").Current.BoundingRectangle;
+        var back = app.Find("LibraryBack").Current.BoundingRectangle;
+        Assert.True(back.Top >= app.Find("Menu").Current.BoundingRectangle.Bottom, "Back is wholly below the command bar.");
+        Assert.True(back.Bottom <= expandedHeader.Bottom, "Back is wholly inside the expanded header.");
+        var detailsScroll = (ScrollPattern)app.Find("LibraryHome").GetCurrentPattern(ScrollPattern.Pattern);
+        Wait.For(() => detailsScroll.Current.VerticallyScrollable, "the details shelves to be scrollable");
+        detailsScroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.LargeIncrement);
+        Wait.For(() => app.Find("LibraryHero").Current.Name == "Compact library header", "the header to compact after scrolling");
+        var compactHeader = app.Find("LibraryHero").Current.BoundingRectangle;
+        Assert.True(compactHeader.Height < expandedHeader.Height, "The sticky header uses less vertical space.");
+        Assert.True(app.IsShown("LibraryBack"), "Back remains available in the compact header.");
+        detailsScroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
+        Wait.For(() => app.Find("LibraryHero").Current.Name == "Expanded library header", "the header to expand at the top");
         Screenshots.Match(app, "library-movie-details", "LibraryPane");
 
         // A cast member: everything in the library they appear in, as a view titled with their name.

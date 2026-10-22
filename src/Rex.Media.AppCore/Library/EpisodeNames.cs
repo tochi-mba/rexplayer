@@ -62,6 +62,10 @@ public static partial class EpisodeNames
         }
 
         var folder = SeasonFolderPattern().Match(parent);
+        if (!folder.Success)
+        {
+            folder = EmbeddedSeasonFolderPattern().Match(parent);
+        }
         int? folderSeason = folder.Success ? folder.Groups["specials"].Success ? 0 : Number(folder.Groups["season"]) : null;
         var folderShow = !folder.Success ? null : folder.Groups["show"].Success ? folder.Groups["show"].Value : Named(above) ? above : null;
         var looseShow = Named(parent) && !folder.Success ? parent : null;
@@ -93,6 +97,30 @@ public static partial class EpisodeNames
             var prefix = name[..mark.Index];
             var season = mark.Groups["season"].Success ? Number(mark.Groups["season"]) : folderSeason ?? 1;
             return Episode(folderShow ?? (Clean(prefix).Length > 0 ? prefix : looseShow), season, Optional(mark.Groups["episode"]), Optional(mark.Groups["through"]));
+        }
+
+        // Release folders commonly carry the series once and use a bare episode number in each file:
+        // "Show (1080p) V2\Show - 01 - Pilot" and "Show\Show 1 [release]". The numbered
+        // members establish the show; an unnumbered member in the same folder is tentative and joins
+        // only when one of those firm members exists (for example an anime opening named "Show (sigla)").
+        if (folderSeason is null && FolderSeries(parent) is { } folderSeries)
+        {
+            if (!SeriesYearPattern().IsMatch(parent) && StartsWithSeries(name, folderSeries) &&
+                SpecialPresentationPattern().IsMatch(name[folderSeries.Length..]))
+            {
+                return Episode(folderSeries, 0, null);
+            }
+
+            var numbered = FolderEpisodePattern().Match(name);
+            if (numbered.Success && SameSeries(numbered.Groups["show"].Value, folderSeries))
+            {
+                return Episode(folderSeries, 1, Number(numbered.Groups["episode"]));
+            }
+
+            if (!SeriesYearPattern().IsMatch(parent) && StartsWithSeries(name, folderSeries))
+            {
+                return Episode(folderSeries, 1, null, tentative: true);
+            }
         }
 
         // A special without a season: "SP01", "Special 2", "OVA", "OAD". Only a season folder makes it certain.
@@ -173,6 +201,23 @@ public static partial class EpisodeNames
 
     private static int? PlainNumber(string name) => PlainNumberPattern().Match(name) is { Success: true } match ? Number(match) : null;
 
+    private static string? FolderSeries(string folder)
+    {
+        if (!Named(folder))
+        {
+            return null;
+        }
+
+        var release = ReleaseFolderSuffixPattern().Match(folder);
+        return Clean(release.Success ? folder[..release.Index] : folder) is { Length: > 0 } series ? series : null;
+    }
+
+    private static bool SameSeries(string candidate, string series) =>
+        string.Equals(ShowNames.Key(Clean(candidate)), ShowNames.Key(series), StringComparison.Ordinal);
+
+    private static bool StartsWithSeries(string name, string series) =>
+        Clean(name).StartsWith(Clean(series), StringComparison.OrdinalIgnoreCase);
+
     /// <summary>A folder that can name a show: not empty, not a drive, not a library's own folder and not a season.</summary>
     private static bool Named(string folder) =>
         folder.Length > 0 && !folder.EndsWith(':') && !Generic.Contains(folder) && !ExtrasFolders.Contains(folder) && !SeasonFolderPattern().IsMatch(folder);
@@ -187,6 +232,22 @@ public static partial class EpisodeNames
     /// <summary>"Season 6", "S06", "Series 6", "Staffel 6", "Saison 6", "Specials", optionally after the show's name.</summary>
     [GeneratedRegex(@"^(?:(?<show>.*?\S)[ ._-]+)?(?:(?:season|series|staffel|saison|temporada)[ ._-]*(?<season>\d{1,3})|s(?<season>\d{1,3})|(?<specials>specials?))$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
     private static partial Regex SeasonFolderPattern();
+
+    /// <summary>A release folder with a season marker followed by descriptive text, such as "Show S00 Collection (240p)".</summary>
+    [GeneratedRegex(@"^(?<show>.*?\S)[ ._-]+s(?<season>\d{1,3})(?=$|[ ._()\[\]-])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+    private static partial Regex EmbeddedSeasonFolderPattern();
+
+    /// <summary>A bare episode number after the folder's series name, separated from surrounding title or release text.</summary>
+    [GeneratedRegex(@"^(?<show>.+?)(?:[ ._-]+)(?<episode>\d{1,3})(?=$|[ ._()\[\]-])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+    private static partial Regex FolderEpisodePattern();
+
+    /// <summary>Quality and revision decorations appended to a torrent or release folder's series name.</summary>
+    [GeneratedRegex(@"\s*(?:\((?:\d{3,4}p|[^)]*(?:bluray|web[- .]?dl|dvd|remux)[^)]*)\)|\[(?:\d{3,4}p)[^]]*\])(?:\s+v\d+)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ReleaseFolderSuffixPattern();
+
+    /// <summary>Named one-off productions filed with their show rather than numbered broadcast episodes.</summary>
+    [GeneratedRegex(@"(?:^\s+presents\b|\buntold[ ._-]+story\b)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SpecialPresentationPattern();
 
     /// <summary>"S06E01", "s6e1", "S06 E01", "S06E01-E02", "S06E01E02", "S06E01-02".</summary>
     [GeneratedRegex(@"(?<![\p{L}\p{N}])s(?<season>\d{1,3})[ ._-]?e(?<episode>\d{1,4})(?:(?:-?e|-)(?<through>\d{1,4}))*(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]

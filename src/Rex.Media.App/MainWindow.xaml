@@ -434,7 +434,8 @@
           </Grid.RowDefinitions>
 
           <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
-          <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero">
+          <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero"
+                AutomationProperties.Name="Expanded library header">
             <Image x:Name="LibraryHeroBackdrop" Height="196" VerticalAlignment="Top" Stretch="UniformToFill" Opacity="0.6">
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
             </Image>
@@ -464,7 +465,7 @@
                   </Image>
                 </Grid>
               </Border>
-              <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Spacing="2">
+              <StackPanel x:Name="LibraryHeroWords" Grid.Column="1" VerticalAlignment="Bottom" Spacing="2">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button x:Name="LibraryBack" Visibility="Collapsed" Click="OnLibraryBack" AutomationProperties.AutomationId="LibraryBack" AutomationProperties.Name="Back"
                           ToolTipService.ToolTip="Back (Alt+Left)" Padding="10,5">
