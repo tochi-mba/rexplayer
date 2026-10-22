@@ -364,7 +364,12 @@ public sealed partial class MainWindow
             artistPage ? ArtistPhotoPathIfKnown(title) : null);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
-        if (artistPage)
+        if (search.Length == 0 && _librarySource == LibrarySource.Audiobooks && _libraryGroup is { } book)
+        {
+            ShowTitleExtras("", TitleSections.BookSynopsis(MetadataBook(book)), credit: null,
+                trailer: null, poster: false, backdrop: null);
+        }
+        else if (artistPage)
         {
             var artist = MetadataArtist(title);
             ShowTitleExtras(Rex.Media.AppCore.Library.TitleSections.ArtistFacts(artist),
