@@ -45,7 +45,8 @@ public static partial class ListeningViews
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
 
     /// <summary>The audio among <paramref name="entries"/> that is not music, shelf by shelf.</summary>
-    public static ListeningShelves Arrange(IReadOnlyCollection<LibraryEntry> entries, Func<LibraryEntry, MusicLookup> lookup)
+    public static ListeningShelves Arrange(IReadOnlyCollection<LibraryEntry> entries, Func<LibraryEntry, MusicLookup> lookup,
+        Func<LibraryGroup, string?>? unknownAuthor = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(lookup);
@@ -54,20 +55,33 @@ public static partial class ListeningViews
             .Where(pair => pair.Verdict is { IsMusic: false })
             .ToLookup(pair => pair.Verdict!.Value.Shelf, pair => pair.Entry);
         return new ListeningShelves(
-            Books(shelves[AudioShelf.Audiobooks]),
+            Books(shelves[AudioShelf.Audiobooks], unknownAuthor),
             Shows(shelves[AudioShelf.Podcasts]),
             [.. shelves[AudioShelf.Recordings].OrderByDescending(entry => RecordedAt(entry) ?? DateTime.MinValue).ThenBy(entry => entry.Path, NaturalOrder.Instance)],
             [.. shelves[AudioShelf.Sounds].OrderBy(entry => entry.Title, NaturalOrder.Instance).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)]);
     }
 
     /// <summary>The books <paramref name="parts"/> make, by name, each with its parts in reading order and its author as the detail.</summary>
-    public static IReadOnlyList<LibraryGroup> Books(IEnumerable<LibraryEntry> parts)
+    public static IReadOnlyList<LibraryGroup> Books(IEnumerable<LibraryEntry> parts,
+        Func<LibraryGroup, string?>? unknownAuthor = null)
     {
         ArgumentNullException.ThrowIfNull(parts);
         return [.. parts
-            .GroupBy(part => (Name: BookNameOf(part), Folder: BookFolderOf(part), Author: part.FiledArtist ?? ""), BookKeyComparer.Instance)
-            .Select(book => new LibraryGroup(book.Key.Name, book.Key.Author.Length > 0 ? book.Key.Author : null,
-                [.. book.OrderBy(DiscOf).ThenBy(part => part.Track ?? int.MaxValue).ThenBy(part => part.Path, NaturalOrder.Instance)]))
+            .GroupBy(part => (Name: BookCredits.Title(BookNameOf(part)), Folder: BookFolderOf(part)), BookKeyComparer.Instance)
+            .SelectMany(partsOfTitle =>
+            {
+                var credited = partsOfTitle.Select(part => (Part: part, Author: BookCredits.Author(part))).ToList();
+                var authors = credited.Select(credit => credit.Author).OfType<string>().Distinct(ByName).ToList();
+                // Missing credits on chapters join a single known writer; conflicts remain separate.
+                // Never silently give an uncredited chapter to one of two disagreeing writers.
+                var unambiguous = authors.Count == 1 ? authors[0]
+                    : authors.Count == 0 && unknownAuthor is not null
+                        ? unknownAuthor(new LibraryGroup(partsOfTitle.Key.Name, null, [.. partsOfTitle])) : null;
+                return credited.GroupBy(credit => credit.Author ?? unambiguous ?? "", ByName)
+                    .Select(book => new LibraryGroup(partsOfTitle.Key.Name, book.Key.Length > 0 ? book.Key : null,
+                        [.. book.Select(credit => credit.Part).OrderBy(DiscOf)
+                            .ThenBy(part => part.Track ?? int.MaxValue).ThenBy(part => part.Path, NaturalOrder.Instance)]));
+            })
             .OrderBy(book => book.Name, ByName)
             .ThenBy(book => book.Detail ?? "", ByName)];
     }
@@ -309,6 +323,13 @@ public static partial class ListeningViews
         }
 
         var folder = Path.GetFileName(BookFolderOf(part));
+        if (LooseFolderPattern().IsMatch(folder)
+            || (BookCredits.AuthorFolder(part) is { } writer && ByName.Equals(writer, folder)))
+        {
+            // In Audiobooks/Author/Title.m4b the author directory is not the book title.
+            return part.Title;
+        }
+
         return folder.Length > 0 && !folder.EndsWith(':') && !BooksFolderPattern().IsMatch(folder) ? folder
             : PartNumberPattern().Replace(part.Title, "") is { Length: > 0 } title ? title : part.Title;
     }
@@ -363,9 +384,13 @@ public static partial class ListeningViews
     [GeneratedRegex(@"^(?:dis[ck]|cd|part)[ _\-]*(?<n>\d{1,6})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PartFolderPattern();
 
-    /// <summary>The folder every book is in, which names none of them: "Audiobooks", "Audio Books", "Books".</summary>
-    [GeneratedRegex(@"^(?:audio ?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>The generic book collection root: not the title of a book.</summary>
+    [GeneratedRegex(@"^(?:audio[ _-]?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BooksFolderPattern();
+
+    /// <summary>A loose-download folder never serves as a book's title.</summary>
+    [GeneratedRegex(@"^(?:downloads?|inbox|incoming)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LooseFolderPattern();
 
     /// <summary>The folder every show is in, which names none of them: "Podcasts".</summary>
     [GeneratedRegex(@"^podcasts?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -376,14 +401,14 @@ public static partial class ListeningViews
     private static partial Regex PartNumberPattern();
 
     /// <summary>Books' keys compared without case.</summary>
-    private sealed class BookKeyComparer : IEqualityComparer<(string Name, string Folder, string Author)>
+    private sealed class BookKeyComparer : IEqualityComparer<(string Name, string Folder)>
     {
         public static readonly BookKeyComparer Instance = new();
 
-        public bool Equals((string Name, string Folder, string Author) x, (string Name, string Folder, string Author) y) =>
-            ByName.Equals(x.Name, y.Name) && StringComparer.OrdinalIgnoreCase.Equals(x.Folder, y.Folder) && ByName.Equals(x.Author, y.Author);
+        public bool Equals((string Name, string Folder) x, (string Name, string Folder) y) =>
+            ByName.Equals(x.Name, y.Name) && StringComparer.OrdinalIgnoreCase.Equals(x.Folder, y.Folder);
 
-        public int GetHashCode((string Name, string Folder, string Author) obj) =>
-            HashCode.Combine(ByName.GetHashCode(obj.Name), StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Folder), ByName.GetHashCode(obj.Author));
+        public int GetHashCode((string Name, string Folder) obj) =>
+            HashCode.Combine(ByName.GetHashCode(obj.Name), StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Folder));
     }
 }

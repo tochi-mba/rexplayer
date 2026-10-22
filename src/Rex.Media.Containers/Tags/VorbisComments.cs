@@ -78,6 +78,8 @@ public static class VorbisComments
             "ARTIST" => MetadataKeys.Artist,
             "ALBUM" => MetadataKeys.Album,
             "ALBUMARTIST" or "ALBUM ARTIST" or "ALBUM_ARTIST" => MetadataKeys.AlbumArtist,
+            "AUTHOR" or "BOOKAUTHOR" or "BOOK AUTHOR" or "BOOK_AUTHOR" or "WRITTEN BY" or "WRITTEN_BY" => MetadataKeys.Author,
+            "NARRATOR" or "READ BY" or "READ_BY" or "READER" => MetadataKeys.Narrator,
             "GENRE" => MetadataKeys.Genre,
             "DATE" or "YEAR" => MetadataKeys.Date,
             "TRACKNUMBER" => MetadataKeys.Track,

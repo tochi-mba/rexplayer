@@ -205,7 +205,7 @@ public static class Id3v2
                 value = string.Join(VorbisComments.Separator, value.Split('\0', StringSplitOptions.RemoveEmptyEntries));
                 if (description.Length > 0 && value.Length > 0)
                 {
-                    metadata[description.ToLowerInvariant()] = value;
+                    metadata[VorbisComments.CanonicalName(description)] = value;
                 }
 
                 return;

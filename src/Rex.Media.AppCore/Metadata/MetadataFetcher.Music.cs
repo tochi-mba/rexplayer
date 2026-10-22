@@ -78,6 +78,54 @@ public sealed partial class MetadataFetcher
         }
     }
 
+    /// <summary>
+    /// A title-only lookup is allowed only when the complete catalogue result points to one
+    /// author and one work. It never overwrites a local writer tag or guesses from a popular hit.
+    /// </summary>
+    public async Task<bool> FetchUnknownBookAsync(string title, CancellationToken token)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        if (CachedBook(title, null) is { Current: true })
+        {
+            return true;
+        }
+
+        try
+        {
+            if (await TextAsync(OpenLibraryBooks.UnknownAuthorUri(title), token).ConfigureAwait(false) is not { } answer)
+            {
+                return false;
+            }
+
+            var match = OpenLibraryBooks.MatchUnknownAuthor(title, answer);
+            string? synopsis = null;
+            if (match is { } work)
+            {
+                if (await TextAsync(OpenLibraryBooks.WorkUri(work.WorkId), token).ConfigureAwait(false) is not { } details)
+                {
+                    return false;
+                }
+
+                synopsis = OpenLibraryBooks.Description(details);
+            }
+
+            _cache.WriteText(BookKind, OpenLibraryBooks.BookKey(title, null), new EnrichedBook
+            {
+                Schema = EnrichedBook.CurrentSchema,
+                Title = title,
+                Author = match?.Author,
+                InferredAuthor = true,
+                WorkId = match?.WorkId,
+                Synopsis = synopsis,
+            }.ToJson());
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>The album's cached record, or null before its fetch.</summary>
     public EnrichedAlbum? CachedAlbum(string? artist, string album) =>
         _cache.ReadText(MusicKind, MusicBrainz.AlbumKey(artist, album)) is { } json ? EnrichedAlbum.FromJson(json) : null;

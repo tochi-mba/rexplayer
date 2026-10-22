@@ -84,6 +84,12 @@ public sealed record LibraryEntry
 
     public string? AlbumArtist { get; init; }
 
+    /// <summary>Audiobook writing credit from AUTHOR/BOOKAUTHOR, kept apart from narrator and music artist.</summary>
+    public string? Author { get; init; }
+
+    /// <summary>The credited narrator/reader, never automatically treated as the writer.</summary>
+    public string? Narrator { get; init; }
+
     public string? Genre { get; init; }
 
     public int? Track { get; init; }
@@ -167,7 +173,7 @@ public sealed class MediaLibrary
     /// chapters and the podcast and audiobook marks), so music read before is read again in the
     /// background rather than waiting for a rescan.
     /// </summary>
-    public const int TagReading = 2;
+    public const int TagReading = 3;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
@@ -721,6 +727,8 @@ public sealed class MediaLibrary
             Artists = Tag(MetadataKeys.Artists),
             Album = Tag(MetadataKeys.Album),
             AlbumArtist = Tag(MetadataKeys.AlbumArtist),
+            Author = Tag(MetadataKeys.Author) ?? Tag("bookauthor") ?? Tag("book_author") ?? Tag("book author") ?? Tag("written by") ?? Tag("written_by"),
+            Narrator = Tag(MetadataKeys.Narrator) ?? Tag("read by") ?? Tag("read_by") ?? Tag("reader"),
             Genre = Tag(MetadataKeys.Genre),
             Track = Number(Tag(MetadataKeys.Track)),
             Disc = Number(Tag(MetadataKeys.Disc)),
