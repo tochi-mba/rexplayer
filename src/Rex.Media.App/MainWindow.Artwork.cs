@@ -211,8 +211,19 @@ public sealed partial class MainWindow
         row.PictureWork = work;
         try
         {
-            await ShowPictureAsync(entry.Path, entry.Kind, entry.Duration, picture => row.Picture = picture, work.Token,
-                urgent, row.Shape, missed: () => row.PictureAsked = row.Picture is not null);
+            // Artist rows are portraits, not randomly selected covers from their albums.
+            if (row.Item is LibraryGroup artist && _librarySource == LibrarySource.Artists
+                && ArtistPhotoPathIfKnown(artist.Name) is { } path
+                && await LocalPictureAsync(path, _budget.LibraryPictureSide, work.Token) is { } photo
+                && !work.IsCancellationRequested)
+            {
+                row.Picture = photo;
+            }
+            else
+            {
+                await ShowPictureAsync(entry.Path, entry.Kind, entry.Duration, picture => row.Picture = picture, work.Token,
+                    urgent, row.Shape, missed: () => row.PictureAsked = row.Picture is not null);
+            }
         }
         finally
         {
