@@ -29,6 +29,34 @@ def fail(message: str) -> None:
     raise SystemExit(message)
 
 
+
+def signed_entitlements(stdout: bytes, stderr: bytes) -> dict:
+    """Read only the plist, not codesign's version-dependent progress/diagnostic text.
+
+    codesign -d --entitlements :- writes the property list to stdout on some
+    macOS versions and stderr on others, sometimes surrounded by other messages.
+    Concatenating the streams corrupts otherwise valid XML and blocks release.
+    """
+    closing = b"</plist>"
+    for output in (stdout, stderr):
+        start = output.find(b"<?xml")
+        if start < 0:
+            start = output.find(b"<plist")
+        if start < 0:
+            continue
+        end = output.find(closing, start)
+        if end < 0:
+            continue
+        try:
+            value = plistlib.loads(output[start : end + len(closing)])
+        except (ValueError, TypeError, plistlib.InvalidFileException):
+            continue
+        if isinstance(value, dict):
+            return value
+
+    fail("Bundle signature has no readable entitlements plist")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", required=True, type=Path)
@@ -65,12 +93,7 @@ def main() -> None:
         check=True,
         capture_output=True,
     )
-    # Depending on the installed codesign version, the plist is written to stdout or stderr.
-    signed_output = signed.stdout + signed.stderr
-    plist_start = signed_output.find(b"<?xml")
-    if plist_start < 0:
-        fail("Bundle signature contains no entitlements plist")
-    entitlements = plistlib.loads(signed_output[plist_start:])
+    entitlements = signed_entitlements(signed.stdout, signed.stderr)
     if entitlements.get("com.apple.security.cs.allow-jit") is not True:
         fail("Bundle does not allow the .NET runtime to JIT managed code")
 
