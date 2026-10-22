@@ -47,6 +47,15 @@ public sealed class ListeningViewsTests
         Assert.All(shelves.Audiobooks, group => Assert.Single(group.Entries));
         Assert.Empty(shelves.Podcasts);
         Assert.Empty(shelves.Recordings);
+
+        var roald = AudioFile("Downloads/Chapter Twenty-Seven.mp3", TimeSpan.FromMinutes(1),
+            "Roald Dahl", "Charlie and the Chocolate Factory", "Chapter Twenty-Seven",
+            genre: "Audio Book: Children & Young Adult", track: 6, year: 2004);
+        var fromGenre = ListeningViews.Arrange([roald], AudioRules.Offline);
+        var shortBook = Assert.Single(fromGenre.Audiobooks);
+        Assert.Equal("Charlie and the Chocolate Factory", shortBook.Name);
+        Assert.Equal("Roald Dahl", shortBook.Detail);
+        Assert.Equal(roald, Assert.Single(shortBook.Entries));
     }
 
     [Fact]

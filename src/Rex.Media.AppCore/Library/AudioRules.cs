@@ -377,7 +377,7 @@ public static partial class AudioRules
         || SongNamePattern().IsMatch(MediaLibrary.TitleOf(entry.Path));
 
     /// <summary>The audiobook genres: "Audiobook", "Audiobooks", "Audio book", "Spoken word", "Spoken &amp; Audio", "Speech".</summary>
-    [GeneratedRegex(@"^(?:audio[ _-]?books?|books? & spoken(?: word)?|spoken(?: ?word| & audio)?|speech)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?:audio[ _-]?books?|books? & spoken(?: word)?|spoken(?: ?word| & audio)?|speech)(?::\s*\S.*)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AudiobookGenrePattern();
 
     /// <summary>Explicit audiobook wording in an album, title or filename.</summary>

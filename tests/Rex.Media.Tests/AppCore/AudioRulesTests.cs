@@ -116,6 +116,13 @@ public sealed class AudioRulesTests
 
         Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre),
             Judge(AudioFile("Inbox/Story.mp3", ThreeMinutes, genre: "Books & Spoken Word")));
+        // A short Roald Dahl chapter with the literal audiobook genre from a real tag.
+        var chapter = AudioFile("Downloads/Chapter Twenty-Seven.mp3", TimeSpan.FromMinutes(1),
+            "Roald Dahl", "Charlie and the Chocolate Factory", "Chapter Twenty-Seven",
+            genre: "Audio Book: Children & Young Adult", track: 6, year: 2004);
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre), Judge(chapter, MusicLookup.Matched));
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre),
+            Judge(chapter with { Genre = "Audiobook: Fiction" }));
         Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Folder),
             Judge(AudioFile("Downloads/Audio-Books/Story.mp3", ThreeMinutes)));
         Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Folder),
