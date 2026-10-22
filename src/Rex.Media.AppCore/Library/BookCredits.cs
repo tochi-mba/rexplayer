@@ -18,15 +18,15 @@ public static partial class BookCredits
         // A person's edits take precedence over a downloaded file's tags.
         if (part.Override?.AlbumArtist is { } editedAlbumArtist)
         {
-            return Credit(editedAlbumArtist, part.Narrator);
+            return Credit(editedAlbumArtist, null);
         }
 
         if (part.Override?.Artist is { } editedArtist)
         {
-            return Credit(editedArtist, part.Narrator);
+            return Credit(editedArtist, null);
         }
 
-        if (Credit(part.Author, part.Narrator) is { } tagged)
+        if (Credit(part.Author, null) is { } tagged)
         {
             return tagged;
         }
