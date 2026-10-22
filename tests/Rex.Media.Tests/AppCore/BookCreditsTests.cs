@@ -31,6 +31,7 @@ public sealed class BookCreditsTests
     [Theory]
     [InlineData("Audiobooks/Roald Dahl/Charlie and the Chocolate Factory/Disc 2/03.mp3", "Roald Dahl")]
     [InlineData("Books/Roald Dahl/Matilda/01.m4a", "Roald Dahl")]
+    [InlineData("Audio_Book/Roald Dahl/Matilda/01.m4a", "Roald Dahl")]
     [InlineData("Audio Books/Ursula K. Le Guin/A Wizard of Earthsea/Part 2.mp3", "Ursula K. Le Guin")]
     [InlineData("Downloads/Matilda (written by Roald Dahl).m4b", null)]
     [InlineData("Audiobooks/Matilda/Disc 2/03.mp3", null)]
@@ -93,6 +94,7 @@ public sealed class BookCreditsTests
         Assert.Equal("Roald Dahl", BookCredits.Author(part with { Author = null, AlbumArtist = "Roald Dahl" }));
         Assert.Null(BookCredits.Author(part with { Author = "Unknown author", AlbumArtist = "Various Artists", Artist = "Narrated by Reader" }));
         Assert.Null(BookCredits.Author(part with { Author = null, Narrator = null, Artist = "Read by Jim Reader", AlbumArtist = null }));
+        Assert.Null(BookCredits.Author(part with { Author = null, Narrator = "Narrated by Kate Winslet", Artist = "Kate Winslet", AlbumArtist = null }));
         Assert.Throws<ArgumentNullException>(() => BookCredits.Author(null!));
         Assert.Throws<ArgumentNullException>(() => BookCredits.Title(null!));
         Assert.Throws<ArgumentNullException>(() => BookCredits.AuthorFolder(null!));
