@@ -54,4 +54,59 @@ public sealed partial class MainWindow
         }
     }
 
+
+    /// <summary>Sorting, layout changes and scan refreshes retain the selection of surviving items.</summary>
+    private void RestoreLibrarySelection(HashSet<string> selected, bool collage)
+    {
+        for (var index = 0; index < _libraryRows.Count; index++)
+        {
+            var row = _libraryRows[index];
+            if (!selected.Contains(SelectionIdentity(row)))
+            {
+                continue;
+            }
+
+            if (collage)
+            {
+                LibraryCollage.Select(index);
+            }
+            else if (LibraryList.Items.IndexOf(row) >= 0)
+            {
+                // A collapsed group's remembered rows are intentionally not selectable.
+                LibraryList.SelectedItems.Add(row);
+            }
+        }
+    }
+
+    /// <summary>Selects the current item and asks the virtualised view to bring it on screen.</summary>
+    private void RevealLibraryRow(string path)
+    {
+        var index = _libraryRows.FindIndex(row => row.Item is LibraryEntry entry && LibraryViews.SameLocation(entry.Path, path));
+        if (index < 0)
+        {
+            return;
+        }
+
+        var row = _libraryRows[index];
+        OnWindowThread(() =>
+        {
+            // A request to reveal the playing item must open its group before scrolling.
+            if (_shownLibraryGroups.FirstOrDefault(group => !group.IsExpanded && group.AllRows.Contains(row)) is { } folded)
+            {
+                SetLibraryGroupExpanded(folded, true);
+            }
+
+            if (LibraryCollage.Visibility == Visibility.Visible)
+            {
+                LibraryCollage.Select(index);
+                LibraryCollage.StartBringItemIntoView(index, new BringIntoViewOptions());
+            }
+            else
+            {
+                LibraryList.SelectedItem = row;
+                LibraryList.ScrollIntoView(row, ScrollIntoViewAlignment.Leading);
+            }
+        });
+    }
+
 }
