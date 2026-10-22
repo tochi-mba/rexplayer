@@ -12,8 +12,9 @@ from pathlib import Path
 
 
 ARCHITECTURES = {
-    "osx-arm64": "arm64",
-    "osx-x64": "x86_64",
+    "osx-arm64": {"arm64"},
+    "osx-x64": {"x86_64"},
+    "osx-universal": {"arm64", "x86_64"},
 }
 
 
@@ -66,10 +67,10 @@ def main() -> None:
         text=True,
     )
     architectures = result.stdout.split()
-    expected_architecture = ARCHITECTURES[args.rid]
-    if architectures != [expected_architecture]:
+    expected_architectures = ARCHITECTURES[args.rid]
+    if set(architectures) != expected_architectures or len(architectures) != len(expected_architectures):
         fail(
-            f"{args.rid} package must contain one {expected_architecture} executable; "
+            f"{args.rid} package must contain {', '.join(sorted(expected_architectures))}; "
             f"found {', '.join(architectures) or 'no architecture'}"
         )
 
@@ -88,7 +89,7 @@ def main() -> None:
 
     print(
         f"Verified {args.app.name}: macOS {actual_minimum}+; "
-        f"{expected_architecture}; package layout is valid."
+        f"{', '.join(sorted(expected_architectures))}; package layout is valid."
     )
 
 
