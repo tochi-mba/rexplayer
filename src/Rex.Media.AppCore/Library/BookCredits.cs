@@ -31,9 +31,9 @@ public static partial class BookCredits
             return tagged;
         }
 
-        if (Byline(part.Album) is { } albumByline || Byline(part.Title) is { } titleByline)
+        if ((Byline(part.Album) ?? Byline(part.Title)) is { } byline)
         {
-            return albumByline ?? titleByline;
+            return byline;
         }
 
         if (Byline(Path.GetFileNameWithoutExtension(part.Path.Replace('\\', '/'))) is { } fileByline)
