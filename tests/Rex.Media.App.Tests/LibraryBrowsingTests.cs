@@ -122,6 +122,41 @@ public sealed class LibraryBrowsingTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void GroupHeadersFoldIndependentlyAndRememberTheirStatePerView()
+    {
+        using var app = _scene.WithAsake().Ready().Start();
+        app.Visit("Songs");
+        app.Pick("LibraryLook", "List");
+        app.Pick("LibraryGroup", "Letter");
+        Wait.For(() => app.Lines().Length == 3 && app.IsShown("LibraryGroupToggle-S"), "the grouped songs and headers");
+
+        // A whole header is one accessible button. Count stays visible when its rows are hidden.
+        app.Press("LibraryGroupToggle-S");
+        Wait.For(() => app.Lines().SequenceEqual(["Lonely At The Top", "Terminator"])
+            && app.Find("LibraryGroupToggle-S").Current.Name.Contains("Expand S (1 items)", StringComparison.Ordinal),
+            "S folded with its original item count");
+        Assert.True(app.IsShown("LibraryGroupToggle-S"));
+        app.Visit("Albums");
+        app.Visit("Songs");
+        Wait.For(() => app.Lines().Length == 2 && app.IsShown("LibraryGroupToggle-S"), "S stays folded on returning");
+
+        app.Pick("LibraryGroup", "None");
+        Wait.For(() => app.Lines().Length == 3, "the ungrouped songs are all visible");
+        app.Pick("LibraryGroup", "Letter");
+        Wait.For(() => app.Lines().Length == 2 && app.IsShown("LibraryGroupToggle-S"), "group choice recalls folded S");
+
+        app.Pick("LibraryGroup", "CollapseAll");
+        Wait.For(() => app.Lines().Length == 0
+            && app.IsShown("LibraryGroupToggle-L") && app.IsShown("LibraryGroupToggle-S") && app.IsShown("LibraryGroupToggle-T"),
+            "all groups collapse but their headers remain usable");
+        app.Pick("LibraryGroup", "ExpandAll");
+        Wait.For(() => app.Lines().Length == 3, "all groups expand again");
+        Assert.Equal(0, app.Close());
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void FiltersSayWhenTheyEmptyAViewAndSearchClearsOnEscape()

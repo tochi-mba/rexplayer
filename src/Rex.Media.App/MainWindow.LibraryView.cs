@@ -71,6 +71,11 @@ public sealed partial class MainWindow
     private long _heroRequest;
     private bool _settingCardSize;
     private readonly LibrarySearchText _librarySearchText = new();
+    // Collapse state belongs to a route and grouping choice, never to a row, so it survives sort,
+    // filter, refresh and navigation without affecting the same letter on another library screen.
+    private readonly Dictionary<string, HashSet<string>> _collapsedLibraryGroups = new(StringComparer.Ordinal);
+    private IReadOnlyList<LibraryRowGroup> _shownLibraryGroups = [];
+    private string _shownLibraryGroupScope = "";
 
     /// <summary>A view opened by a shelf's "See all" in the shelf's order, until the user leaves it or keeps a choice of their own.</summary>
     private (LibrarySource Source, LibraryViewChoice Choice)? _shelfChoice;
@@ -384,6 +389,15 @@ public sealed partial class MainWindow
         CancelLibraryPictures();
         _libraryRows = rowsForView;
         _shownLibrary = shown;
+        _shownLibraryGroups = grouped ? sections : [];
+        _shownLibraryGroupScope = grouped ? _placeKey + "\n" + choice.Grouping : "";
+        if (grouped && _collapsedLibraryGroups.TryGetValue(_shownLibraryGroupScope, out var collapsed))
+        {
+            foreach (var section in sections.Where(section => collapsed.Contains(section.Header)))
+            {
+                section.SetExpanded(false);
+            }
+        }
         if (collage)
         {
             // ItemsView keeps selection, focus and virtualized rows. Never build all card visuals
@@ -404,7 +418,7 @@ public sealed partial class MainWindow
         LibraryList.GroupStyle.Clear();
         if (grouped)
         {
-            LibraryList.GroupStyle.Add(new GroupStyle { HeaderTemplate = (DataTemplate)Root.Resources["LibraryGroupHeaderTemplate"], HidesIfEmpty = true });
+            LibraryList.GroupStyle.Add(new GroupStyle { HeaderTemplate = (DataTemplate)Root.Resources["LibraryGroupHeaderTemplate"], HidesIfEmpty = false });
             LibraryList.ItemsSource = new CollectionViewSource { IsSourceGrouped = true, Source = sections }.View;
         }
         else
@@ -416,6 +430,48 @@ public sealed partial class MainWindow
         if (previousLook == look)
         {
             HoldSurvivingAnchor(anchors, collage: false);
+        }
+    }
+
+    /// <summary>Folds the group whose header was invoked, by mouse, touch, keyboard or UI Automation.</summary>
+    private void OnLibraryGroupToggle(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: LibraryRowGroup group })
+        {
+            SetLibraryGroupExpanded(group, !group.IsExpanded);
+        }
+    }
+
+    private void SetLibraryGroupExpanded(LibraryRowGroup group, bool expanded)
+    {
+        if (group.IsExpanded == expanded || !_shownLibraryGroups.Contains(group))
+        {
+            return;
+        }
+
+        if (!_collapsedLibraryGroups.TryGetValue(_shownLibraryGroupScope, out var collapsed))
+        {
+            _collapsedLibraryGroups[_shownLibraryGroupScope] = collapsed = new HashSet<string>(StringComparer.Ordinal);
+        }
+
+        if (expanded)
+        {
+            collapsed.Remove(group.Header);
+        }
+        else
+        {
+            collapsed.Add(group.Header);
+        }
+
+        group.SetExpanded(expanded);
+    }
+
+    /// <summary>One quick choice for large grouped views, without recreating the virtualised list.</summary>
+    private void SetAllLibraryGroupsExpanded(bool expanded)
+    {
+        foreach (var group in _shownLibraryGroups)
+        {
+            SetLibraryGroupExpanded(group, expanded);
         }
     }
 
@@ -442,8 +498,9 @@ public sealed partial class MainWindow
             {
                 LibraryCollage.Select(index);
             }
-            else
+            else if (LibraryList.Items.IndexOf(row) >= 0)
             {
+                // A collapsed group's remembered rows are intentionally not selectable.
                 LibraryList.SelectedItems.Add(row);
             }
         }
@@ -461,6 +518,12 @@ public sealed partial class MainWindow
         var row = _libraryRows[index];
         OnWindowThread(() =>
         {
+            // A request to reveal the playing item must open its group before scrolling.
+            if (_shownLibraryGroups.FirstOrDefault(group => !group.IsExpanded && group.AllRows.Contains(row)) is { } folded)
+            {
+                SetLibraryGroupExpanded(folded, true);
+            }
+
             if (LibraryCollage.Visibility == Visibility.Visible)
             {
                 LibraryCollage.Select(index);
@@ -587,8 +650,22 @@ public sealed partial class MainWindow
         sortMenu.Items.Add(reverse);
         LibrarySortButton.Flyout = sortMenu;
         LibraryGroupButton.Content = GroupingNames.First(pair => pair.Grouping == choice.Grouping).Name;
-        LibraryGroupButton.Flyout = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping,
+        var groupMenu = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping,
             grouping => KeepViewChoice(choice with { Grouping = grouping, Look = grouping != LibraryGrouping.None && choice.Look == LibraryLook.Collage ? LibraryLook.Grid : choice.Look }));
+        if (choice.Grouping != LibraryGrouping.None)
+        {
+            groupMenu.Items.Add(new MenuFlyoutSeparator());
+            var collapseAll = new MenuFlyoutItem { Text = "Collapse all groups" };
+            AutomationProperties.SetAutomationId(collapseAll, "LibraryGroup-CollapseAll");
+            collapseAll.Click += (_, _) => SetAllLibraryGroupsExpanded(false);
+            groupMenu.Items.Add(collapseAll);
+            var expandAll = new MenuFlyoutItem { Text = "Expand all groups" };
+            AutomationProperties.SetAutomationId(expandAll, "LibraryGroup-ExpandAll");
+            expandAll.Click += (_, _) => SetAllLibraryGroupsExpanded(true);
+            groupMenu.Items.Add(expandAll);
+        }
+
+        LibraryGroupButton.Flyout = groupMenu;
 
         var filterMenu = new MenuFlyout();
         filterMenu.Items.Add(FilterGroup("Progress", "LibraryFilterProgress",
