@@ -351,7 +351,8 @@ public sealed partial class MainWindow
         Controls.RequestedTheme = fullScreen ? ElementTheme.Dark : ElementTheme.Default;
         if (fullScreen)
         {
-            Menu.Visibility = Visibility.Collapsed;
+            // Full-screen uses its own timed transport, not the compact window controls.
+            ApplyMinimalInterface();
             ShowFullScreenControls();
         }
         else
@@ -416,11 +417,29 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Compact window chrome without hiding the timeline, time labels, Play/Pause or volume.
+    /// Full-screen controls still follow the separate auto-hide timer.
+    /// </summary>
     private void ApplyMinimalInterface()
     {
-        var chrome = _settings.MinimalInterface || IsFullScreen ? Visibility.Collapsed : Visibility.Visible;
-        Menu.Visibility = chrome;
-        Controls.Visibility = chrome;
+        var minimal = _settings.MinimalInterface && !IsFullScreen;
+        Menu.Visibility = minimal || IsFullScreen ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var secondary in new UIElement[]
+        {
+            StartOverButton, PreviousButton, StopButton, NextButton, ShuffleButton,
+            RepeatButton, PlaylistButton, LibraryButton, FullScreenButton,
+        })
+        {
+            secondary.Visibility = minimal ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        Controls.Padding = minimal ? new Thickness(12, 3, 12, 5) : new Thickness(16, 10, 16, 12);
+        Controls.RowSpacing = minimal ? 1 : 8;
+        if (!IsFullScreen)
+        {
+            Controls.Visibility = Visibility.Visible;
+        }
     }
 
     private void ApplyAlwaysOnTop()

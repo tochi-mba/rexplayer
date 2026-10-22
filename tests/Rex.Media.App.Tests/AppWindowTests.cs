@@ -803,14 +803,21 @@ public sealed partial class AppWindowTests : IDisposable
 
     [Fact]
     [Capability("UI-05")]
-    public void TheMinimalInterfaceLeavesOnlyThePicture()
+    public void TheMinimalInterfaceKeepsPlaybackAndTheTimeline()
     {
-        using var app = AppProcess.Start();
+        using var app = AppProcess.Start([Song(30)]);
 
         app.Run(CommandCatalog.MinimalInterface);
-        Wait.For(() => !app.IsShown("PlayPauseButton") && !app.IsShown("Menu"), "the controls and menus to go");
+        Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
+            && app.IsShown("Elapsed") && app.IsShown("Remaining")
+            && app.IsShown("VolumeBar") && !app.IsShown("Menu")
+            && !app.IsShown("StopButton") && !app.IsShown("ShuffleButton"),
+            "the timeline and essential controls to remain in compact mode");
+        Assert.True(app.Find("SeekBar").Current.IsEnabled);
         app.Run(CommandCatalog.MinimalInterface);
-        Wait.For(() => app.IsShown("PlayPauseButton") && app.IsShown("Menu"), "the controls and menus to come back");
+        Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
+            && app.IsShown("StopButton") && app.IsShown("ShuffleButton")
+            && app.IsShown("Menu"), "the complete controls to come back");
         Assert.Equal(0, app.Close());
     }
 

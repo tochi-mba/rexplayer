@@ -41,6 +41,11 @@ public sealed partial class MainWindow
 
                 _player.PlayPlaylist(playlist.Id);
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Video && (_librarySource == LibrarySource.Movies || IsMovie(entry)):
+                // Opening a movie goes to its own details page. The explicit Play button there
+                // starts or resumes the film, instead of a title click unexpectedly starting it.
+                OpenMovieDetails(entry);
+                break;
             case LibraryEntry entry:
                 var view = EntriesOf(_libraryRows);
                 Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));

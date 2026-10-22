@@ -848,7 +848,7 @@ public sealed partial class MainWindow
     {
         switch (row.Item)
         {
-            case LibraryEntry movie when _details.Count > 0 && IsMovie(movie):
+            case LibraryEntry movie when movie.Kind == LibraryKind.Video && IsMovie(movie):
                 OpenMovieDetails(movie);
                 break;
             case LibraryGroup book when see == LibrarySource.Audiobooks:

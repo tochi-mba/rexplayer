@@ -179,6 +179,26 @@ public sealed class LibraryDetailsTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void OpeningAMovieCardGoesToItsPageAndBackWithoutStartingPlayback()
+    {
+        SeedMovies();
+        using var app = _scene.Ready(MetadataOn).Start();
+        app.Visit("Movies");
+        app.Pick("LibraryLook", "Grid");
+        Wait.For(() => app.Lines().Contains("Gravity"), "the movie grid");
+
+        app.Open("Gravity");
+        Wait.For(() => app.Text("LibraryKicker") == "MOVIE" && app.Text("LibraryTitle") == "Gravity",
+            "the dedicated movie page after opening its card");
+        Assert.True(app.IsShown("LibraryPlay"), "the movie has an explicit Play control");
+        Assert.True(app.IsShown("LibraryBack"), "the movie has a way back");
+        app.Press("LibraryBack");
+        Wait.For(() => app.Text("LibraryTitle") == "Movies", "back to the grid");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void WithMetadataTurnedOffTheBillboardAndAMoviesPageUseTheFileAlone()
     {
         var matrix = SeedMovies();

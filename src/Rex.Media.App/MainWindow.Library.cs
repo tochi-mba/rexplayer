@@ -734,9 +734,10 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", PlayChosen));
         }
 
-        if (chosen is [{ Item: LibraryEntry single }] && IsMovie(single))
+        if (chosen is [{ Item: LibraryEntry { Kind: LibraryKind.Video } single }]
+            && (_librarySource == LibrarySource.Movies || IsMovie(single)))
         {
-            menu.Items.Add(MenuItem("Details", "LibraryMenuDetails", () => OpenMovieDetails(single)));
+            menu.Items.Add(MenuItem("Movie details", "LibraryMenuDetails", () => OpenMovieDetails(single)));
         }
 
         var selectedEntries = EntriesOf(chosen).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
