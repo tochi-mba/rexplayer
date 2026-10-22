@@ -74,4 +74,57 @@ public sealed class TranscriptEditHistoryTests
         Assert.Throws<ArgumentOutOfRangeException>(() => history.ReplaceWord(-1, "bad"));
         Assert.Throws<ArgumentOutOfRangeException>(() => history.ReplaceWord(2, "bad"));
     }
+    [Fact]
+    public void LiveRecognitionAddsNewWordsWithoutOverwritingCorrections()
+    {
+        var oldCoverage = TimeRanges.Of([new TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(2))]);
+        var saved = new TranscriptRevision(Source with
+        {
+            Words = [Source.Words[0] with { Text = "once" }, Source.Words[1]],
+        }, oldCoverage, TimeSpan.FromSeconds(10), false);
+        var later = Source with
+        {
+            Words = [Source.Words[0] with { Text = "another guess" }, Source.Words[1],
+                new TranscriptWord("three", TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(4))],
+        };
+        var additional = TimeRanges.Of([new TimeRange(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5))]);
+        var merged = saved.MergeGenerated(later, additional, TimeSpan.FromSeconds(12), complete: false);
+
+        Assert.Equal(["once", "two", "three"], merged.Content.Words.Select(word => word.Text));
+        Assert.Equal(3, merged.Content.Words.Count);
+        Assert.Equal(TimeSpan.FromSeconds(12), merged.Duration);
+        Assert.Equal(TimeRanges.Of([new TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(5))]).Ranges, merged.Done.Ranges);
+        Assert.False(merged.Complete);
+
+        var history = new TranscriptEditHistory(new TranscriptRevision(later, merged.Done, merged.Duration, false), merged.Content);
+        Assert.True(history.CanUndo);
+        Assert.Equal("once", history.Current.Words[0].Text);
+        Assert.True(history.Undo());
+        Assert.Equal("another guess", history.Current.Words[0].Text);
+        Assert.Equal("three", history.Current.Words[2].Text);
+    }
+
+    [Fact]
+    public void ACompletedGenerationDoesNotDuplicateOldWordsOrDowngradeItsCoverage()
+    {
+        var oldCoverage = TimeRanges.Of([new TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(2))]);
+        var saved = new TranscriptRevision(Source, oldCoverage, TimeSpan.FromSeconds(10), true);
+        var generated = Source with
+        {
+            Words = [Source.Words[0], Source.Words[1], Source.Words[1],
+                new TranscriptWord("later", TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(5))],
+        };
+        var merged = saved.MergeGenerated(generated,
+            TimeRanges.Of([new TimeRange(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10))]),
+            TimeSpan.FromSeconds(10), complete: false);
+
+        Assert.Equal(["one", "two", "later"], merged.Content.Words.Select(word => word.Text));
+        Assert.True(merged.Complete);
+        Assert.Throws<ArgumentException>(() => saved.MergeGenerated(generated with { Model = "tiny.en" },
+            TimeRanges.Empty, null, complete: false));
+        Assert.Throws<ArgumentNullException>(() => saved.MergeGenerated(null!, TimeRanges.Empty, null, false));
+        Assert.Throws<ArgumentNullException>(() => saved.MergeGenerated(generated, null!, null, false));
+        Assert.Equal(["one", "two"], Source.Words.Select(word => word.Text));
+    }
+
 }

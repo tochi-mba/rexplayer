@@ -5,7 +5,33 @@ using Rex.Media.AppCore.Transcription;
 namespace Rex.Media.AppCore.Captions;
 
 /// <summary>An independent transcript snapshot with only the coverage actually heard for it.</summary>
-public sealed record TranscriptRevision(Transcript Content, TimeRanges Done, TimeSpan? Duration, bool Complete);
+public sealed record TranscriptRevision(Transcript Content, TimeRanges Done, TimeSpan? Duration, bool Complete)
+{
+    /// <summary>Adds newly generated stretches while preserving every word that was already available to edit.</summary>
+    public TranscriptRevision MergeGenerated(Transcript generated, TimeRanges done, TimeSpan? duration, bool complete)
+    {
+        ArgumentNullException.ThrowIfNull(generated);
+        ArgumentNullException.ThrowIfNull(done);
+        if (!string.Equals(Content.Model, generated.Model, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("The generated transcript uses another model.", nameof(generated));
+        }
+
+        var words = Content.Words
+            .Concat(generated.Words.Where(word => Done.At(word.Start) is null))
+            .OrderBy(word => word.Start)
+            .ThenBy(word => word.End)
+            .DistinctBy(word => (word.Start, word.End))
+            .ToArray();
+        return this with
+        {
+            Content = Content with { Language = string.IsNullOrWhiteSpace(generated.Language) ? Content.Language : generated.Language, Words = words },
+            Done = TimeRanges.Of(Done.Ranges.Concat(done.Ranges)),
+            Duration = duration ?? Duration,
+            Complete = Complete || complete,
+        };
+    }
+}
 
 public sealed partial class TranscriptCache
 {
