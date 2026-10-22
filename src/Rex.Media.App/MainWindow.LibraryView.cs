@@ -211,8 +211,17 @@ public sealed partial class MainWindow
         {
             (kicker, title) = ("SEARCH", search);
             var found = LibraryViews.Search(entries, search);
-            sections = EntrySections(found, choice);
-            subtitle = Count(found.Count, "result");
+            // Search stays global for individual media, but a search made from a grouped
+            // library view must also offer matching artists, albums, genres or shows as
+            // navigable results. Otherwise finding an artist can only play one of their
+            // songs and there is no artist page to return from.
+            var matchingGroups = _librarySource is LibrarySource.Artists or LibrarySource.Albums or LibrarySource.Genres or LibrarySource.TvShows
+                ? Groups(_librarySource, entries).Where(group => group.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList()
+                : [];
+            sections = matchingGroups.Count == 0
+                ? EntrySections(found, choice)
+                : [new LibraryRowGroup("", matchingGroups.Select(GroupRow))];
+            subtitle = Count(matchingGroups.Count == 0 ? found.Count : matchingGroups.Count, "result");
         }
         else if (IsListening(_librarySource))
         {
