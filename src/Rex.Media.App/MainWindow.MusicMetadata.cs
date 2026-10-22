@@ -27,7 +27,15 @@ public sealed partial class MainWindow
 
         lock (_metadataGate)
         {
-            return _metadataBooks.TryGetValue(OpenLibraryBooks.BookKey(book.Name, book.Detail), out var found) && found.WorkId is not null ? found : null;
+            if (_metadataBooks.TryGetValue(OpenLibraryBooks.BookKey(book.Name, book.Detail), out var found) && found.WorkId is not null)
+            {
+                return found;
+            }
+
+            // A catalogue-inferred author still gets the synopsis credited to that exact work.
+            return _metadataBooks.TryGetValue(OpenLibraryBooks.BookKey(book.Name, null), out var inferred)
+                && inferred.WorkId is not null && book.Detail is not null
+                && MetadataMatch.Normalize(inferred.Author ?? "") == MetadataMatch.Normalize(book.Detail) ? inferred : null;
         }
     }
 
@@ -42,11 +50,16 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Books are looked up only with an author and only from included folders.</summary>
+    /// <summary>Look up known writers directly; unknown writers only by a complete, exact-title result.</summary>
     private void PlanBookWork(IReadOnlyList<LibraryEntry> entries, MetadataSettings settings)
     {
-        foreach (var book in ListeningViews.Arrange(entries, MusicLookupOf).Audiobooks.Where(book => !string.IsNullOrWhiteSpace(book.Detail)))
+        foreach (var book in ListeningViews.Arrange(entries, MusicLookupOf).Audiobooks)
         {
+            if (book.Name.Length < 3 || !book.Name.Any(char.IsLetter))
+            {
+                continue;
+            }
+
             lock (_metadataGate)
             {
                 if (_metadataBooks.TryGetValue(OpenLibraryBooks.BookKey(book.Name, book.Detail), out var known) && known.Current)
@@ -68,16 +81,17 @@ public sealed partial class MainWindow
     private static bool IsBookJob(MetadataJob job) => job.Kind == MetadataWork.Music
         && job.Key.Length > 1 && job.Key[0] == BookJobMark;
 
-    private static (string Title, string Author) BookFromJob(MetadataJob job)
+    private static (string Title, string? Author) BookFromJob(MetadataJob job)
     {
         var split = job.Key.IndexOf('\u001f', 1);
-        return (job.Key[1..split], job.Key[(split + 1)..]);
+        var author = job.Key[(split + 1)..];
+        return (job.Key[1..split], author.Length == 0 ? null : author);
     }
 
     private static Task<bool> FetchBookJobAsync(MetadataFetcher fetcher, MetadataJob job, CancellationToken token)
     {
         var (title, author) = BookFromJob(job);
-        return fetcher.FetchBookAsync(title, author, token);
+        return author is null ? fetcher.FetchUnknownBookAsync(title, token) : fetcher.FetchBookAsync(title, author, token);
     }
 
     private void BookJobDone(MetadataFetcher fetcher, MetadataJob job)
@@ -93,7 +107,7 @@ public sealed partial class MainWindow
             _metadataBooks[OpenLibraryBooks.BookKey(title, author)] = book;
         }
 
-        if (book.Synopsis is not null)
+        if (book.WorkId is not null)
         {
             RefreshLibraryFromMetadata();
         }
