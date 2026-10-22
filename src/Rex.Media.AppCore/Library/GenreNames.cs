@@ -45,6 +45,7 @@ public static class GenreNames
         ["drumnbass"] = "Drum & Bass",
         ["dnb"] = "Drum & Bass",
         ["altrock"] = "Alternative Rock",
+        ["contemporaryrnb"] = "Contemporary R&B",
         ["lofi"] = "Lo-Fi",
         ["neosoul"] = "Neo Soul",
     };
