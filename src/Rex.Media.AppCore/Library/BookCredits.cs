@@ -59,7 +59,8 @@ public static partial class BookCredits
     {
         ArgumentNullException.ThrowIfNull(title);
         var match = BylinePattern().Match(title);
-        return match.Success && CredibleName(match.Groups["name"].Value)
+        return match.Success && match.Index > 0 && !NarrationPrefix(title[..match.Index])
+            && CredibleName(match.Groups["name"].Value)
             ? title[..match.Index].TrimEnd(' ', '-', '–', (char)0x2014, '(', '[', ',', ':')
             : title;
     }
@@ -124,10 +125,14 @@ public static partial class BookCredits
         }
 
         var match = BylinePattern().Match(text.Trim());
-        return match.Success && CredibleName(match.Groups["name"].Value)
+        return match.Success && !NarrationPrefix(text[..match.Index])
+            && CredibleName(match.Groups["name"].Value)
             ? Credit(match.Groups["name"].Value, null)
             : null;
     }
+
+    private static bool NarrationPrefix(string prefix) =>
+        NarrationPrefixPattern().IsMatch(prefix.TrimEnd(' ', '-', '–', (char)0x2014, '(', '[', ',', ':'));
 
     private static bool CredibleName(string name)
     {
@@ -157,6 +162,9 @@ public static partial class BookCredits
     [GeneratedRegex(@"(?:\s+[-–\u2014]\s*|\s+|[\[(])(?:written\s+)?by\s+(?<name>[\p{L}\p{M}. '\-]+)[\])]?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BylinePattern();
+
+    [GeneratedRegex(@"(?:^|\s)(?:narrated|read|performed)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex NarrationPrefixPattern();
 
     [GeneratedRegex(@"^(?:(?:narrated|read|performed)\s+by\b|narrator\s*:)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
