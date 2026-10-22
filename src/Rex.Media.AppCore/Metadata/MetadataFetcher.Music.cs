@@ -21,6 +21,63 @@ public sealed partial class MetadataFetcher
     /// <summary>The cache kind an artist's fetched photo lives under, with <see cref="ArtExtension"/>.</summary>
     public const string ArtistPhotoKind = "artistphoto";
 
+    /// <summary>Cached audiobook details: one exact title-and-author match from Open Library.</summary>
+    public const string BookKind = "book";
+
+    public EnrichedBook? CachedBook(string title, string? author) =>
+        _cache.ReadText(BookKind, OpenLibraryBooks.BookKey(title, author)) is { } json ? EnrichedBook.FromJson(json) : null;
+
+    public IReadOnlyList<EnrichedBook> CachedBooks() => CachedAll(BookKind, EnrichedBook.FromJson);
+
+    /// <summary>
+    /// Fetches an audiobook's work description only when both its title and author match.
+    /// A confirmed miss is cached too; a failed service response retries later.
+    /// </summary>
+    public async Task<bool> FetchBookAsync(string title, string author, CancellationToken token)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentException.ThrowIfNullOrWhiteSpace(author);
+        var key = OpenLibraryBooks.BookKey(title, author);
+        if (CachedBook(title, author) is { Current: true })
+        {
+            return true;
+        }
+
+        try
+        {
+            if (await TextAsync(OpenLibraryBooks.SearchUri(title, author), token).ConfigureAwait(false) is not { } answer)
+            {
+                return false;
+            }
+
+            var id = OpenLibraryBooks.Match(title, author, answer);
+            string? synopsis = null;
+            if (id is not null)
+            {
+                if (await TextAsync(OpenLibraryBooks.WorkUri(id), token).ConfigureAwait(false) is not { } work)
+                {
+                    return false;
+                }
+
+                synopsis = OpenLibraryBooks.Description(work);
+            }
+
+            _cache.WriteText(BookKind, key, new EnrichedBook
+            {
+                Schema = EnrichedBook.CurrentSchema,
+                Title = title,
+                Author = author,
+                WorkId = id,
+                Synopsis = synopsis,
+            }.ToJson());
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>The album's cached record, or null before its fetch.</summary>
     public EnrichedAlbum? CachedAlbum(string? artist, string album) =>
         _cache.ReadText(MusicKind, MusicBrainz.AlbumKey(artist, album)) is { } json ? EnrichedAlbum.FromJson(json) : null;
