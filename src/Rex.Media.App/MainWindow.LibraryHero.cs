@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml.Automation;
 using Rex.Media.Library;
 
 namespace Rex.Media.App;
@@ -24,16 +25,18 @@ public sealed partial class MainWindow
         var request = ++_heroRequest;
         // The banner's artwork fades in when decoded instead of popping over the glyph.
         LibraryHeroArt.Source = null;
+        AutomationProperties.SetName(LibraryHeroArt, "");
         LibraryHeroBackdrop.Source = null;
         LibraryHeroArt.Opacity = 0;
         LibraryHeroBackdrop.Opacity = 0;
-        void ShowPicture(Microsoft.UI.Xaml.Media.ImageSource picture)
+        void ShowPicture(Microsoft.UI.Xaml.Media.ImageSource picture, bool portrait = false)
         {
             if (_shownHero == key && request == _heroRequest)
             {
                 (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
                 LibraryHeroArt.Opacity = 1;
                 LibraryHeroBackdrop.Opacity = 0.6;
+                AutomationProperties.SetName(LibraryHeroArt, portrait ? "Portrait of " + title : "Artwork for " + title);
             }
         }
 
@@ -51,7 +54,7 @@ public sealed partial class MainWindow
         {
             if (await LocalPictureAsync(artistPhoto!, Math.Max(1600, _budget.LibraryPictureSide), CancellationToken.None) is { } portrait)
             {
-                ShowPicture(portrait);
+                ShowPicture(portrait, portrait: true);
             }
             else if (art is not null && _shownHero == key)
             {
