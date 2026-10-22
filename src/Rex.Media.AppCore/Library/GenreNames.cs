@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Rex.Media.Containers.Tags;
 
@@ -13,7 +14,7 @@ namespace Rex.Media.AppCore.Library;
 public static class GenreNames
 {
     // Always a separator between genres: no genre name contains one.
-    private static readonly char[] Separators = [';', '|', '\0', '\\'];
+    private static readonly char[] Separators = [';', '|', '\0', '\\', '\r', '\n', '\t', '•', '·'];
 
     // Separators only when every piece is a known genre: "Rap/Hip Hop" is two genres, while
     // "AC/DC Tribute" or "Folk, World, & Country" is one name that happens to hold the character.
@@ -23,9 +24,11 @@ public static class GenreNames
     private static readonly string[] Modern =
     [
         "Afrobeat", "Afrobeats", "Afropop", "Afro House", "Alternative R&B", "Amapiano", "Chill", "Christmas",
-        "Dancehall", "Drill", "Drum & Bass", "Dubstep", "EDM", "Electro", "Emo", "Folk", "Garage", "Grime",
-        "Highlife", "Indie", "Indie Pop", "Indie Rock", "J-Pop", "K-Pop", "Latin", "Metalcore", "Neo Soul",
-        "Opera", "Pop Rock", "Reggaeton", "Singer-Songwriter", "Synth-Pop", "Trap", "UK Garage", "World",
+        "Alternative Rock", "Ambient", "Bluegrass", "Contemporary R&B", "Dancehall", "Dance-Pop",
+        "Disco", "Drill", "Drum & Bass", "Dubstep", "EDM", "Electro", "Emo", "Folk", "Garage", "Grime",
+        "Highlife", "Indie", "Indie Pop", "Indie Rock", "Jazz Rap", "J-Pop", "K-Pop", "Latin", "Lo-Fi",
+        "Metalcore", "Neo Soul", "Opera", "Pop Rap", "Pop Rock", "Progressive Rock", "Reggaeton",
+        "Singer-Songwriter", "Synth-Pop", "Trap", "UK Garage", "World",
     ];
 
     // Other spellings of the same genre, by key.
@@ -41,6 +44,9 @@ public static class GenreNames
         ["singerandsongwriter"] = "Singer-Songwriter",
         ["drumnbass"] = "Drum & Bass",
         ["dnb"] = "Drum & Bass",
+        ["altrock"] = "Alternative Rock",
+        ["lofi"] = "Lo-Fi",
+        ["neosoul"] = "Neo Soul",
     };
 
     private static readonly Dictionary<string, string> Known = BuildKnown();
@@ -91,9 +97,26 @@ public static class GenreNames
     /// <summary>Letters and digits only, lower case, with "&amp;" read as "and": "R&amp;B", "R and B" and "r-and-b" agree.</summary>
     private static string Key(string name)
     {
-        var key = new StringBuilder(name.Length);
-        foreach (var c in name.Replace("&", "and", StringComparison.Ordinal))
+        // Taggers mix accented and plain spellings. Compare their decomposed letters, but keep the
+        // original text for unknown genres shown to the user.
+        string decomposed;
+        try
         {
+            decomposed = name.Normalize(NormalizationForm.FormD);
+        }
+        catch (ArgumentException)
+        {
+            decomposed = name;
+        }
+
+        var key = new StringBuilder(decomposed.Length);
+        foreach (var c in decomposed.Replace("&", "and", StringComparison.Ordinal))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
             if (char.IsLetterOrDigit(c))
             {
                 key.Append(char.ToLowerInvariant(c));
