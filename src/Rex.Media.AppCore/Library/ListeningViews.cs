@@ -385,7 +385,7 @@ public static partial class ListeningViews
     private static partial Regex PartFolderPattern();
 
     /// <summary>The generic book collection root: not the title of a book.</summary>
-    [GeneratedRegex(@"^(?:audio ?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?:audio[ _-]?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BooksFolderPattern();
 
     /// <summary>A loose-download folder never serves as a book's title.</summary>
