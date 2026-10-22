@@ -350,6 +350,11 @@ public static partial class AudioRules
             return new AudioVerdict(AudioShelf.Podcasts, AudioRule.EpisodeCode);
         }
 
+        if (longFile && entry.Chapters is { Count: > 1 })
+        {
+            return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Chapters);
+        }
+
         // A whole book in one file may only have author/title and album tags. Use a conservative
         // fallback so a long DJ mix or numbered track does not become a book.
         if (entry.Duration >= TimeSpan.FromHours(2) && entry.Track is null
@@ -358,11 +363,6 @@ public static partial class AudioRules
             && !MusicSetPattern().IsMatch(entry.Title) && !MusicSetPattern().IsMatch(entry.Album))
         {
             return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Name);
-        }
-
-        if (longFile && entry.Chapters is { Count: > 1 })
-        {
-            return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Chapters);
         }
 
         return !tagged && entry.Duration < LongestRecording && RecorderFormatPattern().IsMatch(extension)
