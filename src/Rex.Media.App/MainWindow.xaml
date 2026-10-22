@@ -456,7 +456,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
-              <Border x:Name="LibraryHeroArtBox" Width="150" Height="150" CornerRadius="12" VerticalAlignment="Bottom" Background="{ThemeResource LayerFillColorDefaultBrush}">
+              <Border x:Name="LibraryHeroArtBox" AutomationProperties.AutomationId="LibraryHeroArtBox" Width="150" Height="150" CornerRadius="12" VerticalAlignment="Bottom" Background="{ThemeResource LayerFillColorDefaultBrush}">
                 <Grid>
                   <FontIcon x:Name="LibraryHeroGlyph" Glyph="&#xE8D6;" FontSize="56" Opacity="0.45" />
                   <Image x:Name="LibraryHeroArt" Stretch="UniformToFill" AutomationProperties.AutomationId="LibraryHeroArt">
