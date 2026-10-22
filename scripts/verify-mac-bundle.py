@@ -9,6 +9,7 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+from xml.parsers.expat import ExpatError
 
 
 ARCHITECTURES = {
@@ -49,7 +50,7 @@ def signed_entitlements(stdout: bytes, stderr: bytes) -> dict:
             continue
         try:
             value = plistlib.loads(output[start : end + len(closing)])
-        except (ValueError, TypeError, plistlib.InvalidFileException):
+        except (ValueError, TypeError, ExpatError, plistlib.InvalidFileException):
             continue
         if isinstance(value, dict):
             return value
