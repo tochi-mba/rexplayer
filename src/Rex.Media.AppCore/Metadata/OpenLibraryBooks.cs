@@ -54,6 +54,66 @@ public static class OpenLibraryBooks
         new("https://openlibrary.org/search.json?title=" + Uri.EscapeDataString(title)
             + "&author=" + Uri.EscapeDataString(author) + "&limit=5&fields=key,title,author_name");
 
+    /// <summary>Search for a book whose local files have no writing credit.</summary>
+    public static Uri UnknownAuthorUri(string title) =>
+        new("https://openlibrary.org/search.json?title=" + Uri.EscapeDataString(title)
+            + "&limit=50&fields=key,title,author_name");
+
+    /// <summary>
+    /// Accept a title-only writer only when every result was inspected and every exact-title
+    /// work credits the same sole author. Missing, malformed or competing credits stay unknown.
+    /// </summary>
+    public static (string Author, string WorkId)? MatchUnknownAuthor(string title, string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        if (!root.TryGetProperty("docs", out var docs) || docs.ValueKind != JsonValueKind.Array
+            || !(root.TryGetProperty("numFound", out var total) || root.TryGetProperty("num_found", out total))
+            || total.ValueKind != JsonValueKind.Number || !total.TryGetInt32(out var count)
+            || count > docs.GetArrayLength())
+        {
+            return null;
+        }
+
+        (string Author, string WorkId)? found = null;
+        foreach (var candidate in docs.EnumerateArray())
+        {
+            if (candidate.ValueKind != JsonValueKind.Object
+                || !candidate.TryGetProperty("title", out var named) || named.ValueKind != JsonValueKind.String
+                || !string.Equals(MetadataMatch.Normalize(named.GetString()!), MetadataMatch.Normalize(title), StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!candidate.TryGetProperty("author_name", out var authors) || authors.ValueKind != JsonValueKind.Array
+                || authors.GetArrayLength() != 1 || authors[0].ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(authors[0].GetString())
+                || !candidate.TryGetProperty("key", out var key) || key.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+
+            var id = key.GetString()!.Replace("/works/", "", StringComparison.Ordinal);
+            if (!id.StartsWith("OL", StringComparison.Ordinal) || !id.EndsWith('W')
+                || id.Length <= 3 || !id[2..^1].All(char.IsAsciiDigit))
+            {
+                return null;
+            }
+
+            var author = authors[0].GetString()!.Trim();
+            if (found is { } previous &&
+                (!string.Equals(MetadataMatch.Normalize(previous.Author), MetadataMatch.Normalize(author), StringComparison.Ordinal)
+                    || previous.WorkId != id))
+            {
+                return null;
+            }
+
+            found = (author, id);
+        }
+
+        return found;
+    }
+
     public static Uri WorkUri(string id) => new("https://openlibrary.org/works/" + id + ".json");
 
     public static Uri PageUri(string id) => new("https://openlibrary.org/works/" + id);
