@@ -375,6 +375,12 @@ public sealed partial class MainWindow
         else
         {
             LibraryHeroArtBox.CornerRadius = new CornerRadius(12);
+            if (_librarySource != LibrarySource.TvShows)
+            {
+                ShowText(LibraryFacts, "");
+                ShowText(LibraryOverview, "");
+                LibraryCredit.Visibility = Visibility.Collapsed;
+            }
         }
 
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
