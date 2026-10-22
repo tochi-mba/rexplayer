@@ -92,6 +92,24 @@ public sealed class LibraryListeningTests : IDisposable
             "a trusted description under the audiobook title");
         Assert.Equal("Description from Open Library", app.Text("LibraryCredit"));
         Assert.True(app.IsShown("LibraryPlay"));
+
+        // The separate Authors sidebar groups books by author and opens a real author-to-book route.
+        app.Visit("Authors");
+        Wait.For(() => app.Text("LibraryTitle") == "Authors" && app.Lines().Contains("J. R. R. Tolkien"),
+            "the Authors shelf to list the credited author");
+        app.Open("J. R. R. Tolkien");
+        Wait.For(() => app.Text("LibraryKicker") == "AUTHOR" && app.Text("LibraryTitle") == "J. R. R. Tolkien",
+            "the author page");
+        Assert.Contains("1 book", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Assert.Contains("The Hobbit", app.Lines());
+        app.Open("The Hobbit");
+        Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
+            && app.Text("LibraryOverview") == "A hobbit travels across Middle-earth.",
+            "the author's book page with its synopsis");
+        Assert.True(app.IsShown("LibraryPlay"));
+        app.Press("LibraryBack");
+        Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
+            && app.Text("LibraryTitle") == "J. R. R. Tolkien", "back to the author");
         Assert.Equal(0, app.Close());
     }
 
