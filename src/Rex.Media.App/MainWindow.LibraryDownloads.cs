@@ -67,13 +67,14 @@ public sealed partial class MainWindow
             }
         }
 
-        if (downloading.Count > 0)
+        if (downloading.Count > 0 || _library.Entries.Any(entry => entry.Suspect))
         {
             StartDownloadRechecks();
         }
         else
         {
             _downloadRecheck?.Stop();
+            Interlocked.Exchange(ref _downloadWakePending, 0);
         }
     }
 
@@ -101,7 +102,7 @@ public sealed partial class MainWindow
         {
             try
             {
-                var looked = library.Entries.Where(entry => entry.Downloading).Select(entry => entry.Path).ToList();
+                var looked = library.Entries.Where(entry => entry.Downloading || entry.Suspect).Select(entry => entry.Path).ToList();
                 library.RecheckDownloads(Stat, File.Exists, LibraryScanner.ReadMarker, InspectFile);
 
                 // A file found whole is read again, for its details and to be sure it opens.
@@ -112,7 +113,16 @@ public sealed partial class MainWindow
 
                 if (!library.Entries.Any(entry => entry.Downloading || entry.Suspect))
                 {
-                    OnWindowThread(() => _downloadRecheck?.Stop());
+                    OnWindowThread(() =>
+                    {
+                        // Revalidate on the UI thread: a scan may have discovered another download
+                        // while this completion callback was waiting behind other work.
+                        if (!library.Entries.Any(entry => entry.Downloading || entry.Suspect))
+                        {
+                            _downloadRecheck?.Stop();
+                            Interlocked.Exchange(ref _downloadWakePending, 0);
+                        }
+                    });
                 }
             }
             finally
