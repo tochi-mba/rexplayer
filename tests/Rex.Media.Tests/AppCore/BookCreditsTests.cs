@@ -150,4 +150,63 @@ public sealed class BookCreditsTests
         Assert.DoesNotContain(books, book => book.Detail == "Wrong Catalogue Writer");
     }
 
+    [Fact]
+    public void WriterCandidatePriorityFollowsExplicitEditsAndDoesNotFallForNarratorTags()
+    {
+        var entry = AudioFile("Downloads/Chapter.mp3", TimeSpan.FromMinutes(30), "Roald Dahl", "Book") with
+        {
+            AlbumArtist = "Various Artists",
+        };
+        Assert.Equal("Roald Dahl", BookCredits.Author(entry));
+        Assert.Equal("Jane Austen", BookCredits.Author(entry with { Override = new DetailOverride { AlbumArtist = "Jane Austen" } }));
+        Assert.Null(BookCredits.Author(entry with { Override = new DetailOverride { AlbumArtist = "Various Artists" } }));
+        Assert.Null(BookCredits.Author(entry with { AlbumArtist = "Narrator", Artist = "Read by James Reader" }));
+        Assert.Null(BookCredits.Author(entry with { AlbumArtist = null, Artist = "Unknown artist" }));
+        Assert.Null(BookCredits.Author(entry with { AlbumArtist = null, Artist = new string('X', 181) }));
+        Assert.Null(BookCredits.Author(entry with { AlbumArtist = null, Artist = "Narrator: Reader" }));
+        Assert.Null(BookCredits.Author(entry with { AlbumArtist = null, Artist = null }));
+    }
+
+    [Fact]
+    public void WritingBylinesWorkInTitleFilenameAndFolderWithoutUsingReaderLabels()
+    {
+        var entry = AudioFile("Downloads/Matilda (written by Roald Dahl).m4b", TimeSpan.FromHours(4));
+        Assert.Equal("Roald Dahl", BookCredits.Author(entry));
+        var taggedTitle = AudioFile("Downloads/Untitled.m4b", TimeSpan.FromHours(4),
+            title: "Matilda - by Roald Dahl");
+        Assert.Equal("Roald Dahl", BookCredits.Author(taggedTitle));
+        var folder = AudioFile("Downloads/The Twits (by Roald Dahl)/01.mp3", TimeSpan.FromMinutes(50));
+        Assert.Equal("Roald Dahl", BookCredits.Author(folder));
+        var narration = AudioFile("Downloads/Novel read by Jim Reader.m4b", TimeSpan.FromHours(4));
+        Assert.Null(BookCredits.Author(narration));
+        Assert.Equal("Novel read by Jim Reader", BookCredits.Title("Novel read by Jim Reader"));
+        Assert.Equal("by Roald Dahl", BookCredits.Title("by Roald Dahl"));
+        Assert.Equal("Novel", BookCredits.Title("Novel [written by Roald Dahl]"));
+    }
+
+    [Theory]
+    [InlineData("Unknown author")]
+    [InlineData("Various")]
+    [InlineData("N/A")]
+    [InlineData("Unknown Artist")]
+    [InlineData("Narrator")]
+    [InlineData("Audio Book")]
+    [InlineData("None")]
+    public void PlaceholderCreditsDoNotCreateFalseAuthors(string credit)
+    {
+        var entry = AudioFile("Downloads/Title.m4b", TimeSpan.FromHours(1)) with { Author = credit };
+        Assert.Null(BookCredits.Author(entry));
+    }
+
+    [Theory]
+    [InlineData("Novel by Someone")]
+    [InlineData("Novel by Another")]
+    [InlineData("Novel by the Ocean")]
+    [InlineData("Novel by A B C D E F G")]
+    public void AmbiguousOrImplausibleBylinesStayUnattributed(string title)
+    {
+        var entry = AudioFile("Downloads/01.m4b", TimeSpan.FromHours(1), album: title);
+        Assert.Null(BookCredits.Author(entry));
+    }
+
 }
