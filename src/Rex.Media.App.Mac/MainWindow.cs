@@ -6,6 +6,7 @@ using Rex.Media.AppCore.Platform;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Audio;
 using Rex.Media.Audio.CoreAudio;
+using Rex.Media.Codecs;
 using Rex.Media.Codecs.Apple;
 using Rex.Media.Diagnostics;
 using Rex.Media.Engine;
@@ -331,6 +332,9 @@ public sealed class MainWindow : IDisposable
             case CommandCatalog.GoToTime:
                 GoToTime();
                 return true;
+            case CommandCatalog.MediaInformation:
+                ShowMediaInformation();
+                return true;
             case CommandCatalog.Help:
                 NSWorkspace.SharedWorkspace.OpenUrl(new NSUrl(HelpUrl));
                 return true;
@@ -387,6 +391,39 @@ public sealed class MainWindow : IDisposable
         {
             Say($"\"{box.StringValue}\" is not a time. Try 1:23 or 1:02:03.");
         }
+    }
+
+    private void ShowMediaInformation()
+    {
+        if (_player.Info is not { } info)
+        {
+            Say("Open something to see its media information.");
+            return;
+        }
+
+        var lines = new List<string>
+        {
+            $"Title: {_player.Title}",
+            $"Location: {_player.Item?.Location}",
+            $"Format: {info.FormatName}",
+            $"Length: {(_player.Duration > TimeSpan.Zero ? TimeText.Format(_player.Duration) : "unknown")}",
+        };
+        foreach (var track in info.Tracks)
+        {
+            var detail = track.Video is { } video ? $"{video.Width}×{video.Height}"
+                : track.Audio is { } audio ? $"{audio.SampleRate} Hz, {audio.Channels} channel(s)"
+                : "";
+            lines.Add($"Track {track.Id}: {track.Kind} {track.Codec.DisplayName()} {detail}".TrimEnd());
+        }
+
+        lines.AddRange(info.Metadata.Select(metadata => $"{metadata.Key}: {metadata.Value}"));
+        using var dialog = new NSAlert
+        {
+            MessageText = "Media information",
+            InformativeText = string.Join(Environment.NewLine, lines),
+        };
+        dialog.AddButton("OK");
+        dialog.RunModal();
     }
 
     private void OpenWithPanel(bool folders)
