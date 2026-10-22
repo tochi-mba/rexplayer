@@ -74,6 +74,8 @@ public sealed class BookCreditsTests
             AlbumArtist = "Narrator Name",
         };
         Assert.Equal("Roald Dahl", BookCredits.Author(part));
+        Assert.Equal("Kate Winslet", BookCredits.Author(part with { Author = "Kate Winslet", Narrator = "Kate Winslet" }));
+        Assert.Equal("Kate Winslet", BookCredits.Author(part with { Override = new DetailOverride { Artist = "Kate Winslet" } }));
         Assert.Null(BookCredits.Author(part with { Author = null }));
         Assert.Equal("Other Writer", BookCredits.Author(part with { Override = new DetailOverride { Artist = "Other Writer" } }));
         Assert.Null(BookCredits.Author(part with { Override = new DetailOverride { Artist = "" } }));
