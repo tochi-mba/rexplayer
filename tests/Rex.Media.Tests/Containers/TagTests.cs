@@ -189,6 +189,20 @@ public sealed class Id3v2Tests
     }
 
     [Fact]
+    public void AudiobookId3UserTextKeepsAuthorSeparateFromNarratorAndArtist()
+    {
+        var tag = Read(Id3Builder.V24()
+            .UserText("BOOK_AUTHOR", "Roald Dahl")
+            .UserText("READ BY", "Kate Winslet")
+            .Text("TPE1", "Kate Winslet")
+            .Build());
+
+        Assert.Equal("Roald Dahl", tag.Metadata[MetadataKeys.Author]);
+        Assert.Equal("Kate Winslet", tag.Metadata[MetadataKeys.Narrator]);
+        Assert.Equal("Kate Winslet", tag.Metadata[MetadataKeys.Artist]);
+    }
+
+    [Fact]
     public void Version22PictureTooShortIsSkipped()
     {
         Assert.Empty(Read(Id3Builder.V22().Frame("PIC", [0, 1, 2]).Build()).Pictures);
@@ -333,6 +347,19 @@ public sealed class VorbisCommentTests
     public void FieldNamesMapToTheCanonicalKeys(string field, string key)
     {
         Assert.Equal(key, VorbisComments.CanonicalName(field));
+    }
+
+    [Theory]
+    [InlineData("AUTHOR", MetadataKeys.Author)]
+    [InlineData("BOOKAUTHOR", MetadataKeys.Author)]
+    [InlineData("Book Author", MetadataKeys.Author)]
+    [InlineData("WRITTEN_BY", MetadataKeys.Author)]
+    [InlineData("NARRATOR", MetadataKeys.Narrator)]
+    [InlineData("READ BY", MetadataKeys.Narrator)]
+    [InlineData("Reader", MetadataKeys.Narrator)]
+    public void AudiobookVorbisFieldsHaveDedicatedWritingAndReadingCredits(string field, string expected)
+    {
+        Assert.Equal(expected, VorbisComments.CanonicalName(field));
     }
 
     [Fact]
