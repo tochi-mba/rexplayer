@@ -35,6 +35,8 @@ public sealed class BookCreditsTests
     [InlineData("Audio Books/Ursula K. Le Guin/A Wizard of Earthsea/Part 2.mp3", "Ursula K. Le Guin")]
     [InlineData("Downloads/Matilda (written by Roald Dahl).m4b", null)]
     [InlineData("Audiobooks/Matilda/Disc 2/03.mp3", null)]
+    [InlineData("Audiobooks/The Long Road/Disc 3/01.mp3", null)]
+    [InlineData("Audiobooks/A Great Book/Part 12/01.mp3", null)]
     [InlineData("Audiobooks/The Great Gatsby/03.mp3", null)]
     [InlineData("Music/Roald Dahl/Matilda.mp3", null)]
     public void BookFolderInferenceRequiresARecognizableAuthorLayout(string path, string? expected)
@@ -55,6 +57,14 @@ public sealed class BookCreditsTests
         var part = AudioFile("Downloads/01.m4b", TimeSpan.FromHours(4), album: named);
         Assert.Equal(author, BookCredits.Author(part));
         Assert.Equal(title, BookCredits.Title(named));
+    }
+
+    [Fact]
+    public void BookTitleFoldersWithDiscSubfoldersAreNotMistakenForAuthorNames()
+    {
+        var chapter = AudioFile("Audiobooks/The Long Road/Disc 2/01.mp3", TimeSpan.FromMinutes(40));
+        var book = Assert.Single(ListeningViews.Books([chapter]));
+        Assert.Equal(("The Long Road", (string?)null), (book.Name, book.Detail));
     }
 
     [Fact]
