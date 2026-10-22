@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.30.0 - 2026-10-22
+
+### Added
+
+- **Subject tracking (#419).** Improved selected-subject tracking and its controls, making it easier to follow the intended subject across video frames.
+- **Featured artists (#436).** Songs with multiple or featured performers now credit and group their artists more accurately, including featured appearances on artist pages.
+- **Audiobook recognition (#437).** Better separation of audiobooks, podcasts, recordings and music, with audiobook-oriented library browsing.
+- **Collapsible library groups (#438).** Sidebar groups can be collapsed for a tidier library while keeping available collections easy to find.
+- **Album, genre and movie parsing (#439).** Improved recognition and grouping of albums, genres and movie titles from local metadata and filenames.
+- **Authors, book descriptions and artist profiles (#441).** Audiobook Authors navigation leads from author to book to chapters, including an Unknown author fallback. Conservatively matched Open Library book synopses show attribution and a source link. Music artists can display real Wikimedia Commons portraits and credited biographies.
+
+### Changed
+
+- **Minimal UI and movie details (#440).** Refined the library's visual presentation and made movie information and navigation more useful.
+
+### Fixed
+
+- **Edited transcript preservation (#421).** Preserve user-edited transcript content instead of overwriting those edits during subsequent processing.
+
+
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
