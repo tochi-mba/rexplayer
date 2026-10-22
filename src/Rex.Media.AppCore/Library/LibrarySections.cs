@@ -11,6 +11,7 @@ public enum SidebarView
     Artists,
     Genres,
     Audiobooks,
+    Authors,
     Podcasts,
     Recordings,
     Movies,
@@ -42,6 +43,8 @@ public sealed record LibraryFacts
     public bool Genres { get; init; }
 
     public bool Audiobooks { get; init; }
+
+    public bool Authors { get; init; }
 
     public bool Podcasts { get; init; }
 
@@ -93,6 +96,7 @@ public sealed record LibraryFacts
             Albums = songs.Any(song => song.Album is not null),
             Genres = songs.Any(song => song.Genre is not null),
             Audiobooks = listening.Audiobooks.Count > 0,
+            Authors = listening.Audiobooks.Count > 0,
             Podcasts = listening.Podcasts.Count > 0,
             Recordings = listening.Recordings.Count + listening.Sounds.Count > 0,
             Movies = videos.Any(isMovie),
@@ -145,7 +149,7 @@ public sealed class LibrarySections
         {
             (SidebarView.Songs, facts.Music), (SidebarView.Artists, facts.Music),
             (SidebarView.Albums, facts.Albums), (SidebarView.Genres, facts.Genres),
-            (SidebarView.Audiobooks, facts.Audiobooks), (SidebarView.Podcasts, facts.Podcasts), (SidebarView.Recordings, facts.Recordings),
+            (SidebarView.Audiobooks, facts.Audiobooks), (SidebarView.Authors, facts.Authors), (SidebarView.Podcasts, facts.Podcasts), (SidebarView.Recordings, facts.Recordings),
             (SidebarView.Movies, facts.Movies), (SidebarView.TvShows, facts.TvShows), (SidebarView.OtherVideos, facts.OtherVideos),
             (SidebarView.Videos, facts.Videos), (SidebarView.Pictures, facts.Pictures),
             (SidebarView.ContinueWatching, facts.ContinueWatching), (SidebarView.RecentlyPlayed, facts.RecentlyPlayed),
