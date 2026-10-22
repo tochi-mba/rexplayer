@@ -68,7 +68,9 @@ public sealed class LibraryCardsTests : IDisposable
         // The CI decoder renders some noisy blocks differently between runs (2.77% in the
         // failing capture, concentrated in the poster). Keep the full-card comparison
         // and explicit top-edge colour check while allowing up to 3.5% variation.
-        Screenshots.Match(app, "library-movie-card-letterboxed", "LibraryList", maxDifferingRatio: 0.035);
+        // The taller navigation/transport chrome can remove 18 pixels of empty list viewport;
+        // compare the remaining shared pixels rather than requiring the obsolete full height.
+        Screenshots.Match(app, "library-movie-card-letterboxed", "LibraryList", maxDifferingRatio: 0.035, maxViewportHeightChange: 24);
 
         // An episode still is as wide as the frame the film was recorded in, so bars would show above it.
         app.Visit("TV Shows");
