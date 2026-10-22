@@ -43,6 +43,10 @@ public sealed partial class MainWindow
         {
             credit = (Wikipedia.DescriptionCredit, article.Link);
         }
+        else if (synopsis is { Source: DescriptionSource.OpenLibrary } book)
+        {
+            credit = ("Description from Open Library", book.Link);
+        }
 
         LibraryCredit.Visibility = credit is null ? Visibility.Collapsed : Visibility.Visible;
         LibraryCredit.Content = credit?.Text;
