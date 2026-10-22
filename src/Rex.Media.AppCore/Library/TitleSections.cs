@@ -55,6 +55,27 @@ public static class TitleSections
         alike > 0,
         seriesMates > 0 && facts?.Collection is { } series && !string.IsNullOrWhiteSpace(series) ? SeriesHeading(series) : null);
 
+    /// <summary>An artist's biography, shown only when the Wikipedia source can be credited and opened.</summary>
+    public static Description? ArtistBiography(EnrichedArtist? facts) =>
+        facts?.Bio is { } bio && !string.IsNullOrWhiteSpace(bio) && AbsoluteUri(facts.ArticleUrl) is { } link
+            ? new Description(bio.Trim(), DescriptionSource.Wikipedia, link)
+            : null;
+
+    /// <summary>Where they come from, when they worked, and their genres, without blank separators.</summary>
+    public static string ArtistFacts(EnrichedArtist? facts)
+    {
+        if (facts is null)
+        {
+            return "";
+        }
+
+        var years = facts.ActiveFrom is { } first
+            ? facts.ActiveTo is { } last ? first.ToString(System.Globalization.CultureInfo.CurrentCulture) + "–" + last.ToString(System.Globalization.CultureInfo.CurrentCulture)
+                : "Active since " + first.ToString(System.Globalization.CultureInfo.CurrentCulture)
+            : null;
+        return string.Join(" · ", new[] { facts.Origin, years, string.Join(", ", facts.Genres.Take(3)) }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
+
     /// <summary>A movie's synopsis, which is Wikipedia's and so shown only when its article can be credited and linked.</summary>
     public static Description? MovieSynopsis(EnrichedMovie? facts) =>
         facts?.Overview is { } text && !string.IsNullOrWhiteSpace(text) && AbsoluteUri(facts.ArticleUrl) is { } article
