@@ -53,6 +53,31 @@ public sealed class MovieRulesTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void AReleaseFolderSuppliesTheTitleAndYearMissingFromTheFile()
+    {
+        var disc = Video(@"D:\Movies\Apollo 13 (1995)\feature.mkv", Feature);
+        var rip = Video(@"D:\Movies\Iron Lung (2026)\Iron.Lung.1080p.WEB-DL.mkv", Feature);
+
+        Assert.Equal("Apollo 13", LibraryViews.MovieTitleOf(disc));
+        Assert.Equal(1995, LibraryViews.MovieYearOf(disc));
+        Assert.Equal("Iron Lung", LibraryViews.MovieTitleOf(rip));
+        Assert.Equal(2026, LibraryViews.MovieYearOf(rip));
+        Assert.Equal(VideoVerdict.MovieByEvidence, Offline(disc));
+        Assert.Equal(VideoVerdict.MovieByEvidence, Offline(rip));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AQualitySuffixWithoutAYearIsNotPartOfTheMovieTitle()
+    {
+        var rip = Video(@"D:\Movies\The.Matrix.1080p.HEVC.WEB-DL.mkv", Feature);
+        Assert.Equal("The Matrix", LibraryViews.MovieTitleOf(rip));
+        Assert.Null(LibraryViews.MovieYearOf(rip));
+        Assert.Equal(VideoVerdict.MovieByMatch, MovieRules.Judge(rip, MovieLookup.Matched));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ReleasePrefixesAndEncodingsResolveToTheSameFilm()
     {
         var rip = Video(@"D:\Movies\[SPVT] Iron.Lung.2026.1080p.WEBRip.x265.6CH-SupaCvnt.mkv", Feature);
