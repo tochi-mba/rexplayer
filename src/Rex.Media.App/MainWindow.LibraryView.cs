@@ -360,9 +360,23 @@ public sealed partial class MainWindow
         var showArt = search.Length == 0 && _librarySource == LibrarySource.TvShows && _libraryGroup is { Entries: [var first, ..] } ? first : null;
         ShowHero(kicker, title, subtitle, search.Length > 0 ? "\uE721" : glyph,
             showArt ?? rowsForView.Select(row => PictureEntry(row.Item)).FirstOrDefault(entry => entry is not null),
-            showArt is null ? PictureArt.Natural : PictureArt.ShowPoster);
+            showArt is null ? PictureArt.Natural : PictureArt.ShowPoster,
+            artistPage ? ArtistPhotoPathIfKnown(title) : null);
         ShowViewOptions(options && !artistPage && albumPage is null, choice, groupsView, kind);
         ShowMusicPageExtras(search.Length == 0 ? albumPage : null, _songsTable && choice.Look == LibraryLook.List);
+        if (artistPage)
+        {
+            var artist = MetadataArtist(title);
+            ShowTitleExtras(Rex.Media.AppCore.Library.TitleSections.ArtistFacts(artist),
+                Rex.Media.AppCore.Library.TitleSections.ArtistBiography(artist), credit: null,
+                trailer: null, poster: false, backdrop: null);
+            LibraryHeroArtBox.CornerRadius = new CornerRadius(75);
+        }
+        else
+        {
+            LibraryHeroArtBox.CornerRadius = new CornerRadius(12);
+        }
+
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
@@ -465,13 +479,13 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The banner: kicker, title and what the view holds, with the first item's picture in front and filling the banner behind.</summary>
-    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art, PictureArt shape = PictureArt.Natural)
+    private void ShowHero(string kicker, string title, string subtitle, string glyph, LibraryEntry? art, PictureArt shape = PictureArt.Natural, string? artistPhoto = null)
     {
         LibraryKicker.Text = kicker;
         LibraryTitle.Text = title;
         LibrarySubtitle.Text = subtitle;
         LibraryHeroGlyph.Glyph = glyph;
-        var key = title + "\n" + art?.Path + "\n" + shape;
+        var key = title + "\n" + art?.Path + "\n" + shape + "\n" + artistPhoto;
         if (key == _shownHero)
         {
             return;
@@ -484,17 +498,37 @@ public sealed partial class MainWindow
         LibraryHeroBackdrop.Source = null;
         LibraryHeroArt.Opacity = 0;
         LibraryHeroBackdrop.Opacity = 0;
-        if (art is not null)
+        void ShowPicture(Microsoft.UI.Xaml.Media.ImageSource picture)
         {
-            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture =>
+            if (_shownHero == key && request == _heroRequest)
             {
-                if (_shownHero == key && request == _heroRequest)
-                {
-                    (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
-                    LibraryHeroArt.Opacity = 1;
-                    LibraryHeroBackdrop.Opacity = 0.6;
-                }
-            }, CancellationToken.None, art: shape, side: Math.Max(1600, _budget.LibraryPictureSide)));
+                (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
+                LibraryHeroArt.Opacity = 1;
+                LibraryHeroBackdrop.Opacity = 0.6;
+            }
+        }
+
+        if (artistPhoto is not null)
+        {
+            Forget(ShowArtistPictureAsync());
+        }
+        else if (art is not null)
+        {
+            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, ShowPicture,
+                CancellationToken.None, art: shape, side: Math.Max(1600, _budget.LibraryPictureSide)));
+        }
+
+        async Task ShowArtistPictureAsync()
+        {
+            if (await LocalPictureAsync(artistPhoto!, Math.Max(1600, _budget.LibraryPictureSide), CancellationToken.None) is { } portrait)
+            {
+                ShowPicture(portrait);
+            }
+            else if (art is not null && _shownHero == key)
+            {
+                await ShowPictureAsync(art.Path, art.Kind, art.Duration, ShowPicture, CancellationToken.None,
+                    art: shape, side: Math.Max(1600, _budget.LibraryPictureSide));
+            }
         }
     }
 
