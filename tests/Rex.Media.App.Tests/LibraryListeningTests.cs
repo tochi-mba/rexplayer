@@ -99,6 +99,9 @@ public sealed class LibraryListeningTests : IDisposable
         app.Visit("Authors");
         Wait.For(() => app.Text("LibraryTitle") == "Authors" && app.Lines().Contains("J. R. R. Tolkien"),
             "the Authors shelf to list the credited author");
+        ((System.Windows.Automation.ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).SetValue("Tolkien");
+        Wait.For(() => app.Text("LibraryKicker") == "SEARCH" && app.Lines().SequenceEqual(["J. R. R. Tolkien"]),
+            "author search to keep the semantic author result instead of turning it into an artist");
         app.Open("J. R. R. Tolkien");
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR" && app.Text("LibraryTitle") == "J. R. R. Tolkien",
             "the author page");

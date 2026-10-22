@@ -496,10 +496,23 @@ public sealed partial class MainWindow
         _ => [],
     };
 
-    private LibraryRow GroupRow(LibraryGroup group) => new(group.Name,
-        MetadataBlurb(group) is { Length: > 0 } blurb ? (group.Detail is null ? blurb : group.Detail + " · " + blurb) : group.Detail,
-        LibraryActions.Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
-        group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
+    private LibraryRow GroupRow(LibraryGroup group)
+    {
+        // A group carries media entries but its meaning comes from the route. In particular, an
+        // author must not inherit the generic audio treatment and present as a music artist.
+        if (_librarySource == LibrarySource.Authors)
+        {
+            var books = ListeningViews.Books(group.Entries);
+            return new LibraryRow(group.Name, "Author", LibraryActions.Count(books.Count, "book"),
+                group, hasPicture: false, picturePlaceholder: "✎");
+        }
+
+        var videos = group.Entries.All(entry => entry.Kind == LibraryKind.Video);
+        return new LibraryRow(group.Name,
+            MetadataBlurb(group) is { Length: > 0 } blurb ? (group.Detail is null ? blurb : group.Detail + " · " + blurb) : group.Detail,
+            LibraryActions.Count(group.Entries.Count, videos ? "episode" : "song"),
+            group, hasPicture: true, picturePlaceholder: videos ? "▶" : "♪");
+    }
 
     private LibraryRow EntryRow(LibraryEntry entry)
     {
