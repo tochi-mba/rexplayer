@@ -86,6 +86,7 @@ public sealed class OpenLibraryBooksTests : IDisposable
         Assert.True(await first.FetchBookAsync("The Hobbit", "J. R. R. Tolkien", CancellationToken.None));
         var book = first.CachedBook("The Hobbit", "J. R. R. Tolkien");
         Assert.Equal("OL123W", book?.WorkId);
+        Assert.False(book?.InferredAuthor);
         Assert.Equal("A young hobbit takes an unexpected journey.", book?.Synopsis);
         Assert.True(book!.Current);
         Assert.Equal(book.ToJson(), Assert.Single(first.CachedBooks()).ToJson());
@@ -158,6 +159,11 @@ public sealed class OpenLibraryBooksTests : IDisposable
         var recovered = fetcher.CachedBook(title, null);
         Assert.Equal(("Roald Dahl", "OL42W", "A chocolate factory story."),
             (recovered?.Author, recovered?.WorkId, recovered?.Synopsis));
+        Assert.True(recovered?.InferredAuthor);
+        var afterRestart = Assert.Single(Fetcher.CachedBooks());
+        Assert.True(afterRestart.InferredAuthor);
+        Assert.Equal(OpenLibraryBooks.BookKey(title, null),
+            OpenLibraryBooks.BookKey(afterRestart.Title, afterRestart.InferredAuthor ? null : afterRestart.Author));
         Assert.Null(fetcher.CachedBook(title, "Roald Dahl"));
         Assert.True(await Fetcher.FetchUnknownBookAsync(title, CancellationToken.None));
         Assert.Equal(2, _calls.Count);
