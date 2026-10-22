@@ -60,6 +60,20 @@ def main() -> None:
     if not executable.is_file():
         fail(f"Bundle executable is missing: {executable}")
 
+    signed = subprocess.run(
+        ["codesign", "-d", "--entitlements", ":-", str(args.app)],
+        check=True,
+        capture_output=True,
+    )
+    # Depending on the installed codesign version, the plist is written to stdout or stderr.
+    signed_output = signed.stdout + signed.stderr
+    plist_start = signed_output.find(b"<?xml")
+    if plist_start < 0:
+        fail("Bundle signature contains no entitlements plist")
+    entitlements = plistlib.loads(signed_output[plist_start:])
+    if entitlements.get("com.apple.security.cs.allow-jit") is not True:
+        fail("Bundle does not allow the .NET runtime to JIT managed code")
+
     result = subprocess.run(
         ["lipo", "-archs", str(executable)],
         check=True,

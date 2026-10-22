@@ -193,7 +193,7 @@ jobs:
           app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/${{ matrix.rid }} -maxdepth 1 -name '*.app' | head -1)
           test -n "$app" || { echo "No rexplayer.app was built." >&2; exit 1; }
           echo "Bundling $app"
-          codesign --force --deep --sign - "$app"
+          codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist "$app"
           codesign --verify --deep --strict "$app"
           mkdir -p dist
           ditto -c -k --keepParent "$app" "dist/rexplayer-mac-${{ matrix.rid }}.zip"
@@ -251,7 +251,7 @@ jobs:
             --arm64 "$arm_app" \
             --x64 "$x64_app" \
             --output rexplayer.app
-          codesign --force --deep --sign - rexplayer.app
+          codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist rexplayer.app
           codesign --verify --deep --strict rexplayer.app
           ditto -c -k --keepParent rexplayer.app dist/rexplayer-mac-universal.zip
           python3 scripts/verify-mac-bundle.py \
