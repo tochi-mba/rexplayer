@@ -10,7 +10,13 @@ public sealed partial class MainWindow
     // the person's saved preference for wider windows, even when that preference is collapsed.
     private bool _libraryNavigationExpandedWhileNarrow;
 
-    private bool LibraryNavigationIsNarrow => LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
+    // The window's viewport, not the library Grid's measured content, determines whether
+    // navigation must compact. A wide child can outgrow its viewport during resize, and
+    // a saved collapsed rail otherwise gets mistaken for a wide window on the next click.
+    private bool LibraryNavigationIsNarrow =>
+        Root.XamlRoot is { Size.Width: > 0 } root
+            ? root.Size.Width < 760
+            : LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
 
     private void OnLibraryNavigationToggle(object sender, RoutedEventArgs e)
     {
