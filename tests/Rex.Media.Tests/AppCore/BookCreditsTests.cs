@@ -109,7 +109,7 @@ public sealed class BookCreditsTests
         var other = AudioFile("Audiobooks/Mixed/04.mp3", TimeSpan.FromMinutes(30), album: "Different Title") with { Author = "Author One" };
         var books = ListeningViews.Books([first, second, unknown, other]);
         Assert.Equal(4, books.Count);
-        Assert.Equal(["Author One", "Author Two", null], books.Where(book => book.Name == "Shared Title").Select(book => book.Detail));
+        Assert.Equal([null, "Author One", "Author Two"], books.Where(book => book.Name == "Shared Title").Select(book => book.Detail));
         Assert.Single(ListeningViews.BooksByAuthor(books, ListeningViews.UnknownAuthor));
         Assert.Equal(2, ListeningViews.BooksByAuthor(books, "Author One").Count);
         Assert.Equal([first.Path, other.Path], ListeningViews.Authors(books).Single(a => a.Name == "Author One").Entries.Select(e => e.Path).Order(StringComparer.Ordinal));
