@@ -40,6 +40,7 @@ public sealed partial class RepositoryTests
         "tests/site/pages.spec.js",
         "tests/site/serve.py",
         "tests/site/test_check_site.py",
+        "tests/site/test_verify_mac_bundle.py",
         "playwright.config.js",
     ];
 
