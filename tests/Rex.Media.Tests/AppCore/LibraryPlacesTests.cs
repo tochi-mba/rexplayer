@@ -105,6 +105,30 @@ public sealed class LibraryPlacesTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void DynamicShowAndArtistCountsNeverBecomePartOfThePersistentRouteIdentity()
+    {
+        var before = new LibraryRoute("TvShows", "North Shore", "2 seasons · 4 episodes", "Season 2");
+        var after = new LibraryRoute("TvShows", "North Shore", "3 seasons · 7 episodes", "Season 2");
+        Assert.Equal(LibraryPlaces.Key(before), LibraryPlaces.Key(after));
+        Assert.Equal("TvShows\nNorth Shore\n\nSeason 2", LibraryPlaces.Key(before));
+        Assert.Null(LibraryPlaces.StableGroupDetail("Artists", "12 songs"));
+        Assert.Null(LibraryPlaces.StableGroupDetail("Genres", "45 albums"));
+        Assert.Null(LibraryPlaces.StableGroupDetail("TvShows", "14 episodes"));
+
+        // Same album title by two artists must remain two distinct pages.
+        var artistOne = new LibraryRoute("Albums", "Greatest Hits", "First Artist");
+        var artistTwo = new LibraryRoute("Albums", "Greatest Hits", "Second Artist");
+        Assert.NotEqual(LibraryPlaces.Key(artistOne), LibraryPlaces.Key(artistTwo));
+        Assert.Equal("First Artist", LibraryPlaces.StableGroupDetail("Albums", "First Artist"));
+
+        var places = new LibraryPlaces();
+        var oldKey = LibraryPlaces.Key(before);
+        Assert.True(places.Remember(oldKey, new LibraryPlace(Selected: "file:D:/NorthShore/S02E01.mkv")));
+        Assert.Equal("file:D:/NorthShore/S02E01.mkv", places.PlaceOf(LibraryPlaces.Key(after))!.Selected);
+    }
+
+    [Fact]
     public void APlaceNormalizesItsNamesAndPixels()
     {
         var place = new LibraryPlace(" ", "", double.NaN, [-1, double.PositiveInfinity, 12.5]).Normalize();
