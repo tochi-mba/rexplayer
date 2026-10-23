@@ -268,6 +268,17 @@ public sealed class MacAppSmokeTests
             Assert.True(rescanned?.Ok == true && rescanned.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "The native Rescan action did not reveal the new file.");
 
+            // A file can disappear between a scan and the user pressing Queue. The
+            // stale result must not be enqueued, and the native scanner should purge it.
+            File.Delete(Path.Combine(secondFolder, "rescanned-video.mp4"));
+            var missingQueue = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstQueue" });
+            Assert.True(missingQueue?.Ok == true, "Could not activate the stale native Queue row.");
+            var afterMissing = await Queue(pipe, "show");
+            Assert.Contains("2 items", afterMissing.Title, StringComparison.Ordinal);
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("2 total", StringComparison.Ordinal), app, root);
+
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
                 "The Mac app could not quit with the library shown: " + (quit?.Error ?? "no reply") + LogTail(root));
@@ -296,7 +307,7 @@ public sealed class MacAppSmokeTests
                 });
                 Assert.True(persisted?.Ok == true &&
                     persisted.Text?.Contains("2 folders", StringComparison.Ordinal) == true &&
-                    persisted.Text.Contains("3 total", StringComparison.Ordinal),
+                    persisted.Text.Contains("2 total", StringComparison.Ordinal),
                     "The watched folders or media did not survive restart: " + (persisted?.Text ?? "no reply"));
                 var closeAgain = await Ask(secondPipe, new AutomationRequest
                 {
