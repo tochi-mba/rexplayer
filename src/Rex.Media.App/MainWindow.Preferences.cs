@@ -467,7 +467,8 @@ public sealed partial class MainWindow
             static bool Says(object? value, string query)
             {
                 var label = value is TextBlock block ? block.Text : value?.ToString();
-                return label?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true;
+                return label is not null && System.Globalization.CultureInfo.CurrentCulture.CompareInfo.IndexOf(
+                    label, query, System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0;
             }
 
             static bool HasSettingText(UIElement node, string query)
@@ -532,7 +533,8 @@ public sealed partial class MainWindow
                 // rather than leaving an unrelated section visible beneath a filtered rail.
                 categories.SelectedItem = names.Count == 0 ? null
                     : names.Contains(sections[shownSection].Name) ? sections[shownSection].Name : names[0];
-                searchResult.Visibility = names.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                searchResult.Visibility = names.Count == 0 && categories.Visibility == Visibility.Visible
+                    ? Visibility.Visible : Visibility.Collapsed;
             };
             var navigation = new StackPanel { Spacing = 8 };
             navigation.Children.Add(section);
@@ -572,6 +574,8 @@ public sealed partial class MainWindow
                 panel.ColumnDefinitions[1].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
                 categorySearch.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
                 categories.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+                searchResult.Visibility = wide && categories.Items.Count == 0
+                    ? Visibility.Visible : Visibility.Collapsed;
                 navigation.Visibility = Visibility.Visible;
                 // Small windows retain the original single-column section picker.
                 if (!wide)
