@@ -184,6 +184,32 @@ public sealed class NamedPlaylistTests
     }
 
     [Fact]
+    [Capability("LIB-04")]
+    public void ShufflePlayingASavedPlaylistKeepsItsEntriesAndEnablesShuffle()
+    {
+        using var harness = Harness(RexStore.InMemory());
+        var controller = harness.Controller;
+        var original = controller.CreatePlaylist("Mix",
+        [
+            new PlaylistItem("Sungba.wav"),
+            new PlaylistItem("Terminator.wav"),
+            new PlaylistItem("Lonely At The Top.wav"),
+        ]);
+
+        controller.PlayPlaylist(original.Id, shuffle: true);
+        Assert.True(controller.Playlist.Shuffle);
+        Assert.Equal(3, controller.Playlist.Items.Count);
+        Assert.Equal(original.Items.Select(item => item.Location), controller.Playlist.Items.Select(item => item.Location));
+        Assert.NotNull(controller.Playlist.Current);
+        Assert.True(original.Items.Any(item => item.Location == controller.Playlist.Current!.Location));
+        Assert.Equal(3, controller.NamedPlaylists[0].Items.Count);
+
+        controller.Playlist.Shuffle = false;
+        controller.PlayPlaylist(original.Id, enqueue: true, shuffle: true);
+        Assert.False(controller.Playlist.Shuffle); // Appending to a running queue never changes its mode.
+    }
+
+    [Fact]
     public void APlaylistThatNoLongerReadsIsLeftOut()
     {
         var store = RexStore.InMemory();

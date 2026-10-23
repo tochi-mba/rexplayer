@@ -89,7 +89,7 @@ public sealed partial class PlayerController
     }
 
     /// <summary>Plays the named playlist <paramref name="id"/> in place of the playlist, or after it with <paramref name="enqueue"/>.</summary>
-    public void PlayPlaylist(string id, bool enqueue = false)
+    public void PlayPlaylist(string id, bool enqueue = false, bool shuffle = false)
     {
         if (Find(id) is not { } playlist)
         {
@@ -100,6 +100,11 @@ public sealed partial class PlayerController
         {
             Say($"{playlist.Name} is empty.");
             return;
+        }
+
+        if (shuffle && !enqueue)
+        {
+            Playlist.Shuffle = true;
         }
 
         _log.Info(LogSource, $"Playing the playlist {playlist.Name} ({playlist.Items.Count} items){(enqueue ? " after the playlist" : "")}.");

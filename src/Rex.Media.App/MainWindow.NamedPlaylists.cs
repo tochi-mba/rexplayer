@@ -60,6 +60,7 @@ public sealed partial class MainWindow
             var sub = new MenuFlyoutSubItem { Text = $"{playlist.Name} ({playlist.Items.Count})" };
             AutomationProperties.SetAutomationId(sub, "NamedPlaylist-" + playlist.Name);
             sub.Items.Add(MenuItem("Play", "PlayNamed-" + playlist.Name, () => _player.PlayPlaylist(id)));
+            sub.Items.Add(MenuItem("Shuffle play", "ShuffleNamed-" + playlist.Name, () => _player.PlayPlaylist(id, shuffle: true)));
             sub.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(id, enqueue: true)));
             sub.Items.Add(new MenuFlyoutSeparator());
             sub.Items.Add(MenuItem("Edit contents...", "EditNamed-" + playlist.Name, () => Forget(EditPlaylistAsync(id))));

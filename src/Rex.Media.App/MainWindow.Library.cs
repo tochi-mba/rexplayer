@@ -664,6 +664,7 @@ public sealed partial class MainWindow
         if (chosen[0].Item is NamedPlaylist playlist)
         {
             menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", () => _player.PlayPlaylist(playlist.Id)));
+            menu.Items.Add(MenuItem("Shuffle play", "LibraryMenuShuffleNamed", () => _player.PlayPlaylist(playlist.Id, shuffle: true)));
             menu.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(playlist.Id, enqueue: true)));
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(MenuItem("Edit contents...", "LibraryMenuEditNamedPlaylist", () => Forget(EditPlaylistAsync(playlist.Id))));
