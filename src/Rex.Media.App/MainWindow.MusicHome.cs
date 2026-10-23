@@ -73,8 +73,13 @@ public sealed partial class MainWindow
         shelves.RemoveAll(shelf => shelf.Rows.Count == 0);
         ShowLibraryEmpty(home.Hero is null && shelves.Count == 0, false, LibrarySource.Music);
 
-        var shown = "Music\n" + home.Hero?.Group.Name + "|" + home.Hero?.IsArtist + "\n"
-            + string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row => RowIdentity(row) + row.PicturePath))));
+        // The route can stay identical while a background tag scan corrects
+        // titles, credits, artwork or current-playback badges. Include the
+        // actually displayed facts, not just paths, in this idempotence key.
+        var shown = "Music\n" + home.Hero?.Group.Name + "|" + home.Hero?.IsArtist
+            + "|" + home.Hero?.Group.Detail + "|" + home.Hero?.Reason + "\n"
+            + string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row =>
+                RowIdentity(row) + "|" + row.Name + "|" + row.Detail + "|" + row.PicturePath + "|" + row.IsPlaying))));
         if (shown == _shownLibrary)
         {
             return;
