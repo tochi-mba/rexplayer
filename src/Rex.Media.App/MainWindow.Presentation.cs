@@ -78,6 +78,10 @@ public sealed partial class MainWindow
         if (!ReferenceEquals(cover, _shownCover))
         {
             _shownCover = cover;
+            // Clear immediately, before async decoding, so the previous item never flashes.
+            CoverImage.Source = null;
+            CoverBox.Visibility = Visibility.Collapsed;
+            _visualCover = null;
             Forget(ShowCoverAsync(cover));
         }
 
