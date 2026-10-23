@@ -48,7 +48,8 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.Preferences);
         var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
         search.SetValue("Artwork detail (%)");
-        Wait.For(() => !app.Find("PreferencesArtworkDetails").Current.IsOffscreen, "artwork search result");
+        Wait.For(() => ((SelectionPattern)app.Find("PreferencesSection").GetCurrentPattern(SelectionPattern.Pattern))
+            .Current.GetSelection().Single().Current.Name == "Music and artwork", "artwork search result");
         Screenshots.Match(app, "preferences-search-artwork");
 
         var details = (ExpandCollapsePattern)app.Find("PreferencesArtworkDetails")
