@@ -50,8 +50,9 @@ public sealed partial class AppWindowTests
             "the wide Preferences search and category list to be visible");
         var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
         search.SetValue("Artwork detail (%)");
-        Wait.For(() => ((SelectionPattern)app.Find("PreferencesSection").GetCurrentPattern(SelectionPattern.Pattern))
-            .Current.GetSelection().Single().Current.Name == "Music and artwork", "artwork search result");
+        Wait.For(() => app.IsShown("PreferencesArtworkDetails") &&
+            search.Current.Value == "Artwork detail (%)",
+            "artwork search result and rendered Preferences section");
         Screenshots.Match(app, "preferences-search-artwork");
 
         var details = (ExpandCollapsePattern)app.Find("PreferencesArtworkDetails")
