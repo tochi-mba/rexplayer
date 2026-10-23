@@ -40,7 +40,7 @@ A row describes the current route or control from source and tests. A scene ID d
 - `MainWindow.LibraryHeader.cs` expands to content height and compacts on scroll. `MainWindow.LibraryHero.cs` already uses a request generation to reject artwork from a previous page. These are existing behaviors to regression-test, not new completions.
 - `LibraryScene` constructs tagged WAVs, copied video/photo fixtures, deterministic stored metadata and play counts before the app starts. This is a good starting point, but not yet a complete huge/corrupt/RTL/partial/offline matrix.
 - `MainWindow.xaml` contains fixed overlay and artwork dimensions; audit resizing at 640x480, 720x640 and ultrawide before changing tokens or claiming full accessibility.
-- The manifest currently has 60 declared capture entries; 18 use the explicitly unresolved dimension label `default-window (not yet pinned)`, and only two have a tracked CI baseline. This gap is visible instead of being represented as approved screenshot coverage.
+- The manifest currently has 60 declared capture entries; all 60 scene dimensions are now pinned, and only two have tracked CI baselines. The 58 ordinary and two specialist OS display scenes still require exact-head PNG review. This gap is visible instead of being represented as approved screenshot coverage.
 - Current app XAML and UI tests cover menus, information panels, keyboard editor, updates, media metadata/artwork, transcription, equalizer/effects, picture styles, diagnostics and other transient views at different levels. No source existence alone counts as user-visible acceptance.
 
 ## CI image inspection and capture defect
