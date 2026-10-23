@@ -229,7 +229,7 @@ public sealed partial class MainWindow
             page = matchIndex / pageSize;
             ShowPage();
             var at = history.Current.Words[matchIndex].Start;
-            matchStatus.Text = $"Match at word {matchIndex + 1} of {history.Current.Words.Count}, {at:hh\\:mm\\:ss}.";
+            matchStatus.Text = $"Match at word {matchIndex + 1} of {history.Current.Words.Count}, {TimeText.Format(at, _player.Duration)}.";
             jump.IsEnabled = _player.CanSeek && _player.Item?.Location == media;
         };
         jump.Click += (_, _) =>
