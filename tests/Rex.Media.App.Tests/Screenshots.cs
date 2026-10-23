@@ -105,11 +105,46 @@ internal static class Screenshots
                 (!needsPixelWitness || HasVisibleVariation(witness));
         });
 
+        // Two independent compositor reads of the same stable scene must match.
+        // Record the second frame and a diff even when the repeatability gate fails.
+        // A bounded retry permits initial WinUI layout animations to finish without
+        // silently treating permanently moving or stale content as deterministic.
+        (int Width, int Height, byte[] Bgra) repeat = default;
+        var repeatDifference = 1.0;
+        var repeatable = rendered && Wait.Within(TimeSpan.FromSeconds(4), () =>
+        {
+            var captured = scene.CaptureMode == "desktop"
+                ? WindowPicture.TakeDesktop(app.Handle)
+                : WindowPicture.Take(app.Handle);
+            repeat = automationId is null
+                ? captured
+                : Crop(captured, WindowPicture.Bounds(app.Handle),
+                    app.Find(automationId).Current.BoundingRectangle);
+            if (repeat.Width != picture.Width || repeat.Height != picture.Height)
+            {
+                return false;
+            }
+
+            var (different, _) = Difference(picture, repeat, pixelThreshold);
+            repeatDifference = different / (double)(picture.Width * picture.Height);
+            return repeatDifference <= maxDifferingRatio;
+        });
+
         // Persist artifacts *before* any screenshot assertion, including failed
         // readiness, missing popups, occlusion and mismatched committed baselines.
         WriteCaptureMetadata(scene, app, picture, automationId, pixelThreshold,
-            maxDifferingRatio, true, rendered, needsPixelWitness && HasVisibleVariation(witness));
+            maxDifferingRatio, true, rendered, needsPixelWitness && HasVisibleVariation(witness),
+            repeatable, repeatDifference);
         Save(Path.Combine(Output, "actual", name + ".png"), picture);
+        if (repeat.Bgra is { Length: > 0 })
+        {
+            Save(Path.Combine(Output, "repeat", name + ".png"), repeat);
+            if (!repeatable && repeat.Width == picture.Width && repeat.Height == picture.Height)
+            {
+                var (_, repeatDiff) = Difference(picture, repeat, pixelThreshold);
+                Save(Path.Combine(Output, "repeat-diff", name + ".png"), repeatDiff);
+            }
+        }
         if (automationId is not null)
         {
             Save(Path.Combine(Output, "crop", name + ".png"), picture);
@@ -122,13 +157,16 @@ internal static class Screenshots
         Assert.True(!needsPixelWitness || HasVisibleVariation(witness),
             $"Screenshot {name} does not visibly render the expected popup control {scene.ReadinessId}, despite UI Automation reporting it. See its actual capture.");
         Assert.True(rendered, $"Screenshot {name} did not render the declared image and pixel witness before the deadline.");
+        Assert.True(repeatable,
+            $"Screenshot {name} did not stabilize on a second desktop capture ({repeatDifference:P2} differing pixels). Inspect repeat and repeat-diff artifacts.");
 
         Compare(name, picture, pixelThreshold, maxDifferingRatio, maxViewportHeightChange);
     }
 
     private static void WriteCaptureMetadata(ScreenshotScenes.ScreenshotScene scene, AppProcess app,
         (int Width, int Height, byte[] Bgra) picture, string? automationId,
-        int pixelThreshold, double maxDifferingRatio, bool ready, bool rendered, bool witnessVaried)
+        int pixelThreshold, double maxDifferingRatio, bool ready, bool rendered, bool witnessVaried,
+        bool repeatable = false, double repeatDifference = 1.0)
     {
         var dir = Path.Combine(Output, "actual");
         Directory.CreateDirectory(dir);
@@ -152,6 +190,8 @@ internal static class Screenshots
             readinessAchieved = ready,
             pixelReadinessAchieved = rendered,
             witnessVisiblyVaried = witnessVaried,
+            repeatabilityAchieved = repeatable,
+            repeatedDifferingRatio = repeatDifference,
             expectedAutomationIds = scene.ExpectedAutomationIds,
             observedAutomationIds = scene.ExpectedAutomationIds.Select(id => ObserveControl(app, id)).ToArray(),
             expectedVisibleData = scene.ExpectedVisibleData,
