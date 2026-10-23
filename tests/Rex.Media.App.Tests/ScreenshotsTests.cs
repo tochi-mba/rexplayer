@@ -77,4 +77,28 @@ public sealed class ScreenshotsTests
         Assert.Equal((4, 2), (cropped.Width, cropped.Height));
         Assert.Equal(9, cropped.Bgra[0]);
     }
+
+    [Fact]
+    public void EveryCapturedSceneHasAnExplicitUiReadinessContract()
+    {
+        var scenes = ScreenshotScenes.All;
+        Assert.True(scenes.Count >= 40, "The inventory must cover existing captured surfaces.");
+        Assert.Contains(scenes, scene => scene.Id == "preferences-search-empty");
+        Assert.Contains(scenes, scene => scene.Id == "library-episode-still-letterboxed");
+
+        foreach (var scene in scenes)
+        {
+            Assert.StartsWith("uia:", scene.ReadinessSignal, StringComparison.Ordinal);
+            Assert.Contains(scene.ReadinessId, scene.ExpectedAutomationIds);
+            Assert.NotEmpty(scene.Fixture);
+            Assert.NotEmpty(scene.Route);
+            Assert.NotEmpty(scene.Owner);
+            if (scene.Baseline == "ci-windows")
+            {
+                Assert.True(File.Exists(Rex.Media.TestKit.RepoPaths.Combine(
+                    "tests", "screenshot-baselines", "ci-windows", scene.Id + ".png")),
+                    $"Scene {scene.Id} claims a baseline that is not tracked.");
+            }
+        }
+    }
 }
