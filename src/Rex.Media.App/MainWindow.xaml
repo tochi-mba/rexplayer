@@ -66,9 +66,7 @@
     <!-- One full-width, keyboard-operable group header; the chevron, heading and total all click. -->
     <DataTemplate x:Key="LibraryGroupHeaderTemplate" x:DataType="local:LibraryRowGroup">
       <Button Tag="{Binding}" Click="OnLibraryGroupToggle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-              BorderThickness="0" Background="Transparent" Padding="4,8" Margin="0,4,0,2"
-              AutomationProperties.AutomationId="{x:Bind ToggleId}"
-              AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}"
+              BorderThickness="0" Background="Transparent" Padding="4,8" Margin="0,4,0,2" AutomationProperties.AutomationId="{x:Bind ToggleId}" AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}"
               ToolTipService.ToolTip="{x:Bind ToggleName, Mode=OneWay}">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -103,8 +101,7 @@
         <SwapChainPanel x:Name="Video" AutomationProperties.AutomationId="Video" />
         <!-- Covers a presenter's late or remembered frame as soon as an audio-only item takes over. -->
         <Border x:Name="VideoBlankLayer" Background="Black" />
-        <Grid x:Name="Visualizer" Visibility="Collapsed" IsHitTestVisible="False" Margin="48,120,48,48"
-              AutomationProperties.AutomationId="Visualizer" AutomationProperties.Name="Visualisation">
+        <Grid x:Name="Visualizer" Visibility="Collapsed" IsHitTestVisible="False" Margin="48,120,48,48" AutomationProperties.AutomationId="Visualizer" AutomationProperties.Name="Visualisation">
           <Image x:Name="SpectrogramImage" Stretch="Fill" />
           <Canvas x:Name="VisualCanvas" />
         </Grid>
@@ -119,8 +116,7 @@
              of the picture, and its content scrolls on short windows. -->
         <Border x:Name="SubjectToolbar" Visibility="Collapsed" VerticalAlignment="Top"
                 HorizontalAlignment="Right" Margin="12" Width="320" CornerRadius="12"
-                Background="#F0121822" BorderBrush="#605FFFFF" BorderThickness="1" RequestedTheme="Dark"
-                AutomationProperties.AutomationId="SubjectToolbar" AutomationProperties.Name="Subject Lock">
+                Background="#F0121822" BorderBrush="#605FFFFF" BorderThickness="1" RequestedTheme="Dark" AutomationProperties.AutomationId="SubjectToolbar" AutomationProperties.Name="Subject Lock">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                         VerticalScrollMode="Enabled">
             <StackPanel Spacing="8" Padding="12,10,12,12">
@@ -137,25 +133,18 @@
                   <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="White" FontSize="15" />
                   <Border x:Name="SubjectStatePill" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left"
                           Background="#3045ECD2" AutomationProperties.AutomationId="SubjectStatePill">
-                    <TextBlock x:Name="SubjectConfidenceText" Foreground="#FF45ECD2" FontSize="12"
-                               AutomationProperties.AutomationId="SubjectConfidenceText"
-                               AutomationProperties.Name="Tracking state"
+                    <TextBlock x:Name="SubjectConfidenceText" Foreground="#FF45ECD2" FontSize="12" AutomationProperties.AutomationId="SubjectConfidenceText" AutomationProperties.Name="Tracking state"
                                AutomationProperties.LiveSetting="Polite"
                                TextWrapping="Wrap" Text="Waiting for selection" />
                   </Border>
                 </StackPanel>
                 <Button x:Name="SubjectSelectButton" Grid.Row="1" Grid.ColumnSpan="2" Content="Select" HorizontalAlignment="Stretch"
                         Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Top"
-                        Click="OnSubjectSelect" AutomationProperties.AutomationId="SubjectSelect"
-                        AutomationProperties.Name="Select an object in the picture" />
-                <Button Grid.Column="1" Content="Close" VerticalAlignment="Top" Click="OnSubjectClose"
-                        ToolTipService.ToolTip="Close Subject Lock (Escape)"
-                        AutomationProperties.AutomationId="SubjectClose"
+                        Click="OnSubjectSelect" AutomationProperties.AutomationId="SubjectSelect" AutomationProperties.Name="Select an object in the picture" />
+                <Button Grid.Column="1" Content="Close" VerticalAlignment="Top" Click="OnSubjectClose" ToolTipService.ToolTip="Close Subject Lock (Escape)" AutomationProperties.AutomationId="SubjectClose"
                         AutomationProperties.Name="Close Subject Lock" />
               </Grid>
-              <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap" FontSize="13"
-                         AutomationProperties.AutomationId="SubjectStatusText"
-                         AutomationProperties.LiveSetting="Polite"
+              <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap" FontSize="13" AutomationProperties.AutomationId="SubjectStatusText" AutomationProperties.LiveSetting="Polite"
                          Text="Click the object you want to follow, or drag a box around it." />
               <Grid ColumnSpacing="6" RowSpacing="6">
                 <Grid.RowDefinitions>
@@ -166,61 +155,41 @@
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="Reset" HorizontalAlignment="Stretch" Click="OnSubjectReset"
-                        AutomationProperties.AutomationId="SubjectReset"
-                        AutomationProperties.Name="Reset the selection" />
-                <Button Grid.Column="1" Content="Lock centre" HorizontalAlignment="Stretch" Click="OnSubjectCenter"
-                        AutomationProperties.AutomationId="SubjectCenter"
-                        AutomationProperties.Name="Lock visible centre of picture"
+                <Button Grid.Column="0" Content="Reset" HorizontalAlignment="Stretch" Click="OnSubjectReset" AutomationProperties.AutomationId="SubjectReset" AutomationProperties.Name="Reset the selection" />
+                <Button Grid.Column="1" Content="Lock centre" HorizontalAlignment="Stretch" Click="OnSubjectCenter" AutomationProperties.AutomationId="SubjectCenter" AutomationProperties.Name="Lock visible centre of picture"
                         ToolTipService.ToolTip="Locks the middle of the visible picture, for the keyboard" />
                 <Button x:Name="SubjectMoveButton" Grid.Row="1" Grid.ColumnSpan="2" Content="Move left" HorizontalAlignment="Stretch"
-                        Click="OnSubjectMove" AutomationProperties.AutomationId="SubjectMove"
-                        AutomationProperties.Name="Move the panel to the other side" />
+                        Click="OnSubjectMove" AutomationProperties.AutomationId="SubjectMove" AutomationProperties.Name="Move the panel to the other side" />
               </Grid>
               <ToggleSwitch x:Name="SubjectClickToLock" Header="Selection" IsOn="True"
                             OnContent="Click to lock" OffContent="Draw a box"
-                            Toggled="OnSubjectModeChanged" AutomationProperties.AutomationId="SubjectClickToLock"
-                            AutomationProperties.Name="Click to lock; off to draw a box instead" />
+                            Toggled="OnSubjectModeChanged" AutomationProperties.AutomationId="SubjectClickToLock" AutomationProperties.Name="Click to lock; off to draw a box instead" />
               <Expander x:Name="SubjectFollowingSection" Header="Following" IsExpanded="True"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
-                        AutomationProperties.AutomationId="SubjectFollowingSection"
-                        AutomationProperties.Name="Following">
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed" AutomationProperties.AutomationId="SubjectFollowingSection" AutomationProperties.Name="Following">
                 <StackPanel Spacing="4">
                   <ToggleSwitch x:Name="SubjectFollow" Header="Auto-follow" IsOn="True"
                                 OnContent="Gentle zoom, at most 1.85x" OffContent="View stays where you put it"
-                                Toggled="OnSubjectFollowChanged" AutomationProperties.AutomationId="SubjectFollow"
-                                AutomationProperties.Name="Automatically follow the selected object with a gentle zoom" />
+                                Toggled="OnSubjectFollowChanged" AutomationProperties.AutomationId="SubjectFollow" AutomationProperties.Name="Automatically follow the selected object with a gentle zoom" />
                   <ToggleSwitch x:Name="SubjectShowBox" Header="Tracking box" IsOn="True"
                                 OnContent="Shown" OffContent="Hidden; tracking continues"
-                                Toggled="OnSubjectShowBoxChanged" AutomationProperties.AutomationId="SubjectShowBox"
-                                AutomationProperties.Name="Show the tracking box; tracking continues when hidden" />
+                                Toggled="OnSubjectShowBoxChanged" AutomationProperties.AutomationId="SubjectShowBox" AutomationProperties.Name="Show the tracking box; tracking continues when hidden" />
                   <TextBlock Text="Zooming or panning by hand switches auto-follow off until you turn it on again."
                              Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
               </Expander>
               <Expander x:Name="SubjectRemovalSection" Header="Removal preview" IsExpanded="True"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
-                        AutomationProperties.AutomationId="SubjectRemovalSection"
-                        AutomationProperties.Name="Removal preview">
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed" AutomationProperties.AutomationId="SubjectRemovalSection" AutomationProperties.Name="Removal preview">
                 <StackPanel Spacing="4">
-                  <RadioButtons x:Name="SubjectRemovalMode" MaxColumns="2" SelectionChanged="OnSubjectRemovalModeChanged"
-                                AutomationProperties.AutomationId="SubjectRemovalMode" AutomationProperties.Name="Removal mode">
-                    <RadioButton x:Name="SubjectRemovalModeRemove" Content="Remove" Foreground="#FFE0EAF0"
-                                 AutomationProperties.AutomationId="SubjectRemovalModeRemove" />
-                    <RadioButton x:Name="SubjectRemovalModeBlend" Content="Blend" Foreground="#FFE0EAF0"
-                                 AutomationProperties.AutomationId="SubjectRemovalModeBlend" />
+                  <RadioButtons x:Name="SubjectRemovalMode" MaxColumns="2" SelectionChanged="OnSubjectRemovalModeChanged" AutomationProperties.AutomationId="SubjectRemovalMode" AutomationProperties.Name="Removal mode">
+                    <RadioButton x:Name="SubjectRemovalModeRemove" Content="Remove" Foreground="#FFE0EAF0" AutomationProperties.AutomationId="SubjectRemovalModeRemove" />
+                    <RadioButton x:Name="SubjectRemovalModeBlend" Content="Blend" Foreground="#FFE0EAF0" AutomationProperties.AutomationId="SubjectRemovalModeBlend" />
                   </RadioButtons>
-                  <TextBlock x:Name="SubjectRemovalDescription" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap"
-                             AutomationProperties.AutomationId="SubjectRemovalDescription" />
+                  <TextBlock x:Name="SubjectRemovalDescription" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectRemovalDescription" />
                   <Button x:Name="SubjectEraseButton" Content="Preview removal" HorizontalAlignment="Stretch"
-                          Click="OnSubjectErase" IsEnabled="False"
-                          AutomationProperties.AutomationId="SubjectErase"
-                          AutomationProperties.Name="Preview removing the subject; the file is not changed" />
-                  <TextBlock x:Name="SubjectFillText" Foreground="#FF45ECD2" FontSize="12" TextWrapping="Wrap"
-                             AutomationProperties.AutomationId="SubjectFillText"
-                             AutomationProperties.LiveSetting="Polite"
+                          Click="OnSubjectErase" IsEnabled="False" AutomationProperties.AutomationId="SubjectErase" AutomationProperties.Name="Preview removing the subject; the file is not changed" />
+                  <TextBlock x:Name="SubjectFillText" Foreground="#FF45ECD2" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectFillText" AutomationProperties.LiveSetting="Polite"
                              AutomationProperties.Name="Where the removal fill comes from" />
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
@@ -229,12 +198,10 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="SubjectToleranceLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
                     <TextBlock x:Name="SubjectToleranceText" Grid.Column="1" Text="50%, balanced" Foreground="#FF45ECD2" FontSize="13"
-                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectToleranceText"
-                               AutomationProperties.Name="Subject coverage value" />
+                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectToleranceText" AutomationProperties.Name="Subject coverage value" />
                   </Grid>
                   <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
-                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance"
-                          AutomationProperties.Name="Subject coverage" />
+                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance" AutomationProperties.Name="Subject coverage" />
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
@@ -242,23 +209,17 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="SubjectFeatherLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
                     <TextBlock x:Name="SubjectFeatherText" Grid.Column="1" Text="3 px" Foreground="#FF45ECD2" FontSize="13"
-                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectFeatherText"
-                               AutomationProperties.Name="Edge softness value" />
+                               VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectFeatherText" AutomationProperties.Name="Edge softness value" />
                   </Grid>
                   <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
-                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather"
-                          AutomationProperties.Name="Edge softness" />
+                          ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather" AutomationProperties.Name="Edge softness" />
                   <TextBlock x:Name="SubjectRemovalNote" Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
               </Expander>
               <Expander x:Name="SubjectHelpSection" Header="Help" IsExpanded="False"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed"
-                        AutomationProperties.AutomationId="SubjectHelpSection"
-                        AutomationProperties.Name="Help">
-                <TextBlock x:Name="SubjectHelpText" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap"
-                           AutomationProperties.AutomationId="SubjectHelpText"
-                           AutomationProperties.Name="Subject Lock help" />
+                        Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed" AutomationProperties.AutomationId="SubjectHelpSection" AutomationProperties.Name="Help">
+                <TextBlock x:Name="SubjectHelpText" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectHelpText" AutomationProperties.Name="Subject Lock help" />
               </Expander>
             </StackPanel>
           </ScrollViewer>
@@ -282,8 +243,7 @@
           </Border>
           <StackPanel x:Name="IdleText" Grid.Column="1" VerticalAlignment="Center" Spacing="7" MaxWidth="560">
             <TextBlock x:Name="IdleKicker" Text="WELCOME" FontSize="11" FontWeight="SemiBold" CharacterSpacing="120"
-                       Foreground="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center" TextAlignment="Center"
-                       AutomationProperties.AutomationId="IdleKicker" />
+                       Foreground="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center" TextAlignment="Center" AutomationProperties.AutomationId="IdleKicker" />
             <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="44" FontWeight="SemiBold" Foreground="White"
                        HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxLines="2" TextTrimming="CharacterEllipsis" />
             <TextBlock x:Name="IdleHint" Text="Drop media here, or press Ctrl+O to open a file." Foreground="#D0D8CE" HorizontalAlignment="Center"
@@ -294,10 +254,8 @@
                        Visibility="Collapsed" AutomationProperties.AutomationId="IdleMeta" />
             <StackPanel x:Name="WelcomeActions" Spacing="14" Margin="0,18,0,0" RequestedTheme="Dark">
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                <Button Content="Open file" Click="OnWelcomeOpen" Style="{StaticResource AccentButtonStyle}" Padding="22,12"
-                        AutomationProperties.AutomationId="WelcomeOpen" ToolTipService.ToolTip="Open a file (Ctrl+O)" />
-                <Button Content="Browse library" Click="OnToggleLibrary" Padding="22,12"
-                        AutomationProperties.AutomationId="WelcomeLibrary" />
+                <Button Content="Open file" Click="OnWelcomeOpen" Style="{StaticResource AccentButtonStyle}" Padding="22,12" AutomationProperties.AutomationId="WelcomeOpen" ToolTipService.ToolTip="Open a file (Ctrl+O)" />
+                <Button Content="Browse library" Click="OnToggleLibrary" Padding="22,12" AutomationProperties.AutomationId="WelcomeLibrary" />
               </StackPanel>
               <TextBlock Text="Your music. Your films. Your space." FontSize="12" Foreground="#B8C4BC" HorizontalAlignment="Center" />
             </StackPanel>
@@ -312,18 +270,14 @@
              being prepared. Keep the explanation central and offer an immediate, explicit escape. -->
         <Border x:Name="CaptionBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
                 MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="#F20B0D0C"
-                BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30"
-                AutomationProperties.AutomationId="CaptionBufferOverlay" AutomationProperties.Name="Preparing captions">
+                BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="CaptionBufferOverlay" AutomationProperties.Name="Preparing captions">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
-            <ProgressRing IsActive="True" Width="34" Height="34" HorizontalAlignment="Center"
-                          AutomationProperties.AccessibilityView="Raw" />
+            <ProgressRing IsActive="True" Width="34" Height="34" HorizontalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
             <TextBlock Text="Preparing captions" FontSize="18" FontWeight="SemiBold" Foreground="White"
                        HorizontalAlignment="Center" />
             <TextBlock x:Name="CaptionBufferOverlayText" Foreground="#FFD6DAD7" TextAlignment="Center"
-                       TextWrapping="Wrap" AutomationProperties.AutomationId="CaptionBufferOverlayText"
-                       AutomationProperties.LiveSetting="Polite" />
-            <Button Content="Play now" HorizontalAlignment="Center" Click="OnPlayWithoutCaptionBuffer"
-                    AutomationProperties.AutomationId="CaptionBufferPlayNow"
+                       TextWrapping="Wrap" AutomationProperties.AutomationId="CaptionBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
+            <Button Content="Play now" HorizontalAlignment="Center" Click="OnPlayWithoutCaptionBuffer" AutomationProperties.AutomationId="CaptionBufferPlayNow"
                     AutomationProperties.Name="Play now without waiting for more captions" />
           </StackPanel>
         </Border>
@@ -332,23 +286,18 @@
              Make that recoverable wait explicit instead of leaving a frozen picture on screen. -->
         <Border x:Name="DownloadBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
                 MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="#F20B0D0C"
-                BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30"
-                AutomationProperties.AutomationId="DownloadBufferOverlay" AutomationProperties.Name="Waiting for download">
+                BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="DownloadBufferOverlay" AutomationProperties.Name="Waiting for download">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
-            <ProgressRing x:Name="DownloadBufferProgress" IsActive="True" Width="34" Height="34" HorizontalAlignment="Center"
-                          AutomationProperties.AccessibilityView="Raw" />
+            <ProgressRing x:Name="DownloadBufferProgress" IsActive="True" Width="34" Height="34" HorizontalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
             <TextBlock Text="Waiting for the download" FontSize="18" FontWeight="SemiBold" Foreground="White"
                        HorizontalAlignment="Center" />
             <TextBlock x:Name="DownloadBufferOverlayText" Text="Playback will continue automatically when more of the file is available."
-                       Foreground="#FFD6DAD7" TextAlignment="Center" TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="DownloadBufferOverlayText"
-                       AutomationProperties.LiveSetting="Polite" />
+                       Foreground="#FFD6DAD7" TextAlignment="Center" TextWrapping="Wrap" AutomationProperties.AutomationId="DownloadBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </Border>
 
 
-        <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
-                 AutomationProperties.AutomationId="Notice" />
+        <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720" AutomationProperties.AutomationId="Notice" />
 
         <!-- The navigator: the presenter draws the whole picture here while zoomed; this frames it, marks the view and takes the pointer. -->
         <Grid x:Name="Navigator" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" Background="Transparent"
@@ -364,25 +313,17 @@
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Margin="0,0,24,90" Spacing="8">
           <DropDownButton x:Name="EpisodeSkipOptions" Visibility="Collapsed"
-                          Padding="10,10" CornerRadius="12"
-                          AutomationProperties.AutomationId="EpisodeSkipOptions"
-                          AutomationProperties.Name="Review the detected section"
-                          ToolTipService.ToolTip="Save, adjust or reject this section">
+                          Padding="10,10" CornerRadius="12" AutomationProperties.AutomationId="EpisodeSkipOptions" AutomationProperties.Name="Review the detected section" ToolTipService.ToolTip="Save, adjust or reject this section">
             <FontIcon Glyph="&#xE712;" FontSize="14" />
           </DropDownButton>
           <Button x:Name="EpisodeSkipCancel" Content="Cancel" Visibility="Collapsed"
-                  Padding="16,10" CornerRadius="12" Click="OnCancelAutomaticSkip"
-                  AutomationProperties.AutomationId="EpisodeSkipCancel"
-                  AutomationProperties.Name="Cancel the automatic skip"
+                  Padding="16,10" CornerRadius="12" Click="OnCancelAutomaticSkip" AutomationProperties.AutomationId="EpisodeSkipCancel" AutomationProperties.Name="Cancel the automatic skip"
                   ToolTipService.ToolTip="Keep watching; do not skip this time" />
           <Button x:Name="EpisodeNextButton" Content="Next episode" Visibility="Collapsed"
-                  Padding="16,10" CornerRadius="12" Click="OnNextEpisode"
-                  AutomationProperties.AutomationId="EpisodeNextButton"
-                  AutomationProperties.Name="Next episode" />
+                  Padding="16,10" CornerRadius="12" Click="OnNextEpisode" AutomationProperties.AutomationId="EpisodeNextButton" AutomationProperties.Name="Next episode" />
           <Button x:Name="EpisodeSkipButton" Content="Skip intro" Visibility="Collapsed"
                   Padding="20,10" CornerRadius="12" Style="{ThemeResource AccentButtonStyle}"
-                  Click="OnSkipEpisodeSection" AutomationProperties.AutomationId="EpisodeSkipButton"
-                  AutomationProperties.Name="Skip intro" />
+                  Click="OnSkipEpisodeSection" AutomationProperties.AutomationId="EpisodeSkipButton" AutomationProperties.Name="Skip intro" />
         </StackPanel>
 
         <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
@@ -392,8 +333,7 @@
 
         <Border x:Name="OsdBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,6" CornerRadius="8"
                 Background="#B0080A09" Visibility="Collapsed" IsHitTestVisible="False">
-          <TextBlock x:Name="Osd" Foreground="White" FontSize="18" AutomationProperties.AutomationId="Osd"
-                     AutomationProperties.LiveSetting="Polite" />
+          <TextBlock x:Name="Osd" Foreground="White" FontSize="18" AutomationProperties.AutomationId="Osd" AutomationProperties.LiveSetting="Polite" />
         </Border>
       </Grid>
 
