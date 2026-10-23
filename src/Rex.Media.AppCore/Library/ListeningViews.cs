@@ -306,6 +306,31 @@ public static partial class ListeningViews
     }
 
     /// <summary>
+    /// Listening time left from a book position, or null if any part has an unknown or
+    /// nonpositive duration. Partial sums must never be shown as a misleading estimate.
+    /// Out-of-range positions are bounded to the beginning or end of the book.
+    /// </summary>
+    public static TimeSpan? Remaining(LibraryGroup book, BookPlace place)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        if (book.Entries.Count == 0 || book.Entries.Any(part => part.Duration is not { Ticks: > 0 }))
+        {
+            return null;
+        }
+
+        var partIndex = Math.Clamp(place.Part, 0, book.Entries.Count);
+        var seconds = book.Entries.Skip(partIndex).Sum(part => part.Duration!.Value.TotalSeconds);
+        if (partIndex < book.Entries.Count)
+        {
+            seconds -= Math.Clamp(place.At.TotalSeconds, 0, book.Entries[partIndex].Duration!.Value.TotalSeconds);
+        }
+
+        // A malformed library must not overflow TimeSpan even for an enormous book.
+        return seconds >= TimeSpan.MaxValue.TotalSeconds ? TimeSpan.MaxValue
+            : TimeSpan.FromSeconds(Math.Max(0, seconds));
+    }
+
+    /// <summary>
     /// "Continue listening": the books started and not finished, at the part to go on with, and the
     /// podcast episodes left part-way, the one listened to last first.
     /// </summary>
