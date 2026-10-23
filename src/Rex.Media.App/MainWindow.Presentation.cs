@@ -140,6 +140,22 @@ public sealed partial class MainWindow
         }
 
         var lyrics = music && _settings.ShowLyrics ? _player.Lyrics : null;
+        var lyricStatus = !_settings.ShowLyrics || _player.Item is null || HasVideo ? null
+            : _player.Info is null ? "Loading lyrics from local media..."
+            : lyrics?.DisplayMode switch
+            {
+                LyricsDisplayMode.Plain => "Untimed lyrics; no line or word times were supplied.",
+                LyricsDisplayMode.LineTimed => "Timed lyrics; only line starts were supplied.",
+                LyricsDisplayMode.WordTimed => "Word-timed lyrics; highlights follow exact source timestamps.",
+                LyricsDisplayMode.MixedTimed => "Partly word-timed lyrics; untimed words are shown without invented timing.",
+                _ => "No lyrics found in this song or beside it.",
+            };
+        if (LyricsStatus.Text != lyricStatus)
+        {
+            LyricsStatus.Text = lyricStatus ?? "";
+        }
+
+        LyricsStatus.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
         if (!ReferenceEquals(lyrics, _shownLyrics))
         {
             _shownLyrics = lyrics;
