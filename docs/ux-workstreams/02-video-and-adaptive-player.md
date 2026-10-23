@@ -19,6 +19,14 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 - [ ] **Implement the actual code and tests.** At creation this PR is a *planning-only draft* and its checkboxes must remain unchecked until implementation and verification.
 - [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
 
+## Implementation progress — 2026-10-23
+This is a partial implementation, **not** acceptance of any full roadmap or release gate. The existing 63 roadmap checks stay open until their entire scope is proven.
+
+- [x] Fix pure next-episode selection so missing season numbers do not prevent playing an available later episode (commit `23139d1`).
+- [x] Add deterministic regression assertions for season gaps, unordered candidates, specials and different shows (commit `c3b5eff`).
+- [ ] Execute the affected pure tests on a .NET-capable runner; they have **not been run here**.
+- [ ] Complete the remaining TV browsing, player, picture, queue, adaptive layout, automation, screenshots and performance items before declaring readiness.
+
 ## Detailed task list — 63 uniquely owned roadmap tasks
 The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
 
