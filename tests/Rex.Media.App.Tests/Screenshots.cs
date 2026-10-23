@@ -88,7 +88,8 @@ internal static class Screenshots
         var needsPixelWitness = scene.CaptureMode == "desktop" &&
             (scene.Route.StartsWith("settings/", StringComparison.Ordinal) ||
                 scene.Route.StartsWith("dialog/", StringComparison.Ordinal) ||
-                scene.Route.StartsWith("menu/", StringComparison.Ordinal));
+                scene.Route.StartsWith("menu/", StringComparison.Ordinal) ||
+                scene.Route == "player/error");
         (int Width, int Height, byte[] Bgra) picture = default;
         (int Width, int Height, byte[] Bgra) fullWindow = default;
         (int Width, int Height, byte[] Bgra) witness = default;
