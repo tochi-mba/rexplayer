@@ -223,6 +223,29 @@ public static partial class ListeningViews
         return (book.Name + "\n" + book.Detail).ToUpperInvariant();
     }
 
+    /// <summary>
+    /// Identity for book-scoped settings. Title and author alone are insufficient when
+    /// two distinct editions have the same credits. The shared parent directory is
+    /// stable while chapters and disc files are added or reordered; loose one-file
+    /// books use their own full path rather than the entire Audiobooks root.
+    /// </summary>
+    public static string BookIdentity(LibraryGroup book)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        var key = BookKey(book);
+        if (book.Entries.Count == 0)
+        {
+            return key;
+        }
+
+        var first = book.Entries[0];
+        var folder = BookFolderOf(first);
+        var name = Path.GetFileName(folder);
+        var locator = folder.Length == 0 || BooksFolderPattern().IsMatch(name) || LooseFolderPattern().IsMatch(name)
+            ? first.Path : folder;
+        return key + "\n" + locator.Replace('\\', '/').ToUpperInvariant();
+    }
+
     /// <summary>A book's chapters in time order within each part; a part with no markers is one chapter by itself.</summary>
     public static IReadOnlyList<BookChapter> Chapters(LibraryGroup book)
     {
