@@ -108,6 +108,24 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Theory]
+    [Capability("PB-05")]
+    [InlineData("https://example.invalid/stream.mp4")]
+    [InlineData("rtsp://camera.invalid/live")]
+    [InlineData("C:\\does-not-exist\\movie.mp4")]
+    public void OpenLocationRefusesUnsupportedNetworkAndMissingSourcesWithoutCrashing(string location)
+    {
+        using var app = AppProcess.Start();
+        app.Run(CommandCatalog.OpenLocation);
+        ((ValuePattern)app.Find("LocationBox").GetCurrentPattern(ValuePattern.Pattern)).SetValue(location);
+        app.Press("PrimaryButton");
+        Wait.For(() => app.LogText.Contains("could not be found", StringComparison.Ordinal)
+                || app.LogText.Contains("Network streams and remote locations are not supported.", StringComparison.Ordinal),
+            "a clear unsupported-local-only or missing path message");
+        Assert.Equal("Idle", app.Status().State);
+        Assert.Equal(0, app.Close());
+    }
+
     [Fact]
     [Capability("PB-05")]
     public void HoverAlwaysShowsRealSeekTimeWhenExpensivePreviewThumbnailsAreDisabled()
