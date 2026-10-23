@@ -3,6 +3,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Rex.Media.AppCore.Library;
@@ -25,6 +26,9 @@ public sealed partial class MainWindow
     private int _shownLine = -1;
     private bool _followCurrentLyric = true;
     private readonly List<TextBlock> _lyricTexts = [];
+    private readonly Dictionary<int, List<Run>> _lyricWordRuns = [];
+    private int _shownWordLine = -1;
+    private int _shownWordIndex = -2;
 
     /// <summary>
     /// A manual scroll should not be immediately undone by the next playback tick.
@@ -140,6 +144,9 @@ public sealed partial class MainWindow
         {
             _shownLyrics = lyrics;
             _shownLine = -1;
+            _shownWordLine = -1;
+            _shownWordIndex = -2;
+            _lyricWordRuns.Clear();
             _followCurrentLyric = true;
             LyricsFollowButton.Visibility = Visibility.Collapsed;
             LyricsLines.Children.Clear();
@@ -155,6 +162,22 @@ public sealed partial class MainWindow
                     TextAlignment = TextAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center,
                 };
+                // Render word timing only when the parser has independently
+                // verified every segment. A line-only LRC line stays line-only.
+                if (line.Words.Count > 0)
+                {
+                    text.Text = "";
+                    var runs = new List<Run>();
+                    foreach (var word in line.Words)
+                    {
+                        var run = new Run { Text = word.Text };
+                        text.Inlines.Add(run);
+                        runs.Add(run);
+                    }
+
+                    _lyricWordRuns[index] = runs;
+                }
+
                 _lyricTexts.Add(text);
                 if (line.At is not { } at)
                 {
@@ -292,6 +315,7 @@ public sealed partial class MainWindow
         var line = _player.LyricIndex;
         if (line == _shownLine)
         {
+            UpdateLyricWords(line);
             return;
         }
 
@@ -300,18 +324,66 @@ public sealed partial class MainWindow
             var previous = _lyricTexts[_shownLine];
             previous.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
             previous.FontWeight = FontWeights.Normal;
+            ClearLyricWords(_shownLine);
         }
 
         _shownLine = line;
         if (line >= 0 && line < _lyricTexts.Count)
         {
             var current = _lyricTexts[line];
-            current.Foreground = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            // With precise timings only the words already sung take the
+            // accent, not the entire line ahead of the singer.
+            current.Foreground = _lyricWordRuns.ContainsKey(line)
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF))
+                : (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
             current.FontWeight = FontWeights.SemiBold;
+            UpdateLyricWords(line);
             if (_followCurrentLyric)
             {
                 BringActiveLyricIntoView();
             }
         }
+    }
+
+    /// <summary>Only source-verified word starts control the karaoke highlight.</summary>
+    private void UpdateLyricWords(int line)
+    {
+        if (_shownLyrics is null || !_lyricWordRuns.TryGetValue(line, out var runs))
+        {
+            return;
+        }
+
+        var index = Lyrics.WordIndexAt(_shownLyrics.Lines[line], _player.Position);
+        if (line == _shownWordLine && index == _shownWordIndex)
+        {
+            return;
+        }
+
+        _shownWordLine = line;
+        _shownWordIndex = index;
+        var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        var neutral = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+        for (var i = 0; i < runs.Count; i++)
+        {
+            runs[i].Foreground = i <= index ? accent : neutral;
+        }
+    }
+
+    /// <summary>Last line's karaoke segments no longer inherit the active accent.</summary>
+    private void ClearLyricWords(int line)
+    {
+        if (!_lyricWordRuns.TryGetValue(line, out var runs))
+        {
+            return;
+        }
+
+        var neutral = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+        foreach (var run in runs)
+        {
+            run.Foreground = neutral;
+        }
+
+        _shownWordLine = -1;
+        _shownWordIndex = -2;
     }
 }
