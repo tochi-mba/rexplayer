@@ -270,6 +270,31 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void OpeningAnEpisodeKeepsOnlyAvailableSameShowFilesInChronologicalOrder()
+    {
+        var oldest = AudioFile("Podcasts/Show/Episode 1.mp3", TimeSpan.FromMinutes(25))
+            with { Year = 2022 };
+        var damaged = AudioFile("Podcasts/Show/Episode 2.mp3", TimeSpan.FromMinutes(25))
+            with { Year = 2023, Problem = "partial" };
+        var newest = AudioFile("Podcasts/Show/Episode 3.mp3", TimeSpan.FromMinutes(25))
+            with { Year = 2024 };
+        var all = new[] { newest, damaged, oldest };
+        bool Available(LibraryEntry entry) => entry.Problem is null;
+
+        var (queue, first) = ListeningViews.AvailableEpisodeQueue(all, oldest.Path, Available);
+        Assert.Equal([oldest, newest], queue);
+        Assert.Equal(0, first);
+        Assert.Equal(1, ListeningViews.AvailableEpisodeQueue(all, newest.Path, Available).StartIndex);
+        Assert.Equal(-1, ListeningViews.AvailableEpisodeQueue(all, damaged.Path, Available).StartIndex);
+        Assert.Equal(-1, ListeningViews.AvailableEpisodeQueue(all, "Podcasts/Other/Episode 1.mp3", Available).StartIndex);
+        Assert.Empty(ListeningViews.AvailableEpisodeQueue(all, oldest.Path, _ => false).Queue);
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.AvailableEpisodeQueue(null!, oldest.Path, Available));
+        Assert.Throws<ArgumentException>(() => ListeningViews.AvailableEpisodeQueue(all, "", Available));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.AvailableEpisodeQueue(all, oldest.Path, null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnEpisodesDateComesFromItsTagsThenTheFileThenItsName()
     {
         var file = new DateTime(2024, 6, 2, 8, 0, 0, DateTimeKind.Utc);
