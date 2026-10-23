@@ -124,9 +124,8 @@ public sealed class MacAppSmokeTests
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), mediaPath);
         var secondFolder = Path.Combine(root, "watched-next");
         Directory.CreateDirectory(secondFolder);
-        var longVideoName = "another-video-" + new string('x', 155) + ".mp4";
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
-            Path.Combine(secondFolder, longVideoName));
+            Path.Combine(secondFolder, "another-video.mp4"));
 
         var roots = new DataRoots(root);
         var library = new Rex.Media.Library.MediaLibrary(RexStore.Open(roots.LibraryStore));
@@ -215,9 +214,6 @@ public sealed class MacAppSmokeTests
             var newResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "another-video" });
             Assert.True(newResult?.Ok == true && newResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "The scanner did not expose the newly added video: " + (newResult?.Text ?? newResult?.Error ?? "no reply"));
-            var layout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
-            Assert.True(layout?.Ok == true, "The very long video title clipped the narrow native results row: " +
-                (layout?.Error ?? "no reply") + LogTail(root));
 
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
@@ -292,7 +288,8 @@ public sealed class MacAppSmokeTests
         var files = new List<LibraryFile>();
         for (var index = 0; index < 85; index++)
         {
-            var file = Path.Combine(folder, $"clip-{index:000}.mp4");
+            var filename = index == 84 ? "clip-084-" + new string('x', 155) + ".mp4" : $"clip-{index:000}.mp4";
+            var file = Path.Combine(folder, filename);
             File.WriteAllBytes(file, [0]);
             files.Add(new LibraryFile(file, 1, File.GetLastWriteTimeUtc(file)));
         }
@@ -329,6 +326,9 @@ public sealed class MacAppSmokeTests
             Assert.True(filtered?.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The last catalogue entry was not searchable.");
             var page = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibraryPage" });
             Assert.Equal("Page 1 of 1", page?.Text);
+            var layout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
+            Assert.True(layout?.Ok == true, "The long video filename clipped a native result action: " +
+                (layout?.Error ?? "no reply") + LogTail(root));
             var searchKeys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
             Assert.True(searchKeys?.Ok == true, "Native focus loop was broken by search: " + (searchKeys?.Error ?? "no reply"));
 
