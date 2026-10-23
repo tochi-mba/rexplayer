@@ -7,6 +7,35 @@ namespace Rex.Media.App.Tests;
 public sealed partial class AppWindowTests
 {
     [Fact]
+    public void ReadableCorrectionsSurviveGeneratedTranscriptCacheClearing()
+    {
+        var media = Song(30);
+        var root = Path.Combine(_media, "edited-only-reader-data");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+            { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off" }
+            """);
+        var cache = new TranscriptCache(TranscriptCache.DefaultRoot(root));
+        var corrected = new Transcript("en", "base.en",
+            [new TranscriptWord("preserved correction", TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(5))]);
+        cache.SaveEdited(media, new TranscriptRevision(corrected,
+            Rex.Media.AppCore.Transcription.TimeRanges.Of([
+                new Rex.Media.AppCore.Transcription.TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(30))]),
+            TimeSpan.FromSeconds(30), true));
+        Assert.Null(cache.Load(media, "base.en"));
+
+        using var app = AppProcess.Start([media], root);
+        var menu = (ExpandCollapsePattern)app.Find("SubtitleMenu")
+            .GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        menu.Expand();
+        app.Press("ReadTranscript");
+        Wait.For(() => app.IsShown("TranscriptReaderCue-0") &&
+            app.Text("TranscriptReaderCoverage").Contains("generated original is not available", StringComparison.Ordinal),
+            "the standalone corrected transcript to be readable after original-cache clearing");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void ReaderFindsSavedSpeechFromAnotherModelWithoutRetranscribingOrAutoplay()
     {
         var media = Song(30);
