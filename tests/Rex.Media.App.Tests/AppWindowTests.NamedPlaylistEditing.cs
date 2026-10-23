@@ -160,7 +160,8 @@ public sealed partial class AppWindowTests
 
         var addFiles = app.OpenMenu("AddFilesNamed-Mix", "MediaMenu", "PlaylistsMenu", "NamedPlaylist-Mix");
         Assert.True(addFiles.Current.IsEnabled);
-        app.Press("Menu"); // Dismiss without opening the Windows file picker.
+        Input.Focus(app);
+        Input.Press("Escape"); // Do not open the native file picker in this smoke test.
         OpenEditor();
         var initial = Entries();
         Assert.Equal(2, initial.Length);
