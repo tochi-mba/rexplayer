@@ -54,22 +54,31 @@ public sealed partial class MainWindow
                 var original = _transcripts.Load(media, model);
                 var partial = original is null ? _transcripts.LoadPartial(media, model) : null;
                 original ??= partial?.ToTranscript();
+                var corrected = _transcripts.LoadEdited(media, model);
                 if (original is null || original.IsEmpty)
                 {
+                    if (corrected is { Content.IsEmpty: false })
+                    {
+                        return (Content: corrected.Content, Model: model, Complete: corrected.Complete,
+                            Edited: true, OriginalAvailable: false,
+                            Failure: string.Equals(model, preferred, StringComparison.OrdinalIgnoreCase)
+                                ? failure : null);
+                    }
+
                     continue;
                 }
 
-                var edited = _transcripts.LoadEdited(media, model)?.MergeGenerated(
+                var edited = corrected?.MergeGenerated(
                     original, partial?.Done ?? (duration > TimeSpan.Zero
                         ? TimeRanges.Of([new TimeRange(TimeSpan.Zero, duration)]) : TimeRanges.Empty),
                     partial?.Duration ?? duration, partial is null);
                 return (Content: edited?.Content ?? original, Model: model, Complete: partial is null,
-                    Edited: edited is not null,
+                    Edited: edited is not null, OriginalAvailable: true,
                     Failure: string.Equals(model, preferred, StringComparison.OrdinalIgnoreCase) ? failure : null);
             }
 
             return (Content: (Transcript?)null, Model: preferred, Complete: false,
-                Edited: false, Failure: failure);
+                Edited: false, OriginalAvailable: false, Failure: failure);
         });
         if (_closing || (selectedPath is null && _player.Item?.Location != media))
         {
@@ -101,7 +110,9 @@ public sealed partial class MainWindow
 
         if (loaded.Edited)
         {
-            coverageText += " · Edited words shown; the generated original is preserved.";
+            coverageText += loaded.OriginalAvailable
+                ? " · Edited words shown; generated words remain unchanged."
+                : " · Saved edited words shown; the generated original is not available.";
         }
 
         if (loaded.Failure is { } failureReason)
