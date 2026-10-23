@@ -386,7 +386,7 @@ public sealed partial class MainWindow
             && _libraryGroup is { } localPodcast)
         {
             ShowTitleExtras(localPodcast.Detail is { Length: > 0 } creator
-                    ? "Creator tag: " + creator + " · Local episodes only"
+                    ? "Artist tag: " + creator + " · Local episodes only"
                     : "Local episodes only",
                 synopsis: null, credit: null, trailer: null, poster: false, backdrop: null);
             ShowText(LibraryOverview, PodcastDescription(localPodcast));
