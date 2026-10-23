@@ -92,6 +92,25 @@ public sealed class MetadataPolicyTests
     }
 
     [Fact]
+    public void GroupedOnlineLookupsRequireAnActuallyAllowedFileAndAnEnabledProvider()
+    {
+        var settings = new MetadataSettings
+        {
+            Music = true,
+            Excluded = [@"D:\Private", @"E:\Archive"],
+        };
+        Assert.False(MetadataPolicy.AllowsAny(settings, MetadataWork.Music, []));
+        Assert.False(MetadataPolicy.AllowsAny(settings, MetadataWork.Music, [@"D:\Private\A.flac", @"E:\Archive\B.flac"]));
+        Assert.True(MetadataPolicy.AllowsAny(settings, MetadataWork.Music,
+            [@"D:\Private\A.flac", @"D:\Public\B.flac"]));
+        Assert.False(MetadataPolicy.AllowsAny(settings, MetadataWork.Movie, [@"D:\Public\Film.mkv"]));
+        Assert.False(MetadataPolicy.AllowsAny(settings, (MetadataWork)100, [@"D:\Public\Film.mkv"]));
+        Assert.False(MetadataPolicy.AllowsAny(settings, MetadataWork.Music, ["", " "]));
+        Assert.Throws<ArgumentNullException>(() => MetadataPolicy.AllowsAny(null!, MetadataWork.Music, []));
+        Assert.Throws<ArgumentNullException>(() => MetadataPolicy.AllowsAny(settings, MetadataWork.Music, null!));
+    }
+
+    [Fact]
     public void AnUnknownKindIsNeverAllowed() =>
         Assert.False(MetadataPolicy.Allows(new MetadataSettings { TvShows = true, Movies = true, Music = true }, (MetadataWork)99, Show));
 
