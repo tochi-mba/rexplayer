@@ -185,6 +185,8 @@ internal static class Screenshots
             desktopBounds = new { desktop.Left, desktop.Top, desktop.Width, desktop.Height },
             windowBounds = new { window.Left, window.Top, window.Width, window.Height },
             fullyOnDesktop = WindowPicture.IsFullyOnDesktop(app.Handle),
+            measuredDpi = WindowPicture.Dpi(app.Handle),
+            actualHighContrast = WindowPicture.HighContrast,
             cropAutomationId = automationId,
             readiness = scene.ReadinessSignal,
             readinessAchieved = ready,
