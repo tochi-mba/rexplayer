@@ -9,6 +9,8 @@ namespace Rex.Media.App.Tests;
 internal static partial class WindowPicture
 {
     private const uint RenderFullContent = 2;
+    private const uint SourceCopy = 0x00CC0020;
+    private const uint IncludeLayeredWindows = 0x40000000;
 
     /// <summary>The virtual desktop in physical screen pixels, including attached monitors.</summary>
     public static System.Windows.Rect DesktopBounds
@@ -73,7 +75,8 @@ internal static partial class WindowPicture
     {
         Assert.True(GetWindowRect(window, out var rect), "The window has no place on the screen.");
         var (width, height) = (rect.Right - rect.Left, rect.Bottom - rect.Top);
-        Assert.True(width > 0 && height > 0, "The window has no captureable area.");
+        Assert.True(width > 0 && height > 0 && (long)width * height <= int.MaxValue / 4,
+            "The window has no safe captureable bitmap area.");
         var screen = GetDC(0);
         var memory = CreateCompatibleDC(screen);
         var bitmap = CreateCompatibleBitmap(screen, width, height);
@@ -82,7 +85,8 @@ internal static partial class WindowPicture
         {
             if (includeDesktopPopups)
             {
-                Assert.True(BitBlt(memory, 0, 0, width, height, screen, rect.Left, rect.Top, 0x00CC0020),
+                Assert.True(BitBlt(memory, 0, 0, width, height, screen, rect.Left, rect.Top,
+                    SourceCopy | IncludeLayeredWindows),
                     "The desktop, including its popups, could not be captured.");
             }
             else
