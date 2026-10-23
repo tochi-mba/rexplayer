@@ -39,6 +39,7 @@ public readonly record struct MediaStageContext(
     bool IsMovie = false,
     bool HasLyrics = false,
     bool HasChapters = false,
+    bool HasCaptions = false,
     bool HasFailure = false);
 
 /// <summary>Stage semantics derived without creating a decoder, player, queue or window.</summary>
@@ -48,6 +49,7 @@ public readonly record struct MediaStageView(
     bool ShowAudioPresentation,
     bool ShowLyrics,
     bool ShowChapters,
+    bool ShowCaptions,
     bool ShowEpisodeContext,
     bool ShowPictureNavigation,
     bool CanSeek);
@@ -127,6 +129,7 @@ public static class MediaStagePolicy
             readyAudio,
             (profile is MediaStageProfile.Song or MediaStageProfile.Audio) && readyAudio && context.HasLyrics,
             (profile is MediaStageProfile.Audiobook or MediaStageProfile.Podcast) && readyAudio && context.HasChapters && context.CanSeek,
+            context.HasCaptions && context.StreamsKnown && (audio || video) && (context.HasAudioTrack || context.HasVideoTrack),
             profile == MediaStageProfile.Television,
             profile == MediaStageProfile.Picture,
             context.StreamsKnown && context.CanSeek && (audio || video));
