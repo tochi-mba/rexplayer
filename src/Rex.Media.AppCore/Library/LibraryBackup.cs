@@ -210,7 +210,7 @@ public static class LibraryBackup
     /// <summary>Only file names inside the chosen folder, with no traversal or rooted paths.</summary>
     private static bool SafeRelativePath(string path) =>
         !string.IsNullOrWhiteSpace(path) && !Path.IsPathRooted(path)
-        && !path.Contains(':', StringComparison.Ordinal)
+        && !path.Contains(':')
         && !path.Split(['/', '\\']).Any(part => part is "" or "." or "..")
         && !string.Equals(Path.GetFileName(path), CompletionName, StringComparison.OrdinalIgnoreCase);
 
