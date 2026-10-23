@@ -4,8 +4,9 @@ using Rex.Media.Library;
 namespace Rex.Media.App;
 
 /// <summary>
-/// Lazily checks explicit episode-notes sidecars only for visible local podcast rows. No disk
-/// checks occur while building a 1,000-episode show, and only eight reads can be pending.
+/// Only realized local podcast rows can request a notes preview. Eight worker reads run at
+/// once; another 128 visible requests can wait. Navigation cancels old work, and later views
+/// never inherit stale callbacks or build 1,000 sidecar readers at once.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -13,6 +14,8 @@ public sealed partial class MainWindow
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingEpisodeNotes =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Queue<(LibraryRow Row, LibraryEntry Episode, CancellationToken Token)> _notesRequests = new();
+    private int _activeNotesReads;
 
     private LibraryRow AttachEpisodeNotes(LibraryRow row, LibraryEntry episode)
     {
@@ -38,43 +41,69 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_pendingEpisodeNotes.Count >= 8 || !_pendingEpisodeNotes.Add(entry.Path))
+        // Ignore repeats from recycled containers. The queue never includes offscreen rows
+        // unless they were visible when first requested, and stays bounded during fast scroll.
+        if (!_pendingEpisodeNotes.Add(entry.Path))
         {
             return;
         }
 
-        var token = _libraryPictures.Token;
-        Forget(Task.Run(() =>
-        {
-            try
-            {
-                return token.IsCancellationRequested ? null
-                    : ReadLocalNotes(PodcastNotes.Sidecars(entry.Path));
-            }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException
-                or NotSupportedException or ArgumentException)
-            {
-                return null;
-            }
-        }).ContinueWith(task => OnWindowThread(() =>
+        if (_notesRequests.Count >= 128)
         {
             _pendingEpisodeNotes.Remove(entry.Path);
-            if (_closing || token.IsCancellationRequested)
+            return;
+        }
+
+        _notesRequests.Enqueue((row, entry, _libraryPictures.Token));
+        PumpPodcastNotes();
+    }
+
+    private void PumpPodcastNotes()
+    {
+        while (_activeNotesReads < 8 && _notesRequests.TryDequeue(out var request))
+        {
+            if (request.Token.IsCancellationRequested)
             {
-                return;
+                _pendingEpisodeNotes.Remove(request.Episode.Path);
+                continue;
             }
 
-            var notes = task.IsCompletedSuccessfully ? task.Result : null;
-            var oneLine = notes?.Replace('\r', ' ').Replace('\n', ' ').Trim();
-            var preview = string.IsNullOrWhiteSpace(oneLine) ? null
-                : oneLine.Length > 90 ? oneLine[..90] + "…" : oneLine;
-            if (_episodeNotesPreviews.Count >= 256)
+            _activeNotesReads++;
+            Forget(Task.Run(() =>
             {
-                _episodeNotesPreviews.Clear();
-            }
+                try
+                {
+                    return request.Token.IsCancellationRequested ? null
+                        : ReadLocalNotes(PodcastNotes.Sidecars(request.Episode.Path));
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException
+                    or NotSupportedException or ArgumentException)
+                {
+                    return null;
+                }
+            }).ContinueWith(task => OnWindowThread(() =>
+            {
+                _activeNotesReads--;
+                _pendingEpisodeNotes.Remove(request.Episode.Path);
+                if (!_closing && !request.Token.IsCancellationRequested && task.IsCompletedSuccessfully)
+                {
+                    var notes = task.Result?.Replace('\r', ' ').Replace('\n', ' ').Trim();
+                    var preview = string.IsNullOrWhiteSpace(notes) ? null
+                        : notes.Length > 90 ? notes[..90] + "…" : notes;
+                    if (_episodeNotesPreviews.Count >= 256)
+                    {
+                        _episodeNotesPreviews.Clear();
+                    }
 
-            _episodeNotesPreviews[entry.Path] = preview;
-            row.SetNotesPreview(preview);
-        }), TaskScheduler.Default));
+                    _episodeNotesPreviews[request.Episode.Path] = preview;
+                    request.Row.SetNotesPreview(preview);
+                }
+
+                if (!_closing)
+                {
+                    PumpPodcastNotes();
+                }
+            }), TaskScheduler.Default));
+        }
     }
 }
