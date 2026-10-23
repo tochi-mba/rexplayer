@@ -67,6 +67,7 @@ public sealed partial class MainWindow
     private DateTime _cameraFailedAt;
     private VisualizerChoice? _builtFor;
     private Task? _stageWork;
+    private CancellationTokenSource _visualFrameCancellation = new();
     private bool _stageFailed;
     private bool _stageReset;
     private TimeSpan _lastDrawn;
@@ -178,6 +179,12 @@ public sealed partial class MainWindow
         _spectrogramBands.Reset();
         _meterLeft.Reset();
         _meterRight.Reset();
+        // An old frame is never allowed to finish painting a later song,
+        // camera mode or closed window. Cancellation is cooperative and leaves
+        // each worker's stage untouched until it returns.
+        _visualFrameCancellation.Cancel();
+        _visualFrameCancellation.Dispose();
+        _visualFrameCancellation = new CancellationTokenSource();
         // The worker owns the stage until its frame finishes. Reset between frames, never during one.
         _stageReset = true;
         StopCamera();
@@ -718,12 +725,15 @@ public sealed partial class MainWindow
         _soundLeft.CopyTo(_stageLeft, 0);
         _soundRight.CopyTo(_stageRight, 0);
         var options = _settings.VisualOptions;
+        var token = _visualFrameCancellation.Token;
         _stageWork = Task.Run(() =>
         {
+            token.ThrowIfCancellationRequested();
             var started = System.Diagnostics.Stopwatch.GetTimestamp();
-            stage.Draw(choice, options, _stageLeft, _stageRight, rate, elapsed);
+            stage.Draw(choice, options, _stageLeft, _stageRight, rate, elapsed, token);
+            token.ThrowIfCancellationRequested();
             stage.Took(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
-        });
+        }, token);
     }
 
     private void DrawSpectrum(double height, TimeSpan elapsed, int rate)
