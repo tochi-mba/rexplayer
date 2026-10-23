@@ -55,7 +55,7 @@ public sealed partial class MainWindow
         LibraryNavigationColumn.Width = new GridLength(compact ? 64 : 200);
         LibraryNavigationToggle.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Right;
         LibraryNavigationToggle.Margin = compact ? new Thickness(0, 8, 0, 0) : new Thickness(8, 8, 8, 0);
-        LibraryNavigationToggleIcon.Glyph = compact ? "\uE76C" : "\uE76B";
+        LibraryNavigationToggleIcon.Glyph = compact ? "\uE8A0" : "\uE89F";
         var action = compact ? "Expand library navigation" : "Collapse library navigation";
         ToolTipService.SetToolTip(LibraryNavigationToggle, action);
         AutomationProperties.SetName(LibraryNavigationToggle, action);
