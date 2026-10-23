@@ -127,13 +127,25 @@ internal sealed class LibraryScene : IDisposable
         var tags = Id3Builder.V24().Text("TIT2", "Part 1").Text("TCON", "Audiobook")
             .Chapter("opening", 0, "Opening").Chapter("continuation", 3000, "Continuation").Build();
         var frames = File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"));
-        // Repeat valid MPEG frames rather than relying on a subsecond fixture:
-        // real UI Automation needs time to open the chapter menu and request a seek.
-        var media = new byte[tags.Length + frames.Length * 32];
+        // Skip the encoder's Info/Xing header before repeating frames. Keeping it
+        // would falsely advertise the original fixture's subsecond duration and
+        // disable the later chapter jump despite the longer physical stream.
+        if (!Rex.Media.Codecs.Mpeg.MpegAudioHeader.TryParse(frames, out var header)
+            || header.FrameLength <= 0 || header.FrameLength > frames.Length)
+        {
+            throw new InvalidDataException("The MP3 test fixture has no valid first frame.");
+        }
+
+        var leadingTag = Rex.Media.Codecs.Mpeg.MpegInfoTag.Parse(
+            frames.AsSpan(0, header.FrameLength), header);
+        var audio = leadingTag is null ? frames : frames[header.FrameLength..];
+        // Repeat complete MPEG frames rather than relying on a subsecond fixture:
+        // real UI Automation needs time to open a menu and seek during playback.
+        var media = new byte[tags.Length + audio.Length * 32];
         tags.CopyTo(media, 0);
         for (var i = 0; i < 32; i++)
         {
-            Buffer.BlockCopy(frames, 0, media, tags.Length + i * frames.Length, frames.Length);
+            Buffer.BlockCopy(audio, 0, media, tags.Length + i * audio.Length, audio.Length);
         }
 
         File.WriteAllBytes(path, media);
