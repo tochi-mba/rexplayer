@@ -120,6 +120,34 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void FinishingABookDoesNotMarkItsPhysicalFilesPlayed()
+    {
+        var part = _scene.Audio(Path.Combine("Audiobooks", "Careful Reader", "Book", "Part 1.wav"),
+            TimeSpan.FromMinutes(50), artist: "Careful Reader", album: "Book");
+        using (var app = _scene.Ready().Start())
+        {
+            app.Visit("Audiobooks");
+            app.Open("Book");
+            Pointer.RightClick(app, app.Line("Part 1"));
+            Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "the book completion action");
+            app.Press("LibraryMenuBookFinished");
+            Wait.For(() => app.Text("LibrarySubtitle").Contains("Finished", StringComparison.Ordinal),
+                "book completion to appear without changing media play counts");
+            Pointer.RightClick(app, app.Line("Part 1"));
+            Wait.For(() => app.IsShown("LibraryMenuBookUnfinished"), "undo book completion");
+            app.Press("LibraryMenuBookUnfinished");
+            Wait.For(() => app.Text("LibrarySubtitle").Contains("Not started", StringComparison.Ordinal),
+                "undo to restore the book's own not-started state");
+            Assert.Equal(0, app.Close());
+        }
+
+        var library = new Rex.Media.Library.MediaLibrary(
+            Rex.Media.Library.RexStore.Open(Path.Combine(_scene.Root, "library.log")));
+        Assert.Equal(0, Assert.Single(library.Entries, entry => entry.Path == part).Plays);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void OpeningAChapterFromAnAuthorOnlyQueuesThatBook()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Alpha", "Opening Alpha.wav"),
