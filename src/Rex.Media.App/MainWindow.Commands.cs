@@ -649,6 +649,8 @@ public sealed partial class MainWindow
         return picker;
     }
 
+    private void OnWelcomeOpen(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Forget(OpenFilesAsync());
+
     private async Task OpenFilesAsync()
     {
         var picker = Prepared(new FileOpenPicker { SuggestedStartLocation = PickerLocationId.VideosLibrary, ViewMode = PickerViewMode.List });
