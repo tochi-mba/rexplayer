@@ -220,7 +220,7 @@ public sealed class NamedPlaylistTests
         Assert.Equal(3, controller.Playlist.Items.Count);
         Assert.Equal(original.Items.Select(item => item.Location), controller.Playlist.Items.Select(item => item.Location));
         Assert.NotNull(controller.Playlist.Current);
-        Assert.True(original.Items.Any(item => item.Location == controller.Playlist.Current!.Location));
+        Assert.Contains(original.Items, item => item.Location == controller.Playlist.Current!.Location);
         Assert.Equal(3, controller.NamedPlaylists[0].Items.Count);
 
         controller.Playlist.Shuffle = false;
