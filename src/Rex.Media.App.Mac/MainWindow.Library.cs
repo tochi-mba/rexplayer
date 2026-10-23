@@ -359,6 +359,12 @@ public sealed partial class MainWindow
             }
 
             Directory.CreateDirectory(output);
+            File.WriteAllText(Path.Combine(output, "provenance.txt"),
+                "Windows/CI fixture substitution: none" + Environment.NewLine
+                + "Platform: native macOS AppKit" + Environment.NewLine
+                + "Application version: " + typeof(MainWindow).Assembly.GetName().Version + Environment.NewLine
+                + "Source: automated smoke test, synthetic local media fixtures" + Environment.NewLine
+                + "Status: not a finalized-release screenshot; do not publish as release media" + Environment.NewLine);
             view.LayoutSubtreeIfNeeded();
             using var bitmap = view.BitmapImageRepForCachingDisplayInRect(view.Bounds);
             if (bitmap is null)
