@@ -178,6 +178,7 @@ public sealed partial class MainWindow
                     BorderThickness = new Thickness(0),
                     CornerRadius = new CornerRadius(9),
                     Padding = new Thickness(12, 7, 12, 7),
+                    MinHeight = 44,
                     MaxWidth = 640,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     HorizontalContentAlignment = HorizontalAlignment.Center,
