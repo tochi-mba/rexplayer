@@ -141,7 +141,7 @@ public sealed partial class MainWindow
                     var theirBooks = ListeningViews.BooksByAuthor(authoredBooks, author.Name);
                     if (_librarySeason is { } openedAuthorBook)
                     {
-                        var book = LibraryViews.RefreshGroup(theirBooks, openedAuthorBook, detailIdentifiesGroup: true);
+                        var book = ListeningViews.RefreshBook(theirBooks, openedAuthorBook);
                         _librarySeason = book;
                         var chapters = book.Entries.Count == 0 ? [] : ListeningViews.Chapters(book);
                         var place = book.Entries.Count == 0 ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
@@ -162,7 +162,7 @@ public sealed partial class MainWindow
                 var books = ListeningViews.Books(mine);
                 if (_libraryGroup is { } openedBook)
                 {
-                    var book = LibraryViews.RefreshGroup(books, openedBook, detailIdentifiesGroup: true);
+                    var book = ListeningViews.RefreshBook(books, openedBook);
                     _libraryGroup = book;
                     var chapters = book.Entries.Count == 0 ? [] : ListeningViews.Chapters(book);
                     var place = book.Entries.Count == 0 ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
