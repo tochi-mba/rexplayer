@@ -37,6 +37,7 @@
       <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav"><span class="sr-only">Toggle navigation</span><span></span><span></span></button>
       <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
         <a href="#library">Library</a>
+        <a href="#screenshots">Screenshots</a>
         <a href="#playback">Playback</a>
         <a href="#privacy">Privacy</a>
         <a href="#downloads">Download</a>
@@ -58,15 +59,101 @@
         </div>
         <p class="hero-meta" id="download-meta">Windows 10 and 11 · macOS 12 or later</p>
       </div>
-      <div class="product-frame" aria-label="A preview of rexplayer's media library">
-        <div class="mock-toolbar"><i></i><i></i><i></i><span>Library</span></div>
-        <div class="mock-shell"><div class="mock-rail"><b>Home</b><span>Music</span><span>Movies</span><span>TV Shows</span><span>Audiobooks</span></div><div class="mock-content"><small>CONTINUE WATCHING</small><strong>Pick up exactly where you left off.</strong><div class="mock-cards"><i></i><i></i><i></i></div></div></div>
+      <figure class="product-frame product-shot">
+        <img src="assets/windows-library-wide-ci.png"
+             alt="Windows native dark-theme rexplayer library with a sidebar, sample media list and playback controls."
+             loading="eager" decoding="async" width="1000" height="600">
+        <figcaption>Windows native library test capture <span>· Genuine application UI with sample test data</span></figcaption>
+      </figure>
+    </section>
+
+    <section class="section container showcase" id="screenshots" aria-labelledby="showcase-heading">
+      <div class="section-heading">
+        <p class="eyebrow signal">Inside the real app</p>
+        <h2 id="showcase-heading">Explore the real Windows app.</h2>
+        <p>Browse six captures from the Windows native UI regression tests: library, search, welcome, TV, subtitle settings and playback settings. Media shown in the tests is synthetic sample content, not finalized release imagery. The separate macOS interface differs and is not represented by these Windows screenshots.</p>
       </div>
+      <div class="showcase-grid">
+        <figure class="showcase-card">
+          <a class="shot-open" href="assets/windows-library-wide-ci.png" aria-label="View larger Windows Library overview screenshot">
+            <img src="assets/windows-library-wide-ci.png" alt="Windows native dark-theme library overview with sidebar, media list and player controls" loading="lazy" decoding="async" width="1000" height="600">
+            <span aria-hidden="true">View larger ↗</span>
+          </a>
+          <figcaption><strong>Windows · Library overview</strong><span>Native dark-theme UI test capture with sample media.</span></figcaption>
+        </figure>
+        <figure class="showcase-card">
+          <a class="shot-open" href="assets/windows-search-ci.png" aria-label="View larger Windows Search screenshot">
+            <img src="assets/windows-search-ci.png" alt="Windows native dark-theme search screen with a query and an empty-results message" loading="lazy" decoding="async" width="720" height="720">
+            <span aria-hidden="true">View larger ↗</span>
+          </a>
+          <figcaption><strong>Windows · Search</strong><span>Native library search state using sample data.</span></figcaption>
+        </figure>
+        <figure class="showcase-card">
+          <a class="shot-open" href="assets/windows-welcome-ci.png" aria-label="View larger Windows Welcome screenshot">
+            <img src="assets/windows-welcome-ci.png" alt="Windows native rexplayer welcome window with Open file and Browse library actions" loading="lazy" decoding="async" width="1000" height="700">
+            <span aria-hidden="true">View larger ↗</span>
+          </a>
+          <figcaption><strong>Windows · Welcome</strong><span>Native start screen from the UI test suite.</span></figcaption>
+        </figure>
+        <figure class="showcase-card">
+          <a class="shot-open" href="assets/windows-tv-episodes-ci.png" aria-label="View larger Windows TV episodes screenshot">
+            <img src="assets/windows-tv-episodes-ci.png" alt="Windows native TV show library view with multiple synthetic episode artwork cards" loading="lazy" decoding="async" width="804" height="238">
+            <span aria-hidden="true">View larger ↗</span>
+          </a>
+          <figcaption><strong>Windows · TV episodes</strong><span>Native TV library scene with synthetic test artwork.</span></figcaption>
+        </figure>
+        <figure class="showcase-card">
+          <a class="shot-open" href="assets/windows-subtitle-settings-ci.png" aria-label="View larger Windows Subtitle settings screenshot">
+            <img src="assets/windows-subtitle-settings-ci.png" alt="Windows native Preferences dialog displaying subtitle settings and style controls" loading="lazy" decoding="async" width="1000" height="760">
+            <span aria-hidden="true">View larger ↗</span>
+          </a>
+          <figcaption><strong>Windows · Subtitle settings</strong><span>Native Preferences view with subtitle options.</span></figcaption>
+        </figure>
+        <figure class="showcase-card">
+          <a class="shot-open" href="assets/windows-playback-settings-ci.png" aria-label="View larger Windows Playback settings screenshot">
+            <img src="assets/windows-playback-settings-ci.png" alt="Windows native Preferences dialog showing playback jump lengths and save controls" loading="lazy" decoding="async" width="1000" height="760">
+            <span aria-hidden="true">View larger ↗</span>
+          </a>
+          <figcaption><strong>Windows · Playback settings</strong><span>Native Preferences view with playback options.</span></figcaption>
+        </figure>
+      </div>
+      <p class="showcase-caption">These genuine Windows interface captures come from automated UI tests with example content, not curated screenshots from a finalized release. <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">Compare supported capabilities on each platform.</a></p>
+      <section class="site-tour" aria-labelledby="tour-heading">
+        <div class="tour-intro">
+          <h3 id="tour-heading">Follow the Windows interface, step by step.</h3>
+          <p>Walk through six verified native test captures. These views use sample data and do not imply that the Mac interface has identical features.</p>
+        </div>
+        <div class="tour-steps" role="group" aria-label="Windows walkthrough steps">
+          <button class="tour-step is-current" type="button" data-tour-step="0" data-tour-src="assets/windows-library-wide-ci.png" data-tour-alt="Windows native dark-theme library overview with sidebar, media list and player controls" data-tour-title="Library overview" data-tour-description="Browse the native library sidebar and media rows." aria-pressed="true">1 Library</button>
+          <button class="tour-step" type="button" data-tour-step="1" data-tour-src="assets/windows-search-ci.png" data-tour-alt="Windows native dark-theme search screen with a query and an empty-results message" data-tour-title="Search" data-tour-description="See how the library presents a query and its results." aria-pressed="false">2 Search</button>
+          <button class="tour-step" type="button" data-tour-step="2" data-tour-src="assets/windows-welcome-ci.png" data-tour-alt="Windows native rexplayer welcome window with Open file and Browse library actions" data-tour-title="Welcome" data-tour-description="Start with a local file or browse the library." aria-pressed="false">3 Welcome</button>
+          <button class="tour-step" type="button" data-tour-step="3" data-tour-src="assets/windows-tv-episodes-ci.png" data-tour-alt="Windows native TV show library view with multiple synthetic episode artwork cards" data-tour-title="TV episodes" data-tour-description="See how episodes are arranged within a show." aria-pressed="false">4 TV episodes</button>
+          <button class="tour-step" type="button" data-tour-step="4" data-tour-src="assets/windows-subtitle-settings-ci.png" data-tour-alt="Windows native Preferences dialog displaying subtitle settings and style controls" data-tour-title="Subtitle settings" data-tour-description="Inspect native caption styling and subtitle controls." aria-pressed="false">5 Subtitles</button>
+          <button class="tour-step" type="button" data-tour-step="5" data-tour-src="assets/windows-playback-settings-ci.png" data-tour-alt="Windows native Preferences dialog showing playback jump lengths and save controls" data-tour-title="Playback settings" data-tour-description="Adjust playback jumps and input preferences." aria-pressed="false">6 Playback</button>
+        </div>
+        <figure class="tour-stage">
+          <a id="tour-image-link" href="assets/windows-library-wide-ci.png" aria-label="Open full-size Windows Library overview screenshot">
+            <img id="tour-image" src="assets/windows-library-wide-ci.png" alt="Windows native dark-theme library overview with sidebar, media list and player controls" loading="lazy" decoding="async" width="1000" height="600">
+          </a>
+          <figcaption><strong id="tour-title">Library overview</strong><span id="tour-description">Browse the native library sidebar and media rows.</span></figcaption>
+        </figure>
+        <div class="tour-actions">
+          <button id="tour-previous" type="button">Previous</button>
+          <p id="tour-progress" aria-live="polite">Step 1 of 6</p>
+          <button id="tour-next" type="button">Next</button>
+        </div>
+        <noscript><p class="tour-fallback">The image above links to the original file; all six screenshot cards remain available without JavaScript.</p></noscript>
+      </section>
+      <dialog class="shot-lightbox" id="shot-lightbox" aria-label="Screenshot enlarged view">
+        <div class="shot-dialog-head"><strong>rexplayer · Windows screenshot</strong><button id="shot-close" type="button">Close <span aria-hidden="true">×</span></button></div>
+        <img id="shot-enlarged" alt="">
+        <p id="shot-caption"></p>
+      </dialog>
     </section>
 
     <section class="trust-strip" aria-label="At a glance">
       <div class="container trust-grid">
-        <div><strong>Windows + Mac</strong><span>One library on either platform</span></div>
+        <div><strong>Windows + Mac</strong><span>Native apps · check platform feature status</span></div>
         <div><strong>Private by default</strong><span>No telemetry and no account</span></div>
         <div><strong>Plays while downloading</strong><span>Buffers as usable data arrives</span></div>
         <div><strong>Built for control</strong><span>Keyboard, mouse and command line</span></div>
@@ -75,12 +162,25 @@
 
     <section class="section container split-section" id="library">
       <div class="section-heading"><p class="eyebrow signal">A library with memory</p><h2>Browse by what your media is.</h2><p>Music feels like music. A show opens into seasons and episodes. A book keeps its chapters, author and listening speed. Search, filters, layouts and your exact place survive every trip into details and back.</p></div>
+      <div class="real-product-row">
+        <img src="assets/windows-tv-episodes-ci.png"
+             alt="Actual Windows native TV show library view with six colorful synthetic episode cards."
+             loading="lazy" decoding="async" width="804" height="238">
+        <div><p class="eyebrow signal">What you are seeing</p><h3>Native UI test scene</h3>
+        <p>These images are from the Windows native application's screenshot tests. Their layouts are produced by the real app, but the TV artwork is synthetic regression-test data, not release media. The native Mac application has its own interface and currently differs in available features.</p>
+        <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">View Windows and Mac feature status →</a></div>
+      </div>
       <div class="feature-grid">
         <article class="feature-card"><h3>Made for every medium</h3><p>Albums, artists, films, TV shows, podcasts, audiobooks, recordings and pictures each receive their own useful views and actions.</p></article>
         <article class="feature-card"><h3>Details without the clutter</h3><p>Optional lookups add covers, cast, episode facts, descriptions and trailers. Local files always work without them.</p></article>
         <article class="feature-card"><h3>Calm while files arrive</h3><p>Folder changes are batched during large downloads. New files appear without rebuilding the whole library for every write.</p></article>
         <article class="feature-card"><h3>Your place is preserved</h3><p>Back returns to the same view, query, selection and scroll position. The sidebar collapses when you want more room.</p></article>
       </div>
+    </section>
+
+    <section class="section container platform-note" id="platforms">
+      <div><p class="eyebrow signal">Two native applications</p><h2>Designed for Windows and Mac.</h2></div>
+      <p>rexplayer runs natively on Windows and macOS. The shared playback engine is the same, while the Windows interface currently supports more library, visual and caption tools. We are actively improving the Mac experience. Check the <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">platform parity ledger</a> for feature-by-feature status before downloading.</p>
     </section>
 
     <section class="section container" id="playback">

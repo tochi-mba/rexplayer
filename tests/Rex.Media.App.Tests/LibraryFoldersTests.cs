@@ -41,7 +41,15 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Visit("Folders");
         app.Choose(_scene.Media);
         app.Press("LibraryRemoveFolder");
+        Wait.For(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Stop watching this folder?")) is not null,
+            "the folder removal confirmation");
+        app.Press("CloseButton");
+        Assert.False(app.IsShown("LibraryEmptyAddFolder")); // Cancel leaves the watch and its files intact.
+        app.Press("LibraryRemoveFolder");
+        app.Press("PrimaryButton");
         Wait.For(() => app.IsShown("LibraryEmptyAddFolder"), "the empty folders view to offer a folder");
+        Assert.True(File.Exists(Path.Combine(_scene.Media, "Sungba.wav")));
         app.Visit("Home");
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText").StartsWith("The library shows the music", StringComparison.Ordinal),
             "the welcome on an empty home");
@@ -63,6 +71,7 @@ public sealed class LibraryFoldersTests : IDisposable
         // Movies and TV shows open on the streaming-style browse, a billboard over rows.
         app.Visit("TV Shows");
         Wait.For(() => app.IsShown("LibraryBillboard") && app.IsShown("LibraryBillboardPlay"), "the billboard");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-tv-browse", "LibraryPane");
 
         // As cards, the counts show which videos are films and which are episodes.
@@ -78,6 +87,7 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Open("Harbour Lights");
         Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on its first season",
             () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-show-page", "LibraryPane");
         var picker = app.Find("LibrarySeasonPicker");
         ((ExpandCollapsePattern)picker.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
@@ -100,7 +110,8 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Visit("TV Shows");
         app.Pick("LibraryLook", "Grid");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 show", StringComparison.Ordinal), "a single show", () => string.Join(", ", app.Lines()));
-        Assert.Equal(["Futurama"], app.Lines());
+        Wait.For(() => app.Lines().SequenceEqual(["Futurama"]),
+            "the one show card to finish realizing", () => string.Join(", ", app.Lines()));
 
         // The season-zero special is explicitly labelled in the picker, while its episode stays in Specials.
         app.Open("Futurama");

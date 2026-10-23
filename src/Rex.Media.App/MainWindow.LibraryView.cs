@@ -356,7 +356,9 @@ public sealed partial class MainWindow
             {
                 options = false;
                 var rows = _librarySource == LibrarySource.Playlists
-                    ? _player.NamedPlaylists.Select(p => new LibraryRow(p.Name, null, Count(p.Items.Count, "item"), p)).ToList()
+                    ? _player.NamedPlaylists.Select(p => new LibraryRow(p.Name,
+                        SavedPlaylistFacts.For(p, path => library.Entry(path)).Label,
+                        Count(p.Items.Count, "item"), p)).ToList()
                     : [.. library.Folders.Select(folder => new LibraryRow(folder, Count(entries.Count(entry => MediaLibrary.Holds(folder, entry.Path)), "file"), "", folder))];
                 sections = [new LibraryRowGroup("", rows)];
                 subtitle = _librarySource == LibrarySource.Playlists ? Count(rows.Count, "playlist") : Count(rows.Count, "folder") + " watched";
@@ -382,6 +384,15 @@ public sealed partial class MainWindow
             ShowTitleExtras("", TitleSections.BookSynopsis(MetadataBook(book)), credit: null,
                 trailer: null, poster: false, backdrop: null);
         }
+        else if (search.Length == 0 && _librarySource == LibrarySource.Podcasts
+            && _libraryGroup is { } localPodcast)
+        {
+            ShowTitleExtras(localPodcast.Detail is { Length: > 0 } creator
+                    ? "Artist tag: " + creator + " · Local episodes only"
+                    : "Local episodes only",
+                synopsis: null, credit: null, trailer: null, poster: false, backdrop: null);
+            ShowText(LibraryOverview, PodcastDescription(localPodcast));
+        }
         else if (artistPage)
         {
             var artist = MetadataArtist(title);
@@ -399,6 +410,13 @@ public sealed partial class MainWindow
                 ShowText(LibraryOverview, "");
                 LibraryCredit.Visibility = Visibility.Collapsed;
             }
+        }
+
+        if (_librarySource == LibrarySource.Pictures && search.Length == 0)
+        {
+            LibraryPlayText.Text = "Start slideshow";
+            ToolTipService.SetToolTip(LibraryPlay,
+                "Play the selected photographs, or all visible photographs, in gallery order. Pause and Next control the show.");
         }
 
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
@@ -696,7 +714,7 @@ public sealed partial class MainWindow
             : choice.Look == LibraryLook.List ? ("LibrarySongTemplate", 0.0, 0.0, "Compact list")
             : kind == LibraryKind.Video && (_librarySource == LibrarySource.Movies || (_librarySource == LibrarySource.TvShows && _libraryGroup is null)) ? ("LibraryMovieTemplate", size + 12, (size * 1.5) + 68, "Movies and TV shows, poster grid")
             : kind == LibraryKind.Video ? ("LibraryVideoTemplate", (size * 1.45) + 12, (size * 1.45 * 9 / 16) + 64, "Episodes, thumbnail grid")
-            : kind == LibraryKind.Picture ? ("LibraryPhotoTemplate", size + 8, (size * 0.75) + 8, "Pictures, gallery grid")
+            : kind == LibraryKind.Picture ? ("LibraryPhotoTemplate", size + 8, (size * 0.75) + 52, "Pictures, gallery grid")
             : ("LibraryBrowseTemplate", size + 12, size + 78, "Cover grid");
         var look = $"{template}|{width:0}|{height:0}";
         if (look == _shownLook)
@@ -760,7 +778,9 @@ public sealed partial class MainWindow
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
         {
-            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide, id: shelfTitle == DownloadingShelf ? "Downloading" : null));
+            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide,
+                id: shelfTitle == DownloadingShelf ? "Downloading"
+                    : shelfTitle == "Podcast shows" ? "PodcastShows" : null));
         }
 
         if (place is not null)
@@ -872,9 +892,14 @@ public sealed partial class MainWindow
                 _libraryGroup = group;
                 ShowLibraryAtPlace();
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music && ShelfOf(entry) == AudioShelf.Podcasts:
+                // Continue listening and New episodes can mix several local shows in one shelf.
+                // Choosing an episode must not queue every other show's entries beside it.
+                PlayPodcastEpisode(entry);
+                break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);
-                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks or LibrarySource.Podcasts);
+                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks);
                 break;
         }
     }

@@ -175,3 +175,67 @@ pre code{padding:0;background:none}
 @media(max-width:420px){
   .trust-grid{grid-template-columns:1fr}
 }
+
+
+/* Real product imagery: prefer screenshots from the native application over ornamental wireframes. */
+.product-shot{margin:0;min-height:0;display:flex;flex-direction:column;transform:none}
+.product-shot img{width:100%;height:auto;max-height:370px;object-fit:contain;object-position:center;display:block;background:#090b0a}
+.product-shot figcaption{display:flex;flex-wrap:wrap;gap:5px;padding:12px 15px;color:var(--text);font-size:12px;font-weight:700;border-top:1px solid var(--line)}
+.product-shot figcaption span{color:var(--muted);font-weight:400}
+.real-product-row{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(220px,.75fr);align-items:center;gap:26px;margin-bottom:32px;padding:18px;border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-l)}
+.real-product-row img{width:100%;height:auto;max-height:300px;object-fit:contain;border-radius:var(--radius-m);background:var(--ink)}
+.real-product-row>div{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.real-product-row p:not(.eyebrow),.platform-note>p{color:var(--muted);line-height:1.65}
+.real-product-row a{font-weight:650;text-decoration:underline;text-underline-offset:4px}
+.platform-note{display:grid;grid-template-columns:1fr 1.1fr;align-items:center;gap:38px}
+.platform-note>div{display:flex;flex-direction:column;gap:10px}
+@media(max-width:760px){
+  .real-product-row,.platform-note{grid-template-columns:1fr}
+  .real-product-row img{max-height:260px}
+  .product-shot img{max-height:320px}
+}
+
+
+/* Accessible, real screenshot walkthrough. Captions stay visible without JavaScript. */
+.showcase{scroll-margin-top:72px}
+.showcase-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.showcase-card{margin:0;overflow:hidden;border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-l)}
+.shot-open{position:relative;width:100%;display:block;padding:0;border:0;background:var(--ink);cursor:zoom-in;color:var(--text);text-decoration:none}
+.shot-open:focus-visible{outline:3px solid var(--signal);outline-offset:-3px}
+.shot-open img{display:block;object-fit:contain;width:100%;height:clamp(180px,24vw,315px);transition:transform .15s ease}
+.shot-open:hover img,.shot-open:focus-visible img{transform:scale(1.025)}
+.shot-open span{position:absolute;right:12px;bottom:12px;border:1px solid var(--line);border-radius:var(--radius-s);background:rgba(8,10,9,.93);padding:6px 10px;font-size:12px;font-weight:700}
+.showcase-card figcaption{display:flex;flex-direction:column;gap:4px;padding:16px 18px}
+.showcase-card figcaption strong{font-size:15px}
+.showcase-card figcaption span{color:var(--muted);font-size:13px}
+.showcase-caption{max-width:78ch;margin-top:14px;font-size:13px;color:var(--muted)}
+.shot-lightbox{max-width:min(1100px,94vw);max-height:95vh;width:100%;border:1px solid var(--line);padding:16px;background:var(--panel);border-radius:var(--radius-l);color:var(--text);box-shadow:0 40px 100px rgba(0,0,0,.8)}
+.shot-lightbox::backdrop{background:rgba(0,0,0,.82);backdrop-filter:blur(7px)}
+.shot-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px}
+.shot-dialog-head button{cursor:pointer;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--raised);color:var(--text);padding:8px 14px;min-height:44px;white-space:nowrap;flex-shrink:0}
+.shot-dialog-head button:hover{border-color:var(--muted)}
+.shot-lightbox img{max-width:100%;max-height:calc(95vh - 155px);height:auto;display:block;margin-inline:auto;object-fit:contain}
+.shot-lightbox p{font-size:13px;color:var(--muted);padding-top:12px}
+@media(max-width:760px){.showcase-grid{grid-template-columns:1fr}.shot-open img{height:220px}}
+@media(prefers-reduced-motion:reduce){.shot-open img{transition:none}.shot-open:hover img,.shot-open:focus-visible img{transform:none}}
+
+/* Native Windows UI walkthrough. Without JavaScript the first image remains a plain image link. */
+.site-tour{margin-top:42px;padding:clamp(16px,3vw,28px);border:1px solid var(--line);border-radius:var(--radius-l);background:var(--panel)}
+.tour-intro{max-width:70ch;margin-bottom:20px}
+.tour-intro h3{font-size:clamp(20px,2.4vw,28px);margin-bottom:8px}
+.tour-intro p{color:var(--muted)}
+.tour-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tour-step{border:1px solid var(--line);background:var(--raised);color:var(--text);border-radius:var(--radius-s);min-height:44px;padding:9px 13px;font-weight:650;cursor:pointer}
+.tour-step:hover,.tour-step:focus-visible,.tour-step[aria-pressed="true"]{border-color:var(--signal)}
+.tour-step[aria-pressed="true"]{color:var(--signal)}
+.tour-stage{margin:0;border:1px solid var(--line);border-radius:var(--radius-m);overflow:hidden;background:var(--ink)}
+.tour-stage>a{display:flex;justify-content:center;align-items:center;min-height:180px}
+.tour-stage img{display:block;width:100%;height:clamp(190px,46vw,440px);object-fit:contain}
+.tour-stage figcaption{display:flex;flex-direction:column;gap:4px;padding:12px 16px}
+.tour-stage figcaption span{font-size:13px;color:var(--muted)}
+.tour-actions{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:14px}
+.tour-actions button{min-height:44px;padding:9px 14px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--raised);color:var(--text);cursor:pointer}
+.tour-actions button:hover,.tour-actions button:focus-visible{border-color:var(--signal)}
+.tour-actions p{font-size:13px;color:var(--muted);text-align:center}
+.no-js .tour-steps,.no-js .tour-actions{display:none}
+@media(max-width:420px){.tour-actions{gap:6px}.tour-actions button{padding-inline:10px}.tour-step{flex:1 1 44%}}

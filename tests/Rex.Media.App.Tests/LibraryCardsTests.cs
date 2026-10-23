@@ -95,6 +95,14 @@ public sealed class LibraryCardsTests : IDisposable
         _scene.Film(Path.Combine("Movies", "Wide.Film.2024.mp4"), "h264-letterboxed.mp4");
         _scene.Video(Path.Combine("Harbour Lights", "Season 1", "Arrival.mp4"), "h264-letterboxed.mp4");
         using var app = _scene.Ready().Start();
+        // These two existing baselines were captured at the original 1280x800
+        // host-window size with PrintWindow, independent of the visible desktop.
+        // Do not silently rebaseline them at the smaller composited CI viewport.
+        var window = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        window.Resize(1280, 800);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1280) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - 800) < 2,
+            "the pinned 1280x800 legacy card-baseline viewport");
 
         // A poster card is taller than the film is wide: filled from the top, its first rows are picture.
         app.Visit("Movies");
