@@ -7,6 +7,36 @@ namespace Rex.Media.App.Tests;
 public sealed partial class AppWindowTests
 {
     [Fact]
+    public void IncompleteSpeechShowsPartialCoverageWithoutPretendingAllWordsWereHeard()
+    {
+        var media = Song(35);
+        var root = Path.Combine(_media, "partial-speech-reader-data");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+            { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off" }
+            """);
+        var cache = new TranscriptCache(TranscriptCache.DefaultRoot(root));
+        var partial = new Rex.Media.AppCore.Transcription.ProgressiveTranscript(
+            "base.en", "en", TimeSpan.FromSeconds(35));
+        partial.Add(new Rex.Media.AppCore.Transcription.SpeechChunk(
+                new Rex.Media.AppCore.Transcription.TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(14)),
+                new Rex.Media.AppCore.Transcription.TimeRange(TimeSpan.Zero, TimeSpan.FromSeconds(14))),
+            [new TranscriptWord("partial", TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3))],
+            "en");
+        cache.SavePartial(media, partial);
+
+        using var app = AppProcess.Start([media], root);
+        var menu = (ExpandCollapsePattern)app.Find("SubtitleMenu")
+            .GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        menu.Expand();
+        app.Press("ReadTranscript");
+        Wait.For(() => app.Text("TranscriptReaderCoverage").Contains("Partial transcript", StringComparison.Ordinal)
+            && app.IsShown("TranscriptReaderCue-0"),
+            "partial speech to remain readable while incomplete coverage is clearly labeled");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SavedSpokenTranscriptHasPaginatedKeyboardAccessibleReadingAndSearch()
     {
         var media = Song(40);
