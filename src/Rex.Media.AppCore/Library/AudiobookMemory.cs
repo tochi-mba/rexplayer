@@ -72,11 +72,6 @@ public sealed class AudiobookMemory(RexStore store)
             var book = match.First();
             var previous = Hash(ListeningViews.BookKey(book));
             var current = KeyFor(book);
-            if (current == previous)
-            {
-                continue;
-            }
-
             foreach (var prefix in new[] { SpeedPrefix, FinishedPrefix })
             {
                 if (Store.Get(prefix + previous) is { } value)
