@@ -87,6 +87,19 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void OpeningATaggedAudiobookDirectlyShowsItsChaptersWithoutLibraryClassification()
+    {
+        var book = _scene.ChapteredAudiobook();
+        using var app = AppProcess.Start([book], extraSettings: "\"theme\": \"Dark\"");
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIOBOOK playback stage"
+            && app.IsShown("StageChaptersButton"),
+            "a directly opened tagged audiobook to expose its parsed chapter markers");
+        Assert.Contains("Chapter jumps", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Assert.False(app.IsShown("Lyrics"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void AChapterFocusedDuringStreamSwitchReturnsFocusToThePermanentTransport()
     {
         var book = _scene.ChapteredAudiobook();

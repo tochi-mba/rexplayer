@@ -78,6 +78,23 @@ public readonly record struct MediaStageView(
 /// <summary>Resolves media facts to an accessible stage; capabilities are independent of labels.</summary>
 public static class MediaStagePolicy
 {
+    /// <summary>
+    /// Direct files do not have a library shelf. Prefer an explicit media-type tag;
+    /// use the genre only when that tag is missing, not to override an explicit type.
+    /// </summary>
+    public static AudioShelf? ShelfFromTags(string? mediaType, string? genre)
+    {
+        var hint = string.IsNullOrWhiteSpace(mediaType) ? genre : mediaType;
+        return hint?.Trim() switch
+        {
+            var value when string.Equals(value, MetadataKeys.Audiobook, StringComparison.OrdinalIgnoreCase)
+                => AudioShelf.Audiobooks,
+            var value when string.Equals(value, MetadataKeys.Podcast, StringComparison.OrdinalIgnoreCase)
+                => AudioShelf.Podcasts,
+            _ => null,
+        };
+    }
+
     public static MediaStageView Resolve(in MediaStageContext context)
     {
         if (!context.HasItem)

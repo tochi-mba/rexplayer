@@ -137,6 +137,20 @@ public sealed class MediaStagePolicyTests
         Assert.False(view.ShowPictureNavigation);
     }
 
+    [Theory]
+    [InlineData(null, "Audiobook", AudioShelf.Audiobooks)]
+    [InlineData(null, "PODCAST", AudioShelf.Podcasts)]
+    [InlineData(MetadataKeys.Audiobook, "Rock", AudioShelf.Audiobooks)]
+    [InlineData(MetadataKeys.Podcast, null, AudioShelf.Podcasts)]
+    [InlineData("other", "Audiobook", null)]
+    [InlineData(null, "Rock", null)]
+    [InlineData(null, null, null)]
+    public void DirectMediaTagsChooseOnlyExplicitSpokenAudioRoles(
+        string? mediaType, string? genre, AudioShelf? shelf)
+    {
+        Assert.Equal(shelf, MediaStagePolicy.ShelfFromTags(mediaType, genre));
+    }
+
     [Fact]
     public void DirectAudioWithProvenLyricsRetainsLyricsWithoutAStoredMusicShelf()
     {

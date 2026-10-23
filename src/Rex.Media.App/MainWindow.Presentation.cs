@@ -35,15 +35,12 @@ public sealed partial class MainWindow
         var info = _player.Info;
         var entry = item?.Location is { } location ? _library?.Entry(location) : null;
         var episode = entry is null ? null : LibraryViews.EpisodeOf(entry);
-        // Files opened directly have no library shelf; their own media-type tag still
-        // identifies audiobooks and podcasts once the stream has been parsed.
+        // Direct files may be tagged with a media type or a genre, but they
+        // have no library shelf. Resolve those hints in the pure stage policy.
         AudioShelf? audioShelf = entry?.Kind == LibraryKind.Music ? ShelfOf(entry)
-            : info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType) switch
-            {
-                MetadataKeys.Audiobook => AudioShelf.Audiobooks,
-                MetadataKeys.Podcast => AudioShelf.Podcasts,
-                _ => null,
-            };
+            : MediaStagePolicy.ShelfFromTags(
+                info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType),
+                info?.Metadata.GetValueOrDefault(MetadataKeys.Genre));
         var stage = MediaStagePolicy.Resolve(new MediaStageContext(
             HasItem: item is not null,
             IsPicture: item is not null && MediaFiles.IsPicture(item.Location),
