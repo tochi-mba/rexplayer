@@ -354,7 +354,7 @@ public sealed class MediaLibraryTests
         Assert.Equal([In("d.mp3")], library.Unprobed.Select(entry => entry.Path));
 
         // Read before the readers kept every artist: the songs are read again after the never-read
-        // file, videos are not, and a song that cannot be read again is not tried a second time.
+        // file, followed by videos, and a song that cannot be read again is not tried a second time.
         foreach (var (key, json) in store.WithPrefix("entry/").ToList())
         {
             store.Set(key, json.Replace("\"TagReading\":" + MediaLibrary.TagReading.ToString(System.Globalization.CultureInfo.InvariantCulture), "\"TagReading\":0", StringComparison.Ordinal));
@@ -362,9 +362,9 @@ public sealed class MediaLibraryTests
 
         var older = new MediaLibrary(store);
 
-        Assert.Equal([In("d.mp3"), In("a.mp3"), In("b.mp3")], older.Unprobed.Select(entry => entry.Path));
+        Assert.Equal([In("d.mp3"), In("a.mp3"), In("b.mp3"), In("c.mp4")], older.Unprobed.Select(entry => entry.Path));
         older.SetReadDetails([(In("a.mp3"), listed, null), (In("b.mp3"), null, "Gone bad")]);
-        Assert.Equal([In("d.mp3")], older.Unprobed.Select(entry => entry.Path));
+        Assert.Equal([In("d.mp3"), In("c.mp4")], older.Unprobed.Select(entry => entry.Path));
     }
 
     [Fact]
