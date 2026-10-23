@@ -1,5 +1,5 @@
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
