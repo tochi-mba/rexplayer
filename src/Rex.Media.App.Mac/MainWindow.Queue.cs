@@ -285,7 +285,7 @@ public sealed partial class MainWindow
 
             view.CacheDisplay(view.Bounds, bitmap);
             using var data = bitmap.RepresentationUsingTypeProperties(NSBitmapImageFileType.Png);
-            return data?.Save(Path.Combine(folder, action["capture-".Length..] + ".png"), true) == true;
+            return data?.Save(NSUrl.FromFilename(Path.Combine(folder, action["capture-".Length..] + ".png")), true) == true;
         }
 
         return false;
@@ -307,9 +307,9 @@ public sealed partial class MainWindow
 
             foreach (var child in view.Subviews)
             {
-                foreach (var button in Buttons(child))
+                foreach (var candidate in Buttons(child))
                 {
-                    yield return button;
+                    yield return candidate;
                 }
             }
         }
@@ -322,7 +322,7 @@ public sealed partial class MainWindow
             return false;
         }
 
-        chosen.PerformClick(null);
+        chosen.PerformClick(chosen);
         return true;
     }
 
