@@ -268,9 +268,11 @@ PlaylistText.cs
 Pls.cs
 PoliteHosts.cs
 PictureBorders.cs
+PictureDecodeLimit.cs
 PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs
+QueueScrollPolicy.cs
 Raster.cs
 RateGate.cs
 Rational.cs
@@ -288,6 +290,7 @@ RipplesScene.cs
 Sami.cs
 SampleConverter.cs
 SampleRing.cs
+SavedPlaylistFacts.cs
 ScannerScene.cs
 ScanWindow.cs
 SectionAnalysis.cs

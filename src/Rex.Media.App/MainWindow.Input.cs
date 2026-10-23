@@ -16,6 +16,9 @@ public sealed partial class MainWindow
     // Keys whose press ran a shortcut: their release is the shortcut's too.
     private readonly HashSet<VirtualKey> _shortcutKeys = [];
     private List<(PlaylistRow Row, Rex.Media.AppCore.Player.PlaylistItem Item)>? _playlistDragOrder;
+    private IReadOnlyList<Rex.Media.AppCore.Player.PlaylistItem>? _queueUndoOrder;
+    private Rex.Media.AppCore.Player.PlaylistRemovalSnapshot? _undoQueueRemoval;
+    private Rex.Media.AppCore.Player.PlaylistItem? _undoQueuePlayerItem;
 
     /// <summary>
     /// Whether <paramref name="key"/> is held. For Ctrl, Alt and Shift either of the pair counts:
@@ -302,13 +305,21 @@ public sealed partial class MainWindow
         // Rows are distinct objects even when the same file occurs twice. Mapping by identity keeps
         // duplicate playlist entries in exactly the order the user dropped them.
         var wanted = _playlistRows.Select(row => before.First(pair => ReferenceEquals(pair.Row, row)).Item).ToList();
+        var previous = before.Select(pair => pair.Item).ToArray();
+        var changed = false;
         for (var target = 0; target < wanted.Count; target++)
         {
             var from = _player.Playlist.IndexOf(wanted[target]);
             if (from != target)
             {
                 _player.Playlist.Move(from, target);
+                changed = true;
             }
+        }
+
+        if (changed)
+        {
+            OfferQueueUndo(previous);
         }
     }
 
@@ -368,12 +379,14 @@ public sealed partial class MainWindow
             return;
         }
 
+        var previous = _player.Playlist.Items.ToArray();
         IEnumerable<int> moving = direction < 0 ? indexes : indexes.OrderDescending();
         foreach (var index in moving)
         {
             _player.Playlist.Move(index, index + direction);
         }
 
+        OfferQueueUndo(previous);
         PlaylistView.SelectedItems.Clear();
         foreach (var item in chosen)
         {
@@ -387,16 +400,66 @@ public sealed partial class MainWindow
         Say(chosen.Count == 1 ? $"Moved to position {_player.Playlist.IndexOf(chosen[0]) + 1}" : $"Moved {chosen.Count} entries");
     }
 
-    /// <summary>Removes the selected entries, from the bottom up so the indexes stay right.</summary>
+    private void OfferQueueUndo(IReadOnlyList<Rex.Media.AppCore.Player.PlaylistItem> before)
+    {
+        _queueUndoOrder = before;
+        PlaylistUndoReorder.IsEnabled = true;
+    }
+
+    private void OnPlaylistUndoReorder(object sender, RoutedEventArgs e)
+    {
+        if (_queueUndoOrder is not { } before)
+        {
+            return;
+        }
+
+        _queueUndoOrder = null;
+        if (_player.Playlist.RestoreOrder(before))
+        {
+            Say("Queue order restored");
+        }
+
+        PlaylistUndoReorder.IsEnabled = false;
+    }
+
+    /// <summary>Remove the exact selected entry instances with one state change, preserving playback.</summary>
     private void RemoveSelected()
     {
-        var indexes = PlaylistView.SelectedRanges
-            .SelectMany(range => Enumerable.Range(range.FirstIndex, (int)range.Length))
-            .OrderDescending()
-            .ToList();
-        foreach (var index in indexes)
+        var chosen = ChosenEntries();
+        if (chosen.Count == 0)
         {
-            _player.Playlist.RemoveAt(index);
+            return;
+        }
+
+        _undoQueueRemoval = _player.Playlist.CaptureRemoval();
+        _undoQueuePlayerItem = _player.Item;
+        _player.Playlist.RemoveEntries(chosen);
+        PlaylistUndoRemoval.IsEnabled = true;
+        Say(chosen.Count == 1 ? "Removed entry from the queue — Undo removal is available"
+            : $"Removed {chosen.Count} entries from the queue — Undo removal is available");
+    }
+
+    private void OnPlaylistUndoRemoval(object sender, RoutedEventArgs e)
+    {
+        if (_undoQueueRemoval is not { } saved)
+        {
+            return;
+        }
+
+        var canRestore = ReferenceEquals(_undoQueuePlayerItem, _player.Item)
+            && _player.Playlist.UndoRemoval(saved);
+        _undoQueueRemoval = null;
+        _undoQueuePlayerItem = null;
+        PlaylistUndoRemoval.IsEnabled = false;
+        Say(canRestore ? "Removed queue entries restored" : "The queue changed; removal cannot be undone");
+    }
+
+    /// <summary>Explicit navigation does not change the queue, playback or other selection.</summary>
+    private void OnPlaylistJumpNow(object sender, RoutedEventArgs e)
+    {
+        if (_player.Playlist.CurrentIndex is >= 0 and var index && index < _playlistRows.Count)
+        {
+            PlaylistView.ScrollIntoView(_playlistRows[index]);
         }
     }
 

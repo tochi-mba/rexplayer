@@ -71,10 +71,38 @@ public sealed class LibraryBrowsingTests : IDisposable
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 movie", StringComparison.Ordinal), "the one movie");
         app.Visit("All videos");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 video", StringComparison.Ordinal), "the one video");
+        Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
+                .Cast<AutomationElement>().Any(item => item.Current.Name.Contains("1920 × 1080", StringComparison.Ordinal)),
+            "honest decoded video resolution to appear with its file");
         app.Visit("Pictures");
+        Assert.Equal("Start slideshow", app.Text("LibraryPlayText"));
         app.Line("Lagos");
+        Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
+            .Cast<AutomationElement>().Any(item => item.Current.Name.Contains("Lagos.jpg", StringComparison.Ordinal)),
+            "the picture card to show its original filename outside the image");
         // With no playlist kept, the sidebar lists no Playlists view.
         Assert.False(app.IsListed("Playlists"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("FMT-C19")]
+    public void OpeningAPhotoPlaysItsFolderOnlyInNaturalGalleryOrder()
+    {
+        _scene.Picture(Path.Combine("Trip", "Trip 10.jpg"));
+        _scene.Picture(Path.Combine("Trip", "Trip 2.jpg"));
+        _scene.Picture(Path.Combine("Other", "Another.jpg"));
+        using var app = _scene.Ready(settings: s => s with { PictureSeconds = 60 }).Start();
+        app.Visit("Pictures");
+        app.Open("Trip 2");
+        Wait.For(() => app.Text("NowPlaying") == "Trip 2",
+            "the chosen picture to be presented");
+        app.Run(CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.Text("PlaylistQueueCount") == "2 items", "the selected picture folder slideshow");
+        Assert.Equal("Now playing: Trip 2", app.Text("PlaylistQueueNow"));
+        Assert.Equal("Up next: Trip 10", app.Text("PlaylistQueueNext"));
         Assert.Equal(0, app.Close());
     }
 

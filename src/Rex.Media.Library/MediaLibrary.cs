@@ -100,6 +100,16 @@ public sealed record LibraryEntry
 
     public TimeSpan? Duration { get; init; }
 
+    /// <summary>Picture pixel dimensions in display orientation, when a decoder reports them.</summary>
+    public int? PictureWidth { get; init; }
+
+    public int? PictureHeight { get; init; }
+
+    /// <summary>Video frame pixels in display orientation when present; no guessed resolution.</summary>
+    public int? VideoWidth { get; init; }
+
+    public int? VideoHeight { get; init; }
+
     public int Plays { get; init; }
 
     /// <summary>When it was last played, in UTC.</summary>
@@ -168,12 +178,16 @@ public sealed class MediaLibrary
     private const string EntryPrefix = "entry/";
 
     /// <summary>
-    /// The version of the tag reading that fills in a song's details. It goes up when a reader starts
-    /// keeping something it used to drop (1: every artist value and the tag's list of artists; 2: the
-    /// chapters and the podcast and audiobook marks), so music read before is read again in the
-    /// background rather than waiting for a rescan.
+    /// The current metadata reader version: 3 adds complete music tags, 4 picture dimensions
+    /// in display orientation, and 5 video dimensions in display orientation. Previously read
+    /// entries are re-probed only when their own media kind gained new fields.
     /// </summary>
-    public const int TagReading = 3;
+    public const int TagReading = 5;
+
+    // Release 3 already captured all music tag fields. Revision 4 adds only picture
+    // dimensions, so do not rescan large music libraries when upgrading.
+    private const int MusicTagReading = 3;
+    private const int PictureTagReading = 4;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
@@ -247,7 +261,7 @@ public sealed class MediaLibrary
         {
             lock (_gate)
             {
-                return [.. _entries.Values.Where(entry => !entry.Probed || (entry.Kind == LibraryKind.Music && entry.TagReading < TagReading))
+                return [.. _entries.Values.Where(entry => !entry.Probed || (entry.Kind == LibraryKind.Music && entry.TagReading < MusicTagReading) || (entry.Kind == LibraryKind.Picture && entry.TagReading < PictureTagReading) || (entry.Kind == LibraryKind.Video && entry.TagReading < TagReading))
                     .OrderBy(entry => entry.Probed).ThenBy(entry => entry.Added).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
             }
         }
@@ -602,6 +616,40 @@ public sealed class MediaLibrary
         return gone.Count;
     }
 
+    /// <summary>
+    /// Undo a previous hide for known entries while their containing folders are still watched.
+    /// Only paths still hidden are restored: another scan or a separate action is never overwritten.
+    /// Callers check actual file availability before presenting the Undo action.
+    /// </summary>
+    public int RestoreHiddenEntries(IEnumerable<LibraryEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        List<LibraryEntry> restored;
+        lock (_gate)
+        {
+            restored = [];
+            foreach (var entry in entries.DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase))
+            {
+                if (_hidden.Contains(entry.Path) && _folders.Any(folder => Holds(folder, entry.Path)))
+                {
+                    _hidden.Remove(entry.Path);
+                    restored.Add(entry);
+                }
+            }
+
+            if (restored.Count == 0)
+            {
+                return 0;
+            }
+
+            WriteHidden();
+            Write(restored, remove: false);
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return restored.Count;
+    }
+
     /// <summary>Writes each known entry of <paramref name="paths"/> as <paramref name="change"/> makes it; unknown ones are passed over.</summary>
     private void Change(IEnumerable<string> paths, Func<LibraryEntry, LibraryEntry> change)
     {
@@ -710,6 +758,12 @@ public sealed class MediaLibrary
     {
         string? Tag(string key) => info.Metadata.GetValueOrDefault(key) is { } value && value.Trim() is { Length: > 0 } trimmed ? trimmed : null;
 
+        var frame = info.FirstTrack(MediaKind.Video)?.Video;
+        var image = entry.Kind == LibraryKind.Picture ? frame : null;
+        var movie = entry.Kind == LibraryKind.Video ? frame : null;
+        var movieSideways = movie?.Rotation is 90 or 270;
+        var sideways = image?.Rotation is 90 or 270;
+
         // A container that declares more bytes than the file holds is still arriving.
         var (downloading, finalSize) = info.DeclaredLength is { } declared && declared > entry.Size
             ? (true, (long?)declared)
@@ -734,6 +788,10 @@ public sealed class MediaLibrary
             Disc = Number(Tag(MetadataKeys.Disc)),
             Year = Number(Tag(MetadataKeys.Date)) is { } year && year is >= 1000 and <= 9999 ? year : null,
             Duration = info.Duration.IsKnown ? TimeSpan.FromTicks(info.Duration.Ticks) : null,
+            PictureWidth = image is { Width: > 0, Height: > 0 } ? (sideways ? image.Height : image.Width) : null,
+            PictureHeight = image is { Width: > 0, Height: > 0 } ? (sideways ? image.Width : image.Height) : null,
+            VideoWidth = movie is { Width: > 0, Height: > 0 } ? (movieSideways ? movie.Height : movie.Width) : null,
+            VideoHeight = movie is { Width: > 0, Height: > 0 } ? (movieSideways ? movie.Width : movie.Height) : null,
             Chapters = [.. info.Chapters.Select(chapter => new LibraryChapter(TimeSpan.FromTicks(Math.Max(0, chapter.Start.Ticks)), chapter.Title))],
             MediaType = Tag(MetadataKeys.MediaType),
         }) is var read && entry.Override is { } kept ? kept.ApplyTo(read) : read;

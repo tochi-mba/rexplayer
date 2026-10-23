@@ -14,6 +14,17 @@ public static class CollageLayout
     private static readonly double[] Pictures = [1.16, 1.72, 0.88, 1.42, 1.96, 1.05, 1.61, 0.98];
     private static readonly double[] Covers = [1.02, 1.38, 0.90, 1.21, 1.46, 0.95, 1.30, 1.06];
 
+    /// <summary>Real picture proportions, bounded for safe row layout; missing dimensions fall back to a stable tile.</summary>
+    public static double PictureAspectRatio(int? width, int? height, int fallbackIndex)
+    {
+        if (width is > 0 && height is > 0)
+        {
+            return Math.Clamp((double)width.Value / height.Value, 0.35, 4.0);
+        }
+
+        return AspectRatio(LibraryKind.Picture, poster: false, fallbackIndex);
+    }
+
     /// <summary>Desired card width / row height, always positive and bounded for the flow layout.</summary>
     public static double AspectRatio(LibraryKind kind, bool poster, int index)
     {
