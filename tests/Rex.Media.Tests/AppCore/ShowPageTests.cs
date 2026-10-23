@@ -179,6 +179,34 @@ public sealed class ShowPageTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void WatchSummaryCountsEpisodesNotFileVersionsOrWholeMultiEpisodeFiles()
+    {
+        var episodes = new[]
+        {
+            Episode("Alpha S01E01 720p", plays: 1),
+            Episode("Alpha S01E01 1080p"),
+            Episode("Alpha S01E02E03", plays: 1),
+            Episode("Alpha S01E04", plays: 2),
+            Episode("Alpha S00E01"),
+        };
+        var left = LeftAt("S01E04", TimeSpan.FromMinutes(4));
+        var summary = ShowPage.WatchSummary(episodes, left);
+        Assert.Equal(new EpisodeWatchSummary(5, 3, 1), summary);
+        Assert.False(summary.IsComplete);
+        Assert.Equal("Season: 3 of 5 episodes watched · 1 in progress", summary.Describe("Season"));
+
+        // When episode four reaches the end, its previously incomplete play
+        // becomes complete without double-counting the second version of one.
+        Assert.Equal(new EpisodeWatchSummary(5, 4, 0), ShowPage.WatchSummary(episodes, Nothing));
+        Assert.Equal(new EpisodeWatchSummary(3, 2, 0),
+            ShowPage.WatchSummary(episodes.Take(3).ToArray(), Nothing));
+
+        var malformed = Episode("Alpha S01E02-E999", plays: 1);
+        Assert.Equal(1, ShowPage.WatchSummary([malformed], Nothing).Total);
+    }
+
+    [Fact]
     public void EpisodesAreNumberedSinglyOrAsARange()
     {
         Assert.Equal("3", ShowPage.Number(Mark(Episode("Alpha S01E03"))));
