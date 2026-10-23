@@ -100,6 +100,19 @@ public static class MediaStagePolicy
         return null;
     }
 
+    /// <summary>A chapter may be selected only when its time belongs to the current stream.</summary>
+    public static bool IsPlayableChapter(MediaTime start, TimeSpan duration) =>
+        start.IsKnown && start >= MediaTime.Zero &&
+        (duration <= TimeSpan.Zero || start.ToTimeSpan() <= duration);
+
+    /// <summary>
+    /// An opening chapter at zero alone is not a chapter picker. Require at least
+    /// one usable jump after zero, while allowing Start Over in a real chapter menu.
+    /// </summary>
+    public static bool HasChapterJumps(MediaInfo? info, TimeSpan duration) =>
+        info?.Chapters.Any(chapter => chapter.Start > MediaTime.Zero &&
+            IsPlayableChapter(chapter.Start, duration)) == true;
+
     public static MediaStageView Resolve(in MediaStageContext context)
     {
         if (!context.HasItem)
