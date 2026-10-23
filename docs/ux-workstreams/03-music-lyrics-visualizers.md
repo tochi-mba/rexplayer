@@ -14,6 +14,10 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 
 **Out of scope:** unrelated audio/video decoding, analytics/network additions, breaking AutomationIDs or hotkeys, unverifiable macOS parity claims, and sister-PR tasks. Shared source changes must be coordinated before merge.
 
+## Follow-up PR #488: evidence-based work completed
+
+The [library and shell evidence map](implemented-library-shell-evidence.md) links the new persisted real-album Music Home pins, Unicode and malformed genre handling, exact word-timed lyrics rendering, suspend/resume lyric follow, per-mode visualizer setting isolation, native automation labels, and their focused tests. It does **not** claim a detached lyrics companion, finalized Mac equivalence, all physical-device transitions, or human-reviewed screenshots. The [recovery ledger](merged-pr-followup-audit.md) retains the exact remaining acceptance gates.
+
 ## Honest current delivery state
 - [x] Transfer these requirements to an independently owned, versioned scoped plan in this branch.
 - [ ] **Complete the actual code and tests.** The PR started as a planning-only draft; a first lyrics-model implementation and regression tests now exist, but the full scope and required verification remain unfinished.
