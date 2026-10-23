@@ -130,6 +130,9 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Contains("Opening", first.Current.Name, StringComparison.Ordinal);
         Assert.Contains("Continuation", second.Current.Name, StringComparison.Ordinal);
         Assert.True(second.Current.IsEnabled, "A proven chapter should offer a working jump.");
+        app.Press("StageChapter-1");
+        Wait.For(() => Math.Abs(app.Position - 0.25) < 0.2,
+            "the chapter action to seek the active audiobook to its marked position");
         Assert.Equal(0, app.Close());
     }
 
