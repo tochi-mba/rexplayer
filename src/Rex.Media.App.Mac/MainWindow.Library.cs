@@ -438,6 +438,32 @@ public sealed partial class MainWindow
         HideLibrary();
     }
 
+    /// <summary>
+    /// Verify that the first result's Play and Queue controls fit in the actual
+    /// AppKit scroll viewport, including with a long title at minimum window width.
+    /// </summary>
+    private AutomationReply VerifyLibraryResultLayout()
+    {
+        if (_libraryWindow?.IsVisible != true || _libraryScroll is null ||
+            _libraryFirstPlay is null || _libraryFirstQueue is null)
+        {
+            return AutomationReply.Failed("Open the library with a matching media result.");
+        }
+
+        _libraryWindow.ContentView?.LayoutSubtreeIfNeeded();
+        var play = _libraryFirstPlay.ConvertRectToView(_libraryFirstPlay.Bounds, _libraryScroll);
+        var queue = _libraryFirstQueue.ConvertRectToView(_libraryFirstQueue.Bounds, _libraryScroll);
+        var visibleWidth = _libraryScroll.ContentView.Bounds.Width;
+        if (visibleWidth <= 0 || play.Left < -1 || queue.Left < play.Right - 1 ||
+            queue.Right > visibleWidth + 1)
+        {
+            return AutomationReply.Failed(
+                $"Native result controls clip or overlap: play {play}, queue {queue}, viewport {visibleWidth}.");
+        }
+
+        return new AutomationReply { Ok = true, Text = "Play and Queue fit inside the native results viewport." };
+    }
+
     /// <summary>Report real AppKit control labels and enabled states for automation checks.</summary>
     private AutomationReply LibraryControlTree()
     {
