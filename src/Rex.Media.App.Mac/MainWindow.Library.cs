@@ -29,6 +29,7 @@ public sealed partial class MainWindow
     private int _libraryPageIndex;
     private const int LibraryPageSize = 80;
     private bool _closingLibrary;
+    private bool _libraryTemporaryStore;
 
     private void InitializeLibrary()
     {
@@ -40,6 +41,7 @@ public sealed partial class MainWindow
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _log.Warning(LogSource, "The library could not be opened: " + ex.Message);
+            _libraryTemporaryStore = true;
             store = RexStore.InMemory();
         }
 
@@ -88,8 +90,9 @@ public sealed partial class MainWindow
             {
                 PlaceholderString = "Search titles, artists, albums and folders",
             };
+            _librarySearch.Changed += (_, _) => ChangeLibraryView();
             _librarySearch.Activated += (_, _) => ChangeLibraryView();
-            _librarySearch.ToolTip = "Press Return to search the local library";
+            _librarySearch.ToolTip = "Type to filter your local library";
             _librarySearch.AccessibilityLabel = "Search library";
 
             _libraryCategory = new NSPopUpButton(new CGRect(0, 0, 220, 30), false);
@@ -316,9 +319,10 @@ public sealed partial class MainWindow
         _libraryScroll.DocumentView = document;
         WireLibraryKeyViews();
         var status = _libraryScanner?.Status;
-        _librarySummary.StringValue = $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
-            + (string.IsNullOrEmpty(status) ? "" : " • " + status)
-            + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "");
+        _librarySummary.StringValue = (string.IsNullOrEmpty(status) ? "" : status + " • ")
+            + $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
+            + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "")
+            + (_libraryTemporaryStore ? " • Changes will not be saved" : "");
     }
 
     /// <summary>
