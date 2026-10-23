@@ -610,7 +610,7 @@
       "fixture": "mp4/h264-aac.mp4",
       "route": "library/movies",
       "state": "poster-ratio",
-      "dimensions": "1016x760",
+      "dimensions": "1280x800",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryList"
@@ -627,7 +627,7 @@
       "fixture": "mp4/h264-aac.mp4",
       "route": "library/tv",
       "state": "still-ratio",
-      "dimensions": "1016x760",
+      "dimensions": "1280x800",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryList"
