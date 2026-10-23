@@ -117,6 +117,21 @@ public sealed class VisualStageTests
         Assert.True(float.IsFinite(stage.Pulse.Snare.Level));
     }
 
+    [Fact]
+    [Capability("AU-18")]
+    public void UnavailableAndOffModesResetWithoutLeavingASceneStuck()
+    {
+        var stage = Stage();
+        float[] silence = new float[VisualStage.SoundSize];
+        Assert.False(stage.Draw(VisualizerChoice.Off, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.False(stage.Draw(VisualizerChoice.Off, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+        stage.Reset();
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+    }
+
     [Theory]
     [Capability("AU-18")]
     [InlineData(VisualizerChoice.Halo)]
