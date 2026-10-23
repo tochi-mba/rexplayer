@@ -86,11 +86,13 @@ public sealed class PresentationTests
             [00:07.00]<00:07.00>first<00:09.00>past next line
             [00:08.00]next line
             [00:09.00]<00:09.00>valid
+            [00:10.00]<00:65.00>invalid seconds
             """)!;
 
-        Assert.Equal(9, lyrics.Lines.Count);
+        Assert.Equal(10, lyrics.Lines.Count);
         Assert.All(lyrics.Lines.Take(8), line => Assert.Empty(line.Words));
         Assert.Single(lyrics.Lines[8].Words);
+        Assert.Empty(lyrics.Lines[9].Words);
         Assert.Equal("too early", lyrics.Lines[1].Text);
         Assert.Equal("untimed prefix rest", lyrics.Lines[4].Text);
     }
@@ -99,7 +101,7 @@ public sealed class PresentationTests
     [Capability("META-09")]
     public void SeekSearchUsesLastDuplicateAndHandlesManyLinesAndNegativeStarts()
     {
-        var builder = new StringBuilder("[offset:+2000]\n[00:01.00]early\n");
+        var builder = new StringBuilder("[offset:+2000]\n[00:01.00]<00:01.00>early\n");
         for (var second = 2; second < 5000; second++)
         {
             builder.Append('[').Append((second / 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture))
@@ -110,6 +112,7 @@ public sealed class PresentationTests
         builder.Append("[01:00.00]duplicate");
         var lyrics = Lyrics.Parse(builder.ToString())!;
         Assert.Equal(0, lyrics.IndexAt(TimeSpan.FromSeconds(-1)));
+        Assert.Equal(TimeSpan.FromSeconds(-1), Assert.Single(lyrics.Lines[0].Words).At);
         Assert.Equal(-1, lyrics.IndexAt(TimeSpan.FromSeconds(-2)));
         Assert.Equal(4999, lyrics.IndexAt(TimeSpan.FromSeconds(6000)));
         Assert.Equal("duplicate", lyrics.Lines[lyrics.IndexAt(TimeSpan.FromSeconds(58))].Text);
