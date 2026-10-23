@@ -24,6 +24,8 @@ This is a partial implementation, **not** acceptance of any full roadmap or rele
 
 - [x] Fix pure next-episode selection so missing season numbers do not prevent playing an available later episode (commit `23139d1`).
 - [x] Add deterministic regression assertions for season gaps, unordered candidates, specials and different shows (commit `c3b5eff`).
+- [x] Prevent unreadable or missing-status episode rows from becoming the show's Play/Resume target; preserve their visible error rows (commit `2efbf23`).
+- [x] Add deterministic tests for corrupt/missing resume targets, Season 0 ordering and all-unreadable shows (commit `74e683a`).
 - [ ] Execute the affected pure tests on a .NET-capable runner; they have **not been run here**.
 - [ ] Complete the remaining TV browsing, player, picture, queue, adaptive layout, automation, screenshots and performance items before declaring readiness.
 
