@@ -163,6 +163,9 @@ public sealed partial class MainWindow : IDisposable
                 case "ui.keyboard":
                     answered.SetResult(ProbeLibraryKeyboard());
                     return;
+                case "ui.verify-layout":
+                    answered.SetResult(VerifyLibraryResultLayout());
+                    return;
                 case "ui.tree":
                     answered.SetResult(LibraryControlTree());
                     return;
