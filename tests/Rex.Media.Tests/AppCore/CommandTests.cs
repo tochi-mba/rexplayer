@@ -109,6 +109,16 @@ public sealed class CommandTests
     }
 
     [Fact]
+    public void UnimplementedMediaDownloadControlsAreNotExposedByTheCommandCatalogue()
+    {
+        // Downloading existing library files is recognized and tracked, but it does
+        // not mean rexplayer has implemented a remote media download action.
+        Assert.DoesNotContain(CommandCatalog.All, command =>
+            command.Id.StartsWith("download-", StringComparison.OrdinalIgnoreCase)
+            || command.Id.StartsWith("fetch-media-", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void JumpsAreNamedByTheLengthsChosenInPreferences()
     {
         var defaults = new Rex.Media.Settings.PlayerSettings();
