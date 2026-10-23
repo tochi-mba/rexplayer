@@ -102,13 +102,13 @@ public sealed class LibraryFoldersTests : IDisposable
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 show", StringComparison.Ordinal), "a single show", () => string.Join(", ", app.Lines()));
         Assert.Equal(["Futurama"], app.Lines());
 
-        // The special waits in the show's Specials, named by the words after its mark.
+        // The season-zero special is explicitly labelled in the picker, while its episode stays in Specials.
         app.Open("Futurama");
         Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on season 7",
             () => $"{app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
         var picker = app.Find("LibrarySeasonPicker");
         ((ExpandCollapsePattern)picker.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-        var specials = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Specials")));
+        var specials = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 0 (Specials)")));
         ((SelectionItemPattern)specials.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Lines() is ["Simpsorama"], "the special in Specials", () => string.Join(", ", app.Lines()));
         Assert.Equal(0, app.Close());
