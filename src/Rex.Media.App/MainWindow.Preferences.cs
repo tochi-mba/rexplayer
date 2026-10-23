@@ -538,7 +538,7 @@ public sealed partial class MainWindow
                     // A direct category match outranks incidental matches in controls on
                     // other pages. For example, searching "subtitle" must land on
                     // Subtitles, not on an earlier page that happens to mention subtitles.
-                    var directCategory = sections.FirstOrDefault(item => Says(item.Name, query))?.Name;
+                    var directCategory = sections.Select(item => item.Name).FirstOrDefault(name => Says(name, query));
                     var selectedName = directCategory ?? (names.Contains(sections[shownSection].Name)
                         ? sections[shownSection].Name : names[0]);
                     var index = sections.FindIndex(item => item.Name == selectedName);
