@@ -231,7 +231,9 @@ public sealed class MacAppSmokeTests
                     reply.Text.Contains("1 matching", StringComparison.Ordinal), app, root);
             var restoreVideos = await Ask(pipe, new AutomationRequest
             {
-                Command = "ui.set", Target = "LibraryCategory", Value = 2,
+                Command = "ui.set",
+                Target = "LibraryCategory",
+                Value = 2,
             });
             Assert.True(restoreVideos?.Ok == true &&
                 restoreVideos.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
