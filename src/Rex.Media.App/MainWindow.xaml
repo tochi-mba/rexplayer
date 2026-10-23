@@ -891,7 +891,7 @@
           <Button x:Name="FullScreenButton" ToolTipService.ToolTip="Toggle full screen" VerticalAlignment="Center" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen">
             <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
           </Button>
-          <DropDownButton x:Name="StageChaptersButton" Content="Chapters" Visibility="Collapsed" AutomationProperties.AutomationId="StageChaptersButton" AutomationProperties.Name="Chapters">
+          <DropDownButton x:Name="StageChaptersButton" Content="Chapters" MinHeight="44" Visibility="Collapsed" AutomationProperties.AutomationId="StageChaptersButton" AutomationProperties.Name="Chapters">
             <DropDownButton.Flyout><MenuFlyout x:Name="StageChapterMenu" /></DropDownButton.Flyout>
           </DropDownButton>
         </StackPanel>
