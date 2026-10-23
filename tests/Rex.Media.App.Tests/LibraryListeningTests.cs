@@ -171,6 +171,49 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void ABooksSpeedIsRestoredWithoutLeakingIntoMusic()
+    {
+        _scene.WithAsake();
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Book", "Part 1.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Book");
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Audiobooks");
+        app.Open("Book");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 1", "the book to begin playing");
+        app.Press("SpeedButton");
+        app.Press("SpeedRate-1.5");
+        Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1.5×",
+            "this book's chosen listening speed");
+
+        if (!app.IsShown("LibraryPane"))
+        {
+            app.Run(CommandCatalog.ToggleLibrary);
+        }
+
+        app.Visit("Songs");
+        app.Open("Sungba");
+        Wait.For(() => app.Text("NowPlaying") == "Sungba"
+            && app.Text("SpeedButton") == "Playback speed, 1×",
+            "music to play at normal speed after a faster audiobook");
+
+        if (!app.IsShown("LibraryPane"))
+        {
+            app.Run(CommandCatalog.ToggleLibrary);
+        }
+
+        app.Visit("Audiobooks");
+        app.Open("Book");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 1"
+            && app.Text("SpeedButton") == "Playback speed, 1.5×",
+            "the audiobook's earlier speed to be restored");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AuthorCardsCannotFinishAWholeCatalogueAndBookCardPlayIsScoped()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Alpha", "Opening Alpha.wav"),
