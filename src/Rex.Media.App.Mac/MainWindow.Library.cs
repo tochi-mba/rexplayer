@@ -16,6 +16,11 @@ public sealed partial class MainWindow
     private NSPopUpButton? _libraryCategory;
     private NSScrollView? _libraryScroll;
     private NSTextField? _librarySummary;
+    private NSTextField? _libraryPageSummary;
+    private NSButton? _libraryPreviousPage;
+    private NSButton? _libraryNextPage;
+    private int _libraryPageIndex;
+    private const int LibraryPageSize = 80;
     private bool _closingLibrary;
 
     private void InitializeLibrary()
@@ -48,7 +53,7 @@ public sealed partial class MainWindow
                 NSBackingStore.Buffered, false)
             {
                 Title = "Your library - rexplayer",
-                MinSize = new CGSize(640, 470),
+                MinSize = new CGSize(590, 460),
             };
             _libraryWindow.ReleaseWhenClosed(false);
 
@@ -67,7 +72,7 @@ public sealed partial class MainWindow
             {
                 PlaceholderString = "Search titles, artists, albums and folders",
             };
-            _librarySearch.Activated += (_, _) => RefreshLibrary();
+            _librarySearch.Activated += (_, _) => ChangeLibraryView();
             _librarySearch.ToolTip = "Press Return to search the local library";
 
             _libraryCategory = new NSPopUpButton(new CGRect(0, 0, 220, 30), false);
@@ -76,24 +81,46 @@ public sealed partial class MainWindow
                 _libraryCategory.AddItem(name);
             }
 
-            _libraryCategory.Activated += (_, _) => RefreshLibrary();
+            _libraryCategory.Activated += (_, _) => ChangeLibraryView();
             var filters = NSStackView.FromViews([_librarySearch, _libraryCategory]);
             filters.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             filters.Spacing = 12;
-            _librarySearch.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
+            _librarySearch.WidthAnchor.ConstraintGreaterThanOrEqualTo(220).Active = true;
             _libraryCategory.WidthAnchor.ConstraintEqualTo(190).Active = true;
 
             _librarySummary = NSTextField.CreateLabel("");
             _librarySummary.TextColor = NSColor.SecondaryLabel;
             _librarySummary.Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!;
+            _librarySummary.LineBreakMode = NSLineBreakMode.TruncatingTail;
+
+            _libraryPreviousPage = NSButton.CreateButton("Previous", () =>
+            {
+                if (_libraryPageIndex > 0)
+                {
+                    _libraryPageIndex--;
+                    RefreshLibrary();
+                }
+            });
+            _libraryPreviousPage.ToolTip = "Show the previous library results";
+            _libraryNextPage = NSButton.CreateButton("Next", () =>
+            {
+                _libraryPageIndex++;
+                RefreshLibrary();
+            });
+            _libraryNextPage.ToolTip = "Show the next library results";
+            _libraryPageSummary = NSTextField.CreateLabel("");
+            _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
+            var pages = NSStackView.FromViews([_libraryPreviousPage, _libraryPageSummary, _libraryNextPage]);
+            pages.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            pages.Spacing = 12;
 
             _libraryScroll = new NSScrollView(new CGRect(0, 0, 740, 390))
             {
                 HasVerticalScroller = true,
             };
-            _libraryScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(320).Active = true;
+            _libraryScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(170).Active = true;
 
-            var stack = NSStackView.FromViews([headline, description, actions, filters, _librarySummary, _libraryScroll]);
+            var stack = NSStackView.FromViews([headline, description, actions, filters, _librarySummary, pages, _libraryScroll]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 14;
@@ -150,6 +177,13 @@ public sealed partial class MainWindow
         RefreshLibrary();
     }
 
+    /// <summary>Start from the first page when the search text or media category changes.</summary>
+    private void ChangeLibraryView()
+    {
+        _libraryPageIndex = 0;
+        RefreshLibrary();
+    }
+
     /// <summary>Recreate the visible rows from an immutable catalogue snapshot on the UI thread.</summary>
     private void RefreshLibrary()
     {
@@ -176,8 +210,15 @@ public sealed partial class MainWindow
             entries = entries.Where(entry => matching.Contains(entry.Path)).ToList();
         }
 
-        const int visibleLimit = 80;
-        var shown = entries.Take(visibleLimit).ToList();
+        var lastPage = Math.Max(0, (entries.Count - 1) / LibraryPageSize);
+        _libraryPageIndex = Math.Clamp(_libraryPageIndex, 0, lastPage);
+        var shown = entries.Skip(_libraryPageIndex * LibraryPageSize).Take(LibraryPageSize).ToList();
+        if (_libraryPreviousPage is not null && _libraryNextPage is not null && _libraryPageSummary is not null)
+        {
+            _libraryPreviousPage.Enabled = _libraryPageIndex > 0;
+            _libraryNextPage.Enabled = _libraryPageIndex < lastPage;
+            _libraryPageSummary.StringValue = $"Page {_libraryPageIndex + 1} of {lastPage + 1}";
+        }
         var views = new List<NSView>();
         if (shown.Count == 0)
         {
@@ -195,7 +236,7 @@ public sealed partial class MainWindow
             var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, entries));
             play.ToolTip = entry.Path;
             play.Alignment = NSTextAlignment.Left;
-            play.WidthAnchor.ConstraintGreaterThanOrEqualTo(360).Active = true;
+            play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
             var detail = NSTextField.CreateLabel(secondary);
             detail.TextColor = NSColor.SecondaryLabel;
             detail.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
@@ -213,7 +254,7 @@ public sealed partial class MainWindow
             var row = NSStackView.FromViews([words, queue]);
             row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             row.Spacing = 14;
-            row.WidthAnchor.ConstraintGreaterThanOrEqualTo(650).Active = true;
+            row.WidthAnchor.ConstraintGreaterThanOrEqualTo(490).Active = true;
             views.Add(row);
         }
 
@@ -228,7 +269,7 @@ public sealed partial class MainWindow
         var status = _libraryScanner?.Status;
         _librarySummary.StringValue = $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
             + (string.IsNullOrEmpty(status) ? "" : " • " + status)
-            + (entries.Count > visibleLimit ? $" • showing first {visibleLimit}, search to narrow" : "");
+            + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "");
     }
 
     private void PlayLibraryEntry(LibraryEntry chosen, IReadOnlyList<LibraryEntry> selection)
