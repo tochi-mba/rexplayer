@@ -119,6 +119,45 @@ public sealed class VisualStageTests
 
     [Fact]
     [Capability("AU-18")]
+    public void ShortAndMissingVisualizerSamplesStaySilentUntilTheSourceHasData()
+    {
+        var stage = Stage(48, 30);
+        var shortSound = new float[] { 0.25f, -0.5f, 0.75f };
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, shortSound, [], 48000, TimeSpan.FromMilliseconds(30)));
+        Assert.Equal(VisualStage.SoundSize - shortSound.Length, stage.Context.Left.TakeWhile(x => x == 0).Count()
+            + (VisualStage.SoundSize - stage.Context.Left.Length));
+        Assert.Equal(stage.Context.Left, stage.Context.Right);
+        Assert.Equal(0.25f, stage.Context.Left[^3]);
+        Assert.Equal(-0.5f, stage.Context.Left[^2]);
+        Assert.Equal(0.75f, stage.Context.Left[^1]);
+
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, [], [], 48000, TimeSpan.FromMilliseconds(30)));
+        Assert.All(stage.Context.Left, sample => Assert.Equal(0, sample));
+        Assert.All(stage.Context.Right, sample => Assert.Equal(0, sample));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void OversizedAndClippedVisualizerChannelsUseRecentFiniteSamples()
+    {
+        var stage = Stage(48, 30);
+        var longer = Enumerable.Repeat(0.1f, VisualStage.SoundSize + 16).ToArray();
+        longer[^3] = float.NaN;
+        longer[^2] = float.PositiveInfinity;
+        longer[^1] = 4f;
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, longer, [],
+            48000, TimeSpan.FromMilliseconds(30)));
+        Assert.Equal(0, stage.Context.Left[^3]);
+        Assert.Equal(0, stage.Context.Left[^2]);
+        Assert.Equal(1, stage.Context.Left[^1]);
+        Assert.All(stage.Context.Left, sample => Assert.InRange(sample, -1, 1));
+        Assert.Equal(VisualStage.SafeSample(-4), -1);
+        Assert.Equal(VisualStage.SafeSample(float.NegativeInfinity), 0);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
     public void UnavailableAndOffModesResetWithoutLeavingASceneStuck()
     {
         var stage = Stage();
