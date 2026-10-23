@@ -36,7 +36,7 @@
           </Grid>
         </Border>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
-          <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+          <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
           <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
         </StackPanel>
         <!-- Quick actions show on the line pointed at or focused, exactly like a card's play mark. -->
