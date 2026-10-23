@@ -114,3 +114,13 @@ Columns for evidence should be added next to checked entries only after the evid
 - [ ] Verify the production website screenshots and claims against finalized release binaries and deployed Pages at narrow/mobile and desktop widths.
 - [ ] Review all PR comments, check native focus/keyboard/assistive-technology behavior, and confirm no blocking CI failures before asking for review.
 - [ ] Re-read this checklist end to end before changing the replacement PR from draft to ready; do not auto-merge.
+
+## Work implemented in this follow-up branch (verification pending)
+
+These changes are **partial** evidence for the corresponding entries, not permission to check off their broader end-to-end acceptance criteria:
+
+- **#487.5:** LRC offset parsing now ignores numbers that do not fit into a signed millisecond offset; line timestamp parsing ignores seconds outside 0-59. Regression tests cover damaged offsets, malformed seconds, long Unicode/RTL lines, repeated time marks and metadata tags. Still requires current-head CI and native UI validation for the full lyric workstream.
+- **#479.5:** episode sibling grouping no longer treats a combined S01E01E02 file and a standalone S01E02 file as two independent siblings. Regression test covers overlapping ranges. Other multi-file, moved-file, and damaged-file behavior is still outstanding.
+- **#482.1:** `visualizer-option-inventory.md` enumerates all 42 declared modes, 146 mode-specific options, shared settings, default palettes and the mode-qualified persistence key convention. Added pure regression coverage for default values and distinct persistence keys. This does not validate rendering, assistive technology, transitions or hardware performance.
+
+Nothing in this section certifies human-reviewed native screenshots, accessibility, live Pages, or a finalized release. Keep checklist entries unchecked until their complete requirements and test gates are verified.
