@@ -158,6 +158,9 @@ public sealed partial class AppWindowTests
             return found is null || found.Count == 0 ? null : found.Cast<AutomationElement>().ToArray();
         })!;
 
+        var addFiles = app.OpenMenu("AddFilesNamed-Mix", "MediaMenu", "PlaylistsMenu", "NamedPlaylist-Mix");
+        Assert.True(addFiles.Current.IsEnabled);
+        app.Press("Menu"); // Dismiss without opening the Windows file picker.
         OpenEditor();
         var initial = Entries();
         Assert.Equal(2, initial.Length);

@@ -64,6 +64,7 @@ public sealed partial class MainWindow
             sub.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(id, enqueue: true)));
             sub.Items.Add(new MenuFlyoutSeparator());
             sub.Items.Add(MenuItem("Edit contents...", "EditNamed-" + playlist.Name, () => Forget(EditPlaylistAsync(id))));
+            sub.Items.Add(MenuItem("Add files...", "AddFilesNamed-" + playlist.Name, () => Forget(AddFilesToNamedPlaylistAsync(id))));
             sub.Items.Add(MenuItem("Rename...", null, () => Forget(RenamePlaylistAsync(id))));
             sub.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(id)));
             sub.Items.Add(MenuItem("Delete...", "DeleteNamed-" + playlist.Name, () => Forget(DeletePlaylistAsync(id))));
@@ -209,6 +210,26 @@ public sealed partial class MainWindow
         if (await Ask("New playlist", box, "Make") && !string.IsNullOrWhiteSpace(box.Text))
         {
             _player.CreatePlaylist(box.Text, items);
+        }
+    }
+
+    /// <summary>Add multiple supported media files to a saved playlist without changing the playing queue.</summary>
+    private async Task AddFilesToNamedPlaylistAsync(string id)
+    {
+        var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker
+        {
+            SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.MusicLibrary,
+            ViewMode = Windows.Storage.Pickers.PickerViewMode.List,
+        });
+        foreach (var extension in MediaFiles.Audio.Concat(MediaFiles.Video).Concat(MediaFiles.Pictures)
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            picker.FileTypeFilter.Add(extension);
+        }
+
+        if (await picker.PickMultipleFilesAsync() is { Count: > 0 } picked)
+        {
+            _player.AddToPlaylist(id, picked.Select(file => new PlaylistItem(file.Path)));
         }
     }
 
