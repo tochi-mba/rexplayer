@@ -9,7 +9,17 @@ public sealed record VisualPicture(byte[] Bgra, int Width, int Height)
     /// <summary>One channel (0 blue, 1 green, 2 red) at a point between pixels, 0 to 1, the edge pixel beyond the edges.</summary>
     public float Sample(double x, double y, int channel)
     {
-        x = Math.Clamp(x, 0, Width - 1);
+        if (Width <= 0 || Height <= 0 || channel is < 0 or > 2
+            || Bgra is null || (long)Width * Height * 4 > Bgra.Length)
+        {
+            // Unplugged camera streams and failed decodes can deliver empty or
+            // partial frames. Keep a silent black fallback rather than throwing
+            // from the render loop or reading beyond the pixel buffer.
+            return 0;
+        }
+
+        x = double.IsFinite(x) ? Math.Clamp(x, 0, Width - 1) : 0;
+        y = double.IsFinite(y) ? Math.Clamp(y, 0, Height - 1) : 0;
         y = Math.Clamp(y, 0, Height - 1);
         var (x0, y0) = ((int)x, (int)y);
         var (x1, y1) = (Math.Min(x0 + 1, Width - 1), Math.Min(y0 + 1, Height - 1));
