@@ -150,9 +150,13 @@ public sealed class AudiobookPresentationTests : IDisposable
     {
         var chapters = Enumerable.Range(0, 10_000).Reverse()
             .Select(i => new Chapter(MediaTime.FromSeconds(i), "Chapter " + i)).ToArray();
-        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Huge Book", "Whole.wav"),
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Huge Book", "Part 1.wav"),
             TimeSpan.FromHours(4), album: "Huge Book", author: "Ann Writer",
             chapters: chapters);
+        // A second physical part exercises the code path that displays part
+        // context for every chapter; it must not decode 10,000 markers per row.
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Huge Book", "Part 2.wav"),
+            TimeSpan.FromHours(1), album: "Huge Book", author: "Ann Writer");
 
         using var app = _scene.Ready().Start();
         app.Visit("Audiobooks");
