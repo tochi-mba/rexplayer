@@ -52,6 +52,31 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("AU-18")]
+    public void EveryBasicVisualizerSettingHasARealAutomationNameAndResetHelp()
+    {
+        using var app = AppProcess.Start();
+        app.Run(CommandCatalog.VisualizerSettings);
+        var mode = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "VisualizerChoice")));
+        Assert.Equal("Visualisation", mode.Current.Name);
+
+        var sensitivity = app.Find("Visual-sensitivity");
+        Assert.Equal("Sensitivity", sensitivity.Current.Name);
+        Assert.Contains("from 0.25 to 4", sensitivity.Current.HelpText, StringComparison.Ordinal);
+        Assert.Equal("Colours", app.Find("Visual-colors").Current.Name);
+        Assert.Equal("Its own colour (with One colour)", app.Find("Visual-color").Current.Name);
+        Assert.Equal("Bars", app.Find("Visual-bars").Current.Name);
+        Assert.Equal("Show the peaks", app.Find("Visual-peaks").Current.Name);
+
+        var reset = app.Find("VisualizerReset");
+        Assert.Equal("Restore defaults for this visualisation", reset.Current.Name);
+        Assert.Contains("Other visualisations keep their saved values", reset.Current.HelpText, StringComparison.Ordinal);
+        app.Press("CloseButton");
+        Assert.Equal(0, app.Close());
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
