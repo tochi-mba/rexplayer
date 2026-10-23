@@ -207,8 +207,9 @@ public sealed class LibraryListeningTests : IDisposable
             "separate details, remove-only and Recycle-Bin file actions");
         app.Press("LibraryMenuRecordingDetails");
         Wait.For(() => app.IsShown("RecordingDetailPath") &&
-            app.IsShown("RecordingDetailSeek") && app.IsShown("RecordingDetailBookmark"),
-            "file location, precise review seek and bookmark controls");
+            app.IsShown("RecordingDetailSeek") && app.IsShown("RecordingDetailBookmark")
+            && app.IsShown("RecordingDetailSpeed"),
+            "file location, precise review seek, speed and bookmark controls");
         Assert.Contains("does not delete its file", app.Text("RecordingDetailStatus"), StringComparison.Ordinal);
         Assert.Contains("Duration", app.Text("RecordingDetailDuration"), StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
