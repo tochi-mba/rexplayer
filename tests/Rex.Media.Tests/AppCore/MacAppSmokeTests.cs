@@ -151,6 +151,73 @@ public sealed class MacAppSmokeTests
         }
     }
 
+    [Fact]
+    public async Task TheMacLibraryPaginatesMoreThanEightyFiles()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-pages-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var folder = Path.Combine(root, "watched");
+        Directory.CreateDirectory(folder);
+        var files = new List<LibraryFile>();
+        for (var index = 0; index < 85; index++)
+        {
+            var file = Path.Combine(folder, $"clip-{index:000}.mp4");
+            File.WriteAllBytes(file, [0]);
+            files.Add(new LibraryFile(file, 1, File.GetLastWriteTimeUtc(file)));
+        }
+
+        var library = new Rex.Media.Library.MediaLibrary(RexStore.Open(new DataRoots(root).LibraryStore));
+        Assert.True(library.AddFolder(folder));
+        Assert.Equal(85, library.Scan(folder, files, _ => LibraryKind.Video).Added);
+
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer")) { UseShellExecute = false };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        using var app = Process.Start(start)!;
+        try
+        {
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), answer => answer is { Ok: true }, app, root);
+            var open = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(open?.Ok == true, "The large Mac library did not open." + LogTail(root));
+            var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryPage" && control.Text == "Page 1 of 2");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryPrevious" && !control.Enabled);
+            var next = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryNext" });
+            Assert.Equal("Page 2 of 2", next?.Text);
+            tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryPrevious" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && !control.Enabled);
+            var previous = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryPrevious" });
+            Assert.Equal("Page 1 of 2", previous?.Text);
+            var filtered = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "clip-084" });
+            Assert.Contains("1 matching", filtered?.Text);
+            var page = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibraryPage" });
+            Assert.Equal("Page 1 of 1", page?.Text);
+
+            var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+            Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0));
+            Assert.True(app.WaitForExit(Patience), "The large Mac library did not quit.");
+            Assert.Equal(0, app.ExitCode);
+        }
+        finally
+        {
+            if (!app.HasExited)
+            {
+                app.Kill();
+                app.WaitForExit();
+            }
+
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static async Task CaptureLibraryScreenshot(string pipe, string name, string root)
     {
         var directory = Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOTS") ?? root;
