@@ -29,6 +29,25 @@ test('the home page loads without errors and names the product and the company',
   expect(errors).toEqual([]);
 });
 
+test('the hero and library show genuine labeled native screenshots', async ({ page }) => {
+  await page.goto('./');
+  const images = page.locator('.product-shot img, .real-product-row img');
+  await expect(images).toHaveCount(2);
+  await expect(page.locator('.product-shot figcaption')).toContainText('Actual Windows library capture');
+  await expect(page.locator('#platforms')).toContainText('Windows and Mac');
+  for (const image of await images.all()) {
+    await expect(image).toHaveAttribute('src', /screenshot-baselines\/ci-windows\/.*\.png$/);
+    await expect(image).toHaveAttribute('alt', /Actual Windows|Real Windows/);
+    await expect(image).toBeVisible();
+  }
+});
+
+test('the product does not suggest every Mac capability is already available', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('#platforms')).toContainText('Windows interface currently supports more');
+  await expect(page.locator('#platforms a')).toHaveAttribute('href', /docs\/parity\.md$/);
+});
+
 test('the page uses the REX ink and signal palette', async ({ page }) => {
   await page.goto('./');
   const values = await page.evaluate(names => {
