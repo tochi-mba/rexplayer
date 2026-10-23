@@ -46,6 +46,35 @@ public sealed class LibraryArtistsTests : IDisposable
     }
     [Fact]
     [Capability("LIB-05")]
+    public void SimilarArtistNamesHaveSeparateOfflinePagesAndNoInventedBiography()
+    {
+        _scene.Song("Short Name Track", "Demos", 2024, "Alternative", "Asa");
+        _scene.Song("Long Name Track", "Demos", 2024, "Afrobeats", "Asake");
+        using var app = _scene.Ready(settings => settings with
+        {
+            Metadata = new Rex.Media.Settings.MetadataSettings { Music = false },
+        }).Start();
+
+        app.Visit("Artists");
+        Assert.Equal(["Asa", "Asake"], app.Lines().Order(StringComparer.CurrentCultureIgnoreCase));
+        app.Open("Asa");
+        Wait.For(() => app.Text("LibraryKicker") == "ARTIST" && app.Text("LibraryTitle") == "Asa",
+            "the first artist's own offline page");
+        app.Line("Short Name Track");
+        Assert.DoesNotContain("Long Name Track", app.Lines());
+        Assert.False(app.IsShown("LibraryOverview"), "offline pages cannot invent biographies");
+        Assert.False(app.IsShown("LibraryCredit"), "there is no source to credit without metadata");
+
+        app.Press("LibraryBack");
+        app.Open("Asake");
+        Wait.For(() => app.Text("LibraryTitle") == "Asake", "the separately credited artist");
+        app.Line("Long Name Track");
+        Assert.DoesNotContain("Short Name Track", app.Lines());
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void NoSpaceAfterFeaturedCreditKeepsEveryGuestOnTheirOwnArtistCard()
     {
         _scene.Song("If I Never See Your Face Again", "It Won't Be Soon Before Long", 2008, "Pop", "Maroon 5 feat.Rihanna");
