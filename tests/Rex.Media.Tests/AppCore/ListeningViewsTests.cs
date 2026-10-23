@@ -154,6 +154,33 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void MissingPartsAndLengthsCannotMakeABookFinishedOrLoseItsResumeMarker()
+    {
+        var empty = new LibraryGroup("Empty", null, []);
+        Assert.Equal(default, ListeningViews.PlaceIn(empty, NeverLeft));
+        Assert.Equal(0, ListeningViews.Progress(empty, default));
+
+        var first = AudioFile("Audiobooks/Restored/Part 1.mp3", TimeSpan.FromMinutes(60));
+        var second = AudioFile("Audiobooks/Restored/Part 2.mp3", null);
+        var restored = new LibraryGroup("Restored", null, [first, second]);
+        var marker = TimeSpan.FromMinutes(12);
+        Assert.Equal(new BookPlace(1, marker),
+            ListeningViews.PlaceIn(restored, path => path == second.Path ? marker : null));
+        Assert.Equal(0.5, ListeningViews.Progress(restored, new BookPlace(1, TimeSpan.Zero)), 6);
+        Assert.Equal(0.25, ListeningViews.Progress(restored, new BookPlace(0, TimeSpan.FromMinutes(30))), 6);
+        Assert.Equal(0.5, ListeningViews.Progress(restored, new BookPlace(1, marker)), 6);
+
+        var timed = restored with { Entries = [first, second with { Duration = TimeSpan.FromMinutes(60) }] };
+        Assert.Equal(0.5, ListeningViews.Progress(timed, new BookPlace(0, TimeSpan.FromMinutes(120))), 6);
+        Assert.Equal(0, ListeningViews.Progress(timed, new BookPlace(-1, TimeSpan.FromMinutes(-1))), 6);
+        Assert.Equal(1, ListeningViews.Progress(timed, new BookPlace(2, TimeSpan.Zero)), 6);
+        Assert.Equal(0.5, ListeningViews.Progress(
+            restored with { Entries = [first with { Duration = null }, second] },
+            new BookPlace(1, TimeSpan.Zero)), 6);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ShowsMergeAcrossFoldersByTheirNameAndListEpisodesNewestFirst()
     {
         var older = AudioFile("Podcasts/The Daily/Ep 1.mp3", TimeSpan.FromMinutes(20), "Host", "The Daily", year: 2023) with { Modified = new DateTime(2023, 5, 1, 0, 0, 0, DateTimeKind.Utc) };
