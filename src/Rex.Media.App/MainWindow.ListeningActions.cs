@@ -89,6 +89,25 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Always scope podcast playback to its own show, including Home's mixed new/continue shelves.
+    /// No other show's episode may enter the automatic playback queue.
+    /// </summary>
+    private void PlayPodcastEpisode(LibraryEntry episode)
+    {
+        var show = Listening().Podcasts.FirstOrDefault(candidate =>
+            candidate.Entries.Any(item => LibraryViews.SameLocation(item.Path, episode.Path)));
+        if (show is null)
+        {
+            Play([episode], 0, resume: true);
+            return;
+        }
+
+        var index = show.Entries.ToList().FindIndex(item =>
+            LibraryViews.SameLocation(item.Path, episode.Path));
+        Play(show.Entries, index, resume: true);
+    }
+
     private int _episodeQueueRequest;
 
     /// <summary>
