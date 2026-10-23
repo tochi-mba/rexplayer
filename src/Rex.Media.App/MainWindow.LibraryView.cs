@@ -696,7 +696,7 @@ public sealed partial class MainWindow
             : choice.Look == LibraryLook.List ? ("LibrarySongTemplate", 0.0, 0.0, "Compact list")
             : kind == LibraryKind.Video && (_librarySource == LibrarySource.Movies || (_librarySource == LibrarySource.TvShows && _libraryGroup is null)) ? ("LibraryMovieTemplate", size + 12, (size * 1.5) + 68, "Movies and TV shows, poster grid")
             : kind == LibraryKind.Video ? ("LibraryVideoTemplate", (size * 1.45) + 12, (size * 1.45 * 9 / 16) + 64, "Episodes, thumbnail grid")
-            : kind == LibraryKind.Picture ? ("LibraryPhotoTemplate", size + 8, (size * 0.75) + 8, "Pictures, gallery grid")
+            : kind == LibraryKind.Picture ? ("LibraryPhotoTemplate", size + 8, (size * 0.75) + 52, "Pictures, gallery grid")
             : ("LibraryBrowseTemplate", size + 12, size + 78, "Cover grid");
         var look = $"{template}|{width:0}|{height:0}";
         if (look == _shownLook)

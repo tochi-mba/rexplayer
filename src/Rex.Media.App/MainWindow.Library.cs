@@ -447,7 +447,10 @@ public sealed partial class MainWindow
             : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path)
                 ? FetchedEpisodeName(episode) ?? episode.DisplayName : entry.Title;
         var detail = entry.Kind == LibraryKind.Video
-            ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
+            ? (_librarySource is LibrarySource.OtherVideos or LibrarySource.Videos
+                && !string.Equals(Path.GetFileName(entry.Path), entry.Title, StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileName(entry.Path) + " · " : "")
+                + (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
                 + (_librarySource == LibrarySource.Movies && MovieRules.NotMatched(entry, MovieLookupOf(entry)) ? "Not matched · " : "")
@@ -456,6 +459,7 @@ public sealed partial class MainWindow
             : entry.Kind == LibraryKind.Picture
                 ? string.Join(" · ", new[]
                 {
+                    Path.GetFileName(entry.Path),
                     Path.GetFileName(Path.GetDirectoryName(entry.Path)),
                     entry.PictureWidth is > 0 && entry.PictureHeight is > 0
                         ? $"{entry.PictureWidth} × {entry.PictureHeight}" : null,

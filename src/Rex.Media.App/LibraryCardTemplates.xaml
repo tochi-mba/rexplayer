@@ -165,8 +165,12 @@
     </ItemContainer>
   </DataTemplate>
   <DataTemplate x:Key="LibraryPhotoTemplate" x:DataType="local:LibraryRow">
-    <Grid Padding="4" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
-      <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
+    <Grid Padding="4" RowSpacing="5" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind Detail, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Border Grid.Row="0" CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
           <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
@@ -177,7 +181,7 @@
                 <GradientStop Color="#C0000000" Offset="1" />
               </LinearGradientBrush>
             </Border.Background>
-            <TextBlock Text="{x:Bind Name}" Foreground="White" FontSize="12" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="Open picture" Foreground="White" FontSize="12" />
           </Border>
           <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="26" Height="26" Margin="8"
                         HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
@@ -188,6 +192,11 @@
           </Border>
         </Grid>
       </Border>
+      <StackPanel Grid.Row="1" Spacing="2" Margin="4,0,4,0">
+        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" FontSize="12" />
+        <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="{x:Bind DetailVisibility, Mode=OneWay}" TextTrimming="CharacterEllipsis" FontSize="11" />
+      </StackPanel>
     </Grid>
   </DataTemplate>
 </ResourceDictionary>
