@@ -174,6 +174,12 @@ public sealed class LibraryListeningTests : IDisposable
         using var app = _scene.Ready().Start();
         app.Visit("Podcasts");
         app.Open("Night Talk");
+        Wait.For(() => app.Line("Ep 1").FindAll(System.Windows.Automation.TreeScope.Descendants,
+            new System.Windows.Automation.PropertyCondition(System.Windows.Automation.AutomationElement.ControlTypeProperty,
+                System.Windows.Automation.ControlType.Text))
+            .Cast<System.Windows.Automation.AutomationElement>()
+            .Any(child => child.Current.Name.Contains("Notes: Chapter one", StringComparison.Ordinal)),
+            "the local notes preview to update a visible episode without rebuilding the show");
         Pointer.RightClick(app, app.Line("Ep 1"));
         Wait.For(() => app.IsShown("LibraryMenuPodcastNotes"), "local notes menu for a podcast episode");
         app.Press("LibraryMenuPodcastNotes");
