@@ -40,6 +40,29 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Theory]
+    [InlineData(720, 540, "compact")]
+    [InlineData(420, 340, "minimum")]
+    [Capability("UI-10")]
+    public void TheMediaStageAndPrimaryTransportFitCompactAndMinimumWindows(int width, int height, string size)
+    {
+        using var app = AppStartedAt(width, height, "Dark");
+        Wait.For(() => app.IsShown("IdleTitle") && app.IsShown("PlayPauseButton"),
+            "the stage and transport to be visible");
+
+        var window = app.Window.Current.BoundingRectangle;
+        var stage = app.Find("Stage").Current.BoundingRectangle;
+        var play = app.Find("PlayPauseButton").Current.BoundingRectangle;
+        Assert.True(stage.Width > 0 && stage.Height > 0, "The player stage should retain a usable area.");
+        Assert.True(play.Width > 0 && play.Height > 0
+            && play.Left >= window.Left && play.Right <= window.Right
+            && play.Top >= window.Top && play.Bottom <= window.Bottom,
+            "The primary playback action must remain within the resized window.");
+
+        Screenshots.Match(app, "stage-welcome-" + size);
+        Assert.Equal(0, app.Close());
+    }
+
     /// <summary>The app in a fixed theme, its window at a fixed size, so its shots compare run to run.</summary>
     private static AppProcess AppStartedAt(int width, int height, string theme)
     {
