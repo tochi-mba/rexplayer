@@ -87,13 +87,19 @@ The `unreviewed` inventory status means the capture is record-only, not visually
 `ci-windows` means a committed baseline exists, not that all human visual review gates passed.
 Unpinned viewport labels in the inventory are explicit follow-up work, not evidence of coverage.
 The scene contract also declares `captureMode`: `window` uses PrintWindow for the host HWND,
-whereas `desktop` uses the actual on-screen desktop composition. All current screenshot
-scenes use `desktop`, because CI evidence showed PrintWindow could silently omit both
-floating popups and the full window content, even after UIA reports it ready.
-Desktop scenes require visible variation inside their expected UIA control witness and save
-the failed capture too if the popup is missing. Run these tests on a visible, unobstructed,
-serial Windows desktop; never approve desktop captures made with other windows covering the app.
-The capture mode is recorded in each JSON sidecar.
+whereas `desktop` uses the actual on-screen desktop composition. Most scenes use `desktop`, because CI evidence showed PrintWindow could silently omit both
+floating popups and full window content, even after UIA reports it ready. The two existing
+letterboxed-card baselines retain `window` mode; their PrintWindow crops were originally
+committed in that lane and must not silently change capture mode.
+Popup and Preferences scenes require visible variation in the UIA control witness;
+ordinary library and playback scenes instead require semantic UIA readiness and a
+nonuniform rendered image, since an individual icon can legitimately be mostly uniform.
+The harness positions isolated test windows on the visible desktop before opening dialogs
+and rejects cropped/offscreen desktop evidence. Each scene writes an actual PNG, a JSON
+sidecar recording both semantic and pixel checks, and the app log. CI also keeps the
+full scene inventory and per-test process logs. Run these tests on a visible,
+unobstructed, serial Windows desktop; never approve desktop captures made with other
+windows covering the app. The capture mode is recorded in each JSON sidecar.
 
 ## Measuring the whole player
 
