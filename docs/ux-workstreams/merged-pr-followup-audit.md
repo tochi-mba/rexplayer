@@ -15,7 +15,7 @@
 
 ## Verification ledger
 
-Columns for evidence should be added next to checked entries only after the evidence exists. All source tasks begin unchecked in this follow-up PR; later commits must update the ledger for independently verified items.
+Columns for evidence should be added next to checked entries only after the evidence exists. All source tasks began unchecked in this follow-up PR; independently verified items are marked individually below with links to their evidence.
 
 ### [#481](https://github.com/tochi-mba/rexplayer/pull/481): Split Windows music library browsing and discovery roadmap (12)
 
@@ -49,7 +49,7 @@ Columns for evidence should be added next to checked entries only after the evid
 
 ### [#482](https://github.com/tochi-mba/rexplayer/pull/482): Split Windows audio visualizer compatibility and persistence (10)
 
-- [ ] **482.1** Inventory every visualizer mode, option, default, and persistence key against the current implementation.
+- [x] **482.1** Inventory every visualizer mode, option, default, and persistence key against the current implementation. **Verified source-inventory deliverable:** [exact keys, 42 modes, default palettes, 146 specific options, ranges and all choices](visualizer-option-inventory.md) against `VisualizerChoice`, `VisualizerOptions.For`, and `VisualScene.Draws`; regression test `EachModeOptionHasAValidDefaultAndAStableDistinctPersistenceKey`. This does **not** close tasks #482.2–#482.9 (native controls and end-to-end quality checks).
 - [ ] **482.2** Verify switching modes preserves compatible values and resets incompatible values predictably.
 - [ ] **482.3** Keep analysis off the UI thread and bound memory, CPU, and cancellation behavior.
 - [ ] **482.4** Verify pause, seek, track change, audio-device change, window resize, minimize, and shutdown transitions.
