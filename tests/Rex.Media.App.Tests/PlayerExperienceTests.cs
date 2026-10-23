@@ -11,6 +11,7 @@ public sealed class PlayerExperienceTests
     {
         using var app = AppProcess.Start();
         Wait.For(() => app.IsShown("WelcomeOpen") && app.IsShown("WelcomeLibrary"), "the welcome actions");
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "experience-welcome");
         app.Press("WelcomeLibrary");
         Wait.For(() => app.IsShown("LibraryPane") && app.IsShown("LibraryQuickAddFolder"), "the library and its add-folder action");
