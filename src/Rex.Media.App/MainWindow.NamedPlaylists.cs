@@ -137,7 +137,6 @@ public sealed partial class MainWindow
         menu.Items.Add(MenuItem("Remove", "EntryRemove", RemoveSelected));
     }
 
-    /// <summary>Asks where a missing entry's file is now (LIB-09).</summary>
     /// <summary>Moves actual queue entries: their identity and cue marks are never duplicated.</summary>
     private void QueueChosenNext(IReadOnlyList<PlaylistItem> chosen)
     {
@@ -155,6 +154,7 @@ public sealed partial class MainWindow
         Say("Moved selected entries to Play next");
     }
 
+    /// <summary>Asks where a missing active queue entry has moved (LIB-09).</summary>
     private async Task LocateAsync(int index)
     {
         var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker { ViewMode = Windows.Storage.Pickers.PickerViewMode.List });

@@ -50,6 +50,25 @@ public sealed class SavedPlaylistFactsTests
     }
 
     [Fact]
+    public void FullyTimedLongPlaylistShowsCompleteHoursMinutesAndSeconds()
+    {
+        var playlist = new NamedPlaylist("movies", "Video collection",
+            [Item("first.mp4"), Item("second.mp4")]);
+        var entries = new Dictionary<string, LibraryEntry>
+        {
+            ["first.mp4"] = Entry("first.mp4", LibraryKind.Video, new TimeSpan(1, 2, 3)),
+            ["second.mp4"] = Entry("second.mp4", LibraryKind.Video, TimeSpan.FromSeconds(7)),
+        };
+        var facts = SavedPlaylistFacts.For(playlist, entries.GetValueOrDefault);
+        Assert.Equal(2, facts.Video);
+        Assert.Equal(2, facts.Timed);
+        Assert.Equal("2 videos · 1:02:10 duration", facts.Label);
+
+        var photos = SavedPlaylistFacts.For(new NamedPlaylist("photos", "Pics", [Item("a.png"), Item("b.png")]), _ => null);
+        Assert.Equal("2 pictures", photos.Label);
+    }
+
+    [Fact]
     public void KnownCueBoundsAreUsedAndClampedToKnownFileLength()
     {
         var playlist = new NamedPlaylist("x", "Cue",

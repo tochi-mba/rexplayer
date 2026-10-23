@@ -60,10 +60,25 @@ public sealed record SavedPlaylistFacts(int Count, int Audio, int Video, int Pic
             }
 
             var parts = new List<string>();
-            if (Audio > 0) parts.Add(CountOf(Audio, "audio item"));
-            if (Video > 0) parts.Add(CountOf(Video, "video"));
-            if (Pictures > 0) parts.Add(CountOf(Pictures, "picture"));
-            if (Other > 0) parts.Add(CountOf(Other, "unclassified item"));
+            if (Audio > 0)
+            {
+                parts.Add(CountOf(Audio, "audio item"));
+            }
+
+            if (Video > 0)
+            {
+                parts.Add(CountOf(Video, "video"));
+            }
+
+            if (Pictures > 0)
+            {
+                parts.Add(CountOf(Pictures, "picture"));
+            }
+
+            if (Other > 0)
+            {
+                parts.Add(CountOf(Other, "unclassified item"));
+            }
             if (Timed > 0)
             {
                 var hours = (long)KnownDuration.TotalHours;
