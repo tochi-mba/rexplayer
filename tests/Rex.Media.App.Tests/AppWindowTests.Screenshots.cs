@@ -63,6 +63,27 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-10")]
+    public void SwitchingFromAudioToVideoPreservesTransportFocusAndAutomationIdentity()
+    {
+        using var app = AppProcess.Start([Song(30), RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage",
+            "the direct-file audio profile to become active");
+        var play = app.Find("PlayPauseButton");
+        play.SetFocus();
+        Wait.For(() => play.Current.HasKeyboardFocus, "the primary transport to take keyboard focus");
+
+        app.Run(CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "the stage to adopt the video stream");
+        var sameTransport = app.Find("PlayPauseButton");
+        Assert.Equal("PlayPauseButton", sameTransport.Current.AutomationId);
+        Assert.True(sameTransport.Current.HasKeyboardFocus,
+            "Changing a media profile must not steal keyboard focus from the transport.");
+        Assert.Equal(0, app.Close());
+    }
+
     /// <summary>The app in a fixed theme, its window at a fixed size, so its shots compare run to run.</summary>
     private static AppProcess AppStartedAt(int width, int height, string theme)
     {
