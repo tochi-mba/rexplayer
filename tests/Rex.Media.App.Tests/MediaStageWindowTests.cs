@@ -69,6 +69,29 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void AChapterFocusedDuringStreamSwitchReturnsFocusToThePermanentTransport()
+    {
+        var book = _scene.ChapteredAudiobook();
+        var clip = _scene.Video(Path.Combine("Clips", "short.mp4"));
+        _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
+        using var app = AppProcess.Start([book, clip], root: _scene.Root);
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIOBOOK playback stage"
+            && app.Find("StageChaptersButton").Current.IsEnabled,
+            "chapter controls to be ready");
+
+        var chapters = app.Find("StageChaptersButton");
+        chapters.SetFocus();
+        Wait.For(() => chapters.Current.HasKeyboardFocus, "the chapter picker to own keyboard focus");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "the new video profile");
+        Assert.False(app.IsShown("StageChaptersButton"));
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "the permanent playback action to inherit focus when chapters go away");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void ARealChapteredAudiobookExposesOnlyItsOwnChapterJumps()
     {
         var book = _scene.ChapteredAudiobook();
