@@ -150,7 +150,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rid: [osx-arm64, osx-x64]
+        rid: [osx-arm64, osx-x64, universal]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -185,12 +185,22 @@ jobs:
           dotnet workload install macos --version "$set"
 
       - name: Build rexplayer.app
-        run: dotnet publish src/Rex.Media.App.Mac/Rex.Media.App.Mac.csproj -c Release -r ${{ matrix.rid }} -nologo -o publish/${{ matrix.rid }}
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          # With no single RID override, the macOS SDK builds both RuntimeIdentifiers and
+          # arranges each CPU's managed runtime payload for the generated native launcher.
+          args=()
+          if [ "$RID" != universal ]; then args=(-r "$RID"); fi
+          dotnet publish src/Rex.Media.App.Mac/Rex.Media.App.Mac.csproj -c Release "${args[@]}" -nologo -o "publish/$RID"
 
       - name: Sign it ad hoc and zip it the way a Mac expects
         run: |
           # Publishing leaves an installer package in the output folder and the bundle itself in bin.
-          app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/${{ matrix.rid }} -maxdepth 1 -name '*.app' | head -1)
+          bundle_root=src/Rex.Media.App.Mac/bin/Release/net10.0-macos
+          rid='${{ matrix.rid }}'
+          if [ "$rid" != universal ]; then bundle_root="$bundle_root/$rid"; else rid=osx-universal; fi
+          app=$(find "$bundle_root" -maxdepth 1 -name '*.app' | head -1)
           test -n "$app" || { echo "No rexplayer.app was built." >&2; exit 1; }
           echo "Bundling $app"
           codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist "$app"
@@ -199,7 +209,7 @@ jobs:
           ditto -c -k --keepParent "$app" "dist/rexplayer-mac-${{ matrix.rid }}.zip"
           python3 scripts/verify-mac-bundle.py \
             --app "$app" \
-            --rid "${{ matrix.rid }}" \
+            --rid "$rid" \
             --minimum 12.0 \
             --zip "dist/rexplayer-mac-${{ matrix.rid }}.zip"
           (cd dist && shasum -a 256 "rexplayer-mac-${{ matrix.rid }}.zip" > "rexplayer-mac-${{ matrix.rid }}.zip.sha256")
@@ -222,11 +232,15 @@ jobs:
           retention-days: 14
 
   macos-universal:
-    name: The universal Mac app, assembled and verified (macOS)
+    name: The downloaded universal Mac app (${{ matrix.runner }})
     needs: macos-app
     # Launch the exact downloadable universal bundle on Sequoia, not just the macOS 26 build host.
-    runs-on: macos-15
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -236,51 +250,28 @@ jobs:
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: rexplayer-mac-osx-arm64
-          path: input/arm64
+          name: rexplayer-mac-universal
+          path: dist
 
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: rexplayer-mac-osx-x64
-          path: input/x64
-
-      - name: Assemble, sign and verify the universal app
+      - name: Extract and verify the distributed universal app
         run: |
-          mkdir -p unpack/arm64 unpack/x64 dist
-          ditto -x -k input/arm64/rexplayer-mac-osx-arm64.zip unpack/arm64
-          ditto -x -k input/x64/rexplayer-mac-osx-x64.zip unpack/x64
-          arm_app=$(find unpack/arm64 -maxdepth 1 -name '*.app' | head -1)
-          x64_app=$(find unpack/x64 -maxdepth 1 -name '*.app' | head -1)
-          test -n "$arm_app" -a -n "$x64_app" || { echo "Both Mac app bundles are required." >&2; exit 1; }
-          python3 scripts/make-universal-mac-app.py \
-            --arm64 "$arm_app" \
-            --x64 "$x64_app" \
-            --output rexplayer.app
-          codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist rexplayer.app
+          (cd dist && shasum -a 256 --check rexplayer-mac-universal.zip.sha256)
+          ditto -x -k dist/rexplayer-mac-universal.zip .
           codesign --verify --deep --strict rexplayer.app
-          ditto -c -k --keepParent rexplayer.app dist/rexplayer-mac-universal.zip
           python3 scripts/verify-mac-bundle.py \
             --app rexplayer.app \
             --rid osx-universal \
             --minimum 12.0 \
             --zip dist/rexplayer-mac-universal.zip
-          (cd dist && shasum -a 256 rexplayer-mac-universal.zip > rexplayer-mac-universal.zip.sha256)
 
       # Signing validity alone does not prove the .NET runtime starts on Sequoia.
-      # Launch the final, re-signed universal bundle and exercise playback + a clean quit.
+      # Launch the extracted bundle without modifying it, and exercise playback + a clean quit.
       - name: Launch the release bundle on macOS 15 Sequoia
         run: |
           sw_vers
           test "$(sw_vers -productVersion | cut -d . -f 1)" = "15"
           export REXPLAYER_MAC_APP="$PWD/rexplayer.app"
           dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
-
-      - name: Keep the universal app
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: rexplayer-mac-universal
-          path: dist/
-          retention-days: 14
 
   site:
     name: Website

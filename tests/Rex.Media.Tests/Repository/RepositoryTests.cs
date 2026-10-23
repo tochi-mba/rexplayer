@@ -28,7 +28,6 @@ public sealed partial class RepositoryTests
         "scripts/effect-contact-sheets.ps1",
         "scripts/make-fixtures.ps1",
         "scripts/make-icon.ps1",
-        "scripts/make-universal-mac-app.py",
         "scripts/measure-beats.ps1",
         "scripts/measure-startup.ps1",
         "scripts/verify-mac-bundle.py",
