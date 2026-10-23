@@ -68,6 +68,8 @@ public sealed partial class MainWindow : Window
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
     private long _lastScrubSeekAt;
+    private long _accessibleSeekSecond = long.MinValue;
+    private long _accessibleSeekDurationTicks = long.MinValue;
     private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
 
     /// <param name="files">What the launch was asked to open.</param>
@@ -563,6 +565,17 @@ public sealed partial class MainWindow : Window
         }
 
         _updatingControls = false;
+        var wholeSecond = (long)Math.Floor(timeline.Elapsed.TotalSeconds);
+        if (wholeSecond != _accessibleSeekSecond || duration.Ticks != _accessibleSeekDurationTicks)
+        {
+            _accessibleSeekSecond = wholeSecond;
+            _accessibleSeekDurationTicks = duration.Ticks;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(SeekBar,
+                timeline.Remaining is { } remaining
+                    ? $"Position {TimeText.Format(timeline.Elapsed, duration)} of {TimeText.Format(duration)}; {TimeText.Format(remaining, duration)} remaining. Use arrow keys or drag to seek."
+                    : "The duration is not known; seeking is unavailable.");
+        }
+
         ShowEpisodeSkip();
         ShowTaskbarPosition();
     }
