@@ -453,7 +453,7 @@ public sealed class ListeningViewsTests
         var book = new LibraryGroup("Book", "An Author", [AudioFile("Audiobooks/Book.m4b", TimeSpan.FromHours(1))]);
         Assert.Null(memory.Speed(book));
         memory.KeepSpeed(book, 1.25);
-        Assert.Equal(1.25, memory.Speed(new LibraryGroup("BOOK", "an author", [])));
+        Assert.Equal(1.25, memory.Speed(book with { Name = "BOOK", Detail = "an author" }));
         memory.KeepSpeed(book, 1);
         Assert.Null(memory.Speed(book));
         Assert.False(memory.Finished(book));
@@ -465,6 +465,70 @@ public sealed class ListeningViewsTests
         memory.Store.Set(memory.Store.WithPrefix("audiobook-speed/").Single().Key, "fast");
         Assert.Null(memory.Speed(book));
         Assert.Throws<ArgumentNullException>(() => new AudiobookMemory(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void SameTitleEditionsKeepSeparateSpeedAndCompletionWithStableDiscIdentity()
+    {
+        var a = AudioFile("Audiobooks/Ann Writer/Edition A/Disc 1/01.mp3", TimeSpan.FromMinutes(50));
+        var b = AudioFile("Audiobooks/Ann Writer/Edition B/Disc 1/01.mp3", TimeSpan.FromMinutes(50));
+        var one = new LibraryGroup("Same Title", "Ann Writer", [a]);
+        var two = new LibraryGroup("Same Title", "Ann Writer", [b]);
+        Assert.Equal(ListeningViews.BookKey(one), ListeningViews.BookKey(two));
+        Assert.NotEqual(ListeningViews.BookIdentity(one), ListeningViews.BookIdentity(two));
+
+        var memory = new AudiobookMemory(RexStore.InMemory());
+        memory.KeepSpeed(one, 1.5);
+        memory.SetFinished(one, true);
+        Assert.Null(memory.Speed(two));
+        Assert.False(memory.Finished(two));
+
+        memory.KeepSpeed(two, 0.75);
+        memory.SetFinished(two, true);
+        memory.SetFinished(one, false);
+        Assert.Equal(1.5, memory.Speed(one));
+        Assert.Equal(0.75, memory.Speed(two));
+        Assert.False(memory.Finished(one));
+        Assert.True(memory.Finished(two));
+
+        var nextDisc = a with { Path = "Audiobooks/Ann Writer/Edition A/Disc 2/02.mp3" };
+        Assert.Equal(ListeningViews.BookIdentity(one),
+            ListeningViews.BookIdentity(one with { Entries = [nextDisc, a] }));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.BookIdentity(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void LegacyBookSettingsMigrateOnlyForUnambiguousTitles()
+    {
+        var store = RexStore.InMemory();
+        var memory = new AudiobookMemory(store);
+        var part = AudioFile("Audiobooks/Ann Writer/Book/01.mp3", TimeSpan.FromMinutes(50));
+        var book = new LibraryGroup("Book", "Ann Writer", [part]);
+        var oldKey = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(ListeningViews.BookKey(book))))[..32];
+        store.Set("audiobook-speed/" + oldKey, "1.5");
+        store.Set("audiobook-finished/" + oldKey, "1");
+        memory.MigrateLegacy([book]);
+        Assert.Equal(1.5, memory.Speed(book));
+        Assert.True(memory.Finished(book));
+        Assert.Null(store.Get("audiobook-speed/" + oldKey));
+        Assert.Null(store.Get("audiobook-finished/" + oldKey));
+
+        var different = new LibraryGroup("Book", "Ann Writer",
+            [part with { Path = "Audiobooks/Ann Writer/Other Edition/01.mp3" }]);
+        var uncertain = RexStore.InMemory();
+        uncertain.Set("audiobook-speed/" + oldKey, "2");
+        uncertain.Set("audiobook-finished/" + oldKey, "1");
+        var otherMemory = new AudiobookMemory(uncertain);
+        otherMemory.MigrateLegacy([book, different]);
+        Assert.Null(otherMemory.Speed(book));
+        Assert.Null(otherMemory.Speed(different));
+        Assert.False(otherMemory.Finished(book));
+        Assert.False(otherMemory.Finished(different));
+        Assert.Equal("2", uncertain.Get("audiobook-speed/" + oldKey));
+        Assert.Throws<ArgumentNullException>(() => memory.MigrateLegacy(null!));
     }
 
     [Fact]
