@@ -59,7 +59,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var panel = new StackPanel { Spacing = 10, MinWidth = 540 };
+        var panel = new StackPanel { Spacing = 10, MaxWidth = 680 };
         var coverage = new TextBlock
         {
             Text = loaded.Complete
@@ -70,7 +70,7 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(coverage, "TranscriptReaderCoverage");
         panel.Children.Add(coverage);
 
-        var navigation = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var navigation = new StackPanel { Orientation = Orientation.Vertical, Spacing = 6 };
         var previous = new Button { Content = "Previous paragraphs" };
         var next = new Button { Content = "Next paragraphs" };
         var follow = new Button { Content = "Follow playback", IsEnabled = false };
@@ -165,7 +165,13 @@ public sealed partial class MainWindow
                 return;
             }
 
-            var index = CueAt(_player.Position);
+            var at = _player.Position;
+            var index = CueAt(at);
+            if (at < cues[index].Start || at >= cues[index].End)
+            {
+                index = -1;
+            }
+
             if (index == active)
             {
                 return;
@@ -177,7 +183,7 @@ public sealed partial class MainWindow
             }
 
             active = index;
-            if (following && page != index / pageSize)
+            if (following && index >= 0 && page != index / pageSize)
             {
                 page = index / pageSize;
                 ShowPage();
