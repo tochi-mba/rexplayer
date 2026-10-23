@@ -173,10 +173,10 @@ public sealed partial class Lyrics
         return new TimeSpan(0, 0, minutes, seconds, milliseconds);
     }
 
-    [GeneratedRegex(@"<(?<m>\d{1,3}):(?<s>\d{2})(?:[.:](?<f>\d{1,3}))?>")]
+    [GeneratedRegex(@"\[(?<m>\d{1,3}):(?<s>\d{2})(?:[.:](?<f>\d{1,3}))?\]")]
     private static partial Regex Stamp();
 
-    [GeneratedRegex(@"<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>")]
+    [GeneratedRegex(@"<(?<m>\d{1,3}):(?<s>\d{2})(?:[.:](?<f>\d{1,3}))?>")]
     private static partial Regex WordStamp();
 
     [GeneratedRegex(@"^\[offset:\s*(?<ms>[+-]?\d+)\s*\]$", RegexOptions.IgnoreCase)]
