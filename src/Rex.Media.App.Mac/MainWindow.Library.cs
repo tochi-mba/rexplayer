@@ -9,7 +9,7 @@ namespace Rex.Media.App.Mac;
 /// </summary>
 public sealed partial class MainWindow
 {
-    private MediaLibrary? _mediaLibrary;
+    private Rex.Media.Library.MediaLibrary? _mediaLibrary;
     private LibraryScanner? _libraryScanner;
     private NSWindow? _libraryWindow;
     private NSSearchField? _librarySearch;
@@ -31,7 +31,7 @@ public sealed partial class MainWindow
             store = RexStore.InMemory();
         }
 
-        _mediaLibrary = new MediaLibrary(store);
+        _mediaLibrary = new Rex.Media.Library.MediaLibrary(store);
         _player.Library = _mediaLibrary;
         _libraryScanner = new LibraryScanner(_mediaLibrary, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, _log);
         _mediaLibrary.Changed += (_, _) => OnWindowThread(RefreshLibrary);
@@ -47,7 +47,7 @@ public sealed partial class MainWindow
                 NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
             {
-                Title = "Your library — rexplayer",
+                Title = "Your library - rexplayer",
                 MinSize = new CGSize(640, 470),
             };
             _libraryWindow.ReleaseWhenClosed(false);
