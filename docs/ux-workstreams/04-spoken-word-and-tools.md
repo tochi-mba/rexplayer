@@ -1,21 +1,21 @@
 <!-- Scoped workstream source of truth. Tasks are intentionally unchecked until evidence-backed. -->
 
-# Windows UX workstream 4/4  -  Audiobooks, podcasts, recordings and tools
+# Spoken-word roadmap trace — podcasts, transcripts, recordings and sounds (PR #484)
 
 ## Objective and deliverables
-Complete the tailored listening experience and specialist Windows surfaces: audiobook/podcast/recording pages, metadata and artwork maintenance, subtitles/transcription, equalizer, video effects, advanced Settings controls and native integration.
+Deliver the Windows local podcast, speech-transcript, recording and short-sound experiences described in [PR #484](https://github.com/tochi-mba/rexplayer/pull/484), successor **2 of 3** of [#473](https://github.com/tochi-mba/rexplayer/pull/473). Never portray RSS subscriptions, downloads, recording capture or network enrichment as available until their capabilities are implemented.
 
-This is one of **four evenly partitioned draft implementation workstreams**, carved out of [original PR #467](https://github.com/tochi-mba/rexplayer/pull/467). Each owns **63 unique unchecked tasks from the original roadmap**, plus exactly eight identical release gates. Equal checkbox counts are a planning balance, not a guarantee of equal elapsed implementation time. Tasks are **not completed** merely because a checklist has been transferred.
+This file carries the **historical 63-task workstream 4/4 trace** inherited from [#467](https://github.com/tochi-mba/rexplayer/pull/467). It is retained for requirement discovery, **not** a claim that this successor owns all 63 tasks or has completed them. Audiobooks and the metadata/tools tasks are delegated to the other #473 successors; original checkboxes stay unchecked here for traceability.
 
 ## Scope and implementation owners
-**In scope:** Audiobooks/authors, podcasts, recordings and quick sounds, metadata/artwork/downloads, caption/transcription/equalizer/tools, advanced Preferences content, onboarding, updater and diagnostics.
+**Owned by PR #484:** local podcast Home and show/episode presentation, spoken transcripts with honest availability, safe notes if stored, show-isolated queue behavior, recordings grouping/actions, optional audio waveform and review behavior, compact short-sound playback, and scoped fixtures/tests.
 
-**Likely source/test owners:** Spoken-word library UI, metadata/artwork/update dialogs, transcription/caption tools, advanced Settings content, and related Windows tests.
+**Likely source/test owners:** `ListeningViews`, `MainWindow.Listening`, `MainWindow.ListeningActions`, `MainWindow.LibraryPlayback`, relevant transcript surfaces, `ListeningViewsTests`, `LibraryListeningTests`.
 
-**Out of scope:** unrelated audio/video decoding, analytics/network additions, breaking AutomationIDs or hotkeys, unverifiable macOS parity claims, and sister-PR tasks. Shared source changes must be coordinated before merge.
+**Out of scope:** audiobook implementation, metadata/artwork/tools and advanced Settings tasks assigned to the other #473 successors; unimplemented RSS/download/capture capabilities; unrelated decoders or engine contracts; breaking existing AutomationIDs; unverified macOS parity. Coordinate any overlap before merging.
 
 ## Honest current delivery state
-- [x] Preserve the original 63-task workstream and eight release gates.
+- [x] Preserve the original 63-task historical trace and eight release gates without misrepresenting successor ownership.
 - [x] Commit a first bounded local-podcast source and regression-test tranche on **this PR branch**.
 - [ ] Finish the remaining podcast, transcript, recording, sound, tools and Windows UI deliverables. The first tranche does **not** complete their umbrella tasks.
 - [ ] Review real Windows UI screenshots, accessibility, stress/performance results and native CI on the exact final head.
@@ -31,12 +31,12 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 - [x] Add a Windows UI Automation scenario for a local podcast show's unplayed-order action and messaging (committed but not verified passing). [Test](https://github.com/tochi-mba/rexplayer/commit/a6be8152844b3b2a04249de81031691342fa4b87)
 - [ ] Verify the pure suite and required 100% portable coverage on this branch head.
 - [ ] Verify warnings-as-errors Windows build, real UI Automation, screenshot, accessibility, performance and platform/parity checks at the final head.
-- [ ] Complete the 63 larger tasks and all eight release gates; no feature is declared shipped by these commits alone.
+- [ ] Complete the PR #484-owned scope and required release gates; inherited tasks assigned to sibling successors are excluded from this PR's completion claim.
 
 **Verification limitation:** No .NET SDK or Windows desktop runtime is installed in the editing environment, so local compilation and native UI execution were not possible. GitHub Actions was pending at the time of these edits; a pending run is not passing evidence. No generated screenshots are being passed off as real application captures.
 
-## Detailed task list  -  63 uniquely owned roadmap tasks
-The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
+## Historical workstream checklist — 63 original roadmap tasks
+The original granular text is preserved as a **traceability appendix**, not 63 tasks assigned to PR #484. Of the categories below, **“Podcasts and spoken-word transcript UX”** and **“Recordings and short sounds”** are the owned implementation work. Other sections are delegated to sister PRs, and their checkboxes are deliberately not modified here.
 
 ### P1. Audiobooks and authors
 Build on existing part grouping, BookChapter, per-book speed and progress tracking.
@@ -158,10 +158,9 @@ Each future agent should take one unchecked workstream, select bounded tasks and
 ## Coordination and order
 The four parts are independent draft PRs against `main`; none may assume unchecked changes elsewhere have shipped. Foundation (1) owns the existing Settings search, screenshot guard and shared shell. Specialist Settings content (4) must reuse it after landing and **not duplicate the foundation**. Video/player (2), music/lyrics/visualizers (3), and spoken-word/tools (4) must agree on existing playback-stage and focus contracts before overlapping edits. Follow `AGENTS.md`, the clean-room rules and ADR-0020; preserve automation and media engine invariants.
 
-## Sister workstreams
-- 1/4  -  UI foundation and deterministic QA
-- 2/4  -  Video and adaptive playback
-- 3/4  -  Music, lyrics and visualizers
-- **4/4  -  Spoken word, metadata and tools (this PR)**
+## Related work
+- [#467](https://github.com/tochi-mba/rexplayer/pull/467): original four-part Windows roadmap, kept as historical trace in this file.
+- [#473](https://github.com/tochi-mba/rexplayer/pull/473): successor split with separate audiobook and metadata/tools implementation owners.
+- [#484](https://github.com/tochi-mba/rexplayer/pull/484): **this successor**, podcasts, speech transcripts, recordings and short sounds.
 
-**Merge gate:** Remain draft until actual implementation, full task evidence, reviewed real screenshots and green current-head CI exist. A planning document is not a completed feature. Original complete source and roadmap remain traceable in [#467](https://github.com/tochi-mba/rexplayer/pull/467).
+**Merge gate:** PR #484 remains **not ready to merge** until the owned implementation, reviewable Windows screenshot/automation/accessibility evidence and green current-head CI exist. A checked commit checkpoint is not a shipped feature.
