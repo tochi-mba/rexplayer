@@ -30,6 +30,7 @@ This is a partial implementation, **not** acceptance of any full roadmap or rele
 - [x] Wire stage labels, audio art/lyrics eligibility and stage UI Automation name to active streams rather than stale library-only labels (commits `07a427c`, `f9da1e8`).
 - [x] Add pure stream/profile coverage tests and require full line coverage for the new policy (commits `1612acc`, `ddbeb49`).
 - [x] Write a real Windows UI Automation test of song → movie → picture stage transitions (commit `296e939`); execution and screenshot proof remain pending.
+- [x] Withhold lyrics and chapters until the current audio stream has been identified, including regression assertions for stale stream transitions (commits `277cf8f`, `ae47713`).
 - [ ] Execute the affected pure tests on a .NET-capable runner; they have **not been run here**.
 - [ ] Complete the remaining TV browsing, player, picture, queue, adaptive layout, automation, screenshots and performance items before declaring readiness.
 
