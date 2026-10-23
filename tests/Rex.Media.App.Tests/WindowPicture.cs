@@ -10,6 +10,28 @@ internal static partial class WindowPicture
 {
     private const uint RenderFullContent = 2;
 
+    /// <summary>The virtual desktop in physical screen pixels, including attached monitors.</summary>
+    public static System.Windows.Rect DesktopBounds
+    {
+        get
+        {
+            const int VirtualLeft = 76, VirtualTop = 77, VirtualWidth = 78, VirtualHeight = 79;
+            var desktop = new System.Windows.Rect(GetSystemMetrics(VirtualLeft), GetSystemMetrics(VirtualTop),
+                GetSystemMetrics(VirtualWidth), GetSystemMetrics(VirtualHeight));
+            Assert.True(desktop.Width > 0 && desktop.Height > 0, "There is no visible Windows desktop.");
+            return desktop;
+        }
+    }
+
+    /// <summary>A desktop capture outside the virtual screen reads undefined black pixels.</summary>
+    public static bool IsFullyOnDesktop(nint window)
+    {
+        var bounds = Bounds(window);
+        var desktop = DesktopBounds;
+        return bounds.Left >= desktop.Left && bounds.Top >= desktop.Top
+            && bounds.Right <= desktop.Right && bounds.Bottom <= desktop.Bottom;
+    }
+
     /// <summary>The window's picture, and its size.</summary>
     public static (int Width, int Height, byte[] Bgra) Take(nint window) => TakeCore(window, includeDesktopPopups: false);
 
@@ -130,6 +152,9 @@ internal static partial class WindowPicture
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetWindowRect(nint window, out Rect rect);
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetrics(int index);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
