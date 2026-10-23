@@ -46,12 +46,17 @@ public sealed class PodcastEpisodeProgressTests
     [Fact]
     public void DamagedAndGrowingFilesDoNotPretendToBePlayable()
     {
-        Assert.Equal("File unavailable", PodcastEpisodeProgress.Of(Episode(TimeSpan.FromMinutes(3))
-            with { Problem = "truncated" }, TimeSpan.FromMinutes(1)).Status);
-        Assert.Equal("File incomplete", PodcastEpisodeProgress.Of(Episode(TimeSpan.FromMinutes(3))
-            with { Downloading = true }, TimeSpan.FromMinutes(1)).Status);
-        Assert.Null(PodcastEpisodeProgress.Of(Episode(TimeSpan.FromMinutes(3))
-            with { Downloading = true }, null).Remaining);
+        var damaged = Episode(TimeSpan.FromMinutes(3)) with
+        {
+            Problem = "truncated",
+        };
+        var growing = Episode(TimeSpan.FromMinutes(3)) with
+        {
+            Downloading = true,
+        };
+        Assert.Equal("File unavailable", PodcastEpisodeProgress.Of(damaged, TimeSpan.FromMinutes(1)).Status);
+        Assert.Equal("File incomplete", PodcastEpisodeProgress.Of(growing, TimeSpan.FromMinutes(1)).Status);
+        Assert.Null(PodcastEpisodeProgress.Of(growing, null).Remaining);
         Assert.Throws<ArgumentNullException>(() => PodcastEpisodeProgress.Of(null!, null));
     }
 }
