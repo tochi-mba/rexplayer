@@ -194,6 +194,8 @@ internal static class Screenshots
             fullyOnDesktop = WindowPicture.IsFullyOnDesktop(app.Handle),
             measuredDpi = WindowPicture.Dpi(app.Handle),
             actualHighContrast = WindowPicture.HighContrast,
+            foregroundProcessId = WindowPicture.ForegroundProcessId,
+            foregroundBelongsToApp = WindowPicture.ForegroundProcessId == (uint)app.ProcessId,
             cropAutomationId = automationId,
             readiness = scene.ReadinessSignal,
             readinessAchieved = ready,
