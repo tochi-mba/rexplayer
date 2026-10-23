@@ -338,12 +338,13 @@ public sealed class LibraryScanner : IDisposable
 
     /// <summary>
     /// Every file under <paramref name="folder"/> with its size and change time, and whether it is
-    /// sparse or a cloud placeholder (read from the listing, nothing opened), passing over what
-    /// cannot be read; for the window's scanner.
+    /// sparse or a cloud placeholder (read from the listing, nothing opened). An inaccessible
+    /// subfolder aborts the full enumeration instead of masquerading as deleted files; the
+    /// scanner keeps the last known library until a complete scan succeeds.
     /// </summary>
     public static IEnumerable<LibraryFile> ListFolder(string folder) =>
         new DirectoryInfo(folder)
-            .EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System })
+            .EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = false, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System })
             .Select(Listed);
 
     /// <summary>The library's view of a file the disk lists.</summary>
