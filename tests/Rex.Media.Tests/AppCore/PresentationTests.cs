@@ -49,6 +49,72 @@ public sealed class PresentationTests
         Assert.Equal(-1, Lyrics.Parse("[00:01]x\n[offset:-1000]")!.IndexAt(TimeSpan.Zero));
     }
 
+    [Fact]
+    [Capability("META-09")]
+    public void EnhancedLrcKeepsExactWordTimesAndRespectsOffset()
+    {
+        var lyrics = Lyrics.Parse("""
+            [offset:+500]
+            [00:01.00]<00:01.00>안녕 <00:01.25>world
+            [00:02.00]Line timing only
+            [00:04.00]<00:04.00>  مرحبا <00:04.50>世界
+            """)!;
+
+        Assert.Equal(TimeSpan.FromMilliseconds(500), lyrics.Lines[0].At);
+        Assert.Equal("안녕 world", lyrics.Lines[0].Text);
+        Assert.Equal(
+            [(TimeSpan.FromMilliseconds(500), "안녕 "), (TimeSpan.FromMilliseconds(750), "world")],
+            lyrics.Lines[0].Words.Select(word => (word.At, word.Text)));
+        Assert.Empty(lyrics.Lines[1].Words);
+        Assert.Equal("مرحبا 世界", lyrics.Lines[2].Text);
+        Assert.Equal(
+            [(TimeSpan.FromMilliseconds(3500), "مرحبا "), (TimeSpan.FromMilliseconds(4000), "世界")],
+            lyrics.Lines[2].Words.Select(word => (word.At, word.Text)));
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void UnreliableEnhancedLrcRetainsLinesButDoesNotClaimWordTiming()
+    {
+        var lyrics = Lyrics.Parse("""
+            [00:01.00]line only
+            [00:02.00]<00:01.90>too early
+            [00:03.00]<00:03.00>one<00:03.00>duplicate
+            [00:04.00]<00:04.30>later<00:04.10>earlier
+            [00:05.00]untimed prefix <00:05.20>rest
+            [00:06.00]<00:06.00><00:06.20>no first word
+            [00:07.00]<00:07.00>first<00:09.00>past next line
+            [00:08.00]next line
+            [00:09.00]<00:09.00>valid
+            """)!;
+
+        Assert.Equal(9, lyrics.Lines.Count);
+        Assert.All(lyrics.Lines.Take(8), line => Assert.Empty(line.Words));
+        Assert.Single(lyrics.Lines[8].Words);
+        Assert.Equal("too early", lyrics.Lines[1].Text);
+        Assert.Equal("untimed prefix rest", lyrics.Lines[4].Text);
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void SeekSearchUsesLastDuplicateAndHandlesManyLinesAndNegativeStarts()
+    {
+        var builder = new StringBuilder("[offset:+2000]\\n[00:01.00]early\\n");
+        for (var second = 2; second < 5000; second++)
+        {
+            builder.Append('[').Append((second / 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture))
+                .Append(':').Append((second % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture))
+                .Append(".00]line\\n");
+        }
+
+        builder.Append("[01:00.00]duplicate");
+        var lyrics = Lyrics.Parse(builder.ToString())!;
+        Assert.Equal(0, lyrics.IndexAt(TimeSpan.FromSeconds(-1)));
+        Assert.Equal(-1, lyrics.IndexAt(TimeSpan.FromSeconds(-2)));
+        Assert.Equal(4999, lyrics.IndexAt(TimeSpan.FromSeconds(6000)));
+        Assert.Equal("duplicate", lyrics.Lines[lyrics.IndexAt(TimeSpan.FromSeconds(58))].Text);
+    }
+
     [Theory]
     [Capability("META-06")]
     [InlineData(new[] { "b.jpg", "Folder.PNG", "front.jpg", "AlbumArtSmall.jpg" }, "Folder.PNG")]
