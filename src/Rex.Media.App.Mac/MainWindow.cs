@@ -144,6 +144,9 @@ public sealed partial class MainWindow : IDisposable
                     return;
                 case "status":
                     break;
+                case "ui.keyboard":
+                    answered.SetResult(ProbeLibraryKeyboard());
+                    return;
                 case "ui.tree":
                     answered.SetResult(LibraryControlTree());
                     return;
