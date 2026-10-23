@@ -200,7 +200,8 @@ pre code{padding:0;background:none}
 .showcase{scroll-margin-top:72px}
 .showcase-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .showcase-card{margin:0;overflow:hidden;border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-l)}
-.shot-open{position:relative;width:100%;display:block;padding:0;border:0;background:var(--ink);cursor:zoom-in;color:var(--text)}
+.shot-open{position:relative;width:100%;display:block;padding:0;border:0;background:var(--ink);cursor:zoom-in;color:var(--text);text-decoration:none}
+.shot-open:focus-visible{outline:3px solid var(--signal);outline-offset:-3px}
 .shot-open img{display:block;object-fit:contain;width:100%;height:clamp(180px,24vw,315px);transition:transform .15s ease}
 .shot-open:hover img,.shot-open:focus-visible img{transform:scale(1.025)}
 .shot-open span{position:absolute;right:12px;bottom:12px;border:1px solid var(--line);border-radius:var(--radius-s);background:rgba(8,10,9,.93);padding:6px 10px;font-size:12px;font-weight:700}

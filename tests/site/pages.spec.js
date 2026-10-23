@@ -33,12 +33,14 @@ test('the hero and library show genuine labeled native screenshots', async ({ pa
   await page.goto('./');
   const images = page.locator('.product-shot img, .real-product-row img');
   await expect(images).toHaveCount(2);
-  await expect(page.locator('.product-shot figcaption')).toContainText('Actual Windows library capture');
+  await expect(page.locator('.product-shot figcaption')).toContainText('Windows native library test capture');
   await expect(page.locator('#platforms')).toContainText('Windows and Mac');
   for (const image of await images.all()) {
-    await expect(image).toHaveAttribute('src', /screenshot-baselines\/ci-windows\/.*\.png$/);
-    await expect(image).toHaveAttribute('alt', /Actual Windows|Real Windows/);
+    await expect(image).toHaveAttribute('src', /^assets\/windows-(movie-card|episode)-test-scene\.png$/);
+    await expect(image).toHaveAttribute('alt', /Windows native|Actual Windows/);
+    await image.scrollIntoViewIfNeeded();
     await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate(el => el.naturalWidth)).toBeGreaterThan(0);
   }
 });
 
@@ -50,7 +52,7 @@ test('the product does not suggest every Mac capability is already available', a
 
 test('native screenshot previews open a labeled modal and restore keyboard focus', async ({ page }) => {
   await page.goto('./');
-  const previews = page.getByRole('button', { name: /Enlarge Windows.*screenshot/ });
+  const previews = page.getByRole('link', { name: /View larger Windows.*screenshot/ });
   await expect(previews).toHaveCount(2);
   await previews.first().click();
   const lightbox = page.locator('#shot-lightbox');
@@ -69,11 +71,33 @@ test('native screenshot previews open a labeled modal and restore keyboard focus
 
 test('the screenshots section communicates actual provenance and limitations', async ({ page }) => {
   await page.goto('./');
-  await expect(page.locator('#screenshots')).toContainText('genuine captures');
+  await expect(page.locator('#screenshots')).toContainText('native UI regression tests');
   await expect(page.locator('#screenshots')).toContainText('Windows');
   await expect(page.locator('#screenshots')).toContainText('macOS');
-  await expect(page.locator('#screenshots a')).toHaveAttribute('href', /docs\/parity\.md$/);
+  await expect(page.locator('#screenshots a[href$="parity.md"]')).toHaveAttribute('href', /docs\/parity\.md$/);
   await expect(page.locator('.site-nav a[href="#screenshots"]')).toHaveText('Screenshots');
+});
+
+
+test('full-size image links work when JavaScript is disabled', async ({ page, browser }) => {
+  await page.goto('./');
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const withoutScript = await context.newPage();
+    await withoutScript.goto(page.url());
+    const first = withoutScript.getByRole('link', { name: /View larger Windows movie card screenshot/ });
+    await expect(first).toBeVisible();
+    await first.click();
+    await expect(withoutScript).toHaveURL(/assets\/windows-movie-card-test-scene\.png$/);
+  } finally {
+    await context.close();
+  }
+});
+
+test('gallery image transitions respect reduced-motion settings', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./');
+  await expect(page.locator('.shot-open img').first()).toHaveCSS('transition-duration', '0s');
 });
 
 test('the page uses the REX ink and signal palette', async ({ page }) => {
@@ -97,7 +121,7 @@ test('there are no serious accessibility problems', async ({ page }) => {
 });
 
 test('nothing scrolls sideways at phone, tablet or desktop widths', async ({ page }) => {
-  for (const width of [320, 390, 1280]) {
+  for (const width of [320, 390, 760, 1280]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('./');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

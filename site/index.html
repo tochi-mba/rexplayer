@@ -60,41 +60,41 @@
         <p class="hero-meta" id="download-meta">Windows 10 and 11 · macOS 12 or later</p>
       </div>
       <figure class="product-frame product-shot">
-        <img src="https://raw.githubusercontent.com/tochi-mba/rexplayer/main/tests/screenshot-baselines/ci-windows/library-movie-card-letterboxed.png"
-             alt="Real Windows rexplayer library screenshot: a movie artwork card with letterboxed art, captured by the native visual test suite."
-             loading="eager" decoding="async" width="1000" height="700">
-        <figcaption>Actual Windows library capture <span>· Native UI screenshot, not a concept</span></figcaption>
+        <img src="assets/windows-movie-card-test-scene.png"
+             alt="Windows native library test scene showing a colorful synthetic movie artwork card with letterboxing."
+             loading="eager" decoding="async" width="804" height="265">
+        <figcaption>Windows native library test capture <span>· Synthetic test artwork, not a release screenshot</span></figcaption>
       </figure>
     </section>
 
     <section class="section container showcase" id="screenshots" aria-labelledby="showcase-heading">
       <div class="section-heading">
         <p class="eyebrow signal">Inside the real app</p>
-        <h2 id="showcase-heading">The interface, not a render.</h2>
-        <p>Browse genuine captures from the Windows native screenshot tests. Select a picture to inspect it at a larger size. The separate macOS AppKit interface is under active development, so these captures are explicitly marked Windows rather than implying false visual parity.</p>
+        <h2 id="showcase-heading">An authentic native test capture.</h2>
+        <p>Inspect captures produced by Windows native UI regression tests. The brightly colored artwork is synthetic test data rather than media from a release build. Select a picture to inspect it at a larger size. The macOS interface differs and is not shown here.</p>
       </div>
       <div class="showcase-grid">
         <figure class="showcase-card">
-          <button class="shot-open" type="button" aria-label="Enlarge Windows movie card screenshot">
-            <img src="https://raw.githubusercontent.com/tochi-mba/rexplayer/main/tests/screenshot-baselines/ci-windows/library-movie-card-letterboxed.png"
-                 alt="Windows movie card with real artwork sizing and a letterboxed preview" loading="lazy" decoding="async" width="1000" height="700">
+          <a class="shot-open" href="assets/windows-movie-card-test-scene.png" aria-label="View larger Windows movie card screenshot">
+            <img src="assets/windows-movie-card-test-scene.png"
+                 alt="Windows library test scene with a bright-color synthetic movie artwork card inside a letterboxed layout" loading="lazy" decoding="async" width="804" height="265">
             <span aria-hidden="true">View larger ↗</span>
-          </button>
-          <figcaption><strong>Windows · Movie artwork</strong><span>Native library visual regression capture.</span></figcaption>
+          </a>
+          <figcaption><strong>Windows · Movie artwork</strong><span>Native library regression test with synthetic artwork.</span></figcaption>
         </figure>
         <figure class="showcase-card">
-          <button class="shot-open" type="button" aria-label="Enlarge Windows TV episode screenshot">
-            <img src="https://raw.githubusercontent.com/tochi-mba/rexplayer/main/tests/screenshot-baselines/ci-windows/library-episode-still-letterboxed.png"
-                 alt="Windows TV episode still with letterboxed artwork captured from the native UI" loading="lazy" decoding="async" width="1000" height="700">
+          <a class="shot-open" href="assets/windows-episode-test-scene.png" aria-label="View larger Windows TV episode screenshot">
+            <img src="assets/windows-episode-test-scene.png"
+                 alt="Windows native TV episode test scene with synthetic multicolor artwork, the episode title and season label" loading="lazy" decoding="async" width="804" height="265">
             <span aria-hidden="true">View larger ↗</span>
-          </button>
-          <figcaption><strong>Windows · TV episode</strong><span>Native episode visual regression capture.</span></figcaption>
+          </a>
+          <figcaption><strong>Windows · TV episode</strong><span>Native episode regression test with synthetic artwork.</span></figcaption>
         </figure>
       </div>
-      <p class="showcase-caption">These are test-scene captures, not a complete interactive demonstration of every feature. <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">Compare supported capabilities on each platform.</a></p>
+      <p class="showcase-caption">These simplified Windows test scenes verify specific library layouts; they are not curated release screenshots or a full product tour. <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">Compare supported capabilities on each platform.</a></p>
       <dialog class="shot-lightbox" id="shot-lightbox" aria-label="Screenshot enlarged view">
         <div class="shot-dialog-head"><strong>rexplayer · Windows screenshot</strong><button id="shot-close" type="button">Close <span aria-hidden="true">×</span></button></div>
-        <img id="shot-enlarged" src="" alt="">
+        <img id="shot-enlarged" alt="">
         <p id="shot-caption"></p>
       </dialog>
     </section>
@@ -111,11 +111,11 @@
     <section class="section container split-section" id="library">
       <div class="section-heading"><p class="eyebrow signal">A library with memory</p><h2>Browse by what your media is.</h2><p>Music feels like music. A show opens into seasons and episodes. A book keeps its chapters, author and listening speed. Search, filters, layouts and your exact place survive every trip into details and back.</p></div>
       <div class="real-product-row">
-        <img src="https://raw.githubusercontent.com/tochi-mba/rexplayer/main/tests/screenshot-baselines/ci-windows/library-episode-still-letterboxed.png"
-             alt="Actual Windows rexplayer TV episode artwork and layout from the native screenshot test suite."
-             loading="lazy" decoding="async" width="1000" height="700">
-        <div><p class="eyebrow signal">What you are seeing</p><h3>Real application UI</h3>
-        <p>These images are from the Windows native application's screenshot tests. We show the genuine interface rather than an illustrative mockup. The native Mac application has its own interface and currently differs in available features.</p>
+        <img src="assets/windows-episode-test-scene.png"
+             alt="Actual Windows native TV library test scene, showing the episode title beside a synthetic color-pattern still."
+             loading="lazy" decoding="async" width="804" height="265">
+        <div><p class="eyebrow signal">What you are seeing</p><h3>Native UI test scene</h3>
+        <p>These images are from the Windows native application's screenshot tests. Their layouts are produced by the real app, but artwork and colors are synthetic regression fixtures, not release media. The native Mac application has its own interface and currently differs in available features.</p>
         <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">View Windows and Mac feature status →</a></div>
       </div>
       <div class="feature-grid">

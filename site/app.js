@@ -143,14 +143,17 @@ export function wireScreenshotGallery(doc) {
   if (!dialog || !enlarged || !caption || !close) return;
   let opener = null;
   doc.querySelectorAll('.shot-open').forEach(button => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', event => {
+      // If <dialog> is unsupported, use the original image link instead.
+      if (typeof dialog.showModal !== 'function') return;
       const preview = button.querySelector('img');
       if (!preview) return;
+      event.preventDefault();
       opener = button;
       enlarged.src = preview.currentSrc || preview.src;
       enlarged.alt = preview.alt;
       caption.textContent = button.closest('figure')?.querySelector('figcaption')?.textContent?.trim() ?? '';
-      if (typeof dialog.showModal === 'function') dialog.showModal();
+      dialog.showModal();
     });
   });
   close.addEventListener('click', () => dialog.close());
