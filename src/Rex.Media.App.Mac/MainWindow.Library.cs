@@ -20,6 +20,8 @@ public sealed partial class MainWindow
     private NSTextField? _libraryPageSummary;
     private NSButton? _libraryPreviousPage;
     private NSButton? _libraryNextPage;
+    private NSButton? _libraryFirstPlay;
+    private NSButton? _libraryFirstQueue;
     private int _libraryPageIndex;
     private const int LibraryPageSize = 80;
     private bool _closingLibrary;
@@ -237,6 +239,8 @@ public sealed partial class MainWindow
             _libraryPageSummary.StringValue = $"Page {_libraryPageIndex + 1} of {lastPage + 1}";
         }
         var views = new List<NSView>();
+        _libraryFirstPlay = null;
+        _libraryFirstQueue = null;
         if (shown.Count == 0)
         {
             var hint = NSTextField.CreateLabel(all.Count == 0
@@ -251,6 +255,7 @@ public sealed partial class MainWindow
             var title = entry.Title;
             var secondary = entry.Artist ?? entry.Album ?? Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "";
             var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, entries));
+            _libraryFirstPlay ??= play;
             play.ToolTip = entry.Path;
             ((NSView)play).AccessibilityLabel = "Play " + entry.Title;
             play.Alignment = NSTextAlignment.Left;
@@ -268,6 +273,7 @@ public sealed partial class MainWindow
                 _player.EnqueueFromLibrary([entry]);
                 Say("Added to Up Next: " + entry.Title);
             });
+            _libraryFirstQueue ??= queue;
             queue.ToolTip = "Add to Up Next without replacing what is playing";
             ((NSView)queue).AccessibilityLabel = "Queue " + entry.Title;
             var row = NSStackView.FromViews([words, queue]);
@@ -354,6 +360,8 @@ public sealed partial class MainWindow
                 new UiControl { Id = "LibraryPage", Kind = "text", Name = "Library page", Text = _libraryPageSummary.StringValue },
                 new UiControl { Id = "LibraryPrevious", Kind = "button", Name = ((NSView)_libraryPreviousPage).AccessibilityLabel ?? "", Enabled = _libraryPreviousPage.Enabled },
                 new UiControl { Id = "LibraryNext", Kind = "button", Name = ((NSView)_libraryNextPage).AccessibilityLabel ?? "", Enabled = _libraryNextPage.Enabled },
+                new UiControl { Id = "LibraryFirstPlay", Kind = "button", Name = ((NSView?)_libraryFirstPlay)?.AccessibilityLabel ?? "", Enabled = _libraryFirstPlay is not null },
+                new UiControl { Id = "LibraryFirstQueue", Kind = "button", Name = ((NSView?)_libraryFirstQueue)?.AccessibilityLabel ?? "", Enabled = _libraryFirstQueue is not null },
             ],
         };
     }
@@ -412,6 +420,8 @@ public sealed partial class MainWindow
         {
             "LibraryPrevious" => _libraryPreviousPage,
             "LibraryNext" => _libraryNextPage,
+            "LibraryFirstPlay" => _libraryFirstPlay,
+            "LibraryFirstQueue" => _libraryFirstQueue,
             _ => null,
         };
         if (_libraryWindow?.IsVisible != true || button?.Enabled != true)
