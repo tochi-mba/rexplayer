@@ -69,6 +69,7 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Visit("Movies");
         app.Pick("LibraryLook", "Grid");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 movie", StringComparison.Ordinal), "only the film among the movies");
+        Screenshots.Match(app, "library-movies-single", "LibraryPane");
         app.Visit("TV Shows");
         app.Pick("LibraryLook", "Grid");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("2 shows", StringComparison.Ordinal), "both shows", () => string.Join(", ", app.Lines()));
@@ -88,6 +89,7 @@ public sealed class LibraryFoldersTests : IDisposable
         Wait.For(() => app.Lines().Length == 1, "the second season's one episode", () => string.Join(", ", app.Lines()));
         Wait.For(() => app.Text("LibraryViewingProgress") == "Season: 0 of 1 episode watched · Series: 0 of 3 episodes watched",
             "the changed season to update without claiming the series is complete");
+        Screenshots.Match(app, "library-show-season-two", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 
@@ -115,6 +117,7 @@ public sealed class LibraryFoldersTests : IDisposable
         var specials = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 0 (Specials)")));
         ((SelectionItemPattern)specials.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Lines() is ["Simpsorama"], "the special in Specials", () => string.Join(", ", app.Lines()));
+        Screenshots.Match(app, "library-show-specials", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 }
