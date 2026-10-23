@@ -23,6 +23,8 @@ public sealed class MacAppSmokeTests
         Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8]);
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
+        Directory.CreateDirectory(screenshots);
         var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
         {
             UseShellExecute = false,
@@ -32,6 +34,8 @@ public sealed class MacAppSmokeTests
         start.Environment["REXPLAYER_ROOT"] = root;
         start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
         start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
+        start.Environment["REXPLAYER_MAC_QUEUE_SCREENSHOTS"] = screenshots;
         using var app = Process.Start(start)!;
         // Native runtime assertions happen before the managed logger exists. Drain both pipes
         // immediately so a noisy startup cannot block, and include them if the smoke test fails.
@@ -41,12 +45,41 @@ public sealed class MacAppSmokeTests
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
+            var empty = await Queue(pipe, "show");
+            Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
+            await Queue(pipe, "capture-empty");
 
             var video = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
             var opened = await Ask(pipe, new AutomationRequest { Command = "open", Paths = [video] });
             Assert.True(opened?.Ok == true, "The app did not acknowledge the open request: " + (opened?.Error ?? "no reply") + ". Its log ends:" + LogTail(root));
             var playing = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Title: not null, State: "Playing" or "Ended" or "Paused" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
+            await Queue(pipe, "capture-current");
+            // The short video fixture can finish before the queue interactions start.
+            // Stop its session so synthetic (intentionally nonexistent) queue entries
+            // are never opened by automatic next-item playback during the UI smoke test.
+            var stopped = await Ask(pipe, new AutomationRequest { Command = "run", Id = "stop" });
+            Assert.True(stopped?.Ok == true, "The app did not acknowledge the stop request.");
+            var longQueue = await Queue(pipe, "fill-long");
+            Assert.Contains("91 items", longQueue.Title, StringComparison.Ordinal);
+            await Queue(pipe, "capture-long");
+            var page2 = await Queue(pipe, "next-page");
+            Assert.Contains("viewing 76", page2.Title, StringComparison.Ordinal);
+            await Queue(pipe, "capture-page-2");
+            await Queue(pipe, "previous-page");
+            var promoted = await Queue(pipe, "last-play-next");
+            Assert.Contains("Next: Queue sample 074", promoted.Title, StringComparison.Ordinal);
+            var shuffled = await Queue(pipe, "shuffle");
+            Assert.Contains("Shuffle: On", shuffled.Title, StringComparison.Ordinal);
+            await Queue(pipe, "capture-shuffled");
+            await Queue(pipe, "verify-accessibility");
+            await Queue(pipe, "minimum");
+            await Queue(pipe, "capture-minimum");
+            foreach (var name in new[] { "empty", "current", "long", "page-2", "shuffled", "minimum" })
+            {
+                var file = new FileInfo(Path.Combine(screenshots, name + ".png"));
+                Assert.True(file.Exists && file.Length > 1024, "No usable native queue screenshot: " + file.FullName);
+            }
 
             var quitting = await Ask(pipe, new AutomationRequest { Command = "run", Id = "quit" });
             // The app may exit before the transport can deliver its reply. A clean exit
@@ -67,7 +100,8 @@ public sealed class MacAppSmokeTests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await app.WaitForExitAsync(timeout.Token);
             throw new InvalidOperationException(
-                "Mac app smoke test failed. Native stdout:" + Environment.NewLine + await stdout.WaitAsync(timeout.Token)
+                "Mac app smoke test failed. App log:" + LogTail(root)
+                + Environment.NewLine + "Native stdout:" + Environment.NewLine + await stdout.WaitAsync(timeout.Token)
                 + Environment.NewLine + "Native stderr:" + Environment.NewLine + await stderr.WaitAsync(timeout.Token), error);
         }
         finally
@@ -82,6 +116,13 @@ public sealed class MacAppSmokeTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    private static async Task<AutomationReply> Queue(string pipe, string action)
+    {
+        var reply = await Ask(pipe, new AutomationRequest { Command = "mac-queue", Id = action });
+        Assert.True(reply?.Ok == true, "Mac queue action failed: " + action + ": " + (reply?.Error ?? "no reply"));
+        return reply!;
     }
 
     private static Task<AutomationReply?> Ask(string pipe, AutomationRequest request) =>

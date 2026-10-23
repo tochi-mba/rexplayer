@@ -411,10 +411,11 @@
             <TextBlock Text="rexplayer" FontSize="20" FontWeight="SemiBold" CharacterSpacing="-30" />
             <TextBlock Text="YOUR LIBRARY" FontSize="10" CharacterSpacing="140" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
-          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" HorizontalAlignment="Right"
+          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" Padding="0" CornerRadius="10"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Click="OnLibraryNavigationToggle" ToolTipService.ToolTip="Collapse library navigation"
                   AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
-            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
+            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE89F;" FontSize="16" />
           </Button>
           <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8,0,12" Background="Transparent"
                     ItemContainerStyle="{StaticResource LibrarySourceItemStyle}"

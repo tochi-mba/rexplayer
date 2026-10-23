@@ -224,6 +224,15 @@ jobs:
           export REXPLAYER_MAC_APP="$PWD/$app"
           dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
 
+      - name: Keep native Mac queue screenshots
+        if: matrix.rid == 'osx-arm64' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mac-queue-screenshots
+          path: artifacts/mac-queue-screenshots/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Keep the app
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
