@@ -1,5 +1,6 @@
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
+using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
 
@@ -65,6 +66,17 @@ public sealed class ShowPageTests
         Assert.Equal("Season 1", ShowPage.DefaultSeason(seasons, null)?.Name);
         Assert.Equal("Season 1", ShowPage.DefaultSeason(seasons, Episode("Other S05E01"))?.Name);
         Assert.Null(ShowPage.DefaultSeason([], null));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ThePickerExplicitlyNamesSeasonZeroWithoutChangingRegularSeasonLabels()
+    {
+        var show = Show(Episode("Alpha S00E01"), Episode("Alpha S01E01"));
+        var seasons = LibraryViews.TvSeasons(show);
+        Assert.Equal(["Season 1", "Season 0 (Specials)"], seasons.Select(ShowPage.SeasonPickerLabel));
+        Assert.Equal("Specials", seasons[^1].Name);
+        Assert.Throws<ArgumentNullException>(() => ShowPage.SeasonPickerLabel(null!));
     }
 
     [Fact]

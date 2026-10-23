@@ -60,7 +60,7 @@ public sealed partial class MainWindow
 
         _shownSeasonPicker = picker;
         _pickingSeason = true;
-        LibrarySeasonPicker.ItemsSource = _showPageSeasons.Select(season => season.Name).ToList();
+        LibrarySeasonPicker.ItemsSource = _showPageSeasons.Select(ShowPage.SeasonPickerLabel).ToList();
         LibrarySeasonPicker.SelectedIndex = _librarySeason is null ? -1
             : Math.Max(0, _showPageSeasons.ToList().FindIndex(season => season.Name == _librarySeason.Name));
         _pickingSeason = false;

@@ -61,13 +61,18 @@ public static partial class EpisodeNames
             return Extra(above, parts.Length > 3 ? parts[^4] : "");
         }
 
-        var folder = SeasonFolderPattern().Match(parent);
+        // Disc/release folders often append a quality tag to an otherwise exact season
+        // name: "S00 (360p)", "Season 00 [720p]" and "Specials (480p)".
+        var seasonName = ReleaseFolderSuffixPattern().Replace(parent, "");
+        var folder = SeasonFolderPattern().Match(seasonName);
         if (!folder.Success)
         {
             folder = EmbeddedSeasonFolderPattern().Match(parent);
         }
+
         int? folderSeason = folder.Success ? folder.Groups["specials"].Success ? 0 : Number(folder.Groups["season"]) : null;
-        var folderShow = !folder.Success ? null : folder.Groups["show"].Success ? folder.Groups["show"].Value : Named(above) ? above : null;
+        var folderShow = !folder.Success ? null : folder.Groups["show"].Success
+            ? folder.Groups["show"].Value : Named(above) ? ShowFolder(above) : null;
         var looseShow = Named(parent) && !folder.Success ? parent : null;
 
         // The conventional marks name the series before them, which is the most specific statement of the show.
@@ -80,7 +85,12 @@ public static partial class EpisodeNames
         if (mark.Success)
         {
             var prefix = name[..mark.Index];
-            return Episode(Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow, Number(mark.Groups["season"]), Optional(mark.Groups["episode"]), Optional(mark.Groups["through"]));
+            // A named season-zero folder may hold historical shorts with another programme's
+            // name (e.g. Tracy Ullman shorts under The Simpsons). For regular seasons, the
+            // filename's explicit show name still wins: different shows can share a folder.
+            var series = folderSeason == 0 && folder.Groups["show"].Success
+                ? folderShow : Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow;
+            return Episode(series, Number(mark.Groups["season"]), Optional(mark.Groups["episode"]), Optional(mark.Groups["through"]));
         }
 
         // A special that names its season: "S07X01", "S07 SP01", "S07 Special 1", "S07.5".
@@ -88,7 +98,9 @@ public static partial class EpisodeNames
         if (mark.Success)
         {
             var prefix = name[..mark.Index];
-            return Episode(Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow, 0, Optional(mark.Groups["episode"]), specialOf: Number(mark.Groups["season"]));
+            var series = folderSeason == 0 && folder.Groups["show"].Success
+                ? folderShow : Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow;
+            return Episode(series, 0, Optional(mark.Groups["episode"]), specialOf: Number(mark.Groups["season"]));
         }
 
         mark = KeywordPattern().Match(name);
@@ -160,13 +172,18 @@ public static partial class EpisodeNames
     /// </summary>
     private static VideoEpisode? Extra(string above, string aboveThat)
     {
-        var folder = SeasonFolderPattern().Match(above);
+        var folder = SeasonFolderPattern().Match(ReleaseFolderSuffixPattern().Replace(above, ""));
         if (!folder.Success)
         {
-            return Named(above) ? Episode(above, 0, null, tentative: true) : null;
+            folder = EmbeddedSeasonFolderPattern().Match(above);
         }
 
-        var show = folder.Groups["show"].Success ? folder.Groups["show"].Value : Named(aboveThat) ? aboveThat : null;
+        if (!folder.Success)
+        {
+            return Named(above) ? Episode(ShowFolder(above), 0, null, tentative: true) : null;
+        }
+
+        var show = folder.Groups["show"].Success ? folder.Groups["show"].Value : Named(aboveThat) ? ShowFolder(aboveThat) : null;
         return Episode(show, 0, null, specialOf: folder.Groups["specials"].Success ? null : Number(folder.Groups["season"]));
     }
 
@@ -231,7 +248,15 @@ public static partial class EpisodeNames
 
     /// <summary>A folder that can name a show: not empty, not a drive, not a library's own folder and not a season.</summary>
     private static bool Named(string folder) =>
-        folder.Length > 0 && !folder.EndsWith(':') && !Generic.Contains(folder) && !ExtrasFolders.Contains(folder) && !SeasonFolderPattern().IsMatch(folder);
+        folder.Length > 0 && !folder.EndsWith(':') && !Generic.Contains(folder) && !ExtrasFolders.Contains(folder)
+            && !SeasonFolderPattern().IsMatch(ReleaseFolderSuffixPattern().Replace(folder, ""));
+
+    /// <summary>Strip a multi-season collection suffix, not the title of the show itself.</summary>
+    private static string ShowFolder(string folder)
+    {
+        var collection = SeasonCollectionFolderPattern().Match(folder);
+        return collection.Success ? collection.Groups["show"].Value : folder;
+    }
 
     private static int Number(Group group) => Number(group.Value);
 
@@ -243,6 +268,10 @@ public static partial class EpisodeNames
     /// <summary>"Season 6", "S06", "Series 6", "Staffel 6", "Saison 6", "Specials", optionally after the show's name.</summary>
     [GeneratedRegex(@"^(?:(?<show>.*?\S)[ ._-]+)?(?:(?:season|series|staffel|saison|temporada)[ ._-]*(?<season>\d{1,3})|s(?<season>\d{1,3})|(?<specials>specials?))$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
     private static partial Regex SeasonFolderPattern();
+
+    /// <summary>A multi-season release root such as "The Simpsons S00-S09 (1989-) + Shorts".</summary>
+    [GeneratedRegex(@"^(?<show>.+?\S)[ ._-]+s\d{1,3}\s*[-–]\s*s?\d{1,3}(?=$|[^\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+    private static partial Regex SeasonCollectionFolderPattern();
 
     /// <summary>A release folder with a season marker followed by descriptive text, such as "Show S00 Collection (240p)".</summary>
     [GeneratedRegex(@"^(?<show>.*?\S)[ ._-]+s(?<season>\d{1,3})(?=$|[ ._()\[\]-])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
