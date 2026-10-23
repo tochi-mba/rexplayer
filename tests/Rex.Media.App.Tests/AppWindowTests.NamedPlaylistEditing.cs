@@ -9,6 +9,45 @@ public sealed partial class AppWindowTests
 {
     [Fact]
     [Capability("FMT-C19")]
+    public void SlideshowPausesAndResumesAndStopsWithoutStrandingFullScreenOrGif()
+    {
+        var jpg = RepoPaths.Combine("tests", "fixtures", "picture", "still.jpg");
+        var gif = RepoPaths.Combine("tests", "fixtures", "picture", "anim.gif");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-slideshow-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        LibraryScene.WriteSettings(root, settings => settings with { PictureSeconds = 60 });
+        try
+        {
+            using var app = AppProcess.Start([jpg, gif], root);
+            Wait.For(() => app.Text("NowPlaying") == "still" && app.IsShown("PictureIntervalButton"),
+                "the still picture to be ready");
+
+            app.Run(CommandCatalog.PlayPause);
+            Wait.For(() => app.Find("PlayPauseButton").Current.Name == "Play", "the picture to pause");
+            Assert.Equal("still", app.Text("NowPlaying"));
+
+            app.Run(CommandCatalog.ToggleFullScreen);
+            Wait.For(() => !app.IsShown("Menu"), "fullscreen slideshow");
+            app.Run(CommandCatalog.PlayPause);
+            Wait.For(() => app.Find("PlayPauseButton").Current.Name == "Pause", "the slideshow to resume");
+            app.Run(CommandCatalog.Next);
+            Wait.For(() => app.LogText.Contains("Opened anim.gif as", StringComparison.Ordinal)
+                && app.IsShown("PictureIntervalButton"), "the animated GIF to start");
+
+            app.Run(CommandCatalog.Stop);
+            Wait.For(() => !app.IsShown("PictureIntervalButton"), "picture controls to cancel");
+            app.Run(CommandCatalog.LeaveFullScreen);
+            Wait.For(() => app.IsShown("Menu"), "normal controls to return");
+            Assert.Equal(0, app.Close());
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Capability("FMT-C19")]
     public void PictureSlideshowHasDiscoverableIntervalAndKeepsCurrentPictureWhenItChanges()
     {
         var picture = RepoPaths.Combine("tests", "fixtures", "picture", "still.png");
