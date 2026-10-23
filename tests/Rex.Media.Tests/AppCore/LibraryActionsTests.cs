@@ -85,6 +85,26 @@ public sealed class LibraryActionsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void ExplorerRevealsSelectedFilesInTheirFoldersWithoutDuplicateSelections()
+    {
+        var music = Path.Combine(Path.GetTempPath(), "reveal-music");
+        var videos = Path.Combine(Path.GetTempPath(), "reveal-video");
+        var first = Path.Combine(music, "song.wav");
+        var second = Path.Combine(music, "other.wav");
+        var third = Path.Combine(videos, "clip.mp4");
+        var groups = LibraryActions.RevealGroups([first, second, first, third, "", "  ", "relative.wav"]);
+
+        Assert.Equal(2, groups.Count);
+        Assert.Equal(music, groups[0].Folder);
+        Assert.Equal([first, second], groups[0].Files);
+        Assert.Equal(videos, groups[1].Folder);
+        Assert.Equal([third], groups[1].Files);
+        Assert.Empty(LibraryActions.RevealGroups([]));
+        Assert.Throws<ArgumentNullException>(() => LibraryActions.RevealGroups(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void TheDeleteKeyDeletesOnlyTheFilesALinesMenuWouldDelete()
     {
         // Delete on a watched folder's line used to offer to delete every file under the folder,

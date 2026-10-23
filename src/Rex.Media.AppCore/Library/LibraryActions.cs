@@ -3,6 +3,9 @@ using Rex.Media.Library;
 
 namespace Rex.Media.AppCore.Library;
 
+/// <summary>One Explorer folder with its distinct files selected inside it.</summary>
+public sealed record RevealFolder(string Folder, IReadOnlyList<string> Files);
+
 /// <summary>What a confirmation dialog asks: its title and the words under it.</summary>
 public sealed record Prompt(string Title, string Body);
 
@@ -66,6 +69,18 @@ public static class LibraryActions
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Delete {names[0]}?" : $"Delete {Count(names.Count, "playlist")}?";
         return new Prompt(title, Named(names) + (names.Count == 1 ? "The playlist goes" : "The playlists go") + "; the files in " + (names.Count == 1 ? "it stay" : "them stay") + " where they are.");
+    }
+
+    /// <summary>Group existing selected file paths by folder, retaining order and duplicate-free selection.</summary>
+    public static IReadOnlyList<RevealFolder> RevealGroups(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        return [.. paths.Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => (Path: path, Folder: Path.GetDirectoryName(path)))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Folder))
+            .GroupBy(item => item.Folder!, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new RevealFolder(group.Key,
+                [.. group.Select(item => item.Path).Distinct(StringComparer.OrdinalIgnoreCase)]))];
     }
 
     /// <summary>

@@ -712,7 +712,7 @@ public sealed partial class MainWindow
                 () => _player.ResetProgress(selectedEntries.Select(entry => entry.Path).ToList())));
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Copy", selectedEntries.Count, tail: "paths"), "LibraryMenuCopyPath",
                 () => CopyLibraryPaths(selectedEntries)));
-            menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
+            menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Reveal in File Explorer" : "Reveal files in File Explorer", "LibraryMenuOpenFolder",
                 () => Forget(OpenLibraryFoldersAsync(selectedEntries))));
             AddEditDetailsMenuItem(menu, selectedEntries);
             AddListeningMenuItems(menu, selectedEntries, chosen);
@@ -728,12 +728,38 @@ public sealed partial class MainWindow
         }
     }
 
-    private static async Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries)
+    /// <summary>Reveals each selected file in Explorer, while tolerating removed or inaccessible files.</summary>
+    private async Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries)
     {
-        foreach (var folder in entries.Select(entry => Path.GetDirectoryName(entry.Path))
-            .Where(folder => !string.IsNullOrEmpty(folder)).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var group in LibraryActions.RevealGroups(entries.Select(entry => entry.Path)))
         {
-            await Launcher.LaunchFolderPathAsync(folder!);
+            var options = new Windows.System.FolderLauncherOptions();
+            foreach (var path in group.Files)
+            {
+                try
+                {
+                    options.ItemsToSelect.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(path));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                    or ArgumentException or NotSupportedException or System.Runtime.InteropServices.COMException)
+                {
+                    // Files can go missing between a scan and the menu; still open the parent folder.
+                    App.Log.Debug(LogSource, $"Could not select {path} in Explorer: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                if (!await Launcher.LaunchFolderPathAsync(group.Folder, options))
+                {
+                    Say("File Explorer could not open " + group.Folder);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                or ArgumentException or NotSupportedException or System.Runtime.InteropServices.COMException)
+            {
+                Say("File Explorer could not open " + group.Folder + ": " + ex.Message);
+            }
         }
     }
 
