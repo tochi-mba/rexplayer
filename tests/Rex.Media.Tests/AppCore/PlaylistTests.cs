@@ -211,6 +211,47 @@ public sealed class PlaylistTests
         Assert.Same(chosen, playlist.Next(automatic: false));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RemovingMultipleQueueEntriesIsAtomicAndRetainsTheCurrentIdentity(bool shuffle)
+    {
+        var playlist = With(5, new Random(9));
+        playlist.Shuffle = shuffle;
+        playlist.Next(automatic: false);
+        var playing = playlist.Current;
+        var selected = playlist.Items.Where(item => !ReferenceEquals(item, playing)).Take(2).ToArray();
+        var notices = 0;
+        playlist.Changed += (_, _) => notices++;
+
+        playlist.RemoveEntries([selected[1], selected[0], selected[1]]);
+        Assert.Equal(1, notices);
+        Assert.Same(playing, playlist.Current);
+        Assert.Equal(3, playlist.Items.Count);
+        Assert.DoesNotContain(selected[0], playlist.Items);
+        Assert.DoesNotContain(selected[1], playlist.Items);
+        Assert.Equal(playlist.Items.Count, playlist.Items.Distinct(ReferenceEqualityComparer.Instance).Count());
+        playlist.RemoveEntries([]);
+        playlist.RemoveEntries(selected);
+        Assert.Equal(1, notices);
+        Assert.Throws<ArgumentNullException>(() => playlist.RemoveEntries(null!));
+    }
+
+    [Fact]
+    public void RemovingTheCurrentEntryKeepsTheNextItemAvailable()
+    {
+        var playlist = With(4);
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        var following = playlist.PeekNext(automatic: false);
+        var current = playlist.Current!;
+        playlist.RemoveEntries([current, playlist.Items[0]]);
+        Assert.Null(playlist.Current);
+        Assert.Equal(2, playlist.Items.Count);
+        Assert.Same(following, playlist.PeekNext(automatic: false));
+        Assert.Same(following, playlist.Next(automatic: false));
+    }
+
     [Fact]
     public void QueueNextAfterRemovingCurrentPreservesTheFollowingPlace()
     {

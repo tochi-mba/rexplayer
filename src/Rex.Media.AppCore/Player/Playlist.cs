@@ -256,6 +256,44 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>
+    /// Remove selected entry identities together. Duplicate locations remain distinct; a single
+    /// change notification avoids exposing partially removed queues to the playing window.
+    /// </summary>
+    public void RemoveEntries(IEnumerable<PlaylistItem> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        var selected = entries.Where(item => _items.Contains(item))
+            .ToHashSet(ReferenceEqualityComparer.Instance);
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        _items.RemoveAll(selected.Contains);
+        for (var index = _order.Count - 1; index >= 0; index--)
+        {
+            if (!selected.Contains(_order[index]))
+            {
+                continue;
+            }
+
+            _order.RemoveAt(index);
+            if (index <= _position)
+            {
+                _position--;
+            }
+        }
+
+        if (Current is { } playing && selected.Contains(playing))
+        {
+            Current = null;
+        }
+
+        _nextCycle = null;
+        Raise();
+    }
+
     /// <summary>Puts <paramref name="item"/> in place of the one at <paramref name="index"/>, in its place in the play order too.</summary>
     public void Replace(int index, PlaylistItem item)
     {

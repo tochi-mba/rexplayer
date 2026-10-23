@@ -420,17 +420,17 @@ public sealed partial class MainWindow
         PlaylistUndoReorder.IsEnabled = false;
     }
 
-    /// <summary>Removes the selected entries, from the bottom up so the indexes stay right.</summary>
+    /// <summary>Remove the exact selected entry instances with one state change, preserving playback.</summary>
     private void RemoveSelected()
     {
-        var indexes = PlaylistView.SelectedRanges
-            .SelectMany(range => Enumerable.Range(range.FirstIndex, (int)range.Length))
-            .OrderDescending()
-            .ToList();
-        foreach (var index in indexes)
+        var chosen = ChosenEntries();
+        if (chosen.Count == 0)
         {
-            _player.Playlist.RemoveAt(index);
+            return;
         }
+
+        _player.Playlist.RemoveEntries(chosen);
+        Say(chosen.Count == 1 ? "Removed entry from the queue" : $"Removed {chosen.Count} entries from the queue");
     }
 
     /// <summary>Explicit navigation does not change the queue, playback or other selection.</summary>
