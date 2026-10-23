@@ -212,7 +212,9 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (chapter is null && Audiobooks.Finished(book))
+        // Starting any chapter of a finished book begins another reading.
+        // Explicit chapter selection must not leave a book falsely completed.
+        if (Audiobooks.Finished(book))
         {
             Audiobooks.SetFinished(book, false);
         }
