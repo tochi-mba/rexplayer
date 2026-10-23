@@ -24,6 +24,7 @@ public sealed partial class MainWindow
     private int _listeningAlbums = -1;
     private int _listeningBooks = -1;
     private AudiobookMemory? _audiobookMemory;
+    private HashSet<string> _duplicateBookCredits = new(StringComparer.Ordinal);
 
     private AudiobookMemory Audiobooks => _audiobookMemory ??= new AudiobookMemory(_library!.Store);
 
@@ -90,6 +91,10 @@ public sealed partial class MainWindow
             // Only transfer old title-and-author settings when this complete catalogue
             // identifies one edition; duplicate titles must never inherit each other's state.
             Audiobooks.MigrateLegacy(_listening.Audiobooks);
+            _duplicateBookCredits = _listening.Audiobooks
+                .GroupBy(ListeningViews.BookKey, StringComparer.Ordinal)
+                .Where(group => group.Skip(1).Any())
+                .Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
             _listeningBuiltAt = version;
             _listeningAlbums = albums;
             _listeningBooks = books;
@@ -243,8 +248,11 @@ public sealed partial class MainWindow
     private LibraryRow BookRow(LibraryGroup book)
     {
         var progress = Audiobooks.Finished(book) ? 1 : ListeningViews.Progress(book, ListeningViews.PlaceIn(book, _player.LeftAt));
-        return new LibraryRow(book.Name, book.Detail ?? "Unknown author", BookProgressText(book), book, hasPicture: true, picturePlaceholder: "▤",
-            progress: ListeningViews.Started(book, _player.LeftAt) || Audiobooks.Finished(book) ? Math.Max(progress, 0.01) : 0);
+        var edition = _duplicateBookCredits.Contains(ListeningViews.BookKey(book)) ? ListeningViews.EditionLabel(book) : null;
+        var detail = (book.Detail ?? "Unknown author") + (edition is null ? "" : " · " + edition);
+        return new LibraryRow(book.Name, detail, BookProgressText(book), book, hasPicture: true, picturePlaceholder: "▤",
+            progress: ListeningViews.Started(book, _player.LeftAt) || Audiobooks.Finished(book) ? Math.Max(progress, 0.01) : 0,
+            accessibilitySuffix: edition is null ? "" : " (" + edition + ")");
     }
 
     /// <summary>One chapter of an open book; the one it is up to says so.</summary>
