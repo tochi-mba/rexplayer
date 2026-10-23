@@ -274,6 +274,7 @@ RateGate.cs
 Rational.cs
 ReleaseNotes.cs
 RemovalPanel.cs
+RecordingWaveform.cs
 Resampler.cs
 ResonanceScene.cs
 ResumeMarker.cs
