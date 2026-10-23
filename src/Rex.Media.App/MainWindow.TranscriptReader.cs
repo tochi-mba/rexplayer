@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Captions;
+using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Subtitles;
@@ -16,16 +17,18 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
-    private async Task ShowTranscriptReaderAsync()
+    private async Task ShowTranscriptReaderAsync(string? selectedPath = null)
     {
-        if (_player.Item?.Location is not { } media || !File.Exists(media))
+        var media = selectedPath ?? _player.Item?.Location;
+        if (string.IsNullOrWhiteSpace(media) || !File.Exists(media))
         {
-            Say("Open a local file before reading its transcript.");
+            Say("Select an available local file before reading its transcript.");
             return;
         }
 
         var model = SpeechModels.For(_settings.KineticCaptions.TranscriptModel).Id;
-        var duration = _player.Duration;
+        var duration = selectedPath is null ? _player.Duration
+            : _library?.Entry(media)?.Duration ?? TimeSpan.Zero;
         var loaded = await Task.Run(() =>
         {
             var original = _transcripts.Load(media, model);
@@ -42,7 +45,7 @@ public sealed partial class MainWindow
                 partial?.Duration ?? duration, partial is null);
             return (Content: edited?.Content ?? original, Complete: partial is null);
         });
-        if (_closing || _player.Item?.Location != media)
+        if (_closing || (selectedPath is null && _player.Item?.Location != media))
         {
             return;
         }
@@ -54,7 +57,7 @@ public sealed partial class MainWindow
         }
 
         var cues = await Task.Run(transcript.ToCues);
-        if (_closing || _player.Item?.Location != media || cues.Count == 0)
+        if (_closing || (selectedPath is null && _player.Item?.Location != media) || cues.Count == 0)
         {
             return;
         }
@@ -135,10 +138,10 @@ public sealed partial class MainWindow
             {
                 var cueIndex = index;
                 var cue = cues[index];
-                var time = TimeText.Format(cue.Start, _player.Duration);
+                var time = TimeText.Format(cue.Start, duration);
                 var button = new Button
                 {
-                    Content = $"{time}   {cue.Text}",
+                    Content = new TextBlock { Text = $"{time}   {cue.Text}", TextWrapping = TextWrapping.Wrap },
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left,
                     Padding = new Thickness(10, 8, 10, 8),
@@ -148,9 +151,17 @@ public sealed partial class MainWindow
                 AutomationProperties.SetName(button, $"Jump to {time}. {cue.Text}");
                 button.Click += (_, _) =>
                 {
-                    if (_player.CanSeek && _player.Item?.Location == media)
+                    var at = cue.Start < TimeSpan.Zero ? TimeSpan.Zero : cue.Start;
+                    if (_player.CanSeek && LibraryViews.SameLocation(_player.Item?.Location, media))
                     {
-                        _player.Seek(cue.Start < TimeSpan.Zero ? TimeSpan.Zero : cue.Start);
+                        _player.Seek(at);
+                    }
+                    else if (selectedPath is not null && _library?.Entry(media) is { } selected
+                        && !selected.Downloading && selected.Problem is null && File.Exists(selected.Path))
+                    {
+                        // A library transcript can be read without autoplay; seeking is explicit.
+                        // The only file in the queue is the one whose transcript is being read.
+                        _player.PlayFromLibrary([selected], 0, at);
                     }
                 };
                 buttons[index] = button;
@@ -160,7 +171,7 @@ public sealed partial class MainWindow
 
         void ShowPosition()
         {
-            if (_player.Item?.Location != media)
+            if (!LibraryViews.SameLocation(_player.Item?.Location, media))
             {
                 return;
             }
@@ -238,7 +249,7 @@ public sealed partial class MainWindow
             follow.IsEnabled = true;
             page = cueIndex / pageSize;
             ShowPage();
-            result.Text = $"Match at {TimeText.Format(at, _player.Duration)}. Select the paragraph to jump.";
+            result.Text = $"Match at {TimeText.Format(at, duration)}. Select the paragraph to jump.";
             if (buttons.TryGetValue(cueIndex, out var button))
             {
                 button.Focus(FocusState.Programmatic);
