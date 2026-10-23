@@ -1,5 +1,6 @@
 using Rex.Media.Library;
 using Rex.Media.Settings;
+using Rex.Media.AppCore.Library;
 
 namespace Rex.Media.AppCore.Transcription;
 
@@ -58,10 +59,13 @@ public static class TranscriptionOrder
             return queue;
         }
 
+        var audioContext = AudioContext.Of(entries);
         var background = entries
             .Where(entry => !taken.Contains(entry.Path))
             .Select(entry => (Entry: entry, Record: find(Sign(entry))))
-            .Where(pair => TranscriptionEligibility.Of(pair.Entry, settings, libraryFolders, pair.Record) == TranscriptionSkip.None && TranscriptionRetry.MayTry(pair.Record, now))
+            .Where(pair => TranscriptionEligibility.Of(pair.Entry, settings, libraryFolders, pair.Record,
+                AudioRules.Judge(pair.Entry, MusicLookup.NotSearched, audioContext)?.Shelf == AudioShelf.Audiobooks) == TranscriptionSkip.None
+                && TranscriptionRetry.MayTry(pair.Record, now))
             .OrderByDescending(pair => pair.Record?.State == TranscriptState.Partial)
             .ThenByDescending(pair => leftPartWay(pair.Entry.Path))
             .ThenByDescending(pair => pair.Entry.Added)

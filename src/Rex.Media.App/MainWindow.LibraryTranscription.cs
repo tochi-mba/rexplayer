@@ -329,12 +329,14 @@ public sealed partial class MainWindow
         var hasVideo = HasVideo;
         var entry = _library?.Entry(item);
         var folders = _library?.Folders ?? [];
+        var audiobook = entry is not null && Listening().Audiobooks.Any(book => book.Entries.Any(part =>
+            string.Equals(part.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
         Forget(Task.Run(() =>
         {
             var full = _transcripts.Load(item, model.Id);
             var partial = full is null ? _transcripts.LoadPartial(item, model.Id) : null;
             var backgroundEligible = settings.Library && entry is not null
-                && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry))) == TranscriptionSkip.None;
+                && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry)), audiobook) == TranscriptionSkip.None;
             var wanted = full is null && TranscriptionEligibility.Playing(asked, hasVideo, settings.WhatPlays, backgroundEligible);
             var track = full is not null ? full.ToTrack(TranscriptionWorker.TrackName(model.Id))
                 : !wanted && partial is not null ? partial.ToTranscript().ToTrack(TranscriptionWorker.TrackName(model.Id)) : null;
@@ -632,7 +634,9 @@ public sealed partial class MainWindow
         var record = _ledger.Find(TranscriptionOrder.Sign(entry));
         var status = _worker?.Status ?? WorkerStatus.Idle;
         var working = string.Equals(status.Path, entry.Path, StringComparison.OrdinalIgnoreCase);
-        var skip = _settings.Transcription.Library ? TranscriptionEligibility.Of(entry, _settings.Transcription, _library!.Folders, record) : TranscriptionSkip.OutOfScope;
+        var audiobook = Listening().Audiobooks.Any(book => book.Entries.Any(part =>
+            string.Equals(part.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
+        var skip = _settings.Transcription.Library ? TranscriptionEligibility.Of(entry, _settings.Transcription, _library!.Folders, record, audiobook) : TranscriptionSkip.OutOfScope;
         var badge = TranscriptionStatus.Badge(record, skip, working, _queuedTranscripts.Contains(entry.Path), status.Share, DateTimeOffset.UtcNow);
         return (badge.Glyph, badge.Text);
     }

@@ -62,6 +62,10 @@ public sealed class TranscriptionPolicyTests
         Assert.Equal(TranscriptionSkip.Picture, Of(Entry(@"D:\Videos\a.jpg", LibraryKind.Picture)));
         Assert.Equal(TranscriptionSkip.Music, Of(Entry(@"D:\Videos\Asake - Lonely At The Top.mp3", LibraryKind.Music)));
         Assert.Equal(TranscriptionSkip.None, Of(Entry(@"D:\Videos\Asake - Sungba.mp3", LibraryKind.Music), with: settings with { IncludeMusic = true }));
+        var audiobook = Entry(@"D:\Videos\Audiobooks\The Hobbit\Part 1.mp3", LibraryKind.Music);
+        Assert.Equal(TranscriptionSkip.Music, Of(audiobook));
+        Assert.Equal(TranscriptionSkip.None, TranscriptionEligibility.Of(audiobook,
+            settings with { IncludeAudiobooks = true }, Folders, null, audiobook: true));
         var silent = Entry(@"D:\Videos\b.mkv");
         Assert.Equal(TranscriptionSkip.NoSound, Of(silent, Record(silent, TranscriptState.NoSound)));
         Assert.Equal(TranscriptionSkip.NotReadYet, Of(Entry(@"D:\Videos\c.mkv", probed: false)));
