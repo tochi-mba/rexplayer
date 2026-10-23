@@ -403,6 +403,9 @@ jobs:
             if ($evidence.pixelReadinessAchieved -ne $true) {
               $errors.Add("$($scene.id): image and pixel witness not proved")
             }
+            if ($evidence.repeatabilityAchieved -ne $true -or -not (Test-Path "artifacts/screenshots/ci-windows/repeat/$($scene.id).png")) {
+              $errors.Add("$($scene.id): repeated capture is missing or unstable")
+            }
           }
           Write-Host "Audited $($inventory.scenes.Count) screenshot scenes against ci-windows actual PNG and JSON evidence."
           if ($errors.Count -gt 0) {
