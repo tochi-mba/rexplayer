@@ -334,7 +334,10 @@ public sealed partial class MainWindow
                 play.ToolTip = entry.Path;
                 ((NSView)play).AccessibilityLabel = "Play " + entry.Title;
                 play.Alignment = NSTextAlignment.Left;
+                play.LineBreakMode = NSLineBreakMode.TruncatingTail;
                 play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
+                // Very long titles must not push Queue out of the 590-point window.
+                play.WidthAnchor.ConstraintLessThanOrEqualTo(390).Active = true;
                 var detail = NSTextField.CreateLabel(secondary);
                 detail.TextColor = NSColor.SecondaryLabel;
                 detail.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
