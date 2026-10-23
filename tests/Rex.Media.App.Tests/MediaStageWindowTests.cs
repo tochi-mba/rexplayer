@@ -156,6 +156,33 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void SwitchingFromChapteredAudioToOrdinaryAudioKeepsSeekingButRemovesChapters()
+    {
+        var book = _scene.ChapteredAudiobook();
+        var plain = _scene.Audio("Ordinary.wav", TimeSpan.FromSeconds(20));
+        using var app = AppProcess.Start([book, plain]);
+        Wait.For(() => app.IsShown("StageChaptersButton")
+            && app.Find("SeekBar").Current.IsEnabled,
+            "the first file to provide a chaptered seekable stream");
+
+        app.Find("StageChaptersButton").SetFocus();
+        Wait.For(() => app.Find("StageChaptersButton").Current.HasKeyboardFocus,
+            "the outgoing chapter picker to receive focus");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Text("NowPlaying") == "Ordinary"
+            && app.Find("Stage").Current.Name == "AUDIO playback stage",
+            "a plain audio file to replace the chaptered audiobook");
+
+        Assert.True(app.Find("SeekBar").Current.IsEnabled,
+            "Seeking stays available for the new audio file.");
+        Assert.False(app.IsShown("StageChaptersButton"));
+        Assert.DoesNotContain("Chapter jumps", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "focus to return to a permanent control when only the chapter affordance disappears");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void ARealChapteredAudiobookExposesOnlyItsOwnChapterJumps()
     {
         var book = _scene.ChapteredAudiobook();
