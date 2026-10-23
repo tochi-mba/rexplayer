@@ -326,6 +326,8 @@ public sealed class MacAppSmokeTests
             Assert.True(filtered?.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The last catalogue entry was not searchable.");
             var page = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibraryPage" });
             Assert.Equal("Page 1 of 1", page?.Text);
+            var narrow = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
+            Assert.True(narrow?.Ok == true, "Could not resize the long-title result to minimum width.");
             var layout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
             Assert.True(layout?.Ok == true, "The long video filename clipped a native result action: " +
                 (layout?.Error ?? "no reply") + LogTail(root));
