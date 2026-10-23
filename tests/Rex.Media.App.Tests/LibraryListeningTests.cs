@@ -165,6 +165,27 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void LocalPodcastNotesRemainPlainSelectableTextWithoutExecutingMarkup()
+    {
+        var episode = _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
+            TimeSpan.FromMinutes(3), year: 2024);
+        File.WriteAllText(Path.ChangeExtension(episode, ".notes.md"),
+            "Chapter one\n<script>alert('not executed')</script>\nhttps://example.invalid/");
+        using var app = _scene.Ready().Start();
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Pointer.RightClick(app, app.Line("Ep 1"));
+        Wait.For(() => app.IsShown("LibraryMenuPodcastNotes"), "local notes menu for a podcast episode");
+        app.Press("LibraryMenuPodcastNotes");
+        var notes = (System.Windows.Automation.ValuePattern)app.Find("PodcastNotesText")
+            .GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern);
+        Assert.Contains("<script>", notes.Current.Value, StringComparison.Ordinal);
+        Assert.Contains("Chapter one", notes.Current.Value, StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
