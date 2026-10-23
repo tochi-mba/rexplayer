@@ -36,7 +36,7 @@ public sealed class AudiobookPresentationTests : IDisposable
         {
             var scene = ScreenshotScenes.Find(name);
             Assert.Equal("ci-windows", scene.RequiredLane);
-            Assert.Equal("1280x800", scene.Dimensions);
+            Assert.Equal("1016x760", scene.Dimensions);
             Assert.Contains("LibraryList", scene.ExpectedAutomationIds);
         }
 
@@ -68,7 +68,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             ]);
 
         using var app = _scene.Ready().Start();
-        Screenshots.PinViewport(app, 1280, 800);
+        Screenshots.PinViewport(app, 1016, 760);
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("A Book"), "the unread audiobook card");
         Assert.Contains("Not started", app.Line("A Book").Current.HelpText, StringComparison.Ordinal);
@@ -112,7 +112,7 @@ public sealed class AudiobookPresentationTests : IDisposable
                 new Chapter(MediaTime.FromSeconds(600), "Middle"),
             ]);
         using var app = _scene.Ready(played: path).Start();
-        Screenshots.PinViewport(app, 1280, 800);
+        Screenshots.PinViewport(app, 1016, 760);
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("Marker Book"), "the started book card");
         Assert.Contains("0% listened", app.Line("Marker Book").Current.HelpText,
@@ -259,7 +259,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             TimeSpan.FromHours(1), album: "Huge Book", author: "Ann Writer");
 
         using var app = _scene.Ready().Start();
-        Screenshots.PinViewport(app, 1280, 800);
+        Screenshots.PinViewport(app, 1016, 760);
         app.Visit("Audiobooks");
         app.Open("Huge Book");
         // Capture with the screenshot harness first: it waits for the declared UIA
