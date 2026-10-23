@@ -7,7 +7,7 @@ pipeline the moment its number reaches `main`.
 
 ### Fixed
 
-- **Mac release builds (#460).** Repair the bookmark controls to use their real saved-time property, restoring the Intel and Apple Silicon builds introduced in the unreleased playback-tools update.
+- **Mac playback tools and release builds (#460).** Use the saved bookmark time field and connect the new Playback tools window to the Mac application menu, automatic state refresh and cleanup, restoring the Intel and Apple Silicon builds.
 - **Warnings-as-errors compliance (#460).** Remove an unfinished, unused native media-list prototype rather than suppressing the unused-type analyzer; existing playback functionality stays intact.
 
 ### Improved
