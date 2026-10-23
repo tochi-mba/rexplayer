@@ -155,6 +155,11 @@ public sealed class MacAppSmokeTests
             Assert.True(keys?.Ok == true, "Mac library AppKit Tab/Shift-Tab loop failed: " + (keys?.Error ?? "no reply") + LogTail(root));
             var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
             Assert.True(tree?.Ok == true && tree.Controls is not null, "The native library did not expose its controls.");
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibrarySummary" &&
+                control.Name.StartsWith("Library status: ", StringComparison.Ordinal) &&
+                control.Name.Contains("1 total", StringComparison.Ordinal));
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryPage" &&
+                control.Name == "Library results Page 1 of 1");
             Assert.Contains(tree!.Controls!, control => control.Id == "LibrarySearch" && control.Kind == "search" && control.Name == "Search library");
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryCategory" && control.Name == "Media category");
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryResults" && control.Name == "Library results");
