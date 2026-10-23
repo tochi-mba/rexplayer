@@ -20,7 +20,7 @@ public sealed partial class MainWindow
 
     private void OnSeekAreaPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (_closed || !_settings.SeekPreview || !_budget.SeekPreview || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
+        if (_closed || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
         {
             HideSeekPreview();
             return;
@@ -41,7 +41,11 @@ public sealed partial class MainWindow
         _seekPreviewWork = new CancellationTokenSource();
         var token = _seekPreviewWork.Token;
         var location = _player.Item?.Location;
-        if (!HasVideo || location is null || !File.Exists(location))
+        // Time and any real caption at this location are cheap and remain
+        // useful even when users turn off costly frame decoding or low-power
+        // mode disables it. Never hide hover feedback for that reason.
+        if (!_settings.SeekPreview || !_budget.SeekPreview
+            || !HasVideo || location is null || !File.Exists(location))
         {
             SeekPreviewPicture.Visibility = Visibility.Collapsed;
             return;
