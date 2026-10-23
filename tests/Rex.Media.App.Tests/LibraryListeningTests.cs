@@ -67,6 +67,28 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void LocalPodcastShowExplainsAvailabilityAndPlaysUnheardEpisodesOldestFirst()
+    {
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"), TimeSpan.FromMinutes(30), year: 2023);
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 2.wav"), TimeSpan.FromMinutes(30), year: 2024);
+        _scene.Audio(Path.Combine("Podcasts", "Another Show", "Ep 3.wav"), TimeSpan.FromMinutes(30), year: 2025);
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Wait.For(() => app.Lines().SequenceEqual(["Ep 2", "Ep 1"]),
+            "episodes within the chosen local show");
+        Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Pointer.RightClick(app, app.Line("Ep 2"));
+        Wait.For(() => app.IsShown("LibraryMenuPlayUnplayed"), "the unplayed queue action");
+        app.Press("LibraryMenuPlayUnplayed");
+        Wait.For(() => app.Text("NowPlaying") == "Ep 1",
+            "the oldest unplayed local episode to start, not an episode from another show");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
