@@ -96,8 +96,8 @@ public sealed partial class MainWindow
         _scanner.StatusChanged += (_, _) => OnWindowThread(ShowLibraryStatus);
         _backgroundSections = new LibrarySectionAnalysis(_player.Memory, _player.SectionCache,
             _player.SectionAnalyzer!, App.Log);
-        _backgroundSections.SetPaused(_player.IsPlaying);
-        _player.Changed += (_, _) => _backgroundSections?.SetPaused(_player.IsPlaying);
+        UpdateBackgroundSectionPause();
+        _player.Changed += (_, _) => UpdateBackgroundSectionPause();
         _player.Changed += (_, _) => OnPlayingChangedForDetailWrites();
 
         // A burst of changes (a scan's batches) shows once.
@@ -215,6 +215,13 @@ public sealed partial class MainWindow
 
         LibraryPane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         LibraryButton.IsChecked = open;
+        UpdateBackgroundSectionPause();
+        if (_transcriptionStarted)
+        {
+            // Apply the browsing throttle immediately instead of leaving Whisper competing with
+            // scrolling until its next one-second policy tick.
+            TranscriptionTick();
+        }
         if (open)
         {
             if (!opening || !_settings.OpenLibraryAtPlayingItem || !RevealCurrentLibraryItem())

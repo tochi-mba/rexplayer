@@ -214,6 +214,13 @@ public sealed partial class MainWindow
         var model = TranscriptModel;
         _modelInstalled ??= SpeechModelHere(model);
         var plan = TranscriptionConditions.Plan(_budget.TranscribeWhilePlaying ? settings : settings with { WhilePlaying = false }, new TranscriptionMoment(_player.IsPlaying, App.Power.OnBattery, App.Power.EnergySaver, _modelInstalled.Value), Environment.ProcessorCount);
+        if (LibraryOpen && plan.Library)
+        {
+            // Realising and scrolling artwork is foreground work. Stop a background Whisper piece
+            // promptly while the library is open; explicit and currently-playing transcription
+            // remains allowed and the queue resumes automatically when browsing closes.
+            plan = plan with { Library = false, Waiting = "Waiting while you browse the library" };
+        }
         var worker = Worker();
         worker.Language = _settings.KineticCaptions.TranscriptLanguage is { Length: > 0 } code ? code : null;
         if (plan != _plannedTranscription)
