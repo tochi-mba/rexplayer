@@ -140,7 +140,13 @@ public sealed partial class MainWindow
     /// <summary>Moves actual queue entries: their identity and cue marks are never duplicated.</summary>
     private void QueueChosenNext(IReadOnlyList<PlaylistItem> chosen)
     {
+        var before = _player.Playlist.Items.ToArray();
         _player.Playlist.QueueNext(chosen);
+        if (!before.SequenceEqual(_player.Playlist.Items))
+        {
+            OfferQueueUndo(before);
+        }
+
         PlaylistView.SelectedItems.Clear();
         foreach (var item in chosen)
         {
