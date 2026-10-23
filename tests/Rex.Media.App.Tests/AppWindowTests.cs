@@ -505,6 +505,32 @@ public sealed partial class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("META-09")]
+    public void MovingToAnotherTimedSongPreservesFocusedLyricNavigation()
+    {
+        var first = Song(30);
+        var next = Path.Combine(_media, "Next.wav");
+        File.WriteAllBytes(next, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 30])).Build());
+        File.WriteAllText(Path.ChangeExtension(first, ".lrc"), "[00:00.00]First song\n[00:20.00]Later line");
+        File.WriteAllText(Path.ChangeExtension(next, ".lrc"), "[00:00.00]Next song\n[00:20.00]Last line");
+        var playlist = Path.Combine(_media, "Focus.m3u8");
+        File.WriteAllText(playlist, "Sungba.wav\nNext.wav\n");
+        using var app = AppProcess.Start([playlist]);
+
+        Wait.For(() => app.IsShown("LyricLine-0"), "the first track's timed lyrics");
+        Input.Focus(app);
+        app.Find("LyricLine-0").SetFocus();
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus, "focused initial lyrics");
+        app.Run(CommandCatalog.Next);
+        Wait.For(() => app.Text("NowPlaying") == "Next", "the next song to load");
+        Wait.For(() => app.Text("LyricLine-0") == "Go to 0:00: Next song",
+            "the second track's lyric control to replace the first");
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
+            "the focus to return inside lyric navigation after a track change");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SeekBarResetsWhenGaplessPlaylistAdvancesToTheNextFile()
     {
         var first = Song(6);
