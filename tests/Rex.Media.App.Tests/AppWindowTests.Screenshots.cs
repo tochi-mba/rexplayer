@@ -124,6 +124,12 @@ public sealed partial class AppWindowTests
             Screenshots.Match(app, "stage-audio-" + name);
         }
 
+        Pointer.Click(app, app.Find("PlayPauseButton"));
+        Wait.For(() => app.Status().State == "Playing",
+            "a mouse click to resume after resizing the audio stage");
+        Pointer.Click(app, app.Find("PlayPauseButton"));
+        Wait.For(() => app.Status().State == "Paused",
+            "a mouse click to pause without losing the active player");
         Assert.Equal(0, app.Close());
     }
 
