@@ -277,6 +277,12 @@ public sealed partial class MainWindow
             return true;
         }
 
+        if (action == "status" && _libraryWindow is not null)
+        {
+            RefreshLibrary();
+            return true;
+        }
+
         if (action == "add-folder" && _library is not null && paths.Count == 1 && Directory.Exists(paths[0]))
         {
             _library.AddFolder(paths[0]);
