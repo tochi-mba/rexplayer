@@ -171,6 +171,32 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void AuthorCardsCannotFinishAWholeCatalogueAndBookCardPlayIsScoped()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Alpha", "Opening Alpha.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Alpha");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Beta", "Opening Beta.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Beta");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Authors");
+        Pointer.RightClick(app, app.Line("Ann Writer"));
+        Assert.False(app.IsShown("LibraryMenuBookFinished"),
+            "An author is not a book and must never offer to complete an entire catalogue");
+
+        app.Open("Ann Writer");
+        Pointer.RightClick(app, app.Line("Alpha"));
+        Wait.For(() => app.IsShown("LibraryMenuResumeBook"), "the selected book's resume action");
+        app.Press("LibraryMenuResumeBook");
+        Wait.For(() => app.Text("NowPlaying") == "Opening Alpha", "the chosen author's book to play");
+        var queue = app.Queue();
+        Assert.Single(queue);
+        Assert.DoesNotContain(queue, item => item.Contains("Opening Beta", StringComparison.Ordinal));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AMoveMakesAViewAppearEmptyingItGoesHomeAndTheMoveOutlastsARestart()
     {
         using (var app = _scene.WithAsake().Ready().Start())
