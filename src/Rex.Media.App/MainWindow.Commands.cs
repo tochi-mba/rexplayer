@@ -443,7 +443,8 @@ public sealed partial class MainWindow
             }
         }
 
-        StageChaptersButton.Visibility = !minimal && StageChapterMenu.Items.Count > 0
+        StageChaptersButton.Visibility = !minimal && _stageView.ShowChapters && _stageView.CanSeek
+            && _player.CanSeek && StageChapterMenu.Items.Count > 0
             ? Visibility.Visible : Visibility.Collapsed;
         foreach (var secondary in new UIElement[]
         {
