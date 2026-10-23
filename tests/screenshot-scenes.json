@@ -451,7 +451,7 @@
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryCardsTests",
       "baseline": "ci-windows",
-      "captureMode": "desktop"
+      "captureMode": "window"
     },
     {
       "id": "library-episode-still-letterboxed",
@@ -467,7 +467,7 @@
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryCardsTests",
       "baseline": "ci-windows",
-      "captureMode": "desktop"
+      "captureMode": "window"
     },
     {
       "id": "menu-playback",
