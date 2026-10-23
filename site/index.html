@@ -58,15 +58,17 @@
         </div>
         <p class="hero-meta" id="download-meta">Windows 10 and 11 · macOS 12 or later</p>
       </div>
-      <div class="product-frame" aria-label="A preview of rexplayer's media library">
-        <div class="mock-toolbar"><i></i><i></i><i></i><span>Library</span></div>
-        <div class="mock-shell"><div class="mock-rail"><b>Home</b><span>Music</span><span>Movies</span><span>TV Shows</span><span>Audiobooks</span></div><div class="mock-content"><small>CONTINUE WATCHING</small><strong>Pick up exactly where you left off.</strong><div class="mock-cards"><i></i><i></i><i></i></div></div></div>
-      </div>
+      <figure class="product-frame product-shot">
+        <img src="https://raw.githubusercontent.com/tochi-mba/rexplayer/main/tests/screenshot-baselines/ci-windows/library-movie-card-letterboxed.png"
+             alt="Real Windows rexplayer library screenshot: a movie artwork card with letterboxed art, captured by the native visual test suite."
+             loading="eager" decoding="async" width="1000" height="700">
+        <figcaption>Actual Windows library capture <span>· Native UI screenshot, not a concept</span></figcaption>
+      </figure>
     </section>
 
     <section class="trust-strip" aria-label="At a glance">
       <div class="container trust-grid">
-        <div><strong>Windows + Mac</strong><span>One library on either platform</span></div>
+        <div><strong>Windows + Mac</strong><span>Native apps · check platform feature status</span></div>
         <div><strong>Private by default</strong><span>No telemetry and no account</span></div>
         <div><strong>Plays while downloading</strong><span>Buffers as usable data arrives</span></div>
         <div><strong>Built for control</strong><span>Keyboard, mouse and command line</span></div>
@@ -75,12 +77,25 @@
 
     <section class="section container split-section" id="library">
       <div class="section-heading"><p class="eyebrow signal">A library with memory</p><h2>Browse by what your media is.</h2><p>Music feels like music. A show opens into seasons and episodes. A book keeps its chapters, author and listening speed. Search, filters, layouts and your exact place survive every trip into details and back.</p></div>
+      <div class="real-product-row">
+        <img src="https://raw.githubusercontent.com/tochi-mba/rexplayer/main/tests/screenshot-baselines/ci-windows/library-episode-still-letterboxed.png"
+             alt="Actual Windows rexplayer TV episode artwork and layout from the native screenshot test suite."
+             loading="lazy" decoding="async" width="1000" height="700">
+        <div><p class="eyebrow signal">What you are seeing</p><h3>Real application UI</h3>
+        <p>These images are from the Windows native application's screenshot tests. We show the genuine interface rather than an illustrative mockup. The native Mac application has its own interface and currently differs in available features.</p>
+        <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">View Windows and Mac feature status →</a></div>
+      </div>
       <div class="feature-grid">
         <article class="feature-card"><h3>Made for every medium</h3><p>Albums, artists, films, TV shows, podcasts, audiobooks, recordings and pictures each receive their own useful views and actions.</p></article>
         <article class="feature-card"><h3>Details without the clutter</h3><p>Optional lookups add covers, cast, episode facts, descriptions and trailers. Local files always work without them.</p></article>
         <article class="feature-card"><h3>Calm while files arrive</h3><p>Folder changes are batched during large downloads. New files appear without rebuilding the whole library for every write.</p></article>
         <article class="feature-card"><h3>Your place is preserved</h3><p>Back returns to the same view, query, selection and scroll position. The sidebar collapses when you want more room.</p></article>
       </div>
+    </section>
+
+    <section class="section container platform-note" id="platforms">
+      <div><p class="eyebrow signal">Two native applications</p><h2>Designed for Windows and Mac.</h2></div>
+      <p>rexplayer runs natively on Windows and macOS. The shared playback engine is the same, while the Windows interface currently supports more library, visual and caption tools. We are actively improving the Mac experience. Check the <a href="https://github.com/tochi-mba/rexplayer/blob/main/docs/parity.md">platform parity ledger</a> for feature-by-feature status before downloading.</p>
     </section>
 
     <section class="section container" id="playback">
