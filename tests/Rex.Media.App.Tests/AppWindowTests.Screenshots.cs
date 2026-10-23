@@ -84,6 +84,74 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-10")]
+    [Capability("META-09")]
+    public void ResizingAnAudioStageKeepsPositionFocusAndPrimaryControls()
+    {
+        using var app = AppProcess.Start([Song(30)], extraSettings: "\"theme\": \"Dark\"");
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
+            && app.Position > 0, "the audio stream to become ready");
+        app.Run(CommandCatalog.PlayPause);
+        Wait.For(() => app.Status().State == "Paused", "the player to pause before layout captures");
+        var position = app.Position;
+        var transport = app.Find("PlayPauseButton");
+        transport.SetFocus();
+        var resize = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        foreach (var (width, height, name) in new[]
+        {
+            (420, 340, "minimum"),
+            (720, 540, "compact"),
+            (1000, 720, "windowed"),
+        })
+        {
+            resize.Resize(width, height);
+            Wait.For(() => app.Window.Current.BoundingRectangle is { Width: var w, Height: var h }
+                && Math.Abs(w - width) < 2 && Math.Abs(h - height) < 2,
+                name + " playback layout");
+            Assert.Equal("AUDIO playback stage", app.Find("Stage").Current.Name);
+            Assert.Equal("Paused", app.Status().State);
+            Assert.InRange(Math.Abs(app.Position - position), 0, 1);
+            Assert.Equal("PlayPauseButton", app.Find("PlayPauseButton").Current.AutomationId);
+            Assert.True(app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+                "A resize must preserve focus on the existing transport.");
+
+            var bounds = app.Window.Current.BoundingRectangle;
+            var play = app.Find("PlayPauseButton").Current.BoundingRectangle;
+            Assert.True(play.Left >= bounds.Left && play.Right <= bounds.Right
+                && play.Top >= bounds.Top && play.Bottom <= bounds.Bottom,
+                "The playback action must remain visible in " + name + " layout.");
+            Screenshots.Match(app, "stage-audio-" + name);
+        }
+
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-04")]
+    public void FullScreenRetainsThePausedAudioStageAndRestoresWindowedTransport()
+    {
+        using var app = AppProcess.Start([Song(30)], RootWith(new Rex.Media.Settings.PlayerSettings
+        {
+            ControlsHideSeconds = 120,
+        }));
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
+            && app.Position > 0, "audio to become ready");
+        app.Run(CommandCatalog.PlayPause);
+        Wait.For(() => app.Status().State == "Paused", "a stable audio frame");
+
+        app.Run(CommandCatalog.ToggleFullScreen);
+        Wait.For(() => !app.IsShown("Menu"), "the full-screen media stage");
+        Assert.Equal("AUDIO playback stage", app.Find("Stage").Current.Name);
+        Screenshots.Match(app, "stage-audio-fullscreen");
+
+        app.Run(CommandCatalog.LeaveFullScreen);
+        Wait.For(() => app.IsShown("Menu") && app.IsShown("PlayPauseButton"),
+            "the normal window and transport");
+        Assert.Equal("Paused", app.Status().State);
+        Assert.Equal(0, app.Close());
+    }
+
     /// <summary>The app in a fixed theme, its window at a fixed size, so its shots compare run to run.</summary>
     private static AppProcess AppStartedAt(int width, int height, string theme)
     {
