@@ -56,7 +56,8 @@ public sealed partial class MainWindow
             IsEpisode: episode is not null,
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
             HasLyrics: _player.Lyrics is not null,
-            HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown && chapter.Start >= MediaTime.Zero) == true,
+            // A lone zero-time chapter is just Start Over, not a useful chapter picker.
+            HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown && chapter.Start > MediaTime.Zero) == true,
             HasCaptions: _player.Subtitles is not null || _player.SecondarySubtitles is not null,
             HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
         _stageView = stage;
