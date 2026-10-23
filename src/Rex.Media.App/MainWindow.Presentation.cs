@@ -180,6 +180,10 @@ public sealed partial class MainWindow
         LyricsStatus.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
         if (!ReferenceEquals(lyrics, _shownLyrics))
         {
+            // Refreshing playback content can remove the currently focused
+            // lyric button. Restore keyboard focus only when it was already
+            // inside the lyrics; never steal focus from the user's other tasks.
+            var focusedLyrics = HasFocusIn(LyricsBox);
             _shownLyrics = lyrics;
             _shownLine = -1;
             _shownWordLine = -1;
@@ -262,6 +266,25 @@ public sealed partial class MainWindow
             LyricsBox.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
             LyricsBox.Height = Math.Max(120, Stage.ActualHeight * 0.45);
             ShowLyricLine();
+            if (focusedLyrics && lyrics is not null)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (_closed || !ReferenceEquals(lyrics, _shownLyrics))
+                    {
+                        return;
+                    }
+
+                    if (LyricsLines.Children.OfType<Button>().FirstOrDefault() is { } nextLine)
+                    {
+                        nextLine.Focus(FocusState.Keyboard);
+                    }
+                    else
+                    {
+                        LyricsBox.Focus(FocusState.Keyboard);
+                    }
+                });
+            }
         }
     }
 
