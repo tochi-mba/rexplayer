@@ -105,6 +105,7 @@ public sealed partial class MainWindow : IDisposable
             _log.Warning(LogSource, "The settings could not be saved: " + ex.Message);
         }
 
+        DisposePlaybackTools();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -270,6 +271,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(new NSMenuItem("About rexplayer", (_, _) => NSApplication.SharedApplication.OrderFrontStandardAboutPanel(null)));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
+        app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
@@ -504,6 +506,7 @@ public sealed partial class MainWindow : IDisposable
         _volume.DoubleValue = _player.Volume;
         ShowPosition();
         ShowChecks();
+        RefreshPlaybackTools();
     }
 
     private void ShowPosition()
