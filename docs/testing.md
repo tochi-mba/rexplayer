@@ -76,7 +76,70 @@ Baselines are kept per lane in `tests/screenshot-baselines/<lane>/`: CI's job se
 the `screenshots` artefact. A shot with no baseline passes and says so: copy CI's picture from that
 artefact into `tests/screenshot-baselines/ci-windows/` to start comparing it, and do the same, with
 the reason in the commit, when a change of look is meant. Pictures from a developer's machine never
-become baselines. Screenshots are for layout; behaviour is asserted through UI Automation.
+become baselines. `REXPLAYER_WRITE_SCREENSHOTS=1` cannot silently overwrite
+an image: an existing declared `ci-windows` baseline also requires
+`REXPLAYER_VISUAL_APPROVAL_CONFIRMED=1` after human inspection. A new
+`unreviewed` scene must be inspected, promoted in the inventory and
+reviewed in a commit before an automated writer can replace its baseline.
+Screenshots are for layout; behaviour is asserted through UI Automation.
+
+Every capture must be declared in `tests/screenshot-scenes.json` with its offline fixture,
+route, state, intended dimensions and theme, automation IDs, observable text, readiness signal
+and owning test. `Screenshots.Match` requires that real UI Automation state before taking pixels,
+and writes a companion `actual/<scene-id>.json` describing the scene, crop, captured dimensions,
+CI commit and baseline presence. The image preflight still rejects blank or nearly uniform frames.
+The `unreviewed` inventory status means the capture is record-only, not visually approved.
+`ci-windows` means a committed baseline exists, not that all human visual review gates passed.
+All 60 declared scene dimensions are now explicit host-window sizes. The capture
+path checks each pinned UI Automation viewport before accepting evidence. A
+pinned dimension is not itself a reviewed PNG or proof of matching layout.
+The scene contract also declares `captureMode`: `window` uses PrintWindow for the host HWND,
+whereas `desktop` uses the actual on-screen desktop composition. Most scenes use `desktop`, because CI evidence showed PrintWindow could silently omit both
+floating popups and full window content, even after UIA reports it ready. The two existing
+letterboxed-card baselines retain `window` mode at their original pinned
+1280x800 host viewport; their PrintWindow crops were committed in that lane
+and must not silently change capture mode. PrintWindow does not require an
+unobstructed onscreen desktop, so its original viewport may exceed the
+visible desktop. The strict virtual-desktop clipping check applies only to
+`desktop` mode.
+Popup and Preferences scenes require visible variation in the UIA control witness;
+ordinary library and playback scenes instead require semantic UIA readiness and a
+nonuniform rendered image, since an individual icon can legitimately be mostly uniform.
+The harness positions isolated test windows on the visible desktop before opening dialogs
+and rejects cropped/offscreen desktop evidence. Each scene writes an actual PNG, a JSON
+sidecar recording both semantic and pixel checks, and the app log. CI also keeps the
+full scene inventory and per-test process logs. Run these tests on a visible,
+unobstructed, serial Windows desktop; never approve desktop captures made with other
+windows covering the app. The capture mode is recorded in each JSON sidecar.
+
+The faulted-media scene opens a four-byte malformed local WAV and verifies the
+actual failure message is rendered. The screenshot-only
+`REXPLAYER_VISUAL_EVIDENCE=1` environment variable extends that notice to
+30 seconds while leaving the normal 1.5-second behavior unchanged. The
+caption-loading scene uses a slow offline fake-speech fixture; no network,
+external speech model or fabricated PNG is involved.
+
+Every successful scene takes a second compositor frame and checks the differing-pixel
+ratio against its declared tolerance. CI retains `repeat/<scene-id>.png` and, on
+instability, `repeat-diff/<scene-id>.png`. It then reruns the seven fixture-backed
+empty, single, mixed, RTL, long-text and missing-artwork captures in new app
+processes, under `ci-windows-repeat`, and checks their resulting PNG pixels with
+`scripts/check-screenshot-repeatability.ps1`. These checks measure stability;
+neither proves that a screenshot actually shows the intended interface.
+
+CI saves `review/index.html` alongside images, the full scene inventory, JSON
+UIA witnesses, process logs, actual PNGs and retained baselines/diffs. Open the
+gallery in a local browser to inspect every image and its semantic assertions
+before promoting it to a reviewed baseline. Missing files or pending approval
+must remain visible, not counted as success.
+
+Two specialized contracts require real, independently configured Windows desktops:
+run the `LibraryAccessibilityVisualTests` with
+`REXPLAYER_UI_LANE=ci-windows-high-dpi` on a monitor reporting at least 144 DPI,
+or with `REXPLAYER_UI_LANE=ci-windows-high-contrast` under real Windows high
+contrast. Each test rejects a falsely configured lane, and ordinary CI skips
+these specialist tests. The regular `ci-windows` artifact does not supply their
+proof. The image JSON records the actual OS DPI and contrast state.
 
 ## Measuring the whole player
 
