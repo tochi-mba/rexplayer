@@ -45,6 +45,8 @@ public sealed partial class MainWindow
 
         if (audio is [{ } recording] && ShelfOf(recording) == AudioShelf.Recordings)
         {
+            menu.Items.Add(MenuItem("Recording details...", "LibraryMenuRecordingDetails",
+                () => Forget(ShowRecordingDetailsAsync(recording))));
             menu.Items.Add(MenuItem("Review waveform...", "LibraryMenuWaveform",
                 () => Forget(ShowRecordingWaveformAsync(recording))));
         }
