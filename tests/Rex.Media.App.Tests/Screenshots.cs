@@ -73,6 +73,26 @@ internal static class Screenshots
         var pixels = picture.Bgra;
         var total = picture.Width * picture.Height;
         var step = Math.Max(1, total / 4000);
+        // A stride sharing a divisor with the image size can miss an alternating
+        // pattern entirely (the original UI test failed on every-other-pixel stripes).
+        // A coprime stride visits both sides of such patterns across the whole frame.
+        static int Gcd(int left, int right)
+        {
+            while (right != 0)
+            {
+                var remainder = left % right;
+                left = right;
+                right = remainder;
+            }
+
+            return left;
+        }
+
+        while (Gcd(step, total) != 1)
+        {
+            step++;
+        }
+
         var bins = new Dictionary<int, int>();
         var sampled = 0;
         var biggestBin = 0;
