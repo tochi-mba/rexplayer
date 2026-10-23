@@ -55,6 +55,12 @@ public sealed partial class MainWindow
                 () => Forget(ShowTranscriptReaderAsync(speech.Path))));
         }
 
+        if (audio is [{ } episode] && ShelfOf(episode) == AudioShelf.Podcasts)
+        {
+            menu.Items.Add(MenuItem("View local episode notes...", "LibraryMenuPodcastNotes",
+                () => Forget(ShowPodcastNotesAsync(episode))));
+        }
+
         foreach (var (shelf, name) in MoveTargets)
         {
             if (audio.Any(entry => ShelfOf(entry) is var now && now != shelf && !(shelf == AudioShelf.Recordings && now == AudioShelf.Sounds)))
