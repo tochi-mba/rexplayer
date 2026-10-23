@@ -1,6 +1,6 @@
 <!-- Scoped workstream source of truth. Tasks are intentionally unchecked until evidence-backed. -->
 
-# Spoken-word roadmap trace — podcasts, transcripts, recordings and sounds (PR #484)
+# Spoken-word roadmap trace - podcasts, transcripts, recordings and sounds (PR #484)
 
 ## Objective and deliverables
 Deliver the Windows local podcast, speech-transcript, recording and short-sound experiences described in [PR #484](https://github.com/tochi-mba/rexplayer/pull/484), successor **2 of 3** of [#473](https://github.com/tochi-mba/rexplayer/pull/473). Never portray RSS subscriptions, downloads, recording capture or network enrichment as available until their capabilities are implemented.
@@ -20,7 +20,7 @@ This file carries the **historical 63-task workstream 4/4 trace** inherited from
 - [ ] Finish the remaining podcast, transcript, recording, sound, tools and Windows UI deliverables. The first tranche does **not** complete their umbrella tasks.
 - [ ] Review real Windows UI screenshots, accessibility, stress/performance results and native CI on the exact final head.
 
-## Implementation checkpoints — 2026-10-23
+## Implementation checkpoints - 2026-10-23
 **Checked checkpoints mean that the linked code/test changes were committed on PR #484, not that tests have passed or the full UX is complete.** This section supersedes inherited progress notes from other PRs.
 
 - [x] Locate current Windows implementation and test owners: `ListeningViews`, `MainWindow.Listening`, `MainWindow.ListeningActions`, `MainWindow.LibraryPlayback`, `ListeningViewsTests` and `LibraryListeningTests`; read `AGENTS.md` and the parity requirement in ADR-0020.
@@ -56,7 +56,7 @@ This file carries the **historical 63-task workstream 4/4 trace** inherited from
 
 **Verification limitation:** No .NET SDK or Windows desktop runtime is installed in the editing environment, so local compilation and native UI execution were not possible. GitHub Actions was pending at the time of these edits; a pending run is not passing evidence. No generated screenshots are being passed off as real application captures.
 
-## Historical workstream checklist — 63 original roadmap tasks
+## Historical workstream checklist - 63 original roadmap tasks
 The original granular text is preserved as a **traceability appendix**, not 63 tasks assigned to PR #484. Of the categories below, **“Podcasts and spoken-word transcript UX”** and **“Recordings and short sounds”** are the owned implementation work. Checked owned items mean the corresponding source and regression-test code has been committed, **not** that CI or Windows acceptance has passed; all release gates remain open. Other sections are delegated to sister PRs and their checkboxes remain untouched.
 
 ### P1. Audiobooks and authors
