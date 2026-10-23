@@ -137,6 +137,10 @@ public sealed class LibraryListeningTests : IDisposable
             app.IsShown("SoundVolume") && app.IsShown("SoundDuration"),
             "keyboard-reachable replay, scoped repeat, volume and duration");
         Assert.Contains("Duration", app.Text("SoundDuration"), StringComparison.Ordinal);
+        var repeat = (System.Windows.Automation.TogglePattern)app.Find("SoundRepeat")
+            .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern);
+        repeat.Toggle();
+        Assert.Equal(System.Windows.Automation.ToggleState.On, repeat.Current.ToggleState);
         app.Press("SoundReplay");
         Wait.For(() => app.Text("NowPlaying") == "ding", "quick replay to start the chosen sound");
         Assert.Equal(0, app.Close());
