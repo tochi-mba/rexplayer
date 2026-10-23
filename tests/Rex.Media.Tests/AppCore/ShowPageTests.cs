@@ -84,6 +84,36 @@ public sealed class ShowPageTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void OpenSeasonRefreshKeepsItsRouteButNeverReusesMovedOrDamagedOldEntries()
+    {
+        var old = Show(Episode("Alpha S01E01", plays: 1), Episode("Alpha S02E01"));
+        var firstView = LibraryViews.TvSeasons(old);
+        var open = firstView.Single(season => season.Name == "Season 2");
+
+        // The new scan reclassifies an entry and records a new playback failure.
+        // The page must use the new objects, not the old season's stale list.
+        var refreshed = Show(Episode("Alpha S01E01", plays: 1),
+            Episode("Alpha S02E01", problem: "drive disconnected"),
+            Episode("Alpha S02E02", title: "Corrected title"));
+        var current = LibraryViews.TvSeasons(refreshed);
+        var selected = ShowPage.RefreshSeason(current, open, ShowPage.NextUp(refreshed, Nothing));
+
+        Assert.NotSame(open, selected);
+        Assert.Equal("Season 2", selected!.Name);
+        Assert.Equal(["Alpha S02E01", "Corrected title"], selected.Entries.Select(e => e.Title));
+        Assert.Equal("drive disconnected", selected.Entries[0].Problem);
+        Assert.Equal("Alpha S02E02", ShowPage.NextUp(refreshed, Nothing)!.Path.Split(Path.DirectorySeparatorChar)[^1].Replace(".mkv", ""));
+
+        // When season 2 disappears, the current route falls back to a real
+        // season instead of showing an old ghost episode from the removed disk.
+        var withoutSecond = LibraryViews.TvSeasons(Show(Episode("Alpha S01E01", plays: 1)));
+        Assert.Equal("Season 1", ShowPage.RefreshSeason(withoutSecond, open, null)?.Name);
+        Assert.Null(ShowPage.RefreshSeason([], open, null));
+        Assert.Throws<ArgumentNullException>(() => ShowPage.RefreshSeason(null!, open, null));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ThePickerExplicitlyNamesSeasonZeroWithoutChangingRegularSeasonLabels()
     {
         var show = Show(Episode("Alpha S00E01"), Episode("Alpha S01E01"));
