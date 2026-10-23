@@ -271,6 +271,14 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.False(app.IsShown("Lyrics"), "Lyrics should not carry over to picture playback.");
         Assert.Contains("Picture view", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.False(app.Find("SeekBar").Current.IsEnabled, "Pictures must not offer a fake seek timeline.");
+        Assert.False(app.Find("StartOverButton").Current.IsEnabled,
+            "Picture playback has no timed start-over action.");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.GoToTime);
+        Wait.For(() => app.LogText.Contains(
+            Rex.Media.AppCore.Player.PlayerController.CannotSeekNotice, StringComparison.Ordinal),
+            "the picture stage to reject the time-jump command");
+        Assert.False(app.IsShown("GoToTimeBox"),
+            "Pictures must never prompt for a timestamp.");
         Assert.Equal("Stage", app.Find("Stage").Current.AutomationId);
         Assert.Equal(0, app.Close());
     }

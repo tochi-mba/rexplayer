@@ -735,7 +735,7 @@ public sealed partial class MainWindow
 
     private async Task GoToTimeAsync()
     {
-        if (!_player.CanSeek)
+        if (!_stageView.CanSeek || !_player.CanSeek)
         {
             if (_player.Item is not null)
             {
@@ -745,11 +745,22 @@ public sealed partial class MainWindow
             return;
         }
 
+        var item = _player.Item;
+        var info = _player.Info;
         var box = new TextBox { Text = TimeText.Format(_player.Position, _player.Duration), MinWidth = 200 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "GoToTimeBox");
         box.SelectAll();
         if (await Ask("Go to a time", box, "Go"))
         {
+            // The dialog can remain open while a new item is queued from a second
+            // launch or playback advances. Never apply an old time to a new file.
+            if (!ReferenceEquals(_player.Item, item)
+                || !ReferenceEquals(_player.Info, info) || !_stageView.CanSeek || !_player.CanSeek)
+            {
+                Say("The media changed before the seek could be applied.");
+                return;
+            }
+
             if (TimeText.TryParse(box.Text) is { } time)
             {
                 _player.Seek(time);
