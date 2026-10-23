@@ -158,6 +158,16 @@ public sealed partial class MainWindow
             }
         }
 
+        var companions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var read = new Button { Content = "Read saved transcript" };
+        var notes = new Button { Content = "Read local episode notes" };
+        AutomationProperties.SetAutomationId(read, "PodcastControlsTranscript");
+        AutomationProperties.SetAutomationId(notes, "PodcastControlsNotes");
+        companions.Children.Add(read);
+        companions.Children.Add(notes);
+        panel.Children.Add(companions);
+
+        var goTo = "";
         var dialog = new ContentDialog
         {
             Title = "Podcast playback",
@@ -166,6 +176,18 @@ public sealed partial class MainWindow
             CloseButtonText = "Done",
             XamlRoot = Content.XamlRoot,
         };
+        // A second ContentDialog cannot be opened on the same XamlRoot while this one is
+        // shown. Close transport first, then move to the requested speech companion.
+        read.Click += (_, _) => { goTo = "transcript"; dialog.Hide(); };
+        notes.Click += (_, _) => { goTo = "notes"; dialog.Hide(); };
         await ShowDialogAsync(dialog);
+        if (!_closing && goTo == "transcript")
+        {
+            await ShowTranscriptReaderAsync(episode.Path);
+        }
+        else if (!_closing && goTo == "notes")
+        {
+            await ShowPodcastNotesAsync(episode);
+        }
     }
 }
