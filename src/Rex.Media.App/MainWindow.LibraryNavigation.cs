@@ -51,7 +51,7 @@ public sealed partial class MainWindow
         }
 
         var compact = narrow ? !_libraryNavigationExpandedWhileNarrow : _settings.LibraryNavigationCollapsed;
-        LibraryBrand.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        LibraryBrand.Visibility = LibraryQuickAddText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         LibraryNavigationColumn.Width = new GridLength(compact ? 64 : 200);
         LibraryNavigationToggle.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Right;
         LibraryNavigationToggle.Margin = compact ? new Thickness(0, 8, 0, 0) : new Thickness(8, 8, 8, 0);

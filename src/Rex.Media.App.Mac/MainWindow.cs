@@ -234,9 +234,10 @@ public sealed class MainWindow : IDisposable
         content.AddSubview(_picture);
         content.AddSubview(stack);
         var welcomeTitle = NSTextField.CreateLabel("rexplayer");
+        welcomeTitle.TextColor = NSColor.White;
         welcomeTitle.Font = NSFont.SystemFontOfSize(44, NSFontWeight.Semibold)!;
         var welcomeHint = NSTextField.CreateLabel("Your music. Your films. Your space.");
-        welcomeHint.TextColor = NSColor.SecondaryLabel;
+        welcomeHint.TextColor = NSColor.LightGray;
         var welcomeOpen = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var welcomeFolder = NSButton.CreateButton("Open folder", () => Run(CommandCatalog.OpenFolder));
         var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder]);

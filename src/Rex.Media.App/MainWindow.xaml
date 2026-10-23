@@ -436,7 +436,7 @@
         </Grid.ColumnDefinitions>
 
         <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <StackPanel x:Name="LibraryBrand" Margin="20,18,48,8" Spacing="2" IsHitTestVisible="False">
             <TextBlock Text="rexplayer" FontSize="20" FontWeight="SemiBold" CharacterSpacing="-30" />
             <TextBlock Text="YOUR LIBRARY" FontSize="10" CharacterSpacing="140" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -450,6 +450,14 @@
                     ItemContainerStyle="{StaticResource LibrarySourceItemStyle}"
                     ItemTemplate="{StaticResource LibrarySourceTemplate}"
                     SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
+          <Button Grid.Row="2" Margin="8,8,8,16" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                  Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryQuickAddFolder"
+                  AutomationProperties.Name="Add a folder to your library" ToolTipService.ToolTip="Add a folder to your library">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <FontIcon Glyph="&#xE710;" FontSize="14" />
+              <TextBlock x:Name="LibraryQuickAddText" Text="Add folder" />
+            </StackPanel>
+          </Button>
         </Grid>
 
         <Grid Grid.Column="1" Margin="10,10,12,12" CornerRadius="16"
@@ -555,19 +563,19 @@
 
           <!-- How the view is shown: its layout, order, grouping and card size, each kept per view. -->
           <StackPanel Grid.Row="1" Margin="24,0,24,8" Spacing="8">
-            <Grid ColumnSpacing="12">
+            <Grid ColumnSpacing="12" RowSpacing="6">
+              <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" MaxWidth="180" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-            <TextBox x:Name="LibrarySearch" Grid.Column="0" MinWidth="120" HorizontalAlignment="Stretch" PlaceholderText="Search the library" ToolTipService.ToolTip="Search by title, artist, album or filename" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
+            <TextBox x:Name="LibrarySearch" Grid.Row="0" Grid.ColumnSpan="2" MinWidth="120" HorizontalAlignment="Stretch" PlaceholderText="Search the library" ToolTipService.ToolTip="Search by title, artist, album or filename" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
-            <TextBlock x:Name="LibraryStatus" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            <TextBlock x:Name="LibraryStatus" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus"
                        AutomationProperties.HelpText="Library scan status" AutomationProperties.LiveSetting="Polite" />
             <!-- A compact, clickable job count. Open it for the real queue, filenames and progress. -->
-            <DropDownButton x:Name="LibraryTranscription" Grid.Column="2" Visibility="Collapsed" MaxWidth="240"
+            <DropDownButton x:Name="LibraryTranscription" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" MaxWidth="240"
                             AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription queue"
                             ToolTipService.ToolTip="Open transcription queue and controls">
               <StackPanel Orientation="Horizontal" Spacing="6">
