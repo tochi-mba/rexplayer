@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows.Automation;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App.Tests;
@@ -281,6 +282,31 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.DoesNotContain("Chapter jumps", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.DoesNotContain("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.Equal("Stage", app.Find("Stage").Current.AutomationId);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    public void SwitchingFromCaptionedLocalVideoToRemoteLocationClearsOldSubtitleUI()
+    {
+        var video = _scene.Video("Captioned.mp4");
+        File.WriteAllText(Path.Combine(_scene.Media, "Captioned.en.srt"),
+            "1\\n00:00:00,000 --> 00:10:00,000\\nLocal video captions\\n");
+        using var app = AppProcess.Start([video]);
+        Wait.For(() => app.IsShown("SubtitleText")
+            && app.Text("SubtitleText") == "Local video captions",
+            "local video's rendered subtitles to be present");
+
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.OpenLocation);
+        var location = (ValuePattern)app.Find("LocationBox").GetCurrentPattern(ValuePattern.Pattern);
+        location.SetValue("https://example.invalid/new-stream.mp3");
+        app.Press("PrimaryButton");
+
+        Wait.For(() => app.Text("NowPlaying") != "Captioned"
+            && !app.IsShown("SubtitleText"),
+            "the replacement remote stream to clear the previous local subtitle cues");
+        Assert.DoesNotContain("Captions are available", app.Find("Stage").Current.HelpText,
+            StringComparison.Ordinal);
+        Assert.False(app.IsShown("KineticCaptions"));
         Assert.Equal(0, app.Close());
     }
 
