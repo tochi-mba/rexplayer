@@ -28,6 +28,7 @@ public sealed partial class MainWindow
     private static readonly TimeSpan LibraryRescanEvery = TimeSpan.FromMinutes(30);
 
     private readonly List<FileSystemWatcher> _watchers = [];
+    private IReadOnlyList<LibraryEntry>? _libraryRemovalUndo;
     private readonly HashSet<string> _changedFolders = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _libraryPictures = new();
     private CancellationTokenSource _hoverPictures = new();
@@ -827,7 +828,31 @@ public sealed partial class MainWindow
         var prompt = LibraryActions.RemovePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Remove", "Cancel"))
         {
+            var before = paths.Select(path => _library?.Entry(path)).OfType<LibraryEntry>().ToArray();
             _player.RemoveFromLibrary(paths);
+            _libraryRemovalUndo = before.Length > 0 ? before : null;
+            LibraryUndoRemove.Visibility = _libraryRemovalUndo is null ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
+    /// <summary>Undo a library-only removal; never re-add paths no longer available on disk.</summary>
+    private async void OnLibraryUndoRemove(object sender, RoutedEventArgs e)
+    {
+        if (_libraryRemovalUndo is not { } before)
+        {
+            return;
+        }
+
+        _libraryRemovalUndo = null;
+        LibraryUndoRemove.Visibility = Visibility.Collapsed;
+        var available = await Task.Run(() => before.Where(entry => File.Exists(entry.Path)).ToArray());
+        if (!_closed && available.Length > 0)
+        {
+            _player.RestoreToLibrary(available);
+        }
+        else if (!_closed)
+        {
+            Say("No removed files are available to restore");
         }
     }
 
@@ -868,6 +893,8 @@ public sealed partial class MainWindow
 
         if (moved.Count > 0)
         {
+            _libraryRemovalUndo = null;
+            LibraryUndoRemove.Visibility = Visibility.Collapsed;
             _player.ForgetDeleted(moved);
         }
 

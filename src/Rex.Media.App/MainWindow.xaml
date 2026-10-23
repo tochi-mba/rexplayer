@@ -508,6 +508,9 @@
                   <Button x:Name="LibraryShuffle" Click="OnLibraryShuffle" AutomationProperties.AutomationId="LibraryShuffle" ToolTipService.ToolTip="Play the chosen items, or all of them, shuffled">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8B1;" FontSize="14" /><TextBlock Text="Shuffle" /></StackPanel>
                   </Button>
+                  <Button x:Name="LibraryUndoRemove" Content="Undo remove from library" Visibility="Collapsed"
+                          Click="OnLibraryUndoRemove" AutomationProperties.AutomationId="LibraryUndoRemove"
+                          ToolTipService.ToolTip="Restore recently removed library entries; no files are copied or changed" />
                   <Button x:Name="LibraryEnqueue" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to queue" /></StackPanel>
                   </Button>

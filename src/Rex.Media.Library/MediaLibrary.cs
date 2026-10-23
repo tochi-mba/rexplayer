@@ -607,6 +607,40 @@ public sealed class MediaLibrary
         return gone.Count;
     }
 
+    /// <summary>
+    /// Undo a previous hide for known entries while their containing folders are still watched.
+    /// Only paths still hidden are restored: another scan or a separate action is never overwritten.
+    /// Callers check actual file availability before presenting the Undo action.
+    /// </summary>
+    public int RestoreHiddenEntries(IEnumerable<LibraryEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        List<LibraryEntry> restored;
+        lock (_gate)
+        {
+            restored = [];
+            foreach (var entry in entries.DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase))
+            {
+                if (_hidden.Contains(entry.Path) && _folders.Any(folder => Holds(folder, entry.Path)))
+                {
+                    _hidden.Remove(entry.Path);
+                    restored.Add(entry);
+                }
+            }
+
+            if (restored.Count == 0)
+            {
+                return 0;
+            }
+
+            WriteHidden();
+            Write(restored, remove: false);
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return restored.Count;
+    }
+
     /// <summary>Writes each known entry of <paramref name="paths"/> as <paramref name="change"/> makes it; unknown ones are passed over.</summary>
     private void Change(IEnumerable<string> paths, Func<LibraryEntry, LibraryEntry> change)
     {

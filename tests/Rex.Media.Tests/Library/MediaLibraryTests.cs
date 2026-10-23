@@ -71,6 +71,42 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void UndoLibraryOnlyRemovalRestoresSavedMetadataAndDoesNotOverrideOtherChanges()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var first = In("first.mp3");
+        var second = In("second.mp3");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(first), File(second)], KindOf);
+        library.SetDetails(first, Song("Edited local title"));
+        var saved = library.Entries.ToArray();
+        Assert.Equal(2, library.Hide([first, second]));
+        Assert.Equal(0, library.RestoreHiddenEntries([]));
+        Assert.Equal(2, library.RestoreHiddenEntries(saved));
+        Assert.Empty(library.Hidden);
+        Assert.Equal("Edited local title", library.Entry(first)?.Title);
+        Assert.Equal(0, library.RestoreHiddenEntries(saved)); // Undo is not applied twice.
+        Assert.Equal(2, new MediaLibrary(store).Entries.Count);
+        Assert.Throws<ArgumentNullException>(() => library.RestoreHiddenEntries(null!));
+    }
+
+    [Fact]
+    public void UndoLibraryRemovalCannotReintroduceUnwatchedFolders()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        var file = In("unwatched.mp3");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(file)], KindOf);
+        var before = library.Entry(file)!;
+        Assert.Equal(1, library.Hide([file]));
+        Assert.True(library.RemoveFolder(Music));
+        Assert.Equal(0, library.RestoreHiddenEntries([before]));
+        Assert.Null(library.Entry(file));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AScanAddsNewFilesReadsChangedOnesAgainAndForgetsGoneOnes()
     {
         var time = new ManualTimeProvider(new DateTimeOffset(Monday));
