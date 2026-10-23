@@ -94,6 +94,21 @@ public sealed class CommandTests
     }
 
     [Fact]
+    public void UnsupportedOnlineLyricsRetrievalAndEditingHaveNoPublicCommands()
+    {
+        // The current app reads embedded and local sidecar lyrics, and only offers
+        // a show/hide toggle. An unimplemented network or editing workflow must not
+        // appear in menus, key bindings or the automation command catalogue.
+        var lyricsCommands = CommandCatalog.All
+            .Where(command => command.Id.Contains("lyric", StringComparison.OrdinalIgnoreCase))
+            .Select(command => command.Id)
+            .ToArray();
+        Assert.Equal([CommandCatalog.ToggleLyrics], lyricsCommands);
+        Assert.Null(CommandCatalog.Find("fetch-online-lyrics"));
+        Assert.Null(CommandCatalog.Find("edit-lyrics"));
+    }
+
+    [Fact]
     public void JumpsAreNamedByTheLengthsChosenInPreferences()
     {
         var defaults = new Rex.Media.Settings.PlayerSettings();
