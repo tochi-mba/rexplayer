@@ -227,6 +227,22 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void HomeHasLocalPodcastShowCardsWithAWorkingSeeAllRoute()
+    {
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"), TimeSpan.FromMinutes(20), year: 2024);
+        _scene.Audio(Path.Combine("Podcasts", "Morning Review", "Ep 1.wav"), TimeSpan.FromMinutes(20), year: 2025);
+        using var app = _scene.Ready().Start();
+        app.Visit("Home");
+        Wait.For(() => app.IsShown("LibraryShelf-Podcasts"), "the podcast show shelf on Home");
+        app.Press("LibraryShelf-Podcasts");
+        Wait.For(() => app.Text("LibraryTitle") == "Podcasts" &&
+            app.Lines().Contains("Night Talk") && app.Lines().Contains("Morning Review"),
+            "See all to open show-oriented local podcast navigation");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
