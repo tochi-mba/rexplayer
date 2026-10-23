@@ -73,6 +73,10 @@ public sealed class LibraryBrowsingTests : IDisposable
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 video", StringComparison.Ordinal), "the one video");
         app.Visit("Pictures");
         app.Line("Lagos");
+        Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
+            .Cast<AutomationElement>().Any(item => item.Current.Name.Contains("Lagos.jpg", StringComparison.Ordinal)),
+            "the picture card to show its original filename outside the image");
         // With no playlist kept, the sidebar lists no Playlists view.
         Assert.False(app.IsListed("Playlists"));
         Assert.Equal(0, app.Close());
