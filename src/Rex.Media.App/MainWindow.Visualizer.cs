@@ -91,6 +91,10 @@ public sealed partial class MainWindow
     private void WireVisualizer()
     {
         Visualizer.SizeChanged += (_, _) => BuildVisualizer();
+        // A per-monitor DPI change can keep the same layout size in effective pixels.
+        // Rebuild the backing bitmap at the new composition scale rather than stretching
+        // the previous monitor's pixel buffer after a drag across displays.
+        Visualizer.CompositionScaleChanged += (_, _) => BuildVisualizer();
         Visualizer.IsHitTestVisible = true;
         Visualizer.ContextFlyout = VisualizerMenu();
     }
