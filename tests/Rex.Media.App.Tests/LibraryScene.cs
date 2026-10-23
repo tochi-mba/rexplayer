@@ -304,8 +304,29 @@ internal static class LibraryNavigation
     public static bool IsChosen(this AppProcess app, string name) =>
         ((SelectionItemPattern)app.Line(name).GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
 
-    /// <summary>Opens a line with a double click: a group shows what it holds, media plays.</summary>
-    public static void Open(this AppProcess app, string name) => Pointer.DoubleClick(app, app.Line(name));
+    /// <summary>Scrolls a virtualized list row into view before double-clicking it, as a person would.</summary>
+    public static void Open(this AppProcess app, string name)
+    {
+        var row = app.Line(name);
+        if (row.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var pattern))
+        {
+            ((ScrollItemPattern)pattern).ScrollIntoView();
+        }
+
+        Wait.For(() =>
+        {
+            try
+            {
+                var found = app.Line(name);
+                return !found.Current.IsOffscreen && found.Current.BoundingRectangle.Height > 0;
+            }
+            catch (ElementNotAvailableException)
+            {
+                return false;
+            }
+        }, name + " to scroll into view before opening");
+        Pointer.DoubleClick(app, app.Line(name));
+    }
 
     /// <summary>Opens one of the view's option menus (layout, order, groups) and picks a choice in it.</summary>
     public static void Pick(this AppProcess app, string menu, string choice)
