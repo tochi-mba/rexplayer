@@ -46,6 +46,11 @@ public sealed class MacAppSmokeTests
             var playing = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Title: not null, State: "Playing" or "Ended" or "Paused" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
             await Queue(pipe, "capture-current");
+            // The short video fixture can finish before the queue interactions start.
+            // Stop its session so synthetic (intentionally nonexistent) queue entries
+            // are never opened by automatic next-item playback during the UI smoke test.
+            var stopped = await Ask(pipe, new AutomationRequest { Command = "run", Id = "stop" });
+            Assert.True(stopped?.Ok == true, "The app did not acknowledge the stop request.");
             var longQueue = await Queue(pipe, "fill-long");
             Assert.Contains("91 items", longQueue.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-long");
