@@ -34,6 +34,13 @@ public static partial class ShowPage
             ?? seasons.FirstOrDefault();
     }
 
+    /// <summary>Keep season zero discoverable in the picker, while grouping those videos as Specials.</summary>
+    public static string SeasonPickerLabel(LibraryGroup season)
+    {
+        ArgumentNullException.ThrowIfNull(season);
+        return season.Name == "Specials" ? "Season 0 (Specials)" : season.Name;
+    }
+
     /// <summary>What the page's Play button says: "Resume S01 E03", "Play S01 E01", or just "Play".</summary>
     public static string PlayLabel(LibraryEntry? nextUp, bool resumes)
     {
