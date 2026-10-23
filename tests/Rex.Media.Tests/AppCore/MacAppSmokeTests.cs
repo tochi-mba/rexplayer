@@ -155,6 +155,9 @@ public sealed class MacAppSmokeTests
             Assert.Contains(tree!.Controls!, control => control.Id == "LibrarySearch" && control.Kind == "search" && control.Name == "Search library");
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryCategory" && control.Name == "Media category");
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryResults" && control.Name == "Library results");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryAddFolder" && control.Name == "Add a folder to the library" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryRescan" && control.Name == "Rescan watched library folders" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryBack" && control.Name == "Back to player" && control.Enabled);
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryPrevious" && control.Enabled == false && control.Name == "Previous results page");
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && control.Enabled == false && control.Name == "Next results page");
             var music = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 1 });
@@ -313,12 +316,17 @@ public sealed class MacAppSmokeTests
             tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
             Assert.Contains(tree!.Controls!, control => control.Id == "LibraryPrevious" && control.Enabled);
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && !control.Enabled);
+            var secondPageKeys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
+            Assert.True(secondPageKeys?.Ok == true,
+                "Native focus loop was broken by the paginated result change: " + (secondPageKeys?.Error ?? "no reply"));
             var previous = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryPrevious" });
             Assert.Equal("Page 1 of 2", previous?.Text);
             var filtered = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "clip-084" });
             Assert.True(filtered?.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The last catalogue entry was not searchable.");
             var page = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibraryPage" });
             Assert.Equal("Page 1 of 1", page?.Text);
+            var searchKeys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
+            Assert.True(searchKeys?.Ok == true, "Native focus loop was broken by search: " + (searchKeys?.Error ?? "no reply"));
 
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0));
