@@ -246,7 +246,7 @@ public sealed class Playlist(Random? random = null)
     public void QueueNext(int index)
     {
         var item = _items[index];
-        if (item == Current)
+        if (Current is null || item == Current)
         {
             return;
         }
