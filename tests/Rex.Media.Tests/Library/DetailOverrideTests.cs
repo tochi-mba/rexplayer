@@ -159,6 +159,32 @@ public sealed class DetailOverrideTests
         Assert.Equal(new DetailOverride { Title = "Lonely At The Top" }, DetailsForm.Change(fields, new Dictionary<string, string> { [MetadataKeys.Title] = "Lonely At The Top" }));
     }
 
+    [Theory]
+    [InlineData("1", "2", "2026")]
+    [InlineData("3/12", "1/2", "2024-11")]
+    [InlineData("3/12", "", "2024-11-28")]
+    [InlineData("", "", "")]
+    public void ValidChangedTrackDiscAndDatesAreAccepted(string track, string disc, string year)
+    {
+        Assert.Empty(DetailsForm.Problems(new DetailOverride { Track = track, Disc = disc, Year = year }));
+        Assert.Empty(DetailsForm.Problems(new DetailOverride()));
+    }
+
+    [Theory]
+    [InlineData("0", "0", "bad")]
+    [InlineData("3/2", "-1", "2024-99-01")]
+    [InlineData("hello", "2/0", "2024-02-40")]
+    [InlineData("10000", "3/2", "99")]
+    public void InvalidChangedTrackDiscAndDatesAreRejectedBeforeWriting(string track, string disc, string year)
+    {
+        var issues = DetailsForm.Problems(new DetailOverride { Track = track, Disc = disc, Year = year });
+        Assert.Equal(3, issues.Count);
+        Assert.Contains(issues, issue => issue.Contains("Track", StringComparison.Ordinal));
+        Assert.Contains(issues, issue => issue.Contains("Disc", StringComparison.Ordinal));
+        Assert.Contains(issues, issue => issue.Contains("Date", StringComparison.Ordinal));
+        Assert.Throws<ArgumentNullException>(() => DetailsForm.Problems(null!));
+    }
+
     [Fact]
     public void ApplyLaysAnEditOverAFilesMetadata()
     {
