@@ -447,6 +447,7 @@ public sealed partial class MainWindow : Window
         var idle = _player.State is SessionState.Idle || (_player.Item is not null && !HasVideo);
         VideoBlankLayer.Visibility = HasVideo ? Visibility.Collapsed : Visibility.Visible;
         Idle.Visibility = idle ? Visibility.Visible : Visibility.Collapsed;
+        WelcomeActions.Visibility = _player.Item is null ? Visibility.Visible : Visibility.Collapsed;
         IdleTitle.Text = _player.Item is null ? "rexplayer" : title;
         IdleHint.Text = _player.Item is null ? "Drop media here, or press Ctrl+O to open a file."
             : _player.State == SessionState.Opening ? "Opening" + "\u2026"

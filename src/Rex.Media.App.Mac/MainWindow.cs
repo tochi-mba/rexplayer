@@ -26,7 +26,7 @@ namespace Rex.Media.App.Mac;
 /// the same colours and placement as on Windows.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000", Justification = "AppKit owns the views once they are in the window's tree.")]
-public sealed class MainWindow : IDisposable
+public sealed partial class MainWindow : IDisposable
 {
     private const string LogSource = "window";
     private const string HelpUrl = "https://tochi-mba.github.io/rexplayer/";
@@ -46,6 +46,7 @@ public sealed class MainWindow : IDisposable
     private PlayerSettings _settings;
     private NSTimer? _clearMessage;
     private PictureView? _picture;
+    private NSStackView? _welcome;
     private bool _moving;
 
     public MainWindow(DataRoots roots, RexLog log)
@@ -62,7 +63,7 @@ public sealed class MainWindow : IDisposable
         _window = new NSWindow(new CGRect(0, 0, 960, 560), NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable | NSWindowStyle.Resizable, NSBackingStore.Buffered, false)
         {
             Title = "rexplayer",
-            MinSize = new CGSize(360, 150),
+            MinSize = new CGSize(640, 420),
         };
         _window.ReleaseWhenClosed(false);
         _playPause = NSButton.CreateButton("Play", () => Run(CommandCatalog.PlayPause));
@@ -202,24 +203,54 @@ public sealed class MainWindow : IDisposable
         var previous = NSButton.CreateButton("Previous", () => Run(CommandCatalog.Previous));
         var stop = NSButton.CreateButton("Stop", () => Run(CommandCatalog.Stop));
         var next = NSButton.CreateButton("Next", () => Run(CommandCatalog.Next));
-        var controls = NSStackView.FromViews([previous, _playPause, stop, next, _seek, _time, _volume]);
+        var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
+        open.ToolTip = "Open a file (Cmd+O)";
+        _playPause.BezelStyle = NSBezelStyle.Rounded;
+        _playPause.Font = NSFont.SystemFontOfSize(15, NSFontWeight.Semibold)!;
+        _playPause.WidthAnchor.ConstraintEqualTo(76).Active = true;
+        _playPause.ToolTip = "Play or pause (Space)";
+        _seek.ToolTip = "Seek through the current file";
+        _volume.ToolTip = "Volume";
+        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, _volume]);
         controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         controls.Spacing = 8;
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
         _seek.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
 
-        var stack = NSStackView.FromViews([_title, _message, controls]);
+        var timeline = NSStackView.FromViews([_seek, _time]);
+        timeline.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+        timeline.Spacing = 12;
+        var stack = NSStackView.FromViews([_title, _message, timeline, controls]);
         stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         stack.Alignment = NSLayoutAttribute.Leading;
-        stack.Spacing = 10;
+        stack.Spacing = 12;
         stack.EdgeInsets = new NSEdgeInsets(20, 20, 20, 20);
         stack.TranslatesAutoresizingMaskIntoConstraints = false;
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
+        timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
         var content = new DropView(paths => _player.Open(paths));
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
         content.AddSubview(_picture);
         content.AddSubview(stack);
+        var welcomeTitle = NSTextField.CreateLabel("rexplayer");
+        welcomeTitle.TextColor = NSColor.White;
+        welcomeTitle.Font = NSFont.SystemFontOfSize(44, NSFontWeight.Semibold)!;
+        var welcomeHint = NSTextField.CreateLabel("Your music. Your films. Your space.");
+        welcomeHint.TextColor = NSColor.LightGray;
+        var welcomeOpen = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
+        var welcomeFolder = NSButton.CreateButton("Open folder", () => Run(CommandCatalog.OpenFolder));
+        var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder]);
+        welcomeActions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+        welcomeActions.Spacing = 12;
+        _welcome = NSStackView.FromViews([welcomeTitle, welcomeHint, welcomeActions]);
+        _welcome.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+        _welcome.Alignment = NSLayoutAttribute.CenterX;
+        _welcome.Spacing = 18;
+        _welcome.TranslatesAutoresizingMaskIntoConstraints = false;
+        content.AddSubview(_welcome);
+        _welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
+        _welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
         _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
         _picture.LeadingAnchor.ConstraintEqualTo(content.LeadingAnchor).Active = true;
         _picture.TrailingAnchor.ConstraintEqualTo(content.TrailingAnchor).Active = true;
@@ -462,6 +493,10 @@ public sealed class MainWindow : IDisposable
 
     private void ShowState()
     {
+        if (_welcome is not null)
+        {
+            _welcome.Hidden = _player.Item is not null;
+        }
         _title.StringValue = _player.Item is null ? "Drop media here, or press Cmd+O to open a file." : _player.Title;
         _window.Title = _player.Item is null ? "rexplayer" : _player.Title + " - rexplayer";
         _playPause.Title = _player.IsPlaying ? "Pause" : "Play";
