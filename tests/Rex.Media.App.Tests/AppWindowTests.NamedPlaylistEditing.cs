@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
