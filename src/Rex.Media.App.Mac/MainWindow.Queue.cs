@@ -8,6 +8,8 @@ public sealed partial class MainWindow
     private NSTextField? _queueSummary;
     private bool _closingQueue;
     private int _queuePage;
+    private NSButton? _queueShuffle;
+    private NSButton? _queueRepeat;
     private NSButton? _previousQueuePage;
     private NSButton? _nextQueuePage;
     private const int QueuePageSize = 75;
@@ -35,8 +37,8 @@ public sealed partial class MainWindow
             header.Font = NSFont.SystemFontOfSize(26, NSFontWeight.Semibold)!;
             var hint = NSTextField.CreateLabel("Play, remove, or move a track without leaving your media.");
             hint.TextColor = NSColor.SecondaryLabel;
-            var shuffle = NSButton.CreateButton("Shuffle", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleShuffle));
-            var repeat = NSButton.CreateButton("Repeat", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.CycleRepeat));
+            _queueShuffle = NSButton.CreateButton("Shuffle: Off", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleShuffle));
+            _queueRepeat = NSButton.CreateButton("Repeat: Off", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.CycleRepeat));
             var open = NSButton.CreateButton("Add files…", () =>
             {
                 var panel = NSOpenPanel.OpenPanel;
@@ -58,11 +60,12 @@ public sealed partial class MainWindow
                 _queuePage++;
                 RefreshQueue();
             });
-            var tools = NSStackView.FromViews([shuffle, repeat, open, _previousQueuePage, _nextQueuePage]);
+            var tools = NSStackView.FromViews([_queueShuffle, _queueRepeat, open, _previousQueuePage, _nextQueuePage]);
             tools.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             tools.Spacing = 10;
             _queueSummary = NSTextField.CreateLabel("");
             _queueSummary.TextColor = NSColor.SecondaryLabel;
+            _queueSummary.LineBreakMode = NSLineBreakMode.TruncatingTail;
             _queueScroll = new NSScrollView(new CGRect(0, 0, 600, 380))
             {
                 HasVerticalScroller = true,
@@ -102,6 +105,15 @@ public sealed partial class MainWindow
         {
             _nextQueuePage.Enabled = end < queue.Count;
         }
+        if (_queueShuffle is not null)
+        {
+            _queueShuffle.Title = _player.Playlist.Shuffle ? "Shuffle: On" : "Shuffle: Off";
+        }
+        if (_queueRepeat is not null)
+        {
+            _queueRepeat.Title = "Repeat: " + _player.Playlist.Repeat;
+        }
+
         var rows = new List<NSView>();
         if (queue.Count == 0)
         {
@@ -115,10 +127,14 @@ public sealed partial class MainWindow
             var index = i;
             var item = queue[i];
             var playing = i == _player.Playlist.CurrentIndex;
-            var play = NSButton.CreateButton((playing ? "▶ " : "") + item.Title, () =>
+            var play = NSButton.CreateButton((playing ? "Now playing: " : "Play: ") + item.Title, () =>
             {
-                _player.PlayAt(index);
-                RefreshQueue();
+                var at = _player.Playlist.IndexOf(item);
+                if (at >= 0)
+                {
+                    _player.PlayAt(at);
+                    RefreshQueue();
+                }
             });
             play.Alignment = NSTextAlignment.Left;
             play.ToolTip = item.Location;
@@ -131,18 +147,52 @@ public sealed partial class MainWindow
             media.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             media.Alignment = NSLayoutAttribute.Leading;
             media.Spacing = 1;
-            var up = NSButton.CreateButton("↑", () => _player.Playlist.Move(index, index - 1));
-            var down = NSButton.CreateButton("↓", () => _player.Playlist.Move(index, index + 1));
-            var remove = NSButton.CreateButton("Remove", () => _player.Playlist.RemoveAt(index));
+            var next = NSButton.CreateButton("Play next", () =>
+            {
+                var at = _player.Playlist.IndexOf(item);
+                if (at >= 0 && _player.Playlist.Current is not null)
+                {
+                    _player.Playlist.QueueNext(at);
+                }
+            });
+            next.Enabled = _player.Playlist.Current is not null && !playing;
+            next.ToolTip = "Make this entry play next, including when shuffle is enabled";
+            var up = NSButton.CreateButton("Earlier", () =>
+            {
+                var at = _player.Playlist.IndexOf(item);
+                if (at > 0)
+                {
+                    _player.Playlist.Move(at, at - 1);
+                }
+            });
+            var down = NSButton.CreateButton("Later", () =>
+            {
+                var at = _player.Playlist.IndexOf(item);
+                if (at >= 0 && at < _player.Playlist.Items.Count - 1)
+                {
+                    _player.Playlist.Move(at, at + 1);
+                }
+            });
+            var remove = NSButton.CreateButton("Remove", () =>
+            {
+                var at = _player.Playlist.IndexOf(item);
+                if (at >= 0)
+                {
+                    _player.Playlist.RemoveAt(at);
+                }
+            });
             up.Enabled = index > 0;
             down.Enabled = index < queue.Count - 1;
             up.ToolTip = "Move earlier in the queue";
             down.ToolTip = "Move later in the queue";
             remove.ToolTip = "Remove from Up Next";
-            var row = NSStackView.FromViews([media, up, down, remove]);
-            row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            row.Spacing = 8;
-            row.WidthAnchor.ConstraintGreaterThanOrEqualTo(550).Active = true;
+            var actions = NSStackView.FromViews([next, up, down, remove]);
+            actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            actions.Spacing = 8;
+            var row = NSStackView.FromViews([media, actions]);
+            row.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+            row.Alignment = NSLayoutAttribute.Leading;
+            row.Spacing = 5;
             rows.Add(row);
         }
 
@@ -155,7 +205,7 @@ public sealed partial class MainWindow
         _queueScroll.DocumentView = content;
         _queueSummary.StringValue = (queue.Count == 1 ? "1 item" : $"{queue.Count} items")
             + (queue.Count > QueuePageSize ? $" • viewing {start + 1}–{end}" : "")
-            + (_player.Playlist.Shuffle ? " • Shuffle on" : "");
+            + (_player.Playlist.PeekNext(automatic: false) is { } nextItem ? $" • Next: {nextItem.Title}" : "");
     }
 
     private void CloseQueue()
