@@ -61,6 +61,21 @@ public sealed partial class MainWindow
         play.Click += (_, _) => Play([recording], 0, resume: true);
         panel.Children.Add(play);
 
+        // Speech review can use the same pitch-preserving speed control as podcast playback,
+        // without adding a duplicate playback engine or an unsupported A-B looping command.
+        panel.Children.Add(new TextBlock { Text = "Review playback speed (0.5–2.5×)" });
+        var speed = new Slider
+        {
+            Minimum = 0.5,
+            Maximum = 2.5,
+            StepFrequency = 0.25,
+            Value = Math.Clamp(_player.Speed, 0.5, 2.5),
+        };
+        AutomationProperties.SetAutomationId(speed, "RecordingDetailSpeed");
+        AutomationProperties.SetName(speed, "Recording playback speed");
+        speed.ValueChanged += (_, args) => _player.SetSpeed(args.NewValue);
+        panel.Children.Add(speed);
+
         var seekControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var seekTime = new TextBox { Header = "Jump to (m:ss)", Width = 150, PlaceholderText = "0:30" };
         var seek = new Button { Content = "Seek", VerticalAlignment = VerticalAlignment.Bottom };
