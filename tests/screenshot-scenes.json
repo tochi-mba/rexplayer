@@ -397,7 +397,7 @@
       ],
       "readinessSignal": "uia:LibraryEmpty",
       "owner": "AudiobookPresentationTests",
-      "baseline": "ci-windows",
+      "baseline": "unreviewed",
       "captureMode": "window",
       "requiredLane": "ci-windows"
     },
