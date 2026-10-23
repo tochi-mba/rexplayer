@@ -101,8 +101,12 @@ public sealed partial class MainWindow
     }
 
     // Force the kinetic caption layer to reread its style after an OS
-    // accessibility palette change, even when the playback position is paused.
-    private void UpdateKineticCaptionsForContrast() => ShowKineticCaptions();
+    // accessibility palette change, even when playback is paused.
+    private void UpdateKineticCaptionsForContrast()
+    {
+        _captionGate.Reset();
+        KeepCaptionsDrawing();
+    }
 
     private void DrawSubtitles()
     {
