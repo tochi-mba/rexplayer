@@ -67,6 +67,33 @@ public sealed partial class AppWindowTests
 
     [Fact]
     [Capability("PB-12")]
+    public void PlayNextContextActionMovesExistingEntryThenUndoRestoresOriginalNext()
+    {
+        using var app = AppProcess.Start([Song(60), Named("Terminator", 60), Named("Joha", 60)]);
+        Wait.For(() => app.Text("NowPlaying") == "Sungba", "the first song to begin");
+        app.Run(CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.Text("PlaylistQueueNext") == "Up next: Terminator", "initial queue");
+        var list = app.Find("PlaylistView");
+        var joha = Wait.Until(() =>
+        {
+            var items = list.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem));
+            return items.Count >= 3 ? items[2] : null;
+        })!;
+        Input.Focus(app);
+        Input.RightClick(joha);
+        Wait.For(() => app.IsShown("EntryPlayNext"), "the queue Play next context action");
+        app.Press("EntryPlayNext");
+        Wait.For(() => app.Text("PlaylistQueueNext") == "Up next: Joha", "selected item to be next");
+        Assert.Equal("3 items", app.Text("PlaylistQueueCount"));
+        Assert.Equal("Now playing: Sungba", app.Text("PlaylistQueueNow"));
+        app.Press("PlaylistUndoReorder");
+        Wait.For(() => app.Text("PlaylistQueueNext") == "Up next: Terminator", "original next entry to be restored");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("PB-12")]
     public void KeyboardQueueReorderCanBeUndoneWithoutChangingPlayback()
     {
         using var app = AppProcess.Start([Song(60), Named("Terminator", 60), Named("Joha", 60)]);
