@@ -549,15 +549,16 @@ public sealed partial class MainWindow : Window
     private void ShowPosition()
     {
         var duration = _player.Duration;
-        Elapsed.Text = TimeText.Format(_player.Position, duration);
-        Remaining.Text = duration <= TimeSpan.Zero ? "--:--"
-            : _showRemaining ? "-" + TimeText.Format(duration - _player.Position, duration)
+        var timeline = TimeText.Timeline(_player.Position, duration);
+        Elapsed.Text = TimeText.Format(timeline.Elapsed, duration);
+        Remaining.Text = timeline.Remaining is not { } left ? "--:--"
+            : _showRemaining ? "-" + TimeText.Format(left, duration)
             : TimeText.Format(duration);
         _updatingControls = true;
-        SeekBar.Maximum = Math.Max(1, duration.TotalSeconds);
+        SeekBar.Maximum = timeline.SliderMaximum;
         if (!_scrubbing)
         {
-            SeekBar.Value = Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
+            SeekBar.Value = timeline.SliderValue;
         }
 
         _updatingControls = false;
