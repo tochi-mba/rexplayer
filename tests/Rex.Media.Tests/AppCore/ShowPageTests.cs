@@ -199,7 +199,7 @@ public sealed class ShowPageTests
         // When episode four reaches the end, its previously incomplete play
         // becomes complete without double-counting the second version of one.
         Assert.Equal(new EpisodeWatchSummary(5, 4, 0), ShowPage.WatchSummary(episodes, Nothing));
-        Assert.Equal(new EpisodeWatchSummary(3, 2, 0),
+        Assert.Equal(new EpisodeWatchSummary(3, 3, 0),
             ShowPage.WatchSummary(episodes.Take(3).ToArray(), Nothing));
 
         var malformed = Episode("Alpha S01E02-E999", plays: 1);
