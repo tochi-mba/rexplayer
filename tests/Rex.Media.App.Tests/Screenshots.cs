@@ -164,8 +164,8 @@ internal static class Screenshots
             Save(Path.Combine(Output, "crop", name + ".png"), picture);
         }
 
-        Assert.True(WindowPicture.IsFullyOnDesktop(app.Handle),
-            $"Screenshot {name} extends beyond the visible desktop. Black offscreen pixels must never become evidence.");
+        Assert.True(scene.CaptureMode != "desktop" || WindowPicture.IsFullyOnDesktop(app.Handle),
+            $"Screenshot {name} extends beyond the visible desktop. Black offscreen pixels must never become composited evidence.");
         Assert.True(ViewportMatchesDeclared(scene, app) is not false,
             $"Screenshot {name} does not have the declared {scene.Dimensions} viewport.");
         Assert.True(HasVisibleVariation(picture),
