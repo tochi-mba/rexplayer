@@ -58,13 +58,24 @@ public sealed partial class MainWindow
         var undo = new Button { Content = "Undo" };
         var redo = new Button { Content = "Redo" };
         var reset = new Button { Content = "Reset to original" };
+        var retry = new Button { Content = "Retry saving", Visibility = Visibility.Collapsed };
+        AutomationProperties.SetAutomationId(retry, "TranscriptEditRetry");
         AutomationProperties.SetAutomationId(undo, "TranscriptEditUndo");
         AutomationProperties.SetAutomationId(redo, "TranscriptEditRedo");
         AutomationProperties.SetAutomationId(reset, "TranscriptEditReset");
         controls.Children.Add(undo);
         controls.Children.Add(redo);
         controls.Children.Add(reset);
+        controls.Children.Add(retry);
         container.Children.Add(controls);
+        var saveState = new TextBlock
+        {
+            Text = "The generated original is preserved. Edits are saved locally.",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        AutomationProperties.SetAutomationId(saveState, "TranscriptEditSaveState");
+        AutomationProperties.SetLiveSetting(saveState, AutomationLiveSetting.Polite);
+        container.Children.Add(saveState);
 
         var navigation = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var previous = new Button { Content = "Previous words" };
@@ -84,6 +95,7 @@ public sealed partial class MainWindow
         const int pageSize = 50;
         var changing = false;
         Task pendingWrite = Task.CompletedTask;
+        var requestedSave = 0;
         var editedSidecar = Transcript.SidecarSrtPath(media, model, edited: true);
 
         void SaveInOrder()
@@ -91,8 +103,19 @@ public sealed partial class MainWindow
             var snapshot = history.Snapshot;
             var isOriginal = history.IsOriginal;
             var writeSidecar = _settings.Transcription.WriteSrtBesideMedia;
+            var revision = ++requestedSave;
+            saveState.Text = "Saving transcript edits…";
+            retry.Visibility = Visibility.Collapsed;
             pendingWrite = pendingWrite.ContinueWith(_ =>
             {
+                // A user may correct several words in succession. Never write
+                // every obsolete keystroke snapshot and block dialog closure;
+                // only the most recent revision is durably saved.
+                if (revision != Volatile.Read(ref requestedSave))
+                {
+                    return;
+                }
+
                 try
                 {
                     if (isOriginal)
@@ -111,13 +134,31 @@ public sealed partial class MainWindow
                             AtomicFile.Write(editedSidecar, Encoding.UTF8.GetBytes(snapshot.Content.ToSrt()));
                         }
                     }
+
+                    OnWindowThread(() =>
+                    {
+                        if (revision == requestedSave && !_closing)
+                        {
+                            saveState.Text = isOriginal ? "Original transcript restored and saved." : "Transcript edits saved.";
+                        }
+                    });
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
-                    OnWindowThread(() => Say("The transcript edit could not be saved: " + error.Message));
+                    OnWindowThread(() =>
+                    {
+                        if (revision == requestedSave && !_closing)
+                        {
+                            saveState.Text = "The transcript edit could not be saved: " + error.Message;
+                            retry.Visibility = Visibility.Visible;
+                            Say(saveState.Text);
+                        }
+                    });
                 }
             }, TaskScheduler.Default);
         }
+
+        retry.Click += (_, _) => SaveInOrder();
 
         void ShowEditedTrack()
         {
