@@ -100,7 +100,8 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Visit("TV Shows");
         app.Pick("LibraryLook", "Grid");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 show", StringComparison.Ordinal), "a single show", () => string.Join(", ", app.Lines()));
-        Assert.Equal(["Futurama"], app.Lines());
+        Wait.For(() => app.Lines().SequenceEqual(["Futurama"]),
+            "the one show card to finish realizing", () => string.Join(", ", app.Lines()));
 
         // The season-zero special is explicitly labelled in the picker, while its episode stays in Specials.
         app.Open("Futurama");
