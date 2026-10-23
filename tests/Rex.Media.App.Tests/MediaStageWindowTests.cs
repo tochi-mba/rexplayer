@@ -12,6 +12,21 @@ public sealed class MediaStageWindowTests : IDisposable
     public void Dispose() => _scene.Dispose();
 
     [Fact]
+    public void DirectVideoRetainsItsAccessibleProfileAfterTheShortFixtureEnds()
+    {
+        var file = Rex.Media.TestKit.RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+        using var app = AppProcess.Start([file]);
+        Wait.For(() => app.Status().State == "Ended"
+            && app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "the completed video to retain its media profile");
+        Assert.False(app.IsShown("Lyrics"));
+        Assert.False(app.IsShown("Cover"));
+        Assert.False(app.IsShown("StageChaptersButton"));
+        Screenshots.Match(app, "stage-video-ended");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void PodcastRecordingAndSoundProfilesReplaceOneAnotherWithoutOldMediaActions()
     {
         var podcast = _scene.Audio(Path.Combine("Podcasts", "Test show", "Episode 1.wav"),
@@ -89,6 +104,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.False(app.Find("SeekBar").Current.IsEnabled);
         Assert.False(app.IsShown("Lyrics"));
         Assert.False(app.IsShown("Cover"));
+        Screenshots.Match(app, "stage-error");
         Assert.Equal(0, app.Close());
     }
 
