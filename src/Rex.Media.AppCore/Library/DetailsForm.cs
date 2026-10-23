@@ -102,6 +102,53 @@ public static class DetailsForm
         };
     }
 
+    /// <summary>
+    /// Errors that would make changed numeric tags ambiguous or destructive.
+    /// Empty values intentionally mean "clear this tag"; untouched mixed
+    /// values are never included in a DetailOverride.
+    /// </summary>
+    public static IReadOnlyList<string> Problems(DetailOverride change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        var errors = new List<string>();
+        bool Numbered(string? value)
+        {
+            if (value is null or "")
+            {
+                return true;
+            }
+
+            var pieces = value.Split('/', 2);
+            if (!int.TryParse(pieces[0], NumberStyles.None, CultureInfo.InvariantCulture, out var index)
+                || index is < 1 or > 9999)
+            {
+                return false;
+            }
+
+            return pieces.Length == 1 || int.TryParse(pieces[1], NumberStyles.None,
+                CultureInfo.InvariantCulture, out var total) && total is >= 1 and <= 9999 && index <= total;
+        }
+
+        if (!Numbered(change.Track))
+        {
+            errors.Add("Track number must be positive, optionally followed by /total.");
+        }
+
+        if (!Numbered(change.Disc))
+        {
+            errors.Add("Disc number must be positive, optionally followed by /total.");
+        }
+
+        if (change.Year is { Length: > 0 } year
+            && !DateTime.TryParseExact(year, ["yyyy", "yyyy-MM", "yyyy-MM-dd"],
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+        {
+            errors.Add("Date must be a year, year-month or ISO date.");
+        }
+
+        return errors;
+    }
+
     /// <summary>A file's metadata with an edit laid over it: a cleared field is dropped.</summary>
     public static IReadOnlyDictionary<string, string> Apply(IReadOnlyDictionary<string, string> metadata, DetailOverride change)
     {
