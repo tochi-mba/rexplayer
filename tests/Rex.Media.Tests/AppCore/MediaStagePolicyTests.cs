@@ -132,6 +132,23 @@ public sealed class MediaStagePolicyTests
     }
 
     [Theory]
+    [InlineData(AudioShelf.Audiobooks, MediaStageProfile.Audiobook)]
+    [InlineData(AudioShelf.Podcasts, MediaStageProfile.Podcast)]
+    public void ADirectTaggedSpokenAudioStreamRetainsItsRole(AudioShelf shelf, MediaStageProfile profile)
+    {
+        var view = MediaStagePolicy.Resolve(new MediaStageContext(true,
+            StreamsKnown: true, HasAudioTrack: true, CanSeek: true,
+            Shelf: shelf, HasChapters: true));
+        Assert.Equal(profile, view.Profile);
+        Assert.True(view.ShowAudioPresentation);
+        Assert.True(view.ShowChapters);
+        Assert.False(view.ShowLyrics);
+        Assert.True(view.CanSeek);
+        Assert.Equal(MediaStageProfile.Loading,
+            MediaStagePolicy.Resolve(new MediaStageContext(true, Shelf: shelf)).Profile);
+    }
+
+    [Theory]
     [InlineData(AudioShelf.Audiobooks)]
     [InlineData(AudioShelf.Podcasts)]
     public void ChapterActionsRequireCurrentStreamReadinessAndSeekSupport(AudioShelf shelf)
