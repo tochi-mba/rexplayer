@@ -85,9 +85,12 @@ public static partial class EpisodeNames
         if (mark.Success)
         {
             var prefix = name[..mark.Index];
-            // A named season directory is stronger evidence for the show's identity than a
-            // bonus episode's filename (e.g. "Tracy Ullman Shorts S00E01" inside The Simpsons).
-            return Episode(folderShow ?? (Clean(prefix).Length > 0 ? prefix : looseShow), Number(mark.Groups["season"]), Optional(mark.Groups["episode"]), Optional(mark.Groups["through"]));
+            // A named season-zero folder may hold historical shorts with another programme's
+            // name (e.g. Tracy Ullman shorts under The Simpsons). For regular seasons, the
+            // filename's explicit show name still wins: different shows can share a folder.
+            var series = folderSeason == 0 && folder.Groups["show"].Success
+                ? folderShow : Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow;
+            return Episode(series, Number(mark.Groups["season"]), Optional(mark.Groups["episode"]), Optional(mark.Groups["through"]));
         }
 
         // A special that names its season: "S07X01", "S07 SP01", "S07 Special 1", "S07.5".
@@ -95,7 +98,9 @@ public static partial class EpisodeNames
         if (mark.Success)
         {
             var prefix = name[..mark.Index];
-            return Episode(folderShow ?? (Clean(prefix).Length > 0 ? prefix : looseShow), 0, Optional(mark.Groups["episode"]), specialOf: Number(mark.Groups["season"]));
+            var series = folderSeason == 0 && folder.Groups["show"].Success
+                ? folderShow : Clean(prefix).Length > 0 ? prefix : folderShow ?? looseShow;
+            return Episode(series, 0, Optional(mark.Groups["episode"]), specialOf: Number(mark.Groups["season"]));
         }
 
         mark = KeywordPattern().Match(name);
