@@ -440,6 +440,32 @@ public sealed partial class AppWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+    [Theory]
+    [Capability("META-09")]
+    [InlineData(null, "No lyrics found in this song or beside it.")]
+    [InlineData("A line without source timings", "Untimed lyrics; no line or word times were supplied.")]
+    [InlineData("[00:01.00]Line one\n[00:02.00]Line two", "Timed lyrics; only line starts were supplied.")]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]Line two", "Partly word-timed lyrics; untimed words are shown without invented timing.")]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]<00:02.00>Last", "Word-timed lyrics; highlights follow exact source timestamps.")]
+    public void PlayerAnnouncesTheActualLyricsMode(string? lrc, string expected)
+    {
+        var song = Song(30);
+        var sidecar = Path.ChangeExtension(song, ".lrc");
+        if (lrc is null)
+        {
+            File.Delete(sidecar);
+        }
+        else
+        {
+            File.WriteAllText(sidecar, lrc);
+        }
+
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.Text("LyricsStatus") == expected, "the factual lyrics mode to be announced");
+        Assert.Equal(expected, app.Text("LyricsStatus"));
+        Assert.Equal(0, app.Close());
+    }
+
     [Fact]
     [Capability("META-09")]
     public void AClickOnATimedLyricGoesToThatPartOfTheSong()
