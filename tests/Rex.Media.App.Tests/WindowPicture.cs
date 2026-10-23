@@ -32,6 +32,17 @@ internal static partial class WindowPicture
             && bounds.Right <= desktop.Right && bounds.Bottom <= desktop.Bottom;
     }
 
+    /// <summary>The owning process of the current foreground desktop window.</summary>
+    public static uint ForegroundProcessId
+    {
+        get
+        {
+            var foreground = GetForegroundWindow();
+            _ = GetWindowThreadProcessId(foreground, out var processId);
+            return processId;
+        }
+    }
+
     /// <summary>Actual Windows monitor DPI, never inferred from the requested window size.</summary>
     public static uint Dpi(nint window) => GetDpiForWindow(window);
 
@@ -181,6 +192,12 @@ internal static partial class WindowPicture
 
     [LibraryImport("user32.dll")]
     private static partial uint GetDpiForWindow(nint window);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(nint window, out uint processId);
 
     [LibraryImport("user32.dll", EntryPoint = "SystemParametersInfoW")]
     [return: MarshalAs(UnmanagedType.Bool)]
