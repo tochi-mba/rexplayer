@@ -50,6 +50,8 @@ internal static class Screenshots
         int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
     {
         var scene = ScreenshotScenes.Find(name);
+        Assert.True(scene.RequiredLane == "ci-windows" || scene.RequiredLane == Lane,
+            $"Scene {name} requires the real {scene.RequiredLane} desktop, not {Lane}.");
         // WinUI exposes UIA elements before they have been painted. Require the
         // scene's semantic contract first, then independently inspect pixels.
         var ready = Wait.Within(AppProcess.Patience, () =>
