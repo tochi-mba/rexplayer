@@ -1,6 +1,6 @@
 <!-- Scoped workstream source of truth. Tasks are intentionally unchecked until evidence-backed. -->
 
-# Windows UX workstream 4/4 — Audiobooks, podcasts, recordings and tools
+# Windows UX workstream 4/4  -  Audiobooks, podcasts, recordings and tools
 
 ## Objective and deliverables
 Complete the tailored listening experience and specialist Windows surfaces: audiobook/podcast/recording pages, metadata and artwork maintenance, subtitles/transcription, equalizer, video effects, advanced Settings controls and native integration.
@@ -19,7 +19,7 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 - [ ] **Implement the actual code and tests.** The PR began as a *planning-only draft*. Bounded source fixes and regression tests are now present, but the full owned scope and verification remain open.
 - [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
 
-## Implementation checkpoints — 2026-10-23
+## Implementation checkpoints  -  2026-10-23
 These checkpoints track **committed changes**, not feature acceptance or passing test results. They do not close any of the 63 roadmap tasks or eight release gates.
 
 - [x] Read `AGENTS.md`, ADR-0020 and existing LIB-05 coverage. Mapped current spoken-word logic to `ListeningViews`, `MainWindow.Listening`, `MainWindow.ListeningActions` and `MainWindow.LibraryPlayback`; mapped existing portable and Windows UI assertions to `ListeningViewsTests` and `LibraryListeningTests`.
@@ -32,7 +32,7 @@ These checkpoints track **committed changes**, not feature acceptance or passing
 
 **Environment note:** No local .NET SDK or Windows test runtime was available for this edit session. GitHub Actions is the source for actual build/test verification; its results must not be inferred while a run is pending.
 
-## Detailed task list — 63 uniquely owned roadmap tasks
+## Detailed task list  -  63 uniquely owned roadmap tasks
 The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
 
 ### P1. Audiobooks and authors
@@ -132,7 +132,7 @@ Each future agent should take one unchecked workstream, select bounded tasks and
 - [ ] Recordings/sounds: date groups, voice notes, waveform if implemented, transcript, bookmarks, review and compact quick audio
 - [ ] Tools: subtitle styles, dual captions, kinetic captions, transcript editor/partial progress, transcription jobs, equalizer, picture effects, Subject Lock, stats and info
 
-## Standard completion gates — 8 checks per PR
+## Standard completion gates  -  8 checks per PR
 - [ ] Map current routes, code owners, capability IDs and previously passing UI assertions before changing behavior.
 - [ ] Implement each owned feature in separately reviewable source changes without altering the core decoder/engine contract.
 - [ ] Add deterministic offline fixtures for normal, empty, long/RTL, missing, corrupt, slow and partial data relevant to this scope.
@@ -156,9 +156,9 @@ Each future agent should take one unchecked workstream, select bounded tasks and
 The four parts are independent draft PRs against `main`; none may assume unchecked changes elsewhere have shipped. Foundation (1) owns the existing Settings search, screenshot guard and shared shell. Specialist Settings content (4) must reuse it after landing and **not duplicate the foundation**. Video/player (2), music/lyrics/visualizers (3), and spoken-word/tools (4) must agree on existing playback-stage and focus contracts before overlapping edits. Follow `AGENTS.md`, the clean-room rules and ADR-0020; preserve automation and media engine invariants.
 
 ## Sister workstreams
-- 1/4 — UI foundation and deterministic QA
-- 2/4 — Video and adaptive playback
-- 3/4 — Music, lyrics and visualizers
-- **4/4 — Spoken word, metadata and tools (this PR)**
+- 1/4  -  UI foundation and deterministic QA
+- 2/4  -  Video and adaptive playback
+- 3/4  -  Music, lyrics and visualizers
+- **4/4  -  Spoken word, metadata and tools (this PR)**
 
 **Merge gate:** Remain draft until actual implementation, full task evidence, reviewed real screenshots and green current-head CI exist. A planning document is not a completed feature. Original complete source and roadmap remain traceable in [#467](https://github.com/tochi-mba/rexplayer/pull/467).
