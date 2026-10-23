@@ -419,6 +419,20 @@ public sealed class LibraryViewsTests
     [InlineData("afro single", new string[0])]
     public void SearchFindsEveryWordAnywhere(string? text, string[] found) => Assert.Equal(found, Titles(LibraryViews.Search(Entries, text)));
 
+    [Theory]
+    [Capability("LIB-05")]
+    [InlineData("01 🎵 شمس وليل", true)]
+    [InlineData("… שלום עולם", true)]
+    [InlineData("Title 2026 شمس", false)]
+    [InlineData("123 🎵", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    [InlineData("阿拉伯語", false)]
+    public void MediaTitleDirectionFollowsItsFirstStrongScriptCharacter(string? title, bool rtl)
+    {
+        Assert.Equal(rtl, TextDirection.IsRightToLeft(title));
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void HugeLibrarySearchRetainsDistinctPathsForRepeatedNamesAndRtlUnicode()
