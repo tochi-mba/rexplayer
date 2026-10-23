@@ -504,6 +504,14 @@ public sealed partial class MainWindow
             RequestLibraryPicture(args.Item as LibraryRow, ShowsPosters(sender));
         }
 
+        // UI Automation reads the ListViewItem peer, not its template's Grid.
+        // Recycled containers must update (and clear) their help text for each row.
+        if (args.ItemContainer is { } container)
+        {
+            AutomationProperties.SetHelpText(container, args.InRecycleQueue
+                ? "" : (args.Item as LibraryRow)?.AccessibilityDetails ?? "");
+        }
+
         // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
         if (sender == LibraryList)
         {
