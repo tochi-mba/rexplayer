@@ -656,6 +656,7 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", () => _player.PlayPlaylist(playlist.Id)));
             menu.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(playlist.Id, enqueue: true)));
             menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(MenuItem("Edit contents...", "LibraryMenuEditNamedPlaylist", () => Forget(EditPlaylistAsync(playlist.Id))));
             menu.Items.Add(MenuItem("Rename...", null, () => Forget(RenamePlaylistAsync(playlist.Id))));
             menu.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(playlist.Id)));
             menu.Items.Add(MenuItem("Delete...", null, () => Forget(DeletePlaylistAsync(playlist.Id))));

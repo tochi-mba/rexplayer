@@ -36,6 +36,23 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Replaces the ordered contents of a saved playlist after an editor is accepted. Entries are
+    /// copied before persistence so later dialog changes cannot silently mutate what was saved.
+    /// Duplicate locations and cue boundaries are deliberately retained; the playing queue is untouched.
+    /// </summary>
+    public void ReplacePlaylistItems(string id, IReadOnlyList<QueuedItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var snapshot = items.ToArray();
+        if (Find(id) is { } playlist)
+        {
+            Memory.SetPlaylist(playlist with { Items = snapshot });
+            Say($"Updated {playlist.Name} ({ItemCount(snapshot.Length)})");
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     /// <summary>Adds what is playing to the named playlist <paramref name="id"/>.</summary>
     public void AddPlayingToPlaylist(string id)
     {

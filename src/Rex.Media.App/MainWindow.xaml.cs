@@ -596,6 +596,12 @@ public sealed partial class MainWindow : Window
             _playlistRows.RemoveAt(_playlistRows.Count - 1);
         }
 
+        PlaylistQueueCount.Text = rows.Count == 1 ? "1 item" : $"{rows.Count} items";
+        PlaylistQueueNow.Text = _player.Playlist.Current is { } playing
+            ? "Now playing: " + playing.Title
+            : _player.Item is null ? "Nothing playing" : "Playing outside the queue";
+        PlaylistQueueNext.Text = _player.Playlist.PeekNext(automatic: false) is { } next
+            ? "Up next: " + next.Title : "No upcoming items";
         PlaylistEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         if (current >= 0 && PlaylistPane.Visibility == Visibility.Visible)

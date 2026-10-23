@@ -134,6 +134,56 @@ public sealed class NamedPlaylistTests
     }
 
     [Fact]
+    [Capability("LIB-04")]
+    public void EditingSavedEntriesIsAtomicKeepsDuplicateIdentityAndDoesNotChangeThePlayingQueue()
+    {
+        var store = RexStore.InMemory();
+        string id;
+        using (var harness = Harness(store))
+        {
+            var controller = harness.Controller;
+            controller.Open(["Terminator.wav"]);
+            harness.PumpUntil(c => c.State == SessionState.Ready);
+
+            var original = controller.CreatePlaylist("Videos and songs",
+            [
+                new PlaylistItem("Sungba.wav") { Title = "First take" },
+                new PlaylistItem("missing.mp4") { Title = "Unavailable video" },
+                new PlaylistItem("Sungba.wav") { Title = "Second take", Start = TimeSpan.FromSeconds(3), End = TimeSpan.FromSeconds(8) },
+            ]);
+            id = original.Id;
+            var staged = new List<QueuedItem> { original.Items[2], original.Items[1] };
+            controller.ReplacePlaylistItems(id, staged);
+            staged.Clear();
+
+            var saved = Assert.Single(controller.NamedPlaylists);
+            Assert.Equal(["Second take", "Unavailable video"], saved.Items.Select(item => item.Title));
+            Assert.Equal(("Sungba.wav", TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(8)),
+                (saved.Items[0].Location, saved.Items[0].Start, saved.Items[0].End));
+            Assert.Equal("missing.mp4", saved.Items[1].Location);
+            Assert.Equal("Terminator.wav", controller.Item?.Location);
+            Assert.Equal(["Terminator.wav"], controller.Playlist.Items.Select(item => item.Location));
+            Assert.Equal("Updated Videos and songs (2 items)", harness.Messages[^1]);
+
+            controller.ReplacePlaylistItems(id, []);
+            Assert.Empty(Assert.Single(controller.NamedPlaylists).Items);
+            Assert.Equal("Terminator.wav", controller.Item?.Location);
+            controller.ReplacePlaylistItems(id, original.Items);
+            Assert.Throws<ArgumentNullException>(() => controller.ReplacePlaylistItems(id, null!));
+        }
+
+        using var reopened = Harness(store);
+        Assert.Equal(["First take", "Unavailable video", "Second take"],
+            Assert.Single(reopened.Controller.NamedPlaylists).Items.Select(item => item.Title));
+        reopened.Controller.ReplacePlaylistItems(id, [new QueuedItem("missing.mp4", "Only missing", null, TimeSpan.Zero, null)]);
+        Assert.Equal("Only missing", Assert.Single(reopened.Controller.NamedPlaylists).Items[0].Title);
+        reopened.Controller.DeletePlaylist(id);
+        reopened.Controller.ReplacePlaylistItems(id, []);
+        Assert.Equal("That playlist is no longer there.", reopened.Messages[^1]);
+        Assert.Empty(reopened.Controller.NamedPlaylists);
+    }
+
+    [Fact]
     public void APlaylistThatNoLongerReadsIsLeftOut()
     {
         var store = RexStore.InMemory();

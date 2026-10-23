@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Commands;
@@ -61,6 +62,7 @@ public sealed partial class MainWindow
             sub.Items.Add(MenuItem("Play", "PlayNamed-" + playlist.Name, () => _player.PlayPlaylist(id)));
             sub.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(id, enqueue: true)));
             sub.Items.Add(new MenuFlyoutSeparator());
+            sub.Items.Add(MenuItem("Edit contents...", "EditNamed-" + playlist.Name, () => Forget(EditPlaylistAsync(id))));
             sub.Items.Add(MenuItem("Rename...", null, () => Forget(RenamePlaylistAsync(id))));
             sub.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(id)));
             sub.Items.Add(MenuItem("Delete...", "DeleteNamed-" + playlist.Name, () => Forget(DeletePlaylistAsync(id))));
@@ -173,6 +175,94 @@ public sealed partial class MainWindow
         if (await Ask("New playlist", box, "Make") && !string.IsNullOrWhiteSpace(box.Text))
         {
             _player.CreatePlaylist(box.Text, items);
+        }
+    }
+
+    /// <summary>
+    /// Edits a snapshot of a named playlist. Cancel discards all changes; Save persists once, and
+    /// no edit touches the active playback queue. Row position identifies duplicate file entries.
+    /// </summary>
+    private async Task EditPlaylistAsync(string id)
+    {
+        if (_player.NamedPlaylists.FirstOrDefault(p => p.Id == id) is not { } playlist)
+        {
+            return;
+        }
+
+        var staged = playlist.Items.ToList();
+        var labels = new ObservableCollection<string>(staged.Select(item =>
+            (item.Title ?? PlaylistItem.TitleOf(item.Location)) + " · " + (PlaylistItem.SourceOf(item.Location) ?? item.Location)));
+        var list = new ListView
+        {
+            ItemsSource = labels,
+            MinWidth = 360,
+            MaxHeight = 320,
+            SelectionMode = ListViewSelectionMode.Single,
+        };
+        AutomationProperties.SetAutomationId(list, "NamedPlaylistEntries");
+        AutomationProperties.SetName(list, "Saved playlist entries in playback order");
+
+        var up = new Button { Content = "Move up" };
+        var down = new Button { Content = "Move down" };
+        var remove = new Button { Content = "Remove entry" };
+        AutomationProperties.SetAutomationId(up, "NamedPlaylistMoveUp");
+        AutomationProperties.SetAutomationId(down, "NamedPlaylistMoveDown");
+        AutomationProperties.SetAutomationId(remove, "NamedPlaylistRemoveEntry");
+
+        void RefreshActions()
+        {
+            up.IsEnabled = list.SelectedIndex > 0;
+            down.IsEnabled = list.SelectedIndex >= 0 && list.SelectedIndex < staged.Count - 1;
+            remove.IsEnabled = list.SelectedIndex >= 0;
+        }
+
+        void Move(int direction)
+        {
+            var from = list.SelectedIndex;
+            var to = from + direction;
+            if (from < 0 || to < 0 || to >= staged.Count)
+            {
+                return;
+            }
+
+            var item = staged[from];
+            staged.RemoveAt(from);
+            staged.Insert(to, item);
+            labels.Move(from, to);
+            list.SelectedIndex = to;
+            RefreshActions();
+        }
+
+        up.Click += (_, _) => Move(-1);
+        down.Click += (_, _) => Move(1);
+        remove.Click += (_, _) =>
+        {
+            var index = list.SelectedIndex;
+            if (index < 0 || index >= staged.Count)
+            {
+                return;
+            }
+
+            staged.RemoveAt(index);
+            labels.RemoveAt(index);
+            list.SelectedIndex = staged.Count == 0 ? -1 : Math.Min(index, staged.Count - 1);
+            RefreshActions();
+        };
+        list.SelectionChanged += (_, _) => RefreshActions();
+        list.SelectedIndex = staged.Count > 0 ? 0 : -1;
+        RefreshActions();
+
+        var actions = new StackPanel { Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal, Spacing = 8 };
+        actions.Children.Add(up);
+        actions.Children.Add(down);
+        actions.Children.Add(remove);
+        var content = new StackPanel { Spacing = 8 };
+        content.Children.Add(new TextBlock { Text = "Move or remove saved entries. Files stay on disk; Cancel discards edits.", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap });
+        content.Children.Add(list);
+        content.Children.Add(actions);
+        if (await Ask("Edit " + playlist.Name, content, "Save changes", "Cancel"))
+        {
+            _player.ReplacePlaylistItems(id, staged);
         }
     }
 

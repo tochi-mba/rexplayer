@@ -667,8 +667,14 @@
         </Grid.RowDefinitions>
         <StackPanel Margin="6,2,0,10" Spacing="2">
           <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" />
-          <TextBlock Text="Drag to reorder · right-click for actions" FontSize="12"
+          <TextBlock Text="Drag to reorder · Alt+Up/Down to move selection" FontSize="12"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="PlaylistQueueCount" Text="0 items" FontSize="12"
+                     AutomationProperties.AutomationId="PlaylistQueueCount" />
+          <TextBlock x:Name="PlaylistQueueNow" Text="Nothing playing" FontSize="12" TextTrimming="CharacterEllipsis"
+                     AutomationProperties.AutomationId="PlaylistQueueNow" />
+          <TextBlock x:Name="PlaylistQueueNext" Text="No upcoming items" FontSize="12" TextTrimming="CharacterEllipsis"
+                     AutomationProperties.AutomationId="PlaylistQueueNext" />
         </StackPanel>
         <Grid Grid.Row="1">
         <ListView x:Name="PlaylistView" SelectionMode="Extended" IsItemClickEnabled="False"
