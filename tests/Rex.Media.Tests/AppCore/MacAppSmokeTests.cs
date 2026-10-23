@@ -139,6 +139,9 @@ public sealed class MacAppSmokeTests
         start.Environment["REXPLAYER_ROOT"] = root;
         start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
         start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        // QueueSmokeAction is gated behind this test-only opt-in.
+        // The library Play/Queue smoke assertions inspect queue contents below.
+        start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
         using var app = Process.Start(start)!;
         try
         {
@@ -227,7 +230,8 @@ public sealed class MacAppSmokeTests
             // A new folder is not preseeded in RexStore; the real running app must save it.
             var watched = await Ask(pipe, new AutomationRequest
             {
-                Command = "ui.add-folder", Paths = [secondFolder],
+                Command = "ui.add-folder",
+                Paths = [secondFolder],
             });
             Assert.True(watched?.Ok == true, "The Mac did not register the second watched folder: " +
                 (watched?.Error ?? "no reply") + LogTail(root));
@@ -269,12 +273,14 @@ public sealed class MacAppSmokeTests
                     reply => reply is { Ok: true }, reopenedApp, root);
                 var reopenedLibrary = await Ask(secondPipe, new AutomationRequest
                 {
-                    Command = "run", Id = CommandCatalog.ToggleLibrary,
+                    Command = "run",
+                    Id = CommandCatalog.ToggleLibrary,
                 });
                 Assert.True(reopenedLibrary?.Ok == true, "The library did not reopen after restart.");
                 var persisted = await Ask(secondPipe, new AutomationRequest
                 {
-                    Command = "ui.text", Target = "LibrarySummary",
+                    Command = "ui.text",
+                    Target = "LibrarySummary",
                 });
                 Assert.True(persisted?.Ok == true &&
                     persisted.Text?.Contains("2 folders", StringComparison.Ordinal) == true &&
@@ -282,7 +288,8 @@ public sealed class MacAppSmokeTests
                     "The watched folders or media did not survive restart: " + (persisted?.Text ?? "no reply"));
                 var closeAgain = await Ask(secondPipe, new AutomationRequest
                 {
-                    Command = "run", Id = CommandCatalog.Quit,
+                    Command = "run",
+                    Id = CommandCatalog.Quit,
                 });
                 Assert.True(closeAgain?.Ok == true ||
                     (reopenedApp.WaitForExit(TimeSpan.FromSeconds(5)) && reopenedApp.ExitCode == 0));
@@ -418,7 +425,8 @@ public sealed class MacAppSmokeTests
                 answer => answer is { Ok: true }, app, root);
             var open = await Ask(pipe, new AutomationRequest
             {
-                Command = "run", Id = CommandCatalog.ToggleLibrary,
+                Command = "run",
+                Id = CommandCatalog.ToggleLibrary,
             });
             Assert.True(open?.Ok == true, "Unable to open the library in write-failure test." + LogTail(root));
             var add = await Ask(pipe, new AutomationRequest { Command = "ui.add-folder", Paths = [folder] });
