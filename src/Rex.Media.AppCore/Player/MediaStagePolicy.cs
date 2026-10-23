@@ -84,15 +84,18 @@ public static class MediaStagePolicy
     /// </summary>
     public static AudioShelf? ShelfFromTags(string? mediaType, string? genre)
     {
-        var hint = string.IsNullOrWhiteSpace(mediaType) ? genre : mediaType;
-        return hint?.Trim() switch
+        var hint = (string.IsNullOrWhiteSpace(mediaType) ? genre : mediaType)?.Trim();
+        if (string.Equals(hint, MetadataKeys.Audiobook, StringComparison.OrdinalIgnoreCase))
         {
-            var value when string.Equals(value, MetadataKeys.Audiobook, StringComparison.OrdinalIgnoreCase)
-                => AudioShelf.Audiobooks,
-            var value when string.Equals(value, MetadataKeys.Podcast, StringComparison.OrdinalIgnoreCase)
-                => AudioShelf.Podcasts,
-            _ => null,
-        };
+            return AudioShelf.Audiobooks;
+        }
+
+        if (string.Equals(hint, MetadataKeys.Podcast, StringComparison.OrdinalIgnoreCase))
+        {
+            return AudioShelf.Podcasts;
+        }
+
+        return null;
     }
 
     public static MediaStageView Resolve(in MediaStageContext context)
