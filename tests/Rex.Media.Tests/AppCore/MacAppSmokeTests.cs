@@ -25,6 +25,14 @@ public sealed class MacAppSmokeTests
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
         Directory.CreateDirectory(screenshots);
+        var libraryScreenshots = RepoPaths.Combine("artifacts", "mac-library-screenshots");
+        Directory.CreateDirectory(libraryScreenshots);
+        var libraryFixture = Path.Combine(root, "watched-media");
+        Directory.CreateDirectory(libraryFixture);
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"),
+            Path.Combine(libraryFixture, "Sample Song.mp3"));
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
+            Path.Combine(libraryFixture, "Sample Film.mp4"));
         var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
         {
             UseShellExecute = false,
@@ -36,6 +44,8 @@ public sealed class MacAppSmokeTests
         start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
         start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
         start.Environment["REXPLAYER_MAC_QUEUE_SCREENSHOTS"] = screenshots;
+        start.Environment["REXPLAYER_MAC_LIBRARY_TESTS"] = "1";
+        start.Environment["REXPLAYER_MAC_LIBRARY_SCREENSHOTS"] = libraryScreenshots;
         using var app = Process.Start(start)!;
         // Native runtime assertions happen before the managed logger exists. Drain both pipes
         // immediately so a noisy startup cannot block, and include them if the smoke test fails.
@@ -45,6 +55,27 @@ public sealed class MacAppSmokeTests
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
+            var emptyLibrary = await Library(pipe, "show");
+            Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-empty");
+            await Library(pipe, "add-folder", libraryFixture);
+            var populated = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-library", Id = "status" }),
+                reply => reply?.Title?.Contains("2 items", StringComparison.Ordinal) == true,
+                app, root);
+            Assert.Contains("1 folder", populated.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-populated");
+            var onlyVideos = await Library(pipe, "videos");
+            Assert.Contains("1 item", onlyVideos.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-videos");
+            await Library(pipe, "verify-accessibility");
+            foreach (var name in new[] { "empty", "populated", "videos" })
+            {
+                var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));
+                Assert.True(file.Exists && file.Length > 1024,
+                    "No usable native library screenshot: " + file.FullName);
+            }
+
             var empty = await Queue(pipe, "show");
             Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-empty");
@@ -122,6 +153,18 @@ public sealed class MacAppSmokeTests
     {
         var reply = await Ask(pipe, new AutomationRequest { Command = "mac-queue", Id = action });
         Assert.True(reply?.Ok == true, "Mac queue action failed: " + action + ": " + (reply?.Error ?? "no reply"));
+        return reply!;
+    }
+
+    private static async Task<AutomationReply> Library(string pipe, string action, string? folder = null)
+    {
+        var reply = await Ask(pipe, new AutomationRequest
+        {
+            Command = "mac-library",
+            Id = action,
+            Paths = folder is null ? [] : [folder],
+        });
+        Assert.True(reply?.Ok == true, "Mac library action failed: " + action + ": " + (reply?.Error ?? "no reply"));
         return reply!;
     }
 
