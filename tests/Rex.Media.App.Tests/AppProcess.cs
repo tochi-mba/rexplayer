@@ -109,6 +109,10 @@ internal sealed class AppProcess : IDisposable
             File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off"{{(extraSettings is null ? "" : ", " + extraSettings)}} }""");
         }
 
+        // Decide before launching: reading a settings file during startup can race
+        // the app writing a new window placement after its first layout.
+        var keepSavedPlacement = File.Exists(settings)
+            && Rex.Media.Settings.SettingsStore.Load(settings).Window is not null;
         var start = StartInfo(arguments, root);
         foreach (var (name, value) in environment ?? new Dictionary<string, string>())
         {
@@ -136,7 +140,7 @@ internal sealed class AppProcess : IDisposable
         // Tests of persisted window placement must exercise the app's own
         // recovery logic, not the screenshot harness's positioning helper.
         if ((extraSettings is null || !extraSettings.Contains("\"window\"", StringComparison.Ordinal))
-            && (!File.Exists(settings) || Rex.Media.Settings.SettingsStore.Load(settings).Window is null))
+            && !keepSavedPlacement)
         {
             app.FitOnDesktop();
         }
