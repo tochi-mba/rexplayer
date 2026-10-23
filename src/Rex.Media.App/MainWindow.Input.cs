@@ -435,8 +435,8 @@ public sealed partial class MainWindow
         _undoQueuePlayerItem = _player.Item;
         _player.Playlist.RemoveEntries(chosen);
         PlaylistUndoRemoval.IsEnabled = true;
-        Say(chosen.Count == 1 ? "Removed entry from the queue — Undo removal is available"
-            : $"Removed {chosen.Count} entries from the queue — Undo removal is available");
+        Say(chosen.Count == 1 ? "Removed entry from the queue. Undo removal is available"
+            : $"Removed {chosen.Count} entries from the queue. Undo removal is available");
     }
 
     private void OnPlaylistUndoRemoval(object sender, RoutedEventArgs e)
