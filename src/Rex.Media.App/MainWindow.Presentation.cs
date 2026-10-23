@@ -144,6 +144,52 @@ public sealed partial class MainWindow
             LyricsBox.Height = Math.Min(360, Math.Max(0, Stage.ActualHeight * 0.45));
             ShowLyricLine();
         }
+
+        LayOutMediaStage();
+    }
+
+    /// <summary>
+    /// Recompose the existing stage when the window narrows: no second player, no duplicated
+    /// controls and no new AutomationIDs. Moving elements keeps keyboard focus and transport state.
+    /// </summary>
+    private void LayOutMediaStage()
+    {
+        var width = Math.Max(0, Stage.ActualWidth);
+        var height = Math.Max(0, Stage.ActualHeight);
+        var compact = width < 760 || height < 450;
+        var tiny = width < 480 || height < 280;
+
+        Grid.SetColumn(IdleText, compact ? 0 : 1);
+        Grid.SetRow(IdleText, compact ? 1 : 0);
+        Idle.ColumnDefinitions[1].Width = compact ? new GridLength(0) : GridLength.Auto;
+        Idle.ColumnSpacing = compact ? 0 : 32;
+        Idle.RowSpacing = compact ? 10 : 0;
+        Idle.Margin = new Thickness(tiny ? 12 : compact ? 20 : 32);
+        IdleText.MaxWidth = compact ? Math.Max(160, width - 40) : 560;
+        IdleTitle.FontSize = tiny ? 24 : compact ? 32 : 44;
+
+        var artSize = Math.Min(240, Math.Max(0, Math.Min(width - 48,
+            compact ? height - 180 : height - 48)));
+        CoverBox.Width = artSize;
+        CoverBox.Height = artSize;
+        // Decoding is asynchronous. Never resurrect a stale cover after a stream switch.
+        CoverBox.Visibility = _shownCover is not null && CoverImage.Source is not null
+            && !tiny && artSize >= 80 ? Visibility.Visible : Visibility.Collapsed;
+
+        LyricsBox.Height = Math.Min(360, Math.Max(0, height * (tiny ? 0.35 : 0.45)));
+        LyricsBox.Margin = compact ? new Thickness(12, 0, 12, 12) : new Thickness(48, 0, 48, 24);
+
+        // The transport itself scrolls, preserving all existing buttons and their focus order.
+        // On narrow windows the secondary tools move to their own row rather than overlap it.
+        var narrowControls = Root.ActualWidth < 820;
+        Grid.SetRow(AudioControlStrip, narrowControls ? 2 : 1);
+        Grid.SetColumn(AudioControlStrip, narrowControls ? 0 : 2);
+        Grid.SetColumnSpan(AudioControlStrip, narrowControls ? 3 : 1);
+        AudioControlStrip.HorizontalAlignment = narrowControls
+            ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+        Controls.Padding = narrowControls ? new Thickness(12, 8, 12, 9) : new Thickness(20, 12, 20, 14);
+        Controls.ColumnSpacing = narrowControls ? 6 : 12;
+        Controls.RowSpacing = narrowControls ? 4 : 8;
     }
 
     /// <summary>The cover beside the details, or the details alone, centred, when there is none (or it will not load).</summary>
@@ -200,6 +246,8 @@ public sealed partial class MainWindow
             text.HorizontalAlignment = alignment;
             text.TextAlignment = textAlignment;
         }
+
+        LayOutMediaStage();
     }
 
     /// <summary>A small BGRA copy of cover art for software-drawn visualisations.</summary>
