@@ -67,6 +67,7 @@ public sealed partial class MainWindow : Window
 
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
+    private long _lastScrubSeekAt;
     private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
 
     /// <param name="files">What the launch was asked to open.</param>
@@ -829,6 +830,16 @@ public sealed partial class MainWindow : Window
         if (_scrubbing)
         {
             Elapsed.Text = TimeText.Format(TimeSpan.FromSeconds(e.NewValue), _player.Duration);
+            // Update the visible preview immediately, but bound expensive
+            // decoder seeks while the pointer generates many ValueChanged events.
+            // EndScrub always seeks to the exact final destination.
+            var now = Environment.TickCount64;
+            if (now - _lastScrubSeekAt < 80)
+            {
+                return;
+            }
+
+            _lastScrubSeekAt = now;
         }
 
         _player.Seek(TimeSpan.FromSeconds(e.NewValue));
@@ -850,6 +861,7 @@ public sealed partial class MainWindow : Window
         }
 
         _scrubbing = false;
+        _lastScrubSeekAt = 0;
         _player.Seek(TimeSpan.FromSeconds(SeekBar.Value));
         ShowPosition();
     }
