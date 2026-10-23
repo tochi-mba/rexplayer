@@ -98,6 +98,12 @@ public sealed partial class MainWindow
         var barButtons = new List<Button>();
         var current = -1;
 
+        string BinDescription(int index)
+        {
+            var at = RecordingWaveform.At(snapshot!.Duration, index, snapshot.Peaks.Length);
+            return $"Jump to {TimeText.Format(at, snapshot.Duration)}, sampled peak {snapshot.Peaks[index]:P0}";
+        }
+
         void RefreshPlayhead()
         {
             if (snapshot is null || !LibraryViews.SameLocation(_player.Item?.Location, recording.Path))
@@ -114,12 +120,15 @@ public sealed partial class MainWindow
             if (current >= 0 && current < barButtons.Count)
             {
                 barButtons[current].BorderThickness = new Thickness(0);
+                AutomationProperties.SetName(barButtons[current], BinDescription(current));
             }
 
             current = index;
             if (index >= 0 && index < barButtons.Count)
             {
                 barButtons[index].BorderThickness = new Thickness(2);
+                AutomationProperties.SetName(barButtons[index],
+                    BinDescription(index) + ", current playback position");
             }
         }
 
@@ -153,11 +162,11 @@ public sealed partial class MainWindow
                     Height = 144,
                     Padding = new Thickness(1),
                     BorderThickness = new Thickness(0),
+                    BorderBrush = accent,
                     VerticalContentAlignment = VerticalAlignment.Bottom,
                 };
                 AutomationProperties.SetAutomationId(button, "RecordingWaveformBin-" + index);
-                AutomationProperties.SetName(button,
-                    $"Jump to {TimeText.Format(at, snapshot.Duration)}, sampled peak {snapshot.Peaks[index]:P0}");
+                AutomationProperties.SetName(button, BinDescription(index));
                 button.Click += (_, _) =>
                 {
                     if (_player.CanSeek && LibraryViews.SameLocation(_player.Item?.Location, recording.Path))
