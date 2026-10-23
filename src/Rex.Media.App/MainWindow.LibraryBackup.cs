@@ -1,5 +1,4 @@
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Library;
 using Windows.Storage.Pickers;
 
