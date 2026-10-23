@@ -86,6 +86,35 @@ public sealed class LibraryBackupTests
 
     [Fact]
     [Capability("LIB-10")]
+    public void RestorePreviewIsReadOnlyAndExplainsAdditiveConflictsBeforeConsent()
+    {
+        var data = LibraryBackup.Read(LibraryBackup.Export(
+            Library(("Sungba.mp3", 5), ("Joha.mp3", 1)),
+            [new NamedPlaylist("x", "Asake", [new QueuedItem(In("Joha.mp3"), null, null, TimeSpan.Zero, null)])])[0].Bytes);
+        var existing = Library(("Sungba.mp3", 2));
+        using var harness = Harness();
+        harness.Controller.CreatePlaylist("Asake", [new PlaylistItem(In("Joha.mp3"))]);
+
+        // Same playlist name and location already present, only the missing
+        // file is a new entry. Preview must not raise play counts or mutate UI.
+        Assert.Equal(new BackupSummary(0, 1, 0), LibraryBackup.Preview(data, existing, harness.Controller));
+        Assert.Equal(2, existing.Entry(In("Sungba.mp3"))!.Plays);
+        Assert.Null(existing.Entry(In("Joha.mp3")));
+        Assert.Single(harness.Controller.NamedPlaylists);
+
+        var summary = LibraryBackup.Restore(data, existing, harness.Controller);
+        Assert.Equal(new BackupSummary(0, 1, 0), summary);
+        Assert.Equal(5, existing.Entry(In("Sungba.mp3"))!.Plays);
+        Assert.NotNull(existing.Entry(In("Joha.mp3")));
+        Assert.Equal(new BackupSummary(0, 0, 0), LibraryBackup.Preview(data, existing, harness.Controller));
+
+        Assert.Throws<ArgumentNullException>(() => LibraryBackup.Preview(null!, existing, harness.Controller));
+        Assert.Throws<ArgumentNullException>(() => LibraryBackup.Preview(data, null!, harness.Controller));
+        Assert.Throws<ArgumentNullException>(() => LibraryBackup.Preview(data, existing, null!));
+    }
+
+    [Fact]
+    [Capability("LIB-10")]
     public void AtomicSnapshotIsVerifiedBeforeRestoreAndAnInterruptedExportLeavesOldDataIntact()
     {
         var root = Directory.CreateTempSubdirectory("rexplayer-snapshot-").FullName;
