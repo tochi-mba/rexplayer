@@ -529,10 +529,27 @@ public sealed partial class MainWindow
                         || Says(item.Name, query) || HasSettingText(item.Page, query))
                     .Select(item => item.Name).ToList();
                 categories.ItemsSource = names;
-                // When the current page is no longer in the results, show the first match
-                // rather than leaving an unrelated section visible beneath a filtered rail.
-                categories.SelectedItem = names.Count == 0 ? null
-                    : names.Contains(sections[shownSection].Name) ? sections[shownSection].Name : names[0];
+                // Updating the ListView's items can clear its selection without raising a
+                // reliable SelectionChanged for a newly assigned SelectedItem. Navigate
+                // through the authoritative section picker first, so recovering from an
+                // empty result never leaves the old section visible.
+                if (names.Count > 0)
+                {
+                    var selectedName = names.Contains(sections[shownSection].Name)
+                        ? sections[shownSection].Name : names[0];
+                    var index = sections.FindIndex(item => item.Name == selectedName);
+                    if (section.SelectedIndex != index)
+                    {
+                        section.SelectedIndex = index;
+                    }
+
+                    categories.SelectedItem = selectedName;
+                }
+                else
+                {
+                    categories.SelectedItem = null;
+                }
+
                 searchResult.Visibility = names.Count == 0 && categories.Visibility == Visibility.Visible
                     ? Visibility.Visible : Visibility.Collapsed;
             };
