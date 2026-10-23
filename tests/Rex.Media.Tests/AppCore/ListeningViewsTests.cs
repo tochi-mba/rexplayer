@@ -181,6 +181,47 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void IdenticallyNamedBooksUseTheirOwnFilesWhenAnOpenPageRefreshes()
+    {
+        var one = AudioFile("Audiobooks/Ann Writer/Edition A/Chapter.mp3", TimeSpan.FromMinutes(50),
+            "Ann Writer", "Same Title");
+        var two = AudioFile("Audiobooks/Ann Writer/Edition B/Chapter.mp3", TimeSpan.FromMinutes(50),
+            "Ann Writer", "Same Title");
+        var books = ListeningViews.Books([one, two]);
+        Assert.Equal(2, books.Count);
+        Assert.All(books, book => Assert.Equal(("Same Title", "Ann Writer"), (book.Name, book.Detail)));
+
+        var opened = Assert.Single(books, book => book.Entries[0].Path == two.Path);
+        var refreshed = ListeningViews.RefreshBook([.. books.Reverse()], opened);
+        Assert.Equal(two.Path, Assert.Single(refreshed.Entries).Path);
+        Assert.Empty(ListeningViews.RefreshBook([books[0]], opened).Entries);
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.RefreshBook(null!, opened));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.RefreshBook(books, null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void MalformedChapterOffsetsAreBoundedAndBlankTitlesUseTheirPart()
+    {
+        var part = AudioFile("Audiobooks/Book/Part.m4b", TimeSpan.FromMinutes(30)) with
+        {
+            Chapters =
+            [
+                new LibraryChapter(TimeSpan.FromMinutes(90), "Beyond the end"),
+                new LibraryChapter(TimeSpan.FromMinutes(-12), "Before the start"),
+                new LibraryChapter(TimeSpan.Zero, "  "),
+            ],
+        };
+        var book = new LibraryGroup("Book", null, [part]);
+        var chapters = ListeningViews.Chapters(book);
+        Assert.Equal(["Before the start", "Part", "Beyond the end"], chapters.Select(chapter => chapter.Title));
+        Assert.Equal([TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromMinutes(30)],
+            chapters.Select(chapter => chapter.Start));
+        Assert.Equal(1, ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(0, TimeSpan.Zero)));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void BookRemainingTimeRequiresEveryPartLengthAndClampsCorruptPositions()
     {
         var first = AudioFile("Audiobooks/Book/Part 1.m4b", TimeSpan.FromMinutes(60));
