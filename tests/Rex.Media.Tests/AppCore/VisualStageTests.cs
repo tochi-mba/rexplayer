@@ -120,6 +120,25 @@ public sealed class VisualStageTests
 
     [Fact]
     [Capability("AU-18")]
+    public void CanceledVisualFramesNeverEnterAnalysisAndNextTrackMayStartFresh()
+    {
+        var stage = Stage(64, 36);
+        var sound = new float[VisualStage.SoundSize];
+        using var oldTrack = new CancellationTokenSource();
+        oldTrack.Cancel();
+        Assert.Throws<OperationCanceledException>(() => stage.Draw(
+            VisualizerChoice.Halo, Defaults, sound, sound, 48000,
+            TimeSpan.FromMilliseconds(30), oldTrack.Token));
+
+        // A new song does not inherit the cancellation token from a stopped
+        // or closed visualisation and can immediately render a new scene.
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults, sound, sound,
+            48000, TimeSpan.FromMilliseconds(30), CancellationToken.None));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
     public void ShortAndMissingVisualizerSamplesStaySilentUntilTheSourceHasData()
     {
         var stage = Stage(48, 30);
