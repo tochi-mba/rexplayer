@@ -245,6 +245,7 @@ public sealed class MediaStageWindowTests : IDisposable
 
         using var app = AppProcess.Start([first, second], extraSettings: "\"theme\": \"Dark\"");
         Wait.For(() => app.Text("NowPlaying") == "First" && app.IsShown("Lyrics")
+            && app.IsShown("LyricLine-0")
             && app.Find("LyricLine-0").Current.Name.Contains("First stream line", StringComparison.Ordinal),
             "the first direct-open audio file to show its own lyrics");
         app.Find("LyricLine-0").SetFocus();
@@ -253,6 +254,7 @@ public sealed class MediaStageWindowTests : IDisposable
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
         Wait.For(() => app.Text("NowPlaying") == "Second" && app.IsShown("Lyrics")
+            && app.IsShown("LyricLine-0")
             && app.Find("LyricLine-0").Current.Name.Contains("Second stream line", StringComparison.Ordinal),
             "the second direct audio file to replace the first file's timed lyrics");
         Assert.Equal("AUDIO playback stage", app.Find("Stage").Current.Name);
