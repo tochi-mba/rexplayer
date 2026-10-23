@@ -222,6 +222,27 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void AChapteredBookWithTenThousandMarkersKeepsOneDeterministicCurrentChapter()
+    {
+        var markers = Enumerable.Range(0, 10_000)
+            .Reverse()
+            .Select(second => new LibraryChapter(TimeSpan.FromSeconds(second), "Chapter " + second))
+            .ToArray();
+        var part = AudioFile("Audiobooks/Huge/Whole Book.m4b", TimeSpan.FromHours(4)) with
+        {
+            Chapters = markers,
+        };
+        var book = new LibraryGroup("Huge", null, [part]);
+        var chapters = ListeningViews.Chapters(book);
+        Assert.Equal(10_000, chapters.Count);
+        Assert.Equal("Chapter 0", chapters[0].Title);
+        Assert.Equal("Chapter 9999", chapters[^1].Title);
+        Assert.Equal(5_000, ListeningViews.CurrentChapterIndex(chapters, book,
+            new BookPlace(0, TimeSpan.FromSeconds(5_000))));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void BookRemainingTimeRequiresEveryPartLengthAndClampsCorruptPositions()
     {
         var first = AudioFile("Audiobooks/Book/Part 1.m4b", TimeSpan.FromMinutes(60));
