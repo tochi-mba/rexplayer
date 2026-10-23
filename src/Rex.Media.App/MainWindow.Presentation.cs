@@ -56,6 +56,7 @@ public sealed partial class MainWindow
         {
             VideoBlankLayer.Visibility = Visibility.Visible;
             Idle.Visibility = Visibility.Visible;
+            IdleScroller.Visibility = Visibility.Visible;
         }
 
         IdleKicker.Text = stage.Label;
