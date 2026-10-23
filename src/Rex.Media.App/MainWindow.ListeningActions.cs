@@ -96,6 +96,24 @@ public sealed partial class MainWindow
         _library!.MarkPlayed(paths);
     }
 
+    /// <summary>
+    /// The main Play button and each card's quick Play action both treat an audiobook
+    /// card as a book, not as a generic list of files. An author card is navigation,
+    /// never an instruction to queue that author's entire catalogue.
+    /// </summary>
+    private bool PlayBookCard(LibraryRow? row)
+    {
+        if (row?.Item is not LibraryGroup book
+            || !((_librarySource == LibrarySource.Audiobooks && _libraryGroup is null)
+                || (_librarySource == LibrarySource.Authors && _libraryGroup is not null && _librarySeason is null)))
+        {
+            return false;
+        }
+
+        PlayBook(book, null);
+        return true;
+    }
+
     /// <summary>Play on an open book: from the chapter chosen, else on from where the book was left.</summary>
     private bool PlayOpenBook(IReadOnlyList<LibraryRow> chosen)
     {
