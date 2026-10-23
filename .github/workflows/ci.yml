@@ -373,6 +373,43 @@ jobs:
           New-Item -ItemType Directory -Force artifacts/screenshots/inventory | Out-Null
           Copy-Item tests/screenshot-scenes.json artifacts/screenshots/inventory/screenshot-scenes.json
 
+      # A green UI suite must also prove that all declared scenes emitted
+      # both image and machine-readable witnesses on this exact CI head.
+      - name: Audit declared screenshot evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $inventory = Get-Content tests/screenshot-scenes.json -Raw | ConvertFrom-Json
+          $errors = [System.Collections.Generic.List[string]]::new()
+          foreach ($scene in $inventory.scenes) {
+            $prefix = "artifacts/screenshots/ci-windows/actual/$($scene.id)"
+            if (-not (Test-Path "$prefix.png")) {
+              $errors.Add("$($scene.id): no rendered PNG")
+            }
+            if (-not (Test-Path "$prefix.json")) {
+              $errors.Add("$($scene.id): no UIA and capture metadata")
+              continue
+            }
+            $evidence = Get-Content "$prefix.json" -Raw | ConvertFrom-Json
+            if ($evidence.sceneId -ne $scene.id) {
+              $errors.Add("$($scene.id): mismatched sidecar ID")
+            }
+            if ($evidence.fullyOnDesktop -ne $true) {
+              $errors.Add("$($scene.id): screenshot extends off the desktop")
+            }
+            if ($evidence.readinessAchieved -ne $true) {
+              $errors.Add("$($scene.id): UI Automation readiness not proved")
+            }
+            if ($evidence.pixelReadinessAchieved -ne $true) {
+              $errors.Add("$($scene.id): image and pixel witness not proved")
+            }
+          }
+          Write-Host "Audited $($inventory.scenes.Count) screenshot scenes against ci-windows actual PNG and JSON evidence."
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host "SCREENSHOT EVIDENCE GAP: $_" }
+            throw "$($errors.Count) screenshot evidence gap(s); see the retained screenshots artifact."
+          }
+
       # Every screenshot as CI drew it, and a diff for any that failed: the only source of the
       # baselines in tests/screenshot-baselines/ci-windows (see tests/Rex.Media.App.Tests/Screenshots.cs).
       - name: Keep the screenshots
