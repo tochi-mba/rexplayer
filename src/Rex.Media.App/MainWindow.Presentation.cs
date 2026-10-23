@@ -22,6 +22,7 @@ public sealed partial class MainWindow
 {
     private byte[]? _shownCover;
     private Lyrics? _shownLyrics;
+    private PlaylistItem? _shownLyricsItem;
     private int _shownLine = -1;
     private readonly List<TextBlock> _lyricTexts = [];
     private PlaylistItem? _shownChapterItem;
@@ -125,7 +126,7 @@ public sealed partial class MainWindow
         }
 
         var lyrics = stage.ShowLyrics ? _player.Lyrics : null;
-        if (!ReferenceEquals(lyrics, _shownLyrics))
+        if (!ReferenceEquals(lyrics, _shownLyrics) || !ReferenceEquals(item, _shownLyricsItem))
         {
             // Timed lyrics are focusable buttons. Removing the old lines must not
             // strand keyboard/screen-reader focus on an element outside the tree.
@@ -138,6 +139,7 @@ public sealed partial class MainWindow
             }
 
             _shownLyrics = lyrics;
+            _shownLyricsItem = item;
             _shownLine = -1;
             LyricsLines.Children.Clear();
             _lyricTexts.Clear();
