@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Inventory of current UI screenshot calls. unreviewed is record-only; ci-windows means a committed baseline exists, not that its appearance has been approved. Unfixed dimensions must be pinned before visual release acceptance.",
+  "description": "Inventory of real UI screenshot scene contracts. All host viewports are pinned. unreviewed is record-only; ci-windows denotes an existing committed baseline, not human visual approval. Dedicated contrast and DPI lanes require actual OS configuration.",
   "scenes": [
     {
       "id": "empty-window-light",
