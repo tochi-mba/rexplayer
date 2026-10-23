@@ -89,6 +89,40 @@ public sealed class MusicHomeTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void PinningUsesActualAlbumTrackPathsAndDoesNotInventMissingReleases()
+    {
+        var pins = new[] { Library[9].Path, @"D:\missing.mp3", Library[0].Path, Library[9].Path };
+        var rows = MusicHome.Rows(Library, [], Now, pinnedAlbumPaths: pins);
+
+        Assert.Equal(["Unruly", "Work of Art"], rows.Pinned.Select(album => album.Name));
+        Assert.Empty(MusicHome.Rows(Library, [], Now).Pinned);
+        Assert.Empty(MusicHome.Rows([], [], Now, pinnedAlbumPaths: pins).Pinned);
+        Assert.True(rows.JumpBackIn.Count > 0);
+        Assert.True(rows.OnRepeat.Count > 0);
+
+        // Two artists' releases can have the same name. A path pins one,
+        // without promoting the unrelated release on Music Home.
+        var first = Song("Track", "Shared", artist: "First");
+        var second = Song("Track", "Shared", artist: "Second");
+        var distinct = MusicHome.Rows([first, second], [], Now, pinnedAlbumPaths: [second.Path]);
+        var pinned = Assert.Single(distinct.Pinned);
+        Assert.Equal("Second", pinned.Detail);
+        Assert.Equal(second.Path, Assert.Single(pinned.Entries).Path);
+
+        var normalized = new Rex.Media.Settings.PlayerSettings
+        {
+            PinnedAlbumPaths = [Library[0].Path, Library[0].Path.ToLowerInvariant(), "", " ", Library[9].Path],
+        }.Normalize();
+        Assert.Equal([Library[0].Path, Library[9].Path], normalized.PinnedAlbumPaths);
+        Assert.Empty((new Rex.Media.Settings.PlayerSettings { PinnedAlbumPaths = null! }).Normalize().PinnedAlbumPaths);
+        Assert.Equal(40, (new Rex.Media.Settings.PlayerSettings
+        {
+            PinnedAlbumPaths = [.. Enumerable.Range(0, 90).Select(n => "D:/Music/" + n)],
+        }).Normalize().PinnedAlbumPaths.Count);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void JumpBackInMixesAlbumsAndPlaylistsByWhenTheyWerePlayed()
     {
         var playlist = new NamedPlaylist("p1", "Road trip", [new QueuedItem(Library[9].Path, null, null, TimeSpan.Zero, null)]);
