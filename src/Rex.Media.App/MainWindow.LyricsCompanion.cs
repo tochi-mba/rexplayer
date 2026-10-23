@@ -17,6 +17,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private Window? _lyricsCompanion;
+    private Windows.Graphics.SizeInt32? _lyricsCompanionSize;
     private ScrollViewer? _lyricsCompanionScroll;
     private StackPanel? _lyricsCompanionContent;
     private TextBlock? _lyricsCompanionHeading;
@@ -128,6 +129,9 @@ public sealed partial class MainWindow
         {
             if (ReferenceEquals(_lyricsCompanion, window))
             {
+                // Retain size but not absolute screen coordinates. A monitor
+                // may have disconnected between the two openings.
+                _lyricsCompanionSize = window.AppWindow.Size;
                 _lyricsCompanion = null;
                 _lyricsCompanionScroll = null;
                 _lyricsCompanionContent = null;
@@ -145,7 +149,9 @@ public sealed partial class MainWindow
         // deliberately do not restore stale absolute coordinates when a
         // second monitor has been disconnected since the last opening.
         window.Activate();
-        window.AppWindow.Resize(new Windows.Graphics.SizeInt32(460, 620));
+        window.AppWindow.Resize(_lyricsCompanionSize is { } saved
+            ? new Windows.Graphics.SizeInt32(Math.Max(320, saved.Width), Math.Max(240, saved.Height))
+            : new Windows.Graphics.SizeInt32(460, 620));
         LyricsDetachButton.Content = "Focus lyrics window";
         RefreshLyricsCompanion();
     }
