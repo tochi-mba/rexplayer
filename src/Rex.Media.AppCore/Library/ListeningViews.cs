@@ -241,7 +241,8 @@ public static partial class ListeningViews
         var first = book.Entries[0];
         var folder = BookFolderOf(first);
         var name = Path.GetFileName(folder);
-        var locator = folder.Length == 0 || BooksFolderPattern().IsMatch(name) || LooseFolderPattern().IsMatch(name)
+        var locator = folder.Length == 0 || name.EndsWith(':')
+            || BooksFolderPattern().IsMatch(name) || LooseFolderPattern().IsMatch(name)
             ? first.Path : folder;
         return key + "\n" + locator.Replace('\\', '/').ToUpperInvariant();
     }
@@ -257,7 +258,8 @@ public static partial class ListeningViews
 
         var folder = BookFolderOf(book.Entries[0]);
         var name = Path.GetFileName(folder);
-        return name.Length > 0 && !BooksFolderPattern().IsMatch(name)
+        return name.Length > 0 && !name.EndsWith(':') && !BooksFolderPattern().IsMatch(name)
+            && !LooseFolderPattern().IsMatch(name)
             ? name : Path.GetFileNameWithoutExtension(book.Entries[0].Path);
     }
 
