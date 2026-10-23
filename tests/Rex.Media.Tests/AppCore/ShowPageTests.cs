@@ -48,6 +48,20 @@ public sealed class ShowPageTests
     }
 
     [Fact]
+    public void NextUpSkipsUnreadableEpisodesEvenWhenTheyWerePartWayPlayed()
+    {
+        var show = Show(
+            Episode("Alpha S01E01", problem: "damaged", lastPlayed: Monday),
+            Episode("Alpha S01E02", plays: 1, problem: "missing"),
+            Episode("Alpha S03E04"),
+            Episode("Alpha S00E01"));
+
+        Assert.Equal("Alpha S03E04", ShowPage.NextUp(show, LeftAt("S01E01", TimeSpan.FromMinutes(4)))?.Title);
+        Assert.Equal("Alpha S03E04", ShowPage.NextUp(show, Nothing)?.Title);
+        Assert.Null(ShowPage.NextUp(Show(Episode("Alpha S01E01", problem: "damaged")), Nothing));
+    }
+
+    [Fact]
     public void NextUpStartsAgainWhenEverythingWasSeen()
     {
         var show = Show(Episode("Alpha S01E01", plays: 1), Episode("Alpha S01E02", plays: 1));

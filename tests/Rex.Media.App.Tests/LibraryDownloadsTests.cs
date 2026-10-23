@@ -48,6 +48,11 @@ public sealed class LibraryDownloadsTests : IDisposable
         var detail = "Downloading · 6 KB of 11 KB";
         Wait.For(() => Shows(app, "LibraryShelfCards-Downloading", detail), "the Downloading shelf with the partial video");
         Assert.True(HasBadge(app, "LibraryShelfCards-Downloading"), "a partial file's card should wear the download badge");
+        var loadingViewport = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        loadingViewport.Resize(1000, 760);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2
+            && Math.Abs(app.Window.Current.BoundingRectangle.Height - 760) < 2,
+            "the pinned downloading-state viewport");
         Screenshots.Match(app, "library-card-downloading", "LibraryShelfCards-Downloading");
 
         // Videos: the Download filter keeps only what is still arriving, or only what is whole.
@@ -108,7 +113,11 @@ public sealed class LibraryDownloadsTests : IDisposable
         BinaryPrimitives.WriteUInt64BigEndian(control.AsSpan(34), 100);
         File.WriteAllBytes(clip + ".aria2", control);
         using var app = _scene.Watched().Start();
-
+        var noticeViewport = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        noticeViewport.Resize(1000, 700);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2
+            && Math.Abs(app.Window.Current.BoundingRectangle.Height - 700) < 2,
+            "the pinned incomplete-file notice viewport");
         app.Visit("All videos");
         app.Pick("LibraryLook", "List");
         app.Choose("Clip");
@@ -117,6 +126,7 @@ public sealed class LibraryDownloadsTests : IDisposable
             .Any(element => element.Current.Name.Contains("Still downloading: 20% so far", StringComparison.Ordinal)), "the still-downloading notice in the library");
         Assert.True(app.IsShown("LibraryPane"), "the library should stay open rather than show a player that failed");
         Screenshots.Match(app, "library-downloading-unplayable", "LibraryPane");
+        Screenshots.Match(app, "library-incomplete-download-notice");
         Assert.Equal(0, app.Close());
     }
 }

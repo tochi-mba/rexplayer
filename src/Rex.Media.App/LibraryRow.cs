@@ -28,6 +28,7 @@ public partial class LibraryRow(
     private string _transcriptGlyph = "";
     private string _transcriptText = "";
     private string? _downloadText;
+    private string? _notesPreview;
     private bool _isPlaying = isPlaying;
     private bool _summaryOpen;
 
@@ -36,7 +37,8 @@ public partial class LibraryRow(
     public string Name { get; } = name;
 
     /// <summary>What the line says under its name; while its file is still downloading, how far that is.</summary>
-    public string Detail => _downloadText ?? PlainDetail;
+    public string Detail => _downloadText ??
+        (_notesPreview is { Length: > 0 } note ? PlainDetail + " · Notes: " + note : PlainDetail);
 
     /// <summary>What the line says under its name once its file is whole.</summary>
     public string PlainDetail { get; } = detail ?? "";
@@ -153,6 +155,21 @@ public partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptGlyph)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptVisibility)));
+    }
+
+    /// <summary>Sets an optional, keyboard-readable summary of local podcast notes.</summary>
+    public void SetNotesPreview(string? preview)
+    {
+        if (_notesPreview == preview)
+        {
+            return;
+        }
+
+        _notesPreview = preview;
+        foreach (var property in new[] { nameof(Detail), nameof(DetailVisibility) })
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
     }
 
     /// <summary>

@@ -167,10 +167,13 @@ public sealed class SectionDetectionAlgorithmsTests
             "Show.S02E01.mkv", "Other.S01E03.mkv", "Show.S01E03.Featurette.mkv", "Show.S00E04.mkv" };
         Assert.Equal("Show.S01E03.mkv", EpisodeGrouping.Next("Show.S01E01E02.mkv", folder));
         Assert.Equal("Show.S01E04.mkv", EpisodeGrouping.Next("Show.S01E03.mkv", folder));
-        // After a season's last episode comes the next season's first, never one further on.
+        // The nearest later season wins, even when the library has no intervening season.
         Assert.Equal("Show.S02E01.mkv", EpisodeGrouping.Next("Show.S01E05.mkv", folder));
         Assert.Null(EpisodeGrouping.Next("Show.S02E01.mkv", folder));
-        Assert.Null(EpisodeGrouping.Next("Show.S01E05.mkv", ["Show.S03E01.mkv", "Show.S01E04.mkv"]));
+        Assert.Equal("Show.S03E01.mkv", EpisodeGrouping.Next("Show.S01E05.mkv", ["Show.S03E01.mkv", "Show.S01E04.mkv"]));
+        Assert.Equal("Show.S03E02.mkv", EpisodeGrouping.Next("Show.S01E05.mkv",
+            ["Show.S05E01.mkv", "Show.S03E04.mkv", "Other.S02E01.mkv", "Show.S00E03.mkv", "Show.S03E02.mkv"]));
+        Assert.Null(EpisodeGrouping.Next("Show.S03E02.mkv", ["Show.S01E03.mkv", "Show.S00E01.mkv", "Other.S04E01.mkv"]));
         Assert.Null(EpisodeGrouping.Next("film.mkv", folder));
         Assert.True(EpisodeGrouping.IsSeasonFolder("Season 2"));
         Assert.True(EpisodeGrouping.IsSeasonFolder("S02"));

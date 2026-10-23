@@ -503,6 +503,7 @@ public sealed partial class MainWindow
         else
         {
             RequestLibraryPicture(args.Item as LibraryRow, ShowsPosters(sender));
+            RequestEpisodeNotes(args.Item as LibraryRow);
         }
 
         // Only the persistent main list wires focus: its containers recycle, so the set is bounded.

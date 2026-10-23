@@ -20,8 +20,11 @@ public static partial class ShowPage
     {
         ArgumentNullException.ThrowIfNull(show);
         ArgumentNullException.ThrowIfNull(leftAt);
-        var ordered = show.Entries.OrderBy(entry => LibraryViews.EpisodeOf(entry)?.Season == 0).ToList();
-        return LibraryViews.ContinueWatching(show.Entries, leftAt).FirstOrDefault()
+        // An unreadable episode must not become the show's primary Play/Resume target.
+        // Keep its row visible so the user can inspect the error instead.
+        var ordered = show.Entries.Where(entry => entry.Problem is null)
+            .OrderBy(entry => LibraryViews.EpisodeOf(entry)?.Season == 0).ToList();
+        return LibraryViews.ContinueWatching(ordered, leftAt).FirstOrDefault()
             ?? ordered.FirstOrDefault(entry => entry.Plays == 0)
             ?? ordered.FirstOrDefault();
     }
