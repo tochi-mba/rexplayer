@@ -283,6 +283,8 @@ public sealed class MacAppSmokeTests
                 "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
                 Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual);
         }
+    }
+
     private static async Task<AutomationReply> Queue(string pipe, string action)
     {
         var reply = await Ask(pipe, new AutomationRequest { Command = "mac-queue", Id = action });
