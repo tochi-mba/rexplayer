@@ -906,6 +906,23 @@ public sealed partial class MainWindow
         try
         {
             var snapshot = await Task.Run(() => LibraryBackup.ReadFromFile(file.Path));
+            var preview = LibraryBackup.Preview(snapshot, _library!, _player);
+            var explanation = new TextBlock
+            {
+                Text = $"This backup may add up to {LibraryActions.Count(preview.Folders, "watched folder")}, "
+                    + $"{LibraryActions.Count(preview.Entries, "file")} and {LibraryActions.Count(preview.Playlists, "playlist")}. "
+                    + "The existing library and play history will be kept. "
+                    + "Files that are missing or on disconnected drives will not become playable. "
+                    + "This is an additive import, not a replacement of your library.",
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 440,
+            };
+            AutomationProperties.SetAutomationId(explanation, "LibraryRestorePreview");
+            if (!await Ask("Bring back a library backup?", explanation, "Add to library", "Cancel"))
+            {
+                return;
+            }
+
             var summary = LibraryBackup.Restore(snapshot, _library!, _player);
             WatchLibraryFolders();
             _scanner!.Request();
