@@ -111,16 +111,18 @@ public static class GenreNames
         }
 
         var key = new StringBuilder(decomposed.Length);
-        foreach (var c in decomposed.Replace("&", "and", StringComparison.Ordinal))
+        // Iterate Unicode scalars, not UTF-16 chars, so an astral-script genre
+        // is not reduced to an empty key that merges unrelated names.
+        foreach (var rune in decomposed.Replace("&", "and", StringComparison.Ordinal).EnumerateRunes())
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+            if (Rune.GetUnicodeCategory(rune) == UnicodeCategory.NonSpacingMark)
             {
                 continue;
             }
 
-            if (char.IsLetterOrDigit(c))
+            if (Rune.IsLetterOrDigit(rune))
             {
-                key.Append(char.ToLowerInvariant(c));
+                key.Append(Rune.ToLowerInvariant(rune).ToString());
             }
         }
 
