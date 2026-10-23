@@ -37,11 +37,13 @@ public sealed record DetailWrite(string Path, DetailOverride Change, PictureBloc
         // the user's music file. The native image decoder performs full validation
         // before showing the preview; these headers reject obviously wrong files.
         var extension = System.IO.Path.GetExtension(path);
+        ReadOnlySpan<byte> pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+        ReadOnlySpan<byte> jpegSignature = [0xFF, 0xD8, 0xFF];
         var png = extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
-            && data.AsSpan().StartsWith([137, 80, 78, 71, 13, 10, 26, 10]);
+            && data.AsSpan().StartsWith(pngSignature);
         var jpeg = (extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
                 || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase))
-            && data.AsSpan().StartsWith([0xFF, 0xD8, 0xFF]);
+            && data.AsSpan().StartsWith(jpegSignature);
         return png ? new PictureBlock(PictureBlock.FrontCover, "image/png", data)
             : jpeg ? new PictureBlock(PictureBlock.FrontCover, "image/jpeg", data)
             : null;
