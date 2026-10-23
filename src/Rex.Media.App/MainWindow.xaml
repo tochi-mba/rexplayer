@@ -270,6 +270,9 @@
           <StackPanel x:Name="SubtitlesMiddle" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2" />
           <StackPanel x:Name="SubtitlesBottom" VerticalAlignment="Bottom" HorizontalAlignment="Center" Spacing="2" />
         </Grid>
+        <!-- Scroll the presentation in tiny windows; never clip the only welcome actions. -->
+        <ScrollViewer x:Name="IdleScroller" HorizontalScrollMode="Disabled" VerticalScrollMode="Auto"
+                      VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
         <!-- Before anything plays, a hint; while music plays, its picture and details (AU-19). -->
         <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" ColumnSpacing="32" Margin="32" AutomationProperties.AutomationId="Idle">
           <Grid.RowDefinitions>
@@ -307,6 +310,7 @@
             </StackPanel>
           </StackPanel>
         </Grid>
+        </ScrollViewer>
         <!-- Lyrics, the line being sung marked and kept in the middle (META-09). -->
         <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="48,0,48,24" MaxWidth="720" CornerRadius="12"
                       VerticalScrollBarVisibility="Hidden" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
@@ -645,7 +649,6 @@
         <InfoBar x:Name="LibraryNotice" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16" MaxWidth="560"
                  IsOpen="False" IsClosable="True" Severity="Informational" AutomationProperties.AutomationId="LibraryNotice" />
       </Grid>
-
       <Grid x:Name="PlaylistPane" Grid.Column="1" Width="344" Visibility="Collapsed" Padding="10,8"
             Background="{ThemeResource LayerFillColorDefaultBrush}" AutomationProperties.AutomationId="PlaylistPane">
         <Grid.RowDefinitions>
@@ -754,7 +757,6 @@
         </StackPanel>
       </Border>
     </Grid>
-
     <Grid x:Name="Controls" Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="20,12,20,14" ColumnSpacing="12" RowSpacing="8" VerticalAlignment="Bottom"
           Background="{ThemeResource LayerFillColorAltBrush}">
       <Grid.RowDefinitions>
@@ -767,7 +769,6 @@
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-
       <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <Button x:Name="StartOverButton" Content="Start over" Click="OnStartOver" IsEnabled="False"
                 ToolTipService.ToolTip="Start this media from the beginning"
@@ -849,7 +850,6 @@
         <TextBlock x:Name="Remaining" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
                    Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
       </StackPanel>
-
       <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="3*" />
@@ -904,7 +904,6 @@
                      AutomationProperties.AutomationId="NowPlayingContext" />
         </StackPanel>
       </Grid>
-
       <StackPanel x:Name="AudioControlStrip" Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
         <!-- Updates (TOOL-09): a quiet indicator while a download runs in the background or an update
              waits; it opens the update panel with the live state. -->
