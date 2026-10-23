@@ -327,7 +327,10 @@ public static partial class ListeningViews
         var timed = candidates.Where(part => part.Entry.LastPlayed is not null).ToList();
         var selected = timed.Count > 0
             ? timed.OrderByDescending(part => part.Entry.LastPlayed).ThenByDescending(part => part.Index).First()
-            : marked.Count > 0 ? marked[^1] : parts[0];
+            : marked.Count > 0 ? marked[^1]
+            // Imported libraries may retain play counts after losing both
+            // timestamps and resume markers. Do not send them back to part one.
+            : parts[Math.Max(0, parts.FindLastIndex(part => part.Entry.Plays > 0))];
         var marker = selected.Marker ?? TimeSpan.Zero;
         var at = marker < TimeSpan.Zero ? TimeSpan.Zero
             : selected.Entry.Duration is { Ticks: > 0 } length && marker > length ? length : marker;
@@ -339,7 +342,7 @@ public static partial class ListeningViews
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentNullException.ThrowIfNull(leftAt);
-        return book.Entries.Any(part => part.LastPlayed is not null || leftAt(part.Path) is not null);
+        return book.Entries.Any(part => part.Plays > 0 || part.LastPlayed is not null || leftAt(part.Path) is not null);
     }
 
     /// <summary>How far through the book <paramref name="place"/> is, 0 to 1, by the parts' running times (by parts while those are unknown).</summary>
