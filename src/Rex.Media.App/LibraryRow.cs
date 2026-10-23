@@ -28,6 +28,7 @@ public partial class LibraryRow(
     private string _transcriptGlyph = "";
     private string _transcriptText = "";
     private string? _downloadText;
+    private string? _notesPreview;
     private bool _isPlaying = isPlaying;
     private bool _summaryOpen;
 
@@ -36,7 +37,8 @@ public partial class LibraryRow(
     public string Name { get; } = name;
 
     /// <summary>What the line says under its name; while its file is still downloading, how far that is.</summary>
-    public string Detail => _downloadText ?? PlainDetail;
+    public string Detail => _downloadText ??
+        (_notesPreview is { Length: > 0 } note ? PlainDetail + " · Notes: " + note : PlainDetail);
 
     /// <summary>What the line says under its name once its file is whole.</summary>
     public string PlainDetail { get; } = detail ?? "";
@@ -75,7 +77,8 @@ public partial class LibraryRow(
 
     public Visibility PlayingVisibility => _isPlaying ? Visibility.Visible : Visibility.Collapsed;
 
-    public string AccessibilityName => _isPlaying ? $"{Name}, now playing" : Name;
+    public string AccessibilityName => (_isPlaying ? $"{Name}, now playing" : Name)
+        + (_notesPreview is { Length: > 0 } ? ", local episode notes available" : "");
 
     /// <summary>The transcription badge's icon (SUB-20), or empty for none.</summary>
     public string TranscriptGlyph => _transcriptGlyph;
@@ -159,6 +162,20 @@ public partial class LibraryRow(
     /// Shows the download badge and detail for a file still arriving (<paramref name="fraction"/>
     /// of it so far, when known), or takes them off with null; nothing is raised when nothing changed.
     /// </summary>
+    public void SetNotesPreview(string? preview)
+    {
+        if (_notesPreview == preview)
+        {
+            return;
+        }
+
+        _notesPreview = preview;
+        foreach (var property in new[] { nameof(Detail), nameof(DetailVisibility), nameof(AccessibilityName) })
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
+    }
+
     public void SetDownload(string? text, double? fraction)
     {
         var percent = fraction is { } part ? Math.Round(part * 100) : 0;
