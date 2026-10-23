@@ -7,6 +7,30 @@ namespace Rex.Media.App.Tests;
 public sealed partial class AppWindowTests
 {
     [Fact]
+    public void ReaderFindsSavedSpeechFromAnotherModelWithoutRetranscribingOrAutoplay()
+    {
+        var media = Song(30);
+        var root = Path.Combine(_media, "other-model-reader-data");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+            { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off" }
+            """);
+        var cache = new TranscriptCache(TranscriptCache.DefaultRoot(root));
+        cache.Save(media, new Transcript("en", "tiny.en",
+            [new TranscriptWord("fallback", TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3))]));
+
+        using var app = AppProcess.Start([media], root);
+        var menu = (ExpandCollapsePattern)app.Find("SubtitleMenu")
+            .GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        menu.Expand();
+        app.Press("ReadTranscript");
+        Wait.For(() => app.IsShown("TranscriptReaderCue-0")
+            && app.Text("TranscriptReaderCoverage").Contains("another locally saved model", StringComparison.Ordinal),
+            "the reader to find existing words without a download or model switch");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void IncompleteSpeechShowsPartialCoverageWithoutPretendingAllWordsWereHeard()
     {
         var media = Song(35);
