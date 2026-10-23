@@ -104,14 +104,14 @@ public sealed partial class MainWindow
                 }
             });
             _libraryPreviousPage.ToolTip = "Show the previous library results";
-            _libraryPreviousPage.AccessibilityLabel = "Previous results page";
+            ((NSView)_libraryPreviousPage).AccessibilityLabel = "Previous results page";
             _libraryNextPage = NSButton.CreateButton("Next", () =>
             {
                 _libraryPageIndex++;
                 RefreshLibrary();
             });
             _libraryNextPage.ToolTip = "Show the next library results";
-            _libraryNextPage.AccessibilityLabel = "Next results page";
+            ((NSView)_libraryNextPage).AccessibilityLabel = "Next results page";
             _libraryPageSummary = NSTextField.CreateLabel("");
             _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
             var pages = NSStackView.FromViews([_libraryPreviousPage, _libraryPageSummary, _libraryNextPage]);
@@ -241,7 +241,7 @@ public sealed partial class MainWindow
             var secondary = entry.Artist ?? entry.Album ?? Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "";
             var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, entries));
             play.ToolTip = entry.Path;
-            play.AccessibilityLabel = "Play " + entry.Title;
+            ((NSView)play).AccessibilityLabel = "Play " + entry.Title;
             play.Alignment = NSTextAlignment.Left;
             play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
             var detail = NSTextField.CreateLabel(secondary);
@@ -258,7 +258,7 @@ public sealed partial class MainWindow
                 Say("Added to Up Next: " + entry.Title);
             });
             queue.ToolTip = "Add to Up Next without replacing what is playing";
-            queue.AccessibilityLabel = "Queue " + entry.Title;
+            ((NSView)queue).AccessibilityLabel = "Queue " + entry.Title;
             var row = NSStackView.FromViews([words, queue]);
             row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             row.Spacing = 14;
