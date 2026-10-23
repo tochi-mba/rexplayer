@@ -203,12 +203,32 @@ public static partial class ListeningViews
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentNullException.ThrowIfNull(leftAt);
-        var latest = 0;
-        for (var index = 1; index < book.Entries.Count; index++)
+        if (book.Entries.Count == 0)
         {
-            if (book.Entries[index].LastPlayed is { } played && played >= (book.Entries[latest].LastPlayed ?? DateTime.MinValue))
+            return default;
+        }
+
+        var latest = 0;
+        if (book.Entries.Any(part => part.LastPlayed is not null))
+        {
+            for (var index = 1; index < book.Entries.Count; index++)
             {
-                latest = index;
+                if (book.Entries[index].LastPlayed is { } played && played >= (book.Entries[latest].LastPlayed ?? DateTime.MinValue))
+                {
+                    latest = index;
+                }
+            }
+        }
+        else
+        {
+            // Some restored libraries have resume markers but no LastPlayed timestamps.
+            // Prefer the last part with a marker rather than silently returning to part one.
+            for (var index = 1; index < book.Entries.Count; index++)
+            {
+                if (leftAt(book.Entries[index].Path) is not null)
+                {
+                    latest = index;
+                }
             }
         }
 
@@ -227,14 +247,31 @@ public static partial class ListeningViews
     public static double Progress(LibraryGroup book, BookPlace place)
     {
         ArgumentNullException.ThrowIfNull(book);
-        var total = book.Entries.Sum(part => (part.Duration ?? TimeSpan.Zero).Ticks);
-        if (total == 0)
+        if (book.Entries.Count == 0)
         {
-            return Math.Clamp((double)place.Part / book.Entries.Count, 0, 1);
+            return 0;
         }
 
-        var before = book.Entries.Take(place.Part).Sum(part => (part.Duration ?? TimeSpan.Zero).Ticks);
-        return Math.Clamp((before + place.At.Ticks) / (double)total, 0, 1);
+        if (place.Part >= book.Entries.Count)
+        {
+            return 1;
+        }
+
+        var index = Math.Max(0, place.Part);
+        var lengths = book.Entries.Select(part => part.Duration ?? TimeSpan.Zero).ToList();
+        var current = lengths[index];
+        var fraction = current > TimeSpan.Zero
+            ? Math.Clamp(place.At.Ticks / (double)current.Ticks, 0, 1) : 0;
+        if (lengths.Any(length => length <= TimeSpan.Zero))
+        {
+            // An unknown or zero-length part cannot count as zero time: that made a
+            // later part look finished before it even started. Fall back to part units.
+            return Math.Clamp((index + fraction) / book.Entries.Count, 0, 1);
+        }
+
+        var total = lengths.Sum(length => (double)length.Ticks);
+        var before = lengths.Take(index).Sum(length => (double)length.Ticks);
+        return Math.Clamp((before + fraction * current.Ticks) / total, 0, 1);
     }
 
     /// <summary>
