@@ -65,7 +65,7 @@ internal static class Screenshots
     {
         // Check dimensions before integer multiplication so corrupt captures fail clearly.
         if (picture.Width <= 0 || picture.Height <= 0
-            || (long)picture.Width * picture.Height * 4 > picture.Bgra.Length)
+            || (long)picture.Width * picture.Height > picture.Bgra.Length / 4)
         {
             return false;
         }
