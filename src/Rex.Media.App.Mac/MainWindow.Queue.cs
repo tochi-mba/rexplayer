@@ -10,6 +10,9 @@ public sealed partial class MainWindow
     private NSTextField? _queueSummary;
     private bool _closingQueue;
     private int _queuePage;
+    private NSTextField? _queueHeader;
+    private NSStackView? _queueToolbar;
+    private NSStackView? _queueLayout;
     private NSButton? _queueShuffle;
     private NSButton? _queueRepeat;
     private NSButton? _previousQueuePage;
@@ -38,6 +41,7 @@ public sealed partial class MainWindow
             _queueWindow.ReleaseWhenClosed(false);
             var header = NSTextField.CreateLabel("Up Next");
             header.Font = NSFont.SystemFontOfSize(26, NSFontWeight.Semibold)!;
+            _queueHeader = header;
             var hint = NSTextField.CreateLabel("Play, remove, or move a track without leaving your media.");
             hint.TextColor = NSColor.SecondaryLabel;
             _queueShuffle = NSButton.CreateButton("Shuffle: Off", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleShuffle));
@@ -66,6 +70,7 @@ public sealed partial class MainWindow
             var tools = NSStackView.FromViews([_queueShuffle, _queueRepeat, open]);
             tools.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             tools.Spacing = 8;
+            _queueToolbar = tools;
             var pages = NSStackView.FromViews([_previousQueuePage, _nextQueuePage]);
             pages.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             pages.Spacing = 8;
@@ -79,6 +84,7 @@ public sealed partial class MainWindow
             _queueScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(170).Active = true;
             var stack = NSStackView.FromViews([header, hint, tools, pages, _queueSummary, _queueScroll]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+            _queueLayout = stack;
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 8;
             stack.EdgeInsets = new NSEdgeInsets(16, 24, 16, 24);
@@ -305,6 +311,7 @@ public sealed partial class MainWindow
 
             Directory.CreateDirectory(folder);
             view.LayoutSubtreeIfNeeded();
+            File.WriteAllText(Path.Combine(folder, "layout.txt"), QueueSmokeLayoutReport());
             using var bitmap = view.BitmapImageRepForCachingDisplayInRect(view.Bounds);
             if (bitmap is null)
             {
@@ -317,6 +324,31 @@ public sealed partial class MainWindow
         }
 
         return false;
+    }
+
+    /// <summary>Frame measurements saved alongside CI screenshots for clipped layout diagnosis.</summary>
+    private string QueueSmokeLayoutReport()
+    {
+        static string Frame(NSView? view)
+        {
+            if (view is null)
+            {
+                return "missing";
+            }
+
+            var frame = view.Frame;
+            return $"x={frame.X:0.0} y={frame.Y:0.0} w={frame.Width:0.0} h={frame.Height:0.0}";
+        }
+
+        var container = _queueWindow?.ContentView;
+        container?.LayoutSubtreeIfNeeded();
+        return "container " + Frame(container) + Environment.NewLine
+            + "stack " + Frame(_queueLayout) + Environment.NewLine
+            + "header " + Frame(_queueHeader) + Environment.NewLine
+            + "toolbar " + Frame(_queueToolbar) + Environment.NewLine
+            + "summary " + Frame(_queueSummary) + Environment.NewLine
+            + "scroll " + Frame(_queueScroll) + Environment.NewLine
+            + "document " + Frame(_queueScroll?.DocumentView) + Environment.NewLine;
     }
 
     private NSButton? FindQueueSmokeButton(string label, bool last = false)
