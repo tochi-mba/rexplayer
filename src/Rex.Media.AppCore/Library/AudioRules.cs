@@ -89,25 +89,42 @@ public readonly record struct AudioVerdict(AudioShelf Shelf, AudioRule Rule)
 /// </summary>
 public sealed class AudioContext
 {
-    /// <summary>A library with nothing in it to compare: no folder of episodes.</summary>
-    public static readonly AudioContext Empty = new(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    /// <summary>A library with nothing in it to compare: no folder of episodes or related book parts.</summary>
+    public static readonly AudioContext Empty = new(
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+        new HashSet<string>(StringComparer.Ordinal));
 
     private readonly HashSet<string> _episodeFolders;
+    private readonly HashSet<string> _audiobookAlbums;
 
-    private AudioContext(HashSet<string> episodeFolders) => _episodeFolders = episodeFolders;
+    private AudioContext(HashSet<string> episodeFolders, HashSet<string> audiobookAlbums)
+    {
+        _episodeFolders = episodeFolders;
+        _audiobookAlbums = audiobookAlbums;
+    }
 
     /// <summary>The context of <paramref name="entries"/>.</summary>
     public static AudioContext Of(IEnumerable<LibraryEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
-        return new AudioContext([.. entries.Where(entry => entry.Kind == LibraryKind.Music && AudioRules.HasEpisodeCode(entry))
-            .GroupBy(entry => AudioRules.FolderOf(entry.Path), StringComparer.OrdinalIgnoreCase)
-            .Where(folder => folder.Count() > 1)
-            .Select(folder => folder.Key)]);
+        var audio = entries.Where(entry => entry.Kind == LibraryKind.Music).ToList();
+        return new AudioContext(
+            [.. audio.Where(AudioRules.HasEpisodeCode)
+                .GroupBy(entry => AudioRules.FolderOf(entry.Path), StringComparer.OrdinalIgnoreCase)
+                .Where(folder => folder.Count() > 1)
+                .Select(folder => folder.Key)],
+            [.. audio.Where(AudioRules.IsAudiobookAnchor)
+                .Select(AudioRules.AlbumKey)
+                .Where(key => key is not null)
+                .Select(key => key!) ]);
     }
 
     /// <summary>Whether several files in <paramref name="folder"/> carry an episode code.</summary>
     public bool IsEpisodeFolder(string folder) => _episodeFolders.Contains(folder);
+
+    /// <summary>Whether another file on this album positively identifies the collection as a book.</summary>
+    public bool IsAudiobookAlbum(LibraryEntry entry) =>
+        AudioRules.AlbumKey(entry) is { } key && _audiobookAlbums.Contains(key);
 }
 
 /// <summary>
@@ -202,6 +219,13 @@ public static partial class AudioRules
             return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Name);
         }
 
+        if ((context ?? AudioContext.Empty).IsAudiobookAlbum(entry)
+            || AudiobookPartPattern().IsMatch(MediaLibrary.TitleOf(entry.Path))
+            || AudiobookPartPattern().IsMatch(entry.Title))
+        {
+            return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Name);
+        }
+
         if (genres.Any(PodcastGenrePattern().IsMatch))
         {
             return new AudioVerdict(AudioShelf.Podcasts, AudioRule.Genre);
@@ -291,6 +315,24 @@ public static partial class AudioRules
     /// <summary>The folder a file is in, the same whichever way its separators lean.</summary>
     internal static string FolderOf(string path) => path.Replace('\\', '/') is var normalized && normalized.LastIndexOf('/') is var slash and >= 0 ? normalized[..slash] : "";
 
+    /// <summary>A stable album-and-folder key; the folder prevents unrelated albums with the same title joining.</summary>
+    internal static string? AlbumKey(LibraryEntry entry) => string.IsNullOrWhiteSpace(entry.Album) ? null
+        : ArtistNames.Key(entry.Album) + "\n" + FolderOf(entry.Path).ToUpperInvariant();
+
+    /// <summary>Whether this file is strong evidence that all files on its album are audiobook parts.</summary>
+    internal static bool IsAudiobookAnchor(LibraryEntry entry)
+    {
+        var extension = Path.GetExtension(entry.Path);
+        var name = MediaLibrary.TitleOf(entry.Path);
+        return string.Equals(extension, ".m4b", StringComparison.OrdinalIgnoreCase)
+            || GenreNames.Split(entry.Genre).Any(AudiobookGenrePattern().IsMatch)
+            || string.Equals(entry.MediaType, MetadataKeys.Audiobook, StringComparison.OrdinalIgnoreCase)
+            || BookLabelPattern().IsMatch(name)
+            || (entry.Title is { } title && (BookLabelPattern().IsMatch(title) || AudiobookPartPattern().IsMatch(title)))
+            || (entry.Album is { } album && BookLabelPattern().IsMatch(album))
+            || IsWholeBook(entry);
+    }
+
     private static AudioShelf? ChosenShelf(string? stored) => stored switch
     {
         AudioShelves.Music => AudioShelf.Music,
@@ -357,10 +399,7 @@ public static partial class AudioRules
 
         // A whole book in one file may only have author/title and album tags. Use a conservative
         // fallback so a long DJ mix or numbered track does not become a book.
-        if (entry.Duration >= TimeSpan.FromHours(2) && entry.Track is null
-            && entry.Genre is null && entry.FiledArtist is not null && entry.Album is not null
-            && ArtistNames.Key(entry.Title) == ArtistNames.Key(entry.Album)
-            && !MusicSetPattern().IsMatch(entry.Title) && !MusicSetPattern().IsMatch(entry.Album))
+        if (IsWholeBook(entry))
         {
             return new AudioVerdict(AudioShelf.Audiobooks, AudioRule.Name);
         }
@@ -376,6 +415,11 @@ public static partial class AudioRules
         || ((entry.Artist ?? entry.AlbumArtist) is not null && (entry.Album is not null || entry.Title != MediaLibrary.TitleOf(entry.Path)))
         || SongNamePattern().IsMatch(MediaLibrary.TitleOf(entry.Path));
 
+    private static bool IsWholeBook(LibraryEntry entry) => entry.Duration >= TimeSpan.FromHours(2) && entry.Track is null
+        && entry.Genre is null && entry.FiledArtist is not null && entry.Album is not null
+        && ArtistNames.Key(entry.Title) == ArtistNames.Key(entry.Album)
+        && !MusicSetPattern().IsMatch(entry.Title) && !MusicSetPattern().IsMatch(entry.Album);
+
     /// <summary>The audiobook genres: "Audiobook", "Audiobooks", "Audio book", "Spoken word", "Spoken &amp; Audio", "Speech".</summary>
     [GeneratedRegex(@"^(?:audio[ _-]?books?|books? & spoken(?: word)?|spoken(?: ?word| & audio)?|speech)(?::\s*\S.*)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AudiobookGenrePattern();
@@ -383,6 +427,10 @@ public static partial class AudioRules
     /// <summary>Explicit audiobook wording in an album, title or filename.</summary>
     [GeneratedRegex(@"(?:^|[^\p{L}])(?:audio[ _.-]*books?|unabridged|abridged)(?:$|[^\p{L}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BookLabelPattern();
+
+    /// <summary>Common ripped-book names: "(Roald Dahl) Charlie ... (Part 3) - 01".</summary>
+    [GeneratedRegex(@"^\s*\([^)]*[\p{L}][^)]*\)\s*.+(?:\(|\b)(?:part|pt|chapter|ch|disc|disk|cd)[ _.-]*\d+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex AudiobookPartPattern();
 
     /// <summary>A live concert or DJ mix is not inferred to be an audiobook from its length.</summary>
     [GeneratedRegex(@"(?:^|[^\p{L}])(?:mix|dj|live|concert|set|session|compilation)(?:$|[^\p{L}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -393,7 +441,7 @@ public static partial class AudioRules
     private static partial Regex PodcastGenrePattern();
 
     /// <summary>The folders books are kept in: "Audiobooks", "Audio Books", "Books".</summary>
-    [GeneratedRegex(@"^(?:audio[ _-]?books?|books)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:^|[^\p{L}])audio[\s_.-]*books?(?:$|[^\p{L}])|^books$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AudiobookFolderPattern();
 
     /// <summary>The folders podcast apps download into: "Podcasts".</summary>

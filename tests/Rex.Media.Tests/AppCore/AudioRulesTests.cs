@@ -368,6 +368,21 @@ public sealed class AudioRulesTests
     }
 
     [Fact]
+    public void AudiobookCollectionsKeepIncompletePartsAndIntrosOutOfMusic()
+    {
+        var narnia = AudioFile("Complete.The Chronicles of Narnia.1-7 [AudioBook.and.PDF]/The Lion.mp3", null, probed: false);
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Folder), Judge(narnia));
+
+        var incomplete = AudioFile("Downloads/(Roald Dahl) Charlie and the Chocolate Factory (Part 3) - 01.mp3", null, probed: false);
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Name), Judge(incomplete));
+
+        var book = AudioFile("Downloads/1984.mp3", TimeSpan.FromHours(10), "George Orwell", "Orwell Collection: Animal Farm & 1984", "Orwell Collection: Animal Farm & 1984");
+        var intro = AudioFile("Downloads/intro.mp3", TimeSpan.FromMinutes(2), "George Orwell", "Orwell Collection: Animal Farm & 1984", "Stephen Fry Intro");
+        var context = AudioContext.Of([book, intro]);
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Name), Judge(intro, context: context));
+    }
+
+    [Fact]
     public void NullsAreRefused()
     {
         Assert.Throws<ArgumentNullException>(() => AudioRules.Judge(null!, MusicLookup.NotSearched));
