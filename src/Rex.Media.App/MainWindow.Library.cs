@@ -28,6 +28,7 @@ public sealed partial class MainWindow
     private static readonly TimeSpan LibraryRescanEvery = TimeSpan.FromMinutes(30);
 
     private readonly List<FileSystemWatcher> _watchers = [];
+    private IReadOnlyList<LibraryEntry>? _libraryRemovalUndo;
     private readonly HashSet<string> _changedFolders = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _libraryPictures = new();
     private CancellationTokenSource _hoverPictures = new();
@@ -459,14 +460,26 @@ public sealed partial class MainWindow
             : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path)
                 ? FetchedEpisodeName(episode) ?? episode.DisplayName : entry.Title;
         var detail = entry.Kind == LibraryKind.Video
-            ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
+            ? (_librarySource is LibrarySource.OtherVideos or LibrarySource.Videos
+                && !string.Equals(Path.GetFileName(entry.Path), entry.Title, StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileName(entry.Path) + " · " : "")
+                + (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
                 + (_librarySource == LibrarySource.Movies && MovieRules.NotMatched(entry, MovieLookupOf(entry)) ? "Not matched · " : "")
                 + (episode is null ? "" : episode.Spoken + " · ")
+                + (entry.VideoWidth is > 0 && entry.VideoHeight is > 0
+                    ? $"{entry.VideoWidth} × {entry.VideoHeight} · " : "")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
-                ? string.Join(" · ", new[] { Path.GetFileName(Path.GetDirectoryName(entry.Path)), entry.Modified == default ? null : entry.Modified.ToLocalTime().ToString("d", CultureInfo.CurrentCulture) }.Where(part => part is not null))
+                ? string.Join(" · ", new[]
+                {
+                    Path.GetFileName(entry.Path),
+                    Path.GetFileName(Path.GetDirectoryName(entry.Path)),
+                    entry.PictureWidth is > 0 && entry.PictureHeight is > 0
+                        ? $"{entry.PictureWidth} × {entry.PictureHeight}" : null,
+                    entry.Modified == default ? null : entry.Modified.ToLocalTime().ToString("d", CultureInfo.CurrentCulture),
+                }.Where(part => part is not null))
                 : string.Join(" · ", new[] { ArtistNames.Display(entry.Artist), entry.Album }.Where(part => part is not null));
         if (entry.Problem is { } problem)
         {
@@ -502,6 +515,7 @@ public sealed partial class MainWindow
         else
         {
             RequestLibraryPicture(args.Item as LibraryRow, ShowsPosters(sender));
+            RequestEpisodeNotes(args.Item as LibraryRow);
         }
 
         // UI Automation reads the ListViewItem peer, not its template's Grid.
@@ -666,7 +680,7 @@ public sealed partial class MainWindow
         if (chosen[0].Item is string folder)
         {
             menu.Items.Add(MenuItem("Play everything in it", "LibraryMenuPlay", PlayChosen));
-            menu.Items.Add(MenuItem("Stop watching", "LibraryMenuRemoveFolder", RemoveChosenFolders));
+            menu.Items.Add(MenuItem("Stop watching...", "LibraryMenuRemoveFolder", () => Forget(RemoveChosenFoldersAsync())));
             AddTranscriptionMenuItems(menu, EntriesOf([chosen[0]]), folder);
             return;
         }
@@ -674,8 +688,11 @@ public sealed partial class MainWindow
         if (chosen[0].Item is NamedPlaylist playlist)
         {
             menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", () => _player.PlayPlaylist(playlist.Id)));
+            menu.Items.Add(MenuItem("Shuffle play", "LibraryMenuShuffleNamed", () => _player.PlayPlaylist(playlist.Id, shuffle: true)));
             menu.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(playlist.Id, enqueue: true)));
             menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(MenuItem("Edit contents...", "LibraryMenuEditNamedPlaylist", () => Forget(EditPlaylistAsync(playlist.Id))));
+            menu.Items.Add(MenuItem("Add files...", "LibraryMenuAddFilesNamedPlaylist", () => Forget(AddFilesToNamedPlaylistAsync(playlist.Id))));
             menu.Items.Add(MenuItem("Rename...", null, () => Forget(RenamePlaylistAsync(playlist.Id))));
             menu.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(playlist.Id)));
             menu.Items.Add(MenuItem("Delete...", null, () => Forget(DeletePlaylistAsync(playlist.Id))));
@@ -731,7 +748,7 @@ public sealed partial class MainWindow
                 () => _player.ResetProgress(selectedEntries.Select(entry => entry.Path).ToList())));
             menu.Items.Add(MenuItem(LibraryActions.MenuText("Copy", selectedEntries.Count, tail: "paths"), "LibraryMenuCopyPath",
                 () => CopyLibraryPaths(selectedEntries)));
-            menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
+            menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Reveal in File Explorer" : "Reveal files in File Explorer", "LibraryMenuOpenFolder",
                 () => Forget(OpenLibraryFoldersAsync(selectedEntries))));
             AddEditDetailsMenuItem(menu, selectedEntries);
             AddListeningMenuItems(menu, selectedEntries, chosen);
@@ -747,12 +764,42 @@ public sealed partial class MainWindow
         }
     }
 
-    private static async Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries)
+    /// <summary>Reveals each selected file in Explorer, while tolerating removed or inaccessible files.</summary>
+    private Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries) =>
+        RevealFilesInExplorerAsync(entries.Select(entry => entry.Path));
+
+    /// <summary>Use the same file-selecting Explorer flow from library and queue menus.</summary>
+    private async Task RevealFilesInExplorerAsync(IEnumerable<string> paths)
     {
-        foreach (var folder in entries.Select(entry => Path.GetDirectoryName(entry.Path))
-            .Where(folder => !string.IsNullOrEmpty(folder)).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var group in LibraryActions.RevealGroups(paths))
         {
-            await Launcher.LaunchFolderPathAsync(folder!);
+            var options = new Windows.System.FolderLauncherOptions();
+            foreach (var path in group.Files)
+            {
+                try
+                {
+                    options.ItemsToSelect.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(path));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                    or ArgumentException or NotSupportedException or System.Runtime.InteropServices.COMException)
+                {
+                    // Files can go missing between a scan and the menu; still open the parent folder.
+                    App.Log.Debug(LogSource, $"Could not select {path} in Explorer: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                if (!await Launcher.LaunchFolderPathAsync(group.Folder, options))
+                {
+                    Say("File Explorer could not open " + group.Folder);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                or ArgumentException or NotSupportedException or System.Runtime.InteropServices.COMException)
+            {
+                Say("File Explorer could not open " + group.Folder + ": " + ex.Message);
+            }
         }
     }
 
@@ -798,6 +845,27 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Return keyboard focus after modal confirmation and background filesystem operations.</summary>
+    private void FocusLibraryAfterFileAction()
+    {
+        OnWindowThread(DispatcherQueuePriority.Low, () =>
+        {
+            if (_closed || !LibraryOpen)
+            {
+                return;
+            }
+
+            if (LibraryCollage.Visibility == Visibility.Visible)
+            {
+                LibraryCollage.Focus(FocusState.Programmatic);
+            }
+            else
+            {
+                LibraryList.Focus(FocusState.Programmatic);
+            }
+        });
+    }
+
     private async Task RemoveLibraryEntriesAsync(IReadOnlyList<LibraryEntry> entries)
     {
         var paths = entries.Select(entry => entry.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -809,8 +877,38 @@ public sealed partial class MainWindow
         var prompt = LibraryActions.RemovePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Remove", "Cancel"))
         {
+            var before = paths.Select(path => _library?.Entry(path)).OfType<LibraryEntry>().ToArray();
             _player.RemoveFromLibrary(paths);
+            _libraryRemovalUndo = before.Length > 0 ? before : null;
+            LibraryUndoRemove.Visibility = _libraryRemovalUndo is null ? Visibility.Collapsed : Visibility.Visible;
         }
+
+        FocusLibraryAfterFileAction();
+    }
+
+    /// <summary>Undo a library-only removal; never re-add paths no longer available on disk.</summary>
+    private void OnLibraryUndoRemove(object sender, RoutedEventArgs e) => Forget(UndoLibraryRemoveAsync());
+
+    private async Task UndoLibraryRemoveAsync()
+    {
+        if (_libraryRemovalUndo is not { } before)
+        {
+            return;
+        }
+
+        _libraryRemovalUndo = null;
+        LibraryUndoRemove.Visibility = Visibility.Collapsed;
+        var available = await Task.Run(() => before.Where(entry => File.Exists(entry.Path)).ToArray());
+        if (!_closed && available.Length > 0)
+        {
+            _player.RestoreToLibrary(available);
+        }
+        else if (!_closed)
+        {
+            Say("No removed files are available to restore");
+        }
+
+        FocusLibraryAfterFileAction();
     }
 
     /// <summary>Moves files through the OS Recycle Bin only, then forgets successful moves.</summary>
@@ -825,6 +923,7 @@ public sealed partial class MainWindow
         var prompt = LibraryActions.DeletePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Move to Recycle Bin", "Cancel"))
         {
+            FocusLibraryAfterFileAction();
             return;
         }
 
@@ -850,6 +949,8 @@ public sealed partial class MainWindow
 
         if (moved.Count > 0)
         {
+            _libraryRemovalUndo = null;
+            LibraryUndoRemove.Visibility = Visibility.Collapsed;
             _player.ForgetDeleted(moved);
         }
 
@@ -857,16 +958,24 @@ public sealed partial class MainWindow
         {
             Say($"{failed.Count} file(s) could not be moved to the Recycle Bin: " + string.Join("; ", failed.Take(3)));
         }
+
+        FocusLibraryAfterFileAction();
     }
 
-    private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => RemoveChosenFolders();
+    private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => Forget(RemoveChosenFoldersAsync());
 
-    private void RemoveChosenFolders()
+    private async Task RemoveChosenFoldersAsync()
     {
         var folders = LibraryList.SelectedItems.OfType<LibraryRow>().Select(row => row.Item).OfType<string>().ToList();
         if (folders.Count == 0)
         {
             Say("Choose the folders to stop watching first.");
+            return;
+        }
+
+        var prompt = LibraryActions.StopWatchingPrompt(folders);
+        if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Stop watching", "Cancel"))
+        {
             return;
         }
 

@@ -67,6 +67,223 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void LocalPodcastShowExplainsAvailabilityAndPlaysUnheardEpisodesOldestFirst()
+    {
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"), TimeSpan.FromMinutes(30), year: 2023);
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 2.wav"), TimeSpan.FromMinutes(30), year: 2024);
+        _scene.Audio(Path.Combine("Podcasts", "Another Show", "Ep 3.wav"), TimeSpan.FromMinutes(30), year: 2025);
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Wait.For(() => app.Lines().SequenceEqual(["Ep 2", "Ep 1"]),
+            "episodes within the chosen local show");
+        Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Pointer.RightClick(app, app.Line("Ep 2"));
+        Wait.For(() => app.IsShown("LibraryMenuPlayUnplayed"), "the unplayed queue action");
+        app.Press("LibraryMenuPlayUnplayed");
+        Wait.For(() => app.Text("NowPlaying") == "Ep 1",
+            "the oldest unplayed local episode to start, not an episode from another show");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AShortSoundHasAnExplicitSingleFileReplayAction()
+    {
+        _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromMinutes(3));
+        _scene.Audio(Path.Combine("Downloads", "ding.wav"), TimeSpan.FromSeconds(6));
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Recordings");
+        Wait.For(() => app.Lines().Contains("ding") && app.Lines().Contains("Recording 001"),
+            "the recording and the short sound to be separate");
+        Pointer.RightClick(app, app.Line("ding"));
+        Wait.For(() => app.IsShown("LibraryMenuReplaySound"), "the sound's own replay action");
+        app.Press("LibraryMenuReplaySound");
+        Wait.For(() => app.Text("NowPlaying") == "ding", "only the chosen sound to start");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ARecordingOffersASeparateKeyboardReachableWaveformReview()
+    {
+        _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromSeconds(5));
+        using var app = _scene.Ready().Start();
+        app.Visit("Recordings");
+        Wait.For(() => app.Lines().Contains("Recording 001"), "the local recording to be listed");
+        Pointer.RightClick(app, app.Line("Recording 001"));
+        Wait.For(() => app.IsShown("LibraryMenuWaveform"), "the waveform review menu action");
+        app.Press("LibraryMenuWaveform");
+        Wait.For(() => app.IsShown("RecordingWaveformStatus")
+            && app.IsShown("RecordingWaveformZoom"), "waveform status and accessible zoom");
+        Assert.Contains("waveform", app.Text("RecordingWaveformStatus"), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AShortSoundHasCompactReplayRepeatVolumeAndDurationControls()
+    {
+        _scene.Audio(Path.Combine("Downloads", "ding.wav"), TimeSpan.FromSeconds(6));
+        using var app = _scene.Ready().Start();
+        app.Visit("Recordings");
+        Wait.For(() => app.Lines().Contains("ding"), "a local quick sound to be listed");
+        Pointer.RightClick(app, app.Line("ding"));
+        Wait.For(() => app.IsShown("LibraryMenuSoundControls"), "the compact sound controls menu action");
+        app.Press("LibraryMenuSoundControls");
+        Wait.For(() => app.IsShown("SoundReplay") && app.IsShown("SoundRepeat") &&
+            app.IsShown("SoundVolume") && app.IsShown("SoundDuration"),
+            "keyboard-reachable replay, scoped repeat, volume and duration");
+        Assert.Contains("Duration", app.Text("SoundDuration"), StringComparison.Ordinal);
+        var repeat = (System.Windows.Automation.TogglePattern)app.Find("SoundRepeat")
+            .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern);
+        repeat.Toggle();
+        Assert.Equal(System.Windows.Automation.ToggleState.On, repeat.Current.ToggleState);
+        app.Press("SoundReplay");
+        Wait.For(() => app.Text("NowPlaying") == "ding", "quick replay to start the chosen sound");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ARecordingTranscriptOpensFromTheLibraryWithoutAutoplay()
+    {
+        var media = _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromSeconds(12));
+        var cache = new Rex.Media.AppCore.Captions.TranscriptCache(
+            Rex.Media.AppCore.Captions.TranscriptCache.DefaultRoot(_scene.Root));
+        cache.Save(media, new Rex.Media.AppCore.Captions.Transcript("en", "base.en",
+            [new Rex.Media.AppCore.Captions.TranscriptWord("review.", TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2))]));
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Recordings");
+        Pointer.RightClick(app, app.Line("Recording 001"));
+        Wait.For(() => app.IsShown("LibraryMenuReadTranscript"), "the local recording transcript action");
+        app.Press("LibraryMenuReadTranscript");
+        Wait.For(() => app.IsShown("TranscriptReaderCue-0") &&
+            app.Text("TranscriptReaderCoverage").Contains("Saved transcript", StringComparison.Ordinal),
+            "saved speech to be readable without first starting playback");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void LocalPodcastNotesRemainPlainSelectableTextWithoutExecutingMarkup()
+    {
+        var episode = _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
+            TimeSpan.FromMinutes(3), year: 2024);
+        File.WriteAllText(Path.ChangeExtension(episode, ".notes.md"),
+            "Chapter one\n<script>alert('not executed')</script>\nhttps://example.invalid/");
+        using var app = _scene.Ready().Start();
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Wait.For(() => app.Line("Ep 1").FindAll(System.Windows.Automation.TreeScope.Descendants,
+            new System.Windows.Automation.PropertyCondition(System.Windows.Automation.AutomationElement.ControlTypeProperty,
+                System.Windows.Automation.ControlType.Text))
+            .Cast<System.Windows.Automation.AutomationElement>()
+            .Any(child => child.Current.Name.Contains("Notes: Chapter one", StringComparison.Ordinal)),
+            "the local notes preview to update a visible episode without rebuilding the show");
+        Pointer.RightClick(app, app.Line("Ep 1"));
+        Wait.For(() => app.IsShown("LibraryMenuPodcastNotes"), "local notes menu for a podcast episode");
+        app.Press("LibraryMenuPodcastNotes");
+        var notes = (System.Windows.Automation.ValuePattern)app.Find("PodcastNotesText")
+            .GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern);
+        Assert.Contains("<script>", notes.Current.Value, StringComparison.Ordinal);
+        Assert.Contains("Chapter one", notes.Current.Value, StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void RecordingDetailsKeepTheFilePathAndSeparateDeleteSemanticsVisible()
+    {
+        _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromMinutes(3));
+        using var app = _scene.Ready().Start();
+        app.Visit("Recordings");
+        Pointer.RightClick(app, app.Line("Recording 001"));
+        Wait.For(() => app.IsShown("LibraryMenuRecordingDetails")
+            && app.IsShown("LibraryMenuRemove") && app.IsShown("LibraryMenuDelete"),
+            "separate details, remove-only and Recycle-Bin file actions");
+        app.Press("LibraryMenuRecordingDetails");
+        Wait.For(() => app.IsShown("RecordingDetailPath") &&
+            app.IsShown("RecordingDetailSeek") && app.IsShown("RecordingDetailBookmark")
+            && app.IsShown("RecordingDetailSpeed"),
+            "file location, precise review seek, speed and bookmark controls");
+        Assert.Contains("does not delete its file", app.Text("RecordingDetailStatus"), StringComparison.Ordinal);
+        Assert.Contains("Duration", app.Text("RecordingDetailDuration"), StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void PodcastTransportGivesSpokenSkipSpeedAndSleepWithoutFeedControls()
+    {
+        var episode = _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
+            TimeSpan.FromMinutes(5), year: 2024);
+        File.WriteAllText(Path.ChangeExtension(episode, ".notes.txt"), "Local talk outline.");
+        using var app = _scene.Ready().Start();
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Pointer.RightClick(app, app.Line("Ep 1"));
+        Wait.For(() => app.IsShown("LibraryMenuPodcastControls"), "podcast transport menu");
+        app.Press("LibraryMenuPodcastControls");
+        Wait.For(() => app.IsShown("PodcastControlsPlay") && app.IsShown("PodcastControlsBack")
+            && app.IsShown("PodcastControlsForward") && app.IsShown("PodcastControlsSpeed")
+            && app.IsShown("PodcastControlsSleep30") && app.IsShown("PodcastControlsSleepEnd")
+            && app.IsShown("PodcastControlsTranscript") && app.IsShown("PodcastControlsNotes"),
+            "spoken-word resume, skip, speed, sleep, notes and transcript navigation");
+        Assert.Contains("no feed or download controls", app.Text("PodcastControlsStatus"),
+            StringComparison.Ordinal);
+        app.Press("PodcastControlsNotes");
+        Wait.For(() => app.IsShown("PodcastNotesText"),
+            "transport to close before opening the separate local notes dialog");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void HomeHasLocalPodcastShowCardsWithAWorkingSeeAllRoute()
+    {
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"), TimeSpan.FromMinutes(20), year: 2024);
+        _scene.Audio(Path.Combine("Podcasts", "Morning Review", "Ep 1.wav"), TimeSpan.FromMinutes(20), year: 2025);
+        using var app = _scene.Ready().Start();
+        app.Visit("Home");
+        Wait.For(() => app.IsShown("LibraryShelf-PodcastShows"), "the podcast show shelf on Home");
+        app.Press("LibraryShelf-PodcastShows");
+        Wait.For(() => app.Text("LibraryTitle") == "Podcasts" &&
+            app.Lines().Contains("Night Talk") && app.Lines().Contains("Morning Review"),
+            "See all to open show-oriented local podcast navigation");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void LocalPodcastShowDisplaysOnlyItsOwnSafeDescriptionAndCreatorEvidence()
+    {
+        var episode = _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
+            TimeSpan.FromMinutes(20), artist: "Host", album: "Night Talk");
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(episode)!, "show.notes.txt"),
+            "Independent local show notes. <script>literal only</script>");
+        using var app = _scene.Ready().Start();
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Wait.For(() => app.Text("LibraryOverview").Contains("Independent local show notes.", StringComparison.Ordinal),
+            "the show description from its explicit local sidecar");
+        Assert.Contains("<script>", app.Text("LibraryOverview"), StringComparison.Ordinal);
+        Assert.Contains("Artist tag:", app.Text("LibraryFacts"), StringComparison.Ordinal);
+        Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Pointer.RightClick(app, app.Line("Ep 1"));
+        Wait.For(() => app.IsShown("LibraryMenuShowNotes"), "safe full-show local notes action");
+        app.Press("LibraryMenuShowNotes");
+        var full = (System.Windows.Automation.ValuePattern)app.Find("PodcastShowNotesText")
+            .GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern);
+        Assert.Contains("Independent local show notes.", full.Current.Value, StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),

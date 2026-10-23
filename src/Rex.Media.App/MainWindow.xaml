@@ -408,14 +408,13 @@
         <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <StackPanel x:Name="LibraryBrand" Margin="20,18,48,8" Spacing="2" IsHitTestVisible="False">
-            <TextBlock Text="rexplayer" FontSize="20" FontWeight="SemiBold" CharacterSpacing="-30" />
+            <TextBlock Text="rexplayer" FontSize="{StaticResource LibraryBrandFontSize}" FontWeight="SemiBold" CharacterSpacing="-30" />
             <TextBlock Text="YOUR LIBRARY" FontSize="10" CharacterSpacing="140" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
-          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" Padding="0" CornerRadius="10"
-                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" HorizontalAlignment="Right"
                   Click="OnLibraryNavigationToggle" ToolTipService.ToolTip="Collapse library navigation"
                   AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
-            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE89F;" FontSize="16" />
+            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
           </Button>
           <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8,0,12" Background="Transparent"
                     ItemContainerStyle="{StaticResource LibrarySourceItemStyle}"
@@ -503,11 +502,14 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
                   <Button x:Name="LibraryPlay" Click="OnLibraryPlay" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="LibraryPlay"
                           ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
-                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock x:Name="LibraryPlayText" Text="Play" /></StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock x:Name="LibraryPlayText" Text="Play" AutomationProperties.AutomationId="LibraryPlayText" /></StackPanel>
                   </Button>
                   <Button x:Name="LibraryShuffle" Click="OnLibraryShuffle" AutomationProperties.AutomationId="LibraryShuffle" ToolTipService.ToolTip="Play the chosen items, or all of them, shuffled">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8B1;" FontSize="14" /><TextBlock Text="Shuffle" /></StackPanel>
                   </Button>
+                  <Button x:Name="LibraryUndoRemove" Content="Undo remove from library" Visibility="Collapsed"
+                          Click="OnLibraryUndoRemove" AutomationProperties.AutomationId="LibraryUndoRemove"
+                          ToolTipService.ToolTip="Restore recently removed library entries; no files are copied or changed" />
                   <Button x:Name="LibraryEnqueue" Click="OnLibraryEnqueue" AutomationProperties.AutomationId="LibraryEnqueue" ToolTipService.ToolTip="Add the chosen items, or all of them, to the end of the playlist">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14" /><TextBlock Text="Add to queue" /></StackPanel>
                   </Button>
@@ -667,8 +669,25 @@
         </Grid.RowDefinitions>
         <StackPanel Margin="6,2,0,10" Spacing="2">
           <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" />
-          <TextBlock Text="Drag to reorder · right-click for actions" FontSize="12"
+          <TextBlock Text="Drag to reorder · Alt+Up/Down to move selection" FontSize="12"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="PlaylistQueueCount" Text="0 items" FontSize="12"
+                     AutomationProperties.AutomationId="PlaylistQueueCount" />
+          <TextBlock x:Name="PlaylistQueueNow" Text="Nothing playing" FontSize="12" TextTrimming="CharacterEllipsis"
+                     AutomationProperties.AutomationId="PlaylistQueueNow" />
+          <TextBlock x:Name="PlaylistQueueNext" Text="No upcoming items" FontSize="12" TextTrimming="CharacterEllipsis"
+                     AutomationProperties.AutomationId="PlaylistQueueNext" />
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button x:Name="PlaylistUndoReorder" Content="Undo reorder" Padding="6,2" Margin="0,3,0,0" IsEnabled="False"
+                    HorizontalAlignment="Left" Click="OnPlaylistUndoReorder"
+                    AutomationProperties.AutomationId="PlaylistUndoReorder" AutomationProperties.Name="Undo last queue reorder" />
+            <Button x:Name="PlaylistUndoRemoval" Content="Undo removal" Padding="6,2" Margin="0,3,0,0" IsEnabled="False"
+                    HorizontalAlignment="Left" Click="OnPlaylistUndoRemoval"
+                    AutomationProperties.AutomationId="PlaylistUndoRemoval" AutomationProperties.Name="Restore removed queue entries" />
+          </StackPanel>
+          <Button x:Name="PlaylistJumpNow" Content="Jump to playing item" Padding="6,2" Margin="0,3,0,0"
+                  HorizontalAlignment="Left" Click="OnPlaylistJumpNow"
+                  AutomationProperties.AutomationId="PlaylistJumpNow" AutomationProperties.Name="Scroll queue to the playing item" />
         </StackPanel>
         <Grid Grid.Row="1">
         <ListView x:Name="PlaylistView" SelectionMode="Extended" IsItemClickEnabled="False"
@@ -701,8 +720,18 @@
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
-                  <TextBlock Text="{x:Bind Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                  <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="1" Text="{x:Bind DurationText}" FontSize="11"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               AutomationProperties.AutomationId="QueueDuration" />
+                  </Grid>
                   <Grid Grid.Row="1" ColumnSpacing="6">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto" />
@@ -716,6 +745,9 @@
                     <TextBlock Grid.Column="2" Text="Missing" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                                Visibility="{x:Bind MissingVisibility}" />
                   </Grid>
+                  <ProgressBar Grid.Row="2" Height="3" Minimum="0" Maximum="100"
+                               Value="{x:Bind ProgressPercent, Mode=OneWay}" Visibility="{x:Bind ProgressVisibility}"
+                               AutomationProperties.AutomationId="QueuePlaybackProgress" AutomationProperties.Name="Current queue item progress" />
                 </Grid>
               </Grid>
             </DataTemplate>
@@ -856,6 +888,19 @@
                         AutomationProperties.AutomationId="MovieVersionButton" AutomationProperties.Name="Choose movie resolution">
           <DropDownButton.Flyout>
             <MenuFlyout x:Name="MovieVersionMenu" />
+          </DropDownButton.Flyout>
+        </DropDownButton>
+        <DropDownButton x:Name="PictureIntervalButton" Visibility="Collapsed" Content="Slideshow · 5 s" Padding="6,2"
+                        AutomationProperties.AutomationId="PictureIntervalButton" AutomationProperties.Name="Slideshow interval"
+                        ToolTipService.ToolTip="Choose how long each picture stays; Play/Pause and Previous/Next control the slideshow">
+          <DropDownButton.Flyout>
+            <MenuFlyout>
+              <MenuFlyoutItem Text="2 seconds" Tag="2" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
+              <MenuFlyoutItem Text="5 seconds" Tag="5" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
+              <MenuFlyoutItem Text="10 seconds" Tag="10" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
+              <MenuFlyoutItem Text="30 seconds" Tag="30" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
+              <MenuFlyoutItem Text="60 seconds" Tag="60" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
+            </MenuFlyout>
           </DropDownButton.Flyout>
         </DropDownButton>
         <TextBlock x:Name="Remaining" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"

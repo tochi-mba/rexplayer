@@ -64,6 +64,7 @@ public sealed class LibraryArtworkTests : IDisposable
             LibraryPictures.WaitFor(app, LibraryPictures.Band(area, left: 0.15, right: 0.85, top: 0.4, bottom: 0.55), $"tile {index + 1} to show its picture");
         }
 
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-show-page-collage", "LibraryCollage");
         Assert.Equal(0, app.Close());
     }
@@ -81,6 +82,7 @@ public sealed class LibraryArtworkTests : IDisposable
         app.Pick("LibraryLook", "Grid");
         var card = app.Line("Quiet Harbour").Current.BoundingRectangle;
         LibraryPictures.WaitFor(app, LibraryPictures.Band(card, left: 0.2, right: 0.8, top: 0.45, bottom: 0.6), "the show's card to show a made poster");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-show-card-made-poster", "LibraryList");
         Assert.Equal(0, app.Close());
     }

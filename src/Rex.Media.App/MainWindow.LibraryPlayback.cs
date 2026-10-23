@@ -63,9 +63,26 @@ public sealed partial class MainWindow
                 // starts or resumes the film, instead of a title click unexpectedly starting it.
                 OpenMovieDetails(entry);
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music
+                && (ShelfOf(entry) is AudioShelf.Recordings or AudioShelf.Sounds):
+                // A voice note or short effect is a single listening task. Finishing it must
+                // not roll into another recording or sound from the library's mixed list.
+                Play([entry], 0, resume: ShelfOf(entry) == AudioShelf.Recordings);
+                break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music && ShelfOf(entry) == AudioShelf.Podcasts:
+                PlayPodcastEpisode(entry);
+                break;
             case LibraryEntry entry:
                 var view = EntriesOf(_libraryRows);
-                Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
+                if (entry.Kind == LibraryKind.Picture)
+                {
+                    var sequence = LibraryViews.PictureSlideshow(view, entry);
+                    Play(sequence.Items, sequence.Start);
+                }
+                else
+                {
+                    Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
+                }
                 if (view.Count > 1 && LibraryViews.EpisodeOf(entry) is { } episode)
                 {
                     Say(episode.Episode is { } number ? $"Playing {episode.Series}, season {episode.Season}, from episode {number}" : $"Playing {episode.Series}, season {episode.Season}");

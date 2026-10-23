@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Captions;
+using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.IO;
 
@@ -78,9 +79,25 @@ public sealed partial class MainWindow
         navigation.Children.Add(next);
         container.Children.Add(navigation);
 
+        var findControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var search = new TextBox { Header = "Find speech", PlaceholderText = "Word or phrase", Width = 280 };
+        var find = new Button { Content = "Find next", VerticalAlignment = VerticalAlignment.Bottom };
+        var jump = new Button { Content = "Jump to match", VerticalAlignment = VerticalAlignment.Bottom, IsEnabled = false };
+        var matchStatus = new TextBlock { Text = "Search the words that have been transcribed.", TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetAutomationId(search, "TranscriptEditSearch");
+        AutomationProperties.SetAutomationId(find, "TranscriptEditFindNext");
+        AutomationProperties.SetAutomationId(jump, "TranscriptEditJump");
+        AutomationProperties.SetAutomationId(matchStatus, "TranscriptEditMatch");
+        findControls.Children.Add(search);
+        findControls.Children.Add(find);
+        findControls.Children.Add(jump);
+        container.Children.Add(findControls);
+        container.Children.Add(matchStatus);
+
         var words = new StackPanel { Spacing = 5 };
         container.Children.Add(new ScrollViewer { Content = words, MaxHeight = 420 });
         var page = 0;
+        var matchIndex = -1;
         const int pageSize = 50;
         var changing = false;
         Task pendingWrite = Task.CompletedTask;
@@ -193,6 +210,38 @@ public sealed partial class MainWindow
             changing = false;
             UpdateNavigation();
         }
+
+        search.TextChanged += (_, _) =>
+        {
+            matchIndex = -1;
+            jump.IsEnabled = false;
+            matchStatus.Text = "Search the words that have been transcribed.";
+        };
+        find.Click += (_, _) =>
+        {
+            matchIndex = TranscriptSearch.FindNext(history.Current.Words, search.Text, matchIndex);
+            if (matchIndex < 0)
+            {
+                jump.IsEnabled = false;
+                matchStatus.Text = "No matching speech was found.";
+                return;
+            }
+
+            page = matchIndex / pageSize;
+            ShowPage();
+            var at = history.Current.Words[matchIndex].Start;
+            matchStatus.Text = $"Match at word {matchIndex + 1} of {history.Current.Words.Count}, {TimeText.Format(at, _player.Duration)}.";
+            jump.IsEnabled = _player.CanSeek && _player.Item?.Location == media;
+        };
+        jump.Click += (_, _) =>
+        {
+            if (matchIndex >= 0 && matchIndex < history.Current.Words.Count
+                && _player.CanSeek && _player.Item?.Location == media)
+            {
+                var at = history.Current.Words[matchIndex].Start;
+                _player.Seek(at < TimeSpan.Zero ? TimeSpan.Zero : at);
+            }
+        };
 
         previous.Click += (_, _) => { page--; ShowPage(); };
         next.Click += (_, _) => { page++; ShowPage(); };

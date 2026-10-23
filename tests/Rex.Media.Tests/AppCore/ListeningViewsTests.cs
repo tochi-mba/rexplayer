@@ -447,6 +447,124 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void UndatedPodcastEpisodesKeepStableTieBreaksInBothDirectionsAndSkipUnavailableFiles()
+    {
+        var first = AudioFile("Podcasts/Night Talk/ep-1.mp3", TimeSpan.FromMinutes(30), track: 1);
+        var second = AudioFile("Podcasts/Night Talk/ep-2.mp3", TimeSpan.FromMinutes(30), track: 2);
+        var third = AudioFile("Podcasts/Night Talk/ep-3.mp3", TimeSpan.FromMinutes(30), track: 3);
+        var show = new LibraryGroup("Night Talk", null, [third, first, second]);
+
+        Assert.Equal([first, second, third], ListeningViews.Episodes(show.Entries, oldestFirst: true));
+        Assert.Equal([third, second, first], ListeningViews.Episodes(show.Entries, oldestFirst: false));
+        Assert.Equal([first, third], ListeningViews.UnplayedInOrder(show, NeverLeft, entry => entry.Path != second.Path));
+        Assert.Equal([first, second, third], ListeningViews.UnplayedInOrder(show, NeverLeft));
+        Assert.Empty(ListeningViews.UnplayedInOrder(show, NeverLeft, _ => false));
+
+        var empty = new LibraryGroup("Empty show", null, []);
+        Assert.Equal(DateTime.MinValue, ListeningViews.NewestEpisode(empty));
+        Assert.Empty(ListeningViews.Episodes([], oldestFirst: true));
+        Assert.Empty(ListeningViews.UnplayedInOrder(empty, NeverLeft));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void PodcastHomeNeverListsFutureAddedEpisodesAndThousandEpisodeShowsHaveStableOrder()
+    {
+        var now = new DateTime(2024, 8, 1, 12, 0, 0, DateTimeKind.Utc);
+        var episodes = Enumerable.Range(1, 1000)
+            .Select(number => AudioFile($"Podcasts/Big Show/ep-{number:0000}.mp3", TimeSpan.FromMinutes(30), track: number)
+                with { Added = now.AddHours(-1), Modified = now.AddDays(-1) })
+            .Reverse().ToArray();
+        var future = AudioFile("Podcasts/Big Show/ep-future.mp3", TimeSpan.FromMinutes(30))
+            with { Added = now.AddDays(1), Modified = now };
+        var show = Assert.Single(ListeningViews.Shows([.. episodes, future]));
+        Assert.Equal(1001, show.Entries.Count);
+        Assert.Equal(episodes[^1].Path, ListeningViews.Episodes(show.Entries, oldestFirst: true)[0].Path);
+        Assert.DoesNotContain(future, ListeningViews.NewEpisodes(
+            new ListeningShelves([], [show], [], []), NeverLeft, now));
+        Assert.Equal(1000, ListeningViews.NewEpisodes(
+            new ListeningShelves([], [show], [], []), NeverLeft, now).Count);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void DuplicateEpisodeTitlesAndUndatedOfflineShowsKeepSeparateLocalPaths()
+    {
+        var first = AudioFile("Podcasts/Show One/Episode.mp3", null, album: "Show One");
+        var second = AudioFile("Podcasts/Show One/Extra/Episode.mp3", null, album: "Show One");
+        var third = AudioFile("Podcasts/Other Show/Episode.mp3", null, album: "Other Show");
+        var shelves = ListeningViews.Arrange([third, second, first], AudioRules.Offline);
+        Assert.Equal(2, shelves.Podcasts.Count);
+        var one = shelves.Podcasts.Single(show => show.Name == "Show One");
+        var other = shelves.Podcasts.Single(show => show.Name == "Other Show");
+        Assert.Equal(2, one.Entries.Count);
+        Assert.Equal(2, one.Entries.Select(entry => entry.Path).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal([first, second], ListeningViews.Episodes(one.Entries, oldestFirst: true));
+        Assert.Equal(DateTime.MinValue, ListeningViews.NewestEpisode(one));
+        Assert.Equal(DateTime.MinValue, ListeningViews.NewestEpisode(other));
+        Assert.Equal(2, ListeningViews.UnplayedInOrder(one, NeverLeft).Count);
+        Assert.Equal([first], ListeningViews.UnplayedInOrder(one, NeverLeft,
+            entry => entry.Path != second.Path));
+        Assert.Empty(ListeningViews.UnplayedInOrder(one, NeverLeft, _ => false));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AFileMovedOffDiskOrStillDownloadingCannotEnterAnUnplayedShowQueue()
+    {
+        var folder = Directory.CreateTempSubdirectory("rexplayer-local-show-").FullName;
+        try
+        {
+            var firstPath = Path.Combine(folder, "Ep 1.mp3");
+            var missingPath = Path.Combine(folder, "Ep 2.mp3");
+            File.WriteAllBytes(firstPath, [1, 2, 3, 4]);
+            File.WriteAllBytes(missingPath, [1, 2, 3, 4]);
+            var first = AudioFile(firstPath, TimeSpan.FromMinutes(20), album: "Local");
+            var missing = AudioFile(missingPath, TimeSpan.FromMinutes(20), album: "Local");
+            var show = new LibraryGroup("Local", null, [first, missing]);
+            File.Move(missingPath, Path.Combine(folder, "Moved.mp3"));
+            bool Available(LibraryEntry item) => File.Exists(item.Path) && !item.Downloading
+                && item.Problem is null;
+
+            Assert.Equal([first], ListeningViews.UnplayedInOrder(show, NeverLeft, Available));
+            Assert.Empty(ListeningViews.UnplayedInOrder(
+                show with { Entries = [first with { Downloading = true }] }, NeverLeft, Available));
+            Assert.Empty(ListeningViews.UnplayedInOrder(
+                show with { Entries = [first with { Problem = "incomplete file" }] }, NeverLeft, Available));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void OpeningAnEpisodeKeepsOnlyAvailableSameShowFilesInChronologicalOrder()
+    {
+        var oldest = AudioFile("Podcasts/Show/Episode 1.mp3", TimeSpan.FromMinutes(25))
+            with { Year = 2022 };
+        var damaged = AudioFile("Podcasts/Show/Episode 2.mp3", TimeSpan.FromMinutes(25))
+            with { Year = 2023, Problem = "partial" };
+        var newest = AudioFile("Podcasts/Show/Episode 3.mp3", TimeSpan.FromMinutes(25))
+            with { Year = 2024 };
+        var all = new[] { newest, damaged, oldest };
+        bool Available(LibraryEntry entry) => entry.Problem is null;
+
+        var (queue, first) = ListeningViews.AvailableEpisodeQueue(all, oldest.Path, Available);
+        Assert.Equal([oldest, newest], queue);
+        Assert.Equal(0, first);
+        Assert.Equal(1, ListeningViews.AvailableEpisodeQueue(all, newest.Path, Available).StartIndex);
+        Assert.Equal(-1, ListeningViews.AvailableEpisodeQueue(all, damaged.Path, Available).StartIndex);
+        Assert.Equal(-1, ListeningViews.AvailableEpisodeQueue(all, "Podcasts/Other/Episode 1.mp3", Available).StartIndex);
+        Assert.Empty(ListeningViews.AvailableEpisodeQueue(all, oldest.Path, _ => false).Queue);
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.AvailableEpisodeQueue(null!, oldest.Path, Available));
+        Assert.Throws<ArgumentException>(() => ListeningViews.AvailableEpisodeQueue(all, "", Available));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.AvailableEpisodeQueue(all, oldest.Path, null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnEpisodesDateComesFromItsTagsThenTheFileThenItsName()
     {
         var file = new DateTime(2024, 6, 2, 8, 0, 0, DateTimeKind.Utc);
@@ -489,6 +607,15 @@ public sealed class ListeningViewsTests
         var file = new DateTime(2023, 4, 1, 0, 0, 0, DateTimeKind.Utc);
         Assert.Equal(file, ListeningViews.RecordedAt(AudioFile("Phone/Recording 001.m4a", null) with { Modified = file }));
         Assert.Null(ListeningViews.RecordedAt(AudioFile("Phone/Recording 001.m4a", null)));
+        Assert.Null(ListeningViews.RecordingDateEvidence(AudioFile("Phone/No Date.m4a", null)));
+        var filenameDate = ListeningViews.RecordingDateEvidence(AudioFile("Phone/REC_20240105_101010.wav", null));
+        Assert.True(filenameDate?.FromFilename);
+        Assert.Equal(new DateTime(2024, 1, 5, 10, 10, 10), filenameDate?.At);
+        var updated = new DateTime(2024, 1, 6, 9, 0, 0, DateTimeKind.Utc);
+        var fileDate = ListeningViews.RecordingDateEvidence(
+            AudioFile("Phone/Recording 004.m4a", null) with { Modified = updated });
+        Assert.False(fileDate?.FromFilename);
+        Assert.Equal(updated, fileDate?.At);
 
         // A date that is no date is passed over.
         Assert.Null(ListeningViews.RecordedAt(AudioFile("Phone/REC_20241332.wav", null)));
@@ -696,6 +823,7 @@ public sealed class ListeningViewsTests
         Assert.Throws<ArgumentNullException>(() => ListeningViews.NewEpisodes(null!, NeverLeft, DateTime.UtcNow));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.NewEpisodes(shelves, null!, DateTime.UtcNow));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordedAt(null!));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordingDateEvidence(null!));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordingSections(null!, [], DateTime.Now));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordingSections([], null!, DateTime.Now));
     }

@@ -155,7 +155,10 @@ public sealed partial class MainWindow
                 using var stream = new InMemoryRandomAccessStream();
                 await stream.WriteAsync(cover.AsBuffer());
                 stream.Seek(0);
-                var image = new BitmapImage { DecodePixelWidth = 400 };
+                var header = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+                var limit = PictureDecodeLimit.For(header.OrientedPixelWidth, header.OrientedPixelHeight, 400);
+                stream.Seek(0);
+                var image = new BitmapImage { DecodePixelWidth = limit.Width, DecodePixelHeight = limit.Height };
                 await image.SetSourceAsync(stream);
                 if (!ReferenceEquals(cover, _shownCover))
                 {

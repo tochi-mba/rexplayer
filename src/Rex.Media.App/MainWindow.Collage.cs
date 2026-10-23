@@ -40,7 +40,9 @@ public sealed partial class MainWindow
                 : item is LibraryGroup && _librarySource == LibrarySource.TvShows ? LibraryKind.Video
                 : LibraryKind.Music;
             var poster = _librarySource == LibrarySource.Movies || item is LibraryGroup && _librarySource == LibrarySource.TvShows;
-            ratios[offset] = CollageLayout.AspectRatio(kind, poster, index);
+            ratios[offset] = item is LibraryEntry { Kind: LibraryKind.Picture } picture
+                ? CollageLayout.PictureAspectRatio(picture.PictureWidth, picture.PictureHeight, index)
+                : CollageLayout.AspectRatio(kind, poster, index);
         }
 
         args.SetDesiredAspectRatios(ratios);

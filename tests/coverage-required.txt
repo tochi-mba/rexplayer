@@ -259,6 +259,8 @@ PlayerMemory.cs
 PlayerMetrics.cs
 PlayerSettings.cs
 Playlist.cs
+PodcastNotes.cs
+PodcastEpisodeProgress.cs
 PlaylistEntry.cs
 PlaylistFiles.cs
 PlaylistPaths.cs
@@ -266,14 +268,17 @@ PlaylistText.cs
 Pls.cs
 PoliteHosts.cs
 PictureBorders.cs
+PictureDecodeLimit.cs
 PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs
+QueueScrollPolicy.cs
 Raster.cs
 RateGate.cs
 Rational.cs
 ReleaseNotes.cs
 RemovalPanel.cs
+RecordingWaveform.cs
 Resampler.cs
 ResonanceScene.cs
 ResumeMarker.cs
@@ -285,6 +290,7 @@ RipplesScene.cs
 Sami.cs
 SampleConverter.cs
 SampleRing.cs
+SavedPlaylistFacts.cs
 ScannerScene.cs
 ScanWindow.cs
 SectionAnalysis.cs
@@ -355,6 +361,7 @@ TimeText.cs
 TimeWarpScene.cs
 TrackInfo.cs
 Transcript.cs
+TranscriptSearch.cs
 TranscriptAlignment.cs
 TranscriptCache.cs
 TranscriptEdits.cs

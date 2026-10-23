@@ -150,7 +150,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rid: [osx-arm64, osx-x64]
+        rid: [osx-arm64, osx-x64, universal]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -185,12 +185,22 @@ jobs:
           dotnet workload install macos --version "$set"
 
       - name: Build rexplayer.app
-        run: dotnet publish src/Rex.Media.App.Mac/Rex.Media.App.Mac.csproj -c Release -r ${{ matrix.rid }} -nologo -o publish/${{ matrix.rid }}
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          # With no single RID override, the macOS SDK builds both RuntimeIdentifiers and
+          # arranges each CPU's managed runtime payload for the generated native launcher.
+          args=()
+          if [ "$RID" != universal ]; then args=(-r "$RID"); fi
+          dotnet publish src/Rex.Media.App.Mac/Rex.Media.App.Mac.csproj -c Release "${args[@]}" -nologo -o "publish/$RID"
 
       - name: Sign it ad hoc and zip it the way a Mac expects
         run: |
           # Publishing leaves an installer package in the output folder and the bundle itself in bin.
-          app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/${{ matrix.rid }} -maxdepth 1 -name '*.app' | head -1)
+          bundle_root=src/Rex.Media.App.Mac/bin/Release/net10.0-macos
+          rid='${{ matrix.rid }}'
+          if [ "$rid" != universal ]; then bundle_root="$bundle_root/$rid"; else rid=osx-universal; fi
+          app=$(find "$bundle_root" -maxdepth 1 -name '*.app' | head -1)
           test -n "$app" || { echo "No rexplayer.app was built." >&2; exit 1; }
           echo "Bundling $app"
           codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist "$app"
@@ -199,7 +209,7 @@ jobs:
           ditto -c -k --keepParent "$app" "dist/rexplayer-mac-${{ matrix.rid }}.zip"
           python3 scripts/verify-mac-bundle.py \
             --app "$app" \
-            --rid "${{ matrix.rid }}" \
+            --rid "$rid" \
             --minimum 12.0 \
             --zip "dist/rexplayer-mac-${{ matrix.rid }}.zip"
           (cd dist && shasum -a 256 "rexplayer-mac-${{ matrix.rid }}.zip" > "rexplayer-mac-${{ matrix.rid }}.zip.sha256")
@@ -212,7 +222,28 @@ jobs:
         run: |
           app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/osx-arm64 -maxdepth 1 -name '*.app' | head -1)
           export REXPLAYER_MAC_APP="$PWD/$app"
+          export REXPLAYER_MAC_SCREENSHOTS="$PWD/artifacts/mac-library-screenshots"
+          # This controlled runner must match the visually reviewed macOS PNG baselines.
+          export REXPLAYER_MAC_SCREENSHOT_BASELINES=1
           dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
+
+      - name: Keep the native library screenshots
+        if: matrix.rid == 'osx-arm64' && always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mac-library-screenshots
+          path: artifacts/mac-library-screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Keep native Mac queue screenshots
+        if: matrix.rid == 'osx-arm64' && always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mac-queue-screenshots
+          path: artifacts/mac-queue-screenshots/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Keep the app
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -222,11 +253,15 @@ jobs:
           retention-days: 14
 
   macos-universal:
-    name: The universal Mac app, assembled and verified (macOS)
+    name: The downloaded universal Mac app (${{ matrix.runner }})
     needs: macos-app
     # Launch the exact downloadable universal bundle on Sequoia, not just the macOS 26 build host.
-    runs-on: macos-15
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -236,51 +271,28 @@ jobs:
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: rexplayer-mac-osx-arm64
-          path: input/arm64
+          name: rexplayer-mac-universal
+          path: dist
 
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: rexplayer-mac-osx-x64
-          path: input/x64
-
-      - name: Assemble, sign and verify the universal app
+      - name: Extract and verify the distributed universal app
         run: |
-          mkdir -p unpack/arm64 unpack/x64 dist
-          ditto -x -k input/arm64/rexplayer-mac-osx-arm64.zip unpack/arm64
-          ditto -x -k input/x64/rexplayer-mac-osx-x64.zip unpack/x64
-          arm_app=$(find unpack/arm64 -maxdepth 1 -name '*.app' | head -1)
-          x64_app=$(find unpack/x64 -maxdepth 1 -name '*.app' | head -1)
-          test -n "$arm_app" -a -n "$x64_app" || { echo "Both Mac app bundles are required." >&2; exit 1; }
-          python3 scripts/make-universal-mac-app.py \
-            --arm64 "$arm_app" \
-            --x64 "$x64_app" \
-            --output rexplayer.app
-          codesign --force --deep --sign - --entitlements src/Rex.Media.App.Mac/Entitlements.plist rexplayer.app
+          (cd dist && shasum -a 256 --check rexplayer-mac-universal.zip.sha256)
+          ditto -x -k dist/rexplayer-mac-universal.zip .
           codesign --verify --deep --strict rexplayer.app
-          ditto -c -k --keepParent rexplayer.app dist/rexplayer-mac-universal.zip
           python3 scripts/verify-mac-bundle.py \
             --app rexplayer.app \
             --rid osx-universal \
             --minimum 12.0 \
             --zip dist/rexplayer-mac-universal.zip
-          (cd dist && shasum -a 256 rexplayer-mac-universal.zip > rexplayer-mac-universal.zip.sha256)
 
       # Signing validity alone does not prove the .NET runtime starts on Sequoia.
-      # Launch the final, re-signed universal bundle and exercise playback + a clean quit.
+      # Launch the extracted bundle without modifying it, and exercise playback + a clean quit.
       - name: Launch the release bundle on macOS 15 Sequoia
         run: |
           sw_vers
           test "$(sw_vers -productVersion | cut -d . -f 1)" = "15"
           export REXPLAYER_MAC_APP="$PWD/rexplayer.app"
           dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
-
-      - name: Keep the universal app
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: rexplayer-mac-universal
-          path: dist/
-          retention-days: 14
 
   site:
     name: Website
@@ -392,6 +404,179 @@ jobs:
               Write-Host "AUDIOBOOK_BASELINE_END:$name"
             }
           }
+
+      - name: Repeat offline screenshot fixture suites in fresh processes
+        if: success()
+        env:
+          REXPLAYER_UI_LANE: ci-windows-repeat
+        run: |
+          dotnet test --project tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj -c Release --no-build -- --filter-class Rex.Media.App.Tests.LibraryFixtureVisualTests
+          if ($LASTEXITCODE -ne 0) { throw "Repeating library fixture scenes failed." }
+          dotnet test --project tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj -c Release --no-build -- --filter-class Rex.Media.App.Tests.LibraryEvidenceEdgeTests
+          if ($LASTEXITCODE -ne 0) { throw "Repeating long-title fixture scenes failed." }
+
+      - name: Verify image stability across independent app launches
+        if: success()
+        shell: pwsh
+        run: ./scripts/check-screenshot-repeatability.ps1
+
+      # Keep the canonical inventory even if the UI suite aborts before any capture.
+      # Per-scene JSON and process logs remain alongside actual, baseline and diff.
+      - name: Keep the screenshot scene inventory
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/screenshots/inventory | Out-Null
+          Copy-Item tests/screenshot-scenes.json artifacts/screenshots/inventory/screenshot-scenes.json
+
+      # A green UI suite must also prove that all declared scenes emitted
+      # both image and machine-readable witnesses on this exact CI head.
+      - name: Audit declared screenshot evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $inventory = Get-Content tests/screenshot-scenes.json -Raw | ConvertFrom-Json
+          $errors = [System.Collections.Generic.List[string]]::new()
+          # High-DPI and high-contrast scenes belong to separately configured
+          # Windows desktops. Never pretend this regular lane has produced them.
+          $required = @($inventory.scenes | Where-Object {
+            -not $_.requiredLane -or $_.requiredLane -eq "ci-windows"
+          })
+          foreach ($scene in $required) {
+            $prefix = "artifacts/screenshots/ci-windows/actual/$($scene.id)"
+            if (-not (Test-Path "$prefix.png")) {
+              $errors.Add("$($scene.id): no rendered PNG")
+            }
+            if (-not (Test-Path "artifacts/screenshots/ci-windows/window/$($scene.id).png")) {
+              $errors.Add("$($scene.id): no full application window evidence")
+            }
+            if (-not (Test-Path "$prefix.json")) {
+              $errors.Add("$($scene.id): no UIA and capture metadata")
+              continue
+            }
+            $evidence = Get-Content "$prefix.json" -Raw | ConvertFrom-Json
+            if ($evidence.sceneId -ne $scene.id) {
+              $errors.Add("$($scene.id): mismatched sidecar ID")
+            }
+            if ($scene.captureMode -eq "desktop" -and $evidence.fullyOnDesktop -ne $true) {
+              $errors.Add("$($scene.id): desktop screenshot extends off the virtual screen")
+            }
+            if ($scene.dimensions -match '^\d+x\d+$' -and $evidence.viewportMatchesDeclared -ne $true) {
+              $errors.Add("$($scene.id): pinned viewport was not actually rendered at $($scene.dimensions)")
+            }
+            if ($evidence.readinessAchieved -ne $true) {
+              $errors.Add("$($scene.id): UI Automation readiness not proved")
+            }
+            if ($evidence.pixelReadinessAchieved -ne $true) {
+              $errors.Add("$($scene.id): image and pixel witness not proved")
+            }
+            if ($evidence.repeatabilityAchieved -ne $true -or -not (Test-Path "artifacts/screenshots/ci-windows/repeat/$($scene.id).png")) {
+              $errors.Add("$($scene.id): repeated capture is missing or unstable")
+            }
+          }
+          Write-Host "Audited $($required.Count) standard screenshot scenes; dedicated contrast and DPI lanes remain separate acceptance gates."
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host "SCREENSHOT EVIDENCE GAP: $_" }
+            throw "$($errors.Count) screenshot evidence gap(s); see the retained screenshots artifact."
+          }
+
+      - name: Build browseable screenshot review gallery
+        if: always()
+        run: python scripts/build-screenshot-review.py
+
+      # Every screenshot as CI drew it, and a diff for any that failed: the only source of the
+      # baselines in tests/screenshot-baselines/ci-windows (see tests/Rex.Media.App.Tests/Screenshots.cs).
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots
+          path: artifacts/screenshots/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  release:
+    name: Publish a new version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [windows, linux-pure, macos-pure, macos-app, macos-universal, site, perf, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # The release notes are the changelog's section for the version: rexplayer's own update panel
+      # shows them, so they are written for people, not generated from merged changes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: dist
+
+      # Both Macs' apps: one version ships for every platform, or for none (ADR-0020).
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: rexplayer-mac-*
+          merge-multiple: true
+          path: dist
+
+      - name: Verify and publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.windows.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          tag="v${RELEASE_VERSION}"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $tag already exists; published releases are immutable."
+            exit 0
+          fi
+          # The changelog's section for this version, without its heading; generated notes only if it has none.
+          awk -v heading="## ${RELEASE_VERSION} " 'index($0, heading) == 1 || $0 == substr(heading, 1, length(heading) - 1) { found = 1; next }
+            found && /^## / { exit }
+            found { print }' CHANGELOG.md > release-notes.md
+          if grep -q '[^[:space:]]' release-notes.md; then notes=(--notes-file "$PWD/release-notes.md"); else notes=(--generate-notes); fi
+          cd dist
+          sha256sum --check rexplayer-Setup-*.exe.sha256
+          sha256sum --check rexplayer-*-win-x64.zip.sha256
+          sha256sum --check rexplayer-mac-osx-arm64.zip.sha256 rexplayer-mac-osx-x64.zip.sha256 rexplayer-mac-universal.zip.sha256
+          # The same installer under a name that never changes, so .../releases/latest/download/rexplayer-Setup.exe
+          # (the site's download button) is always the newest.
+          cp "rexplayer-Setup-${RELEASE_VERSION}.exe" rexplayer-Setup.exe
+          gh release create "$tag" rexplayer-Setup-*.exe rexplayer-Setup-*.exe.sha256 rexplayer-Setup.exe rexplayer-*-win-x64.zip rexplayer-*-win-x64.zip.sha256 \
+            rexplayer-mac-osx-arm64.zip rexplayer-mac-osx-arm64.zip.sha256 rexplayer-mac-osx-x64.zip rexplayer-mac-osx-x64.zip.sha256 \
+            rexplayer-mac-universal.zip rexplayer-mac-universal.zip.sha256 \
+            --repo "${{ github.repository }}" \
+            --target "$GITHUB_SHA" \
+            --title "rexplayer ${RELEASE_VERSION}" \
+            "${notes[@]}" \
+            --latest
+ -and $evidence.viewportMatchesDeclared -ne $true) {
+              $errors.Add("$($scene.id): pinned viewport was not actually rendered at $($scene.dimensions)")
+            }
+            if ($evidence.readinessAchieved -ne $true) {
+              $errors.Add("$($scene.id): UI Automation readiness not proved")
+            }
+            if ($evidence.pixelReadinessAchieved -ne $true) {
+              $errors.Add("$($scene.id): image and pixel witness not proved")
+            }
+            if ($evidence.repeatabilityAchieved -ne $true -or -not (Test-Path "artifacts/screenshots/ci-windows/repeat/$($scene.id).png")) {
+              $errors.Add("$($scene.id): repeated capture is missing or unstable")
+            }
+          }
+          Write-Host "Audited $($required.Count) standard screenshot scenes; dedicated contrast and DPI lanes remain separate acceptance gates."
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host "SCREENSHOT EVIDENCE GAP: $_" }
+            throw "$($errors.Count) screenshot evidence gap(s); see the retained screenshots artifact."
+          }
+
+      - name: Build browseable screenshot review gallery
+        if: always()
+        run: python scripts/build-screenshot-review.py
 
       # Every screenshot as CI drew it, and a diff for any that failed: the only source of the
       # baselines in tests/screenshot-baselines/ci-windows (see tests/Rex.Media.App.Tests/Screenshots.cs).
