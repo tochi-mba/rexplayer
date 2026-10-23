@@ -1,6 +1,6 @@
 <!-- Scoped workstream source of truth. Tasks are intentionally unchecked until evidence-backed. -->
 
-# Windows UX workstream 3/4 — Music, lyrics and visualizer experience
+# Windows UX workstream 3/4  -  Music, lyrics and visualizer experience
 
 ## Objective and deliverables
 Improve Music Home, songs/albums/artists, line- and word-timed lyrics presentation, detached lyrics companion and existing visualizer catalog, retaining performance controls and camera permissions.
@@ -19,7 +19,7 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 - [ ] **Implement the actual code and tests.** At creation this PR is a *planning-only draft* and its checkboxes must remain unchecked until implementation and verification.
 - [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
 
-## Detailed task list — 63 uniquely owned roadmap tasks
+## Detailed task list  -  63 uniquely owned roadmap tasks
 The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
 
 ### P0. Music Home, songs, albums, artists and genres
@@ -60,8 +60,8 @@ Music already has a specialized Home, artist/album compositions, Songs table, ar
 - [ ] Word-level LRC requires AppCore model extension: `Lyrics.Parse` currently removes `<mm:ss.xxx>` word markers; preserve usable segments and validate ranges before enabling karaoke.
 - [ ] Add independent lyric/layout/companion UIA and visual tests for styles, themes, timing, pause/seek, high DPI, RTL, large text, no art, no lyrics, track changes and screen-reader descriptions.
 
-### P0. Audio visualizer compatibility — protected existing architecture
-**Critical:** `MainWindow.Visualizer.cs` already supports dozens of audio-reactive modes, a separate `AudiobookVisualizer`, `VisualizerGroups`, option palettes, on-demand camera effects, software stage, `MusicPulse` analysis, `_visualPacing`/`_budget`, renderer sizing and cleanup. This overhaul must use—not circumvent—that system.
+### P0. Audio visualizer compatibility  -  protected existing architecture
+**Critical:** `MainWindow.Visualizer.cs` already supports dozens of audio-reactive modes, a separate `AudiobookVisualizer`, `VisualizerGroups`, option palettes, on-demand camera effects, software stage, `MusicPulse` analysis, `_visualPacing`/`_budget`, renderer sizing and cleanup. This overhaul must use - not circumvent - that system.
 
 - [ ] Inventory every `VisualizerChoice` and `VisualizerGroups` family (spectrum, waveform, meters, spectrogram, light/scene simulations and all camera-driven variants); none may disappear from selection or saved settings.
 - [ ] Preserve `VisualizerOptions` keys, palette choices, sensitivity, meter, camera/cover source options and per-mode defaults/range normalization; old values must round-trip through new UI.
@@ -111,7 +111,7 @@ Source of truth is `docs/capability-matrix.json`. Generated files are never hand
 - [ ] Lyrics: original baseline, detached light/dark/compact/multimonitor, split/reversed, docked, theater, overlay, reading, karaoke if timed, editor, no lyrics, RTL, CJK, line seek
 - [ ] Visualizer: picker grouped by mode, spectrum/oscilloscope/meters/spectrogram/representative scene and camera mode, off, no permission, unavailable device, lyrics over visualization, 4K/low-end
 
-## Standard completion gates — 8 checks per PR
+## Standard completion gates  -  8 checks per PR
 - [ ] Map current routes, code owners, capability IDs and previously passing UI assertions before changing behavior.
 - [ ] Implement each owned feature in separately reviewable source changes without altering the core decoder/engine contract.
 - [ ] Add deterministic offline fixtures for normal, empty, long/RTL, missing, corrupt, slow and partial data relevant to this scope.
@@ -135,9 +135,9 @@ Source of truth is `docs/capability-matrix.json`. Generated files are never hand
 The four parts are independent draft PRs against `main`; none may assume unchecked changes elsewhere have shipped. Foundation (1) owns the existing Settings search, screenshot guard and shared shell. Specialist Settings content (4) must reuse it after landing and **not duplicate the foundation**. Video/player (2), music/lyrics/visualizers (3), and spoken-word/tools (4) must agree on existing playback-stage and focus contracts before overlapping edits. Follow `AGENTS.md`, the clean-room rules and ADR-0020; preserve automation and media engine invariants.
 
 ## Sister workstreams
-- 1/4 — UI foundation and deterministic QA
-- 2/4 — Video and adaptive playback
-- **3/4 — Music, lyrics and visualizers (this PR)**
-- 4/4 — Spoken word, metadata and tools
+- 1/4  -  UI foundation and deterministic QA
+- 2/4  -  Video and adaptive playback
+- **3/4  -  Music, lyrics and visualizers (this PR)**
+- 4/4  -  Spoken word, metadata and tools
 
 **Merge gate:** Remain draft until actual implementation, full task evidence, reviewed real screenshots and green current-head CI exist. A planning document is not a completed feature. Original complete source and roadmap remain traceable in [#467](https://github.com/tochi-mba/rexplayer/pull/467).
