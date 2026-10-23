@@ -186,6 +186,26 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void RecordingDetailsKeepTheFilePathAndSeparateDeleteSemanticsVisible()
+    {
+        _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromMinutes(3));
+        using var app = _scene.Ready().Start();
+        app.Visit("Recordings");
+        Pointer.RightClick(app, app.Line("Recording 001"));
+        Wait.For(() => app.IsShown("LibraryMenuRecordingDetails")
+            && app.IsShown("LibraryMenuRemove") && app.IsShown("LibraryMenuDelete"),
+            "separate details, remove-only and Recycle-Bin file actions");
+        app.Press("LibraryMenuRecordingDetails");
+        Wait.For(() => app.IsShown("RecordingDetailPath") &&
+            app.IsShown("RecordingDetailSeek") && app.IsShown("RecordingDetailBookmark"),
+            "file location, precise review seek and bookmark controls");
+        Assert.Contains("does not delete its file", app.Text("RecordingDetailStatus"), StringComparison.Ordinal);
+        Assert.Contains("Duration", app.Text("RecordingDetailDuration"), StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
