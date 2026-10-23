@@ -72,6 +72,7 @@ public sealed partial class MainWindow : IDisposable
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
         _window.ContentView = Layout();
         InitializeQueue();
+        InitializeLibrary();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
         NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
     }
@@ -107,6 +108,7 @@ public sealed partial class MainWindow : IDisposable
             _log.Warning(LogSource, "The settings could not be saved: " + ex.Message);
         }
 
+        CloseLibrary();
         CloseQueue();
         DisposePlaybackTools();
         _player.Dispose();
@@ -151,6 +153,14 @@ public sealed partial class MainWindow : IDisposable
                     }
 
                     break;
+                case "mac-library":
+                    if (!LibrarySmokeAction(request.Id, request.Paths))
+                    {
+                        answered.SetResult(AutomationReply.Failed("The native library smoke action is unavailable: " + request.Id));
+                        return;
+                    }
+
+                    break;
                 case "status":
                     break;
                 default:
@@ -164,7 +174,9 @@ public sealed partial class MainWindow : IDisposable
                 State = _player.State.ToString(),
                 Title = request.Command == "mac-queue"
                     ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "")
-                    : _player.Item is null ? null : _player.Title,
+                    : request.Command == "mac-library"
+                        ? _librarySummary?.StringValue
+                        : _player.Item is null ? null : _player.Title,
                 Position = _player.Position.TotalSeconds,
                 Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
             });
@@ -222,6 +234,8 @@ public sealed partial class MainWindow : IDisposable
         var next = NSButton.CreateButton("Next", () => Run(CommandCatalog.Next));
         var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var queue = NSButton.CreateButton("Up Next", ShowQueue);
+        var library = NSButton.CreateButton("Library", ShowLibrary);
+        library.ToolTip = "Browse your own local library and watched folders";
         queue.ToolTip = "View, reorder, and manage what plays next";
         open.ToolTip = "Open a file (Cmd+O)";
         _playPause.BezelStyle = NSBezelStyle.Rounded;
@@ -230,7 +244,7 @@ public sealed partial class MainWindow : IDisposable
         _playPause.ToolTip = "Play or pause (Space)";
         _seek.ToolTip = "Seek through the current file";
         _volume.ToolTip = "Volume";
-        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, queue, _volume]);
+        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, library, queue, _volume]);
         controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         controls.Spacing = 8;
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
@@ -260,7 +274,8 @@ public sealed partial class MainWindow : IDisposable
         var welcomeOpen = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var welcomeFolder = NSButton.CreateButton("Open folder", () => Run(CommandCatalog.OpenFolder));
         var welcomeQueue = NSButton.CreateButton("Up Next", ShowQueue);
-        var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder, welcomeQueue]);
+        var welcomeLibrary = NSButton.CreateButton("Library", ShowLibrary);
+        var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder, welcomeLibrary, welcomeQueue]);
         welcomeActions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         welcomeActions.Spacing = 12;
         _welcome = NSStackView.FromViews([welcomeTitle, welcomeHint, welcomeActions]);
@@ -292,6 +307,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
+        app.AddItem(new NSMenuItem("Library…", (_, _) => ShowLibrary()));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
@@ -365,6 +381,9 @@ public sealed partial class MainWindow : IDisposable
         {
             case CommandCatalog.OpenFile or CommandCatalog.OpenFolder:
                 OpenWithPanel(folders: command == CommandCatalog.OpenFolder);
+                return true;
+            case CommandCatalog.ToggleLibrary:
+                ShowLibrary();
                 return true;
             case CommandCatalog.Quit:
                 NSApplication.SharedApplication.Terminate(null);
