@@ -952,6 +952,50 @@
       "owner": "LibraryFixtureVisualTests",
       "baseline": "unreviewed",
       "captureMode": "desktop"
+    },
+    {
+      "id": "library-long-title-compact",
+      "fixture": "one-long-tagged-song-no-artwork",
+      "route": "library/songs",
+      "state": "long-title-compact",
+      "dimensions": "720x640",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Songs"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryEvidenceEdgeTests",
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
+    },
+    {
+      "id": "library-missing-artwork-wide",
+      "fixture": "one-long-tagged-song-no-artwork",
+      "route": "library/songs",
+      "state": "missing-artwork",
+      "dimensions": "1000x760",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Songs"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryEvidenceEdgeTests",
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     }
   ]
 }
