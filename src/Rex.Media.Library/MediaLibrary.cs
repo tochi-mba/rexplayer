@@ -312,6 +312,9 @@ public sealed class MediaLibrary
 
             Store.Set(FoldersKey, JsonSerializer.Serialize(_folders, LibraryJson.Default.ListString));
             Write([.. _entries.Values.Where(entry => Holds(folder, entry.Path) && !_folders.Any(other => Holds(other, entry.Path)))], remove: true);
+            // An explicitly removed watch folder must not keep secretly remembered paths.
+            ClearMissing(_absent.Keys.Where(path => Holds(folder, path)
+                && !_folders.Any(other => Holds(other, path))).ToArray());
 
             // Adding the folder again later starts afresh: nothing in it stays hidden.
             if (_hidden.RemoveWhere(path => Holds(folder, path) && !_folders.Any(other => Holds(other, path))) > 0)
@@ -755,12 +758,23 @@ public sealed class MediaLibrary
         lock (_gate)
         {
             var played = _entries.Values.Where(entry => entry.Plays > 0 || entry.LastPlayed is not null).Select(entry => entry with { Plays = 0, LastPlayed = null }).ToList();
-            if (played.Count == 0)
+            var past = _absent.Values.Where(entry => entry.Plays > 0 || entry.LastPlayed is not null).ToArray();
+            if (played.Count == 0 && past.Length == 0)
             {
                 return;
             }
 
             Write(played, remove: false);
+            ClearMissing(past.Where(entry => entry.Override is null).Select(entry => entry.Path).ToArray());
+            var retained = past.Where(entry => entry.Override is not null)
+                .Select(entry => entry with { Plays = 0, LastPlayed = null }).ToArray();
+            foreach (var entry in retained)
+            {
+                _absent[entry.Path] = entry;
+            }
+
+            Store.SetMany([.. retained.Select(entry => new KeyValuePair<string, string?>(
+                AbsentPrefix + KeyFor(entry.Path), JsonSerializer.Serialize(entry, LibraryJson.Default.LibraryEntry)))]);
         }
 
         Changed?.Invoke(this, EventArgs.Empty);
