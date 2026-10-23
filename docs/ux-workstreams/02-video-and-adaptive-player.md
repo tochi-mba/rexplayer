@@ -1,6 +1,6 @@
 <!-- Scoped workstream source of truth. Tasks are intentionally unchecked until evidence-backed. -->
 
-# Windows UX workstream 2/4 — Movies, TV, video, pictures and playback
+# Windows UX workstream 2/4 · Movies, TV, video, pictures and playback
 
 ## Objective and deliverables
 Rework Movies, TV, episodes, pictures and the actual video player around media-specific layouts and trustworthy playback/navigation states without replacing the media engine.
@@ -19,7 +19,7 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 - [ ] **Complete implementation and verification.** A first TV-continuation and media-stage policy slice is committed; the remaining roadmap and release gates are not complete.
 - [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
 
-## Implementation progress — 2026-10-23
+## Implementation progress · 2026-10-23
 This is a partial implementation, **not** acceptance of any full roadmap or release gate. The existing 63 roadmap checks stay open until their entire scope is proven.
 
 - [x] Fix pure next-episode selection so missing season numbers do not prevent playing an available later episode (commit `23139d1`).
@@ -34,7 +34,7 @@ This is a partial implementation, **not** acceptance of any full roadmap or rele
 - [ ] Execute the affected pure tests on a .NET-capable runner; they have **not been run here**.
 - [ ] Complete the remaining TV browsing, player, picture, queue, adaptive layout, automation, screenshots and performance items before declaring readiness.
 
-## Detailed task list — 63 uniquely owned roadmap tasks
+## Detailed task list · 63 uniquely owned roadmap tasks
 The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
 
 ### P0. Movies, cinematic details and cast
@@ -134,7 +134,7 @@ Source of truth is `docs/capability-matrix.json`. Generated files are never hand
 - [ ] Pictures/video files: image ratios, transparent/corrupt/huge image, zoom/navigator, slideshow, thumbnail-less/portrait video, All Videos mixed
 - [ ] Players: movie cinema/details/technical, TV episode panel, music artwork/split/visualizer/compact, audiobook, podcast notes/transcript, recording and image modes
 
-## Standard completion gates — 8 checks per PR
+## Standard completion gates · 8 checks per PR
 - [ ] Map current routes, code owners, capability IDs and previously passing UI assertions before changing behavior.
 - [ ] Implement each owned feature in separately reviewable source changes without altering the core decoder/engine contract.
 - [ ] Add deterministic offline fixtures for normal, empty, long/RTL, missing, corrupt, slow and partial data relevant to this scope.
@@ -158,9 +158,9 @@ Source of truth is `docs/capability-matrix.json`. Generated files are never hand
 The four parts are independent draft PRs against `main`; none may assume unchecked changes elsewhere have shipped. Foundation (1) owns the existing Settings search, screenshot guard and shared shell. Specialist Settings content (4) must reuse it after landing and **not duplicate the foundation**. Video/player (2), music/lyrics/visualizers (3), and spoken-word/tools (4) must agree on existing playback-stage and focus contracts before overlapping edits. Follow `AGENTS.md`, the clean-room rules and ADR-0020; preserve automation and media engine invariants.
 
 ## Sister workstreams
-- 1/4 — UI foundation and deterministic QA
-- **2/4 — Video and adaptive playback (this PR)**
-- 3/4 — Music, lyrics and visualizers
-- 4/4 — Spoken word, metadata and tools
+- 1/4 · UI foundation and deterministic QA
+- **2/4 · Video and adaptive playback (this PR)**
+- 3/4 · Music, lyrics and visualizers
+- 4/4 · Spoken word, metadata and tools
 
 **Merge gate:** Remain draft until actual implementation, full task evidence, reviewed real screenshots and green current-head CI exist. A planning document is not a completed feature. Original complete source and roadmap remain traceable in [#467](https://github.com/tochi-mba/rexplayer/pull/467).
