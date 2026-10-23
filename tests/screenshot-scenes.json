@@ -996,6 +996,45 @@
       "owner": "LibraryEvidenceEdgeTests",
       "baseline": "unreviewed",
       "captureMode": "desktop"
+    },
+    {
+      "id": "caption-buffer-loading",
+      "fixture": "tagged-wav-fake-speech-600",
+      "route": "player/captions",
+      "state": "loading",
+      "dimensions": "1000x700",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "CaptionBufferOverlay",
+        "CaptionBufferPlayNow"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "CaptionBufferOverlay",
+          "name": "Preparing captions"
+        }
+      ],
+      "readinessSignal": "uia:CaptionBufferOverlay",
+      "owner": "AppWindowTests.CaptionWait",
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
+    },
+    {
+      "id": "library-incomplete-download-notice",
+      "fixture": "twenty-byte-mp4-with-aria2-partial",
+      "route": "library/all-videos",
+      "state": "recoverable-incomplete-file-notice",
+      "dimensions": "1000x700",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryNotice"
+      ],
+      "expectedVisibleData": [],
+      "readinessSignal": "uia:LibraryNotice",
+      "owner": "LibraryDownloadsTests",
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     }
   ]
 }
