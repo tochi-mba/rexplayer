@@ -61,6 +61,14 @@ public static class AlbumPage
         }
 
         var songs = album.Entries;
+        if (songs.Count == 0)
+        {
+            // A previously opened release can become empty while its drive is
+            // disconnected or a background rescan removes its last file.
+            // Do not invent a Single/EP classification for no actual songs.
+            return ReleaseKind.Album;
+        }
+
         if (string.Equals(album.Detail, VariousArtists, StringComparison.OrdinalIgnoreCase)
             || (songs.All(song => song.AlbumArtist is null) && songs.Select(song => ArtistNames.Key(song.Artist ?? "")).Distinct(StringComparer.Ordinal).Count() >= 4))
         {
@@ -80,7 +88,7 @@ public static class AlbumPage
     public static int? Year(LibraryGroup album, EnrichedAlbum? facts)
     {
         ArgumentNullException.ThrowIfNull(album);
-        return MusicBrainzFacts.YearOf(facts?.FirstReleased) ?? album.Entries.Max(song => song.Year);
+        return MusicBrainzFacts.YearOf(facts?.FirstReleased) ?? album.Entries.Select(song => song.Year).DefaultIfEmpty().Max();
     }
 
     /// <summary>The line under the title: "Album · 2024 · 14 songs, 48 min".</summary>
@@ -100,6 +108,11 @@ public static class AlbumPage
     public static IReadOnlyList<AlbumDisc> Discs(LibraryGroup album)
     {
         ArgumentNullException.ThrowIfNull(album);
+        if (album.Entries.Count == 0)
+        {
+            return [];
+        }
+
         var discs = album.Entries
             .OrderBy(song => song.Disc ?? 1).ThenBy(song => song.Track ?? int.MaxValue).ThenBy(song => song.Title, NaturalOrder.Instance)
             .GroupBy(song => song.Disc ?? 1)
@@ -137,7 +150,7 @@ public static class AlbumPage
     {
         ArgumentNullException.ThrowIfNull(song);
         ArgumentNullException.ThrowIfNull(album);
-        var most = album.Entries.Max(entry => entry.Plays);
+        var most = album.Entries.Select(entry => entry.Plays).DefaultIfEmpty(0).Max();
         return most <= 0 ? 0 : Math.Clamp(song.Plays / (double)most, 0, 1);
     }
 
