@@ -56,9 +56,7 @@ public sealed partial class MainWindow
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
             HasLyrics: _settings.ShowLyrics && _player.Lyrics is not null,
             // A lone zero-time chapter is just Start Over, not a useful chapter picker.
-            HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown
-                && chapter.Start > MediaTime.Zero
-                && (_player.Duration <= TimeSpan.Zero || chapter.Start.ToTimeSpan() <= _player.Duration)) == true,
+            HasChapters: MediaStagePolicy.HasChapterJumps(info, _player.Duration),
             HasCaptions: _player.Subtitles is not null || _player.SecondarySubtitles is not null,
             HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
         _stageView = stage;
@@ -319,16 +317,12 @@ public sealed partial class MainWindow
             StageChapterMenu.Items.Clear();
             foreach (var (index, chapter) in info.Chapters.Index())
             {
-                if (!chapter.Start.IsKnown || chapter.Start < MediaTime.Zero)
+                if (!MediaStagePolicy.IsPlayableChapter(chapter.Start, _player.Duration))
                 {
                     continue;
                 }
 
                 var at = chapter.Start.ToTimeSpan();
-                if (_player.Duration > TimeSpan.Zero && at > _player.Duration)
-                {
-                    continue;
-                }
 
                 var label = string.IsNullOrWhiteSpace(chapter.Title)
                     ? $"Chapter {index + 1}" : chapter.Title.Trim();
@@ -345,7 +339,7 @@ public sealed partial class MainWindow
                     if (ReferenceEquals(_player.Item, item)
                         && ReferenceEquals(_player.Info, info)
                         && _stageView.ShowChapters && _stageView.CanSeek && _player.CanSeek
-                        && (_player.Duration <= TimeSpan.Zero || at <= _player.Duration)
+                        && MediaStagePolicy.IsPlayableChapter(chapter.Start, _player.Duration)
                         && (!_settings.MinimalInterface || IsFullScreen))
                     {
                         _player.Seek(at);
