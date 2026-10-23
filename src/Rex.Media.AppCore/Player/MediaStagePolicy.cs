@@ -66,8 +66,12 @@ public readonly record struct MediaStageView(
         MediaStageProfile.Error => "The active media could not be played.",
         MediaStageProfile.Unsupported => "The active file has no playable audio or video track.",
         MediaStageProfile.Picture => "Picture view; the seek timeline is unavailable.",
-        _ when CanSeek => "Playback position can be changed using the seek slider.",
-        _ => "Playback position cannot be changed for this stream.",
+        _ => (CanSeek
+            ? "Playback position can be changed using the seek slider."
+            : "Playback position cannot be changed for this stream.")
+            + (ShowChapters ? " Chapter jumps are in the full playback controls." : "")
+            + (ShowLyrics ? " Lyrics are available for this stream." : "")
+            + (ShowCaptions ? " Captions are available for this stream." : ""),
     };
 }
 

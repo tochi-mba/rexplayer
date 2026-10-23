@@ -124,6 +124,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.True(chapters.Current.BoundingRectangle.Height >= 42,
             "The chapter picker must remain a touch-sized target at standard DPI.");
         Assert.Contains("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Assert.Contains("Chapter jumps", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Wait.For(() => app.Status().State == "Playing", "the audiobook to start");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
         Wait.For(() => app.Status().State == "Paused", "a stable chaptered audiobook frame");
@@ -149,6 +150,29 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.MinimalInterface);
         Wait.For(() => app.IsShown("StageChaptersButton"),
             "the same chapter picker to return with the full controls");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    public void SwitchingFromChapteredAudioToPictureRemovesChapterInstructionsAndSeek()
+    {
+        var book = _scene.ChapteredAudiobook();
+        var picture = _scene.Picture("illustration.jpg");
+        _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
+        using var app = AppProcess.Start([book, picture], root: _scene.Root);
+        Wait.For(() => app.IsShown("StageChaptersButton")
+            && app.Find("Stage").Current.HelpText.Contains("Chapter jumps", StringComparison.Ordinal),
+            "the chaptered audiobook instructions");
+
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage",
+            "the picture to replace the spoken-audio stream");
+
+        Assert.False(app.IsShown("StageChaptersButton"));
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Assert.DoesNotContain("Chapter jumps", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Assert.DoesNotContain("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Assert.Equal("Stage", app.Find("Stage").Current.AutomationId);
         Assert.Equal(0, app.Close());
     }
 

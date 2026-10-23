@@ -169,6 +169,16 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(button, $"Go to {when}");
                 button.Click += (_, _) =>
                 {
+                    // A queued click from an old lyrics control must never seek a
+                    // replacement stream (or a stream that has lost seek support).
+                    if (!ReferenceEquals(_player.Item, item)
+                        || !ReferenceEquals(_player.Lyrics, lyrics)
+                        || !_stageView.ShowLyrics || !_stageView.CanSeek
+                        || !_settings.ShowLyrics || !_player.CanSeek)
+                    {
+                        return;
+                    }
+
                     _player.Seek(at);
                     Say(when);
                 };

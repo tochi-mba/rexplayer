@@ -37,6 +37,33 @@ public sealed class MediaStagePolicyTests
     }
 
     [Fact]
+    public void SpokenAudioInstructionsDisappearWhenCapabilitiesOrProfilesChange()
+    {
+        var source = new MediaStageContext(true, StreamsKnown: true, HasAudioTrack: true,
+            CanSeek: true, Shelf: AudioShelf.Audiobooks, HasChapters: true);
+        var spoken = MediaStagePolicy.Resolve(source);
+        Assert.Contains("seek slider", spoken.AutomationHelpText, StringComparison.Ordinal);
+        Assert.Contains("Chapter jumps", spoken.AutomationHelpText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Lyrics", spoken.AutomationHelpText, StringComparison.Ordinal);
+
+        var song = MediaStagePolicy.Resolve(source with
+        {
+            Shelf = AudioShelf.Music, HasChapters = false, HasLyrics = true, HasCaptions = true,
+        });
+        Assert.Contains("Lyrics", song.AutomationHelpText, StringComparison.Ordinal);
+        Assert.Contains("Captions", song.AutomationHelpText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Chapter jumps", song.AutomationHelpText, StringComparison.Ordinal);
+
+        var picture = MediaStagePolicy.Resolve(source with { IsPicture = true });
+        Assert.DoesNotContain("Chapter jumps", picture.AutomationHelpText, StringComparison.Ordinal);
+        Assert.DoesNotContain("seek slider", picture.AutomationHelpText, StringComparison.Ordinal);
+
+        var failed = MediaStagePolicy.Resolve(source with { HasFailure = true });
+        Assert.DoesNotContain("Chapter jumps", failed.AutomationHelpText, StringComparison.Ordinal);
+        Assert.DoesNotContain("seek slider", failed.AutomationHelpText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EmptyOpeningAndUnreadableItemsNeverInventMediaControls()
     {
         var welcome = MediaStagePolicy.Resolve(new MediaStageContext(false));
