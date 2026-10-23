@@ -1,5 +1,6 @@
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
+using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
 
