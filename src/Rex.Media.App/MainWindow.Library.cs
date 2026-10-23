@@ -836,7 +836,9 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Undo a library-only removal; never re-add paths no longer available on disk.</summary>
-    private async void OnLibraryUndoRemove(object sender, RoutedEventArgs e)
+    private void OnLibraryUndoRemove(object sender, RoutedEventArgs e) => Forget(UndoLibraryRemoveAsync());
+
+    private async Task UndoLibraryRemoveAsync()
     {
         if (_libraryRemovalUndo is not { } before)
         {
