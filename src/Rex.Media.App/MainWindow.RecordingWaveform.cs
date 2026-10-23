@@ -26,9 +26,15 @@ public sealed partial class MainWindow
 
     private async Task ShowRecordingWaveformAsync(LibraryEntry recording)
     {
-        if (recording.Downloading || recording.Problem is not null || !File.Exists(recording.Path))
+        if (recording.Downloading || recording.Problem is not null
+            || !await Task.Run(() => File.Exists(recording.Path)))
         {
             Say("This local recording is not available for waveform review.");
+            return;
+        }
+
+        if (_closing)
+        {
             return;
         }
 
