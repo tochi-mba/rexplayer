@@ -50,7 +50,10 @@ public sealed class MediaStagePolicyTests
 
         var song = MediaStagePolicy.Resolve(source with
         {
-            Shelf = AudioShelf.Music, HasChapters = false, HasLyrics = true, HasCaptions = true,
+            Shelf = AudioShelf.Music,
+            HasChapters = false,
+            HasLyrics = true,
+            HasCaptions = true,
         });
         Assert.Contains("Lyrics", song.AutomationHelpText, StringComparison.Ordinal);
         Assert.Contains("Captions", song.AutomationHelpText, StringComparison.Ordinal);
