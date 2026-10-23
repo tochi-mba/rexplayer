@@ -52,6 +52,23 @@ public sealed partial class MainWindow
                 // starts or resumes the film, instead of a title click unexpectedly starting it.
                 OpenMovieDetails(entry);
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music && ShelfOf(entry) == AudioShelf.Podcasts:
+                // Home and search can show episodes from several shows together. Opening one must
+                // not silently queue the next show's episode when this one ends.
+                var show = Listening().Podcasts.FirstOrDefault(candidate =>
+                    candidate.Entries.Any(episode => LibraryViews.SameLocation(episode.Path, entry.Path)));
+                if (show is null)
+                {
+                    Play([entry], 0, resume: true);
+                }
+                else
+                {
+                    var episodeIndex = show.Entries.ToList().FindIndex(episode =>
+                        LibraryViews.SameLocation(episode.Path, entry.Path));
+                    Play(show.Entries, episodeIndex, resume: true);
+                }
+
+                break;
             case LibraryEntry entry:
                 var view = EntriesOf(_libraryRows);
                 Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
