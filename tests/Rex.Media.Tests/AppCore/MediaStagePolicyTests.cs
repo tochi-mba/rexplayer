@@ -165,6 +165,22 @@ public sealed class MediaStagePolicyTests
     }
 
     [Fact]
+    public void CaptionsRequireASelectedTrackAndAProvenPlayableStream()
+    {
+        var audio = new MediaStageContext(true, StreamsKnown: true,
+            HasAudioTrack: true, HasCaptions: true);
+        Assert.True(MediaStagePolicy.Resolve(audio).ShowCaptions);
+        Assert.False(MediaStagePolicy.Resolve(audio with { HasCaptions = false }).ShowCaptions);
+        Assert.False(MediaStagePolicy.Resolve(audio with { StreamsKnown = false }).ShowCaptions);
+        Assert.False(MediaStagePolicy.Resolve(audio with { HasAudioTrack = false }).ShowCaptions);
+        Assert.False(MediaStagePolicy.Resolve(audio with { IsPicture = true }).ShowCaptions);
+        Assert.False(MediaStagePolicy.Resolve(audio with { HasFailure = true }).ShowCaptions);
+        Assert.True(MediaStagePolicy.Resolve(audio with
+            { HasAudioTrack = false, HasVideoTrack = true }).ShowCaptions);
+        Assert.False(MediaStagePolicy.Resolve(new MediaStageContext(false, HasCaptions: true)).ShowCaptions);
+    }
+
+    [Fact]
     public void StreamFactsOverrideWrongLibraryLabelsAndSeekingIsIndependent()
     {
         var audioOnly = MediaStagePolicy.Resolve(new MediaStageContext(true,
