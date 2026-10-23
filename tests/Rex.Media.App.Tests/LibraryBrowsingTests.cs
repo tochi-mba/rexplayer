@@ -83,6 +83,25 @@ public sealed class LibraryBrowsingTests : IDisposable
     }
 
     [Fact]
+    [Capability("FMT-C19")]
+    public void OpeningAPhotoPlaysItsFolderOnlyInNaturalGalleryOrder()
+    {
+        _scene.Picture(Path.Combine("Trip", "Trip 10.jpg"));
+        _scene.Picture(Path.Combine("Trip", "Trip 2.jpg"));
+        _scene.Picture(Path.Combine("Other", "Another.jpg"));
+        using var app = _scene.Ready(settings: s => s with { PictureSeconds = 60 }).Start();
+        app.Visit("Pictures");
+        app.Open("Trip 2");
+        Wait.For(() => app.Text("NowPlaying") == "Trip 2",
+            "the chosen picture to be presented");
+        app.Run(CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.Text("PlaylistQueueCount") == "2 items", "the selected picture folder slideshow");
+        Assert.Equal("Now playing: Trip 2", app.Text("PlaylistQueueNow"));
+        Assert.Equal("Up next: Trip 10", app.Text("PlaylistQueueNext"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-05")]
     public void EachLayoutOrderAndGroupIsShownAndKeptForItsView()
     {

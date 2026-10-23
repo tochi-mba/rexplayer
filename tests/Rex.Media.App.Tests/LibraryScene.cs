@@ -133,6 +133,7 @@ internal sealed class LibraryScene : IDisposable
     public string Picture(string name)
     {
         var path = Path.Combine(Media, name);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "picture", "still.jpg"), path);
         _files.Add((path, LibraryKind.Picture, null));
         return path;
