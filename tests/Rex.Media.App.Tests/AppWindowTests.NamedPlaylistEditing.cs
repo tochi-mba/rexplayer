@@ -26,6 +26,36 @@ public sealed partial class AppWindowTests
     }
 
     [Fact]
+    [Capability("PB-12")]
+    public void KeyboardQueueReorderCanBeUndoneWithoutChangingPlayback()
+    {
+        using var app = AppProcess.Start([Song(60), Named("Terminator", 60), Named("Joha", 60)]);
+        Wait.For(() => app.Text("NowPlaying") == "Sungba", "the first song");
+        app.Run(CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.Text("PlaylistQueueCount") == "3 items", "the three queue entries");
+        var list = app.Find("PlaylistView");
+        var rows = Wait.Until(() =>
+        {
+            var found = list.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem));
+            return found.Count >= 3 ? found.Cast<AutomationElement>().ToArray() : null;
+        })!;
+        ((SelectionItemPattern)rows[^1].GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        Input.Focus(app);
+        rows[^1].SetFocus();
+        Input.Press("Alt+Up");
+
+        Wait.For(() => app.Find("PlaylistUndoReorder").Current.IsEnabled, "undo reorder to be available");
+        Wait.For(() => app.Text("PlaylistQueueNext") == "Up next: Joha", "the selected song to move next");
+        Assert.Equal("Now playing: Sungba", app.Text("PlaylistQueueNow"));
+        app.Press("PlaylistUndoReorder");
+        Wait.For(() => app.Text("PlaylistQueueNext") == "Up next: Terminator", "original queue order to return");
+        Assert.False(app.Find("PlaylistUndoReorder").Current.IsEnabled);
+        Assert.Equal("3 items", app.Text("PlaylistQueueCount"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-04")]
     public void SavedPlaylistEditorStagesMovesAndRemovalWithoutInterruptingThePlayingQueue()
     {
