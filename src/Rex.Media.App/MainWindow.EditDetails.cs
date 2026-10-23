@@ -48,7 +48,8 @@ public sealed partial class MainWindow
             };
             AutomationProperties.SetAutomationId(box, "EditDetails_" + field.Key);
             AutomationProperties.SetName(box, field.Label);
-            AutomationProperties.SetHelpText(box, "Current local media details; unchanged mixed-value fields are preserved. Save keeps a local override and writes supported tags only when Preferences allows it.");
+            AutomationProperties.SetHelpText(box, "Source: " + DetailsForm.Provenance(songs, field.Key)
+                + ". Unchanged mixed-value fields are preserved. Save keeps a local override and writes supported tags only when Preferences allows it.");
             boxes[field.Key] = box;
             panel.Children.Add(box);
         }
