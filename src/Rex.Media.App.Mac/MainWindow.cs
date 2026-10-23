@@ -144,6 +144,28 @@ public sealed partial class MainWindow : IDisposable
                     return;
                 case "status":
                     break;
+                case "ui.tree":
+                    answered.SetResult(LibraryControlTree());
+                    return;
+                case "ui.press":
+                    answered.SetResult(PressLibraryControl(request.Target));
+                    return;
+                case "ui.set" when request.Target == "LibraryCategory":
+                    answered.SetResult(ChangeLibraryCategory(request.Value));
+                    return;
+                case "ui.set" when request.Target == "LibraryWidth":
+                    answered.SetResult(ResizeLibraryWindow(request.Value));
+                    return;
+                case "ui.text" when request.Target == "LibrarySummary":
+                    answered.SetResult(_libraryWindow?.IsVisible == true
+                        ? new AutomationReply { Ok = true, Text = _librarySummary?.StringValue }
+                        : AutomationReply.Failed("Open the library to read its summary."));
+                    return;
+                case "ui.text" when request.Target == "LibraryPage":
+                    answered.SetResult(_libraryWindow?.IsVisible == true
+                        ? new AutomationReply { Ok = true, Text = _libraryPageSummary?.StringValue }
+                        : AutomationReply.Failed("Open the library to read its page."));
+                    return;
                 case "ui.search":
                     if (_libraryWindow?.IsVisible != true || _librarySearch is null || request.Target is null)
                     {
