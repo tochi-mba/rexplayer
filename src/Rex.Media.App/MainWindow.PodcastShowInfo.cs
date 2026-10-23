@@ -71,18 +71,19 @@ public sealed partial class MainWindow
 
     private string PodcastDescription(LibraryGroup show)
     {
-        const string fallback = "Local episodes only · No show description is saved with these files.";
+        static string Preview(string? notes) => notes is null
+            ? "Local episodes only · No show description is saved with these files."
+            : notes.Length > 750 ? notes[..750] + "… (Open show notes to read the rest.)" : notes;
         var folder = LocalShowNotesFolder(show);
         if (folder is null)
         {
             return "Local episodes only · A show-wide description cannot safely be attributed across these folders.";
         }
 
-        if (_podcastShowNotes.TryGetValue(folder, out var known)
-            && DateTime.UtcNow - known.CheckedUtc < TimeSpan.FromMinutes(1))
+        var hasCached = _podcastShowNotes.TryGetValue(folder, out var known);
+        if (hasCached && DateTime.UtcNow - known.CheckedUtc < TimeSpan.FromMinutes(1))
         {
-            return known.Notes is null ? fallback : known.Notes.Length > 750
-                ? known.Notes[..750] + "… (Open show notes to read the rest.)" : known.Notes;
+            return Preview(known.Notes);
         }
 
         if (_pendingPodcastShowNotes.Add(folder))
@@ -122,6 +123,9 @@ public sealed partial class MainWindow
             }), TaskScheduler.Default));
         }
 
-        return "Loading a local show description if one exists...";
+        // Keep the current words visible while a stale note is refreshed; never flash
+        // "Loading" over text someone may be reading.
+        return hasCached ? Preview(known.Notes)
+            : "Loading a local show description if one exists...";
     }
 }
