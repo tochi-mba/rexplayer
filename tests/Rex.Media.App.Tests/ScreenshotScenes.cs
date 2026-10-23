@@ -10,10 +10,13 @@ namespace Rex.Media.App.Tests;
 /// </summary>
 internal static class ScreenshotScenes
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Instantiated by System.Text.Json.")] 
     private sealed record Inventory(int SchemaVersion, ScreenshotScene[] Scenes);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Instantiated by System.Text.Json.")]
     internal sealed record ExpectedText(string AutomationId, string Name);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Instantiated by System.Text.Json.")]
     internal sealed record ScreenshotScene(
         string Id,
         string Fixture,
@@ -31,6 +34,7 @@ internal static class ScreenshotScenes
         public string ReadinessId => ReadinessSignal["uia:".Length..];
     }
 
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private static readonly Lazy<IReadOnlyDictionary<string, ScreenshotScene>> AllScenes = new(Load);
 
     internal static IReadOnlyCollection<ScreenshotScene> All => AllScenes.Value.Values.ToArray();
@@ -49,7 +53,7 @@ internal static class ScreenshotScenes
     {
         var path = RepoPaths.Combine("tests", "screenshot-scenes.json");
         var inventory = JsonSerializer.Deserialize<Inventory>(
-            File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            File.ReadAllText(path), JsonOptions);
         if (inventory is not { SchemaVersion: 1, Scenes.Length: > 0 })
         {
             throw new InvalidDataException("The screenshot inventory must have schemaVersion 1 and at least one scene.");
