@@ -104,10 +104,20 @@ public sealed partial class MainWindow
                         return;
                     }
 
+                    using var imageStream = await file.OpenReadAsync();
+                    var picture = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(imageStream);
+                    if (picture.PixelWidth == 0 || picture.PixelHeight == 0)
+                    {
+                        chosen.Text = "That cover has invalid dimensions.";
+                        return;
+                    }
+
+                    var ratio = picture.PixelWidth / (double)picture.PixelHeight;
+                    var shape = ratio > 1.1 ? "landscape" : ratio < 0.9 ? "portrait" : "square";
                     cover = picked;
                     preview.Source = decoded;
                     preview.Visibility = Visibility.Visible;
-                    chosen.Text = file.Name + " (preview; save to write)";
+                    chosen.Text = $"{file.Name} ({picture.PixelWidth} x {picture.PixelHeight}, {shape}); save to write";
                     removeCover.IsChecked = false;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
