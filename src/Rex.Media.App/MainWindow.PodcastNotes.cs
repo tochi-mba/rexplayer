@@ -36,6 +36,8 @@ public sealed partial class MainWindow
 
     private async Task ShowPodcastNotesAsync(LibraryEntry episode)
     {
+        var source = _librarySource;
+        var opened = _libraryGroup?.Name;
         string? notes;
         try
         {
@@ -48,7 +50,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_closing)
+        if (_closing || _librarySource != source || _libraryGroup?.Name != opened)
         {
             return;
         }
