@@ -872,9 +872,14 @@ public sealed partial class MainWindow
                 _libraryGroup = group;
                 ShowLibraryAtPlace();
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music && ShelfOf(entry) == AudioShelf.Podcasts:
+                // Continue listening and New episodes can mix several local shows in one shelf.
+                // Choosing an episode must not queue every other show's entries beside it.
+                PlayPodcastEpisode(entry);
+                break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);
-                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks or LibrarySource.Podcasts);
+                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks);
                 break;
         }
     }
