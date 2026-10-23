@@ -483,6 +483,15 @@ public sealed partial class MainWindow
     /// <summary>A visible media line asks for its picture once; recycled, off-screen rows ask for nothing.</summary>
     private void OnLibraryRowShown(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
+        if (args.ItemContainer is { } realized)
+        {
+            // The row's title remains a concise screen-reader name; a secondary
+            // filename and parent-folder hint distinguishes otherwise identical
+            // titles and is replaced when a virtualized container is recycled.
+            AutomationProperties.SetHelpText(realized, args.InRecycleQueue ? ""
+                : args.Item is LibraryRow row ? row.AccessibilityContext : "");
+        }
+
         if (args.InRecycleQueue)
         {
             LetPictureGo(args.Item as LibraryRow);
