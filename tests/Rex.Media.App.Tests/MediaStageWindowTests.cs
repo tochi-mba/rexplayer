@@ -15,7 +15,7 @@ public sealed class MediaStageWindowTests : IDisposable
     public void DirectVideoRetainsItsAccessibleProfileAfterTheShortFixtureEnds()
     {
         var file = Rex.Media.TestKit.RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
-        using var app = AppProcess.Start([file]);
+        using var app = AppProcess.Start([file], extraSettings: "\"theme\": \"Dark\"");
         Wait.For(() => app.Status().State == "Ended"
             && app.Find("Stage").Current.Name == "VIDEO playback stage",
             "the completed video to retain its media profile");
@@ -35,7 +35,7 @@ public sealed class MediaStageWindowTests : IDisposable
             TimeSpan.FromMinutes(2));
         var sound = _scene.Audio(Path.Combine("Sound Effects", "Beep.wav"),
             TimeSpan.FromSeconds(5));
-        _scene.Ready();
+        _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
 
         using var app = AppProcess.Start([podcast, recording, sound], root: _scene.Root);
         foreach (var (label, shot, hasChapters) in new[]
@@ -72,7 +72,7 @@ public sealed class MediaStageWindowTests : IDisposable
     public void ARealChapteredAudiobookExposesOnlyItsOwnChapterJumps()
     {
         var book = _scene.ChapteredAudiobook();
-        _scene.Ready();
+        _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
         using var app = AppProcess.Start([book], root: _scene.Root);
         Wait.For(() => app.Find("Stage").Current.Name == "AUDIOBOOK playback stage"
             && app.Find("StageChaptersButton").Current.IsEnabled,
@@ -97,7 +97,7 @@ public sealed class MediaStageWindowTests : IDisposable
     {
         var broken = Path.Combine(_scene.Media, "broken.mp4");
         File.WriteAllText(broken, "not a playable media file");
-        using var app = AppProcess.Start([broken]);
+        using var app = AppProcess.Start([broken], extraSettings: "\"theme\": \"Dark\"");
         Wait.For(() => app.Status().State == "Faulted" &&
             app.Find("Stage").Current.Name == "PLAYBACK ERROR playback stage",
             "an unreadable file to display its failure");
@@ -117,6 +117,7 @@ public sealed class MediaStageWindowTests : IDisposable
         var cards = new LibraryViewChoice(LibraryLook.Grid, CardSize: 200) { LookChosen = true };
         using var app = _scene.Ready(settings => settings with
         {
+            Theme = ThemeChoice.Dark,
             LibraryViews = new Dictionary<string, LibraryViewChoice>(StringComparer.Ordinal)
             {
                 ["Movies"] = cards,
@@ -130,6 +131,8 @@ public sealed class MediaStageWindowTests : IDisposable
             app.Find("Stage").Current.Name == "NOW PLAYING playback stage"
             && app.Find("SeekBar").Current.IsEnabled,
             "the music stage to identify the playing song");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
+        Wait.For(() => app.Status().State == "Paused", "a stable song stage frame");
         Screenshots.Match(app, "stage-song-windowed");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleLibrary);
@@ -143,6 +146,7 @@ public sealed class MediaStageWindowTests : IDisposable
             () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
         Assert.False(app.IsShown("Lyrics"), "The movie stage must not retain song lyrics.");
         Assert.False(app.IsShown("Cover"), "A video must not keep the song cover.");
+        Wait.For(() => app.Status().State == "Ended", "a stable final video frame");
         Screenshots.Match(app, "stage-movie-windowed");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleLibrary);
