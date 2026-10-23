@@ -198,13 +198,11 @@ public sealed class MediaStagePolicyTests
     {
         var video = new MediaStageContext(true, StreamsKnown: true, HasVideoTrack: true);
         Assert.True(MediaStagePolicy.Resolve(video).SupportsKineticCaptions);
-        Assert.True(MediaStagePolicy.Resolve(video with
-            { Kind = LibraryKind.Video, IsMovie = true }).SupportsKineticCaptions);
+        Assert.True(MediaStagePolicy.Resolve(video with { Kind = LibraryKind.Video, IsMovie = true }).SupportsKineticCaptions);
         Assert.False(MediaStagePolicy.Resolve(video with { IsPicture = true }).SupportsKineticCaptions);
         Assert.False(MediaStagePolicy.Resolve(video with { StreamsKnown = false }).SupportsKineticCaptions);
         Assert.False(MediaStagePolicy.Resolve(video with { HasVideoTrack = false }).SupportsKineticCaptions);
-        Assert.False(MediaStagePolicy.Resolve(video with
-            { HasVideoTrack = false, HasAudioTrack = true }).SupportsKineticCaptions);
+        Assert.False(MediaStagePolicy.Resolve(video with { HasVideoTrack = false, HasAudioTrack = true }).SupportsKineticCaptions);
         Assert.False(MediaStagePolicy.Resolve(video with { HasFailure = true }).SupportsKineticCaptions);
     }
 
@@ -219,8 +217,7 @@ public sealed class MediaStagePolicyTests
         Assert.False(MediaStagePolicy.Resolve(audio with { HasAudioTrack = false }).ShowCaptions);
         Assert.False(MediaStagePolicy.Resolve(audio with { IsPicture = true }).ShowCaptions);
         Assert.False(MediaStagePolicy.Resolve(audio with { HasFailure = true }).ShowCaptions);
-        Assert.True(MediaStagePolicy.Resolve(audio with
-            { HasAudioTrack = false, HasVideoTrack = true }).ShowCaptions);
+        Assert.True(MediaStagePolicy.Resolve(audio with { HasAudioTrack = false, HasVideoTrack = true }).ShowCaptions);
         Assert.False(MediaStagePolicy.Resolve(new MediaStageContext(false, HasCaptions: true)).ShowCaptions);
     }
 
