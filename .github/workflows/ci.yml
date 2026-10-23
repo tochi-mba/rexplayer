@@ -376,34 +376,8 @@ jobs:
           REXPLAYER_UI_LANE: ci-windows
         run: ./dev.ps1 ui
 
-      # Temporary bootstrap of the new audiobook pixel goldens. The synthetic
-      # Windows fixtures contain no user media. Chunking keeps runner log lines
-      # below the Actions output limit. Remove after committing native goldens.
-      - name: Export audiobook baseline bytes
-        if: always()
-        shell: pwsh
-        run: |
-          $dir = "artifacts/screenshots/ci-windows/actual"
-          if (Test-Path $dir) {
-            $names = @(
-              "audiobook-unread-card",
-              "audiobook-credited-book",
-              "audiobook-finished-book",
-              "audiobook-empty-progress-filter",
-              "audiobook-active-malformed-chapters",
-              "audiobook-huge-virtualized-chapters"
-            )
-            foreach ($name in $names) {
-              $path = Join-Path $dir "$name.png"
-              if (-not (Test-Path $path)) { continue }
-              $value = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path $path).Path))
-              Write-Host "AUDIOBOOK_BASELINE_BEGIN:$name"
-              for ($i = 0; $i -lt $value.Length; $i += 3000) {
-                Write-Host ("AUDIOBOOK_BASELINE_PART:" + $value.Substring($i, [Math]::Min(3000, $value.Length - $i)))
-              }
-              Write-Host "AUDIOBOOK_BASELINE_END:$name"
-            }
-          }
+      # Captures, including failed cases, are available as the retained screenshots artifact
+      # below. The six audiobook screenshots still require committed and reviewed CI goldens.
 
       - name: Repeat offline screenshot fixture suites in fresh processes
         if: success()
