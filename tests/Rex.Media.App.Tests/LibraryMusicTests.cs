@@ -169,6 +169,36 @@ public sealed class LibraryMusicTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void SongsKeepTheirSortingSelectionQueueActionsAndHonestRemovedFileState()
+    {
+        AsakeAcrossAlbums();
+        using var app = _scene.Ready(KeepBrowsing).Start();
+        app.Visit("Songs");
+        app.Pick("LibraryLook", "List");
+        app.Pick("LibrarySort", "Title");
+        Wait.For(() => app.Lines().FirstOrDefault() == "Active (feat. Travis Scott)",
+            "the songs to use their chosen title order");
+        var chosen = app.Line("Terminator");
+        ((SelectionItemPattern)chosen.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        Assert.True(app.IsShown("LibraryEnqueue"), "The selected song has a direct queue action.");
+        app.Press("LibraryEnqueue");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Terminator")) is not null,
+            "the chosen song to appear in Up Next");
+
+        var missing = Path.Combine(_scene.Media, "Wave.wav");
+        File.Delete(missing);
+        app.Visit("Folders");
+        app.Press("LibraryRescan");
+        app.Visit("Songs");
+        Wait.For(() => !app.Lines().Contains("Wave"), "removed media to disappear without a ghost row");
+        Assert.Contains("Terminator", app.Lines());
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void TheSongsTableShowsItsColumnsAndPlaysFromTheArt()
     {
         var played = AsakeAcrossAlbums();
