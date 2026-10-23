@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
 
@@ -212,7 +213,7 @@ public sealed partial class MainWindow
         var query = _librarySearch?.StringValue.Trim();
         if (!string.IsNullOrEmpty(query))
         {
-            var matching = LibraryViews.Search(all, query)
+            var matching = LibraryViews.Search(all, query, entry => [Path.GetFileName(Path.GetDirectoryName(entry.Path))])
                 .Select(entry => entry.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
             entries = entries.Where(entry => matching.Contains(entry.Path)).ToList();
         }
@@ -302,6 +303,76 @@ public sealed partial class MainWindow
         var at = selection.ToList().FindIndex(entry => string.Equals(entry.Path, chosen.Path, StringComparison.OrdinalIgnoreCase));
         _player.PlayFromLibrary(selection, Math.Max(0, at));
         HideLibrary();
+    }
+
+    /// <summary>Report real AppKit control labels and enabled states for automation checks.</summary>
+    private AutomationReply LibraryControlTree()
+    {
+        if (_libraryWindow?.IsVisible != true || _librarySearch is null || _libraryCategory is null ||
+            _libraryScroll is null || _libraryPreviousPage is null || _libraryNextPage is null ||
+            _libraryPageSummary is null || _librarySummary is null)
+        {
+            return AutomationReply.Failed("Open the library to inspect its controls.");
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Controls =
+            [
+                new UiControl { Id = "LibrarySearch", Kind = "search", Name = ((NSView)_librarySearch).AccessibilityLabel ?? "", Text = _librarySearch.StringValue },
+                new UiControl { Id = "LibraryCategory", Kind = "choice", Name = ((NSView)_libraryCategory).AccessibilityLabel ?? "", Text = _libraryCategory.TitleOfSelectedItem },
+                new UiControl { Id = "LibraryResults", Kind = "list", Name = _libraryScroll.AccessibilityLabel ?? "" },
+                new UiControl { Id = "LibrarySummary", Kind = "text", Name = "Library summary", Text = _librarySummary.StringValue },
+                new UiControl { Id = "LibraryPage", Kind = "text", Name = "Library page", Text = _libraryPageSummary.StringValue },
+                new UiControl { Id = "LibraryPrevious", Kind = "button", Name = ((NSView)_libraryPreviousPage).AccessibilityLabel ?? "", Enabled = _libraryPreviousPage.Enabled },
+                new UiControl { Id = "LibraryNext", Kind = "button", Name = ((NSView)_libraryNextPage).AccessibilityLabel ?? "", Enabled = _libraryNextPage.Enabled },
+            ],
+        };
+    }
+
+    private AutomationReply PressLibraryControl(string? target)
+    {
+        var button = target switch
+        {
+            "LibraryPrevious" => _libraryPreviousPage,
+            "LibraryNext" => _libraryNextPage,
+            _ => null,
+        };
+        if (_libraryWindow?.IsVisible != true || button?.Enabled != true)
+        {
+            return AutomationReply.Failed("The library control is not available: " + target);
+        }
+
+        button.PerformClick(null);
+        return new AutomationReply { Ok = true, Text = _libraryPageSummary?.StringValue };
+    }
+
+    private AutomationReply ChangeLibraryCategory(double? value)
+    {
+        if (_libraryWindow?.IsVisible != true || _libraryCategory is null || value is not { } index ||
+            !double.IsFinite(index) || index != Math.Truncate(index) || index < 0 || index >= _libraryCategory.NumberOfItems)
+        {
+            return AutomationReply.Failed("Choose a valid library category index.");
+        }
+
+        _libraryCategory.SelectItem((nint)index);
+        ChangeLibraryView();
+        return new AutomationReply { Ok = true, Text = _librarySummary?.StringValue };
+    }
+
+    private AutomationReply ResizeLibraryWindow(double? width)
+    {
+        if (_libraryWindow?.IsVisible != true || width is not { } requested ||
+            !double.IsFinite(requested) || requested < _libraryWindow.MinSize.Width)
+        {
+            return AutomationReply.Failed("Open the library and choose a supported width.");
+        }
+
+        var frame = _libraryWindow.Frame;
+        _libraryWindow.SetFrame(new CGRect(frame.X, frame.Y, requested, _libraryWindow.MinSize.Height), true);
+        RefreshLibrary();
+        return new AutomationReply { Ok = true };
     }
 
     /// <summary>Use top-left coordinates for scrolling native result rows.</summary>
