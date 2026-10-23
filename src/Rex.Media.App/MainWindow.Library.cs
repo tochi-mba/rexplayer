@@ -646,7 +646,7 @@ public sealed partial class MainWindow
         if (chosen[0].Item is string folder)
         {
             menu.Items.Add(MenuItem("Play everything in it", "LibraryMenuPlay", PlayChosen));
-            menu.Items.Add(MenuItem("Stop watching", "LibraryMenuRemoveFolder", RemoveChosenFolders));
+            menu.Items.Add(MenuItem("Stop watching...", "LibraryMenuRemoveFolder", () => Forget(RemoveChosenFoldersAsync())));
             AddTranscriptionMenuItems(menu, EntriesOf([chosen[0]]), folder);
             return;
         }
@@ -840,14 +840,20 @@ public sealed partial class MainWindow
         }
     }
 
-    private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => RemoveChosenFolders();
+    private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => Forget(RemoveChosenFoldersAsync());
 
-    private void RemoveChosenFolders()
+    private async Task RemoveChosenFoldersAsync()
     {
         var folders = LibraryList.SelectedItems.OfType<LibraryRow>().Select(row => row.Item).OfType<string>().ToList();
         if (folders.Count == 0)
         {
             Say("Choose the folders to stop watching first.");
+            return;
+        }
+
+        var prompt = LibraryActions.StopWatchingPrompt(folders);
+        if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Stop watching", "Cancel"))
+        {
             return;
         }
 

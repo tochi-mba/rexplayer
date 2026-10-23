@@ -41,7 +41,15 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Visit("Folders");
         app.Choose(_scene.Media);
         app.Press("LibraryRemoveFolder");
+        Wait.For(() => app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Stop watching this folder?")) is not null,
+            "the folder removal confirmation");
+        app.Press("CloseButton");
+        Assert.False(app.IsShown("LibraryEmptyAddFolder")); // Cancel leaves the watch and its files intact.
+        app.Press("LibraryRemoveFolder");
+        app.Press("PrimaryButton");
         Wait.For(() => app.IsShown("LibraryEmptyAddFolder"), "the empty folders view to offer a folder");
+        Assert.True(File.Exists(Path.Combine(_scene.Media, "Sungba.wav")));
         app.Visit("Home");
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText").StartsWith("The library shows the music", StringComparison.Ordinal),
             "the welcome on an empty home");

@@ -67,6 +67,14 @@ public sealed class LibraryActionsTests
         Assert.Equal("Remove 2 items from the library?", LibraryActions.RemovePrompt(["a", "b"]).Title);
         Assert.Equal("a\nb\n\nThe files stay where they are; the library stops showing them until their folders are taken out of the library and added again.", LibraryActions.RemovePrompt(["a", "b"]).Body);
 
+        Assert.Equal(new Prompt("Stop watching this folder?",
+            "Music\n\nNo files will be deleted. This folder will leave the library and stop being scanned. You can add the folder again later."),
+            LibraryActions.StopWatchingPrompt(["Music"]));
+        Assert.Equal(new Prompt("Stop watching 2 folders?",
+            "Music\nFilms\n\nNo files will be deleted. These folders will leave the library and stop being scanned. You can add them again later."),
+            LibraryActions.StopWatchingPrompt(["Music", "Films"]));
+        Assert.Throws<ArgumentNullException>(() => LibraryActions.StopWatchingPrompt(null!));
+
         Assert.Equal(new Prompt("Delete Mix?", "The playlist goes; the files in it stay where they are."), LibraryActions.DeletePlaylistPrompt(["Mix"]));
         Assert.Equal(new Prompt("Delete 2 playlists?", "Mix\nRoad\n\nThe playlists go; the files in them stay where they are."), LibraryActions.DeletePlaylistPrompt(["Mix", "Road"]));
 

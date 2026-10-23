@@ -48,6 +48,18 @@ public static class LibraryActions
         return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + " until " + (names.Count == 1 ? "its folder is" : "their folders are") + " taken out of the library and added again.");
     }
 
+    /// <summary>Stopping a folder watch never deletes its files; make that explicit before acting.</summary>
+    public static Prompt StopWatchingPrompt(IReadOnlyList<string> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        var title = folders.Count == 1 ? "Stop watching this folder?" : "Stop watching " + Count(folders.Count, "folder") + "?";
+        var body = Named(folders) + (folders.Count == 1 ? folders[0] + "\n\n" : "")
+            + "No files will be deleted. " + (folders.Count == 1 ? "This folder" : "These folders")
+            + " will leave the library and stop being scanned. You can add "
+            + (folders.Count == 1 ? "the folder" : "them") + " again later.";
+        return new Prompt(title, body);
+    }
+
     /// <summary>The confirmation before named playlists go.</summary>
     public static Prompt DeletePlaylistPrompt(IReadOnlyList<string> names)
     {
