@@ -263,6 +263,52 @@ public static partial class ListeningViews
             ? name : Path.GetFileNameWithoutExtension(book.Entries[0].Path);
     }
 
+    /// <summary>
+    /// Give identically credited editions distinct names even when their immediate
+    /// directories are both named "Book" or "Edition". Add only as much parent
+    /// context as is needed to distinguish their paths.
+    /// </summary>
+    public static string? EditionLabel(LibraryGroup book, IReadOnlyList<LibraryGroup> catalogue)
+    {
+        ArgumentNullException.ThrowIfNull(catalogue);
+        var label = EditionLabel(book);
+        if (label is null)
+        {
+            return null;
+        }
+
+        var peers = catalogue.Where(other => other.Entries.Count > 0
+            && BookKey(other) == BookKey(book)
+            && BookIdentity(other) != BookIdentity(book)).ToList();
+        if (peers.All(other => !ByName.Equals(label, EditionLabel(other))))
+        {
+            return label;
+        }
+
+        static string[] Location(LibraryGroup entry)
+        {
+            var folder = BookFolderOf(entry.Entries[0]);
+            var last = Path.GetFileName(folder);
+            var locator = folder.Length == 0 || last.EndsWith(':')
+                || BooksFolderPattern().IsMatch(last) || LooseFolderPattern().IsMatch(last)
+                ? entry.Entries[0].Path : folder;
+            return locator.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        var parts = Location(book);
+        var otherPaths = peers.Select(Location).ToList();
+        for (var count = 2; count <= parts.Length; count++)
+        {
+            var suffix = string.Join(" / ", parts.TakeLast(count));
+            if (otherPaths.All(path => !ByName.Equals(suffix, string.Join(" / ", path.TakeLast(count)))))
+            {
+                return suffix;
+            }
+        }
+
+        return string.Join(" / ", parts);
+    }
+
     /// <summary>A book's chapters in time order within each part; a part with no markers is one chapter by itself.</summary>
     public static IReadOnlyList<BookChapter> Chapters(LibraryGroup book)
     {
