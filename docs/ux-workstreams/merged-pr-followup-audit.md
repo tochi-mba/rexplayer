@@ -27,7 +27,7 @@ Columns for evidence should be added next to checked entries only after the evid
 - [ ] **481.6** Preserve playback, selection, scroll position, and route while metadata completes.
 - [ ] **481.7** Handle huge libraries, duplicate titles, Unicode, RTL, missing art, unavailable files, and disconnected storage.
 - [ ] **481.8** Keep network enrichment and download controls behind verified capabilities.
-- [ ] **481.9** Add pure tests for grouping, ordering, identity, and fallback policy.
+- [x] **481.9** Add pure tests for grouping, ordering, identity, and fallback policy. **Verified evidence:** `LibraryArrangementTests.SameTitlesKeepIndependentArtistAlbumAndPathIdentityWithUnknownFallback`, `AstralLettersAndUnicodeMarksUseStableAlphabeticHeadings`, and existing `ArtistNamesTests`, `AlbumPageTests`, `GenreNamesTests`, `ArtworkChoiceTests`. [Linux portable suite (4,506 succeeded, 0 failed)](https://github.com/tochi-mba/rexplayer/actions/runs/40022494079). Native screenshots and UI are separately scoped in #481.10.
 - [ ] **481.10** Add Windows UI automation and deterministic screenshots for every principal and edge state.
 - [ ] **481.11** Run pure coverage, Windows build, UI automation, accessibility, screenshot, performance, and warnings-as-errors gates.
 - [ ] **481.12** Update capability and UX documents only when evidence exists.
@@ -77,10 +77,10 @@ Columns for evidence should be added next to checked entries only after the evid
 - [ ] **487.2** Suspend automatic scrolling after manual navigation and provide a return-to-active-line action.
 - [ ] **487.3** Preserve timing and focus across seek, pause, speed changes, track changes, and resize.
 - [ ] **487.4** Complete detached companion ownership, close/reopen, multi-monitor, scaling, and focus behavior.
-- [ ] **487.5** Verify long lines, Unicode, RTL, repeated timestamps, metadata tags, and malformed files.
+- [x] **487.5** Verify long lines, Unicode, RTL, repeated timestamps, metadata tags, and malformed files. **Verified parsing evidence:** `PresentationTests.LongUnicodeAndRtlLinesRetainTheirCharactersAndLastDuplicateWins`, `DamagedOffsetTagsCannotAbortLyricsOrEraseTheLastValidOffset`, `ImpossibleSecondsDoNotBecomeTimedLyrics`, and existing `EnhancedLrcKeepsExactWordTimesAndRespectsOffset`, `UnreliableEnhancedLrcRetainsLinesButDoesNotClaimWordTiming`, `TimedLyricsAreReadFromLrc`. [Linux portable suite passed](https://github.com/tochi-mba/rexplayer/actions/runs/40022494079). Native rendering remains separate (#487.1/#487.6).
 - [ ] **487.6** Add Windows UI automation and deterministic screenshots for every lyric mode.
 - [ ] **487.7** Run pure coverage, Windows build, UI automation, accessibility, screenshot, performance, and warnings-as-errors gates.
-- [ ] **487.8** Keep unsupported online retrieval and editing controls capability-gated.
+- [x] **487.8** Keep unsupported online retrieval and editing controls capability-gated. **Verified source contract:** `CommandCatalog.All` exposes `ToggleLyrics` but no unsupported lyrics-retrieval/editing commands, `MainWindow.Presentation` handles only local/embedded lyrics, and `MainWindow.Visualizer` only offers local Show lyrics. Negative pure test `CommandTests.UnsupportedOnlineLyricsRetrievalAndEditingHaveNoPublicCommands` passed in [Linux current-head source run](https://github.com/tochi-mba/rexplayer/actions/runs/40022494079).
 
 ### [#486](https://github.com/tochi-mba/rexplayer/pull/486): Split Windows shell, library layout, and Home foundation (9)
 
