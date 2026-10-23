@@ -277,7 +277,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
-        app.AddItem(new NSMenuItem("Your library…", "l", (_, _) => ShowLibrary()));
+        app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
@@ -354,6 +354,17 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.Quit:
                 NSApplication.SharedApplication.Terminate(null);
+                return true;
+            case CommandCatalog.ToggleLibrary:
+                if (_libraryWindow?.IsVisible == true)
+                {
+                    HideLibrary();
+                }
+                else
+                {
+                    ShowLibrary();
+                }
+
                 return true;
             case CommandCatalog.ToggleFullScreen:
                 _window.ToggleFullScreen(null);
@@ -480,6 +491,7 @@ public sealed partial class MainWindow : IDisposable
     /// <summary>Whether what an on-and-off command switches is on now, for its tick.</summary>
     private bool IsOn(string command) => command switch
     {
+        CommandCatalog.ToggleLibrary => _libraryWindow?.IsVisible == true,
         CommandCatalog.ToggleShuffle => _player.Playlist.Shuffle,
         CommandCatalog.CycleRepeat => _player.Playlist.Repeat != RepeatMode.Off,
         CommandCatalog.Mute => _player.Muted,
