@@ -223,6 +223,18 @@ public sealed class VisualStageTests
         Assert.True(Motion(music) > Motion(silence) * 1.2 + 0.0005, $"{choice} moves {Motion(music):0.0000} with music, {Motion(silence):0.0000} in silence.");
     }
 
+    [Fact]
+    [Capability("AU-18")]
+    public void LightningKeepsMovingAcrossTheShortIntervalsCapturedByTheWindow()
+    {
+        // The UI regression samples the live stage around every 170 ms. A storm
+        // must not look frozen between brief lightning strikes, even when the
+        // synthetic song has a quieter passage.
+        var frames = Play(Stage(160, 90), VisualizerChoice.Lightning, new SyntheticMusic(120, 4));
+        var samples = new List<byte[]> { frames[60], frames[65], frames[70], frames[75], frames[80], frames[85] };
+        Assert.True(Motion(samples) > 0.001, $"Lightning changed only {Motion(samples):0.0000} between moments.");
+    }
+
     [Theory]
     [MemberData(nameof(Scenes))]
     public void EveryOneOfItsOwnSettingsChangesWhatIsDrawn(VisualizerChoice choice)
