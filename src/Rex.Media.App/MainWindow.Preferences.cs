@@ -419,8 +419,57 @@ public sealed partial class MainWindow
                     scroll.ChangeView(null, offsets[shownSection], null, disableAnimation: true);
                 }
             };
-            var navigation = new StackPanel { Spacing = 4 };
+            // The compact section picker remains available on small windows and for automation.
+            // Larger windows also offer a persistent, searchable category rail.
+            var categorySearch = new TextBox
+            {
+                PlaceholderText = "Find a settings category",
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categorySearch, "PreferencesCategorySearch");
+            var categories = new ListView
+            {
+                SelectionMode = ListViewSelectionMode.Single,
+                ItemsSource = sections.Select(item => item.Name).ToList(),
+                SelectedIndex = 0,
+                MaxHeight = 480,
+                MinWidth = 170,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categories, "PreferencesCategoryList");
+            categories.SelectionChanged += (_, _) =>
+            {
+                if (categories.SelectedItem is string name)
+                {
+                    var index = sections.FindIndex(item => item.Name == name);
+                    if (index >= 0 && section.SelectedIndex != index)
+                    {
+                        section.SelectedIndex = index;
+                    }
+                }
+            };
+            section.SelectionChanged += (_, _) =>
+            {
+                if (section.SelectedIndex >= 0 && categories.ItemsSource is IEnumerable<string> names)
+                {
+                    var name = sections[section.SelectedIndex].Name;
+                    if (names.Contains(name) && !Equals(categories.SelectedItem, name))
+                    {
+                        categories.SelectedItem = name;
+                    }
+                }
+            };
+            categorySearch.TextChanged += (_, _) =>
+            {
+                var names = sections.Select(item => item.Name)
+                    .Where(name => name.Contains(categorySearch.Text, StringComparison.CurrentCultureIgnoreCase))
+                    .ToList();
+                categories.ItemsSource = names;
+                categories.SelectedItem = names.Contains(sections[shownSection].Name)
+                    ? sections[shownSection].Name : null;
+            };
+            var navigation = new StackPanel { Spacing = 8 };
             navigation.Children.Add(section);
+            navigation.Children.Add(categorySearch);
+            navigation.Children.Add(categories);
             var saveHint = new TextBlock
             {
                 Text = "Setting changes across all sections apply on Save. Cancel keeps your current settings. Downloads, update checks and transcript cleanup run when selected.",
@@ -429,16 +478,17 @@ public sealed partial class MainWindow
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(saveHint, "PreferencesSaveHint");
             navigation.Children.Add(saveHint);
-            var panel = new Grid { RowSpacing = 12 };
-            panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            var panel = new Grid { ColumnSpacing = 20, RowSpacing = 12 };
+            panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
+            panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             panel.Children.Add(navigation);
-            Grid.SetRow(scroll, 1);
+            Grid.SetColumn(scroll, 1);
             panel.Children.Add(scroll);
             var dialog = new ContentDialog
             {
                 Title = "Preferences",
                 Content = panel,
+                MaxWidth = 960,
                 PrimaryButtonText = "Save",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Primary,
@@ -447,7 +497,29 @@ public sealed partial class MainWindow
             var root = Content.XamlRoot;
             void FitPreferences(XamlRoot sender, XamlRootChangedEventArgs args)
             {
-                panel.Width = Math.Clamp(root.Size.Width - 96, 280, 460);
+                var wide = root.Size.Width >= 860;
+                panel.Width = Math.Clamp(root.Size.Width - 96, 280, 840);
+                panel.ColumnDefinitions[0].Width = wide ? new GridLength(190) : new GridLength(1, GridUnitType.Star);
+                panel.ColumnDefinitions[1].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+                categorySearch.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+                categories.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+                navigation.Visibility = Visibility.Visible;
+                // Small windows retain the original single-column section picker.
+                if (!wide)
+                {
+                    Grid.SetColumn(scroll, 0);
+                    Grid.SetRow(navigation, 0);
+                    Grid.SetRow(scroll, 1);
+                    panel.RowDefinitions.Clear();
+                    panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                }
+                else
+                {
+                    Grid.SetRow(scroll, 0);
+                    Grid.SetColumn(scroll, 1);
+                    panel.RowDefinitions.Clear();
+                }
                 scroll.MaxHeight = Math.Clamp(root.Size.Height - 300, 100, 560);
             }
             FitPreferences(root, null!);

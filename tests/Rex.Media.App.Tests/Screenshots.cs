@@ -51,7 +51,42 @@ internal static class Screenshots
             picture = Crop(picture, WindowPicture.Bounds(app.Handle), app.Find(automationId).Current.BoundingRectangle);
         }
 
+        Assert.True(HasVisibleVariation(picture),
+            $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
         Compare(name, picture, pixelThreshold, maxDifferingRatio, maxViewportHeightChange);
+    }
+
+    /// <summary>
+    /// A genuinely rendered window varies across its pixels. A failed PrintWindow capture, a
+    /// hidden frame or an unmapped target is usually a uniform sheet of black or background.
+    /// Reject that before accepting a new baseline (which would otherwise pass by default).
+    /// </summary>
+    internal static bool HasVisibleVariation((int Width, int Height, byte[] Bgra) picture)
+    {
+        if (picture.Width <= 0 || picture.Height <= 0 || picture.Bgra.Length < picture.Width * picture.Height * 4)
+        {
+            return false;
+        }
+
+        var pixels = picture.Bgra;
+        var different = 0;
+        var minimum = Math.Max(8, picture.Width * picture.Height / 1000);
+        var step = Math.Max(1, picture.Width * picture.Height / 4000);
+        for (var p = 0; p < picture.Width * picture.Height; p += step)
+        {
+            var i = p * 4;
+            if (Math.Max(Math.Abs(pixels[i] - pixels[0]),
+                Math.Max(Math.Abs(pixels[i + 1] - pixels[1]), Math.Abs(pixels[i + 2] - pixels[2]))) > 16)
+            {
+                different++;
+                if (different >= Math.Min(minimum, 12))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The comparison itself, for a picture already taken.</summary>

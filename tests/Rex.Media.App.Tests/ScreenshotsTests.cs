@@ -11,6 +11,25 @@ public sealed class ScreenshotsTests
     }
 
     [Fact]
+    public void AUniformCaptureIsNotAnAcceptableVisualBaseline()
+    {
+        Assert.False(Screenshots.HasVisibleVariation(Plain(100, 80, 0)));
+        Assert.False(Screenshots.HasVisibleVariation(Plain(100, 80, 255)));
+    }
+
+    [Fact]
+    public void ARenderedInterfaceHasEnoughVariationToCapture()
+    {
+        var picture = Plain(100, 80, 0);
+        for (var i = 0; i < picture.Bgra.Length / 4; i += 2)
+        {
+            picture.Bgra[i * 4] = 220;
+        }
+
+        Assert.True(Screenshots.HasVisibleVariation(picture));
+    }
+
+    [Fact]
     public void NoiseUnderTheThresholdIsNotADifference()
     {
         var (differing, _) = Screenshots.Difference(Plain(4, 4, 100), Plain(4, 4, 130), pixelThreshold: 40);
