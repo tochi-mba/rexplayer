@@ -72,6 +72,14 @@ class CheckSiteTests(unittest.TestCase):
             "index.html: walkthrough image 'mark.svg' has no descriptive data-tour-alt.",
             self.index_problems(html.replace('data-tour-alt="Sample screenshot"', 'data-tour-alt=" "')),
         )
+        self.assertIn(
+            "index.html: walkthrough image '' must use an existing local asset.",
+            self.index_problems(html.replace('data-tour-src="mark.svg"', 'data-tour-src=""')),
+        )
+        self.assertIn(
+            "index.html: walkthrough image 'https://example.com/remote.png' must use an existing local asset.",
+            self.index_problems(html.replace('data-tour-src="mark.svg"', 'data-tour-src="https://example.com/remote.png"')),
+        )
 
     def test_each_kind_of_problem_is_named(self) -> None:
         cases = {
