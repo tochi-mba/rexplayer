@@ -156,9 +156,16 @@ public sealed partial class MainWindow
     /// </summary>
     private bool PlayBookCard(LibraryRow? row)
     {
-        if (row?.Item is not LibraryGroup book
-            || !((_librarySource == LibrarySource.Audiobooks && _libraryGroup is null)
-                || (_librarySource == LibrarySource.Authors && _libraryGroup is not null && _librarySeason is null)))
+        if (row?.Item is not LibraryGroup book)
+        {
+            return false;
+        }
+
+        var bookCard = (_librarySource == LibrarySource.Audiobooks && _libraryGroup is null)
+            || (_librarySource == LibrarySource.Authors && _libraryGroup is not null && _librarySeason is null)
+            || (_librarySource == LibrarySource.Completed && Listening().Audiobooks.Any(candidate =>
+                ListeningViews.BookIdentity(candidate) == ListeningViews.BookIdentity(book)));
+        if (!bookCard)
         {
             return false;
         }
