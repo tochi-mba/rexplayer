@@ -147,7 +147,8 @@ public sealed partial class Lyrics
             var part = source[from..to];
             var at = Time(marker);
             text.Append(part);
-            if (part.Length == 0 || (previous is { } earlier && at <= earlier))
+            if (part.Length == 0 || int.Parse(marker.Groups["s"].Value, CultureInfo.InvariantCulture) >= 60
+                || (previous is { } earlier && at <= earlier))
             {
                 valid = false;
             }
