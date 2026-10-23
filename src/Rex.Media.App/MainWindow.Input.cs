@@ -17,6 +17,8 @@ public sealed partial class MainWindow
     private readonly HashSet<VirtualKey> _shortcutKeys = [];
     private List<(PlaylistRow Row, Rex.Media.AppCore.Player.PlaylistItem Item)>? _playlistDragOrder;
     private IReadOnlyList<Rex.Media.AppCore.Player.PlaylistItem>? _queueUndoOrder;
+    private Rex.Media.AppCore.Player.PlaylistRemovalSnapshot? _undoQueueRemoval;
+    private Rex.Media.AppCore.Player.PlaylistItem? _undoQueuePlayerItem;
 
     /// <summary>
     /// Whether <paramref name="key"/> is held. For Ctrl, Alt and Shift either of the pair counts:
@@ -429,8 +431,27 @@ public sealed partial class MainWindow
             return;
         }
 
+        _undoQueueRemoval = _player.Playlist.CaptureRemoval();
+        _undoQueuePlayerItem = _player.Item;
         _player.Playlist.RemoveEntries(chosen);
-        Say(chosen.Count == 1 ? "Removed entry from the queue" : $"Removed {chosen.Count} entries from the queue");
+        PlaylistUndoRemoval.IsEnabled = true;
+        Say(chosen.Count == 1 ? "Removed entry from the queue — Undo removal is available"
+            : $"Removed {chosen.Count} entries from the queue — Undo removal is available");
+    }
+
+    private void OnPlaylistUndoRemoval(object sender, RoutedEventArgs e)
+    {
+        if (_undoQueueRemoval is not { } saved)
+        {
+            return;
+        }
+
+        var canRestore = ReferenceEquals(_undoQueuePlayerItem, _player.Item)
+            && _player.Playlist.UndoRemoval(saved);
+        _undoQueueRemoval = null;
+        _undoQueuePlayerItem = null;
+        PlaylistUndoRemoval.IsEnabled = false;
+        Say(canRestore ? "Removed queue entries restored" : "The queue changed; removal cannot be undone");
     }
 
     /// <summary>Explicit navigation does not change the queue, playback or other selection.</summary>

@@ -637,6 +637,9 @@ public sealed partial class MainWindow : Window
         var paneVisible = PlaylistPane.Visibility == Visibility.Visible;
         PlaylistJumpNow.IsEnabled = current >= 0;
         PlaylistUndoReorder.IsEnabled = _queueUndoOrder is { } previous && _player.Playlist.CanRestoreOrder(previous);
+        PlaylistUndoRemoval.IsEnabled = _undoQueueRemoval is { } removed
+            && ReferenceEquals(_undoQueuePlayerItem, _player.Item)
+            && _player.Playlist.CanUndoRemoval(removed);
         if (QueueScrollPolicy.ShouldFollow(paneVisible, !_queuePaneWasVisible, _queueLastFollowed, _player.Playlist.Current))
         {
             PlaylistView.ScrollIntoView(_playlistRows[current]);

@@ -214,6 +214,49 @@ public sealed class PlaylistTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void UndoRemovalRestoresQueueAndOriginalShuffleCycleWithoutRestart(bool shuffle)
+    {
+        var playlist = With(5, new Random(13));
+        playlist.Shuffle = shuffle;
+        playlist.Next(automatic: false);
+        var playing = playlist.Current;
+        var saved = playlist.CaptureRemoval();
+        var removed = playlist.Items.Where(item => !ReferenceEquals(item, playing)).Take(2).ToArray();
+        playlist.RemoveEntries(removed);
+        Assert.True(playlist.CanUndoRemoval(saved));
+        Assert.True(playlist.UndoRemoval(saved));
+        Assert.Same(playing, playlist.Current);
+        Assert.Equal(saved.Items, playlist.Items);
+        Assert.Same(saved.Order[saved.Position + 1], playlist.PeekNext(automatic: false));
+        Assert.False(playlist.CanUndoRemoval(saved with { Shuffle = !shuffle }));
+        Assert.Throws<ArgumentNullException>(() => playlist.CanUndoRemoval(null!));
+        Assert.Throws<ArgumentNullException>(() => playlist.UndoRemoval(null!));
+    }
+
+    [Fact]
+    public void UndoRemovalOfPlayingEntryRecoversItsIdentityButRejectsSubsequentEdits()
+    {
+        var playlist = With(4);
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        var current = playlist.Current!;
+        var before = playlist.CaptureRemoval();
+        playlist.RemoveEntries([current]);
+        Assert.Null(playlist.Current);
+        Assert.True(playlist.UndoRemoval(before));
+        Assert.Same(current, playlist.Current);
+
+        playlist.RemoveEntries([playlist.Items[0]]);
+        Assert.False(playlist.CanUndoRemoval(before));
+        var fresh = playlist.CaptureRemoval();
+        playlist.Add([new PlaylistItem("new.mp3")]);
+        Assert.False(playlist.CanUndoRemoval(fresh));
+        Assert.False(playlist.UndoRemoval(fresh));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void RemovingMultipleQueueEntriesIsAtomicAndRetainsTheCurrentIdentity(bool shuffle)
     {
         var playlist = With(5, new Random(9));

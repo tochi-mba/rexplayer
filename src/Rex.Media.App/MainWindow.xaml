@@ -675,9 +675,14 @@
                      AutomationProperties.AutomationId="PlaylistQueueNow" />
           <TextBlock x:Name="PlaylistQueueNext" Text="No upcoming items" FontSize="12" TextTrimming="CharacterEllipsis"
                      AutomationProperties.AutomationId="PlaylistQueueNext" />
-          <Button x:Name="PlaylistUndoReorder" Content="Undo reorder" Padding="6,2" Margin="0,3,0,0" IsEnabled="False"
-                  HorizontalAlignment="Left" Click="OnPlaylistUndoReorder"
-                  AutomationProperties.AutomationId="PlaylistUndoReorder" AutomationProperties.Name="Undo last queue reorder" />
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button x:Name="PlaylistUndoReorder" Content="Undo reorder" Padding="6,2" Margin="0,3,0,0" IsEnabled="False"
+                    HorizontalAlignment="Left" Click="OnPlaylistUndoReorder"
+                    AutomationProperties.AutomationId="PlaylistUndoReorder" AutomationProperties.Name="Undo last queue reorder" />
+            <Button x:Name="PlaylistUndoRemoval" Content="Undo removal" Padding="6,2" Margin="0,3,0,0" IsEnabled="False"
+                    HorizontalAlignment="Left" Click="OnPlaylistUndoRemoval"
+                    AutomationProperties.AutomationId="PlaylistUndoRemoval" AutomationProperties.Name="Restore removed queue entries" />
+          </StackPanel>
           <Button x:Name="PlaylistJumpNow" Content="Jump to playing item" Padding="6,2" Margin="0,3,0,0"
                   HorizontalAlignment="Left" Click="OnPlaylistJumpNow"
                   AutomationProperties.AutomationId="PlaylistJumpNow" AutomationProperties.Name="Scroll queue to the playing item" />

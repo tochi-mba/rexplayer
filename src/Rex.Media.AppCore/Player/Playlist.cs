@@ -55,6 +55,10 @@ public sealed class PlaylistItem(string location)
     }
 }
 
+/// <summary>One exact queue and shuffled play-order snapshot, before a destructive queue removal.</summary>
+public sealed record PlaylistRemovalSnapshot(IReadOnlyList<PlaylistItem> Items, IReadOnlyList<PlaylistItem> Order,
+    PlaylistItem? Current, int Position, bool Shuffle);
+
 /// <summary>
 /// The list of things to play and the order they play in. The list (<see cref="Items"/>) is what
 /// the user sees and rearranges; the play order is the same list, or with shuffle on a permutation
@@ -292,6 +296,54 @@ public sealed class Playlist(Random? random = null)
 
         _nextCycle = null;
         Raise();
+    }
+
+    /// <summary>Capture the exact identities and shuffled order before removing entries.</summary>
+    public PlaylistRemovalSnapshot CaptureRemoval() => new(_items.ToArray(), _order.ToArray(), Current, _position, _shuffle);
+
+    /// <summary>
+    /// A removal may be undone only before another queue edit or playback transition. This
+    /// explicitly rejects additions, reorders or an altered shuffle order rather than overwriting
+    /// someone else's changes.
+    /// </summary>
+    public bool CanUndoRemoval(PlaylistRemovalSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (snapshot.Shuffle != _shuffle || snapshot.Items.Count < _items.Count)
+        {
+            return false;
+        }
+
+        var stillPresent = _items.ToHashSet(ReferenceEqualityComparer.Instance);
+        if (!snapshot.Items.Where(stillPresent.Contains).SequenceEqual(_items)
+            || !snapshot.Order.Where(stillPresent.Contains).SequenceEqual(_order))
+        {
+            return false;
+        }
+
+        var removedBefore = snapshot.Order.Take(Math.Min(snapshot.Position + 1, snapshot.Order.Count))
+            .Count(item => !stillPresent.Contains(item));
+        var expectedPosition = snapshot.Position - removedBefore;
+        var expectedCurrent = snapshot.Current is { } previous && stillPresent.Contains(previous) ? previous : null;
+        return expectedPosition == _position && ReferenceEquals(expectedCurrent, Current);
+    }
+
+    /// <summary>Restore the exact queue and play order, without starting or seeking the engine.</summary>
+    public bool UndoRemoval(PlaylistRemovalSnapshot snapshot)
+    {
+        if (!CanUndoRemoval(snapshot))
+        {
+            return false;
+        }
+
+        _items.Clear();
+        _items.AddRange(snapshot.Items);
+        _order = [.. snapshot.Order];
+        _position = snapshot.Position;
+        Current = snapshot.Current;
+        _nextCycle = null;
+        Raise();
+        return true;
     }
 
     /// <summary>Puts <paramref name="item"/> in place of the one at <paramref name="index"/>, in its place in the play order too.</summary>
