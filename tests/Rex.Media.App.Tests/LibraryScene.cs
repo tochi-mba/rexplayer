@@ -119,6 +119,31 @@ internal sealed class LibraryScene : IDisposable
         return path;
     }
 
+    /// <summary>A real MP3 with ID3 chapters for verifying audiobook stage actions.</summary>
+    public string ChapteredAudiobook()
+    {
+        var path = Path.Combine(Media, "Audiobooks", "Chapter proof", "Part 1.mp3");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var tags = Id3Builder.V24().Text("TIT2", "Part 1").Text("TCON", "Audiobook")
+            .Chapter("opening", 0, "Opening").Chapter("continuation", 250, "Continuation").Build();
+        var frames = File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"));
+        File.WriteAllBytes(path, [.. tags, .. frames]);
+        _files.Add((path, LibraryKind.Music, new MediaInfo
+        {
+            FormatName = "MP3",
+            Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Mp3 }],
+            Duration = MediaTime.FromSeconds(20),
+            Chapters = [new Chapter(MediaTime.Zero, "Opening"), new Chapter(MediaTime.FromMilliseconds(250), "Continuation")],
+            Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [MetadataKeys.Title] = "Part 1",
+                [MetadataKeys.Genre] = "Audiobook",
+                [MetadataKeys.MediaType] = MetadataKeys.Audiobook,
+            },
+        }));
+        return path;
+    }
+
     /// <summary>A film for Movies: a release-style name at <paramref name="relative"/>, recorded at a feature's length.</summary>
     public string Film(string relative, string fixture = "h264-aac.mp4") => Video(relative, fixture, TimeSpan.FromHours(2));
 
