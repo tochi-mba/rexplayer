@@ -378,9 +378,10 @@ public sealed class MediaLibrary
                 }
 
                 var before = known;
-                var start = known ?? (carried ?? saved) is { } remembered
-                    ? remembered with { Path = file.Path, Probed = false, Problem = null }
-                    : new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path) };
+                var remembered = carried ?? saved;
+                var start = known ?? (remembered is null
+                    ? new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path) }
+                    : remembered with { Path = file.Path, Probed = false, Problem = null });
                 var evidence = Downloads.Gather(file.Path, paths.Contains, readMarker ?? (_ => null));
                 var looked = Looked(start, before, file, evidence, LookAt(file, evidence, inspect)) with { Kind = kind };
                 if (known is null && carried is null)
