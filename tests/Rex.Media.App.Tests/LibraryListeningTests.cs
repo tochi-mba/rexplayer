@@ -142,7 +142,7 @@ public sealed class LibraryListeningTests : IDisposable
         }
 
         var library = new Rex.Media.Library.MediaLibrary(
-            Rex.Media.Library.RexStore.Open(Path.Combine(_scene.Root, "library.log")));
+            Rex.Media.Primitives.RexStore.Open(Path.Combine(_scene.Root, "library.log")));
         Assert.Equal(0, Assert.Single(library.Entries, entry => entry.Path == part).Plays);
     }
 
