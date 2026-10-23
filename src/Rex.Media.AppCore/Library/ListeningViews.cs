@@ -297,7 +297,7 @@ public static partial class ListeningViews
 
         var parts = Location(book);
         var otherPaths = peers.Select(Location).ToList();
-        for (var count = 2; count <= parts.Length; count++)
+        for (var count = 2; count < parts.Length; count++)
         {
             var suffix = string.Join(" / ", parts.TakeLast(count));
             if (otherPaths.All(path => !ByName.Equals(suffix, string.Join(" / ", path.TakeLast(count)))))
