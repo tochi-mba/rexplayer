@@ -26,7 +26,7 @@ namespace Rex.Media.App.Mac;
 /// the same colours and placement as on Windows.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000", Justification = "AppKit owns the views once they are in the window's tree.")]
-public sealed class MainWindow : IDisposable
+public sealed partial class MainWindow : IDisposable
 {
     private const string LogSource = "window";
     private const string HelpUrl = "https://tochi-mba.github.io/rexplayer/";

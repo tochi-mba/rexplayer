@@ -10,12 +10,6 @@
     <ResourceDictionary.MergedDictionaries>
       <local:LibraryNavigationTemplates />
     </ResourceDictionary.MergedDictionaries>
-    <!-- Each medium gets the density and visual hierarchy that suits it, while all four panels
-         remain virtualised ListView panels with the same keyboard and screen-reader behaviour. -->
-    <ItemsPanelTemplate x:Key="LibraryListPanel"><ItemsStackPanel Orientation="Vertical" /></ItemsPanelTemplate>
-    <ItemsPanelTemplate x:Key="LibraryBrowsePanel"><ItemsWrapGrid Orientation="Horizontal" ItemWidth="196" ItemHeight="246" /></ItemsPanelTemplate>
-    <ItemsPanelTemplate x:Key="LibraryVideoPanel"><ItemsWrapGrid Orientation="Horizontal" ItemWidth="270" ItemHeight="218" /></ItemsPanelTemplate>
-    <ItemsPanelTemplate x:Key="LibraryPhotoPanel"><ItemsWrapGrid Orientation="Horizontal" ItemWidth="226" ItemHeight="220" /></ItemsPanelTemplate>
     <DataTemplate x:Key="LibrarySongTemplate" x:DataType="local:LibraryRow">
       <Grid ColumnSpacing="12" Padding="2,5" MinHeight="64" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}"
             PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
