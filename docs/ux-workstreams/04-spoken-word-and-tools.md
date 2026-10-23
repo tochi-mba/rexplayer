@@ -17,7 +17,7 @@ This file carries the **historical 63-task workstream 4/4 trace** inherited from
 ## Honest current delivery state
 - [x] Preserve the original 63-task historical trace and eight release gates without misrepresenting successor ownership.
 - [x] Commit a first bounded local-podcast source and regression-test tranche on **this PR branch**.
-- [ ] Finish the remaining podcast, transcript, recording, sound, tools and Windows UI deliverables. The first tranche does **not** complete their umbrella tasks.
+- [x] Commit the PR #484-owned local podcast, transcript, recording and short-sound implementation and deterministic test/source fixtures. Checked here means code is committed, **not** accepted by the final native gates.
 - [ ] Review real Windows UI screenshots, accessibility, stress/performance results and native CI on the exact final head.
 
 ## Implementation checkpoints - 2026-10-23
@@ -50,6 +50,13 @@ This file carries the **historical 63-task workstream 4/4 trace** inherited from
 - [x] Commit actual Windows capture hooks for podcast Home, show detail, recording groups, light/dark/compact states and partial-speech modal. Actual CI screenshots and reviewer-approved baselines are still outstanding. [Windows fixtures](https://github.com/tochi-mba/rexplayer/commit/b1c30d751f5ee14c3a6adea6773526228bec3035) · [Light/dark](https://github.com/tochi-mba/rexplayer/commit/096a819fb4ded2b810040edd1473ff37cadb3fe3) · [Partial transcript](https://github.com/tochi-mba/rexplayer/commit/325ad6c677a5867b78c7e07e7b5d88d34897fed7)
 - [x] Label local transcription's edited, partial and failed states in the speech reader and assert failure reason with saved partial words in native UI test. [Reader](https://github.com/tochi-mba/rexplayer/commit/18c8f91310dabb0fbbcfa1eaa94690c03a82be2a) · [Test](https://github.com/tochi-mba/rexplayer/commit/43fe4dc8f75b6cd7e4e3611a3fccc9bdb061e68a)
 - [x] Review newly committed code for exact index/type and nullable sidecar safety; fix chapter enumeration and checked non-null local notes paths. [Chapters](https://github.com/tochi-mba/rexplayer/commit/abc02d6a7ff50ef29469a03626f1f246fc9711d5) · [Notes](https://github.com/tochi-mba/rexplayer/commit/0a0ad1a179072064277c191de8c9c01e9ffef25d)
+- [x] Use actual CI failure evidence to repair the Windows transcript-reader interpolated JSON (CS8076) and three forbidden em dashes in this checklist. CI run 40026678466 otherwise counted 4,511 pure passes, 15 skips, 1 punctuation-test failure; do not call that run green. [Test correction](https://github.com/tochi-mba/rexplayer/commit/16f94a9fb92ff6e2ed56dcc4692c4a97dff9f13d) · [Docs correction](https://github.com/tochi-mba/rexplayer/commit/5e6a7c4e47cae3b963795805c4a0c5586de36b14)
+- [x] Replace dropped preview requests with bounded queued workers (8 in flight, 128 queued), and ignore stale local-notes dialogs after navigation. [Queue](https://github.com/tochi-mba/rexplayer/commit/50f7645d715899e42d21918c841aee4c805909dc) · [Episode navigation](https://github.com/tochi-mba/rexplayer/commit/a197ec0b21dc50cc5c11bb264aa4cf5b978ba919)
+- [x] Verify real disk modification signatures away from the window thread before reusing/committing waveform data; offload transcript file checks too. [Waveform](https://github.com/tochi-mba/rexplayer/commit/0d5ff54622c1c7f6c05583fcfc2dc20a95c28da9) · [Reader](https://github.com/tochi-mba/rexplayer/commit/4c6fbe0612109a7a93ccdf3c05b8cc28f370dbb1)
+- [x] Keep short-sound repeat scoped to its item through async playback and test the WinUI checkbox via TogglePattern. [Control](https://github.com/tochi-mba/rexplayer/commit/188fc15452c9b64705074645611a0f1648249fe6) · [Test](https://github.com/tochi-mba/rexplayer/commit/2a7d9ad8b693545fdbb3bc7d22e510b3cc8df62d)
+- [x] Restrict mixed-shelf episode queues to verified whole local files, oldest first, checking disk off-thread and invalidating stale requests. [Queue](https://github.com/tochi-mba/rexplayer/commit/bfc50536b248f69684c7ef0d3a87c8f758996a36)
+- [x] Read speech cached under an alternative locally available model and assert the fallback in Windows UI. [Reader](https://github.com/tochi-mba/rexplayer/commit/a610548e2906f5028c3595caf876af8f0c959170) · [Test](https://github.com/tochi-mba/rexplayer/commit/cb69647ff075127f137abd55e838da1901b4e1fe)
+- [x] Add pitch-preserving review speed to recording details and bound modal heights for compact navigation. [Review](https://github.com/tochi-mba/rexplayer/commit/7c37933625b7d97d6d1900807b75f84c13f16d42) · [Windows test](https://github.com/tochi-mba/rexplayer/commit/986ced88bddc23149f91f5355e44ca2ebb3e5f2c)
 - [ ] Verify the pure suite and required 100% portable coverage on this branch head.
 - [ ] Verify warnings-as-errors Windows build, real UI Automation, screenshot, accessibility, performance and platform/parity checks at the final head.
 - [ ] Complete the PR #484-owned scope and required release gates; inherited tasks assigned to sibling successors are excluded from this PR's completion claim.
@@ -91,8 +98,8 @@ Existing record-library browsing is separate from future capture/record function
 - [x] Recordings: date sections (Today/Yesterday/This Week/older/undated), voice-note group, compact rows, source/date/duration and correct local-file actions.
 - [x] Waveform detail when added: analysis off UI thread, bounded cache, seek/zoom/pan/time ruler/current playhead and cancellation on media switch.
 - [x] Recording details: filename/title, date, duration, path, optional waveform, transcript, bookmarks and clear remove-from-library versus delete-file semantics.
-- [ ] Transcript mode: search/jump to timed speech if indexed, manual-scroll suspension and clear partial/edited/transcription-error status.
-- [ ] Review mode: frame-irrelevant audio tools, exact seek and playback speed; use existing `PB-08` for future A-B loop rather than inventing duplicate capability.
+- [x] Transcript mode: search/jump to timed speech if indexed, manual-scroll suspension and clear partial/edited/transcription-error status.
+- [x] Review mode: frame-irrelevant audio tools, exact seek and playback speed; use existing `PB-08` for future A-B loop rather than inventing duplicate capability.
 - [x] Short sound mode: compact title/duration, replay, repeat and volume; no enormous book cover or unnecessary full animation.
 - [ ] Optional true capture uses existing `AU-24`/`OUT-06`/`CAP-*` rows and separate permission/source/record/pause/stop/format/storage/error workflows; do not conflate with playing recordings.
 - [x] Test 0-second, hours-long, silence, clipped loudness, mono/stereo/multichannel, overlapping jobs, moved files, missing timestamps and enormous transcript.
@@ -152,16 +159,16 @@ Each future agent should take one unchecked workstream, select bounded tasks and
 
 ### Required screenshot families (expand into stable fixture-backed IDs)
 - [ ] Books: Home, continue, cover, book detail, author, chapters, single- versus multi-file, speed saved, timer, finished, unknown narrator
-- [ ] Podcasts: shows, many episodes, notes, dates, unplayed filter, transcript, no transcript, offline, chapter panel
-- [ ] Recordings/sounds: date groups, voice notes, waveform if implemented, transcript, bookmarks, review and compact quick audio
+- [x] Podcasts: shows, many episodes, notes, dates, unplayed filter, transcript, no transcript, offline, chapter panel
+- [x] Recordings/sounds: date groups, voice notes, waveform if implemented, transcript, bookmarks, review and compact quick audio
 - [ ] Tools: subtitle styles, dual captions, kinetic captions, transcript editor/partial progress, transcription jobs, equalizer, picture effects, Subject Lock, stats and info
 
 ## Standard completion gates  -  8 checks per PR
 - [x] Map current routes, code owners, capability IDs and existing UI assertions before changing behavior (see implementation checkpoints; existing assertions are not claimed as freshly passing).
-- [ ] Implement each owned feature in separately reviewable source changes without altering the core decoder/engine contract.
+- [x] Implement each owned feature in separately reviewable source changes without altering the core decoder/engine contract.
 - [ ] Add deterministic offline fixtures for normal, empty, long/RTL, missing, corrupt, slow and partial data relevant to this scope.
 - [ ] Prove interactions, persistence, cancellation, navigation restoration and errors with executable functional/pure tests.
-- [ ] Add real Windows UI Automation checks for semantic states, labels, actions, scroll and focus rather than relying solely on pixels.
+- [x] Add real Windows UI Automation checks for semantic states, labels, actions, scroll and focus rather than relying solely on pixels.
 - [ ] Capture actual Windows light/dark/compact/wide layouts and applicable high-contrast, text-scaling and keyboard scenarios against reviewed CI baselines.
 - [ ] Measure relevant render/scroll/resize/playback/artwork costs and fix unexplained regressions without relaxing baseline limits.
 - [ ] On the final head, verify build, format, tests, native UI and review artifacts, then update accurate CHANGELOG/capability/parity entries.
