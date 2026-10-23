@@ -20,7 +20,8 @@
       ],
       "readinessSignal": "uia:IdleTitle",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "empty-window-dark",
@@ -40,7 +41,8 @@
       ],
       "readinessSignal": "uia:IdleTitle",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "preferences-normal",
@@ -56,7 +58,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-small",
@@ -72,7 +75,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-search-artwork",
@@ -83,12 +87,13 @@
       "theme": "light",
       "expectedAutomationIds": [
         "PreferencesSection",
-        "PreferencesSection"
+        "PreferencesCategorySearch"
       ],
       "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
+      "readinessSignal": "uia:PreferencesCategorySearch",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-advanced-artwork",
@@ -104,7 +109,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesArtworkDetails",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-search-empty",
@@ -120,7 +126,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSearchEmpty",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "playback-paused",
@@ -141,7 +148,8 @@
       ],
       "readinessSignal": "uia:PlayPauseButton",
       "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "experience-welcome",
@@ -157,7 +165,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:WelcomeLibrary",
       "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "experience-library-wide-light",
@@ -178,7 +187,8 @@
       ],
       "readinessSignal": "uia:LibrarySearch",
       "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "experience-search-light",
@@ -193,7 +203,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryEmptyClearSearch",
       "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "experience-library-light",
@@ -214,7 +225,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "experience-library-wide-dark",
@@ -235,7 +247,8 @@
       ],
       "readinessSignal": "uia:LibrarySearch",
       "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "experience-search-dark",
@@ -250,7 +263,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryEmptyClearSearch",
       "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "experience-library-dark",
@@ -271,7 +285,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-show-page-collage",
@@ -286,7 +301,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryCollage",
       "owner": "LibraryArtworkTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-show-card-made-poster",
@@ -301,7 +317,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryArtworkTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "music-home",
@@ -316,7 +333,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryHome",
       "owner": "LibraryMusicTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "album-page",
@@ -331,7 +349,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryMusicTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "songs-table",
@@ -351,7 +370,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryMusicTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-tv-browse",
@@ -366,7 +386,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFoldersTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-show-page",
@@ -381,7 +402,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFoldersTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "dialog-open-location",
@@ -396,7 +418,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LocationBox",
       "owner": "AppWindowTests.Dialogs",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "dialog-shortcut-sheet",
@@ -406,12 +429,13 @@
       "dimensions": "default-window (not yet pinned)",
       "theme": "user-settings",
       "expectedAutomationIds": [
-        "ShortcutSearch"
+        "CloseButton"
       ],
       "expectedVisibleData": [],
-      "readinessSignal": "uia:ShortcutSearch",
+      "readinessSignal": "uia:CloseButton",
       "owner": "AppWindowTests.Dialogs",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "library-movie-card-letterboxed",
@@ -426,7 +450,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryCardsTests",
-      "baseline": "ci-windows"
+      "baseline": "ci-windows",
+      "captureMode": "window"
     },
     {
       "id": "library-episode-still-letterboxed",
@@ -441,7 +466,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryCardsTests",
-      "baseline": "ci-windows"
+      "baseline": "ci-windows",
+      "captureMode": "window"
     },
     {
       "id": "menu-playback",
@@ -451,12 +477,14 @@
       "dimensions": "default-window (not yet pinned)",
       "theme": "user-settings",
       "expectedAutomationIds": [
-        "PlaybackMenu"
+        "PlaybackMenu",
+        "Command-play-pause"
       ],
       "expectedVisibleData": [],
-      "readinessSignal": "uia:PlaybackMenu",
+      "readinessSignal": "uia:Command-play-pause",
       "owner": "AppWindowTests.Menus",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "context-menu",
@@ -466,12 +494,14 @@
       "dimensions": "default-window (not yet pinned)",
       "theme": "user-settings",
       "expectedAutomationIds": [
-        "Stage"
+        "Stage",
+        "Context-play-pause"
       ],
       "expectedVisibleData": [],
-      "readinessSignal": "uia:Stage",
+      "readinessSignal": "uia:Context-play-pause",
       "owner": "AppWindowTests.Menus",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "library-songs-collage",
@@ -491,7 +521,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryBrowsingTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-empty-filters",
@@ -506,7 +537,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryEmptyClearFilters",
       "owner": "LibraryBrowsingTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-card-downloading",
@@ -521,7 +553,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryShelfCards-Downloading",
       "owner": "LibraryDownloadsTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-movie-details",
@@ -536,7 +569,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryHero",
       "owner": "LibraryDetailsTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-show-header",
@@ -551,7 +585,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:LibraryHero",
       "owner": "LibraryDetailsTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "preferences-section-playback",
@@ -567,7 +602,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-intros-and-credits",
@@ -583,7 +619,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-video-and-pictures",
@@ -599,7 +636,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-music-and-artwork",
@@ -615,7 +653,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-performance",
@@ -631,7 +670,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-languages",
@@ -647,7 +687,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-subtitles",
@@ -663,7 +704,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-transcription",
@@ -679,7 +721,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-window",
@@ -695,7 +738,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-library",
@@ -711,7 +755,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-metadata",
@@ -727,7 +772,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-history-and-resume",
@@ -743,7 +789,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-keyboard-and-mouse",
@@ -759,7 +806,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-opening-files",
@@ -775,7 +823,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-updates",
@@ -791,7 +840,8 @@
       "expectedVisibleData": [],
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "desktop"
     },
     {
       "id": "library-home-empty",
@@ -812,7 +862,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-songs-single",
@@ -833,7 +884,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-home-mixed",
@@ -854,7 +906,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-home-mixed-compact",
@@ -875,7 +928,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     },
     {
       "id": "library-songs-unicode-rtl",
@@ -896,7 +950,8 @@
       ],
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed"
+      "baseline": "unreviewed",
+      "captureMode": "window"
     }
   ]
 }
