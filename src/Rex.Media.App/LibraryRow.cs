@@ -17,7 +17,8 @@ public partial class LibraryRow(
     string picturePlaceholder = "",
     string badge = "",
     double progress = 0,
-    bool isPlaying = false) : INotifyPropertyChanged
+    bool isPlaying = false,
+    string accessibilitySuffix = "") : INotifyPropertyChanged
 {
     [ThreadStatic]
     private static Brush? s_defaultTile;
@@ -75,7 +76,7 @@ public partial class LibraryRow(
 
     public Visibility PlayingVisibility => _isPlaying ? Visibility.Visible : Visibility.Collapsed;
 
-    public string AccessibilityName => _isPlaying ? $"{Name}, now playing" : Name;
+    public string AccessibilityName => _isPlaying ? $"{Name}{accessibilitySuffix}, now playing" : Name + accessibilitySuffix;
 
     /// <summary>Supporting author, chapter, progress and time for screen readers without
     /// changing the item name used for selection and keyboard navigation.</summary>
