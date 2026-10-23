@@ -143,6 +143,46 @@ public sealed class PlaylistTests
         Assert.DoesNotContain(selected[1], remaining);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void QueueNextPromotesAnExistingEntryWithoutDuplicatingIt(bool shuffle)
+    {
+        var playlist = With(5, new Random(3));
+        playlist.Shuffle = shuffle;
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        var current = playlist.Current;
+        var before = playlist.Items.ToArray();
+        var chosen = before.First(item => item != current && item != playlist.PeekNext(automatic: false));
+        var changes = 0;
+        playlist.Changed += (_, _) => changes++;
+
+        playlist.QueueNext(playlist.IndexOf(chosen));
+
+        Assert.Same(current, playlist.Current);
+        Assert.Same(chosen, playlist.PeekNext(automatic: false));
+        Assert.Same(chosen, playlist.Next(automatic: false));
+        Assert.Equal(before.Length, playlist.Items.Count);
+        Assert.All(before, item => Assert.Single(playlist.Items, entry => ReferenceEquals(entry, item)));
+        Assert.Equal(2, changes); // One for the promotion and one for advancing playback.
+
+        // Promoting the currently playing item is a no-op.
+        changes = 0;
+        playlist.QueueNext(playlist.CurrentIndex);
+        Assert.Equal(0, changes);
+    }
+
+    [Fact]
+    public void QueueNextWithoutACurrentItemLeavesThePlaylistIntact()
+    {
+        var playlist = With(3);
+        var before = playlist.Items.ToArray();
+        playlist.QueueNext(2);
+        Assert.Equal(before, playlist.Items);
+        Assert.Null(playlist.Current);
+    }
+
     [Fact]
     public void ItemsAddedWhileShufflingJoinThePartStillToPlay()
     {
