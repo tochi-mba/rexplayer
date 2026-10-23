@@ -12,6 +12,21 @@ public sealed class MediaStageWindowTests : IDisposable
     public void Dispose() => _scene.Dispose();
 
     [Fact]
+    public void UnreadableMediaShowsAnErrorStageWithoutAudioOrSeekAffordances()
+    {
+        var broken = Path.Combine(_scene.Media, "broken.mp4");
+        File.WriteAllText(broken, "not a playable media file");
+        using var app = AppProcess.Start([broken]);
+        Wait.For(() => app.Status().State == "Faulted" &&
+            app.Find("Stage").Current.Name == "PLAYBACK ERROR playback stage",
+            "an unreadable file to display its failure");
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Assert.False(app.IsShown("Lyrics"));
+        Assert.False(app.IsShown("Cover"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SwitchingSongToMovieToPictureUpdatesTheAccessibleStageWithoutStaleContext()
     {
         _scene.WithAsake();
