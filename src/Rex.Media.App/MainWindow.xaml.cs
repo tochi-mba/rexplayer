@@ -106,6 +106,8 @@ public sealed partial class MainWindow : Window
         ApplyTooltips();
         ApplyGlobalShortcuts();
         WireZoom();
+        Root.SizeChanged += (_, _) => LayOutMediaStage();
+        Stage.SizeChanged += (_, _) => LayOutMediaStage();
         WireSubjectTools();
         WireSeekBar();
 
@@ -138,7 +140,7 @@ public sealed partial class MainWindow : Window
         if (AppWindow.Presenter is OverlappedPresenter overlapped)
         {
             overlapped.PreferredMinimumWidth = 360;
-            overlapped.PreferredMinimumHeight = 150;
+            overlapped.PreferredMinimumHeight = 320;
         }
 
         PlaylistView.ItemsSource = _playlistRows;
