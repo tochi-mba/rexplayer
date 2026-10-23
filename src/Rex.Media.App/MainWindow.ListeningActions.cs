@@ -67,6 +67,10 @@ public sealed partial class MainWindow
             {
                 var tools = new MenuFlyoutSubItem { Text = "Audiobook playback" };
                 AutomationProperties.SetAutomationId(tools, "LibraryMenuBookTools");
+                tools.Items.Add(MenuItem("Previous chapter", "LibraryMenuBookPreviousChapter",
+                    () => MoveBookChapter(chosenBook, -1)));
+                tools.Items.Add(MenuItem("Next chapter", "LibraryMenuBookNextChapter",
+                    () => MoveBookChapter(chosenBook, 1)));
                 tools.Items.Add(MenuItem("Back 10 seconds", "LibraryMenuBookBack10",
                     () => Run(CommandCatalog.JumpBackShort)));
                 tools.Items.Add(MenuItem("Forward 10 seconds", "LibraryMenuBookForward10",
@@ -226,6 +230,47 @@ public sealed partial class MainWindow
         }
 
         _player.PlayFromLibrary(book.Entries, Math.Max(0, place.Part), place.At > TimeSpan.Zero ? place.At : null);
+    }
+
+    /// <summary>
+    /// Spoken-word previous/next navigates chapter markers inside a single file as
+    /// well as across parts, without ever stepping into another author's book.
+    /// Previous restarts the current chapter when already a few seconds into it.
+    /// </summary>
+    private bool MoveBookChapter(LibraryGroup book, int direction)
+    {
+        var location = _player.Playlist.Current?.Location;
+        if (location is null || !book.Entries.Any(part => LibraryViews.SameLocation(part.Path, location)))
+        {
+            return false;
+        }
+
+        var part = book.Entries.ToList().FindIndex(entry => LibraryViews.SameLocation(entry.Path, location));
+        var chapters = ListeningViews.Chapters(book);
+        var active = ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(part, _player.Position));
+        var targetIndex = active + (direction < 0 ? -1 : 1);
+        if (direction < 0 && active >= 0 && _player.Position - chapters[active].Start > TimeSpan.FromSeconds(3))
+        {
+            targetIndex = active;
+        }
+
+        if (targetIndex < 0 || targetIndex >= chapters.Count)
+        {
+            Say(direction < 0 ? "Already at the first chapter" : "Already at the last chapter");
+            return true;
+        }
+
+        var target = chapters[targetIndex];
+        if (LibraryViews.SameLocation(target.Part.Path, location))
+        {
+            _player.Seek(target.Start);
+        }
+        else
+        {
+            PlayBook(book, target);
+        }
+
+        return true;
     }
 
     private static int IndexOfPart(LibraryGroup book, LibraryEntry part) =>
