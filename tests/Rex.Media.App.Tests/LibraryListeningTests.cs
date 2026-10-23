@@ -120,6 +120,29 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void OpeningAChapterFromAnAuthorOnlyQueuesThatBook()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Alpha", "Opening Alpha.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Alpha");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Beta", "Opening Beta.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Beta");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Authors");
+        app.Open("Ann Writer");
+        app.Open("Alpha");
+        Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK", "the selected author's book page");
+        app.Open("Opening Alpha");
+        Wait.For(() => app.Text("NowPlaying") == "Opening Alpha", "the selected chapter to play");
+        var queue = app.Queue();
+        Assert.Single(queue);
+        Assert.Contains("Opening Alpha", queue[0], StringComparison.Ordinal);
+        Assert.DoesNotContain(queue, title => title.Contains("Opening Beta", StringComparison.Ordinal));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AMoveMakesAViewAppearEmptyingItGoesHomeAndTheMoveOutlastsARestart()
     {
         using (var app = _scene.WithAsake().Ready().Start())
