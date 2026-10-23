@@ -608,16 +608,13 @@
               <Slider x:Name="LibraryCardSize" Width="110" Minimum="120" Maximum="360" StepFrequency="10" VerticalAlignment="Center"
                       ValueChanged="OnLibraryCardSizeChanged" AutomationProperties.AutomationId="LibraryCardSize" AutomationProperties.Name="Card size" />
             </StackPanel>
-
           </Grid>
             </ScrollViewer>
           </Grid>
-
           <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
-
           <ItemsView x:Name="LibraryCollage" Grid.Row="2" Visibility="Collapsed" Padding="18,0,18,8"
                      SelectionMode="Extended"
                      Tapped="OnCollageTapped" DoubleTapped="OnCollageDoubleTapped" KeyDown="OnCollageKeyDown"
@@ -627,13 +624,11 @@
                                ItemsInfoRequested="OnCollageItemsInfoRequested" />
             </ItemsView.Layout>
           </ItemsView>
-
           <!-- Home: shelves of what to play next. -->
           <ScrollViewer x:Name="LibraryHome" Grid.Row="2" Visibility="Collapsed" VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
                          AutomationProperties.AutomationId="LibraryHome">
             <StackPanel x:Name="LibraryShelves" Spacing="22" Padding="24,4,24,24" />
           </ScrollViewer>
-
           <ScrollViewer x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed"
                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                         VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
@@ -896,6 +891,9 @@
           <Button x:Name="FullScreenButton" ToolTipService.ToolTip="Toggle full screen" VerticalAlignment="Center" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen">
             <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
           </Button>
+          <DropDownButton x:Name="StageChaptersButton" Content="Chapters" Visibility="Collapsed" AutomationProperties.AutomationId="StageChaptersButton" AutomationProperties.Name="Chapters">
+            <DropDownButton.Flyout><MenuFlyout x:Name="StageChapterMenu" /></DropDownButton.Flyout>
+          </DropDownButton>
         </StackPanel>
         </ScrollViewer>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" MaxWidth="480" HorizontalAlignment="Stretch">
