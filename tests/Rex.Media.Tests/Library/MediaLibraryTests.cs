@@ -175,7 +175,7 @@ public sealed class MediaLibraryTests
         // Both kinds were read by the previous release, before oriented dimensions.
         foreach (var (key, json) in store.WithPrefix("entry/").ToList())
         {
-            store.Set(key, json.Replace("\"TagReading\":4", "\"TagReading\":3", StringComparison.Ordinal));
+            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":3", StringComparison.Ordinal));
         }
 
         var upgraded = new MediaLibrary(store);
