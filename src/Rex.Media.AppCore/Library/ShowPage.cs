@@ -37,21 +37,41 @@ public static partial class ShowPage
     {
         ArgumentNullException.ThrowIfNull(episodes);
         ArgumentNullException.ThrowIfNull(leftAt);
-        var completed = 0;
-        var inProgress = 0;
+        // Files and episodes are not interchangeable. A two-episode release
+        // contributes two episodes, while two video resolutions of the same
+        // episode contribute one. The completed version wins over an unfinished
+        // alternative, without erasing the partial file's actual resume point.
+        var status = new Dictionary<string, (bool Completed, bool InProgress)>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in episodes)
         {
-            if (leftAt(entry.Path) is not null)
+            var paused = leftAt(entry.Path) is not null;
+            var finished = !paused && entry.Plays > 0;
+            void Record(string key)
             {
-                inProgress++;
+                status.TryGetValue(key, out var previous);
+                status[key] = (previous.Completed || finished, previous.InProgress || paused);
             }
-            else if (entry.Plays > 0)
+
+            if (LibraryViews.EpisodeOf(entry) is { Episode: { } first } episode)
             {
-                completed++;
+                // Refuse an implausible giant range from malformed filenames.
+                var last = episode.Through is { } through && through >= first && through - first <= 25
+                    ? through : first;
+                for (var n = first; n <= last; n++)
+                {
+                    Record($"{episode.Series}\u001f{episode.Season}\u001f{n}");
+                }
+            }
+            else
+            {
+                // Unnumbered specials have no episode identity, so each real
+                // file remains a separately browsable and countable entry.
+                Record("file:" + entry.Path);
             }
         }
 
-        return new EpisodeWatchSummary(episodes.Count, completed, inProgress);
+        return new EpisodeWatchSummary(status.Count, status.Values.Count(value => value.Completed),
+            status.Values.Count(value => !value.Completed && value.InProgress));
     }
 
     /// <summary>
