@@ -369,6 +369,13 @@ public sealed partial class MainWindow
                 words.Spacing = 2;
                 var queue = NSButton.CreateButton("Queue", () =>
                 {
+                    if (!File.Exists(entry.Path))
+                    {
+                        _libraryScanner?.Request();
+                        Say("This file is missing. Rescanning your library.");
+                        return;
+                    }
+
                     _player.EnqueueFromLibrary([entry]);
                     Say("Added to Up Next: " + entry.Title);
                 });
@@ -487,6 +494,13 @@ public sealed partial class MainWindow
         {
             Say("This library result is no longer available. Refresh the library and try again.");
             RefreshLibrary();
+            return;
+        }
+
+        if (!File.Exists(chosen.Path))
+        {
+            _libraryScanner?.Request();
+            Say("This file is missing. Rescanning your library.");
             return;
         }
 
