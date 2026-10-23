@@ -21,13 +21,8 @@ public sealed class AudiobookPresentationTests : IDisposable
     [Capability("LIB-05")]
     public void NativeCiHasCommittedPixelBaselinesForEveryAudiobookPresentation()
     {
-        if (Screenshots.Lane != "ci-windows")
-        {
-            // A developer's own fonts and graphics driver are a different
-            // screenshot lane; only the Windows CI renderer can set goldens.
-            return;
-        }
-
+        // A screenshot without a declared semantic and viewport contract cannot
+        // be tested, even if a native PNG was captured on an earlier commit.
         var required = new[]
         {
             "audiobook-unread-card",
@@ -37,6 +32,21 @@ public sealed class AudiobookPresentationTests : IDisposable
             "audiobook-active-malformed-chapters",
             "audiobook-huge-virtualized-chapters",
         };
+        foreach (var name in required)
+        {
+            var scene = ScreenshotScenes.Find(name);
+            Assert.Equal("ci-windows", scene.RequiredLane);
+            Assert.Equal("1280x800", scene.Dimensions);
+            Assert.Contains("LibraryList", scene.ExpectedAutomationIds);
+        }
+
+        if (Screenshots.Lane != "ci-windows")
+        {
+            // A developer's own fonts and graphics driver are a different
+            // screenshot lane; only the Windows CI renderer can set goldens.
+            return;
+        }
+
         var missing = required.Where(name => !File.Exists(RepoPaths.Combine(
             "tests", "screenshot-baselines", "ci-windows", name + ".png"))).ToArray();
         Assert.True(missing.Length == 0,
@@ -58,6 +68,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             ]);
 
         using var app = _scene.Ready().Start();
+        Screenshots.PinViewport(app, 1280, 800);
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("A Book"), "the unread audiobook card");
         Assert.Contains("Not started", app.Line("A Book").Current.HelpText, StringComparison.Ordinal);
@@ -101,6 +112,7 @@ public sealed class AudiobookPresentationTests : IDisposable
                 new Chapter(MediaTime.FromSeconds(600), "Middle"),
             ]);
         using var app = _scene.Ready(played: path).Start();
+        Screenshots.PinViewport(app, 1280, 800);
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("Marker Book"), "the started book card");
         Assert.Contains("0% listened", app.Line("Marker Book").Current.HelpText,
@@ -247,6 +259,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             TimeSpan.FromHours(1), album: "Huge Book", author: "Ann Writer");
 
         using var app = _scene.Ready().Start();
+        Screenshots.PinViewport(app, 1280, 800);
         app.Visit("Audiobooks");
         app.Open("Huge Book");
         // Capture with the screenshot harness first: it waits for the declared UIA
