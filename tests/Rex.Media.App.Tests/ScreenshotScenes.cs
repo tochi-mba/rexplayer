@@ -30,7 +30,7 @@ internal static class ScreenshotScenes
         string Owner,
         string Baseline,
         string CaptureMode,
-        string RequiredLane = "ci-windows")
+        string RequiredLane)
     {
         public string ReadinessId => ReadinessSignal["uia:".Length..];
     }
