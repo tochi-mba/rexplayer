@@ -55,17 +55,32 @@ internal static class Screenshots
                 app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name),
             $"the {name} scene to be ready");
 
-        var picture = WindowPicture.Take(app.Handle);
+        // WinUI menus and dialogs are compositor-backed popups. A PrintWindow of the
+        // host HWND can omit them even while UIA reports the expected visible control.
+        var picture = scene.CaptureMode == "desktop"
+            ? WindowPicture.TakeDesktop(app.Handle)
+            : WindowPicture.Take(app.Handle);
+        var bounds = WindowPicture.Bounds(app.Handle);
+        var witness = scene.CaptureMode == "desktop"
+            ? Crop(picture, bounds, app.Find(scene.ReadinessId).Current.BoundingRectangle)
+            : picture;
         if (automationId is not null)
         {
-            picture = Crop(picture, WindowPicture.Bounds(app.Handle), app.Find(automationId).Current.BoundingRectangle);
+            picture = Crop(picture, bounds, app.Find(automationId).Current.BoundingRectangle);
         }
 
-        // Write evidence even if the captured image turns out blank or later fails its
-        // baseline. Reviewers need to know the fixture, the region and the UIA oracle.
+        // Persist the actual capture before validation, including failed blank/popup
+        // captures. This lets reviewers diagnose missing compositor surfaces.
         WriteCaptureMetadata(scene, picture, automationId, pixelThreshold, maxDifferingRatio);
+        Save(Path.Combine(Output, "actual", name + ".png"), picture);
         Assert.True(HasVisibleVariation(picture),
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
+        if (scene.CaptureMode == "desktop")
+        {
+            Assert.True(HasVisibleVariation(witness),
+                $"Screenshot {name} does not visibly render the expected popup control {scene.ReadinessId}, despite UI Automation reporting it. See its actual capture.");
+        }
+
         Compare(name, picture, pixelThreshold, maxDifferingRatio, maxViewportHeightChange);
     }
 
@@ -82,6 +97,7 @@ internal static class Screenshots
             route = scene.Route,
             state = scene.State,
             theme = scene.Theme,
+            captureMode = scene.CaptureMode,
             declaredDimensions = scene.Dimensions,
             actualDimensions = new { width = picture.Width, height = picture.Height },
             cropAutomationId = automationId,
