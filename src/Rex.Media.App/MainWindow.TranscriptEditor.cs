@@ -95,6 +95,7 @@ public sealed partial class MainWindow
         const int pageSize = 50;
         var changing = false;
         Task pendingWrite = Task.CompletedTask;
+        var lastSaveFailed = false;
         var requestedSave = 0;
         var editedSidecar = Transcript.SidecarSrtPath(media, model, edited: true);
 
@@ -104,6 +105,7 @@ public sealed partial class MainWindow
             var isOriginal = history.IsOriginal;
             var writeSidecar = _settings.Transcription.WriteSrtBesideMedia;
             var revision = ++requestedSave;
+            lastSaveFailed = false;
             saveState.Text = "Saving transcript edits…";
             retry.Visibility = Visibility.Collapsed;
             pendingWrite = pendingWrite.ContinueWith(_ =>
@@ -135,6 +137,11 @@ public sealed partial class MainWindow
                         }
                     }
 
+                    if (revision == Volatile.Read(ref requestedSave))
+                    {
+                        lastSaveFailed = false;
+                    }
+
                     OnWindowThread(() =>
                     {
                         if (revision == requestedSave && !_closing)
@@ -145,6 +152,11 @@ public sealed partial class MainWindow
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
+                    if (revision == Volatile.Read(ref requestedSave))
+                    {
+                        lastSaveFailed = true;
+                    }
+
                     OnWindowThread(() =>
                     {
                         if (revision == requestedSave && !_closing)
@@ -270,6 +282,42 @@ public sealed partial class MainWindow
             Content = container,
             CloseButtonText = "Done",
             XamlRoot = Content.XamlRoot,
+        };
+        // Never silently let the user dismiss a failed autosave. Wait for all
+        // revisions scheduled before dismissal, cancel closing on disk error,
+        // and leave the Retry button usable after permissions/space are fixed.
+        dialog.CloseButtonClick += async (_, args) =>
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                while (true)
+                {
+                    var newest = pendingWrite;
+                    await newest;
+                    if (ReferenceEquals(newest, pendingWrite))
+                    {
+                        break;
+                    }
+                }
+
+                if (lastSaveFailed)
+                {
+                    args.Cancel = true;
+                    retry.Visibility = Visibility.Visible;
+                    saveState.Text = "Your corrections are not saved. Fix the storage problem and choose Retry saving.";
+                }
+            }
+            catch (Exception error)
+            {
+                args.Cancel = true;
+                retry.Visibility = Visibility.Visible;
+                saveState.Text = "Saving could not finish: " + error.Message;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
         };
         await ShowDialogAsync(dialog);
         await pendingWrite;
