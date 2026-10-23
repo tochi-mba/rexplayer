@@ -35,11 +35,22 @@ public sealed partial class MainWindow
 
         var repeat = new CheckBox { Content = "Repeat this sound while controls are open" };
         AutomationProperties.SetAutomationId(repeat, "SoundRepeat");
+        var startingSound = false;
         repeat.Checked += (_, _) =>
         {
-            if (!LibraryViews.SameLocation(_player.Item?.Location, sound.Path))
+            if (!LibraryViews.SameLocation(_player.Playlist.Current?.Location, sound.Path))
             {
-                Play([sound], 0);
+                // Queue replacement can raise Changed while the old file is still exiting;
+                // ignore that handoff, not a later change to a different queue item.
+                startingSound = true;
+                try
+                {
+                    Play([sound], 0);
+                }
+                finally
+                {
+                    startingSound = false;
+                }
             }
 
             _player.Playlist.Repeat = RepeatMode.One;
@@ -51,8 +62,9 @@ public sealed partial class MainWindow
         // while the controls dialog remains open.
         EventHandler? changed = (_, _) =>
         {
-            if (repeat.IsChecked == true && _player.Item?.Location is { } now
-                && !LibraryViews.SameLocation(now, sound.Path))
+            if (!startingSound && repeat.IsChecked == true
+                && _player.Playlist.Current is { } queued
+                && !LibraryViews.SameLocation(queued.Location, sound.Path))
             {
                 repeat.IsChecked = false;
             }
