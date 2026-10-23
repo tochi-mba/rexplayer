@@ -493,6 +493,10 @@ public sealed partial class MainWindow
         LibraryGroup group => "group:" + group.Name + "\n"
             + (_librarySource is LibrarySource.Albums or LibrarySource.Audiobooks or LibrarySource.Authors ? group.Detail : null)
             + (_librarySource is LibrarySource.Audiobooks or LibrarySource.Authors ? "\n" + group.Entries.FirstOrDefault()?.Path : ""),
+        // Record.ToString() includes the chapter's LibraryEntry, including its complete
+        // marker collection. Calling it for every row turns a 10,000-chapter book into
+        // quadratic work while selection is restored and leaves the window unresponsive.
+        BookChapter chapter => $"chapter:{chapter.Part.Path}\n{chapter.Start.Ticks}",
         Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
         _ => "folder:" + row.Item,
     };
