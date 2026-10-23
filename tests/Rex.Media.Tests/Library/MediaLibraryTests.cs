@@ -170,6 +170,33 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void ExplicitForgetAndHideRemoveArchivedHistoryEvenWhenMediaIsAlreadyAbsent()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var media = File(In("private.mp3"));
+        library.AddFolder(Music);
+        library.Scan(Music, [media], KindOf);
+        library.Played(media.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+
+        Assert.Equal(0, library.Forget([media.Path]));
+        Assert.Empty(store.WithPrefix("absent/"));
+        library.Scan(Music, [media], KindOf);
+        Assert.Equal(0, library.Entry(media.Path)!.Plays);
+
+        library.Played(media.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+        Assert.Equal(0, library.Hide([media.Path]));
+        Assert.Empty(store.WithPrefix("absent/"));
+        Assert.False(library.Scan(Music, [media], KindOf).Any);
+        Assert.Null(library.Entry(media.Path));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void FilesCanBeHiddenUntilTheFolderIsRemovedAndReadded()
     {
         var store = RexStore.InMemory();
