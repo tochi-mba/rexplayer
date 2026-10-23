@@ -311,7 +311,7 @@ public sealed partial class MainWindow
         using var png = bitmap.RepresentationUsingTypeProperties(NSBitmapImageFileType.Png)
             ?? throw new InvalidOperationException("AppKit could not encode the library screenshot.");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        if (!png.Save(path, true))
+        if (!png.Save(NSUrl.FromFilename(Path.GetFullPath(path)), true))
         {
             throw new IOException("Could not save the library screenshot.");
         }
