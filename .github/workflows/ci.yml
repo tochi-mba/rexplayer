@@ -213,6 +213,8 @@ jobs:
           app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/osx-arm64 -maxdepth 1 -name '*.app' | head -1)
           export REXPLAYER_MAC_APP="$PWD/$app"
           export REXPLAYER_MAC_SCREENSHOTS="$PWD/artifacts/mac-library-screenshots"
+          # This controlled runner must match the visually reviewed macOS PNG baselines.
+          export REXPLAYER_MAC_SCREENSHOT_BASELINES=1
           dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
 
       - name: Keep the native library screenshots
