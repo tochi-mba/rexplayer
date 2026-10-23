@@ -260,6 +260,7 @@ PlayerMetrics.cs
 PlayerSettings.cs
 Playlist.cs
 PodcastNotes.cs
+PodcastEpisodeProgress.cs
 PlaylistEntry.cs
 PlaylistFiles.cs
 PlaylistPaths.cs
