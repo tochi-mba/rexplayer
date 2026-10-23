@@ -457,7 +457,9 @@ public sealed class MediaLibrary
     /// <summary>
     /// Recover a played file that was temporarily missing from a watched folder.
     /// A moved file inherits history only when its size, modification time and
-    /// media kind form an unambiguous match among gone and archived items.
+    /// media kind and original filename form an unambiguous match among gone and archived items.
+    /// Renames without reliable identity evidence stay unmatched instead of inheriting
+    /// an unrelated file's private history.
     /// </summary>
     private LibraryEntry? RecoverMissing(LibraryFile file, LibraryKind kind, HashSet<string> listed, string folder)
     {
@@ -469,9 +471,11 @@ public sealed class MediaLibrary
         var possible = _entries.Values.Where(entry => Holds(folder, entry.Path)
                 && !listed.Contains(entry.Path) && entry.Kind == kind
                 && entry.Size == file.Size && entry.Modified == file.Modified
+                && string.Equals(Path.GetFileName(entry.Path), Path.GetFileName(file.Path), StringComparison.OrdinalIgnoreCase)
                 && (entry.Plays > 0 || entry.LastPlayed is not null))
             .Concat(_absent.Values.Where(entry => entry.Kind == kind
-                && entry.Size == file.Size && entry.Modified == file.Modified))
+                && entry.Size == file.Size && entry.Modified == file.Modified
+                && string.Equals(Path.GetFileName(entry.Path), Path.GetFileName(file.Path), StringComparison.OrdinalIgnoreCase)))
             .DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
         if (possible.Count != 1
             || _entries.Values.Any(entry => listed.Contains(entry.Path) && entry.Kind == kind
