@@ -34,7 +34,7 @@ public sealed partial class MainWindow
 
         using var cancel = new CancellationTokenSource();
         var token = cancel.Token;
-        var panel = new StackPanel { Spacing = 12, MinWidth = 520 };
+        var panel = new StackPanel { Spacing = 12, MaxWidth = 680 };
         var status = new TextBlock
         {
             Text = "Reading a sampled preview from the local file...",
