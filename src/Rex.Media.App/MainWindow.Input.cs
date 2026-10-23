@@ -400,6 +400,15 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Explicit navigation does not change the queue, playback or other selection.</summary>
+    private void OnPlaylistJumpNow(object sender, RoutedEventArgs e)
+    {
+        if (_player.Playlist.CurrentIndex is >= 0 and var index && index < _playlistRows.Count)
+        {
+            PlaylistView.ScrollIntoView(_playlistRows[index]);
+        }
+    }
+
     private void OnPrevious(object sender, RoutedEventArgs e) => Run(CommandCatalog.Previous);
 
     private void OnPlayPause(object sender, RoutedEventArgs e) => Run(CommandCatalog.PlayPause);

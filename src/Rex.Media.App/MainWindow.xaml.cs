@@ -68,6 +68,8 @@ public sealed partial class MainWindow : Window
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
     private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
+    private PlaylistItem? _queueLastFollowed;
+    private bool _queuePaneWasVisible;
 
     /// <param name="files">What the launch was asked to open.</param>
     /// <param name="settings">The settings the launch has already read; read again when null.</param>
@@ -612,11 +614,15 @@ public sealed partial class MainWindow : Window
             ? "Up next: " + next.Title : "No upcoming items";
         PlaylistEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        if (current >= 0 && PlaylistPane.Visibility == Visibility.Visible)
+        var paneVisible = PlaylistPane.Visibility == Visibility.Visible;
+        PlaylistJumpNow.IsEnabled = current >= 0;
+        if (QueueScrollPolicy.ShouldFollow(paneVisible, !_queuePaneWasVisible, _queueLastFollowed, _player.Playlist.Current))
         {
             PlaylistView.ScrollIntoView(_playlistRows[current]);
         }
 
+        _queueLastFollowed = _player.Playlist.Current;
+        _queuePaneWasVisible = paneVisible;
         ShowTaskbarState();
     }
 

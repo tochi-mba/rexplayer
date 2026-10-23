@@ -259,6 +259,7 @@ PlayerMemory.cs
 PlayerMetrics.cs
 PlayerSettings.cs
 Playlist.cs
+QueueScrollPolicy.cs
 PlaylistEntry.cs
 PlaylistFiles.cs
 PlaylistPaths.cs
