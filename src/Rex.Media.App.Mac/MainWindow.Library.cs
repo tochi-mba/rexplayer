@@ -267,14 +267,22 @@ public sealed partial class MainWindow
             views.Add(row);
         }
 
+        // AppKit views use bottom-left coordinates by default. A flipped document and
+        // top-anchored stack keep the first result and empty state at the top of the list.
+        var document = new TopAlignedLibraryDocument
+        {
+            Frame = new CGRect(0, 0, Math.Max(510, _libraryScroll.ContentSize.Width), Math.Max(340, shown.Count * 59 + 35)),
+        };
         var content = NSStackView.FromViews([.. views]);
         content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         content.Alignment = NSLayoutAttribute.Leading;
         content.Spacing = 9;
-        content.EdgeInsets = new NSEdgeInsets(12, 14, 14, 12);
-        // An explicit document frame allows AppKit's scroller to work even before the first layout.
-        content.Frame = new CGRect(0, 0, 690, Math.Max(340, shown.Count * 59 + 35));
-        _libraryScroll.DocumentView = content;
+        content.TranslatesAutoresizingMaskIntoConstraints = false;
+        document.AddSubview(content);
+        content.TopAnchor.ConstraintEqualTo(document.TopAnchor, 12).Active = true;
+        content.LeadingAnchor.ConstraintEqualTo(document.LeadingAnchor, 14).Active = true;
+        content.TrailingAnchor.ConstraintLessThanOrEqualTo(document.TrailingAnchor, -12).Active = true;
+        _libraryScroll.DocumentView = document;
         var status = _libraryScanner?.Status;
         _librarySummary.StringValue = $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
             + (string.IsNullOrEmpty(status) ? "" : " • " + status)
@@ -296,6 +304,12 @@ public sealed partial class MainWindow
         HideLibrary();
     }
 
+    /// <summary>Use top-left coordinates for scrolling native result rows.</summary>
+    private sealed class TopAlignedLibraryDocument : NSView
+    {
+        public override bool IsFlipped => true;
+    }
+
     /// <summary>Capture the native library surface for scripted macOS UI checks.</summary>
     private void CaptureLibraryScreenshot(string path)
     {
@@ -307,6 +321,21 @@ public sealed partial class MainWindow
         content.LayoutSubtreeIfNeeded();
         using var bitmap = content.BitmapImageRepForCachingDisplayInRect(content.Bounds)
             ?? throw new InvalidOperationException("AppKit could not capture the library.");
+        // NSStackView is transparent. Supply the window background so text and controls
+        // do not disappear into a black/transparent PNG when the screenshot is reviewed.
+        NSGraphicsContext.SaveGraphicsState();
+        try
+        {
+            using var context = NSGraphicsContext.FromBitmapImageRep(bitmap);
+            NSGraphicsContext.CurrentContext = context;
+            NSColor.WindowBackground.SetFill();
+            NSBezierPath.FillRect(content.Bounds);
+        }
+        finally
+        {
+            NSGraphicsContext.RestoreGraphicsState();
+        }
+
         content.CacheDisplay(content.Bounds, bitmap);
         using var png = bitmap.RepresentationUsingTypeProperties(NSBitmapImageFileType.Png)
             ?? throw new InvalidOperationException("AppKit could not encode the library screenshot.");
