@@ -356,7 +356,9 @@ public sealed partial class MainWindow
             {
                 options = false;
                 var rows = _librarySource == LibrarySource.Playlists
-                    ? _player.NamedPlaylists.Select(p => new LibraryRow(p.Name, null, Count(p.Items.Count, "item"), p)).ToList()
+                    ? _player.NamedPlaylists.Select(p => new LibraryRow(p.Name,
+                        SavedPlaylistFacts.For(p, path => library.Entry(path)).Label,
+                        Count(p.Items.Count, "item"), p)).ToList()
                     : [.. library.Folders.Select(folder => new LibraryRow(folder, Count(entries.Count(entry => MediaLibrary.Holds(folder, entry.Path)), "file"), "", folder))];
                 sections = [new LibraryRowGroup("", rows)];
                 subtitle = _librarySource == LibrarySource.Playlists ? Count(rows.Count, "playlist") : Count(rows.Count, "folder") + " watched";
