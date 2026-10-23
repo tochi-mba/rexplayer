@@ -121,6 +121,54 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void DiscFoldersAndMixedGenericAlbumTagsStayOneBookWithoutGuessingTheAuthor()
+    {
+        var first = AudioFile("Audiobooks/The Long Road/Disc 1/01.mp3",
+            TimeSpan.FromMinutes(50), "Ann Writer", "The Long Road", track: 1);
+        var second = AudioFile("Audiobooks/The Long Road/Disc 2/01.mp3",
+            TimeSpan.FromMinutes(50), album: "Disc 2", track: 1);
+        var third = AudioFile("Audiobooks/The Long Road/Disc 3/02.mp3",
+            TimeSpan.FromMinutes(50), "Ann Writer", track: 2);
+        var book = Assert.Single(ListeningViews.Books([second, third, first]));
+        Assert.Equal("The Long Road", book.Name);
+        Assert.Equal("Ann Writer", book.Detail);
+        Assert.Equal([first.Path, second.Path, third.Path], book.Entries.Select(part => part.Path));
+
+        var rival = first with
+        {
+            Path = "Audiobooks/The Long Road/Disc 4/01.mp3",
+            Author = "Bo Author", Artist = "Bo Author", Disc = 4,
+        };
+        var split = ListeningViews.Books([first, second, rival]);
+        Assert.Equal(3, split.Count);
+        Assert.Contains(split, group => group.Detail is null && group.Entries.Single().Path == second.Path);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void RestoredMarkersOutrankStalePlayDatesAndAreClampedBeforeResume()
+    {
+        var old = new DateTime(2024, 1, 2, 9, 0, 0, DateTimeKind.Utc);
+        var first = AudioFile("Audiobooks/Restored/Part 1.mp3", TimeSpan.FromMinutes(50))
+            with { LastPlayed = old };
+        var later = AudioFile("Audiobooks/Restored/Part 2.mp3", TimeSpan.FromMinutes(50));
+        var book = new LibraryGroup("Restored", null, [first, later]);
+
+        Assert.Equal(new BookPlace(1, TimeSpan.FromMinutes(18)),
+            ListeningViews.PlaceIn(book, path => path == later.Path ? TimeSpan.FromMinutes(18) : null));
+        Assert.Equal(new BookPlace(1, TimeSpan.FromMinutes(50)),
+            ListeningViews.PlaceIn(book, path => path == later.Path ? TimeSpan.FromHours(90) : null));
+        Assert.Equal(new BookPlace(1, TimeSpan.Zero),
+            ListeningViews.PlaceIn(book, path => path == later.Path ? TimeSpan.FromMinutes(-5) : null));
+        Assert.Equal(new BookPlace(0, TimeSpan.Zero), ListeningViews.PlaceIn(book, NeverLeft));
+
+        var newest = later with { LastPlayed = old.AddDays(2) };
+        Assert.Equal(new BookPlace(1, TimeSpan.Zero),
+            ListeningViews.PlaceIn(book with { Entries = [first, newest] }, NeverLeft));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookHasChaptersOnePlaceToResumeFromAndItsProgress()
     {
         var day = new DateTime(2024, 3, 1, 9, 0, 0, DateTimeKind.Utc);
