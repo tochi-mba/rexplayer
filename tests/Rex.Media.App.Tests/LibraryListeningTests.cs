@@ -257,6 +257,12 @@ public sealed class LibraryListeningTests : IDisposable
         Assert.Contains("<script>", app.Text("LibraryOverview"), StringComparison.Ordinal);
         Assert.Contains("Creator tag:", app.Text("LibraryFacts"), StringComparison.Ordinal);
         Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Pointer.RightClick(app, app.Line("Ep 1"));
+        Wait.For(() => app.IsShown("LibraryMenuShowNotes"), "safe full-show local notes action");
+        app.Press("LibraryMenuShowNotes");
+        var full = (System.Windows.Automation.ValuePattern)app.Find("PodcastShowNotesText")
+            .GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern);
+        Assert.Contains("Independent local show notes.", full.Current.Value, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 
