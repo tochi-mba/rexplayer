@@ -164,6 +164,18 @@ public sealed class MacAppSmokeTests
             Assert.True(music?.Ok == true && music.Text?.Contains("0 matching", StringComparison.Ordinal) == true, "The native Music category did not filter videos.");
             var videos = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 2 });
             Assert.True(videos?.Ok == true && videos.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The native Videos category did not restore the video.");
+            var pictures = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 3 });
+            Assert.True(pictures?.Ok == true && pictures.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
+                "The Pictures category must not contain the saved video.");
+            var recentlyAdded = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 4 });
+            Assert.True(recentlyAdded?.Ok == true && recentlyAdded.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The Recently added category did not show the newly scanned video.");
+            var recentlyPlayed = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 5 });
+            Assert.True(recentlyPlayed?.Ok == true && recentlyPlayed.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
+                "The unplayed video unexpectedly appeared in Recently played.");
+            videos = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 2 });
+            Assert.True(videos?.Ok == true && videos.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The Videos category did not restore after switching all six categories.");
             var small = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
             Assert.True(small?.Ok == true, "The native library could not use its minimum window size: " + (small?.Error ?? "no reply"));
             await CaptureLibraryScreenshot(pipe, "minimum-width", root);
