@@ -23,7 +23,57 @@ public sealed partial class MainWindow
     private byte[]? _shownCover;
     private Lyrics? _shownLyrics;
     private int _shownLine = -1;
+    private bool _followCurrentLyric = true;
     private readonly List<TextBlock> _lyricTexts = [];
+
+    /// <summary>
+    /// A manual scroll should not be immediately undone by the next playback tick.
+    /// The button is available by pointer, Tab and screen-reader navigation.
+    /// </summary>
+    private void WireLyricNavigation()
+    {
+        LyricsBox.PointerWheelChanged += (_, _) => SuspendLyricFollow();
+        LyricsBox.PointerPressed += (_, _) => SuspendLyricFollow();
+        LyricsBox.KeyDown += (_, args) =>
+        {
+            if (args.Key is Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down
+                or Windows.System.VirtualKey.PageUp or Windows.System.VirtualKey.PageDown
+                or Windows.System.VirtualKey.Home or Windows.System.VirtualKey.End)
+            {
+                SuspendLyricFollow();
+            }
+        };
+        LyricsFollowButton.Click += (_, _) =>
+        {
+            _followCurrentLyric = true;
+            LyricsFollowButton.Visibility = Visibility.Collapsed;
+            BringActiveLyricIntoView();
+        };
+    }
+
+    private void SuspendLyricFollow()
+    {
+        if (_shownLyrics is not { IsTimed: true })
+        {
+            return;
+        }
+
+        _followCurrentLyric = false;
+        LyricsFollowButton.Visibility = Visibility.Visible;
+    }
+
+    private void BringActiveLyricIntoView()
+    {
+        var current = _player.LyricIndex;
+        if (current >= 0 && current < LyricsLines.Children.Count)
+        {
+            LyricsLines.Children[current].StartBringIntoView(new BringIntoViewOptions
+            {
+                VerticalAlignmentRatio = 0.5,
+                AnimationDesired = _budget.Animations,
+            });
+        }
+    }
 
     /// <summary>Brings the picture, the album and the lyrics on screen in line with what plays.</summary>
     private void ShowPresentation()
@@ -84,6 +134,8 @@ public sealed partial class MainWindow
         {
             _shownLyrics = lyrics;
             _shownLine = -1;
+            _followCurrentLyric = true;
+            LyricsFollowButton.Visibility = Visibility.Collapsed;
             LyricsLines.Children.Clear();
             _lyricTexts.Clear();
             foreach (var (index, line) in (lyrics?.Lines ?? []).Index())
@@ -132,6 +184,8 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(button, $"Go to {when}");
                 button.Click += (_, _) =>
                 {
+                    _followCurrentLyric = true;
+                    LyricsFollowButton.Visibility = Visibility.Collapsed;
                     _player.Seek(at);
                     Say(when);
                 };
@@ -248,7 +302,10 @@ public sealed partial class MainWindow
             var current = _lyricTexts[line];
             current.Foreground = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
             current.FontWeight = FontWeights.SemiBold;
-            LyricsLines.Children[line].StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5, AnimationDesired = _budget.Animations });
+            if (_followCurrentLyric)
+            {
+                BringActiveLyricIntoView();
+            }
         }
     }
 }
