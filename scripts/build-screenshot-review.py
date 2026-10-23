@@ -46,7 +46,7 @@ def build(inventory_path: Path, root: Path, output: Path) -> int:
         metadata = "".join(f"<dt>{html.escape(k)}</dt><dd>{html.escape(str(v))}</dd>"
                            for k, v in fields)
         images = []
-        for folder in ("actual", "repeat", "baseline", "diff", "repeat-diff"):
+        for folder in ("window", "actual", "repeat", "baseline", "diff", "repeat-diff"):
             picture = base / folder / (scene["id"] + ".png")
             if picture.is_file():
                 rel = Path("..") / lane / folder / (scene["id"] + ".png")
