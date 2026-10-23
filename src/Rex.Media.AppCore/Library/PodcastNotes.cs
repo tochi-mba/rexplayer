@@ -14,8 +14,8 @@ public static class PodcastNotes
     public static IReadOnlyList<string> Sidecars(string episodePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(episodePath);
-        return [Path.ChangeExtension(episodePath, ".notes.md"),
-            Path.ChangeExtension(episodePath, ".notes.txt")];
+        return [Path.ChangeExtension(episodePath, ".notes.md")!,
+            Path.ChangeExtension(episodePath, ".notes.txt")!];
     }
 
     /// <summary>
