@@ -20,7 +20,7 @@ pipeline the moment its number reaches `main`.
 ### Fixed
 
 - **Audiobook shelf leaks (#455).** Keep audiobook intros and chapters, including the Chronicles of Narnia, Roald Dahl collections and spoken-word releases tagged as non-fiction audiobooks, out of Songs and genre shelves.
-- **Library scrolling stalls (#455).** Background transcription and intro or credit analysis now yield while the library is open, keeping scrolling, artwork layout and navigation responsive under a busy scan.
+- **Library scrolling stalls (#455).** In Balanced and Fastest modes, background transcription and intro or credit analysis yield while browsing so artwork and navigation stay responsive. Best quality leaves that background work running; Automatic follows the selected tier.
 
 ## 0.30.4 - 2026-10-23
 

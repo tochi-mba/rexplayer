@@ -70,6 +70,9 @@ public sealed record DeviceBudget
     /// <summary>The library may go on being transcribed while something plays, when the user allows it.</summary>
     public bool TranscribeWhilePlaying { get; init; } = true;
 
+    /// <summary>Background transcription and episode section analysis yield while the library is open.</summary>
+    public bool PauseBackgroundWorkWhileBrowsing { get; init; }
+
     /// <summary>A launch with nothing to open prepares only what its window needs, the rest when first used.</summary>
     public bool LeanLaunch { get; init; }
 
@@ -180,6 +183,7 @@ public static class DeviceProfile
                 Tier = tier,
                 VisualMaxSide = 1280,
                 VisualFrameMilliseconds = 33,
+                PauseBackgroundWorkWhileBrowsing = true,
                 VideoQueueCapacity = 24,
             },
             PerformanceTier.Fastest => new DeviceBudget
@@ -190,6 +194,7 @@ public static class DeviceProfile
                 HeavyEffectsOff = true,
                 SubjectStep = 2,
                 TranscribeWhilePlaying = false,
+                PauseBackgroundWorkWhileBrowsing = true,
                 LeanLaunch = true,
                 LibraryPictureSide = 240,
                 SeekPreview = false,
@@ -256,6 +261,11 @@ public static class DeviceProfile
         if (!budget.TranscribeWhilePlaying)
         {
             changes.Add("The library is transcribed only while nothing plays.");
+        }
+
+        if (budget.PauseBackgroundWorkWhileBrowsing)
+        {
+            changes.Add("Background transcription and intro or credit analysis pause while browsing the library.");
         }
 
         if (budget.LeanLaunch)
