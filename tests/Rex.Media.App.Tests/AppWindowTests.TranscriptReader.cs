@@ -12,7 +12,7 @@ public sealed partial class AppWindowTests
         var media = Song(30);
         var root = Path.Combine(_media, "edited-only-reader-data");
         Directory.CreateDirectory(root);
-        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+        File.WriteAllText(Path.Combine(root, "settings.json"), $$"""
             { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off" }
             """);
         var cache = new TranscriptCache(TranscriptCache.DefaultRoot(root));
@@ -41,7 +41,7 @@ public sealed partial class AppWindowTests
         var media = Song(30);
         var root = Path.Combine(_media, "other-model-reader-data");
         Directory.CreateDirectory(root);
-        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+        File.WriteAllText(Path.Combine(root, "settings.json"), $$"""
             { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off" }
             """);
         var cache = new TranscriptCache(TranscriptCache.DefaultRoot(root));
@@ -65,7 +65,7 @@ public sealed partial class AppWindowTests
         var media = Song(35);
         var root = Path.Combine(_media, "partial-speech-reader-data");
         Directory.CreateDirectory(root);
-        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+        File.WriteAllText(Path.Combine(root, "settings.json"), $$"""
             { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off" }
             """);
         var cache = new TranscriptCache(TranscriptCache.DefaultRoot(root));
