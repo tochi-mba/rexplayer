@@ -85,7 +85,9 @@ and writes a companion `actual/<scene-id>.json` describing the scene, crop, capt
 CI commit and baseline presence. The image preflight still rejects blank or nearly uniform frames.
 The `unreviewed` inventory status means the capture is record-only, not visually approved.
 `ci-windows` means a committed baseline exists, not that all human visual review gates passed.
-Unpinned viewport labels in the inventory are explicit follow-up work, not evidence of coverage.
+All 60 declared scene dimensions are now explicit host-window sizes. The capture
+path checks each pinned UI Automation viewport before accepting evidence. A
+pinned dimension is not itself a reviewed PNG or proof of matching layout.
 The scene contract also declares `captureMode`: `window` uses PrintWindow for the host HWND,
 whereas `desktop` uses the actual on-screen desktop composition. Most scenes use `desktop`, because CI evidence showed PrintWindow could silently omit both
 floating popups and full window content, even after UIA reports it ready. The two existing
