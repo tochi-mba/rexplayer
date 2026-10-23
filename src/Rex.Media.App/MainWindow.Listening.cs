@@ -199,7 +199,15 @@ public sealed partial class MainWindow
 
     /// <summary>A book's line under its name on its page: author, length, chapters and how far it is.</summary>
     private string BookLine(LibraryGroup book, int chapters) =>
-        string.Join(" · ", new[] { book.Detail ?? "Unknown author", Total(book.Entries), Count(chapters, "chapter"), BookProgressText(book) }.Where(part => part.Length > 0));
+        string.Join(" · ", new[]
+        {
+            book.Detail ?? "Unknown author",
+            BookCredits.Narrator(book) is { } narrator ? "Narrated by " + narrator : null,
+            book.Entries.Count > 0 && book.Entries.All(part => part.Duration is { Ticks: > 0 })
+                ? Total(book.Entries) : "Length unknown",
+            Count(chapters, "chapter"),
+            BookProgressText(book),
+        }.Where(part => !string.IsNullOrEmpty(part)));
 
     private string BookProgressText(LibraryGroup book)
     {
@@ -214,7 +222,14 @@ public sealed partial class MainWindow
         }
 
         var progress = ListeningViews.Progress(book, ListeningViews.PlaceIn(book, _player.LeftAt));
-        return ListeningViews.Started(book, _player.LeftAt) ? string.Create(CultureInfo.CurrentCulture, $"{progress:P0} listened") : "Not started";
+        if (!ListeningViews.Started(book, _player.LeftAt))
+        {
+            return "Not started";
+        }
+
+        var remaining = ListeningViews.Remaining(book, ListeningViews.PlaceIn(book, _player.LeftAt));
+        var listened = string.Create(CultureInfo.CurrentCulture, $"{progress:P0} listened");
+        return remaining is { } left ? listened + " · " + TimeText.Format(left) + " left" : listened;
     }
 
     /// <summary>A book's card: its cover, name and author, how far it is, and a ring of its progress.</summary>
