@@ -65,6 +65,10 @@ public sealed class MacAppSmokeTests
                 app, root);
             Assert.Contains("1 folder", populated.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-populated");
+            var searched = await Library(pipe, "search-song");
+            Assert.Contains("1 item", searched.Title, StringComparison.Ordinal);
+            var songs = await Library(pipe, "songs");
+            Assert.Contains("1 item", songs.Title, StringComparison.Ordinal);
             var onlyVideos = await Library(pipe, "videos");
             Assert.Contains("1 item", onlyVideos.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-videos");
