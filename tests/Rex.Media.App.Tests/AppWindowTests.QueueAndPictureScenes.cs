@@ -12,6 +12,38 @@ namespace Rex.Media.App.Tests;
 /// </summary>
 public sealed partial class AppWindowTests
 {
+    [Fact]
+    [Capability("UI-13")]
+    public void QueueHighContrastCaptureUsesTheRealOperatingSystemPalette()
+    {
+        if (!System.Windows.SystemParameters.HighContrast)
+        {
+            Assert.Skip("Run the Windows UI screenshot lane with High Contrast enabled to capture this state.");
+        }
+
+        using var app = AppStartedAt(1000, 700, "Dark");
+        app.Run(CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.IsShown("PlaylistPane"), "the queue to display in High Contrast");
+        Screenshots.Match(app, "queue-empty-high-contrast", "PlaylistPane");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-13")]
+    public void QueueRtlLocaleCaptureUsesTheRealWindowsUiLanguage()
+    {
+        if (!System.Globalization.CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft)
+        {
+            Assert.Skip("Run the Windows UI screenshot lane in an RTL UI language to capture this state.");
+        }
+
+        using var app = AppStartedAt(1000, 700, "Light");
+        app.Run(CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.IsShown("PlaylistPane"), "the queue to display in the RTL UI language");
+        Screenshots.Match(app, "queue-empty-rtl-locale", "PlaylistPane");
+        Assert.Equal(0, app.Close());
+    }
+
     [Theory]
     [InlineData(1060, 760, "Light", "normal-light")]
     [InlineData(780, 620, "Dark", "compact-dark")]
