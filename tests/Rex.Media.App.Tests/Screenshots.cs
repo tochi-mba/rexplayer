@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Rex.Media.TestKit;
@@ -45,15 +46,58 @@ internal static class Screenshots
     public static void Match(AppProcess app, string name, string? automationId = null,
         int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
     {
+        var scene = ScreenshotScenes.Find(name);
+        // Wait on real UI Automation state, not on a time delay or a frame that happened
+        // to look populated. The manifest's visible data also guards against stale routes.
+        Wait.For(() =>
+            scene.ExpectedAutomationIds.All(app.IsShown) &&
+            scene.ExpectedVisibleData.All(item =>
+                app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name),
+            $"the {name} scene to be ready");
+
         var picture = WindowPicture.Take(app.Handle);
         if (automationId is not null)
         {
             picture = Crop(picture, WindowPicture.Bounds(app.Handle), app.Find(automationId).Current.BoundingRectangle);
         }
 
+        // Write evidence even if the captured image turns out blank or later fails its
+        // baseline. Reviewers need to know the fixture, the region and the UIA oracle.
+        WriteCaptureMetadata(scene, picture, automationId, pixelThreshold, maxDifferingRatio);
         Assert.True(HasVisibleVariation(picture),
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
         Compare(name, picture, pixelThreshold, maxDifferingRatio, maxViewportHeightChange);
+    }
+
+    private static void WriteCaptureMetadata(ScreenshotScenes.ScreenshotScene scene,
+        (int Width, int Height, byte[] Bgra) picture, string? automationId,
+        int pixelThreshold, double maxDifferingRatio)
+    {
+        var dir = Path.Combine(Output, "actual");
+        Directory.CreateDirectory(dir);
+        var details = new
+        {
+            sceneId = scene.Id,
+            fixture = scene.Fixture,
+            route = scene.Route,
+            state = scene.State,
+            theme = scene.Theme,
+            declaredDimensions = scene.Dimensions,
+            actualDimensions = new { width = picture.Width, height = picture.Height },
+            cropAutomationId = automationId,
+            readiness = scene.ReadinessSignal,
+            expectedAutomationIds = scene.ExpectedAutomationIds,
+            expectedVisibleData = scene.ExpectedVisibleData,
+            owner = scene.Owner,
+            baselineReviewState = scene.Baseline,
+            baselineExists = File.Exists(Path.Combine(Baselines, scene.Id + ".png")),
+            lane = Lane,
+            commit = Environment.GetEnvironmentVariable("GITHUB_SHA"),
+            pixelThreshold,
+            maxDifferingRatio,
+        };
+        File.WriteAllText(Path.Combine(dir, scene.Id + ".json"),
+            JsonSerializer.Serialize(details, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     /// <summary>
