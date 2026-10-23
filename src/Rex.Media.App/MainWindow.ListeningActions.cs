@@ -100,13 +100,12 @@ public sealed partial class MainWindow
     {
         var show = Listening().Podcasts.FirstOrDefault(candidate =>
             candidate.Entries.Any(item => LibraryViews.SameLocation(item.Path, episode.Path)));
-        IReadOnlyList<LibraryEntry> ordered = show is null
-            ? [episode] : ListeningViews.Episodes(show.Entries, oldestFirst: true);
+        IReadOnlyList<LibraryEntry> candidates = show is null ? [episode] : show.Entries;
         var source = _librarySource;
         var opened = _libraryGroup?.Name;
         var request = Interlocked.Increment(ref _episodeQueueRequest);
-        Forget(Task.Run(() => ordered.Where(item => !item.Downloading
-                && item.Problem is null && File.Exists(item.Path)).ToList())
+        Forget(Task.Run(() => ListeningViews.AvailableEpisodeQueue(candidates, episode.Path,
+                item => !item.Downloading && item.Problem is null && File.Exists(item.Path)))
             .ContinueWith(task => OnWindowThread(() =>
             {
                 if (_closing || request != Volatile.Read(ref _episodeQueueRequest)
@@ -121,9 +120,7 @@ public sealed partial class MainWindow
                     return;
                 }
 
-                var playable = task.Result;
-                var index = playable.FindIndex(item =>
-                    LibraryViews.SameLocation(item.Path, episode.Path));
+                var (playable, index) = task.Result;
                 if (index < 0)
                 {
                     Say("This episode is missing, incomplete or unavailable locally.");
