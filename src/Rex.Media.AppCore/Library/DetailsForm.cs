@@ -103,6 +103,39 @@ public static class DetailsForm
     }
 
     /// <summary>
+    /// Truthful per-field provenance: local overrides are explicit, while a
+    /// scanned value cannot always distinguish embedded tags from filename
+    /// fallback, so do not claim it came from an online service or file tag.
+    /// </summary>
+    public static string Provenance(IReadOnlyList<LibraryEntry> songs, string key)
+    {
+        ArgumentNullException.ThrowIfNull(songs);
+        ArgumentNullException.ThrowIfNull(key);
+        if (songs.Count == 0)
+        {
+            return "No selected media";
+        }
+
+        bool Overridden(LibraryEntry entry) => key switch
+        {
+            MetadataKeys.Title => entry.Override?.Title is not null,
+            MetadataKeys.Artist => entry.Override?.Artist is not null,
+            MetadataKeys.Album => entry.Override?.Album is not null,
+            MetadataKeys.AlbumArtist => entry.Override?.AlbumArtist is not null,
+            MetadataKeys.Track => entry.Override?.Track is not null,
+            MetadataKeys.Disc => entry.Override?.Disc is not null,
+            MetadataKeys.Date => entry.Override?.Year is not null,
+            MetadataKeys.Genre => entry.Override?.Genre is not null,
+            _ => false,
+        };
+        var overrides = songs.Count(Overridden);
+        return overrides == songs.Count ? "Locally overridden in rexplayer"
+            : overrides > 0 ? "Mixed sources, including rexplayer overrides"
+            : songs.Any(entry => !entry.Probed) ? "Indexed locally; some file metadata has not been read yet"
+            : "From the local media scan; tags and filename fallback may both contribute";
+    }
+
+    /// <summary>
     /// Errors that would make changed numeric tags ambiguous or destructive.
     /// Empty values intentionally mean "clear this tag"; untouched mixed
     /// values are never included in a DetailOverride.
