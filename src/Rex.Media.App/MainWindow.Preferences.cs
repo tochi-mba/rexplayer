@@ -521,7 +521,7 @@ public sealed partial class MainWindow
                 Visibility = Visibility.Collapsed,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(searchResult, "PreferencesSearchEmpty");
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(searchResult, Microsoft.UI.Xaml.Automation.AutomationLiveSetting.Polite);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(searchResult, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
             categorySearch.TextChanged += (_, _) =>
             {
                 var query = categorySearch.Text.Trim();
