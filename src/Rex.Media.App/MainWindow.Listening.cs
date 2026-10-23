@@ -253,8 +253,9 @@ public sealed partial class MainWindow
         var edition = _duplicateBookCredits.Contains(ListeningViews.BookKey(book)) ? ListeningViews.EditionLabel(book) : null;
         var detail = (book.Detail ?? "Unknown author") + (edition is null ? "" : " · " + edition);
         return new LibraryRow(book.Name, detail, BookProgressText(book), book, hasPicture: true, picturePlaceholder: "▤",
-            progress: ListeningViews.Started(book, _player.LeftAt) || Audiobooks.Finished(book) ? Math.Max(progress, 0.01) : 0,
-            accessibilitySuffix: edition is null ? "" : " (" + edition + ")");
+            progress: progress,
+            accessibilitySuffix: edition is null ? "" : " (" + edition + ")",
+            showProgress: ListeningViews.Started(book, _player.LeftAt) || Audiobooks.Finished(book));
     }
 
     /// <summary>One chapter of an open book; the one it is up to says so.</summary>
