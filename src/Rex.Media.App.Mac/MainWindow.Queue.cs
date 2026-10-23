@@ -159,6 +159,7 @@ public sealed partial class MainWindow
             });
             play.Alignment = NSTextAlignment.Left;
             play.ToolTip = item.Location;
+            play.AccessibilityLabel = playing ? "Now playing: " + item.Title : "Play: " + item.Title;
             play.WidthAnchor.ConstraintGreaterThanOrEqualTo(300).Active = true;
             var source = NSTextField.CreateLabel(item.Artist ?? Rex.Media.AppCore.Player.PlaylistItem.SourceOf(item.Location) ?? "Local media");
             source.TextColor = NSColor.SecondaryLabel;
@@ -178,6 +179,7 @@ public sealed partial class MainWindow
             });
             next.Enabled = _player.Playlist.Current is not null && !playing;
             next.ToolTip = "Make this entry play next, including when shuffle is enabled";
+            next.AccessibilityLabel = "Play " + item.Title + " next";
             var up = NSButton.CreateButton("Earlier", () =>
             {
                 var at = _player.Playlist.IndexOf(item);
@@ -205,8 +207,11 @@ public sealed partial class MainWindow
             up.Enabled = index > 0;
             down.Enabled = index < queue.Count - 1;
             up.ToolTip = "Move earlier in the queue";
+            up.AccessibilityLabel = "Move " + item.Title + " earlier";
             down.ToolTip = "Move later in the queue";
+            down.AccessibilityLabel = "Move " + item.Title + " later";
             remove.ToolTip = "Remove from Up Next";
+            remove.AccessibilityLabel = "Remove " + item.Title + " from Up Next";
             var actions = NSStackView.FromViews([next, up, down, remove]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 8;
@@ -256,6 +261,26 @@ public sealed partial class MainWindow
             return false;
         }
 
+        if (action == "minimum")
+        {
+            var frame = _queueWindow.Frame;
+            var minimum = _queueWindow.MinSize;
+            _queueWindow.SetFrame(new CGRect(frame.X, frame.Y, minimum.Width, minimum.Height), true);
+            _queueWindow.ContentView?.LayoutSubtreeIfNeeded();
+            return true;
+        }
+
+        if (action == "verify-accessibility")
+        {
+            // The actual native controls must provide disambiguated VoiceOver names, not
+            // merely repeat identical labels for every queue row.
+            var next = FindQueueSmokeButton("Play next");
+            return next is not null
+                && next.AccessibilityLabel?.StartsWith("Play ", StringComparison.Ordinal) == true
+                && next.AccessibilityLabel.EndsWith(" next", StringComparison.Ordinal)
+                && _queueShuffle is not null && _queueRepeat is not null;
+        }
+
         if (action == "fill-long")
         {
             _player.Playlist.Add(Enumerable.Range(1, 90).Select(index =>
@@ -301,7 +326,7 @@ public sealed partial class MainWindow
         }
 
         if (action is "capture-empty" or "capture-current" or "capture-long"
-            or "capture-page-2" or "capture-shuffled")
+            or "capture-page-2" or "capture-shuffled" or "capture-minimum")
         {
             var folder = Environment.GetEnvironmentVariable("REXPLAYER_MAC_QUEUE_SCREENSHOTS");
             if (string.IsNullOrWhiteSpace(folder) || _queueWindow.ContentView is not { } view)
