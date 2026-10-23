@@ -261,7 +261,7 @@ public sealed class LibraryListeningTests : IDisposable
         Wait.For(() => app.Text("LibraryOverview").Contains("Independent local show notes.", StringComparison.Ordinal),
             "the show description from its explicit local sidecar");
         Assert.Contains("<script>", app.Text("LibraryOverview"), StringComparison.Ordinal);
-        Assert.Contains("Creator tag:", app.Text("LibraryFacts"), StringComparison.Ordinal);
+        Assert.Contains("Artist tag:", app.Text("LibraryFacts"), StringComparison.Ordinal);
         Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
         Pointer.RightClick(app, app.Line("Ep 1"));
         Wait.For(() => app.IsShown("LibraryMenuShowNotes"), "safe full-show local notes action");
