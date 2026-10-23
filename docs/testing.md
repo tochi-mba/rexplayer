@@ -86,6 +86,13 @@ CI commit and baseline presence. The image preflight still rejects blank or near
 The `unreviewed` inventory status means the capture is record-only, not visually approved.
 `ci-windows` means a committed baseline exists, not that all human visual review gates passed.
 Unpinned viewport labels in the inventory are explicit follow-up work, not evidence of coverage.
+The scene contract also declares `captureMode`: `window` uses PrintWindow for the host HWND,
+whereas `desktop` uses the actual on-screen desktop composition for WinUI ContentDialogs
+and popups. PrintWindow can silently omit floating content, even after UIA reports it ready.
+Desktop scenes require visible variation inside their expected UIA popup witness, and save
+the failed capture too if the popup is missing. Run these tests on a visible, unobstructed,
+serial Windows desktop; never approve desktop captures made with other windows covering the app.
+The capture mode is recorded in each JSON sidecar.
 
 ## Measuring the whole player
 
