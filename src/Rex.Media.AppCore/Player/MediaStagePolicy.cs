@@ -105,7 +105,7 @@ public static class MediaStagePolicy
         : Present(MediaStageProfile.Video, "VIDEO", context);
 
     private static MediaStageView Audio(in MediaStageContext context) =>
-        context.Kind != LibraryKind.Music ? Present(MediaStageProfile.Audio, "AUDIO", context)
+        context.Kind != LibraryKind.Music && context.Shelf is null ? Present(MediaStageProfile.Audio, "AUDIO", context)
         : context.Shelf switch
         {
             AudioShelf.Audiobooks => Present(MediaStageProfile.Audiobook, "AUDIOBOOK", context),
