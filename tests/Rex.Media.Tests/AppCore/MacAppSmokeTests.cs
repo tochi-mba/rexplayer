@@ -35,8 +35,8 @@ public sealed class MacAppSmokeTests
         using var app = Process.Start(start)!;
         // Native runtime assertions happen before the managed logger exists. Drain both pipes
         // immediately so a noisy startup cannot block, and include them if the smoke test fails.
-        var stdout = app.StandardOutput.ReadToEndAsync();
-        var stderr = app.StandardError.ReadToEndAsync();
+        var stdout = app.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+        var stderr = app.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         try
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
