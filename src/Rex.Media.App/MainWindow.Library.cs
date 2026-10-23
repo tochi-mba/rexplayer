@@ -279,8 +279,20 @@ public sealed partial class MainWindow
             LibrarySearch.Text = "";
         }
 
-        _libraryGroup = located.Show;
-        _librarySeason = located.Season;
+        if (source == LibrarySource.Audiobooks)
+        {
+            // Return-to-reading opens the containing book, not the generic
+            // Audiobooks shelf, whose cards cannot reveal an individual chapter.
+            _libraryGroup = Listening().Audiobooks.FirstOrDefault(book => book.Entries.Any(part =>
+                LibraryViews.SameLocation(part.Path, located.Entry.Path)));
+            _librarySeason = null;
+        }
+        else
+        {
+            _libraryGroup = located.Show;
+            _librarySeason = located.Season;
+        }
+
         _shownLibrary = "";
         ShowLibrary();
         RevealLibraryRow(located.Entry.Path);
