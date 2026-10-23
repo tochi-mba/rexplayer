@@ -77,8 +77,7 @@ public partial class LibraryRow(
 
     public Visibility PlayingVisibility => _isPlaying ? Visibility.Visible : Visibility.Collapsed;
 
-    public string AccessibilityName => (_isPlaying ? $"{Name}, now playing" : Name)
-        + (_notesPreview is { Length: > 0 } ? ", local episode notes available" : "");
+    public string AccessibilityName => _isPlaying ? $"{Name}, now playing" : Name;
 
     /// <summary>The transcription badge's icon (SUB-20), or empty for none.</summary>
     public string TranscriptGlyph => _transcriptGlyph;
@@ -167,7 +166,7 @@ public partial class LibraryRow(
         }
 
         _notesPreview = preview;
-        foreach (var property in new[] { nameof(Detail), nameof(DetailVisibility), nameof(AccessibilityName) })
+        foreach (var property in new[] { nameof(Detail), nameof(DetailVisibility) })
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
         }
