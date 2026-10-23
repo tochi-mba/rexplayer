@@ -303,6 +303,12 @@ public sealed partial class MainWindow
     private IEnumerable<(string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)> ListeningShelvesForHome()
     {
         var shelves = Listening();
+        // Show-oriented cards open a local show, never a mixed autoplay queue. Prioritize shows
+        // with unheard episodes, then the newest locally evidenced episode date.
+        var shows = shelves.Podcasts.OrderByDescending(show => ListeningViews.Unplayed(show, _player.LeftAt))
+            .ThenByDescending(ListeningViews.NewestEpisode).ThenBy(show => show.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Take(20).ToList();
+        yield return ("Podcast shows", LibrarySource.Podcasts, [.. shows.Select(ShowRow)], false);
         var going = ListeningViews.ContinueListening(shelves, _player.LeftAt, Audiobooks.Finished).Take(20).ToList();
         yield return ("Continue listening", going.Any(item => item.Book is not null) ? LibrarySource.Audiobooks : LibrarySource.Podcasts,
             [.. going.Select(item => item.Book is { } book ? BookRow(book) : PodcastEpisodeRow(item.Entry))], false);
