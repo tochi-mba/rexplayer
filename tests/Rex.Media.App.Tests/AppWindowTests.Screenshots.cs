@@ -79,6 +79,7 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.PlayPause);
         Wait.For(() => app.Status().State == "Paused" && app.IsShown("PlayPauseButton"),
             "the paused video and playback controls");
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "playback-paused");
         Assert.Equal(0, app.Close());
     }
