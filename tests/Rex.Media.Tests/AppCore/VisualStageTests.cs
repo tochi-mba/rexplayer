@@ -1,4 +1,5 @@
 using System.Globalization;
+using Rex.Media.Audio;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 using Rex.Media.Primitives;
@@ -154,6 +155,31 @@ public sealed class VisualStageTests
         Assert.All(stage.Context.Left, sample => Assert.InRange(sample, -1, 1));
         Assert.Equal(VisualStage.SafeSample(-4), -1);
         Assert.Equal(VisualStage.SafeSample(float.NegativeInfinity), 0);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void SurroundMusicDownmixesToAnAccurateStereoVisualizerSignal()
+    {
+        using var sixChannels = AudioFrame.Rent(48000, 6, 12, ChannelLayout.Surround51);
+        for (var i = 0; i < sixChannels.SampleCount; i++)
+        {
+            sixChannels.Channel(0)[i] = 0.3f;
+            sixChannels.Channel(1)[i] = -0.25f;
+            sixChannels.Channel(2)[i] = 0.4f;
+            sixChannels.Channel(4)[i] = 0.15f;
+            sixChannels.Channel(5)[i] = -0.1f;
+        }
+
+        using var stereo = new ChannelMixer(ChannelLayout.Surround51, ChannelLayout.Stereo).Process(sixChannels);
+        var stage = Stage(48, 30);
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults,
+            stereo.Channel(0), stereo.Channel(1), stereo.SampleRate, TimeSpan.FromMilliseconds(30)));
+        Assert.Equal(0, stage.Context.Left[^13]);
+        Assert.InRange(stage.Context.Left[^1], 0.3f, 0.5f);
+        Assert.InRange(stage.Context.Right[^1], -0.2f, 0.1f);
+        Assert.NotEqual(stage.Context.Left[^1], stage.Context.Right[^1]);
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
     }
 
     [Fact]
