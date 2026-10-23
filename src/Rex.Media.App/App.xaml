@@ -7,6 +7,20 @@
       <ResourceDictionary.MergedDictionaries>
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#F2F5F0" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#FFFFFF" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#101713" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#19221C" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
       <!-- The REX signal colour, for the playing entry and the seek bar's progress. -->
       <Color x:Key="SignalColor">#D7FF3F</Color>
       <SolidColorBrush x:Key="SignalBrush" Color="{StaticResource SignalColor}" />
