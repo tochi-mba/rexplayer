@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Windows.Automation;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Rex.Media.TestKit;
@@ -152,8 +153,7 @@ internal static class Screenshots
             pixelReadinessAchieved = rendered,
             witnessVisiblyVaried = witnessVaried,
             expectedAutomationIds = scene.ExpectedAutomationIds,
-            observedAutomationIds = scene.ExpectedAutomationIds.Select(id =>
-                new { automationId = id, shown = app.IsShown(id) }).ToArray(),
+            observedAutomationIds = scene.ExpectedAutomationIds.Select(id => ObserveControl(app, id)).ToArray(),
             expectedVisibleData = scene.ExpectedVisibleData,
             owner = scene.Owner,
             baselineReviewState = scene.Baseline,
@@ -166,6 +166,38 @@ internal static class Screenshots
         File.WriteAllText(Path.Combine(dir, scene.Id + ".json"),
             JsonSerializer.Serialize(details, MetadataJsonOptions));
         File.WriteAllText(Path.Combine(dir, scene.Id + ".log"), app.LogText);
+    }
+
+    /// <summary>Capture a one-shot UIA observation without a waiting lookup that could mask a failing scene.</summary>
+    private static object ObserveControl(AppProcess app, string automationId)
+    {
+        try
+        {
+            var element = app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, automationId));
+            if (element is not null)
+            {
+                var current = element.Current;
+                return new
+                {
+                    automationId,
+                    shown = !current.IsOffscreen,
+                    current.Name,
+                    current.IsEnabled,
+                    bounds = current.BoundingRectangle.ToString(),
+                };
+            }
+        }
+        catch (ElementNotAvailableException)
+        {
+            // A transient control was replaced as the failing scene was recorded.
+        }
+        catch (InvalidOperationException)
+        {
+            // The UIA provider is gone; its absence is itself diagnostic evidence.
+        }
+
+        return new { automationId, shown = false, name = (string?)null, isEnabled = false, bounds = (string?)null };
     }
 
     /// <summary>
