@@ -80,6 +80,11 @@ public static class EpisodeGrouping
     {
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentOutOfRangeException.ThrowIfNegative(limit);
+        if (limit == 0)
+        {
+            return [];
+        }
+
         if (Identify(target) is not { } identity)
         {
             return [];
