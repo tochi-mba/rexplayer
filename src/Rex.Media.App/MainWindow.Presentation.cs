@@ -59,6 +59,28 @@ public sealed partial class MainWindow
             LyricsFollowButton.Visibility = Visibility.Collapsed;
             BringActiveLyricIntoView();
         };
+
+        Stage.SizeChanged += (_, _) =>
+        {
+            if (_shownLyrics is null)
+            {
+                return;
+            }
+
+            // A narrower window changes wrapping and the vertical anchor.
+            // Do not reset the user's manually suspended follow state.
+            LyricsBox.Height = Math.Max(120, Stage.ActualHeight * 0.45);
+            if (_followCurrentLyric)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (!_closed && _followCurrentLyric)
+                    {
+                        BringActiveLyricIntoView();
+                    }
+                });
+            }
+        };
     }
 
     private void SuspendLyricFollow()
