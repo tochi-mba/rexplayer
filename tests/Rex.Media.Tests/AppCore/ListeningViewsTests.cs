@@ -181,6 +181,35 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void ChaptersSortOutOfOrderMarkersAndSelectOnlyTheLatestActiveMarker()
+    {
+        var part = AudioFile("Audiobooks/Book/Part One.m4b", TimeSpan.FromMinutes(30)) with
+        {
+            Chapters =
+            [
+                new LibraryChapter(TimeSpan.FromMinutes(12), "Later"),
+                new LibraryChapter(TimeSpan.Zero, "Start"),
+                new LibraryChapter(TimeSpan.Zero, "Also Start"),
+            ],
+        };
+        var other = AudioFile("Audiobooks/Book/Part Two.m4b", TimeSpan.FromMinutes(20));
+        var book = new LibraryGroup("Book", null, [part, other]);
+        var chapters = ListeningViews.Chapters(book);
+        Assert.Equal(["Start", "Also Start", "Later", "Part Two"], chapters.Select(chapter => chapter.Title));
+        Assert.Equal(1, ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(0, TimeSpan.Zero)));
+        Assert.Equal(2, ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(0, TimeSpan.FromMinutes(20))));
+        Assert.Equal(3, ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(1, TimeSpan.Zero)));
+        Assert.Equal(-1, ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(-1, TimeSpan.Zero)));
+        Assert.Equal(-1, ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(2, TimeSpan.Zero)));
+        Assert.Equal(-1, ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(0, TimeSpan.FromSeconds(-1))));
+        Assert.Equal(0, ListeningViews.CurrentChapterIndex(
+            [chapters[2], chapters[0]], book, new BookPlace(0, TimeSpan.FromMinutes(20))));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.CurrentChapterIndex(null!, book, default));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.CurrentChapterIndex(chapters, null!, default));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ShowsMergeAcrossFoldersByTheirNameAndListEpisodesNewestFirst()
     {
         var older = AudioFile("Podcasts/The Daily/Ep 1.mp3", TimeSpan.FromMinutes(20), "Host", "The Daily", year: 2023) with { Modified = new DateTime(2023, 5, 1, 0, 0, 0, DateTimeKind.Utc) };
