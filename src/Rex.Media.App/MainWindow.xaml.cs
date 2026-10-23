@@ -782,6 +782,7 @@ public sealed partial class MainWindow : Window
         var failures = _teardown.Run(
         [
             ("the clocks", StopClocksAndFrames),
+            ("the subtitle contrast observer", UnwireSubtitleContrast),
             ("the performance watch", UnwirePerformance),
             // The seek area can still see the pointer leave while the window goes, so its work is
             // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
