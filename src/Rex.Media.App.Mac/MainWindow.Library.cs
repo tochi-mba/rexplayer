@@ -290,22 +290,22 @@ public sealed partial class MainWindow
         }
 
         var all = _mediaLibrary.Entries;
+        var query = _librarySearch?.StringValue.Trim();
+        // Search the immutable snapshot before sorting a category. For a large
+        // catalogue this avoids sorting every unrelated item on each keystroke,
+        // while retaining the shared search rules and category-specific ordering.
+        IReadOnlyList<LibraryEntry> candidates = string.IsNullOrEmpty(query)
+            ? all
+            : LibraryViews.Search(all, query, entry => [Path.GetFileName(Path.GetDirectoryName(entry.Path))]);
         var entries = (int)(_libraryCategory?.IndexOfSelectedItem ?? 0) switch
         {
-            1 => LibraryViews.Songs(all),
-            2 => LibraryViews.Videos(all),
-            3 => LibraryViews.Pictures(all),
-            4 => LibraryViews.RecentlyAdded(all),
-            5 => LibraryViews.RecentlyPlayed(all),
-            _ => all.OrderBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase).ToList(),
+            1 => LibraryViews.Songs(candidates),
+            2 => LibraryViews.Videos(candidates),
+            3 => LibraryViews.Pictures(candidates),
+            4 => LibraryViews.RecentlyAdded(candidates),
+            5 => LibraryViews.RecentlyPlayed(candidates),
+            _ => candidates.OrderBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase).ToList(),
         };
-        var query = _librarySearch?.StringValue.Trim();
-        if (!string.IsNullOrEmpty(query))
-        {
-            var matching = LibraryViews.Search(all, query, entry => [Path.GetFileName(Path.GetDirectoryName(entry.Path))])
-                .Select(entry => entry.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            entries = entries.Where(entry => matching.Contains(entry.Path)).ToList();
-        }
 
         var lastPage = Math.Max(0, (entries.Count - 1) / LibraryPageSize);
         _libraryPageIndex = Math.Clamp(_libraryPageIndex, 0, lastPage);
