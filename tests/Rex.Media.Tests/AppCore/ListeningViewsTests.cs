@@ -136,7 +136,7 @@ public sealed class ListeningViewsTests
 
         var rival = first with
         {
-            Path = "Audiobooks/The Long Road/Disc 4/01.mp3",
+            Path = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(first.Path)!)!, "Disc 4", "01.mp3"),
             Author = "Bo Author", Artist = "Bo Author", Disc = 4,
         };
         var split = ListeningViews.Books([first, second, rival]);
@@ -550,7 +550,7 @@ public sealed class ListeningViewsTests
         Assert.False(memory.Finished(one));
         Assert.True(memory.Finished(two));
 
-        var nextDisc = a with { Path = "Audiobooks/Ann Writer/Edition A/Disc 2/02.mp3" };
+        var nextDisc = a with { Path = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(a.Path)!)!, "Disc 2", "02.mp3") };
         Assert.Equal(ListeningViews.BookIdentity(one),
             ListeningViews.BookIdentity(one with { Entries = [nextDisc, a] }));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.BookIdentity(null!));
