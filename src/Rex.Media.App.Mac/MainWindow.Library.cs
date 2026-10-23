@@ -337,7 +337,11 @@ public sealed partial class MainWindow
         };
     }
 
-    /// <summary>Exercise AppKit's real Tab key-view loop without synthesizing OS-wide input.</summary>
+    /// <summary>
+    /// Verify the native key-view link, then traverse it if macOS permits controls as Tab stops.
+    /// AppKit excludes buttons and pop-ups from the Tab loop unless full keyboard navigation is on.
+    /// RecalculateKeyViewLoop here would discard the explicitly connected search/category link.
+    /// </summary>
     private AutomationReply ProbeLibraryKeyboard()
     {
         if (_libraryWindow?.IsVisible != true || _librarySearch is null || _libraryCategory is null)
@@ -345,16 +349,40 @@ public sealed partial class MainWindow
             return AutomationReply.Failed("Open the library before checking keyboard navigation.");
         }
 
-        _libraryWindow.RecalculateKeyViewLoop();
+        if (_librarySearch.NextKeyView?.Handle != _libraryCategory.Handle ||
+            _libraryCategory.PreviousKeyView?.Handle != _librarySearch.Handle)
+        {
+            return AutomationReply.Failed("The search/category key-view link is missing or not reversible.");
+        }
+
         _libraryWindow.MakeFirstResponder(_librarySearch);
-        var before = _libraryWindow.FirstResponder;
+        var initialResponder = _libraryWindow.FirstResponder?.Handle;
+        var next = _librarySearch.NextValidKeyView;
+        if (next is null || next.Handle == _librarySearch.Handle)
+        {
+            // On a default macOS account only text-editing views are valid Tab stops.
+            // Do not confuse that OS preference with a broken key-view chain, or claim
+            // that this automation has exercised a physical Tab/Shift-Tab walkthrough.
+            return new AutomationReply
+            {
+                Ok = true,
+                Text = "Native search/category key-view link verified; full keyboard navigation requires macOS settings.",
+            };
+        }
+
         _libraryWindow.SelectKeyViewFollowingView(_librarySearch);
-        var after = _libraryWindow.FirstResponder;
-        _libraryWindow.SelectKeyViewPrecedingView(_libraryCategory);
+        if (_libraryWindow.FirstResponder?.Handle != next.Handle)
+        {
+            _libraryWindow.MakeFirstResponder(_librarySearch);
+            return AutomationReply.Failed("AppKit did not advance to the next eligible key view.");
+        }
+
+        _libraryWindow.SelectKeyViewPrecedingView(next);
+        var reversed = _libraryWindow.FirstResponder?.Handle == initialResponder;
         _libraryWindow.MakeFirstResponder(_librarySearch);
-        return ReferenceEquals(before, after)
-            ? AutomationReply.Failed("AppKit did not advance focus to another library control.")
-            : new AutomationReply { Ok = true, Text = "AppKit advanced and reversed keyboard focus." };
+        return reversed
+            ? new AutomationReply { Ok = true, Text = "Native key-view link verified; AppKit advanced and reversed focus." }
+            : AutomationReply.Failed("AppKit did not return focus to the search field.");
     }
 
     private AutomationReply PressLibraryControl(string? target)
