@@ -244,6 +244,12 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Visit("Movies");
         Wait.For(() => app.Lines().Contains("Small Film"), "the movie card");
         app.Choose("Small Film");
+        // Movies open their details page first; Play there starts the actual stream.
+        // The earlier test incorrectly expected the grid's Play action to bypass it.
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("LibraryKicker") == "MOVIE"
+            && app.Text("LibraryTitle") == "Small Film" && app.IsShown("LibraryPlay"),
+            "the movie's dedicated details page");
         app.Press("LibraryPlay");
         Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage"
             && app.Find("SeekBar").Current.IsEnabled,
