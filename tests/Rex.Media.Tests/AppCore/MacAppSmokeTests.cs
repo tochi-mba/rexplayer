@@ -73,6 +73,10 @@ public sealed class MacAppSmokeTests
             Assert.Equal(0, app.ExitCode);
             Assert.Contains("rexplayer starting", await File.ReadAllTextAsync(Path.Combine(root, "logs", "rexplayer.log"), TestContext.Current.CancellationToken), StringComparison.Ordinal);
         }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("Mac app smoke run failed; app log:" + LogTail(root), ex);
+        }
         finally
         {
             if (!app.HasExited)
