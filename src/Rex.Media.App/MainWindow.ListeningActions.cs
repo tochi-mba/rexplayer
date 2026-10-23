@@ -36,6 +36,11 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (audio is [{ } sound] && ShelfOf(sound) == AudioShelf.Sounds)
+        {
+            menu.Items.Add(MenuItem("Replay sound", "LibraryMenuReplaySound", () => Play([sound], 0)));
+        }
+
         foreach (var (shelf, name) in MoveTargets)
         {
             if (audio.Any(entry => ShelfOf(entry) is var now && now != shelf && !(shelf == AudioShelf.Recordings && now == AudioShelf.Sounds)))
