@@ -141,7 +141,7 @@
       "fixture": "mp4/h264-aac.mp4",
       "route": "player/video",
       "state": "paused",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x700",
       "theme": "light",
       "expectedAutomationIds": [
         "NowPlaying",
@@ -164,7 +164,7 @@
       "fixture": "empty-player",
       "route": "player/idle",
       "state": "welcome",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x700",
       "theme": "system",
       "expectedAutomationIds": [
         "WelcomeOpen",
@@ -308,7 +308,7 @@
       "fixture": "episodic-video",
       "route": "library/tv/show",
       "state": "collage",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryCollage"
@@ -325,7 +325,7 @@
       "fixture": "episodic-video",
       "route": "library/tv",
       "state": "generated-artwork",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryList"
@@ -342,7 +342,7 @@
       "fixture": "three-tagged-songs",
       "route": "library/music",
       "state": "shelves",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryHome"
@@ -359,7 +359,7 @@
       "fixture": "three-tagged-songs",
       "route": "library/album",
       "state": "detail",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryPane"
@@ -376,7 +376,7 @@
       "fixture": "three-tagged-songs",
       "route": "library/songs",
       "state": "table",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryPane"
@@ -398,7 +398,7 @@
       "fixture": "episodic-video",
       "route": "library/tv",
       "state": "browse",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryPane"
@@ -415,7 +415,7 @@
       "fixture": "episodic-video",
       "route": "library/tv/show",
       "state": "detail",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryPane"
@@ -432,7 +432,7 @@
       "fixture": "empty-player",
       "route": "dialog/open-location",
       "state": "open",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x700",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LocationBox"
@@ -449,7 +449,7 @@
       "fixture": "empty-player",
       "route": "dialog/shortcuts",
       "state": "open",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "CloseButton"
@@ -500,7 +500,7 @@
       "fixture": "empty-player",
       "route": "menu/playback",
       "state": "expanded",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x700",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "PlaybackMenu",
@@ -518,7 +518,7 @@
       "fixture": "empty-player",
       "route": "menu/context",
       "state": "expanded",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x700",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "Stage",
@@ -536,7 +536,7 @@
       "fixture": "three-tagged-songs",
       "route": "library/songs",
       "state": "collage",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryPane"
@@ -558,7 +558,7 @@
       "fixture": "three-tagged-songs",
       "route": "library/songs",
       "state": "filtered-empty",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryEmptyClearFilters"
@@ -575,7 +575,7 @@
       "fixture": "partial-video",
       "route": "library/downloads",
       "state": "partial",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryShelfCards-Downloading"
@@ -592,7 +592,7 @@
       "fixture": "movie-with-metadata",
       "route": "library/movies/detail",
       "state": "expanded-header",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryHero"
@@ -609,7 +609,7 @@
       "fixture": "episodic-video",
       "route": "library/tv/show",
       "state": "expanded-header",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryHero"
