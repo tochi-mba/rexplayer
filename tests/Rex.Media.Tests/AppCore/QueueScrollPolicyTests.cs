@@ -16,3 +16,4 @@ public sealed class QueueScrollPolicyTests
         Assert.True(QueueScrollPolicy.ShouldFollow(true, false, current, duplicate));
         Assert.True(QueueScrollPolicy.ShouldFollow(true, false, null, current));
     }
+}
