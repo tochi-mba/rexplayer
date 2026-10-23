@@ -127,13 +127,11 @@ public static partial class ListeningViews
     public static IReadOnlyList<LibraryEntry> Episodes(IReadOnlyList<LibraryEntry> episodes, bool oldestFirst)
     {
         ArgumentNullException.ThrowIfNull(episodes);
-        var newestFirst = episodes.OrderByDescending(EpisodeDate).ThenByDescending(episode => episode.Track ?? 0).ThenByDescending(episode => episode.Path, NaturalOrder.Instance).ToList();
-        if (oldestFirst)
-        {
-            newestFirst.Reverse();
-        }
-
-        return newestFirst;
+        // Sort in the requested direction rather than reversing an already sorted list: reversing
+        // would also reverse the episode-number and path tie breakers on undated shows.
+        return oldestFirst
+            ? [.. episodes.OrderBy(EpisodeDate).ThenBy(episode => episode.Track ?? 0).ThenBy(episode => episode.Path, NaturalOrder.Instance)]
+            : [.. episodes.OrderByDescending(EpisodeDate).ThenByDescending(episode => episode.Track ?? 0).ThenByDescending(episode => episode.Path, NaturalOrder.Instance)];
     }
 
     /// <summary>
@@ -143,7 +141,7 @@ public static partial class ListeningViews
     public static DateTime EpisodeDate(LibraryEntry episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        if (episode.Year is { } year)
+        if (episode.Year is >= 1 and <= 9999 and var year)
         {
             return episode.Modified.Year == year ? episode.Modified : new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         }
@@ -155,7 +153,7 @@ public static partial class ListeningViews
     public static DateTime NewestEpisode(LibraryGroup show)
     {
         ArgumentNullException.ThrowIfNull(show);
-        return show.Entries.Max(EpisodeDate);
+        return show.Entries.Count == 0 ? DateTime.MinValue : show.Entries.Max(EpisodeDate);
     }
 
     /// <summary>How many of a show's episodes are unplayed: never played, and not left part-way.</summary>
@@ -175,11 +173,15 @@ public static partial class ListeningViews
     }
 
     /// <summary>"Play unplayed in order": the show's unplayed episodes, oldest first.</summary>
-    public static IReadOnlyList<LibraryEntry> UnplayedInOrder(LibraryGroup show, Func<string, TimeSpan?> leftAt)
+    public static IReadOnlyList<LibraryEntry> UnplayedInOrder(LibraryGroup show, Func<string, TimeSpan?> leftAt,
+        Func<LibraryEntry, bool>? available = null)
     {
         ArgumentNullException.ThrowIfNull(show);
         ArgumentNullException.ThrowIfNull(leftAt);
-        return [.. Episodes(show.Entries, oldestFirst: true).Where(episode => IsUnplayed(episode, leftAt))];
+        // Availability is checked by the caller at the moment playback is requested. A missing
+        // local file must not become the next autoplay target just because it is still indexed.
+        return [.. Episodes(show.Entries, oldestFirst: true)
+            .Where(episode => IsUnplayed(episode, leftAt) && (available?.Invoke(episode) ?? true))];
     }
 
     /// <summary>What a book is known by in the person's own records (its speed, "Mark as finished"): its name and author, however cased.</summary>
@@ -261,7 +263,7 @@ public static partial class ListeningViews
         ArgumentNullException.ThrowIfNull(shelves);
         ArgumentNullException.ThrowIfNull(leftAt);
         return [.. shelves.Podcasts.SelectMany(show => show.Entries)
-            .Where(episode => IsUnplayed(episode, leftAt) && nowUtc - episode.Added <= NewFor)
+            .Where(episode => IsUnplayed(episode, leftAt) && episode.Added <= nowUtc && nowUtc - episode.Added <= NewFor)
             .OrderByDescending(EpisodeDate).ThenBy(episode => episode.Path, NaturalOrder.Instance)];
     }
 
@@ -370,7 +372,9 @@ public static partial class ListeningViews
 
     /// <summary>The value most of the files give, the first on a tie; null when none gives one.</summary>
     private static string? MostCommon(IEnumerable<string?> values) =>
-        values.OfType<string>().GroupBy(value => value, ByName).OrderByDescending(group => group.Count()).Select(group => group.Key).FirstOrDefault();
+        values.OfType<string>().GroupBy(value => value, ByName).OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, ByName).ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => group.Key).FirstOrDefault();
 
     /// <summary>A date, then perhaps a time, in a name.</summary>
     [GeneratedRegex(@"(?<!\d)(?<y>(?:19|20)\d{2})[\-_.]?(?<mo>[01]\d)[\-_.]?(?<d>[0-3]\d)(?:[ _\-T](?<h>[0-2]\d)[\-_.:]?(?<mi>[0-5]\d)(?:[\-_.:]?(?<s>[0-5]\d))?)?(?!\d)", RegexOptions.CultureInvariant)]
