@@ -100,7 +100,8 @@ public sealed partial class MainWindow
     {
         var show = Listening().Podcasts.FirstOrDefault(candidate =>
             candidate.Entries.Any(item => LibraryViews.SameLocation(item.Path, episode.Path)));
-        var ordered = show is null ? [episode] : ListeningViews.Episodes(show.Entries, oldestFirst: true);
+        IReadOnlyList<LibraryEntry> ordered = show is null
+            ? [episode] : ListeningViews.Episodes(show.Entries, oldestFirst: true);
         var source = _librarySource;
         var opened = _libraryGroup?.Name;
         var request = Interlocked.Increment(ref _episodeQueueRequest);
