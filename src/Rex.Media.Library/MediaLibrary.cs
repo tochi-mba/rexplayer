@@ -648,8 +648,10 @@ public sealed class MediaLibrary
         List<LibraryEntry> gone;
         lock (_gate)
         {
-            gone = [.. paths.Select(path => _entries.GetValueOrDefault(path)).OfType<LibraryEntry>().DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
+            var chosen = paths.ToArray();
+            gone = [.. chosen.Select(path => _entries.GetValueOrDefault(path)).OfType<LibraryEntry>().DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
             Write(gone, remove: true);
+            ClearMissing(chosen);
         }
 
         if (gone.Count > 0)
@@ -680,6 +682,7 @@ public sealed class MediaLibrary
             WriteHidden();
             gone = [.. hidden.Select(path => _entries.GetValueOrDefault(path)).OfType<LibraryEntry>().DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
             Write(gone, remove: true);
+            ClearMissing(hidden);
         }
 
         Changed?.Invoke(this, EventArgs.Empty);
