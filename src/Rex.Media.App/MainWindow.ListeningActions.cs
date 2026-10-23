@@ -227,7 +227,8 @@ public sealed partial class MainWindow
 
         // Starting any chapter of a finished book begins another reading.
         // Explicit chapter selection must not leave a book falsely completed.
-        if (Audiobooks.Finished(book))
+        var wasFinished = Audiobooks.Finished(book);
+        if (wasFinished)
         {
             Audiobooks.SetFinished(book, false);
         }
@@ -245,6 +246,16 @@ public sealed partial class MainWindow
         }
 
         _player.PlayFromLibrary(book.Entries, Math.Max(0, place.Part), place.At > TimeSpan.Zero ? place.At : null);
+        if (wasFinished)
+        {
+            // Replaying a completed book immediately removes that explicit
+            // completion: the Completed sidebar must follow without a rescan.
+            _shownLibrary = "";
+            if (!UpdateSections(immediate: true))
+            {
+                ShowLibrary();
+            }
+        }
     }
 
     /// <summary>
