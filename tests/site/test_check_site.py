@@ -57,6 +57,22 @@ class CheckSiteTests(unittest.TestCase):
         empty = Path(tempfile.mkdtemp())
         self.assertEqual([f"{empty / 'index.html'} is missing; there is no site to publish."], check_site.check(empty, "Thing"))
 
+    def test_walkthrough_assets_are_checked_even_though_javascript_changes_the_image(self) -> None:
+        html = GOOD.replace(
+            '<a href="./">home</a>',
+            '<button data-tour-step="1" data-tour-src="mark.svg" '
+            'data-tour-alt="Sample screenshot">Preview</button><a href="./">home</a>',
+        )
+        self.assertEqual([], self.index_problems(html))
+        self.assertIn(
+            "index.html: asset 'missing.png' is referenced but missing.",
+            self.index_problems(html.replace('data-tour-src="mark.svg"', 'data-tour-src="missing.png"')),
+        )
+        self.assertIn(
+            "index.html: walkthrough image 'mark.svg' has no descriptive data-tour-alt.",
+            self.index_problems(html.replace('data-tour-alt="Sample screenshot"', 'data-tour-alt=" "')),
+        )
+
     def test_each_kind_of_problem_is_named(self) -> None:
         cases = {
             "the title does not name Thing.": GOOD.replace("<title>Thing", "<title>Other"),
