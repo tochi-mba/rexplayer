@@ -155,6 +155,11 @@ public sealed partial class MainWindow : IDisposable
                     break;
                 case "status":
                     break;
+                case "ui.add-folder":
+                    answered.SetResult(_libraryWindow?.IsVisible == true
+                        ? AddLibraryFolders(request.Paths)
+                        : AutomationReply.Failed("Open the library before adding watched folders."));
+                    return;
                 case "ui.keyboard":
                     answered.SetResult(ProbeLibraryKeyboard());
                     return;
