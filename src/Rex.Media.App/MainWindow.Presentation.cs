@@ -15,8 +15,8 @@ using Windows.Storage.Streams;
 namespace Rex.Media.App;
 
 /// <summary>
-/// Music without pictures (AU-19): its cover beside its title, artist and album, and its lyrics
-/// below with the line being sung marked (META-09). AppCore finds them; this shows them.
+/// Media-adaptive Windows presentation (AU-19): the AppCore policy chooses the
+/// supported stage, while this window arranges art, labels, lyrics and chapter actions.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -28,7 +28,7 @@ public sealed partial class MainWindow
     private MediaInfo? _shownChapterInfo;
     private MediaStageView _stageView;
 
-    /// <summary>Brings the picture, the album and the lyrics on screen in line with what plays.</summary>
+    /// <summary>Synchronizes the stage, its accessible profile and available media-specific actions.</summary>
     private void ShowPresentation()
     {
         var item = _player.Item;
@@ -254,6 +254,16 @@ public sealed partial class MainWindow
     {
         if (!stage.ShowChapters || item is null || info is null)
         {
+            // A hidden chapter button cannot keep keyboard focus. Return to the
+            // permanent playback action rather than dropping focus into the window.
+            if (StageChaptersButton.Visibility == Visibility.Visible
+                && Content.XamlRoot is { } xamlRoot
+                && ReferenceEquals(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot),
+                    StageChaptersButton))
+            {
+                PlayPauseButton.Focus(FocusState.Programmatic);
+            }
+
             StageChaptersButton.Visibility = Visibility.Collapsed;
             if (_shownChapterItem is not null)
             {
