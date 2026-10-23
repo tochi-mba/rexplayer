@@ -37,6 +37,7 @@ public sealed partial class MainWindow : IDisposable
     private readonly PlayerController _player;
     private readonly Keymap _keymap;
     private readonly NSTextField _title = NSTextField.CreateLabel("Drop media here, or press Cmd+O to open a file.");
+    private readonly NSTextField _artist = NSTextField.CreateLabel("");
     private readonly NSTextField _time = NSTextField.CreateLabel("0:00");
     private readonly NSTextField _message = NSTextField.CreateLabel("");
     private readonly NSButton _playPause;
@@ -70,6 +71,7 @@ public sealed partial class MainWindow : IDisposable
         _seek = NSSlider.FromValue(0, 0, 1, () => SeekToSlider());
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
         _window.ContentView = Layout();
+        InitializeQueue();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
         NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
     }
@@ -105,6 +107,7 @@ public sealed partial class MainWindow : IDisposable
             _log.Warning(LogSource, "The settings could not be saved: " + ex.Message);
         }
 
+        CloseQueue();
         DisposePlaybackTools();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
@@ -198,6 +201,9 @@ public sealed partial class MainWindow : IDisposable
     {
         _title.Font = NSFont.SystemFontOfSize(18, NSFontWeight.Semibold)!;
         _title.LineBreakMode = NSLineBreakMode.TruncatingTail;
+        _artist.Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!;
+        _artist.TextColor = NSColor.SecondaryLabel;
+        _artist.LineBreakMode = NSLineBreakMode.TruncatingTail;
         _message.TextColor = NSColor.SecondaryLabel;
         _seek.Continuous = false;
         _time.Font = NSFont.MonospacedDigitSystemFontOfSize(13, NSFontWeight.Regular)!;
@@ -205,6 +211,8 @@ public sealed partial class MainWindow : IDisposable
         var stop = NSButton.CreateButton("Stop", () => Run(CommandCatalog.Stop));
         var next = NSButton.CreateButton("Next", () => Run(CommandCatalog.Next));
         var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
+        var queue = NSButton.CreateButton("Up Next", ShowQueue);
+        queue.ToolTip = "View, reorder, and manage what plays next";
         open.ToolTip = "Open a file (Cmd+O)";
         _playPause.BezelStyle = NSBezelStyle.Rounded;
         _playPause.Font = NSFont.SystemFontOfSize(15, NSFontWeight.Semibold)!;
@@ -212,7 +220,7 @@ public sealed partial class MainWindow : IDisposable
         _playPause.ToolTip = "Play or pause (Space)";
         _seek.ToolTip = "Seek through the current file";
         _volume.ToolTip = "Volume";
-        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, _volume]);
+        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, queue, _volume]);
         controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         controls.Spacing = 8;
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
@@ -221,7 +229,7 @@ public sealed partial class MainWindow : IDisposable
         var timeline = NSStackView.FromViews([_seek, _time]);
         timeline.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         timeline.Spacing = 12;
-        var stack = NSStackView.FromViews([_title, _message, timeline, controls]);
+        var stack = NSStackView.FromViews([_title, _artist, _message, timeline, controls]);
         stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         stack.Alignment = NSLayoutAttribute.Leading;
         stack.Spacing = 12;
@@ -241,7 +249,8 @@ public sealed partial class MainWindow : IDisposable
         welcomeHint.TextColor = NSColor.LightGray;
         var welcomeOpen = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var welcomeFolder = NSButton.CreateButton("Open folder", () => Run(CommandCatalog.OpenFolder));
-        var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder]);
+        var welcomeQueue = NSButton.CreateButton("Up Next", ShowQueue);
+        var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder, welcomeQueue]);
         welcomeActions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         welcomeActions.Spacing = 12;
         _welcome = NSStackView.FromViews([welcomeTitle, welcomeHint, welcomeActions]);
@@ -272,6 +281,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
+        app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
@@ -500,6 +510,7 @@ public sealed partial class MainWindow : IDisposable
             _welcome.Hidden = _player.Item is not null;
         }
         _title.StringValue = _player.Item is null ? "Drop media here, or press Cmd+O to open a file." : _player.Title;
+        _artist.StringValue = _player.Item is null ? "Private, local playback" : _player.Artist ?? _player.State.ToString();
         _window.Title = _player.Item is null ? "rexplayer" : _player.Title + " - rexplayer";
         _playPause.Title = _player.IsPlaying ? "Pause" : "Play";
         _seek.Enabled = _player.CanSeek;
