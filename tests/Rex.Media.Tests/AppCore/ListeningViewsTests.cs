@@ -594,6 +594,37 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void RepeatedEditionFolderNamesGetDistinctAccessibleLocationLabels()
+    {
+        var first = AudioFile("Audiobooks/Series One/Shared Edition/Opening.mp3",
+            TimeSpan.FromMinutes(50));
+        var second = AudioFile("Audiobooks/Series Two/Shared Edition/Opening.mp3",
+            TimeSpan.FromMinutes(50));
+        var a = new LibraryGroup("Shared Title", "Ann Writer", [first]);
+        var b = new LibraryGroup("Shared Title", "Ann Writer", [second]);
+        Assert.Equal("Shared Edition", ListeningViews.EditionLabel(a));
+        Assert.Equal("Series One / Shared Edition", ListeningViews.EditionLabel(a, [a, b]));
+        Assert.Equal("Series Two / Shared Edition", ListeningViews.EditionLabel(b, [a, b]));
+        Assert.Equal("Shared Edition", ListeningViews.EditionLabel(a, [a]));
+        Assert.Null(ListeningViews.EditionLabel(new LibraryGroup("Empty", null, []), [a]));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.EditionLabel(a, null!));
+
+        var one = a with { Entries = [first with
+            { Path = "Volumes/One/Shared Edition/Opening.mp3" }] };
+        var two = b with { Entries = [second with
+            { Path = "Volumes/Two/Shared Edition/Opening.mp3" }] };
+        Assert.Equal("One / Shared Edition", ListeningViews.EditionLabel(one, [one, two]));
+
+        // Even if every short suffix is identical, the full folder path
+        // still distinguishes different locations.
+        var deepA = a with { Entries = [first with { Path = "First/Media/Shared Edition/One.mp3" }] };
+        var deepB = b with { Entries = [second with { Path = "Second/Media/Shared Edition/Two.mp3" }] };
+        Assert.Equal("First / Media / Shared Edition",
+            ListeningViews.EditionLabel(deepA, [deepA, deepB]));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void LegacyBookSettingsMigrateOnlyForUnambiguousTitles()
     {
         var store = RexStore.InMemory();
