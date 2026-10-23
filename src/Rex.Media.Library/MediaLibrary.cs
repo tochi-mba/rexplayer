@@ -100,6 +100,11 @@ public sealed record LibraryEntry
 
     public TimeSpan? Duration { get; init; }
 
+    /// <summary>Picture pixel dimensions in display orientation, when a decoder reports them.</summary>
+    public int? PictureWidth { get; init; }
+
+    public int? PictureHeight { get; init; }
+
     public int Plays { get; init; }
 
     /// <summary>When it was last played, in UTC.</summary>
@@ -173,7 +178,7 @@ public sealed class MediaLibrary
     /// chapters and the podcast and audiobook marks), so music read before is read again in the
     /// background rather than waiting for a rescan.
     /// </summary>
-    public const int TagReading = 3;
+    public const int TagReading = 4;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
@@ -247,7 +252,7 @@ public sealed class MediaLibrary
         {
             lock (_gate)
             {
-                return [.. _entries.Values.Where(entry => !entry.Probed || (entry.Kind == LibraryKind.Music && entry.TagReading < TagReading))
+                return [.. _entries.Values.Where(entry => !entry.Probed || ((entry.Kind is LibraryKind.Music or LibraryKind.Picture) && entry.TagReading < TagReading))
                     .OrderBy(entry => entry.Probed).ThenBy(entry => entry.Added).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
             }
         }
@@ -710,6 +715,9 @@ public sealed class MediaLibrary
     {
         string? Tag(string key) => info.Metadata.GetValueOrDefault(key) is { } value && value.Trim() is { Length: > 0 } trimmed ? trimmed : null;
 
+        var image = entry.Kind == LibraryKind.Picture ? info.FirstTrack(MediaKind.Video)?.Video : null;
+        var sideways = image?.Rotation is 90 or 270;
+
         // A container that declares more bytes than the file holds is still arriving.
         var (downloading, finalSize) = info.DeclaredLength is { } declared && declared > entry.Size
             ? (true, (long?)declared)
@@ -734,6 +742,8 @@ public sealed class MediaLibrary
             Disc = Number(Tag(MetadataKeys.Disc)),
             Year = Number(Tag(MetadataKeys.Date)) is { } year && year is >= 1000 and <= 9999 ? year : null,
             Duration = info.Duration.IsKnown ? TimeSpan.FromTicks(info.Duration.Ticks) : null,
+            PictureWidth = image is { Width: > 0, Height: > 0 } ? (sideways ? image.Height : image.Width) : null,
+            PictureHeight = image is { Width: > 0, Height: > 0 } ? (sideways ? image.Width : image.Height) : null,
             Chapters = [.. info.Chapters.Select(chapter => new LibraryChapter(TimeSpan.FromTicks(Math.Max(0, chapter.Start.Ticks)), chapter.Title))],
             MediaType = Tag(MetadataKeys.MediaType),
         }) is var read && entry.Override is { } kept ? kept.ApplyTo(read) : read;

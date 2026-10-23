@@ -39,6 +39,36 @@ public sealed class MediaLibraryTests
         }.Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value!),
     };
 
+    [Theory]
+    [InlineData(1600, 900, 0, 1600, 900)]
+    [InlineData(1600, 900, 90, 900, 1600)]
+    [InlineData(1600, 900, 270, 900, 1600)]
+    [InlineData(0, 900, 0, 0, 0)]
+    [Capability("LIB-05")]
+    public void PictureDimensionsPersistAndRespectOrientation(int width, int height, int rotation, int shownWidth, int shownHeight)
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var picture = In("photo.png");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(picture)], path => Path.GetExtension(path) == ".png" ? LibraryKind.Picture : null);
+        library.SetDetails(picture, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo
+            {
+                Id = 0,
+                Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = width, Height = height, Rotation = rotation },
+            }],
+        });
+        var entry = library.Entry(picture)!;
+        Assert.Equal(shownWidth == 0 ? null : shownWidth, entry.PictureWidth);
+        Assert.Equal(shownHeight == 0 ? null : shownHeight, entry.PictureHeight);
+        var reopened = new MediaLibrary(store).Entry(picture)!;
+        Assert.Equal((entry.PictureWidth, entry.PictureHeight), (reopened.PictureWidth, reopened.PictureHeight));
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void AScanAddsNewFilesReadsChangedOnesAgainAndForgetsGoneOnes()

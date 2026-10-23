@@ -169,7 +169,7 @@
       <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
           <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
           <Border x:Name="CardPlay" Opacity="0" VerticalAlignment="Bottom" Padding="10,6" IsHitTestVisible="False">
             <Border.Background>
               <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
