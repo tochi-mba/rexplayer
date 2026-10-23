@@ -57,6 +57,9 @@ public sealed partial class MainWindow
                 MinSize = new CGSize(590, 460),
             };
             _libraryWindow.ReleaseWhenClosed(false);
+            // We rebuild the geometric key-view loop whenever the result rows change,
+            // then connect Search to Category. An automatic rebuild can erase that link.
+            _libraryWindow.AutorecalculatesKeyViewLoop = false;
 
             var headline = NSTextField.CreateLabel("Your library");
             headline.Font = NSFont.SystemFontOfSize(26, NSFontWeight.Semibold)!;
@@ -116,9 +119,8 @@ public sealed partial class MainWindow
             _libraryPageSummary = NSTextField.CreateLabel("");
             _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
 
-            // Connect search to the category picker explicitly, while allowing
-            // AppKit to keep the remaining buttons and dynamic rows in its key loop.
-            _librarySearch.NextKeyView = _libraryCategory;
+            // Search/Category are linked once the controls belong to the window.
+            // AppKit must first calculate the dynamic row controls in the key loop.
             var pages = NSStackView.FromViews([_libraryPreviousPage, _libraryPageSummary, _libraryNextPage]);
             pages.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             pages.Spacing = 12;
@@ -146,6 +148,7 @@ public sealed partial class MainWindow
 
         RefreshLibrary();
         _libraryWindow.MakeKeyAndOrderFront(null);
+        WireLibraryKeyViews();
         _libraryWindow.MakeFirstResponder(_librarySearch);
         ShowChecks();
     }
@@ -290,10 +293,28 @@ public sealed partial class MainWindow
         content.LeadingAnchor.ConstraintEqualTo(document.LeadingAnchor, 14).Active = true;
         content.TrailingAnchor.ConstraintLessThanOrEqualTo(document.TrailingAnchor, -12).Active = true;
         _libraryScroll.DocumentView = document;
+        WireLibraryKeyViews();
         var status = _libraryScanner?.Status;
         _librarySummary.StringValue = $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
             + (string.IsNullOrEmpty(status) ? "" : " • " + status)
             + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "");
+    }
+
+    /// <summary>
+    /// Let AppKit calculate every dynamic result-row key view before explicitly
+    /// connecting Search to Category. Rebuild after a scan, search, or page change
+    /// so removed row buttons do not remain in the navigation loop.
+    /// </summary>
+    private void WireLibraryKeyViews()
+    {
+        if (_libraryWindow is null || _librarySearch is null || _libraryCategory is null)
+        {
+            return;
+        }
+
+        _libraryWindow.RecalculateKeyViewLoop();
+        _ = _librarySearch.NextValidKeyView; // Force the pending geometric loop rebuild.
+        _librarySearch.NextKeyView = _libraryCategory;
     }
 
     /// <summary>Return focus to playback when the library is dismissed.</summary>
