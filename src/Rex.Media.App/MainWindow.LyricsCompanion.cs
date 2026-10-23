@@ -125,13 +125,19 @@ public sealed partial class MainWindow
         _lyricsCompanionLine = -1;
         _lyricsCompanionWord = -2;
         window.Content = root;
+        // Capture geometry before the native HWND is destroyed. The Closed
+        // callback itself must not access a disposed AppWindow.
+        window.AppWindow.Closing += (_, _) =>
+        {
+            if (ReferenceEquals(_lyricsCompanion, window))
+            {
+                _lyricsCompanionSize = window.AppWindow.Size;
+            }
+        };
         window.Closed += (_, _) =>
         {
             if (ReferenceEquals(_lyricsCompanion, window))
             {
-                // Retain size but not absolute screen coordinates. A monitor
-                // may have disconnected between the two openings.
-                _lyricsCompanionSize = window.AppWindow.Size;
                 _lyricsCompanion = null;
                 _lyricsCompanionScroll = null;
                 _lyricsCompanionContent = null;
