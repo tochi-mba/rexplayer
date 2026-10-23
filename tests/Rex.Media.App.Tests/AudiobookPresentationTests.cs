@@ -19,6 +19,33 @@ public sealed class AudiobookPresentationTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void NativeCiHasCommittedPixelBaselinesForEveryAudiobookPresentation()
+    {
+        if (Screenshots.Lane != "ci-windows")
+        {
+            // A developer's own fonts and graphics driver are a different
+            // screenshot lane; only the Windows CI renderer can set goldens.
+            return;
+        }
+
+        var required = new[]
+        {
+            "audiobook-unread-card",
+            "audiobook-credited-book",
+            "audiobook-finished-book",
+            "audiobook-empty-progress-filter",
+            "audiobook-active-malformed-chapters",
+            "audiobook-huge-virtualized-chapters",
+        };
+        var missing = required.Where(name => !File.Exists(RepoPaths.Combine(
+            "tests", "screenshot-baselines", "ci-windows", name + ".png"))).ToArray();
+        Assert.True(missing.Length == 0,
+            "The audiobook visual regression gate requires CI-produced pixel baselines: " +
+            string.Join(", ", missing) + ". Promote actual captures from the screenshots artifact.");
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookDisplaysTrustedCreditsAndPicturesForUnreadFinishedAndEmptyStates()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "A Book", "Whole.wav"),
