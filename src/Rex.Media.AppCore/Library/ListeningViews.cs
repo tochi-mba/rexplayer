@@ -246,6 +246,21 @@ public static partial class ListeningViews
         return key + "\n" + locator.Replace('\\', '/').ToUpperInvariant();
     }
 
+    /// <summary>A concise, human-visible location label to distinguish editions with identical title and author.</summary>
+    public static string? EditionLabel(LibraryGroup book)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        if (book.Entries.Count == 0)
+        {
+            return null;
+        }
+
+        var folder = BookFolderOf(book.Entries[0]);
+        var name = Path.GetFileName(folder);
+        return name.Length > 0 && !BooksFolderPattern().IsMatch(name)
+            ? name : Path.GetFileNameWithoutExtension(book.Entries[0].Path);
+    }
+
     /// <summary>A book's chapters in time order within each part; a part with no markers is one chapter by itself.</summary>
     public static IReadOnlyList<BookChapter> Chapters(LibraryGroup book)
     {
