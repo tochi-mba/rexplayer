@@ -159,7 +159,7 @@ public sealed partial class MainWindow
             });
             play.Alignment = NSTextAlignment.Left;
             play.ToolTip = item.Location;
-            play.AccessibilityLabel = playing ? "Now playing: " + item.Title : "Play: " + item.Title;
+            ((NSView)play).AccessibilityLabel = playing ? "Now playing: " + item.Title : "Play: " + item.Title;
             play.WidthAnchor.ConstraintGreaterThanOrEqualTo(300).Active = true;
             var source = NSTextField.CreateLabel(item.Artist ?? Rex.Media.AppCore.Player.PlaylistItem.SourceOf(item.Location) ?? "Local media");
             source.TextColor = NSColor.SecondaryLabel;
@@ -179,7 +179,7 @@ public sealed partial class MainWindow
             });
             next.Enabled = _player.Playlist.Current is not null && !playing;
             next.ToolTip = "Make this entry play next, including when shuffle is enabled";
-            next.AccessibilityLabel = "Play " + item.Title + " next";
+            ((NSView)next).AccessibilityLabel = "Play " + item.Title + " next";
             var up = NSButton.CreateButton("Earlier", () =>
             {
                 var at = _player.Playlist.IndexOf(item);
@@ -207,11 +207,11 @@ public sealed partial class MainWindow
             up.Enabled = index > 0;
             down.Enabled = index < queue.Count - 1;
             up.ToolTip = "Move earlier in the queue";
-            up.AccessibilityLabel = "Move " + item.Title + " earlier";
+            ((NSView)up).AccessibilityLabel = "Move " + item.Title + " earlier";
             down.ToolTip = "Move later in the queue";
-            down.AccessibilityLabel = "Move " + item.Title + " later";
+            ((NSView)down).AccessibilityLabel = "Move " + item.Title + " later";
             remove.ToolTip = "Remove from Up Next";
-            remove.AccessibilityLabel = "Remove " + item.Title + " from Up Next";
+            ((NSView)remove).AccessibilityLabel = "Remove " + item.Title + " from Up Next";
             var actions = NSStackView.FromViews([next, up, down, remove]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 8;
