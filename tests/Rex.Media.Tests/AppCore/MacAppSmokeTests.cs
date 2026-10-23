@@ -219,6 +219,18 @@ public sealed class MacAppSmokeTests
                 reply => reply is { Ok: true, Title: not null }, app, root);
             var reopen = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(reopen?.Ok == true, "Could not return to the library from playback.");
+            // Recently played must track what actually opened through the shared player,
+            // not only entries that were already marked played in the persisted fixture.
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 5 }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("1 matching", StringComparison.Ordinal), app, root);
+            var restoreVideos = await Ask(pipe, new AutomationRequest
+            {
+                Command = "ui.set", Target = "LibraryCategory", Value = 2,
+            });
+            Assert.True(restoreVideos?.Ok == true &&
+                restoreVideos.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Returning from Recently played did not restore the queueable video result.");
             var queueResult = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstQueue" });
             Assert.True(queueResult?.Ok == true, "The native Queue result button failed: " + (queueResult?.Error ?? "no reply") + LogTail(root));
             var afterQueue = await Ask(pipe, new AutomationRequest { Command = "status" });
