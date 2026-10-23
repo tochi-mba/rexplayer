@@ -69,7 +69,6 @@ public sealed partial class MainWindow
             IsReadOnly = true,
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Height = 420,
         };
         AutomationProperties.SetAutomationId(text, "PodcastNotesText");
