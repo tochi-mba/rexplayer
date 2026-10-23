@@ -143,6 +143,14 @@ public sealed partial class MainWindow : IDisposable
                 case "run":
                     answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
                     return;
+                case "mac-queue":
+                    if (!QueueSmokeAction(request.Id))
+                    {
+                        answered.SetResult(AutomationReply.Failed("The native queue smoke action is unavailable: " + request.Id));
+                        return;
+                    }
+
+                    break;
                 case "status":
                     break;
                 default:
@@ -154,7 +162,9 @@ public sealed partial class MainWindow : IDisposable
             {
                 Ok = true,
                 State = _player.State.ToString(),
-                Title = _player.Item is null ? null : _player.Title,
+                Title = request.Command == "mac-queue"
+                    ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "")
+                    : _player.Item is null ? null : _player.Title,
                 Position = _player.Position.TotalSeconds,
                 Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
             });
