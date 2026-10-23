@@ -340,7 +340,7 @@ public sealed partial class MainWindow
     /// <summary>Exercise AppKit's real Tab key-view loop without synthesizing OS-wide input.</summary>
     private AutomationReply ProbeLibraryKeyboard()
     {
-        if (_libraryWindow?.IsVisible != true || _librarySearch is null)
+        if (_libraryWindow?.IsVisible != true || _librarySearch is null || _libraryCategory is null)
         {
             return AutomationReply.Failed("Open the library before checking keyboard navigation.");
         }
