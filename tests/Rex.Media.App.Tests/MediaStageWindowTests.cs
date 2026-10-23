@@ -121,6 +121,8 @@ public sealed class MediaStageWindowTests : IDisposable
 
         var chapters = app.Find("StageChaptersButton");
         Assert.Equal("StageChaptersButton", chapters.Current.AutomationId);
+        Assert.True(chapters.Current.BoundingRectangle.Height >= 42,
+            "The chapter picker must remain a touch-sized target at standard DPI.");
         Assert.Contains("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Wait.For(() => app.Status().State == "Playing", "the audiobook to start");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
