@@ -54,8 +54,12 @@ public sealed partial class Lyrics
                 continue;
             }
 
-            var stamps = Stamp().Matches(line);
-            if (stamps.Count == 0)
+            // Invalid seconds are not timestamps. Keep their text available as plain lyrics
+            // rather than assigning an invented time to malformed LRC lines.
+            var stamps = Stamp().Matches(line).Cast<Match>()
+                .Where(match => int.Parse(match.Groups["s"].Value, CultureInfo.InvariantCulture) < 60)
+                .ToArray();
+            if (stamps.Length == 0)
             {
                 // [ar:Asake] and the like say who and what; they are not sung.
                 if (!InfoTag().IsMatch(line))
@@ -67,7 +71,7 @@ public sealed partial class Lyrics
             }
 
             var (words, segments) = ReadWords(line[(stamps[^1].Index + stamps[^1].Length)..]);
-            foreach (Match stamp in stamps)
+            foreach (var stamp in stamps)
             {
                 var at = Time(stamp);
                 timed.Add(new LyricLine(at, words)
