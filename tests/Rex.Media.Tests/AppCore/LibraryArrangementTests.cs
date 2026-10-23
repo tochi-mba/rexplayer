@@ -180,6 +180,32 @@ public sealed class LibraryArrangementTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void SameTitlesKeepIndependentArtistAlbumAndPathIdentityWithUnknownFallback()
+    {
+        var first = Song("Same", artist: "Alice", album: "Release", genre: "Jazz");
+        var second = Song("Same", artist: "Bob", album: "Release", genre: null)
+            with { Path = Path.Combine("D:" + Path.DirectorySeparatorChar, "Other", "Same.mp3") };
+        var missing = Song("Mystery", artist: null, album: null, genre: null);
+        var originals = new[] { first, second, missing };
+
+        var albums = LibraryViews.Albums(originals);
+        Assert.Equal(3, albums.Count);
+        Assert.Equal(["Alice", "Bob"], albums.Where(group => group.Name == "Release").Select(group => group.Detail));
+        Assert.Equal(missing.Path, Assert.Single(albums.Single(group => group.Name == LibraryViews.UnknownAlbum).Entries).Path);
+
+        var artists = LibraryViews.Artists(originals);
+        Assert.Contains(artists, group => group.Name == "Alice" && group.Entries.Single().Path == first.Path);
+        Assert.Contains(artists, group => group.Name == "Bob" && group.Entries.Single().Path == second.Path);
+        Assert.Equal(missing.Path, Assert.Single(artists.Single(group => group.Name == LibraryViews.UnknownArtist).Entries).Path);
+
+        var groups = LibraryArrangement.Group(originals, LibraryGrouping.Genre, Now);
+        Assert.Equal(["Jazz", LibraryViews.UnknownGenre], groups.Select(section => section.Header));
+        Assert.Equal([second.Path, missing.Path], groups[1].Entries.Select(entry => entry.Path));
+        Assert.Equal([first, second, missing], LibraryArrangement.Sort(originals, LibrarySort.Natural, false));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void CollageCardShapesAreBoundedVariedAndRepeatable()
     {
         foreach (var (kind, poster) in new[]
