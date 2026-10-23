@@ -86,7 +86,7 @@ public sealed class LibraryFoldersTests : IDisposable
         var second = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 2")));
         ((SelectionItemPattern)second.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Lines().Length == 1, "the second season's one episode", () => string.Join(", ", app.Lines()));
-        Wait.For(() => app.Text("LibraryViewingProgress") == "Season: 0 of 1 episodes watched · Series: 0 of 3 episodes watched",
+        Wait.For(() => app.Text("LibraryViewingProgress") == "Season: 0 of 1 episode watched · Series: 0 of 3 episodes watched",
             "the changed season to update without claiming the series is complete");
         Assert.Equal(0, app.Close());
     }
