@@ -54,6 +54,20 @@ public static partial class BookCredits
         return Credit(part.AlbumArtist, part.Narrator) ?? Credit(part.Artist, part.Narrator);
     }
 
+    /// <summary>
+    /// The narrator shared by the book's tagged parts, when unambiguous. Missing tags
+    /// do not supply a credit, and conflicting narrator tags never become a guess.
+    /// </summary>
+    public static string? Narrator(LibraryGroup book)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        var narrators = book.Entries.Select(part => part.Narrator?.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return narrators.Count == 1 ? narrators[0] : null;
+    }
+
     /// <summary>Remove only a trailing, explicit writer byline from the displayed title.</summary>
     public static string Title(string title)
     {
