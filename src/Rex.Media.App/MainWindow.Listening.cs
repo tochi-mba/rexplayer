@@ -87,6 +87,9 @@ public sealed partial class MainWindow
                         && found.Current && found.WorkId is not null ? found.Author : null;
                 }
             });
+            // Only transfer old title-and-author settings when this complete catalogue
+            // identifies one edition; duplicate titles must never inherit each other's state.
+            Audiobooks.MigrateLegacy(_listening.Audiobooks);
             _listeningBuiltAt = version;
             _listeningAlbums = albums;
             _listeningBooks = books;
