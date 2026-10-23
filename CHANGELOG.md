@@ -3,6 +3,13 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.30.6 - 2026-10-23
+
+### Fixed
+
+- **Season 0 detection (#458).** Recognise S00, Season 00 and Specials folders with quality labels, including the Simpsons S00-S09 collection and its original shorts. Keep unnumbered clips and bonus folders with their show rather than losing them to Movies or separate series.
+- **TV season selection (#458).** Show “Season 0 (Specials)” explicitly in the season picker; preserve numbered-season playback and the usual Specials grouping.
+
 ## 0.30.5 - 2026-10-23
 
 ### Added
@@ -957,38 +964,4 @@ pipeline the moment its number reaches `main`.
   installer and update tests, portable engine tests, site checks and performance baselines
   passed on the fix pull request.
 
-## 0.15.2 - 2026-10-10
-
-### Added
-
-- **Ghostwire Motion and Surface Shape.** A separately selectable, non-destructive GPU
-  visualization reveals fine recorded outlines and softly shaded curvature. Its
-  default Surface shape mode works on still images and paused video without needing
-  any subject movement or a previous frame.
-- **Four visualization modes.** Surface shape highlights visible luminance isolines
-  and shaded relief; Hybrid adds motion accents; Contours only isolates spatial
-  detail; Motion only highlights actual two-frame differences.
-- **Independent saved controls.** Adjust contour sensitivity, motion emphasis and
-  short motion-trail length for the new effect. Settings have accessible named modes,
-  live previews and independent reset behavior.
-
-### Improved
-
-- **Temporal safety.** Adjacent decoded pictures are compared on the GPU in motion
-  modes, with a small spatial match to reduce one-pixel camera shake. Stationary
-  modes use no previous-frame storage. Seeks, long gaps, mode switches and size
-  changes invalidate stale temporal history; paused redraws do not advance time.
-- **Verification.** Windows GPU/WARP and portable tests cover still curved surfaces
-  under bright and dim lighting, uniform regions without invented lines, motion
-  against stationary features, independent trail settings, discontinuities, and
-  restoration of the original frame when the effect is switched off.
-
-### Limitations
-
-- This visualization displays apparent curvature inferred from *visible* pixels;
-  it does not recover real 3D shape or hidden anatomy. Strong reflections, shadows,
-  poor video detail, compression and camera cuts can distort apparent contours.
-  Temporal motion cues are bounded two-frame comparisons, not semantic object
-  tracking or dense optical flow.
-
-Versions before 0.15.2 are in [docs/changelog-archive.md](docs/changelog-archive.md).
+Versions before 0.15.3 are in [docs/changelog-archive.md](docs/changelog-archive.md).
