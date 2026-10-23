@@ -57,13 +57,14 @@ test('native screenshot previews open a labeled modal and restore keyboard focus
   await previews.first().click();
   const lightbox = page.locator('#shot-lightbox');
   await expect(lightbox).toBeVisible();
-  await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows movie card/);
+  await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows library test scene/);
   await expect(page.locator('#shot-caption')).toContainText('Windows');
   await lightbox.getByRole('button', { name: /Close/ }).click();
   await expect(lightbox).not.toBeVisible();
   await expect(previews.first()).toBeFocused();
   await previews.nth(1).click();
   await expect(lightbox).toBeVisible();
+  await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows native TV episode test scene/);
   await page.keyboard.press('Escape');
   await expect(lightbox).not.toBeVisible();
   await expect(previews.nth(1)).toBeFocused();
