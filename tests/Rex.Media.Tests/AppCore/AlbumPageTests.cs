@@ -87,6 +87,26 @@ public sealed class AlbumPageTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void AlbumDetailsRemainHonestWhenARescanRemovesTheLastLocalTrack()
+    {
+        var absent = new LibraryGroup("Disconnected album", "Artist", []);
+        Assert.Equal(ReleaseKind.Album, AlbumPage.Kind(absent, null));
+        Assert.Null(AlbumPage.Year(absent, null));
+        Assert.Empty(AlbumPage.Discs(absent));
+        Assert.Equal("Album · 0 songs", AlbumPage.Line(absent, AlbumPage.Kind(absent, null), null));
+        Assert.Equal(0, AlbumPage.PlayShare(Song("Gone"), absent));
+
+        // Restoring the original files returns to their actual album, disc,
+        // track, year and credited artist, rather than retaining fake rows.
+        var returned = new LibraryGroup("Disconnected album", "Artist",
+            [Song("B", track: 2, disc: 2, year: 2024), Song("A", track: 1, disc: 1, year: 2023)]);
+        Assert.Equal(2024, AlbumPage.Year(returned, null));
+        Assert.Equal([1, 2], AlbumPage.Discs(returned).Select(d => d.Number));
+        Assert.Equal(["A", "B"], AlbumPage.Discs(returned).SelectMany(d => d.Songs).Select(s => s.Title));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void DiscsAreHeadedOnlyForASetOfSeveral()
     {
         var single = AlbumPage.Discs(Album(Song("B", track: 2), Song("A", track: 1), Song("Bonus")));
