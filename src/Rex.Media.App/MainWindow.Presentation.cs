@@ -46,6 +46,10 @@ public sealed partial class MainWindow
             HasLyrics: _player.Lyrics is not null));
         var music = stage.ShowAudioPresentation;
         IdleKicker.Text = stage.Label;
+        // The video itself may hide the Idle panel; the always-present stage must still
+        // identify what is playing to keyboard and screen-reader users.
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Stage,
+            stage.Profile == MediaStageProfile.Welcome ? "Playback stage" : stage.Label + " playback stage");
 
         var album = music ? _player.Info!.Metadata.GetValueOrDefault(MetadataKeys.Album) : null;
         IdleAlbum.Text = album ?? "";
