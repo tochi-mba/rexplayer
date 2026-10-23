@@ -135,6 +135,21 @@ public static partial class ListeningViews
     }
 
     /// <summary>
+    /// A selected show episode's available local queue, oldest to newest. Call the availability
+    /// predicate on a worker, not the window thread, when it checks files on disk.
+    /// A missing or incomplete selected episode is never replaced by a different first item.
+    /// </summary>
+    public static (IReadOnlyList<LibraryEntry> Queue, int StartIndex) AvailableEpisodeQueue(
+        IReadOnlyList<LibraryEntry> episodes, string selectedPath, Func<LibraryEntry, bool> available)
+    {
+        ArgumentNullException.ThrowIfNull(episodes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectedPath);
+        ArgumentNullException.ThrowIfNull(available);
+        var queue = Episodes(episodes, oldestFirst: true).Where(available).ToList();
+        return (queue, queue.FindIndex(episode => LibraryViews.SameLocation(episode.Path, selectedPath)));
+    }
+
+    /// <summary>
     /// When an episode came out: its year tag (the file's date when that is in the same year), else the
     /// file's date, else a date in its name; the earliest date there is when nothing says.
     /// </summary>
