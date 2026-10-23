@@ -42,6 +42,7 @@ public sealed partial class MainWindow
         (LibrarySource.Videos, new("\uE8FD", "All videos")),
         (LibrarySource.Pictures, new("\uE91B", "Pictures")),
         (LibrarySource.ContinueWatching, new("\uE768", "Continue watching")),
+        (LibrarySource.Completed, new("\uE73E", "Completed")),
         (LibrarySource.RecentlyPlayed, new("\uE81C", "Recently played")),
         (LibrarySource.RecentlyAdded, new("\uE710", "Recently added")),
         (LibrarySource.Playlists, new("\uE8FD", "Playlists")),
@@ -228,6 +229,10 @@ public sealed partial class MainWindow
                 ? EntrySections(found, choice)
                 : [new LibraryRowGroup("", matchingGroups.Select(GroupRow))];
             subtitle = Count(matchingGroups.Count == 0 ? found.Count : matchingGroups.Count, "result");
+        }
+        else if (_librarySource == LibrarySource.Completed)
+        {
+            (kicker, title, subtitle, sections, groupsView) = CompletedView(entries);
         }
         else if (IsListening(_librarySource))
         {

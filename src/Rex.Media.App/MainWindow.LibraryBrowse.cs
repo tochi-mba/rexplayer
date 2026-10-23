@@ -174,6 +174,11 @@ public sealed partial class MainWindow
                 (section.Header.Length > 0 ? section.Header : fallback, _librarySource, (IReadOnlyList<LibraryRow>)[.. section], false))];
         }
 
+        if (_librarySource == LibrarySource.Completed)
+        {
+            return CompletedShelves(entries);
+        }
+
         if (_librarySource is LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres)
         {
             var groups = LibraryArrangement.Sort(Groups(_librarySource, entries), choice.Sort, choice.Descending);

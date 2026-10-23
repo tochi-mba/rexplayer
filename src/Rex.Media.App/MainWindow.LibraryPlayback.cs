@@ -12,6 +12,11 @@ public sealed partial class MainWindow
     {
         switch (row?.Item)
         {
+            case LibraryGroup group when _librarySource == LibrarySource.Completed
+                && Listening().Audiobooks.Any(book => string.Equals(book.Name, group.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(book.Detail, group.Detail, StringComparison.OrdinalIgnoreCase)):
+                PlayBook(group, null);
+                break;
             case LibraryGroup group:
                 // The parent is kept with this line chosen, so Back finds it chosen and on screen.
                 KeepLibraryParent(SelectionIdentity(row));

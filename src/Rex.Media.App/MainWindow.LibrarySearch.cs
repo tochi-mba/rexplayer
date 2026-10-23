@@ -5,6 +5,20 @@ namespace Rex.Media.App;
 
 public sealed partial class MainWindow
 {
+    private void UpdateLibrarySearchHint()
+    {
+        var hint = _librarySource switch
+        {
+            LibrarySource.Movies => "Search titles, genres, actors, directors or writers",
+            LibrarySource.TvShows => "Search shows, genres, actors or creators",
+            LibrarySource.Audiobooks or LibrarySource.Authors => "Search books, authors or chapters",
+            LibrarySource.Podcasts => "Search podcasts, shows or episodes",
+            _ => "Search the library",
+        };
+        LibrarySearch.PlaceholderText = hint;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(LibrarySearch, hint);
+    }
+
     private IReadOnlyList<LibraryGroup> Groups(LibrarySource source, IReadOnlyList<LibraryEntry> entries) => source switch
     {
         LibrarySource.Albums => LibraryViews.Albums(entries),

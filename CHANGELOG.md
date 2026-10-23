@@ -9,6 +9,7 @@ pipeline the moment its number reaches `main`.
 
 - **Audiobook controls (#455).** Audiobooks have their own transcription preference and default visualisation, independent of songs and other audio. Camera-based defaults still require consent and classification changes take effect with the item that is actually playing.
 - **Browse throughout the media library (#455).** Songs, albums, artists, genres, audiobooks, authors, podcasts, recordings, videos, pictures and recent views can use horizontal Browse shelves as well as their existing layouts.
+- **Completed media (#455).** A dedicated library view gathers finished audiobooks, watched movies and episodes, played podcast episodes, music and recordings, while keeping anything with a resume point in progress.
 
 ### Improved
 

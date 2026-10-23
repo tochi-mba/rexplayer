@@ -63,6 +63,7 @@ public sealed partial class MainWindow
         Videos,
         Pictures,
         ContinueWatching,
+        Completed,
         RecentlyPlayed,
         RecentlyAdded,
         Playlists,
