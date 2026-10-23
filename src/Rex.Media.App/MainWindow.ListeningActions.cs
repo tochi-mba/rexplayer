@@ -55,16 +55,43 @@ public sealed partial class MainWindow
 
         if (_librarySource == LibrarySource.Podcasts && (chosen is [{ Item: LibraryGroup show }] ? show : _libraryGroup) is { Entries.Count: > 0 } chosenShow)
         {
-            menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () =>
-            {
-                // The library may retain entries for removed drives and unfinished downloads.
-                // Do not put those files, or any other show's episodes, in the automatic queue.
-                var available = ListeningViews.UnplayedInOrder(chosenShow, _player.LeftAt,
-                    episode => File.Exists(episode.Path) && !episode.Downloading && episode.Problem is null);
-                Play(available, 0);
-            }));
+            menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () => PlayUnplayedEpisodes(chosenShow)));
             menu.Items.Add(MenuItem("Mark all played", "LibraryMenuMarkAllPlayed", () => MarkListened([.. chosenShow.Entries.Select(episode => episode.Path)])));
         }
+    }
+
+    private int _episodeQueueRequest;
+
+    /// <summary>
+    /// Check indexed episodes against the local disk away from the window thread: a large show
+    /// or disconnected drive must not freeze its menu. Only this show's available whole files
+    /// enter the queue, and navigating away invalidates the pending playback request.
+    /// </summary>
+    private void PlayUnplayedEpisodes(LibraryGroup show)
+    {
+        var unplayed = ListeningViews.UnplayedInOrder(show, _player.LeftAt);
+        var source = _librarySource;
+        var opened = _libraryGroup?.Name;
+        var request = Interlocked.Increment(ref _episodeQueueRequest);
+        Forget(Task.Run(() => ListeningViews.UnplayedInOrder(
+            new LibraryGroup(show.Name, show.Detail, unplayed), _ => null,
+            episode => File.Exists(episode.Path) && !episode.Downloading && episode.Problem is null))
+            .ContinueWith(task => OnWindowThread(() =>
+            {
+                if (_closing || request != Volatile.Read(ref _episodeQueueRequest)
+                    || _librarySource != source || _libraryGroup?.Name != opened)
+                {
+                    return;
+                }
+
+                if (!task.IsCompletedSuccessfully)
+                {
+                    Say("The local episodes could not be checked. Try again.");
+                    return;
+                }
+
+                Play(task.Result, 0);
+            }), TaskScheduler.Default));
     }
 
     /// <summary>Keeps the person's move over the rules; the sidebar follows at once, and the view keeps its place.</summary>
