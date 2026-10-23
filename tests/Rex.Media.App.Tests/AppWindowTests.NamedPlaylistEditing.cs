@@ -66,6 +66,8 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Text("PlaylistQueueCount") == "2 items", "the queue count");
         Assert.Equal("Now playing: Sungba", app.Text("PlaylistQueueNow"));
         Assert.Equal("Up next: Terminator", app.Text("PlaylistQueueNext"));
+        Wait.For(() => app.Find("QueueDuration").Current.Name.Length > 0,
+            "the current queue row to show a measured duration");
 
         ((InvokePattern)app.OpenMenu("NewNamedPlaylist", "MediaMenu", "PlaylistsMenu")
             .GetCurrentPattern(InvokePattern.Pattern)).Invoke();

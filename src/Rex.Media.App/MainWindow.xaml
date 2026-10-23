@@ -713,8 +713,18 @@
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
-                  <TextBlock Text="{x:Bind Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                  <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="1" Text="{x:Bind DurationText}" FontSize="11"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               AutomationProperties.AutomationId="QueueDuration" />
+                  </Grid>
                   <Grid Grid.Row="1" ColumnSpacing="6">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto" />
@@ -728,6 +738,9 @@
                     <TextBlock Grid.Column="2" Text="Missing" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                                Visibility="{x:Bind MissingVisibility}" />
                   </Grid>
+                  <ProgressBar Grid.Row="2" Height="3" Minimum="0" Maximum="100"
+                               Value="{x:Bind ProgressPercent, Mode=OneWay}" Visibility="{x:Bind ProgressVisibility}"
+                               AutomationProperties.AutomationId="QueuePlaybackProgress" AutomationProperties.Name="Current queue item progress" />
                 </Grid>
               </Grid>
             </DataTemplate>

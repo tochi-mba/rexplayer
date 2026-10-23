@@ -569,6 +569,11 @@ public sealed partial class MainWindow : Window
         }
 
         _updatingControls = false;
+        if (_player.Playlist.CurrentIndex is >= 0 and var currentIndex && currentIndex < _playlistRows.Count)
+        {
+            _playlistRows[currentIndex].SetProgress(_player.Position, duration);
+        }
+
         ShowEpisodeSkip();
         ShowTaskbarPosition();
     }
@@ -586,7 +591,17 @@ public sealed partial class MainWindow : Window
         {
             var source = repeated.Contains(item.Title) ? PlaylistItem.SourceOf(item.Location) : null;
             var secondary = string.Join(" · ", new[] { item.Artist, source }.Where(text => !string.IsNullOrWhiteSpace(text)).Distinct(StringComparer.CurrentCultureIgnoreCase));
-            return new PlaylistRow(item.Title, secondary, i == current, _player.IsMissing(item), item.Location);
+            var whole = _library?.Entry(item.Location)?.Duration;
+            TimeSpan? length = ReferenceEquals(_player.Playlist.Current, item) && _player.Duration > TimeSpan.Zero
+                ? _player.Duration : item.End is { } end && whole is { } full && full < end
+                    ? full - item.Start : item.End is { } cueEnd ? cueEnd - item.Start
+                    : whole is { } known ? known - item.Start : null;
+            if (length <= TimeSpan.Zero)
+            {
+                length = null;
+            }
+
+            return new PlaylistRow(item.Title, secondary, i == current, _player.IsMissing(item), item.Location, length);
         }).ToList();
         for (var i = 0; i < rows.Count; i++)
         {
@@ -603,6 +618,11 @@ public sealed partial class MainWindow : Window
         while (_playlistRows.Count > rows.Count)
         {
             _playlistRows.RemoveAt(_playlistRows.Count - 1);
+        }
+
+        if (current >= 0 && current < _playlistRows.Count)
+        {
+            _playlistRows[current].SetProgress(_player.Position, _player.Duration);
         }
 
         PlaylistQueueCount.Text = rows.Count == 1 ? "1 item" : $"{rows.Count} items";
