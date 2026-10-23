@@ -117,7 +117,6 @@ public sealed partial class MainWindow
             _librarySummary.TextColor = NSColor.SecondaryLabel;
             _librarySummary.Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!;
             _librarySummary.LineBreakMode = NSLineBreakMode.TruncatingTail;
-            _librarySummary.AccessibilityLabel = "Library scan and results summary";
 
             _libraryPreviousPage = NSButton.CreateButton("Previous", () =>
             {
@@ -140,7 +139,6 @@ public sealed partial class MainWindow
             ((NSView)_libraryNextPage).AccessibilityLabel = "Next results page";
             _libraryPageSummary = NSTextField.CreateLabel("");
             _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
-            _libraryPageSummary.AccessibilityLabel = "Library results page";
 
             // Search/Category are linked once the controls belong to the window.
             // AppKit must first calculate the dynamic row controls in the key loop.
@@ -373,10 +371,11 @@ public sealed partial class MainWindow
             WireLibraryKeyViews();
         }
         var status = _libraryScanner?.Status;
-        _librarySummary.StringValue = (string.IsNullOrEmpty(status) ? "" : status + " • ")
+        _librarySummary.StringValue = (_libraryTemporaryStore ? "Changes will not be saved • " : "")
+            + (string.IsNullOrEmpty(status) ? "" : status + " • ")
             + $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
             + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "")
-            + (_libraryTemporaryStore ? " • Changes will not be saved" : "");
+            ;
         _librarySummary.AccessibilityLabel = "Library status: " + _librarySummary.StringValue;
     }
 
