@@ -94,8 +94,9 @@ public static class EpisodeGrouping
 
     /// <summary>
     /// The episode that follows <paramref name="target"/> among <paramref name="candidates"/>: the
-    /// lowest number after the target's last in the same show and season or, after a season's last
-    /// episode, the first of the next season. Null when there is none.
+    /// lowest number after the target's last in the same show and season or, after that
+    /// season's last episode, the earliest numbered episode in a later available season.
+    /// Missing season numbers are not invented and specials remain excluded. Null when there is none.
     /// </summary>
     public static string? Next(string target, IEnumerable<string> candidates)
     {
@@ -107,7 +108,7 @@ public static class EpisodeGrouping
 
         return candidates.Select(path => (Path: path, Identity: Identify(path)))
             .Where(item => item.Identity is { } other && string.Equals(other.Show, identity.Show, StringComparison.Ordinal) &&
-                (other.Season == identity.Season ? other.Episode > identity.Last : other.Season == identity.Season + 1))
+                (other.Season == identity.Season ? other.Episode > identity.Last : other.Season > identity.Season))
             .OrderBy(item => item.Identity!.Season).ThenBy(item => item.Identity!.Episode)
             .ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
             .Select(item => item.Path).FirstOrDefault();
