@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Rex.Media.Engine;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Metadata;
+using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
 
 namespace Rex.Media.App;
@@ -47,7 +48,9 @@ public sealed partial class MainWindow
     {
         MovieVersionMenu.Items.Clear();
         MovieVersionButton.Visibility = Visibility.Collapsed;
-        if (_player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current
+        if (_stageView.Profile != MediaStageProfile.Movie
+            || _player.Info?.FirstTrack(Rex.Media.Primitives.MediaKind.Video) is null
+            || _player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current
             || _player.Playlist.CurrentIndex < 0 || _player.State is SessionState.Idle or SessionState.Faulted)
         {
             return;
@@ -81,7 +84,9 @@ public sealed partial class MainWindow
 
     private void SwitchMovieVersion(string path)
     {
-        if (_player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current)
+        if (_stageView.Profile != MediaStageProfile.Movie
+            || _player.Info?.FirstTrack(Rex.Media.Primitives.MediaKind.Video) is null
+            || _player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current)
         {
             return;
         }
