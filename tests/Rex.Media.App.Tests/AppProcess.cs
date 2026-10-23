@@ -147,9 +147,10 @@ internal sealed class AppProcess : IDisposable
     {
         // Even an initially visible window can end up clipped when a test later
         // resizes it to 1000x760. Always anchor tests near the virtual desktop's
-        // upper-left corner, not only after an already-clipped startup.
+        // upper-left corner, not only after an already-clipped startup. Leave no
+        // unused padding: a 1000x760 viewport fits a 1024x768 CI desktop.
         var desktop = WindowPicture.DesktopBounds;
-        const int Padding = 8;
+        const int Padding = 0;
         var availableWidth = Math.Max(1, desktop.Width - 2 * Padding);
         var availableHeight = Math.Max(1, desktop.Height - 2 * Padding);
         var bounds = WindowPicture.Bounds(Handle);
