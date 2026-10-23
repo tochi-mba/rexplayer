@@ -95,13 +95,15 @@ internal sealed class LibraryScene : IDisposable
     /// records as read with <paramref name="length"/> and the tags given, so the rules that weigh length
     /// and tags (a song, an audiobook, a podcast, a recording) see it.
     /// </summary>
-    public string Audio(string relative, TimeSpan length, string? artist = null, string? album = null, string? genre = null, int? year = null)
+    public string Audio(string relative, TimeSpan length, string? artist = null, string? album = null, string? genre = null, int? year = null,
+        string? author = null, string? narrator = null, IReadOnlyList<Chapter>? chapters = null)
     {
         var path = Path.Combine(Media, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
         var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in new[] { (MetadataKeys.Artist, artist), (MetadataKeys.Album, album), (MetadataKeys.Genre, genre), (MetadataKeys.Date, year?.ToString(System.Globalization.CultureInfo.InvariantCulture)) })
+        foreach (var (key, value) in new[] { (MetadataKeys.Artist, artist), (MetadataKeys.Album, album), (MetadataKeys.Genre, genre), (MetadataKeys.Date, year?.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            (MetadataKeys.Author, author), (MetadataKeys.Narrator, narrator) })
         {
             if (value is not null)
             {
@@ -115,6 +117,7 @@ internal sealed class LibraryScene : IDisposable
             Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Pcm }],
             Duration = MediaTime.FromSeconds(length.TotalSeconds),
             Metadata = tags,
+            Chapters = chapters ?? [],
         }));
         return path;
     }
