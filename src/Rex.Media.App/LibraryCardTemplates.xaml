@@ -16,6 +16,7 @@
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
+          <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" />
           <Border x:Name="CardPlay" Opacity="0" Width="44" Height="44" CornerRadius="22" Margin="10" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                   Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
             <FontIcon Glyph="&#xE768;" FontSize="18" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
