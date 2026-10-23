@@ -57,6 +57,9 @@ public sealed partial class AppWindowTests
         app.SetValue("SeekBar", 120);
         WaitForPosition(app, 120, "the seek bar to move the song");
         Wait.For(() => app.Text("Elapsed") == "2:00", "the elapsed time to follow the seek bar");
+        Wait.For(() => (app.Find("SeekBar").GetCurrentPropertyValue(AutomationElement.HelpTextProperty) as string)
+            ?.Contains("2:00 of 6:40", StringComparison.Ordinal) == true,
+            "keyboard and screen readers to learn the real timeline position and duration");
         Assert.Equal("Paused", app.Status().State);
 
         app.Press("PlayPauseButton");
