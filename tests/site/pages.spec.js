@@ -131,6 +131,30 @@ test('the Windows walkthrough is keyboard-accessible and progresses through nati
   await expect(page.locator('#tour-progress')).toHaveText('Step 4 of 6');
 });
 
+test('every walkthrough image is decoded and described at phone and desktop widths', async ({ page }) => {
+  for (const width of [320, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('./');
+    const steps = page.locator('[data-tour-step]');
+    for (const step of await steps.all()) {
+      const source = await step.getAttribute('data-tour-src');
+      const alternative = await step.getAttribute('data-tour-alt');
+      expect(alternative?.trim()).toBeTruthy();
+      await step.click();
+      const picture = page.locator('#tour-image');
+      await expect(picture).toHaveAttribute('src', source);
+      await expect(picture).toHaveAttribute('alt', alternative);
+      await picture.scrollIntoViewIfNeeded();
+      await expect.poll(() => picture.evaluate(image =>
+        image.complete && image.naturalWidth > 0 && image.naturalHeight > 0)).toBeTruthy();
+      await expect(page.locator('#tour-image-link')).toHaveAttribute('href', source);
+    }
+    const overflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `after walkthrough at ${width}px`).toBeLessThanOrEqual(0);
+  }
+});
+
 test('the page uses the REX ink and signal palette', async ({ page }) => {
   await page.goto('./');
   const values = await page.evaluate(names => {
