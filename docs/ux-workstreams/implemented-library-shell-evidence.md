@@ -1,0 +1,28 @@
+# Windows library and shell: implementation evidence and remaining acceptance
+
+Updated 2026-10-23 in follow-up PR #488. This is an evidence map, not a marketing list or proof that the branch is release-ready.
+
+## Source behavior that exists now
+
+| Feature / area | What the code currently does | Source and tests | Unverified or separate acceptance |
+| --- | --- | --- | --- |
+| Music Home | Builds a local featured item, recent albums, listening-based rows and mixes; pins and unpins real albums by persisted representative file paths; omits missing pins | `MusicHome.Rows`, `MainWindow.MusicHome`, `MainWindow.AlbumPage`, `PlayerSettings.PinnedAlbumPaths`; `MusicHomeTests`, `LibraryMusicTests` | Native keyboard/scroll/high-DPI performance, images and screenshot review |
+| Songs, artists, albums, genres | Sorts and groups by actual tags, handles mixed artist credits, independent album identities, disc/track order and unknown tag fallbacks | `LibraryViews`, `LibraryArrangement`, `ArtistNames`, `AlbumPage`, `GenreNames`; `LibraryArrangementTests`, `AlbumPageTests`, `ArtistNamesTests`, `GenreNamesTests` | Wide/massive libraries, consistent density/virtualization and all native accessibility states |
+| TV browsing | Keeps movies distinct from seasons and episodes, orders seasons and specials, shows honest completion for episode identities instead of counting duplicate resolutions as separate episodes, preserves current season route on index refresh | `LibraryViews.TvShows/TvSeasons`, `EpisodeNames`, `ShowPage`, `MainWindow.ShowPage`, `MainWindow.DetailsParts`; `EpisodeNamesTests`, `ShowPageTests`, `LibraryFoldersTests` | Actual screenshot state/error review and current-head native CI |
+| Library resilience | Runs scans on background workers; an inaccessible root/subdirectory does not masquerade as deleted media; preserves last-played history in an absent-entry store and restores it for a returning file or a safely matched moved path | `LibraryScanner`, `MediaLibrary`; `LibraryScannerTests`, `MediaLibraryTests` | Real device unplug/replug, network shares, multi-volume move and error-state screenshots |
+| Restore and backup | Produces a versioned local JSON export and M3U8 playlists; stages all files and digests then publishes a new snapshot folder atomically, verifies SHA-256 contents before restore, and asks for confirmation after a read-only additive-import preview | `LibraryBackup.Export/PublishSnapshot/ReadFromFile/Preview/Restore`, `MainWindow.Library`; `LibraryBackupTests` | Full cross-store atomic restore and rollback **not implemented**; legacy JSON has no manifest; native recovery review |
+| Metadata and artwork | Keeps online lookup switches off until selected; blocks excluded paths, validates number/date edits; explains where fields came from; queues tag writes safely; previews selected covers including image format, original dimensions and aspect | `MetadataPolicy`, `DetailsForm`, `PendingDetailWrites`, `MainWindow.EditDetails`, `MainWindow.Metadata`; `MetadataPolicyTests`, `DetailOverrideTests`, `PendingDetailWritesTests` | Native preview/keyboard/screen reader checks and full network permission audit |
+| Lyrics and visualizers | Uses local embedded or sidecar lyrics only; line navigation can suspend auto-follow; exact supplied enhanced-LRC word positions drive karaoke color; visualizer options are isolated by mode, and each native control has an automation label | `Lyrics`, `MainWindow.Presentation`, `VisualizerOptions`, `MainWindow.VisualizerSettings`; `PresentationTests`, `VisualizerGroupsTests`, `AppWindowTests` | Detached lyrics companion, complete lyric empty/error states, continuous rate/seek/resize validation, stress and screenshot checks |
+| Windows shell and Home | Uses the existing shell, routes, view model and data-driven Home templates instead of an invented design. The merged follow-up does not claim every minimum-width, high-contrast and controller state has been verified | `MainWindow.xaml`, `MainWindow.LibraryView`, `MainWindow.Sections`, `MainWindow.DetailsParts`, `HomeShelves`; library UI and shell test projects | Compact/wide/high-DPI/high-contrast, narration, controller and snapshot review |
+
+## Capabilities and platform parity must stay truthful
+
+The source of truth for shipping declarations is `docs/capability-matrix.json`. The currently declared Windows `LIB-05`, `LIB-10`, `META-09` and `AU-18` statuses come from their existing functional tests and must not be changed simply because a follow-up task has source code. macOS is **not** labeled as having equivalent Windows library, visualizer, lyric or shell UI work in this document. `docs/parity.md` is generated and is not hand-edited.
+
+No release screenshots were fabricated or relabeled. Mac library and Up Next screenshots remain blocked on native feature/build verification, and the public website must still be checked after deployment on real desktop/mobile viewports. Those gates are recorded in source tasks #468.4-#468.10 and #486.7.
+
+## Change acceptance / handoff policy
+
+A source behavior can be documented once it has a concrete implementation and focused tests. A broader quality gate must remain unchecked until **current-head** Windows build, portable tests, native UI, accessibility, performance, screenshot review and any real-site checks relevant to that gate pass. Older successful runs do not cover the latest unverified follow-up commits. [Follow-up PR #488](https://github.com/tochi-mba/rexplayer/pull/488) and `merged-pr-followup-audit.md` hold the per-requirement checkbox ledger.
+
+This file fulfills evidence-based documentation work, not the remaining implementation or native approval itself.
