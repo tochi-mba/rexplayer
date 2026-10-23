@@ -32,17 +32,23 @@ public sealed partial class MainWindow
     /// </summary>
     private void WireLyricNavigation()
     {
-        LyricsBox.PointerWheelChanged += (_, _) => SuspendLyricFollow();
-        LyricsBox.PointerPressed += (_, _) => SuspendLyricFollow();
-        LyricsBox.KeyDown += (_, args) =>
-        {
-            if (args.Key is Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down
-                or Windows.System.VirtualKey.PageUp or Windows.System.VirtualKey.PageDown
-                or Windows.System.VirtualKey.Home or Windows.System.VirtualKey.End)
+        // The ScrollViewer and its scrollbars can handle these events internally.
+        // Observe them even when handled, so dragging the thumb, wheel, touch, or
+        // keyboard scrolling never gets immediately undone by the playback timer.
+        LyricsBox.AddHandler(UIElement.PointerWheelChangedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => SuspendLyricFollow()), handledEventsToo: true);
+        LyricsBox.AddHandler(UIElement.PointerPressedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => SuspendLyricFollow()), handledEventsToo: true);
+        LyricsBox.AddHandler(UIElement.KeyDownEvent,
+            new Microsoft.UI.Xaml.Input.KeyEventHandler((_, args) =>
             {
-                SuspendLyricFollow();
-            }
-        };
+                if (args.Key is Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down
+                    or Windows.System.VirtualKey.PageUp or Windows.System.VirtualKey.PageDown
+                    or Windows.System.VirtualKey.Home or Windows.System.VirtualKey.End)
+                {
+                    SuspendLyricFollow();
+                }
+            }), handledEventsToo: true);
         LyricsFollowButton.Click += (_, _) =>
         {
             _followCurrentLyric = true;
