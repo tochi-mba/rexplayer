@@ -125,15 +125,24 @@ internal sealed class LibraryScene : IDisposable
         var path = Path.Combine(Media, "Audiobooks", "Chapter proof", "Part 1.mp3");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var tags = Id3Builder.V24().Text("TIT2", "Part 1").Text("TCON", "Audiobook")
-            .Chapter("opening", 0, "Opening").Chapter("continuation", 250, "Continuation").Build();
+            .Chapter("opening", 0, "Opening").Chapter("continuation", 3000, "Continuation").Build();
         var frames = File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"));
-        File.WriteAllBytes(path, [.. tags, .. frames]);
+        // Repeat valid MPEG frames rather than relying on a subsecond fixture:
+        // real UI Automation needs time to open the chapter menu and request a seek.
+        var media = new byte[tags.Length + frames.Length * 32];
+        tags.CopyTo(media, 0);
+        for (var i = 0; i < 32; i++)
+        {
+            Buffer.BlockCopy(frames, 0, media, tags.Length + i * frames.Length, frames.Length);
+        }
+
+        File.WriteAllBytes(path, media);
         _files.Add((path, LibraryKind.Music, new MediaInfo
         {
             FormatName = "MP3",
             Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Mp3 }],
-            Duration = MediaTime.FromSeconds(20),
-            Chapters = [new Chapter(MediaTime.Zero, "Opening"), new Chapter(MediaTime.FromMilliseconds(250), "Continuation")],
+            Duration = MediaTime.FromSeconds(15),
+            Chapters = [new Chapter(MediaTime.Zero, "Opening"), new Chapter(MediaTime.FromSeconds(3), "Continuation")],
             Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [MetadataKeys.Title] = "Part 1",
