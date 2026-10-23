@@ -118,6 +118,38 @@ public sealed class PresentationTests
         Assert.Equal("duplicate", lyrics.Lines[lyrics.IndexAt(TimeSpan.FromSeconds(58))].Text);
     }
 
+    [Fact]
+    [Capability("META-09")]
+    public void DamagedOffsetTagsCannotAbortLyricsOrEraseTheLastValidOffset()
+    {
+        var lyrics = Lyrics.Parse("""
+            [offset:+500]
+            [offset:9999999999999999999999999]
+            [00:02.00]still here
+            """)!;
+
+        Assert.True(lyrics.IsTimed);
+        Assert.Equal(TimeSpan.FromMilliseconds(1500), Assert.Single(lyrics.Lines).At);
+        Assert.Equal("still here", lyrics.Lines[0].Text);
+        Assert.Equal(0, lyrics.IndexAt(TimeSpan.FromMilliseconds(1500)));
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void LongUnicodeAndRtlLinesRetainTheirCharactersAndLastDuplicateWins()
+    {
+        var words = string.Concat(Enumerable.Repeat("مرحبا 世界 🎵 ", 128)).Trim();
+        var lyrics = Lyrics.Parse($"[ar:فنان]\\n[00:01.00][00:02.00]{words}\\n[00:02.00]repeated")!;
+
+        Assert.True(lyrics.IsTimed);
+        Assert.Equal(3, lyrics.Lines.Count);
+        Assert.Equal(words, lyrics.Lines[0].Text);
+        Assert.Equal(words, lyrics.Lines[1].Text);
+        Assert.Empty(lyrics.Lines[1].Words);
+        Assert.Equal("repeated", lyrics.Lines[lyrics.IndexAt(TimeSpan.FromSeconds(2))].Text);
+        Assert.Equal(-1, lyrics.IndexAt(TimeSpan.Zero));
+    }
+
     [Theory]
     [Capability("META-06")]
     [InlineData(new[] { "b.jpg", "Folder.PNG", "front.jpg", "AlbumArtSmall.jpg" }, "Folder.PNG")]
