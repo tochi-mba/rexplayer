@@ -75,22 +75,12 @@ public sealed partial class MainWindow
         IdleKicker.Text = stage.Label;
         // The video itself may hide the Idle panel; the always-present stage must still
         // identify what is playing to keyboard and screen-reader users.
-        var stageName = stage.Profile == MediaStageProfile.Welcome
-            ? "Playback stage" : stage.Label + " playback stage";
-        if (Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(Stage) != stageName)
+        if (Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(Stage) != stage.AutomationName)
         {
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Stage, stageName);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Stage, stage.AutomationName);
         }
 
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(Stage, stage.Profile switch
-        {
-            MediaStageProfile.Loading => "Media is opening. Playback capabilities are not known yet.",
-            MediaStageProfile.Error => "The active media could not be played.",
-            MediaStageProfile.Unsupported => "The active file has no playable audio or video track.",
-            MediaStageProfile.Picture => "Picture view; the seek timeline is unavailable.",
-            _ when stage.CanSeek => "Playback position can be changed using the seek slider.",
-            _ => "Playback position cannot be changed for this stream.",
-        });
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(Stage, stage.AutomationHelpText);
 
         var album = music ? _player.Info!.Metadata.GetValueOrDefault(MetadataKeys.Album) : null;
         IdleAlbum.Text = album ?? "";
