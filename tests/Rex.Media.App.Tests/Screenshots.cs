@@ -70,6 +70,7 @@ internal static class Screenshots
                 WriteCaptureMetadata(scene, app, failedFrame, automationId, pixelThreshold,
                     maxDifferingRatio, false, false, false);
                 Save(Path.Combine(Output, "actual", name + ".png"), failedFrame);
+                Save(Path.Combine(Output, "window", name + ".png"), failedFrame);
             }
             catch (Exception error)
             {
@@ -89,12 +90,14 @@ internal static class Screenshots
                 scene.Route.StartsWith("dialog/", StringComparison.Ordinal) ||
                 scene.Route.StartsWith("menu/", StringComparison.Ordinal));
         (int Width, int Height, byte[] Bgra) picture = default;
+        (int Width, int Height, byte[] Bgra) fullWindow = default;
         (int Width, int Height, byte[] Bgra) witness = default;
         var rendered = Wait.Within(TimeSpan.FromSeconds(5), () =>
         {
             var captured = scene.CaptureMode == "desktop"
                 ? WindowPicture.TakeDesktop(app.Handle)
                 : WindowPicture.Take(app.Handle);
+            fullWindow = captured;
             picture = captured;
             if (needsPixelWitness && !TryCropControl(app, captured, scene.ReadinessId, out witness))
             {
@@ -145,6 +148,7 @@ internal static class Screenshots
             maxDifferingRatio, true, rendered, needsPixelWitness && HasVisibleVariation(witness),
             repeatable, repeatDifference);
         Save(Path.Combine(Output, "actual", name + ".png"), picture);
+        Save(Path.Combine(Output, "window", name + ".png"), fullWindow);
         if (repeat.Bgra is { Length: > 0 })
         {
             Save(Path.Combine(Output, "repeat", name + ".png"), repeat);
@@ -194,6 +198,7 @@ internal static class Screenshots
             declaredDimensions = scene.Dimensions,
             viewportMatchesDeclared = ViewportMatchesDeclared(scene, app),
             actualDimensions = new { width = picture.Width, height = picture.Height },
+            fullWindowDimensions = WindowPicture.Bounds(app.Handle).Size.ToString(),
             desktopBounds = new { desktop.Left, desktop.Top, desktop.Width, desktop.Height },
             windowBounds = new { window.Left, window.Top, window.Width, window.Height },
             fullyOnDesktop = WindowPicture.IsFullyOnDesktop(app.Handle),
