@@ -57,7 +57,9 @@ public sealed partial class MainWindow
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
             HasLyrics: _player.Lyrics is not null,
             // A lone zero-time chapter is just Start Over, not a useful chapter picker.
-            HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown && chapter.Start > MediaTime.Zero) == true,
+            HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown
+                && chapter.Start > MediaTime.Zero
+                && (_player.Duration <= TimeSpan.Zero || chapter.Start.ToTimeSpan() <= _player.Duration)) == true,
             HasCaptions: _player.Subtitles is not null || _player.SecondarySubtitles is not null,
             HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
         _stageView = stage;
@@ -299,7 +301,11 @@ public sealed partial class MainWindow
                 var label = string.IsNullOrWhiteSpace(chapter.Title)
                     ? $"Chapter {index + 1}" : chapter.Title.Trim();
                 var name = $"Go to {label} at {TimeText.Format(at, _player.Duration)}";
-                var button = new MenuFlyoutItem { Text = $"{TimeText.Format(at, _player.Duration)} · {label}" };
+                var button = new MenuFlyoutItem
+                {
+                    Text = $"{TimeText.Format(at, _player.Duration)} · {label}",
+                    MinHeight = 44,
+                };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, $"StageChapter-{index}");
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);
                 button.Click += (_, _) =>

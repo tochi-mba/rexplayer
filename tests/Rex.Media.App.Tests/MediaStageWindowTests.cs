@@ -136,11 +136,17 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Contains("Opening", first.Current.Name, StringComparison.Ordinal);
         Assert.Contains("Continuation", second.Current.Name, StringComparison.Ordinal);
         Assert.True(second.Current.IsEnabled, "A proven chapter should offer a working jump.");
+        Assert.True(first.Current.BoundingRectangle.Height >= 42
+            && second.Current.BoundingRectangle.Height >= 42,
+            "Each chapter jump must remain a touch-sized menu action.");
         app.Press("StageChapter-1");
         Wait.For(() => Math.Abs(app.Position - 3.0) < 0.5,
             "the chapter action to seek the paused audiobook to its three-second mark");
-        chapters.SetFocus();
-        Wait.For(() => chapters.Current.HasKeyboardFocus, "chapter picker to receive focus");
+        app.Press("StageChaptersButton");
+        var focusedChapter = app.Find("StageChapter-0");
+        focusedChapter.SetFocus();
+        Wait.For(() => focusedChapter.Current.HasKeyboardFocus,
+            "a chapter menu item to receive keyboard focus");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.MinimalInterface);
         Wait.For(() => !app.IsShown("StageChaptersButton"),
             "optional chapter controls to hide in minimal player mode");
