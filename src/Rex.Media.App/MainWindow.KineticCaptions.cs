@@ -183,7 +183,7 @@ public sealed partial class MainWindow
 
         var picture = CaptionPicture();
         var look = SubtitleLook.For(_settings, picture.Height,
-            new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast);
+            _subtitleAccessibility.HighContrast);
         var cues = CaptionCues(position);
         var area = new Area(0, 0, picture.Width, picture.Height);
 
