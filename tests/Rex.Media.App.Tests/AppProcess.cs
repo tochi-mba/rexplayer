@@ -136,7 +136,7 @@ internal sealed class AppProcess : IDisposable
         // Tests of persisted window placement must exercise the app's own
         // recovery logic, not the screenshot harness's positioning helper.
         if ((extraSettings is null || !extraSettings.Contains("\"window\"", StringComparison.Ordinal))
-            && Rex.Media.Settings.SettingsStore.Load(settings).Window is null)
+            && (!File.Exists(settings) || Rex.Media.Settings.SettingsStore.Load(settings).Window is null))
         {
             app.FitOnDesktop();
         }
