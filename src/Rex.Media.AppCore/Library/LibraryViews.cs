@@ -214,11 +214,15 @@ public static partial class LibraryViews
 
     /// <summary>
     /// The genres, by name, each with its songs. A song tagged with several genres ("Dance;Pop")
-    /// appears under each of them, as <see cref="GenreNames"/> reads the tag.
+    /// appears under each of them, as <see cref="GenreNames"/> reads the tag. When its file has no
+    /// genre, <paramref name="fetchedGenres"/> may supply the album genres found online.
     /// </summary>
-    public static IReadOnlyList<LibraryGroup> Genres(IEnumerable<LibraryEntry> entries) =>
+    public static IReadOnlyList<LibraryGroup> Genres(IEnumerable<LibraryEntry> entries,
+        Func<LibraryEntry, IReadOnlyList<string>>? fetchedGenres = null) =>
         [.. Songs(entries)
-            .SelectMany(entry => GenreNames.Split(entry.Genre).DefaultIfEmpty(UnknownGenre).Select(name => (Name: name, Entry: entry)))
+            .SelectMany(entry => (GenreNames.Split(entry.Genre) is { Count: > 0 } tagged
+                    ? tagged : fetchedGenres?.Invoke(entry) ?? [])
+                .DefaultIfEmpty(UnknownGenre).Select(name => (Name: name, Entry: entry)))
             .GroupBy(pair => pair.Name, ByName)
             .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Name)), null, [.. group.Select(pair => pair.Entry).Distinct()]))
             .OrderBy(group => group.Name == UnknownGenre)
@@ -574,7 +578,8 @@ public static partial class LibraryViews
     /// genre or file name, whatever the case or accents), music first then videos, each in its
     /// view's order; nothing for blank text.
     /// </summary>
-    public static IReadOnlyList<LibraryEntry> Search(IEnumerable<LibraryEntry> entries, string? text)
+    public static IReadOnlyList<LibraryEntry> Search(IEnumerable<LibraryEntry> entries, string? text,
+        Func<LibraryEntry, IEnumerable<string?>>? extraFields = null)
     {
         var words = (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (words.Length == 0)
@@ -582,7 +587,8 @@ public static partial class LibraryViews
             return [];
         }
 
-        var found = entries.Where(entry => words.All(word => Matches(entry, word))).ToList();
+        var found = entries.Where(entry => words.All(word => Matches(entry, word)
+            || (extraFields?.Invoke(entry) ?? []).Any(field => Matches(field, word)))).ToList();
         return [.. Songs(found), .. Videos(found), .. Pictures(found)];
     }
 
@@ -591,6 +597,12 @@ public static partial class LibraryViews
         const CompareOptions Loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
         return new[] { entry.Title, entry.Artist, entry.AlbumArtist, entry.Album, entry.Genre, Path.GetFileName(entry.Path) }
             .Any(field => field is not null && Compare.IndexOf(field, word, Loose) >= 0);
+    }
+
+    private static bool Matches(string? field, string word)
+    {
+        const CompareOptions Loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
+        return field is not null && Compare.IndexOf(field, word, Loose) >= 0;
     }
 
     [GeneratedRegex(@"^(?<title>.+)[ ._(\-]+(?<year>19\d{2}|20\d{2})(?=[ ._)\-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

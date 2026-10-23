@@ -213,7 +213,9 @@ public sealed class VisualizationTests
         Assert.Equal(
             ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight", "Cymatics", "Ridgelines", "Synthwave", "Fireworks", "Lightning", "Lava lamp", "Constellation", "Galaxy", "Kaleidoscope", "Murmuration", "Ink", "Skyline", "Mandala", "Clones", "Time warp", "Aura", "LED wall", "Stardust", "Hall of mirrors", "Light painting", "Scanner", "Shatter", "Spotlight", "Infinity mirror", "Water"],
             Enum.GetValues<VisualizerChoice>().Select(Visualizers.Name));
-        Assert.Equal(VisualizerChoice.Spectrum, new PlayerSettings { Visualizer = (VisualizerChoice)99 }.Normalize().Visualizer);
+        var normalized = new PlayerSettings { Visualizer = (VisualizerChoice)99, AudiobookVisualizer = (VisualizerChoice)99 }.Normalize();
+        Assert.Equal(VisualizerChoice.Spectrum, normalized.Visualizer);
+        Assert.Equal(VisualizerChoice.Spectrum, normalized.AudiobookVisualizer);
 
         Assert.Equal(new Argb(255, 255, 0, 0), Visualizers.Hsv(0, 1, 1));
         Assert.Equal(new Argb(255, 0, 255, 0), Visualizers.Hsv(480, 1, 1));

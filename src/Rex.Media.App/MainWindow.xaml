@@ -66,12 +66,24 @@
     </DataTemplate>
     <!-- The card and grid templates live in LibraryCardTemplates.xaml, loaded when the library first lays out cards. -->
     <DataTemplate x:Key="LibrarySourceTemplate" x:DataType="local:LibrarySourceItem">
-      <Grid ColumnSpacing="12" Padding="4,6" AutomationProperties.Name="{x:Bind Name}" ToolTipService.ToolTip="{x:Bind Name}">
+      <Grid MinHeight="40" ColumnSpacing="12" Padding="8,6" AutomationProperties.Name="{x:Bind Name}" ToolTipService.ToolTip="{x:Bind Name}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-        <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
-        <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" />
+        <FontIcon Glyph="{x:Bind Glyph}" FontSize="17" HorizontalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
       </Grid>
     </DataTemplate>
+    <DataTemplate x:Key="LibrarySourceCompactTemplate" x:DataType="local:LibrarySourceItem">
+      <Grid Width="48" Height="44" AutomationProperties.Name="{x:Bind Name}" ToolTipService.ToolTip="{x:Bind Name}">
+        <FontIcon Glyph="{x:Bind Glyph}" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Grid>
+    </DataTemplate>
+    <Style x:Key="LibrarySourceItemStyle" TargetType="ListViewItem">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="MinHeight" Value="44" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="4,1" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
     <!-- One full-width, keyboard-operable group header; the chevron, heading and total all click. -->
     <DataTemplate x:Key="LibraryGroupHeaderTemplate" x:DataType="local:LibraryRowGroup">
       <Button Tag="{Binding}" Click="OnLibraryGroupToggle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
@@ -414,14 +426,15 @@
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
           <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" HorizontalAlignment="Right"
                   Click="OnLibraryNavigationToggle" ToolTipService.ToolTip="Collapse library navigation"
                   AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
             <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
           </Button>
-          <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8" Background="Transparent"
+          <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8,0,12" Background="Transparent"
+                    ItemContainerStyle="{StaticResource LibrarySourceItemStyle}"
                     ItemTemplate="{StaticResource LibrarySourceTemplate}"
                     SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
         </Grid>

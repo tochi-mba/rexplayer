@@ -152,6 +152,14 @@ public sealed partial class MainWindow
         {
             BuildVisualizer();
         }
+
+        // Changing a tier (including Automatic on power changes) applies to any open library
+        // immediately, not only on the next playback event or transcription timer tick.
+        UpdateBackgroundSectionPause();
+        if (_transcriptionStarted)
+        {
+            TranscriptionTick();
+        }
     }
 
     /// <summary>

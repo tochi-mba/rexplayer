@@ -49,6 +49,15 @@ public static class TranscriptionConditions
     }
 
     /// <summary>
+    /// Give the foreground library priority on lighter performance tiers without affecting
+    /// requested or currently-playing subtitles, or replacing an existing wait reason.
+    /// </summary>
+    public static TranscriptionPlan WhileBrowsing(TranscriptionPlan plan, bool libraryOpen, bool pauseBackgroundWork) =>
+        libraryOpen && pauseBackgroundWork && plan.Library
+            ? plan with { Library = false, Waiting = "Waiting while you browse the library" }
+            : plan;
+
+    /// <summary>
     /// Whether the speech model may be downloaded now that the user turned transcription on: on a
     /// connection that costs by the byte only when they ask again, there and then (Download now).
     /// </summary>

@@ -47,6 +47,8 @@ public sealed partial class MainWindow
             OnWindowThread(() => Forget(ShowVideoStyleSettingsAsync(effect: true)));
         };
         var visualizer = VisualizerChoices(s.Visualizer);
+        var audiobookVisualizer = VisualizerChoices(s.AudiobookVisualizer);
+        Describe(audiobookVisualizer, "Used only for items recognised or manually classified as audiobooks. Other audio keeps the default above.");
         var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
         var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
         var artworkColor = Number("Artwork colour (%)", s.AudioArtworkColor, 0, 200);
@@ -228,7 +230,10 @@ public sealed partial class MainWindow
         content.Children.Add(SubjectModelsSection());
 
         AddSection("Music and artwork");
+        content.Children.Add(Heading("Default visualisation for songs and other audio"));
         content.Children.Add(visualizer);
+        content.Children.Add(Heading("Default visualisation for audiobooks"));
+        content.Children.Add(audiobookVisualizer);
         content.Children.Add(generatedArt);
         var artworkOptions = new StackPanel { Spacing = 8 };
         foreach (var control in new UIElement[] { artworkStyle, artworkColor, artworkDetail, artworkContrast, artworkIdentity })
@@ -494,6 +499,7 @@ public sealed partial class MainWindow
             VideoLook = (VideoLook)pictureLook.SelectedIndex,
             VideoEffect = (VideoEffect)pictureEffect.SelectedIndex,
             Visualizer = visualizer.SelectedItem is ComboBoxItem { Tag: VisualizerChoice shown } ? shown : s.Visualizer,
+            AudiobookVisualizer = audiobookVisualizer.SelectedItem is ComboBoxItem { Tag: VisualizerChoice audiobookShown } ? audiobookShown : s.AudiobookVisualizer,
             GenerateAudioArtwork = generatedArt.IsChecked == true,
             AudioArtworkStyle = (ArtworkStyle)artworkStyle.SelectedIndex,
             AudioArtworkColor = (int)artworkColor.Value,
@@ -587,12 +593,22 @@ public sealed partial class MainWindow
             ShowLibrary();
         }
 
-        // The camera is used only once it has been agreed to.
-        if (UsesCamera(_settings.Visualizer) && !_settings.CameraAllowed)
+        // Either default may need the camera. Ask once while saving preferences, even when the
+        // audiobook default is not the kind playing at this moment; declining restores only the
+        // camera-using defaults and leaves every other preference intact.
+        if ((UsesCamera(_settings.Visualizer) || UsesCamera(_settings.AudiobookVisualizer)) && !_settings.CameraAllowed)
         {
-            var chosen = _settings.Visualizer;
-            _settings = _settings with { Visualizer = s.Visualizer };
-            await ChooseVisualizerAsync(chosen);
+            if (!await AllowCameraAsync())
+            {
+                _settings = _settings with
+                {
+                    Visualizer = UsesCamera(_settings.Visualizer) ? s.Visualizer : _settings.Visualizer,
+                    AudiobookVisualizer = UsesCamera(_settings.AudiobookVisualizer) ? s.AudiobookVisualizer : _settings.AudiobookVisualizer,
+                };
+                _player.Settings = _settings;
+                SaveSettings();
+                ApplyVisualizer();
+            }
         }
     }
 

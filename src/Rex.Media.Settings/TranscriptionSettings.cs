@@ -32,6 +32,9 @@ public sealed record TranscriptionSettings
     /// <summary>Songs are transcribed too; otherwise only videos are, as music is mostly sung, not spoken.</summary>
     public bool IncludeMusic { get; init; }
 
+    /// <summary>Audiobooks are transcribed too, independently of songs.</summary>
+    public bool IncludeAudiobooks { get; init; }
+
     /// <summary>Whatever plays is transcribed from where it plays, even outside the library's scope.</summary>
     public bool WhatPlays { get; init; }
 

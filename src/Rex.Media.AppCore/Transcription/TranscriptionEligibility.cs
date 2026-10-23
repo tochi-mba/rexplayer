@@ -63,13 +63,15 @@ public static class TranscriptionEligibility
     }
 
     /// <summary>Why <paramref name="entry"/> is not heard in the background, or None when it is.</summary>
-    public static TranscriptionSkip Of(LibraryEntry entry, TranscriptionSettings settings, IReadOnlyList<string> libraryFolders, TranscriptRecord? record)
+    public static TranscriptionSkip Of(LibraryEntry entry, TranscriptionSettings settings, IReadOnlyList<string> libraryFolders, TranscriptRecord? record,
+        bool audiobook = false)
     {
         ArgumentNullException.ThrowIfNull(entry);
         return Uri.TryCreate(entry.Path, UriKind.Absolute, out var uri) && !uri.IsFile ? TranscriptionSkip.NotLocal
             : !InScope(entry.Path, settings, libraryFolders) ? TranscriptionSkip.OutOfScope
             : entry.Kind == LibraryKind.Picture ? TranscriptionSkip.Picture
-            : entry.Kind == LibraryKind.Music && !settings.IncludeMusic ? TranscriptionSkip.Music
+            : entry.Kind == LibraryKind.Music && !settings.IncludeMusic && !(settings.IncludeAudiobooks && audiobook)
+                ? TranscriptionSkip.Music
             : record?.State == TranscriptState.NoSound ? TranscriptionSkip.NoSound
             : !entry.Probed ? TranscriptionSkip.NotReadYet
             : entry.Duration is { } length && length < Shortest ? TranscriptionSkip.TooShort

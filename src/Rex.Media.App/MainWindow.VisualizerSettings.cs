@@ -17,7 +17,8 @@ public sealed partial class MainWindow
     {
         var before = _settings;
         var options = new Dictionary<string, string>(_settings.VisualOptions, StringComparer.Ordinal);
-        var shown = _settings.Visualizer == VisualizerChoice.Off ? VisualizerChoice.Spectrum : _settings.Visualizer;
+        var activeBefore = ActiveVisualizer;
+        var shown = activeBefore == VisualizerChoice.Off ? VisualizerChoice.Spectrum : activeBefore;
         var choices = Enum.GetValues<VisualizerChoice>().Where(choice => choice != VisualizerChoice.Off).ToList();
 
         var which = new ComboBox { Header = "Visualisation", ItemsSource = choices.Select(Visualizers.Name).ToList(), SelectedIndex = choices.IndexOf(shown), MinWidth = 260 };
@@ -31,11 +32,12 @@ public sealed partial class MainWindow
         // Shown behind the dialog as it changes.
         void Preview()
         {
-            _settings = _settings with { Visualizer = shown, VisualOptions = new Dictionary<string, string>(options, StringComparer.Ordinal) };
+            SetActiveVisualizer(shown);
+            _settings = _settings with { VisualOptions = new Dictionary<string, string>(options, StringComparer.Ordinal) };
             if (UsesCamera(shown) && !_settings.CameraAllowed)
             {
                 // The camera waits until it has been agreed to, after Save.
-                _settings = _settings with { Visualizer = before.Visualizer };
+                SetActiveVisualizer(activeBefore);
             }
 
             ApplyVisualizer();

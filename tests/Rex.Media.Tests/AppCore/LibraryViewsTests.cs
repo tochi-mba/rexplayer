@@ -67,6 +67,10 @@ public sealed class LibraryViewsTests
         var genres = LibraryViews.Genres(Entries);
         Assert.Equal(["Afrobeats", LibraryViews.UnknownGenre], genres.Select(genre => genre.Name));
         Assert.Equal(["Sungba", "Lonely At The Top", "Terminator"], Titles(genres[0].Entries));
+
+        var fetched = LibraryViews.Genres(Entries, entry => entry.Genre is null ? ["Afropop"] : []);
+        Assert.Equal(["Afrobeats", "Afropop"], fetched.Select(genre => genre.Name));
+        Assert.DoesNotContain(fetched, genre => genre.Name == LibraryViews.UnknownGenre);
     }
 
     [Fact]
@@ -414,4 +418,13 @@ public sealed class LibraryViewsTests
     [InlineData("demo.mp3", new[] { "Demo" })]
     [InlineData("afro single", new string[0])]
     public void SearchFindsEveryWordAnywhere(string? text, string[] found) => Assert.Equal(found, Titles(LibraryViews.Search(Entries, text)));
+
+    [Fact]
+    public void SearchCanUseFetchedGenresAndCreditsWithoutChangingStoredTags()
+    {
+        var film = Entries[0] with { Kind = LibraryKind.Video, Genre = null };
+        Assert.Equal([film.Title], Titles(LibraryViews.Search([film], "science Keanu",
+            _ => ["Science fiction", "Keanu Reeves"])));
+        Assert.Empty(LibraryViews.Search([film], "science Sandra", _ => ["Science fiction", "Keanu Reeves"]));
+    }
 }

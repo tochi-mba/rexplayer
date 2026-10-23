@@ -89,6 +89,7 @@ public sealed class DeviceProfileTests
         Assert.Equal(
             [
                 "Music visualisations are drawn at up to 1280 pixels across and 30 pictures a second, then scaled to the window.",
+                "Background transcription and intro or credit analysis pause while browsing the library.",
                 "Fewer pictures wait to be decoded, so playing uses less memory.",
             ],
             DeviceProfile.Changes(budget));
@@ -106,19 +107,31 @@ public sealed class DeviceProfileTests
         Assert.False(budget.Allows(VideoEffect.ZoomBurst));
         Assert.True(budget.Allows(VideoEffect.Halftone));
         var changes = DeviceProfile.Changes(budget);
-        Assert.Equal(9, changes.Count);
+        Assert.Equal(10, changes.Count);
         Assert.Equal(35, DeviceProfile.HeavyEffects.Count);
         Assert.Contains(
             $"The heaviest picture effects stay off ({string.Join(", ", DeviceProfile.HeavyEffects.Select(VideoEffects.Name).Order(StringComparer.Ordinal))}). Choosing one says so.",
             changes);
         // The user's transcription quality is used as chosen; only when the library is transcribed changes.
         Assert.Contains("The library is transcribed only while nothing plays.", changes);
+        Assert.Contains("Background transcription and intro or credit analysis pause while browsing the library.", changes);
         Assert.Contains("Subject Lock follows its subject in a half-size copy of each picture.", changes);
         Assert.Contains("The timeline shows no preview picture under the pointer.", changes);
         Assert.Contains("The window's animations are off.", changes);
         Assert.Contains("Starting with nothing to play prepares only the window; video and sound are made ready when first used.", changes);
         Assert.Contains("Library pictures are decoded up to 240 pixels across to use less memory.", changes);
         Assert.All(changes, change => Assert.DoesNotContain((char)0x2014, change));
+    }
+
+    [Theory]
+    [InlineData(PerformanceTier.BestQuality, false)]
+    [InlineData(PerformanceTier.Balanced, true)]
+    [InlineData(PerformanceTier.Fastest, true)]
+    public void BrowsingThrottleFollowsTheChosenBudget(PerformanceTier tier, bool yields)
+    {
+        var budget = DeviceProfile.For(tier, Capable);
+        Assert.Equal(yields, budget.PauseBackgroundWorkWhileBrowsing);
+        Assert.Equal(yields, DeviceProfile.Changes(budget).Contains("Background transcription and intro or credit analysis pause while browsing the library."));
     }
 
     [Fact]

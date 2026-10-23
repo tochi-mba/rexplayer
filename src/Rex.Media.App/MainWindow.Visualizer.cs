@@ -9,6 +9,7 @@ using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 using Rex.Media.Audio;
 using Rex.Media.Engine;
+using Rex.Media.AppCore.Library;
 using Rex.Media.Settings;
 using Windows.Foundation;
 
@@ -73,6 +74,19 @@ public sealed partial class MainWindow
     private bool _visualDrawing;
     private readonly VisualPacing _visualPacing = new();
 
+    /// <summary>
+    /// The default that applies to the item playing now. A missing library record, stream,
+    /// podcast, recording or ordinary song deliberately falls back to the general audio choice.
+    /// </summary>
+    private VisualizerChoice ActiveVisualizer => PlayingAudiobook ? _settings.AudiobookVisualizer : _settings.Visualizer;
+
+    private bool PlayingAudiobook => _library is not null && _player.Item?.Location is { } location
+        && Listening().Audiobooks.Any(book => book.Entries.Any(part => LibraryViews.SameLocation(part.Path, location)));
+
+    private void SetActiveVisualizer(VisualizerChoice choice) => _settings = PlayingAudiobook
+        ? _settings with { AudiobookVisualizer = choice }
+        : _settings with { Visualizer = choice };
+
     private void WireVisualizer()
     {
         Visualizer.SizeChanged += (_, _) => BuildVisualizer();
@@ -89,7 +103,7 @@ public sealed partial class MainWindow
             menu.Items.Clear();
             foreach (var choice in Enum.GetValues<VisualizerChoice>().Where(choice => choice != VisualizerChoice.Off))
             {
-                var item = new ToggleMenuFlyoutItem { Text = Visualizers.Name(choice), IsChecked = choice == _settings.Visualizer };
+                var item = new ToggleMenuFlyoutItem { Text = Visualizers.Name(choice), IsChecked = choice == ActiveVisualizer };
                 item.Click += (_, _) => Forget(ChooseVisualizerAsync(choice));
                 menu.Items.Add(item);
             }
@@ -115,12 +129,13 @@ public sealed partial class MainWindow
     private void ApplyVisualizer()
     {
         var music = _player.Item is not null && _player.Info is not null && !HasVideo && _player.State is not (SessionState.Idle or SessionState.Faulted);
-        var show = music && _settings.Visualizer != VisualizerChoice.Off;
+        var choice = ActiveVisualizer;
+        var show = music && choice != VisualizerChoice.Off;
         Visualizer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         var below = show || (music && _player.Lyrics is not null && _settings.ShowLyrics);
         Idle.VerticalAlignment = below ? VerticalAlignment.Top : VerticalAlignment.Center;
         Idle.Margin = below ? new Thickness(24, 24, 24, 0) : new Thickness(24);
-        if (show && _builtFor != _settings.Visualizer)
+        if (show && _builtFor != choice)
         {
             BuildVisualizer();
         }
@@ -200,7 +215,7 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.CycleVisualizer:
-                Forget(ChooseVisualizerAsync(Visualizers.Next(_settings.Visualizer), cycling: true));
+                Forget(ChooseVisualizerAsync(Visualizers.Next(ActiveVisualizer), cycling: true));
                 return true;
             case CommandCatalog.VisualizerSettings:
                 Forget(ShowVisualizerSettingsAsync());
@@ -268,7 +283,7 @@ public sealed partial class MainWindow
             while (UsesCamera(choice));
         }
 
-        _settings = _settings with { Visualizer = choice };
+        SetActiveVisualizer(choice);
         _player.Settings = _settings;
         ApplyVisualizer();
         BuildVisualizer();
@@ -276,17 +291,17 @@ public sealed partial class MainWindow
         RememberLater();
     }
 
-    private double Option(string key) => VisualizerOptions.Number(_settings.VisualOptions, _settings.Visualizer, key);
+    private double Option(string key) => VisualizerOptions.Number(_settings.VisualOptions, ActiveVisualizer, key);
 
-    private bool OptionOn(string key) => VisualizerOptions.Toggle(_settings.VisualOptions, _settings.Visualizer, key);
+    private bool OptionOn(string key) => VisualizerOptions.Toggle(_settings.VisualOptions, ActiveVisualizer, key);
 
-    private int OptionChoice(string key) => VisualizerOptions.Choice(_settings.VisualOptions, _settings.Visualizer, key);
+    private int OptionChoice(string key) => VisualizerOptions.Choice(_settings.VisualOptions, ActiveVisualizer, key);
 
     /// <summary>The visualisation's colour for <paramref name="share"/> (how far along the pitch, or the shapes), as its settings say.</summary>
     private Windows.UI.Color Paint(double share, Argb? accent = null)
     {
         var palette = (VisualPalette)OptionChoice(VisualizerOptions.Colors);
-        var color = Visualizers.PaletteColor(palette, share, _player.Position.TotalSeconds, accent ?? AccentArgb(), VisualizerOptions.Rgb(_settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Color));
+        var color = Visualizers.PaletteColor(palette, share, _player.Position.TotalSeconds, accent ?? AccentArgb(), VisualizerOptions.Rgb(_settings.VisualOptions, ActiveVisualizer, VisualizerOptions.Color));
         return Windows.UI.Color.FromArgb(255, color.R, color.G, color.B);
     }
 
@@ -315,14 +330,15 @@ public sealed partial class MainWindow
     /// </summary>
     private void BuildVisualizer()
     {
-        _builtFor = _settings.Visualizer;
+        var choice = ActiveVisualizer;
+        _builtFor = choice;
         WakeVisualizer();
         VisualCanvas.Children.Clear();
         _barShapes.Clear();
         _peakShapes.Clear();
         (_wave, _visualNote) = (null, null);
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
-        if (VisualScene.Draws(_settings.Visualizer))
+        if (VisualScene.Draws(choice))
         {
             BuildStage(height);
             return;
@@ -333,7 +349,7 @@ public sealed partial class MainWindow
         SpectrogramImage.Source = null;
         Visualizer.Margin = new Thickness(48, 120, 48, 48);
         StopCamera();
-        switch (_settings.Visualizer)
+        switch (choice)
         {
             case VisualizerChoice.Spectrum:
                 var count = (int)Option("bars");
@@ -419,7 +435,7 @@ public sealed partial class MainWindow
         }
 
         SpectrogramImage.Stretch = Stretch.Fill;
-        if (!UsesCamera(_settings.Visualizer))
+        if (!UsesCamera(ActiveVisualizer))
         {
             StopCamera();
             return;
@@ -429,7 +445,7 @@ public sealed partial class MainWindow
         Canvas.SetLeft(_visualNote, 24);
         Canvas.SetTop(_visualNote, Math.Max(24, height - 72));
         VisualCanvas.Children.Add(_visualNote);
-        if (_settings.Visualizer == VisualizerChoice.Silhouette)
+        if (ActiveVisualizer == VisualizerChoice.Silhouette)
         {
             var recalibrate = new Button { Content = "Recalibrate silhouette", Padding = new Thickness(12, 6, 12, 6) };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(recalibrate, "SilhouetteRecalibrate");
@@ -495,7 +511,7 @@ public sealed partial class MainWindow
     /// </summary>
     private void ConfigureCamera(CameraFeed camera)
     {
-        var silhouette = _settings.Visualizer == VisualizerChoice.Silhouette;
+        var silhouette = ActiveVisualizer == VisualizerChoice.Silhouette;
         camera.Mirror = silhouette && OptionOn("mirror");
         camera.Threshold = silhouette ? Option("threshold") : 0.12;
     }

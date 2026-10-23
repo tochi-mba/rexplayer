@@ -85,6 +85,7 @@ public sealed partial class MainWindow
         };
 
         var music = Check("Transcribe songs too (music is mostly sung, so it is left out unless you ask)", t.IncludeMusic);
+        var audiobooks = Check("Transcribe audiobooks too (separate from songs and other music)", t.IncludeAudiobooks);
         var whatPlays = Check("Transcribe whatever I play, from where I am, ahead of the playhead", t.WhatPlays);
         var whilePlaying = Check("Keep transcribing the library while something plays (it uses one processor thread)", t.WhilePlaying);
         var battery = Check("Keep transcribing the library on battery power", t.OnBattery);
@@ -103,6 +104,7 @@ public sealed partial class MainWindow
         holdGroup.Children.Add(hold);
         holdGroup.Children.Add(holdHint);
         AutomationProperties.SetAutomationId(music, "PreferencesTranscribeMusic");
+        AutomationProperties.SetAutomationId(audiobooks, "PreferencesTranscribeAudiobooks");
         AutomationProperties.SetAutomationId(whatPlays, "PreferencesTranscribeWhatPlays");
         AutomationProperties.SetAutomationId(whilePlaying, "PreferencesTranscribeWhilePlaying");
         AutomationProperties.SetAutomationId(battery, "PreferencesTranscribeOnBattery");
@@ -185,7 +187,7 @@ public sealed partial class MainWindow
         clearing.Children.Add(forgetAll);
 
         var libraryOptions = new StackPanel { Spacing = 8 };
-        foreach (var control in new UIElement[] { scope, folders, leftOut, leaveOut, music, whilePlaying, battery })
+        foreach (var control in new UIElement[] { scope, folders, leftOut, leaveOut, audiobooks, music, whilePlaying, battery })
         {
             libraryOptions.Children.Add(control);
         }
@@ -214,6 +216,7 @@ public sealed partial class MainWindow
                 Folders = [.. ticks.Where(tick => tick.Box.IsChecked == true).Select(tick => tick.Folder)],
                 Excluded = excluded,
                 IncludeMusic = music.IsChecked == true,
+                IncludeAudiobooks = audiobooks.IsChecked == true,
                 WhatPlays = whatPlays.IsChecked == true,
                 WhilePlaying = whilePlaying.IsChecked == true,
                 OnBattery = battery.IsChecked == true,

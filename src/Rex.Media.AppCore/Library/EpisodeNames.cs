@@ -127,7 +127,18 @@ public static partial class EpisodeNames
         var special = SpecialPattern().Match(name);
         if (folderSeason is not { } inFolder)
         {
-            return special.Success ? Episode(looseShow ?? name[..special.Index], 0, Optional(special.Groups["episode"]), tentative: true) : null;
+            if (special.Success)
+            {
+                return Episode(looseShow ?? name[..special.Index], 0, Optional(special.Groups["episode"]), tentative: true);
+            }
+
+            // Some one-off continuations carry only a season mark: "Show S05 The Finale". A named
+            // prefix and descriptive suffix make this stronger than "Show.S01.576p" release text.
+            mark = SeasonOnlyPattern().Match(name);
+            var tail = mark.Success ? name[(mark.Index + mark.Length)..] : "";
+            return mark.Success && Clean(name[..mark.Index]).Length > 0 && Clean(tail).Length > 0
+                && !ReleaseOnlyTailPattern().IsMatch(tail)
+                    ? Episode(name[..mark.Index], Number(mark.Groups["season"]), null) : null;
         }
 
         // In a season folder without a mark: a number after the show's name orders the episode, if there is one.
@@ -260,6 +271,14 @@ public static partial class EpisodeNames
     /// <summary>"S07X01", "S07 X01", "S07SP01", "S07 Special 1", "S07 Special", "Season 7 Special 2", "S07.5".</summary>
     [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:s|season[ ._-]*)(?<season>\d{1,3})(?:[ ._-]?(?:x(?!26[45](?!\d))|sp)(?<episode>\d{1,3})|[ ._-]*special(?:[ ._-]*(?<episode>\d{1,3}))?|\.5)(?![\p{L}\p{N}]|[.,]\d)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
     private static partial Regex SeasonSpecialPattern();
+
+    /// <summary>"Show S05 The Finale": a season mark without an episode number.</summary>
+    [GeneratedRegex(@"(?<![\p{L}\p{N}])s(?<season>\d{1,3})(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+    private static partial Regex SeasonOnlyPattern();
+
+    /// <summary>A codec or resolution after S01 is release text, not an episode title.</summary>
+    [GeneratedRegex(@"^[ ._-]*(?:\d{3,4}p|[xh][ ._-]?26[45]|hevc|avc|web[ ._-]?(?:dl|rip)|bluray|bdrip|dvdrip)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ReleaseOnlyTailPattern();
 
     /// <summary>"SP01", "Special 2", "OVA", "OVA 3", "OAD", and "Special" last in the name; never "Special Edition" or "Special Delivery".</summary>
     [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:sp(?<episode>\d{1,3})|(?:ova|oad)(?:[ ._-]*(?<episode>\d{1,3}))?|special(?:[ ._-]*(?<episode>\d{1,3})|(?=[ ._-]*(?:$|[(\[]))))(?![\p{L}\p{N}]|[.,]\d)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]

@@ -42,6 +42,7 @@ public sealed partial class MainWindow
         (LibrarySource.Videos, new("\uE8FD", "All videos")),
         (LibrarySource.Pictures, new("\uE91B", "Pictures")),
         (LibrarySource.ContinueWatching, new("\uE768", "Continue watching")),
+        (LibrarySource.Completed, new("\uE73E", "Completed")),
         (LibrarySource.RecentlyPlayed, new("\uE81C", "Recently played")),
         (LibrarySource.RecentlyAdded, new("\uE710", "Recently added")),
         (LibrarySource.Playlists, new("\uE8FD", "Playlists")),
@@ -215,18 +216,23 @@ public sealed partial class MainWindow
         if (search.Length > 0)
         {
             (kicker, title) = ("SEARCH", search);
-            var found = LibraryViews.Search(entries, search);
+            var found = LibraryViews.Search(entries, search, SearchMetadata);
             // Search stays global for individual media, but a search made from a grouped
             // library view must also offer matching artists, albums, genres or shows as
             // navigable results. Otherwise finding an artist can only play one of their
             // songs and there is no artist page to return from.
-            var matchingGroups = _librarySource is LibrarySource.Artists or LibrarySource.Albums or LibrarySource.Genres or LibrarySource.Authors or LibrarySource.TvShows
-                ? Groups(_librarySource, entries).Where(group => group.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList()
+            var matchingGroups = _librarySource is LibrarySource.Artists or LibrarySource.Albums or LibrarySource.Genres or LibrarySource.Authors
+                or LibrarySource.Audiobooks or LibrarySource.Podcasts or LibrarySource.TvShows
+                ? SearchGroups(_librarySource, entries).Where(group => GroupMatches(group, search)).ToList()
                 : [];
             sections = matchingGroups.Count == 0
                 ? EntrySections(found, choice)
                 : [new LibraryRowGroup("", matchingGroups.Select(GroupRow))];
             subtitle = Count(matchingGroups.Count == 0 ? found.Count : matchingGroups.Count, "result");
+        }
+        else if (_librarySource == LibrarySource.Completed)
+        {
+            (kicker, title, subtitle, sections, groupsView) = CompletedView(entries);
         }
         else if (IsListening(_librarySource))
         {

@@ -138,6 +138,13 @@ public sealed class EpisodeNamesTests
     }
 
     [Fact]
+    public void ASeasonOnlyMarkKeepsANamedSpecialWithItsShow()
+    {
+        var found = LibraryViews.EpisodeOf(Video(@"D:\Downloads\The IT Crowd S05 The Internet Is Coming DVDRip BONE.mp4"));
+        Assert.Equal(new VideoEpisode("The IT Crowd", 5, null), found);
+    }
+
+    [Fact]
     [Capability("LIB-05")]
     public void NumberedAnimeReleaseFilesFormShowsWithoutSeasonMarks()
     {

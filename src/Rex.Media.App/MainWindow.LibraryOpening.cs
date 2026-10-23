@@ -294,6 +294,7 @@ public sealed partial class MainWindow
             _libraryParents.Clear();
             KeepPlace();
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
+            UpdateLibrarySearchHint();
             _libraryGroup = null;
             _librarySeason = null;
             if (_shelfChoice?.Source != _librarySource)

@@ -29,6 +29,27 @@ public sealed class TranscriptionPolicyTests
 
     [Fact]
     [Capability("SUB-20")]
+    public void BrowsingThrottlesOnlyBackgroundTranscriptionOnLighterTiers()
+    {
+        var allowed = TranscriptionConditions.Plan(new TranscriptionSettings { Library = true },
+            new TranscriptionMoment(false, false, false, true), 8);
+        Assert.True(allowed.Library);
+        Assert.Equal(allowed, TranscriptionConditions.WhileBrowsing(allowed, libraryOpen: true, pauseBackgroundWork: false));
+        Assert.Equal(allowed, TranscriptionConditions.WhileBrowsing(allowed, libraryOpen: false, pauseBackgroundWork: true));
+
+        var waiting = TranscriptionConditions.WhileBrowsing(allowed, libraryOpen: true, pauseBackgroundWork: true);
+        Assert.False(waiting.Library);
+        Assert.Equal(allowed.PlayingItem, waiting.PlayingItem);
+        Assert.Equal((allowed.PlayingThreads, allowed.LibraryThreads), (waiting.PlayingThreads, waiting.LibraryThreads));
+        Assert.Equal("Waiting while you browse the library", waiting.Waiting);
+
+        // An existing reason to wait (user pause, energy saver, battery) is never overwritten.
+        var paused = allowed with { Library = false, Waiting = "Paused" };
+        Assert.Equal(paused, TranscriptionConditions.WhileBrowsing(paused, libraryOpen: true, pauseBackgroundWork: true));
+    }
+
+    [Fact]
+    [Capability("SUB-20")]
     public void TheScopeIsTheWholeLibraryOrTheChosenFoldersLessTheOnesLeftOutNearestWinning()
     {
         var whole = new TranscriptionSettings { Library = true, Excluded = [@"D:\Videos\Home movies"] };
@@ -62,6 +83,10 @@ public sealed class TranscriptionPolicyTests
         Assert.Equal(TranscriptionSkip.Picture, Of(Entry(@"D:\Videos\a.jpg", LibraryKind.Picture)));
         Assert.Equal(TranscriptionSkip.Music, Of(Entry(@"D:\Videos\Asake - Lonely At The Top.mp3", LibraryKind.Music)));
         Assert.Equal(TranscriptionSkip.None, Of(Entry(@"D:\Videos\Asake - Sungba.mp3", LibraryKind.Music), with: settings with { IncludeMusic = true }));
+        var audiobook = Entry(@"D:\Videos\Audiobooks\The Hobbit\Part 1.mp3", LibraryKind.Music);
+        Assert.Equal(TranscriptionSkip.Music, Of(audiobook));
+        Assert.Equal(TranscriptionSkip.None, TranscriptionEligibility.Of(audiobook,
+            settings with { IncludeAudiobooks = true }, Folders, null, audiobook: true));
         var silent = Entry(@"D:\Videos\b.mkv");
         Assert.Equal(TranscriptionSkip.NoSound, Of(silent, Record(silent, TranscriptState.NoSound)));
         Assert.Equal(TranscriptionSkip.NotReadYet, Of(Entry(@"D:\Videos\c.mkv", probed: false)));
