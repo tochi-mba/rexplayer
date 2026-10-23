@@ -75,6 +75,9 @@ public sealed class AudiobookPresentationTests : IDisposable
             ]);
         using var app = _scene.Ready(played: path).Start();
         app.Visit("Audiobooks");
+        Wait.For(() => app.Lines().Contains("Marker Book"), "the started book card");
+        Assert.Contains("0% listened", app.Line("Marker Book").Current.HelpText,
+            StringComparison.Ordinal);
         app.Open("Marker Book");
         Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
             && app.Lines().Contains("Whole") && app.Lines().Contains("Middle"),
