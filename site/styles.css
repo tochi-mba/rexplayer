@@ -175,3 +175,22 @@ pre code{padding:0;background:none}
 @media(max-width:420px){
   .trust-grid{grid-template-columns:1fr}
 }
+
+
+/* Real product imagery: prefer screenshots from the native application over ornamental wireframes. */
+.product-shot{margin:0;min-height:0;display:flex;flex-direction:column;transform:none}
+.product-shot img{width:100%;height:auto;max-height:370px;object-fit:contain;object-position:center;display:block;background:#090b0a}
+.product-shot figcaption{display:flex;flex-wrap:wrap;gap:5px;padding:12px 15px;color:var(--text);font-size:12px;font-weight:700;border-top:1px solid var(--line)}
+.product-shot figcaption span{color:var(--muted);font-weight:400}
+.real-product-row{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(220px,.75fr);align-items:center;gap:26px;margin-bottom:32px;padding:18px;border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-l)}
+.real-product-row img{width:100%;height:auto;max-height:300px;object-fit:contain;border-radius:var(--radius-m);background:var(--ink)}
+.real-product-row>div{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.real-product-row p:not(.eyebrow),.platform-note>p{color:var(--muted);line-height:1.65}
+.real-product-row a{font-weight:650;text-decoration:underline;text-underline-offset:4px}
+.platform-note{display:grid;grid-template-columns:1fr 1.1fr;align-items:center;gap:38px}
+.platform-note>div{display:flex;flex-direction:column;gap:10px}
+@media(max-width:760px){
+  .real-product-row,.platform-note{grid-template-columns:1fr}
+  .real-product-row img{max-height:260px}
+  .product-shot img{max-height:320px}
+}
