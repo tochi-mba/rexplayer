@@ -53,7 +53,23 @@ public readonly record struct MediaStageView(
     bool SupportsKineticCaptions,
     bool ShowEpisodeContext,
     bool ShowPictureNavigation,
-    bool CanSeek);
+    bool CanSeek)
+{
+    /// <summary>A stable UI Automation label for the current stage.</summary>
+    public string AutomationName => Profile == MediaStageProfile.Welcome
+        ? "Playback stage" : Label + " playback stage";
+
+    /// <summary>Screen-reader help derived from proven capabilities, never the previous media.</summary>
+    public string AutomationHelpText => Profile switch
+    {
+        MediaStageProfile.Loading => "Media is opening. Playback capabilities are not known yet.",
+        MediaStageProfile.Error => "The active media could not be played.",
+        MediaStageProfile.Unsupported => "The active file has no playable audio or video track.",
+        MediaStageProfile.Picture => "Picture view; the seek timeline is unavailable.",
+        _ when CanSeek => "Playback position can be changed using the seek slider.",
+        _ => "Playback position cannot be changed for this stream.",
+    };
+}
 
 /// <summary>Resolves media facts to an accessible stage; capabilities are independent of labels.</summary>
 public static class MediaStagePolicy
