@@ -447,6 +447,7 @@ public sealed partial class MainWindow : Window
         if (picture)
         {
             PictureIntervalButton.Content = $"Slideshow · {_settings.PictureSeconds} s";
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PictureIntervalButton, $"Slideshow interval, {_settings.PictureSeconds} seconds per picture");
         }
         NowPlaying.Text = title;
 

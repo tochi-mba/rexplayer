@@ -35,6 +35,7 @@ public sealed partial class MainWindow
         _settings = (_settings with { PictureSeconds = seconds }).Normalize();
         _player.Settings = _settings;
         PictureIntervalButton.Content = $"Slideshow · {_settings.PictureSeconds} s";
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PictureIntervalButton, $"Slideshow interval, {_settings.PictureSeconds} seconds per picture");
         Say($"Pictures will show for {_settings.PictureSeconds} seconds each starting with the next picture");
         RememberLater();
     }
