@@ -287,6 +287,39 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>Whether these exact entry objects still make up the queue, regardless of order.</summary>
+    public bool CanRestoreOrder(IReadOnlyList<PlaylistItem> order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        if (order.Count != _items.Count)
+        {
+            return false;
+        }
+
+        var remaining = new HashSet<PlaylistItem>(_items, ReferenceEqualityComparer.Instance);
+        return order.All(remaining.Remove);
+    }
+
+    /// <summary>Restore the visible order in one notification without interrupting the current media or shuffle order.</summary>
+    public bool RestoreOrder(IReadOnlyList<PlaylistItem> order)
+    {
+        if (!CanRestoreOrder(order))
+        {
+            return false;
+        }
+
+        _items.Clear();
+        _items.AddRange(order);
+        _nextCycle = null;
+        if (!_shuffle)
+        {
+            Unshuffle();
+        }
+
+        Raise();
+        return true;
+    }
+
     /// <summary>Makes the item at <paramref name="index"/> current, as when the user picks it.</summary>
     public PlaylistItem JumpTo(int index)
     {

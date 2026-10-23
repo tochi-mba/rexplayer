@@ -16,6 +16,7 @@ public sealed partial class MainWindow
     // Keys whose press ran a shortcut: their release is the shortcut's too.
     private readonly HashSet<VirtualKey> _shortcutKeys = [];
     private List<(PlaylistRow Row, Rex.Media.AppCore.Player.PlaylistItem Item)>? _playlistDragOrder;
+    private IReadOnlyList<Rex.Media.AppCore.Player.PlaylistItem>? _queueUndoOrder;
 
     /// <summary>
     /// Whether <paramref name="key"/> is held. For Ctrl, Alt and Shift either of the pair counts:
@@ -302,13 +303,21 @@ public sealed partial class MainWindow
         // Rows are distinct objects even when the same file occurs twice. Mapping by identity keeps
         // duplicate playlist entries in exactly the order the user dropped them.
         var wanted = _playlistRows.Select(row => before.First(pair => ReferenceEquals(pair.Row, row)).Item).ToList();
+        var previous = before.Select(pair => pair.Item).ToArray();
+        var changed = false;
         for (var target = 0; target < wanted.Count; target++)
         {
             var from = _player.Playlist.IndexOf(wanted[target]);
             if (from != target)
             {
                 _player.Playlist.Move(from, target);
+                changed = true;
             }
+        }
+
+        if (changed)
+        {
+            OfferQueueUndo(previous);
         }
     }
 
@@ -368,12 +377,14 @@ public sealed partial class MainWindow
             return;
         }
 
+        var previous = _player.Playlist.Items.ToArray();
         IEnumerable<int> moving = direction < 0 ? indexes : indexes.OrderDescending();
         foreach (var index in moving)
         {
             _player.Playlist.Move(index, index + direction);
         }
 
+        OfferQueueUndo(previous);
         PlaylistView.SelectedItems.Clear();
         foreach (var item in chosen)
         {
@@ -385,6 +396,28 @@ public sealed partial class MainWindow
 
         PlaylistView.ScrollIntoView(_playlistRows[_player.Playlist.IndexOf(chosen[0])]);
         Say(chosen.Count == 1 ? $"Moved to position {_player.Playlist.IndexOf(chosen[0]) + 1}" : $"Moved {chosen.Count} entries");
+    }
+
+    private void OfferQueueUndo(IReadOnlyList<Rex.Media.AppCore.Player.PlaylistItem> before)
+    {
+        _queueUndoOrder = before;
+        PlaylistUndoReorder.IsEnabled = true;
+    }
+
+    private void OnPlaylistUndoReorder(object sender, RoutedEventArgs e)
+    {
+        if (_queueUndoOrder is not { } before)
+        {
+            return;
+        }
+
+        _queueUndoOrder = null;
+        if (_player.Playlist.RestoreOrder(before))
+        {
+            Say("Queue order restored");
+        }
+
+        PlaylistUndoReorder.IsEnabled = false;
     }
 
     /// <summary>Removes the selected entries, from the bottom up so the indexes stay right.</summary>

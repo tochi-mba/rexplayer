@@ -166,6 +166,35 @@ public sealed class PlaylistTests
         Assert.Throws<ArgumentNullException>(() => playlist.QueueNext(null!));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UndoReorderRestoresOriginalEntryIdentitiesWithoutRestartingPlayback(bool shuffle)
+    {
+        var playlist = With(4, new Random(7));
+        playlist.Shuffle = shuffle;
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        var playing = playlist.Current;
+        var original = playlist.Items.ToArray();
+        var notifications = 0;
+        playlist.Changed += (_, _) => notifications++;
+        playlist.Move(3, 0);
+        Assert.True(playlist.CanRestoreOrder(original));
+        Assert.True(playlist.RestoreOrder(original));
+        Assert.Equal(original, playlist.Items);
+        Assert.Same(playing, playlist.Current);
+        Assert.Equal(2, notifications);
+
+        var another = new PlaylistItem(original[0].Location);
+        Assert.False(playlist.CanRestoreOrder([another, original[1], original[2], original[3]]));
+        Assert.Throws<ArgumentNullException>(() => playlist.RestoreOrder(null!));
+        Assert.Throws<ArgumentNullException>(() => playlist.CanRestoreOrder(null!));
+        Assert.False(playlist.CanRestoreOrder([]));
+        playlist.Add([another]);
+        Assert.False(playlist.RestoreOrder(original));
+    }
+
     [Fact]
     public void QueueNextAfterEndStartsWithChosenEntryAndEmptySelectionDoesNotNotify()
     {
