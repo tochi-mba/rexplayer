@@ -201,6 +201,45 @@ public sealed partial class AppWindowTests
     }
 
     [Fact]
+    [Capability("UI-10")]
+    public void CompletedVideoRemainsAccessibleAtCompactAndMinimumWindowSizes()
+    {
+        var clip = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+        using var app = AppProcess.Start([clip], extraSettings: "\"theme\": \"Dark\"");
+        Wait.For(() => app.Status().State == "Ended"
+            && app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "a settled video stage for resize captures");
+
+        var resize = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        foreach (var (width, height, label) in new[]
+        {
+            (720, 540, "compact"),
+            (420, 340, "minimum"),
+            (1000, 720, "windowed"),
+        })
+        {
+            resize.Resize(width, height);
+            Wait.For(() => app.Window.Current.BoundingRectangle is { Width: var w, Height: var h }
+                && Math.Abs(w - width) < 2 && Math.Abs(h - height) < 2,
+                "the video stage to resize to " + label);
+            Assert.Equal("VIDEO playback stage", app.Find("Stage").Current.Name);
+            Assert.Equal("Stage", app.Find("Stage").Current.AutomationId);
+            Assert.False(app.IsShown("Lyrics"));
+            Assert.False(app.IsShown("StageChaptersButton"));
+
+            var bounds = app.Window.Current.BoundingRectangle;
+            var play = app.Find("PlayPauseButton").Current.BoundingRectangle;
+            Assert.True(play.Width > 0 && play.Height > 0
+                && play.Left >= bounds.Left && play.Right <= bounds.Right
+                && play.Top >= bounds.Top && play.Bottom <= bounds.Bottom,
+                "The video transport must remain reachable at " + label + " size.");
+            Screenshots.Match(app, "stage-video-" + label);
+        }
+
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("UI-04")]
     public void FullScreenRetainsThePausedAudioStageAndRestoresWindowedTransport()
     {
