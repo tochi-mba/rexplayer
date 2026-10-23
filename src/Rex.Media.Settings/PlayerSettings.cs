@@ -510,6 +510,9 @@ public sealed record PlayerSettings
 
     public VisualizerChoice Visualizer { get; init; } = VisualizerChoice.Spectrum;
 
+    /// <summary>The visualisation used for recognised audiobooks, independently of other audio.</summary>
+    public VisualizerChoice AudiobookVisualizer { get; init; } = VisualizerChoice.Spectrum;
+
     /// <summary>Draw a distinctive cover from the sound when a music file has no embedded or folder art.</summary>
     public bool GenerateAudioArtwork { get; init; } = true;
 
@@ -836,6 +839,7 @@ public sealed record PlayerSettings
             LoudnessPreamp = Decibels(LoudnessPreamp),
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
+            AudiobookVisualizer = Enum.IsDefined(AudiobookVisualizer) ? AudiobookVisualizer : VisualizerChoice.Spectrum,
             SubjectPanelSide = Enum.IsDefined(SubjectPanelSide) ? SubjectPanelSide : PanelSide.Right,
             SubjectSelection = Enum.IsDefined(SubjectSelection) ? SubjectSelection : SubjectSelectionMode.Click,
             SubjectRemoval = Enum.IsDefined(SubjectRemoval) ? SubjectRemoval : RemovalMode.Remove,

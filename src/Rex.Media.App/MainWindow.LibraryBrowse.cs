@@ -10,10 +10,9 @@ using Rex.Media.Settings;
 namespace Rex.Media.App;
 
 /// <summary>
-/// The streaming-style browse of the Movies and TV shows views: a featured billboard (what was left
-/// part-way, else what is watched most, else what arrived last) with its synopsis, its facts, Play
-/// and More info, over horizontal rows by category. <see cref="StreamingBrowse"/> decides what goes where; this file only draws it
-/// on the same virtualised shelves Home uses, so artwork still loads lazily per visible card.
+/// The horizontal Browse layout for every root media view. Movies and TV shows add a featured
+/// billboard and curated categories; the other views retain their own grouping as shelves. All use
+/// the same virtualised rows as Home, so artwork still loads lazily per visible card.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -26,7 +25,7 @@ public sealed partial class MainWindow
 
     /// <summary>Whether the open view can be laid out as a streaming-style browse.</summary>
     private bool BrowseOffered => _libraryGroup is null && LibrarySearch.Text.Trim().Length == 0
-        && _librarySource is LibrarySource.Movies or LibrarySource.TvShows;
+        && _librarySource is not (LibrarySource.Home or LibrarySource.Music or LibrarySource.Playlists or LibrarySource.Folders);
 
     /// <summary>Movies or TV shows as a billboard over rows; rebuilt only when what it shows has changed.</summary>
     private void ShowStreamingBrowse(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, bool sameRoute)
@@ -43,8 +42,10 @@ public sealed partial class MainWindow
         LibraryFolderActions.Visibility = Visibility.Collapsed;
 
         var movies = _librarySource == LibrarySource.Movies;
-        LibraryEntry? billboardArt;
-        string billboardTitle, billboardLine;
+        var shows = _librarySource == LibrarySource.TvShows;
+        LibraryEntry? billboardArt = null;
+        var billboardTitle = "";
+        var billboardLine = "";
         var shelves = new List<(string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide, string Id)>();
         Action? play = null, more = null;
         var playLabel = "Play";
@@ -75,7 +76,7 @@ public sealed partial class MainWindow
                     [.. shelf.Entries.Select(EntryRow)], continues, "Movies-" + shelf.Title));
             }
         }
-        else
+        else if (shows)
         {
             var browse = StreamingBrowse.TvShows(entries, _player.LeftAt);
             SetBrowseHeroSet(string.Join("\n", browse.Features.Select(feature => feature.Name)), browse.Features.Count);
@@ -108,6 +109,18 @@ public sealed partial class MainWindow
                 shelves.Add((shelf.Title, LibrarySource.TvShows, [.. shelf.Groups.Select(GroupRow)], false, "TvShows-" + shelf.Title));
             }
         }
+        else
+        {
+            // A non-catalogue Browse view is the same collection and ordering as its list/card
+            // view, expressed as horizontal shelves. Listening views retain useful shelves such as
+            // Continue listening, while ordinary media respects its chosen sort and grouping.
+            SetBrowseHeroSet("", 0);
+            foreach (var shelf in BrowseShelves(entries, choice).Where(shelf => shelf.Rows.Count > 0))
+            {
+                shelves.Add((shelf.Title, shelf.Source, shelf.Rows, shelf.Wide,
+                    _librarySource + "-" + shelf.Title));
+            }
+        }
 
         ShowLibraryEmpty(shelves.Count == 0, false, _librarySource);
         var shown = "Browse\n" + billboardArt?.Path + "\n" + billboardTitle + "\n" + billboardLine + "\n" + synopsis + "\n" + backdrop + "\n"
@@ -138,6 +151,94 @@ public sealed partial class MainWindow
         {
             ApplyPlaceAfterLayout(place);
         }
+    }
+
+    private IReadOnlyList<(string Title, LibrarySource Source, IReadOnlyList<LibraryRow> Rows, bool Wide)> BrowseShelves(
+        IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice)
+    {
+        if (IsListening(_librarySource))
+        {
+            var listening = ListeningView(entries).Sections;
+            if (_librarySource == LibrarySource.Podcasts)
+            {
+                var allowed = entries.Select(entry => entry.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var latest = ListeningViews.NewEpisodes(Listening(), _player.LeftAt, DateTime.UtcNow)
+                    .Where(episode => allowed.Contains(episode.Path)).Select(PodcastEpisodeRow).ToList();
+                return [.. (latest.Count == 0 ? [] : new[] { ("New episodes", LibrarySource.Podcasts, (IReadOnlyList<LibraryRow>)latest, false) }),
+                    .. listening.Where(section => section.Count > 0).Select(section =>
+                        (section.Header.Length > 0 ? section.Header : "Podcast shows", LibrarySource.Podcasts, (IReadOnlyList<LibraryRow>)[.. section], false))];
+            }
+
+            var fallback = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Name;
+            return [.. listening.Where(section => section.Count > 0).Select(section =>
+                (section.Header.Length > 0 ? section.Header : fallback, _librarySource, (IReadOnlyList<LibraryRow>)[.. section], false))];
+        }
+
+        if (_librarySource is LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres)
+        {
+            var groups = LibraryArrangement.Sort(Groups(_librarySource, entries), choice.Sort, choice.Descending);
+            List<LibraryRowGroup> groupSections = choice.Grouping == LibraryGrouping.Letter
+                ? [.. groups.GroupBy(group => LibraryArrangement.LetterOf(group.Name))
+                    .OrderBy(group => group.Key == "#").ThenBy(group => group.Key, StringComparer.CurrentCulture)
+                    .Select(group => new LibraryRowGroup(group.Key, group.Select(GroupRow)))]
+                : [new LibraryRowGroup("", groups.Select(GroupRow))];
+            var fallback = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Name;
+            return [.. groupSections.Select(section =>
+                (section.Header.Length > 0 ? section.Header : fallback, _librarySource, (IReadOnlyList<LibraryRow>)[.. section], false))];
+        }
+
+        if (_librarySource == LibrarySource.Videos)
+        {
+            var videos = LibraryViews.Videos(entries);
+            var movies = LibraryViews.Movies(videos, MovieLookupOf);
+            var episodes = LibraryViews.TvShows(videos);
+            var claimed = movies.Select(movie => movie.Path).Concat(episodes.SelectMany(show => show.Entries).Select(episode => episode.Path))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var other = videos.Where(video => !claimed.Contains(video.Path)).ToList();
+            return [
+                ("Movies", LibrarySource.Movies, [.. movies.Select(EntryRow)], false),
+                ("TV shows", LibrarySource.TvShows, [.. episodes.Select(GroupRow)], false),
+                ("Other videos", LibrarySource.OtherVideos, [.. other.Select(EntryRow)], true),
+            ];
+        }
+
+        IReadOnlyList<LibraryEntry> media = _librarySource switch
+        {
+            LibrarySource.Songs => LibraryViews.Songs(entries),
+            LibrarySource.OtherVideos => LibraryViews.OtherVideos(entries, MovieLookupOf),
+            LibrarySource.Pictures => LibraryViews.Pictures(entries),
+            LibrarySource.ContinueWatching => LibraryViews.ContinueWatching(entries, _player.LeftAt),
+            LibrarySource.RecentlyPlayed => LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)),
+            LibrarySource.RecentlyAdded => LibraryViews.RecentlyAdded(entries),
+            _ => entries,
+        };
+
+        if (_librarySource is LibrarySource.RecentlyPlayed or LibrarySource.RecentlyAdded)
+        {
+            return [
+                ("Audio", LibrarySource.Songs, [.. media.Where(entry => entry.Kind == LibraryKind.Music).Select(EntryRow)], false),
+                ("Videos", LibrarySource.Videos, [.. media.Where(entry => entry.Kind == LibraryKind.Video).Select(EntryRow)], true),
+                ("Pictures", LibrarySource.Pictures, [.. media.Where(entry => entry.Kind == LibraryKind.Picture).Select(EntryRow)], false),
+            ];
+        }
+
+        if (_librarySource == LibrarySource.Songs && choice.Grouping == LibraryGrouping.None)
+        {
+            return [
+                ("Recently added", LibrarySource.Songs, [.. LibraryViews.RecentlyAdded(media).Take(30).Select(EntryRow)], false),
+                ("Most played", LibrarySource.Songs, [.. media.OrderByDescending(entry => entry.Plays).ThenBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase).Take(30).Select(EntryRow)], false),
+                ("All songs", LibrarySource.Songs, [.. LibraryArrangement.Sort(media, choice.Sort, choice.Descending).Select(EntryRow)], false),
+            ];
+        }
+
+        var arranged = _librarySource == LibrarySource.Pictures && choice.Grouping == LibraryGrouping.None
+            ? choice with { Grouping = LibraryGrouping.Added }
+            : choice;
+        var sections = EntrySections(media, arranged);
+        var title = LibrarySourceItems.First(pair => pair.Source == _librarySource).Item.Name;
+        var wide = _librarySource is LibrarySource.OtherVideos or LibrarySource.ContinueWatching;
+        return [.. sections.Select(section =>
+            (section.Header.Length > 0 ? section.Header : title, _librarySource, (IReadOnlyList<LibraryRow>)[.. section], wide))];
     }
 
     private T? PickFeature<T>(IReadOnlyList<T> features) => features.Count == 0 ? default : features[_browseHeroIndex % features.Count];

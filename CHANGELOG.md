@@ -3,6 +3,23 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.30.5 - 2026-10-23
+
+### Added
+
+- **Audiobook controls (#455).** Audiobooks have their own transcription preference and default visualisation, independent of songs and other audio. Camera-based defaults still require consent and classification changes take effect with the item that is actually playing.
+- **Browse throughout the media library (#455).** Songs, albums, artists, genres, audiobooks, authors, podcasts, recordings, videos, pictures and recent views can use horizontal Browse shelves as well as their existing layouts.
+
+### Improved
+
+- **Media parsing against real libraries (#455).** Recognise dotted and bracketed audiobook collections, author/title/part filenames, audiobook genre variants and season-labelled TV specials more reliably, while keeping albums together when only some chapters carry useful tags.
+- **Richer discovery (#455).** Fill missing genre groupings from fetched album metadata and search audiobook credits, movie and show genres, cast, directors, writers and creators in addition to local tags.
+- **Collapsed library navigation (#455).** Use a purpose-built centred icon rail with consistent touch targets, selection styling, tooltips and accessible names instead of clipping the expanded sidebar.
+
+### Fixed
+
+- **Audiobook shelf leaks (#455).** Keep audiobook intros and chapters, including the Chronicles of Narnia, Roald Dahl collections and spoken-word releases tagged as non-fiction audiobooks, out of Songs and genre shelves.
+
 ## 0.30.4 - 2026-10-23
 
 ### Fixed
