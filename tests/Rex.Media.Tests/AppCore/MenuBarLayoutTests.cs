@@ -43,6 +43,22 @@ public sealed class MenuBarLayoutTests
     }
 
     [Fact]
+    [Capability("UI-02")]
+    public void UnimplementedRemoteCaptureOutputAndAdvancedPlaybackAreNotAdvertisedAsRealActions()
+    {
+        var offered = MenuBarLayout.AllCommands().ToArray();
+        Assert.DoesNotContain(offered, command => command.Contains("network", StringComparison.OrdinalIgnoreCase)
+            || command.Contains("record-screen", StringComparison.OrdinalIgnoreCase)
+            || command.Contains("screen-capture", StringComparison.OrdinalIgnoreCase)
+            || command.Contains("cast-to", StringComparison.OrdinalIgnoreCase)
+            || command.Contains("exclusive-output", StringComparison.OrdinalIgnoreCase)
+            || command.Contains("bitstream", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(CommandCatalog.OpenLocation, offered); // Local-only, not a streaming promise.
+        Assert.Contains(CommandCatalog.OpenFile, offered);
+        Assert.Contains(CommandCatalog.OpenFolder, offered);
+    }
+
+    [Fact]
     public void NoCommandIsOfferedTwiceInTheBar()
     {
         var all = MenuBarLayout.AllCommands().ToList();
