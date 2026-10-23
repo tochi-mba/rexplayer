@@ -57,19 +57,28 @@ internal static class Screenshots
                 app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name),
             $"the {name} scene to be ready");
 
-        // WinUI menus and dialogs are compositor-backed popups. A PrintWindow of the
-        // host HWND can omit them even while UIA reports the expected visible control.
-        var picture = scene.CaptureMode == "desktop"
-            ? WindowPicture.TakeDesktop(app.Handle)
-            : WindowPicture.Take(app.Handle);
-        var bounds = WindowPicture.Bounds(app.Handle);
-        var witness = scene.CaptureMode == "desktop"
-            ? Crop(picture, bounds, app.Find(scene.ReadinessId).Current.BoundingRectangle)
-            : picture;
-        if (automationId is not null)
+        // UIA can expose an element before the desktop compositor has presented it.
+        // Poll the *actual pixels*, not a fixed sleep or UIA-only readiness condition.
+        // Keep the last failed frame so CI can still inspect a missing popup on timeout.
+        (int Width, int Height, byte[] Bgra) picture = default;
+        (int Width, int Height, byte[] Bgra) witness = default;
+        _ = Wait.Within(TimeSpan.FromSeconds(5), () =>
         {
-            picture = Crop(picture, bounds, app.Find(automationId).Current.BoundingRectangle);
-        }
+            // WinUI menus and dialogs are compositor-backed popups. A PrintWindow
+            // of the host HWND can omit them even while UIA reports the control.
+            var captured = scene.CaptureMode == "desktop"
+                ? WindowPicture.TakeDesktop(app.Handle)
+                : WindowPicture.Take(app.Handle);
+            var bounds = WindowPicture.Bounds(app.Handle);
+            witness = scene.CaptureMode == "desktop"
+                ? Crop(captured, bounds, app.Find(scene.ReadinessId).Current.BoundingRectangle)
+                : captured;
+            picture = automationId is null
+                ? captured
+                : Crop(captured, bounds, app.Find(automationId).Current.BoundingRectangle);
+            return HasVisibleVariation(picture) &&
+                (scene.CaptureMode != "desktop" || HasVisibleVariation(witness));
+        });
 
         // Persist the actual capture before validation, including failed blank/popup
         // captures. This lets reviewers diagnose missing compositor surfaces.
