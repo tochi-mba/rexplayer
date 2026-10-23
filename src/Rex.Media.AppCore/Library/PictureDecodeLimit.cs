@@ -7,6 +7,11 @@ namespace Rex.Media.AppCore.Library;
 /// </summary>
 public readonly record struct PictureDecodeLimit(int Width, int Height)
 {
+    /// <summary>Reject corrupted or excessive encoded cache files before allocating for them.</summary>
+    public const long MaxCachedBytes = 32L * 1024 * 1024;
+
+    public static bool CacheBytesAllowed(long length) => length is >= 0 and <= MaxCachedBytes;
+
     public static PictureDecodeLimit For(uint orientedWidth, uint orientedHeight, int requestedSide)
     {
         var side = Math.Clamp(requestedSide, 1, 2048);

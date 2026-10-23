@@ -5,6 +5,19 @@ namespace Rex.Media.Tests.AppCore;
 public sealed class PictureDecodeLimitTests
 {
     [Theory]
+    [InlineData(-1L, false)]
+    [InlineData(0L, true)]
+    [InlineData(64L, true)]
+    [InlineData(33554432L, true)]
+    [InlineData(33554433L, false)]
+    [InlineData(long.MaxValue, false)]
+    public void MalformedOrUnboundedPictureCachesAreIgnored(long bytes, bool allowed)
+    {
+        Assert.Equal(allowed, PictureDecodeLimit.CacheBytesAllowed(bytes));
+    }
+
+
+    [Theory]
     [InlineData(2400u, 1600u, 320, 320, 0)]
     [InlineData(1600u, 2400u, 320, 0, 320)]
     [InlineData(16000u, 50u, 320, 320, 0)]

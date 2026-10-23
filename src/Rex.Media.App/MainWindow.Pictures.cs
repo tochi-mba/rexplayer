@@ -207,8 +207,17 @@ public sealed partial class MainWindow
     {
         try
         {
-            var bytes = await Task.Run(() => File.ReadAllBytes(PictureCachePath(key)), token);
-            return await DecodePictureAsync(bytes, decodeWidth, token);
+            var bytes = await Task.Run(() =>
+            {
+                var path = PictureCachePath(key);
+                if (!PictureDecodeLimit.CacheBytesAllowed(new FileInfo(path).Length))
+                {
+                    return null;
+                }
+
+                return File.ReadAllBytes(path);
+            }, token);
+            return bytes is null ? null : await DecodePictureAsync(bytes, decodeWidth, token);
         }
         catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
