@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Platform;
+using Rex.Media.Library;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
@@ -62,6 +64,60 @@ public sealed class MacAppSmokeTests
             if (!app.HasExited)
             {
                 app.Kill();
+            }
+
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TheMacAppShowsASavedLibraryEntryInItsNativeWindow()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-library-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var mediaFolder = Path.Combine(root, "watched");
+        Directory.CreateDirectory(mediaFolder);
+        var mediaPath = Path.Combine(mediaFolder, "known-video.mp4");
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), mediaPath);
+
+        var roots = new DataRoots(root);
+        var library = new Rex.Media.Library.MediaLibrary(RexStore.Open(roots.LibraryStore));
+        Assert.True(library.AddFolder(mediaFolder));
+        var result = library.Scan(mediaFolder,
+            [new LibraryFile(mediaPath, new FileInfo(mediaPath).Length, File.GetLastWriteTimeUtc(mediaPath))],
+            _ => LibraryKind.Video);
+        Assert.Equal(1, result.Added);
+
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer")) { UseShellExecute = false };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        using var app = Process.Start(start)!;
+        try
+        {
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
+            // The library window constructs its result rows from the persisted catalogue.
+            var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
+            Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
+
+            var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+            Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
+                "The Mac app could not quit with the library shown: " + (quit?.Error ?? "no reply") + LogTail(root));
+            Assert.True(app.WaitForExit(Patience), "The Mac app did not quit after showing the library.");
+            Assert.Equal(0, app.ExitCode);
+        }
+        finally
+        {
+            if (!app.HasExited)
+            {
+                app.Kill();
+                app.WaitForExit();
             }
 
             if (Directory.Exists(root))
