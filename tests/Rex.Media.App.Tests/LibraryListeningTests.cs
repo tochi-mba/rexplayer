@@ -206,6 +206,27 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void PodcastTransportGivesSpokenSkipSpeedAndSleepWithoutFeedControls()
+    {
+        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
+            TimeSpan.FromMinutes(5), year: 2024);
+        using var app = _scene.Ready().Start();
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Pointer.RightClick(app, app.Line("Ep 1"));
+        Wait.For(() => app.IsShown("LibraryMenuPodcastControls"), "podcast transport menu");
+        app.Press("LibraryMenuPodcastControls");
+        Wait.For(() => app.IsShown("PodcastControlsPlay") && app.IsShown("PodcastControlsBack")
+            && app.IsShown("PodcastControlsForward") && app.IsShown("PodcastControlsSpeed")
+            && app.IsShown("PodcastControlsSleep30") && app.IsShown("PodcastControlsSleepEnd"),
+            "spoken-word resume skip speed and sleep controls");
+        Assert.Contains("no feed or download controls", app.Text("PodcastControlsStatus"),
+            StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
