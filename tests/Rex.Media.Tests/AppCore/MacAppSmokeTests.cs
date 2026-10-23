@@ -160,6 +160,12 @@ public sealed class MacAppSmokeTests
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryBack" && control.Name == "Back to player" && control.Enabled);
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryPrevious" && control.Enabled == false && control.Name == "Previous results page");
             Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && control.Enabled == false && control.Name == "Next results page");
+            var backFromLibrary = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryBack" });
+            Assert.True(backFromLibrary?.Ok == true, "The native Back to player button failed.");
+            var hidden = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.True(hidden?.Ok == false, "The library was still visible after Back to player.");
+            var returnToLibrary = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(returnToLibrary?.Ok == true, "The library could not reopen after Back to player.");
             var music = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 1 });
             Assert.True(music?.Ok == true && music.Text?.Contains("0 matching", StringComparison.Ordinal) == true, "The native Music category did not filter videos.");
             var videos = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 2 });
