@@ -61,13 +61,15 @@ public sealed class LibraryFixtureVisualTests
         Wait.For(() => app.IsShown("LibraryPane") &&
             app.Find("LibraryShelfCards-Albums").Current.Name == "Albums",
             "the mixed library's album shelf to be available");
-        Assert.InRange(app.Find("LibrarySources").Current.BoundingRectangle.Width, 175, 215);
+        Wait.For(() => app.Find("LibrarySources").Current.BoundingRectangle.Width is >= 175 and <= 215,
+            "the 200-pixel wide library rail");
         Screenshots.Match(app, "library-home-mixed", "LibraryPane");
 
         SetViewport(app, 720, 640);
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation",
             "the compact navigation to replace the wide rail");
-        Assert.InRange(app.Find("LibrarySources").Current.BoundingRectangle.Width, 55, 75);
+        Wait.For(() => app.Find("LibrarySources").Current.BoundingRectangle.Width is >= 55 and <= 75,
+            "the 64-pixel icon rail");
         Screenshots.Match(app, "library-home-mixed-compact", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
