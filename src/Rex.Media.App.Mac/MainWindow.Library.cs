@@ -596,6 +596,7 @@ public sealed partial class MainWindow
             "LibraryNext" => _libraryNextPage,
             "LibraryFirstPlay" => _libraryFirstPlay,
             "LibraryFirstQueue" => _libraryFirstQueue,
+            "LibraryRescan" => _libraryRescanButton,
             _ => null,
         };
         if (_libraryWindow?.IsVisible != true || button?.Enabled != true)
