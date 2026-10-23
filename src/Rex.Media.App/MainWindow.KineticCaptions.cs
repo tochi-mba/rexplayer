@@ -182,7 +182,8 @@ public sealed partial class MainWindow
         Volatile.Write(ref _captionPlayhead, position.TotalSeconds);
 
         var picture = CaptionPicture();
-        var look = SubtitleLook.For(_settings, picture.Height);
+        var look = SubtitleLook.For(_settings, picture.Height,
+            new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast);
         var cues = CaptionCues(position);
         var area = new Area(0, 0, picture.Width, picture.Height);
 
