@@ -11,13 +11,15 @@ public sealed partial class MainWindow
     private bool _libraryNavigationExpandedWhileNarrow;
     private bool? _libraryNavigationCompact;
 
+    private static double LibraryLayoutToken(string key) => (double)Application.Current.Resources[key];
+
     // The window's viewport, not the library Grid's measured content, determines whether
     // navigation must compact. A wide child can outgrow its viewport during resize, and
     // a saved collapsed rail otherwise gets mistaken for a wide window on the next click.
     private bool LibraryNavigationIsNarrow =>
         Root.XamlRoot is { Size.Width: > 0 } root
-            ? root.Size.Width < 760
-            : LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
+            ? root.Size.Width < LibraryLayoutToken("LibraryNavigationNarrowBreakpoint")
+            : LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < LibraryLayoutToken("LibraryNavigationNarrowBreakpoint");
 
     private void OnLibraryNavigationToggle(object sender, RoutedEventArgs e)
     {
@@ -52,10 +54,10 @@ public sealed partial class MainWindow
 
         var compact = narrow ? !_libraryNavigationExpandedWhileNarrow : _settings.LibraryNavigationCollapsed;
         LibraryBrand.Visibility = LibraryQuickAddText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-        LibraryNavigationColumn.Width = new GridLength(compact ? 64 : 200);
+        LibraryNavigationColumn.Width = new GridLength(LibraryLayoutToken(compact ? "LibraryNavigationCompactWidth" : "LibraryNavigationExpandedWidth"));
         LibraryNavigationToggle.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Right;
         LibraryNavigationToggle.Margin = compact ? new Thickness(0, 8, 0, 0) : new Thickness(8, 8, 8, 0);
-        LibraryNavigationToggleIcon.Glyph = compact ? "\uE8A0" : "\uE89F";
+        LibraryNavigationToggleIcon.Glyph = compact ? "\uE76C" : "\uE76B";
         var action = compact ? "Expand library navigation" : "Collapse library navigation";
         ToolTipService.SetToolTip(LibraryNavigationToggle, action);
         AutomationProperties.SetName(LibraryNavigationToggle, action);
