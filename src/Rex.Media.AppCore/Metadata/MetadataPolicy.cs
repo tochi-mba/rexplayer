@@ -29,6 +29,18 @@ public static class MetadataPolicy
         return excluded.Any(folder => MediaLibrary.Holds(folder, path));
     }
 
+    /// <summary>
+    /// Shared albums, shows and artists may span private and public folders.
+    /// A grouped lookup is allowed only when at least one actual source file
+    /// permits the requested kind of enrichment.
+    /// </summary>
+    public static bool AllowsAny(MetadataSettings settings, MetadataWork kind, IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(paths);
+        return paths.Any(path => !string.IsNullOrWhiteSpace(path) && Allows(settings, kind, path));
+    }
+
     /// <summary>Whether a lookup of <paramref name="kind"/> may run for the file at <paramref name="path"/>.</summary>
     public static bool Allows(MetadataSettings settings, MetadataWork kind, string path)
     {
