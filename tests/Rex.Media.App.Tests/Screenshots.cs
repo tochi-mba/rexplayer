@@ -143,6 +143,7 @@ internal static class Screenshots
             WriteCaptureMetadata(scene, app, (0, 0, []), automationId, pixelThreshold,
                 maxDifferingRatio, true, false, false);
             Assert.Fail($"Screenshot {name} could not capture any pixels. See its retained capture error and process log.");
+            return;
         }
 
         // Two independent compositor reads of the same stable scene must match.
