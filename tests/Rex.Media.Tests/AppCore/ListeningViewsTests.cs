@@ -552,6 +552,28 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void LooseAndEmptyBooksUseSafeStableEditionIdentifiers()
+    {
+        var empty = new LibraryGroup("Empty", null, []);
+        Assert.Equal(ListeningViews.BookKey(empty), ListeningViews.BookIdentity(empty));
+        Assert.Null(ListeningViews.EditionLabel(empty));
+
+        var part = AudioFile("Audiobooks/Whole Book.m4b", TimeSpan.FromHours(2));
+        var book = new LibraryGroup("Same Title", "Ann Writer", [part]);
+        var other = book with { Entries = [part with { Path = "Audiobooks/Other Whole Book.m4b" }] };
+        Assert.NotEqual(ListeningViews.BookIdentity(book), ListeningViews.BookIdentity(other));
+        Assert.Equal("Whole Book", ListeningViews.EditionLabel(book));
+        Assert.Equal("Other Whole Book", ListeningViews.EditionLabel(other));
+
+        var nested = book with { Entries = [part with { Path = "Audiobooks/Ann Writer/Edition A/Whole Book.m4b" }] };
+        Assert.Equal("Edition A", ListeningViews.EditionLabel(nested));
+        Assert.Equal("Whole Book", ListeningViews.EditionLabel(
+            book with { Entries = [part with { Path = "Downloads/Whole Book.m4b" }] }));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.EditionLabel(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void LegacyBookSettingsMigrateOnlyForUnambiguousTitles()
     {
         var store = RexStore.InMemory();
