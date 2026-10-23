@@ -285,7 +285,7 @@
             <Image x:Name="CoverImage" Stretch="UniformToFill" AutomationProperties.AutomationId="Cover" AutomationProperties.Name="Cover" />
           </Border>
           <StackPanel x:Name="IdleText" Grid.Column="1" VerticalAlignment="Center" Spacing="7" MaxWidth="560">
-            <TextBlock x:Name="IdleKicker" Text="WELCOME" FontSize="11" FontWeight="SemiBold" CharacterSpacing="120"
+            <TextBlock x:Name="IdleKicker" Text="WELCOME" FontSize="11" FontWeight="SemiBold" CharacterSpacing="120" AutomationProperties.LiveSetting="Polite"
                        Foreground="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center" TextAlignment="Center"
                        AutomationProperties.AutomationId="IdleKicker" />
             <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="44" FontWeight="SemiBold" Foreground="White"
@@ -869,11 +869,11 @@
 
       <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="3*" />
+          <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
         <!-- Keep every transport command keyboard/touch reachable instead of clipping it in narrow windows. -->
-        <ScrollViewer x:Name="TransportScroller" Grid.Column="0" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled">
+        <ScrollViewer x:Name="TransportScroller" Grid.Column="0" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled">
         <StackPanel Orientation="Horizontal" Spacing="4">
           <Button x:Name="MinimalInterfaceButton" Visibility="Collapsed" Click="OnRestoreFullInterface"
                   AutomationProperties.AutomationId="MinimalInterfaceButton" AutomationProperties.Name="Restore full interface"
