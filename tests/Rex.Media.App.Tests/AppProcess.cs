@@ -428,6 +428,19 @@ internal sealed class AppProcess : IDisposable
             _process.WaitForExit();
         }
 
+        // Preserve a per-process log even if a test fails before it reaches
+        // Screenshots.Match. CI publishes this with the screenshot artifact.
+        try
+        {
+            var directory = RepoPaths.Combine("artifacts", "screenshots", Screenshots.Lane, "logs");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, Path.GetFileName(Root) + ".log"), LogText);
+        }
+        catch (IOException)
+        {
+            // A locked log must not hide the test failure being diagnosed.
+        }
+
         _process.Dispose();
     }
 }
