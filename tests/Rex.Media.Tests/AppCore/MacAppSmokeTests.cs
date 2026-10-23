@@ -329,11 +329,15 @@ public sealed class MacAppSmokeTests
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var folder = Path.Combine(root, "watched");
         Directory.CreateDirectory(folder);
+        var longFolder = Path.Combine(folder, new string('f', 155));
+        Directory.CreateDirectory(longFolder);
         var files = new List<LibraryFile>();
         for (var index = 0; index < 85; index++)
         {
             var filename = index == 84 ? "clip-084-" + new string('x', 155) + ".mp4" : $"clip-{index:000}.mp4";
-            var file = Path.Combine(folder, filename);
+            // A long folder name tests metadata truncation independently from the
+            // long video title. Both must leave the Queue action inside the viewport.
+            var file = Path.Combine(index == 83 ? longFolder : folder, filename);
             File.WriteAllBytes(file, [0]);
             files.Add(new LibraryFile(file, 1, File.GetLastWriteTimeUtc(file)));
         }
@@ -375,6 +379,12 @@ public sealed class MacAppSmokeTests
             var layout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
             Assert.True(layout?.Ok == true, "The long video filename clipped a native result action: " +
                 (layout?.Error ?? "no reply") + LogTail(root));
+            var longFolderResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "clip-083" });
+            Assert.True(longFolderResult?.Ok == true &&
+                longFolderResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true);
+            var folderLayout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
+            Assert.True(folderLayout?.Ok == true, "The long parent folder name clipped a native Queue action: " +
+                (folderLayout?.Error ?? "no reply") + LogTail(root));
             var searchKeys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
             Assert.True(searchKeys?.Ok == true, "Native focus loop was broken by search: " + (searchKeys?.Error ?? "no reply"));
 
