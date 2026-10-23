@@ -208,6 +208,33 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void SwitchingBetweenTwoDirectAudioFilesReplacesTimedLyricsAndRestoresFocus()
+    {
+        var first = _scene.Audio(Path.Combine("Songs", "First.wav"), TimeSpan.FromSeconds(20));
+        var second = _scene.Audio(Path.Combine("Songs", "Second.wav"), TimeSpan.FromSeconds(20));
+        File.WriteAllText(Path.ChangeExtension(first, ".lrc"), "[00:00.00]First stream line\\n[00:03.00]First ending\\n");
+        File.WriteAllText(Path.ChangeExtension(second, ".lrc"), "[00:00.00]Second stream line\\n[00:03.00]Second ending\\n");
+
+        using var app = AppProcess.Start([first, second], extraSettings: "\\"theme\\": \\"Dark\\"");
+        Wait.For(() => app.Text("NowPlaying") == "First" && app.IsShown("Lyrics")
+            && app.Find("LyricLine-0").Current.Name.Contains("First stream line", StringComparison.Ordinal),
+            "the first direct-open audio file to show its own lyrics");
+        app.Find("LyricLine-0").SetFocus();
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
+            "the first stream's timed lyric control to take focus");
+
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Text("NowPlaying") == "Second" && app.IsShown("Lyrics")
+            && app.Find("LyricLine-0").Current.Name.Contains("Second stream line", StringComparison.Ordinal),
+            "the second direct audio file to replace the first file's timed lyrics");
+        Assert.Equal("AUDIO playback stage", app.Find("Stage").Current.Name);
+        Assert.DoesNotContain("First stream line", app.Find("LyricLine-0").Current.Name, StringComparison.Ordinal);
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "focus to move to stable transport when the focused lyric line disappears");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SwitchingFromChapteredAudioToPictureRemovesChapterInstructionsAndSeek()
     {
         var book = _scene.ChapteredAudiobook();
