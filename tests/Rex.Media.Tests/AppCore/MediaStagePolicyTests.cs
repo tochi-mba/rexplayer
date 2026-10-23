@@ -1,6 +1,7 @@
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Primitives;
 
 namespace Rex.Media.Tests.AppCore;
 
