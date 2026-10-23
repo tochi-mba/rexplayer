@@ -76,6 +76,36 @@ public sealed class LibraryFixtureVisualTests
 
     [Fact]
     [Capability("LIB-05")]
+    [Capability("UI-13")]
+    public void NarrowNavigationReturnsContentWidthAfterAViewIsChosen()
+    {
+        using var scene = new LibraryScene();
+        scene.WithAsake();
+        using var app = scene.Ready().Start();
+        SetViewport(app, 720, 640);
+
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation",
+            "narrow navigation to start as an icon rail");
+        app.Press("LibraryNavigationToggle");
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation",
+            "the temporary sidebar labels to appear");
+
+        app.Visit("Songs");
+        Wait.For(() => app.Text("LibraryTitle") == "Songs" &&
+            app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation",
+            "the chosen Songs route to reclaim its content width");
+        Assert.InRange(app.Find("LibrarySources").Current.BoundingRectangle.Width, 55, 75);
+
+        // Temporary expansion must not change the saved desktop preference or the route.
+        SetViewport(app, 1000, 760);
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation",
+            "desktop navigation to restore its original expanded preference");
+        Assert.Equal("Songs", app.Text("LibraryTitle"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void UnicodeAndRtlNamesSurviveOfflineIndexingAndRemainFocusable()
     {
         using var scene = new LibraryScene();
