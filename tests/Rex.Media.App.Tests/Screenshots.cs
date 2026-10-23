@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Windows.Automation;
@@ -240,7 +241,7 @@ internal static class Screenshots
             declaredDimensions = scene.Dimensions,
             viewportMatchesDeclared = ViewportMatchesDeclared(scene, app),
             actualDimensions = new { width = picture.Width, height = picture.Height },
-            fullWindowDimensions = WindowPicture.Bounds(app.Handle).Size.ToString(),
+            fullWindowDimensions = WindowPicture.Bounds(app.Handle).Size.ToString(CultureInfo.InvariantCulture),
             desktopBounds = new { desktop.Left, desktop.Top, desktop.Width, desktop.Height },
             windowBounds = new { window.Left, window.Top, window.Width, window.Height },
             fullyOnDesktop = WindowPicture.IsFullyOnDesktop(app.Handle),
@@ -352,7 +353,7 @@ internal static class Screenshots
                     shown = !current.IsOffscreen,
                     current.Name,
                     current.IsEnabled,
-                    bounds = current.BoundingRectangle.ToString(),
+                    bounds = current.BoundingRectangle.ToString(CultureInfo.InvariantCulture),
                 };
             }
         }
