@@ -144,6 +144,35 @@ public sealed partial class MainWindow : IDisposable
                     return;
                 case "status":
                     break;
+                case "ui.search":
+                    if (_libraryWindow?.IsVisible != true || _librarySearch is null || request.Target is null)
+                    {
+                        answered.SetResult(AutomationReply.Failed("Open the library and supply a search query."));
+                        return;
+                    }
+
+                    _librarySearch.StringValue = request.Target;
+                    ChangeLibraryView();
+                    answered.SetResult(new AutomationReply { Ok = true, Text = _librarySummary?.StringValue });
+                    return;
+                case "ui.snapshot":
+                    if (string.IsNullOrWhiteSpace(request.Path))
+                    {
+                        answered.SetResult(AutomationReply.Failed("ui.snapshot needs a path."));
+                        return;
+                    }
+
+                    try
+                    {
+                        CaptureLibraryScreenshot(request.Path);
+                        answered.SetResult(new AutomationReply { Ok = true, Text = request.Path });
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+                    {
+                        answered.SetResult(AutomationReply.Failed("Could not capture the library: " + ex.Message));
+                    }
+
+                    return;
                 default:
                     answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request on this Mac yet; try open, run or status."));
                     return;
