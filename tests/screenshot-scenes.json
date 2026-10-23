@@ -304,6 +304,150 @@
       "requiredLane": "ci-windows"
     },
     {
+      "id": "audiobook-unread-card",
+      "fixture": "unread-book-with-chapter-marks",
+      "route": "library/audiobooks",
+      "state": "not-started",
+      "dimensions": "1280x800",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryList",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Audiobooks"
+        }
+      ],
+      "readinessSignal": "uia:LibraryList",
+      "owner": "AudiobookPresentationTests",
+      "baseline": "ci-windows",
+      "captureMode": "window",
+      "requiredLane": "ci-windows"
+    },
+    {
+      "id": "audiobook-credited-book",
+      "fixture": "credited-book-with-narrator",
+      "route": "library/audiobooks/book",
+      "state": "credited-synopsis",
+      "dimensions": "1280x800",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryList",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "A Book"
+        }
+      ],
+      "readinessSignal": "uia:LibraryList",
+      "owner": "AudiobookPresentationTests",
+      "baseline": "ci-windows",
+      "captureMode": "window",
+      "requiredLane": "ci-windows"
+    },
+    {
+      "id": "audiobook-finished-book",
+      "fixture": "explicitly-completed-audiobook",
+      "route": "library/audiobooks/book",
+      "state": "finished",
+      "dimensions": "1280x800",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryList",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "A Book"
+        }
+      ],
+      "readinessSignal": "uia:LibraryList",
+      "owner": "AudiobookPresentationTests",
+      "baseline": "ci-windows",
+      "captureMode": "window",
+      "requiredLane": "ci-windows"
+    },
+    {
+      "id": "audiobook-empty-progress-filter",
+      "fixture": "finished-book-in-unwatched-filter",
+      "route": "library/audiobooks",
+      "state": "filtered-empty",
+      "dimensions": "1280x800",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryList",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Audiobooks"
+        }
+      ],
+      "readinessSignal": "uia:LibraryList",
+      "owner": "AudiobookPresentationTests",
+      "baseline": "ci-windows",
+      "captureMode": "window",
+      "requiredLane": "ci-windows"
+    },
+    {
+      "id": "audiobook-active-malformed-chapters",
+      "fixture": "clamped-and-out-of-order-chapter-marks",
+      "route": "library/audiobooks/book",
+      "state": "active-malformed-marks",
+      "dimensions": "1280x800",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryList",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Marker Book"
+        }
+      ],
+      "readinessSignal": "uia:LibraryList",
+      "owner": "AudiobookPresentationTests",
+      "baseline": "ci-windows",
+      "captureMode": "window",
+      "requiredLane": "ci-windows"
+    },
+    {
+      "id": "audiobook-huge-virtualized-chapters",
+      "fixture": "10000-chapter-multifile-audiobook",
+      "route": "library/audiobooks/book",
+      "state": "virtualized-chapters",
+      "dimensions": "1280x800",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryList",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Huge Book"
+        }
+      ],
+      "readinessSignal": "uia:LibraryList",
+      "owner": "AudiobookPresentationTests",
+      "baseline": "unreviewed",
+      "captureMode": "window",
+      "requiredLane": "ci-windows"
+    },
+    {
       "id": "library-show-page-collage",
       "fixture": "episodic-video",
       "route": "library/tv/show",
