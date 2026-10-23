@@ -161,6 +161,8 @@ internal static class Screenshots
 
         Assert.True(WindowPicture.IsFullyOnDesktop(app.Handle),
             $"Screenshot {name} extends beyond the visible desktop. Black offscreen pixels must never become evidence.");
+        Assert.True(ViewportMatchesDeclared(scene, app) is not false,
+            $"Screenshot {name} does not have the declared {scene.Dimensions} viewport.");
         Assert.True(HasVisibleVariation(picture),
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
         Assert.True(!needsPixelWitness || HasVisibleVariation(witness),
@@ -190,6 +192,7 @@ internal static class Screenshots
             theme = scene.Theme,
             captureMode = scene.CaptureMode,
             declaredDimensions = scene.Dimensions,
+            viewportMatchesDeclared = ViewportMatchesDeclared(scene, app),
             actualDimensions = new { width = picture.Width, height = picture.Height },
             desktopBounds = new { desktop.Left, desktop.Top, desktop.Width, desktop.Height },
             windowBounds = new { window.Left, window.Top, window.Width, window.Height },
@@ -219,6 +222,24 @@ internal static class Screenshots
         File.WriteAllText(Path.Combine(dir, scene.Id + ".json"),
             JsonSerializer.Serialize(details, MetadataJsonOptions));
         File.WriteAllText(Path.Combine(dir, scene.Id + ".log"), app.LogText);
+    }
+
+    /// <summary>
+    /// Null means an unresolved legacy dimension label. Pinned dimensions are
+    /// checked in the UIA window coordinate system, not against a DPI-scaled
+    /// image crop or the invisible Win32 resize border.
+    /// </summary>
+    private static bool? ViewportMatchesDeclared(ScreenshotScenes.ScreenshotScene scene, AppProcess app)
+    {
+        var parts = scene.Dimensions.Split('x');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var width)
+            || !int.TryParse(parts[1], out var height))
+        {
+            return null;
+        }
+
+        var actual = app.Window.Current.BoundingRectangle;
+        return Math.Abs(actual.Width - width) < 2 && Math.Abs(actual.Height - height) < 2;
     }
 
     /// <summary>
