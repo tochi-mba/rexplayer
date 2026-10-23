@@ -1,16 +1,16 @@
 # Library backup, restore, and incomplete-file transaction contract
 
-Status: **design complete; implementation and native acceptance are not asserted**. Scope: merged PR #485 task **485.4**, with interfaces to #485.3 (refresh/recovery), #481.7 (disconnected media), and existing LIB-10 and LIB-05 behavior.
+Status: **design complete; complete export publication and digest verification are implemented in follow-up PR #488, but atomic cross-store restore, previews and native acceptance remain outstanding**. Scope: merged PR #485 task **485.4**, with interfaces to #485.3 (refresh/recovery), #481.7 (disconnected media), and existing LIB-10 and LIB-05 behavior.
 
 ## 1. Source-informed baseline (2026-10-23)
 
 - `LibraryBackup.Export` currently produces a JSON manifest (`rexplayer library.json`) and optional M3U8 sidecars. The manifest includes watched folder paths, `LibraryEntry` values and named playlists.
-- `MainWindow.BackUpLibraryAsync` currently calls `AtomicFile.Write` for **each** output in turn. Each file replacement is atomic, but the **set** of files is not: an interrupted export can mix versions.
+- `MainWindow.BackUpLibraryAsync` now calls `LibraryBackup.PublishSnapshot` to stage and flush all payloads and `complete.json` with SHA-256 digests before atomically publishing a fresh sibling directory. Existing backups are never overwritten. `LibraryBackup.ReadFromFile` verifies its manifest and contents before mutation, while allowing legacy standalone v1 JSON restores.
 - `LibraryBackup.Read` validates JSON syntax and schema version. `LibraryBackup.Restore` mutates watched folders, entries, then playlists; there is **no cross-store transaction** or full preflight of semantic validity.
 - `MediaLibrary.Restore` merges newer play history into its store and preserves hidden entries. `RexStore` is append/compact based, with its own I/O fallbacks; it does not expose a transaction covering `PlayerController` playlists.
 - `Downloads.Judge` already tracks `Downloading`, `Suspect`, `FinalSize` and `Allocated` separately; an incomplete but present file is **not** the same state as a missing or unreadable file.
 
-These facts are deliberate constraints; this document does not call the existing implementation transactional.
+These facts remain deliberate constraints: **export publication is snapshot-atomic**, but the existing **restore is still not cross-store transactional**.
 
 ## 2. Export format and commit protocol
 
@@ -70,4 +70,4 @@ Quality gates: bounded background I/O and memory, test all current-head platform
 
 Chosen contract: *snapshot → stage+hash → durable publish* for export, and *read-only preflight → explicit preview → cross-store atomic commit/rollback* for import. This preserves existing history semantics while making partial and disconnected media truthful.
 
-This document satisfies the **design** deliverable in #485.4. Shipping and claiming the transactional feature requires a separate implementation of this contract and all validation in section 5; the app's current backup/restore code does not yet meet this design.
+This document satisfies the **design** deliverable in #485.4. The follow-up implements the snapshot-stage-digest-publish portion with pure integrity/interruption tests. The full restore protocol, preflight preview, checkpoint/rollback, stale-stage recovery UX and native validations in section 5 **remain unimplemented and are not claimed as shipped**.
