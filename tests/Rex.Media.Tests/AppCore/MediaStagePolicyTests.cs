@@ -223,6 +223,40 @@ public sealed class MediaStagePolicyTests
             MediaStagePolicy.Resolve(new MediaStageContext(true, Shelf: shelf)).Profile);
     }
 
+    [Fact]
+    public void ChapterJumpEligibilityIsSharedByStageMenuAndActionGuards()
+    {
+        var duration = TimeSpan.FromSeconds(6);
+        Assert.False(MediaStagePolicy.IsPlayableChapter(MediaTime.Unknown, duration));
+        Assert.False(MediaStagePolicy.IsPlayableChapter(MediaTime.FromSeconds(-1), duration));
+        Assert.True(MediaStagePolicy.IsPlayableChapter(MediaTime.Zero, duration));
+        Assert.True(MediaStagePolicy.IsPlayableChapter(MediaTime.FromSeconds(6), duration));
+        Assert.False(MediaStagePolicy.IsPlayableChapter(MediaTime.FromSeconds(7), duration));
+        Assert.True(MediaStagePolicy.IsPlayableChapter(MediaTime.FromSeconds(7), TimeSpan.Zero));
+        Assert.False(MediaStagePolicy.HasChapterJumps(null, duration));
+
+        var parsed = new MediaInfo
+        {
+            FormatName = "MP3",
+            Tracks = [],
+            Chapters =
+            [
+                new Chapter(MediaTime.Unknown, "Unreadable"),
+                new Chapter(MediaTime.FromSeconds(-1), "Negative"),
+                new Chapter(MediaTime.Zero, "Start"),
+                new Chapter(MediaTime.FromSeconds(3), "Middle"),
+                new Chapter(MediaTime.FromSeconds(8), "Outside"),
+            ],
+        };
+        Assert.True(MediaStagePolicy.HasChapterJumps(parsed, duration));
+        Assert.False(MediaStagePolicy.HasChapterJumps(parsed, TimeSpan.FromSeconds(2)));
+        Assert.True(MediaStagePolicy.HasChapterJumps(parsed, TimeSpan.Zero));
+        Assert.False(MediaStagePolicy.HasChapterJumps(parsed with
+        {
+            Chapters = [new Chapter(MediaTime.Zero, "Start")],
+        }, duration));
+    }
+
     [Theory]
     [InlineData(AudioShelf.Audiobooks)]
     [InlineData(AudioShelf.Podcasts)]
