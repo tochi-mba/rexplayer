@@ -144,6 +144,27 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void ARecordingTranscriptOpensFromTheLibraryWithoutAutoplay()
+    {
+        var media = _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromSeconds(12));
+        var cache = new Rex.Media.AppCore.Captions.TranscriptCache(
+            Rex.Media.AppCore.Captions.TranscriptCache.DefaultRoot(_scene.Root));
+        cache.Save(media, new Rex.Media.AppCore.Captions.Transcript("en", "base.en",
+            [new Rex.Media.AppCore.Captions.TranscriptWord("review.", TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2))]));
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Recordings");
+        Pointer.RightClick(app, app.Line("Recording 001"));
+        Wait.For(() => app.IsShown("LibraryMenuReadTranscript"), "the local recording transcript action");
+        app.Press("LibraryMenuReadTranscript");
+        Wait.For(() => app.IsShown("TranscriptReaderCue-0") &&
+            app.Text("TranscriptReaderCoverage").Contains("Saved transcript", StringComparison.Ordinal),
+            "saved speech to be readable without first starting playback");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
