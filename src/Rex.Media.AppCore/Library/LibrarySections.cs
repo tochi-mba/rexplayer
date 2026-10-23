@@ -20,6 +20,7 @@ public enum SidebarView
     Videos,
     Pictures,
     ContinueWatching,
+    Completed,
     RecentlyPlayed,
     RecentlyAdded,
     Playlists,
@@ -64,6 +65,9 @@ public sealed record LibraryFacts
     /// <summary>A video left part-way.</summary>
     public bool ContinueWatching { get; init; }
 
+    /// <summary>A complete book, finished video, podcast episode, song or recording.</summary>
+    public bool Completed { get; init; }
+
     /// <summary>Something played lately that is still there.</summary>
     public bool RecentlyPlayed { get; init; }
 
@@ -80,7 +84,7 @@ public sealed record LibraryFacts
     /// </summary>
     public static LibraryFacts Of(IReadOnlyCollection<LibraryEntry> entries, IReadOnlyCollection<LibraryEntry> music, ListeningShelves listening,
         Func<LibraryEntry, bool> isMovie, Func<LibraryEntry, bool> isEpisode, Func<LibraryEntry, bool>? isOtherVideo,
-        Func<string, TimeSpan?> leftAt, bool recentlyPlayed, bool playlists, bool folders)
+        Func<string, TimeSpan?> leftAt, bool recentlyPlayed, bool playlists, bool folders, bool completed = false)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(music);
@@ -105,6 +109,7 @@ public sealed record LibraryFacts
             Videos = videos.Count > 0,
             Pictures = entries.Any(entry => entry.Kind == LibraryKind.Picture),
             ContinueWatching = videos.Any(video => leftAt(video.Path) is not null),
+            Completed = completed,
             RecentlyPlayed = recentlyPlayed,
             Playlists = playlists,
             Folders = folders,
@@ -152,7 +157,8 @@ public sealed class LibrarySections
             (SidebarView.Audiobooks, facts.Audiobooks), (SidebarView.Authors, facts.Authors), (SidebarView.Podcasts, facts.Podcasts), (SidebarView.Recordings, facts.Recordings),
             (SidebarView.Movies, facts.Movies), (SidebarView.TvShows, facts.TvShows), (SidebarView.OtherVideos, facts.OtherVideos),
             (SidebarView.Videos, facts.Videos), (SidebarView.Pictures, facts.Pictures),
-            (SidebarView.ContinueWatching, facts.ContinueWatching), (SidebarView.RecentlyPlayed, facts.RecentlyPlayed),
+            (SidebarView.ContinueWatching, facts.ContinueWatching), (SidebarView.Completed, facts.Completed),
+            (SidebarView.RecentlyPlayed, facts.RecentlyPlayed),
             (SidebarView.RecentlyAdded, facts.Music || facts.Audiobooks || facts.Podcasts || facts.Recordings || facts.Videos || facts.Pictures),
             (SidebarView.Playlists, facts.Playlists), (SidebarView.Folders, facts.Folders),
         })

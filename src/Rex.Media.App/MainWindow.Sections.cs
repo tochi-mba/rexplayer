@@ -64,9 +64,16 @@ public sealed partial class MainWindow
         var movies = LibraryViews.Movies(entries, MovieLookupOf).ToHashSet();
         var episodes = LibraryViews.TvShows(entries).SelectMany(show => show.Entries).ToHashSet();
         var otherVideos = LibraryViews.OtherVideos(entries, MovieLookupOf).ToHashSet();
+        // Completed is a data-dependent sidebar view, just like Continue watching. Do not
+        // expose it in an empty or unplayed library, and do not count a single completed
+        // audiobook chapter unless the whole book was marked finished.
+        var completed = CompletedMedia(entries);
+        var hasCompleted = completed.Books.Count > 0 || completed.Videos.Count > 0
+            || completed.Podcasts.Count > 0 || completed.Audio.Count > 0;
         var facts = Rex.Media.AppCore.Library.LibraryFacts.Of(entries, WithoutListening(entries), Listening(),
             movies.Contains, episodes.Contains, otherVideos.Contains, _player.LeftAt,
-            LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Count > 0, playlists > 0, folders > 0);
+            LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Count > 0, playlists > 0, folders > 0,
+            completed: hasCompleted);
         var wasShown = _sections.Looked && IsSourceShown(_librarySource);
         var now = DateTimeOffset.UtcNow;
         var present = LibrarySections.Present(facts);

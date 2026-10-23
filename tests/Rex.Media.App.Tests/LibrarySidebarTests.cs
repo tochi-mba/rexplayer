@@ -27,6 +27,19 @@ public sealed class LibrarySidebarTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void CompletedIsListedOnlyWhenThereIsFinishedMedia()
+    {
+        var song = _scene.Song("Sungba", "Mr. Money with the Vibe", 2022, "Amapiano");
+        using var app = _scene.Ready(played: [song]).Start();
+        Wait.For(() => app.IsListed("Completed"), "the Completed view for a fully played song",
+            () => string.Join(", ", app.ListedViews()));
+        app.Visit("Completed");
+        Wait.For(() => app.Lines().Length > 0, "finished media to appear in Completed");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void SongsListTheMusicViewsAndAVideoArrivingThenGoingBringsAndTakesTheVideoViews()
     {
         using var app = _scene.WithAsake().Ready().Start();
