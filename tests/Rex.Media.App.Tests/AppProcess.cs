@@ -133,7 +133,13 @@ internal sealed class AppProcess : IDisposable
         // Desktop screenshots must never include pixels outside the visible virtual
         // screen. Position the isolated test process before tests open modal popups,
         // since moving an already opened flyout can dismiss it.
-        app.FitOnDesktop();
+        // Tests of persisted window placement must exercise the app's own
+        // recovery logic, not the screenshot harness's positioning helper.
+        if (extraSettings is null || !extraSettings.Contains("\"window\"", StringComparison.Ordinal))
+        {
+            app.FitOnDesktop();
+        }
+
         return app;
     }
 
