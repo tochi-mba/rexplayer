@@ -437,6 +437,61 @@ public sealed class MacAppSmokeTests
     }
 
     [Fact]
+    public async Task TheMacLibraryWarnsWhenTheStoreCannotBeRead()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle),
+            "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-read-error-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var watched = Path.Combine(root, "watched");
+        Directory.CreateDirectory(watched);
+        var store = new DataRoots(root).LibraryStore;
+        File.WriteAllText(store, "An unreadable library store");
+        File.SetUnixFileMode(store, UnixFileMode.UserWrite);
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
+        {
+            UseShellExecute = false,
+        };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        try
+        {
+            using var app = Process.Start(start)!;
+            try
+            {
+                await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                    reply => reply is { Ok: true }, app, root);
+                var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+                Assert.True(opened?.Ok == true, "The library could not open with an unreadable persistent store.");
+                var summary = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" });
+                Assert.Contains("Changes will not be saved", summary?.Text ?? "");
+                var added = await Ask(pipe, new AutomationRequest { Command = "ui.add-folder", Paths = [watched] });
+                Assert.True(added?.Ok == false && added.Error?.Contains("forgotten", StringComparison.Ordinal) == true,
+                    "The temporary catalogue incorrectly promised persistent watched folders.");
+                var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+                Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0));
+                Assert.True(app.WaitForExit(Patience));
+                Assert.Equal(0, app.ExitCode);
+            }
+            finally
+            {
+                if (!app.HasExited)
+                {
+                    app.Kill();
+                    app.WaitForExit();
+                }
+            }
+        }
+        finally
+        {
+            File.SetUnixFileMode(store, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task TheMacLibraryReportsWhenFolderChangesCannotBeSaved()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
