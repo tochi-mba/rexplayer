@@ -131,6 +131,22 @@ public sealed class MediaStagePolicyTests
         Assert.True(MediaStagePolicy.Resolve(source).ShowLyrics);
     }
 
+    [Theory]
+    [InlineData(AudioShelf.Audiobooks)]
+    [InlineData(AudioShelf.Podcasts)]
+    public void ChapterActionsRequireCurrentStreamReadinessAndSeekSupport(AudioShelf shelf)
+    {
+        var ready = new MediaStageContext(true, StreamsKnown: true, HasAudioTrack: true,
+            CanSeek: true, Kind: LibraryKind.Music, Shelf: shelf, HasChapters: true);
+        Assert.True(MediaStagePolicy.Resolve(ready).ShowChapters);
+        Assert.False(MediaStagePolicy.Resolve(ready with { CanSeek = false }).ShowChapters);
+        Assert.False(MediaStagePolicy.Resolve(ready with { StreamsKnown = false }).ShowChapters);
+        Assert.False(MediaStagePolicy.Resolve(ready with { HasAudioTrack = false }).ShowChapters);
+        Assert.False(MediaStagePolicy.Resolve(ready with { HasChapters = false }).ShowChapters);
+        Assert.False(MediaStagePolicy.Resolve(ready with { HasVideoTrack = true }).ShowChapters);
+        Assert.False(MediaStagePolicy.Resolve(ready with { HasFailure = true }).ShowChapters);
+    }
+
     [Fact]
     public void StreamFactsOverrideWrongLibraryLabelsAndSeekingIsIndependent()
     {
