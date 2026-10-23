@@ -12,26 +12,73 @@ public sealed partial class MainWindow
     private readonly Dictionary<string, string?> _podcastShowNotes = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingPodcastShowNotes = new(StringComparer.OrdinalIgnoreCase);
 
-    private string PodcastDescription(LibraryGroup show)
+    /// <summary>Only a folder belonging to one show can supply its show-wide description.</summary>
+    private string? LocalShowNotesFolder(LibraryGroup show)
     {
-        const string fallback = "Local episodes only · No show description is saved with these files.";
         var folders = show.Entries.Select(entry => Path.GetDirectoryName(entry.Path) ?? "")
             .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (folders.Length != 1 || folders[0].Length == 0)
         {
-            return "Local episodes span multiple folders · No shared description is assumed.";
+            return null;
         }
 
         var folder = folders[0];
-        if (Listening().Podcasts.Any(other => !string.Equals(other.Name, show.Name, StringComparison.OrdinalIgnoreCase)
-            && other.Entries.Any(entry => string.Equals(Path.GetDirectoryName(entry.Path), folder, StringComparison.OrdinalIgnoreCase))))
+        return Listening().Podcasts.Any(other =>
+            !string.Equals(other.Name, show.Name, StringComparison.OrdinalIgnoreCase)
+            && other.Entries.Any(entry => string.Equals(Path.GetDirectoryName(entry.Path), folder,
+                StringComparison.OrdinalIgnoreCase))) ? null : folder;
+    }
+
+    private static IReadOnlyList<string> ShowNotesPaths(string folder) =>
+        [Path.Combine(folder, "show.notes.md"), Path.Combine(folder, "show.notes.txt")];
+
+    private async Task ShowPodcastShowNotesAsync(LibraryGroup show)
+    {
+        if (LocalShowNotesFolder(show) is not { } folder)
         {
-            return "Several shows share this folder · No common description is assumed.";
+            Say("This show's episodes do not have an unambiguous local notes folder.");
+            return;
+        }
+
+        string? notes;
+        try
+        {
+            notes = await Task.Run(() => ReadLocalNotes(ShowNotesPaths(folder)));
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException
+            or NotSupportedException or ArgumentException)
+        {
+            Say("The local show notes could not be read: " + error.Message);
+            return;
+        }
+
+        if (_closing)
+        {
+            return;
+        }
+
+        if (notes is null)
+        {
+            Say("No show.notes.md or show.notes.txt is saved with these local episodes.");
+            return;
+        }
+
+        await ShowPlainNotesDialogAsync("Show notes · " + show.Name, notes, "PodcastShowNotesText");
+    }
+
+    private string PodcastDescription(LibraryGroup show)
+    {
+        const string fallback = "Local episodes only · No show description is saved with these files.";
+        var folder = LocalShowNotesFolder(show);
+        if (folder is null)
+        {
+            return "Local episodes only · A show-wide description cannot safely be attributed across these folders.";
         }
 
         if (_podcastShowNotes.TryGetValue(folder, out var known))
         {
-            return known ?? fallback;
+            return known is null ? fallback : known.Length > 750
+                ? known[..750] + "… (Open show notes to read the rest.)" : known;
         }
 
         if (_pendingPodcastShowNotes.Add(folder))
@@ -40,9 +87,7 @@ public sealed partial class MainWindow
             {
                 try
                 {
-                    return ReadLocalNotes([
-                        Path.Combine(folder, "show.notes.md"),
-                        Path.Combine(folder, "show.notes.txt")]);
+                    return ReadLocalNotes(ShowNotesPaths(folder));
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException
                     or NotSupportedException or ArgumentException)
