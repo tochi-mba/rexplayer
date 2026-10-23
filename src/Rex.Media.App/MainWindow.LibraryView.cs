@@ -85,7 +85,12 @@ public sealed partial class MainWindow
 
     /// <summary>The key a view's choices are kept under: its name, or the kind of group opened in it, or the search.</summary>
     private string ViewKey(bool searching) => searching ? "Search"
-        : _librarySeason is not null ? (_librarySource == LibrarySource.Artists ? "Artists album" : "TvShows page")
+        : _librarySeason is not null ? _librarySource switch
+        {
+            LibrarySource.Artists => "Artists album",
+            LibrarySource.Authors => "Authors book",
+            _ => "TvShows page",
+        }
         : _libraryGroup is not null ? _librarySource + " group" : _librarySource.ToString();
 
     /// <summary>How the view is shown: as the user last set it, else as suits what it holds.</summary>
