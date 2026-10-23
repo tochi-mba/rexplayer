@@ -27,7 +27,7 @@ public sealed partial class MainWindow
                 NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
             {
-                Title = "Up Next — rexplayer",
+                Title = "Up Next - rexplayer",
                 MinSize = new CGSize(520, 400),
             };
             _queueWindow.ReleaseWhenClosed(false);
