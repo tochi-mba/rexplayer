@@ -25,13 +25,22 @@ public sealed class MacAppSmokeTests
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
         Directory.CreateDirectory(screenshots);
-        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer")) { UseShellExecute = false };
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
         start.Environment["REXPLAYER_ROOT"] = root;
         start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
         start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
         start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
         start.Environment["REXPLAYER_MAC_QUEUE_SCREENSHOTS"] = screenshots;
         using var app = Process.Start(start)!;
+        // Native runtime assertions happen before the managed logger exists. Drain both pipes
+        // immediately so a noisy startup cannot block, and include them if the smoke test fails.
+        var stdout = app.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+        var stderr = app.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         try
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
@@ -81,9 +90,19 @@ public sealed class MacAppSmokeTests
             Assert.Equal(0, app.ExitCode);
             Assert.Contains("rexplayer starting", await File.ReadAllTextAsync(Path.Combine(root, "logs", "rexplayer.log"), TestContext.Current.CancellationToken), StringComparison.Ordinal);
         }
-        catch (Exception ex)
+        catch (Exception error)
         {
-            throw new InvalidOperationException("Mac app smoke run failed; app log:" + LogTail(root), ex);
+            if (!app.HasExited)
+            {
+                app.Kill(entireProcessTree: true);
+            }
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await app.WaitForExitAsync(timeout.Token);
+            throw new InvalidOperationException(
+                "Mac app smoke test failed. App log:" + LogTail(root)
+                + Environment.NewLine + "Native stdout:" + Environment.NewLine + await stdout.WaitAsync(timeout.Token)
+                + Environment.NewLine + "Native stderr:" + Environment.NewLine + await stderr.WaitAsync(timeout.Token), error);
         }
         finally
         {
