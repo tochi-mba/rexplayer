@@ -32,6 +32,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.Text("NowPlaying") == "Sungba" &&
             app.Find("Stage").Current.Name == "NOW PLAYING playback stage",
             "the music stage to identify the playing song");
+        Screenshots.Match(app, "stage-song-windowed");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleLibrary);
         app.Visit("Movies");
@@ -39,14 +40,18 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Choose("Small Film");
         app.Press("LibraryPlay");
         Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage",
-            "the movie stage to identify its media type");
+            "the movie stage to identify its media type",
+            () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
+        Screenshots.Match(app, "stage-movie-windowed");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleLibrary);
         app.Visit("Pictures");
         app.Choose("still");
         app.Press("LibraryPlay");
         Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage",
-            "the picture stage to discard the old movie context");
+            "the picture stage to discard the old movie context",
+            () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
+        Screenshots.Match(app, "stage-picture-windowed");
         Assert.False(app.IsShown("Lyrics"), "Lyrics should not carry over to picture playback.");
         Assert.Equal(0, app.Close());
     }
