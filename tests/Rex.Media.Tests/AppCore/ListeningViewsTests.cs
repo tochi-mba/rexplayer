@@ -177,6 +177,47 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void UndatedPodcastEpisodesKeepStableTieBreaksInBothDirectionsAndSkipUnavailableFiles()
+    {
+        var first = AudioFile("Podcasts/Night Talk/ep-1.mp3", TimeSpan.FromMinutes(30), track: 1);
+        var second = AudioFile("Podcasts/Night Talk/ep-2.mp3", TimeSpan.FromMinutes(30), track: 2);
+        var third = AudioFile("Podcasts/Night Talk/ep-3.mp3", TimeSpan.FromMinutes(30), track: 3);
+        var show = new LibraryGroup("Night Talk", null, [third, first, second]);
+
+        Assert.Equal([first, second, third], ListeningViews.Episodes(show.Entries, oldestFirst: true));
+        Assert.Equal([third, second, first], ListeningViews.Episodes(show.Entries, oldestFirst: false));
+        Assert.Equal([first, third], ListeningViews.UnplayedInOrder(show, NeverLeft, entry => entry.Path != second.Path));
+        Assert.Equal([first, second, third], ListeningViews.UnplayedInOrder(show, NeverLeft));
+        Assert.Empty(ListeningViews.UnplayedInOrder(show, NeverLeft, _ => false));
+
+        var empty = new LibraryGroup("Empty show", null, []);
+        Assert.Equal(DateTime.MinValue, ListeningViews.NewestEpisode(empty));
+        Assert.Empty(ListeningViews.Episodes([], oldestFirst: true));
+        Assert.Empty(ListeningViews.UnplayedInOrder(empty, NeverLeft));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void PodcastHomeNeverListsFutureAddedEpisodesAndThousandEpisodeShowsHaveStableOrder()
+    {
+        var now = new DateTime(2024, 8, 1, 12, 0, 0, DateTimeKind.Utc);
+        var episodes = Enumerable.Range(1, 1000)
+            .Select(number => AudioFile($"Podcasts/Big Show/ep-{number:0000}.mp3", TimeSpan.FromMinutes(30), track: number)
+                with { Added = now.AddHours(-1), Modified = now.AddDays(-1) })
+            .Reverse().ToArray();
+        var future = AudioFile("Podcasts/Big Show/ep-future.mp3", TimeSpan.FromMinutes(30))
+            with { Added = now.AddDays(1), Modified = now };
+        var show = Assert.Single(ListeningViews.Shows([.. episodes, future]));
+        Assert.Equal(1001, show.Entries.Count);
+        Assert.Equal(episodes[^1].Path, ListeningViews.Episodes(show.Entries, oldestFirst: true)[0].Path);
+        Assert.DoesNotContain(future, ListeningViews.NewEpisodes(
+            new ListeningShelves([], [show], [], []), NeverLeft, now));
+        Assert.Equal(1000, ListeningViews.NewEpisodes(
+            new ListeningShelves([], [show], [], []), NeverLeft, now).Count);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnEpisodesDateComesFromItsTagsThenTheFileThenItsName()
     {
         var file = new DateTime(2024, 6, 2, 8, 0, 0, DateTimeKind.Utc);
