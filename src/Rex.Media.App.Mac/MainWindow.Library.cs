@@ -115,6 +115,13 @@ public sealed partial class MainWindow
             ((NSView)_libraryNextPage).AccessibilityLabel = "Next results page";
             _libraryPageSummary = NSTextField.CreateLabel("");
             _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
+
+            // A predictable AppKit key-view loop is needed when macOS Full Keyboard
+            // Access is disabled as well as when keyboard-only navigation is enabled.
+            _librarySearch.NextKeyView = _libraryCategory;
+            _libraryCategory.NextKeyView = _libraryPreviousPage;
+            _libraryPreviousPage.NextKeyView = _libraryNextPage;
+            _libraryNextPage.NextKeyView = _librarySearch;
             var pages = NSStackView.FromViews([_libraryPreviousPage, _libraryPageSummary, _libraryNextPage]);
             pages.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             pages.Spacing = 12;
@@ -344,9 +351,9 @@ public sealed partial class MainWindow
         _libraryWindow.RecalculateKeyViewLoop();
         _libraryWindow.MakeFirstResponder(_librarySearch);
         var before = _libraryWindow.FirstResponder;
-        _libraryWindow.SelectNextKeyView(_librarySearch);
+        _libraryWindow.SelectKeyViewFollowingView(_librarySearch);
         var after = _libraryWindow.FirstResponder;
-        _libraryWindow.SelectPreviousKeyView(_librarySearch);
+        _libraryWindow.SelectKeyViewPrecedingView(_libraryCategory);
         _libraryWindow.MakeFirstResponder(_librarySearch);
         return ReferenceEquals(before, after)
             ? AutomationReply.Failed("AppKit did not advance focus to another library control.")
