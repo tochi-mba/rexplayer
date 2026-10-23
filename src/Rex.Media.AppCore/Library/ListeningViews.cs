@@ -141,7 +141,7 @@ public static partial class ListeningViews
     public static DateTime EpisodeDate(LibraryEntry episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        if (episode.Year is >= 1 and <= 9999 and var year)
+        if (episode.Year is { } year && year is >= 1 and <= 9999)
         {
             return episode.Modified.Year == year ? episode.Modified : new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         }
