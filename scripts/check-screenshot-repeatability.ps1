@@ -42,6 +42,22 @@ foreach ($scene in $scenes) {
     $firstPath = "artifacts/screenshots/$FirstLane/actual/$($scene.id).png"
     $secondPath = "artifacts/screenshots/$SecondLane/actual/$($scene.id).png"
     try {
+        $firstEvidence = Get-Content "artifacts/screenshots/$FirstLane/actual/$($scene.id).json" -Raw | ConvertFrom-Json
+        $secondEvidence = Get-Content "artifacts/screenshots/$SecondLane/actual/$($scene.id).json" -Raw | ConvertFrom-Json
+        foreach ($evidence in @($firstEvidence, $secondEvidence)) {
+            if ($evidence.sceneId -ne $scene.id -or $evidence.fixture -ne $scene.fixture) {
+                throw "Independent run has the wrong scene identity or fixture."
+            }
+            if ($evidence.readinessAchieved -ne $true -or $evidence.pixelReadinessAchieved -ne $true) {
+                throw "Independent run lacks semantic or pixel readiness evidence."
+            }
+            if ($evidence.viewportMatchesDeclared -ne $true -or $evidence.fullyOnDesktop -ne $true) {
+                throw "Independent run has a mismatched viewport or clips the virtual screen."
+            }
+        }
+        if ($firstEvidence.commit -ne $secondEvidence.commit) {
+            throw "Repeated screenshots came from different source revisions."
+        }
         $first = Read-Picture $firstPath
         $second = Read-Picture $secondPath
         if ($first.Width -ne $second.Width -or $first.Height -ne $second.Height) {
