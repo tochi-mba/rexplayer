@@ -23,7 +23,7 @@ Columns for evidence should be added next to checked entries only after the evid
 - [ ] **481.2** Complete songs browsing with sortable columns, virtualization, selection, queue actions, and missing-file behavior.
 - [ ] **481.3** Complete album pages with reliable grouping, disc and track ordering, artwork fallback, and progress where meaningful.
 - [ ] **481.4** Complete artist pages without merging ambiguous artists or inventing biographies.
-- [ ] **481.5** Complete genre browsing while handling missing, multiple, malformed, and localized genre values.
+- [x] **481.5** Complete genre browsing while handling missing, multiple, malformed, and localized genre values. **Implemented:** `GenreNames.Split` handles multi-value delimiters, aliases, unknown scripts and Unicode scalar identity, now drops empty, control-only and punctuation-only damaged values; `LibraryViews.Genres` uses an honest Unknown genre fallback. **Tests:** `GenreNamesTests` including `CorruptControlOnlyGenresCannotCreateInvisibleHeadings`, `SupplementaryScriptGenresKeepTheirIdentityWhenDeduplicated`, `SeveralGenresInOneTagAreEachTheirOwn`, `ASongWithSeveralGenresAppearsUnderEachInTheLibrary`. Broad Windows gates remain #481.10/.11.
 - [ ] **481.6** Preserve playback, selection, scroll position, and route while metadata completes.
 - [ ] **481.7** Handle huge libraries, duplicate titles, Unicode, RTL, missing art, unavailable files, and disconnected storage.
 - [ ] **481.8** Keep network enrichment and download controls behind verified capabilities.
@@ -50,7 +50,7 @@ Columns for evidence should be added next to checked entries only after the evid
 ### [#482](https://github.com/tochi-mba/rexplayer/pull/482): Split Windows audio visualizer compatibility and persistence (10)
 
 - [x] **482.1** Inventory every visualizer mode, option, default, and persistence key against the current implementation. **Verified source-inventory deliverable:** [exact keys, 42 modes, default palettes, 146 specific options, ranges and all choices](visualizer-option-inventory.md) against `VisualizerChoice`, `VisualizerOptions.For`, and `VisualScene.Draws`; regression test `EachModeOptionHasAValidDefaultAndAStableDistinctPersistenceKey`. This does **not** close tasks #482.2–#482.9 (native controls and end-to-end quality checks).
-- [ ] **482.2** Verify switching modes preserves compatible values and resets incompatible values predictably.
+- [x] **482.2** Verify switching modes preserves compatible values and resets incompatible values predictably. **Source policy:** `MainWindow.VisualizerSettings` uses a shared dictionary keyed by lowercased mode names, and `VisualizerOptions.With`, `For` and `Reset` preserve independent mode settings, apply defaults to modes without entries, and only reset the selected prefix. **Tests:** `VisualizerGroupsTests.SwitchingVisualizerModesRestoresTheirOwnChoicesAndDefaultsWithoutCrossModeLeakage` and `EveryVisualizerOptionSurvivesIndependentSelectionAndReset`. Native UI transitions remain #482.4/.5/.8.
 - [ ] **482.3** Keep analysis off the UI thread and bound memory, CPU, and cancellation behavior.
 - [ ] **482.4** Verify pause, seek, track change, audio-device change, window resize, minimize, and shutdown transitions.
 - [ ] **482.5** Provide keyboard and assistive-technology access to every visualizer control.
@@ -67,7 +67,7 @@ Columns for evidence should be added next to checked entries only after the evid
 - [ ] **479.3** Complete show, season, and episode browsing with stable sorting and progress semantics.
 - [x] **479.4** Distinguish episode completion from season and series completion. **Implemented:** independent `ShowPage.WatchSummary` + `EpisodeWatchSummary`, explicit season and series text with accessible `LibraryViewingProgress` in `MainWindow.DetailsParts`. **Tests:** `ShowPageTests.AWatchedSeasonDoesNotMakeAnUnfinishedSeriesComplete` and season-switch assertions in `LibraryFoldersTests`; full UI/screenshot quality gates remain separately open in #479.7/#479.8.
 - [ ] **479.5** Handle specials, missing season numbers, duplicate episode numbers, multi-episode files, moved files, and damaged files.
-- [ ] **479.6** Verify resume targets after files disappear or metadata changes.
+- [x] **479.6** Verify resume targets after files disappear or metadata changes. **Implemented:** `ShowPage.NextUp` excludes unreadable episodes; `ShowPage.RefreshSeason` and `MainWindow.ResolveShowPage` replace stale season entry lists after a rescan, retaining the route if present and using a real fallback when its season disappears. **Tests:** `ShowPageTests.NextUpSkipsUnreadableEpisodesEvenWhenTheyWerePartWayPlayed`, `OpenSeasonRefreshKeepsItsRouteButNeverReusesMovedOrDamagedOldEntries`. Broad native quality gates remain #479.7/.8.
 - [ ] **479.7** Add Windows UI automation and deterministic screenshots for empty, populated, partial, and error states.
 - [ ] **479.8** Run pure coverage, Windows build, UI automation, accessibility, screenshot, performance, and warnings-as-errors gates.
 
