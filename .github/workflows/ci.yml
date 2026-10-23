@@ -233,6 +233,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Keep native Mac library screenshots
+        if: matrix.rid == 'osx-arm64' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mac-library-screenshots
+          path: artifacts/mac-library-screenshots/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Keep the app
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
