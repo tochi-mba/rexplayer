@@ -792,6 +792,111 @@
       "readinessSignal": "uia:PreferencesSection",
       "owner": "AppWindowTests.Shell",
       "baseline": "unreviewed"
+    },
+    {
+      "id": "library-home-empty",
+      "fixture": "empty-watched-folder",
+      "route": "library/home",
+      "state": "empty",
+      "dimensions": "default-window (not yet pinned)",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Home"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryFixtureVisualTests",
+      "baseline": "unreviewed"
+    },
+    {
+      "id": "library-songs-single",
+      "fixture": "one-tagged-song",
+      "route": "library/songs",
+      "state": "one-item",
+      "dimensions": "default-window (not yet pinned)",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Songs"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryFixtureVisualTests",
+      "baseline": "unreviewed"
+    },
+    {
+      "id": "library-home-mixed",
+      "fixture": "three-tagged-songs-one-movie-one-picture",
+      "route": "library/home",
+      "state": "mixed",
+      "dimensions": "default-window (not yet pinned)",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Home"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryFixtureVisualTests",
+      "baseline": "unreviewed"
+    },
+    {
+      "id": "library-home-mixed-compact",
+      "fixture": "three-tagged-songs-one-movie-one-picture",
+      "route": "library/home",
+      "state": "compact",
+      "dimensions": "720x640",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Home"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryFixtureVisualTests",
+      "baseline": "unreviewed"
+    },
+    {
+      "id": "library-songs-unicode-rtl",
+      "fixture": "cjk-and-arabic-tagged-songs",
+      "route": "library/songs",
+      "state": "unicode-rtl",
+      "dimensions": "default-window (not yet pinned)",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibraryTitle"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Songs"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryFixtureVisualTests",
+      "baseline": "unreviewed"
     }
   ]
 }
