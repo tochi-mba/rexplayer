@@ -92,22 +92,45 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Always scope podcast playback to its own show, including Home's mixed new/continue shelves.
-    /// No other show's episode may enter the automatic playback queue.
+    /// Opening an episode from a mixed Home/search shelf queues only available files from
+    /// its show, in the natural oldest-to-newest listening order. Disk probes are off-thread;
+    /// a later click or a route change invalidates the previous pending request.
     /// </summary>
     private void PlayPodcastEpisode(LibraryEntry episode)
     {
         var show = Listening().Podcasts.FirstOrDefault(candidate =>
             candidate.Entries.Any(item => LibraryViews.SameLocation(item.Path, episode.Path)));
-        if (show is null)
-        {
-            Play([episode], 0, resume: true);
-            return;
-        }
+        var ordered = show is null ? [episode] : ListeningViews.Episodes(show.Entries, oldestFirst: true);
+        var source = _librarySource;
+        var opened = _libraryGroup?.Name;
+        var request = Interlocked.Increment(ref _episodeQueueRequest);
+        Forget(Task.Run(() => ordered.Where(item => !item.Downloading
+                && item.Problem is null && File.Exists(item.Path)).ToList())
+            .ContinueWith(task => OnWindowThread(() =>
+            {
+                if (_closing || request != Volatile.Read(ref _episodeQueueRequest)
+                    || _librarySource != source || _libraryGroup?.Name != opened)
+                {
+                    return;
+                }
 
-        var index = show.Entries.ToList().FindIndex(item =>
-            LibraryViews.SameLocation(item.Path, episode.Path));
-        Play(show.Entries, index, resume: true);
+                if (!task.IsCompletedSuccessfully)
+                {
+                    Say("The local podcast files could not be checked.");
+                    return;
+                }
+
+                var playable = task.Result;
+                var index = playable.FindIndex(item =>
+                    LibraryViews.SameLocation(item.Path, episode.Path));
+                if (index < 0)
+                {
+                    Say("This episode is missing, incomplete or unavailable locally.");
+                    return;
+                }
+
+                Play(playable, index, resume: true);
+            }), TaskScheduler.Default));
     }
 
     private int _episodeQueueRequest;
