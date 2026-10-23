@@ -72,14 +72,13 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Marks the book finished (every part played, nowhere to resume) or not.</summary>
+    /// <summary>Marks the logical book finished without altering the files' play counts or resume points.</summary>
     private void MarkBookFinished(LibraryGroup book, bool finished)
     {
+        // Book completion belongs to the book, not its physical parts. Clearing each
+        // part's resume point here would make "Mark as unfinished" lose the reading place
+        // and would also change unrelated file-level completion history.
         Audiobooks.SetFinished(book, finished);
-        if (finished)
-        {
-            MarkListened([.. book.Entries.Select(part => part.Path)]);
-        }
 
         Say(finished ? $"{book.Name} marked as finished" : $"{book.Name} marked as unfinished");
         _shownLibrary = "";
