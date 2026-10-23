@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Library;
 
@@ -101,6 +102,25 @@ public static partial class ListeningViews
     }
 
     public const string UnknownAuthor = "Unknown author";
+
+    /// <summary>
+    /// Progress filters apply to a whole audiobook, not to any one chapter file.
+    /// Explicitly completed books stay completed even when part resume points remain.
+    /// </summary>
+    public static IReadOnlyList<LibraryGroup> FilterBooks(IReadOnlyList<LibraryGroup> books, LibraryFilter filter,
+        Func<string, TimeSpan?> leftAt, Func<LibraryGroup, bool> finished)
+    {
+        ArgumentNullException.ThrowIfNull(books);
+        ArgumentNullException.ThrowIfNull(leftAt);
+        ArgumentNullException.ThrowIfNull(finished);
+        return filter switch
+        {
+            LibraryFilter.Unwatched => [.. books.Where(book => !finished(book) && !Started(book, leftAt))],
+            LibraryFilter.InProgress => [.. books.Where(book => !finished(book) && Started(book, leftAt))],
+            LibraryFilter.Finished => [.. books.Where(finished)],
+            _ => books,
+        };
+    }
 
     /// <summary>
     /// One author card per distinct credited author, holding their books' parts. Unknown authors
