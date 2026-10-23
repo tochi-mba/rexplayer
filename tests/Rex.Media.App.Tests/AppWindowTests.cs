@@ -458,6 +458,27 @@ public sealed partial class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("META-09")]
+    public void KeyboardScrollingTimedLyricsPausesFollowingUntilExplicitlyResumed()
+    {
+        var song = Song(40);
+        File.WriteAllText(Path.ChangeExtension(song, ".lrc"),
+            "[00:00.00]First line\n[00:10.00]Second line\n[00:20.00]Third line\n[00:30.00]Fourth line\n");
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.IsShown("LyricLine-1"), "the timed lyrics to be available");
+        Input.Focus(app);
+        app.Find("LyricLine-1").SetFocus();
+        Input.Press("PageDown");
+        Wait.For(() => app.IsShown("LyricsFollow"), "manual scroll to reveal Return to current lyric line");
+
+        var resume = app.Find("LyricsFollow");
+        Assert.Contains("Return to current lyric line", resume.Current.Name, StringComparison.Ordinal);
+        app.Press("LyricsFollow");
+        Wait.For(() => !app.IsShown("LyricsFollow"), "resuming line following to hide the button");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SeekBarResetsWhenGaplessPlaylistAdvancesToTheNextFile()
     {
         var first = Song(6);
