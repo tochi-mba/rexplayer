@@ -165,7 +165,6 @@ public sealed partial class MainWindow
             pageLabel.Text = $"Paragraphs {first + 1}–{end} of {cues.Count}";
             for (var index = first; index < end; index++)
             {
-                var cueIndex = index;
                 var cue = cues[index];
                 var time = TimeText.Format(cue.Start, duration);
                 var button = new Button
