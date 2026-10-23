@@ -192,11 +192,18 @@ public sealed partial class MainWindow
 
         var place = chapter is not null ? new BookPlace(IndexOfPart(book, chapter.Part), chapter.Start)
             : Audiobooks.Finished(book) ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
-        if (book.Entries.Count == 0 || NotYetPlayable(book.Entries[Math.Clamp(place.Part, 0, book.Entries.Count - 1)]) is { } blocked)
+        if (book.Entries.Count == 0)
+        {
+            LibraryNotice.Message = "This book has no playable parts.";
+            LibraryNotice.IsOpen = true;
+            return;
+        }
+
+        if (NotYetPlayable(book.Entries[Math.Clamp(place.Part, 0, book.Entries.Count - 1)]) is { } blocked)
         {
             // An incomplete part must not change the current item's playback speed
             // or clear this book's finished flag merely because Play was clicked.
-            LibraryNotice.Message = book.Entries.Count == 0 ? "This book has no playable parts." : blocked;
+            LibraryNotice.Message = blocked;
             LibraryNotice.IsOpen = true;
             return;
         }
