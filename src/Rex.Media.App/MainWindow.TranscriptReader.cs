@@ -31,7 +31,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        var model = SpeechModels.For(_settings.KineticCaptions.TranscriptModel).Id;
+        var preferred = SpeechModels.For(_settings.KineticCaptions.TranscriptModel).Id;
+        var models = Enum.GetValues<Rex.Media.Settings.TranscriptModelChoice>()
+            .Select(choice => SpeechModels.For(choice).Id)
+            .Prepend(preferred).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var duration = selectedPath is null ? _player.Duration
             : _library?.Entry(media)?.Duration ?? TimeSpan.Zero;
         var loaded = await Task.Run(() =>
@@ -39,27 +42,34 @@ public sealed partial class MainWindow
             var file = new FileInfo(media);
             var ledger = _ledger.Find(TranscriptSignature.Of(file.Length, file.LastWriteTimeUtc));
             var failure = ledger is { State: TranscriptState.Failed } failed
-                && string.Equals(failed.Model, model, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(failed.Model, preferred, StringComparison.OrdinalIgnoreCase)
                 ? failed.Reason ?? "The transcription job failed." : null;
             if (failure is { Length: > 200 })
             {
                 failure = failure[..200] + "…";
             }
 
-            var original = _transcripts.Load(media, model);
-            var partial = original is null ? _transcripts.LoadPartial(media, model) : null;
-            original ??= partial?.ToTranscript();
-            if (original is null || original.IsEmpty)
+            foreach (var model in models)
             {
-                return (Content: (Transcript?)null, Complete: false, Edited: false, Failure: failure);
+                var original = _transcripts.Load(media, model);
+                var partial = original is null ? _transcripts.LoadPartial(media, model) : null;
+                original ??= partial?.ToTranscript();
+                if (original is null || original.IsEmpty)
+                {
+                    continue;
+                }
+
+                var edited = _transcripts.LoadEdited(media, model)?.MergeGenerated(
+                    original, partial?.Done ?? (duration > TimeSpan.Zero
+                        ? TimeRanges.Of([new TimeRange(TimeSpan.Zero, duration)]) : TimeRanges.Empty),
+                    partial?.Duration ?? duration, partial is null);
+                return (Content: edited?.Content ?? original, Model: model, Complete: partial is null,
+                    Edited: edited is not null,
+                    Failure: string.Equals(model, preferred, StringComparison.OrdinalIgnoreCase) ? failure : null);
             }
 
-            var edited = _transcripts.LoadEdited(media, model)?.MergeGenerated(
-                original, partial?.Done ?? (duration > TimeSpan.Zero
-                    ? TimeRanges.Of([new TimeRange(TimeSpan.Zero, duration)]) : TimeRanges.Empty),
-                partial?.Duration ?? duration, partial is null);
-            return (Content: edited?.Content ?? original, Complete: partial is null,
-                Edited: edited is not null, Failure: failure);
+            return (Content: (Transcript?)null, Model: preferred, Complete: false,
+                Edited: false, Failure: failure);
         });
         if (_closing || (selectedPath is null && _player.Item?.Location != media))
         {
@@ -84,6 +94,11 @@ public sealed partial class MainWindow
         var coverageText = loaded.Complete
             ? "Saved transcript · Local speech · Select a paragraph to jump to its time."
             : "Partial transcript · Some speech has not been transcribed yet.";
+        if (!string.Equals(loaded.Model, preferred, StringComparison.OrdinalIgnoreCase))
+        {
+            coverageText += " · Using another locally saved model because the preferred quality has no transcript.";
+        }
+
         if (loaded.Edited)
         {
             coverageText += " · Edited words shown; the generated original is preserved.";
@@ -292,7 +307,7 @@ public sealed partial class MainWindow
             ShowPosition();
             var dialog = new ContentDialog
             {
-                Title = "Read " + new TranscriptVariant(model, false).Quality + " transcript",
+                Title = "Read " + new TranscriptVariant(loaded.Model, false).Quality + " transcript",
                 Content = panel,
                 CloseButtonText = "Done",
                 XamlRoot = Content.XamlRoot,
