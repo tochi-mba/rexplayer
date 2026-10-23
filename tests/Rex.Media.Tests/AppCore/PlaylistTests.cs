@@ -247,6 +247,7 @@ public sealed class PlaylistTests
         Assert.Same(current, playlist.Current);
 
         playlist.RemoveEntries([playlist.Items[0]]);
+        playlist.Move(0, 1); // Reorder is a separate edit, never overwritten by stale Undo.
         Assert.False(playlist.CanUndoRemoval(before));
         var fresh = playlist.CaptureRemoval();
         playlist.Add([new PlaylistItem("new.mp3")]);
