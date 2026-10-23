@@ -132,6 +132,8 @@ public sealed partial class MainWindow
             stack.Spacing = 14;
             stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
+            stack.WantsLayer = true;
+            stack.Layer!.BackgroundColor = NSColor.WindowBackground.CGColor;
             _libraryWindow.ContentView = stack;
             _libraryScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
             _librarySummary.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
@@ -344,14 +346,14 @@ public sealed partial class MainWindow
             return AutomationReply.Failed("The library control is not available: " + target);
         }
 
-        button.PerformClick(null);
+        button.PerformClick(button);
         return new AutomationReply { Ok = true, Text = _libraryPageSummary?.StringValue };
     }
 
     private AutomationReply ChangeLibraryCategory(double? value)
     {
         if (_libraryWindow?.IsVisible != true || _libraryCategory is null || value is not { } index ||
-            !double.IsFinite(index) || index != Math.Truncate(index) || index < 0 || index >= _libraryCategory.NumberOfItems)
+            !double.IsFinite(index) || index != Math.Truncate(index) || index < 0 || index >= 6)
         {
             return AutomationReply.Failed("Choose a valid library category index.");
         }
@@ -392,21 +394,6 @@ public sealed partial class MainWindow
         content.LayoutSubtreeIfNeeded();
         using var bitmap = content.BitmapImageRepForCachingDisplayInRect(content.Bounds)
             ?? throw new InvalidOperationException("AppKit could not capture the library.");
-        // NSStackView is transparent. Supply the window background so text and controls
-        // do not disappear into a black/transparent PNG when the screenshot is reviewed.
-        NSGraphicsContext.SaveGraphicsState();
-        try
-        {
-            using var context = NSGraphicsContext.FromBitmapImageRep(bitmap);
-            NSGraphicsContext.CurrentContext = context;
-            NSColor.WindowBackground.SetFill();
-            NSBezierPath.FillRect(content.Bounds);
-        }
-        finally
-        {
-            NSGraphicsContext.RestoreGraphicsState();
-        }
-
         content.CacheDisplay(content.Bounds, bitmap);
         using var png = bitmap.RepresentationUsingTypeProperties(NSBitmapImageFileType.Png)
             ?? throw new InvalidOperationException("AppKit could not encode the library screenshot.");
