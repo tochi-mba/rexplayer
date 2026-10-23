@@ -172,7 +172,7 @@ public static class LibraryBackup
         }
 
         if (manifest is not { Format: CompletionVersion, Files: { Count: > 0 } }
-            || !manifest.Files.Any(file => file.Path == FileName))
+            || !manifest.Files.Any(file => file is not null && file.Path == FileName))
         {
             throw new FormatException("The backup completion marker is missing or unsupported.");
         }
@@ -180,7 +180,7 @@ public static class LibraryBackup
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in manifest.Files)
         {
-            if (!SafeRelativePath(item.Path) || !names.Add(item.Path)
+            if (item is null || !SafeRelativePath(item.Path) || !names.Add(item.Path)
                 || item.Sha256 is not { Length: 64 } || item.Length < 0)
             {
                 throw new FormatException("The backup completion marker has an unsafe entry.");
