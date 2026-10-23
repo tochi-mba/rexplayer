@@ -12,6 +12,24 @@ public sealed class MediaStageWindowTests : IDisposable
     public void Dispose() => _scene.Dispose();
 
     [Fact]
+    public void ATelevisionEpisodeGetsItsOwnAccessibleContextAndStillFrame()
+    {
+        var episode = _scene.Video("North.Shore.S01E01.Pilot.mp4",
+            length: TimeSpan.FromMinutes(42));
+        _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
+        using var app = AppProcess.Start([episode], root: _scene.Root);
+        Wait.For(() => app.Find("Stage").Current.Name == "TV EPISODE playback stage"
+            && app.Find("SeekBar").Current.IsEnabled,
+            "the proven episode stream");
+        Wait.For(() => app.Status().State == "Ended", "a settled final episode frame");
+        Assert.Contains("North Shore", app.Text("NowPlayingContext"), StringComparison.OrdinalIgnoreCase);
+        Assert.False(app.IsShown("Lyrics"));
+        Assert.False(app.IsShown("StageChaptersButton"));
+        Screenshots.Match(app, "stage-television");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void DirectVideoRetainsItsAccessibleProfileAfterTheShortFixtureEnds()
     {
         var file = Rex.Media.TestKit.RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
