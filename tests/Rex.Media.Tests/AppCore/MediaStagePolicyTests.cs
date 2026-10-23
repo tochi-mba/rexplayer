@@ -103,10 +103,14 @@ public sealed class MediaStagePolicyTests
         Assert.False(openingMovie.CanSeek);
 
         var openingSong = MediaStagePolicy.Resolve(new MediaStageContext(true,
-            Kind: LibraryKind.Music, HasLyrics: false));
+            Kind: LibraryKind.Music, Shelf: AudioShelf.Music, HasLyrics: true));
         Assert.Equal(MediaStageProfile.Song, openingSong.Profile);
         Assert.False(openingSong.ShowAudioPresentation);
-        Assert.False(openingSong.ShowLyrics);
+        Assert.False(openingSong.ShowLyrics, "Do not display a previous song's lyrics before the new stream opens.");
         Assert.False(openingSong.ShowChapters);
+
+        var openingBook = MediaStagePolicy.Resolve(new MediaStageContext(true,
+            Kind: LibraryKind.Music, Shelf: AudioShelf.Audiobooks, HasChapters: true));
+        Assert.False(openingBook.ShowChapters, "Chapters should wait until the current stream is known.");
     }
 }
