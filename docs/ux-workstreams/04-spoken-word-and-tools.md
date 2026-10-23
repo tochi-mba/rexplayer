@@ -16,8 +16,20 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 
 ## Honest current delivery state
 - [x] Transfer these requirements to an independently owned, versioned scoped plan in this branch.
-- [ ] **Implement the actual code and tests.** At creation this PR is a *planning-only draft* and its checkboxes must remain unchecked until implementation and verification.
+- [ ] **Implement the actual code and tests.** The PR began as a *planning-only draft*. Bounded source fixes and regression tests are now present, but the full owned scope and verification remain open.
 - [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
+
+## Implementation checkpoints — 2026-10-23
+These checkpoints track **committed changes**, not feature acceptance or passing test results. They do not close any of the 63 roadmap tasks or eight release gates.
+
+- [x] Read `AGENTS.md`, ADR-0020 and existing LIB-05 coverage. Mapped current spoken-word logic to `ListeningViews`, `MainWindow.Listening`, `MainWindow.ListeningActions` and `MainWindow.LibraryPlayback`; mapped existing portable and Windows UI assertions to `ListeningViewsTests` and `LibraryListeningTests`.
+- [x] Commit guarded book resume/progress behavior for empty books, missing playback timestamps, missing/zero durations, and out-of-range positions; add portable regression assertions. [Source](https://github.com/tochi-mba/rexplayer/commit/682a1c4064e255ce6f1332f38503aed50cf0cc15) · [Tests](https://github.com/tochi-mba/rexplayer/commit/1450c003bc7c8ccb910f8edf3611088009af2dce)
+- [x] Commit Authors → Book → Chapter queue isolation and its Windows UI Automation regression test. [Source](https://github.com/tochi-mba/rexplayer/commit/21a4f6d736cdc5b5faaf6cce3c19113a95d30228) · [Test](https://github.com/tochi-mba/rexplayer/commit/8f2edca277aae774207dee7663c44b7bccf8c529)
+- [ ] Confirm pure and coverage suites are green on the final branch head; tests were committed but have not yet been observed passing.
+- [ ] Confirm Windows UI Automation, screenshot, accessibility, performance and warnings-as-errors evidence on the final branch head.
+- [ ] Continue with the remaining roadmap tasks; **none of the 63 umbrella tasks is represented as fully delivered by these fixes**.
+
+**Environment note:** No local .NET SDK or Windows test runtime was available for this edit session. GitHub Actions is the source for actual build/test verification; its results must not be inferred while a run is pending.
 
 ## Detailed task list — 63 uniquely owned roadmap tasks
 The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
