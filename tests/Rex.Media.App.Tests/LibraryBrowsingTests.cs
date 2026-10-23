@@ -97,6 +97,7 @@ public sealed class LibraryBrowsingTests : IDisposable
         app.Pick("LibraryLook", "Collage");
         Wait.For(() => app.IsShown("LibraryCollage") && !app.IsShown("LibraryList"), "the collage");
         app.Line("Sungba", "LibraryCollage");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-songs-collage", "LibraryPane");
         app.Pick("LibraryLook", "List");
         Wait.For(() => app.IsShown("LibraryList") && !app.IsShown("LibraryCollage"), "the list again");
@@ -169,6 +170,7 @@ public sealed class LibraryBrowsingTests : IDisposable
         app.Filter("LibraryFilterProgress", "InProgress");
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText").StartsWith("Nothing here matches these filters", StringComparison.Ordinal), "the filtered empty state");
         Wait.For(() => app.IsShown("LibraryEmptyClearFilters"), "the Clear filters button");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-empty-filters", "LibraryPane");
         app.Press("LibraryEmptyClearFilters");
         Wait.For(() => app.Lines().Length == 3, "Clear filters to bring the songs back");
