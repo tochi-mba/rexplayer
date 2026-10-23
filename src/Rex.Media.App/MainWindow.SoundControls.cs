@@ -47,6 +47,18 @@ public sealed partial class MainWindow
         repeat.Unchecked += (_, _) => _player.Playlist.Repeat = originalRepeat;
         panel.Children.Add(repeat);
 
+        // Repeat-one belongs to this one sound, not to whatever happens to play next
+        // while the controls dialog remains open.
+        EventHandler? changed = (_, _) =>
+        {
+            if (repeat.IsChecked == true && _player.Item?.Location is { } now
+                && !LibraryViews.SameLocation(now, sound.Path))
+            {
+                repeat.IsChecked = false;
+            }
+        };
+        _player.Changed += changed;
+
         var volumeLabel = new TextBlock { Text = "Playback volume" };
         var volume = new Slider
         {
@@ -74,6 +86,7 @@ public sealed partial class MainWindow
         }
         finally
         {
+            _player.Changed -= changed;
             if (repeat.IsChecked == true)
             {
                 _player.Playlist.Repeat = originalRepeat;
