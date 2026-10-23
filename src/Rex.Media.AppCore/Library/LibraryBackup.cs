@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -13,6 +14,12 @@ public sealed record LibraryBackupData(int Version, IReadOnlyList<string> Folder
 /// <summary>What a restore brought in.</summary>
 public sealed record BackupSummary(int Folders, int Entries, int Playlists);
 
+/// <summary>One file in a finished backup, with its exact byte length and SHA-256 digest.</summary>
+public sealed record BackupFileDigest(string Path, long Length, string Sha256);
+
+/// <summary>The final manifest published only after every backup payload has been flushed.</summary>
+public sealed record BackupCompletion(int Format, IReadOnlyList<BackupFileDigest> Files);
+
 /// <summary>
 /// Backing the library up and bringing it back (LIB-10): one JSON file with the watched folders,
 /// every file the library knows (with its play count) and the named playlists, and beside it each
@@ -25,6 +32,9 @@ public static class LibraryBackup
     public const string FileName = "rexplayer library.json";
     public const string PlaylistFolder = "Playlists";
     public const int CurrentVersion = 1;
+    public const string CompletionName = "complete.json";
+    public const string PublishedPrefix = "rexplayer backup ";
+    public const int CompletionVersion = 1;
 
     /// <summary>The backup's files, by their path inside the folder it goes in.</summary>
     public static IReadOnlyList<(string Path, byte[] Bytes)> Export(MediaLibrary library, IReadOnlyList<NamedPlaylist> playlists)
@@ -54,6 +64,155 @@ public static class LibraryBackup
 
         return files;
     }
+
+    /// <summary>
+    /// Publish a complete snapshot as one new directory in the chosen parent folder.
+    /// The stage is never offered as a valid backup; the previous published folders
+    /// are not touched. A writer is injectable for deterministic fault tests.
+    /// </summary>
+    public static string PublishSnapshot(string parent, IReadOnlyList<(string Path, byte[] Bytes)> files,
+        CancellationToken cancellationToken = default, Action<string, byte[]>? writer = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parent);
+        ArgumentNullException.ThrowIfNull(files);
+        if (files.Count == 0 || !files.Any(file => file.Path == FileName))
+        {
+            throw new FormatException("The backup has no rexplayer library manifest.");
+        }
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (path, bytes) in files)
+        {
+            if (!SafeRelativePath(path) || !names.Add(path) || bytes is null)
+            {
+                throw new FormatException("The backup contains an unsafe or duplicate file name.");
+            }
+        }
+
+        Directory.CreateDirectory(parent);
+        var parentPath = Path.GetFullPath(parent);
+        var nonce = Guid.NewGuid().ToString("N");
+        var published = Path.Combine(parentPath, PublishedPrefix + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + "-" + nonce);
+        var stage = Path.Combine(parentPath, "." + nonce + ".staging");
+        try
+        {
+            Directory.CreateDirectory(stage);
+            var hashes = new List<BackupFileDigest>();
+            foreach (var (relative, bytes) in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var file = Path.Combine(stage, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                if (writer is { } custom)
+                {
+                    custom(file, bytes);
+                }
+                else
+                {
+                    using var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                    stream.Write(bytes);
+                    stream.Flush(flushToDisk: true);
+                }
+
+                hashes.Add(new BackupFileDigest(relative, bytes.LongLength, Convert.ToHexString(SHA256.HashData(bytes))));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var manifest = new BackupCompletion(CompletionVersion, hashes);
+            var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest, BackupJson.Default.BackupCompletion);
+            using (var stream = new FileStream(Path.Combine(stage, CompletionName), FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(manifestBytes);
+                stream.Flush(flushToDisk: true);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            Directory.Move(stage, published);
+            return published;
+        }
+        finally
+        {
+            // A failure never publishes an incomplete folder and never damages
+            // any prior successful backup.
+            if (Directory.Exists(stage))
+            {
+                Directory.Delete(stage, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Read a legacy v1 JSON backup or verify every file of a complete published
+    /// snapshot before mutating the destination library.
+    /// </summary>
+    public static LibraryBackupData ReadFromFile(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var folder = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        var completion = Path.Combine(folder, CompletionName);
+        if (!File.Exists(completion))
+        {
+            if (Path.GetFileName(folder).StartsWith(PublishedPrefix, StringComparison.Ordinal))
+            {
+                throw new FormatException("That snapshot has no completion marker and was not published fully.");
+            }
+
+            // Old rexplayer backups have only a JSON file; retain their import path.
+            return Read(File.ReadAllBytes(path));
+        }
+
+        BackupCompletion? manifest;
+        try
+        {
+            manifest = JsonSerializer.Deserialize(File.ReadAllBytes(completion), BackupJson.Default.BackupCompletion);
+        }
+        catch (JsonException ex)
+        {
+            throw new FormatException("The backup completion marker cannot be read.", ex);
+        }
+
+        if (manifest is not { Format: CompletionVersion, Files: { Count: > 0 } }
+            || !manifest.Files.Any(file => file.Path == FileName))
+        {
+            throw new FormatException("The backup completion marker is missing or unsupported.");
+        }
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in manifest.Files)
+        {
+            if (!SafeRelativePath(item.Path) || !names.Add(item.Path)
+                || item.Sha256 is not { Length: 64 } || item.Length < 0)
+            {
+                throw new FormatException("The backup completion marker has an unsafe entry.");
+            }
+
+            var file = Path.Combine(folder, item.Path);
+            if (!File.Exists(file))
+            {
+                throw new FormatException("A file from the backup is missing: " + item.Path);
+            }
+
+            var bytes = File.ReadAllBytes(file);
+            if (bytes.LongLength != item.Length || !Convert.ToHexString(SHA256.HashData(bytes)).Equals(item.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new FormatException("A file from the backup does not match its recorded digest: " + item.Path);
+            }
+        }
+
+        if (!string.Equals(Path.GetFileName(path), FileName, StringComparison.Ordinal))
+        {
+            throw new FormatException("Choose the rexplayer library.json file inside the verified backup folder.");
+        }
+
+        return Read(File.ReadAllBytes(path));
+    }
+
+    /// <summary>Only file names inside the chosen folder, with no traversal or rooted paths.</summary>
+    private static bool SafeRelativePath(string path) =>
+        !string.IsNullOrWhiteSpace(path) && !Path.IsPathRooted(path)
+        && !path.Contains(':', StringComparison.Ordinal)
+        && !path.Split(['/', '\\']).Any(part => part is "" or "." or "..")
+        && !string.Equals(Path.GetFileName(path), CompletionName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>A backup's contents; text that is no backup, or one from a newer rexplayer, throws FormatException.</summary>
     public static LibraryBackupData Read(byte[] json)
@@ -118,4 +277,5 @@ public static class LibraryBackup
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(LibraryBackupData))]
+[JsonSerializable(typeof(BackupCompletion))]
 internal sealed partial class BackupJson : JsonSerializerContext;
