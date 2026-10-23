@@ -406,6 +406,9 @@ jobs:
             if (-not (Test-Path "$prefix.png")) {
               $errors.Add("$($scene.id): no rendered PNG")
             }
+            if (-not (Test-Path "artifacts/screenshots/ci-windows/window/$($scene.id).png")) {
+              $errors.Add("$($scene.id): no full application window evidence")
+            }
             if (-not (Test-Path "$prefix.json")) {
               $errors.Add("$($scene.id): no UIA and capture metadata")
               continue
