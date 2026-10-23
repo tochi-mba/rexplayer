@@ -18,7 +18,8 @@ public partial class LibraryRow(
     string badge = "",
     double progress = 0,
     bool isPlaying = false,
-    string accessibilitySuffix = "") : INotifyPropertyChanged
+    string accessibilitySuffix = "",
+    bool showProgress = false) : INotifyPropertyChanged
 {
     [ThreadStatic]
     private static Brush? s_defaultTile;
@@ -69,7 +70,7 @@ public partial class LibraryRow(
     /// <summary>How far through a video left part-way it was stopped, 0 to 1; 0 for the rest.</summary>
     public double Progress { get; } = progress;
 
-    public Visibility ProgressVisibility => Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ProgressVisibility => showProgress || Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Whether this row is another representation of the item currently in the player.</summary>
     public bool IsPlaying => _isPlaying;
