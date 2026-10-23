@@ -71,6 +71,25 @@ public sealed class LibraryMusicTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void MusicHomePinsOnlyRealAlbumsAndAllowsRemovingThem()
+    {
+        var played = AsakeAcrossAlbums();
+        using var app = _scene.Ready(KeepBrowsing, played).Start();
+
+        app.Visit("Music");
+        Wait.For(() => app.IsShown("MusicHeroPin"), "a keyboard-accessible pin control on the featured real album");
+        Assert.False(app.IsShown("MusicShelf-Pinned"));
+
+        app.Press("MusicHeroPin");
+        Wait.For(() => app.IsShown("MusicShelf-Pinned"), "the pinned shelf to appear after saving");
+        Card(app, "Pinned", "Work of Art");
+        app.Press("MusicHeroPin");
+        Wait.For(() => !app.IsShown("MusicShelf-Pinned"), "the empty pinned shelf to disappear");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnAlbumPageShowsItsHeaderTracksDiscsAndMoreByTheArtist()
     {
         AsakeAcrossAlbums();
