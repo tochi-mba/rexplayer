@@ -41,6 +41,7 @@ public sealed class MacAppSmokeTests
             var library = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(library?.Ok == true, "The Mac library command did not open: " + (library?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The app stopped answering with its library open." + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "empty", root);
             var back = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(back?.Ok == true, "The Mac library did not close through its shared command: " + (back?.Error ?? "no reply") + LogTail(root));
 
@@ -105,6 +106,15 @@ public sealed class MacAppSmokeTests
             var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "populated", root);
+            var searched = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
+            Assert.True(searched?.Ok == true && searched.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Searching the native library failed: " + (searched?.Text ?? searched?.Error ?? "no reply") + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "searched", root);
+            var noMatches = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "no-such-video-name" });
+            Assert.True(noMatches?.Ok == true && noMatches.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
+                "An unmatched native search did not clear the results: " + (noMatches?.Text ?? noMatches?.Error ?? "no reply") + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "no-matches", root);
 
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
@@ -125,6 +135,18 @@ public sealed class MacAppSmokeTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    private static async Task CaptureLibraryScreenshot(string pipe, string name, string root)
+    {
+        var directory = Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOTS") ?? root;
+        var file = Path.Combine(directory, "mac-library-" + name + ".png");
+        var reply = await Ask(pipe, new AutomationRequest { Command = "ui.snapshot", Path = file });
+        Assert.True(reply?.Ok == true, "Capturing the " + name + " library failed: " + (reply?.Error ?? "no reply") + LogTail(root));
+        Assert.True(File.Exists(file), "The native library did not save its " + name + " screenshot.");
+        var bytes = await File.ReadAllBytesAsync(file, TestContext.Current.CancellationToken);
+        Assert.True(bytes.Length > 100, "The native library screenshot is empty.");
+        Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes.Take(8).ToArray());
     }
 
     private static Task<AutomationReply?> Ask(string pipe, AutomationRequest request) =>
