@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Text;
-using Rex.Media.IO;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Commands;
 using Windows.Storage.Pickers;
@@ -75,16 +73,7 @@ public sealed partial class MainWindow
             // Some transcripts have hundreds of thousands of words. Serialize
             // and write away from the window thread, then atomically publish
             // only the complete file: a full disk must not leave a corrupt SRT.
-            await Task.Run(() =>
-            {
-                var text = Path.GetExtension(file.Path).ToLowerInvariant() switch
-                {
-                    ".vtt" => transcript.ToWebVtt(),
-                    ".json" => transcript.ToJson(),
-                    _ => transcript.ToSrt(),
-                };
-                AtomicFile.Write(file.Path, Encoding.UTF8.GetBytes(text));
-            });
+            await Task.Run(() => TranscriptFileExport.Write(file.Path, transcript));
             if (!_closed && !_closing)
             {
                 Say("Saved the transcript to " + file.Path);
