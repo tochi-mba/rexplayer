@@ -797,7 +797,7 @@ public sealed class PlayerControllerTests
         using var harness = new ControllerHarness(autoPlay: false,
             sidecars: new() { ["a.wav"] = ["a.srt"] });
         harness.Files["a.wav"] = Count(0, 40_000);
-        harness.Files["a.srt"] = Srt("1\\n00:00:01,000 --> 00:00:03,000\\nFrom the old file\\n");
+        harness.Files["a.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nFrom the old file\n");
         var controller = harness.Controller;
         var updates = 0;
         controller.SubtitlesChanged += (_, _) => updates++;
