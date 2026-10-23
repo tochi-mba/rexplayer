@@ -240,6 +240,46 @@ public sealed partial class AppWindowTests
     }
 
     [Fact]
+    [Capability("UI-10")]
+    public void HighDpiStageRequiresRealMonitorScalingBeforeRecordingEvidence()
+    {
+        if (Screenshots.Lane != "ci-windows-high-dpi")
+        {
+            return;
+        }
+
+        using var app = AppStartedAt(1000, 700, "Dark");
+        Assert.True(WindowPicture.Dpi(app.Handle) > 96,
+            "High-DPI captures need a real scaled Windows monitor, not a resized bitmap.");
+        var window = app.Window.Current.BoundingRectangle;
+        var play = app.Find("PlayPauseButton").Current.BoundingRectangle;
+        Assert.True(play.Width > 0 && play.Height > 0
+            && play.Left >= window.Left && play.Right <= window.Right
+            && play.Top >= window.Top && play.Bottom <= window.Bottom,
+            "Playback must remain accessible at the measured monitor DPI.");
+        Screenshots.Match(app, "stage-welcome-high-dpi");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-13")]
+    public void HighContrastStageRequiresTheActualWindowsAccessibilityTheme()
+    {
+        if (Screenshots.Lane != "ci-windows-high-contrast")
+        {
+            return;
+        }
+
+        Assert.True(WindowPicture.HighContrast,
+            "High-contrast captures require the real Windows accessibility setting.");
+        using var app = AppStartedAt(1000, 700, "Dark");
+        Assert.True(app.IsShown("IdleTitle") && app.IsShown("PlayPauseButton"),
+            "The welcome stage and primary transport must remain visible in high contrast.");
+        Screenshots.Match(app, "stage-welcome-high-contrast");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("UI-04")]
     public void FullScreenRetainsThePausedAudioStageAndRestoresWindowedTransport()
     {

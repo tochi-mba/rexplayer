@@ -163,6 +163,10 @@
     { "id": "stage-movie-windowed", "fixture": "library-movie", "route": "player/movie", "state": "ended", "dimensions": "1000x700", "theme": "dark",
       "expectedAutomationIds": ["Stage"], "expectedVisibleData": [], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
     { "id": "stage-picture-windowed", "fixture": "library-picture", "route": "player/picture", "state": "playing", "dimensions": "1000x700", "theme": "dark",
-      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" }
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-welcome-high-dpi", "fixture": "empty-player", "route": "player/idle", "state": "high-dpi", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage","PlayPauseButton"], "expectedVisibleData": [], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows-high-dpi" },
+    { "id": "stage-welcome-high-contrast", "fixture": "empty-player", "route": "player/idle", "state": "high-contrast", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage","PlayPauseButton"], "expectedVisibleData": [], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows-high-contrast" }
   ]
 }
