@@ -63,7 +63,7 @@ public sealed partial class MainWindow
             description.TextColor = NSColor.SecondaryLabel;
             var add = NSButton.CreateButton("Add folder…", AddLibraryFolder);
             var rescan = NSButton.CreateButton("Rescan", () => _libraryScanner?.Request());
-            var close = NSButton.CreateButton("Back to player", () => _libraryWindow?.OrderOut(null));
+            var close = NSButton.CreateButton("Back to player", HideLibrary);
             var actions = NSStackView.FromViews([add, rescan, close]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 10;
@@ -140,6 +140,7 @@ public sealed partial class MainWindow
         RefreshLibrary();
         _libraryWindow.MakeKeyAndOrderFront(null);
         _libraryWindow.MakeFirstResponder(_librarySearch);
+        ShowChecks();
     }
 
     private void AddLibraryFolder()
@@ -280,12 +281,19 @@ public sealed partial class MainWindow
             + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "");
     }
 
+    /// <summary>Return focus to playback when the library is dismissed.</summary>
+    private void HideLibrary()
+    {
+        _libraryWindow?.OrderOut(null);
+        _window.MakeKeyAndOrderFront(null);
+        ShowChecks();
+    }
+
     private void PlayLibraryEntry(LibraryEntry chosen, IReadOnlyList<LibraryEntry> selection)
     {
         var at = selection.ToList().FindIndex(entry => string.Equals(entry.Path, chosen.Path, StringComparison.OrdinalIgnoreCase));
         _player.PlayFromLibrary(selection, Math.Max(0, at));
-        _libraryWindow?.OrderOut(null);
-        _window.MakeKeyAndOrderFront(null);
+        HideLibrary();
     }
 
     private void CloseLibrary()
