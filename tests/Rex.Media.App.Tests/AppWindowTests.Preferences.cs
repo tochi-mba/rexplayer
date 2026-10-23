@@ -172,11 +172,11 @@ public sealed partial class AppWindowTests
             .GetCurrentPattern(ExpandCollapsePattern.Pattern)).Current.ExpandCollapseState);
 
         search.SetValue("a setting that does not exist 012345");
-        Wait.For(() => !app.Find("PreferencesSearchEmpty").Current.IsOffscreen, "search to explain no matching results");
+        Wait.For(() => app.IsShown("PreferencesSearchEmpty"), "search to explain no matching results");
 
         // Restoring the search should restore a useful section instead of the no-results state.
         search.SetValue("sUbTiTlE");
-        Wait.For(() => Section() == "Subtitles" && app.Find("PreferencesSearchEmpty").Current.IsOffscreen,
+        Wait.For(() => Section() == "Subtitles" && !app.IsShown("PreferencesSearchEmpty"),
             "search to recover after no matches");
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
