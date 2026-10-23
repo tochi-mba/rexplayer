@@ -364,6 +364,21 @@ jobs:
           REXPLAYER_UI_LANE: ci-windows
         run: ./dev.ps1 ui
 
+      - name: Repeat offline screenshot fixture suites in fresh processes
+        if: success()
+        env:
+          REXPLAYER_UI_LANE: ci-windows-repeat
+        run: |
+          dotnet test --project tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj -c Release --no-build -- --filter-class Rex.Media.App.Tests.LibraryFixtureVisualTests
+          if ($LASTEXITCODE -ne 0) { throw "Repeating library fixture scenes failed." }
+          dotnet test --project tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj -c Release --no-build -- --filter-class Rex.Media.App.Tests.LibraryEvidenceEdgeTests
+          if ($LASTEXITCODE -ne 0) { throw "Repeating long-title fixture scenes failed." }
+
+      - name: Verify image stability across independent app launches
+        if: success()
+        shell: pwsh
+        run: ./scripts/check-screenshot-repeatability.ps1
+
       # Keep the canonical inventory even if the UI suite aborts before any capture.
       # Per-scene JSON and process logs remain alongside actual, baseline and diff.
       - name: Keep the screenshot scene inventory
