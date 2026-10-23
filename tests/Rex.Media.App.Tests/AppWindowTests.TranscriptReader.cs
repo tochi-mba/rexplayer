@@ -33,6 +33,8 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Text("TranscriptReaderCoverage").Contains("Partial transcript", StringComparison.Ordinal)
             && app.IsShown("TranscriptReaderCue-0"),
             "partial speech to remain readable while incomplete coverage is clearly labeled");
+        // Actual WinUI capture; CI artifacts provide the first review image. No mock is substituted.
+        Screenshots.Match(app, "spoken-transcript-partial");
         Assert.Equal(0, app.Close());
     }
 
