@@ -16,8 +16,14 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 
 ## Honest current delivery state
 - [x] Transfer these requirements to an independently owned, versioned scoped plan in this branch.
-- [ ] **Implement the actual code and tests.** At creation this PR is a *planning-only draft* and its checkboxes must remain unchecked until implementation and verification.
+- [ ] **Complete the actual code and tests.** The PR started as a planning-only draft; a first lyrics-model implementation and regression tests now exist, but the full scope and required verification remain unfinished.
 - [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
+
+## Implementation progress journal (2026-10-23)
+- [x] Fix the pre-existing portable CI failure caused by prohibited punctuation in this plan.
+- [ ] Verify enhanced LRC word segments and logarithmic line seeking on exact-head CI (`3c554ab`, `23b82e9`, `517218c`); parser and regression tests committed.
+- [ ] Verify the exhaustive visualizer-option round-trip test (`89d53f5`); all modes and their per-mode persisted settings remain in scope.
+- [ ] Build and verify remaining styles, companion, music pages, visualizer gallery, platform UI automation, screenshots and performance evidence. No broader task is complete yet.
 
 ## Detailed task list  -  63 uniquely owned roadmap tasks
 The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
