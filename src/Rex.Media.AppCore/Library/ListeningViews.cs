@@ -314,31 +314,19 @@ public static partial class ListeningViews
             return default;
         }
 
-        var latest = 0;
-        if (book.Entries.Any(part => part.LastPlayed is not null))
-        {
-            for (var index = 1; index < book.Entries.Count; index++)
-            {
-                if (book.Entries[index].LastPlayed is { } played && played >= (book.Entries[latest].LastPlayed ?? DateTime.MinValue))
-                {
-                    latest = index;
-                }
-            }
-        }
-        else
-        {
-            // Some restored libraries have resume markers but no LastPlayed timestamps.
-            // Prefer the last part with a marker rather than silently returning to part one.
-            for (var index = 1; index < book.Entries.Count; index++)
-            {
-                if (leftAt(book.Entries[index].Path) is not null)
-                {
-                    latest = index;
-                }
-            }
-        }
-
-        return new BookPlace(latest, leftAt(book.Entries[latest].Path) ?? TimeSpan.Zero);
+        // Resume markers are a stronger signal than a play count. Restored libraries
+        // may retain their markers while some or all LastPlayed dates are missing.
+        // Among marked parts use the newest available date; with no dates, take
+        // the furthest part in reading order, deterministically.
+        var parts = book.Entries.Select((entry, index) =>
+            (Entry: entry, Index: index, Marker: leftAt(entry.Path))).ToList();
+        var marked = parts.Where(part => part.Marker is not null).ToList();
+        var candidates = marked.Count > 0 ? marked : parts;
+        var timed = candidates.Where(part => part.Entry.LastPlayed is not null).ToList();
+        var selected = timed.Count > 0
+            ? timed.OrderByDescending(part => part.Entry.LastPlayed).ThenByDescending(part => part.Index).First()
+            : marked.Count > 0 ? marked[^1] : parts[0];
+        return new BookPlace(selected.Index, selected.Marker ?? TimeSpan.Zero);
     }
 
     /// <summary>Whether the book has been started: a part played, or left part-way.</summary>
@@ -485,9 +473,14 @@ public static partial class ListeningViews
     /// <summary>The book a part belongs to: its album, else its folder (above a disc or part folder), else its title without a part number.</summary>
     private static string BookNameOf(LibraryEntry part)
     {
-        if (part.Album is { } album)
+        // Disc and generic downloader album tags describe containers, not
+        // titles. Prefer the stable book folder for those mixed-tag chapter sets.
+        if (part.Album is { } album && !string.IsNullOrWhiteSpace(album)
+            && !PartFolderPattern().IsMatch(album.Trim())
+            && !BooksFolderPattern().IsMatch(album.Trim())
+            && !LooseFolderPattern().IsMatch(album.Trim()))
         {
-            return album;
+            return album.Trim();
         }
 
         var folder = Path.GetFileName(BookFolderOf(part));
