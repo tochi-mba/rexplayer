@@ -50,6 +50,7 @@ public readonly record struct MediaStageView(
     bool ShowLyrics,
     bool ShowChapters,
     bool ShowCaptions,
+    bool SupportsKineticCaptions,
     bool ShowEpisodeContext,
     bool ShowPictureNavigation,
     bool CanSeek);
@@ -130,6 +131,7 @@ public static class MediaStagePolicy
             (profile is MediaStageProfile.Song or MediaStageProfile.Audio) && readyAudio && context.HasLyrics,
             (profile is MediaStageProfile.Audiobook or MediaStageProfile.Podcast) && readyAudio && context.HasChapters && context.CanSeek,
             context.HasCaptions && context.StreamsKnown && (audio || video) && (context.HasAudioTrack || context.HasVideoTrack),
+            video && context.StreamsKnown && context.HasVideoTrack,
             profile == MediaStageProfile.Television,
             profile == MediaStageProfile.Picture,
             context.StreamsKnown && context.CanSeek && (audio || video));
