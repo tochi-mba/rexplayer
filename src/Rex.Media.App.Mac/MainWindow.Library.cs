@@ -27,6 +27,10 @@ public sealed partial class MainWindow
     private NSButton? _libraryBackButton;
     private readonly List<NSView> _libraryResultKeyViews = [];
     private IReadOnlyList<LibraryEntry> _libraryCurrentSelection = [];
+    private int _libraryMatchingCount;
+    private int _libraryTotalCount;
+    private int _libraryFolderCount;
+    private int _libraryVisibleResultCount;
     private IReadOnlyList<LibraryEntry> _libraryRenderedEntries = [];
     private int _libraryRenderedPage = -1;
     private string? _libraryRenderedEmptyLabel;
@@ -55,7 +59,8 @@ public sealed partial class MainWindow
         _player.Library = _mediaLibrary;
         _libraryScanner = new LibraryScanner(_mediaLibrary, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, _log);
         _mediaLibrary.Changed += (_, _) => OnWindowThread(RefreshLibrary);
-        _libraryScanner.StatusChanged += (_, _) => OnWindowThread(RefreshLibrary);
+        // Status-only changes do not require sorting the entire catalogue on the UI thread.
+        _libraryScanner.StatusChanged += (_, _) => OnWindowThread(UpdateLibraryStatus);
         _libraryScanner.Request();
     }
 
@@ -387,15 +392,34 @@ public sealed partial class MainWindow
             _libraryScroll.DocumentView = document;
             WireLibraryKeyViews();
         }
+        _libraryMatchingCount = entries.Count;
+        _libraryTotalCount = all.Count;
+        _libraryFolderCount = _mediaLibrary.Folders.Count;
+        _libraryVisibleResultCount = shown.Count;
+        UpdateLibraryStatus();
+    }
+
+    /// <summary>
+    /// Scanner progress changes frequently. Update only the short text and its accessibility
+    /// announcement; the catalogue Changed event separately refreshes the visible rows.
+    /// </summary>
+    private void UpdateLibraryStatus()
+    {
+        if (_closingLibrary || _librarySummary is null)
+        {
+            return;
+        }
+
         var status = _libraryScanner?.Status;
         var writeProblem = _libraryStore?.WriteProblem;
-        // Keep the counts visible at minimum width even when the scanner names a long
-        // watched path. Never hide a storage failure behind truncated scan progress.
+        // Show counts at narrow widths even if a scan names a long folder path.
         var persistenceWarning = _libraryTemporaryStore ? "Changes will not be saved • "
             : writeProblem is not null ? "Changes could not be saved • " : "";
         _librarySummary.StringValue = persistenceWarning
-            + $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
-            + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "")
+            + $"{_libraryMatchingCount} matching • {_libraryTotalCount} total • {_libraryFolderCount} folders"
+            + (_libraryMatchingCount > LibraryPageSize
+                ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + _libraryVisibleResultCount}"
+                : "")
             + (string.IsNullOrEmpty(status) ? "" : " • " + status)
             + (writeProblem is null ? "" : " • " + writeProblem);
         _librarySummary.ToolTip = _librarySummary.StringValue;
