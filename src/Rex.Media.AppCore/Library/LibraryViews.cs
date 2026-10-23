@@ -273,9 +273,11 @@ public static partial class LibraryViews
             {
                 var ordered = InEpisodeOrder(group.Select(member => (member.Entry, (VideoEpisode?)member.Episode))).ToList();
                 var seasons = ordered.Select(pair => pair.Episode!.Season).Distinct().Count();
+                var entries = ordered.Select(pair => pair.Entry).ToArray();
+                var count = ShowPage.WatchSummary(entries, static _ => null).Total;
                 return new LibraryGroup(group.Key,
-                    $"{seasons} {(seasons == 1 ? "season" : "seasons")} · {ordered.Count} {(ordered.Count == 1 ? "episode" : "episodes")}",
-                    [.. ordered.Select(pair => pair.Entry)]);
+                    $"{seasons} {(seasons == 1 ? "season" : "seasons")} · {count} {(count == 1 ? "episode" : "episodes")}",
+                    entries);
             })
             .OrderBy(group => group.Name, ByName)];
 
@@ -349,9 +351,13 @@ public static partial class LibraryViews
             .Select(entry => (Entry: entry, Episode: EpisodeOf(entry)))
             .Where(pair => pair.Episode is not null)
             .GroupBy(pair => pair.Episode!.Season).OrderBy(group => group.Key == 0).ThenBy(group => group.Key)
-            .Select(group => new LibraryGroup(group.Key == 0 ? "Specials" : $"Season {group.Key}",
-                $"{group.Count()} {(group.Count() == 1 ? "episode" : "episodes")}",
-                [.. InEpisodeOrder(group).Select(pair => pair.Entry)]))];
+            .Select(group =>
+            {
+                var entries = InEpisodeOrder(group).Select(pair => pair.Entry).ToArray();
+                var count = ShowPage.WatchSummary(entries, static _ => null).Total;
+                return new LibraryGroup(group.Key == 0 ? "Specials" : $"Season {group.Key}",
+                    $"{count} {(count == 1 ? "episode" : "episodes")}", entries);
+            })];
     }
 
     /// <summary>By season (specials by the season they name); in each, numbered episodes by number, then unnumbered ones by file name in natural order, then by path.</summary>
