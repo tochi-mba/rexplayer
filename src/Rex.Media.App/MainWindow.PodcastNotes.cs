@@ -59,6 +59,11 @@ public sealed partial class MainWindow
             return;
         }
 
+        await ShowPlainNotesDialogAsync("Episode notes · " + episode.Title, notes, "PodcastNotesText");
+    }
+
+    private async Task ShowPlainNotesDialogAsync(string title, string notes, string automationId)
+    {
         var panel = new StackPanel { Spacing = 10, MaxWidth = 680 };
         var notice = new TextBlock
         {
@@ -73,13 +78,13 @@ public sealed partial class MainWindow
             TextWrapping = TextWrapping.Wrap,
             Height = 420,
         };
-        AutomationProperties.SetAutomationId(text, "PodcastNotesText");
-        AutomationProperties.SetName(text, "Local episode notes, read-only and selectable");
+        AutomationProperties.SetAutomationId(text, automationId);
+        AutomationProperties.SetName(text, title + ", read-only and selectable");
         panel.Children.Add(notice);
         panel.Children.Add(text);
         var dialog = new ContentDialog
         {
-            Title = "Episode notes · " + episode.Title,
+            Title = title,
             Content = panel,
             CloseButtonText = "Done",
             XamlRoot = Content.XamlRoot,
