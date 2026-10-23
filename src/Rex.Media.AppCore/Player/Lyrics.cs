@@ -136,6 +136,32 @@ public sealed partial class Lyrics
         return low - 1;
     }
 
+    /// <summary>
+    /// Last word with reliable source timing at this position. Untimed or
+    /// unreliable lines return -1 rather than inventing karaoke precision.
+    /// </summary>
+    public static int WordIndexAt(LyricLine line, TimeSpan position)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        var words = line.Words;
+        var low = 0;
+        var high = words.Count;
+        while (low < high)
+        {
+            var middle = low + ((high - low) / 2);
+            if (words[middle].At <= position)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low - 1;
+    }
+
     /// <summary>Preserve exact enhanced-LRC segments without inventing word boundaries.</summary>
     private static (string Text, IReadOnlyList<LyricWord> Words) ReadWords(string source)
     {
