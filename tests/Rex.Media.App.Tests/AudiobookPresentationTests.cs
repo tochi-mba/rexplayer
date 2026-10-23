@@ -111,6 +111,8 @@ public sealed class AudiobookPresentationTests : IDisposable
         app.Choose("Complete Me");
         app.Press("LibraryPlay");
         Wait.For(() => app.Text("NowPlaying") == "Part 1", "completed book to start again");
+        Wait.For(() => !app.IsListed("Completed"),
+            "replaying the only finished audiobook to clear the Completed sidebar promptly");
         var queue = app.Queue();
         Assert.Equal(2, queue.Length);
         Assert.Contains(queue, item => item.Contains("Part 1", StringComparison.Ordinal));
