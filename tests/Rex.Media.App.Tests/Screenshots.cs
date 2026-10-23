@@ -69,10 +69,11 @@ internal static class Screenshots
                     maxDifferingRatio, false, false, false);
                 Save(Path.Combine(Output, "actual", name + ".png"), failedFrame);
             }
-            catch (Exception error) when (error is not Xunit.Sdk.XunitException)
+            catch (Exception error)
             {
                 Directory.CreateDirectory(Path.Combine(Output, "actual"));
                 File.WriteAllText(Path.Combine(Output, "actual", name + ".capture-error.txt"), error.ToString());
+                File.WriteAllText(Path.Combine(Output, "actual", name + ".log"), app.LogText);
             }
 
             Assert.Fail($"Screenshot {name} never reached its declared UI Automation readiness state. See its captured evidence.");
@@ -92,15 +93,18 @@ internal static class Screenshots
             var captured = scene.CaptureMode == "desktop"
                 ? WindowPicture.TakeDesktop(app.Handle)
                 : WindowPicture.Take(app.Handle);
-            var bounds = WindowPicture.Bounds(app.Handle);
-            if (needsPixelWitness)
+            picture = captured;
+            if (needsPixelWitness && !TryCropControl(app, captured, scene.ReadinessId, out witness))
             {
-                witness = Crop(captured, bounds, app.Find(scene.ReadinessId).Current.BoundingRectangle);
+                return false;
             }
 
-            picture = automationId is null
-                ? captured
-                : Crop(captured, bounds, app.Find(automationId).Current.BoundingRectangle);
+            if (automationId is not null && !TryCropControl(app, captured, automationId, out picture))
+            {
+                picture = captured;
+                return false;
+            }
+
             return HasVisibleVariation(picture) &&
                 (!needsPixelWitness || HasVisibleVariation(witness));
         });
@@ -116,10 +120,13 @@ internal static class Screenshots
             var captured = scene.CaptureMode == "desktop"
                 ? WindowPicture.TakeDesktop(app.Handle)
                 : WindowPicture.Take(app.Handle);
-            repeat = automationId is null
-                ? captured
-                : Crop(captured, WindowPicture.Bounds(app.Handle),
-                    app.Find(automationId).Current.BoundingRectangle);
+            repeat = captured;
+            if (automationId is not null && !TryCropControl(app, captured, automationId, out repeat))
+            {
+                repeat = captured;
+                return false;
+            }
+
             if (repeat.Width != picture.Width || repeat.Height != picture.Height)
             {
                 return false;
@@ -208,6 +215,45 @@ internal static class Screenshots
         File.WriteAllText(Path.Combine(dir, scene.Id + ".json"),
             JsonSerializer.Serialize(details, MetadataJsonOptions));
         File.WriteAllText(Path.Combine(dir, scene.Id + ".log"), app.LogText);
+    }
+
+    /// <summary>
+    /// Probe a UIA control without a blocking Find: vanished flyouts and invalid
+    /// rectangles must time out with a retained whole-window image, not throw
+    /// before diagnostics are persisted.
+    /// </summary>
+    private static bool TryCropControl(AppProcess app, (int Width, int Height, byte[] Bgra) frame,
+        string automationId, out (int Width, int Height, byte[] Bgra) crop)
+    {
+        crop = default;
+        try
+        {
+            var control = app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, automationId));
+            if (control is null || control.Current.IsOffscreen)
+            {
+                return false;
+            }
+
+            var bounds = WindowPicture.Bounds(app.Handle);
+            var area = control.Current.BoundingRectangle;
+            if (area.Width <= 0 || area.Height <= 0 || area.Left < bounds.Left || area.Top < bounds.Top
+                || area.Right > bounds.Right || area.Bottom > bounds.Bottom)
+            {
+                return false;
+            }
+
+            crop = Crop(frame, bounds, area);
+            return true;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Capture a one-shot UIA observation without a waiting lookup that could mask a failing scene.</summary>
