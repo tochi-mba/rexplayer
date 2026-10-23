@@ -12,6 +12,47 @@ public sealed class MediaStageWindowTests : IDisposable
     public void Dispose() => _scene.Dispose();
 
     [Fact]
+    public void PodcastRecordingAndSoundProfilesReplaceOneAnotherWithoutOldMediaActions()
+    {
+        var podcast = _scene.Audio(Path.Combine("Podcasts", "Test show", "Episode 1.wav"),
+            TimeSpan.FromMinutes(30), genre: "Podcast");
+        var recording = _scene.Audio(Path.Combine("Voice Memos", "Note.wav"),
+            TimeSpan.FromMinutes(2));
+        var sound = _scene.Audio(Path.Combine("Sound Effects", "Beep.wav"),
+            TimeSpan.FromSeconds(5));
+        _scene.Ready();
+
+        using var app = AppProcess.Start([podcast, recording, sound], root: _scene.Root);
+        foreach (var (label, shot, hasChapters) in new[]
+        {
+            ("PODCAST", "stage-podcast", false),
+            ("RECORDING", "stage-recording", false),
+            ("AUDIO", "stage-sound", false),
+        })
+        {
+            Wait.For(() => app.Find("Stage").Current.Name == label + " playback stage",
+                label + " stream to update the stage");
+            if (app.Status().State == "Playing")
+            {
+                app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
+                Wait.For(() => app.Status().State == "Paused",
+                    "a stable " + label + " screenshot");
+            }
+
+            Assert.False(app.IsShown("Lyrics"), "The previous item's lyrics must not survive.");
+            Assert.False(app.IsShown("Cover"), "No image was supplied for this stage.");
+            Assert.Equal(hasChapters, app.IsShown("StageChaptersButton"));
+            Screenshots.Match(app, shot);
+            if (shot != "stage-sound")
+            {
+                app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+            }
+        }
+
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void ARealChapteredAudiobookExposesOnlyItsOwnChapterJumps()
     {
         var book = _scene.ChapteredAudiobook();
