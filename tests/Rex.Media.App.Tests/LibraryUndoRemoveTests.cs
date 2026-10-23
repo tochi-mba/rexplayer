@@ -14,7 +14,7 @@ public sealed class LibraryUndoRemoveTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
-    public void LibraryRemovalCanBeCancelledAndUndoneWithoutInterruptingCurrentMedia()
+    public void LibraryRemovalCanBeCancelledAndUndoneWithoutDeletingFiles()
     {
         var song = _scene.WithAsake().Ready().Media;
         using var app = _scene.Start();
