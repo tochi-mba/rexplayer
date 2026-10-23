@@ -73,6 +73,44 @@ public sealed class VisualizerGroupsTests
 
     [Fact]
     [Capability("AU-18")]
+    public void SwitchingVisualizerModesRestoresTheirOwnChoicesAndDefaultsWithoutCrossModeLeakage()
+    {
+        IReadOnlyDictionary<string, string> saved = new Dictionary<string, string>();
+        saved = VisualizerOptions.With(saved, VisualizerChoice.Halo, "rays", 72);
+        saved = VisualizerOptions.With(saved, VisualizerChoice.Halo, "thickness", 9);
+        saved = VisualizerOptions.With(saved, VisualizerChoice.Halo, VisualizerOptions.Sensitivity, 3.5);
+        saved = VisualizerOptions.With(saved, VisualizerChoice.Mirror, "thickness", 3);
+        saved = VisualizerOptions.With(saved, VisualizerChoice.Spectrum, "bars", 96);
+        saved = VisualizerOptions.With(saved, VisualizerChoice.Spectrum, VisualizerOptions.Sensitivity, 0.5);
+
+        // Each switch selects a different namespace. Identically named compatible
+        // setting kinds preserve their own saved values, but do not silently leak
+        // values with incompatible bounds to the newly selected renderer.
+        foreach (var selected in new[] { VisualizerChoice.Halo, VisualizerChoice.Mirror,
+            VisualizerChoice.Spectrum, VisualizerChoice.Halo, VisualizerChoice.Mirror })
+        {
+            var settings = (new PlayerSettings { Visualizer = selected, VisualOptions = saved }).Normalize();
+            Assert.Equal(selected, settings.Visualizer);
+            Assert.Equal(72, VisualizerOptions.Number(settings.VisualOptions, VisualizerChoice.Halo, "rays"));
+            Assert.Equal(9, VisualizerOptions.Number(settings.VisualOptions, VisualizerChoice.Halo, "thickness"));
+            Assert.Equal(3, VisualizerOptions.Number(settings.VisualOptions, VisualizerChoice.Mirror, "thickness"));
+            Assert.Equal(96, VisualizerOptions.Number(settings.VisualOptions, VisualizerChoice.Spectrum, "bars"));
+            Assert.Equal(0.5, VisualizerOptions.Number(settings.VisualOptions, VisualizerChoice.Spectrum, VisualizerOptions.Sensitivity));
+            Assert.Equal(3.5, VisualizerOptions.Number(settings.VisualOptions, VisualizerChoice.Halo, VisualizerOptions.Sensitivity));
+            Assert.Equal(1, VisualizerOptions.Number(settings.VisualOptions, VisualizerChoice.Mirror, VisualizerOptions.Sensitivity));
+        }
+
+        var withoutHalo = VisualizerOptions.Reset(saved, VisualizerChoice.Halo);
+        Assert.Equal(48, VisualizerOptions.Number(withoutHalo, VisualizerChoice.Halo, "rays"));
+        Assert.Equal(4, VisualizerOptions.Number(withoutHalo, VisualizerChoice.Halo, "thickness"));
+        Assert.Equal(1, VisualizerOptions.Number(withoutHalo, VisualizerChoice.Halo, VisualizerOptions.Sensitivity));
+        Assert.Equal(3, VisualizerOptions.Number(withoutHalo, VisualizerChoice.Mirror, "thickness"));
+        Assert.Equal(96, VisualizerOptions.Number(withoutHalo, VisualizerChoice.Spectrum, "bars"));
+        Assert.Equal(0.5, VisualizerOptions.Number(withoutHalo, VisualizerChoice.Spectrum, VisualizerOptions.Sensitivity));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
     public void EachModeOptionHasAValidDefaultAndAStableDistinctPersistenceKey()
     {
         var empty = new Dictionary<string, string>();
