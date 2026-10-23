@@ -69,7 +69,7 @@ public sealed partial class MainWindow
                 MinSize = new CGSize(590, 460),
             };
             _libraryWindow.ReleaseWhenClosed(false);
-            // The key-view order is explicit: AppKit\x27s automatic geometric ordering
+            // The key-view order is explicit: AppKit's automatic geometric ordering
             // can discard links after we replace paginated result rows.
             _libraryWindow.AutorecalculatesKeyViewLoop = false;
 
@@ -278,6 +278,7 @@ public sealed partial class MainWindow
             _libraryPreviousPage.Enabled = _libraryPageIndex > 0;
             _libraryNextPage.Enabled = _libraryPageIndex < lastPage;
             _libraryPageSummary.StringValue = $"Page {_libraryPageIndex + 1} of {lastPage + 1}";
+            _libraryPageSummary.AccessibilityLabel = "Library results " + _libraryPageSummary.StringValue;
         }
         _libraryCurrentSelection = entries;
         var emptyLabel = shown.Count == 0
@@ -362,6 +363,7 @@ public sealed partial class MainWindow
             + $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
             + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "")
             + (_libraryTemporaryStore ? " • Changes will not be saved" : "");
+        _librarySummary.AccessibilityLabel = "Library status: " + _librarySummary.StringValue;
     }
 
     /// <summary>
@@ -427,6 +429,9 @@ public sealed partial class MainWindow
                 new UiControl { Id = "LibraryPage", Kind = "text", Name = "Library page", Text = _libraryPageSummary.StringValue },
                 new UiControl { Id = "LibraryPrevious", Kind = "button", Name = ((NSView)_libraryPreviousPage).AccessibilityLabel ?? "", Enabled = _libraryPreviousPage.Enabled },
                 new UiControl { Id = "LibraryNext", Kind = "button", Name = ((NSView)_libraryNextPage).AccessibilityLabel ?? "", Enabled = _libraryNextPage.Enabled },
+                new UiControl { Id = "LibraryAddFolder", Kind = "button", Name = ((NSView?)_libraryAddButton)?.AccessibilityLabel ?? "", Enabled = _libraryAddButton?.Enabled == true },
+                new UiControl { Id = "LibraryRescan", Kind = "button", Name = ((NSView?)_libraryRescanButton)?.AccessibilityLabel ?? "", Enabled = _libraryRescanButton?.Enabled == true },
+                new UiControl { Id = "LibraryBack", Kind = "button", Name = ((NSView?)_libraryBackButton)?.AccessibilityLabel ?? "", Enabled = _libraryBackButton?.Enabled == true },
                 new UiControl { Id = "LibraryFirstPlay", Kind = "button", Name = ((NSView?)_libraryFirstPlay)?.AccessibilityLabel ?? "", Enabled = _libraryFirstPlay is not null },
                 new UiControl { Id = "LibraryFirstQueue", Kind = "button", Name = ((NSView?)_libraryFirstQueue)?.AccessibilityLabel ?? "", Enabled = _libraryFirstQueue is not null },
             ],
@@ -445,10 +450,26 @@ public sealed partial class MainWindow
             return AutomationReply.Failed("Open the library before checking keyboard navigation.");
         }
 
-        if (_librarySearch.NextKeyView?.Handle != _libraryCategory.Handle ||
-            _libraryCategory.PreviousKeyView?.Handle != _librarySearch.Handle)
+        if (_libraryAddButton is null || _libraryRescanButton is null || _libraryBackButton is null ||
+            _libraryPreviousPage is null || _libraryNextPage is null)
         {
-            return AutomationReply.Failed("The search/category key-view link is missing or not reversible.");
+            return AutomationReply.Failed("The library action or page controls are missing.");
+        }
+
+        var order = new List<NSView>
+        {
+            _librarySearch, _libraryCategory, _libraryAddButton, _libraryRescanButton,
+            _libraryBackButton, _libraryPreviousPage, _libraryNextPage,
+        };
+        order.AddRange(_libraryResultKeyViews);
+        for (var i = 0; i < order.Count; i++)
+        {
+            var following = order[(i + 1) % order.Count];
+            if (order[i].NextKeyView?.Handle != following.Handle ||
+                following.PreviousKeyView?.Handle != order[i].Handle)
+            {
+                return AutomationReply.Failed($"Native library key-view link {i + 1} of {order.Count} is broken.");
+            }
         }
 
         _libraryWindow.MakeFirstResponder(_librarySearch);
