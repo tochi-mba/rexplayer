@@ -228,6 +228,22 @@ public sealed class MacAppSmokeTests
         var bytes = await File.ReadAllBytesAsync(file, TestContext.Current.CancellationToken);
         Assert.True(bytes.Length > 100, "The native library screenshot is empty.");
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes.Take(8).ToArray());
+
+        // Exact image baselines apply only to the controlled Apple Silicon CI lane.
+        // Store and review PNG artifacts whenever the renderer changes before updating
+        // the committed hashes. Other machines may vary in fonts and display scaling.
+        if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOT_BASELINES") == "1")
+        {
+            var target = "mac-library-" + name + ".png";
+            var baseline = File.ReadLines(RepoPaths.Combine("tests", "mac-library-screenshots.sha256"))
+                .Where(line => !line.StartsWith('#') && line.EndsWith("  " + target, StringComparison.Ordinal))
+                .Select(line => line.Split(' ', 2)[0])
+                .Single();
+            var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+            Assert.True(string.Equals(baseline, actual, StringComparison.Ordinal),
+                "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
+                Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual);
+        }
     }
 
     private static Task<AutomationReply?> Ask(string pipe, AutomationRequest request) =>
