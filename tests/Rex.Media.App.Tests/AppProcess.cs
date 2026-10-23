@@ -145,11 +145,9 @@ internal sealed class AppProcess : IDisposable
 
     private void FitOnDesktop()
     {
-        if (WindowPicture.IsFullyOnDesktop(Handle))
-        {
-            return;
-        }
-
+        // Even an initially visible window can end up clipped when a test later
+        // resizes it to 1000x760. Always anchor tests near the virtual desktop's
+        // upper-left corner, not only after an already-clipped startup.
         var desktop = WindowPicture.DesktopBounds;
         const int Padding = 8;
         var availableWidth = Math.Max(1, desktop.Width - 2 * Padding);
