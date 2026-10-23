@@ -89,8 +89,12 @@ Unpinned viewport labels in the inventory are explicit follow-up work, not evide
 The scene contract also declares `captureMode`: `window` uses PrintWindow for the host HWND,
 whereas `desktop` uses the actual on-screen desktop composition. Most scenes use `desktop`, because CI evidence showed PrintWindow could silently omit both
 floating popups and full window content, even after UIA reports it ready. The two existing
-letterboxed-card baselines retain `window` mode; their PrintWindow crops were originally
-committed in that lane and must not silently change capture mode.
+letterboxed-card baselines retain `window` mode at their original pinned
+1280x800 host viewport; their PrintWindow crops were committed in that lane
+and must not silently change capture mode. PrintWindow does not require an
+unobstructed onscreen desktop, so its original viewport may exceed the
+visible desktop. The strict virtual-desktop clipping check applies only to
+`desktop` mode.
 Popup and Preferences scenes require visible variation in the UIA control witness;
 ordinary library and playback scenes instead require semantic UIA readiness and a
 nonuniform rendered image, since an individual icon can legitimately be mostly uniform.
