@@ -308,10 +308,8 @@
                       VerticalScrollBarVisibility="Auto" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
           <StackPanel x:Name="LyricsLines" Spacing="6" Padding="0,8" />
         </ScrollViewer>
-        <Button x:Name="LyricsFollowButton" Content="Follow current line" Visibility="Collapsed"
-                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,52,30"
-                Canvas.ZIndex="6" ToolTipService.ToolTip="Resume automatic lyric scrolling"
-                AutomationProperties.AutomationId="LyricsFollow" AutomationProperties.Name="Return to current lyric line" />
+        <Button x:Name="LyricsFollowButton" Content="Follow current line" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,52,30"
+                Canvas.ZIndex="6" ToolTipService.ToolTip="Resume automatic lyric scrolling" AutomationProperties.AutomationId="LyricsFollow" AutomationProperties.Name="Return to current lyric line" />
         <!-- A held viewer should not have to infer from the small timeline rail that captions are
              being prepared. Keep the explanation central and offer an immediate, explicit escape. -->
         <Border x:Name="CaptionBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
