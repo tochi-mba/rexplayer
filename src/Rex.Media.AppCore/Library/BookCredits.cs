@@ -62,7 +62,7 @@ public static partial class BookCredits
     {
         ArgumentNullException.ThrowIfNull(book);
         var narrators = book.Entries.Select(part => part.Narrator?.Trim())
-            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .OfType<string>().Where(name => name.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         return narrators.Count == 1 ? narrators[0] : null;
