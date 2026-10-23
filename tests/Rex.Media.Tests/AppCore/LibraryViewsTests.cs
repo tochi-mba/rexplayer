@@ -275,7 +275,7 @@ public sealed class LibraryViewsTests
         Assert.DoesNotContain(photos[1], selection.Items);
         Assert.DoesNotContain(photos[4], selection.Items);
 
-        Assert.Equal(([photos[0]], 0).Item2, LibraryViews.PictureSlideshow([], photos[0]).Start);
+        Assert.Equal(0, LibraryViews.PictureSlideshow([], photos[0]).Start);
         Assert.Equal([photos[0]], LibraryViews.PictureSlideshow([], photos[0]).Items);
         Assert.Equal([Entries[0]], LibraryViews.PictureSlideshow([], Entries[0]).Items);
         Assert.Throws<ArgumentNullException>(() => LibraryViews.PictureSlideshow(null!, photos[0]));
