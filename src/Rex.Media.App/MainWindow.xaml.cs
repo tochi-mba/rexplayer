@@ -109,7 +109,11 @@ public sealed partial class MainWindow : Window
         WireSubjectTools();
         WireSeekBar();
 
-        _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
+        // UI evidence runs hold a genuine failure notice long enough for two
+        // independently rendered screenshots. Normal users keep the brief OSD.
+        var evidenceOsd = Environment.GetEnvironmentVariable("REXPLAYER_VISUAL_EVIDENCE") == "1";
+        _osdTimer = Timer(TimeSpan.FromSeconds(evidenceOsd ? 30 : 1.5),
+            () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
         _controlsTimer = Timer(TimeSpan.FromSeconds(_settings.ControlsHideSeconds), HideFullScreenControls);
         _pointerTimer = Timer(TimeSpan.FromSeconds(1.5), HideFullScreenPointer);
