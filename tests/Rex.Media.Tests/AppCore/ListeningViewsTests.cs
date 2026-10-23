@@ -165,6 +165,20 @@ public sealed class ListeningViewsTests
         var newest = later with { LastPlayed = old.AddDays(2) };
         Assert.Equal(new BookPlace(1, TimeSpan.Zero),
             ListeningViews.PlaceIn(book with { Entries = [first, newest] }, NeverLeft));
+
+        // Some imported libraries preserve file play counts but lose their
+        // LastPlayed dates. Their last played part still represents progress.
+        var counted = book with
+        {
+            Entries = [first with { LastPlayed = null, Plays = 1 },
+                later with { Plays = 2 }],
+        };
+        Assert.Equal(new BookPlace(1, TimeSpan.Zero), ListeningViews.PlaceIn(counted, NeverLeft));
+        Assert.True(ListeningViews.Started(counted, NeverLeft));
+        Assert.True(ListeningViews.Started(
+            counted with { Entries = [counted.Entries[0]] }, NeverLeft));
+        Assert.Equal(new BookPlace(0, TimeSpan.Zero), ListeningViews.PlaceIn(
+            counted with { Entries = [first with { LastPlayed = null, Plays = 0 }, later] }, NeverLeft));
     }
 
     [Fact]
