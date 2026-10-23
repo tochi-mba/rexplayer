@@ -64,7 +64,10 @@ public static class EpisodeGrouping
     {
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentNullException.ThrowIfNull(other);
-        return other.Season == episode.Season && other.Episode != episode.Episode &&
+        // Two filenames are not independent sibling episodes when their covered ranges overlap.
+        // For example, S01E01E02 already contains the standalone S01E02.
+        return other.Season == episode.Season &&
+            (other.Episode > episode.Last || other.Last < episode.Episode) &&
             string.Equals(other.Show, episode.Show, StringComparison.Ordinal);
     }
 
