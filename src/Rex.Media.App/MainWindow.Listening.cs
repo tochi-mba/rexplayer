@@ -252,7 +252,7 @@ public sealed partial class MainWindow
     private LibraryRow PodcastEpisodeRow(LibraryEntry episode)
     {
         var left = _player.LeftAt(episode.Path);
-        var state = left is { } at ? "Stopped at " + TimeText.Format(at, episode.Duration ?? TimeSpan.Zero) : episode.Plays > 0 ? "Played" : "New";
+        var progress = PodcastEpisodeProgress.Of(episode, left);
         var date = ListeningViews.EpisodeDate(episode);
         // The index stores a file timestamp and, sometimes, only a year tag. Neither is
         // proof of a published date, so the interface must not invent one.
@@ -260,13 +260,13 @@ public sealed partial class MainWindow
             ? "Year tag " + year.ToString(CultureInfo.CurrentCulture)
             : date == DateTime.MinValue ? null
             : (episode.Modified != default ? "File date " : "Dated ") + date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
-        var remaining = left is { } stoppedAt && episode.Duration is { Ticks: > 0 } duration
-            ? TimeText.Format(TimeSpan.FromTicks(Math.Clamp(duration.Ticks - Math.Clamp(stoppedAt.Ticks, 0, duration.Ticks))), duration) + " left"
-            : null;
-        var detail = string.Join(" · ", new[] { state, remaining, dateText }.Where(part => part is not null));
-        var progress = left is { } stopped && episode.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(stopped / length, 0, 1) : 0;
+        var remaining = left is not null && progress.Remaining is { } timeLeft
+            ? TimeText.Format(timeLeft, episode.Duration) + " left" : null;
+        var chapters = episode.Chapters is { Count: > 0 } markers ? Count(markers.Count, "chapter") : null;
+        var detail = string.Join(" · ", new[] { progress.Status, remaining, dateText, chapters }
+            .Where(part => part is not null));
         return new LibraryRow(episode.Title, detail, episode.Duration is { } duration ? TimeText.Format(duration, duration) : "", episode,
-            hasPicture: true, picturePlaceholder: "◉", badge: episode.Track?.ToString(CultureInfo.CurrentCulture) ?? "", progress: progress,
+            hasPicture: true, picturePlaceholder: "◉", badge: episode.Track?.ToString(CultureInfo.CurrentCulture) ?? "", progress: progress.Fraction,
             isPlaying: LibraryViews.SameLocation(episode.Path, _player.Playlist.Current?.Location));
     }
 
