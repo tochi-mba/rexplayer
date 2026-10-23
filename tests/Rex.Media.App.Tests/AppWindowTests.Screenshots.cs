@@ -94,6 +94,32 @@ public sealed partial class AppWindowTests
     }
 
     [Fact]
+    [Capability("META-09")]
+    public void MovingFromFocusedSongLyricsToAPictureRestoresTransportFocus()
+    {
+        var song = Song(30);
+        File.WriteAllText(Path.ChangeExtension(song, ".lrc"),
+            "[00:00.00]Opening line\n[00:20.00]Ending line\n");
+        var picture = RepoPaths.Combine("tests", "fixtures", "picture", "still.jpg");
+        using var app = AppProcess.Start([song, picture]);
+        Wait.For(() => app.IsShown("Lyrics"), "the song lyrics to appear");
+        app.Find("LyricLine-0").SetFocus();
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
+            "the timed lyric to receive keyboard focus");
+
+        app.Run(CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage",
+            "picture playback to replace the song");
+        Assert.False(app.IsShown("Lyrics"));
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "focus to return to the permanent Play/Pause control");
+        Assert.DoesNotContain("Lyrics are available", app.Find("Stage").Current.HelpText,
+            StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("UI-10")]
     public void SwitchingFromAudioToVideoPreservesTransportFocusAndAutomationIdentity()
     {
