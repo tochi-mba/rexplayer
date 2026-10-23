@@ -17,12 +17,12 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private Window? _lyricsCompanion;
-    private ScrollViewer? _lyricsCompanionScroll;
     private StackPanel? _lyricsCompanionContent;
     private TextBlock? _lyricsCompanionHeading;
     private Button? _lyricsCompanionFollow;
     private Lyrics? _lyricsCompanionSource;
     private bool _lyricsCompanionBuilt;
+    private bool _lyricsCompanionWasLoading;
     private readonly List<TextBlock> _lyricsCompanionTexts = [];
     private readonly List<FrameworkElement> _lyricsCompanionRows = [];
     private readonly Dictionary<int, List<Run>> _lyricsCompanionWords = [];
@@ -44,7 +44,11 @@ public sealed partial class MainWindow
         }
 
         var window = new Window { Title = "Lyrics · rexplayer" };
-        var root = new Grid { Padding = new Thickness(16) };
+        var root = new Grid
+        {
+            Padding = new Thickness(16),
+            Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"],
+        };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
@@ -108,13 +112,13 @@ public sealed partial class MainWindow
         };
 
         _lyricsCompanion = window;
-        _lyricsCompanionScroll = scroll;
         _lyricsCompanionContent = lines;
         _lyricsCompanionHeading = heading;
         _lyricsCompanionFollow = follow;
         _lyricsCompanionFollows = true;
         _lyricsCompanionSource = null;
         _lyricsCompanionBuilt = false;
+        _lyricsCompanionWasLoading = true;
         _lyricsCompanionLine = -1;
         _lyricsCompanionWord = -2;
         window.Content = root;
@@ -123,7 +127,6 @@ public sealed partial class MainWindow
             if (ReferenceEquals(_lyricsCompanion, window))
             {
                 _lyricsCompanion = null;
-                _lyricsCompanionScroll = null;
                 _lyricsCompanionContent = null;
                 _lyricsCompanionHeading = null;
                 _lyricsCompanionFollow = null;
@@ -195,9 +198,12 @@ public sealed partial class MainWindow
         var trackName = _player.Item?.Title ?? "No track";
         window.Title = trackName + " · Lyrics · rexplayer";
         heading.Text = trackName;
-        if (!_lyricsCompanionBuilt || !ReferenceEquals(_lyricsCompanionSource, lyrics))
+        var waitingForMetadata = _player.Info is null;
+        if (!_lyricsCompanionBuilt || !ReferenceEquals(_lyricsCompanionSource, lyrics)
+            || (lyrics is null && _lyricsCompanionWasLoading != waitingForMetadata))
         {
             _lyricsCompanionBuilt = true;
+            _lyricsCompanionWasLoading = waitingForMetadata;
             _lyricsCompanionSource = lyrics;
             _lyricsCompanionLine = -1;
             _lyricsCompanionWord = -2;
@@ -215,7 +221,10 @@ public sealed partial class MainWindow
             {
                 content.Children.Add(new TextBlock
                 {
-                    Text = _player.Info is null ? "Loading local lyrics…" : "No lyrics are available for this track.",
+                    Text = !_settings.ShowLyrics ? "Lyrics are hidden in settings."
+                        : HasVideo ? "This track does not show music lyrics."
+                        : waitingForMetadata ? "Loading local lyrics…"
+                        : _player.LyricsProblem ?? "No lyrics are available for this track.",
                     FontSize = 16,
                     TextWrapping = TextWrapping.Wrap,
                 });
@@ -239,7 +248,7 @@ public sealed partial class MainWindow
                         TextWrapping = TextWrapping.Wrap,
                         FontSize = 20,
                         HorizontalAlignment = HorizontalAlignment.Stretch,
-                        Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
+                        Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
                     };
                     if (line.Words.Count > 0)
                     {
@@ -293,10 +302,10 @@ public sealed partial class MainWindow
             {
                 _lyricsCompanionTexts[_lyricsCompanionLine].FontWeight = FontWeights.Normal;
                 _lyricsCompanionTexts[_lyricsCompanionLine].Foreground =
-                    new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+                    (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
                 if (_lyricsCompanionWords.TryGetValue(_lyricsCompanionLine, out var priorRuns))
                 {
-                    var neutral = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+                    var neutral = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
                     foreach (var run in priorRuns)
                     {
                         run.Foreground = neutral;
@@ -318,14 +327,14 @@ public sealed partial class MainWindow
 
         if (lyrics is not null && current >= 0 && current < _lyricsCompanionTexts.Count)
         {
-            var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            var accent = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
             if (_lyricsCompanionWords.TryGetValue(current, out var runs))
             {
                 var word = Lyrics.WordIndexAt(lyrics.Lines[current], _player.Position);
                 if (_lyricsCompanionWord != word)
                 {
                     _lyricsCompanionWord = word;
-                    var neutral = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+                    var neutral = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
                     for (var i = 0; i < runs.Count; i++)
                     {
                         runs[i].Foreground = i <= word ? accent : neutral;
