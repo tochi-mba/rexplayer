@@ -19,8 +19,9 @@ public sealed partial class AppWindowTests
         try
         {
             using var app = AppProcess.Start([jpg, gif], root);
-            Wait.For(() => app.Text("NowPlaying") == "still" && app.IsShown("PictureIntervalButton"),
-                "the still picture to be ready");
+            Wait.For(() => app.Text("NowPlaying") == "still" && app.IsShown("PictureIntervalButton")
+                && app.Find("PlayPauseButton").Current.Name == "Pause",
+                "the still picture to begin playing");
 
             app.Run(CommandCatalog.PlayPause);
             Wait.For(() => app.Find("PlayPauseButton").Current.Name == "Play", "the picture to pause");
