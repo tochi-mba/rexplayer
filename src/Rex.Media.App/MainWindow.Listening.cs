@@ -250,7 +250,8 @@ public sealed partial class MainWindow
     private LibraryRow BookRow(LibraryGroup book)
     {
         var progress = Audiobooks.Finished(book) ? 1 : ListeningViews.Progress(book, ListeningViews.PlaceIn(book, _player.LeftAt));
-        var edition = _duplicateBookCredits.Contains(ListeningViews.BookKey(book)) ? ListeningViews.EditionLabel(book) : null;
+        var edition = _duplicateBookCredits.Contains(ListeningViews.BookKey(book))
+            ? ListeningViews.EditionLabel(book, _listening?.Audiobooks ?? []) : null;
         var detail = (book.Detail ?? "Unknown author") + (edition is null ? "" : " · " + edition);
         return new LibraryRow(book.Name, detail, BookProgressText(book), book, hasPicture: true, picturePlaceholder: "▤",
             progress: progress,
