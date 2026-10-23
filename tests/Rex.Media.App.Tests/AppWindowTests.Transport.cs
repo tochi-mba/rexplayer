@@ -110,6 +110,20 @@ public sealed partial class AppWindowTests
 
     [Fact]
     [Capability("PB-05")]
+    public void HoverAlwaysShowsRealSeekTimeWhenExpensivePreviewThumbnailsAreDisabled()
+    {
+        using var app = AppProcess.Start([Named("Hover", 200)], extraSettings: "\"seekPreview\": false");
+        Wait.For(() => app.IsShown("SeekBar") && app.Position > 0, "a seekable song");
+        Pointer.Hover(app, app.Find("SeekBar"), fraction: 0.75);
+        Wait.For(() => app.IsShown("SeekPreview")
+            && TimeText.TryParse(app.Text("SeekPreviewTime")) is { TotalSeconds: > 100 and < 200 },
+            "an accurate timeline hover without a decoded picture");
+        Assert.False(app.IsShown("SeekPreviewPicture"), "Thumbnails remain disabled; only honest time is shown.");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("PB-05")]
     public void MediaThatCannotBeMovedThroughSaysSoInsteadOfAskingForATime()
     {
         // A live stream: no length, so nothing to seek in.
