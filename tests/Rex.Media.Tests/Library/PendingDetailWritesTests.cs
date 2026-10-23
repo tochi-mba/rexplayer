@@ -24,11 +24,19 @@ public sealed class PendingDetailWritesTests
     [Fact]
     public void ACoverComesFromAJpegOrPngFile()
     {
-        Assert.Equal("image/png", DetailWrite.CoverFrom("cover.PNG", [1])!.MimeType);
-        Assert.Equal("image/jpeg", DetailWrite.CoverFrom("cover.jpeg", [1])!.MimeType);
-        Assert.Equal("image/jpeg", DetailWrite.CoverFrom("cover.jpg", [1])!.MimeType);
-        Assert.Null(DetailWrite.CoverFrom("cover.gif", [1]));
+        byte[] png = [137, 80, 78, 71, 13, 10, 26, 10, 0];
+        byte[] jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0];
+        Assert.Equal("image/png", DetailWrite.CoverFrom("cover.PNG", png)!.MimeType);
+        Assert.Equal("image/jpeg", DetailWrite.CoverFrom("cover.jpeg", jpeg)!.MimeType);
+        Assert.Equal("image/jpeg", DetailWrite.CoverFrom("cover.jpg", jpeg)!.MimeType);
+        Assert.Null(DetailWrite.CoverFrom("cover.gif", png));
         Assert.Null(DetailWrite.CoverFrom("cover.png", []));
+        Assert.Null(DetailWrite.CoverFrom("cover.png", jpeg));
+        Assert.Null(DetailWrite.CoverFrom("cover.jpg", png));
+        Assert.Null(DetailWrite.CoverFrom("cover.jpg", [1]));
+        Assert.Null(DetailWrite.CoverFrom("cover.png", new byte[DetailWrite.MaxCoverBytes + 1]));
+        Assert.Throws<ArgumentNullException>(() => DetailWrite.CoverFrom(null!, png));
+        Assert.Throws<ArgumentNullException>(() => DetailWrite.CoverFrom("cover.png", null!));
     }
 
     [Fact]
