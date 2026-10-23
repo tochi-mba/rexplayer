@@ -40,7 +40,8 @@ public sealed partial class MainWindow
             _ => LibraryEmptyView.Media,
         };
         var state = LibraryEmptyState.For(view, searching, _library!.Folders.Count > 0,
-            choice is { IsFiltered: true } ? LibraryArrangement.FilterLabel(choice) : null, _scanner?.Status.Length > 0);
+            choice is { IsFiltered: true } ? LibraryArrangement.FilterLabel(choice) : null,
+            _scanner?.Status.Length > 0, _scanner?.Problem);
         LibraryEmpty.Visibility = Visibility.Visible;
         if (state == _shownEmpty)
         {
