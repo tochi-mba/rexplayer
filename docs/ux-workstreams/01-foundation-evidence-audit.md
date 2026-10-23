@@ -43,6 +43,14 @@ A row describes the current route or control from source and tests. A scene ID d
 - The manifest currently has 48 capture entries; 20 use the explicitly unresolved dimension label `default-window (not yet pinned)`, and only two have a tracked CI baseline. This gap is visible instead of being represented as approved screenshot coverage.
 - Current app XAML and UI tests cover menus, information panels, keyboard editor, updates, media metadata/artwork, transcription, equalizer/effects, picture styles, diagnostics and other transient views at different levels. No source existence alone counts as user-visible acceptance.
 
+## CI image inspection and capture defect
+
+The original #467 head's [Windows screenshot artifact](https://github.com/tochi-mba/rexplayer/actions/runs/39993169196) was downloaded and visually inspected rather than trusting file existence. `preferences-normal.png` showed the underlying idle player instead of the open Preferences dialog; `menu-playback.png` was almost uniformly white even though the visual-variation guard had let the record-only screenshot pass. These demonstrate that a successful UI Automation query or nonuniform host image alone does not establish visual correctness. This artifact is historical and is **not** the latest head.
+
+The targeted remediation introduces `WindowPicture.TakeDesktop` only for popup scenes, an explicit `captureMode` in all 53 screenshot contracts, an expected popup-control witness, and capture JSON sidecars on failure. `Screenshots.Match` requires observable UIA readiness and visible variation inside the popup's actual screen pixels. Existing host-only captures retain `PrintWindow` to avoid a silent global capture behavior change. The Windows runner must demonstrate the new path, and a reviewer must inspect the new artifact; no pixel baseline was fabricated or promoted.
+
+New local-only fixtures exercised by Windows UI Automation are: empty watched library, one tagged song, mixed local music/movie/photo data, and CJK/Arabic titles. They reuse `LibraryScene` and do not fetch online metadata. This is **partial** fixture coverage and not the full huge/slow/corrupt/duplicates matrix.
+
 ## Acceptance sequence
 
 1. Fix policy failures, keep latest head CI visible and verify Windows UI independently.
