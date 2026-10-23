@@ -473,7 +473,7 @@ public sealed partial class MainWindow : Window
         DownloadBufferOverlay.Visibility = waitingForDownload ? Visibility.Visible : Visibility.Collapsed;
         if (waitingForDownload)
         {
-            var download = _player.Item?.Location is { } location ? _library?.Entry(location) : null;
+            var download = _player.Item?.Location is { } downloadLocation ? _library?.Entry(downloadLocation) : null;
             var fraction = download is { Downloading: true }
                 ? Downloads.Fraction(download.Size, download.FinalSize, download.Allocated)
                 : null;
