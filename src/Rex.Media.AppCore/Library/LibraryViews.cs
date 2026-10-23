@@ -598,12 +598,10 @@ public static partial class LibraryViews
         return [.. Songs(found), .. Videos(found), .. Pictures(found)];
     }
 
-    private static bool Matches(LibraryEntry entry, string word)
-    {
-        const CompareOptions Loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
-        return new[] { entry.Title, entry.Artist, entry.AlbumArtist, entry.Album, entry.Genre, Path.GetFileName(entry.Path) }
-            .Any(field => field is not null && Compare.IndexOf(field, word, Loose) >= 0);
-    }
+    private static bool Matches(LibraryEntry entry, string word) =>
+        Matches(entry.Title, word) || Matches(entry.Artist, word)
+        || Matches(entry.AlbumArtist, word) || Matches(entry.Album, word)
+        || Matches(entry.Genre, word) || Matches(Path.GetFileName(entry.Path), word);
 
     private static bool Matches(string? field, string word)
     {
