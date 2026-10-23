@@ -83,7 +83,7 @@ public sealed partial class MainWindow
             }
 
             _libraryCategory.Activated += (_, _) => ChangeLibraryView();
-            _libraryCategory.AccessibilityLabel = "Media category";
+            ((NSView)_libraryCategory).AccessibilityLabel = "Media category";
             var filters = NSStackView.FromViews([_librarySearch, _libraryCategory]);
             filters.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             filters.Spacing = 12;
