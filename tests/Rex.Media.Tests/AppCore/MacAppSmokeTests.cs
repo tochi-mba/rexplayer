@@ -107,6 +107,20 @@ public sealed class MacAppSmokeTests
             Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
             await CaptureLibraryScreenshot(pipe, "populated", root);
+            var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.True(tree?.Ok == true && tree.Controls is not null, "The native library did not expose its controls.");
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibrarySearch" && control.Kind == "search" && control.Name == "Search library");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryCategory" && control.Name == "Media category");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryResults" && control.Name == "Library results");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryPrevious" && control.Enabled == false && control.Name == "Previous results page");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && control.Enabled == false && control.Name == "Next results page");
+            var music = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 1 });
+            Assert.True(music?.Ok == true && music.Text?.Contains("0 matching", StringComparison.Ordinal) == true, "The native Music category did not filter videos.");
+            var videos = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 2 });
+            Assert.True(videos?.Ok == true && videos.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The native Videos category did not restore the video.");
+            var small = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
+            Assert.True(small?.Ok == true, "The native library could not use its minimum window size: " + (small?.Error ?? "no reply"));
+            await CaptureLibraryScreenshot(pipe, "minimum-width", root);
             var searched = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
             Assert.True(searched?.Ok == true && searched.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "Searching the native library failed: " + (searched?.Text ?? searched?.Error ?? "no reply") + LogTail(root));
