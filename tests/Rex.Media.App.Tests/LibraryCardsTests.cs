@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows.Automation;
 using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
@@ -40,8 +41,13 @@ public sealed class LibraryCardsTests : IDisposable
         var transform = (System.Windows.Automation.TransformPattern)app.Window.GetCurrentPattern(System.Windows.Automation.TransformPattern.Pattern);
         transform.Resize(720, Math.Max(640, original.Height));
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation", "narrow navigation to compact");
+        Assert.Empty(app.Find("LibrarySources").FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text)).Cast<AutomationElement>());
+        Assert.Contains("Movies", app.ListedViews());
         app.Press("LibraryNavigationToggle");
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation", "narrow navigation to expand on request");
+        Assert.Contains(app.Find("LibrarySources").FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text)).Cast<AutomationElement>(), text => text.Current.Name == "Movies");
         Assert.False(app.SavedSettings.LibraryNavigationCollapsed, "temporarily expanding a narrow rail must not change the saved preference");
         app.Press("LibraryNavigationToggle");
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation", "narrow navigation to collapse on request");
