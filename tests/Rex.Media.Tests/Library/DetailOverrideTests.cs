@@ -159,6 +159,29 @@ public sealed class DetailOverrideTests
         Assert.Equal(new DetailOverride { Title = "Lonely At The Top" }, DetailsForm.Change(fields, new Dictionary<string, string> { [MetadataKeys.Title] = "Lonely At The Top" }));
     }
 
+    [Fact]
+    public void FieldProvenanceSeparatesLocalOverridesFromUnreadAndMixedSources()
+    {
+        var a = Song("a.mp3", "First");
+        var b = Song("b.mp3", "Second");
+        Assert.Equal("No selected media", DetailsForm.Provenance([], MetadataKeys.Title));
+        Assert.Equal("Indexed locally; some file metadata has not been read yet",
+            DetailsForm.Provenance([a], MetadataKeys.Title));
+
+        var read = a with { Probed = true };
+        Assert.Equal("From the local media scan; tags and filename fallback may both contribute",
+            DetailsForm.Provenance([read], MetadataKeys.Title));
+        var overridden = read with { Override = new DetailOverride { Title = "Chosen" } };
+        Assert.Equal("Locally overridden in rexplayer",
+            DetailsForm.Provenance([overridden], MetadataKeys.Title));
+        Assert.Equal("Mixed sources, including rexplayer overrides",
+            DetailsForm.Provenance([overridden, b], MetadataKeys.Title));
+        Assert.Equal("From the local media scan; tags and filename fallback may both contribute",
+            DetailsForm.Provenance([overridden], MetadataKeys.Artist));
+        Assert.Throws<ArgumentNullException>(() => DetailsForm.Provenance(null!, MetadataKeys.Title));
+        Assert.Throws<ArgumentNullException>(() => DetailsForm.Provenance([read], null!));
+    }
+
     [Theory]
     [InlineData("1", "2", "2026")]
     [InlineData("3/12", "1/2", "2024-11")]
