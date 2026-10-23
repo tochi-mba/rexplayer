@@ -261,7 +261,7 @@ public sealed partial class MainWindow
             : date == DateTime.MinValue ? null
             : (episode.Modified != default ? "File date " : "Dated ") + date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
         var remaining = left is { } stoppedAt && episode.Duration is { Ticks: > 0 } duration
-            ? TimeText.Format(TimeSpan.FromTicks(Math.Clamp(duration.Ticks - stoppedAt.Ticks, 0, duration.Ticks)), duration) + " left"
+            ? TimeText.Format(TimeSpan.FromTicks(Math.Clamp(duration.Ticks - Math.Clamp(stoppedAt.Ticks, 0, duration.Ticks))), duration) + " left"
             : null;
         var detail = string.Join(" · ", new[] { state, remaining, dateText }.Where(part => part is not null));
         var progress = left is { } stopped && episode.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(stopped / length, 0, 1) : 0;
