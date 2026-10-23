@@ -78,12 +78,16 @@ public sealed class LibraryFoldersTests : IDisposable
         app.Open("Harbour Lights");
         Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on its first season",
             () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
+        Wait.For(() => app.Text("LibraryViewingProgress") == "Season: 0 of 2 episodes watched · Series: 0 of 3 episodes watched",
+            "season and series completion to remain independent and accessible");
         Screenshots.Match(app, "library-show-page", "LibraryPane");
         var picker = app.Find("LibrarySeasonPicker");
         ((ExpandCollapsePattern)picker.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
         var second = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 2")));
         ((SelectionItemPattern)second.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Lines().Length == 1, "the second season's one episode", () => string.Join(", ", app.Lines()));
+        Wait.For(() => app.Text("LibraryViewingProgress") == "Season: 0 of 1 episodes watched · Series: 0 of 3 episodes watched",
+            "the changed season to update without claiming the series is complete");
         Assert.Equal(0, app.Close());
     }
 
