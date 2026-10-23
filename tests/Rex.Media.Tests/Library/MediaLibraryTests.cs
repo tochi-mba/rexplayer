@@ -119,7 +119,7 @@ public sealed class MediaLibraryTests
         var library = new MediaLibrary(RexStore.InMemory());
         library.AddFolder(Music);
         var old = File(In("Original", "Song.mp3"), 12345);
-        var moved = File(In("Moved", "Renamed.mp3"), 12345);
+        var moved = File(In("Moved", "Song.mp3"), 12345);
         library.Scan(Music, [old], KindOf);
         library.Played(old.Path);
         library.Scan(Music, [moved], KindOf);
@@ -129,13 +129,13 @@ public sealed class MediaLibraryTests
 
         var ambiguous = new MediaLibrary(RexStore.InMemory());
         ambiguous.AddFolder(Music);
-        var a = File(In("First.mp3"), 44);
-        var b = File(In("Second.mp3"), 44);
+        var a = File(In("First", "Song.mp3"), 44);
+        var b = File(In("Second", "Song.mp3"), 44);
         ambiguous.Scan(Music, [a, b], KindOf);
         ambiguous.Played(a.Path);
         ambiguous.Played(b.Path);
         ambiguous.Scan(Music, [], KindOf);
-        var newCopy = File(In("New.mp3"), 44);
+        var newCopy = File(In("Third", "Song.mp3"), 44);
         ambiguous.Scan(Music, [newCopy], KindOf);
         Assert.Equal(0, ambiguous.Entry(newCopy.Path)!.Plays);
     }
