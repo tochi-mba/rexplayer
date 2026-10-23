@@ -121,7 +121,8 @@ public sealed partial class MainWindow
         var dialog = new ContentDialog
         {
             Title = "Recording details",
-            Content = panel,
+            Content = new ScrollViewer { Content = panel, MaxHeight = 470,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
             CloseButtonText = "Done",
             XamlRoot = Content.XamlRoot,
         };
