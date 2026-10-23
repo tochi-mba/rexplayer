@@ -9,7 +9,8 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
-    private readonly Dictionary<string, string?> _podcastShowNotes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (string? Notes, DateTime CheckedUtc)> _podcastShowNotes =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingPodcastShowNotes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Only a folder belonging to one show can supply its show-wide description.</summary>
@@ -77,10 +78,11 @@ public sealed partial class MainWindow
             return "Local episodes only · A show-wide description cannot safely be attributed across these folders.";
         }
 
-        if (_podcastShowNotes.TryGetValue(folder, out var known))
+        if (_podcastShowNotes.TryGetValue(folder, out var known)
+            && DateTime.UtcNow - known.CheckedUtc < TimeSpan.FromMinutes(1))
         {
-            return known is null ? fallback : known.Length > 750
-                ? known[..750] + "… (Open show notes to read the rest.)" : known;
+            return known.Notes is null ? fallback : known.Notes.Length > 750
+                ? known.Notes[..750] + "… (Open show notes to read the rest.)" : known.Notes;
         }
 
         if (_pendingPodcastShowNotes.Add(folder))
@@ -110,7 +112,8 @@ public sealed partial class MainWindow
                     _podcastShowNotes.Clear();
                 }
 
-                _podcastShowNotes[folder] = task.IsCompletedSuccessfully ? task.Result : null;
+                _podcastShowNotes[folder] =
+                    (task.IsCompletedSuccessfully ? task.Result : null, DateTime.UtcNow);
                 if (_librarySource == LibrarySource.Podcasts && _libraryGroup is { } opened
                     && string.Equals(opened.Name, show.Name, StringComparison.OrdinalIgnoreCase))
                 {
