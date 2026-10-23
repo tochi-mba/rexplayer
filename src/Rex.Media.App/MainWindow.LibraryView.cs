@@ -165,7 +165,11 @@ public sealed partial class MainWindow
         _songsTable = source == LibrarySource.Songs && _libraryGroup is null;
         if (!home && !musicHome)
         {
-            entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
+            // Progress of an audiobook is a book-wide state. Keep the file-level
+            // filters for folder/download/kind but defer progress until grouping.
+            var effective = source is LibrarySource.Audiobooks or LibrarySource.Authors
+                ? choice with { Filter = LibraryFilter.All } : choice;
+            entries = LibraryArrangement.Filter(entries, effective, _player.LeftAt);
         }
 
         // The music views, and Home's music shelves, never hold audiobooks, podcasts or recordings.
