@@ -89,6 +89,24 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void AShortSoundHasAnExplicitSingleFileReplayAction()
+    {
+        _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromMinutes(3));
+        _scene.Audio(Path.Combine("Downloads", "ding.wav"), TimeSpan.FromSeconds(6));
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Recordings");
+        Wait.For(() => app.Lines().Contains("ding") && app.Lines().Contains("Recording 001"),
+            "the recording and the short sound to be separate");
+        Pointer.RightClick(app, app.Line("ding"));
+        Wait.For(() => app.IsShown("LibraryMenuReplaySound"), "the sound's own replay action");
+        app.Press("LibraryMenuReplaySound");
+        Wait.For(() => app.Text("NowPlaying") == "ding", "only the chosen sound to start");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
