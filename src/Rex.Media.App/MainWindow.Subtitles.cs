@@ -25,6 +25,7 @@ public sealed partial class MainWindow
     private IReadOnlyList<SubtitleCue> _shownCues = [];
     private IReadOnlyList<SubtitleCue> _shownSecondary = [];
     private SubtitleLook? _look;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _subtitleAccessibility = new();
 
     private void WireSubtitles()
     {
@@ -34,7 +35,26 @@ public sealed partial class MainWindow
         Stage.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => LayOutSubtitles());
+        _subtitleAccessibility.HighContrastChanged += OnSubtitleContrastChanged;
     }
+
+    private void OnSubtitleContrastChanged(Windows.UI.ViewManagement.AccessibilitySettings sender, object args)
+    {
+        OnWindowThread(() =>
+        {
+            if (_closed || _closing)
+            {
+                return;
+            }
+
+            LayOutSubtitles();
+            ShowSubtitles(redraw: true);
+            UpdateKineticCaptionsForContrast();
+        });
+    }
+
+    private void UnwireSubtitleContrast() =>
+        _subtitleAccessibility.HighContrastChanged -= OnSubtitleContrastChanged;
 
     /// <summary>Shows the cues due now, drawing them again only when they changed.</summary>
     private void ShowSubtitles(bool redraw)
@@ -79,6 +99,10 @@ public sealed partial class MainWindow
             DrawSubtitles();
         }
     }
+
+    // Force the kinetic caption layer to reread its style after an OS
+    // accessibility palette change, even when the playback position is paused.
+    private void UpdateKineticCaptionsForContrast() => ShowKineticCaptions();
 
     private void DrawSubtitles()
     {
