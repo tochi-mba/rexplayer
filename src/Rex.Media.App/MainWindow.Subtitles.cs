@@ -66,7 +66,8 @@ public sealed partial class MainWindow
         }
 
         var area = SubtitleLook.SubtitleArea(picture, height, _settings.SubtitlesInBars);
-        var look = SubtitleLook.For(_settings, picture.Height);
+        var look = SubtitleLook.For(_settings, picture.Height,
+            new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast);
         var underControls = IsFullScreen && Controls.Visibility == Visibility.Visible ? Controls.ActualHeight : 0;
         var below = Math.Max(height - area.Y - area.Height + look.Margin, underControls + 8);
         SubtitleLayer.Margin = new Thickness(area.X, area.Y + look.Margin, Math.Max(0, width - area.X - area.Width), Math.Max(0, below));
