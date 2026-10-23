@@ -355,6 +355,7 @@ TimeText.cs
 TimeWarpScene.cs
 TrackInfo.cs
 Transcript.cs
+TranscriptSearch.cs
 TranscriptAlignment.cs
 TranscriptCache.cs
 TranscriptEdits.cs
