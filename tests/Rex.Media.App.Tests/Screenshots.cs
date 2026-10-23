@@ -63,30 +63,50 @@ internal static class Screenshots
     /// </summary>
     internal static bool HasVisibleVariation((int Width, int Height, byte[] Bgra) picture)
     {
-        if (picture.Width <= 0 || picture.Height <= 0 || picture.Bgra.Length < picture.Width * picture.Height * 4)
+        // Check dimensions before integer multiplication so corrupt captures fail clearly.
+        if (picture.Width <= 0 || picture.Height <= 0
+            || (long)picture.Width * picture.Height * 4 > picture.Bgra.Length)
         {
             return false;
         }
 
         var pixels = picture.Bgra;
-        var different = 0;
-        var minimum = Math.Max(8, picture.Width * picture.Height / 1000);
-        var step = Math.Max(1, picture.Width * picture.Height / 4000);
-        for (var p = 0; p < picture.Width * picture.Height; p += step)
+        var total = picture.Width * picture.Height;
+        var step = Math.Max(1, total / 4000);
+        var bins = new Dictionary<int, int>();
+        var sampled = 0;
+        var biggestBin = 0;
+        var minB = 255;
+        var minG = 255;
+        var minR = 255;
+        var maxB = 0;
+        var maxG = 0;
+        var maxR = 0;
+        for (var p = 0; p < total; p += step)
         {
             var i = p * 4;
-            if (Math.Max(Math.Abs(pixels[i] - pixels[0]),
-                Math.Max(Math.Abs(pixels[i + 1] - pixels[1]), Math.Abs(pixels[i + 2] - pixels[2]))) > 16)
-            {
-                different++;
-                if (different >= Math.Min(minimum, 12))
-                {
-                    return true;
-                }
-            }
+            var blue = pixels[i];
+            var green = pixels[i + 1];
+            var red = pixels[i + 2];
+            minB = Math.Min(minB, blue);
+            minG = Math.Min(minG, green);
+            minR = Math.Min(minR, red);
+            maxB = Math.Max(maxB, blue);
+            maxG = Math.Max(maxG, green);
+            maxR = Math.Max(maxR, red);
+
+            // Bucket by visible colour rather than treating one arbitrary corner pixel as
+            // the reference. A single bright cursor pixel must not make a blank window pass.
+            var key = ((red >> 5) << 6) | ((green >> 5) << 3) | (blue >> 5);
+            bins.TryGetValue(key, out var count);
+            count++;
+            bins[key] = count;
+            biggestBin = Math.Max(biggestBin, count);
+            sampled++;
         }
 
-        return false;
+        var range = Math.Max(maxR - minR, Math.Max(maxG - minG, maxB - minB));
+        return range > 16 && sampled - biggestBin >= Math.Max(8, sampled / 100);
     }
 
     /// <summary>The comparison itself, for a picture already taken.</summary>
