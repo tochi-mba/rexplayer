@@ -30,7 +30,8 @@ public sealed class MediaStageWindowTests : IDisposable
             ("AUDIO", "stage-sound", false),
         })
         {
-            Wait.For(() => app.Find("Stage").Current.Name == label + " playback stage",
+            Wait.For(() => app.Find("Stage").Current.Name == label + " playback stage"
+                && app.Find("SeekBar").Current.IsEnabled,
                 label + " stream to update the stage");
             if (app.Status().State == "Playing")
             {
@@ -110,7 +111,8 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Choose("Sungba");
         app.Press("LibraryPlay");
         Wait.For(() => app.Text("NowPlaying") == "Sungba" &&
-            app.Find("Stage").Current.Name == "NOW PLAYING playback stage",
+            app.Find("Stage").Current.Name == "NOW PLAYING playback stage"
+            && app.Find("SeekBar").Current.IsEnabled,
             "the music stage to identify the playing song");
         Screenshots.Match(app, "stage-song-windowed");
 
@@ -119,7 +121,8 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.Lines().Contains("Small Film"), "the movie card");
         app.Choose("Small Film");
         app.Press("LibraryPlay");
-        Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage",
+        Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage"
+            && app.Find("SeekBar").Current.IsEnabled,
             "the movie stage to identify its media type",
             () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
         Assert.False(app.IsShown("Lyrics"), "The movie stage must not retain song lyrics.");
