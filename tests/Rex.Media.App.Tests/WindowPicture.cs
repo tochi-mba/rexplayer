@@ -11,17 +11,36 @@ internal static partial class WindowPicture
     private const uint RenderFullContent = 2;
 
     /// <summary>The window's picture, and its size.</summary>
-    public static (int Width, int Height, byte[] Bgra) Take(nint window)
+    public static (int Width, int Height, byte[] Bgra) Take(nint window) => TakeCore(window, includeDesktopPopups: false);
+
+    /// <summary>
+    /// Captures the actual composed desktop region for a menu or ContentDialog. PrintWindow
+    /// captures the host HWND without popup surfaces, which can silently yield an image of
+    /// the underlying idle stage instead of the menu the UIA test just opened.
+    /// Use only in the serial desktop UI tests, with a visible UIA popup witness.
+    /// </summary>
+    public static (int Width, int Height, byte[] Bgra) TakeDesktop(nint window) => TakeCore(window, includeDesktopPopups: true);
+
+    private static (int Width, int Height, byte[] Bgra) TakeCore(nint window, bool includeDesktopPopups)
     {
         Assert.True(GetWindowRect(window, out var rect), "The window has no place on the screen.");
         var (width, height) = (rect.Right - rect.Left, rect.Bottom - rect.Top);
+        Assert.True(width > 0 && height > 0, "The window has no captureable area.");
         var screen = GetDC(0);
         var memory = CreateCompatibleDC(screen);
         var bitmap = CreateCompatibleBitmap(screen, width, height);
         var old = SelectObject(memory, bitmap);
         try
         {
-            Assert.True(PrintWindow(window, memory, RenderFullContent), "The window could not be drawn into a picture.");
+            if (includeDesktopPopups)
+            {
+                Assert.True(BitBlt(memory, 0, 0, width, height, screen, rect.Left, rect.Top, 0x00CC0020),
+                    "The desktop, including its popups, could not be captured.");
+            }
+            else
+            {
+                Assert.True(PrintWindow(window, memory, RenderFullContent), "The window could not be drawn into a picture.");
+            }
             var pixels = new byte[width * height * 4];
             var header = new BitmapInfoHeader { Size = 40, Width = width, Height = -height, Planes = 1, BitCount = 32 };
             Assert.True(GetDIBits(memory, bitmap, 0, (uint)height, pixels, ref header, 0) == height, "The window's picture could not be read.");
@@ -138,6 +157,11 @@ internal static partial class WindowPicture
     [LibraryImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool DeleteDC(nint dc);
+
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool BitBlt(nint destination, int x, int y, int width, int height,
+        nint source, int sourceX, int sourceY, uint operation);
 
     [LibraryImport("gdi32.dll")]
     private static partial int GetDIBits(nint dc, nint bitmap, uint start, uint lines, [Out] byte[] bits, ref BitmapInfoHeader info, uint usage);
