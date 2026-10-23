@@ -48,7 +48,7 @@ public static class LibraryActions
     {
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Remove {names[0]} from the library?" : $"Remove {Count(names.Count, "item")} from the library?";
-        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + " until " + (names.Count == 1 ? "its folder is" : "their folders are") + " taken out of the library and added again.");
+        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + ". You can use Undo immediately while the " + (names.Count == 1 ? "file is" : "files are") + " still available; otherwise re-add the watched folder.");
     }
 
     /// <summary>Stopping a folder watch never deletes its files; make that explicit before acting.</summary>
