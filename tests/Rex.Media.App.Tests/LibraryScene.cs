@@ -120,11 +120,11 @@ internal sealed class LibraryScene : IDisposable
     }
 
     /// <summary>A real MP3 with ID3 chapters for verifying audiobook stage actions.</summary>
-    public string ChapteredAudiobook()
+    public string ChapteredAudiobook(string part = "Part 1")
     {
-        var path = Path.Combine(Media, "Audiobooks", "Chapter proof", "Part 1.mp3");
+        var path = Path.Combine(Media, "Audiobooks", "Chapter proof", part + ".mp3");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var tags = Id3Builder.V24().Text("TIT2", "Part 1").Text("TCON", "Audiobook")
+        var tags = Id3Builder.V24().Text("TIT2", part).Text("TCON", "Audiobook")
             .Chapter("opening", 0, "Opening").Chapter("continuation", 3000, "Continuation").Build();
         var frames = File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"));
         // Skip the encoder's Info/Xing header before repeating frames. Keeping it
@@ -175,7 +175,7 @@ internal sealed class LibraryScene : IDisposable
             Chapters = [new Chapter(MediaTime.Zero, "Opening"), new Chapter(MediaTime.FromSeconds(3), "Continuation")],
             Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [MetadataKeys.Title] = "Part 1",
+                [MetadataKeys.Title] = part,
                 [MetadataKeys.Genre] = "Audiobook",
                 [MetadataKeys.MediaType] = MetadataKeys.Audiobook,
             },
