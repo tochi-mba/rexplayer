@@ -10,12 +10,21 @@ namespace Rex.Media.App.Tests;
 [Collection("desktop")]
 public sealed class LibraryFixtureVisualTests
 {
+    private static void SetViewport(AppProcess app, int width, int height)
+    {
+        ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(width, height);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - width) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - height) < 2,
+            $"the {width}x{height} window viewport");
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void EmptyWatchedLibraryShowsARealEmptyState()
     {
         using var scene = new LibraryScene();
         using var app = scene.Ready().Start();
+        SetViewport(app, 1000, 760);
         Wait.For(() => app.IsShown("LibraryEmptyText") &&
             app.Text("LibraryEmptyText") == "There is nothing of this kind in the library's folders.",
             "the empty library to finish indexing and explain what is missing");
@@ -31,6 +40,7 @@ public sealed class LibraryFixtureVisualTests
         using var scene = new LibraryScene();
         scene.Song("Only Song", "Only Album", 2024, "Local");
         using var app = scene.Ready().Start();
+        SetViewport(app, 720, 640);
         app.Visit("Songs");
         Wait.For(() => app.Lines().SequenceEqual(["Only Song"]), "the only song in the library");
         Assert.True(app.IsShown("LibrarySearch"));
@@ -47,16 +57,17 @@ public sealed class LibraryFixtureVisualTests
         scene.Film("Small.Film.2023.mp4");
         scene.Picture("Lagos.jpg");
         using var app = scene.Ready().Start();
+        SetViewport(app, 1000, 760);
         Wait.For(() => app.IsShown("LibraryPane") &&
             app.Find("LibraryShelfCards-Albums").Current.Name == "Albums",
             "the mixed library's album shelf to be available");
+        Assert.InRange(app.Find("LibrarySources").Current.BoundingRectangle.Width, 175, 215);
         Screenshots.Match(app, "library-home-mixed", "LibraryPane");
 
-        var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
-        transform.Resize(720, 640);
-        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 720) < 2 &&
-            app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation",
+        SetViewport(app, 720, 640);
+        Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation",
             "the compact navigation to replace the wide rail");
+        Assert.InRange(app.Find("LibrarySources").Current.BoundingRectangle.Width, 55, 75);
         Screenshots.Match(app, "library-home-mixed-compact", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
@@ -69,6 +80,7 @@ public sealed class LibraryFixtureVisualTests
         scene.Song("夜の音楽", "青い空", 2024, "Local", artist: "山田");
         scene.Song("أغنية هادئة", "رحلة", 2024, "Local", artist: "ليلى");
         using var app = scene.Ready().Start();
+        SetViewport(app, 1000, 760);
         app.Visit("Songs");
         Wait.For(() => app.Lines().Contains("夜の音楽") && app.Lines().Contains("أغنية هادئة"),
             "both Unicode and right-to-left song names to appear");
