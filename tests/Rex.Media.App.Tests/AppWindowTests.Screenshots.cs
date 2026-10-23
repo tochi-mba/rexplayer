@@ -134,6 +134,7 @@ public sealed partial class AppWindowTests
         using var app = AppProcess.Start([Song(30)], RootWith(new Rex.Media.Settings.PlayerSettings
         {
             ControlsHideSeconds = 120,
+            Theme = Rex.Media.Settings.ThemeChoice.Dark,
         }));
         Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
             && app.Position > 0, "audio to become ready");
