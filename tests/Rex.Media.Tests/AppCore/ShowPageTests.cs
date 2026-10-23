@@ -132,6 +132,7 @@ public sealed class ShowPageTests
         Assert.True(seasonOne.IsComplete);
         Assert.Equal("Season complete: 2 of 2 episodes watched", seasonOne.Describe("Season"));
         Assert.Equal(new EpisodeWatchSummary(1, 0, 1), seasonTwo);
+        Assert.Equal("Season: 0 of 1 episode watched · 1 in progress", seasonTwo.Describe("Season"));
         Assert.False(seasonTwo.IsComplete);
         Assert.Equal(new EpisodeWatchSummary(3, 2, 1), series);
         Assert.False(series.IsComplete);
