@@ -144,6 +144,26 @@ public sealed class AudiobookPresentationTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void MatchingEditionFolderNamesStillHaveDistinctAccessibleBookCards()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Series One", "Shared Edition", "Alpha.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+        _scene.Audio(Path.Combine("Audiobooks", "Series Two", "Shared Edition", "Beta.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Audiobooks");
+        Wait.For(() => app.Lines().Contains("Same Title (Series One / Shared Edition)")
+            && app.Lines().Contains("Same Title (Series Two / Shared Edition)"),
+            "uniquely announced cards when two editions have matching final directory names");
+        app.Open("Same Title (Series Two / Shared Edition)");
+        Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
+            && app.Lines().SequenceEqual(["Beta"]), "the selected edition's own chapter only");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void OpeningLibraryAtPlayingMediaReturnsToItsBookAndVirtualizedChapter()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Returning Book", "Whole.wav"),
