@@ -308,7 +308,8 @@ public sealed partial class MainWindow
             var dialog = new ContentDialog
             {
                 Title = "Read " + new TranscriptVariant(loaded.Model, false).Quality + " transcript",
-                Content = panel,
+                Content = new ScrollViewer { Content = panel, MaxHeight = 490,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
                 CloseButtonText = "Done",
                 XamlRoot = Content.XamlRoot,
             };
