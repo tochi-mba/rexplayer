@@ -166,6 +166,7 @@ public sealed class MediaLibrary
     private const string FoldersKey = "folders";
     private const string HiddenKey = "hidden";
     private const string EntryPrefix = "entry/";
+    private const string AbsentPrefix = "absent/";
 
     /// <summary>
     /// The version of the tag reading that fills in a song's details. It goes up when a reader starts
@@ -177,6 +178,9 @@ public sealed class MediaLibrary
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
+    // Last-known played items removed by a scan. Not in live views; retained
+    // for safe recovery if the same file returns or moves to a unique location.
+    private readonly Dictionary<string, LibraryEntry> _absent = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _hidden = new(StringComparer.OrdinalIgnoreCase);
     private readonly TimeProvider _time;
     private List<string> _folders;
@@ -192,6 +196,14 @@ public sealed class MediaLibrary
             if (Parse(json, LibraryJson.Default.LibraryEntry) is { Path.Length: > 0, Title: not null } entry)
             {
                 _entries[entry.Path] = entry;
+            }
+        }
+
+        foreach (var (_, json) in Store.WithPrefix(AbsentPrefix))
+        {
+            if (Parse(json, LibraryJson.Default.LibraryEntry) is { Path.Length: > 0, Title: not null } entry)
+            {
+                _absent[entry.Path] = entry;
             }
         }
     }
@@ -334,6 +346,8 @@ public sealed class MediaLibrary
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var written = new List<LibraryEntry>();
+            var transferred = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var revived = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int added = 0, changed = 0;
             foreach (var file in listed)
             {
@@ -353,10 +367,20 @@ public sealed class MediaLibrary
                 // A download renamed into place ("film.mp4.crdownload" to "film.mp4") keeps its entry,
                 // judged afresh: the rename itself says the download finished.
                 var carried = known is null ? RenamedPartial(file.Path, paths) : null;
+                var saved = known is null && carried is null ? RecoverMissing(file, kind, paths, folder) : null;
+                if (saved is not null)
+                {
+                    revived.Add(saved.Path);
+                    if (!string.Equals(saved.Path, file.Path, StringComparison.OrdinalIgnoreCase))
+                    {
+                        transferred.Add(saved.Path);
+                    }
+                }
+
                 var before = known;
-                var start = known ?? (carried is null
-                    ? new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path) }
-                    : carried with { Path = file.Path, Probed = false });
+                var start = known ?? (carried ?? saved) is { } remembered
+                    ? remembered with { Path = file.Path, Probed = false, Problem = null }
+                    : new LibraryEntry { Path = file.Path, Kind = kind, Size = file.Size, Modified = file.Modified, Added = now, Title = TitleOf(file.Path) };
                 var evidence = Downloads.Gather(file.Path, paths.Contains, readMarker ?? (_ => null));
                 var looked = Looked(start, before, file, evidence, LookAt(file, evidence, inspect)) with { Kind = kind };
                 if (known is null && carried is null)
@@ -372,8 +396,10 @@ public sealed class MediaLibrary
             }
 
             var gone = _entries.Values.Where(entry => Holds(folder, entry.Path) && !seen.Contains(entry.Path)).ToList();
+            RememberMissing(gone.Where(entry => !transferred.Contains(entry.Path)));
             Write(written, remove: false);
             Write(gone, remove: true);
+            ClearMissing(revived);
             result = new ScanResult(added, changed, gone.Count);
         }
 
@@ -422,6 +448,60 @@ public sealed class MediaLibrary
         }
 
         Change(looked.Select(entry => entry.Path), known => looked.First(entry => string.Equals(entry.Path, known.Path, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>
+    /// Recover a played file that was temporarily missing from a watched folder.
+    /// A moved file inherits history only when its size, modification time and
+    /// media kind form an unambiguous match among gone and archived items.
+    /// </summary>
+    private LibraryEntry? RecoverMissing(LibraryFile file, LibraryKind kind, HashSet<string> listed, string folder)
+    {
+        if (_absent.TryGetValue(file.Path, out var exactly))
+        {
+            return exactly;
+        }
+
+        var possible = _entries.Values.Where(entry => Holds(folder, entry.Path)
+                && !listed.Contains(entry.Path) && entry.Kind == kind
+                && entry.Size == file.Size && entry.Modified == file.Modified
+                && (entry.Plays > 0 || entry.LastPlayed is not null))
+            .Concat(_absent.Values.Where(entry => entry.Kind == kind
+                && entry.Size == file.Size && entry.Modified == file.Modified))
+            .DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
+        if (possible.Count != 1
+            || _entries.Values.Any(entry => listed.Contains(entry.Path) && entry.Kind == kind
+                && entry.Size == file.Size && entry.Modified == file.Modified))
+        {
+            return null;
+        }
+
+        return possible[0];
+    }
+
+    /// <summary>Keep historical plays out of visible library rows without throwing them away on disconnect.</summary>
+    private void RememberMissing(IEnumerable<LibraryEntry> gone)
+    {
+        var entries = gone.Where(entry => entry.Plays > 0 || entry.LastPlayed is not null || entry.Override is not null).ToList();
+        foreach (var entry in entries)
+        {
+            _absent[entry.Path] = entry;
+        }
+
+        Store.SetMany([.. entries.Select(entry => new KeyValuePair<string, string?>(
+            AbsentPrefix + KeyFor(entry.Path), JsonSerializer.Serialize(entry, LibraryJson.Default.LibraryEntry)))]);
+    }
+
+    /// <summary>Once a missing entry returns, its remembered history belongs to the live copy.</summary>
+    private void ClearMissing(IEnumerable<string> paths)
+    {
+        var removed = paths.Where(_absent.ContainsKey).ToArray();
+        foreach (var path in removed)
+        {
+            _absent.Remove(path);
+        }
+
+        Store.SetMany([.. removed.Select(path => new KeyValuePair<string, string?>(AbsentPrefix + KeyFor(path), null))]);
     }
 
     /// <summary>The entry of a partial file that <paramref name="path"/> was renamed from, when that file is no longer listed.</summary>
