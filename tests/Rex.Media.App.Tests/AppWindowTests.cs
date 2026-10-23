@@ -521,6 +521,11 @@ public sealed partial class AppWindowTests : IDisposable
         Input.Focus(app);
         app.Find("LyricLine-0").SetFocus();
         Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus, "focused initial lyrics");
+        app.Run(CommandCatalog.Faster);
+        app.Run(CommandCatalog.PlayPause);
+        Assert.True(app.Find("LyricLine-0").Current.HasKeyboardFocus);
+        Assert.Equal("Timed lyrics; only line starts were supplied.", app.Text("LyricsStatus"));
+        app.Run(CommandCatalog.PlayPause);
         app.Run(CommandCatalog.Next);
         Wait.For(() => app.Text("NowPlaying") == "Next", "the next song to load");
         Wait.For(() => app.Text("LyricLine-0") == "Go to 0:00: Next song",
