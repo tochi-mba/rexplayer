@@ -132,7 +132,8 @@ public sealed partial class MainWindow
         switch (_librarySource)
         {
             case LibrarySource.Authors:
-                var authoredBooks = ListeningViews.Books(mine);
+                var authoredBooks = ListeningViews.FilterBooks(ListeningViews.Books(mine),
+                    ViewChoice(_libraryViewKey).Filter, _player.LeftAt, Audiobooks.Finished);
                 var authors = ListeningViews.Authors(authoredBooks);
                 if (_libraryGroup is { } openedAuthor)
                 {
@@ -160,7 +161,8 @@ public sealed partial class MainWindow
                         new LibraryRow(author.Name, Count(ListeningViews.BooksByAuthor(authoredBooks, author.Name).Count, "book"),
                             "", author, hasPicture: false, picturePlaceholder: "✎")))], true);
             case LibrarySource.Audiobooks:
-                var books = ListeningViews.Books(mine);
+                var books = ListeningViews.FilterBooks(ListeningViews.Books(mine),
+                    ViewChoice(_libraryViewKey).Filter, _player.LeftAt, Audiobooks.Finished);
                 if (_libraryGroup is { } openedBook)
                 {
                     var book = ListeningViews.RefreshBook(books, openedBook);
