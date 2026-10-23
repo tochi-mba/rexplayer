@@ -68,7 +68,7 @@ internal static class ScreenshotScenes
                 string.IsNullOrWhiteSpace(scene.Fixture) ||
                 string.IsNullOrWhiteSpace(scene.Route) ||
                 string.IsNullOrWhiteSpace(scene.State) ||
-                string.IsNullOrWhiteSpace(scene.Dimensions) ||
+                !System.Text.RegularExpressions.Regex.IsMatch(scene.Dimensions, "^[1-9][0-9]*x[1-9][0-9]*$") ||
                 string.IsNullOrWhiteSpace(scene.Theme) ||
                 string.IsNullOrWhiteSpace(scene.Owner) ||
                 scene.Baseline is not ("ci-windows" or "unreviewed") ||
