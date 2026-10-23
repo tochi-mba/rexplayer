@@ -101,6 +101,28 @@ full scene inventory and per-test process logs. Run these tests on a visible,
 unobstructed, serial Windows desktop; never approve desktop captures made with other
 windows covering the app. The capture mode is recorded in each JSON sidecar.
 
+Every successful scene takes a second compositor frame and checks the differing-pixel
+ratio against its declared tolerance. CI retains `repeat/<scene-id>.png` and, on
+instability, `repeat-diff/<scene-id>.png`. It then reruns the seven fixture-backed
+empty, single, mixed, RTL, long-text and missing-artwork captures in new app
+processes, under `ci-windows-repeat`, and checks their resulting PNG pixels with
+`scripts/check-screenshot-repeatability.ps1`. These checks measure stability;
+neither proves that a screenshot actually shows the intended interface.
+
+CI saves `review/index.html` alongside images, the full scene inventory, JSON
+UIA witnesses, process logs, actual PNGs and retained baselines/diffs. Open the
+gallery in a local browser to inspect every image and its semantic assertions
+before promoting it to a reviewed baseline. Missing files or pending approval
+must remain visible, not counted as success.
+
+Two specialized contracts require real, independently configured Windows desktops:
+run the `LibraryAccessibilityVisualTests` with
+`REXPLAYER_UI_LANE=ci-windows-high-dpi` on a monitor reporting at least 144 DPI,
+or with `REXPLAYER_UI_LANE=ci-windows-high-contrast` under real Windows high
+contrast. Each test rejects a falsely configured lane, and ordinary CI skips
+these specialist tests. The regular `ci-windows` artifact does not supply their
+proof. The image JSON records the actual OS DPI and contrast state.
+
 ## Measuring the whole player
 
 `./dev.ps1 measure` publishes the player as people get it and measures it with
