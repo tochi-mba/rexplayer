@@ -31,19 +31,30 @@ public sealed partial class MainWindow
             : _library?.Entry(media)?.Duration ?? TimeSpan.Zero;
         var loaded = await Task.Run(() =>
         {
+            var file = new FileInfo(media);
+            var ledger = _ledger.Find(TranscriptSignature.Of(file.Length, file.LastWriteTimeUtc));
+            var failure = ledger is { State: TranscriptState.Failed } failed
+                && string.Equals(failed.Model, model, StringComparison.OrdinalIgnoreCase)
+                ? failed.Reason ?? "The transcription job failed." : null;
+            if (failure is { Length: > 200 })
+            {
+                failure = failure[..200] + "…";
+            }
+
             var original = _transcripts.Load(media, model);
             var partial = original is null ? _transcripts.LoadPartial(media, model) : null;
             original ??= partial?.ToTranscript();
             if (original is null || original.IsEmpty)
             {
-                return (Content: (Transcript?)null, Complete: false);
+                return (Content: (Transcript?)null, Complete: false, Edited: false, Failure: failure);
             }
 
             var edited = _transcripts.LoadEdited(media, model)?.MergeGenerated(
                 original, partial?.Done ?? (duration > TimeSpan.Zero
                     ? TimeRanges.Of([new TimeRange(TimeSpan.Zero, duration)]) : TimeRanges.Empty),
                 partial?.Duration ?? duration, partial is null);
-            return (Content: edited?.Content ?? original, Complete: partial is null);
+            return (Content: edited?.Content ?? original, Complete: partial is null,
+                Edited: edited is not null, Failure: failure);
         });
         if (_closing || (selectedPath is null && _player.Item?.Location != media))
         {
@@ -52,7 +63,9 @@ public sealed partial class MainWindow
 
         if (loaded.Content is not { IsEmpty: false } transcript)
         {
-            Say("No transcript is saved for this file yet. Transcribe it first.");
+            Say(loaded.Failure is { } error
+                ? "Transcription failed: " + error + " Retry it from the library."
+                : "No transcript is saved for this file yet. Transcribe it first.");
             return;
         }
 
@@ -63,11 +76,22 @@ public sealed partial class MainWindow
         }
 
         var panel = new StackPanel { Spacing = 10, MaxWidth = 680 };
+        var coverageText = loaded.Complete
+            ? "Saved transcript · Local speech · Select a paragraph to jump to its time."
+            : "Partial transcript · Some speech has not been transcribed yet.";
+        if (loaded.Edited)
+        {
+            coverageText += " · Edited words shown; the generated original is preserved.";
+        }
+
+        if (loaded.Failure is { } failureReason)
+        {
+            coverageText += " · Transcription error: " + failureReason;
+        }
+
         var coverage = new TextBlock
         {
-            Text = loaded.Complete
-                ? "Saved transcript · Local speech · Select a paragraph to jump to its time."
-                : "Partial transcript · Some speech has not been transcribed yet.",
+            Text = coverageText,
             TextWrapping = TextWrapping.Wrap,
         };
         AutomationProperties.SetAutomationId(coverage, "TranscriptReaderCoverage");
