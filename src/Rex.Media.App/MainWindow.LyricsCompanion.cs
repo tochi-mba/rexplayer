@@ -22,6 +22,7 @@ public sealed partial class MainWindow
     private TextBlock? _lyricsCompanionHeading;
     private Button? _lyricsCompanionFollow;
     private Lyrics? _lyricsCompanionSource;
+    private bool _lyricsCompanionBuilt;
     private readonly List<TextBlock> _lyricsCompanionTexts = [];
     private readonly List<FrameworkElement> _lyricsCompanionRows = [];
     private readonly Dictionary<int, List<Run>> _lyricsCompanionWords = [];
@@ -113,6 +114,7 @@ public sealed partial class MainWindow
         _lyricsCompanionFollow = follow;
         _lyricsCompanionFollows = true;
         _lyricsCompanionSource = null;
+        _lyricsCompanionBuilt = false;
         _lyricsCompanionLine = -1;
         _lyricsCompanionWord = -2;
         window.Content = root;
@@ -126,6 +128,7 @@ public sealed partial class MainWindow
                 _lyricsCompanionHeading = null;
                 _lyricsCompanionFollow = null;
                 _lyricsCompanionSource = null;
+                _lyricsCompanionBuilt = false;
                 _lyricsCompanionTexts.Clear();
                 _lyricsCompanionRows.Clear();
                 _lyricsCompanionWords.Clear();
@@ -192,8 +195,9 @@ public sealed partial class MainWindow
         var trackName = _player.Item?.Title ?? "No track";
         window.Title = trackName + " · Lyrics · rexplayer";
         heading.Text = trackName;
-        if (!ReferenceEquals(_lyricsCompanionSource, lyrics))
+        if (!_lyricsCompanionBuilt || !ReferenceEquals(_lyricsCompanionSource, lyrics))
         {
+            _lyricsCompanionBuilt = true;
             _lyricsCompanionSource = lyrics;
             _lyricsCompanionLine = -1;
             _lyricsCompanionWord = -2;
@@ -290,6 +294,14 @@ public sealed partial class MainWindow
                 _lyricsCompanionTexts[_lyricsCompanionLine].FontWeight = FontWeights.Normal;
                 _lyricsCompanionTexts[_lyricsCompanionLine].Foreground =
                     new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+                if (_lyricsCompanionWords.TryGetValue(_lyricsCompanionLine, out var priorRuns))
+                {
+                    var neutral = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+                    foreach (var run in priorRuns)
+                    {
+                        run.Foreground = neutral;
+                    }
+                }
             }
 
             _lyricsCompanionLine = current;
