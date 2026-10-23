@@ -1,0 +1,33 @@
+# Temporary workflow to transfer the exact Windows CI screenshot into the binary baseline.
+# This workflow is removed from the PR before review and merge.
+name: Import episode still visual baseline
+on:
+  push:
+    branches: [fix/0.30.7-tv-episode-visual-ci]
+    paths: [.github/workflows/temporary-import-episode-baseline.yml]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Import exact actual Windows screenshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api /repos/tochi-mba/rexplayer/actions/artifacts/12506599144/zip > /tmp/windows-screenshots.zip
+          test -s /tmp/windows-screenshots.zip
+          unzip -p /tmp/windows-screenshots.zip ci-windows/actual/library-episode-still-letterboxed.png > tests/screenshot-baselines/ci-windows/library-episode-still-letterboxed.png
+          file tests/screenshot-baselines/ci-windows/library-episode-still-letterboxed.png | grep -q 'PNG image data, 804 x 251'
+          test "$(wc -c < tests/screenshot-baselines/ci-windows/library-episode-still-letterboxed.png)" -gt 10000
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/screenshot-baselines/ci-windows/library-episode-still-letterboxed.png
+          git commit -m "Update episode-still baseline from the actual Windows CI capture"
+          git push origin HEAD:fix/0.30.7-tv-episode-visual-ci
