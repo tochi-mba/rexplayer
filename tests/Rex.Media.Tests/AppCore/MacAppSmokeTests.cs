@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
@@ -32,6 +33,14 @@ public sealed class MacAppSmokeTests
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
+
+            // Exercise the real AppKit library construction and the shared View command on an
+            // empty catalogue before opening a video. A native layout exception kills this smoke test.
+            var library = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(library?.Ok == true, "The Mac library command did not open: " + (library?.Error ?? "no reply") + LogTail(root));
+            Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The app stopped answering with its library open." + LogTail(root));
+            var back = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(back?.Ok == true, "The Mac library did not close through its shared command: " + (back?.Error ?? "no reply") + LogTail(root));
 
             var video = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
             var opened = await Ask(pipe, new AutomationRequest { Command = "open", Paths = [video] });
