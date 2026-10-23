@@ -731,9 +731,22 @@ public sealed partial class MainWindow
         ShowLibraryEmpty(entries.Count == 0, false, LibrarySource.Home);
 
         var downloading = HomeShelves.Downloading(entries, 20);
+        var albums = LibraryViews.Albums(entries);
+        var pinned = new List<LibraryGroup>();
+        foreach (var path in _settings.PinnedAlbumPaths)
+        {
+            var album = albums.FirstOrDefault(group => group.Entries.Any(song =>
+                string.Equals(song.Path, path, StringComparison.OrdinalIgnoreCase)));
+            if (album is not null && !pinned.Contains(album))
+            {
+                pinned.Add(album);
+            }
+        }
+
         (string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)[] shelves =
         [
             (DownloadingShelf, Enum.Parse<LibrarySource>(HomeShelves.SeeAllDownloading(downloading, ViewChoice).View), [.. downloading.Select(EntryRow)], downloading is [{ Kind: LibraryKind.Video }, ..]),
+            ("Pinned albums", LibrarySource.Albums, [.. pinned.Take(20).Select(GroupRow)], false),
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
             .. ListeningShelvesForHome(),
             ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
@@ -746,7 +759,10 @@ public sealed partial class MainWindow
             ("Videos", LibrarySource.Videos, [.. recent.Where(entry => entry.Kind == LibraryKind.Video).Take(20).Select(EntryRow)], true),
             ("Pictures", LibrarySource.Pictures, [.. recent.Where(entry => entry.Kind == LibraryKind.Picture).Take(24).Select(EntryRow)], false),
         ];
-        var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(RowIdentity))));
+        // Background scanning or local tag edits can change an existing
+        // album, file title or credit without changing its path identity.
+        var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row =>
+            RowIdentity(row) + "|" + row.Name + "|" + row.Detail + "|" + row.PicturePath))));
         if (shown == _shownLibrary)
         {
             return;
@@ -760,7 +776,9 @@ public sealed partial class MainWindow
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
         {
-            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide, id: shelfTitle == DownloadingShelf ? "Downloading" : null));
+            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide,
+                seeAll: shelfTitle != "Pinned albums",
+                id: shelfTitle == DownloadingShelf ? "Downloading" : shelfTitle == "Pinned albums" ? "PinnedAlbums" : null));
         }
 
         if (place is not null)
