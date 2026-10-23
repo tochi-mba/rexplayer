@@ -12,6 +12,30 @@ public sealed class MediaStageWindowTests : IDisposable
     public void Dispose() => _scene.Dispose();
 
     [Fact]
+    public void ARealChapteredAudiobookExposesOnlyItsOwnChapterJumps()
+    {
+        var book = _scene.ChapteredAudiobook();
+        _scene.Ready();
+        using var app = AppProcess.Start([book], root: _scene.Root);
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIOBOOK playback stage"
+            && app.Find("StageChaptersButton").Current.IsEnabled,
+            "parsed audiobook chapters to become available");
+
+        var chapters = app.Find("StageChaptersButton");
+        Assert.Equal("StageChaptersButton", chapters.Current.AutomationId);
+        Assert.Contains("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Screenshots.Match(app, "stage-audiobook-chapters");
+
+        app.Press("StageChaptersButton");
+        var first = app.Find("StageChapter-0");
+        var second = app.Find("StageChapter-1");
+        Assert.Contains("Opening", first.Current.Name, StringComparison.Ordinal);
+        Assert.Contains("Continuation", second.Current.Name, StringComparison.Ordinal);
+        Assert.True(second.Current.IsEnabled, "A proven chapter should offer a working jump.");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void UnreadableMediaShowsAnErrorStageWithoutAudioOrSeekAffordances()
     {
         var broken = Path.Combine(_scene.Media, "broken.mp4");
