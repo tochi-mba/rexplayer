@@ -349,12 +349,17 @@ public static partial class ListeningViews
             return 0;
         }
 
+        if (place.Part < 0)
+        {
+            return 0;
+        }
+
         if (place.Part >= book.Entries.Count)
         {
             return 1;
         }
 
-        var index = Math.Max(0, place.Part);
+        var index = place.Part;
         var lengths = book.Entries.Select(part => part.Duration ?? TimeSpan.Zero).ToList();
         var current = lengths[index];
         var fraction = current > TimeSpan.Zero
@@ -388,7 +393,8 @@ public static partial class ListeningViews
         var seconds = book.Entries.Skip(partIndex).Sum(part => part.Duration!.Value.TotalSeconds);
         if (partIndex < book.Entries.Count)
         {
-            seconds -= Math.Clamp(place.At.TotalSeconds, 0, book.Entries[partIndex].Duration!.Value.TotalSeconds);
+            seconds -= place.Part < 0 ? 0
+                : Math.Clamp(place.At.TotalSeconds, 0, book.Entries[partIndex].Duration!.Value.TotalSeconds);
         }
 
         // A malformed library must not overflow TimeSpan even for an enormous book.
