@@ -13,6 +13,7 @@ public sealed class MediaStagePolicyTests
     {
         var welcome = MediaStagePolicy.Resolve(new MediaStageContext(false));
         Assert.Equal("Playback stage", welcome.AutomationName);
+        Assert.Contains("No media is open", welcome.AutomationHelpText, StringComparison.Ordinal);
         Assert.Contains("cannot be changed", welcome.AutomationHelpText, StringComparison.Ordinal);
 
         var loading = MediaStagePolicy.Resolve(new MediaStageContext(true));
