@@ -219,8 +219,9 @@ public sealed class LibraryListeningTests : IDisposable
     [Capability("LIB-05")]
     public void PodcastTransportGivesSpokenSkipSpeedAndSleepWithoutFeedControls()
     {
-        _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
+        var episode = _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
             TimeSpan.FromMinutes(5), year: 2024);
+        File.WriteAllText(Path.ChangeExtension(episode, ".notes.txt"), "Local talk outline.");
         using var app = _scene.Ready().Start();
         app.Visit("Podcasts");
         app.Open("Night Talk");
@@ -234,6 +235,9 @@ public sealed class LibraryListeningTests : IDisposable
             "spoken-word resume, skip, speed, sleep, notes and transcript navigation");
         Assert.Contains("no feed or download controls", app.Text("PodcastControlsStatus"),
             StringComparison.Ordinal);
+        app.Press("PodcastControlsNotes");
+        Wait.For(() => app.IsShown("PodcastNotesText"),
+            "transport to close before opening the separate local notes dialog");
         Assert.Equal(0, app.Close());
     }
 
