@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Containers.Tags;
 using Rex.Media.Library;
@@ -46,16 +47,24 @@ public sealed partial class MainWindow
                 PlaceholderText = field.Several ? DetailsForm.SeveralValues : "",
             };
             AutomationProperties.SetAutomationId(box, "EditDetails_" + field.Key);
+            AutomationProperties.SetName(box, field.Label);
+            AutomationProperties.SetHelpText(box, "Current local media details; unchanged mixed-value fields are preserved. Save keeps a local override and writes supported tags only when Preferences allows it.");
             boxes[field.Key] = box;
             panel.Children.Add(box);
         }
 
         PictureBlock? cover = null;
         var removeCover = new CheckBox { Content = "Remove the cover" };
+        AutomationProperties.SetAutomationId(removeCover, "EditDetailsRemoveCover");
+        AutomationProperties.SetHelpText(removeCover, "Explicitly remove the embedded cover when writing supported files. It does not remove the original unless you save.");
         if (writable.Count > 0)
         {
             var coverLine = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-            var chosen = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 };
+            var chosen = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetAutomationId(chosen, "EditDetailsCoverStatus");
+            var preview = new Image { Width = 112, Height = 112, Stretch = Stretch.UniformToFill, Visibility = Visibility.Collapsed };
+            AutomationProperties.SetAutomationId(preview, "EditDetailsCoverPreview");
+            AutomationProperties.SetName(preview, "New album cover preview");
             var choose = new Button { Content = "Change cover..." };
             AutomationProperties.SetAutomationId(choose, "EditDetailsCover");
             choose.Click += async (_, _) =>
@@ -66,17 +75,51 @@ public sealed partial class MainWindow
                     picker.FileTypeFilter.Add(type);
                 }
 
-                if (await picker.PickSingleFileAsync() is { } file
-                    && DetailWrite.CoverFrom(file.Path, await File.ReadAllBytesAsync(file.Path)) is { } picked)
+                if (await picker.PickSingleFileAsync() is not { } file)
                 {
+                    return;
+                }
+
+                try
+                {
+                    if (new FileInfo(file.Path).Length > DetailWrite.MaxCoverBytes)
+                    {
+                        chosen.Text = "The chosen cover is too large (maximum 10 MB).";
+                        return;
+                    }
+
+                    var bytes = await File.ReadAllBytesAsync(file.Path);
+                    if (DetailWrite.CoverFrom(file.Path, bytes) is not { } picked)
+                    {
+                        chosen.Text = "Choose a valid JPEG or PNG cover.";
+                        return;
+                    }
+
+                    // A tag is changed only after the native decoder verifies
+                    // and previews the exact bytes that would be embedded.
+                    var decoded = await DecodePictureAsync(bytes, 112, CancellationToken.None);
+                    if (decoded is null)
+                    {
+                        chosen.Text = "The cover image could not be decoded.";
+                        return;
+                    }
+
                     cover = picked;
-                    chosen.Text = file.Name;
+                    preview.Source = decoded;
+                    preview.Visibility = Visibility.Visible;
+                    chosen.Text = file.Name + " (preview; save to write)";
                     removeCover.IsChecked = false;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                    or System.Runtime.InteropServices.COMException or InvalidOperationException or NotSupportedException)
+                {
+                    chosen.Text = "That cover could not be opened: " + ex.Message;
                 }
             };
             coverLine.Children.Add(choose);
             coverLine.Children.Add(chosen);
             panel.Children.Add(coverLine);
+            panel.Children.Add(preview);
             panel.Children.Add(removeCover);
         }
 
