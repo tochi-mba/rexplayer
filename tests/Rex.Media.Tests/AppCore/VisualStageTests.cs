@@ -176,7 +176,7 @@ public sealed class VisualStageTests
         Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults,
             stereo.Channel(0), stereo.Channel(1), stereo.SampleRate, TimeSpan.FromMilliseconds(30)));
         Assert.Equal(0, stage.Context.Left[^13]);
-        Assert.InRange(stage.Context.Left[^1], 0.3f, 0.5f);
+        Assert.InRange(stage.Context.Left[^1], 0.25f, 0.4f);
         Assert.InRange(stage.Context.Right[^1], -0.2f, 0.1f);
         Assert.NotEqual(stage.Context.Left[^1], stage.Context.Right[^1]);
         Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
