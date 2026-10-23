@@ -210,14 +210,23 @@ public static class LibraryArrangement
     /// </summary>
     public static string LetterOf(string? name)
     {
-        var text = (name ?? "").AsSpan().TrimStart();
-        if (text.IsEmpty || !char.IsLetter(text[0]))
+        var text = (name ?? "").TrimStart();
+        // Char only sees one UTF-16 code unit; a supplementary Unicode letter must
+        // not end up in the "#" bucket simply because it uses a surrogate pair.
+        if (text.Length == 0 || !Rune.TryGetRuneAt(text, 0, out var first) || !Rune.IsLetter(first))
         {
             return "#";
         }
 
-        var plain = text[..1].ToString().Normalize(NormalizationForm.FormD)[0];
-        return char.ToUpper(plain, CultureInfo.CurrentCulture).ToString();
+        foreach (var rune in first.ToString().Normalize(NormalizationForm.FormD).EnumerateRunes())
+        {
+            if (Rune.IsLetter(rune))
+            {
+                return rune.ToString().ToUpper(CultureInfo.CurrentCulture);
+            }
+        }
+
+        return "#";
     }
 
     /// <summary>When it was added, as a person would say it: today, this week, this month, this year, or the year.</summary>
