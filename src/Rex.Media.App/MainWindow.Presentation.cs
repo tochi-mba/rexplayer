@@ -49,6 +49,12 @@ public sealed partial class MainWindow
         // A picture or unsupported stream must not leave the previous item's seek controls active.
         SeekBar.IsEnabled = stage.CanSeek;
         StartOverButton.IsEnabled = stage.CanSeek;
+        if (stage.Profile is MediaStageProfile.Error or MediaStageProfile.Unsupported)
+        {
+            VideoBlankLayer.Visibility = Visibility.Visible;
+            Idle.Visibility = Visibility.Visible;
+        }
+
         IdleKicker.Text = stage.Label;
         // The video itself may hide the Idle panel; the always-present stage must still
         // identify what is playing to keyboard and screen-reader users.
