@@ -46,7 +46,7 @@ This file carries the **historical 63-task workstream 4/4 trace** inherited from
 **Verification limitation:** No .NET SDK or Windows desktop runtime is installed in the editing environment, so local compilation and native UI execution were not possible. GitHub Actions was pending at the time of these edits; a pending run is not passing evidence. No generated screenshots are being passed off as real application captures.
 
 ## Historical workstream checklist — 63 original roadmap tasks
-The original granular text is preserved as a **traceability appendix**, not 63 tasks assigned to PR #484. Of the categories below, **“Podcasts and spoken-word transcript UX”** and **“Recordings and short sounds”** are the owned implementation work. Other sections are delegated to sister PRs, and their checkboxes are deliberately not modified here.
+The original granular text is preserved as a **traceability appendix**, not 63 tasks assigned to PR #484. Of the categories below, **“Podcasts and spoken-word transcript UX”** and **“Recordings and short sounds”** are the owned implementation work. Checked owned items mean the corresponding source and regression-test code has been committed, **not** that CI or Windows acceptance has passed; all release gates remain open. Other sections are delegated to sister PRs and their checkboxes remain untouched.
 
 ### P1. Audiobooks and authors
 Build on existing part grouping, BookChapter, per-book speed and progress tracking.
@@ -67,22 +67,22 @@ Current local podcast classification is not proof of completed RSS subscriptions
 - [ ] Podcast Home: show-oriented square art, continue, unplayed/recent local episodes and date-aware organization.
 - [ ] Podcast show detail: publisher/description/episodes, consistent sort, progress state, local-only messaging and missing-art fallback.
 - [ ] Episode row: title, published date if reliable, duration, remaining time, status, short/expanded notes, Play/Resume and transcript indicator.
-- [ ] Podcast player prioritize ±seconds, episode progress, speed, sleep timer, queue and chapter/note/transcript panels where available.
-- [ ] Transcript view use sentences/paragraphs with timed speech highlighting, manual-scroll suspension and optional query navigation; not music-lyrics karaoke layout.
-- [ ] Show notes must handle long markup safely: no HTML/script execution, safe links, truncation and keyboard-readable text.
-- [ ] Queue 'play unplayed in order' uses actual availability; never autoplay a different show's episodes unexpectedly.
-- [ ] Keep RSS feed subscription, built-in downloads and podcast network features gated by existing `PLF-08`, `NET-15` and relevant `NET-*`; do not draw live Subscribe/Download controls prematurely.
+- [x] Podcast player prioritize ±seconds, episode progress, speed, sleep timer, queue and chapter/note/transcript panels where available.
+- [x] Transcript view use sentences/paragraphs with timed speech highlighting, manual-scroll suspension and optional query navigation; not music-lyrics karaoke layout.
+- [x] Show notes must handle long markup safely: no HTML/script execution, safe links, truncation and keyboard-readable text.
+- [x] Queue 'play unplayed in order' uses actual availability; never autoplay a different show's episodes unexpectedly.
+- [x] Keep RSS feed subscription, built-in downloads and podcast network features gated by existing `PLF-08`, `NET-15` and relevant `NET-*`; do not draw live Subscribe/Download controls prematurely.
 - [ ] Test local shows with 1/1000 episodes, no dates/art, identical episode names, incomplete transcripts, offline and stopped downloads.
 
 ### P1. Recordings and short sounds
 Existing record-library browsing is separate from future capture/record functionality.
 
-- [ ] Recordings: date sections (Today/Yesterday/This Week/older/undated), voice-note group, compact rows, source/date/duration and correct local-file actions.
-- [ ] Waveform detail when added: analysis off UI thread, bounded cache, seek/zoom/pan/time ruler/current playhead and cancellation on media switch.
-- [ ] Recording details: filename/title, date, duration, path, optional waveform, transcript, bookmarks and clear remove-from-library versus delete-file semantics.
+- [x] Recordings: date sections (Today/Yesterday/This Week/older/undated), voice-note group, compact rows, source/date/duration and correct local-file actions.
+- [x] Waveform detail when added: analysis off UI thread, bounded cache, seek/zoom/pan/time ruler/current playhead and cancellation on media switch.
+- [x] Recording details: filename/title, date, duration, path, optional waveform, transcript, bookmarks and clear remove-from-library versus delete-file semantics.
 - [ ] Transcript mode: search/jump to timed speech if indexed, manual-scroll suspension and clear partial/edited/transcription-error status.
 - [ ] Review mode: frame-irrelevant audio tools, exact seek and playback speed; use existing `PB-08` for future A-B loop rather than inventing duplicate capability.
-- [ ] Short sound mode: compact title/duration, replay, repeat and volume; no enormous book cover or unnecessary full animation.
+- [x] Short sound mode: compact title/duration, replay, repeat and volume; no enormous book cover or unnecessary full animation.
 - [ ] Optional true capture uses existing `AU-24`/`OUT-06`/`CAP-*` rows and separate permission/source/record/pause/stop/format/storage/error workflows; do not conflate with playing recordings.
 - [ ] Test 0-second, hours-long, silence, clipped loudness, mono/stereo/multichannel, overlapping jobs, moved files, missing timestamps and enormous transcript.
 
