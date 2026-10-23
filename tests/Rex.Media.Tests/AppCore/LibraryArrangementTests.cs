@@ -183,8 +183,10 @@ public sealed class LibraryArrangementTests
     public void SameTitlesKeepIndependentArtistAlbumAndPathIdentityWithUnknownFallback()
     {
         var first = Song("Same", artist: "Alice", album: "Release", genre: "Jazz");
-        var second = Song("Same", artist: "Bob", album: "Release", genre: null)
-            with { Path = Path.Combine("D:" + Path.DirectorySeparatorChar, "Other", "Same.mp3") };
+        var second = Song("Same", artist: "Bob", album: "Release", genre: null) with
+        {
+            Path = Path.Combine("D:" + Path.DirectorySeparatorChar, "Other", "Same.mp3"),
+        };
         var missing = Song("Mystery", artist: null, album: null, genre: null);
         var originals = new[] { first, second, missing };
 
