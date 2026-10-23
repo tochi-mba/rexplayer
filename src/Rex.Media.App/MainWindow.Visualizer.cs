@@ -580,7 +580,8 @@ public sealed partial class MainWindow
         var skip = _soundLeft.Length - _soundMono.Length;
         for (var i = 0; i < _soundMono.Length; i++)
         {
-            _soundMono[i] = (Math.Clamp(_soundLeft[skip + i] * gain, -1, 1) + Math.Clamp(_soundRight[skip + i] * gain, -1, 1)) / 2;
+            _soundMono[i] = (VisualStage.SafeSample(_soundLeft[skip + i] * gain)
+                + VisualStage.SafeSample(_soundRight[skip + i] * gain)) / 2;
         }
 
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
@@ -620,8 +621,8 @@ public sealed partial class MainWindow
                 var recent = Math.Min(_soundMono.Length, Math.Max(64, rate / 20));
                 for (var i = _soundLeft.Length - recent; i < _soundLeft.Length; i++)
                 {
-                    _soundLeft[i] = Math.Clamp(_soundLeft[i] * gain, -1, 1);
-                    _soundRight[i] = Math.Clamp(_soundRight[i] * gain, -1, 1);
+                    _soundLeft[i] = VisualStage.SafeSample(_soundLeft[i] * gain);
+                    _soundRight[i] = VisualStage.SafeSample(_soundRight[i] * gain);
                 }
 
                 _meterLeft.Update(_soundLeft.AsSpan(^recent..), elapsed);
