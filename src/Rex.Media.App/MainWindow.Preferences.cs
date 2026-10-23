@@ -574,6 +574,14 @@ public sealed partial class MainWindow
                 panel.ColumnDefinitions[1].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
                 categorySearch.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
                 categories.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+                categories.MaxHeight = Math.Clamp(root.Size.Height - 360, 100, 480);
+                // Search is hidden in compact mode, so do not leave a hidden filter
+                // governing the category rail when the user widens the window again.
+                if (!wide && categorySearch.Text.Length > 0)
+                {
+                    categorySearch.Text = "";
+                }
+
                 searchResult.Visibility = wide && categories.Items.Count == 0
                     ? Visibility.Visible : Visibility.Collapsed;
                 navigation.Visibility = Visibility.Visible;
