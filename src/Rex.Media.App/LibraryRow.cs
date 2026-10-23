@@ -158,10 +158,7 @@ public partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptVisibility)));
     }
 
-    /// <summary>
-    /// Shows the download badge and detail for a file still arriving (<paramref name="fraction"/>
-    /// of it so far, when known), or takes them off with null; nothing is raised when nothing changed.
-    /// </summary>
+    /// <summary>Sets an optional, keyboard-readable summary of local podcast notes.</summary>
     public void SetNotesPreview(string? preview)
     {
         if (_notesPreview == preview)
@@ -176,6 +173,10 @@ public partial class LibraryRow(
         }
     }
 
+    /// <summary>
+    /// Shows the download badge and detail for a file still arriving (<paramref name="fraction"/>
+    /// of it so far, when known), or takes them off with null; nothing is raised when nothing changed.
+    /// </summary>
     public void SetDownload(string? text, double? fraction)
     {
         var percent = fraction is { } part ? Math.Round(part * 100) : 0;
