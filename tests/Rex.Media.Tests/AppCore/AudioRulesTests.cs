@@ -376,6 +376,10 @@ public sealed class AudioRulesTests
         var incomplete = AudioFile("Downloads/(Roald Dahl) Charlie and the Chocolate Factory (Part 3) - 01.mp3", null, probed: false);
         Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Name), Judge(incomplete));
 
+        var lecture = AudioFile("Lectures/Direct Pointing.mp3", TimeSpan.FromMinutes(12), "Alan Watts", "Out of Your Mind",
+            genre: "Non Fiction Audio Book", track: 4);
+        Assert.Equal(Verdict(AudioShelf.Audiobooks, AudioRule.Genre), Judge(lecture));
+
         var book = AudioFile("Downloads/1984.mp3", TimeSpan.FromHours(10), "George Orwell", "Orwell Collection: Animal Farm & 1984", "Orwell Collection: Animal Farm & 1984");
         var intro = AudioFile("Downloads/intro.mp3", TimeSpan.FromMinutes(2), "George Orwell", "Orwell Collection: Animal Farm & 1984", "Stephen Fry Intro");
         var context = AudioContext.Of([book, intro]);

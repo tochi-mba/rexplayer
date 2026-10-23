@@ -490,7 +490,8 @@ public sealed partial class MainWindow
     {
         LibrarySource.Albums => LibraryViews.Albums(entries),
         LibrarySource.Artists => LibraryViews.Artists(entries),
-        LibrarySource.Genres => LibraryViews.Genres(entries),
+        LibrarySource.Genres => LibraryViews.Genres(entries, entry => entry.Album is { } album
+            ? MetadataAlbum(entry.FiledArtist, album)?.Genres ?? [] : []),
         LibrarySource.Authors => ListeningViews.Authors(Listening().Audiobooks),
         LibrarySource.TvShows => LibraryViews.TvShows(entries),
         _ => [],

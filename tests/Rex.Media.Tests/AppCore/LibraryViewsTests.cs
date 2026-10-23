@@ -67,6 +67,10 @@ public sealed class LibraryViewsTests
         var genres = LibraryViews.Genres(Entries);
         Assert.Equal(["Afrobeats", LibraryViews.UnknownGenre], genres.Select(genre => genre.Name));
         Assert.Equal(["Sungba", "Lonely At The Top", "Terminator"], Titles(genres[0].Entries));
+
+        var fetched = LibraryViews.Genres(Entries, entry => entry.Genre is null ? ["Afropop"] : []);
+        Assert.Equal(["Afrobeats", "Afropop"], fetched.Select(genre => genre.Name));
+        Assert.DoesNotContain(fetched, genre => genre.Name == LibraryViews.UnknownGenre);
     }
 
     [Fact]

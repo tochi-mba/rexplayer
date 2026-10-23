@@ -420,8 +420,8 @@ public static partial class AudioRules
         && ArtistNames.Key(entry.Title) == ArtistNames.Key(entry.Album)
         && !MusicSetPattern().IsMatch(entry.Title) && !MusicSetPattern().IsMatch(entry.Album);
 
-    /// <summary>The audiobook genres: "Audiobook", "Audiobooks", "Audio book", "Spoken word", "Spoken &amp; Audio", "Speech".</summary>
-    [GeneratedRegex(@"^(?:audio[ _-]?books?|books? & spoken(?: word)?|spoken(?: ?word| & audio)?|speech)(?::\s*\S.*)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>The audiobook genres, including qualified forms such as "Non Fiction Audio Book".</summary>
+    [GeneratedRegex(@"(?:^|[^\p{L}])audio[ _-]?books?(?:$|[^\p{L}])|^(?:books? & spoken(?: word)?|spoken(?: ?word| & audio)?|speech)(?::\s*\S.*)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AudiobookGenrePattern();
 
     /// <summary>Explicit audiobook wording in an album, title or filename.</summary>

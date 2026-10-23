@@ -214,11 +214,15 @@ public static partial class LibraryViews
 
     /// <summary>
     /// The genres, by name, each with its songs. A song tagged with several genres ("Dance;Pop")
-    /// appears under each of them, as <see cref="GenreNames"/> reads the tag.
+    /// appears under each of them, as <see cref="GenreNames"/> reads the tag. When its file has no
+    /// genre, <paramref name="fetchedGenres"/> may supply the album genres found online.
     /// </summary>
-    public static IReadOnlyList<LibraryGroup> Genres(IEnumerable<LibraryEntry> entries) =>
+    public static IReadOnlyList<LibraryGroup> Genres(IEnumerable<LibraryEntry> entries,
+        Func<LibraryEntry, IReadOnlyList<string>>? fetchedGenres = null) =>
         [.. Songs(entries)
-            .SelectMany(entry => GenreNames.Split(entry.Genre).DefaultIfEmpty(UnknownGenre).Select(name => (Name: name, Entry: entry)))
+            .SelectMany(entry => (GenreNames.Split(entry.Genre) is { Count: > 0 } tagged
+                    ? tagged : fetchedGenres?.Invoke(entry) ?? [])
+                .DefaultIfEmpty(UnknownGenre).Select(name => (Name: name, Entry: entry)))
             .GroupBy(pair => pair.Name, ByName)
             .Select(group => new LibraryGroup(MostSpelled(group.Select(pair => pair.Name)), null, [.. group.Select(pair => pair.Entry).Distinct()]))
             .OrderBy(group => group.Name == UnknownGenre)
