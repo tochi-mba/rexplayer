@@ -94,8 +94,13 @@ public sealed class AudiobookPresentationTests : IDisposable
         app.Press("LibraryBack");
         Wait.For(() => app.Text("LibraryTitle") == "Audiobooks", "back to the book shelf");
         app.Filter("LibraryFilterProgress", "Unwatched");
-        Wait.For(() => !app.Lines().Contains("A Book"), "a book-wide empty unread filter");
-        Screenshots.Match(app, "audiobook-empty-progress-filter", "LibraryList");
+        Wait.For(() => !app.Lines().Contains("A Book")
+            && app.IsShown("LibraryEmptyText") && app.IsShown("LibraryEmptyClearFilters")
+            && app.Text("LibraryEmptyText").Contains("Nothing here matches these filters:", StringComparison.Ordinal),
+            "the genuinely empty unread-book filter with its visible recovery action");
+        // Capture the actual empty-state panel. A picture of LibraryList can still
+        // contain a stale card while that list is being replaced after filtering.
+        Screenshots.Match(app, "audiobook-empty-progress-filter", "LibraryEmpty");
         Assert.Equal(0, app.Close());
     }
 
