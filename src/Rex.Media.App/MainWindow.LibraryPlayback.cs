@@ -78,7 +78,8 @@ public sealed partial class MainWindow
     private void PlayChosen()
     {
         var chosen = SelectedLibraryRows();
-        if (PlayOpenBook(chosen) || (chosen.Count == 0 && PlayShowPageNextUp()))
+        if (PlayOpenBook(chosen) || (chosen.Count == 1 && PlayBookCard(chosen[0]))
+            || (chosen.Count == 0 && PlayShowPageNextUp()))
         {
             return;
         }
@@ -118,6 +119,18 @@ public sealed partial class MainWindow
         }
 
         var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
+        // Stop using the previous audiobook's speed before handing music or a
+        // podcast to the player; do not rely on its eventual Changed notification.
+        if (_bookPlaying is { } previous
+            && !previous.Book.Entries.Any(part => LibraryViews.SameLocation(part.Path, chosen.Path)))
+        {
+            _bookPlaying = null;
+            if (Math.Abs(_player.Speed - 1) > 0.005)
+            {
+                _player.SetSpeed(1);
+            }
+        }
+
         if (NotYetPlayable(chosen) is { } notYet)
         {
             // The library stays open over the player, so it says so itself.
