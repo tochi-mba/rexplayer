@@ -6,7 +6,6 @@ using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
-using Rex.Media.Subtitles;
 
 namespace Rex.Media.App;
 
