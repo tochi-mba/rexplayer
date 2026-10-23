@@ -201,6 +201,13 @@ public sealed partial class MainWindow
         var height = Math.Max(0, Stage.ActualHeight);
         var compact = width < 760 || height < 450;
         var tiny = width < 480 || height < 280;
+        var compactLyrics = compact && _shownLyrics is not null && LyricsBox.Visibility == Visibility.Visible;
+
+        // On small stages the old fixed top/bottom insets could leave the visualiser
+        // with no drawable height at all. Keep a meaningful canvas at every size.
+        Visualizer.Margin = tiny ? new Thickness(8)
+            : compact ? new Thickness(20, 36, 20, 12)
+            : new Thickness(48, 120, 48, 48);
 
         Grid.SetColumn(IdleText, compact ? 0 : 1);
         Grid.SetRow(IdleText, compact ? 1 : 0);
@@ -217,7 +224,9 @@ public sealed partial class MainWindow
         CoverBox.Height = artSize;
         // Decoding is asynchronous. Never resurrect a stale cover after a stream switch.
         CoverBox.Visibility = _shownCover is not null && CoverImage.Source is not null
-            && !tiny && artSize >= 80 ? Visibility.Visible : Visibility.Collapsed;
+            && !tiny && !compactLyrics && artSize >= 80 ? Visibility.Visible : Visibility.Collapsed;
+        // Compact lyrics need their own bottom region, not overlap the album artwork.
+        Idle.VerticalAlignment = compactLyrics ? VerticalAlignment.Top : VerticalAlignment.Center;
 
         LyricsBox.Height = Math.Min(360, Math.Max(0, height * (tiny ? 0.35 : 0.45)));
         LyricsBox.Margin = compact ? new Thickness(12, 0, 12, 12) : new Thickness(48, 0, 48, 24);
