@@ -287,7 +287,7 @@ public sealed partial class MainWindow
                     }
                 }
 
-                if (group.Entries.Any(entry => MetadataPolicy.Allows(metadata, MetadataWork.TvShow, entry.Path)))
+                if (MetadataPolicy.AllowsAny(metadata, MetadataWork.TvShow, group.Entries.Select(entry => entry.Path)))
                 {
                     lock (_metadataGate)
                     {
@@ -368,7 +368,7 @@ public sealed partial class MainWindow
                     }
                 }
 
-                if (group.Entries.Any(entry => MetadataPolicy.Allows(metadata, MetadataWork.Music, entry.Path)))
+                if (MetadataPolicy.AllowsAny(metadata, MetadataWork.Music, group.Entries.Select(entry => entry.Path)))
                 {
                     lock (_metadataGate)
                     {
