@@ -107,6 +107,8 @@ public sealed class MacAppSmokeTests
             Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
             await CaptureLibraryScreenshot(pipe, "populated", root);
+            var keys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
+            Assert.True(keys?.Ok == true, "Mac library AppKit Tab/Shift-Tab loop failed: " + (keys?.Error ?? "no reply") + LogTail(root));
             var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
             Assert.True(tree?.Ok == true && tree.Controls is not null, "The native library did not expose its controls.");
             Assert.Contains(tree!.Controls!, control => control.Id == "LibrarySearch" && control.Kind == "search" && control.Name == "Search library");
