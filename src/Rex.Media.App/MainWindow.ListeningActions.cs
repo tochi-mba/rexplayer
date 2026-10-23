@@ -39,6 +39,8 @@ public sealed partial class MainWindow
         if (audio is [{ } sound] && ShelfOf(sound) == AudioShelf.Sounds)
         {
             menu.Items.Add(MenuItem("Replay sound", "LibraryMenuReplaySound", () => Play([sound], 0)));
+            menu.Items.Add(MenuItem("Sound controls...", "LibraryMenuSoundControls",
+                () => Forget(ShowSoundControlsAsync(sound))));
         }
 
         if (audio is [{ } recording] && ShelfOf(recording) == AudioShelf.Recordings)
