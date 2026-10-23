@@ -17,6 +17,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private Window? _lyricsCompanion;
+    private ScrollViewer? _lyricsCompanionScroll;
     private StackPanel? _lyricsCompanionContent;
     private TextBlock? _lyricsCompanionHeading;
     private Button? _lyricsCompanionFollow;
@@ -112,6 +113,7 @@ public sealed partial class MainWindow
         };
 
         _lyricsCompanion = window;
+        _lyricsCompanionScroll = scroll;
         _lyricsCompanionContent = lines;
         _lyricsCompanionHeading = heading;
         _lyricsCompanionFollow = follow;
@@ -127,6 +129,7 @@ public sealed partial class MainWindow
             if (ReferenceEquals(_lyricsCompanion, window))
             {
                 _lyricsCompanion = null;
+                _lyricsCompanionScroll = null;
                 _lyricsCompanionContent = null;
                 _lyricsCompanionHeading = null;
                 _lyricsCompanionFollow = null;
@@ -182,6 +185,26 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Whether focus is still inside this particular native window, not the player's window.</summary>
+    private static bool CompanionContainsFocus(FrameworkElement content)
+    {
+        if (content.XamlRoot is not { } root
+            || FocusManager.GetFocusedElement(root) is not DependencyObject focused)
+        {
+            return false;
+        }
+
+        for (DependencyObject? node = focused; node is not null; node = VisualTreeHelper.GetParent(node))
+        {
+            if (ReferenceEquals(node, content))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Called by track and position changes on the owner window thread. Never
     /// holds onto media files or registers callbacks on the player itself.
@@ -202,6 +225,7 @@ public sealed partial class MainWindow
         if (!_lyricsCompanionBuilt || !ReferenceEquals(_lyricsCompanionSource, lyrics)
             || (lyrics is null && _lyricsCompanionWasLoading != waitingForMetadata))
         {
+            var wasUsingCompanionKeyboard = CompanionContainsFocus(content);
             _lyricsCompanionBuilt = true;
             _lyricsCompanionWasLoading = waitingForMetadata;
             _lyricsCompanionSource = lyrics;
@@ -292,6 +316,26 @@ public sealed partial class MainWindow
                     _lyricsCompanionRows.Add(row);
                     content.Children.Add(row);
                 }
+            }
+
+            if (wasUsingCompanionKeyboard)
+            {
+                window.DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (!ReferenceEquals(_lyricsCompanion, window))
+                    {
+                        return;
+                    }
+
+                    if (_lyricsCompanionRows.OfType<Button>().FirstOrDefault() is { } firstLine)
+                    {
+                        firstLine.Focus(FocusState.Keyboard);
+                    }
+                    else
+                    {
+                        _lyricsCompanionScroll?.Focus(FocusState.Keyboard);
+                    }
+                });
             }
         }
 
