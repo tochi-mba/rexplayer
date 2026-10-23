@@ -268,10 +268,21 @@ public static partial class ListeningViews
     }
 
     /// <summary>When a recording was made: the date and time in its name, else the file's date; null when neither says.</summary>
-    public static DateTime? RecordedAt(LibraryEntry recording)
+    public static DateTime? RecordedAt(LibraryEntry recording) => RecordingDateEvidence(recording)?.At;
+
+    /// <summary>
+    /// A timestamp parsed from the filename is not the same as a file's last-modified time.
+    /// Keep the source so the recording details never present a file update as captured speech.
+    /// </summary>
+    public static (DateTime At, bool FromFilename)? RecordingDateEvidence(LibraryEntry recording)
     {
         ArgumentNullException.ThrowIfNull(recording);
-        return DateInName(MediaLibrary.TitleOf(recording.Path)) ?? (recording.Modified != default ? recording.Modified : null);
+        if (DateInName(MediaLibrary.TitleOf(recording.Path)) is { } named)
+        {
+            return (named, true);
+        }
+
+        return recording.Modified != default ? (recording.Modified, false) : null;
     }
 
     /// <summary>
