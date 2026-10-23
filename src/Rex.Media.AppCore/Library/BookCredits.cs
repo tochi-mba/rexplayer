@@ -172,9 +172,15 @@ public static partial class BookCredits
             or "audiobook" or "audio book" or "books";
 
     private static bool GenericFolder(string name) =>
+        PartFolderPattern().IsMatch(name.Trim()) ||
         name.Trim().ToLowerInvariant() is "audiobooks" or "audio books" or "books"
-            or "disc 1" or "disc 2" or "cd1" or "cd2" or "part 1"
             or "collection" or "series" or "volume 1" or "volume 2";
+
+    // Every numbered disc/part folder is a container, not a claimed author.
+    // Restricting this to "Disc 1" and "Disc 2" misattributes later discs.
+    [GeneratedRegex(@"^(?:dis[ck]|cd|part)[ _-]*\d{1,6}$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PartFolderPattern();
 
     private static bool PartFile(string file) => PartFilePattern().IsMatch(Path.GetFileNameWithoutExtension(file));
 
