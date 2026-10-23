@@ -10,7 +10,7 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
-    private readonly Dictionary<string, string?> _episodeNotesPreviews =
+    private readonly Dictionary<string, (string? Preview, DateTime CheckedUtc)> _episodeNotesPreviews =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingEpisodeNotes =
         new(StringComparer.OrdinalIgnoreCase);
@@ -21,7 +21,7 @@ public sealed partial class MainWindow
     {
         if (_episodeNotesPreviews.TryGetValue(episode.Path, out var preview))
         {
-            row.SetNotesPreview(preview);
+            row.SetNotesPreview(preview.Preview);
         }
 
         return row;
@@ -35,9 +35,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_episodeNotesPreviews.TryGetValue(entry.Path, out var cached))
+        if (_episodeNotesPreviews.TryGetValue(entry.Path, out var cached)
+            && DateTime.UtcNow - cached.CheckedUtc < TimeSpan.FromMinutes(1))
         {
-            row.SetNotesPreview(cached);
+            row.SetNotesPreview(cached.Preview);
             return;
         }
 
@@ -95,7 +96,7 @@ public sealed partial class MainWindow
                         _episodeNotesPreviews.Clear();
                     }
 
-                    _episodeNotesPreviews[request.Episode.Path] = preview;
+                    _episodeNotesPreviews[request.Episode.Path] = (preview, DateTime.UtcNow);
                     request.Row.SetNotesPreview(preview);
                 }
 
