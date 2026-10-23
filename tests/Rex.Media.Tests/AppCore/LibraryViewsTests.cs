@@ -420,6 +420,29 @@ public sealed class LibraryViewsTests
     public void SearchFindsEveryWordAnywhere(string? text, string[] found) => Assert.Equal(found, Titles(LibraryViews.Search(Entries, text)));
 
     [Fact]
+    [Capability("LIB-05")]
+    public void HugeLibrarySearchRetainsDistinctPathsForRepeatedNamesAndRtlUnicode()
+    {
+        var many = Enumerable.Range(0, 12000).Select(index => new LibraryEntry
+        {
+            Path = Path.Combine("media", $"disc-{index:D5}", $"{index:D5}.flac"),
+            Kind = LibraryKind.Music,
+            Title = index is 50 or 11999 ? "شمس وليل 🎵" : $"Song {index:D5}",
+            Artist = index is 50 or 11999 ? "فنان" : "Local performer",
+            Album = index is 50 or 11999 ? "ألبوم" : "Library",
+            Added = Monday,
+        }).ToArray();
+
+        var matches = LibraryViews.Search(many, "شمس");
+        Assert.Equal(2, matches.Count);
+        Assert.Equal(2, matches.Select(song => song.Path).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(matches, song => Assert.Equal("شمس وليل 🎵", song.Title));
+        Assert.Equal(2, LibraryViews.Search(many, "فنان ألبوم").Count);
+        Assert.Equal(12000, LibraryViews.Songs(many).Count);
+        Assert.Empty(LibraryViews.Search(many, "كلمة غير موجودة"));
+    }
+
+    [Fact]
     public void SearchCanUseFetchedGenresAndCreditsWithoutChangingStoredTags()
     {
         var film = Entries[0] with { Kind = LibraryKind.Video, Genre = null };
