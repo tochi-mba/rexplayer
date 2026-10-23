@@ -462,8 +462,26 @@ public sealed partial class MainWindow
 
     private void PlayLibraryEntry(LibraryEntry chosen, IReadOnlyList<LibraryEntry> selection)
     {
-        var at = selection.ToList().FindIndex(entry => string.Equals(entry.Path, chosen.Path, StringComparison.OrdinalIgnoreCase));
-        _player.PlayFromLibrary(selection, Math.Max(0, at));
+        // A background rescan can remove a file after its native row was constructed.
+        // Never silently start an unrelated first item when that selected row is stale.
+        var at = -1;
+        for (var index = 0; index < selection.Count; index++)
+        {
+            if (string.Equals(selection[index].Path, chosen.Path, StringComparison.OrdinalIgnoreCase))
+            {
+                at = index;
+                break;
+            }
+        }
+
+        if (at < 0)
+        {
+            Say("This library result is no longer available. Refresh the library and try again.");
+            RefreshLibrary();
+            return;
+        }
+
+        _player.PlayFromLibrary(selection, at);
         HideLibrary();
     }
 
