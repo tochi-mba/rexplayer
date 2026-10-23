@@ -181,6 +181,53 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void BookRemainingTimeRequiresEveryPartLengthAndClampsCorruptPositions()
+    {
+        var first = AudioFile("Audiobooks/Book/Part 1.m4b", TimeSpan.FromMinutes(60));
+        var second = AudioFile("Audiobooks/Book/Part 2.m4b", TimeSpan.FromMinutes(90));
+        var book = new LibraryGroup("Book", null, [first, second]);
+
+        Assert.Equal(TimeSpan.FromMinutes(150), ListeningViews.Remaining(book, default));
+        Assert.Equal(TimeSpan.FromMinutes(120), ListeningViews.Remaining(book,
+            new BookPlace(0, TimeSpan.FromMinutes(30))));
+        Assert.Equal(TimeSpan.FromMinutes(75), ListeningViews.Remaining(book,
+            new BookPlace(1, TimeSpan.FromMinutes(15))));
+        Assert.Equal(TimeSpan.FromMinutes(90), ListeningViews.Remaining(book,
+            new BookPlace(0, TimeSpan.FromHours(99))));
+        Assert.Equal(TimeSpan.FromMinutes(150), ListeningViews.Remaining(book,
+            new BookPlace(-1, TimeSpan.FromMinutes(-10))));
+        Assert.Equal(TimeSpan.Zero, ListeningViews.Remaining(book, new BookPlace(2, TimeSpan.Zero)));
+        Assert.Equal(TimeSpan.Zero, ListeningViews.Remaining(book, new BookPlace(99, TimeSpan.Zero)));
+        Assert.Null(ListeningViews.Remaining(new LibraryGroup("Empty", null, []), default));
+        Assert.Null(ListeningViews.Remaining(book with { Entries = [first with { Duration = null }, second] }, default));
+        Assert.Null(ListeningViews.Remaining(book with { Entries = [first, second with { Duration = TimeSpan.Zero }] }, default));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.Remaining(null!, default));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void NarratorCreditIsShownOnlyWhenTaggedPartsAgree()
+    {
+        var one = AudioFile("Audiobooks/Book/Disc 1/01.mp3", TimeSpan.FromHours(1)) with
+        {
+            Author = "Ann Writer", Narrator = "Lee Reader",
+        };
+        var two = AudioFile("Audiobooks/Book/Disc 2/01.mp3", TimeSpan.FromHours(1)) with
+        {
+            Author = "Ann Writer", Narrator = " lee reader ",
+        };
+        var book = new LibraryGroup("Book", "Ann Writer", [one, two]);
+        Assert.Equal("Lee Reader", BookCredits.Narrator(book));
+        Assert.Equal("Ann Writer", BookCredits.Author(one));
+        Assert.Null(BookCredits.Narrator(book with { Entries = [one, two with { Narrator = "Another Reader" }] }));
+        Assert.Equal("Lee Reader", BookCredits.Narrator(book with { Entries = [one, two with { Narrator = null }] }));
+        Assert.Null(BookCredits.Narrator(book with { Entries = [one with { Narrator = null }] }));
+        Assert.Null(BookCredits.Narrator(book with { Entries = [] }));
+        Assert.Throws<ArgumentNullException>(() => BookCredits.Narrator(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ChaptersSortOutOfOrderMarkersAndSelectOnlyTheLatestActiveMarker()
     {
         var part = AudioFile("Audiobooks/Book/Part One.m4b", TimeSpan.FromMinutes(30)) with
