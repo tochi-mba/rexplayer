@@ -129,7 +129,37 @@ internal sealed class AppProcess : IDisposable
             var candidate = AutomationElement.FromHandle(process.MainWindowHandle);
             return candidate.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "PlayPauseButton")) is null ? null : candidate;
         });
-        return new AppProcess(process, root, window);
+        var app = new AppProcess(process, root, window);
+        // Desktop screenshots must never include pixels outside the visible virtual
+        // screen. Position the isolated test process before tests open modal popups,
+        // since moving an already opened flyout can dismiss it.
+        app.FitOnDesktop();
+        return app;
+    }
+
+    private void FitOnDesktop()
+    {
+        if (WindowPicture.IsFullyOnDesktop(Handle))
+        {
+            return;
+        }
+
+        var desktop = WindowPicture.DesktopBounds;
+        const int Padding = 8;
+        var availableWidth = Math.Max(1, desktop.Width - 2 * Padding);
+        var availableHeight = Math.Max(1, desktop.Height - 2 * Padding);
+        var bounds = WindowPicture.Bounds(Handle);
+        var transform = (TransformPattern)Window.GetCurrentPattern(TransformPattern.Pattern);
+        if (bounds.Width > availableWidth || bounds.Height > availableHeight)
+        {
+            Assert.True(transform.Current.CanResize, "The app is too large for the capture desktop and cannot resize.");
+            transform.Resize(Math.Min(bounds.Width, availableWidth), Math.Min(bounds.Height, availableHeight));
+        }
+
+        Assert.True(transform.Current.CanMove, "The app cannot be moved fully onto the capture desktop.");
+        transform.Move(desktop.Left + Padding, desktop.Top + Padding);
+        Wait.For(() => WindowPicture.IsFullyOnDesktop(Handle),
+            "the test window to fit completely on the visible desktop");
     }
 
     /// <summary>
