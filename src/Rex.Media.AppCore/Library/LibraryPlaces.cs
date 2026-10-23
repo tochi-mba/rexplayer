@@ -30,6 +30,14 @@ public sealed class LibraryPlaces
     }
 
     /// <summary>
+    /// Only album credits distinguish otherwise identical titled releases. A TV
+    /// show's season/episode counts, an artist's followers or a genre's song count
+    /// are live metadata, not part of route identity.
+    /// </summary>
+    public static string? StableGroupDetail(string view, string? detail) =>
+        string.Equals(view, "Albums", StringComparison.Ordinal) ? detail : null;
+
+    /// <summary>
     /// The key of a route: the view, the group opened in it (with the detail that tells two
     /// albums of one name apart), the group's page, and, apart from them, the search.
     /// </summary>
@@ -53,7 +61,7 @@ public sealed class LibraryPlaces
     public static string Key(LibraryRoute route)
     {
         ArgumentNullException.ThrowIfNull(route);
-        return Key(route.View, route.Group, route.GroupDetail, route.Page);
+        return Key(route.View, route.Group, StableGroupDetail(route.View, route.GroupDetail), route.Page);
     }
 
     /// <summary>Whether <paramref name="key"/> names a search; its places last the session only.</summary>
