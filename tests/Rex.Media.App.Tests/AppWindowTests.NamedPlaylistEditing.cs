@@ -8,6 +8,24 @@ namespace Rex.Media.App.Tests;
 public sealed partial class AppWindowTests
 {
     [Fact]
+    [Capability("FMT-C19")]
+    public void PictureSlideshowHasDiscoverableIntervalAndKeepsCurrentPictureWhenItChanges()
+    {
+        var picture = RepoPaths.Combine("tests", "fixtures", "picture", "still.png");
+        using var app = AppProcess.Start([picture]);
+        Wait.For(() => app.IsShown("PictureIntervalButton"), "slideshow interval to appear");
+        Assert.Contains("5 s", app.Text("PictureIntervalButton"), StringComparison.Ordinal);
+        var before = app.Text("NowPlaying");
+        app.Press("PictureIntervalButton");
+        app.Press("PictureInterval-10");
+        Wait.For(() => app.Text("PictureIntervalButton").Contains("10 s", StringComparison.Ordinal),
+            "new slideshow duration");
+        Assert.Equal(before, app.Text("NowPlaying"));
+        Assert.Equal(10, app.SavedSettings.PictureSeconds);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-04")]
     public void SavedPlaylistEditorStagesMovesAndRemovalWithoutInterruptingThePlayingQueue()
     {

@@ -442,6 +442,12 @@ public sealed partial class MainWindow : Window
 
         var title = _player.Title;
         Title = title.Length > 0 ? $"{title} \u2014 rexplayer" : "rexplayer";
+        var picture = _player.Item?.Location is { } location && MediaFiles.IsPicture(location);
+        PictureIntervalButton.Visibility = picture ? Visibility.Visible : Visibility.Collapsed;
+        if (picture)
+        {
+            PictureIntervalButton.Content = $"Slideshow · {_settings.PictureSeconds} s";
+        }
         NowPlaying.Text = title;
 
         var idle = _player.State is SessionState.Idle || (_player.Item is not null && !HasVideo);

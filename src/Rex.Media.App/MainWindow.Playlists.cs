@@ -22,6 +22,23 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Adjusts the dwell time for subsequent pictures without restarting the current image or queue.</summary>
+    private void OnPictureIntervalClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (sender is not Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Tag: string choice }
+            || !int.TryParse(choice, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+        {
+            return;
+        }
+
+        _settings = (_settings with { PictureSeconds = seconds }).Normalize();
+        _player.Settings = _settings;
+        PictureIntervalButton.Content = $"Slideshow · {_settings.PictureSeconds} s";
+        Say($"Pictures will show for {_settings.PictureSeconds} seconds each starting with the next picture");
+        RememberLater();
+    }
+
     private async Task SavePlaylistAsync()
     {
         if (_player.Playlist.Items.Count == 0)
