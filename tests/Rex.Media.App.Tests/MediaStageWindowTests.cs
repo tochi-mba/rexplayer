@@ -102,6 +102,7 @@ public sealed class MediaStageWindowTests : IDisposable
             app.Find("Stage").Current.Name == "PLAYBACK ERROR playback stage",
             "an unreadable file to display its failure");
         Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Assert.Contains("could not be played", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.False(app.IsShown("Lyrics"));
         Assert.False(app.IsShown("Cover"));
         Screenshots.Match(app, "stage-error");
@@ -158,6 +159,7 @@ public sealed class MediaStageWindowTests : IDisposable
             () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
         Screenshots.Match(app, "stage-picture-windowed");
         Assert.False(app.IsShown("Lyrics"), "Lyrics should not carry over to picture playback.");
+        Assert.Contains("Picture view", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.False(app.Find("SeekBar").Current.IsEnabled, "Pictures must not offer a fake seek timeline.");
         Assert.Equal("Stage", app.Find("Stage").Current.AutomationId);
         Assert.Equal(0, app.Close());
