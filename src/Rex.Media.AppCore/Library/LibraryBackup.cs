@@ -71,7 +71,7 @@ public static class LibraryBackup
     /// are not touched. A writer is injectable for deterministic fault tests.
     /// </summary>
     public static string PublishSnapshot(string parent, IReadOnlyList<(string Path, byte[] Bytes)> files,
-        CancellationToken cancellationToken = default, Action<string, byte[]>? writer = null)
+        Action<string, byte[]>? writer = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(parent);
         ArgumentNullException.ThrowIfNull(files);
