@@ -111,25 +111,39 @@ internal static class Screenshots
         (int Width, int Height, byte[] Bgra) witness = default;
         var rendered = Wait.Within(TimeSpan.FromSeconds(5), () =>
         {
-            var captured = scene.CaptureMode == "desktop"
-                ? WindowPicture.TakeDesktop(app.Handle)
-                : WindowPicture.Take(app.Handle);
-            fullWindow = captured;
-            picture = captured;
-            if (needsPixelWitness && !TryCropControl(app, captured, scene.ReadinessId, out witness))
+            try
             {
-                return false;
-            }
-
-            if (automationId is not null && !TryCropControl(app, captured, automationId, out picture))
-            {
+                var captured = scene.CaptureMode == "desktop"
+                    ? WindowPicture.TakeDesktop(app.Handle)
+                    : WindowPicture.Take(app.Handle);
+                fullWindow = captured;
                 picture = captured;
+                if (needsPixelWitness && !TryCropControl(app, captured, scene.ReadinessId, out witness))
+                {
+                    return false;
+                }
+
+                if (automationId is not null && !TryCropControl(app, captured, automationId, out picture))
+                {
+                    picture = captured;
+                    return false;
+                }
+
+                return HasVisibleVariation(picture) &&
+                    (!needsPixelWitness || HasVisibleVariation(witness));
+            }
+            catch (Exception error)
+            {
+                RecordCaptureError(app, name, error);
                 return false;
             }
-
-            return HasVisibleVariation(picture) &&
-                (!needsPixelWitness || HasVisibleVariation(witness));
         });
+        if (picture.Bgra is not { Length: > 0 })
+        {
+            WriteCaptureMetadata(scene, app, (0, 0, []), automationId, pixelThreshold,
+                maxDifferingRatio, true, false, false);
+            Assert.Fail($"Screenshot {name} could not capture any pixels. See its retained capture error and process log.");
+        }
 
         // Two independent compositor reads of the same stable scene must match.
         // Record the second frame and a diff even when the repeatability gate fails.
@@ -139,24 +153,32 @@ internal static class Screenshots
         var repeatDifference = 1.0;
         var repeatable = rendered && Wait.Within(TimeSpan.FromSeconds(4), () =>
         {
-            var captured = scene.CaptureMode == "desktop"
-                ? WindowPicture.TakeDesktop(app.Handle)
-                : WindowPicture.Take(app.Handle);
-            repeat = captured;
-            if (automationId is not null && !TryCropControl(app, captured, automationId, out repeat))
+            try
             {
+                var captured = scene.CaptureMode == "desktop"
+                    ? WindowPicture.TakeDesktop(app.Handle)
+                    : WindowPicture.Take(app.Handle);
                 repeat = captured;
-                return false;
-            }
+                if (automationId is not null && !TryCropControl(app, captured, automationId, out repeat))
+                {
+                    repeat = captured;
+                    return false;
+                }
 
-            if (repeat.Width != picture.Width || repeat.Height != picture.Height)
+                if (repeat.Width != picture.Width || repeat.Height != picture.Height)
+                {
+                    return false;
+                }
+
+                var (different, _) = Difference(picture, repeat, pixelThreshold);
+                repeatDifference = different / (double)(picture.Width * picture.Height);
+                return repeatDifference <= maxDifferingRatio;
+            }
+            catch (Exception error)
             {
+                RecordCaptureError(app, name, error);
                 return false;
             }
-
-            var (different, _) = Difference(picture, repeat, pixelThreshold);
-            repeatDifference = different / (double)(picture.Width * picture.Height);
-            return repeatDifference <= maxDifferingRatio;
         });
 
         // Persist artifacts *before* any screenshot assertion, including failed
@@ -301,6 +323,14 @@ internal static class Screenshots
         {
             return false;
         }
+    }
+
+    private static void RecordCaptureError(AppProcess app, string name, Exception error)
+    {
+        var dir = Path.Combine(Output, "actual");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, name + ".capture-error.txt"), error.ToString());
+        File.WriteAllText(Path.Combine(dir, name + ".log"), app.LogText);
     }
 
     /// <summary>Capture a one-shot UIA observation without a waiting lookup that could mask a failing scene.</summary>
