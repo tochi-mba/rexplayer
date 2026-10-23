@@ -112,6 +112,28 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-13")]
+    public void PictureLibraryCapturesItsDurableUnreadableMediaState()
+    {
+        using var fixture = new LibraryScene();
+        var image = fixture.Picture("Unusable.jpg");
+        fixture.Ready();
+        var library = new Rex.Media.Library.MediaLibrary(
+            Rex.Media.Library.RexStore.Open(Path.Combine(fixture.Root, "library.log")));
+        library.SetReadDetails([(image, null, "The image header is invalid")]);
+
+        using var app = fixture.Start();
+        app.Visit("Pictures");
+        Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
+            .Cast<AutomationElement>().Any(item =>
+                item.Current.Name.Contains("Could not be read: The image header is invalid", StringComparison.Ordinal)),
+            "the unreadable media warning");
+        Screenshots.Match(app, "pictures-unreadable-light", "LibraryPane");
+        Assert.Equal(0, app.Close());
+    }
+
     [Theory]
     [InlineData("Grid", "pictures-grid")]
     [InlineData("Collage", "pictures-collage")]
