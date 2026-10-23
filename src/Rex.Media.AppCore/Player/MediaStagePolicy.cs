@@ -63,6 +63,7 @@ public readonly record struct MediaStageView(
     /// <summary>Screen-reader help derived from proven capabilities, never the previous media.</summary>
     public string AutomationHelpText => Profile switch
     {
+        MediaStageProfile.Welcome => "No media is open. Playback position cannot be changed. Open a file or choose an item from your library to start.",
         MediaStageProfile.Loading => "Media is opening. Playback capabilities are not known yet.",
         MediaStageProfile.Error => "The active media could not be played.",
         MediaStageProfile.Unsupported => "The active file has no playable audio or video track.",
