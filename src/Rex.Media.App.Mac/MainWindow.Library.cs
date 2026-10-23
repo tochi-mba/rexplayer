@@ -239,6 +239,12 @@ public sealed partial class MainWindow
         }
 
         RefreshLibrary();
+        if (_libraryTemporaryStore)
+        {
+            return AutomationReply.Failed(
+                "The library store could not be opened. Watched folders will be forgotten when the app quits.");
+        }
+
         if (_libraryStore?.WriteProblem is { } writeProblem)
         {
             return AutomationReply.Failed("Library folder changes are only in memory: " + writeProblem);
