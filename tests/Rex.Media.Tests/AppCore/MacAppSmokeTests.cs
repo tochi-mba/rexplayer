@@ -233,6 +233,19 @@ public sealed class MacAppSmokeTests
             Assert.True(newResult?.Ok == true && newResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "The scanner did not expose the newly added video: " + (newResult?.Text ?? newResult?.Error ?? "no reply"));
 
+            // The watched folder remains active, so the native Rescan button must discover
+            // changes made after the folder was first indexed.
+            File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
+                Path.Combine(secondFolder, "rescanned-video.mp4"));
+            var rescan = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryRescan" });
+            Assert.True(rescan?.Ok == true, "The native Rescan action did not run: " + (rescan?.Error ?? "no reply"));
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("3 total", StringComparison.Ordinal), app, root);
+            var rescanned = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "rescanned-video" });
+            Assert.True(rescanned?.Ok == true && rescanned.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The native Rescan action did not reveal the new file.");
+
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
                 "The Mac app could not quit with the library shown: " + (quit?.Error ?? "no reply") + LogTail(root));
@@ -259,7 +272,7 @@ public sealed class MacAppSmokeTests
                 });
                 Assert.True(persisted?.Ok == true &&
                     persisted.Text?.Contains("2 folders", StringComparison.Ordinal) == true &&
-                    persisted.Text.Contains("2 total", StringComparison.Ordinal),
+                    persisted.Text.Contains("3 total", StringComparison.Ordinal),
                     "The watched folders or media did not survive restart: " + (persisted?.Text ?? "no reply"));
                 var closeAgain = await Ask(secondPipe, new AutomationRequest
                 {
