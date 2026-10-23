@@ -169,7 +169,7 @@ public sealed partial class MainWindow
             _libraryWindow.Center();
         }
 
-        RefreshLibrary();
+        RefreshLibrary(force: true);
         _libraryWindow.MakeKeyAndOrderFront(null);
         WireLibraryKeyViews();
         _libraryWindow.MakeFirstResponder(_librarySearch);
@@ -263,10 +263,17 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Recreate the visible rows from an immutable catalogue snapshot on the UI thread.</summary>
-    private void RefreshLibrary()
+    /// <summary>
+    /// Keep background scanning independent of playback: a hidden library window does not
+    /// render 80 AppKit rows on every catalogue change. Opening it forces a fresh snapshot.
+    /// </summary>
+    private void RefreshLibrary() => RefreshLibrary(force: false);
+
+    private void RefreshLibrary(bool force)
     {
-        if (_closingLibrary || _libraryWindow is null || _libraryScroll is null || _librarySummary is null || _mediaLibrary is null)
+        if (_closingLibrary || _libraryWindow is null || _libraryScroll is null ||
+            _librarySummary is null || _mediaLibrary is null ||
+            (!force && !_libraryWindow.IsVisible))
         {
             return;
         }
