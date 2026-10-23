@@ -174,6 +174,53 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>
+    /// Moves existing queue entries immediately after the current one in the requested order,
+    /// without adding another copy or changing the playing item. Under shuffle the explicit
+    /// play-next order takes priority over the random remainder; repeated file locations still
+    /// refer to distinct queue entries.
+    /// </summary>
+    public void QueueNext(IEnumerable<PlaylistItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var selected = items.Where(item => !ReferenceEquals(item, Current) && _items.Contains(item))
+            .Distinct(ReferenceEqualityComparer.Instance).ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var ended = Current is null && _position >= _order.Count;
+        foreach (var item in selected)
+        {
+            _items.Remove(item);
+            var at = _order.IndexOf(item);
+            _order.RemoveAt(at);
+            if (at <= _position)
+            {
+                _position--;
+            }
+        }
+
+        if (ended)
+        {
+            // After the queue ended, an explicit next choice becomes its new beginning.
+            _position = -1;
+        }
+
+        var insertAt = Current is not null ? _items.IndexOf(Current) + 1
+            : ended || _position < 0 ? 0 : _items.IndexOf(_order[_position]) + 1;
+        _items.InsertRange(insertAt, selected);
+        _order.InsertRange(Math.Clamp(_position + 1, 0, _order.Count), selected);
+        _nextCycle = null;
+        if (!_shuffle)
+        {
+            Unshuffle();
+        }
+
+        Raise();
+    }
+
     /// <summary>Empties the queue.</summary>
     public void Clear()
     {
@@ -231,6 +278,7 @@ public sealed class Playlist(Random? random = null)
         var item = _items[from];
         _items.RemoveAt(from);
         _items.Insert(Math.Clamp(to, 0, _items.Count), item);
+        _nextCycle = null;
         if (!_shuffle)
         {
             Unshuffle();

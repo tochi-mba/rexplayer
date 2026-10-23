@@ -143,6 +143,58 @@ public sealed class PlaylistTests
         Assert.DoesNotContain(selected[1], remaining);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void QueueNextMovesExistingEntriesWithoutDuplicatingOrRestartingPlayback(bool shuffle)
+    {
+        var playlist = With(5, new Random(4));
+        playlist.Shuffle = shuffle;
+        var playing = playlist.Next(automatic: false)!;
+        var chosen = playlist.Items.Where(item => !ReferenceEquals(item, playing)).Take(2).ToArray();
+        var original = playlist.Items.ToArray();
+
+        playlist.QueueNext([chosen[1], chosen[0], chosen[1], playing, new PlaylistItem("absent.wav")]);
+
+        Assert.Same(playing, playlist.Current);
+        Assert.Equal(original.Length, playlist.Items.Count);
+        Assert.True(original.ToHashSet(ReferenceEqualityComparer.Instance).SetEquals(playlist.Items));
+        Assert.Same(chosen[1], playlist.PeekNext(automatic: false));
+        Assert.Same(chosen[1], playlist.Next(automatic: false));
+        Assert.Same(chosen[0], playlist.Next(automatic: false));
+        Assert.Equal(original.Length, playlist.Items.Distinct(ReferenceEqualityComparer.Instance).Count());
+        Assert.Throws<ArgumentNullException>(() => playlist.QueueNext(null!));
+    }
+
+    [Fact]
+    public void QueueNextAfterEndStartsWithChosenEntryAndEmptySelectionDoesNotNotify()
+    {
+        var playlist = With(3);
+        var changes = 0;
+        playlist.Changed += (_, _) => changes++;
+        playlist.QueueNext([]);
+        playlist.QueueNext([new PlaylistItem("not-here.wav")]);
+        Assert.Equal(0, changes);
+        PlayAll(playlist, 4);
+        var chosen = playlist.Items[2];
+        playlist.QueueNext([chosen]);
+        Assert.Equal(5, changes);
+        Assert.Same(chosen, playlist.Next(automatic: false));
+    }
+
+    [Fact]
+    public void QueueNextAfterRemovingCurrentPreservesTheFollowingPlace()
+    {
+        var playlist = With(5);
+        playlist.Next(automatic: false);
+        playlist.Next(automatic: false);
+        playlist.RemoveAt(1);
+        var firstNext = playlist.Items[2];
+        playlist.QueueNext([firstNext]);
+        Assert.Same(firstNext, playlist.PeekNext(automatic: false));
+        Assert.Same(firstNext, playlist.Next(automatic: false));
+    }
+
     [Fact]
     public void ItemsAddedWhileShufflingJoinThePartStillToPlay()
     {

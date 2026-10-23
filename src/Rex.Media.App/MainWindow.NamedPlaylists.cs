@@ -96,6 +96,9 @@ public sealed partial class MainWindow
         }
 
         menu.Items.Add(MenuItem("Play", "EntryPlay", () => _player.PlayAt(_player.Playlist.Items.ToList().IndexOf(chosen[0]))));
+        var playNext = MenuItem("Move to Play next", "EntryPlayNext", () => QueueChosenNext(chosen));
+        playNext.IsEnabled = chosen.Any(item => !ReferenceEquals(item, _player.Playlist.Current));
+        menu.Items.Add(playNext);
         var addTo = new MenuFlyoutSubItem { Text = "Add to a playlist" };
         AutomationProperties.SetAutomationId(addTo, "EntryAddTo");
         foreach (var playlist in _player.NamedPlaylists)
@@ -134,6 +137,23 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Asks where a missing entry's file is now (LIB-09).</summary>
+    /// <summary>Moves actual queue entries: their identity and cue marks are never duplicated.</summary>
+    private void QueueChosenNext(IReadOnlyList<PlaylistItem> chosen)
+    {
+        _player.Playlist.QueueNext(chosen);
+        PlaylistView.SelectedItems.Clear();
+        foreach (var item in chosen)
+        {
+            var index = _player.Playlist.IndexOf(item);
+            if (index >= 0 && !ReferenceEquals(item, _player.Playlist.Current))
+            {
+                PlaylistView.SelectedItems.Add(_playlistRows[index]);
+            }
+        }
+
+        Say("Moved selected entries to Play next");
+    }
+
     private async Task LocateAsync(int index)
     {
         var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker { ViewMode = Windows.Storage.Pickers.PickerViewMode.List });
