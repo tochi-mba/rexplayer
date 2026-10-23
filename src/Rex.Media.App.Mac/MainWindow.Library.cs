@@ -125,6 +125,7 @@ public sealed partial class MainWindow
                 {
                     _libraryPageIndex--;
                     RefreshLibrary();
+                    ScrollLibraryToStart();
                 }
             });
             _libraryPreviousPage.ToolTip = "Show the previous library results";
@@ -133,6 +134,7 @@ public sealed partial class MainWindow
             {
                 _libraryPageIndex++;
                 RefreshLibrary();
+                ScrollLibraryToStart();
             });
             _libraryNextPage.ToolTip = "Show the next library results";
             ((NSView)_libraryNextPage).AccessibilityLabel = "Next results page";
@@ -242,6 +244,18 @@ public sealed partial class MainWindow
     {
         _libraryPageIndex = 0;
         RefreshLibrary();
+        ScrollLibraryToStart();
+    }
+
+    /// <summary>Keep the first row visible after paging or changing a search/category.</summary>
+    private void ScrollLibraryToStart()
+    {
+        if (_libraryScroll is { } scroll)
+        {
+            var clip = scroll.ContentView;
+            clip.ScrollToPoint(CGPoint.Empty);
+            scroll.ReflectScrolledClipView(clip);
+        }
     }
 
     /// <summary>Recreate the visible rows from an immutable catalogue snapshot on the UI thread.</summary>
