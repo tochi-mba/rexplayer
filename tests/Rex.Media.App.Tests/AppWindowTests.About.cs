@@ -14,6 +14,10 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.About);
         Assert.Equal("rexplayer " + AppProcess.Version, app.Text("AboutVersion"));
         Assert.Contains(app.Root, app.Text("AboutDataFolder"), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No account is required", app.Text("AboutPrivacy"), StringComparison.Ordinal);
+        Assert.Contains("Optional metadata lookups and update checks use the network when enabled",
+            app.Text("AboutPrivacy"), StringComparison.Ordinal);
+        Assert.DoesNotContain("sends nothing about you", app.Text("AboutPrivacy"), StringComparison.Ordinal);
         Assert.False(app.Find("AboutWhatsNew").Current.IsOffscreen);
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
