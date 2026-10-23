@@ -61,8 +61,10 @@ public static partial class BookCredits
     public static string? Narrator(LibraryGroup book)
     {
         ArgumentNullException.ThrowIfNull(book);
-        var narrators = book.Entries.Select(part => part.Narrator?.Trim())
-            .OfType<string>().Where(name => name.Length > 0)
+        var narrators = book.Entries.Select(part => part.Narrator is { } value
+                ? NarratorLabelPattern().Replace(value.Trim(), "").Trim() : null)
+            .OfType<string>().Where(name => name.Length > 0 && !Placeholder(name)
+                && !name.Equals("unknown narrator", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         return narrators.Count == 1 ? narrators[0] : null;
