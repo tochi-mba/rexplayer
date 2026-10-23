@@ -91,6 +91,22 @@ public sealed class PresentationTests
 
     [Fact]
     [Capability("META-09")]
+    public void LyricModesNeverInventWordTimingWhenSomeOrAllSourceMarkersAreAbsent()
+    {
+        Assert.Equal(LyricsDisplayMode.Plain, Lyrics.Parse("Hello\nworld")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.LineTimed,
+            Lyrics.Parse("[00:01.00]Hello\n[00:02.00]world")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.WordTimed,
+            Lyrics.Parse("[00:01.00]<00:01.00>Hello\n[00:02.00]<00:02.00>world")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.MixedTimed,
+            Lyrics.Parse("[00:01.00]<00:01.00>Hello\n[00:02.00]world")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.LineTimed,
+            Lyrics.Parse("[00:01.00]<00:00.80>bad first stamp\n[00:02.00]line")!.DisplayMode);
+        Assert.Null(Lyrics.Parse("[ar:Artist]"));
+    }
+
+    [Fact]
+    [Capability("META-09")]
     public void UnreliableEnhancedLrcRetainsLinesButDoesNotClaimWordTiming()
     {
         var lyrics = Lyrics.Parse("""
