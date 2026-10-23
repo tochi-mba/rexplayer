@@ -48,6 +48,34 @@ test('the product does not suggest every Mac capability is already available', a
   await expect(page.locator('#platforms a')).toHaveAttribute('href', /docs\/parity\.md$/);
 });
 
+test('native screenshot previews open a labeled modal and restore keyboard focus', async ({ page }) => {
+  await page.goto('./');
+  const previews = page.getByRole('button', { name: /Enlarge Windows.*screenshot/ });
+  await expect(previews).toHaveCount(2);
+  await previews.first().click();
+  const lightbox = page.locator('#shot-lightbox');
+  await expect(lightbox).toBeVisible();
+  await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows movie card/);
+  await expect(page.locator('#shot-caption')).toContainText('Windows');
+  await lightbox.getByRole('button', { name: /Close/ }).click();
+  await expect(lightbox).not.toBeVisible();
+  await expect(previews.first()).toBeFocused();
+  await previews.nth(1).click();
+  await expect(lightbox).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(lightbox).not.toBeVisible();
+  await expect(previews.nth(1)).toBeFocused();
+});
+
+test('the screenshots section communicates actual provenance and limitations', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('#screenshots')).toContainText('genuine captures');
+  await expect(page.locator('#screenshots')).toContainText('Windows');
+  await expect(page.locator('#screenshots')).toContainText('macOS');
+  await expect(page.locator('#screenshots a')).toHaveAttribute('href', /docs\/parity\.md$/);
+  await expect(page.locator('.site-nav a[href="#screenshots"]')).toHaveText('Screenshots');
+});
+
 test('the page uses the REX ink and signal palette', async ({ page }) => {
   await page.goto('./');
   const values = await page.evaluate(names => {
