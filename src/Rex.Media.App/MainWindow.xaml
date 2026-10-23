@@ -532,8 +532,9 @@
           </Grid>
 
           <!-- How the view is shown: its layout, order, grouping and card size, each kept per view. -->
-          <StackPanel Grid.Row="1" Margin="24,0,24,8" Spacing="8">
-            <Grid ColumnSpacing="12" RowSpacing="6">
+          <Grid Grid.Row="1" Margin="24,0,24,8" RowSpacing="8" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <Grid Grid.Row="0" ColumnSpacing="12" RowSpacing="6" HorizontalAlignment="Stretch">
               <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -594,7 +595,7 @@
               </DropDownButton.Flyout>
             </DropDownButton>
             </Grid>
-            <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+            <ScrollViewer Grid.Row="1" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
                           VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
                           AutomationProperties.Name="Library view options">
           <Grid Padding="0,4,0,8" ColumnSpacing="8">
@@ -617,7 +618,7 @@
 
           </Grid>
             </ScrollViewer>
-          </StackPanel>
+          </Grid>
 
           <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
