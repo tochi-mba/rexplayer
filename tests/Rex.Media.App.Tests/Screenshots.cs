@@ -41,6 +41,22 @@ internal static class Screenshots
 
     private static string Output => RepoPaths.Combine("artifacts", "screenshots", Lane);
 
+    /// <summary>Pin the actual UIA host viewport before capturing a declared scene.</summary>
+    internal static void PinViewport(AppProcess app, int width, int height)
+    {
+        var desktop = WindowPicture.DesktopBounds;
+        Assert.True(width <= desktop.Width && height <= desktop.Height,
+            $"A {width}x{height} desktop screenshot cannot fit the available {desktop.Width}x{desktop.Height} screen.");
+        var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        transform.Resize(width, height);
+        Wait.For(() =>
+        {
+            var actual = app.Window.Current.BoundingRectangle;
+            return Math.Abs(actual.Width - width) < 2 && Math.Abs(actual.Height - height) < 2
+                && WindowPicture.IsFullyOnDesktop(app.Handle);
+        }, $"the {width}x{height} pinned screenshot viewport to fit on the visible desktop");
+    }
+
     /// <summary>
     /// Compares the app's window, or the control <paramref name="automationId"/> within it, with the
     /// baseline called <paramref name="name"/> (letters, digits and hyphens). Wait for the layout to
