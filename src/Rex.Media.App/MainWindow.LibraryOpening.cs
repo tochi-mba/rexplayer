@@ -55,7 +55,8 @@ public sealed partial class MainWindow
 
     /// <summary>The route shown now, for the next launch; null for Home.</summary>
     private LibraryRoute? CurrentLibraryRoute() => _librarySource == LibrarySource.Home && _libraryGroup is null ? null
-        : new LibraryRoute(_librarySource.ToString(), _libraryGroup?.Name, _libraryGroup?.Detail, _librarySeason?.Name);
+        : new LibraryRoute(_librarySource.ToString(), _libraryGroup?.Name,
+            LibraryPlaces.StableGroupDetail(_librarySource.ToString(), _libraryGroup?.Detail), _librarySeason?.Name);
 
     /// <summary>
     /// Keeps where the user is in the route shown now, before anything changes it, with
@@ -267,7 +268,8 @@ public sealed partial class MainWindow
         if (route.Group is { Length: > 0 })
         {
             _libraryGroup = Groups(source, _library.Entries).FirstOrDefault(group =>
-                group.Name == route.Group && (route.GroupDetail is null || group.Detail == route.GroupDetail));
+                group.Name == route.Group && (LibraryPlaces.StableGroupDetail(route.View, route.GroupDetail) is not { } stable
+                    || group.Detail == stable));
             if (_libraryGroup is not null && route.Page is { Length: > 0 })
             {
                 _librarySeason = source == LibrarySource.Artists
