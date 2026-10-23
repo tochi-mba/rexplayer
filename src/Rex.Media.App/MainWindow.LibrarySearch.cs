@@ -1,6 +1,5 @@
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
-using Rex.Media.Settings;
 
 namespace Rex.Media.App;
 
