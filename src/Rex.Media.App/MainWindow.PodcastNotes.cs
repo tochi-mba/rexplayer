@@ -12,32 +12,34 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    /// <summary>Reads only explicit nearby local text, always off the UI thread.</summary>
+    private static string? ReadLocalNotes(IReadOnlyList<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            // Bounded even for a growing sidecar and independent of any parser or browser.
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite, 4096, FileOptions.SequentialScan);
+            using var reader = new StreamReader(stream);
+            var text = new char[PodcastNotes.MaxVisibleCharacters + 1];
+            var count = reader.ReadBlock(text, 0, text.Length);
+            return PodcastNotes.Display(new string(text, 0, count));
+        }
+
+        return null;
+    }
+
     private async Task ShowPodcastNotesAsync(LibraryEntry episode)
     {
         string? notes;
         try
         {
-            notes = await Task.Run(() =>
-            {
-                foreach (var path in PodcastNotes.Sidecars(episode.Path))
-                {
-                    if (!File.Exists(path))
-                    {
-                        continue;
-                    }
-
-                    // Bounded even if a file is replaced or grows between the length check and
-                    // the read. ReadBlock never materializes the rest of a huge text file.
-                    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
-                        FileShare.ReadWrite, 4096, FileOptions.SequentialScan);
-                    using var reader = new StreamReader(stream);
-                    var text = new char[PodcastNotes.MaxVisibleCharacters + 1];
-                    var count = reader.ReadBlock(text, 0, text.Length);
-                    return PodcastNotes.Display(new string(text, 0, count));
-                }
-
-                return null;
-            });
+            notes = await Task.Run(() => ReadLocalNotes(PodcastNotes.Sidecars(episode.Path)));
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException
             or NotSupportedException or ArgumentException)
