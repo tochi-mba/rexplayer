@@ -36,8 +36,14 @@ public sealed partial class MainWindow
                 _places.RememberSearch(_librarySource.ToString(), "");
                 ShowLibraryAtPlace();
                 break;
-            case BookChapter chapter when _libraryGroup is { } book:
-                PlayBook(book, chapter);
+            case BookChapter chapter:
+                // Authors uses _libraryGroup for the author and _librarySeason for the
+                // opened book. Queue only that book, never the author's entire catalogue.
+                if ((_librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup) is { } book)
+                {
+                    PlayBook(book, chapter);
+                }
+
                 break;
             case NamedPlaylist playlist:
                 if (_settings.ShowPlayerWhenLibraryMediaStarts)
