@@ -243,6 +243,25 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void LocalPodcastShowDisplaysOnlyItsOwnSafeDescriptionAndCreatorEvidence()
+    {
+        var episode = _scene.Audio(Path.Combine("Podcasts", "Night Talk", "Ep 1.wav"),
+            TimeSpan.FromMinutes(20), artist: "Host", album: "Night Talk");
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(episode)!, "show.notes.txt"),
+            "Independent local show notes. <script>literal only</script>");
+        using var app = _scene.Ready().Start();
+        app.Visit("Podcasts");
+        app.Open("Night Talk");
+        Wait.For(() => app.Text("LibraryOverview").Contains("Independent local show notes.", StringComparison.Ordinal),
+            "the show description from its explicit local sidecar");
+        Assert.Contains("<script>", app.Text("LibraryOverview"), StringComparison.Ordinal);
+        Assert.Contains("Creator tag:", app.Text("LibraryFacts"), StringComparison.Ordinal);
+        Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
