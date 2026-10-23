@@ -1035,6 +1035,52 @@
       "owner": "LibraryDownloadsTests",
       "baseline": "unreviewed",
       "captureMode": "desktop"
+    },
+    {
+      "id": "library-songs-high-dpi",
+      "fixture": "three-tagged-songs",
+      "route": "library/songs",
+      "state": "scaled-dpi-144-minimum",
+      "dimensions": "1000x760",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibrarySearch"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Songs"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryAccessibilityVisualTests",
+      "baseline": "unreviewed",
+      "captureMode": "desktop",
+      "requiredLane": "ci-windows-high-dpi"
+    },
+    {
+      "id": "library-songs-high-contrast",
+      "fixture": "three-tagged-songs",
+      "route": "library/songs",
+      "state": "windows-high-contrast-on",
+      "dimensions": "1000x760",
+      "theme": "system",
+      "expectedAutomationIds": [
+        "LibraryPane",
+        "LibrarySearch"
+      ],
+      "expectedVisibleData": [
+        {
+          "automationId": "LibraryTitle",
+          "name": "Songs"
+        }
+      ],
+      "readinessSignal": "uia:LibraryPane",
+      "owner": "LibraryAccessibilityVisualTests",
+      "baseline": "unreviewed",
+      "captureMode": "desktop",
+      "requiredLane": "ci-windows-high-contrast"
     }
   ]
 }
