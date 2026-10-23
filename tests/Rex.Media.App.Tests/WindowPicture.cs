@@ -32,6 +32,21 @@ internal static partial class WindowPicture
             && bounds.Right <= desktop.Right && bounds.Bottom <= desktop.Bottom;
     }
 
+    /// <summary>Actual Windows monitor DPI, never inferred from the requested window size.</summary>
+    public static uint Dpi(nint window) => GetDpiForWindow(window);
+
+    /// <summary>Actual Windows accessibility contrast state, not a simulated dark theme.</summary>
+    public static bool HighContrast
+    {
+        get
+        {
+            var state = new HighContrastState { Size = (uint)Marshal.SizeOf<HighContrastState>() };
+            Assert.True(SystemParametersInfo(0x0042, state.Size, ref state, 0),
+                "Windows did not provide the actual high-contrast setting.");
+            return (state.Flags & 1) != 0;
+        }
+    }
+
     /// <summary>The window's picture, and its size.</summary>
     public static (int Width, int Height, byte[] Bgra) Take(nint window) => TakeCore(window, includeDesktopPopups: false);
 
@@ -125,6 +140,14 @@ internal static partial class WindowPicture
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct HighContrastState
+    {
+        public uint Size;
+        public uint Flags;
+        public nint Scheme;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct Rect
     {
         public int Left;
@@ -155,6 +178,13 @@ internal static partial class WindowPicture
 
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetrics(int index);
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint window);
+
+    [LibraryImport("user32.dll", EntryPoint = "SystemParametersInfoW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SystemParametersInfo(uint action, uint parameter, ref HighContrastState state, uint flags);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
