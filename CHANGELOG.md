@@ -3,6 +3,12 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## Unreleased
+
+### Improved
+
+- Find Windows Preferences by category, setting label or choice, with a persistent category list on wide windows and readable no-results feedback (#467). Reject blank and nearly uniform UI screenshots before accepting visual baselines.
+
 ## 0.30.7 - 2026-10-23
 
 ### Fixed
@@ -12,7 +18,6 @@ pipeline the moment its number reaches `main`.
 
 ### Improved
 
-- Find Windows Preferences by category, setting label or choice, with a persistent category list on wide windows and readable no-results feedback (#467). Reject blank and nearly uniform UI screenshots before accepting visual baselines.
 - Refresh the Windows library with soft light and dark surfaces, clearer navigation, a persistent Add folder action, and a dedicated search row. View and library actions scroll at smaller window sizes.
 - Make playback easier to discover with a prominent play/pause button, transport hints, and direct welcome-screen actions. Separate the macOS timeline from its playback controls and add file/folder welcome actions.
 - Offer a Clear search action when no media matches, and make empty-library folder suggestions fit narrow windows.
