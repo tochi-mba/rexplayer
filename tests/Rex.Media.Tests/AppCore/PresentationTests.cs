@@ -139,7 +139,7 @@ public sealed class PresentationTests
     public void LongUnicodeAndRtlLinesRetainTheirCharactersAndLastDuplicateWins()
     {
         var words = string.Concat(Enumerable.Repeat("مرحبا 世界 🎵 ", 128)).Trim();
-        var lyrics = Lyrics.Parse($"[ar:فنان]\\n[00:01.00][00:02.00]{words}\\n[00:02.00]repeated")!;
+        var lyrics = Lyrics.Parse($"[ar:فنان]\n[00:01.00][00:02.00]{words}\n[00:02.00]repeated")!;
 
         Assert.True(lyrics.IsTimed);
         Assert.Equal(3, lyrics.Lines.Count);
