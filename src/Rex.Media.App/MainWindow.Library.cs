@@ -878,18 +878,13 @@ public sealed partial class MainWindow
         try
         {
             var playlists = _player.NamedPlaylists.ToArray();
-            await Task.Run(() =>
-            {
-                foreach (var (path, bytes) in LibraryBackup.Export(_library!, playlists))
-                {
-                    var target = Path.Combine(folder.Path, path);
-                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                    Rex.Media.IO.AtomicFile.Write(target, bytes);
-                }
-            });
+            // A whole new sibling directory becomes visible only after its
+            // complete payload and digest manifest have been flushed.
+            var published = await Task.Run(() =>
+                LibraryBackup.PublishSnapshot(folder.Path, LibraryBackup.Export(_library!, playlists)));
 
-            App.Log.Info(LogSource, "Backed the library up to " + folder.Path);
-            Say("The library is backed up in " + folder.Path);
+            App.Log.Info(LogSource, "Backed the library up to " + published);
+            Say("The library is backed up in " + published);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -910,7 +905,8 @@ public sealed partial class MainWindow
 
         try
         {
-            var summary = LibraryBackup.Restore(LibraryBackup.Read(await File.ReadAllBytesAsync(file.Path)), _library!, _player);
+            var snapshot = await Task.Run(() => LibraryBackup.ReadFromFile(file.Path));
+            var summary = LibraryBackup.Restore(snapshot, _library!, _player);
             WatchLibraryFolders();
             _scanner!.Request();
             App.Log.Info(LogSource, $"Brought back {file.Path}: {summary}.");
