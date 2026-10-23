@@ -848,7 +848,7 @@
       "fixture": "empty-watched-folder",
       "route": "library/home",
       "state": "empty",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -870,7 +870,7 @@
       "fixture": "one-tagged-song",
       "route": "library/songs",
       "state": "one-item",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "720x640",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -892,7 +892,7 @@
       "fixture": "three-tagged-songs-one-movie-one-picture",
       "route": "library/home",
       "state": "mixed",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -936,7 +936,7 @@
       "fixture": "cjk-and-arabic-tagged-songs",
       "route": "library/songs",
       "state": "unicode-rtl",
-      "dimensions": "default-window (not yet pinned)",
+      "dimensions": "1000x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
