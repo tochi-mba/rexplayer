@@ -87,7 +87,7 @@ test('full-size image links work when JavaScript is disabled', async ({ page, br
   try {
     const withoutScript = await context.newPage();
     await withoutScript.goto(page.url());
-    const first = withoutScript.getByRole('link', { name: /View larger Windows movie card screenshot/ });
+    const first = withoutScript.getByRole('link', { name: /View larger Windows Library overview screenshot/ });
     await expect(first).toBeVisible();
     await first.click();
     await expect(withoutScript).toHaveURL(/assets\/windows-library-wide-ci\.png$/);
