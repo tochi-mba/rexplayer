@@ -203,7 +203,11 @@ public sealed class ListeningViewsTests
         var now = new DateTime(2024, 8, 1, 12, 0, 0, DateTimeKind.Utc);
         var episodes = Enumerable.Range(1, 1000)
             .Select(number => AudioFile($"Podcasts/Big Show/ep-{number:0000}.mp3", TimeSpan.FromMinutes(30), track: number)
-                with { Added = now.AddHours(-1), Modified = now.AddDays(-1) })
+                with
+                {
+                    Added = now.AddHours(-1),
+                    Modified = now.AddDays(-1),
+                })
             .Reverse().ToArray();
         var future = AudioFile("Podcasts/Big Show/ep-future.mp3", TimeSpan.FromMinutes(30))
             with { Added = now.AddDays(1), Modified = now };
@@ -272,12 +276,19 @@ public sealed class ListeningViewsTests
     [Capability("LIB-05")]
     public void OpeningAnEpisodeKeepsOnlyAvailableSameShowFilesInChronologicalOrder()
     {
-        var oldest = AudioFile("Podcasts/Show/Episode 1.mp3", TimeSpan.FromMinutes(25))
-            with { Year = 2022 };
-        var damaged = AudioFile("Podcasts/Show/Episode 2.mp3", TimeSpan.FromMinutes(25))
-            with { Year = 2023, Problem = "partial" };
-        var newest = AudioFile("Podcasts/Show/Episode 3.mp3", TimeSpan.FromMinutes(25))
-            with { Year = 2024 };
+        var oldest = AudioFile("Podcasts/Show/Episode 1.mp3", TimeSpan.FromMinutes(25)) with
+        {
+            Year = 2022,
+        };
+        var damaged = AudioFile("Podcasts/Show/Episode 2.mp3", TimeSpan.FromMinutes(25)) with
+        {
+            Year = 2023,
+            Problem = "partial",
+        };
+        var newest = AudioFile("Podcasts/Show/Episode 3.mp3", TimeSpan.FromMinutes(25)) with
+        {
+            Year = 2024,
+        };
         var all = new[] { newest, damaged, oldest };
         bool Available(LibraryEntry entry) => entry.Problem is null;
 
