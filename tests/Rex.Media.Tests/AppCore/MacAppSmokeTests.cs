@@ -348,6 +348,61 @@ public sealed class MacAppSmokeTests
         }
     }
 
+    [Fact]
+    public async Task TheMacLibraryReportsWhenFolderChangesCannotBeSaved()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle),
+            "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-write-error-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var folder = Path.Combine(root, "watched");
+        Directory.CreateDirectory(folder);
+        // Obstruct the expected catalogue file with a directory. RexStore accepts the
+        // initial missing file, but reports the failure when AddFolder attempts to write.
+        Directory.CreateDirectory(new DataRoots(root).LibraryStore);
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
+        {
+            UseShellExecute = false,
+        };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        using var app = Process.Start(start)!;
+        try
+        {
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                answer => answer is { Ok: true }, app, root);
+            var open = await Ask(pipe, new AutomationRequest
+            {
+                Command = "run", Id = CommandCatalog.ToggleLibrary,
+            });
+            Assert.True(open?.Ok == true, "Unable to open the library in write-failure test." + LogTail(root));
+            var add = await Ask(pipe, new AutomationRequest { Command = "ui.add-folder", Paths = [folder] });
+            Assert.True(add?.Ok == false && add.Error?.Contains("only in memory", StringComparison.Ordinal) == true,
+                "The Mac silently accepted an unsaved folder: " + (add?.Text ?? add?.Error ?? "no reply"));
+            var summary = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" });
+            Assert.Contains("Changes could not be saved", summary?.Text ?? "");
+            var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+            Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0));
+            Assert.True(app.WaitForExit(Patience));
+            Assert.Equal(0, app.ExitCode);
+        }
+        finally
+        {
+            if (!app.HasExited)
+            {
+                app.Kill();
+                app.WaitForExit();
+            }
+
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static async Task CaptureLibraryScreenshot(string pipe, string name, string root)
     {
         var directory = Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOTS") ?? root;
