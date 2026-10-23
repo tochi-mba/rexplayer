@@ -131,7 +131,7 @@ public sealed partial class MainWindow
 
         _playbackToolsTitle!.StringValue = _player.Item is null ? "Open media to use playback tools." : _player.Title;
         var bookmarks = _player.Bookmarks;
-        var signature = _player.Item?.Location + "\n" + string.Join("\n", bookmarks.Select(bookmark => bookmark.Name + "\t" + bookmark.Position.Ticks.ToString(CultureInfo.InvariantCulture)));
+        var signature = _player.Item?.Location + "\n" + string.Join("\n", bookmarks.Select(bookmark => bookmark.Name + "\t" + bookmark.At.Ticks.ToString(CultureInfo.InvariantCulture)));
         if (_bookmarkSignature != signature)
         {
             var selected = (int)_bookmarkPicker.IndexOfSelectedItem;
@@ -145,7 +145,7 @@ public sealed partial class MainWindow
             {
                 foreach (var bookmark in bookmarks)
                 {
-                    _bookmarkPicker.AddItem($"{TimeText.Format(bookmark.Position)} · {bookmark.Name}");
+                    _bookmarkPicker.AddItem($"{TimeText.Format(bookmark.At)} · {bookmark.Name}");
                 }
 
                 _bookmarkPicker.SelectItem(Math.Clamp(selected, 0, bookmarks.Count - 1));

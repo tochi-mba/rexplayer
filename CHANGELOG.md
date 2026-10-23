@@ -3,7 +3,12 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
-## Unreleased
+## 0.30.7 - 2026-10-23
+
+### Fixed
+
+- **Mac playback tools and release builds (#460).** Use the saved bookmark time field and connect the new Playback tools window to the Mac application menu, automatic state refresh and cleanup, restoring the Intel and Apple Silicon builds.
+- **Warnings-as-errors compliance (#460).** Remove an unfinished, unused native media-list prototype rather than suppressing the unused-type analyzer; existing playback functionality stays intact.
 
 ### Improved
 
