@@ -132,6 +132,7 @@ public sealed class MediaStageWindowTests : IDisposable
             app.Find("Stage").Current.Name == "NOW PLAYING playback stage"
             && app.Find("SeekBar").Current.IsEnabled,
             "the music stage to identify the playing song");
+        Wait.For(() => app.Status().State == "Playing", "the song to start playback");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
         Wait.For(() => app.Status().State == "Paused", "a stable song stage frame");
         Screenshots.Match(app, "stage-song-windowed");
