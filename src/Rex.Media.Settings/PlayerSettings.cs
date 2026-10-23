@@ -580,6 +580,9 @@ public sealed record PlayerSettings
     /// <summary>How each library view is shown, by the view's name (LIB-05).</summary>
     public IReadOnlyDictionary<string, LibraryViewChoice> LibraryViews { get; init; } = new Dictionary<string, LibraryViewChoice>(StringComparer.Ordinal);
 
+    /// <summary>Representative track locations of albums deliberately pinned to Music Home, newest pin first. A missing file does not fabricate a card.</summary>
+    public IReadOnlyList<string> PinnedAlbumPaths { get; init; } = [];
+
     /// <summary>Where the user was in each library view and page, by the route's key, newest last (LIB-05).</summary>
     public IReadOnlyDictionary<string, LibraryPlace> LibraryPlaces { get; init; } = new Dictionary<string, LibraryPlace>(StringComparer.Ordinal);
 
@@ -862,6 +865,8 @@ public sealed record PlayerSettings
                 .Where(pair => !pair.Place.IsEmpty)
                 .TakeLast(LibraryPlace.Most)
                 .ToDictionary(pair => pair.Key, pair => pair.Place, StringComparer.Ordinal),
+            PinnedAlbumPaths = [.. (PinnedAlbumPaths ?? []).Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => path.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(40)],
             LibraryRoute = string.IsNullOrWhiteSpace(LibraryRoute?.View) ? null : LibraryRoute,
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
