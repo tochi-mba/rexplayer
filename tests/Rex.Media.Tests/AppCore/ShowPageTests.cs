@@ -68,6 +68,17 @@ public sealed class ShowPageTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void ThePickerExplicitlyNamesSeasonZeroWithoutChangingRegularSeasonLabels()
+    {
+        var show = Show(Episode("Alpha S00E01"), Episode("Alpha S01E01"));
+        var seasons = LibraryViews.TvSeasons(show);
+        Assert.Equal(["Season 1", "Season 0 (Specials)"], seasons.Select(ShowPage.SeasonPickerLabel));
+        Assert.Equal("Specials", seasons[^1].Name);
+        Assert.Throws<ArgumentNullException>(() => ShowPage.SeasonPickerLabel(null!));
+    }
+
+    [Fact]
     public void PlaySaysWhichEpisodeItResumesOrStarts()
     {
         Assert.Equal("Resume S02 E01", ShowPage.PlayLabel(Episode("Alpha S02E01"), resumes: true));
