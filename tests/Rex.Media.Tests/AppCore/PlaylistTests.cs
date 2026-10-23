@@ -174,6 +174,38 @@ public sealed class PlaylistTests
     }
 
     [Fact]
+    public void QueueNextCanReplayAnEarlierShuffledEntryWithoutSkippingWhatRemains()
+    {
+        var playlist = With(5, new Random(17));
+        playlist.Shuffle = true;
+        var previouslyPlayed = playlist.Next(automatic: false)!;
+        var current = playlist.Next(automatic: false)!;
+        var remaining = playlist.Items.Where(item => item != previouslyPlayed && item != current).ToArray();
+        var changes = 0;
+        playlist.Changed += (_, _) => changes++;
+
+        // The selected item was already played: removing it from shuffle order must
+        // adjust the cursor before placing it immediately after the current item.
+        playlist.QueueNext(playlist.IndexOf(previouslyPlayed));
+
+        Assert.Same(current, playlist.Current);
+        Assert.Same(previouslyPlayed, playlist.PeekNext(automatic: false));
+        Assert.Same(previouslyPlayed, playlist.Next(automatic: false));
+        var rest = new List<PlaylistItem>();
+        for (var item = playlist.Next(automatic: false); item is not null; item = playlist.Next(automatic: false))
+        {
+            rest.Add(item);
+        }
+
+        Assert.Equal(remaining.Length, rest.Count);
+        Assert.All(remaining, item => Assert.Contains(item, rest));
+        Assert.DoesNotContain(previouslyPlayed, rest);
+        Assert.DoesNotContain(current, rest);
+        Assert.Equal(remaining.Length + 3, changes);
+        Assert.Equal(5, playlist.Items.Count);
+    }
+
+    [Fact]
     public void QueueNextWithoutACurrentItemLeavesThePlaylistIntact()
     {
         var playlist = With(3);
