@@ -26,6 +26,7 @@ public sealed partial class MainWindow
     private readonly List<TextBlock> _lyricTexts = [];
     private PlaylistItem? _shownChapterItem;
     private MediaInfo? _shownChapterInfo;
+    private MediaStageView _stageView;
 
     /// <summary>Brings the picture, the album and the lyrics on screen in line with what plays.</summary>
     private void ShowPresentation()
@@ -58,6 +59,7 @@ public sealed partial class MainWindow
             HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown && chapter.Start >= MediaTime.Zero) == true,
             HasCaptions: _player.Subtitles is not null || _player.SecondarySubtitles is not null,
             HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
+        _stageView = stage;
         var music = stage.ShowAudioPresentation;
         // A picture or unsupported stream must not leave the previous item's seek controls active.
         SubtitleLayer.Visibility = stage.ShowCaptions ? Visibility.Visible : Visibility.Collapsed;
