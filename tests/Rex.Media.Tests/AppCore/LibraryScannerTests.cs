@@ -71,6 +71,9 @@ public sealed class LibraryScannerTests
 
         Assert.Equal(2, library.Entries.Count);
         Assert.Contains(log.Tail(100), entry => entry.Message.Contains("could not be looked in", StringComparison.Ordinal));
+        Assert.Contains("Reconnect its drive", scanner.Problem, StringComparison.Ordinal);
+        scanner.Request(Music);
+        Assert.Null(scanner.Problem);
     }
 
     [Fact]
@@ -99,6 +102,7 @@ public sealed class LibraryScannerTests
         Assert.Equal(3, library.Entries.Count);
         Assert.Equal(1, library.Entry(Files(3)[1].Path)!.Plays);
         Assert.Contains(log.Tail(100), entry => entry.Message.Contains("could not be looked in", StringComparison.Ordinal));
+        Assert.NotNull(scanner.Problem);
     }
 
     [Fact]
