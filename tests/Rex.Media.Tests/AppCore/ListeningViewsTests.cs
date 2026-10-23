@@ -240,6 +240,36 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void AFileMovedOffDiskOrStillDownloadingCannotEnterAnUnplayedShowQueue()
+    {
+        var folder = Directory.CreateTempSubdirectory("rexplayer-local-show-").FullName;
+        try
+        {
+            var firstPath = Path.Combine(folder, "Ep 1.mp3");
+            var missingPath = Path.Combine(folder, "Ep 2.mp3");
+            File.WriteAllBytes(firstPath, [1, 2, 3, 4]);
+            File.WriteAllBytes(missingPath, [1, 2, 3, 4]);
+            var first = AudioFile(firstPath, TimeSpan.FromMinutes(20), album: "Local");
+            var missing = AudioFile(missingPath, TimeSpan.FromMinutes(20), album: "Local");
+            var show = new LibraryGroup("Local", null, [first, missing]);
+            File.Move(missingPath, Path.Combine(folder, "Moved.mp3"));
+            bool Available(LibraryEntry item) => File.Exists(item.Path) && !item.Downloading
+                && item.Problem is null;
+
+            Assert.Equal([first], ListeningViews.UnplayedInOrder(show, NeverLeft, Available));
+            Assert.Empty(ListeningViews.UnplayedInOrder(
+                show with { Entries = [first with { Downloading = true }] }, NeverLeft, Available));
+            Assert.Empty(ListeningViews.UnplayedInOrder(
+                show with { Entries = [first with { Problem = "incomplete file" }] }, NeverLeft, Available));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnEpisodesDateComesFromItsTagsThenTheFileThenItsName()
     {
         var file = new DateTime(2024, 6, 2, 8, 0, 0, DateTimeKind.Utc);
