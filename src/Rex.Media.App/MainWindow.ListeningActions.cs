@@ -59,6 +59,8 @@ public sealed partial class MainWindow
 
         if (audio is [{ } episode] && ShelfOf(episode) == AudioShelf.Podcasts)
         {
+            menu.Items.Add(MenuItem("Podcast playback controls...", "LibraryMenuPodcastControls",
+                () => Forget(ShowPodcastControlsAsync(episode))));
             menu.Items.Add(MenuItem("View local episode notes...", "LibraryMenuPodcastNotes",
                 () => Forget(ShowPodcastNotesAsync(episode))));
         }
