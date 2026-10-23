@@ -438,14 +438,6 @@ public sealed partial class MainWindow
             _shownEmpty = null;
             LibraryEmpty.Visibility = Visibility.Collapsed;
             LibraryFolderButtons.Children.Clear();
-        if (searching)
-        {
-            var clearSearch = new Button { Content = "Clear search" };
-            AutomationProperties.SetAutomationId(clearSearch, "LibraryEmptyClearSearch");
-            clearSearch.Click += (_, _) => LibrarySearch.Text = "";
-            LibraryFolderButtons.Children.Add(clearSearch);
-        }
-
             return;
         }
 
