@@ -36,6 +36,15 @@ public sealed partial class AppWindowTests
             "the edited sidecar to match its model-specific correction");
         Assert.Equal("original", cache.Load(media, "base.en")!.Words[0].Text);
 
+        // Find works on original and edited speech while leaving the original
+        // model file unchanged, and exposes the exact source timestamp.
+        var search = (ValuePattern)app.Find("TranscriptEditSearch").GetCurrentPattern(ValuePattern.Pattern);
+        search.SetValue("words");
+        app.Press("TranscriptEditFindNext");
+        Wait.For(() => app.Text("TranscriptEditMatch").Contains("word 2 of 2", StringComparison.Ordinal),
+            "the transcript search to find its second source-timed word");
+        Assert.True(app.IsShown("TranscriptEditJump"));
+
         app.Press("TranscriptEditUndo");
         Wait.For(() => cache.LoadEdited(media, "base.en") is null, "undo to restore the generated original");
         app.Press("TranscriptEditRedo");
