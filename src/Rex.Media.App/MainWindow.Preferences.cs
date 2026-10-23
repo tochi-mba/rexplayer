@@ -419,8 +419,149 @@ public sealed partial class MainWindow
                     scroll.ChangeView(null, offsets[shownSection], null, disableAnimation: true);
                 }
             };
-            var navigation = new StackPanel { Spacing = 4 };
+            // The compact section picker remains available on small windows and for automation.
+            // Larger windows also offer a persistent, searchable category rail.
+            var categorySearch = new TextBox
+            {
+                PlaceholderText = "Search settings and categories",
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categorySearch, "PreferencesCategorySearch");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(categorySearch, "Search settings and categories");
+            var categories = new ListView
+            {
+                SelectionMode = ListViewSelectionMode.Single,
+                ItemsSource = sections.Select(item => item.Name).ToList(),
+                SelectedIndex = 0,
+                MaxHeight = 480,
+                MinWidth = 170,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categories, "PreferencesCategoryList");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(categories, "Matching settings categories");
+            categories.SelectionChanged += (_, _) =>
+            {
+                if (categories.SelectedItem is string name)
+                {
+                    var index = sections.FindIndex(item => item.Name == name);
+                    if (index >= 0 && section.SelectedIndex != index)
+                    {
+                        section.SelectedIndex = index;
+                    }
+                }
+            };
+            section.SelectionChanged += (_, _) =>
+            {
+                if (section.SelectedIndex >= 0 && categories.ItemsSource is IEnumerable<string> names)
+                {
+                    var name = sections[section.SelectedIndex].Name;
+                    if (names.Contains(name) && !Equals(categories.SelectedItem, name))
+                    {
+                        categories.SelectedItem = name;
+                    }
+                }
+            };
+            // Match the labels inside each page as well as the category name. Each page
+            // is already constructed, so no setting values or state need to be duplicated.
+            // WrapLabels changes long CheckBox contents from strings into TextBlocks; search
+            // must read their text, not the TextBlock type name. Include automation labels and
+            // available choice items (including the contents of closed optional expanders).
+            static bool Says(object? value, string query)
+            {
+                var label = value is TextBlock block ? block.Text : value?.ToString();
+                return label is not null && System.Globalization.CultureInfo.CurrentCulture.CompareInfo.IndexOf(
+                    label, query, System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0;
+            }
+
+            static bool HasSettingText(UIElement node, string query)
+            {
+                if (node is FrameworkElement element
+                    && (Says(Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(element), query)
+                        || Says(Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(element), query)))
+                {
+                    return true;
+                }
+
+                if (node is TextBlock text && Says(text.Text, query)
+                    || node is CheckBox check && Says(check.Content, query)
+                    || node is ToggleSwitch toggle && Says(toggle.Header, query)
+                    || node is ComboBox choice && (Says(choice.Header, query)
+                        || choice.Items.Any(item => Says(item is ComboBoxItem option ? option.Content : item, query)))
+                    || node is NumberBox number && Says(number.Header, query)
+                    || node is TextBox input && Says(input.Header, query)
+                    || node is Button button && Says(button.Content, query))
+                {
+                    return true;
+                }
+
+                if (node is Expander expander
+                    && (Says(expander.Header, query)
+                        || expander.Content is UIElement expanded && HasSettingText(expanded, query)))
+                {
+                    return true;
+                }
+
+                if (node is Panel panel)
+                {
+                    return panel.Children.Any(child => HasSettingText(child, query));
+                }
+
+                if (node is Border { Child: UIElement child })
+                {
+                    return HasSettingText(child, query);
+                }
+
+                return node is ContentControl { Content: UIElement content }
+                    && HasSettingText(content, query);
+            }
+
+            var searchResult = new TextBlock
+            {
+                Text = "No matching settings. Try a different word.",
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75,
+                Visibility = Visibility.Collapsed,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(searchResult, "PreferencesSearchEmpty");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(searchResult, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
+            categorySearch.TextChanged += (_, _) =>
+            {
+                var query = categorySearch.Text.Trim();
+                var names = sections.Where(item => query.Length == 0
+                        || Says(item.Name, query) || HasSettingText(item.Page, query))
+                    .Select(item => item.Name).ToList();
+                categories.ItemsSource = names;
+                // Updating the ListView's items can clear its selection without raising a
+                // reliable SelectionChanged for a newly assigned SelectedItem. Navigate
+                // through the authoritative section picker first, so recovering from an
+                // empty result never leaves the old section visible.
+                if (names.Count > 0)
+                {
+                    // A direct category match outranks incidental matches in controls on
+                    // other pages. For example, searching "subtitle" must land on
+                    // Subtitles, not on an earlier page that happens to mention subtitles.
+                    var directCategory = sections.Select(item => item.Name).FirstOrDefault(name => Says(name, query));
+                    var selectedName = directCategory ?? (names.Contains(sections[shownSection].Name)
+                        ? sections[shownSection].Name : names[0]);
+                    var index = sections.FindIndex(item => item.Name == selectedName);
+                    if (section.SelectedIndex != index)
+                    {
+                        section.SelectedIndex = index;
+                    }
+
+                    categories.SelectedItem = selectedName;
+                }
+                else
+                {
+                    categories.SelectedItem = null;
+                }
+
+                searchResult.Visibility = names.Count == 0 && categories.Visibility == Visibility.Visible
+                    ? Visibility.Visible : Visibility.Collapsed;
+            };
+            var navigation = new StackPanel { Spacing = 8 };
             navigation.Children.Add(section);
+            navigation.Children.Add(categorySearch);
+            navigation.Children.Add(categories);
+            navigation.Children.Add(searchResult);
             var saveHint = new TextBlock
             {
                 Text = "Setting changes across all sections apply on Save. Cancel keeps your current settings. Downloads, update checks and transcript cleanup run when selected.",
@@ -429,16 +570,17 @@ public sealed partial class MainWindow
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(saveHint, "PreferencesSaveHint");
             navigation.Children.Add(saveHint);
-            var panel = new Grid { RowSpacing = 12 };
-            panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            var panel = new Grid { ColumnSpacing = 20, RowSpacing = 12 };
+            panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
+            panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             panel.Children.Add(navigation);
-            Grid.SetRow(scroll, 1);
+            Grid.SetColumn(scroll, 1);
             panel.Children.Add(scroll);
             var dialog = new ContentDialog
             {
                 Title = "Preferences",
                 Content = panel,
+                MaxWidth = 960,
                 PrimaryButtonText = "Save",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Primary,
@@ -447,7 +589,39 @@ public sealed partial class MainWindow
             var root = Content.XamlRoot;
             void FitPreferences(XamlRoot sender, XamlRootChangedEventArgs args)
             {
-                panel.Width = Math.Clamp(root.Size.Width - 96, 280, 460);
+                var wide = root.Size.Width >= 860;
+                panel.Width = Math.Clamp(root.Size.Width - 96, 280, 840);
+                panel.ColumnDefinitions[0].Width = wide ? new GridLength(190) : new GridLength(1, GridUnitType.Star);
+                panel.ColumnDefinitions[1].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+                categorySearch.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+                categories.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+                categories.MaxHeight = Math.Clamp(root.Size.Height - 360, 100, 480);
+                // Search is hidden in compact mode, so do not leave a hidden filter
+                // governing the category rail when the user widens the window again.
+                if (!wide && categorySearch.Text.Length > 0)
+                {
+                    categorySearch.Text = "";
+                }
+
+                searchResult.Visibility = wide && categories.Items.Count == 0
+                    ? Visibility.Visible : Visibility.Collapsed;
+                navigation.Visibility = Visibility.Visible;
+                // Small windows retain the original single-column section picker.
+                if (!wide)
+                {
+                    Grid.SetColumn(scroll, 0);
+                    Grid.SetRow(navigation, 0);
+                    Grid.SetRow(scroll, 1);
+                    panel.RowDefinitions.Clear();
+                    panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                }
+                else
+                {
+                    Grid.SetRow(scroll, 0);
+                    Grid.SetColumn(scroll, 1);
+                    panel.RowDefinitions.Clear();
+                }
                 scroll.MaxHeight = Math.Clamp(root.Size.Height - 300, 100, 560);
             }
             FitPreferences(root, null!);
