@@ -14,10 +14,18 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 
 **Out of scope:** unrelated audio/video decoding, analytics/network additions, breaking AutomationIDs or hotkeys, unverifiable macOS parity claims, and sister-PR tasks. Shared source changes must be coordinated before merge.
 
+## Implementation progress and evidence (2026-10-23)
+
+- Initial audit recorded in [foundation evidence audit](https://github.com/tochi-mba/rexplayer/blob/ux/windows-foundation-and-ui-qa/docs/ux-workstreams/01-foundation-evidence-audit.md): starting commit, #467 files, CI and reviews, real routes/transients, automation owners, existing capability IDs and unverified states.
+- Repaired CI repository-policy failure with `3f2ca6a`: the previous #470 run `39993569880` failed the punctuation test on Windows, Linux and macOS. The UI job was cancelled, so it is not passing evidence for the current branch.
+- Added [48 declarative screenshot scenes](https://github.com/tochi-mba/rexplayer/blob/ux/windows-foundation-and-ui-qa/tests/screenshot-scenes.json) and a parser that rejects incomplete or duplicate contracts (`9ac25f0`, `20fec28`). Only two scenes have committed CI Windows baselines; 20 scene dimensions remain deliberately marked unpinned.
+- Extended real screenshot captures with observable UI Automation readiness and JSON review evidence containing fixture, route, state, crop, dimensions, expected data and baseline presence (`84e4ecb`); added inventory tests (`d94559b`) and documented the protocol (`2279439`). These changes still require current-head CI and real Windows visual review; no visual approval is implied.
+- **Still open:** native window/build/UI/format verification on the new head, dedicated error/RTL/DPI/fixture scenes, baseline review and the other unchecked design, Home and browse tasks. Remain draft and do not merge.
+
 ## Honest current delivery state
 - [x] The six existing source/test/CHANGELOG changes from original #467 are preserved **verbatim** on this branch: adaptive Settings rail, category/control search and feedback, screenshot variation guard, regression and visual smoke tests.
 - [x] The earlier [Windows warnings-as-errors build, formatting, coverage and other CI jobs](https://github.com/tochi-mba/rexplayer/actions/runs/39984802547) succeeded on the former head.
-- [ ] Recheck the new original head `d176f950` on [CI](https://github.com/tochi-mba/rexplayer/actions/runs/39993169196); the previous run had 178/179 UI tests passing, with a search-recovery failure now being addressed. Do not claim the current head passes until evidence exists.
+- [ ] Verify the latest #470 head in CI, including the native Windows UI suite and screenshot artifacts. Original #467 head `d176f950` had a 178/179 UI run at [39993169196](https://github.com/tochi-mba/rexplayer/actions/runs/39993169196); #470 initial head `a21bbbfd` failed the repository punctuation check at [39993569880](https://github.com/tochi-mba/rexplayer/actions/runs/39993569880), which was fixed in `3f2ca6a`. Do not claim current-head success until new evidence exists.
 - [ ] Verify native keyboard navigation, screen readers, high contrast, compact/normal/ultra-wide Settings, and review visual baselines.
 - [ ] Complete the additional 63 assigned roadmap tasks. Existing Settings/screenshot code **does not** constitute delivery of the future shell, Home and fixture overhaul.
 
@@ -27,21 +35,21 @@ The original, granular task text is reproduced so scope is not lost. No future c
 ### P0. Repository audit, scope and nonduplication
 Start by grounding every implementation PR in the actual Windows app, not a visual concept. Preserve the completed work and existing automation contracts.
 
-- [ ] Record the exact head SHA, current CI, PR #467 changed files, outstanding reviews, existing UI routes, menus, dialogs, flyouts, keyboard shortcuts and automated screenshots before touching implementation.
-- [ ] Treat the checked Settings-category rail/search and blank/uniform screenshot-guard items above as **already implemented in this branch**; do not rebuild or re-count them.
+- [x] Record the exact head SHA, current CI, PR #467 changed files, outstanding reviews, existing UI routes, menus, dialogs, flyouts, keyboard shortcuts and automated screenshots before touching implementation.
+- [x] Treat the checked Settings-category rail/search and blank/uniform screenshot-guard items above as **already implemented in this branch**; do not rebuild or re-count them.
 - [ ] Verify the current PR head with Windows x64 build, formatting, pure tests, adapters, UI suite, latest screenshot artifacts and manual Settings search/layout review; only tick the preceding outstanding items after actual evidence.
 - [ ] Inventory all `MainWindow.*.cs` partials, `MainWindow.xaml`, library XAML templates, `AppCore` view-selection policies, settings model, capability JSON, `AGENTS.md` and test harness.
 - [ ] Enumerate every route and state: initial window, playback stage, library Home, Music, Songs, Albums, Artists, Genres, Audiobooks, Authors, Podcasts, Recordings, Movies, TV Shows, Other/All Videos, Pictures, Continue Watching, Completed, Recently Played/Added, Playlists and Folders.
 - [ ] Enumerate every transient view: menu bar, context/overflow menus, info flyouts, player overlays, toast/status banners, selection surfaces, Settings subsections, first run, What's New, hotkey editor, updates, metadata/artwork dialogs, transcription, equalizer, visualizer settings, Subject Lock, picture styles and diagnostics.
 - [ ] Map requirements to existing capability IDs before allocating new ones; distinguish `verified`, `built`, `planned` and `post-1.0`, never infer verified from source-code presence.
-- [ ] Create an owner-friendly per-surface audit: current implementation paths, entry conditions, screenshot IDs, defects, proposed treatment, source capability, tests and acceptance proof.
+- [x] Create an owner-friendly per-surface audit: current implementation paths, entry conditions, screenshot IDs, defects, proposed treatment, source capability, tests and acceptance proof.
 - [ ] Separate **current PR implementation** from **future unchecked roadmap**: one bounded follow-up PR per workstream; do not silently convert this six-file Settings/screenshot PR into an unreviewable monolith.
 - [ ] Do not name competitor products or their organizations anywhere in PR/repository text; follow the repository's clean-room, platform, dependency, testing and commit policies.
 
 ### P0. Real Windows screenshot evidence and deterministic fixtures
 The existing screenshot infrastructure is the starting point. New images must come from the running Windows app, with visual inspection, behavior oracles and approved CI baselines.
 
-- [ ] Add a declarative capture inventory mapping `scene-id → fixture → route → state → dimensions → theme → expected automation IDs → expected visible data → readiness signal → screenshot owner`.
+- [x] Add a declarative capture inventory mapping `scene-id → fixture → route → state → dimensions → theme → expected automation IDs → expected visible data → readiness signal → screenshot owner`.
 - [ ] Build deterministic, offline fixture libraries: one item, sparse, mixed media, artwork-rich, artwork-free, huge, corrupt, Unicode/RTL, duplicates, slow/partial files, deep folders, episodic shows, multipart books, varied podcast dates, long recordings, unusual pictures.
 - [ ] Capture the same scene at 640×480, 720×640, 800×600, 1000×760, 1280×720, 1440×900, 1920×1080, 2560×1440, 3440×1440 and 3840×2160 as relevant; test minimum viable dimensions, not assume all modes fit.
 - [ ] Cover logical sizing and 100/125/150/175/200% DPI, maximized/restored/snapped/fullscreen, short/tall windows, mixed-DPI multiple monitors and offscreen-window recovery.
@@ -109,7 +117,7 @@ Source of truth is `docs/capability-matrix.json`. Generated files are never hand
 
 - [ ] For every task, first classify: (a) style/interaction refinement of existing verified functionality, (b) implementation of an existing planned ID, or (c) genuinely new capability with its own stable ID.
 - [ ] Each new matrix row: area/name/details, milestone/priority, oracles, Windows status, macOS status, shared-core applicability, and accurate gap note/issue when policy requires.
-- [ ] Read both `AGENTS.md` and ADR-0020 before landing Windows-only parity changes: a feature lands on both shells or uses an accurately documented/accepted gap; do not misuse `not-applicable` simply because macOS UI is out of scope.
+- [x] Read both `AGENTS.md` and ADR-0020 before landing Windows-only parity changes: a feature lands on both shells or uses an accurately documented/accepted gap; do not misuse `not-applicable` simply because macOS UI is out of scope.
 - [ ] Update `docs/architecture.md`, `docs/specs.md`, `docs/testing.md`, `docs/fixtures.md`, `docs/library-classification.md`, ADRs, README and CHANGELOG only when the change actually affects their contracts.
 
 ### Required screenshot families (expand into stable fixture-backed IDs)
