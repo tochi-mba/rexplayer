@@ -137,7 +137,9 @@ public sealed class ListeningViewsTests
         var rival = first with
         {
             Path = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(first.Path)!)!, "Disc 4", "01.mp3"),
-            Author = "Bo Author", Artist = "Bo Author", Disc = 4,
+            Author = "Bo Author",
+            Artist = "Bo Author",
+            Disc = 4,
         };
         var split = ListeningViews.Books([first, second, rival]);
         Assert.Equal(3, split.Count);
@@ -149,8 +151,7 @@ public sealed class ListeningViewsTests
     public void RestoredMarkersOutrankStalePlayDatesAndAreClampedBeforeResume()
     {
         var old = new DateTime(2024, 1, 2, 9, 0, 0, DateTimeKind.Utc);
-        var first = AudioFile("Audiobooks/Restored/Part 1.mp3", TimeSpan.FromMinutes(50))
-            with { LastPlayed = old };
+        var first = AudioFile("Audiobooks/Restored/Part 1.mp3", TimeSpan.FromMinutes(50)) with { LastPlayed = old };
         var later = AudioFile("Audiobooks/Restored/Part 2.mp3", TimeSpan.FromMinutes(50));
         var book = new LibraryGroup("Restored", null, [first, later]);
 
@@ -368,11 +369,13 @@ public sealed class ListeningViewsTests
     {
         var one = AudioFile("Audiobooks/Book/Disc 1/01.mp3", TimeSpan.FromHours(1)) with
         {
-            Author = "Ann Writer", Narrator = "Lee Reader",
+            Author = "Ann Writer",
+            Narrator = "Lee Reader",
         };
         var two = AudioFile("Audiobooks/Book/Disc 2/01.mp3", TimeSpan.FromHours(1)) with
         {
-            Author = "Ann Writer", Narrator = " lee reader ",
+            Author = "Ann Writer",
+            Narrator = " lee reader ",
         };
         var book = new LibraryGroup("Book", "Ann Writer", [one, two]);
         Assert.Equal("Lee Reader", BookCredits.Narrator(book));
@@ -609,10 +612,8 @@ public sealed class ListeningViewsTests
         Assert.Null(ListeningViews.EditionLabel(new LibraryGroup("Empty", null, []), [a]));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.EditionLabel(a, null!));
 
-        var one = a with { Entries = [first with
-            { Path = "Volumes/One/Shared Edition/Opening.mp3" }] };
-        var two = b with { Entries = [second with
-            { Path = "Volumes/Two/Shared Edition/Opening.mp3" }] };
+        var one = a with { Entries = [first with { Path = "Volumes/One/Shared Edition/Opening.mp3" }] };
+        var two = b with { Entries = [second with { Path = "Volumes/Two/Shared Edition/Opening.mp3" }] };
         Assert.Equal("One / Shared Edition", ListeningViews.EditionLabel(one, [one, two]));
 
         // Even if every short suffix is identical, the full folder path
