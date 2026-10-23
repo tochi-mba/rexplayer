@@ -60,11 +60,14 @@ public static class GenreNames
     {
         var genres = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var part in (field ?? "").Split(Separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var raw in (field ?? "").Split(Separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
+            // Invalid control bytes can arrive from damaged tags. They must not
+            // become invisible or inaccessible genre headings.
+            var part = new string([.. raw.Select(c => char.IsControl(c) ? ' ' : c)]);
             foreach (var genre in Pieces(Id3v1.ExpandGenre(part)))
             {
-                if (seen.Add(Key(genre)))
+                if (genre.EnumerateRunes().Any(Rune.IsLetterOrDigit) && seen.Add(Key(genre)))
                 {
                     genres.Add(genre);
                 }
@@ -130,7 +133,7 @@ public static class GenreNames
     }
 
     /// <summary>An unknown genre as written, with runs of spaces closed up.</summary>
-    private static string Tidy(string name) => string.Join(' ', name.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    private static string Tidy(string name) => string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     private static Dictionary<string, string> BuildKnown()
     {
