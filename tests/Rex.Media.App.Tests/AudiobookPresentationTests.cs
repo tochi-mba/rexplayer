@@ -1,4 +1,5 @@
 using System.IO;
+using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
 
@@ -80,6 +81,65 @@ public sealed class AudiobookPresentationTests : IDisposable
         Assert.Contains("Up to here", app.Line("Whole").Current.HelpText, StringComparison.Ordinal);
         Assert.Contains("30:00", app.Line("Beyond duration").Current.HelpText, StringComparison.Ordinal);
         Screenshots.Match(app, "audiobook-active-malformed-chapters", "LibraryList");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void TwoEditionsWithTheSameTitleAreDistinguishableAndNeverQueueEachOther()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition A", "Alpha.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition B", "Beta.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Audiobooks");
+        Wait.For(() => app.Lines().Contains("Same Title (Edition A)")
+            && app.Lines().Contains("Same Title (Edition B)"),
+            "separately accessible edition cards despite identical title and author");
+        Assert.Contains("Edition B", app.Line("Same Title (Edition B)").Current.HelpText, StringComparison.Ordinal);
+        app.Open("Same Title (Edition B)");
+        Wait.For(() => app.Text("LibraryTitle") == "Same Title"
+            && app.Lines().SequenceEqual(["Beta"]), "only the chosen edition's chapters");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Beta", "the selected edition to play");
+        Assert.DoesNotContain(app.Queue(), item => item.Contains("Alpha", StringComparison.Ordinal));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void OpeningLibraryAtPlayingMediaReturnsToItsBookAndVirtualizedChapter()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Returning Book", "Whole.wav"),
+            TimeSpan.FromMinutes(50), album: "Returning Book", author: "Ann Writer",
+            chapters:
+            [
+                new Chapter(MediaTime.Zero, "Opening"),
+                new Chapter(MediaTime.FromSeconds(5), "Next"),
+            ]);
+        using var app = _scene.Ready(settings => settings with
+        {
+            OpenLibraryAtPlayingItem = true,
+            ShowPlayerWhenLibraryMediaStarts = true,
+        }).Start();
+        app.Visit("Audiobooks");
+        app.Open("Returning Book");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Whole", "the audiobook to start");
+
+        if (app.IsShown("LibraryPane"))
+        {
+            app.Run(CommandCatalog.ToggleLibrary);
+        }
+
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
+            && app.Text("LibraryTitle") == "Returning Book"
+            && app.Lines().Contains("Opening"), "the active audiobook's chapter view");
+        Wait.For(() => app.IsChosen("Opening") || app.IsChosen("Next"),
+            "the active virtualized chapter to be revealed");
         Assert.Equal(0, app.Close());
     }
 
