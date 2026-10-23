@@ -43,7 +43,9 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Text("TranscriptEditMatch").Contains("No matching speech", StringComparison.Ordinal),
             "a clear empty search result");
 
-        edit.SetValue("corrected");
+        // Find rebuilds the current page, so the old automation element is stale.
+        var revised = (ValuePattern)app.Find("TranscriptEditWord-0").GetCurrentPattern(ValuePattern.Pattern);
+        revised.SetValue("corrected");
         Wait.For(() => cache.LoadEdited(media, "base.en")?.Content.Words[0].Text == "corrected",
             "the corrected speech to be saved");
         Wait.For(() => File.Exists(editedSidecar) && File.ReadAllText(editedSidecar).Contains("corrected", StringComparison.Ordinal),
