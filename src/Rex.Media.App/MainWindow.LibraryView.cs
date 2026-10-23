@@ -760,7 +760,9 @@ public sealed partial class MainWindow
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
         {
-            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide, id: shelfTitle == DownloadingShelf ? "Downloading" : null));
+            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide,
+                id: shelfTitle == DownloadingShelf ? "Downloading"
+                    : shelfTitle == "Podcast shows" ? "PodcastShows" : null));
         }
 
         if (place is not null)
