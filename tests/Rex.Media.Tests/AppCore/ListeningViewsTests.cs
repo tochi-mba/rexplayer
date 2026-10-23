@@ -1,6 +1,7 @@
 using System.Globalization;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 using Rex.Media.TestKit;
 using static Rex.Media.Tests.AppCore.AudioRulesTests;
 
@@ -177,6 +178,35 @@ public sealed class ListeningViewsTests
         Assert.Equal(0.5, ListeningViews.Progress(
             restored with { Entries = [first with { Duration = null }, second] },
             new BookPlace(1, TimeSpan.Zero)), 6);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void BookFiltersUseWholeBookReadingStateInsteadOfIndividualFilePlays()
+    {
+        var first = AudioFile("Audiobooks/To Read/Part 1.mp3", TimeSpan.FromMinutes(50));
+        var second = AudioFile("Audiobooks/Started/Part 2.mp3", TimeSpan.FromMinutes(50));
+        var done = AudioFile("Audiobooks/Finished/Part 3.mp3", TimeSpan.FromMinutes(50)) with { Plays = 10 };
+        var books = new[]
+        {
+            new LibraryGroup("To Read", null, [first]),
+            new LibraryGroup("Started", null, [second]),
+            new LibraryGroup("Finished", null, [done]),
+        };
+        var left = (string path) => path == second.Path ? TimeSpan.FromMinutes(17)
+            : path == done.Path ? TimeSpan.FromMinutes(8) : (TimeSpan?)null;
+        bool Finished(LibraryGroup book) => book.Name == "Finished";
+
+        Assert.Same(books, ListeningViews.FilterBooks(books, LibraryFilter.All, left, Finished));
+        Assert.Equal(["To Read"], ListeningViews.FilterBooks(books, LibraryFilter.Unwatched, left, Finished)
+            .Select(book => book.Name));
+        Assert.Equal(["Started"], ListeningViews.FilterBooks(books, LibraryFilter.InProgress, left, Finished)
+            .Select(book => book.Name));
+        Assert.Equal(["Finished"], ListeningViews.FilterBooks(books, LibraryFilter.Finished, left, Finished)
+            .Select(book => book.Name));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.FilterBooks(null!, LibraryFilter.All, left, Finished));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.FilterBooks(books, LibraryFilter.All, null!, Finished));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.FilterBooks(books, LibraryFilter.All, left, null!));
     }
 
     [Fact]
