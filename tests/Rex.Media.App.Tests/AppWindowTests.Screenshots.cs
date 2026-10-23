@@ -42,12 +42,15 @@ public sealed partial class AppWindowTests
     }
 
     [Theory]
-    [InlineData(720, 540, "compact")]
-    [InlineData(420, 340, "minimum")]
+    [InlineData(720, 540, "compact", "Dark")]
+    [InlineData(420, 340, "minimum", "Dark")]
+    [InlineData(720, 540, "compact", "Light")]
+    [InlineData(420, 340, "minimum", "Light")]
     [Capability("UI-10")]
-    public void TheMediaStageAndPrimaryTransportFitCompactAndMinimumWindows(int width, int height, string size)
+    public void TheMediaStageAndPrimaryTransportFitCompactAndMinimumWindows(
+        int width, int height, string size, string theme)
     {
-        using var app = AppStartedAt(width, height, "Dark");
+        using var app = AppStartedAt(width, height, theme);
         Wait.For(() => app.IsShown("IdleTitle") && app.IsShown("PlayPauseButton"),
             "the stage and transport to be visible");
 
@@ -60,7 +63,7 @@ public sealed partial class AppWindowTests
             && play.Top >= window.Top && play.Bottom <= window.Bottom,
             "The primary playback action must remain within the resized window.");
 
-        Screenshots.Match(app, "stage-welcome-" + size);
+        Screenshots.Match(app, "stage-welcome-" + size + (theme == "Dark" ? "" : "-light"));
         Assert.Equal(0, app.Close());
     }
 
@@ -186,6 +189,14 @@ public sealed partial class AppWindowTests
         Pointer.Click(app, app.Find("PlayPauseButton"));
         Wait.For(() => app.Status().State == "Paused",
             "a mouse click to pause without losing the active player");
+
+        Pointer.Key(app, "PlayPauseButton", 0x20);
+        Wait.For(() => app.Status().State == "Playing",
+            "a Space key press on the resized Play/Pause action to resume playback");
+        Pointer.Key(app, "PlayPauseButton", 0x20);
+        Wait.For(() => app.Status().State == "Paused",
+            "a Space key press to pause without losing transport focus");
+        Assert.True(app.Find("PlayPauseButton").Current.HasKeyboardFocus);
         Assert.Equal(0, app.Close());
     }
 
