@@ -90,6 +90,33 @@ public sealed class LibraryMusicTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void UnifiedHomeShowsOnlyAlbumsTheUserActuallyPinned()
+    {
+        var played = AsakeAcrossAlbums();
+        using var app = _scene.Ready(KeepBrowsing, played).Start();
+        app.Visit("Home");
+        Assert.False(app.IsShown("LibraryShelfCards-PinnedAlbums"));
+
+        app.Visit("Music");
+        Wait.For(() => app.IsShown("MusicHeroPin") && app.Text("MusicHeroTitle") == "Work of Art",
+            "the real album to be featured before pinning");
+        app.Press("MusicHeroPin");
+        app.Visit("Home");
+        Wait.For(() => app.IsShown("LibraryShelfCards-PinnedAlbums"),
+            "the unified Home page to include the pinned album shelf");
+        var pinned = app.Line("Work of Art", "LibraryShelfCards-PinnedAlbums");
+        Assert.NotNull(pinned);
+        Assert.False(app.IsShown("LibraryShelf-PinnedAlbums"), "Pinned shelf does not falsely offer See all albums as pinned.");
+
+        app.Visit("Music");
+        app.Press("MusicHeroPin");
+        app.Visit("Home");
+        Wait.For(() => !app.IsShown("LibraryShelfCards-PinnedAlbums"), "the empty pinned shelf to disappear");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnAlbumPageShowsItsHeaderTracksDiscsAndMoreByTheArtist()
     {
         AsakeAcrossAlbums();
