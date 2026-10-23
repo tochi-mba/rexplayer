@@ -308,7 +308,7 @@
       "fixture": "unread-book-with-chapter-marks",
       "route": "library/audiobooks",
       "state": "not-started",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -332,7 +332,7 @@
       "fixture": "credited-book-with-narrator",
       "route": "library/audiobooks/book",
       "state": "credited-synopsis",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -356,7 +356,7 @@
       "fixture": "explicitly-completed-audiobook",
       "route": "library/audiobooks/book",
       "state": "finished",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -380,7 +380,7 @@
       "fixture": "finished-book-in-unwatched-filter",
       "route": "library/audiobooks",
       "state": "filtered-empty",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -404,7 +404,7 @@
       "fixture": "clamped-and-out-of-order-chapter-marks",
       "route": "library/audiobooks/book",
       "state": "active-malformed-marks",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -428,7 +428,7 @@
       "fixture": "10000-chapter-multifile-audiobook",
       "route": "library/audiobooks/book",
       "state": "virtualized-chapters",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
@@ -610,7 +610,7 @@
       "fixture": "mp4/h264-aac.mp4",
       "route": "library/movies",
       "state": "poster-ratio",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryList"
@@ -627,7 +627,7 @@
       "fixture": "mp4/h264-aac.mp4",
       "route": "library/tv",
       "state": "still-ratio",
-      "dimensions": "1280x800",
+      "dimensions": "1016x760",
       "theme": "user-settings",
       "expectedAutomationIds": [
         "LibraryList"
