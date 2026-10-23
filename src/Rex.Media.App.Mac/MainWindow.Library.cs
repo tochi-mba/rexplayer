@@ -333,6 +333,26 @@ public sealed partial class MainWindow
         };
     }
 
+    /// <summary>Exercise AppKit's real Tab key-view loop without synthesizing OS-wide input.</summary>
+    private AutomationReply ProbeLibraryKeyboard()
+    {
+        if (_libraryWindow?.IsVisible != true || _librarySearch is null)
+        {
+            return AutomationReply.Failed("Open the library before checking keyboard navigation.");
+        }
+
+        _libraryWindow.RecalculateKeyViewLoop();
+        _libraryWindow.MakeFirstResponder(_librarySearch);
+        var before = _libraryWindow.FirstResponder;
+        _libraryWindow.SelectNextKeyView(_librarySearch);
+        var after = _libraryWindow.FirstResponder;
+        _libraryWindow.SelectPreviousKeyView(_librarySearch);
+        _libraryWindow.MakeFirstResponder(_librarySearch);
+        return ReferenceEquals(before, after)
+            ? AutomationReply.Failed("AppKit did not advance focus to another library control.")
+            : new AutomationReply { Ok = true, Text = "AppKit advanced and reversed keyboard focus." };
+    }
+
     private AutomationReply PressLibraryControl(string? target)
     {
         var button = target switch
