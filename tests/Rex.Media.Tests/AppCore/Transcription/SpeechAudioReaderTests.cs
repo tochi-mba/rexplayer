@@ -104,7 +104,7 @@ public sealed class SpeechAudioReaderTests : IDisposable
         }
 
         using var empty = new SpeechAudioReader(File("empty.wav",
-            WavBuilder.Pcm(16000, 1, 16, Pcm.Int16([])).Build()), Decoders, token);
+            WavBuilder.Pcm(16000, 1, 16, Pcm.Int16(Array.Empty<float>())).Build()), Decoders, token);
         Assert.Empty(empty.Read(R(0, 1), token));
         Assert.Empty(empty.Read(R(1, 1), token));
     }
