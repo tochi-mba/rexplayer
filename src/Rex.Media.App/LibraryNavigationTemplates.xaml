@@ -24,7 +24,7 @@
       <Setter Property="CornerRadius" Value="10" />
     </Style>
     <DataTemplate x:Key="LibraryGenericTemplate" x:DataType="local:LibraryRow">
-      <Grid ColumnSpacing="12" Padding="2,7" AutomationProperties.Name="{x:Bind Name}">
+      <Grid ColumnSpacing="12" Padding="2,7" AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind AccessibilityDetails, Mode=OneWay}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
         <StackPanel VerticalAlignment="Center">
           <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
