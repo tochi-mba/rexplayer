@@ -423,7 +423,7 @@ public sealed partial class MainWindow
             // Larger windows also offer a persistent, searchable category rail.
             var categorySearch = new TextBox
             {
-                PlaceholderText = "Find a settings category",
+                PlaceholderText = "Search settings and categories",
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categorySearch, "PreferencesCategorySearch");
             var categories = new ListView
@@ -457,19 +457,63 @@ public sealed partial class MainWindow
                     }
                 }
             };
+            // Match the labels inside each page as well as the category name. Each page
+            // is already constructed, so no setting values or state need to be duplicated.
+            static bool Says(object? value, string query) =>
+                value?.ToString()?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true;
+            static bool HasSettingText(UIElement node, string query)
+            {
+                if (node is TextBlock text && Says(text.Text, query)
+                    || node is CheckBox check && Says(check.Content, query)
+                    || node is ToggleSwitch toggle && Says(toggle.Header, query)
+                    || node is ComboBox choice && Says(choice.Header, query)
+                    || node is NumberBox number && Says(number.Header, query)
+                    || node is TextBox input && Says(input.Header, query)
+                    || node is Button button && Says(button.Content, query))
+                {
+                    return true;
+                }
+
+                if (node is Expander expander
+                    && (Says(expander.Header, query)
+                        || expander.Content is UIElement expanded && HasSettingText(expanded, query)))
+                {
+                    return true;
+                }
+
+                if (node is Panel panel)
+                {
+                    return panel.Children.Any(child => HasSettingText(child, query));
+                }
+
+                return node is ContentControl { Content: UIElement content }
+                    && HasSettingText(content, query);
+            }
+
+            var searchResult = new TextBlock
+            {
+                Text = "No matching settings. Try a different word.",
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75,
+                Visibility = Visibility.Collapsed,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(searchResult, "PreferencesSearchEmpty");
             categorySearch.TextChanged += (_, _) =>
             {
-                var names = sections.Select(item => item.Name)
-                    .Where(name => name.Contains(categorySearch.Text, StringComparison.CurrentCultureIgnoreCase))
-                    .ToList();
+                var query = categorySearch.Text.Trim();
+                var names = sections.Where(item => query.Length == 0
+                        || Says(item.Name, query) || HasSettingText(item.Page, query))
+                    .Select(item => item.Name).ToList();
                 categories.ItemsSource = names;
                 categories.SelectedItem = names.Contains(sections[shownSection].Name)
                     ? sections[shownSection].Name : null;
+                searchResult.Visibility = names.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             };
             var navigation = new StackPanel { Spacing = 8 };
             navigation.Children.Add(section);
             navigation.Children.Add(categorySearch);
             navigation.Children.Add(categories);
+            navigation.Children.Add(searchResult);
             var saveHint = new TextBlock
             {
                 Text = "Setting changes across all sections apply on Save. Cancel keeps your current settings. Downloads, update checks and transcript cleanup run when selected.",
