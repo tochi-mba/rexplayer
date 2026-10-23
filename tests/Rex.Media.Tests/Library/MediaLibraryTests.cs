@@ -83,6 +83,93 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void TemporarilyMissingMediaRestoresItsDurablePlayHistoryWithoutGhostRows()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var song = In("Sungba.mp3");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(song)], KindOf);
+        library.SetDetails(song, Song("Sungba"));
+        library.Played(song);
+        var saved = library.Entry(song)!;
+        Assert.Equal(1, saved.Plays);
+
+        Assert.Equal(new ScanResult(0, 0, 1), library.Scan(Music, [], KindOf));
+        Assert.Empty(library.Entries);
+        Assert.Null(library.Entry(song));
+        Assert.Single(store.WithPrefix("absent/"));
+
+        // The missing history survives process restart but never becomes a
+        // fake playable library entry until the real media returns.
+        var restarted = new MediaLibrary(store);
+        Assert.Empty(restarted.Entries);
+        restarted.Scan(Music, [File(song)], KindOf);
+        var returned = restarted.Entry(song)!;
+        Assert.Equal((saved.Plays, saved.LastPlayed, saved.Added),
+            (returned.Plays, returned.LastPlayed, returned.Added));
+        Assert.False(returned.Probed);
+        Assert.Empty(store.WithPrefix("absent/"));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void MovingOneUnambiguousFilePreservesHistoryButAmbiguousCopiesDoNot()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        library.AddFolder(Music);
+        var old = File(In("Original", "Song.mp3"), 12345);
+        var moved = File(In("Moved", "Renamed.mp3"), 12345);
+        library.Scan(Music, [old], KindOf);
+        library.Played(old.Path);
+        library.Scan(Music, [moved], KindOf);
+
+        Assert.Null(library.Entry(old.Path));
+        Assert.Equal(1, library.Entry(moved.Path)!.Plays);
+
+        var ambiguous = new MediaLibrary(RexStore.InMemory());
+        ambiguous.AddFolder(Music);
+        var a = File(In("First.mp3"), 44);
+        var b = File(In("Second.mp3"), 44);
+        ambiguous.Scan(Music, [a, b], KindOf);
+        ambiguous.Played(a.Path);
+        ambiguous.Played(b.Path);
+        ambiguous.Scan(Music, [], KindOf);
+        var newCopy = File(In("New.mp3"), 44);
+        ambiguous.Scan(Music, [newCopy], KindOf);
+        Assert.Equal(0, ambiguous.Entry(newCopy.Path)!.Plays);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ForgettingPlayHistoryAndRemovingWatchFoldersAlsoErasesArchivedHistory()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var old = File(In("Unplugged.mp3"));
+        library.AddFolder(Music);
+        library.Scan(Music, [old], KindOf);
+        library.Played(old.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+
+        library.ClearPlays();
+        Assert.Empty(store.WithPrefix("absent/"));
+        library.Scan(Music, [old], KindOf);
+        Assert.Equal(0, library.Entry(old.Path)!.Plays);
+
+        library.Played(old.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+        Assert.True(library.RemoveFolder(Music));
+        Assert.Empty(store.WithPrefix("absent/"));
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [old], KindOf);
+        Assert.Equal(0, library.Entry(old.Path)!.Plays);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void FilesCanBeHiddenUntilTheFolderIsRemovedAndReadded()
     {
         var store = RexStore.InMemory();
