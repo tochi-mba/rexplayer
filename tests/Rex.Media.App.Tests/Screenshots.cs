@@ -449,8 +449,13 @@ internal static class Screenshots
         var baseline = Path.Combine(Baselines, name + ".png");
         if (Recording)
         {
+            Assert.True(Lane == "ci-windows" &&
+                Environment.GetEnvironmentVariable("REXPLAYER_VISUAL_APPROVAL_CONFIRMED") == "1",
+                "Baseline writing requires an explicitly reviewed ci-windows image and confirmation; a local capture cannot become a CI baseline.");
+            Assert.True(ScreenshotScenes.Find(name).Baseline == "ci-windows",
+                "Unreviewed scenes must be inspected and intentionally promoted through a code review, not silently recorded as approved baselines.");
             Save(baseline, picture);
-            TestContext.Current.SendDiagnosticMessage($"Screenshot {name}: recorded as the {Lane} baseline.");
+            TestContext.Current.SendDiagnosticMessage($"Screenshot {name}: explicitly recorded as a reviewed {Lane} baseline.");
             return;
         }
 
