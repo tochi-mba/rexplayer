@@ -364,6 +364,15 @@ jobs:
           REXPLAYER_UI_LANE: ci-windows
         run: ./dev.ps1 ui
 
+      # Keep the canonical inventory even if the UI suite aborts before any capture.
+      # Per-scene JSON and process logs remain alongside actual, baseline and diff.
+      - name: Keep the screenshot scene inventory
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/screenshots/inventory | Out-Null
+          Copy-Item tests/screenshot-scenes.json artifacts/screenshots/inventory/screenshot-scenes.json
+
       # Every screenshot as CI drew it, and a diff for any that failed: the only source of the
       # baselines in tests/screenshot-baselines/ci-windows (see tests/Rex.Media.App.Tests/Screenshots.cs).
       - name: Keep the screenshots
