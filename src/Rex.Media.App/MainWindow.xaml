@@ -331,7 +331,6 @@
                     AutomationProperties.Name="Play now without waiting for more captions" />
           </StackPanel>
         </Border>
-
         <!-- A growing local file can temporarily run out of downloaded bytes without being over.
              Make that recoverable wait explicit instead of leaving a frozen picture on screen. -->
         <Border x:Name="DownloadBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -349,11 +348,8 @@
                        AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </Border>
-
-
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720"
                  AutomationProperties.AutomationId="Notice" />
-
         <!-- The navigator: the presenter draws the whole picture here while zoomed; this frames it, marks the view and takes the pointer. -->
         <Grid x:Name="Navigator" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" Background="Transparent"
               BorderBrush="#E0FFFFFF" BorderThickness="1" AutomationProperties.AutomationId="Navigator" AutomationProperties.Name="Navigator">
@@ -361,7 +357,6 @@
             <Rectangle x:Name="NavigatorView" Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2" Fill="#22FFFFFF" />
           </Canvas>
         </Grid>
-
         <!-- Skip intro / Skip credits / Next episode, bottom right above the controls. The options
              button beside them confirms, adjusts or rejects the section; Cancel shows only while an
              opted-in automatic skip counts down. -->
@@ -388,19 +383,16 @@
                   Click="OnSkipEpisodeSection" AutomationProperties.AutomationId="EpisodeSkipButton"
                   AutomationProperties.Name="Skip intro" />
         </StackPanel>
-
         <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
                 Background="#C0080A09" Visibility="Collapsed" IsHitTestVisible="False">
           <TextBlock x:Name="Stats" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.AutomationId="Stats" />
         </Border>
-
         <Border x:Name="OsdBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,6" CornerRadius="8"
                 Background="#B0080A09" Visibility="Collapsed" IsHitTestVisible="False">
           <TextBlock x:Name="Osd" Foreground="White" FontSize="18" AutomationProperties.AutomationId="Osd"
                      AutomationProperties.LiveSetting="Polite" />
         </Border>
       </Grid>
-
       <!-- The media library (LIB-05), over the picture while it is open; playback follows the library preference. -->
       <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource LibraryCanvasBrush}" SizeChanged="OnLibraryPaneSized"
             AutomationProperties.AutomationId="LibraryPane" AutomationProperties.Name="Library">
@@ -408,7 +400,6 @@
           <ColumnDefinition x:Name="LibraryNavigationColumn" Width="200" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-
         <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <StackPanel x:Name="LibraryBrand" Margin="20,18,48,8" Spacing="2" IsHitTestVisible="False">
@@ -434,7 +425,6 @@
             </StackPanel>
           </Button>
         </Grid>
-
         <Grid Grid.Column="1" Margin="10,10,12,12" CornerRadius="16"
               Background="{ThemeResource LibrarySurfaceBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
           <Grid.RowDefinitions>
@@ -442,7 +432,6 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
-
           <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
           <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero"
                 AutomationProperties.Name="Expanded library header">
@@ -535,7 +524,6 @@
               </StackPanel>
             </Grid>
           </Grid>
-
           <!-- How the view is shown: its layout, order, grouping and card size, each kept per view. -->
           <Grid Grid.Row="1" Margin="24,0,24,8" RowSpacing="8" HorizontalAlignment="Stretch">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
