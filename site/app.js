@@ -155,7 +155,7 @@ export function wireScreenshotGallery(doc) {
       const figcaption = button.closest('figure')?.querySelector('figcaption');
       const heading = figcaption?.querySelector('strong')?.textContent?.trim() ?? '';
       const description = figcaption?.querySelector('span')?.textContent?.trim() ?? '';
-      caption.textContent = [heading, description].filter(Boolean).join(' — ');
+      caption.textContent = [heading, description].filter(Boolean).join(' · ');
       dialog.showModal();
     });
   });

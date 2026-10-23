@@ -58,7 +58,7 @@ test('native screenshot previews open a labeled modal and restore keyboard focus
   const lightbox = page.locator('#shot-lightbox');
   await expect(lightbox).toBeVisible();
   await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows native dark-theme library overview/);
-  await expect(page.locator('#shot-caption')).toContainText('Windows · Library overview — Native dark-theme UI test capture');
+  await expect(page.locator('#shot-caption')).toContainText('Windows · Library overview · Native dark-theme UI test capture');
   await expect(lightbox.getByRole('button', { name: /Close/ })).toHaveCSS('white-space', 'nowrap');
   await lightbox.getByRole('button', { name: /Close/ }).click();
   await expect(lightbox).not.toBeVisible();
