@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace Rex.Media.App.Tests;
 
 /// <summary>The screenshot comparison on made-up pictures: no window needed.</summary>
