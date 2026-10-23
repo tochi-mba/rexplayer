@@ -26,8 +26,23 @@ public sealed partial class MainWindow
 
     private async Task ShowRecordingWaveformAsync(LibraryEntry recording)
     {
-        if (recording.Downloading || recording.Problem is not null
-            || !await Task.Run(() => File.Exists(recording.Path)))
+        // The index may lag a recording that was rewritten since its last scan. Use the real
+        // signature from disk (off-thread) for every cache hit and for a completed decode.
+        var signature = recording.Downloading || recording.Problem is not null
+            ? null : await Task.Run<(long Size, DateTime Modified)?>(() =>
+            {
+                try
+                {
+                    var info = new FileInfo(recording.Path);
+                    return info.Exists ? (info.Length, info.LastWriteTimeUtc) : null;
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException
+                    or NotSupportedException or ArgumentException)
+                {
+                    return null;
+                }
+            });
+        if (signature is not { } file)
         {
             Say("This local recording is not available for waveform review.");
             return;
@@ -79,7 +94,7 @@ public sealed partial class MainWindow
         panel.Children.Add(help);
 
         var snapshot = _recordWaveformCache.TryGetValue(recording.Path, out var cached)
-            && cached.Size == recording.Size && cached.Modified == recording.Modified ? cached : null;
+            && cached.Size == file.Size && cached.Modified == file.Modified ? cached : null;
         var barButtons = new List<Button>();
         var current = -1;
 
@@ -192,7 +207,7 @@ public sealed partial class MainWindow
             }
             else
             {
-                Forget(Task.Run(() => DecodeRecordingWaveform(recording, token), token)
+                Forget(Task.Run(() => DecodeRecordingWaveform(recording, file.Size, file.Modified, token), token)
                     .ContinueWith(task => OnWindowThread(() =>
                     {
                         if (token.IsCancellationRequested || _closing)
@@ -229,7 +244,8 @@ public sealed partial class MainWindow
         }
     }
 
-    private static WaveformSnapshot? DecodeRecordingWaveform(LibraryEntry entry, CancellationToken token)
+    private static WaveformSnapshot? DecodeRecordingWaveform(
+        LibraryEntry entry, long size, DateTime modified, CancellationToken token)
     {
         using var reader = new SpeechAudioReader(entry.Path,
             MediaRegistries.Decoders(new MfDecoderFactory(), new WicDecoderFactory()), token);
@@ -262,6 +278,9 @@ public sealed partial class MainWindow
             }
         }
 
-        return new WaveformSnapshot(entry.Size, entry.Modified, duration, peaks);
+        // Never cache a preview for bytes that changed while the worker was decoding.
+        var final = new FileInfo(entry.Path);
+        return final.Exists && final.Length == size && final.LastWriteTimeUtc == modified
+            ? new WaveformSnapshot(size, modified, duration, peaks) : null;
     }
 }
