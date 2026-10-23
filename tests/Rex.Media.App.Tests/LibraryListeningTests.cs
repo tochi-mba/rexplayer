@@ -229,8 +229,9 @@ public sealed class LibraryListeningTests : IDisposable
         app.Press("LibraryMenuPodcastControls");
         Wait.For(() => app.IsShown("PodcastControlsPlay") && app.IsShown("PodcastControlsBack")
             && app.IsShown("PodcastControlsForward") && app.IsShown("PodcastControlsSpeed")
-            && app.IsShown("PodcastControlsSleep30") && app.IsShown("PodcastControlsSleepEnd"),
-            "spoken-word resume skip speed and sleep controls");
+            && app.IsShown("PodcastControlsSleep30") && app.IsShown("PodcastControlsSleepEnd")
+            && app.IsShown("PodcastControlsTranscript") && app.IsShown("PodcastControlsNotes"),
+            "spoken-word resume, skip, speed, sleep, notes and transcript navigation");
         Assert.Contains("no feed or download controls", app.Text("PodcastControlsStatus"),
             StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
