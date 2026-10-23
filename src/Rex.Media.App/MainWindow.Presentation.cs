@@ -256,12 +256,14 @@ public sealed partial class MainWindow
         {
             // A hidden chapter button cannot keep keyboard focus. Return to the
             // permanent playback action rather than dropping focus into the window.
-            if (StageChaptersButton.Visibility == Visibility.Visible
-                && Content.XamlRoot is { } xamlRoot
-                && ReferenceEquals(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot),
-                    StageChaptersButton))
+            if (StageChaptersButton.Visibility == Visibility.Visible && Content.XamlRoot is { } xamlRoot)
             {
-                PlayPauseButton.Focus(FocusState.Programmatic);
+                var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot);
+                if (ReferenceEquals(focused, StageChaptersButton)
+                    || (focused is MenuFlyoutItemBase menuItem && StageChapterMenu.Items.Contains(menuItem)))
+                {
+                    PlayPauseButton.Focus(FocusState.Programmatic);
+                }
             }
 
             StageChaptersButton.Visibility = Visibility.Collapsed;
