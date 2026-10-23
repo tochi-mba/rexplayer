@@ -104,7 +104,7 @@ public sealed partial class MainWindow
         {
             panel.Children.Add(new TextBlock { Text = "Embedded episode chapters" });
             var list = new StackPanel { Spacing = 6 };
-            foreach (var (chapter, index) in chapters.Take(50).Index())
+            foreach (var (index, chapter) in chapters.Take(50).Index())
             {
                 var at = chapter.Start;
                 var button = new Button
