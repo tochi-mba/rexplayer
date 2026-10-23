@@ -124,6 +124,26 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void AShortSoundHasCompactReplayRepeatVolumeAndDurationControls()
+    {
+        _scene.Audio(Path.Combine("Downloads", "ding.wav"), TimeSpan.FromSeconds(6));
+        using var app = _scene.Ready().Start();
+        app.Visit("Recordings");
+        Wait.For(() => app.Lines().Contains("ding"), "a local quick sound to be listed");
+        Pointer.RightClick(app, app.Line("ding"));
+        Wait.For(() => app.IsShown("LibraryMenuSoundControls"), "the compact sound controls menu action");
+        app.Press("LibraryMenuSoundControls");
+        Wait.For(() => app.IsShown("SoundReplay") && app.IsShown("SoundRepeat") &&
+            app.IsShown("SoundVolume") && app.IsShown("SoundDuration"),
+            "keyboard-reachable replay, scoped repeat, volume and duration");
+        Assert.Contains("Duration", app.Text("SoundDuration"), StringComparison.Ordinal);
+        app.Press("SoundReplay");
+        Wait.For(() => app.Text("NowPlaying") == "ding", "quick replay to start the chosen sound");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
