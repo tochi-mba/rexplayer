@@ -674,11 +674,24 @@ public sealed partial class MainWindow
 
     private async Task OpenLocationAsync()
     {
-        var box = new TextBox { PlaceholderText = @"A file or folder, such as C:\Music\Album", MinWidth = 420 };
+        var box = new TextBox { PlaceholderText = @"A local file or folder, such as C:\Music\Album", MinWidth = 420 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "LocationBox");
-        if (await Ask("Open a location", box, "Open") && box.Text.Trim().Trim('"') is { Length: > 0 } location)
+        if (await Ask("Open a local location", box, "Open") && box.Text.Trim().Trim('"') is { Length: > 0 } location)
         {
-            _player.Open([location]);
+            var (supported, _) = MediaFiles.FilterClipboardPaths([location], Directory.Exists);
+            if (supported.Count == 0)
+            {
+                Say("Only local media files and folders can be opened. Network streams and remote locations are not supported.");
+                return;
+            }
+
+            if (!File.Exists(location) && !Directory.Exists(location))
+            {
+                Say("That local file or folder could not be found.");
+                return;
+            }
+
+            _player.Open(supported);
         }
     }
 
