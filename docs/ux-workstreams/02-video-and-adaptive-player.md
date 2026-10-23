@@ -16,7 +16,7 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 
 ## Honest current delivery state
 - [x] Transfer these requirements to an independently owned, versioned scoped plan in this branch.
-- [ ] **Implement the actual code and tests.** At creation this PR is a *planning-only draft* and its checkboxes must remain unchecked until implementation and verification.
+- [ ] **Complete implementation and verification.** A first TV-continuation and media-stage policy slice is committed; the remaining roadmap and release gates are not complete.
 - [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
 
 ## Implementation progress — 2026-10-23
@@ -26,6 +26,10 @@ This is a partial implementation, **not** acceptance of any full roadmap or rele
 - [x] Add deterministic regression assertions for season gaps, unordered candidates, specials and different shows (commit `c3b5eff`).
 - [x] Prevent unreadable or missing-status episode rows from becoming the show's Play/Resume target; preserve their visible error rows (commit `2efbf23`).
 - [x] Add deterministic tests for corrupt/missing resume targets, Season 0 ordering and all-unreadable shows (commit `74e683a`).
+- [x] Add a pure stream-first media stage/profile and capability resolver without changing the player/decoder session (commit `a6d9185`).
+- [x] Wire stage labels, audio art/lyrics eligibility and stage UI Automation name to active streams rather than stale library-only labels (commits `07a427c`, `f9da1e8`).
+- [x] Add pure stream/profile coverage tests and require full line coverage for the new policy (commits `1612acc`, `ddbeb49`).
+- [x] Write a real Windows UI Automation test of song → movie → picture stage transitions (commit `296e939`); execution and screenshot proof remain pending.
 - [ ] Execute the affected pure tests on a .NET-capable runner; they have **not been run here**.
 - [ ] Complete the remaining TV browsing, player, picture, queue, adaptive layout, automation, screenshots and performance items before declaring readiness.
 
