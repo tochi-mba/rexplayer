@@ -28,35 +28,36 @@ public sealed partial class MainWindow
     /// <summary>Brings the picture, the album and the lyrics on screen in line with what plays.</summary>
     private void ShowPresentation()
     {
-        var music = _player.Item is not null && !HasVideo && _player.Info is not null;
-        var entry = _player.Item?.Location is { } location ? _library?.Entry(location) : null;
+        var item = _player.Item;
+        var info = _player.Info;
+        var entry = item?.Location is { } location ? _library?.Entry(location) : null;
         var episode = entry is null ? null : LibraryViews.EpisodeOf(entry);
-        var kind = entry?.Kind switch
-        {
-            LibraryKind.Picture => "PICTURE",
-            LibraryKind.Video when episode is not null => "TV EPISODE",
-            LibraryKind.Video => "VIDEO",
-            LibraryKind.Music => ShelfOf(entry) switch
-            {
-                AudioShelf.Audiobooks => "AUDIOBOOK",
-                AudioShelf.Podcasts => "PODCAST",
-                AudioShelf.Recordings => "RECORDING",
-                AudioShelf.Sounds => "AUDIO",
-                _ => "NOW PLAYING",
-            },
-            _ when _player.Item is not null && HasVideo => "VIDEO",
-            _ when music => "NOW PLAYING",
-            _ => "WELCOME",
-        };
-        IdleKicker.Text = kind;
+        var stage = MediaStagePolicy.Resolve(new MediaStageContext(
+            HasItem: item is not null,
+            IsPicture: item is not null && MediaFiles.IsPicture(item.Location),
+            StreamsKnown: info is not null,
+            HasVideoTrack: info?.FirstTrack(MediaKind.Video) is not null,
+            HasAudioTrack: info?.FirstTrack(MediaKind.Audio) is not null,
+            CanSeek: _player.CanSeek,
+            Kind: entry?.Kind,
+            Shelf: entry?.Kind == LibraryKind.Music ? ShelfOf(entry) : null,
+            IsEpisode: episode is not null,
+            IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
+            HasLyrics: _player.Lyrics is not null));
+        var music = stage.ShowAudioPresentation;
+        IdleKicker.Text = stage.Label;
+        // The video itself may hide the Idle panel; the always-present stage must still
+        // identify what is playing to keyboard and screen-reader users.
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Stage,
+            stage.Profile == MediaStageProfile.Welcome ? "Playback stage" : stage.Label + " playback stage");
 
         var album = music ? _player.Info!.Metadata.GetValueOrDefault(MetadataKeys.Album) : null;
         IdleAlbum.Text = album ?? "";
         IdleAlbum.Visibility = string.IsNullOrEmpty(album) ? Visibility.Collapsed : Visibility.Visible;
 
-        var context = episode is not null
+        var context = stage.ShowEpisodeContext && episode is not null
             ? string.Join(" · ", new[] { episode.Series, episode.Spoken }.Where(part => !string.IsNullOrWhiteSpace(part)))
-            : string.Join(" · ", new[] { _player.Artist, album }.Where(part => !string.IsNullOrWhiteSpace(part)));
+            : music ? string.Join(" · ", new[] { _player.Artist, album }.Where(part => !string.IsNullOrWhiteSpace(part))) : "";
         NowPlayingContext.Text = context;
         NowPlayingContext.Visibility = string.IsNullOrWhiteSpace(context) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -79,7 +80,7 @@ public sealed partial class MainWindow
             Forget(ShowCoverAsync(cover));
         }
 
-        var lyrics = music && _settings.ShowLyrics ? _player.Lyrics : null;
+        var lyrics = stage.ShowLyrics && _settings.ShowLyrics ? _player.Lyrics : null;
         if (!ReferenceEquals(lyrics, _shownLyrics))
         {
             _shownLyrics = lyrics;
