@@ -47,4 +47,45 @@ public sealed partial class AppWindowTests
         Assert.Equal("original", cache.Load(media, "base.en")!.Words[0].Text);
         Assert.Equal(0, app.Close());
     }
+
+    [Fact]
+    public void FailedTranscriptSidecarSaveIsExplainedAndCanBeRetriedBeforeClosing()
+    {
+        var media = Song(30);
+        var root = Path.Combine(_media, "transcript-error-data");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+            { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off",
+              "transcription": { "writeSrtBesideMedia": true } }
+            """);
+        var cache = new TranscriptCache(TranscriptCache.DefaultRoot(root));
+        cache.Save(media, new Transcript("en", "base.en",
+            [new TranscriptWord("original", TimeSpan.Zero, TimeSpan.FromSeconds(1))]));
+
+        var target = Transcript.SidecarSrtPath(media, "base.en", edited: true);
+        Directory.CreateDirectory(target); // A directory at the destination rejects a file replacement.
+        using var app = AppProcess.Start([media], root);
+        ((ExpandCollapsePattern)app.Find("SubtitleMenu").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
+        app.Press("EditTranscript");
+        var word = (ValuePattern)app.Find("TranscriptEditWord-0").GetCurrentPattern(ValuePattern.Pattern);
+        word.SetValue("corrected");
+        Wait.For(() => app.IsShown("TranscriptEditRetry"), "failed autosave to expose an explicit retry");
+        Assert.StartsWith("The transcript edit could not be saved", app.Text("TranscriptEditSaveState"),
+            StringComparison.Ordinal);
+
+        app.Press("CloseButton");
+        Wait.For(() => app.IsShown("TranscriptEditRetry") && app.IsShown("TranscriptEditWord-0"),
+            "unsaved corrections to keep the dialog open");
+
+        Directory.Delete(target);
+        app.Press("TranscriptEditRetry");
+        Wait.For(() => File.Exists(target)
+            && app.Text("TranscriptEditSaveState") == "Transcript edits saved.",
+            "the corrected transcript to save after its destination becomes writable");
+        Assert.Contains("corrected", File.ReadAllText(target), StringComparison.Ordinal);
+        Assert.Equal("original", cache.Load(media, "base.en")!.Words[0].Text);
+        app.Press("CloseButton");
+        Wait.For(() => !app.IsShown("TranscriptEditWord-0"), "the saved editor to dismiss");
+        Assert.Equal(0, app.Close());
+    }
 }
