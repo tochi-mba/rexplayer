@@ -70,11 +70,11 @@ public sealed class ListeningLibraryTests
         Assert.Null(library.Entry(damaged)!.Chapters);
 
         // Music read before chapters were kept is read again, after every file never read at all;
-        // a video never is, and music read by this reading is done.
+        // videos and music read by older readings follow, and music read by this reading is done.
         var store = library.Store;
         var older = library.Entry(book)! with { Chapters = null, TagReading = 1, Path = Path.Combine(Folder, "Older.mp3") };
         library.Restore([older, library.Entry(video)! with { Path = Path.Combine(Folder, "Old film.mp4"), Probed = true }]);
-        Assert.Equal([video, song, older.Path], library.Unprobed.Select(entry => entry.Path));
+        Assert.Equal([video, song, Path.Combine(Folder, "Old film.mp4"), older.Path], library.Unprobed.Select(entry => entry.Path));
         Assert.True(new MediaLibrary(store).Entry(book)!.Chapters!.Count == 2);
 
         // The store's text keeps titles to one line, and a line that is not a chapter is passed over.
