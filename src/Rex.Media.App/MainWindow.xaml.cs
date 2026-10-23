@@ -99,6 +99,8 @@ public sealed partial class MainWindow : Window
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.PositionChanged += (_, _) => ShowLyricLine();
+        _player.PositionChanged += (_, _) => RefreshLyricsCompanion();
+        _player.Changed += (_, _) => RefreshLyricsCompanion();
         _player.Message += (_, text) => Say(text);
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
@@ -784,6 +786,7 @@ public sealed partial class MainWindow : Window
             // The seek area can still see the pointer leave while the window goes, so its work is
             // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
             ("the seek preview", ResetSeekPreview),
+            ("the detached lyrics window", CloseLyricsCompanion),
             ("the subject models", () => _ = CloseSubjectModels()),
             ("the visualisation", StopVisualizing),
             ("the update", InstallAsWeClose),
