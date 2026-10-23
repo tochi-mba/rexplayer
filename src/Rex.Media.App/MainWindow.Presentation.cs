@@ -286,6 +286,11 @@ public sealed partial class MainWindow
                 });
             }
         }
+
+        // The detached view owns only controls, never media. Keep its content
+        // in sync without recreating its window on a track or metadata change.
+        LyricsDetachButton.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
+        RefreshLyricsCompanion();
     }
 
     /// <summary>The cover beside the details, or the details alone, centred, when there is none (or it will not load).</summary>
