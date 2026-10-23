@@ -36,6 +36,7 @@ public sealed class LibraryScanner : IDisposable
     private bool _everything;
     private Thread? _worker;
     private string _status = "";
+    private string? _problem;
 
     /// <param name="library">The library to keep up to date.</param>
     /// <param name="list">Every file in a folder and the folders inside it, with its size and change time.</param>
@@ -70,6 +71,18 @@ public sealed class LibraryScanner : IDisposable
         }
     }
 
+    /// <summary>A recoverable folder-enumeration error; null after a newly requested scan.</summary>
+    public string? Problem
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _problem;
+            }
+        }
+    }
+
     /// <summary>Whether a worker is running or work is waiting for one.</summary>
     public bool IsBusy
     {
@@ -95,6 +108,7 @@ public sealed class LibraryScanner : IDisposable
                 return;
             }
 
+            _problem = null;
             if (folder is null)
             {
                 _everything = true;
@@ -232,6 +246,12 @@ public sealed class LibraryScanner : IDisposable
         {
             // A folder that cannot be listed (a drive unplugged) keeps what was known of it.
             _log.Warning(LogSource, $"{folder} could not be looked in, so what is known of it stays: {ex.Message}");
+            lock (_gate)
+            {
+                _problem = "A library folder could not be read. Reconnect its drive or check permissions, then rescan. Known history was kept.";
+            }
+
+            StatusChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
