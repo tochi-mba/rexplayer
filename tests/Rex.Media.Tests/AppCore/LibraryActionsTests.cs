@@ -103,6 +103,12 @@ public sealed class LibraryActionsTests
             "https://example.com/media/video.mp4", "relative\\clip.mp4"]);
         Assert.Equal(groups.Select(group => group.Folder), safe.Select(group => group.Folder));
         Assert.Equal(groups.SelectMany(group => group.Files), safe.SelectMany(group => group.Files));
+        Assert.False(LibraryActions.CanRevealFile(null));
+        Assert.False(LibraryActions.CanRevealFile(""));
+        Assert.False(LibraryActions.CanRevealFile("a relative path.mp4"));
+        Assert.False(LibraryActions.CanRevealFile("https://example.test/stream.mp4"));
+        Assert.False(LibraryActions.CanRevealFile("bad\\0file.mp4"));
+        Assert.True(LibraryActions.CanRevealFile(first));
         Assert.Empty(LibraryActions.RevealGroups([]));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.RevealGroups(null!));
     }

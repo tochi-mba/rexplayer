@@ -101,7 +101,7 @@ public sealed partial class MainWindow
         playNext.IsEnabled = chosen.Any(item => !ReferenceEquals(item, _player.Playlist.Current));
         menu.Items.Add(playNext);
         var local = chosen.Select(item => item.Location)
-            .Where(path => Path.IsPathFullyQualified(path))
+            .Where(LibraryActions.CanRevealFile)
             .ToArray();
         var reveal = MenuItem(local.Length == 1 ? "Reveal in File Explorer" : "Reveal files in File Explorer",
             "EntryRevealInExplorer", () => Forget(RevealFilesInExplorerAsync(local)));

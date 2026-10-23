@@ -71,12 +71,30 @@ public static class LibraryActions
         return new Prompt(title, Named(names) + (names.Count == 1 ? "The playlist goes" : "The playlists go") + "; the files in " + (names.Count == 1 ? "it stay" : "them stay") + " where they are.");
     }
 
+    /// <summary>Whether Explorer can reveal this safe local file path; never treat web URLs as disk files.</summary>
+    public static bool CanRevealFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            return Path.IsPathFullyQualified(path)
+                && (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Group existing selected file paths by folder, retaining order and duplicate-free selection.</summary>
     public static IReadOnlyList<RevealFolder> RevealGroups(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        return [.. paths.Where(path => !string.IsNullOrWhiteSpace(path) && Path.IsPathFullyQualified(path)
-                && (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile))
+        return [.. paths.Where(CanRevealFile)
             .Select(path => (Path: path, Folder: Path.GetDirectoryName(path)))
             .Where(item => !string.IsNullOrWhiteSpace(item.Folder))
             .GroupBy(item => item.Folder!, StringComparer.OrdinalIgnoreCase)
