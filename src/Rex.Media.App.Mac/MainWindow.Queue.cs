@@ -218,6 +218,11 @@ public sealed partial class MainWindow
         content.EdgeInsets = new NSEdgeInsets(12, 12, 14, 12);
         content.Frame = new CGRect(0, 0, 580, Math.Max(200, (end - start) * 90 + 35));
         _queueScroll.DocumentView = content;
+        // AppKit document views use bottom-left coordinates by default. Place the first
+        // entry at the visible top when opening a page, not the last visible row.
+        var clip = _queueScroll.ContentView;
+        clip.ScrollToPoint(new CGPoint(0, Math.Max(0, content.Frame.Height - clip.Bounds.Height)));
+        _queueScroll.ReflectScrolledClipView(clip);
         _queueSummary.StringValue = (queue.Count == 1 ? "1 item" : $"{queue.Count} items")
             + (queue.Count > QueuePageSize ? $" • viewing {start + 1}–{end}" : "")
             + (_player.Playlist.PeekNext(automatic: false) is { } nextItem ? $" • Next: {nextItem.Title}" : "");
