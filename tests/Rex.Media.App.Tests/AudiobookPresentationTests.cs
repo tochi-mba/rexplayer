@@ -124,7 +124,13 @@ public sealed class AudiobookPresentationTests : IDisposable
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Complete Me", "Part 2.wav"),
             TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Complete Me");
 
-        using var app = _scene.Ready().Start();
+        // Keep the library visible while replay begins so the sidebar's immediate
+        // completed-state update is observable; the separate transport tests cover
+        // the preference that hides the library when playback starts.
+        using var app = _scene.Ready(settings => settings with
+        {
+            ShowPlayerWhenLibraryMediaStarts = false,
+        }).Start();
         Assert.False(app.IsListed("Completed"), "an unplayed library has no Completed view");
         app.Visit("Audiobooks");
         app.Open("Complete Me");
