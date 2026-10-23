@@ -82,6 +82,56 @@ public sealed class MediaStagePolicyTests
     }
 
     [Fact]
+    public void DirectAudioWithProvenLyricsRetainsLyricsWithoutAStoredMusicShelf()
+    {
+        // Opening a song from a path does not require adding it to the media library.
+        var direct = MediaStagePolicy.Resolve(new MediaStageContext(true,
+            StreamsKnown: true, HasAudioTrack: true, HasLyrics: true));
+        Assert.Equal(MediaStageProfile.Audio, direct.Profile);
+        Assert.True(direct.ShowAudioPresentation);
+        Assert.True(direct.ShowLyrics);
+        Assert.False(direct.CanSeek);
+
+        var withoutLyrics = MediaStagePolicy.Resolve(new MediaStageContext(true,
+            StreamsKnown: true, HasAudioTrack: true));
+        Assert.False(withoutLyrics.ShowLyrics);
+
+        var notReady = MediaStagePolicy.Resolve(new MediaStageContext(true,
+            HasLyrics: true));
+        Assert.Equal(MediaStageProfile.Loading, notReady.Profile);
+        Assert.False(notReady.ShowLyrics);
+    }
+
+    [Fact]
+    public void AFailedItemClearsOldAffordancesEvenIfTheOldMediaHadTracks()
+    {
+        var failed = MediaStagePolicy.Resolve(new MediaStageContext(true,
+            HasFailure: true, StreamsKnown: true, HasVideoTrack: true,
+            HasAudioTrack: true, HasLyrics: true, HasChapters: true, CanSeek: true,
+            Kind: LibraryKind.Music, Shelf: AudioShelf.Audiobooks));
+        Assert.Equal(MediaStageProfile.Error, failed.Profile);
+        Assert.Equal("PLAYBACK ERROR", failed.Label);
+        Assert.False(failed.ShowAudioPresentation);
+        Assert.False(failed.ShowLyrics);
+        Assert.False(failed.ShowChapters);
+        Assert.False(failed.CanSeek);
+        Assert.False(failed.ShowPictureNavigation);
+    }
+
+    [Fact]
+    public void TransitioningBetweenStreamsNeverKeepsUnsupportedActions()
+    {
+        var source = new MediaStageContext(true, StreamsKnown: true,
+            HasAudioTrack: true, HasLyrics: true, CanSeek: true);
+        Assert.True(MediaStagePolicy.Resolve(source).ShowLyrics);
+        Assert.False(MediaStagePolicy.Resolve(source with { HasVideoTrack = true }).ShowLyrics);
+        Assert.False(MediaStagePolicy.Resolve(source with { StreamsKnown = false }).ShowLyrics);
+        Assert.False(MediaStagePolicy.Resolve(source with { HasAudioTrack = false }).ShowLyrics);
+        Assert.False(MediaStagePolicy.Resolve(source with { IsPicture = true }).ShowLyrics);
+        Assert.True(MediaStagePolicy.Resolve(source).ShowLyrics);
+    }
+
+    [Fact]
     public void StreamFactsOverrideWrongLibraryLabelsAndSeekingIsIndependent()
     {
         var audioOnly = MediaStagePolicy.Resolve(new MediaStageContext(true,
