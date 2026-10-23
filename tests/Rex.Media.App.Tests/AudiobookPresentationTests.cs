@@ -37,7 +37,8 @@ public sealed class AudiobookPresentationTests : IDisposable
             var scene = ScreenshotScenes.Find(name);
             Assert.Equal("ci-windows", scene.RequiredLane);
             Assert.Equal("1016x760", scene.Dimensions);
-            Assert.Contains("LibraryList", scene.ExpectedAutomationIds);
+            Assert.Contains(name == "audiobook-empty-progress-filter" ? "LibraryEmpty" : "LibraryList",
+                scene.ExpectedAutomationIds);
         }
 
         if (Screenshots.Lane != "ci-windows")
