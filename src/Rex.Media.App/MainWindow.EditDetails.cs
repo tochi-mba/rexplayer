@@ -222,7 +222,15 @@ public sealed partial class MainWindow
 
         if (results.FirstOrDefault(item => item.Result.Status == TagWriteStatus.Refused) is { Write: { } refused, Result: { } why })
         {
-            Say($"Kept the details of {Path.GetFileName(refused.Path)} in rexplayer: {why.Message}");
+            Say($"Saved {written.Count} file edits; kept the details of {Path.GetFileName(refused.Path)} in rexplayer: {why.Message}");
+        }
+        else if (_detailWrites.Count > 0)
+        {
+            Say($"Updated {written.Count} files. {_detailWrites.Count} still waiting for a file to be free.");
+        }
+        else if (written.Count > 0)
+        {
+            Say($"Updated the embedded details of {written.Count} {(written.Count == 1 ? "file" : "files")}.");
         }
     }
 
