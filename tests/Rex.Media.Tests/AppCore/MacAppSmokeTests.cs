@@ -194,7 +194,7 @@ public sealed class MacAppSmokeTests
             var previous = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryPrevious" });
             Assert.Equal("Page 1 of 2", previous?.Text);
             var filtered = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "clip-084" });
-            Assert.Contains("1 matching", filtered?.Text);
+            Assert.True(filtered?.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The last catalogue entry was not searchable.");
             var page = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibraryPage" });
             Assert.Equal("Page 1 of 1", page?.Text);
 
