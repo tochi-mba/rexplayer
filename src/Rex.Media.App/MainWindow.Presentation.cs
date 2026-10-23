@@ -26,6 +26,7 @@ public sealed partial class MainWindow
     private readonly List<TextBlock> _lyricTexts = [];
     private PlaylistItem? _shownChapterItem;
     private MediaInfo? _shownChapterInfo;
+    private TimeSpan _shownChapterDuration;
     private MediaStageView _stageView;
 
     /// <summary>Synchronizes the stage, its accessible profile and available media-specific actions.</summary>
@@ -293,12 +294,14 @@ public sealed partial class MainWindow
                 StageChapterMenu.Items.Clear();
                 _shownChapterItem = null;
                 _shownChapterInfo = null;
+                _shownChapterDuration = default;
             }
 
             return;
         }
 
-        if (!ReferenceEquals(item, _shownChapterItem) || !ReferenceEquals(info, _shownChapterInfo))
+        if (!ReferenceEquals(item, _shownChapterItem) || !ReferenceEquals(info, _shownChapterInfo)
+            || _shownChapterDuration != _player.Duration)
         {
             // Replacing a chaptered stream with another chaptered stream also
             // replaces the flyout's items. Restore focus before removing the
@@ -339,6 +342,7 @@ public sealed partial class MainWindow
                     if (ReferenceEquals(_player.Item, item)
                         && ReferenceEquals(_player.Info, info)
                         && _stageView.ShowChapters && _stageView.CanSeek && _player.CanSeek
+                        && (_player.Duration <= TimeSpan.Zero || at <= _player.Duration)
                         && (!_settings.MinimalInterface || IsFullScreen))
                     {
                         _player.Seek(at);
@@ -349,6 +353,7 @@ public sealed partial class MainWindow
 
             _shownChapterItem = item;
             _shownChapterInfo = info;
+            _shownChapterDuration = _player.Duration;
         }
 
         StageChaptersButton.Visibility = StageChapterMenu.Items.Count > 0
