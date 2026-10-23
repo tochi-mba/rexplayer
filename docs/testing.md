@@ -101,6 +101,13 @@ full scene inventory and per-test process logs. Run these tests on a visible,
 unobstructed, serial Windows desktop; never approve desktop captures made with other
 windows covering the app. The capture mode is recorded in each JSON sidecar.
 
+The faulted-media scene opens a four-byte malformed local WAV and verifies the
+actual failure message is rendered. The screenshot-only
+`REXPLAYER_VISUAL_EVIDENCE=1` environment variable extends that notice to
+30 seconds while leaving the normal 1.5-second behavior unchanged. The
+caption-loading scene uses a slow offline fake-speech fixture; no network,
+external speech model or fabricated PNG is involved.
+
 Every successful scene takes a second compositor frame and checks the differing-pixel
 ratio against its declared tolerance. CI retains `repeat/<scene-id>.png` and, on
 instability, `repeat-diff/<scene-id>.png`. It then reruns the seven fixture-backed
