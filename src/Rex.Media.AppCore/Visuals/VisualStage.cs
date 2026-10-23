@@ -107,9 +107,10 @@ public sealed class VisualStage
     /// <see cref="SpectrumAnalyzer.Size"/>, with the sensitivity applied; the beat is heard from the
     /// sound as it is, the sensitivity setting how strongly it moves things.
     /// </summary>
-    public bool Draw(VisualizerChoice choice, IReadOnlyDictionary<string, string> options, ReadOnlySpan<float> left, ReadOnlySpan<float> right, int sampleRate, TimeSpan elapsed)
+    public bool Draw(VisualizerChoice choice, IReadOnlyDictionary<string, string> options, ReadOnlySpan<float> left, ReadOnlySpan<float> right, int sampleRate, TimeSpan elapsed, CancellationToken cancellation = default)
     {
         ArgumentNullException.ThrowIfNull(options);
+        cancellation.ThrowIfCancellationRequested();
         // A short or unavailable source need not fabricate a full frame of
         // audio. Zero-pad at the older end so the newest actual samples still
         // line up with the latest sound; an absent right channel means mono.
@@ -156,7 +157,9 @@ public sealed class VisualStage
 
         _pulse.Sensitivity = gain;
         _pulse.Update(_mono, Math.Max(1, sampleRate), elapsed);
+        cancellation.ThrowIfCancellationRequested();
         _scene.Draw(Context);
+        cancellation.ThrowIfCancellationRequested();
         Canvas.Settle();
         Canvas.ToBgra(Pixels, 1, 0.35f);
         if (Context.Toggle(Player.VisualizerOptions.Meter))
