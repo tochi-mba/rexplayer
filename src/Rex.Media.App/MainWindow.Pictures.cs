@@ -185,7 +185,10 @@ public sealed partial class MainWindow
             // enormous poster. WIC scales the decoded bitmap to the size needed by the cards.
             var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
             using var stream = await file.OpenReadAsync().AsTask(token);
-            var image = new BitmapImage { DecodePixelWidth = decodeWidth };
+            var header = await BitmapDecoder.CreateAsync(stream).AsTask(token);
+            var limit = PictureDecodeLimit.For(header.OrientedPixelWidth, header.OrientedPixelHeight, decodeWidth);
+            stream.Seek(0);
+            var image = new BitmapImage { DecodePixelWidth = limit.Width, DecodePixelHeight = limit.Height };
             await image.SetSourceAsync(stream).AsTask(token);
             token.ThrowIfCancellationRequested();
             return image;
@@ -380,7 +383,10 @@ public sealed partial class MainWindow
 
         token.ThrowIfCancellationRequested();
         stream.Seek(0);
-        var image = new BitmapImage { DecodePixelWidth = decodeWidth };
+        var header = await BitmapDecoder.CreateAsync(stream).AsTask(token);
+        var limit = PictureDecodeLimit.For(header.OrientedPixelWidth, header.OrientedPixelHeight, decodeWidth);
+        stream.Seek(0);
+        var image = new BitmapImage { DecodePixelWidth = limit.Width, DecodePixelHeight = limit.Height };
         await image.SetSourceAsync(stream).AsTask(token);
         return image;
     }

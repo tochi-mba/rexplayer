@@ -266,6 +266,7 @@ PlaylistText.cs
 Pls.cs
 PoliteHosts.cs
 PictureBorders.cs
+PictureDecodeLimit.cs
 PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs
