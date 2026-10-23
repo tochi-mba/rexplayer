@@ -366,6 +366,12 @@ public sealed class ListeningViewsTests
         Assert.Null(BookCredits.Narrator(book with { Entries = [one, two with { Narrator = "Another Reader" }] }));
         Assert.Equal("Lee Reader", BookCredits.Narrator(book with { Entries = [one, two with { Narrator = null }] }));
         Assert.Null(BookCredits.Narrator(book with { Entries = [one with { Narrator = null }] }));
+        Assert.Null(BookCredits.Narrator(book with { Entries = [one with { Narrator = "unknown narrator" }] }));
+        Assert.Null(BookCredits.Narrator(book with { Entries = [one with { Narrator = "n/a" }] }));
+        Assert.Equal("Lee Reader", BookCredits.Narrator(book with
+        {
+            Entries = [one with { Narrator = "Narrated by Lee Reader" }, two with { Narrator = "Lee Reader" }],
+        }));
         Assert.Null(BookCredits.Narrator(book with { Entries = [] }));
         Assert.Throws<ArgumentNullException>(() => BookCredits.Narrator(null!));
     }
