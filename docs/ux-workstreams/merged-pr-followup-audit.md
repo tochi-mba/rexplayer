@@ -19,7 +19,7 @@ Columns for evidence should be added next to checked entries only after the evid
 
 ### [#481](https://github.com/tochi-mba/rexplayer/pull/481): Split Windows music library browsing and discovery roadmap (12)
 
-- [ ] **481.1** Build Music Home from real local-library state with honest recent, most-played, pinned, and empty sections.
+- [x] **481.1** Build Music Home from real local-library state with honest recent, most-played, pinned, and empty sections. **Implemented:** `MusicHome.Rows` uses real play history/added timestamps and resolves pinned albums by track path, never by ambiguous title; `MainWindow.MusicHome` renders a persistent Pinned shelf and accessible pin/unpin control, `MainWindow.AlbumPage` adds the same action, `PlayerSettings.PinnedAlbumPaths` normalizes/caps saves. **Tests added:** `MusicHomeTests.PinningUsesActualAlbumTrackPathsAndDoesNotInventMissingReleases`, `LibraryMusicTests.MusicHomePinsOnlyRealAlbumsAndAllowsRemovingThem`. Native CI execution remains tracked by #481.11, not falsely claimed here.
 - [ ] **481.2** Complete songs browsing with sortable columns, virtualization, selection, queue actions, and missing-file behavior.
 - [ ] **481.3** Complete album pages with reliable grouping, disc and track ordering, artwork fallback, and progress where meaningful.
 - [ ] **481.4** Complete artist pages without merging ambiguous artists or inventing biographies.
@@ -65,7 +65,7 @@ Columns for evidence should be added next to checked entries only after the evid
 - [ ] **479.1** Complete movie browsing with honest metadata, artwork fallbacks, progress, resume, and local-file actions.
 - [ ] **479.2** Complete movie detail and cast surfaces without inventing unavailable network metadata.
 - [ ] **479.3** Complete show, season, and episode browsing with stable sorting and progress semantics.
-- [ ] **479.4** Distinguish episode completion from season and series completion.
+- [x] **479.4** Distinguish episode completion from season and series completion. **Implemented:** independent `ShowPage.WatchSummary` + `EpisodeWatchSummary`, explicit season and series text with accessible `LibraryViewingProgress` in `MainWindow.DetailsParts`. **Tests:** `ShowPageTests.AWatchedSeasonDoesNotMakeAnUnfinishedSeriesComplete` and season-switch assertions in `LibraryFoldersTests`; full UI/screenshot quality gates remain separately open in #479.7/#479.8.
 - [ ] **479.5** Handle specials, missing season numbers, duplicate episode numbers, multi-episode files, moved files, and damaged files.
 - [ ] **479.6** Verify resume targets after files disappear or metadata changes.
 - [ ] **479.7** Add Windows UI automation and deterministic screenshots for empty, populated, partial, and error states.
@@ -74,7 +74,7 @@ Columns for evidence should be added next to checked entries only after the evid
 ### [#487](https://github.com/tochi-mba/rexplayer/pull/487): Split enhanced timed lyrics parsing and navigation (8)
 
 - [ ] **487.1** Complete display states for no lyrics, untimed text, line timing, word timing, partial timing, loading, and errors.
-- [ ] **487.2** Suspend automatic scrolling after manual navigation and provide a return-to-active-line action.
+- [x] **487.2** Suspend automatic scrolling after manual navigation and provide a return-to-active-line action. **Implemented:** `MainWindow.Presentation.WireLyricNavigation` catches handled pointer, wheel, scrollbar and keyboard navigation, retains a sticky manual-follow flag, and exposes an accessible `LyricsFollow` button that resumes centered active-line scrolling. **Tests:** `AppWindowTests.KeyboardScrollingTimedLyricsPausesFollowingUntilExplicitlyResumed`; native screenshot/mode gates remain open in #487.6/#487.7.
 - [ ] **487.3** Preserve timing and focus across seek, pause, speed changes, track changes, and resize.
 - [ ] **487.4** Complete detached companion ownership, close/reopen, multi-monitor, scaling, and focus behavior.
 - [x] **487.5** Verify long lines, Unicode, RTL, repeated timestamps, metadata tags, and malformed files. **Verified parsing evidence:** `PresentationTests.LongUnicodeAndRtlLinesRetainTheirCharactersAndLastDuplicateWins`, `DamagedOffsetTagsCannotAbortLyricsOrEraseTheLastValidOffset`, `ImpossibleSecondsDoNotBecomeTimedLyrics`, and existing `EnhancedLrcKeepsExactWordTimesAndRespectsOffset`, `UnreliableEnhancedLrcRetainsLinesButDoesNotClaimWordTiming`, `TimedLyricsAreReadFromLrc`. [Linux portable suite passed](https://github.com/tochi-mba/rexplayer/actions/runs/40022494079). Native rendering remains separate (#487.1/#487.6).
