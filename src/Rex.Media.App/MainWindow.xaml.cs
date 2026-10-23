@@ -547,6 +547,19 @@ public sealed partial class MainWindow : Window
         ShowMemory();
         ShowEpisodeSkip();
         ShowNamedPlaylists();
+        // Queue mutations and decoder-state changes arrive separately. Keep Now/Next and the
+        // actual duration true as a stream opens, pauses, ends or faults.
+        if (_player.Playlist.CurrentIndex is >= 0 and var queueIndex && queueIndex < _playlistRows.Count
+            && _player.Duration > TimeSpan.Zero
+            && _playlistRows[queueIndex].DurationText != TimeText.Format(_player.Duration, _player.Duration))
+        {
+            ShowPlaylist();
+        }
+        else
+        {
+            ShowQueuePlaybackState();
+        }
+
         ShowMenuChecks();
         ShowTaskbarState();
         ShowCurrentLibraryItem();
@@ -626,20 +639,13 @@ public sealed partial class MainWindow : Window
         }
 
         PlaylistQueueCount.Text = rows.Count == 1 ? "1 item" : $"{rows.Count} items";
-        var active = _player.Item is not null && _player.State is not (SessionState.Idle or SessionState.Ended or SessionState.Faulted);
-        PlaylistQueueNow.Text = _player.Playlist.Current is { } playing && active
-            ? "Now playing: " + playing.Title
-            : active ? "Current media outside the queue" : "Nothing playing";
-        PlaylistQueueNext.Text = _player.Playlist.PeekNext(automatic: true) is { } next
-            ? "Up next: " + next.Title : "No upcoming items";
+        ShowQueuePlaybackState();
         PlaylistEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         var paneVisible = PlaylistPane.Visibility == Visibility.Visible;
         PlaylistJumpNow.IsEnabled = current >= 0;
         PlaylistUndoReorder.IsEnabled = _queueUndoOrder is { } previous && _player.Playlist.CanRestoreOrder(previous);
-        PlaylistUndoRemoval.IsEnabled = _undoQueueRemoval is { } removed
-            && ReferenceEquals(_undoQueuePlayerItem, _player.Item)
-            && _player.Playlist.CanUndoRemoval(removed);
+
         if (QueueScrollPolicy.ShouldFollow(paneVisible, !_queuePaneWasVisible, _queueLastFollowed, _player.Playlist.Current))
         {
             PlaylistView.ScrollIntoView(_playlistRows[current]);
@@ -648,6 +654,20 @@ public sealed partial class MainWindow : Window
         _queueLastFollowed = _player.Playlist.Current;
         _queuePaneWasVisible = paneVisible;
         ShowTaskbarState();
+    }
+
+    /// <summary>Titles and reversible actions follow engine state even when the queue itself did not change.</summary>
+    private void ShowQueuePlaybackState()
+    {
+        var active = _player.Item is not null && _player.State is not (SessionState.Idle or SessionState.Ended or SessionState.Faulted);
+        PlaylistQueueNow.Text = _player.Playlist.Current is { } playing && active
+            ? "Now playing: " + playing.Title
+            : active ? "Current media outside the queue" : "Nothing playing";
+        PlaylistQueueNext.Text = _player.Playlist.PeekNext(automatic: true) is { } next
+            ? "Up next: " + next.Title : "No upcoming items";
+        PlaylistUndoRemoval.IsEnabled = _undoQueueRemoval is { } removed
+            && ReferenceEquals(_undoQueuePlayerItem, _player.Item)
+            && _player.Playlist.CanUndoRemoval(removed);
     }
 
     /// <summary>A short message over the picture, which fades after a moment.</summary>
