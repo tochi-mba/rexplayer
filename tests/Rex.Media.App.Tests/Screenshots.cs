@@ -32,6 +32,8 @@ internal static class Screenshots
         ? lane
         : "local-" + Environment.MachineName.ToLowerInvariant();
 
+    private static readonly JsonSerializerOptions MetadataJsonOptions = new() { WriteIndented = true };
+
     private static bool Recording => Environment.GetEnvironmentVariable("REXPLAYER_WRITE_SCREENSHOTS") == "1";
 
     private static string Baselines => RepoPaths.Combine("tests", "screenshot-baselines", Lane);
@@ -113,7 +115,7 @@ internal static class Screenshots
             maxDifferingRatio,
         };
         File.WriteAllText(Path.Combine(dir, scene.Id + ".json"),
-            JsonSerializer.Serialize(details, new JsonSerializerOptions { WriteIndented = true }));
+            JsonSerializer.Serialize(details, MetadataJsonOptions));
     }
 
     /// <summary>
