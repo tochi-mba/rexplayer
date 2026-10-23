@@ -25,6 +25,7 @@ public sealed partial class MainWindow
     {
         if (_queueWindow is null)
         {
+            _queuePage = Math.Max(0, _player.Playlist.CurrentIndex) / QueuePageSize;
             _queueWindow = new NSWindow(new CGRect(0, 0, 660, 560),
                 NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
@@ -60,9 +61,12 @@ public sealed partial class MainWindow
                 _queuePage++;
                 RefreshQueue();
             });
-            var tools = NSStackView.FromViews([_queueShuffle, _queueRepeat, open, _previousQueuePage, _nextQueuePage]);
+            var tools = NSStackView.FromViews([_queueShuffle, _queueRepeat, open]);
             tools.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            tools.Spacing = 10;
+            tools.Spacing = 8;
+            var pages = NSStackView.FromViews([_previousQueuePage, _nextQueuePage]);
+            pages.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            pages.Spacing = 8;
             _queueSummary = NSTextField.CreateLabel("");
             _queueSummary.TextColor = NSColor.SecondaryLabel;
             _queueSummary.LineBreakMode = NSLineBreakMode.TruncatingTail;
@@ -70,12 +74,12 @@ public sealed partial class MainWindow
             {
                 HasVerticalScroller = true,
             };
-            _queueScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(300).Active = true;
-            var stack = NSStackView.FromViews([header, hint, tools, _queueSummary, _queueScroll]);
+            _queueScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(170).Active = true;
+            var stack = NSStackView.FromViews([header, hint, tools, pages, _queueSummary, _queueScroll]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 14;
-            stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
+            stack.Spacing = 8;
+            stack.EdgeInsets = new NSEdgeInsets(16, 24, 16, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
             _queueWindow.ContentView = stack;
             _queueScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
@@ -201,7 +205,7 @@ public sealed partial class MainWindow
         content.Alignment = NSLayoutAttribute.Leading;
         content.Spacing = 8;
         content.EdgeInsets = new NSEdgeInsets(12, 12, 14, 12);
-        content.Frame = new CGRect(0, 0, 580, Math.Max(310, (end - start) * 60 + 35));
+        content.Frame = new CGRect(0, 0, 580, Math.Max(200, (end - start) * 90 + 35));
         _queueScroll.DocumentView = content;
         _queueSummary.StringValue = (queue.Count == 1 ? "1 item" : $"{queue.Count} items")
             + (queue.Count > QueuePageSize ? $" • viewing {start + 1}–{end}" : "")
