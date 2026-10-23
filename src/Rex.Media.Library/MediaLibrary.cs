@@ -105,6 +105,11 @@ public sealed record LibraryEntry
 
     public int? PictureHeight { get; init; }
 
+    /// <summary>Video frame pixels in display orientation when present; no guessed resolution.</summary>
+    public int? VideoWidth { get; init; }
+
+    public int? VideoHeight { get; init; }
+
     public int Plays { get; init; }
 
     /// <summary>When it was last played, in UTC.</summary>
@@ -178,11 +183,12 @@ public sealed class MediaLibrary
     /// chapters and the podcast and audiobook marks), so music read before is read again in the
     /// background rather than waiting for a rescan.
     /// </summary>
-    public const int TagReading = 4;
+    public const int TagReading = 5;
 
     // Release 3 already captured all music tag fields. Revision 4 adds only picture
     // dimensions, so do not rescan large music libraries when upgrading.
     private const int MusicTagReading = 3;
+    private const int PictureTagReading = 4;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
@@ -256,7 +262,7 @@ public sealed class MediaLibrary
         {
             lock (_gate)
             {
-                return [.. _entries.Values.Where(entry => !entry.Probed || (entry.Kind == LibraryKind.Music && entry.TagReading < MusicTagReading) || (entry.Kind == LibraryKind.Picture && entry.TagReading < TagReading))
+                return [.. _entries.Values.Where(entry => !entry.Probed || (entry.Kind == LibraryKind.Music && entry.TagReading < MusicTagReading) || (entry.Kind == LibraryKind.Picture && entry.TagReading < PictureTagReading) || (entry.Kind == LibraryKind.Video && entry.TagReading < TagReading))
                     .OrderBy(entry => entry.Probed).ThenBy(entry => entry.Added).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
             }
         }
@@ -753,7 +759,10 @@ public sealed class MediaLibrary
     {
         string? Tag(string key) => info.Metadata.GetValueOrDefault(key) is { } value && value.Trim() is { Length: > 0 } trimmed ? trimmed : null;
 
-        var image = entry.Kind == LibraryKind.Picture ? info.FirstTrack(MediaKind.Video)?.Video : null;
+        var frame = info.FirstTrack(MediaKind.Video)?.Video;
+        var image = entry.Kind == LibraryKind.Picture ? frame : null;
+        var movie = entry.Kind == LibraryKind.Video ? frame : null;
+        var movieSideways = movie?.Rotation is 90 or 270;
         var sideways = image?.Rotation is 90 or 270;
 
         // A container that declares more bytes than the file holds is still arriving.
@@ -782,6 +791,8 @@ public sealed class MediaLibrary
             Duration = info.Duration.IsKnown ? TimeSpan.FromTicks(info.Duration.Ticks) : null,
             PictureWidth = image is { Width: > 0, Height: > 0 } ? (sideways ? image.Height : image.Width) : null,
             PictureHeight = image is { Width: > 0, Height: > 0 } ? (sideways ? image.Width : image.Height) : null,
+            VideoWidth = movie is { Width: > 0, Height: > 0 } ? (movieSideways ? movie.Height : movie.Width) : null,
+            VideoHeight = movie is { Width: > 0, Height: > 0 } ? (movieSideways ? movie.Width : movie.Height) : null,
             Chapters = [.. info.Chapters.Select(chapter => new LibraryChapter(TimeSpan.FromTicks(Math.Max(0, chapter.Start.Ticks)), chapter.Title))],
             MediaType = Tag(MetadataKeys.MediaType),
         }) is var read && entry.Override is { } kept ? kept.ApplyTo(read) : read;

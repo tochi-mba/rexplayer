@@ -126,7 +126,7 @@ internal sealed class LibraryScene : IDisposable
     public static MediaInfo VideoInfo(TimeSpan length) => new()
     {
         FormatName = "MPEG-4",
-        Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264 }, new TrackInfo { Id = 2, Codec = CodecId.Aac }],
+        Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264, Video = new VideoTrackInfo { Width = 1920, Height = 1080 } }, new TrackInfo { Id = 2, Codec = CodecId.Aac }],
         Duration = MediaTime.FromSeconds(length.TotalSeconds),
     };
 

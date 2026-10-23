@@ -456,6 +456,8 @@ public sealed partial class MainWindow
                 + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
                 + (_librarySource == LibrarySource.Movies && MovieRules.NotMatched(entry, MovieLookupOf(entry)) ? "Not matched · " : "")
                 + (episode is null ? "" : episode.Spoken + " · ")
+                + (entry.VideoWidth is > 0 && entry.VideoHeight is > 0
+                    ? $"{entry.VideoWidth} × {entry.VideoHeight} · " : "")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
                 ? string.Join(" · ", new[]

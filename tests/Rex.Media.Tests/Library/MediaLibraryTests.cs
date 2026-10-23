@@ -105,6 +105,54 @@ public sealed class MediaLibraryTests
         Assert.Null(library.Entry(file));
     }
 
+    [Theory]
+    [InlineData(1920, 1080, 0, 1920, 1080)]
+    [InlineData(1080, 1920, 90, 1920, 1080)]
+    [InlineData(0, 1080, 0, 0, 0)]
+    [Capability("LIB-05")]
+    public void VideoDimensionsAreReliablePersistedAndRespectRotation(int width, int height, int rotation, int outWidth, int outHeight)
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var video = In("other.mp4");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(video)], KindOf);
+        library.SetDetails(video, new MediaInfo
+        {
+            FormatName = "MP4",
+            Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264,
+                Video = new VideoTrackInfo { Width = width, Height = height, Rotation = rotation } }],
+        });
+        var entry = library.Entry(video)!;
+        Assert.Equal(outWidth == 0 ? null : outWidth, entry.VideoWidth);
+        Assert.Equal(outHeight == 0 ? null : outHeight, entry.VideoHeight);
+        Assert.Equal((entry.VideoWidth, entry.VideoHeight),
+            (new MediaLibrary(store).Entry(video)!.VideoWidth, new MediaLibrary(store).Entry(video)!.VideoHeight));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void VideoMetadataUpgradeReprobesOnlyVideosFromPriorRelease()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var music = In("song.mp3");
+        var video = In("movie.mp4");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(music), File(video)], KindOf);
+        library.SetDetails(music, Song("Track"));
+        library.SetDetails(video, Song("Movie", video: true));
+        foreach (var (key, json) in store.WithPrefix("entry/").ToArray())
+        {
+            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":4", StringComparison.Ordinal));
+        }
+
+        var upgraded = new MediaLibrary(store);
+        Assert.Equal([video], upgraded.Unprobed.Select(item => item.Path));
+        upgraded.SetDetails(video, Song("Movie", video: true));
+        Assert.Empty(upgraded.Unprobed);
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void PictureMetadataUpgradeDoesNotRereadAlreadyTaggedMusic()
