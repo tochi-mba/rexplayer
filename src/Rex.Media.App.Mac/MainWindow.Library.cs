@@ -186,8 +186,27 @@ public sealed partial class MainWindow
             return;
         }
 
+        var reply = AddLibraryFolders(panel.Urls.Select(url => url.Path!).ToList());
+        if (!reply.Ok)
+        {
+            Say(reply.Error ?? "Could not add a library folder.");
+        }
+    }
+
+    /// <summary>
+    /// The native folder picker and Mac automation both use the same registration path.
+    /// Scan only after a folder has been saved in the persistent library store.
+    /// </summary>
+    private AutomationReply AddLibraryFolders(IReadOnlyCollection<string> folders)
+    {
+        if (_mediaLibrary is null || folders.Count == 0 || folders.Any(folder => !Directory.Exists(folder)))
+        {
+            return AutomationReply.Failed("Select one or more existing folders.");
+        }
+
         var added = 0;
-        foreach (var folder in panel.Urls.Select(url => url.Path!).Where(Directory.Exists))
+        var errors = new List<string>();
+        foreach (var folder in folders)
         {
             try
             {
@@ -199,7 +218,7 @@ public sealed partial class MainWindow
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {
                 _log.Warning(LogSource, "Cannot add library folder: " + ex.Message);
-                Say("Could not add the folder: " + ex.Message);
+                errors.Add(ex.Message);
             }
         }
 
@@ -209,6 +228,9 @@ public sealed partial class MainWindow
         }
 
         RefreshLibrary();
+        return errors.Count == 0
+            ? new AutomationReply { Ok = true, Text = $"Added {added} watched folder(s)." }
+            : AutomationReply.Failed("Could not add one or more folders: " + string.Join("; ", errors));
     }
 
     /// <summary>Start from the first page when the search text or media category changes.</summary>
