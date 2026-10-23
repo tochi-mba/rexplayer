@@ -34,6 +34,15 @@ public sealed partial class MainWindow
         var info = _player.Info;
         var entry = item?.Location is { } location ? _library?.Entry(location) : null;
         var episode = entry is null ? null : LibraryViews.EpisodeOf(entry);
+        // Files opened directly have no library shelf; their own media-type tag still
+        // identifies audiobooks and podcasts once the stream has been parsed.
+        AudioShelf? audioShelf = entry?.Kind == LibraryKind.Music ? ShelfOf(entry)
+            : info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType) switch
+            {
+                MetadataKeys.Audiobook => AudioShelf.Audiobooks,
+                MetadataKeys.Podcast => AudioShelf.Podcasts,
+                _ => null,
+            };
         var stage = MediaStagePolicy.Resolve(new MediaStageContext(
             HasItem: item is not null,
             IsPicture: item is not null && MediaFiles.IsPicture(item.Location),
@@ -42,7 +51,7 @@ public sealed partial class MainWindow
             HasAudioTrack: info?.FirstTrack(MediaKind.Audio) is not null,
             CanSeek: _player.CanSeek,
             Kind: entry?.Kind,
-            Shelf: entry?.Kind == LibraryKind.Music ? ShelfOf(entry) : null,
+            Shelf: audioShelf,
             IsEpisode: episode is not null,
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
             HasLyrics: _player.Lyrics is not null,
@@ -62,8 +71,22 @@ public sealed partial class MainWindow
         IdleKicker.Text = stage.Label;
         // The video itself may hide the Idle panel; the always-present stage must still
         // identify what is playing to keyboard and screen-reader users.
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Stage,
-            stage.Profile == MediaStageProfile.Welcome ? "Playback stage" : stage.Label + " playback stage");
+        var stageName = stage.Profile == MediaStageProfile.Welcome
+            ? "Playback stage" : stage.Label + " playback stage";
+        if (Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(Stage) != stageName)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Stage, stageName);
+        }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(Stage, stage.Profile switch
+        {
+            MediaStageProfile.Loading => "Media is opening. Playback capabilities are not known yet.",
+            MediaStageProfile.Error => "The active media could not be played.",
+            MediaStageProfile.Unsupported => "The active file has no playable audio or video track.",
+            MediaStageProfile.Picture => "Picture view; the seek timeline is unavailable.",
+            _ when stage.CanSeek => "Playback position can be changed using the seek slider.",
+            _ => "Playback position cannot be changed for this stream.",
+        });
 
         var album = music ? _player.Info!.Metadata.GetValueOrDefault(MetadataKeys.Album) : null;
         IdleAlbum.Text = album ?? "";
