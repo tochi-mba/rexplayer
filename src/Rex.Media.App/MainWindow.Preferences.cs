@@ -426,6 +426,7 @@ public sealed partial class MainWindow
                 PlaceholderText = "Search settings and categories",
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categorySearch, "PreferencesCategorySearch");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(categorySearch, "Search settings and categories");
             var categories = new ListView
             {
                 SelectionMode = ListViewSelectionMode.Single,
@@ -435,6 +436,7 @@ public sealed partial class MainWindow
                 MinWidth = 170,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categories, "PreferencesCategoryList");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(categories, "Matching settings categories");
             categories.SelectionChanged += (_, _) =>
             {
                 if (categories.SelectedItem is string name)
@@ -459,14 +461,29 @@ public sealed partial class MainWindow
             };
             // Match the labels inside each page as well as the category name. Each page
             // is already constructed, so no setting values or state need to be duplicated.
-            static bool Says(object? value, string query) =>
-                value?.ToString()?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true;
+            // WrapLabels changes long CheckBox contents from strings into TextBlocks; search
+            // must read their text, not the TextBlock type name. Include automation labels and
+            // available choice items (including the contents of closed optional expanders).
+            static bool Says(object? value, string query)
+            {
+                var label = value is TextBlock block ? block.Text : value?.ToString();
+                return label?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true;
+            }
+
             static bool HasSettingText(UIElement node, string query)
             {
+                if (node is FrameworkElement element
+                    && (Says(Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(element), query)
+                        || Says(Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(element), query)))
+                {
+                    return true;
+                }
+
                 if (node is TextBlock text && Says(text.Text, query)
                     || node is CheckBox check && Says(check.Content, query)
                     || node is ToggleSwitch toggle && Says(toggle.Header, query)
-                    || node is ComboBox choice && Says(choice.Header, query)
+                    || node is ComboBox choice && (Says(choice.Header, query)
+                        || choice.Items.Any(item => Says(item is ComboBoxItem option ? option.Content : item, query)))
                     || node is NumberBox number && Says(number.Header, query)
                     || node is TextBox input && Says(input.Header, query)
                     || node is Button button && Says(button.Content, query))
@@ -486,6 +503,11 @@ public sealed partial class MainWindow
                     return panel.Children.Any(child => HasSettingText(child, query));
                 }
 
+                if (node is Border { Child: UIElement child })
+                {
+                    return HasSettingText(child, query);
+                }
+
                 return node is ContentControl { Content: UIElement content }
                     && HasSettingText(content, query);
             }
@@ -498,6 +520,7 @@ public sealed partial class MainWindow
                 Visibility = Visibility.Collapsed,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(searchResult, "PreferencesSearchEmpty");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(searchResult, Microsoft.UI.Xaml.Automation.AutomationLiveSetting.Polite);
             categorySearch.TextChanged += (_, _) =>
             {
                 var query = categorySearch.Text.Trim();
@@ -505,8 +528,10 @@ public sealed partial class MainWindow
                         || Says(item.Name, query) || HasSettingText(item.Page, query))
                     .Select(item => item.Name).ToList();
                 categories.ItemsSource = names;
-                categories.SelectedItem = names.Contains(sections[shownSection].Name)
-                    ? sections[shownSection].Name : null;
+                // When the current page is no longer in the results, show the first match
+                // rather than leaving an unrelated section visible beneath a filtered rail.
+                categories.SelectedItem = names.Count == 0 ? null
+                    : names.Contains(sections[shownSection].Name) ? sections[shownSection].Name : names[0];
                 searchResult.Visibility = names.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             };
             var navigation = new StackPanel { Spacing = 8 };
