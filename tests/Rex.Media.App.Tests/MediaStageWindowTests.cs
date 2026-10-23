@@ -141,6 +141,7 @@ public sealed class MediaStageWindowTests : IDisposable
             "The chapter picker must remain a touch-sized target at standard DPI.");
         Assert.Contains("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.Contains("Chapter jumps", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Assert.Contains("2 chapter jumps", chapters.Current.HelpText, StringComparison.Ordinal);
         Wait.For(() => app.Status().State == "Playing", "the audiobook to start");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
         Wait.For(() => app.Status().State == "Paused", "a stable chaptered audiobook frame");

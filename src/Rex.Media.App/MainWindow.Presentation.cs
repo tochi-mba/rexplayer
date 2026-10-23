@@ -105,6 +105,14 @@ public sealed partial class MainWindow
         IdleMeta.Visibility = facts.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
 
         var cover = music ? _player.CoverArt : null;
+        // The visual album art is decorative only when absent. If present, give
+        // screen readers the current item's identity rather than a generic "Cover".
+        var coverName = cover is null ? "Cover" : "Cover for " + _player.Title;
+        if (Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(CoverImage) != coverName)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CoverImage, coverName);
+        }
+
         if (!ReferenceEquals(cover, _shownCover))
         {
             _shownCover = cover;
@@ -279,6 +287,7 @@ public sealed partial class MainWindow
             }
 
             StageChaptersButton.Visibility = Visibility.Collapsed;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(StageChaptersButton, "");
             if (_shownChapterItem is not null)
             {
                 StageChapterMenu.Items.Clear();
@@ -333,6 +342,8 @@ public sealed partial class MainWindow
         StageChaptersButton.Visibility = StageChapterMenu.Items.Count > 0
             && (!_settings.MinimalInterface || IsFullScreen)
             ? Visibility.Visible : Visibility.Collapsed;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(StageChaptersButton,
+            $"{StageChapterMenu.Items.Count} chapter jumps are available for this audio stream.");
     }
 
     /// <summary>The cover beside the details, or the details alone, centred, when there is none (or it will not load).</summary>
