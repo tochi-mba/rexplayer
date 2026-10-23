@@ -227,7 +227,7 @@ public static partial class ListeningViews
     public static IReadOnlyList<BookChapter> Chapters(LibraryGroup book)
     {
         ArgumentNullException.ThrowIfNull(book);
-        return [.. book.Entries.SelectMany(part => part.Chapters is { Count: > 0 } marked
+        return [.. book.Entries.SelectMany<LibraryEntry, BookChapter>(part => part.Chapters is { Count: > 0 } marked
             ? marked.Select(chapter => new BookChapter(part,
                     chapter.Start < TimeSpan.Zero ? TimeSpan.Zero
                     : part.Duration is { Ticks: > 0 } length && chapter.Start > length ? length : chapter.Start,
