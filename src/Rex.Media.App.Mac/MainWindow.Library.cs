@@ -34,6 +34,7 @@ public sealed partial class MainWindow
     private const int LibraryPageSize = 80;
     private bool _closingLibrary;
     private bool _libraryTemporaryStore;
+    private RexStore? _libraryStore;
 
     private void InitializeLibrary()
     {
@@ -49,6 +50,7 @@ public sealed partial class MainWindow
             store = RexStore.InMemory();
         }
 
+        _libraryStore = store;
         _mediaLibrary = new Rex.Media.Library.MediaLibrary(store);
         _player.Library = _mediaLibrary;
         _libraryScanner = new LibraryScanner(_mediaLibrary, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, _log);
@@ -232,6 +234,11 @@ public sealed partial class MainWindow
         }
 
         RefreshLibrary();
+        if (_libraryStore?.WriteProblem is { } writeProblem)
+        {
+            return AutomationReply.Failed("Library folder changes are only in memory: " + writeProblem);
+        }
+
         return errors.Count == 0
             ? new AutomationReply { Ok = true, Text = $"Added {added} watched folder(s)." }
             : AutomationReply.Failed("Could not add one or more folders: " + string.Join("; ", errors));
@@ -375,7 +382,8 @@ public sealed partial class MainWindow
             + (string.IsNullOrEmpty(status) ? "" : status + " • ")
             + $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
             + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "")
-            ;
+            + (_libraryStore?.WriteProblem is { } problem ? " • Changes could not be saved: " + problem : "");
+        _librarySummary.ToolTip = _librarySummary.StringValue;
         _librarySummary.AccessibilityLabel = "Library status: " + _librarySummary.StringValue;
     }
 
