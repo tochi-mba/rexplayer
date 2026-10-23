@@ -488,6 +488,7 @@ public sealed partial class MainWindow
             {
                 Title = "Preferences",
                 Content = panel,
+                MaxWidth = 960,
                 PrimaryButtonText = "Save",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Primary,
@@ -498,7 +499,8 @@ public sealed partial class MainWindow
             {
                 var wide = root.Size.Width >= 860;
                 panel.Width = Math.Clamp(root.Size.Width - 96, 280, 840);
-                panel.ColumnDefinitions[0].Width = new GridLength(wide ? 190 : 0);
+                panel.ColumnDefinitions[0].Width = wide ? new GridLength(190) : new GridLength(1, GridUnitType.Star);
+                panel.ColumnDefinitions[1].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
                 categorySearch.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
                 categories.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
                 navigation.Visibility = Visibility.Visible;
