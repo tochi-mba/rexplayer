@@ -142,6 +142,24 @@ public sealed class LibraryArrangementTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void AstralLettersAndUnicodeMarksUseStableAlphabeticHeadings()
+    {
+        // Deseret letters live beyond the BMP and use a UTF-16 surrogate pair.
+        // Grouping by the first char previously placed them under "#".
+        Assert.Equal("𐐀", LibraryArrangement.LetterOf("𐐨lpha"));
+        Assert.Equal("E", LibraryArrangement.LetterOf("E\u0301lan"));
+        Assert.Equal("#", LibraryArrangement.LetterOf("🎵 music"));
+        Assert.Equal("#", LibraryArrangement.LetterOf("\uD800 malformed"));
+
+        var sections = LibraryArrangement.Group(
+            [Song("𐐨lpha"), Song("𐐀lpha"), Song("🎵 music")],
+            LibraryGrouping.Letter, Now);
+        Assert.Equal(["𐐀", "#"], sections.Select(x => x.Header));
+        Assert.Equal(2, sections[0].Entries.Count);
+    }
+
+    [Fact]
     public void GroupsOfSongsAreOrderedByWhatIsInThem()
     {
         var albums = LibraryViews.Albums(Asake);
