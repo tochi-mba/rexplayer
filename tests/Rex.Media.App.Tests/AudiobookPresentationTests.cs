@@ -243,12 +243,16 @@ public sealed class AudiobookPresentationTests : IDisposable
         using var app = _scene.Ready().Start();
         app.Visit("Audiobooks");
         app.Open("Huge Book");
+        // Capture with the screenshot harness first: it waits for the declared UIA
+        // scene, records a diagnostic frame if readiness fails, and compares real
+        // pixels. A separate pre-capture wait would discard the crucial evidence
+        // from an unresponsive 10,000-chapter page.
+        Screenshots.Match(app, "audiobook-huge-virtualized-chapters", "LibraryList");
         Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
             && app.Text("LibrarySubtitle").Contains("chapters", StringComparison.Ordinal)
             && app.Lines().Contains("Chapter 0"), "the first virtualized chapters");
         Assert.True(app.Lines().Length < 400,
             "Only a viewport of the 10,000 chapter rows should be realized in WinUI.");
-        Screenshots.Match(app, "audiobook-huge-virtualized-chapters", "LibraryList");
         Assert.Equal(0, app.Close());
     }
 }
