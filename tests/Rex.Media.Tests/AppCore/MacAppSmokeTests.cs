@@ -63,7 +63,10 @@ public sealed class MacAppSmokeTests
             var shuffled = await Queue(pipe, "shuffle");
             Assert.Contains("Shuffle: On", shuffled.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-shuffled");
-            foreach (var name in new[] { "empty", "current", "long", "page-2", "shuffled" })
+            await Queue(pipe, "verify-accessibility");
+            await Queue(pipe, "minimum");
+            await Queue(pipe, "capture-minimum");
+            foreach (var name in new[] { "empty", "current", "long", "page-2", "shuffled", "minimum" })
             {
                 var file = new FileInfo(Path.Combine(screenshots, name + ".png"));
                 Assert.True(file.Exists && file.Length > 1024, "No usable native queue screenshot: " + file.FullName);
