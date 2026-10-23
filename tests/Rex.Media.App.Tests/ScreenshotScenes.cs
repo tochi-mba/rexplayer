@@ -10,7 +10,7 @@ namespace Rex.Media.App.Tests;
 /// </summary>
 internal static class ScreenshotScenes
 {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Instantiated by System.Text.Json.")] 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Instantiated by System.Text.Json.")]
     private sealed record Inventory(int SchemaVersion, ScreenshotScene[] Scenes);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Instantiated by System.Text.Json.")]
