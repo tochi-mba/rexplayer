@@ -444,7 +444,16 @@ public sealed class LibraryListeningTests : IDisposable
         Assert.False(app.IsShown("LibraryMenuBookFinished"),
             "An author is not a book and must never offer to complete an entire catalogue");
 
+        // Dismiss the author context flyout before opening its card. Otherwise
+        // the first click of the subsequent double-click is consumed closing
+        // that flyout, leaving the author shelf open instead of the book list.
+        Pointer.Key(Pointer.Escape);
+        Wait.For(() => !app.IsShown("LibraryMenuMoveToMusic"),
+            "the author context menu to close before navigation");
         app.Open("Ann Writer");
+        Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
+            && app.Lines().Contains("Alpha") && app.Lines().Contains("Beta"),
+            "the author page to show separate playable books");
         Pointer.RightClick(app, app.Line("Alpha"));
         Wait.For(() => app.IsShown("LibraryMenuResumeBook"), "the selected book's resume action");
         app.Press("LibraryMenuResumeBook");
