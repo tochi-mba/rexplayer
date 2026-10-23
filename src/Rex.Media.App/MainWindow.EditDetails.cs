@@ -53,6 +53,24 @@ public sealed partial class MainWindow
             panel.Children.Add(box);
         }
 
+        var validation = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        AutomationProperties.SetAutomationId(validation, "EditDetailsValidation");
+        AutomationProperties.SetName(validation, "Metadata validation");
+        void ValidateFields()
+        {
+            var candidate = DetailsForm.Change(fields,
+                boxes.ToDictionary(pair => pair.Key, pair => pair.Value.Text, StringComparer.Ordinal));
+            var errors = DetailsForm.Problems(candidate);
+            validation.Text = string.Join(" ", errors);
+            validation.Visibility = errors.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        foreach (var box in boxes.Values)
+        {
+            box.TextChanged += (_, _) => ValidateFields();
+        }
+
+        panel.Children.Add(validation);
         PictureBlock? cover = null;
         var removeCover = new CheckBox { Content = "Remove the cover" };
         AutomationProperties.SetAutomationId(removeCover, "EditDetailsRemoveCover");
@@ -146,6 +164,12 @@ public sealed partial class MainWindow
         }
 
         var change = DetailsForm.Change(fields, boxes.ToDictionary(pair => pair.Key, pair => pair.Value.Text, StringComparer.Ordinal));
+        if (DetailsForm.Problems(change) is { Count: > 0 } problems)
+        {
+            Say("The details were not saved: " + string.Join(" ", problems));
+            return;
+        }
+
         var changesCover = cover is not null || removeCover.IsChecked == true;
         if (change.IsEmpty && !changesCover)
         {
