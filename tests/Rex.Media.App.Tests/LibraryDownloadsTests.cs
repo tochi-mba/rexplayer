@@ -116,6 +116,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         Wait.For(() => app.IsShown("LibraryNotice") && app.Find("LibraryNotice").FindAll(TreeScope.Subtree, Condition.TrueCondition).Cast<AutomationElement>()
             .Any(element => element.Current.Name.Contains("Still downloading: 20% so far", StringComparison.Ordinal)), "the still-downloading notice in the library");
         Assert.True(app.IsShown("LibraryPane"), "the library should stay open rather than show a player that failed");
+        Screenshots.Match(app, "library-downloading-unplayable", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 }
