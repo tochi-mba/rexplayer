@@ -126,6 +126,34 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void ReplacingAChapteredAudiobookWithAnotherNeverLeavesFocusOnAnOldMenuItem()
+    {
+        var first = _scene.ChapteredAudiobook();
+        var second = Path.Combine(_scene.Media, "Audiobooks", "Chapter proof", "Part 2.mp3");
+        File.Copy(first, second);
+        using var app = AppProcess.Start([first, second], extraSettings: "\"theme\": \"Dark\"");
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIOBOOK playback stage"
+            && app.IsShown("StageChaptersButton"),
+            "the first chaptered stream to expose its menu");
+
+        app.Press("StageChaptersButton");
+        var oldChapter = app.Find("StageChapter-0");
+        oldChapter.SetFocus();
+        Wait.For(() => oldChapter.Current.HasKeyboardFocus,
+            "the first stream's chapter menu item to take focus");
+
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIOBOOK playback stage"
+            && app.IsShown("StageChaptersButton") && app.Find("StageChapter-1").Current.IsEnabled,
+            "the replacement audiobook to expose its own chapters");
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "focus to return to the stable transport when the old flyout is replaced");
+        Assert.Contains("chapter jumps", app.Find("StageChaptersButton").Current.HelpText,
+            StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void ARealChapteredAudiobookExposesOnlyItsOwnChapterJumps()
     {
         var book = _scene.ChapteredAudiobook();
