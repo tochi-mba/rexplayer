@@ -55,7 +55,7 @@ public sealed partial class MainWindow
         };
         AutomationProperties.SetAutomationId(status, "PodcastControlsStatus");
         panel.Children.Add(status);
-        play.Click += (_, _) => Play([episode], 0, resume: true);
+        play.Click += (_, _) => PlayPodcastEpisode(episode);
 
         void Skip(TimeSpan by)
         {
@@ -120,9 +120,28 @@ public sealed partial class MainWindow
                     {
                         _player.Seek(at);
                     }
-                    else if (!episode.Downloading && episode.Problem is null && File.Exists(episode.Path))
+                    else if (!episode.Downloading && episode.Problem is null)
                     {
-                        _player.PlayFromLibrary([episode], 0, at);
+                        var source = _librarySource;
+                        var opened = _libraryGroup?.Name;
+                        var request = Interlocked.Increment(ref _episodeQueueRequest);
+                        Forget(Task.Run(() => File.Exists(episode.Path))
+                            .ContinueWith(task => OnWindowThread(() =>
+                            {
+                                if (_closing || request != Volatile.Read(ref _episodeQueueRequest)
+                                    || _librarySource != source || _libraryGroup?.Name != opened)
+                                {
+                                    return;
+                                }
+
+                                if (!task.IsCompletedSuccessfully || !task.Result)
+                                {
+                                    status.Text = "This chapter's local media file is unavailable.";
+                                    return;
+                                }
+
+                                _player.PlayFromLibrary([episode], 0, at);
+                            }), TaskScheduler.Default));
                     }
                 };
                 list.Children.Add(button);
