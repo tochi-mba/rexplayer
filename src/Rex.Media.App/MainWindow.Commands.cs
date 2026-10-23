@@ -426,6 +426,13 @@ public sealed partial class MainWindow
         var minimal = _settings.MinimalInterface && !IsFullScreen;
         Menu.Visibility = minimal || IsFullScreen ? Visibility.Collapsed : Visibility.Visible;
         MinimalInterfaceButton.Visibility = minimal ? Visibility.Visible : Visibility.Collapsed;
+        if (minimal && StageChaptersButton.Visibility == Visibility.Visible
+            && Content.XamlRoot is { } xamlRoot
+            && ReferenceEquals(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot), StageChaptersButton))
+        {
+            PlayPauseButton.Focus(FocusState.Programmatic);
+        }
+
         StageChaptersButton.Visibility = !minimal && StageChapterMenu.Items.Count > 0
             ? Visibility.Visible : Visibility.Collapsed;
         foreach (var secondary in new UIElement[]
