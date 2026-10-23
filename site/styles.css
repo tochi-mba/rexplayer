@@ -194,3 +194,26 @@ pre code{padding:0;background:none}
   .real-product-row img{max-height:260px}
   .product-shot img{max-height:320px}
 }
+
+
+/* Accessible, real screenshot walkthrough. Captions stay visible without JavaScript. */
+.showcase{scroll-margin-top:72px}
+.showcase-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.showcase-card{margin:0;overflow:hidden;border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-l)}
+.shot-open{position:relative;width:100%;display:block;padding:0;border:0;background:var(--ink);cursor:zoom-in;color:var(--text)}
+.shot-open img{display:block;object-fit:contain;width:100%;height:clamp(180px,24vw,315px);transition:transform .15s ease}
+.shot-open:hover img,.shot-open:focus-visible img{transform:scale(1.025)}
+.shot-open span{position:absolute;right:12px;bottom:12px;border:1px solid var(--line);border-radius:var(--radius-s);background:rgba(8,10,9,.93);padding:6px 10px;font-size:12px;font-weight:700}
+.showcase-card figcaption{display:flex;flex-direction:column;gap:4px;padding:16px 18px}
+.showcase-card figcaption strong{font-size:15px}
+.showcase-card figcaption span{color:var(--muted);font-size:13px}
+.showcase-caption{max-width:78ch;margin-top:14px;font-size:13px;color:var(--muted)}
+.shot-lightbox{max-width:min(1100px,94vw);max-height:95vh;width:100%;border:1px solid var(--line);padding:16px;background:var(--panel);border-radius:var(--radius-l);color:var(--text);box-shadow:0 40px 100px rgba(0,0,0,.8)}
+.shot-lightbox::backdrop{background:rgba(0,0,0,.82);backdrop-filter:blur(7px)}
+.shot-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px}
+.shot-dialog-head button{cursor:pointer;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--raised);color:var(--text);padding:8px 14px;min-height:44px}
+.shot-dialog-head button:hover{border-color:var(--muted)}
+.shot-lightbox img{max-width:100%;max-height:calc(95vh - 155px);height:auto;display:block;margin-inline:auto;object-fit:contain}
+.shot-lightbox p{font-size:13px;color:var(--muted);padding-top:12px}
+@media(max-width:760px){.showcase-grid{grid-template-columns:1fr}.shot-open img{height:220px}}
+@media(prefers-reduced-motion:reduce){.shot-open img{transition:none}.shot-open:hover img,.shot-open:focus-visible img{transform:none}}
