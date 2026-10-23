@@ -1,5 +1,8 @@
 using System.Diagnostics;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Platform;
+using Rex.Media.Library;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
@@ -48,6 +51,15 @@ public sealed class MacAppSmokeTests
             var empty = await Queue(pipe, "show");
             Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-empty");
+
+            // Exercise the real AppKit library construction and the shared View command on an
+            // empty catalogue before opening a video. A native layout exception kills this smoke test.
+            var library = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(library?.Ok == true, "The Mac library command did not open: " + (library?.Error ?? "no reply") + LogTail(root));
+            Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The app stopped answering with its library open." + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "empty", root);
+            var back = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(back?.Ok == true, "The Mac library did not close through its shared command: " + (back?.Error ?? "no reply") + LogTail(root));
 
             var video = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
             var opened = await Ask(pipe, new AutomationRequest { Command = "open", Paths = [video] });
@@ -115,6 +127,472 @@ public sealed class MacAppSmokeTests
             {
                 Directory.Delete(root, recursive: true);
             }
+        }
+    }
+
+    [Fact]
+    public async Task TheMacAppShowsASavedLibraryEntryInItsNativeWindow()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-library-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var mediaFolder = Path.Combine(root, "watched");
+        Directory.CreateDirectory(mediaFolder);
+        var mediaPath = Path.Combine(mediaFolder, "known-video.mp4");
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), mediaPath);
+        var secondFolder = Path.Combine(root, "watched-next");
+        Directory.CreateDirectory(secondFolder);
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
+            Path.Combine(secondFolder, "another-video.mp4"));
+
+        var roots = new DataRoots(root);
+        var library = new Rex.Media.Library.MediaLibrary(RexStore.Open(roots.LibraryStore));
+        Assert.True(library.AddFolder(mediaFolder));
+        var result = library.Scan(mediaFolder,
+            [new LibraryFile(mediaPath, new FileInfo(mediaPath).Length, File.GetLastWriteTimeUtc(mediaPath))],
+            _ => LibraryKind.Video);
+        Assert.Equal(1, result.Added);
+
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer")) { UseShellExecute = false };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        // QueueSmokeAction is gated behind this test-only opt-in.
+        // The library Play/Queue smoke assertions inspect queue contents below.
+        start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
+        using var app = Process.Start(start)!;
+        try
+        {
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
+            // The library window constructs its result rows from the persisted catalogue.
+            var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
+            Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "populated", root);
+            var keys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
+            Assert.True(keys?.Ok == true, "Mac library AppKit Tab/Shift-Tab loop failed: " + (keys?.Error ?? "no reply") + LogTail(root));
+            var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.True(tree?.Ok == true && tree.Controls is not null, "The native library did not expose its controls.");
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibrarySummary" &&
+                control.Name.StartsWith("Library status: ", StringComparison.Ordinal) &&
+                control.Name.Contains("1 total", StringComparison.Ordinal));
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryPage" &&
+                control.Name == "Library results Page 1 of 1");
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibrarySearch" && control.Kind == "search" && control.Name == "Search library");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryCategory" && control.Name == "Media category");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryResults" && control.Name == "Library results");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryAddFolder" && control.Name == "Add a folder to the library" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryRescan" && control.Name == "Rescan watched library folders" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryBack" && control.Name == "Back to player" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryPrevious" && control.Enabled == false && control.Name == "Previous results page");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && control.Enabled == false && control.Name == "Next results page");
+            var backFromLibrary = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryBack" });
+            Assert.True(backFromLibrary?.Ok == true, "The native Back to player button failed.");
+            var hidden = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.True(hidden?.Ok == false, "The library was still visible after Back to player.");
+            var returnToLibrary = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(returnToLibrary?.Ok == true, "The library could not reopen after Back to player.");
+            var music = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 1 });
+            Assert.True(music?.Ok == true && music.Text?.Contains("0 matching", StringComparison.Ordinal) == true, "The native Music category did not filter videos.");
+            var videos = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 2 });
+            Assert.True(videos?.Ok == true && videos.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The native Videos category did not restore the video.");
+            var pictures = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 3 });
+            Assert.True(pictures?.Ok == true && pictures.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
+                "The Pictures category must not contain the saved video.");
+            var recentlyAdded = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 4 });
+            Assert.True(recentlyAdded?.Ok == true && recentlyAdded.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The Recently added category did not show the newly scanned video.");
+            var recentlyPlayed = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 5 });
+            Assert.True(recentlyPlayed?.Ok == true && recentlyPlayed.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
+                "The unplayed video unexpectedly appeared in Recently played.");
+            videos = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 2 });
+            Assert.True(videos?.Ok == true && videos.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The Videos category did not restore after switching all six categories.");
+            var small = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
+            Assert.True(small?.Ok == true, "The native library could not use its minimum window size: " + (small?.Error ?? "no reply"));
+            await CaptureLibraryScreenshot(pipe, "minimum-width", root);
+            var searched = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
+            Assert.True(searched?.Ok == true && searched.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Searching the native library failed: " + (searched?.Text ?? searched?.Error ?? "no reply") + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "searched", root);
+            var noMatches = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "no-such-video-name" });
+            Assert.True(noMatches?.Ok == true && noMatches.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
+                "An unmatched native search did not clear the results: " + (noMatches?.Text ?? noMatches?.Error ?? "no reply") + LogTail(root));
+            await CaptureLibraryScreenshot(pipe, "no-matches", root);
+
+            // Invoke the actual AppKit result buttons, not PlayerController directly.
+            // This exercises native Play -> player -> library -> Queue wiring.
+            tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.DoesNotContain(tree!.Controls!, control => control.Id == "LibraryFirstPlay" && control.Enabled);
+            Assert.DoesNotContain(tree.Controls!, control => control.Id == "LibraryFirstQueue" && control.Enabled);
+            var folderResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "watched" });
+            Assert.True(folderResult?.Ok == true && folderResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Native library search did not match the saved folder name.");
+            var uppercaseResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "KNOWN-VIDEO" });
+            Assert.True(uppercaseResult?.Ok == true && uppercaseResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Native library search did not match a title case-insensitively.");
+            var restoreResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
+            Assert.True(restoreResult?.Ok == true, "The native library did not restore its searched result.");
+            tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryFirstPlay" && control.Name.StartsWith("Play ", StringComparison.Ordinal));
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryFirstQueue" && control.Name.StartsWith("Queue ", StringComparison.Ordinal));
+            var playResult = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstPlay" });
+            Assert.True(playResult?.Ok == true, "The native Play result button failed: " + (playResult?.Error ?? "no reply") + LogTail(root));
+            var selected = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                reply => reply is { Ok: true, Title: not null }, app, root);
+            var reopen = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(reopen?.Ok == true, "Could not return to the library from playback.");
+            // Recently played must track what actually opened through the shared player,
+            // not only entries that were already marked played in the persisted fixture.
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryCategory", Value = 5 }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("1 matching", StringComparison.Ordinal), app, root);
+            var restoreVideos = await Ask(pipe, new AutomationRequest
+            {
+                Command = "ui.set",
+                Target = "LibraryCategory",
+                Value = 2,
+            });
+            Assert.True(restoreVideos?.Ok == true &&
+                restoreVideos.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Returning from Recently played did not restore the queueable video result.");
+            var queueResult = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstQueue" });
+            Assert.True(queueResult?.Ok == true, "The native Queue result button failed: " + (queueResult?.Error ?? "no reply") + LogTail(root));
+            var afterQueue = await Ask(pipe, new AutomationRequest { Command = "status" });
+            Assert.Equal(selected.Title, afterQueue?.Title);
+            var queued = await Queue(pipe, "show");
+            Assert.Contains("2 items", queued.Title, StringComparison.Ordinal);
+
+            // Exercise the same persisted add-and-scan path as the native Add folder picker.
+            // A new folder is not preseeded in RexStore; the real running app must save it.
+            var watched = await Ask(pipe, new AutomationRequest
+            {
+                Command = "ui.add-folder",
+                Paths = [secondFolder],
+            });
+            Assert.True(watched?.Ok == true, "The Mac did not register the second watched folder: " +
+                (watched?.Error ?? "no reply") + LogTail(root));
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("2 folders", StringComparison.Ordinal) &&
+                    reply.Text.Contains("2 total", StringComparison.Ordinal), app, root);
+            var newResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "another-video" });
+            Assert.True(newResult?.Ok == true && newResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The scanner did not expose the newly added video: " + (newResult?.Text ?? newResult?.Error ?? "no reply"));
+
+            // The watched folder remains active, so the native Rescan button must discover
+            // changes made after the folder was first indexed.
+            File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
+                Path.Combine(secondFolder, "rescanned-video.mp4"));
+            var rescan = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryRescan" });
+            Assert.True(rescan?.Ok == true, "The native Rescan action did not run: " + (rescan?.Error ?? "no reply"));
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("3 total", StringComparison.Ordinal), app, root);
+            var rescanned = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "rescanned-video" });
+            Assert.True(rescanned?.Ok == true && rescanned.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The native Rescan action did not reveal the new file.");
+
+            // A file can disappear between a scan and the user pressing Queue. The
+            // stale result must not be enqueued, and the native scanner should purge it.
+            File.Delete(Path.Combine(secondFolder, "rescanned-video.mp4"));
+            var missingQueue = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstQueue" });
+            Assert.True(missingQueue?.Ok == true, "Could not activate the stale native Queue row.");
+            var afterMissing = await Queue(pipe, "show");
+            Assert.Contains("2 items", afterMissing.Title, StringComparison.Ordinal);
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("2 total", StringComparison.Ordinal), app, root);
+
+            var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+            Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
+                "The Mac app could not quit with the library shown: " + (quit?.Error ?? "no reply") + LogTail(root));
+            Assert.True(app.WaitForExit(Patience), "The Mac app did not quit after showing the library.");
+            Assert.Equal(0, app.ExitCode);
+
+            // Quit and relaunch with the same local data root to prove both folders and
+            // scanned media survived the process, not just its in-memory catalogue.
+            var secondPipe = pipe + "-again";
+            start.Environment["REXPLAYER_PIPE_NAME"] = secondPipe;
+            using var reopenedApp = Process.Start(start)!;
+            try
+            {
+                await Until(() => Ask(secondPipe, new AutomationRequest { Command = "status" }),
+                    reply => reply is { Ok: true }, reopenedApp, root);
+                var reopenedLibrary = await Ask(secondPipe, new AutomationRequest
+                {
+                    Command = "run",
+                    Id = CommandCatalog.ToggleLibrary,
+                });
+                Assert.True(reopenedLibrary?.Ok == true, "The library did not reopen after restart.");
+                var persisted = await Ask(secondPipe, new AutomationRequest
+                {
+                    Command = "ui.text",
+                    Target = "LibrarySummary",
+                });
+                Assert.True(persisted?.Ok == true &&
+                    persisted.Text?.Contains("2 folders", StringComparison.Ordinal) == true &&
+                    persisted.Text.Contains("2 total", StringComparison.Ordinal),
+                    "The watched folders or media did not survive restart: " + (persisted?.Text ?? "no reply"));
+                var closeAgain = await Ask(secondPipe, new AutomationRequest
+                {
+                    Command = "run",
+                    Id = CommandCatalog.Quit,
+                });
+                Assert.True(closeAgain?.Ok == true ||
+                    (reopenedApp.WaitForExit(TimeSpan.FromSeconds(5)) && reopenedApp.ExitCode == 0));
+                Assert.True(reopenedApp.WaitForExit(Patience), "The restarted Mac app did not quit.");
+                Assert.Equal(0, reopenedApp.ExitCode);
+            }
+            finally
+            {
+                if (!reopenedApp.HasExited)
+                {
+                    reopenedApp.Kill();
+                    reopenedApp.WaitForExit();
+                }
+            }
+        }
+        finally
+        {
+            if (!app.HasExited)
+            {
+                app.Kill();
+                app.WaitForExit();
+            }
+
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TheMacLibraryPaginatesMoreThanEightyFiles()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-pages-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var folder = Path.Combine(root, "watched");
+        Directory.CreateDirectory(folder);
+        var longFolder = Path.Combine(folder, new string('f', 155));
+        Directory.CreateDirectory(longFolder);
+        var files = new List<LibraryFile>();
+        for (var index = 0; index < 85; index++)
+        {
+            var filename = index == 84 ? "clip-084-" + new string('x', 155) + ".mp4" : $"clip-{index:000}.mp4";
+            // A long folder name tests metadata truncation independently from the
+            // long video title. Both must leave the Queue action inside the viewport.
+            var file = Path.Combine(index == 83 ? longFolder : folder, filename);
+            File.WriteAllBytes(file, [0]);
+            files.Add(new LibraryFile(file, 1, File.GetLastWriteTimeUtc(file)));
+        }
+
+        var library = new Rex.Media.Library.MediaLibrary(RexStore.Open(new DataRoots(root).LibraryStore));
+        Assert.True(library.AddFolder(folder));
+        Assert.Equal(85, library.Scan(folder, files, _ => LibraryKind.Video).Added);
+
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer")) { UseShellExecute = false };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        using var app = Process.Start(start)!;
+        try
+        {
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), answer => answer is { Ok: true }, app, root);
+            var open = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(open?.Ok == true, "The large Mac library did not open." + LogTail(root));
+            var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryPage" && control.Text == "Page 1 of 2");
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryPrevious" && !control.Enabled);
+            var next = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryNext" });
+            Assert.Equal("Page 2 of 2", next?.Text);
+            tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryPrevious" && control.Enabled);
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryNext" && !control.Enabled);
+            var secondPageKeys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
+            Assert.True(secondPageKeys?.Ok == true,
+                "Native focus loop was broken by the paginated result change: " + (secondPageKeys?.Error ?? "no reply"));
+            var previous = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryPrevious" });
+            Assert.Equal("Page 1 of 2", previous?.Text);
+            var filtered = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "clip-084" });
+            Assert.True(filtered?.Text?.Contains("1 matching", StringComparison.Ordinal) == true, "The last catalogue entry was not searchable.");
+            var page = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibraryPage" });
+            Assert.Equal("Page 1 of 1", page?.Text);
+            var narrow = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
+            Assert.True(narrow?.Ok == true, "Could not resize the long-title result to minimum width.");
+            var layout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
+            Assert.True(layout?.Ok == true, "The long video filename clipped a native result action: " +
+                (layout?.Error ?? "no reply") + LogTail(root));
+            var longFolderResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "clip-083" });
+            Assert.True(longFolderResult?.Ok == true &&
+                longFolderResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true);
+            var folderLayout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
+            Assert.True(folderLayout?.Ok == true, "The long parent folder name clipped a native Queue action: " +
+                (folderLayout?.Error ?? "no reply") + LogTail(root));
+            var searchKeys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
+            Assert.True(searchKeys?.Ok == true, "Native focus loop was broken by search: " + (searchKeys?.Error ?? "no reply"));
+
+            var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+            Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0));
+            Assert.True(app.WaitForExit(Patience), "The large Mac library did not quit.");
+            Assert.Equal(0, app.ExitCode);
+        }
+        finally
+        {
+            if (!app.HasExited)
+            {
+                app.Kill();
+                app.WaitForExit();
+            }
+
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TheMacLibraryWarnsWhenTheStoreCannotBeRead()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle),
+            "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-read-error-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var watched = Path.Combine(root, "watched");
+        Directory.CreateDirectory(watched);
+        var store = new DataRoots(root).LibraryStore;
+        File.WriteAllText(store, "An unreadable library store");
+        File.SetUnixFileMode(store, UnixFileMode.UserWrite);
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
+        {
+            UseShellExecute = false,
+        };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        try
+        {
+            using var app = Process.Start(start)!;
+            try
+            {
+                await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                    reply => reply is { Ok: true }, app, root);
+                var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+                Assert.True(opened?.Ok == true, "The library could not open with an unreadable persistent store.");
+                var summary = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" });
+                Assert.Contains("Changes will not be saved", summary?.Text ?? "");
+                var added = await Ask(pipe, new AutomationRequest { Command = "ui.add-folder", Paths = [watched] });
+                Assert.True(added?.Ok == false && added.Error?.Contains("forgotten", StringComparison.Ordinal) == true,
+                    "The temporary catalogue incorrectly promised persistent watched folders.");
+                var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+                Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0));
+                Assert.True(app.WaitForExit(Patience));
+                Assert.Equal(0, app.ExitCode);
+            }
+            finally
+            {
+                if (!app.HasExited)
+                {
+                    app.Kill();
+                    app.WaitForExit();
+                }
+            }
+        }
+        finally
+        {
+            File.SetUnixFileMode(store, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task TheMacLibraryReportsWhenFolderChangesCannotBeSaved()
+    {
+        var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle),
+            "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
+        var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-write-error-" + Guid.NewGuid().ToString("N")[..8]);
+        var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
+        var folder = Path.Combine(root, "watched");
+        Directory.CreateDirectory(folder);
+        // Obstruct the expected catalogue file with a directory. RexStore accepts the
+        // initial missing file, but reports the failure when AddFolder attempts to write.
+        Directory.CreateDirectory(new DataRoots(root).LibraryStore);
+        var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
+        {
+            UseShellExecute = false,
+        };
+        start.Environment["REXPLAYER_ROOT"] = root;
+        start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+        using var app = Process.Start(start)!;
+        try
+        {
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                answer => answer is { Ok: true }, app, root);
+            var open = await Ask(pipe, new AutomationRequest
+            {
+                Command = "run",
+                Id = CommandCatalog.ToggleLibrary,
+            });
+            Assert.True(open?.Ok == true, "Unable to open the library in write-failure test." + LogTail(root));
+            var add = await Ask(pipe, new AutomationRequest { Command = "ui.add-folder", Paths = [folder] });
+            Assert.True(add?.Ok == false && add.Error?.Contains("only in memory", StringComparison.Ordinal) == true,
+                "The Mac silently accepted an unsaved folder: " + (add?.Text ?? add?.Error ?? "no reply"));
+            var summary = await Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" });
+            Assert.Contains("Changes could not be saved", summary?.Text ?? "");
+            var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+            Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0));
+            Assert.True(app.WaitForExit(Patience));
+            Assert.Equal(0, app.ExitCode);
+        }
+        finally
+        {
+            if (!app.HasExited)
+            {
+                app.Kill();
+                app.WaitForExit();
+            }
+
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    private static async Task CaptureLibraryScreenshot(string pipe, string name, string root)
+    {
+        var directory = Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOTS") ?? root;
+        var file = Path.Combine(directory, "mac-library-" + name + ".png");
+        var reply = await Ask(pipe, new AutomationRequest { Command = "ui.snapshot", Path = file });
+        Assert.True(reply?.Ok == true, "Capturing the " + name + " library failed: " + (reply?.Error ?? "no reply") + LogTail(root));
+        Assert.True(File.Exists(file), "The native library did not save its " + name + " screenshot.");
+        var bytes = await File.ReadAllBytesAsync(file, TestContext.Current.CancellationToken);
+        Assert.True(bytes.Length > 100, "The native library screenshot is empty.");
+        Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes.Take(8).ToArray());
+
+        // Exact image baselines apply only to the controlled Apple Silicon CI lane.
+        // Store and review PNG artifacts whenever the renderer changes before updating
+        // the committed hashes. Other machines may vary in fonts and display scaling.
+        if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOT_BASELINES") == "1")
+        {
+            var target = "mac-library-" + name + ".png";
+            var baseline = File.ReadLines(RepoPaths.Combine("tests", "mac-library-screenshots.sha256"))
+                .Where(line => !line.StartsWith('#') && line.EndsWith("  " + target, StringComparison.Ordinal))
+                .Select(line => line.Split(' ', 2)[0])
+                .Single();
+            var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+            Assert.True(string.Equals(baseline, actual, StringComparison.Ordinal),
+                "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
+                Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual);
         }
     }
 

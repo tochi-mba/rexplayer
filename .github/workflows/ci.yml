@@ -222,11 +222,23 @@ jobs:
         run: |
           app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/osx-arm64 -maxdepth 1 -name '*.app' | head -1)
           export REXPLAYER_MAC_APP="$PWD/$app"
+          export REXPLAYER_MAC_SCREENSHOTS="$PWD/artifacts/mac-library-screenshots"
+          # This controlled runner must match the visually reviewed macOS PNG baselines.
+          export REXPLAYER_MAC_SCREENSHOT_BASELINES=1
           dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
+
+      - name: Keep the native library screenshots
+        if: matrix.rid == 'osx-arm64' && always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mac-library-screenshots
+          path: artifacts/mac-library-screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Keep native Mac queue screenshots
         if: matrix.rid == 'osx-arm64' && always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mac-queue-screenshots
           path: artifacts/mac-queue-screenshots/
