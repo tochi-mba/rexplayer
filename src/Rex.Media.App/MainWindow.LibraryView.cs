@@ -382,6 +382,15 @@ public sealed partial class MainWindow
             ShowTitleExtras("", TitleSections.BookSynopsis(MetadataBook(book)), credit: null,
                 trailer: null, poster: false, backdrop: null);
         }
+        else if (search.Length == 0 && _librarySource == LibrarySource.Podcasts
+            && _libraryGroup is { } localPodcast)
+        {
+            ShowTitleExtras(localPodcast.Detail is { Length: > 0 } creator
+                    ? "Creator tag: " + creator + " · Local episodes only"
+                    : "Local episodes only",
+                synopsis: null, credit: null, trailer: null, poster: false, backdrop: null);
+            ShowText(LibraryOverview, PodcastDescription(localPodcast));
+        }
         else if (artistPage)
         {
             var artist = MetadataArtist(title);
