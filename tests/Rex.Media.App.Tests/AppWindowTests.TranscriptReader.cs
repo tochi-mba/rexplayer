@@ -24,6 +24,18 @@ public sealed partial class AppWindowTests
             [new TranscriptWord("partial", TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3))],
             "en");
         cache.SavePartial(media, partial);
+        var info = new FileInfo(media);
+        var ledger = new Rex.Media.AppCore.Transcription.TranscriptionLedger(
+            Rex.Media.AppCore.Transcription.TranscriptionLedger.DefaultPath(root));
+        ledger.Set(new Rex.Media.AppCore.Transcription.TranscriptRecord
+        {
+            Path = media,
+            Signature = Rex.Media.AppCore.Transcription.TranscriptSignature.Of(
+                info.Length, info.LastWriteTimeUtc),
+            Model = "base.en",
+            State = Rex.Media.AppCore.Transcription.TranscriptState.Failed,
+            Reason = "Model unavailable",
+        });
 
         using var app = AppProcess.Start([media], root);
         var menu = (ExpandCollapsePattern)app.Find("SubtitleMenu")
@@ -31,8 +43,9 @@ public sealed partial class AppWindowTests
         menu.Expand();
         app.Press("ReadTranscript");
         Wait.For(() => app.Text("TranscriptReaderCoverage").Contains("Partial transcript", StringComparison.Ordinal)
+            && app.Text("TranscriptReaderCoverage").Contains("Transcription error: Model unavailable", StringComparison.Ordinal)
             && app.IsShown("TranscriptReaderCue-0"),
-            "partial speech to remain readable while incomplete coverage is clearly labeled");
+            "partial speech to remain readable with a clearly labeled failed transcription job");
         // Actual WinUI capture; CI artifacts provide the first review image. No mock is substituted.
         Screenshots.Match(app, "spoken-transcript-partial");
         Assert.Equal(0, app.Close());
