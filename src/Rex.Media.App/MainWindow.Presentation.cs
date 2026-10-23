@@ -24,6 +24,8 @@ public sealed partial class MainWindow
     private Lyrics? _shownLyrics;
     private int _shownLine = -1;
     private readonly List<TextBlock> _lyricTexts = [];
+    private PlaylistItem? _shownChapterItem;
+    private MediaInfo? _shownChapterInfo;
 
     /// <summary>Brings the picture, the album and the lyrics on screen in line with what plays.</summary>
     private void ShowPresentation()
@@ -44,6 +46,7 @@ public sealed partial class MainWindow
             IsEpisode: episode is not null,
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
             HasLyrics: _player.Lyrics is not null,
+            HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown && chapter.Start >= MediaTime.Zero) == true,
             HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
         var music = stage.ShowAudioPresentation;
         // A picture or unsupported stream must not leave the previous item's seek controls active.
@@ -158,6 +161,7 @@ public sealed partial class MainWindow
             ShowLyricLine();
         }
 
+        ShowStageChapters(stage, item, info);
         LayOutMediaStage();
     }
 
@@ -203,6 +207,66 @@ public sealed partial class MainWindow
         Controls.Padding = narrowControls ? new Thickness(12, 8, 12, 9) : new Thickness(20, 12, 20, 14);
         Controls.ColumnSpacing = narrowControls ? 6 : 12;
         Controls.RowSpacing = narrowControls ? 4 : 8;
+    }
+
+    /// <summary>
+    /// Build chapter jumps only from the active, parsed audio stream. The menu belongs to the
+    /// same transport as Play/Pause; switching files clears actions that would seek an old item.
+    /// </summary>
+    private void ShowStageChapters(MediaStageView stage, PlaylistItem? item, MediaInfo? info)
+    {
+        if (!stage.ShowChapters || item is null || info is null)
+        {
+            StageChaptersButton.Visibility = Visibility.Collapsed;
+            if (_shownChapterItem is not null)
+            {
+                StageChapterMenu.Items.Clear();
+                _shownChapterItem = null;
+                _shownChapterInfo = null;
+            }
+
+            return;
+        }
+
+        if (!ReferenceEquals(item, _shownChapterItem) || !ReferenceEquals(info, _shownChapterInfo))
+        {
+            StageChapterMenu.Items.Clear();
+            foreach (var (index, chapter) in info.Chapters.Index())
+            {
+                if (!chapter.Start.IsKnown || chapter.Start < MediaTime.Zero)
+                {
+                    continue;
+                }
+
+                var at = chapter.Start.ToTimeSpan();
+                if (_player.Duration > TimeSpan.Zero && at > _player.Duration)
+                {
+                    continue;
+                }
+
+                var label = string.IsNullOrWhiteSpace(chapter.Title)
+                    ? $"Chapter {index + 1}" : chapter.Title.Trim();
+                var name = $"Go to {label} at {TimeText.Format(at, _player.Duration)}";
+                var button = new MenuFlyoutItem { Text = $"{TimeText.Format(at, _player.Duration)} · {label}" };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, $"StageChapter-{index}");
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);
+                button.Click += (_, _) =>
+                {
+                    if (ReferenceEquals(_player.Item, item)
+                        && ReferenceEquals(_player.Info, info) && _player.CanSeek)
+                    {
+                        _player.Seek(at);
+                    }
+                };
+                StageChapterMenu.Items.Add(button);
+            }
+
+            _shownChapterItem = item;
+            _shownChapterInfo = info;
+        }
+
+        StageChaptersButton.Visibility = StageChapterMenu.Items.Count > 0
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>The cover beside the details, or the details alone, centred, when there is none (or it will not load).</summary>
