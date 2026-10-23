@@ -90,6 +90,36 @@ public sealed class AudiobookPresentationTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void CompletedAudiobookCardsUseBookPlaybackAndTheSidebarUpdatesImmediately()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Complete Me", "Part 1.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Complete Me");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Complete Me", "Part 2.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Complete Me");
+
+        using var app = _scene.Ready().Start();
+        Assert.False(app.IsListed("Completed"), "an unplayed library has no Completed view");
+        app.Visit("Audiobooks");
+        app.Open("Complete Me");
+        Pointer.RightClick(app, app.Line("Part 1"));
+        Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "the book completion action");
+        app.Press("LibraryMenuBookFinished");
+        Wait.For(() => app.IsListed("Completed"), "the Completed sidebar to appear immediately");
+
+        app.Visit("Completed");
+        Wait.For(() => app.Lines().Contains("Complete Me"), "the finished book's card");
+        app.Choose("Complete Me");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 1", "completed book to start again");
+        var queue = app.Queue();
+        Assert.Equal(2, queue.Length);
+        Assert.Contains(queue, item => item.Contains("Part 1", StringComparison.Ordinal));
+        Assert.Contains(queue, item => item.Contains("Part 2", StringComparison.Ordinal));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void TwoEditionsWithTheSameTitleAreDistinguishableAndNeverQueueEachOther()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition A", "Alpha.wav"),
