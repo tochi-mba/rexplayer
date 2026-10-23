@@ -34,6 +34,8 @@ public sealed partial class MainWindow
 
     private async Task ShowPodcastShowNotesAsync(LibraryGroup show)
     {
+        var source = _librarySource;
+        var opened = _libraryGroup?.Name;
         if (LocalShowNotesFolder(show) is not { } folder)
         {
             Say("This show's episodes do not have an unambiguous local notes folder.");
@@ -52,7 +54,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (_closing)
+        if (_closing || _librarySource != source || _libraryGroup?.Name != opened)
         {
             return;
         }
