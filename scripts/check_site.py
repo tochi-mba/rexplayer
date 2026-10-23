@@ -59,6 +59,7 @@ class PageParser(HTMLParser):
         self.h1_count = 0
         self.images_without_alt: list[str] = []
         self.tour_images_without_alt: list[str] = []
+        self.invalid_tour_sources: list[str] = []
         self.unsafe_blank: list[str] = []
         self.inline_handlers: list[str] = []
         self._in_title = False
@@ -85,9 +86,13 @@ class PageParser(HTMLParser):
         # The walkthrough switches images in JavaScript, but every possible source
         # and its spoken description must also be checked before Pages publication.
         if "data-tour-src" in values:
-            self.assets.append(values["data-tour-src"])
+            source = values["data-tour-src"]
+            if not source.strip() or source.startswith(REMOTE):
+                self.invalid_tour_sources.append(source)
+            else:
+                self.assets.append(source)
             if not values.get("data-tour-alt", "").strip():
-                self.tour_images_without_alt.append(values["data-tour-src"])
+                self.tour_images_without_alt.append(source)
         if tag == "img":
             self.assets.append(values.get("src", ""))
             # An explicitly empty alt marks an image decorative; a missing one does not.
@@ -162,6 +167,7 @@ def _check_page(page: Path, parsed: dict[str, PageParser], product: str) -> list
         problems.extend(_check_link(page, parser, parsed, href))
     problems.extend(f"image '{image}' has no alt text." for image in parser.images_without_alt)
     problems.extend(f"walkthrough image '{image}' has no descriptive data-tour-alt." for image in parser.tour_images_without_alt)
+    problems.extend(f"walkthrough image '{image}' must use an existing local asset." for image in parser.invalid_tour_sources)
     problems.extend(f"the new-tab link to '{href}' lacks rel=\"noopener\"." for href in parser.unsafe_blank)
     problems.extend(f"inline event handler '{handler}' found; use app.js." for handler in parser.inline_handlers)
     insecure = sorted(set(re.findall(r"http://[^\"'\s<>]+", html)))
