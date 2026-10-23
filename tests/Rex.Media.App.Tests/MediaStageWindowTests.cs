@@ -136,6 +136,13 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Press("StageChapter-1");
         Wait.For(() => Math.Abs(app.Position - 3.0) < 0.5,
             "the chapter action to seek the paused audiobook to its three-second mark");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.MinimalInterface);
+        Wait.For(() => !app.IsShown("StageChaptersButton"),
+            "optional chapter controls to hide in minimal player mode");
+        Assert.Equal("AUDIOBOOK playback stage", app.Find("Stage").Current.Name);
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.MinimalInterface);
+        Wait.For(() => app.IsShown("StageChaptersButton"),
+            "the same chapter picker to return with the full controls");
         Assert.Equal(0, app.Close());
     }
 
