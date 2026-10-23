@@ -584,7 +584,7 @@
             <StackPanel x:Name="LibraryShelves" Spacing="22" Padding="24,4,24,24" />
           </ScrollViewer>
 
-          <ScrollViewer x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed"
+          <ScrollViewer x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed" AutomationProperties.AutomationId="LibraryEmpty"
                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                         VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
           <StackPanel Spacing="18" MaxWidth="440" Margin="24">
