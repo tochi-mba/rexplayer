@@ -46,6 +46,9 @@ public sealed partial class MainWindow
             HasLyrics: _player.Lyrics is not null,
             HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
         var music = stage.ShowAudioPresentation;
+        // A picture or unsupported stream must not leave the previous item's seek controls active.
+        SeekBar.IsEnabled = stage.CanSeek;
+        StartOverButton.IsEnabled = stage.CanSeek;
         IdleKicker.Text = stage.Label;
         // The video itself may hide the Idle panel; the always-present stage must still
         // identify what is playing to keyboard and screen-reader users.
