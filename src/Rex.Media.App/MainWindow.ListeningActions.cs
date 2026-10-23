@@ -41,6 +41,12 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Replay sound", "LibraryMenuReplaySound", () => Play([sound], 0)));
         }
 
+        if (audio is [{ } recording] && ShelfOf(recording) == AudioShelf.Recordings)
+        {
+            menu.Items.Add(MenuItem("Review waveform...", "LibraryMenuWaveform",
+                () => Forget(ShowRecordingWaveformAsync(recording))));
+        }
+
         foreach (var (shelf, name) in MoveTargets)
         {
             if (audio.Any(entry => ShelfOf(entry) is var now && now != shelf && !(shelf == AudioShelf.Recordings && now == AudioShelf.Sounds)))
