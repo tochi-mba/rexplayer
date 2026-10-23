@@ -114,6 +114,40 @@ public sealed class ShowPageTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void AWatchedSeasonDoesNotMakeAnUnfinishedSeriesComplete()
+    {
+        var show = Show(Episode("Alpha S01E01", plays: 2), Episode("Alpha S01E02", plays: 1),
+            Episode("Alpha S02E01", plays: 1));
+        var seasons = LibraryViews.TvSeasons(show);
+        var first = seasons.Single(season => season.Name == "Season 1");
+        var second = seasons.Single(season => season.Name == "Season 2");
+        var left = LeftAt("S02E01", TimeSpan.FromMinutes(12));
+
+        var seasonOne = ShowPage.WatchSummary(first.Entries, left);
+        var seasonTwo = ShowPage.WatchSummary(second.Entries, left);
+        var series = ShowPage.WatchSummary(show.Entries, left);
+
+        Assert.Equal(new EpisodeWatchSummary(2, 2, 0), seasonOne);
+        Assert.True(seasonOne.IsComplete);
+        Assert.Equal("Season complete: 2 of 2 episodes watched", seasonOne.Describe("Season"));
+        Assert.Equal(new EpisodeWatchSummary(1, 0, 1), seasonTwo);
+        Assert.False(seasonTwo.IsComplete);
+        Assert.Equal(new EpisodeWatchSummary(3, 2, 1), series);
+        Assert.False(series.IsComplete);
+        Assert.Equal("Series: 2 of 3 episodes watched · 1 in progress", series.Describe("Series"));
+
+        // Completing the final episode changes only its own and the parent summaries.
+        Assert.True(ShowPage.WatchSummary(show.Entries, Nothing).IsComplete);
+        Assert.Equal("Series complete: 3 of 3 episodes watched",
+            ShowPage.WatchSummary(show.Entries, Nothing).Describe("Series"));
+        Assert.False(ShowPage.WatchSummary([], Nothing).IsComplete);
+        Assert.Equal("Season: no episodes", ShowPage.WatchSummary([], Nothing).Describe("Season"));
+        Assert.Throws<ArgumentNullException>(() => ShowPage.WatchSummary(null!, Nothing));
+        Assert.Throws<ArgumentNullException>(() => ShowPage.WatchSummary([], null!));
+    }
+
+    [Fact]
     public void EpisodesAreNumberedSinglyOrAsARange()
     {
         Assert.Equal("3", ShowPage.Number(Mark(Episode("Alpha S01E03"))));
