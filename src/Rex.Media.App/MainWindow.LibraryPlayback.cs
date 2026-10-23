@@ -41,7 +41,12 @@ public sealed partial class MainWindow
                 // opened book. Queue only that book, never the author's entire catalogue.
                 if ((_librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup) is { } book)
                 {
-                    PlayBook(book, chapter);
+                    // A stale row from a refreshed author page must not fall through to
+                    // the first part of another same-titled book.
+                    if (book.Entries.Any(part => LibraryViews.SameLocation(part.Path, chapter.Part.Path)))
+                    {
+                        PlayBook(book, chapter);
+                    }
                 }
 
                 break;
