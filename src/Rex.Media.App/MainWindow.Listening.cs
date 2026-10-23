@@ -273,10 +273,13 @@ public sealed partial class MainWindow
     /// <summary>A recording's line: when it was made and how long it runs.</summary>
     private LibraryRow RecordingRow(LibraryEntry recording)
     {
-        var at = ListeningViews.RecordedAt(recording);
+        var evidence = ListeningViews.RecordingDateEvidence(recording);
         var source = Path.GetFileName(Path.GetDirectoryName(recording.Path));
-        var recorded = at is { } made ? (made.Kind == DateTimeKind.Utc ? made.ToLocalTime() : made).ToString("g", CultureInfo.CurrentCulture) : null;
-        var detail = string.Join(" · ", new[] { source, recorded }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        var when = evidence is { } dated
+            ? (dated.FromFilename ? "Name date " : "File updated ")
+                + (dated.At.Kind == DateTimeKind.Utc ? dated.At.ToLocalTime() : dated.At).ToString("g", CultureInfo.CurrentCulture)
+            : "Undated";
+        var detail = string.Join(" · ", new[] { source, when }.Where(part => !string.IsNullOrWhiteSpace(part)));
         return new LibraryRow(recording.Title, detail, recording.Duration is { } duration ? TimeText.Format(duration, duration) : "", recording,
             picturePlaceholder: "●", isPlaying: LibraryViews.SameLocation(recording.Path, _player.Playlist.Current?.Location));
     }
