@@ -29,6 +29,108 @@ test('the home page loads without errors and names the product and the company',
   expect(errors).toEqual([]);
 });
 
+test('the hero and library show genuine labeled native screenshots', async ({ page }) => {
+  await page.goto('./');
+  const images = page.locator('.product-shot img, .real-product-row img');
+  await expect(images).toHaveCount(2);
+  await expect(page.locator('.product-shot figcaption')).toContainText('Windows native library test capture');
+  await expect(page.locator('#platforms')).toContainText('Windows and Mac');
+  for (const image of await images.all()) {
+    await expect(image).toHaveAttribute('src', /^assets\/windows-(library-wide-ci|tv-episodes-ci)\.png$/);
+    await expect(image).toHaveAttribute('alt', /Windows native|Actual Windows/);
+    await image.scrollIntoViewIfNeeded();
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate(el => el.naturalWidth)).toBeGreaterThan(0);
+  }
+});
+
+test('the product does not suggest every Mac capability is already available', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('#platforms')).toContainText('Windows interface currently supports more');
+  await expect(page.locator('#platforms a')).toHaveAttribute('href', /docs\/parity\.md$/);
+});
+
+test('native screenshot previews open a labeled modal and restore keyboard focus', async ({ page }) => {
+  await page.goto('./');
+  const previews = page.getByRole('link', { name: /View larger Windows.*screenshot/ });
+  await expect(previews).toHaveCount(6);
+  await previews.first().click();
+  const lightbox = page.locator('#shot-lightbox');
+  await expect(lightbox).toBeVisible();
+  await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows native dark-theme library overview/);
+  await expect(page.locator('#shot-caption')).toContainText('Windows · Library overview · Native dark-theme UI test capture');
+  await expect(lightbox.getByRole('button', { name: /Close/ })).toHaveCSS('white-space', 'nowrap');
+  await lightbox.getByRole('button', { name: /Close/ }).click();
+  await expect(lightbox).not.toBeVisible();
+  await expect(previews.first()).toBeFocused();
+  await previews.nth(1).click();
+  await expect(lightbox).toBeVisible();
+  await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows native dark-theme search screen/);
+  await page.keyboard.press('Escape');
+  await expect(lightbox).not.toBeVisible();
+  await expect(previews.nth(1)).toBeFocused();
+});
+
+test('the screenshots section communicates actual provenance and limitations', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('#screenshots')).toContainText('native UI regression tests');
+  await expect(page.locator('#screenshots')).toContainText('Windows');
+  await expect(page.locator('#screenshots')).toContainText('macOS');
+  await expect(page.locator('#screenshots a[href$="parity.md"]')).toHaveAttribute('href', /docs\/parity\.md$/);
+  await expect(page.locator('.site-nav a[href="#screenshots"]')).toHaveText('Screenshots');
+});
+
+
+test('full-size image links work when JavaScript is disabled', async ({ page, browser }) => {
+  await page.goto('./');
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const withoutScript = await context.newPage();
+    await withoutScript.goto(page.url());
+    const first = withoutScript.getByRole('link', { name: /View larger Windows Library overview screenshot/ });
+    await expect(first).toBeVisible();
+    await first.click();
+    await expect(withoutScript).toHaveURL(/assets\/windows-library-wide-ci\.png$/);
+  } finally {
+    await context.close();
+  }
+});
+
+test('gallery image transitions respect reduced-motion settings', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./');
+  await expect(page.locator('.shot-open img').first()).toHaveCSS('transition-duration', '0s');
+});
+
+
+test('the six Windows screenshot cards load their committed local images', async ({ page }) => {
+  await page.goto('./');
+  const thumbnails = page.locator('.showcase-card .shot-open img');
+  await expect(thumbnails).toHaveCount(6);
+  for (const image of await thumbnails.all()) {
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate(el => el.naturalWidth)).toBeGreaterThan(0);
+    const source = await image.getAttribute('src');
+    await expect(image.locator('xpath=..')).toHaveAttribute('href', source);
+  }
+});
+
+test('the Windows walkthrough is keyboard-accessible and progresses through native views', async ({ page }) => {
+  await page.goto('./');
+  const image = page.locator('#tour-image');
+  await expect(image).toHaveAttribute('src', /windows-library-wide-ci\.png$/);
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(image).toHaveAttribute('src', /windows-search-ci\.png$/);
+  await expect(page.locator('#tour-progress')).toHaveText('Step 2 of 6');
+  await expect(page.locator('[data-tour-step="1"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Previous', exact: true }).click();
+  await expect(image).toHaveAttribute('src', /windows-library-wide-ci\.png$/);
+  await page.getByRole('button', { name: '4 TV episodes' }).click();
+  await expect(image).toHaveAttribute('src', /windows-tv-episodes-ci\.png$/);
+  await expect(page.locator('#tour-image-link')).toHaveAttribute('href', /windows-tv-episodes-ci\.png$/);
+  await expect(page.locator('#tour-progress')).toHaveText('Step 4 of 6');
+});
+
 test('the page uses the REX ink and signal palette', async ({ page }) => {
   await page.goto('./');
   const values = await page.evaluate(names => {
@@ -50,7 +152,7 @@ test('there are no serious accessibility problems', async ({ page }) => {
 });
 
 test('nothing scrolls sideways at phone, tablet or desktop widths', async ({ page }) => {
-  for (const width of [320, 390, 1280]) {
+  for (const width of [320, 390, 760, 1280]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('./');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
