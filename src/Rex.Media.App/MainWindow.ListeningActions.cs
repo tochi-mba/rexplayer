@@ -1,4 +1,6 @@
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation;
+using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
 using static Rex.Media.AppCore.Library.LibraryActions;
@@ -44,13 +46,43 @@ public sealed partial class MainWindow
             }
         }
 
-        if ((_librarySource is LibrarySource.Audiobooks or LibrarySource.Authors)
-            && (chosen is [{ Item: LibraryGroup book }] ? book
-                : _librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup) is { Entries.Count: > 0 } chosenBook)
+        if (BookForListeningMenu(chosen) is { Entries.Count: > 0 } chosenBook)
         {
             var finished = Audiobooks.Finished(chosenBook);
             menu.Items.Add(MenuItem(finished ? "Mark as unfinished" : "Mark as finished", finished ? "LibraryMenuBookUnfinished" : "LibraryMenuBookFinished",
                 () => MarkBookFinished(chosenBook, !finished)));
+
+            if (chosen is [{ Item: BookChapter chapter }])
+            {
+                menu.Items.Add(MenuItem("Play from this chapter", "LibraryMenuPlayChapter", () => PlayBook(chosenBook, chapter)));
+            }
+
+            menu.Items.Add(MenuItem(finished ? "Start this book again" : "Resume this book",
+                "LibraryMenuResumeBook", () => PlayBook(chosenBook, null)));
+
+            // These are playback actions, so only offer them while this particular
+            // book is the current player item, never for an author or another book.
+            if (_player.Playlist.Current?.Location is { } current
+                && chosenBook.Entries.Any(part => LibraryViews.SameLocation(part.Path, current)))
+            {
+                var tools = new MenuFlyoutSubItem { Text = "Audiobook playback" };
+                AutomationProperties.SetAutomationId(tools, "LibraryMenuBookTools");
+                tools.Items.Add(MenuItem("Back 10 seconds", "LibraryMenuBookBack10",
+                    () => Run(CommandCatalog.JumpBackShort)));
+                tools.Items.Add(MenuItem("Forward 10 seconds", "LibraryMenuBookForward10",
+                    () => Run(CommandCatalog.JumpForwardShort)));
+                tools.Items.Add(MenuItem("Back 1 minute", "LibraryMenuBookBackMinute",
+                    () => Run(CommandCatalog.JumpBackMedium)));
+                tools.Items.Add(MenuItem("Forward 1 minute", "LibraryMenuBookForwardMinute",
+                    () => Run(CommandCatalog.JumpForwardMedium)));
+                tools.Items.Add(MenuItem("Bookmark this position", "LibraryMenuBookBookmark",
+                    () => Run(CommandCatalog.AddBookmark)));
+                tools.Items.Add(MenuItem("Sleep in 15 minutes", "LibraryMenuBookSleep15",
+                    () => Run(CommandCatalog.SleepPrefix + "15")));
+                tools.Items.Add(MenuItem("Sleep at the end of this part", "LibraryMenuBookSleepEnd",
+                    () => Run(CommandCatalog.SleepAtEndOfItem)));
+                menu.Items.Add(tools);
+            }
         }
 
         if (_librarySource == LibrarySource.Podcasts && (chosen is [{ Item: LibraryGroup show }] ? show : _libraryGroup) is { Entries.Count: > 0 } chosenShow)
@@ -58,6 +90,23 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () => Play(ListeningViews.UnplayedInOrder(chosenShow, _player.LeftAt), 0)));
             menu.Items.Add(MenuItem("Mark all played", "LibraryMenuMarkAllPlayed", () => MarkListened([.. chosenShow.Entries.Select(episode => episode.Path)])));
         }
+    }
+
+    /// <summary>Only a book, not the parent author, may receive book completion and playback actions.</summary>
+    private LibraryGroup? BookForListeningMenu(IReadOnlyList<LibraryRow> chosen)
+    {
+        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        {
+            return null;
+        }
+
+        if (_librarySource is not (LibrarySource.Authors or LibrarySource.Audiobooks))
+        {
+            return null;
+        }
+
+        return chosen is [{ Item: LibraryGroup book }] ? book
+            : _librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup;
     }
 
     /// <summary>Keeps the person's move over the rules; the sidebar follows at once, and the view keeps its place.</summary>
