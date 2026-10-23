@@ -15,8 +15,10 @@ namespace Rex.Media.App.Tests;
 /// <para>
 /// Every shot is written to artifacts/screenshots/&lt;lane&gt;/actual/&lt;name&gt;.png, which CI keeps as
 /// the "screenshots" artefact. A new or changed baseline is made by copying CI's actual picture to
-/// tests/screenshot-baselines/ci-windows/&lt;name&gt;.png (or, on that runner, by running with
-/// REXPLAYER_WRITE_SCREENSHOTS=1), never from a local capture. A shot with no baseline yet passes
+/// tests/screenshot-baselines/ci-windows/&lt;name&gt;.png. Existing committed baselines may
+/// only be overwritten with both REXPLAYER_WRITE_SCREENSHOTS=1 and
+/// REXPLAYER_VISUAL_APPROVAL_CONFIRMED=1 on the CI lane after inspecting the actual image.
+/// A shot with no baseline yet passes
 /// and says so. A mismatch fails and leaves the actual picture and a diff (changed pixels in red
 /// over a faded copy of the baseline) beside it.
 /// </para>
