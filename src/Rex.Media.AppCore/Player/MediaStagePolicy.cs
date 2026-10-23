@@ -113,12 +113,13 @@ public static class MediaStagePolicy
         var audio = profile is MediaStageProfile.Song or MediaStageProfile.Audiobook
             or MediaStageProfile.Podcast or MediaStageProfile.Recording or MediaStageProfile.Sound or MediaStageProfile.Audio;
         var video = profile is MediaStageProfile.Video or MediaStageProfile.Movie or MediaStageProfile.Television;
+        var readyAudio = audio && context.StreamsKnown && context.HasAudioTrack;
         return new MediaStageView(
             profile,
             label,
-            audio && context.StreamsKnown && context.HasAudioTrack,
-            profile == MediaStageProfile.Song && context.HasLyrics,
-            profile is MediaStageProfile.Audiobook or MediaStageProfile.Podcast && context.HasChapters,
+            readyAudio,
+            profile == MediaStageProfile.Song && readyAudio && context.HasLyrics,
+            (profile is MediaStageProfile.Audiobook or MediaStageProfile.Podcast) && readyAudio && context.HasChapters,
             profile == MediaStageProfile.Television,
             profile == MediaStageProfile.Picture,
             context.StreamsKnown && context.CanSeek && (audio || video));
