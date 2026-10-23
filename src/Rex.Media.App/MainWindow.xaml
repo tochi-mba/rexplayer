@@ -272,6 +272,10 @@
         </Grid>
         <!-- Before anything plays, a hint; while music plays, its picture and details (AU-19). -->
         <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" ColumnSpacing="32" Margin="32" AutomationProperties.AutomationId="Idle">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
@@ -773,6 +777,7 @@
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
@@ -864,9 +869,11 @@
 
       <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
+        <!-- Keep every transport command keyboard/touch reachable instead of clipping it in narrow windows. -->
+        <ScrollViewer x:Name="TransportScroller" Grid.Column="0" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled">
         <StackPanel Orientation="Horizontal" Spacing="4">
           <Button x:Name="MinimalInterfaceButton" Visibility="Collapsed" Click="OnRestoreFullInterface"
                   AutomationProperties.AutomationId="MinimalInterfaceButton" AutomationProperties.Name="Restore full interface"
@@ -902,6 +909,7 @@
             <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
           </Button>
         </StackPanel>
+        </ScrollViewer>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" MaxWidth="480" HorizontalAlignment="Stretch">
           <TextBlock x:Name="NowPlaying" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                      AutomationProperties.AutomationId="NowPlaying" />
@@ -911,7 +919,7 @@
         </StackPanel>
       </Grid>
 
-      <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
+      <StackPanel x:Name="AudioControlStrip" Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
         <!-- Updates (TOOL-09): a quiet indicator while a download runs in the background or an update
              waits; it opens the update panel with the live state. -->
         <Button x:Name="UpdateIndicator" Visibility="Collapsed" VerticalAlignment="Center" Padding="7,5"
