@@ -75,6 +75,11 @@ internal static class Screenshots
         // captures. This lets reviewers diagnose missing compositor surfaces.
         WriteCaptureMetadata(scene, picture, automationId, pixelThreshold, maxDifferingRatio);
         Save(Path.Combine(Output, "actual", name + ".png"), picture);
+        if (automationId is not null)
+        {
+            Save(Path.Combine(Output, "crop", name + ".png"), picture);
+        }
+
         Assert.True(HasVisibleVariation(picture),
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
         if (scene.CaptureMode == "desktop")
@@ -213,6 +218,11 @@ internal static class Screenshots
             return;
         }
 
+        // Include the committed baseline alongside actual and diff in CI's review
+        // artifact so inspection never depends on a separate repository checkout.
+        var baselineCopy = Path.Combine(Output, "baseline", name + ".png");
+        Directory.CreateDirectory(Path.GetDirectoryName(baselineCopy)!);
+        File.Copy(baseline, baselineCopy, overwrite: true);
         var expected = Load(baseline);
         Assert.True(expected.Width == picture.Width && Math.Abs(expected.Height - picture.Height) <= maxViewportHeightChange,
             $"Screenshot {name} is {picture.Width}x{picture.Height}, its baseline {expected.Width}x{expected.Height}. The picture is in {actual}.");
