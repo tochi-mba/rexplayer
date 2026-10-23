@@ -26,6 +26,10 @@ public sealed partial class MainWindow
     private NSButton? _libraryRescanButton;
     private NSButton? _libraryBackButton;
     private readonly List<NSView> _libraryResultKeyViews = [];
+    private IReadOnlyList<LibraryEntry> _libraryCurrentSelection = [];
+    private IReadOnlyList<LibraryEntry> _libraryRenderedEntries = [];
+    private int _libraryRenderedPage = -1;
+    private string? _libraryRenderedEmptyLabel;
     private int _libraryPageIndex;
     private const int LibraryPageSize = 80;
     private bool _closingLibrary;
@@ -275,71 +279,84 @@ public sealed partial class MainWindow
             _libraryNextPage.Enabled = _libraryPageIndex < lastPage;
             _libraryPageSummary.StringValue = $"Page {_libraryPageIndex + 1} of {lastPage + 1}";
         }
-        var views = new List<NSView>();
-        _libraryFirstPlay = null;
-        _libraryFirstQueue = null;
-        _libraryResultKeyViews.Clear();
-        if (shown.Count == 0)
+        _libraryCurrentSelection = entries;
+        var emptyLabel = shown.Count == 0
+            ? all.Count == 0 ? "No media yet. Add a music, video or picture folder to get started."
+                : "Nothing matches this view. Try another category or search."
+            : null;
+        // Scanner progress and unrelated catalogue changes should not destroy focused
+        // native buttons or reset scrolling when this page still contains the same rows.
+        if (_libraryRenderedPage != _libraryPageIndex ||
+            _libraryRenderedEmptyLabel != emptyLabel ||
+            !_libraryRenderedEntries.SequenceEqual(shown))
         {
-            var hint = NSTextField.CreateLabel(all.Count == 0
-                ? "No media yet. Add a music, video or picture folder to get started."
-                : "Nothing matches this view. Try another category or search.");
-            hint.TextColor = NSColor.SecondaryLabel;
-            views.Add(hint);
-        }
-
-        foreach (var entry in shown)
-        {
-            var title = entry.Title;
-            var secondary = entry.Artist ?? entry.Album ?? Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "";
-            var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, entries));
-            _libraryFirstPlay ??= play;
-            _libraryResultKeyViews.Add(play);
-            play.ToolTip = entry.Path;
-            ((NSView)play).AccessibilityLabel = "Play " + entry.Title;
-            play.Alignment = NSTextAlignment.Left;
-            play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
-            var detail = NSTextField.CreateLabel(secondary);
-            detail.TextColor = NSColor.SecondaryLabel;
-            detail.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
-            detail.LineBreakMode = NSLineBreakMode.TruncatingTail;
-            var words = NSStackView.FromViews([play, detail]);
-            words.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            words.Alignment = NSLayoutAttribute.Leading;
-            words.Spacing = 2;
-            var queue = NSButton.CreateButton("Queue", () =>
+            _libraryRenderedPage = _libraryPageIndex;
+            _libraryRenderedEmptyLabel = emptyLabel;
+            _libraryRenderedEntries = shown;
+            var views = new List<NSView>();
+            _libraryFirstPlay = null;
+            _libraryFirstQueue = null;
+            _libraryResultKeyViews.Clear();
+            if (shown.Count == 0)
             {
-                _player.EnqueueFromLibrary([entry]);
-                Say("Added to Up Next: " + entry.Title);
-            });
-            _libraryFirstQueue ??= queue;
-            _libraryResultKeyViews.Add(queue);
-            queue.ToolTip = "Add to Up Next without replacing what is playing";
-            ((NSView)queue).AccessibilityLabel = "Queue " + entry.Title;
-            var row = NSStackView.FromViews([words, queue]);
-            row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            row.Spacing = 14;
-            row.WidthAnchor.ConstraintGreaterThanOrEqualTo(490).Active = true;
-            views.Add(row);
+                var hint = NSTextField.CreateLabel(emptyLabel!);
+                hint.TextColor = NSColor.SecondaryLabel;
+                views.Add(hint);
+            }
+    
+            foreach (var entry in shown)
+            {
+                var title = entry.Title;
+                var secondary = entry.Artist ?? entry.Album ?? Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "";
+                var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, _libraryCurrentSelection));
+                _libraryFirstPlay ??= play;
+                _libraryResultKeyViews.Add(play);
+                play.ToolTip = entry.Path;
+                ((NSView)play).AccessibilityLabel = "Play " + entry.Title;
+                play.Alignment = NSTextAlignment.Left;
+                play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
+                var detail = NSTextField.CreateLabel(secondary);
+                detail.TextColor = NSColor.SecondaryLabel;
+                detail.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
+                detail.LineBreakMode = NSLineBreakMode.TruncatingTail;
+                var words = NSStackView.FromViews([play, detail]);
+                words.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+                words.Alignment = NSLayoutAttribute.Leading;
+                words.Spacing = 2;
+                var queue = NSButton.CreateButton("Queue", () =>
+                {
+                    _player.EnqueueFromLibrary([entry]);
+                    Say("Added to Up Next: " + entry.Title);
+                });
+                _libraryFirstQueue ??= queue;
+                _libraryResultKeyViews.Add(queue);
+                queue.ToolTip = "Add to Up Next without replacing what is playing";
+                ((NSView)queue).AccessibilityLabel = "Queue " + entry.Title;
+                var row = NSStackView.FromViews([words, queue]);
+                row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+                row.Spacing = 14;
+                row.WidthAnchor.ConstraintGreaterThanOrEqualTo(490).Active = true;
+                views.Add(row);
+            }
+    
+            // AppKit views use bottom-left coordinates by default. A flipped document and
+            // top-anchored stack keep the first result and empty state at the top of the list.
+            var document = new TopAlignedLibraryDocument
+            {
+                Frame = new CGRect(0, 0, Math.Max(510, _libraryScroll.ContentSize.Width), Math.Max(340, shown.Count * 59 + 35)),
+            };
+            var content = NSStackView.FromViews([.. views]);
+            content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+            content.Alignment = NSLayoutAttribute.Leading;
+            content.Spacing = 9;
+            content.TranslatesAutoresizingMaskIntoConstraints = false;
+            document.AddSubview(content);
+            content.TopAnchor.ConstraintEqualTo(document.TopAnchor, 12).Active = true;
+            content.LeadingAnchor.ConstraintEqualTo(document.LeadingAnchor, 14).Active = true;
+            content.TrailingAnchor.ConstraintLessThanOrEqualTo(document.TrailingAnchor, -12).Active = true;
+            _libraryScroll.DocumentView = document;
+            WireLibraryKeyViews();
         }
-
-        // AppKit views use bottom-left coordinates by default. A flipped document and
-        // top-anchored stack keep the first result and empty state at the top of the list.
-        var document = new TopAlignedLibraryDocument
-        {
-            Frame = new CGRect(0, 0, Math.Max(510, _libraryScroll.ContentSize.Width), Math.Max(340, shown.Count * 59 + 35)),
-        };
-        var content = NSStackView.FromViews([.. views]);
-        content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        content.Alignment = NSLayoutAttribute.Leading;
-        content.Spacing = 9;
-        content.TranslatesAutoresizingMaskIntoConstraints = false;
-        document.AddSubview(content);
-        content.TopAnchor.ConstraintEqualTo(document.TopAnchor, 12).Active = true;
-        content.LeadingAnchor.ConstraintEqualTo(document.LeadingAnchor, 14).Active = true;
-        content.TrailingAnchor.ConstraintLessThanOrEqualTo(document.TrailingAnchor, -12).Active = true;
-        _libraryScroll.DocumentView = document;
-        WireLibraryKeyViews();
         var status = _libraryScanner?.Status;
         _librarySummary.StringValue = (string.IsNullOrEmpty(status) ? "" : status + " • ")
             + $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
