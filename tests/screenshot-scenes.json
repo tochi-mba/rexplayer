@@ -384,8 +384,10 @@
       "theme": "system",
       "expectedAutomationIds": [
         "LibraryPane",
-        "LibraryList",
-        "LibraryTitle"
+        "LibraryTitle",
+        "LibraryEmpty",
+        "LibraryEmptyText",
+        "LibraryEmptyClearFilters"
       ],
       "expectedVisibleData": [
         {
@@ -393,7 +395,7 @@
           "name": "Audiobooks"
         }
       ],
-      "readinessSignal": "uia:LibraryList",
+      "readinessSignal": "uia:LibraryEmpty",
       "owner": "AudiobookPresentationTests",
       "baseline": "ci-windows",
       "captureMode": "window",
