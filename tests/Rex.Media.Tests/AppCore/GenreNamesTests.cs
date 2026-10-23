@@ -61,6 +61,15 @@ public sealed class GenreNamesTests
     }
 
     [Fact]
+    public void SupplementaryScriptGenresKeepTheirIdentityWhenDeduplicated()
+    {
+        // Two distinct Deseret names must not both collapse to the empty key.
+        Assert.Equal(["𐐨𐐩", "𐐪𐐫"], GenreNames.Split("𐐨𐐩;𐐪𐐫"));
+        Assert.Single(GenreNames.Split("𐐨𐐩;𐐀𐐁"));
+        Assert.Equal(["𐐨𐐩", "Jazz"], GenreNames.Split("𐐨𐐩;Jazz"));
+    }
+
+    [Fact]
     public void EachGenreAppearsOnceAndEmptyTagsNameNone()
     {
         Assert.Equal(["Pop", "Dance"], GenreNames.Split("Pop; pop ;Dance;POP"));
