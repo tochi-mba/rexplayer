@@ -468,7 +468,9 @@ public sealed partial class MainWindow
     private string SelectionIdentity(LibraryRow row) => row.Item switch
     {
         LibraryEntry entry => "file:" + entry.Path,
-        LibraryGroup group => "group:" + group.Name + "\n" + (_librarySource == LibrarySource.Albums ? group.Detail : null),
+        LibraryGroup group => "group:" + group.Name + "\n"
+            + (_librarySource is LibrarySource.Albums or LibrarySource.Audiobooks or LibrarySource.Authors ? group.Detail : null)
+            + (_librarySource is LibrarySource.Audiobooks or LibrarySource.Authors ? "\n" + group.Entries.FirstOrDefault()?.Path : ""),
         Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
         _ => "folder:" + row.Item,
     };
