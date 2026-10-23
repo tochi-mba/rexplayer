@@ -58,7 +58,8 @@ test('native screenshot previews open a labeled modal and restore keyboard focus
   const lightbox = page.locator('#shot-lightbox');
   await expect(lightbox).toBeVisible();
   await expect(lightbox.getByRole('img')).toHaveAttribute('alt', /Windows library test scene/);
-  await expect(page.locator('#shot-caption')).toContainText('Windows');
+  await expect(page.locator('#shot-caption')).toContainText('Windows · Movie artwork — Native library regression test');
+  await expect(lightbox.getByRole('button', { name: /Close/ })).toHaveCSS('white-space', 'nowrap');
   await lightbox.getByRole('button', { name: /Close/ }).click();
   await expect(lightbox).not.toBeVisible();
   await expect(previews.first()).toBeFocused();

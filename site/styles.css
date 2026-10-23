@@ -212,7 +212,7 @@ pre code{padding:0;background:none}
 .shot-lightbox{max-width:min(1100px,94vw);max-height:95vh;width:100%;border:1px solid var(--line);padding:16px;background:var(--panel);border-radius:var(--radius-l);color:var(--text);box-shadow:0 40px 100px rgba(0,0,0,.8)}
 .shot-lightbox::backdrop{background:rgba(0,0,0,.82);backdrop-filter:blur(7px)}
 .shot-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px}
-.shot-dialog-head button{cursor:pointer;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--raised);color:var(--text);padding:8px 14px;min-height:44px}
+.shot-dialog-head button{cursor:pointer;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--raised);color:var(--text);padding:8px 14px;min-height:44px;white-space:nowrap;flex-shrink:0}
 .shot-dialog-head button:hover{border-color:var(--muted)}
 .shot-lightbox img{max-width:100%;max-height:calc(95vh - 155px);height:auto;display:block;margin-inline:auto;object-fit:contain}
 .shot-lightbox p{font-size:13px;color:var(--muted);padding-top:12px}

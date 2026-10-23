@@ -152,7 +152,10 @@ export function wireScreenshotGallery(doc) {
       opener = button;
       enlarged.src = preview.currentSrc || preview.src;
       enlarged.alt = preview.alt;
-      caption.textContent = button.closest('figure')?.querySelector('figcaption')?.textContent?.trim() ?? '';
+      const figcaption = button.closest('figure')?.querySelector('figcaption');
+      const heading = figcaption?.querySelector('strong')?.textContent?.trim() ?? '';
+      const description = figcaption?.querySelector('span')?.textContent?.trim() ?? '';
+      caption.textContent = [heading, description].filter(Boolean).join(' — ');
       dialog.showModal();
     });
   });
