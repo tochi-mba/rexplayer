@@ -71,6 +71,7 @@ public sealed partial class MainWindow : IDisposable
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
         _window.ContentView = Layout();
         InitializeLibrary();
+        InitializeQueue();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
         NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
     }
@@ -106,6 +107,7 @@ public sealed partial class MainWindow : IDisposable
             _log.Warning(LogSource, "The settings could not be saved: " + ex.Message);
         }
 
+        CloseQueue();
         CloseLibrary();
         DisposePlaybackTools();
         _player.Dispose();
@@ -209,6 +211,8 @@ public sealed partial class MainWindow : IDisposable
         var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var library = NSButton.CreateButton("Library", ShowLibrary);
         library.ToolTip = "Browse the local media library";
+        var queue = NSButton.CreateButton("Up Next", ShowQueue);
+        queue.ToolTip = "Show and reorder what plays next";
         open.ToolTip = "Open a file (Cmd+O)";
         _playPause.BezelStyle = NSBezelStyle.Rounded;
         _playPause.Font = NSFont.SystemFontOfSize(15, NSFontWeight.Semibold)!;
@@ -216,7 +220,7 @@ public sealed partial class MainWindow : IDisposable
         _playPause.ToolTip = "Play or pause (Space)";
         _seek.ToolTip = "Seek through the current file";
         _volume.ToolTip = "Volume";
-        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, library, _volume]);
+        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, library, queue, _volume]);
         controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         controls.Spacing = 8;
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
@@ -277,6 +281,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => ShowLibrary()));
+        app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
