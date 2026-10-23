@@ -259,7 +259,6 @@ PlayerMemory.cs
 PlayerMetrics.cs
 PlayerSettings.cs
 Playlist.cs
-QueueScrollPolicy.cs
 PlaylistEntry.cs
 PlaylistFiles.cs
 PlaylistPaths.cs
@@ -270,6 +269,7 @@ PictureBorders.cs
 PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs
+QueueScrollPolicy.cs
 Raster.cs
 RateGate.cs
 Rational.cs
