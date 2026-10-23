@@ -107,6 +107,23 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void ARecordingOffersASeparateKeyboardReachableWaveformReview()
+    {
+        _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromSeconds(5));
+        using var app = _scene.Ready().Start();
+        app.Visit("Recordings");
+        Wait.For(() => app.Lines().Contains("Recording 001"), "the local recording to be listed");
+        Pointer.RightClick(app, app.Line("Recording 001"));
+        Wait.For(() => app.IsShown("LibraryMenuWaveform"), "the waveform review menu action");
+        app.Press("LibraryMenuWaveform");
+        Wait.For(() => app.IsShown("RecordingWaveformStatus")
+            && app.IsShown("RecordingWaveformZoom"), "waveform status and accessible zoom");
+        Assert.Contains("waveform", app.Text("RecordingWaveformStatus"), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ABookWithAnExactCatalogueMatchHasACreditedSynopsis()
     {
         _scene.Audio(Path.Combine("Audiobooks", "The Hobbit", "Part 1.wav"), TimeSpan.FromMinutes(50),
