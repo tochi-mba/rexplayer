@@ -21,7 +21,7 @@
       "readinessSignal": "uia:IdleTitle",
       "owner": "AppWindowTests.Screenshots",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "empty-window-dark",
@@ -42,7 +42,7 @@
       "readinessSignal": "uia:IdleTitle",
       "owner": "AppWindowTests.Screenshots",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-normal",
@@ -149,7 +149,7 @@
       "readinessSignal": "uia:PlayPauseButton",
       "owner": "AppWindowTests.Screenshots",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "experience-welcome",
@@ -166,7 +166,7 @@
       "readinessSignal": "uia:WelcomeLibrary",
       "owner": "PlayerExperienceTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "experience-library-wide-light",
@@ -188,7 +188,7 @@
       "readinessSignal": "uia:LibrarySearch",
       "owner": "PlayerExperienceTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "experience-search-light",
@@ -204,7 +204,7 @@
       "readinessSignal": "uia:LibraryEmptyClearSearch",
       "owner": "PlayerExperienceTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "experience-library-light",
@@ -226,7 +226,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "PlayerExperienceTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "experience-library-wide-dark",
@@ -248,7 +248,7 @@
       "readinessSignal": "uia:LibrarySearch",
       "owner": "PlayerExperienceTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "experience-search-dark",
@@ -264,7 +264,7 @@
       "readinessSignal": "uia:LibraryEmptyClearSearch",
       "owner": "PlayerExperienceTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "experience-library-dark",
@@ -286,7 +286,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "PlayerExperienceTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-show-page-collage",
@@ -302,7 +302,7 @@
       "readinessSignal": "uia:LibraryCollage",
       "owner": "LibraryArtworkTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-show-card-made-poster",
@@ -318,7 +318,7 @@
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryArtworkTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "music-home",
@@ -334,7 +334,7 @@
       "readinessSignal": "uia:LibraryHome",
       "owner": "LibraryMusicTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "album-page",
@@ -350,7 +350,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryMusicTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "songs-table",
@@ -371,7 +371,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryMusicTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-tv-browse",
@@ -387,7 +387,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFoldersTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-show-page",
@@ -403,7 +403,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFoldersTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "dialog-open-location",
@@ -451,7 +451,7 @@
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryCardsTests",
       "baseline": "ci-windows",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-episode-still-letterboxed",
@@ -467,7 +467,7 @@
       "readinessSignal": "uia:LibraryList",
       "owner": "LibraryCardsTests",
       "baseline": "ci-windows",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "menu-playback",
@@ -522,7 +522,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryBrowsingTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-empty-filters",
@@ -538,7 +538,7 @@
       "readinessSignal": "uia:LibraryEmptyClearFilters",
       "owner": "LibraryBrowsingTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-card-downloading",
@@ -554,7 +554,7 @@
       "readinessSignal": "uia:LibraryShelfCards-Downloading",
       "owner": "LibraryDownloadsTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-movie-details",
@@ -570,7 +570,7 @@
       "readinessSignal": "uia:LibraryHero",
       "owner": "LibraryDetailsTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-show-header",
@@ -586,7 +586,7 @@
       "readinessSignal": "uia:LibraryHero",
       "owner": "LibraryDetailsTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "preferences-section-playback",
@@ -863,7 +863,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-songs-single",
@@ -885,7 +885,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-home-mixed",
@@ -907,7 +907,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-home-mixed-compact",
@@ -929,7 +929,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     },
     {
       "id": "library-songs-unicode-rtl",
@@ -951,7 +951,7 @@
       "readinessSignal": "uia:LibraryPane",
       "owner": "LibraryFixtureVisualTests",
       "baseline": "unreviewed",
-      "captureMode": "window"
+      "captureMode": "desktop"
     }
   ]
 }
