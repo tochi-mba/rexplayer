@@ -29,6 +29,9 @@ internal sealed class AppProcess : IDisposable
 
     public AutomationElement Window { get; }
 
+    /// <summary>The tested app process, for compositor occlusion diagnostics.</summary>
+    public int ProcessId => _process.Id;
+
     /// <summary>The window's handle, for reading what it shows.</summary>
     public nint Handle
     {
