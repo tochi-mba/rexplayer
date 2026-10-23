@@ -241,9 +241,11 @@ public sealed partial class MainWindow
         Grid.SetColumnSpan(AudioControlStrip, narrowControls ? 3 : 1);
         AudioControlStrip.HorizontalAlignment = narrowControls
             ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-        Controls.Padding = narrowControls ? new Thickness(12, 8, 12, 9) : new Thickness(20, 12, 20, 14);
+        var minimalControls = _settings.MinimalInterface && !IsFullScreen;
+        Controls.Padding = minimalControls ? new Thickness(12, 3, 12, 5)
+            : narrowControls ? new Thickness(12, 8, 12, 9) : new Thickness(20, 12, 20, 14);
         Controls.ColumnSpacing = narrowControls ? 6 : 12;
-        Controls.RowSpacing = narrowControls ? 4 : 8;
+        Controls.RowSpacing = minimalControls ? 1 : narrowControls ? 4 : 8;
     }
 
     /// <summary>
@@ -315,6 +317,7 @@ public sealed partial class MainWindow
         }
 
         StageChaptersButton.Visibility = StageChapterMenu.Items.Count > 0
+            && (!_settings.MinimalInterface || IsFullScreen)
             ? Visibility.Visible : Visibility.Collapsed;
     }
 
