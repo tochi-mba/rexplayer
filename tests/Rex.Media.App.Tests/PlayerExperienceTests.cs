@@ -27,8 +27,14 @@ public sealed class PlayerExperienceTests
         using var app = scene.Start();
         app.Visit("Songs");
         var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
-        transform.Resize(1200, 800);
-        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1200) < 2 && app.Find("LibrarySearch").Current.BoundingRectangle.Width > 500, "the wide search field");
+        // GitHub's virtual desktop cannot reliably accommodate a 1200 px-wide window.
+        // Exercise the expanded rail above the 760 px breakpoint at an attainable size,
+        // and require the search field to occupy at least 60% of that window.
+        transform.Resize(1000, 600);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2
+            && app.Find("LibrarySearch").Current.BoundingRectangle.Width > 600,
+            "the wide search field",
+            () => $"Window: {app.Window.Current.BoundingRectangle}; search: {app.Find("LibrarySearch").Current.BoundingRectangle}");
         Screenshots.Match(app, "experience-library-wide-" + theme.ToLowerInvariant());
         transform.Resize(720, 720);
         Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 720) < 2 && app.Find("LibrarySearch").Current.BoundingRectangle.Width > 120, "the compact search field");
