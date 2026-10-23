@@ -25,6 +25,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Contains("North Shore", app.Text("NowPlayingContext"), StringComparison.OrdinalIgnoreCase);
         Assert.False(app.IsShown("Lyrics"));
         Assert.False(app.IsShown("StageChaptersButton"));
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "stage-television");
         Assert.Equal(0, app.Close());
     }
@@ -40,6 +41,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.False(app.IsShown("Lyrics"));
         Assert.False(app.IsShown("Cover"));
         Assert.False(app.IsShown("StageChaptersButton"));
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "stage-video-ended");
         Assert.Equal(0, app.Close());
     }
@@ -76,6 +78,7 @@ public sealed class MediaStageWindowTests : IDisposable
             Assert.False(app.IsShown("Lyrics"), "The previous item's lyrics must not survive.");
             Assert.False(app.IsShown("Cover"), "No image was supplied for this stage.");
             Assert.Equal(hasChapters, app.IsShown("StageChaptersButton"));
+            Screenshots.PinViewport(app, 1000, 700);
             Screenshots.Match(app, shot);
             if (shot != "stage-sound")
             {
@@ -141,6 +144,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.Status().State == "Playing", "the audiobook to start");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
         Wait.For(() => app.Status().State == "Paused", "a stable chaptered audiobook frame");
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "stage-audiobook-chapters");
 
         app.Press("StageChaptersButton");
@@ -208,6 +212,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Contains("could not be played", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.False(app.IsShown("Lyrics"));
         Assert.False(app.IsShown("Cover"));
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "stage-error");
         Assert.Equal(0, app.Close());
     }
@@ -238,6 +243,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.Status().State == "Playing", "the song to start playback");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
         Wait.For(() => app.Status().State == "Paused", "a stable song stage frame");
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "stage-song-windowed");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleLibrary);
@@ -258,6 +264,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.False(app.IsShown("Lyrics"), "The movie stage must not retain song lyrics.");
         Assert.False(app.IsShown("Cover"), "A video must not keep the song cover.");
         Wait.For(() => app.Status().State == "Ended", "a stable final video frame");
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "stage-movie-windowed");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleLibrary);
@@ -267,6 +274,7 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage",
             "the picture stage to discard the old movie context",
             () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
+        Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "stage-picture-windowed");
         Assert.False(app.IsShown("Lyrics"), "Lyrics should not carry over to picture playback.");
         Assert.Contains("Picture view", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);

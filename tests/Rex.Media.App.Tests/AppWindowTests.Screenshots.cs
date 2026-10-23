@@ -256,12 +256,14 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.ToggleFullScreen);
         Wait.For(() => !app.IsShown("Menu"), "the full-screen media stage");
         Assert.Equal("AUDIO playback stage", app.Find("Stage").Current.Name);
-        Screenshots.Match(app, "stage-audio-fullscreen");
-
+        // The runner's full-screen desktop size is OS-dependent. Assert that
+        // live full-screen state, then capture the returned fixed window instead.
         app.Run(CommandCatalog.LeaveFullScreen);
         Wait.For(() => app.IsShown("Menu") && app.IsShown("PlayPauseButton"),
             "the normal window and transport");
         Assert.Equal("Paused", app.Status().State);
+        Screenshots.PinViewport(app, 1000, 700);
+        Screenshots.Match(app, "stage-audio-after-fullscreen");
         Assert.Equal(0, app.Close());
     }
 
