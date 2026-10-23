@@ -189,13 +189,44 @@ public static partial class ListeningViews
         return (book.Name + "\n" + book.Detail).ToUpperInvariant();
     }
 
-    /// <summary>A book's chapters: those its parts mark (an .m4b's chapter atoms), and a part with none is one chapter by itself.</summary>
+    /// <summary>A book's chapters in time order within each part; a part with no markers is one chapter by itself.</summary>
     public static IReadOnlyList<BookChapter> Chapters(LibraryGroup book)
     {
         ArgumentNullException.ThrowIfNull(book);
         return [.. book.Entries.SelectMany(part => part.Chapters is { Count: > 0 } marked
-            ? marked.Select(chapter => new BookChapter(part, chapter.Start, chapter.Title.Length > 0 ? chapter.Title : part.Title))
+            ? marked.OrderBy(chapter => chapter.Start)
+                .Select(chapter => new BookChapter(part, chapter.Start, chapter.Title.Length > 0 ? chapter.Title : part.Title))
             : [new BookChapter(part, TimeSpan.Zero, part.Title)])];
+    }
+
+    /// <summary>
+    /// The single chapter active at a logical book position, or -1 when none can be identified.
+    /// Done once per book page, rather than rescanning every chapter for each displayed row.
+    /// </summary>
+    public static int CurrentChapterIndex(IReadOnlyList<BookChapter> chapters, LibraryGroup book, BookPlace place)
+    {
+        ArgumentNullException.ThrowIfNull(chapters);
+        ArgumentNullException.ThrowIfNull(book);
+        if (place.Part < 0 || place.Part >= book.Entries.Count)
+        {
+            return -1;
+        }
+
+        var path = book.Entries[place.Part].Path;
+        var current = -1;
+        var latestStart = TimeSpan.MinValue;
+        for (var index = 0; index < chapters.Count; index++)
+        {
+            var chapter = chapters[index];
+            if (string.Equals(chapter.Part.Path, path, StringComparison.OrdinalIgnoreCase)
+                && chapter.Start <= place.At && chapter.Start >= latestStart)
+            {
+                current = index;
+                latestStart = chapter.Start;
+            }
+        }
+
+        return current;
     }
 
     /// <summary>Where the book is up to: the part played last, at the point it was left (its start when there is none); the first part for a book never played.</summary>
