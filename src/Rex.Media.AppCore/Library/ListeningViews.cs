@@ -86,6 +86,20 @@ public static partial class ListeningViews
             .ThenBy(book => book.Detail ?? "", ByName)];
     }
 
+    /// <summary>
+    /// Rebind an opened book after scanning or filtering using its file identity, not
+    /// just its title and author: two different editions may share both credits.
+    /// A missing book stays open with an empty chapter list rather than playing another.
+    /// </summary>
+    public static LibraryGroup RefreshBook(IReadOnlyList<LibraryGroup> books, LibraryGroup opened)
+    {
+        ArgumentNullException.ThrowIfNull(books);
+        ArgumentNullException.ThrowIfNull(opened);
+        var paths = opened.Entries.Select(part => part.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return books.FirstOrDefault(book => book.Entries.Any(part => paths.Contains(part.Path)))
+            ?? opened with { Entries = [] };
+    }
+
     public const string UnknownAuthor = "Unknown author";
 
     /// <summary>
@@ -194,8 +208,11 @@ public static partial class ListeningViews
     {
         ArgumentNullException.ThrowIfNull(book);
         return [.. book.Entries.SelectMany(part => part.Chapters is { Count: > 0 } marked
-            ? marked.OrderBy(chapter => chapter.Start)
-                .Select(chapter => new BookChapter(part, chapter.Start, chapter.Title.Length > 0 ? chapter.Title : part.Title))
+            ? marked.Select(chapter => new BookChapter(part,
+                    chapter.Start < TimeSpan.Zero ? TimeSpan.Zero
+                    : part.Duration is { Ticks: > 0 } length && chapter.Start > length ? length : chapter.Start,
+                    string.IsNullOrWhiteSpace(chapter.Title) ? part.Title : chapter.Title))
+                .OrderBy(chapter => chapter.Start)
             : [new BookChapter(part, TimeSpan.Zero, part.Title)])];
     }
 
