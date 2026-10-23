@@ -18,6 +18,28 @@ public sealed class ScreenshotsTests
     }
 
     [Fact]
+    public void AStrayPixelDoesNotMakeABlankCaptureLookRendered()
+    {
+        var picture = Plain(100, 80, 0);
+        picture.Bgra[0] = 255; // Even a corner pixel may be corrupt or contain a cursor.
+        Assert.False(Screenshots.HasVisibleVariation(picture));
+        for (var i = 1; i < 16; i++)
+        {
+            picture.Bgra[i * 4] = 255;
+        }
+
+        Assert.False(Screenshots.HasVisibleVariation(picture));
+    }
+
+    [Fact]
+    public void InvalidCaptureDimensionsOrBufferAreRejected()
+    {
+        Assert.False(Screenshots.HasVisibleVariation((0, 80, [])));
+        Assert.False(Screenshots.HasVisibleVariation((100, 80, new byte[10])));
+        Assert.False(Screenshots.HasVisibleVariation((int.MaxValue, int.MaxValue, [])));
+    }
+
+    [Fact]
     public void ARenderedInterfaceHasEnoughVariationToCapture()
     {
         var picture = Plain(100, 80, 0);
