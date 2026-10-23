@@ -74,6 +74,7 @@ public sealed partial class MainWindow
             };
             _librarySearch.Activated += (_, _) => ChangeLibraryView();
             _librarySearch.ToolTip = "Press Return to search the local library";
+            _librarySearch.AccessibilityLabel = "Search library";
 
             _libraryCategory = new NSPopUpButton(new CGRect(0, 0, 220, 30), false);
             foreach (var name in new[] { "All media", "Music", "Videos", "Pictures", "Recently added", "Recently played" })
@@ -82,6 +83,7 @@ public sealed partial class MainWindow
             }
 
             _libraryCategory.Activated += (_, _) => ChangeLibraryView();
+            _libraryCategory.AccessibilityLabel = "Media category";
             var filters = NSStackView.FromViews([_librarySearch, _libraryCategory]);
             filters.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             filters.Spacing = 12;
@@ -102,12 +104,14 @@ public sealed partial class MainWindow
                 }
             });
             _libraryPreviousPage.ToolTip = "Show the previous library results";
+            _libraryPreviousPage.AccessibilityLabel = "Previous results page";
             _libraryNextPage = NSButton.CreateButton("Next", () =>
             {
                 _libraryPageIndex++;
                 RefreshLibrary();
             });
             _libraryNextPage.ToolTip = "Show the next library results";
+            _libraryNextPage.AccessibilityLabel = "Next results page";
             _libraryPageSummary = NSTextField.CreateLabel("");
             _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
             var pages = NSStackView.FromViews([_libraryPreviousPage, _libraryPageSummary, _libraryNextPage]);
@@ -119,6 +123,7 @@ public sealed partial class MainWindow
                 HasVerticalScroller = true,
             };
             _libraryScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(170).Active = true;
+            _libraryScroll.AccessibilityLabel = "Library results";
 
             var stack = NSStackView.FromViews([headline, description, actions, filters, _librarySummary, pages, _libraryScroll]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
@@ -134,6 +139,7 @@ public sealed partial class MainWindow
 
         RefreshLibrary();
         _libraryWindow.MakeKeyAndOrderFront(null);
+        _libraryWindow.MakeFirstResponder(_librarySearch);
     }
 
     private void AddLibraryFolder()
@@ -235,6 +241,7 @@ public sealed partial class MainWindow
             var secondary = entry.Artist ?? entry.Album ?? Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "";
             var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, entries));
             play.ToolTip = entry.Path;
+            play.AccessibilityLabel = "Play " + entry.Title;
             play.Alignment = NSTextAlignment.Left;
             play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
             var detail = NSTextField.CreateLabel(secondary);
@@ -251,6 +258,7 @@ public sealed partial class MainWindow
                 Say("Added to Up Next: " + entry.Title);
             });
             queue.ToolTip = "Add to Up Next without replacing what is playing";
+            queue.AccessibilityLabel = "Queue " + entry.Title;
             var row = NSStackView.FromViews([words, queue]);
             row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             row.Spacing = 14;
