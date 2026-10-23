@@ -79,6 +79,19 @@ public static partial class ShowPage
             ?? seasons.FirstOrDefault();
     }
 
+    /// <summary>
+    /// Follow the same season through an indexing or metadata refresh, but use
+    /// the newest entries rather than the stale objects that were displayed before
+    /// the change. If the opened season disappeared, choose the next playable one.
+    /// </summary>
+    public static LibraryGroup? RefreshSeason(IReadOnlyList<LibraryGroup> seasons, LibraryGroup? opened, LibraryEntry? nextUp)
+    {
+        ArgumentNullException.ThrowIfNull(seasons);
+        return (opened is null ? null : seasons.FirstOrDefault(season =>
+            string.Equals(season.Name, opened.Name, StringComparison.OrdinalIgnoreCase)))
+            ?? DefaultSeason(seasons, nextUp);
+    }
+
     /// <summary>Keep season zero discoverable in the picker, while grouping those videos as Specials.</summary>
     public static string SeasonPickerLabel(LibraryGroup season)
     {
