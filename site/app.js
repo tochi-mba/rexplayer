@@ -135,9 +135,38 @@ export function wireCopyButtons(doc, clipboard, schedule) {
   }));
 }
 
+export function wireScreenshotGallery(doc) {
+  const dialog = doc.getElementById('shot-lightbox');
+  const enlarged = doc.getElementById('shot-enlarged');
+  const caption = doc.getElementById('shot-caption');
+  const close = doc.getElementById('shot-close');
+  if (!dialog || !enlarged || !caption || !close) return;
+  let opener = null;
+  doc.querySelectorAll('.shot-open').forEach(button => {
+    button.addEventListener('click', () => {
+      const preview = button.querySelector('img');
+      if (!preview) return;
+      opener = button;
+      enlarged.src = preview.currentSrc || preview.src;
+      enlarged.alt = preview.alt;
+      caption.textContent = button.closest('figure')?.querySelector('figcaption')?.textContent?.trim() ?? '';
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+    });
+  });
+  close.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', event => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.addEventListener('close', () => {
+    enlarged.removeAttribute('src');
+    opener?.focus();
+  });
+}
+
 export async function start(doc = globalThis.document, win = globalThis) {
   if (!doc) return;
   wireMenu(doc);
+  wireScreenshotGallery(doc);
   wireCopyButtons(doc, win.navigator?.clipboard ?? { writeText: () => Promise.reject(new Error('no clipboard')) }, win.setTimeout?.bind(win) ?? (() => {}));
   const year = doc.getElementById('year');
   if (year) year.textContent = String(new Date().getFullYear());
