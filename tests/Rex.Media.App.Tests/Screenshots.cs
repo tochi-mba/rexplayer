@@ -49,63 +49,90 @@ internal static class Screenshots
         int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
     {
         var scene = ScreenshotScenes.Find(name);
-        // Wait on real UI Automation state, not on a time delay or a frame that happened
-        // to look populated. The manifest's visible data also guards against stale routes.
-        Wait.For(() =>
+        // WinUI exposes UIA elements before they have been painted. Require the
+        // scene's semantic contract first, then independently inspect pixels.
+        var ready = Wait.Within(AppProcess.Patience, () =>
             scene.ExpectedAutomationIds.All(app.IsShown) &&
             scene.ExpectedVisibleData.All(item =>
-                app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name),
-            $"the {name} scene to be ready");
+                app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name));
+        if (!ready)
+        {
+            // A missing UIA witness is still a useful screenshot failure, not an
+            // excuse to omit the screenshot and the application's diagnostic log.
+            try
+            {
+                var failedFrame = scene.CaptureMode == "desktop"
+                    ? WindowPicture.TakeDesktop(app.Handle)
+                    : WindowPicture.Take(app.Handle);
+                WriteCaptureMetadata(scene, app, failedFrame, automationId, pixelThreshold,
+                    maxDifferingRatio, false, false, false);
+                Save(Path.Combine(Output, "actual", name + ".png"), failedFrame);
+            }
+            catch (Exception error) when (error is not Xunit.Sdk.XunitException)
+            {
+                Directory.CreateDirectory(Path.Combine(Output, "actual"));
+                File.WriteAllText(Path.Combine(Output, "actual", name + ".capture-error.txt"), error.ToString());
+            }
 
-        // UIA can expose an element before the desktop compositor has presented it.
-        // Poll the *actual pixels*, not a fixed sleep or UIA-only readiness condition.
-        // Keep the last failed frame so CI can still inspect a missing popup on timeout.
+            Assert.Fail($"Screenshot {name} never reached its declared UI Automation readiness state. See its captured evidence.");
+        }
+
+        // A text label, playback button or list pane can be visually uniform
+        // while the surrounding scene genuinely renders. Only the actual
+        // compositor-backed dialogs and menus need a varied control crop.
+        var needsPixelWitness = scene.CaptureMode == "desktop" &&
+            (scene.Route.StartsWith("settings/", StringComparison.Ordinal) ||
+                scene.Route.StartsWith("dialog/", StringComparison.Ordinal) ||
+                scene.Route.StartsWith("menu/", StringComparison.Ordinal));
         (int Width, int Height, byte[] Bgra) picture = default;
         (int Width, int Height, byte[] Bgra) witness = default;
-        _ = Wait.Within(TimeSpan.FromSeconds(5), () =>
+        var rendered = Wait.Within(TimeSpan.FromSeconds(5), () =>
         {
-            // WinUI menus and dialogs are compositor-backed popups. A PrintWindow
-            // of the host HWND can omit them even while UIA reports the control.
             var captured = scene.CaptureMode == "desktop"
                 ? WindowPicture.TakeDesktop(app.Handle)
                 : WindowPicture.Take(app.Handle);
             var bounds = WindowPicture.Bounds(app.Handle);
-            witness = scene.CaptureMode == "desktop"
-                ? Crop(captured, bounds, app.Find(scene.ReadinessId).Current.BoundingRectangle)
-                : captured;
+            if (needsPixelWitness)
+            {
+                witness = Crop(captured, bounds, app.Find(scene.ReadinessId).Current.BoundingRectangle);
+            }
+
             picture = automationId is null
                 ? captured
                 : Crop(captured, bounds, app.Find(automationId).Current.BoundingRectangle);
             return HasVisibleVariation(picture) &&
-                (scene.CaptureMode != "desktop" || HasVisibleVariation(witness));
+                (!needsPixelWitness || HasVisibleVariation(witness));
         });
 
-        // Persist the actual capture before validation, including failed blank/popup
-        // captures. This lets reviewers diagnose missing compositor surfaces.
-        WriteCaptureMetadata(scene, picture, automationId, pixelThreshold, maxDifferingRatio);
+        // Persist artifacts *before* any screenshot assertion, including failed
+        // readiness, missing popups, occlusion and mismatched committed baselines.
+        WriteCaptureMetadata(scene, app, picture, automationId, pixelThreshold,
+            maxDifferingRatio, true, rendered, needsPixelWitness && HasVisibleVariation(witness));
         Save(Path.Combine(Output, "actual", name + ".png"), picture);
         if (automationId is not null)
         {
             Save(Path.Combine(Output, "crop", name + ".png"), picture);
         }
 
+        Assert.True(WindowPicture.IsFullyOnDesktop(app.Handle),
+            $"Screenshot {name} extends beyond the visible desktop. Black offscreen pixels must never become evidence.");
         Assert.True(HasVisibleVariation(picture),
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
-        if (scene.CaptureMode == "desktop")
-        {
-            Assert.True(HasVisibleVariation(witness),
-                $"Screenshot {name} does not visibly render the expected popup control {scene.ReadinessId}, despite UI Automation reporting it. See its actual capture.");
-        }
+        Assert.True(!needsPixelWitness || HasVisibleVariation(witness),
+            $"Screenshot {name} does not visibly render the expected popup control {scene.ReadinessId}, despite UI Automation reporting it. See its actual capture.");
+        Assert.True(rendered, $"Screenshot {name} did not render the declared image and pixel witness before the deadline.");
 
         Compare(name, picture, pixelThreshold, maxDifferingRatio, maxViewportHeightChange);
     }
 
-    private static void WriteCaptureMetadata(ScreenshotScenes.ScreenshotScene scene,
+    private static void WriteCaptureMetadata(ScreenshotScenes.ScreenshotScene scene, AppProcess app,
         (int Width, int Height, byte[] Bgra) picture, string? automationId,
-        int pixelThreshold, double maxDifferingRatio)
+        int pixelThreshold, double maxDifferingRatio, bool ready, bool rendered, bool witnessVaried)
     {
         var dir = Path.Combine(Output, "actual");
         Directory.CreateDirectory(dir);
+        var desktop = WindowPicture.DesktopBounds;
+        var window = WindowPicture.Bounds(app.Handle);
         var details = new
         {
             sceneId = scene.Id,
@@ -116,9 +143,17 @@ internal static class Screenshots
             captureMode = scene.CaptureMode,
             declaredDimensions = scene.Dimensions,
             actualDimensions = new { width = picture.Width, height = picture.Height },
+            desktopBounds = new { desktop.Left, desktop.Top, desktop.Width, desktop.Height },
+            windowBounds = new { window.Left, window.Top, window.Width, window.Height },
+            fullyOnDesktop = WindowPicture.IsFullyOnDesktop(app.Handle),
             cropAutomationId = automationId,
             readiness = scene.ReadinessSignal,
+            readinessAchieved = ready,
+            pixelReadinessAchieved = rendered,
+            witnessVisiblyVaried = witnessVaried,
             expectedAutomationIds = scene.ExpectedAutomationIds,
+            observedAutomationIds = scene.ExpectedAutomationIds.Select(id =>
+                new { automationId = id, shown = app.IsShown(id) }).ToArray(),
             expectedVisibleData = scene.ExpectedVisibleData,
             owner = scene.Owner,
             baselineReviewState = scene.Baseline,
@@ -130,6 +165,7 @@ internal static class Screenshots
         };
         File.WriteAllText(Path.Combine(dir, scene.Id + ".json"),
             JsonSerializer.Serialize(details, MetadataJsonOptions));
+        File.WriteAllText(Path.Combine(dir, scene.Id + ".log"), app.LogText);
     }
 
     /// <summary>
