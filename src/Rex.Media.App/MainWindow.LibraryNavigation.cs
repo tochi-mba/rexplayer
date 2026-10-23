@@ -9,6 +9,7 @@ public sealed partial class MainWindow
     // A narrow window starts with an icon rail. Its temporary expansion never overwrites
     // the person's saved preference for wider windows, even when that preference is collapsed.
     private bool _libraryNavigationExpandedWhileNarrow;
+    private bool? _libraryNavigationIsCompact;
 
     private bool LibraryNavigationIsNarrow => LibraryPane.ActualWidth > 0 && LibraryPane.ActualWidth < 760;
 
@@ -45,9 +46,17 @@ public sealed partial class MainWindow
 
         var compact = narrow ? !_libraryNavigationExpandedWhileNarrow : _settings.LibraryNavigationCollapsed;
         LibraryNavigationColumn.Width = new GridLength(compact ? 64 : 200);
-        LibraryNavigationToggleIcon.Glyph = compact ? "\uE76C" : "\uE76B";
+        LibraryNavigationToggle.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Right;
+        LibraryNavigationToggle.Margin = compact ? new Thickness(0, 8, 0, 0) : new Thickness(8, 8, 8, 0);
+        LibraryNavigationToggleIcon.Glyph = compact ? "\uE8A0" : "\uE89F";
         var action = compact ? "Expand library navigation" : "Collapse library navigation";
         ToolTipService.SetToolTip(LibraryNavigationToggle, action);
         AutomationProperties.SetName(LibraryNavigationToggle, action);
+
+        if (_libraryNavigationIsCompact != compact)
+        {
+            LibrarySources.ItemTemplate = (DataTemplate)Root.Resources[compact ? "LibrarySourceCompactTemplate" : "LibrarySourceTemplate"];
+            _libraryNavigationIsCompact = compact;
+        }
     }
 }

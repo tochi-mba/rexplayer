@@ -72,6 +72,14 @@
         <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" />
       </Grid>
     </DataTemplate>
+    <!-- The compact navigation is a real icon rail rather than a narrow crop of the full
+         template. Its accessible name and tooltip retain the label without painting text. -->
+    <DataTemplate x:Key="LibrarySourceCompactTemplate" x:DataType="local:LibrarySourceItem">
+      <Grid Width="40" Height="40" HorizontalAlignment="Center" VerticalAlignment="Center"
+            AutomationProperties.Name="{x:Bind Name}" ToolTipService.ToolTip="{x:Bind Name}">
+        <FontIcon Glyph="{x:Bind Glyph}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Grid>
+    </DataTemplate>
     <!-- One full-width, keyboard-operable group header; the chevron, heading and total all click. -->
     <DataTemplate x:Key="LibraryGroupHeaderTemplate" x:DataType="local:LibraryRowGroup">
       <Button Tag="{Binding}" Click="OnLibraryGroupToggle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
@@ -416,10 +424,11 @@
 
         <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" HorizontalAlignment="Right"
+          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" Padding="0" CornerRadius="10"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Click="OnLibraryNavigationToggle" ToolTipService.ToolTip="Collapse library navigation"
                   AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
-            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
+            <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE89F;" FontSize="16" />
           </Button>
           <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8" Background="Transparent"
                     ItemTemplate="{StaticResource LibrarySourceTemplate}"
