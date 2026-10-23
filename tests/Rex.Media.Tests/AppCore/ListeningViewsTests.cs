@@ -336,6 +336,10 @@ public sealed class ListeningViewsTests
             new BookPlace(0, TimeSpan.FromHours(99))));
         Assert.Equal(TimeSpan.FromMinutes(150), ListeningViews.Remaining(book,
             new BookPlace(-1, TimeSpan.FromMinutes(-10))));
+        Assert.Equal(TimeSpan.FromMinutes(150), ListeningViews.Remaining(book,
+            new BookPlace(-1, TimeSpan.FromMinutes(25))));
+        Assert.Equal(0, ListeningViews.Progress(book,
+            new BookPlace(-1, TimeSpan.FromMinutes(25))));
         Assert.Equal(TimeSpan.Zero, ListeningViews.Remaining(book, new BookPlace(2, TimeSpan.Zero)));
         Assert.Equal(TimeSpan.Zero, ListeningViews.Remaining(book, new BookPlace(99, TimeSpan.Zero)));
         Assert.Null(ListeningViews.Remaining(new LibraryGroup("Empty", null, []), default));
