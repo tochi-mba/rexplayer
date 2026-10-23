@@ -135,7 +135,13 @@ public sealed partial class MainWindow
 
         Say(finished ? $"{book.Name} marked as finished" : $"{book.Name} marked as unfinished");
         _shownLibrary = "";
-        ShowLibrary();
+        // A book-only completion change still controls whether the Completed
+        // sidebar view exists; update navigation immediately without waiting
+        // for a physical file scan or player event.
+        if (!UpdateSections(immediate: true))
+        {
+            ShowLibrary();
+        }
     }
 
     /// <summary>Played through: nowhere to go back to, and played at least once.</summary>
