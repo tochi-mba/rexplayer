@@ -84,11 +84,13 @@ public sealed class ScreenshotsTests
     public void EveryCapturedSceneHasAnExplicitUiReadinessContract()
     {
         var scenes = ScreenshotScenes.All;
-        Assert.True(scenes.Count >= 59, "The inventory must cover existing and edge-state captures.");
+        Assert.True(scenes.Count >= 60, "The inventory must cover existing and edge-state captures.");
         Assert.Contains(scenes, scene => scene.Id == "preferences-search-empty");
         Assert.Contains(scenes, scene => scene.Id == "library-episode-still-letterboxed");
         Assert.Contains(scenes, scene => scene.Id == "caption-buffer-loading" && scene.State == "loading");
         Assert.Contains(scenes, scene => scene.Id == "library-incomplete-download-notice");
+        Assert.Contains(scenes, scene => scene.Id == "player-corrupt-file-error"
+            && scene.State == "faulted-with-failure-notice");
         Assert.Contains(scenes, scene => scene.Id == "library-long-title-compact");
         Assert.Contains(scenes, scene => scene.Id == "library-missing-artwork-wide");
         Assert.Contains(scenes, scene => scene.Id == "library-songs-high-dpi"
