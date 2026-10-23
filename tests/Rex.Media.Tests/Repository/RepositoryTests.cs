@@ -24,6 +24,8 @@ public sealed partial class RepositoryTests
         "installer/build.ps1",
         "installer/prepare-upgrade.ps1",
         "installer/update-test.ps1",
+        "scripts/build-screenshot-review.py",
+        "scripts/check-screenshot-repeatability.ps1",
         "scripts/check_site.py",
         "scripts/effect-contact-sheets.ps1",
         "scripts/make-fixtures.ps1",
@@ -39,6 +41,7 @@ public sealed partial class RepositoryTests
         "tests/site/pages.spec.js",
         "tests/site/serve.py",
         "tests/site/test_check_site.py",
+        "tests/site/test_screenshot_review.py",
         "tests/site/test_verify_mac_bundle.py",
         "playwright.config.js",
     ];
