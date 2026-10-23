@@ -259,6 +259,8 @@ PlayerMemory.cs
 PlayerMetrics.cs
 PlayerSettings.cs
 Playlist.cs
+PodcastNotes.cs
+PodcastEpisodeProgress.cs
 PlaylistEntry.cs
 PlaylistFiles.cs
 PlaylistPaths.cs
@@ -274,6 +276,7 @@ RateGate.cs
 Rational.cs
 ReleaseNotes.cs
 RemovalPanel.cs
+RecordingWaveform.cs
 Resampler.cs
 ResonanceScene.cs
 ResumeMarker.cs
@@ -355,6 +358,7 @@ TimeText.cs
 TimeWarpScene.cs
 TrackInfo.cs
 Transcript.cs
+TranscriptSearch.cs
 TranscriptAlignment.cs
 TranscriptCache.cs
 TranscriptEdits.cs

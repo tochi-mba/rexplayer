@@ -36,6 +36,35 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (audio is [{ } sound] && ShelfOf(sound) == AudioShelf.Sounds)
+        {
+            menu.Items.Add(MenuItem("Replay sound", "LibraryMenuReplaySound", () => Play([sound], 0)));
+            menu.Items.Add(MenuItem("Sound controls...", "LibraryMenuSoundControls",
+                () => Forget(ShowSoundControlsAsync(sound))));
+        }
+
+        if (audio is [{ } recording] && ShelfOf(recording) == AudioShelf.Recordings)
+        {
+            menu.Items.Add(MenuItem("Recording details...", "LibraryMenuRecordingDetails",
+                () => Forget(ShowRecordingDetailsAsync(recording))));
+            menu.Items.Add(MenuItem("Review waveform...", "LibraryMenuWaveform",
+                () => Forget(ShowRecordingWaveformAsync(recording))));
+        }
+
+        if (audio is [{ } speech] && ShelfOf(speech) is AudioShelf.Podcasts or AudioShelf.Recordings)
+        {
+            menu.Items.Add(MenuItem("Read saved transcript...", "LibraryMenuReadTranscript",
+                () => Forget(ShowTranscriptReaderAsync(speech.Path))));
+        }
+
+        if (audio is [{ } episode] && ShelfOf(episode) == AudioShelf.Podcasts)
+        {
+            menu.Items.Add(MenuItem("Podcast playback controls...", "LibraryMenuPodcastControls",
+                () => Forget(ShowPodcastControlsAsync(episode))));
+            menu.Items.Add(MenuItem("View local episode notes...", "LibraryMenuPodcastNotes",
+                () => Forget(ShowPodcastNotesAsync(episode))));
+        }
+
         foreach (var (shelf, name) in MoveTargets)
         {
             if (audio.Any(entry => ShelfOf(entry) is var now && now != shelf && !(shelf == AudioShelf.Recordings && now == AudioShelf.Sounds)))
@@ -55,9 +84,85 @@ public sealed partial class MainWindow
 
         if (_librarySource == LibrarySource.Podcasts && (chosen is [{ Item: LibraryGroup show }] ? show : _libraryGroup) is { Entries.Count: > 0 } chosenShow)
         {
-            menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () => Play(ListeningViews.UnplayedInOrder(chosenShow, _player.LeftAt), 0)));
+            menu.Items.Add(MenuItem("Read local show notes...", "LibraryMenuShowNotes",
+                () => Forget(ShowPodcastShowNotesAsync(chosenShow))));
+            menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () => PlayUnplayedEpisodes(chosenShow)));
             menu.Items.Add(MenuItem("Mark all played", "LibraryMenuMarkAllPlayed", () => MarkListened([.. chosenShow.Entries.Select(episode => episode.Path)])));
         }
+    }
+
+    /// <summary>
+    /// Opening an episode from a mixed Home/search shelf queues only available files from
+    /// its show, in the natural oldest-to-newest listening order. Disk probes are off-thread;
+    /// a later click or a route change invalidates the previous pending request.
+    /// </summary>
+    private void PlayPodcastEpisode(LibraryEntry episode)
+    {
+        var show = Listening().Podcasts.FirstOrDefault(candidate =>
+            candidate.Entries.Any(item => LibraryViews.SameLocation(item.Path, episode.Path)));
+        IReadOnlyList<LibraryEntry> candidates = show is null ? [episode] : show.Entries;
+        var source = _librarySource;
+        var opened = _libraryGroup?.Name;
+        var request = Interlocked.Increment(ref _episodeQueueRequest);
+        Forget(Task.Run(() => ListeningViews.AvailableEpisodeQueue(candidates, episode.Path,
+                item => !item.Downloading && item.Problem is null && File.Exists(item.Path)))
+            .ContinueWith(task => OnWindowThread(() =>
+            {
+                if (_closing || request != Volatile.Read(ref _episodeQueueRequest)
+                    || _librarySource != source || _libraryGroup?.Name != opened)
+                {
+                    return;
+                }
+
+                if (!task.IsCompletedSuccessfully)
+                {
+                    Say("The local podcast files could not be checked.");
+                    return;
+                }
+
+                var (playable, index) = task.Result;
+                if (index < 0)
+                {
+                    Say("This episode is missing, incomplete or unavailable locally.");
+                    return;
+                }
+
+                Play(playable, index, resume: true);
+            }), TaskScheduler.Default));
+    }
+
+    private int _episodeQueueRequest;
+
+    /// <summary>
+    /// Check indexed episodes against the local disk away from the window thread: a large show
+    /// or disconnected drive must not freeze its menu. Only this show's available whole files
+    /// enter the queue, and navigating away invalidates the pending playback request.
+    /// </summary>
+    private void PlayUnplayedEpisodes(LibraryGroup show)
+    {
+        var unplayed = ListeningViews.UnplayedInOrder(show, _player.LeftAt);
+        var source = _librarySource;
+        var opened = _libraryGroup?.Name;
+        var request = Interlocked.Increment(ref _episodeQueueRequest);
+        Forget(Task.Run(() => ListeningViews.UnplayedInOrder(
+            new LibraryGroup(show.Name, show.Detail, unplayed), _ => null,
+            episode => File.Exists(episode.Path) && !episode.Downloading && episode.Problem is null))
+            .ContinueWith(task => OnWindowThread(() =>
+            {
+                if (_closing || request != Volatile.Read(ref _episodeQueueRequest)
+                    || _librarySource != source || _libraryGroup?.Name != opened)
+                {
+                    return;
+                }
+
+                if (!task.IsCompletedSuccessfully)
+                {
+                    Say("The local episodes could not be checked. Try again.");
+                    return;
+                }
+
+                Play(task.Result, 0);
+            }), TaskScheduler.Default));
     }
 
     /// <summary>Keeps the person's move over the rules; the sidebar follows at once, and the view keeps its place.</summary>

@@ -382,6 +382,15 @@ public sealed partial class MainWindow
             ShowTitleExtras("", TitleSections.BookSynopsis(MetadataBook(book)), credit: null,
                 trailer: null, poster: false, backdrop: null);
         }
+        else if (search.Length == 0 && _librarySource == LibrarySource.Podcasts
+            && _libraryGroup is { } localPodcast)
+        {
+            ShowTitleExtras(localPodcast.Detail is { Length: > 0 } creator
+                    ? "Artist tag: " + creator + " · Local episodes only"
+                    : "Local episodes only",
+                synopsis: null, credit: null, trailer: null, poster: false, backdrop: null);
+            ShowText(LibraryOverview, PodcastDescription(localPodcast));
+        }
         else if (artistPage)
         {
             var artist = MetadataArtist(title);
@@ -760,7 +769,9 @@ public sealed partial class MainWindow
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
         {
-            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide, id: shelfTitle == DownloadingShelf ? "Downloading" : null));
+            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide,
+                id: shelfTitle == DownloadingShelf ? "Downloading"
+                    : shelfTitle == "Podcast shows" ? "PodcastShows" : null));
         }
 
         if (place is not null)
@@ -872,9 +883,14 @@ public sealed partial class MainWindow
                 _libraryGroup = group;
                 ShowLibraryAtPlace();
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music && ShelfOf(entry) == AudioShelf.Podcasts:
+                // Continue listening and New episodes can mix several local shows in one shelf.
+                // Choosing an episode must not queue every other show's entries beside it.
+                PlayPodcastEpisode(entry);
+                break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);
-                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks or LibrarySource.Podcasts);
+                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks);
                 break;
         }
     }

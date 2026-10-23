@@ -52,6 +52,15 @@ public sealed partial class MainWindow
                 // starts or resumes the film, instead of a title click unexpectedly starting it.
                 OpenMovieDetails(entry);
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music
+                && (ShelfOf(entry) is AudioShelf.Recordings or AudioShelf.Sounds):
+                // A voice note or short effect is a single listening task. Finishing it must
+                // not roll into another recording or sound from the library's mixed list.
+                Play([entry], 0, resume: ShelfOf(entry) == AudioShelf.Recordings);
+                break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music && ShelfOf(entry) == AudioShelf.Podcasts:
+                PlayPodcastEpisode(entry);
+                break;
             case LibraryEntry entry:
                 var view = EntriesOf(_libraryRows);
                 Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
