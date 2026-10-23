@@ -239,6 +239,41 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>
+    /// Makes an existing queued entry the next one to play without duplicating it.
+    /// Unlike a regular move, this also changes the remaining shuffle order.
+    /// </summary>
+    public void QueueNext(int index)
+    {
+        var item = _items[index];
+        if (item == Current)
+        {
+            return;
+        }
+
+        var target = NextIndex;
+        _items.RemoveAt(index);
+        _items.Insert(Math.Clamp(target - (index < target ? 1 : 0), 0, _items.Count), item);
+        if (_shuffle)
+        {
+            var at = _order.IndexOf(item);
+            _order.RemoveAt(at);
+            if (at <= _position)
+            {
+                _position--;
+            }
+
+            _order.Insert(Math.Clamp(_position + 1, 0, _order.Count), item);
+        }
+        else
+        {
+            Unshuffle();
+        }
+
+        _nextCycle = null;
+        Raise();
+    }
+
     /// <summary>Makes the item at <paramref name="index"/> current, as when the user picks it.</summary>
     public PlaylistItem JumpTo(int index)
     {
