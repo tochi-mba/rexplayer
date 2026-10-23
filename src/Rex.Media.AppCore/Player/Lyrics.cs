@@ -14,6 +14,16 @@ public sealed record LyricLine(TimeSpan? At, string Text)
     public IReadOnlyList<LyricWord> Words { get; init; } = [];
 }
 
+/// <summary>How precisely a lyric source actually marks time; no precision is inferred.</summary>
+public enum LyricsDisplayMode
+{
+    None,
+    Plain,
+    LineTimed,
+    WordTimed,
+    MixedTimed,
+}
+
 /// <summary>
 /// A song's lyrics (META-09): timed, from an LRC file ("[01:02.50]words", several times to a line
 /// allowed, with an [offset:...] in milliseconds), or plain, from a tag or an untimed file.
@@ -26,6 +36,22 @@ public sealed partial class Lyrics
     public IReadOnlyList<LyricLine> Lines { get; }
 
     public bool IsTimed => Lines.Count > 0 && Lines[0].At is not null;
+
+    /// <summary>Describe the complete source, including partially word-timed LRC files.</summary>
+    public LyricsDisplayMode DisplayMode
+    {
+        get
+        {
+            if (!IsTimed)
+            {
+                return Lines.Count == 0 ? LyricsDisplayMode.None : LyricsDisplayMode.Plain;
+            }
+
+            var timed = Lines.Count(line => line.Words.Count > 0);
+            return timed == 0 ? LyricsDisplayMode.LineTimed
+                : timed == Lines.Count ? LyricsDisplayMode.WordTimed : LyricsDisplayMode.MixedTimed;
+        }
+    }
 
     /// <summary>Lyrics from text: LRC when any line carries a time, else one line per line of text; null when there is no text.</summary>
     public static Lyrics? Parse(string? text)
