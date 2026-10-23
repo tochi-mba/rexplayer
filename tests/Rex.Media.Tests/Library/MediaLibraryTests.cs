@@ -107,6 +107,42 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void PictureMetadataUpgradeDoesNotRereadAlreadyTaggedMusic()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var music = In("tagged.mp3");
+        var photo = In("photo.png");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(music), File(photo)],
+            path => Path.GetExtension(path) == ".png" ? LibraryKind.Picture : LibraryKind.Music);
+        library.SetDetails(music, Song("Tagged"));
+        library.SetDetails(photo, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo { Id = 0, Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = 640, Height = 480 } }],
+        });
+
+        // Both kinds were read by the previous release, before oriented dimensions.
+        foreach (var (key, json) in store.WithPrefix("entry/").ToList())
+        {
+            store.Set(key, json.Replace("\"TagReading\":4", "\"TagReading\":3", StringComparison.Ordinal));
+        }
+
+        var upgraded = new MediaLibrary(store);
+        Assert.Equal([photo], upgraded.Unprobed.Select(entry => entry.Path));
+        upgraded.SetDetails(photo, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo { Id = 0, Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = 640, Height = 480 } }],
+        });
+        Assert.Empty(upgraded.Unprobed);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AScanAddsNewFilesReadsChangedOnesAgainAndForgetsGoneOnes()
     {
         var time = new ManualTimeProvider(new DateTimeOffset(Monday));

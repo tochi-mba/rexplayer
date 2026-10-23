@@ -180,6 +180,10 @@ public sealed class MediaLibrary
     /// </summary>
     public const int TagReading = 4;
 
+    // Release 3 already captured all music tag fields. Revision 4 adds only picture
+    // dimensions, so do not rescan large music libraries when upgrading.
+    private const int MusicTagReading = 3;
+
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _hidden = new(StringComparer.OrdinalIgnoreCase);
@@ -252,7 +256,7 @@ public sealed class MediaLibrary
         {
             lock (_gate)
             {
-                return [.. _entries.Values.Where(entry => !entry.Probed || ((entry.Kind is LibraryKind.Music or LibraryKind.Picture) && entry.TagReading < TagReading))
+                return [.. _entries.Values.Where(entry => !entry.Probed || (entry.Kind == LibraryKind.Music && entry.TagReading < MusicTagReading) || (entry.Kind == LibraryKind.Picture && entry.TagReading < TagReading))
                     .OrderBy(entry => entry.Probed).ThenBy(entry => entry.Added).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
             }
         }
