@@ -122,6 +122,9 @@ public sealed class MediaStageWindowTests : IDisposable
         var chapters = app.Find("StageChaptersButton");
         Assert.Equal("StageChaptersButton", chapters.Current.AutomationId);
         Assert.Contains("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Wait.For(() => app.Status().State == "Playing", "the audiobook to start");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
+        Wait.For(() => app.Status().State == "Paused", "a stable chaptered audiobook frame");
         Screenshots.Match(app, "stage-audiobook-chapters");
 
         app.Press("StageChaptersButton");
@@ -131,8 +134,8 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Contains("Continuation", second.Current.Name, StringComparison.Ordinal);
         Assert.True(second.Current.IsEnabled, "A proven chapter should offer a working jump.");
         app.Press("StageChapter-1");
-        Wait.For(() => Math.Abs(app.Position - 0.25) < 0.2,
-            "the chapter action to seek the active audiobook to its marked position");
+        Wait.For(() => Math.Abs(app.Position - 3.0) < 0.5,
+            "the chapter action to seek the paused audiobook to its three-second mark");
         Assert.Equal(0, app.Close());
     }
 
