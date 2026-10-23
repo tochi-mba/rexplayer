@@ -296,6 +296,27 @@ public sealed partial class MainWindow
         HideLibrary();
     }
 
+    /// <summary>Capture the native library surface for scripted macOS UI checks.</summary>
+    private void CaptureLibraryScreenshot(string path)
+    {
+        if (_libraryWindow?.IsVisible != true || _libraryWindow.ContentView is not { } content)
+        {
+            throw new InvalidOperationException("Open the library before capturing its screenshot.");
+        }
+
+        content.LayoutSubtreeIfNeeded();
+        using var bitmap = content.BitmapImageRepForCachingDisplayInRect(content.Bounds)
+            ?? throw new InvalidOperationException("AppKit could not capture the library.");
+        content.CacheDisplay(content.Bounds, bitmap);
+        using var png = bitmap.RepresentationUsingTypeProperties(NSBitmapImageFileType.Png)
+            ?? throw new InvalidOperationException("AppKit could not encode the library screenshot.");
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        if (!png.Save(path, true))
+        {
+            throw new IOException("Could not save the library screenshot.");
+        }
+    }
+
     private void CloseLibrary()
     {
         _closingLibrary = true;
