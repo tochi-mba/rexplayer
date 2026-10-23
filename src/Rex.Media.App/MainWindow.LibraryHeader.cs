@@ -114,8 +114,8 @@ public sealed partial class MainWindow
             // than the design minimum, and Back is the first thing otherwise pushed above it.
             LibraryHero.Height = double.NaN;
             LibraryHero.MinHeight = _expandedLibraryHeaderHeight;
-            LibraryHeroContent.Padding = new Thickness(24, 16, 24, 14);
-            LibraryHeroContent.ColumnSpacing = 22;
+            LibraryHeroContent.Padding = new Thickness(28, 24, 28, 22);
+            LibraryHeroContent.ColumnSpacing = 24;
             LibraryHeroArtBox.Visibility = Visibility.Visible;
             LibraryKicker.Visibility = Visibility.Visible;
             LibrarySubtitle.Visibility = Visibility.Visible;

@@ -556,7 +556,7 @@
                 <ColumnDefinition Width="Auto" MaxWidth="180" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-            <TextBox x:Name="LibrarySearch" Grid.Column="0" MinWidth="120" HorizontalAlignment="Stretch" PlaceholderText="Search the library" ToolTipService.ToolTip="Search your library (Ctrl+F)" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
+            <TextBox x:Name="LibrarySearch" Grid.Column="0" MinWidth="120" HorizontalAlignment="Stretch" PlaceholderText="Search the library" ToolTipService.ToolTip="Search by title, artist, album or filename" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
                      AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />            <TextBlock x:Name="LibraryStatus" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus"
                        AutomationProperties.HelpText="Library scan status" AutomationProperties.LiveSetting="Polite" />
