@@ -43,7 +43,14 @@ public sealed partial class Lyrics
             var line = raw.Trim();
             if (OffsetTag().Match(line) is { Success: true } offsetMatch)
             {
-                offset = TimeSpan.FromMilliseconds(int.Parse(offsetMatch.Groups["ms"].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture));
+                // A damaged or extremely large offset tag must not abort loading the lyrics.
+                // Keep the last valid offset rather than treating malformed metadata as text.
+                if (int.TryParse(offsetMatch.Groups["ms"].Value, NumberStyles.AllowLeadingSign,
+                    CultureInfo.InvariantCulture, out var milliseconds))
+                {
+                    offset = TimeSpan.FromMilliseconds(milliseconds);
+                }
+
                 continue;
             }
 
