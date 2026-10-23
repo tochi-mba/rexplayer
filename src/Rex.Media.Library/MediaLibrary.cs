@@ -178,10 +178,9 @@ public sealed class MediaLibrary
     private const string EntryPrefix = "entry/";
 
     /// <summary>
-    /// The version of the tag reading that fills in a song's details. It goes up when a reader starts
-    /// keeping something it used to drop (1: every artist value and the tag's list of artists; 2: the
-    /// chapters and the podcast and audiobook marks), so music read before is read again in the
-    /// background rather than waiting for a rescan.
+    /// The current metadata reader version: 3 adds complete music tags, 4 picture dimensions
+    /// in display orientation, and 5 video dimensions in display orientation. Previously read
+    /// entries are re-probed only when their own media kind gained new fields.
     /// </summary>
     public const int TagReading = 5;
 
