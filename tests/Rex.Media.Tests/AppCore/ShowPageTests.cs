@@ -192,6 +192,9 @@ public sealed class ShowPageTests
         };
         var left = LeftAt("S01E04", TimeSpan.FromMinutes(4));
         var summary = ShowPage.WatchSummary(episodes, left);
+        var grouped = Show(episodes);
+        Assert.Equal("2 seasons · 5 episodes", grouped.Detail);
+        Assert.Equal("4 episodes", LibraryViews.TvSeasons(grouped).Single(s => s.Name == "Season 1").Detail);
         Assert.Equal(new EpisodeWatchSummary(5, 3, 1), summary);
         Assert.False(summary.IsComplete);
         Assert.Equal("Season: 3 of 5 episodes watched · 1 in progress", summary.Describe("Season"));
