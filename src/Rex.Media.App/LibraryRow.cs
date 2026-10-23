@@ -77,6 +77,11 @@ public partial class LibraryRow(
 
     public string AccessibilityName => _isPlaying ? $"{Name}, now playing" : Name;
 
+    /// <summary>Supporting author, chapter, progress and time for screen readers without
+    /// changing the item name used for selection and keyboard navigation.</summary>
+    public string AccessibilityDetails => string.Join(". ",
+        new[] { Detail, Extra }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
     /// <summary>The transcription badge's icon (SUB-20), or empty for none.</summary>
     public string TranscriptGlyph => _transcriptGlyph;
 
