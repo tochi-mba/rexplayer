@@ -136,6 +136,19 @@ public sealed class PresentationTests
 
     [Fact]
     [Capability("META-09")]
+    public void ImpossibleSecondsDoNotBecomeTimedLyrics()
+    {
+        var mixed = Lyrics.Parse("""
+            [00:65.00]malformed
+            [00:01.00]valid
+            """)!;
+        Assert.True(mixed.IsTimed);
+        Assert.Equal("valid", Assert.Single(mixed.Lines).Text);
+        Assert.False(Lyrics.Parse("[00:99]plain text")!.IsTimed);
+    }
+
+    [Fact]
+    [Capability("META-09")]
     public void LongUnicodeAndRtlLinesRetainTheirCharactersAndLastDuplicateWins()
     {
         var words = string.Concat(Enumerable.Repeat("مرحبا 世界 🎵 ", 128)).Trim();
