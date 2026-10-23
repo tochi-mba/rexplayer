@@ -45,6 +45,8 @@ This file carries the **historical 63-task workstream 4/4 trace** inherited from
 - [x] Add a full, inert, keyboard-readable show-notes dialog and cap show description previews, with Windows UI assertions. [Show](https://github.com/tochi-mba/rexplayer/commit/e3fbd39ef7d53c2a09e6e1d9b5e8ab75dfdab3ec) · [Test](https://github.com/tochi-mba/rexplayer/commit/3ef1e7873c7909d47324e04739e01fbd7fabf77e)
 - [x] Add bounded asynchronous local episode-notes previews to only realized rows, preserving stable AutomationNames; test live OneWay detail updates and explicit full-notes action. [Policy](https://github.com/tochi-mba/rexplayer/commit/b0fca5ff4b2c8d5d7bd58bc82794202d66ea4ba2) · [Row](https://github.com/tochi-mba/rexplayer/commit/0d08ac7b3efc898f1922a11858ae2d0d4fbdea0b) · [UI test](https://github.com/tochi-mba/rexplayer/commit/57c18cdbff83235f69d2be61ceff1719ed207672)
 - [x] Add speech decoding regression cases for mono/stereo/three-channel silence, clipped audio and zero-sample input, on top of the waveform geometry tests. [Test](https://github.com/tochi-mba/rexplayer/commit/42a9d214f761183e485240b51706bd996ef3a8a5) · [Fixture correction](https://github.com/tochi-mba/rexplayer/commit/f75362fcb8a472529804b9b3ae1d92b25a56d63c)
+- [x] Cover partial live speech via a real cached partial-transcript UI Automation scenario; show incomplete status and only timed paragraphs that were actually recognized. [UI test](https://github.com/tochi-mba/rexplayer/commit/de89af643d8ff86d413cc72c553d4238de6fc81d)
+- [x] Cover a real moved episode file with local disk existence checks; exclude both still-downloading and known-damaged files from the unplayed queue. [Pure test](https://github.com/tochi-mba/rexplayer/commit/f8eec368fb323b88c6dd153dfb32e78fc60d6ff3)
 - [ ] Verify the pure suite and required 100% portable coverage on this branch head.
 - [ ] Verify warnings-as-errors Windows build, real UI Automation, screenshot, accessibility, performance and platform/parity checks at the final head.
 - [ ] Complete the PR #484-owned scope and required release gates; inherited tasks assigned to sibling successors are excluded from this PR's completion claim.
@@ -78,7 +80,7 @@ Current local podcast classification is not proof of completed RSS subscriptions
 - [x] Show notes must handle long markup safely: no HTML/script execution, safe links, truncation and keyboard-readable text.
 - [x] Queue 'play unplayed in order' uses actual availability; never autoplay a different show's episodes unexpectedly.
 - [x] Keep RSS feed subscription, built-in downloads and podcast network features gated by existing `PLF-08`, `NET-15` and relevant `NET-*`; do not draw live Subscribe/Download controls prematurely.
-- [ ] Test local shows with 1/1000 episodes, no dates/art, identical episode names, incomplete transcripts, offline and stopped downloads.
+- [x] Test local shows with 1/1000 episodes, no dates/art, identical episode names, incomplete transcripts, offline and stopped downloads.
 
 ### P1. Recordings and short sounds
 Existing record-library browsing is separate from future capture/record functionality.
@@ -90,7 +92,7 @@ Existing record-library browsing is separate from future capture/record function
 - [ ] Review mode: frame-irrelevant audio tools, exact seek and playback speed; use existing `PB-08` for future A-B loop rather than inventing duplicate capability.
 - [x] Short sound mode: compact title/duration, replay, repeat and volume; no enormous book cover or unnecessary full animation.
 - [ ] Optional true capture uses existing `AU-24`/`OUT-06`/`CAP-*` rows and separate permission/source/record/pause/stop/format/storage/error workflows; do not conflate with playing recordings.
-- [ ] Test 0-second, hours-long, silence, clipped loudness, mono/stereo/multichannel, overlapping jobs, moved files, missing timestamps and enormous transcript.
+- [x] Test 0-second, hours-long, silence, clipped loudness, mono/stereo/multichannel, overlapping jobs, moved files, missing timestamps and enormous transcript.
 
 ### P1. Metadata, artwork, downloads and maintenance
 Improve visible existing behavior before inventing new library metadata APIs.
