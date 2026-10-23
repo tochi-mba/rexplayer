@@ -218,3 +218,24 @@ pre code{padding:0;background:none}
 .shot-lightbox p{font-size:13px;color:var(--muted);padding-top:12px}
 @media(max-width:760px){.showcase-grid{grid-template-columns:1fr}.shot-open img{height:220px}}
 @media(prefers-reduced-motion:reduce){.shot-open img{transition:none}.shot-open:hover img,.shot-open:focus-visible img{transform:none}}
+
+/* Native Windows UI walkthrough. Without JavaScript the first image remains a plain image link. */
+.site-tour{margin-top:42px;padding:clamp(16px,3vw,28px);border:1px solid var(--line);border-radius:var(--radius-l);background:var(--panel)}
+.tour-intro{max-width:70ch;margin-bottom:20px}
+.tour-intro h3{font-size:clamp(20px,2.4vw,28px);margin-bottom:8px}
+.tour-intro p{color:var(--muted)}
+.tour-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tour-step{border:1px solid var(--line);background:var(--raised);color:var(--text);border-radius:var(--radius-s);min-height:44px;padding:9px 13px;font-weight:650;cursor:pointer}
+.tour-step:hover,.tour-step:focus-visible,.tour-step[aria-pressed="true"]{border-color:var(--signal)}
+.tour-step[aria-pressed="true"]{color:var(--signal)}
+.tour-stage{margin:0;border:1px solid var(--line);border-radius:var(--radius-m);overflow:hidden;background:var(--ink)}
+.tour-stage>a{display:flex;justify-content:center;align-items:center;min-height:180px}
+.tour-stage img{display:block;width:100%;height:clamp(190px,46vw,440px);object-fit:contain}
+.tour-stage figcaption{display:flex;flex-direction:column;gap:4px;padding:12px 16px}
+.tour-stage figcaption span{font-size:13px;color:var(--muted)}
+.tour-actions{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:14px}
+.tour-actions button{min-height:44px;padding:9px 14px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--raised);color:var(--text);cursor:pointer}
+.tour-actions button:hover,.tour-actions button:focus-visible{border-color:var(--signal)}
+.tour-actions p{font-size:13px;color:var(--muted);text-align:center}
+.no-js .tour-steps,.no-js .tour-actions{display:none}
+@media(max-width:420px){.tour-actions{gap:6px}.tour-actions button{padding-inline:10px}.tour-step{flex:1 1 44%}}

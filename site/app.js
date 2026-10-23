@@ -169,10 +169,43 @@ export function wireScreenshotGallery(doc) {
   });
 }
 
+export function wireScreenshotTour(doc) {
+  const steps = [...doc.querySelectorAll('[data-tour-step]')];
+  const image = doc.getElementById('tour-image');
+  const link = doc.getElementById('tour-image-link');
+  const heading = doc.getElementById('tour-title');
+  const description = doc.getElementById('tour-description');
+  const progress = doc.getElementById('tour-progress');
+  const previous = doc.getElementById('tour-previous');
+  const next = doc.getElementById('tour-next');
+  if (!steps.length || !image || !link || !heading || !description || !progress || !previous || !next) return;
+
+  let current = 0;
+  function showStep(index) {
+    current = (index + steps.length) % steps.length;
+    const step = steps[current];
+    image.src = step.dataset.tourSrc;
+    image.alt = step.dataset.tourAlt;
+    link.setAttribute('href', step.dataset.tourSrc);
+    link.setAttribute('aria-label', `Open full-size Windows ${step.dataset.tourTitle} screenshot`);
+    heading.textContent = step.dataset.tourTitle;
+    description.textContent = step.dataset.tourDescription;
+    progress.textContent = `Step ${current + 1} of ${steps.length}`;
+    steps.forEach((button, i) => {
+      button.setAttribute('aria-pressed', String(i === current));
+      button.classList.toggle('is-current', i === current);
+    });
+  }
+  steps.forEach((button, index) => button.addEventListener('click', () => showStep(index)));
+  previous.addEventListener('click', () => showStep(current - 1));
+  next.addEventListener('click', () => showStep(current + 1));
+}
+
 export async function start(doc = globalThis.document, win = globalThis) {
   if (!doc) return;
   wireMenu(doc);
   wireScreenshotGallery(doc);
+  wireScreenshotTour(doc);
   wireCopyButtons(doc, win.navigator?.clipboard ?? { writeText: () => Promise.reject(new Error('no clipboard')) }, win.setTimeout?.bind(win) ?? (() => {}));
   const year = doc.getElementById('year');
   if (year) year.textContent = String(new Date().getFullYear());
