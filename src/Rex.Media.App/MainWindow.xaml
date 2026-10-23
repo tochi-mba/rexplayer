@@ -670,13 +670,17 @@
             <StackPanel x:Name="LibraryShelves" Spacing="22" Padding="24,4,24,24" />
           </ScrollViewer>
 
-          <StackPanel x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="18" MaxWidth="440" Margin="24">
+          <ScrollViewer x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed"
+                        VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+          <StackPanel Spacing="18" MaxWidth="440" Margin="24">
             <Border Width="64" Height="64" CornerRadius="20" Background="{ThemeResource LayerFillColorDefaultBrush}" HorizontalAlignment="Center">
               <FontIcon Glyph="&#xE8F1;" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
             </Border>
             <TextBlock x:Name="LibraryEmptyText" FontSize="16" TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.AutomationId="LibraryEmptyText" />
             <StackPanel x:Name="LibraryFolderButtons" Orientation="Vertical" HorizontalAlignment="Center" Spacing="8" />
           </StackPanel>
+          </ScrollViewer>
         </Grid>
         <!-- Words for what the library cannot do yet (a file still downloading): the player's own messages sit under the open library. -->
         <InfoBar x:Name="LibraryNotice" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16" MaxWidth="560"

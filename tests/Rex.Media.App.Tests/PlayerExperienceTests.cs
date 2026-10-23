@@ -28,10 +28,10 @@ public sealed class PlayerExperienceTests
         app.Visit("Songs");
         var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
         transform.Resize(1200, 800);
-        Wait.For(() => app.Find("LibrarySearch").Current.BoundingRectangle.Width > 500, "the wide search field");
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1200) < 2 && app.Find("LibrarySearch").Current.BoundingRectangle.Width > 500, "the wide search field");
         Screenshots.Match(app, "experience-library-wide-" + theme.ToLowerInvariant());
         transform.Resize(720, 720);
-        Wait.For(() => app.Find("LibrarySearch").Current.BoundingRectangle.Width > 120, "the compact search field");
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 720) < 2 && app.Find("LibrarySearch").Current.BoundingRectangle.Width > 120, "the compact search field");
         var bounds = app.Window.Current.BoundingRectangle;
         var searchBounds = app.Find("LibrarySearch").Current.BoundingRectangle;
         Assert.True(searchBounds.Left >= bounds.Left && searchBounds.Right <= bounds.Right, "Search must fit within the window.");
