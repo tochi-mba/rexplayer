@@ -8,6 +8,35 @@ namespace Rex.Media.Tests.AppCore;
 public sealed class MediaStagePolicyTests
 {
     [Fact]
+    public void StageAutomationNamesAndHelpRemainConsistentAcrossReadinessBoundaries()
+    {
+        var welcome = MediaStagePolicy.Resolve(new MediaStageContext(false));
+        Assert.Equal("Playback stage", welcome.AutomationName);
+        Assert.Contains("cannot be changed", welcome.AutomationHelpText, StringComparison.Ordinal);
+
+        var loading = MediaStagePolicy.Resolve(new MediaStageContext(true));
+        Assert.Equal("OPENING playback stage", loading.AutomationName);
+        Assert.Contains("opening", loading.AutomationHelpText, StringComparison.Ordinal);
+
+        var unsupported = MediaStagePolicy.Resolve(new MediaStageContext(true, StreamsKnown: true));
+        Assert.Equal("UNSUPPORTED MEDIA playback stage", unsupported.AutomationName);
+        Assert.Contains("no playable", unsupported.AutomationHelpText, StringComparison.Ordinal);
+
+        var error = MediaStagePolicy.Resolve(new MediaStageContext(true, HasFailure: true));
+        Assert.Equal("PLAYBACK ERROR playback stage", error.AutomationName);
+        Assert.Contains("could not be played", error.AutomationHelpText, StringComparison.Ordinal);
+
+        var picture = MediaStagePolicy.Resolve(new MediaStageContext(true, IsPicture: true));
+        Assert.Equal("PICTURE playback stage", picture.AutomationName);
+        Assert.Contains("Picture view", picture.AutomationHelpText, StringComparison.Ordinal);
+
+        var seekableAudio = MediaStagePolicy.Resolve(new MediaStageContext(true,
+            StreamsKnown: true, HasAudioTrack: true, CanSeek: true));
+        Assert.Equal("AUDIO playback stage", seekableAudio.AutomationName);
+        Assert.Contains("seek slider", seekableAudio.AutomationHelpText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EmptyOpeningAndUnreadableItemsNeverInventMediaControls()
     {
         var welcome = MediaStagePolicy.Resolve(new MediaStageContext(false));
