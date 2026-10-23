@@ -124,8 +124,9 @@ public sealed class MacAppSmokeTests
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), mediaPath);
         var secondFolder = Path.Combine(root, "watched-next");
         Directory.CreateDirectory(secondFolder);
+        var longVideoName = "another-video-" + new string('x', 155) + ".mp4";
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
-            Path.Combine(secondFolder, "another-video.mp4"));
+            Path.Combine(secondFolder, longVideoName));
 
         var roots = new DataRoots(root);
         var library = new Rex.Media.Library.MediaLibrary(RexStore.Open(roots.LibraryStore));
@@ -214,6 +215,9 @@ public sealed class MacAppSmokeTests
             var newResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "another-video" });
             Assert.True(newResult?.Ok == true && newResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "The scanner did not expose the newly added video: " + (newResult?.Text ?? newResult?.Error ?? "no reply"));
+            var layout = await Ask(pipe, new AutomationRequest { Command = "ui.verify-layout" });
+            Assert.True(layout?.Ok == true, "The very long video title clipped the narrow native results row: " +
+                (layout?.Error ?? "no reply") + LogTail(root));
 
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
