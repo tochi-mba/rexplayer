@@ -83,7 +83,16 @@ public sealed partial class MainWindow
             stack.Spacing = 8;
             stack.EdgeInsets = new NSEdgeInsets(16, 24, 16, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            _queueWindow.ContentView = stack;
+            // Give the stack a fully constrained content view: assigning an unanchored
+            // translates-mask=false stack directly as ContentView leaves its arranged
+            // header and toolbar outside the visible bounds on some macOS releases.
+            var container = new NSView(new CGRect(0, 0, 660, 560));
+            container.AddSubview(stack);
+            stack.TopAnchor.ConstraintEqualTo(container.TopAnchor).Active = true;
+            stack.BottomAnchor.ConstraintEqualTo(container.BottomAnchor).Active = true;
+            stack.LeadingAnchor.ConstraintEqualTo(container.LeadingAnchor).Active = true;
+            stack.TrailingAnchor.ConstraintEqualTo(container.TrailingAnchor).Active = true;
+            _queueWindow.ContentView = container;
             _queueScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
             _queueWindow.Center();
         }
