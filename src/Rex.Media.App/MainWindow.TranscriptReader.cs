@@ -20,9 +20,14 @@ public sealed partial class MainWindow
     private async Task ShowTranscriptReaderAsync(string? selectedPath = null)
     {
         var media = selectedPath ?? _player.Item?.Location;
-        if (string.IsNullOrWhiteSpace(media) || !File.Exists(media))
+        if (string.IsNullOrWhiteSpace(media) || !await Task.Run(() => File.Exists(media)))
         {
             Say("Select an available local file before reading its transcript.");
+            return;
+        }
+
+        if (_closing)
+        {
             return;
         }
 
