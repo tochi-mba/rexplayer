@@ -40,6 +40,43 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-10")]
+    public void SearchAndAdvancedPreferencesHaveVisualSmokeCaptures()
+    {
+        using var app = AppStartedAt(1000, 760, "Light");
+        app.Run(CommandCatalog.Preferences);
+        var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
+        search.SetValue("Artwork detail (%)");
+        Wait.For(() => !app.Find("PreferencesArtworkDetails").Current.IsOffscreen, "artwork search result");
+        Screenshots.Match(app, "preferences-search-artwork");
+
+        var details = (ExpandCollapsePattern)app.Find("PreferencesArtworkDetails")
+            .GetCurrentPattern(ExpandCollapsePattern.Pattern);
+        details.Expand();
+        Wait.For(() => details.Current.ExpandCollapseState == ExpandCollapseState.Expanded, "advanced artwork options");
+        Screenshots.Match(app, "preferences-advanced-artwork");
+
+        search.SetValue("no matching preference 012345");
+        Wait.For(() => app.IsShown("PreferencesSearchEmpty"), "search empty feedback");
+        Screenshots.Match(app, "preferences-search-empty");
+        app.Press("CloseButton");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-13")]
+    public void PausedPlaybackHasAVisualSmokeCapture()
+    {
+        var film = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+        using var app = AppProcess.Start([film], extraSettings: "\"theme\": \"Light\"");
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video to open");
+        app.Run(CommandCatalog.PlayPause);
+        Wait.For(() => app.IsShown("PlayPauseButton"), "playback controls");
+        Screenshots.Match(app, "playback-paused");
+        Assert.Equal(0, app.Close());
+    }
+
     /// <summary>The app in a fixed theme, its window at a fixed size, so its shots compare run to run.</summary>
     private static AppProcess AppStartedAt(int width, int height, string theme)
     {
