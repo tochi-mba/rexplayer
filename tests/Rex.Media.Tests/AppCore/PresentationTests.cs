@@ -99,12 +99,12 @@ public sealed class PresentationTests
     [Capability("META-09")]
     public void SeekSearchUsesLastDuplicateAndHandlesManyLinesAndNegativeStarts()
     {
-        var builder = new StringBuilder("[offset:+2000]\\n[00:01.00]early\\n");
+        var builder = new StringBuilder("[offset:+2000]\n[00:01.00]early\n");
         for (var second = 2; second < 5000; second++)
         {
             builder.Append('[').Append((second / 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture))
                 .Append(':').Append((second % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture))
-                .Append(".00]line\\n");
+                .Append(".00]line\n");
         }
 
         builder.Append("[01:00.00]duplicate");
