@@ -823,6 +823,27 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Return keyboard focus after modal confirmation and background filesystem operations.</summary>
+    private void FocusLibraryAfterFileAction()
+    {
+        OnWindowThread(DispatcherQueuePriority.Low, () =>
+        {
+            if (_closed || !LibraryOpen)
+            {
+                return;
+            }
+
+            if (LibraryCollage.Visibility == Visibility.Visible)
+            {
+                LibraryCollage.Focus(FocusState.Programmatic);
+            }
+            else
+            {
+                LibraryList.Focus(FocusState.Programmatic);
+            }
+        });
+    }
+
     private async Task RemoveLibraryEntriesAsync(IReadOnlyList<LibraryEntry> entries)
     {
         var paths = entries.Select(entry => entry.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -839,6 +860,8 @@ public sealed partial class MainWindow
             _libraryRemovalUndo = before.Length > 0 ? before : null;
             LibraryUndoRemove.Visibility = _libraryRemovalUndo is null ? Visibility.Collapsed : Visibility.Visible;
         }
+
+        FocusLibraryAfterFileAction();
     }
 
     /// <summary>Undo a library-only removal; never re-add paths no longer available on disk.</summary>
@@ -862,6 +885,8 @@ public sealed partial class MainWindow
         {
             Say("No removed files are available to restore");
         }
+
+        FocusLibraryAfterFileAction();
     }
 
     /// <summary>Moves files through the OS Recycle Bin only, then forgets successful moves.</summary>
@@ -876,6 +901,7 @@ public sealed partial class MainWindow
         var prompt = LibraryActions.DeletePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Move to Recycle Bin", "Cancel"))
         {
+            FocusLibraryAfterFileAction();
             return;
         }
 
@@ -910,6 +936,8 @@ public sealed partial class MainWindow
         {
             Say($"{failed.Count} file(s) could not be moved to the Recycle Bin: " + string.Join("; ", failed.Take(3)));
         }
+
+        FocusLibraryAfterFileAction();
     }
 
     private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => Forget(RemoveChosenFoldersAsync());
