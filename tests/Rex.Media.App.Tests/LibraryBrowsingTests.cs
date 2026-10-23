@@ -71,6 +71,10 @@ public sealed class LibraryBrowsingTests : IDisposable
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 movie", StringComparison.Ordinal), "the one movie");
         app.Visit("All videos");
         Wait.For(() => app.Text("LibrarySubtitle").StartsWith("1 video", StringComparison.Ordinal), "the one video");
+        Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
+                .Cast<AutomationElement>().Any(item => item.Current.Name.Contains("1920 × 1080", StringComparison.Ordinal)),
+            "honest decoded video resolution to appear with its file");
         app.Visit("Pictures");
         app.Line("Lagos");
         Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
