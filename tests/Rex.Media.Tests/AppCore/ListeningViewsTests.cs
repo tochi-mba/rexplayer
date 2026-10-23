@@ -596,6 +596,14 @@ public sealed class ListeningViewsTests
         Assert.Null(store.Get("audiobook-speed/" + oldKey));
         Assert.Null(store.Get("audiobook-finished/" + oldKey));
 
+        // An explicitly saved modern value always wins against a subsequently
+        // discovered legacy value; migration must not silently undo the edit.
+        memory.KeepSpeed(book, 1.25);
+        store.Set("audiobook-speed/" + oldKey, "2.5");
+        memory.MigrateLegacy([book]);
+        Assert.Equal(1.25, memory.Speed(book));
+        Assert.Null(store.Get("audiobook-speed/" + oldKey));
+
         var different = new LibraryGroup("Book", "Ann Writer",
             [part with { Path = "Audiobooks/Ann Writer/Other Edition/01.mp3" }]);
         var uncertain = RexStore.InMemory();
