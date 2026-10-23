@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Rex.Media.TestKit;
@@ -31,6 +32,8 @@ internal static class Screenshots
         ? lane
         : "local-" + Environment.MachineName.ToLowerInvariant();
 
+    private static readonly JsonSerializerOptions MetadataJsonOptions = new() { WriteIndented = true };
+
     private static bool Recording => Environment.GetEnvironmentVariable("REXPLAYER_WRITE_SCREENSHOTS") == "1";
 
     private static string Baselines => RepoPaths.Combine("tests", "screenshot-baselines", Lane);
@@ -45,13 +48,152 @@ internal static class Screenshots
     public static void Match(AppProcess app, string name, string? automationId = null,
         int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
     {
-        var picture = WindowPicture.Take(app.Handle);
+        var scene = ScreenshotScenes.Find(name);
+        // Wait on real UI Automation state, not on a time delay or a frame that happened
+        // to look populated. The manifest's visible data also guards against stale routes.
+        Wait.For(() =>
+            scene.ExpectedAutomationIds.All(app.IsShown) &&
+            scene.ExpectedVisibleData.All(item =>
+                app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name),
+            $"the {name} scene to be ready");
+
+        // WinUI menus and dialogs are compositor-backed popups. A PrintWindow of the
+        // host HWND can omit them even while UIA reports the expected visible control.
+        var picture = scene.CaptureMode == "desktop"
+            ? WindowPicture.TakeDesktop(app.Handle)
+            : WindowPicture.Take(app.Handle);
+        var bounds = WindowPicture.Bounds(app.Handle);
+        var witness = scene.CaptureMode == "desktop"
+            ? Crop(picture, bounds, app.Find(scene.ReadinessId).Current.BoundingRectangle)
+            : picture;
         if (automationId is not null)
         {
-            picture = Crop(picture, WindowPicture.Bounds(app.Handle), app.Find(automationId).Current.BoundingRectangle);
+            picture = Crop(picture, bounds, app.Find(automationId).Current.BoundingRectangle);
+        }
+
+        // Persist the actual capture before validation, including failed blank/popup
+        // captures. This lets reviewers diagnose missing compositor surfaces.
+        WriteCaptureMetadata(scene, picture, automationId, pixelThreshold, maxDifferingRatio);
+        Save(Path.Combine(Output, "actual", name + ".png"), picture);
+        if (automationId is not null)
+        {
+            Save(Path.Combine(Output, "crop", name + ".png"), picture);
+        }
+
+        Assert.True(HasVisibleVariation(picture),
+            $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
+        if (scene.CaptureMode == "desktop")
+        {
+            Assert.True(HasVisibleVariation(witness),
+                $"Screenshot {name} does not visibly render the expected popup control {scene.ReadinessId}, despite UI Automation reporting it. See its actual capture.");
         }
 
         Compare(name, picture, pixelThreshold, maxDifferingRatio, maxViewportHeightChange);
+    }
+
+    private static void WriteCaptureMetadata(ScreenshotScenes.ScreenshotScene scene,
+        (int Width, int Height, byte[] Bgra) picture, string? automationId,
+        int pixelThreshold, double maxDifferingRatio)
+    {
+        var dir = Path.Combine(Output, "actual");
+        Directory.CreateDirectory(dir);
+        var details = new
+        {
+            sceneId = scene.Id,
+            fixture = scene.Fixture,
+            route = scene.Route,
+            state = scene.State,
+            theme = scene.Theme,
+            captureMode = scene.CaptureMode,
+            declaredDimensions = scene.Dimensions,
+            actualDimensions = new { width = picture.Width, height = picture.Height },
+            cropAutomationId = automationId,
+            readiness = scene.ReadinessSignal,
+            expectedAutomationIds = scene.ExpectedAutomationIds,
+            expectedVisibleData = scene.ExpectedVisibleData,
+            owner = scene.Owner,
+            baselineReviewState = scene.Baseline,
+            baselineExists = File.Exists(Path.Combine(Baselines, scene.Id + ".png")),
+            lane = Lane,
+            commit = Environment.GetEnvironmentVariable("GITHUB_SHA"),
+            pixelThreshold,
+            maxDifferingRatio,
+        };
+        File.WriteAllText(Path.Combine(dir, scene.Id + ".json"),
+            JsonSerializer.Serialize(details, MetadataJsonOptions));
+    }
+
+    /// <summary>
+    /// A genuinely rendered window varies across its pixels. A failed PrintWindow capture, a
+    /// hidden frame or an unmapped target is usually a uniform sheet of black or background.
+    /// Reject that before accepting a new baseline (which would otherwise pass by default).
+    /// </summary>
+    internal static bool HasVisibleVariation((int Width, int Height, byte[] Bgra) picture)
+    {
+        // Check dimensions before integer multiplication so corrupt captures fail clearly.
+        if (picture.Width <= 0 || picture.Height <= 0
+            || (long)picture.Width * picture.Height > picture.Bgra.Length / 4)
+        {
+            return false;
+        }
+
+        var pixels = picture.Bgra;
+        var total = picture.Width * picture.Height;
+        var step = Math.Max(1, total / 4000);
+        // A stride sharing a divisor with the image size can miss an alternating
+        // pattern entirely (the original UI test failed on every-other-pixel stripes).
+        // A coprime stride visits both sides of such patterns across the whole frame.
+        static int Gcd(int left, int right)
+        {
+            while (right != 0)
+            {
+                var remainder = left % right;
+                left = right;
+                right = remainder;
+            }
+
+            return left;
+        }
+
+        while (Gcd(step, total) != 1)
+        {
+            step++;
+        }
+
+        var bins = new Dictionary<int, int>();
+        var sampled = 0;
+        var biggestBin = 0;
+        var minB = 255;
+        var minG = 255;
+        var minR = 255;
+        var maxB = 0;
+        var maxG = 0;
+        var maxR = 0;
+        for (var p = 0; p < total; p += step)
+        {
+            var i = p * 4;
+            var blue = pixels[i];
+            var green = pixels[i + 1];
+            var red = pixels[i + 2];
+            minB = Math.Min(minB, blue);
+            minG = Math.Min(minG, green);
+            minR = Math.Min(minR, red);
+            maxB = Math.Max(maxB, blue);
+            maxG = Math.Max(maxG, green);
+            maxR = Math.Max(maxR, red);
+
+            // Bucket by visible colour rather than treating one arbitrary corner pixel as
+            // the reference. A single bright cursor pixel must not make a blank window pass.
+            var key = ((red >> 5) << 6) | ((green >> 5) << 3) | (blue >> 5);
+            bins.TryGetValue(key, out var count);
+            count++;
+            bins[key] = count;
+            biggestBin = Math.Max(biggestBin, count);
+            sampled++;
+        }
+
+        var range = Math.Max(maxR - minR, Math.Max(maxG - minG, maxB - minB));
+        return range > 16 && sampled - biggestBin >= Math.Max(8, sampled / 100);
     }
 
     /// <summary>The comparison itself, for a picture already taken.</summary>
@@ -76,6 +218,11 @@ internal static class Screenshots
             return;
         }
 
+        // Include the committed baseline alongside actual and diff in CI's review
+        // artifact so inspection never depends on a separate repository checkout.
+        var baselineCopy = Path.Combine(Output, "baseline", name + ".png");
+        Directory.CreateDirectory(Path.GetDirectoryName(baselineCopy)!);
+        File.Copy(baseline, baselineCopy, overwrite: true);
         var expected = Load(baseline);
         Assert.True(expected.Width == picture.Width && Math.Abs(expected.Height - picture.Height) <= maxViewportHeightChange,
             $"Screenshot {name} is {picture.Width}x{picture.Height}, its baseline {expected.Width}x{expected.Height}. The picture is in {actual}.");

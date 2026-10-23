@@ -78,6 +78,23 @@ artefact into `tests/screenshot-baselines/ci-windows/` to start comparing it, an
 the reason in the commit, when a change of look is meant. Pictures from a developer's machine never
 become baselines. Screenshots are for layout; behaviour is asserted through UI Automation.
 
+Every capture must be declared in `tests/screenshot-scenes.json` with its offline fixture,
+route, state, intended dimensions and theme, automation IDs, observable text, readiness signal
+and owning test. `Screenshots.Match` requires that real UI Automation state before taking pixels,
+and writes a companion `actual/<scene-id>.json` describing the scene, crop, captured dimensions,
+CI commit and baseline presence. The image preflight still rejects blank or nearly uniform frames.
+The `unreviewed` inventory status means the capture is record-only, not visually approved.
+`ci-windows` means a committed baseline exists, not that all human visual review gates passed.
+Unpinned viewport labels in the inventory are explicit follow-up work, not evidence of coverage.
+The scene contract also declares `captureMode`: `window` uses PrintWindow for the host HWND,
+whereas `desktop` uses the actual on-screen desktop composition. All current screenshot
+scenes use `desktop`, because CI evidence showed PrintWindow could silently omit both
+floating popups and the full window content, even after UIA reports it ready.
+Desktop scenes require visible variation inside their expected UIA control witness and save
+the failed capture too if the popup is missing. Run these tests on a visible, unobstructed,
+serial Windows desktop; never approve desktop captures made with other windows covering the app.
+The capture mode is recorded in each JSON sidecar.
+
 ## Measuring the whole player
 
 `./dev.ps1 measure` publishes the player as people get it and measures it with
