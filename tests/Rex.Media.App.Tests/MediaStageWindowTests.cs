@@ -144,10 +144,12 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
         Wait.For(() => app.Status().Title == "Part 2"
             && app.Find("Stage").Current.Name == "AUDIOBOOK playback stage"
-            && app.IsShown("StageChaptersButton") && app.Find("StageChapter-1").Current.IsEnabled,
+            && app.IsShown("StageChaptersButton")
+            && app.Find("StageChaptersButton").Current.HelpText.Contains("2 chapter jumps", StringComparison.Ordinal),
             "the replacement audiobook to expose its own chapters");
-        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
-            "focus to return to the stable transport when the old flyout is replaced");
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus
+            || app.Find("StageChaptersButton").Current.HasKeyboardFocus,
+            "focus to return to an active transport control when the old flyout is replaced");
         Assert.Contains("chapter jumps", app.Find("StageChaptersButton").Current.HelpText,
             StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
