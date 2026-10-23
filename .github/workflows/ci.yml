@@ -433,6 +433,10 @@ jobs:
             throw "$($errors.Count) screenshot evidence gap(s); see the retained screenshots artifact."
           }
 
+      - name: Build browseable screenshot review gallery
+        if: always()
+        run: python scripts/build-screenshot-review.py
+
       # Every screenshot as CI drew it, and a diff for any that failed: the only source of the
       # baselines in tests/screenshot-baselines/ci-windows (see tests/Rex.Media.App.Tests/Screenshots.cs).
       - name: Keep the screenshots
