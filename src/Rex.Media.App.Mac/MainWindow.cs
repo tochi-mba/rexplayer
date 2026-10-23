@@ -277,7 +277,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
-        app.AddItem(new NSMenuItem("Your library…", (_, _) => ShowLibrary()));
+        app.AddItem(new NSMenuItem("Your library…", "l", (_, _) => ShowLibrary()));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
