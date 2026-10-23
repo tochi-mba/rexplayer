@@ -296,6 +296,7 @@ public sealed partial class MainWindow
             _libraryParents.Clear();
             KeepPlace();
             _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
+            CollapseTemporaryLibraryNavigation();
             UpdateLibrarySearchHint();
             _libraryGroup = null;
             _librarySeason = null;
