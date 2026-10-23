@@ -122,6 +122,10 @@ public sealed class MacAppSmokeTests
         Directory.CreateDirectory(mediaFolder);
         var mediaPath = Path.Combine(mediaFolder, "known-video.mp4");
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"), mediaPath);
+        var secondFolder = Path.Combine(root, "watched-next");
+        Directory.CreateDirectory(secondFolder);
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
+            Path.Combine(secondFolder, "another-video.mp4"));
 
         var roots = new DataRoots(root);
         var library = new Rex.Media.Library.MediaLibrary(RexStore.Open(roots.LibraryStore));
@@ -192,11 +196,67 @@ public sealed class MacAppSmokeTests
             var queued = await Queue(pipe, "show");
             Assert.Contains("2 items", queued.Title, StringComparison.Ordinal);
 
+            // Exercise the same persisted add-and-scan path as the native Add folder picker.
+            // A new folder is not preseeded in RexStore; the real running app must save it.
+            var watched = await Ask(pipe, new AutomationRequest
+            {
+                Command = "ui.add-folder", Paths = [secondFolder],
+            });
+            Assert.True(watched?.Ok == true, "The Mac did not register the second watched folder: " +
+                (watched?.Error ?? "no reply") + LogTail(root));
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "ui.text", Target = "LibrarySummary" }),
+                reply => reply is { Ok: true, Text: not null } &&
+                    reply.Text.Contains("2 folders", StringComparison.Ordinal) &&
+                    reply.Text.Contains("2 total", StringComparison.Ordinal), app, root);
+            var newResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "another-video" });
+            Assert.True(newResult?.Ok == true && newResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "The scanner did not expose the newly added video: " + (newResult?.Text ?? newResult?.Error ?? "no reply"));
+
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
                 "The Mac app could not quit with the library shown: " + (quit?.Error ?? "no reply") + LogTail(root));
             Assert.True(app.WaitForExit(Patience), "The Mac app did not quit after showing the library.");
             Assert.Equal(0, app.ExitCode);
+
+            // Quit and relaunch with the same local data root to prove both folders and
+            // scanned media survived the process, not just its in-memory catalogue.
+            var secondPipe = pipe + "-again";
+            start.Environment["REXPLAYER_PIPE_NAME"] = secondPipe;
+            using var reopenedApp = Process.Start(start)!;
+            try
+            {
+                await Until(() => Ask(secondPipe, new AutomationRequest { Command = "status" }),
+                    reply => reply is { Ok: true }, reopenedApp, root);
+                var reopenedLibrary = await Ask(secondPipe, new AutomationRequest
+                {
+                    Command = "run", Id = CommandCatalog.ToggleLibrary,
+                });
+                Assert.True(reopenedLibrary?.Ok == true, "The library did not reopen after restart.");
+                var persisted = await Ask(secondPipe, new AutomationRequest
+                {
+                    Command = "ui.text", Target = "LibrarySummary",
+                });
+                Assert.True(persisted?.Ok == true &&
+                    persisted.Text?.Contains("2 folders", StringComparison.Ordinal) == true &&
+                    persisted.Text.Contains("2 total", StringComparison.Ordinal),
+                    "The watched folders or media did not survive restart: " + (persisted?.Text ?? "no reply"));
+                var closeAgain = await Ask(secondPipe, new AutomationRequest
+                {
+                    Command = "run", Id = CommandCatalog.Quit,
+                });
+                Assert.True(closeAgain?.Ok == true ||
+                    (reopenedApp.WaitForExit(TimeSpan.FromSeconds(5)) && reopenedApp.ExitCode == 0));
+                Assert.True(reopenedApp.WaitForExit(Patience), "The restarted Mac app did not quit.");
+                Assert.Equal(0, reopenedApp.ExitCode);
+            }
+            finally
+            {
+                if (!reopenedApp.HasExited)
+                {
+                    reopenedApp.Kill();
+                    reopenedApp.WaitForExit();
+                }
+            }
         }
         finally
         {
