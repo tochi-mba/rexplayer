@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
@@ -60,6 +61,35 @@ public sealed partial class AppWindowTests
             "The primary playback action must remain within the resized window.");
 
         Screenshots.Match(app, "stage-welcome-" + size);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void HidingFocusedLyricsReturnsFocusAndRemovesUnavailableScreenReaderHelp()
+    {
+        var song = Song(30);
+        File.WriteAllText(Path.ChangeExtension(song, ".lrc"),
+            "[00:00.00]Opening line\n[00:20.00]Ending line\n");
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.IsShown("Lyrics")
+            && app.Find("Stage").Current.HelpText.Contains("Lyrics are available", StringComparison.Ordinal),
+            "the lyric controls and their accessible guidance");
+
+        app.Find("LyricLine-0").SetFocus();
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
+            "the lyric jump to hold keyboard focus");
+        app.Run(CommandCatalog.ToggleLyrics);
+        Wait.For(() => !app.IsShown("Lyrics"), "the lyric controls to disappear");
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "keyboard focus to return to the permanent transport");
+        Assert.DoesNotContain("Lyrics are available", app.Find("Stage").Current.HelpText,
+            StringComparison.Ordinal);
+
+        app.Run(CommandCatalog.ToggleLyrics);
+        Wait.For(() => app.IsShown("Lyrics")
+            && app.Find("Stage").Current.HelpText.Contains("Lyrics are available", StringComparison.Ordinal),
+            "lyrics and their accessible instructions to return together");
         Assert.Equal(0, app.Close());
     }
 

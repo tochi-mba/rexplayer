@@ -52,7 +52,7 @@ public sealed partial class MainWindow
             Shelf: audioShelf,
             IsEpisode: episode is not null,
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
-            HasLyrics: _player.Lyrics is not null,
+            HasLyrics: _settings.ShowLyrics && _player.Lyrics is not null,
             // A lone zero-time chapter is just Start Over, not a useful chapter picker.
             HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown
                 && chapter.Start > MediaTime.Zero
@@ -115,9 +115,19 @@ public sealed partial class MainWindow
             Forget(ShowCoverAsync(cover));
         }
 
-        var lyrics = stage.ShowLyrics && _settings.ShowLyrics ? _player.Lyrics : null;
+        var lyrics = stage.ShowLyrics ? _player.Lyrics : null;
         if (!ReferenceEquals(lyrics, _shownLyrics))
         {
+            // Timed lyrics are focusable buttons. Removing the old lines must not
+            // strand keyboard/screen-reader focus on an element outside the tree.
+            if (_shownLyrics is not null && Content.XamlRoot is { } root
+                && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is DependencyObject focused
+                && Rex.Media.AppCore.Shell.FocusWithin.IsInside<DependencyObject>(
+                    focused, LyricsLines, Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent))
+            {
+                PlayPauseButton.Focus(FocusState.Programmatic);
+            }
+
             _shownLyrics = lyrics;
             _shownLine = -1;
             LyricsLines.Children.Clear();
