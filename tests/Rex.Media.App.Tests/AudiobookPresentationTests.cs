@@ -53,7 +53,8 @@ public sealed class AudiobookPresentationTests : IDisposable
             "the explicitly finished book");
         Screenshots.Match(app, "audiobook-finished-book", "LibraryList");
 
-        app.Visit("Audiobooks");
+        app.Press("LibraryBack");
+        Wait.For(() => app.Text("LibraryTitle") == "Audiobooks", "back to the book shelf");
         app.Filter("LibraryFilterProgress", "Unwatched");
         Wait.For(() => !app.Lines().Contains("A Book"), "a book-wide empty unread filter");
         Screenshots.Match(app, "audiobook-empty-progress-filter", "LibraryList");
