@@ -50,6 +50,11 @@ public sealed partial class MainWindow
     {
         if (sender is FrameworkElement { DataContext: LibraryRow row })
         {
+            if (PlayBookCard(row))
+            {
+                return;
+            }
+
             if (row.Item is LibraryGroup)
             {
                 Play(EntriesOf([row]), 0);
