@@ -388,11 +388,16 @@ public sealed partial class MainWindow
             WireLibraryKeyViews();
         }
         var status = _libraryScanner?.Status;
-        _librarySummary.StringValue = (_libraryTemporaryStore ? "Changes will not be saved • " : "")
-            + (string.IsNullOrEmpty(status) ? "" : status + " • ")
+        var writeProblem = _libraryStore?.WriteProblem;
+        // Keep the counts visible at minimum width even when the scanner names a long
+        // watched path. Never hide a storage failure behind truncated scan progress.
+        var persistenceWarning = _libraryTemporaryStore ? "Changes will not be saved • "
+            : writeProblem is not null ? "Changes could not be saved • " : "";
+        _librarySummary.StringValue = persistenceWarning
             + $"{entries.Count} matching • {all.Count} total • {_mediaLibrary.Folders.Count} folders"
             + (entries.Count > LibraryPageSize ? $" • results {_libraryPageIndex * LibraryPageSize + 1}-{_libraryPageIndex * LibraryPageSize + shown.Count}" : "")
-            + (_libraryStore?.WriteProblem is { } problem ? " • Changes could not be saved: " + problem : "");
+            + (string.IsNullOrEmpty(status) ? "" : " • " + status)
+            + (writeProblem is null ? "" : " • " + writeProblem);
         _librarySummary.ToolTip = _librarySummary.StringValue;
         _librarySummary.AccessibilityLabel = "Library status: " + _librarySummary.StringValue;
     }
