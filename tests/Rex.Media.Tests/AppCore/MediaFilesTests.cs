@@ -172,6 +172,24 @@ public sealed class MediaFilesTests
     }
 
     [Theory]
+    [InlineData(-30, 100, 0, 100, 0)]
+    [InlineData(30, 100, 30, 100, 70)]
+    [InlineData(105, 100, 100, 100, 0)]
+    [InlineData(65, 0, 65, 1, -1)]
+    [InlineData(-10, 0, 0, 1, -1)]
+    [InlineData(90, 20, 20, 20, 0)]
+    [Capability("PB-05")]
+    public void TimelineNeverInventsOutOfRangePositionOrRemainingTime(
+        double position, double duration, double elapsed, double maximum, double remaining)
+    {
+        var result = TimeText.Timeline(TimeSpan.FromSeconds(position), TimeSpan.FromSeconds(duration));
+        Assert.Equal(elapsed, result.Elapsed.TotalSeconds);
+        Assert.Equal(maximum, result.SliderMaximum);
+        Assert.Equal(remaining < 0 ? 0 : elapsed, result.SliderValue);
+        Assert.Equal(remaining < 0 ? null : TimeSpan.FromSeconds(remaining), result.Remaining);
+    }
+
+    [Theory]
     [InlineData("1:02:03", 3723)]
     [InlineData("62:03", 3723)]
     [InlineData(" 1 : 05 ", 65)]
