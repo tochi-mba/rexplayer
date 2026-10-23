@@ -71,6 +71,46 @@ public sealed class SpeechAudioReaderTests : IDisposable
 
     [Fact]
     [Capability("SUB-21")]
+    public void MonoAndMultichannelSilentRecordingsRemainSafeToSample()
+    {
+        var token = TestContext.Current.CancellationToken;
+        foreach (var channels in new[] { 1, 2, 3 })
+        {
+            var sound = Enumerable.Range(0, channels)
+                .Select(_ => new float[16000 * 2]).ToArray();
+            var path = File($"silent-{channels}.wav",
+                WavBuilder.Pcm(16000, channels, 16, Pcm.Int16(sound)).Build());
+            using var reader = new SpeechAudioReader(path, Decoders, token);
+            Assert.True(reader.HasSound);
+            Assert.Equal(16000, reader.Read(R(0, 1), token).Length);
+            Assert.All(reader.Read(R(1, 2), token), sample => Assert.Equal(0f, sample));
+            Assert.Empty(reader.Read(R(2, 2), token));
+        }
+    }
+
+    [Fact]
+    [Capability("SUB-21")]
+    public void ClippedAudioAndZeroLengthWavDoNotProduceInvalidWaveformSamples()
+    {
+        var token = TestContext.Current.CancellationToken;
+        using (var reader = new SpeechAudioReader(
+            File("clipped.wav", WavBuilder.Pcm(16000, 1, 16,
+                Pcm.Int16(Enumerable.Repeat(1f, 16000).ToArray())).Build()),
+            Decoders, token))
+        {
+            var samples = reader.Read(R(0, 1), token);
+            Assert.Equal(16000, samples.Length);
+            Assert.All(samples, sample => Assert.True(float.IsFinite(sample) && Math.Abs(sample) <= 1f));
+        }
+
+        using var empty = new SpeechAudioReader(File("empty.wav",
+            WavBuilder.Pcm(16000, 1, 16, Pcm.Int16([])).Build()), Decoders, token);
+        Assert.Empty(empty.Read(R(0, 1), token));
+        Assert.Empty(empty.Read(R(1, 1), token));
+    }
+
+    [Fact]
+    [Capability("SUB-21")]
     public void AFileWithoutSoundGivesNothingAndOneThatIsNotMediaFails()
     {
         var token = TestContext.Current.CancellationToken;
