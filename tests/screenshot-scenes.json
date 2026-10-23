@@ -1138,6 +1138,24 @@
       "baseline": "unreviewed",
       "captureMode": "desktop",
       "requiredLane": "ci-windows-high-contrast"
+    },
+    {
+      "id": "player-corrupt-file-error",
+      "fixture": "four-invalid-wave-header-bytes",
+      "route": "player/error",
+      "state": "faulted-with-failure-notice",
+      "dimensions": "1000x700",
+      "theme": "light",
+      "expectedAutomationIds": [
+        "Osd",
+        "PlayPauseButton"
+      ],
+      "expectedVisibleData": [],
+      "readinessSignal": "uia:Osd",
+      "owner": "AppWindowTests.PlaybackNotices",
+      "baseline": "unreviewed",
+      "captureMode": "desktop",
+      "requiredLane": "ci-windows"
     }
   ]
 }
