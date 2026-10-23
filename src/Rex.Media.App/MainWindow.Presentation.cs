@@ -148,7 +148,7 @@ public sealed partial class MainWindow
                 LyricsDisplayMode.LineTimed => "Timed lyrics; only line starts were supplied.",
                 LyricsDisplayMode.WordTimed => "Word-timed lyrics; highlights follow exact source timestamps.",
                 LyricsDisplayMode.MixedTimed => "Partly word-timed lyrics; untimed words are shown without invented timing.",
-                _ => "No lyrics found in this song or beside it.",
+                _ => _player.LyricsProblem ?? "No lyrics found in this song or beside it.",
             };
         if (LyricsStatus.Text != lyricStatus)
         {
