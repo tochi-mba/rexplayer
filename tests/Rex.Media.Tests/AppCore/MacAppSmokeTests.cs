@@ -193,6 +193,12 @@ public sealed class MacAppSmokeTests
             tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
             Assert.DoesNotContain(tree!.Controls!, control => control.Id == "LibraryFirstPlay" && control.Enabled);
             Assert.DoesNotContain(tree.Controls!, control => control.Id == "LibraryFirstQueue" && control.Enabled);
+            var folderResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "watched" });
+            Assert.True(folderResult?.Ok == true && folderResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Native library search did not match the saved folder name.");
+            var uppercaseResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "KNOWN-VIDEO" });
+            Assert.True(uppercaseResult?.Ok == true && uppercaseResult.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
+                "Native library search did not match a title case-insensitively.");
             var restoreResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
             Assert.True(restoreResult?.Ok == true, "The native library did not restore its searched result.");
             tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
