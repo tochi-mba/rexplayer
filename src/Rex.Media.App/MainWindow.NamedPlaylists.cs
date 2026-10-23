@@ -100,6 +100,13 @@ public sealed partial class MainWindow
         var playNext = MenuItem("Move to Play next", "EntryPlayNext", () => QueueChosenNext(chosen));
         playNext.IsEnabled = chosen.Any(item => !ReferenceEquals(item, _player.Playlist.Current));
         menu.Items.Add(playNext);
+        var local = chosen.Select(item => item.Location)
+            .Where(path => Path.IsPathFullyQualified(path))
+            .ToArray();
+        var reveal = MenuItem(local.Length == 1 ? "Reveal in File Explorer" : "Reveal files in File Explorer",
+            "EntryRevealInExplorer", () => Forget(RevealFilesInExplorerAsync(local)));
+        reveal.IsEnabled = local.Length > 0;
+        menu.Items.Add(reveal);
         var addTo = new MenuFlyoutSubItem { Text = "Add to a playlist" };
         AutomationProperties.SetAutomationId(addTo, "EntryAddTo");
         foreach (var playlist in _player.NamedPlaylists)

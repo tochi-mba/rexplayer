@@ -75,7 +75,8 @@ public static class LibraryActions
     public static IReadOnlyList<RevealFolder> RevealGroups(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        return [.. paths.Where(path => !string.IsNullOrWhiteSpace(path))
+        return [.. paths.Where(path => !string.IsNullOrWhiteSpace(path) && Path.IsPathFullyQualified(path)
+                && (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile))
             .Select(path => (Path: path, Folder: Path.GetDirectoryName(path)))
             .Where(item => !string.IsNullOrWhiteSpace(item.Folder))
             .GroupBy(item => item.Folder!, StringComparer.OrdinalIgnoreCase)

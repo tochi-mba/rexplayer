@@ -741,9 +741,13 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Reveals each selected file in Explorer, while tolerating removed or inaccessible files.</summary>
-    private async Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries)
+    private Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries) =>
+        RevealFilesInExplorerAsync(entries.Select(entry => entry.Path));
+
+    /// <summary>Use the same file-selecting Explorer flow from library and queue menus.</summary>
+    private async Task RevealFilesInExplorerAsync(IEnumerable<string> paths)
     {
-        foreach (var group in LibraryActions.RevealGroups(entries.Select(entry => entry.Path)))
+        foreach (var group in LibraryActions.RevealGroups(paths))
         {
             var options = new Windows.System.FolderLauncherOptions();
             foreach (var path in group.Files)

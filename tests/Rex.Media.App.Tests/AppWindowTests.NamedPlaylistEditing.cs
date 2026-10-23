@@ -83,6 +83,7 @@ public sealed partial class AppWindowTests
         Input.Focus(app);
         Input.RightClick(joha);
         Wait.For(() => app.IsShown("EntryPlayNext"), "the queue Play next context action");
+        Assert.True(app.Find("EntryRevealInExplorer").Current.IsEnabled);
         app.Press("EntryPlayNext");
         Wait.For(() => app.Text("PlaylistQueueNext") == "Up next: Joha", "selected item to be next");
         Assert.Equal("3 items", app.Text("PlaylistQueueCount"));

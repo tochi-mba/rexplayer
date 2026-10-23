@@ -99,6 +99,8 @@ public sealed class LibraryActionsTests
         Assert.Equal([first, second], groups[0].Files);
         Assert.Equal(videos, groups[1].Folder);
         Assert.Equal([third], groups[1].Files);
+        Assert.Equal(groups, LibraryActions.RevealGroups([first, second, third,
+            "https://example.com/media/video.mp4", "relative\\clip.mp4"]));
         Assert.Empty(LibraryActions.RevealGroups([]));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.RevealGroups(null!));
     }
