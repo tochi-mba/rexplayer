@@ -233,8 +233,8 @@ public sealed class LibraryListeningTests : IDisposable
         _scene.Audio(Path.Combine("Podcasts", "Morning Review", "Ep 1.wav"), TimeSpan.FromMinutes(20), year: 2025);
         using var app = _scene.Ready().Start();
         app.Visit("Home");
-        Wait.For(() => app.IsShown("LibraryShelf-Podcasts"), "the podcast show shelf on Home");
-        app.Press("LibraryShelf-Podcasts");
+        Wait.For(() => app.IsShown("LibraryShelf-PodcastShows"), "the podcast show shelf on Home");
+        app.Press("LibraryShelf-PodcastShows");
         Wait.For(() => app.Text("LibraryTitle") == "Podcasts" &&
             app.Lines().Contains("Night Talk") && app.Lines().Contains("Morning Review"),
             "See all to open show-oriented local podcast navigation");
