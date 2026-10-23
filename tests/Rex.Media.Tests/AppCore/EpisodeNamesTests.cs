@@ -180,6 +180,64 @@ public sealed class EpisodeNamesTests
         Assert.Empty(LibraryViews.Standalone(library));
     }
 
+    [Theory]
+    [Capability("LIB-05")]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\The Simpsons S00 (360p)\The Simpsons - A Good Night.mkv", "The Simpsons", 0, null)]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\The Simpsons S00 (360p)\The Simpsons S00E03 - The Perfect Crime.mkv", "The Simpsons", 0, 3)]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\The Simpsons S00 (360p)\Tracy Ullman Shorts S00E04.mkv", "The Simpsons", 0, 4)]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\S00 (360p)\001 - A Good Night.mkv", "The Simpsons", 0, 1)]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\Season 00 [720p]\Episode 03.mkv", "The Simpsons", 0, 3)]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\Specials (480p)\The Perfect Crime.mkv", "The Simpsons", 0, null)]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\The Simpsons S01 (360p)\The Simpsons S01E01.mkv", "The Simpsons", 1, 1)]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\S09 (360p)\The Simpsons S09E01.mkv", "The Simpsons", 9, 1)]
+    [InlineData(@"D:\TV\The Simpsons\S00 (360p)\A Good Night.mkv", "The Simpsons", 0, null)]
+    [InlineData(@"D:\TV\The Simpsons\Specials (480p)\S00E01.mkv", "The Simpsons", 0, 1)]
+    public void SeasonZeroAndReleaseQualityFoldersKeepTheirShowAndEpisodeNumbers(string path, string series, int season, int? episode)
+    {
+        var entry = Video(path);
+        var found = Assert.IsType<VideoEpisode>(LibraryViews.EpisodeOf(entry));
+        Assert.Equal((series, season, episode), (found.Series, found.Season, found.Episode));
+        Assert.Empty(LibraryViews.Standalone([entry]));
+    }
+
+    [Theory]
+    [Capability("LIB-05")]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\S00 (360p)\Extras\Making Of.mkv")]
+    [InlineData(@"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)\The Simpsons S00 (360p)\Featurettes\Cast Interview.mkv")]
+    [InlineData(@"D:\TV\The Simpsons\Season 00 [720p]\Extras\Deleted Scene.mkv")]
+    public void BonusFoldersUnderSeasonZeroAlsoBelongToTheShowsSpecials(string path)
+    {
+        var episode = Assert.IsType<VideoEpisode>(LibraryViews.EpisodeOf(Video(path)));
+        Assert.Equal(("The Simpsons", 0, (int?)null, false), (episode.Series, episode.Season, episode.SpecialOf, episode.Tentative));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void RealSimpsonsSeasonCollectionKeepsSeasonZeroWithTheNumberedRun()
+    {
+        const string RootName = @"D:\TV\The Simpsons S00-S09 (1989-) + Shorts (1987-1989)";
+        LibraryEntry[] library =
+        [
+            Video(RootName + @"\The Simpsons S09 (360p)\The Simpsons S09E03.mkv"),
+            Video(RootName + @"\S00 (360p)\001 - A Good Night.mkv"),
+            Video(RootName + @"\The Simpsons S00 (360p)\Tracy Ullman Shorts S00E02.mkv"),
+            Video(RootName + @"\The Simpsons S00 (360p)\Deleted Scenes.mkv"),
+            Video(RootName + @"\The Simpsons S01 (360p)\The Simpsons S01E01.mkv"),
+            Video(RootName + @"\The Simpsons S08 (360p)\The Simpsons S08E01.mkv"),
+        ];
+
+        var show = Assert.Single(LibraryViews.TvShows(library));
+        Assert.Equal(("The Simpsons", "4 seasons · 6 episodes"), (show.Name, show.Detail));
+        var seasons = LibraryViews.TvSeasons(show);
+        Assert.Equal(["Season 1", "Season 8", "Season 9", "Specials"], seasons.Select(season => season.Name));
+        Assert.Equal(3, seasons[^1].Entries.Count);
+        Assert.Equal([1, 2, null], seasons[^1].Entries.Select(entry => LibraryViews.EpisodeOf(entry)!.Episode));
+        Assert.Empty(LibraryViews.Standalone(library));
+        Assert.Equal(("The Simpsons", "Specials"), (LibraryViews.LocateCurrent(library, library[1].Path)!.Show!.Name,
+            LibraryViews.LocateCurrent(library, library[1].Path)!.Season!.Name));
+        Assert.Equal([library[1].Path], LibraryViews.AutoplayVideos(library, library[1]).Select(entry => entry.Path));
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void NamedShowPresentationsInTheShowsFolderAreSpecials()
