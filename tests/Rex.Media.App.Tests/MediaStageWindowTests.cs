@@ -42,6 +42,8 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage",
             "the movie stage to identify its media type",
             () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
+        Assert.False(app.IsShown("Lyrics"), "The movie stage must not retain song lyrics.");
+        Assert.False(app.IsShown("Cover"), "A video must not keep the song cover.");
         Screenshots.Match(app, "stage-movie-windowed");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleLibrary);
@@ -53,6 +55,8 @@ public sealed class MediaStageWindowTests : IDisposable
             () => $"Stage={app.Find("Stage").Current.Name}; title={app.Text("NowPlaying")}; state={app.Status().State}");
         Screenshots.Match(app, "stage-picture-windowed");
         Assert.False(app.IsShown("Lyrics"), "Lyrics should not carry over to picture playback.");
+        Assert.False(app.Find("SeekBar").Current.IsEnabled, "Pictures must not offer a fake seek timeline.");
+        Assert.Equal("Stage", app.Find("Stage").Current.AutomationId);
         Assert.Equal(0, app.Close());
     }
 }
