@@ -326,7 +326,10 @@ public static partial class ListeningViews
         var selected = timed.Count > 0
             ? timed.OrderByDescending(part => part.Entry.LastPlayed).ThenByDescending(part => part.Index).First()
             : marked.Count > 0 ? marked[^1] : parts[0];
-        return new BookPlace(selected.Index, selected.Marker ?? TimeSpan.Zero);
+        var marker = selected.Marker ?? TimeSpan.Zero;
+        var at = marker < TimeSpan.Zero ? TimeSpan.Zero
+            : selected.Entry.Duration is { Ticks: > 0 } length && marker > length ? length : marker;
+        return new BookPlace(selected.Index, at);
     }
 
     /// <summary>Whether the book has been started: a part played, or left part-way.</summary>
