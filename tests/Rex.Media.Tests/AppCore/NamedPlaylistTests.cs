@@ -185,6 +185,25 @@ public sealed class NamedPlaylistTests
 
     [Fact]
     [Capability("LIB-04")]
+    public void RelocatingSavedEntriesKeepsCustomTitlesCueBoundsAndLeavesOtherEntriesUntouched()
+    {
+        var userTitle = new QueuedItem("old.mp3", "Custom title", "Artist", TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(8));
+        var relinked = PlayerController.RelocatedPlaylistEntry(userTitle, "folder/new.mp3");
+        Assert.Equal("folder/new.mp3", relinked.Location);
+        Assert.Equal("Custom title", relinked.Title);
+        Assert.Equal(("Artist", TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(8)),
+            (relinked.Artist, relinked.Start, relinked.End));
+        Assert.Equal("old.mp3", userTitle.Location);
+
+        var defaultTitle = new QueuedItem("old.mp3", "old", null, TimeSpan.Zero, null);
+        Assert.Equal("new", PlayerController.RelocatedPlaylistEntry(defaultTitle, "folder/new.mp3").Title);
+        Assert.Equal("new", PlayerController.RelocatedPlaylistEntry(defaultTitle with { Title = null }, "folder/new.mp3").Title);
+        Assert.Throws<ArgumentNullException>(() => PlayerController.RelocatedPlaylistEntry(null!, "new.mp3"));
+        Assert.Throws<ArgumentException>(() => PlayerController.RelocatedPlaylistEntry(defaultTitle, " "));
+    }
+
+    [Fact]
+    [Capability("LIB-04")]
     public void ShufflePlayingASavedPlaylistKeepsItsEntriesAndEnablesShuffle()
     {
         using var harness = Harness(RexStore.InMemory());

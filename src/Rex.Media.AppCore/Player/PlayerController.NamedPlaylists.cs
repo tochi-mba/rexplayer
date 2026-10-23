@@ -53,6 +53,22 @@ public sealed partial class PlayerController
         }
     }
 
+    /// <summary>
+    /// A missing saved entry may be relinked to a new path without changing cue boundaries,
+    /// a user-authored title, or any other saved entry. The file itself is never moved.
+    /// </summary>
+    public static QueuedItem RelocatedPlaylistEntry(QueuedItem item, string path)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return item with
+        {
+            Location = path,
+            Title = item.Title is null || item.Title == PlaylistItem.TitleOf(item.Location)
+                ? PlaylistItem.TitleOf(path) : item.Title,
+        };
+    }
+
     /// <summary>Adds what is playing to the named playlist <paramref name="id"/>.</summary>
     public void AddPlayingToPlaylist(string id)
     {

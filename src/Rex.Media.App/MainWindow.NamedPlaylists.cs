@@ -211,6 +211,9 @@ public sealed partial class MainWindow
         }
 
         var staged = playlist.Items.ToList();
+        var facts = new TextBlock { Text = SavedPlaylistFacts.For(playlist, path => _library?.Entry(path)).Label };
+        AutomationProperties.SetAutomationId(facts, "NamedPlaylistFacts");
+        var editorOpen = true;
         var labels = new ObservableCollection<string>(staged.Select(item =>
             (item.Title ?? PlaylistItem.TitleOf(item.Location)) + " · " + (PlaylistItem.SourceOf(item.Location) ?? item.Location)));
         var list = new ListView
@@ -226,15 +229,27 @@ public sealed partial class MainWindow
         var up = new Button { Content = "Move up" };
         var down = new Button { Content = "Move down" };
         var remove = new Button { Content = "Remove entry" };
+        var locate = new Button { Content = "Locate file..." };
+        var locationInfo = new TextBlock { TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap, MaxWidth = 460 };
+        AutomationProperties.SetAutomationId(locate, "NamedPlaylistLocateEntry");
+        AutomationProperties.SetAutomationId(locationInfo, "NamedPlaylistEntryPath");
         AutomationProperties.SetAutomationId(up, "NamedPlaylistMoveUp");
         AutomationProperties.SetAutomationId(down, "NamedPlaylistMoveDown");
         AutomationProperties.SetAutomationId(remove, "NamedPlaylistRemoveEntry");
+        void RefreshFacts()
+        {
+            facts.Text = SavedPlaylistFacts.For(playlist with { Items = staged.ToArray() },
+                path => _library?.Entry(path)).Label;
+        }
+
 
         void RefreshActions()
         {
             up.IsEnabled = list.SelectedIndex > 0;
             down.IsEnabled = list.SelectedIndex >= 0 && list.SelectedIndex < staged.Count - 1;
             remove.IsEnabled = list.SelectedIndex >= 0;
+            locate.IsEnabled = list.SelectedIndex >= 0;
+            locationInfo.Text = list.SelectedIndex >= 0 ? staged[list.SelectedIndex].Location : "Select an entry to see its file location.";
         }
 
         void Move(int direction)
@@ -266,8 +281,34 @@ public sealed partial class MainWindow
 
             staged.RemoveAt(index);
             labels.RemoveAt(index);
+            RefreshFacts();
             list.SelectedIndex = staged.Count == 0 ? -1 : Math.Min(index, staged.Count - 1);
             RefreshActions();
+        };
+        locate.Click += async (_, _) =>
+        {
+            var index = list.SelectedIndex;
+            if (index < 0 || index >= staged.Count)
+            {
+                return;
+            }
+
+            var prior = staged[index];
+            var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker
+            {
+                ViewMode = Windows.Storage.Pickers.PickerViewMode.List,
+            });
+            picker.FileTypeFilter.Add("*");
+            if (await picker.PickSingleFileAsync() is { } file && editorOpen
+                && index < staged.Count && ReferenceEquals(prior, staged[index]))
+            {
+                var changed = PlayerController.RelocatedPlaylistEntry(prior, file.Path);
+                staged[index] = changed;
+                labels[index] = (changed.Title ?? PlaylistItem.TitleOf(changed.Location))
+                    + " · " + (PlaylistItem.SourceOf(changed.Location) ?? changed.Location);
+                RefreshFacts();
+                RefreshActions();
+            }
         };
         list.SelectionChanged += (_, _) => RefreshActions();
         list.SelectedIndex = staged.Count > 0 ? 0 : -1;
@@ -277,11 +318,16 @@ public sealed partial class MainWindow
         actions.Children.Add(up);
         actions.Children.Add(down);
         actions.Children.Add(remove);
+        actions.Children.Add(locate);
         var content = new StackPanel { Spacing = 8 };
-        content.Children.Add(new TextBlock { Text = "Move or remove saved entries. Files stay on disk; Cancel discards edits.", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap });
+        content.Children.Add(new TextBlock { Text = "Move, remove or locate saved entries. Files stay on disk; Cancel discards edits.", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap });
+        content.Children.Add(facts);
         content.Children.Add(list);
+        content.Children.Add(locationInfo);
         content.Children.Add(actions);
-        if (await Ask("Edit " + playlist.Name, content, "Save changes", "Cancel"))
+        var saved = await Ask("Edit " + playlist.Name, content, "Save changes", "Cancel");
+        editorOpen = false;
+        if (saved)
         {
             _player.ReplacePlaylistItems(id, staged);
         }
