@@ -54,7 +54,15 @@ public sealed partial class MainWindow
                 break;
             case LibraryEntry entry:
                 var view = EntriesOf(_libraryRows);
-                Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
+                if (entry.Kind == LibraryKind.Picture)
+                {
+                    var sequence = LibraryViews.PictureSlideshow(view, entry);
+                    Play(sequence.Items, sequence.Start);
+                }
+                else
+                {
+                    Play(view, view.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
+                }
                 if (view.Count > 1 && LibraryViews.EpisodeOf(entry) is { } episode)
                 {
                     Say(episode.Episode is { } number ? $"Playing {episode.Series}, season {episode.Season}, from episode {number}" : $"Playing {episode.Series}, season {episode.Season}");
