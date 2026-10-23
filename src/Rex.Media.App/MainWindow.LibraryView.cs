@@ -403,6 +403,13 @@ public sealed partial class MainWindow
             }
         }
 
+        if (_librarySource == LibrarySource.Pictures && search.Length == 0)
+        {
+            LibraryPlayText.Text = "Start slideshow";
+            ToolTipService.SetToolTip(LibraryPlay,
+                "Play the selected photographs, or all visible photographs, in gallery order. Pause and Next control the show.");
+        }
+
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;

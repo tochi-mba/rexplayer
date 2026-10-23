@@ -76,6 +76,7 @@ public sealed class LibraryBrowsingTests : IDisposable
                 .Cast<AutomationElement>().Any(item => item.Current.Name.Contains("1920 × 1080", StringComparison.Ordinal)),
             "honest decoded video resolution to appear with its file");
         app.Visit("Pictures");
+        Assert.Equal("Start slideshow", app.Text("LibraryPlayText"));
         app.Line("Lagos");
         Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
