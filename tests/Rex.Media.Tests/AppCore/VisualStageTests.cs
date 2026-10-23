@@ -117,6 +117,41 @@ public sealed class VisualStageTests
         Assert.True(float.IsFinite(stage.Pulse.Snare.Level));
     }
 
+    [Theory]
+    [Capability("AU-18")]
+    [InlineData(VisualizerChoice.Halo)]
+    [InlineData(VisualizerChoice.Mirror)]
+    [InlineData(VisualizerChoice.Aurora)]
+    [InlineData(VisualizerChoice.BeatEdit)]
+    public void MonoAndStereoSourcesRenderWithinBoundsWithoutARequiredCamera(VisualizerChoice choice)
+    {
+        var left = new float[VisualStage.SoundSize];
+        var right = new float[VisualStage.SoundSize];
+        for (var i = 0; i < left.Length; i++)
+        {
+            left[i] = (float)(0.55 * Math.Sin(i * Math.PI / 19));
+            right[i] = (float)(0.35 * Math.Sin(i * Math.PI / 31));
+        }
+
+        var mono = Stage(96, 54);
+        mono.Context.Camera = null;
+        mono.Context.Mask = null;
+        Assert.True(mono.Draw(choice, Defaults, left, left, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.Equal(mono.Context.Left, mono.Context.Right);
+        Assert.True(float.IsFinite(mono.Canvas.AverageLuma()));
+
+        var stereo = Stage(96, 54);
+        stereo.Context.Camera = null;
+        stereo.Context.Mask = null;
+        Assert.True(stereo.Draw(choice, Defaults, left, right, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.NotEqual(stereo.Context.Left.ToArray(), stereo.Context.Right.ToArray());
+        Assert.True(float.IsFinite(stereo.Canvas.AverageLuma()));
+
+        stereo.Context.Camera = new VisualPicture([0, 0, 0], 1, 1);
+        Assert.True(stereo.Draw(choice, Defaults, left, right, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(float.IsFinite(stereo.Canvas.AverageLuma()));
+    }
+
     /// <summary>
     /// Options that cannot change a frame of this test: the camera's own (taken by the camera, not the
     /// scene), and the strobe's limit, which only binds faster than this music (its own test plays faster).
