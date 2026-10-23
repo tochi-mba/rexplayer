@@ -28,6 +28,8 @@ public sealed partial class MainWindow
         var note = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] };
         var reset = new Button { Content = "Back to how this one came" };
         AutomationProperties.SetAutomationId(reset, "VisualizerReset");
+        AutomationProperties.SetName(reset, "Restore defaults for this visualisation");
+        AutomationProperties.SetHelpText(reset, "Only this visualisation's settings are reset. Other visualisations keep their saved values.");
 
         // Shown behind the dialog as it changes.
         void Preview()
@@ -80,16 +82,22 @@ public sealed partial class MainWindow
                 case VisualOptionKind.Toggle:
                     var toggle = new ToggleSwitch { Header = option.Label, IsOn = VisualizerOptions.Toggle(options, shown, option.Key) };
                     AutomationProperties.SetAutomationId(toggle, id);
+                    AutomationProperties.SetName(toggle, option.Label);
+                    AutomationProperties.SetHelpText(toggle, "Toggle " + option.Label + " for " + Visualizers.Name(shown));
                     toggle.Toggled += (_, _) => Set(option.Key, toggle.IsOn ? 1 : 0);
                     return toggle;
                 case VisualOptionKind.Choice:
                     var choice = Choice(option.Label, [.. option.Choices!], VisualizerOptions.Choice(options, shown, option.Key));
                     AutomationProperties.SetAutomationId(choice, id);
+                    AutomationProperties.SetName(choice, option.Label);
+                    AutomationProperties.SetHelpText(choice, "Choose " + option.Label + " for " + Visualizers.Name(shown));
                     choice.SelectionChanged += (_, _) => Set(option.Key, choice.SelectedIndex);
                     return choice;
                 case VisualOptionKind.Color:
                     var color = ColorChoice(option.Label, VisualizerOptions.Rgb(options, shown, option.Key));
                     AutomationProperties.SetAutomationId(color.Box, id);
+                    AutomationProperties.SetName(color.Box, option.Label);
+                    AutomationProperties.SetHelpText(color.Box, "Choose " + option.Label + " for " + Visualizers.Name(shown));
                     color.Box.SelectionChanged += (_, _) => Set(option.Key, color.Value());
                     return color.Box;
                 default:
@@ -105,6 +113,7 @@ public sealed partial class MainWindow
                     };
                     AutomationProperties.SetAutomationId(slider, id);
                     AutomationProperties.SetName(slider, option.Label);
+                    AutomationProperties.SetHelpText(slider, $"{option.Label}, from {option.Minimum} to {option.Maximum}, for {Visualizers.Name(shown)}");
                     slider.ValueChanged += (_, e) => Set(option.Key, whole ? Math.Round(e.NewValue) : e.NewValue);
                     return slider;
             }
