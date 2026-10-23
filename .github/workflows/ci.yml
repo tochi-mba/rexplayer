@@ -396,7 +396,12 @@ jobs:
         run: |
           $inventory = Get-Content tests/screenshot-scenes.json -Raw | ConvertFrom-Json
           $errors = [System.Collections.Generic.List[string]]::new()
-          foreach ($scene in $inventory.scenes) {
+          # High-DPI and high-contrast scenes belong to separately configured
+          # Windows desktops. Never pretend this regular lane has produced them.
+          $required = @($inventory.scenes | Where-Object {
+            -not $_.requiredLane -or $_.requiredLane -eq "ci-windows"
+          })
+          foreach ($scene in $required) {
             $prefix = "artifacts/screenshots/ci-windows/actual/$($scene.id)"
             if (-not (Test-Path "$prefix.png")) {
               $errors.Add("$($scene.id): no rendered PNG")
@@ -422,7 +427,7 @@ jobs:
               $errors.Add("$($scene.id): repeated capture is missing or unstable")
             }
           }
-          Write-Host "Audited $($inventory.scenes.Count) screenshot scenes against ci-windows actual PNG and JSON evidence."
+          Write-Host "Audited $($required.Count) standard screenshot scenes; dedicated contrast and DPI lanes remain separate acceptance gates."
           if ($errors.Count -gt 0) {
             $errors | ForEach-Object { Write-Host "SCREENSHOT EVIDENCE GAP: $_" }
             throw "$($errors.Count) screenshot evidence gap(s); see the retained screenshots artifact."
