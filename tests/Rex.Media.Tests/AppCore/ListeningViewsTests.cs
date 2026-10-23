@@ -260,6 +260,15 @@ public sealed class ListeningViewsTests
         var file = new DateTime(2023, 4, 1, 0, 0, 0, DateTimeKind.Utc);
         Assert.Equal(file, ListeningViews.RecordedAt(AudioFile("Phone/Recording 001.m4a", null) with { Modified = file }));
         Assert.Null(ListeningViews.RecordedAt(AudioFile("Phone/Recording 001.m4a", null)));
+        Assert.Null(ListeningViews.RecordingDateEvidence(AudioFile("Phone/No Date.m4a", null)));
+        var filenameDate = ListeningViews.RecordingDateEvidence(AudioFile("Phone/REC_20240105_101010.wav", null));
+        Assert.True(filenameDate?.FromFilename);
+        Assert.Equal(new DateTime(2024, 1, 5, 10, 10, 10), filenameDate?.At);
+        var updated = new DateTime(2024, 1, 6, 9, 0, 0, DateTimeKind.Utc);
+        var fileDate = ListeningViews.RecordingDateEvidence(
+            AudioFile("Phone/Recording 004.m4a", null) with { Modified = updated });
+        Assert.False(fileDate?.FromFilename);
+        Assert.Equal(updated, fileDate?.At);
 
         // A date that is no date is passed over.
         Assert.Null(ListeningViews.RecordedAt(AudioFile("Phone/REC_20241332.wav", null)));
@@ -344,6 +353,7 @@ public sealed class ListeningViewsTests
         Assert.Throws<ArgumentNullException>(() => ListeningViews.NewEpisodes(null!, NeverLeft, DateTime.UtcNow));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.NewEpisodes(shelves, null!, DateTime.UtcNow));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordedAt(null!));
+        Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordingDateEvidence(null!));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordingSections(null!, [], DateTime.Now));
         Assert.Throws<ArgumentNullException>(() => ListeningViews.RecordingSections([], null!, DateTime.Now));
     }
