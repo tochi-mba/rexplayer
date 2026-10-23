@@ -55,7 +55,14 @@ public sealed partial class MainWindow
 
         if (_librarySource == LibrarySource.Podcasts && (chosen is [{ Item: LibraryGroup show }] ? show : _libraryGroup) is { Entries.Count: > 0 } chosenShow)
         {
-            menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () => Play(ListeningViews.UnplayedInOrder(chosenShow, _player.LeftAt), 0)));
+            menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () =>
+            {
+                // The library may retain entries for removed drives and unfinished downloads.
+                // Do not put those files, or any other show's episodes, in the automatic queue.
+                var available = ListeningViews.UnplayedInOrder(chosenShow, _player.LeftAt,
+                    episode => File.Exists(episode.Path) && !episode.Downloading && episode.Problem is null);
+                Play(available, 0);
+            }));
             menu.Items.Add(MenuItem("Mark all played", "LibraryMenuMarkAllPlayed", () => MarkListened([.. chosenShow.Entries.Select(episode => episode.Path)])));
         }
     }
