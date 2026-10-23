@@ -215,7 +215,7 @@ public sealed class MediaStageWindowTests : IDisposable
         File.WriteAllText(Path.ChangeExtension(first, ".lrc"), "[00:00.00]First stream line\\n[00:03.00]First ending\\n");
         File.WriteAllText(Path.ChangeExtension(second, ".lrc"), "[00:00.00]Second stream line\\n[00:03.00]Second ending\\n");
 
-        using var app = AppProcess.Start([first, second], extraSettings: "\\"theme\\": \\"Dark\\"");
+        using var app = AppProcess.Start([first, second], extraSettings: "\"theme\": \"Dark\"");
         Wait.For(() => app.Text("NowPlaying") == "First" && app.IsShown("Lyrics")
             && app.Find("LyricLine-0").Current.Name.Contains("First stream line", StringComparison.Ordinal),
             "the first direct-open audio file to show its own lyrics");
