@@ -45,8 +45,11 @@ public sealed class LightningScene : VisualScene
         canvas.Fill(0, 0, w, h, sky);
         for (var c = 0; c < 9; c++)
         {
-            var cx = w * ((c + 0.5) / 9) + (Math.Sin((c * 1.7) + (context.Seconds * 0.1)) * w * 0.03);
-            var inside = (float)((0.12 * pulse.Bass) + (0.25 * _flicker * Noise.Hash((c * 13) + pulse.Hat.Count)) + (0.4 * _flash) + 0.09);
+            var cx = w * ((c + 0.5) / 9) + (Math.Sin((c * 1.7) + (context.Seconds * 0.65)) * w * 0.03);
+            // A low rolling glow and moving cloud bank keep the storm alive between
+            // percussion hits, without substituting an artificial lightning strike.
+            var rolling = 0.035 * (1 + Math.Sin((context.Seconds * 2.2) + (c * 1.1)));
+            var inside = (float)((0.12 * pulse.Bass) + (0.25 * _flicker * Noise.Hash((c * 13) + pulse.Hat.Count)) + (0.4 * _flash) + 0.09 + rolling);
             canvas.Glow(cx, h * 0.06, w * 0.12, context.Paint(0.45 + (0.1 * Noise.Hash(c))), inside);
         }
 
@@ -78,9 +81,10 @@ public sealed class LightningScene : VisualScene
         var beat = pulse.Tempo > 0 ? 60 / pulse.Tempo : 0.5;
         _rain += context.Dt / (beat * 2);
         var (canvas, color) = (context.Canvas, context.Paint(0.5));
-        for (var d = 0; d < 90; d++)
+        for (var d = 0; d < 140; d++)
         {
-            var x = Noise.Hash(d * 7) * w;
+            // Slight crosswind gives the rain visible lateral motion between beats.
+            var x = ((Noise.Hash(d * 7) + (context.Seconds * 0.015)) % 1) * w;
             var y = ((Noise.Hash((d * 7) + 1) + _rain) % 1) * h * 1.1;
             canvas.Line(x, y, x - (size * 0.01), y + (size * 0.04), 1, color, 0.12f + (0.2f * pulse.Loudness));
         }
