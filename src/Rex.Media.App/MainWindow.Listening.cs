@@ -181,7 +181,7 @@ public sealed partial class MainWindow
                     var show = LibraryViews.RefreshGroup(shows, openedShow);
                     _libraryGroup = show;
                     var unplayed = ListeningViews.Unplayed(show, _player.LeftAt);
-                    return ("PODCAST", show.Name, string.Join(" · ", new[] { show.Detail, Count(show.Entries.Count, "episode"), unplayed + " unplayed" }.Where(part => part is not null)),
+                    return ("PODCAST", show.Name, string.Join(" · ", new[] { show.Detail, Count(show.Entries.Count, "episode"), unplayed + " unplayed", "Local files only" }.Where(part => part is not null)),
                         [new LibraryRowGroup("", show.Entries.Select(PodcastEpisodeRow))], false);
                 }
 
@@ -242,7 +242,7 @@ public sealed partial class MainWindow
         var detail = string.Join(" · ", new[]
         {
             show.Detail,
-            newest == DateTime.MinValue ? null : "Newest " + newest.ToLocalTime().ToString("d", CultureInfo.CurrentCulture),
+            newest == DateTime.MinValue ? null : "Latest file date " + newest.ToLocalTime().ToString("d", CultureInfo.CurrentCulture),
             unplayed == 0 ? "All played" : unplayed + " unplayed",
         }.Where(part => part is not null));
         return new LibraryRow(show.Name, detail, Count(show.Entries.Count, "episode"), show, hasPicture: true, picturePlaceholder: "◉");
@@ -254,7 +254,16 @@ public sealed partial class MainWindow
         var left = _player.LeftAt(episode.Path);
         var state = left is { } at ? "Stopped at " + TimeText.Format(at, episode.Duration ?? TimeSpan.Zero) : episode.Plays > 0 ? "Played" : "New";
         var date = ListeningViews.EpisodeDate(episode);
-        var detail = date == DateTime.MinValue ? state : state + " · " + date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
+        // The index stores a file timestamp and, sometimes, only a year tag. Neither is
+        // proof of a published date, so the interface must not invent one.
+        var dateText = episode.Year is { } year && episode.Modified.Year != year
+            ? "Year tag " + year.ToString(CultureInfo.CurrentCulture)
+            : date == DateTime.MinValue ? null
+            : (episode.Modified != default ? "File date " : "Dated ") + date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
+        var remaining = left is { } stoppedAt && episode.Duration is { Ticks: > 0 } duration
+            ? TimeText.Format(TimeSpan.FromTicks(Math.Clamp(duration.Ticks - stoppedAt.Ticks, 0, duration.Ticks)), duration) + " left"
+            : null;
+        var detail = string.Join(" · ", new[] { state, remaining, dateText }.Where(part => part is not null));
         var progress = left is { } stopped && episode.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(stopped / length, 0, 1) : 0;
         return new LibraryRow(episode.Title, detail, episode.Duration is { } duration ? TimeText.Format(duration, duration) : "", episode,
             hasPicture: true, picturePlaceholder: "◉", badge: episode.Track?.ToString(CultureInfo.CurrentCulture) ?? "", progress: progress,
@@ -265,7 +274,9 @@ public sealed partial class MainWindow
     private LibraryRow RecordingRow(LibraryEntry recording)
     {
         var at = ListeningViews.RecordedAt(recording);
-        var detail = at is { } made ? (made.Kind == DateTimeKind.Utc ? made.ToLocalTime() : made).ToString("g", CultureInfo.CurrentCulture) : "";
+        var source = Path.GetFileName(Path.GetDirectoryName(recording.Path));
+        var recorded = at is { } made ? (made.Kind == DateTimeKind.Utc ? made.ToLocalTime() : made).ToString("g", CultureInfo.CurrentCulture) : null;
+        var detail = string.Join(" · ", new[] { source, recorded }.Where(part => !string.IsNullOrWhiteSpace(part)));
         return new LibraryRow(recording.Title, detail, recording.Duration is { } duration ? TimeText.Format(duration, duration) : "", recording,
             picturePlaceholder: "●", isPlaying: LibraryViews.SameLocation(recording.Path, _player.Playlist.Current?.Location));
     }
