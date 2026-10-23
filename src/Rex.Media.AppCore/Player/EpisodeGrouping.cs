@@ -85,14 +85,38 @@ public static class EpisodeGrouping
             return [];
         }
 
-        return candidates.Select(path => (Path: path, Identity: Identify(path)))
+        var sorted = candidates.Select(path => (Path: path, Identity: Identify(path)))
             .Where(item => item.Identity is { } other && AreSiblings(identity, other))
             .OrderBy(item => Math.Abs(item.Identity!.Episode - identity.Episode))
             .ThenBy(item => item.Identity!.Episode)
-            .ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
-            .DistinctBy(item => item.Identity!.Episode)
-            .Take(limit)
-            .Select(item => item.Path).ToList();
+            .ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase);
+
+        // A multi-episode file covers a range, not just its first number. Prefer
+        // the nearest candidate; never present two separate files as the same
+        // sibling episode if their ranges overlap.
+        var covered = new HashSet<int>();
+        var siblings = new List<string>();
+        foreach (var item in sorted)
+        {
+            var episode = item.Identity!;
+            if (Enumerable.Range(episode.Episode, episode.Last - episode.Episode + 1).Any(covered.Contains))
+            {
+                continue;
+            }
+
+            for (var number = episode.Episode; number <= episode.Last; number++)
+            {
+                covered.Add(number);
+            }
+
+            siblings.Add(item.Path);
+            if (siblings.Count == limit)
+            {
+                break;
+            }
+        }
+
+        return siblings;
     }
 
     /// <summary>
