@@ -43,7 +43,8 @@ public sealed partial class MainWindow
             Shelf: entry?.Kind == LibraryKind.Music ? ShelfOf(entry) : null,
             IsEpisode: episode is not null,
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
-            HasLyrics: _player.Lyrics is not null));
+            HasLyrics: _player.Lyrics is not null,
+            HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
         var music = stage.ShowAudioPresentation;
         IdleKicker.Text = stage.Label;
         // The video itself may hide the Idle panel; the always-present stage must still
@@ -99,7 +100,7 @@ public sealed partial class MainWindow
                     HorizontalAlignment = HorizontalAlignment.Center,
                 };
                 _lyricTexts.Add(text);
-                if (line.At is not { } at)
+                if (line.At is not { } at || !stage.CanSeek)
                 {
                     // Untimed lyric lines need the same close-fitting contrast as timed lines;
                     // never paint a broad translucent rectangle behind the whole stage.
@@ -140,7 +141,7 @@ public sealed partial class MainWindow
             }
 
             LyricsBox.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
-            LyricsBox.Height = Math.Max(120, Stage.ActualHeight * 0.45);
+            LyricsBox.Height = Math.Min(360, Math.Max(0, Stage.ActualHeight * 0.45));
             ShowLyricLine();
         }
     }
