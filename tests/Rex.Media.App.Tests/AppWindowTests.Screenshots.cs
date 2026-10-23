@@ -79,6 +79,8 @@ public sealed partial class AppWindowTests
             && app.Find("Stage").Current.HelpText.Contains("Lyrics are available", StringComparison.Ordinal),
             "the lyric controls and their accessible guidance");
 
+        Assert.True(app.Find("LyricLine-0").Current.BoundingRectangle.Height >= 42,
+            "A timed lyric jump must remain touch-sized as well as keyboard-focusable.");
         app.Find("LyricLine-0").SetFocus();
         Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
             "the lyric jump to hold keyboard focus");
