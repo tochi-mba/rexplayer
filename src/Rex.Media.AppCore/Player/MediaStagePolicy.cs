@@ -126,7 +126,7 @@ public static class MediaStagePolicy
             label,
             readyAudio,
             (profile is MediaStageProfile.Song or MediaStageProfile.Audio) && readyAudio && context.HasLyrics,
-            (profile is MediaStageProfile.Audiobook or MediaStageProfile.Podcast) && readyAudio && context.HasChapters,
+            (profile is MediaStageProfile.Audiobook or MediaStageProfile.Podcast) && readyAudio && context.HasChapters && context.CanSeek,
             profile == MediaStageProfile.Television,
             profile == MediaStageProfile.Picture,
             context.StreamsKnown && context.CanSeek && (audio || video));
