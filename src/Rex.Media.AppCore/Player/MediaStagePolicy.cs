@@ -9,6 +9,7 @@ public enum MediaStageProfile
     Welcome,
     Loading,
     Unsupported,
+    Error,
     Picture,
     Video,
     Movie,
@@ -37,7 +38,8 @@ public readonly record struct MediaStageContext(
     bool IsEpisode = false,
     bool IsMovie = false,
     bool HasLyrics = false,
-    bool HasChapters = false);
+    bool HasChapters = false,
+    bool HasFailure = false);
 
 /// <summary>Stage semantics derived without creating a decoder, player, queue or window.</summary>
 public readonly record struct MediaStageView(
@@ -58,6 +60,11 @@ public static class MediaStagePolicy
         if (!context.HasItem)
         {
             return Present(MediaStageProfile.Welcome, "WELCOME", context);
+        }
+
+        if (context.HasFailure)
+        {
+            return Present(MediaStageProfile.Error, "PLAYBACK ERROR", context);
         }
 
         // Image playback has its own navigation rather than an audio/video transport.
@@ -118,7 +125,7 @@ public static class MediaStagePolicy
             profile,
             label,
             readyAudio,
-            profile == MediaStageProfile.Song && readyAudio && context.HasLyrics,
+            (profile is MediaStageProfile.Song or MediaStageProfile.Audio) && readyAudio && context.HasLyrics,
             (profile is MediaStageProfile.Audiobook or MediaStageProfile.Podcast) && readyAudio && context.HasChapters,
             profile == MediaStageProfile.Television,
             profile == MediaStageProfile.Picture,
