@@ -535,8 +535,12 @@ public sealed partial class MainWindow
                 // empty result never leaves the old section visible.
                 if (names.Count > 0)
                 {
-                    var selectedName = names.Contains(sections[shownSection].Name)
-                        ? sections[shownSection].Name : names[0];
+                    // A direct category match outranks incidental matches in controls on
+                    // other pages. For example, searching "subtitle" must land on
+                    // Subtitles, not on an earlier page that happens to mention subtitles.
+                    var directCategory = sections.FirstOrDefault(item => Says(item.Name, query))?.Name;
+                    var selectedName = directCategory ?? (names.Contains(sections[shownSection].Name)
+                        ? sections[shownSection].Name : names[0]);
                     var index = sections.FindIndex(item => item.Name == selectedName);
                     if (section.SelectedIndex != index)
                     {
