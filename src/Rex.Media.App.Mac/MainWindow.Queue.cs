@@ -255,15 +255,29 @@ public sealed partial class MainWindow
         if (action == "next-page" || action == "previous-page"
             || action == "shuffle" || action == "last-play-next")
         {
-            var pressed = action switch
+            // Use the actual controls. Direct references keep pagination tests fast when
+            // the document view contains the maximum 75 visible entries.
+            var button = action switch
             {
-                "next-page" => PressQueueSmokeButton("Next page"),
-                "previous-page" => PressQueueSmokeButton("Previous page"),
-                "shuffle" => PressQueueSmokeButton("Shuffle:", prefix: true),
-                _ => PressQueueSmokeButton("Play next", last: true),
+                "next-page" => _nextQueuePage,
+                "previous-page" => _previousQueuePage,
+                "shuffle" => _queueShuffle,
+                _ => FindQueueSmokeButton("Play next", last: true),
             };
-            RefreshQueue();
-            return pressed;
+            if (button is not { Enabled: true })
+            {
+                return false;
+            }
+
+            button.PerformClick(button);
+            if (action is "shuffle" or "last-play-next")
+            {
+                // Playlist.Changed schedules a refresh on the UI thread; update the result
+                // synchronously so the automation reply reports the new mode / next item.
+                RefreshQueue();
+            }
+
+            return true;
         }
 
         if (action is "capture-empty" or "capture-current" or "capture-long"
@@ -291,11 +305,11 @@ public sealed partial class MainWindow
         return false;
     }
 
-    private bool PressQueueSmokeButton(string label, bool prefix = false, bool last = false)
+    private NSButton? FindQueueSmokeButton(string label, bool last = false)
     {
-        if (_queueWindow?.ContentView is not { } root)
+        if (_queueScroll?.DocumentView is not { } root)
         {
-            return false;
+            return null;
         }
 
         static IEnumerable<NSButton> Buttons(NSView view)
@@ -314,16 +328,8 @@ public sealed partial class MainWindow
             }
         }
 
-        var matches = Buttons(root).Where(button => button.Enabled
-            && (prefix ? button.Title.StartsWith(label, StringComparison.Ordinal) : button.Title == label));
-        var chosen = last ? matches.LastOrDefault() : matches.FirstOrDefault();
-        if (chosen is null)
-        {
-            return false;
-        }
-
-        chosen.PerformClick(chosen);
-        return true;
+        var matches = Buttons(root).Where(button => button.Enabled && button.Title == label);
+        return last ? matches.LastOrDefault() : matches.FirstOrDefault();
     }
 
     private void CloseQueue()
