@@ -218,6 +218,28 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void DuplicateEpisodeTitlesAndUndatedOfflineShowsKeepSeparateLocalPaths()
+    {
+        var first = AudioFile("Podcasts/Show One/Episode.mp3", null, album: "Show One");
+        var second = AudioFile("Podcasts/Show One/Extra/Episode.mp3", null, album: "Show One");
+        var third = AudioFile("Podcasts/Other Show/Episode.mp3", null, album: "Other Show");
+        var shelves = ListeningViews.Arrange([third, second, first], AudioRules.Offline);
+        Assert.Equal(2, shelves.Podcasts.Count);
+        var one = shelves.Podcasts.Single(show => show.Name == "Show One");
+        var other = shelves.Podcasts.Single(show => show.Name == "Other Show");
+        Assert.Equal(2, one.Entries.Count);
+        Assert.Equal(2, one.Entries.Select(entry => entry.Path).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal([first, second], ListeningViews.Episodes(one.Entries, oldestFirst: true));
+        Assert.Equal(DateTime.MinValue, ListeningViews.NewestEpisode(one));
+        Assert.Equal(DateTime.MinValue, ListeningViews.NewestEpisode(other));
+        Assert.Equal(2, ListeningViews.UnplayedInOrder(one, NeverLeft).Count);
+        Assert.Equal([first], ListeningViews.UnplayedInOrder(one, NeverLeft,
+            entry => entry.Path != second.Path));
+        Assert.Empty(ListeningViews.UnplayedInOrder(one, NeverLeft, _ => false));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnEpisodesDateComesFromItsTagsThenTheFileThenItsName()
     {
         var file = new DateTime(2024, 6, 2, 8, 0, 0, DateTimeKind.Utc);
