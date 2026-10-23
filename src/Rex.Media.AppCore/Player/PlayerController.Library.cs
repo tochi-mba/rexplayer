@@ -178,6 +178,17 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Undo removing files from the library, without touching the disk or active playback.</summary>
+    public int RestoreToLibrary(IReadOnlyList<LibraryEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        var restored = Library?.RestoreHiddenEntries(entries) ?? 0;
+        Say(restored == 0 ? "Nothing could be restored to the library"
+            : restored == 1 ? "Restored 1 item to the library" : $"Restored {restored} items to the library");
+        Changed?.Invoke(this, EventArgs.Empty);
+        return restored;
+    }
+
     /// <summary>
     /// After <paramref name="paths"/> were deleted from the disk: the library forgets them, where
     /// they were left is forgotten, and they leave the playlist (what plays stops if it was one).

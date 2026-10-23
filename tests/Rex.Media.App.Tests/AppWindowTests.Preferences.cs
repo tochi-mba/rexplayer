@@ -144,6 +144,74 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-10")]
+    public void PreferencesSearchFindsWrappedLabelsChoicesAndClosedExpanderOptions()
+    {
+        using var app = AppProcess.Start();
+        ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(1000, 760);
+        app.Run(CommandCatalog.Preferences);
+        var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
+        Assert.False(app.Find("PreferencesCategorySearch").Current.IsOffscreen);
+
+        string Section() => ((SelectionPattern)app.Find("PreferencesSection")
+            .GetCurrentPattern(SelectionPattern.Pattern)).Current.GetSelection().Single().Current.Name;
+
+        // This label is a TextBlock after WrapLabels. Search must not compare its type name.
+        search.SetValue("Keep audio-only items playing in the library");
+        Wait.For(() => Section() == "Library", "search to find the wrapped checkbox label");
+
+        // Choice values are searchable even when their dropdown is closed.
+        search.SetValue("Fastest");
+        Wait.For(() => Section() == "Performance", "search to find a choice option");
+
+        // The artwork options exist underneath a collapsed Expander.
+        search.SetValue("Artwork detail (%)");
+        Wait.For(() => Section() == "Music and artwork", "search to find a collapsed option");
+        Assert.Equal(ExpandCollapseState.Collapsed, ((ExpandCollapsePattern)app.Find("PreferencesArtworkDetails")
+            .GetCurrentPattern(ExpandCollapsePattern.Pattern)).Current.ExpandCollapseState);
+
+        search.SetValue("a setting that does not exist 012345");
+        Wait.For(() => app.IsShown("PreferencesSearchEmpty"), "search to explain no matching results");
+
+        // Restoring the search should restore a useful section instead of the no-results state.
+        search.SetValue("sUbTiTlE");
+        Wait.For(() => Section() == "Subtitles" && !app.IsShown("PreferencesSearchEmpty"),
+            "search to recover after no matches");
+        app.Press("CloseButton");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-10")]
+    public void PreferencesResizeKeepsTheCompactPickerAndRestoresTheWideCategoryRail()
+    {
+        using var app = AppProcess.Start();
+        var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        transform.Resize(1000, 760);
+        app.Run(CommandCatalog.Preferences);
+        Wait.For(() => app.IsShown("PreferencesCategorySearch") && app.IsShown("PreferencesCategoryList"),
+            "the wide Settings rail to show");
+        var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
+        search.SetValue("Fastest");
+        Wait.For(() => ((SelectionPattern)app.Find("PreferencesSection").GetCurrentPattern(SelectionPattern.Pattern))
+            .Current.GetSelection().Single().Current.Name == "Performance", "search to select Performance");
+
+        transform.Resize(720, 640);
+        Wait.For(() => !app.IsShown("PreferencesCategorySearch") && app.IsShown("PreferencesSection"),
+            "the compact picker to replace the wide rail");
+        ChoosePreferencesSection(app, "Subtitles");
+
+        transform.Resize(1000, 760);
+        Wait.For(() => app.IsShown("PreferencesCategorySearch") && app.IsShown("PreferencesCategoryList"),
+            "the category rail to return after resize");
+        Assert.Equal("", search.Current.Value);
+        Assert.Equal("Subtitles", ((SelectionPattern)app.Find("PreferencesSection")
+            .GetCurrentPattern(SelectionPattern.Pattern)).Current.GetSelection().Single().Current.Name);
+        app.Press("CloseButton");
+        Assert.Equal(0, app.Close());
+    }
+
     private static void ChoosePreferencesSection(AppProcess app, string name)
     {
         var selector = app.Find("PreferencesSection");

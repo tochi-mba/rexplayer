@@ -16,11 +16,16 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(_subtitleTracksMenu, "SubtitleTrackChoices");
         subtitles.Items.Insert(0, _subtitleTracksMenu);
 
+        var read = new MenuFlyoutItem { Text = "Read transcript..." };
+        AutomationProperties.SetAutomationId(read, "ReadTranscript");
+        read.Click += (_, _) => Forget(ShowTranscriptReaderAsync());
+        subtitles.Items.Insert(1, read);
+
         var edit = new MenuFlyoutItem { Text = "Edit transcript..." };
         AutomationProperties.SetAutomationId(edit, "EditTranscript");
         edit.Click += (_, _) => Forget(ShowTranscriptEditorAsync());
-        subtitles.Items.Insert(1, edit);
-        subtitles.Items.Insert(2, new MenuFlyoutSeparator());
+        subtitles.Items.Insert(2, edit);
+        subtitles.Items.Insert(3, new MenuFlyoutSeparator());
         RefreshTranscriptMenus();
     }
 

@@ -8,6 +8,25 @@ namespace Rex.Media.Tests.AppCore;
 /// <summary>Library views ordered and grouped as the user asks (LIB-05).</summary>
 public sealed class LibraryArrangementTests
 {
+    [Theory]
+    [InlineData(2400, 1600, 1.5)]
+    [InlineData(1600, 2400, 2.0 / 3.0)]
+    [InlineData(12000, 400, 4.0)]
+    [InlineData(400, 12000, 0.35)]
+    [Capability("LIB-05")]
+    public void PictureCollageUsesRealDimensionsWhileBoundingExtremeRows(int width, int height, double expected)
+    {
+        Assert.Equal(expected, CollageLayout.PictureAspectRatio(width, height, 4), 8);
+    }
+
+    [Fact]
+    public void MissingPictureDimensionsUseDeterministicCardProportions()
+    {
+        Assert.Equal(CollageLayout.AspectRatio(LibraryKind.Picture, false, 2), CollageLayout.PictureAspectRatio(null, null, 2));
+        Assert.Equal(CollageLayout.AspectRatio(LibraryKind.Picture, false, 2), CollageLayout.PictureAspectRatio(0, 80, 2));
+        Assert.Equal(CollageLayout.AspectRatio(LibraryKind.Picture, false, 2), CollageLayout.PictureAspectRatio(80, -1, 2));
+    }
+
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
 
     private static LibraryEntry Song(string title, string? artist = null, string? album = null, int? year = null, int plays = 0, double daysAgo = 400, double? playedDaysAgo = null, double? minutes = null, string folder = "Music", string? genre = null) => new()

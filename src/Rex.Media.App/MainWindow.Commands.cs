@@ -229,6 +229,12 @@ public sealed partial class MainWindow
                 var show = PlaylistPane.Visibility != Visibility.Visible;
                 PlaylistPane.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
                 PlaylistButton.IsChecked = show;
+                _queuePaneWasVisible = false;
+                if (show)
+                {
+                    ShowPlaylist();
+                }
+
                 RememberLater();
                 break;
             case CommandCatalog.ClearPlaylist:

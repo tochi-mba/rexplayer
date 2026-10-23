@@ -36,6 +36,39 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Replaces the ordered contents of a saved playlist after an editor is accepted. Entries are
+    /// copied before persistence so later dialog changes cannot silently mutate what was saved.
+    /// Duplicate locations and cue boundaries are deliberately retained; the playing queue is untouched.
+    /// </summary>
+    public void ReplacePlaylistItems(string id, IReadOnlyList<QueuedItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var snapshot = items.ToArray();
+        if (Find(id) is { } playlist)
+        {
+            Memory.SetPlaylist(playlist with { Items = snapshot });
+            Say($"Updated {playlist.Name} ({ItemCount(snapshot.Length)})");
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>
+    /// A missing saved entry may be relinked to a new path without changing cue boundaries,
+    /// a user-authored title, or any other saved entry. The file itself is never moved.
+    /// </summary>
+    public static QueuedItem RelocatedPlaylistEntry(QueuedItem item, string path)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return item with
+        {
+            Location = path,
+            Title = item.Title is null || item.Title == PlaylistItem.TitleOf(item.Location)
+                ? PlaylistItem.TitleOf(path) : item.Title,
+        };
+    }
+
     /// <summary>Adds what is playing to the named playlist <paramref name="id"/>.</summary>
     public void AddPlayingToPlaylist(string id)
     {
@@ -72,7 +105,7 @@ public sealed partial class PlayerController
     }
 
     /// <summary>Plays the named playlist <paramref name="id"/> in place of the playlist, or after it with <paramref name="enqueue"/>.</summary>
-    public void PlayPlaylist(string id, bool enqueue = false)
+    public void PlayPlaylist(string id, bool enqueue = false, bool shuffle = false)
     {
         if (Find(id) is not { } playlist)
         {
@@ -83,6 +116,11 @@ public sealed partial class PlayerController
         {
             Say($"{playlist.Name} is empty.");
             return;
+        }
+
+        if (shuffle && !enqueue)
+        {
+            Playlist.Shuffle = true;
         }
 
         _log.Info(LogSource, $"Playing the playlist {playlist.Name} ({playlist.Items.Count} items){(enqueue ? " after the playlist" : "")}.");

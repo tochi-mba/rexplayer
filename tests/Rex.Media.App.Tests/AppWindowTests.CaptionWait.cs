@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Settings;
 using Rex.Media.TestKit;
@@ -47,6 +48,13 @@ public sealed partial class AppWindowTests
 
         app.Run(CommandCatalog.Transcribe);
         Wait.For(() => app.IsShown("CaptionBufferOverlay") && app.Status().State == "Paused", "playback to wait for captions");
+        var viewport = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        viewport.Resize(1000, 700);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - 700) < 2,
+            "the pinned caption-loading viewport");
+        Assert.StartsWith("Preparing captions", app.Text("CaptionBufferOverlayText"), StringComparison.Ordinal);
+        Screenshots.Match(app, "caption-buffer-loading");
         app.Press("CaptionBufferPlayNow");
         Wait.For(() => !app.IsShown("CaptionBufferOverlay") && app.Status().State == "Playing", "Play now to start playback");
         PlayOn(app, 1, "the song to play on without captions");

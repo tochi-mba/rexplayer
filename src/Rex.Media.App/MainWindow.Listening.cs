@@ -181,7 +181,7 @@ public sealed partial class MainWindow
                     var show = LibraryViews.RefreshGroup(shows, openedShow);
                     _libraryGroup = show;
                     var unplayed = ListeningViews.Unplayed(show, _player.LeftAt);
-                    return ("PODCAST", show.Name, string.Join(" · ", new[] { show.Detail, Count(show.Entries.Count, "episode"), unplayed + " unplayed" }.Where(part => part is not null)),
+                    return ("PODCAST", show.Name, string.Join(" · ", new[] { show.Detail, Count(show.Entries.Count, "episode"), unplayed + " unplayed", "Local files only" }.Where(part => part is not null)),
                         [new LibraryRowGroup("", show.Entries.Select(PodcastEpisodeRow))], false);
                 }
 
@@ -242,7 +242,7 @@ public sealed partial class MainWindow
         var detail = string.Join(" · ", new[]
         {
             show.Detail,
-            newest == DateTime.MinValue ? null : "Newest " + newest.ToLocalTime().ToString("d", CultureInfo.CurrentCulture),
+            newest == DateTime.MinValue ? null : "Latest file date " + newest.ToLocalTime().ToString("d", CultureInfo.CurrentCulture),
             unplayed == 0 ? "All played" : unplayed + " unplayed",
         }.Where(part => part is not null));
         return new LibraryRow(show.Name, detail, Count(show.Entries.Count, "episode"), show, hasPicture: true, picturePlaceholder: "◉");
@@ -252,20 +252,34 @@ public sealed partial class MainWindow
     private LibraryRow PodcastEpisodeRow(LibraryEntry episode)
     {
         var left = _player.LeftAt(episode.Path);
-        var state = left is { } at ? "Stopped at " + TimeText.Format(at, episode.Duration ?? TimeSpan.Zero) : episode.Plays > 0 ? "Played" : "New";
+        var progress = PodcastEpisodeProgress.Of(episode, left);
         var date = ListeningViews.EpisodeDate(episode);
-        var detail = date == DateTime.MinValue ? state : state + " · " + date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
-        var progress = left is { } stopped && episode.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(stopped / length, 0, 1) : 0;
-        return new LibraryRow(episode.Title, detail, episode.Duration is { } duration ? TimeText.Format(duration, duration) : "", episode,
-            hasPicture: true, picturePlaceholder: "◉", badge: episode.Track?.ToString(CultureInfo.CurrentCulture) ?? "", progress: progress,
-            isPlaying: LibraryViews.SameLocation(episode.Path, _player.Playlist.Current?.Location));
+        // The index stores a file timestamp and, sometimes, only a year tag. Neither is
+        // proof of a published date, so the interface must not invent one.
+        var dateText = episode.Year is { } year && episode.Modified.Year != year
+            ? "Year tag " + year.ToString(CultureInfo.CurrentCulture)
+            : date == DateTime.MinValue ? null
+            : (episode.Modified != default ? "File date " : "Dated ") + date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
+        var remaining = left is not null && progress.Remaining is { } timeLeft
+            ? TimeText.Format(timeLeft, episode.Duration) + " left" : null;
+        var chapters = episode.Chapters is { Count: > 0 } markers ? Count(markers.Count, "chapter") : null;
+        var detail = string.Join(" · ", new[] { progress.Status, remaining, dateText, chapters }
+            .Where(part => part is not null));
+        return AttachEpisodeNotes(new LibraryRow(episode.Title, detail, episode.Duration is { } duration ? TimeText.Format(duration, duration) : "", episode,
+            hasPicture: true, picturePlaceholder: "◉", badge: episode.Track?.ToString(CultureInfo.CurrentCulture) ?? "", progress: progress.Fraction,
+            isPlaying: LibraryViews.SameLocation(episode.Path, _player.Playlist.Current?.Location)), episode);
     }
 
     /// <summary>A recording's line: when it was made and how long it runs.</summary>
     private LibraryRow RecordingRow(LibraryEntry recording)
     {
-        var at = ListeningViews.RecordedAt(recording);
-        var detail = at is { } made ? (made.Kind == DateTimeKind.Utc ? made.ToLocalTime() : made).ToString("g", CultureInfo.CurrentCulture) : "";
+        var evidence = ListeningViews.RecordingDateEvidence(recording);
+        var source = Path.GetFileName(Path.GetDirectoryName(recording.Path));
+        var when = evidence is { } dated
+            ? (dated.FromFilename ? "Name date " : "File updated ")
+                + (dated.At.Kind == DateTimeKind.Utc ? dated.At.ToLocalTime() : dated.At).ToString("g", CultureInfo.CurrentCulture)
+            : "Undated";
+        var detail = string.Join(" · ", new[] { source, when }.Where(part => !string.IsNullOrWhiteSpace(part)));
         return new LibraryRow(recording.Title, detail, recording.Duration is { } duration ? TimeText.Format(duration, duration) : "", recording,
             picturePlaceholder: "●", isPlaying: LibraryViews.SameLocation(recording.Path, _player.Playlist.Current?.Location));
     }
@@ -289,6 +303,12 @@ public sealed partial class MainWindow
     private IEnumerable<(string Title, LibrarySource See, IReadOnlyList<LibraryRow> Rows, bool Wide)> ListeningShelvesForHome()
     {
         var shelves = Listening();
+        // Show-oriented cards open a local show, never a mixed autoplay queue. Prioritize shows
+        // with unheard episodes, then the newest locally evidenced episode date.
+        var shows = shelves.Podcasts.OrderByDescending(show => ListeningViews.Unplayed(show, _player.LeftAt))
+            .ThenByDescending(ListeningViews.NewestEpisode).ThenBy(show => show.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Take(20).ToList();
+        yield return ("Podcast shows", LibrarySource.Podcasts, [.. shows.Select(ShowRow)], false);
         var going = ListeningViews.ContinueListening(shelves, _player.LeftAt, Audiobooks.Finished).Take(20).ToList();
         yield return ("Continue listening", going.Any(item => item.Book is not null) ? LibrarySource.Audiobooks : LibrarySource.Podcasts,
             [.. going.Select(item => item.Book is { } book ? BookRow(book) : PodcastEpisodeRow(item.Entry))], false);

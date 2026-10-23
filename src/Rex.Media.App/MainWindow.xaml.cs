@@ -68,6 +68,8 @@ public sealed partial class MainWindow : Window
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
     private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
+    private PlaylistItem? _queueLastFollowed;
+    private bool _queuePaneWasVisible;
 
     /// <param name="files">What the launch was asked to open.</param>
     /// <param name="settings">The settings the launch has already read; read again when null.</param>
@@ -111,7 +113,11 @@ public sealed partial class MainWindow : Window
         WireSubjectTools();
         WireSeekBar();
 
-        _osdTimer = Timer(TimeSpan.FromSeconds(1.5), () => OsdBox.Visibility = Visibility.Collapsed);
+        // UI evidence runs hold a genuine failure notice long enough for two
+        // independently rendered screenshots. Normal users keep the brief OSD.
+        var evidenceOsd = Environment.GetEnvironmentVariable("REXPLAYER_VISUAL_EVIDENCE") == "1";
+        _osdTimer = Timer(TimeSpan.FromSeconds(evidenceOsd ? 30 : 1.5),
+            () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
         _controlsTimer = Timer(TimeSpan.FromSeconds(_settings.ControlsHideSeconds), HideFullScreenControls);
         _pointerTimer = Timer(TimeSpan.FromSeconds(1.5), HideFullScreenPointer);
@@ -444,6 +450,13 @@ public sealed partial class MainWindow : Window
 
         var title = _player.Title;
         Title = title.Length > 0 ? $"{title} \u2014 rexplayer" : "rexplayer";
+        var picture = _player.Item?.Location is { } location && MediaFiles.IsPicture(location);
+        PictureIntervalButton.Visibility = picture ? Visibility.Visible : Visibility.Collapsed;
+        if (picture)
+        {
+            PictureIntervalButton.Content = $"Slideshow · {_settings.PictureSeconds} s";
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PictureIntervalButton, $"Slideshow interval, {_settings.PictureSeconds} seconds per picture");
+        }
         NowPlaying.Text = title;
 
         var idle = _player.State is SessionState.Idle || (_player.Item is not null && !HasVideo);
@@ -541,6 +554,19 @@ public sealed partial class MainWindow : Window
         ShowMemory();
         ShowEpisodeSkip();
         ShowNamedPlaylists();
+        // Queue mutations and decoder-state changes arrive separately. Keep Now/Next and the
+        // actual duration true as a stream opens, pauses, ends or faults.
+        if (_player.Playlist.CurrentIndex is >= 0 and var queueIndex && queueIndex < _playlistRows.Count
+            && _player.Duration > TimeSpan.Zero
+            && _playlistRows[queueIndex].DurationText != TimeText.Format(_player.Duration, _player.Duration))
+        {
+            ShowPlaylist();
+        }
+        else
+        {
+            ShowQueuePlaybackState();
+        }
+
         ShowMenuChecks();
         ShowTaskbarState();
         ShowCurrentLibraryItem();
@@ -563,6 +589,11 @@ public sealed partial class MainWindow : Window
         }
 
         _updatingControls = false;
+        if (_player.Playlist.CurrentIndex is >= 0 and var currentIndex && currentIndex < _playlistRows.Count)
+        {
+            _playlistRows[currentIndex].SetProgress(_player.Position, duration);
+        }
+
         ShowEpisodeSkip();
         ShowTaskbarPosition();
     }
@@ -580,7 +611,17 @@ public sealed partial class MainWindow : Window
         {
             var source = repeated.Contains(item.Title) ? PlaylistItem.SourceOf(item.Location) : null;
             var secondary = string.Join(" · ", new[] { item.Artist, source }.Where(text => !string.IsNullOrWhiteSpace(text)).Distinct(StringComparer.CurrentCultureIgnoreCase));
-            return new PlaylistRow(item.Title, secondary, i == current, _player.IsMissing(item), item.Location);
+            var whole = _library?.Entry(item.Location)?.Duration;
+            TimeSpan? length = ReferenceEquals(_player.Playlist.Current, item) && _player.Duration > TimeSpan.Zero
+                ? _player.Duration : item.End is { } end && whole is { } full && full < end
+                    ? full - item.Start : item.End is { } cueEnd ? cueEnd - item.Start
+                    : whole is { } known ? known - item.Start : null;
+            if (length <= TimeSpan.Zero)
+            {
+                length = null;
+            }
+
+            return new PlaylistRow(item.Title, secondary, i == current, _player.IsMissing(item), item.Location, length);
         }).ToList();
         for (var i = 0; i < rows.Count; i++)
         {
@@ -599,14 +640,41 @@ public sealed partial class MainWindow : Window
             _playlistRows.RemoveAt(_playlistRows.Count - 1);
         }
 
+        if (current >= 0 && current < _playlistRows.Count)
+        {
+            _playlistRows[current].SetProgress(_player.Position, _player.Duration);
+        }
+
+        PlaylistQueueCount.Text = rows.Count == 1 ? "1 item" : $"{rows.Count} items";
+        ShowQueuePlaybackState();
         PlaylistEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        if (current >= 0 && PlaylistPane.Visibility == Visibility.Visible)
+        var paneVisible = PlaylistPane.Visibility == Visibility.Visible;
+        PlaylistJumpNow.IsEnabled = current >= 0;
+        PlaylistUndoReorder.IsEnabled = _queueUndoOrder is { } previous && _player.Playlist.CanRestoreOrder(previous);
+
+        if (QueueScrollPolicy.ShouldFollow(paneVisible, !_queuePaneWasVisible, _queueLastFollowed, _player.Playlist.Current))
         {
             PlaylistView.ScrollIntoView(_playlistRows[current]);
         }
 
+        _queueLastFollowed = _player.Playlist.Current;
+        _queuePaneWasVisible = paneVisible;
         ShowTaskbarState();
+    }
+
+    /// <summary>Titles and reversible actions follow engine state even when the queue itself did not change.</summary>
+    private void ShowQueuePlaybackState()
+    {
+        var active = _player.Item is not null && _player.State is not (SessionState.Idle or SessionState.Ended or SessionState.Faulted);
+        PlaylistQueueNow.Text = _player.Playlist.Current is { } playing && active
+            ? "Now playing: " + playing.Title
+            : active ? "Current media outside the queue" : "Nothing playing";
+        PlaylistQueueNext.Text = _player.Playlist.PeekNext(automatic: true) is { } next
+            ? "Up next: " + next.Title : "No upcoming items";
+        PlaylistUndoRemoval.IsEnabled = _undoQueueRemoval is { } removed
+            && ReferenceEquals(_undoQueuePlayerItem, _player.Item)
+            && _player.Playlist.CanUndoRemoval(removed);
     }
 
     /// <summary>A short message over the picture, which fades after a moment.</summary>
