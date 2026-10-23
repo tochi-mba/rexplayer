@@ -229,6 +229,14 @@ public sealed partial class MainWindow
         {
             if (row.PictureWork == work)
             {
+                // Hover prefetch can be cancelled while its tile is still on screen. Reset
+                // the request latch so normal realization/focus can retry the thumbnail.
+                // An older cancelled worker must never reset a newer request.
+                if (row.Picture is null && work.IsCancellationRequested)
+                {
+                    row.PictureAsked = false;
+                }
+
                 row.PictureWork = null;
             }
         }
