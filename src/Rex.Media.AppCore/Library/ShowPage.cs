@@ -12,10 +12,14 @@ public sealed record EpisodeWatchSummary(int Total, int Completed, int InProgres
     public bool IsComplete => Total > 0 && Completed == Total;
 
     /// <summary>Read an aggregate without implying that a partially watched episode is finished.</summary>
-    public string Describe(string scope) => Total == 0 ? $"{scope}: no episodes"
-        : IsComplete ? $"{scope} complete: {Completed} of {Total} episodes watched"
-        : $"{scope}: {Completed} of {Total} episodes watched"
-            + (InProgress > 0 ? $" · {InProgress} in progress" : "");
+    public string Describe(string scope)
+    {
+        var noun = Total == 1 ? "episode" : "episodes";
+        return Total == 0 ? $"{scope}: no episodes"
+            : IsComplete ? $"{scope} complete: {Completed} of {Total} {noun} watched"
+            : $"{scope}: {Completed} of {Total} {noun} watched"
+                + (InProgress > 0 ? $" · {InProgress} in progress" : "");
+    }
 }
 
 /// <summary>
