@@ -265,9 +265,9 @@ public sealed partial class MainWindow
         var chapters = episode.Chapters is { Count: > 0 } markers ? Count(markers.Count, "chapter") : null;
         var detail = string.Join(" · ", new[] { progress.Status, remaining, dateText, chapters }
             .Where(part => part is not null));
-        return new LibraryRow(episode.Title, detail, episode.Duration is { } duration ? TimeText.Format(duration, duration) : "", episode,
+        return AttachEpisodeNotes(new LibraryRow(episode.Title, detail, episode.Duration is { } duration ? TimeText.Format(duration, duration) : "", episode,
             hasPicture: true, picturePlaceholder: "◉", badge: episode.Track?.ToString(CultureInfo.CurrentCulture) ?? "", progress: progress.Fraction,
-            isPlaying: LibraryViews.SameLocation(episode.Path, _player.Playlist.Current?.Location));
+            isPlaying: LibraryViews.SameLocation(episode.Path, _player.Playlist.Current?.Location)), episode);
     }
 
     /// <summary>A recording's line: when it was made and how long it runs.</summary>
