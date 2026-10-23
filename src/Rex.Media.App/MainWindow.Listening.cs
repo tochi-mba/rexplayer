@@ -145,8 +145,9 @@ public sealed partial class MainWindow
                         _librarySeason = book;
                         var chapters = book.Entries.Count == 0 ? [] : ListeningViews.Chapters(book);
                         var place = book.Entries.Count == 0 ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
+                        var currentChapter = ListeningViews.CurrentChapterIndex(chapters, book, place);
                         return ("AUDIOBOOK", book.Name, BookLine(book, chapters.Count),
-                            [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, place)))], false);
+                            [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, currentChapter)))], false);
                     }
 
                     return ("AUTHOR", author.Name, Count(theirBooks.Count, "book") + " · " + Total(author.Entries),
@@ -165,8 +166,9 @@ public sealed partial class MainWindow
                     _libraryGroup = book;
                     var chapters = book.Entries.Count == 0 ? [] : ListeningViews.Chapters(book);
                     var place = book.Entries.Count == 0 ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
+                    var currentChapter = ListeningViews.CurrentChapterIndex(chapters, book, place);
                     return ("AUDIOBOOK", book.Name, BookLine(book, chapters.Count),
-                        [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, place)))], false);
+                        [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, currentChapter)))], false);
                 }
 
                 var going = books.Where(book => ListeningViews.Started(book, _player.LeftAt) && !Audiobooks.Finished(book)).ToList();
@@ -224,13 +226,10 @@ public sealed partial class MainWindow
     }
 
     /// <summary>One chapter of an open book; the one it is up to says so.</summary>
-    private LibraryRow ChapterRow(LibraryGroup book, BookChapter chapter, int index, BookPlace place)
+    private LibraryRow ChapterRow(LibraryGroup book, BookChapter chapter, int index, int currentChapter)
     {
-        var part = IndexOfPart(book, chapter.Part);
         var detail = book.Entries.Count > 1 && chapter.Part.Chapters is { Count: > 0 } ? chapter.Part.Title : "";
-        var current = part == place.Part && chapter.Start <= place.At
-            && ListeningViews.Chapters(book).Where(other => other.Part == chapter.Part && other.Start <= place.At).Max(other => other.Start) == chapter.Start;
-        return new LibraryRow(chapter.Title, current && ListeningViews.Started(book, _player.LeftAt) ? (detail.Length > 0 ? detail + " · " : "") + "Up to here" : detail,
+        return new LibraryRow(chapter.Title, index == currentChapter && ListeningViews.Started(book, _player.LeftAt) ? (detail.Length > 0 ? detail + " · " : "") + "Up to here" : detail,
             TimeText.Format(chapter.Start, chapter.Part.Duration), chapter, badge: (index + 1).ToString(CultureInfo.CurrentCulture));
     }
 
