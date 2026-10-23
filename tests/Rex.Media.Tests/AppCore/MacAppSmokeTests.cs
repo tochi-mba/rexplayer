@@ -169,6 +169,29 @@ public sealed class MacAppSmokeTests
                 "An unmatched native search did not clear the results: " + (noMatches?.Text ?? noMatches?.Error ?? "no reply") + LogTail(root));
             await CaptureLibraryScreenshot(pipe, "no-matches", root);
 
+            // Invoke the actual AppKit result buttons, not PlayerController directly.
+            // This exercises native Play -> player -> library -> Queue wiring.
+            tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.DoesNotContain(tree!.Controls!, control => control.Id == "LibraryFirstPlay" && control.Enabled);
+            Assert.DoesNotContain(tree.Controls!, control => control.Id == "LibraryFirstQueue" && control.Enabled);
+            var restoreResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
+            Assert.True(restoreResult?.Ok == true, "The native library did not restore its searched result.");
+            tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryFirstPlay" && control.Name.StartsWith("Play ", StringComparison.Ordinal));
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryFirstQueue" && control.Name.StartsWith("Queue ", StringComparison.Ordinal));
+            var playResult = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstPlay" });
+            Assert.True(playResult?.Ok == true, "The native Play result button failed: " + (playResult?.Error ?? "no reply") + LogTail(root));
+            var selected = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                reply => reply is { Ok: true, Title: not null }, app, root);
+            var reopen = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(reopen?.Ok == true, "Could not return to the library from playback.");
+            var queueResult = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstQueue" });
+            Assert.True(queueResult?.Ok == true, "The native Queue result button failed: " + (queueResult?.Error ?? "no reply") + LogTail(root));
+            var afterQueue = await Ask(pipe, new AutomationRequest { Command = "status" });
+            Assert.Equal(selected.Title, afterQueue?.Title);
+            var queued = await Queue(pipe, "show");
+            Assert.Contains("2 items", queued.Title, StringComparison.Ordinal);
+
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
             Assert.True(quit?.Ok == true || (app.WaitForExit(TimeSpan.FromSeconds(5)) && app.ExitCode == 0),
                 "The Mac app could not quit with the library shown: " + (quit?.Error ?? "no reply") + LogTail(root));
