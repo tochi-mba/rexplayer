@@ -46,7 +46,9 @@ public sealed partial class MainWindow
 
         _showPageSeasons = LibraryViews.TvSeasons(show);
         _showPageNextUp = ShowPage.NextUp(show, _player.LeftAt);
-        _librarySeason ??= ShowPage.DefaultSeason(_showPageSeasons, _showPageNextUp);
+        // A scan can replace every LibraryEntry while the page is open.
+        // Keep the chosen season route, but never display its stale pre-scan rows.
+        _librarySeason = ShowPage.RefreshSeason(_showPageSeasons, _librarySeason, _showPageNextUp);
         _showPageOf = _librarySeason is null ? null : show.Name;
         LibraryPlayText.Text = ShowPage.PlayLabel(_showPageNextUp, _showPageNextUp is not null && _player.LeftAt(_showPageNextUp.Path) is not null);
         ShowShowDetails(show, _librarySeason);
