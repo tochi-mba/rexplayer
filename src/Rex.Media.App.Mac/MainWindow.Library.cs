@@ -22,6 +22,10 @@ public sealed partial class MainWindow
     private NSButton? _libraryNextPage;
     private NSButton? _libraryFirstPlay;
     private NSButton? _libraryFirstQueue;
+    private NSButton? _libraryAddButton;
+    private NSButton? _libraryRescanButton;
+    private NSButton? _libraryBackButton;
+    private readonly List<NSView> _libraryResultKeyViews = [];
     private int _libraryPageIndex;
     private const int LibraryPageSize = 80;
     private bool _closingLibrary;
@@ -59,8 +63,8 @@ public sealed partial class MainWindow
                 MinSize = new CGSize(590, 460),
             };
             _libraryWindow.ReleaseWhenClosed(false);
-            // We rebuild the geometric key-view loop whenever the result rows change,
-            // then connect Search to Category. An automatic rebuild can erase that link.
+            // The key-view order is explicit: AppKit\x27s automatic geometric ordering
+            // can discard links after we replace paginated result rows.
             _libraryWindow.AutorecalculatesKeyViewLoop = false;
 
             var headline = NSTextField.CreateLabel("Your library");
@@ -70,6 +74,12 @@ public sealed partial class MainWindow
             var add = NSButton.CreateButton("Add folder…", AddLibraryFolder);
             var rescan = NSButton.CreateButton("Rescan", () => _libraryScanner?.Request());
             var close = NSButton.CreateButton("Back to player", HideLibrary);
+            _libraryAddButton = add;
+            _libraryRescanButton = rescan;
+            _libraryBackButton = close;
+            ((NSView)add).AccessibilityLabel = "Add a folder to the library";
+            ((NSView)rescan).AccessibilityLabel = "Rescan watched library folders";
+            ((NSView)close).AccessibilityLabel = "Back to player";
             var actions = NSStackView.FromViews([add, rescan, close]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 10;
@@ -100,6 +110,7 @@ public sealed partial class MainWindow
             _librarySummary.TextColor = NSColor.SecondaryLabel;
             _librarySummary.Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!;
             _librarySummary.LineBreakMode = NSLineBreakMode.TruncatingTail;
+            _librarySummary.AccessibilityLabel = "Library scan and results summary";
 
             _libraryPreviousPage = NSButton.CreateButton("Previous", () =>
             {
@@ -120,6 +131,7 @@ public sealed partial class MainWindow
             ((NSView)_libraryNextPage).AccessibilityLabel = "Next results page";
             _libraryPageSummary = NSTextField.CreateLabel("");
             _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
+            _libraryPageSummary.AccessibilityLabel = "Library results page";
 
             // Search/Category are linked once the controls belong to the window.
             // AppKit must first calculate the dynamic row controls in the key loop.
@@ -241,6 +253,7 @@ public sealed partial class MainWindow
         var views = new List<NSView>();
         _libraryFirstPlay = null;
         _libraryFirstQueue = null;
+        _libraryResultKeyViews.Clear();
         if (shown.Count == 0)
         {
             var hint = NSTextField.CreateLabel(all.Count == 0
@@ -256,6 +269,7 @@ public sealed partial class MainWindow
             var secondary = entry.Artist ?? entry.Album ?? Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "";
             var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, entries));
             _libraryFirstPlay ??= play;
+            _libraryResultKeyViews.Add(play);
             play.ToolTip = entry.Path;
             ((NSView)play).AccessibilityLabel = "Play " + entry.Title;
             play.Alignment = NSTextAlignment.Left;
@@ -274,6 +288,7 @@ public sealed partial class MainWindow
                 Say("Added to Up Next: " + entry.Title);
             });
             _libraryFirstQueue ??= queue;
+            _libraryResultKeyViews.Add(queue);
             queue.ToolTip = "Add to Up Next without replacing what is playing";
             ((NSView)queue).AccessibilityLabel = "Queue " + entry.Title;
             var row = NSStackView.FromViews([words, queue]);
@@ -307,20 +322,29 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Let AppKit calculate every dynamic result-row key view before explicitly
-    /// connecting Search to Category. Rebuild after a scan, search, or page change
-    /// so removed row buttons do not remain in the navigation loop.
+    /// Include the action toolbar, filters, paging and the current page of row buttons
+    /// in a stable, reversible native focus loop. The row views are replaced after scans
+    /// or filters, so AppKit's automatic geometric loop must not retain stale buttons.
     /// </summary>
     private void WireLibraryKeyViews()
     {
-        if (_libraryWindow is null || _librarySearch is null || _libraryCategory is null)
+        if (_libraryWindow is null || _librarySearch is null || _libraryCategory is null ||
+            _libraryAddButton is null || _libraryRescanButton is null || _libraryBackButton is null ||
+            _libraryPreviousPage is null || _libraryNextPage is null)
         {
             return;
         }
 
-        _libraryWindow.RecalculateKeyViewLoop();
-        _ = _librarySearch.NextValidKeyView; // Force the pending geometric loop rebuild.
-        _librarySearch.NextKeyView = _libraryCategory;
+        var order = new List<NSView>
+        {
+            _librarySearch, _libraryCategory, _libraryAddButton, _libraryRescanButton,
+            _libraryBackButton, _libraryPreviousPage, _libraryNextPage,
+        };
+        order.AddRange(_libraryResultKeyViews);
+        for (var i = 0; i < order.Count; i++)
+        {
+            order[i].NextKeyView = order[(i + 1) % order.Count];
+        }
     }
 
     /// <summary>Return focus to playback when the library is dismissed.</summary>
