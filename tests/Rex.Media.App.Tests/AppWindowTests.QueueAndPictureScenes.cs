@@ -70,8 +70,12 @@ public sealed partial class AppWindowTests
         using var app = AppProcess.Start([playlist], extraSettings: "\"theme\": \"Dark\"");
         app.Run(CommandCatalog.TogglePlaylist);
         Wait.For(() => app.Text("PlaylistQueueCount") == "501 items", "large queue to load");
-        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.NameProperty, "file-not-on-disk. Missing")));
+        var view = app.Find("PlaylistView");
+        var scroll = (ScrollPattern)view.GetCurrentPattern(ScrollPattern.Pattern);
+        scroll.SetScrollPercent(ScrollPattern.NoScroll, 100);
+        Wait.For(() => view.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "file-not-on-disk. Missing")) is not null,
+            "the missing entry at the end of the virtualized queue");
         Screenshots.Match(app, "queue-long-missing-dark", "PlaylistPane");
         Assert.Equal(0, app.Close());
     }
