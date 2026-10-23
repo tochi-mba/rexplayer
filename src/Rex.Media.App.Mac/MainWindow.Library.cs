@@ -354,6 +354,9 @@ public sealed partial class MainWindow
                 detail.TextColor = NSColor.SecondaryLabel;
                 detail.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
                 detail.LineBreakMode = NSLineBreakMode.TruncatingTail;
+                // A very long artist/album/folder name must not widen the metadata
+                // column beyond Play, or the separate Queue action is pushed offscreen.
+                detail.WidthAnchor.ConstraintLessThanOrEqualTo(390).Active = true;
                 var words = NSStackView.FromViews([play, detail]);
                 words.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
                 words.Alignment = NSLayoutAttribute.Leading;
