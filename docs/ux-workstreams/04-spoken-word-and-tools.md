@@ -15,22 +15,25 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 **Out of scope:** unrelated audio/video decoding, analytics/network additions, breaking AutomationIDs or hotkeys, unverifiable macOS parity claims, and sister-PR tasks. Shared source changes must be coordinated before merge.
 
 ## Honest current delivery state
-- [x] Transfer these requirements to an independently owned, versioned scoped plan in this branch.
-- [ ] **Implement the actual code and tests.** The PR began as a *planning-only draft*. Bounded source fixes and regression tests are now present, but the full owned scope and verification remain open.
-- [ ] Attach actual Windows captures and native CI results before claiming feature readiness.
+- [x] Preserve the original 63-task workstream and eight release gates.
+- [x] Commit a first bounded local-podcast source and regression-test tranche on **this PR branch**.
+- [ ] Finish the remaining podcast, transcript, recording, sound, tools and Windows UI deliverables. The first tranche does **not** complete their umbrella tasks.
+- [ ] Review real Windows UI screenshots, accessibility, stress/performance results and native CI on the exact final head.
 
-## Implementation checkpoints  -  2026-10-23
-These checkpoints track **committed changes**, not feature acceptance or passing test results. They do not close any of the 63 roadmap tasks or eight release gates.
+## Implementation checkpoints — 2026-10-23
+**Checked checkpoints mean that the linked code/test changes were committed on PR #484, not that tests have passed or the full UX is complete.** This section supersedes inherited progress notes from other PRs.
 
-- [x] Read `AGENTS.md`, ADR-0020 and existing LIB-05 coverage. Mapped current spoken-word logic to `ListeningViews`, `MainWindow.Listening`, `MainWindow.ListeningActions` and `MainWindow.LibraryPlayback`; mapped existing portable and Windows UI assertions to `ListeningViewsTests` and `LibraryListeningTests`.
-- [x] Commit guarded book resume/progress behavior for empty books, missing playback timestamps, missing/zero durations, and out-of-range positions; add portable regression assertions. [Source](https://github.com/tochi-mba/rexplayer/commit/682a1c4064e255ce6f1332f38503aed50cf0cc15) · [Tests](https://github.com/tochi-mba/rexplayer/commit/1450c003bc7c8ccb910f8edf3611088009af2dce)
-- [x] Commit Authors → Book → Chapter queue isolation and its Windows UI Automation regression test. [Source](https://github.com/tochi-mba/rexplayer/commit/21a4f6d736cdc5b5faaf6cce3c19113a95d30228) · [Test](https://github.com/tochi-mba/rexplayer/commit/8f2edca277aae774207dee7663c44b7bccf8c529)
-- [x] Commit chronological chapter ordering and one-pass active-chapter selection for duplicate/out-of-order markers; update both book routes and add pure regression tests. [Logic](https://github.com/tochi-mba/rexplayer/commit/6d108bc22a540320dc7056eac723aefb40d209aa) · [UI](https://github.com/tochi-mba/rexplayer/commit/e7183458e0f2a26b273b8cb1604dff78ead01103) · [Tests](https://github.com/tochi-mba/rexplayer/commit/b9fe534e407c1718f9e9dc000e0b7770bd81c390)
-- [ ] Confirm pure and coverage suites are green on the final branch head; tests were committed but have not yet been observed passing.
-- [ ] Confirm Windows UI Automation, screenshot, accessibility, performance and warnings-as-errors evidence on the final branch head.
-- [ ] Continue with the remaining roadmap tasks; **none of the 63 umbrella tasks is represented as fully delivered by these fixes**.
+- [x] Locate current Windows implementation and test owners: `ListeningViews`, `MainWindow.Listening`, `MainWindow.ListeningActions`, `MainWindow.LibraryPlayback`, `ListeningViewsTests` and `LibraryListeningTests`; read `AGENTS.md` and the parity requirement in ADR-0020.
+- [x] Stabilize oldest/newest podcast ordering, including undated track-number ties; make show-card dates safe for empty shows, reject future-added episodes from Home and keep malformed year tags from crashing the date. Add pure tests for 1,000 episodes, empty shows, availability and future dates. [Policy](https://github.com/tochi-mba/rexplayer/commit/a9cc74e91814a9383971a5a31fc47ae3c4177b83) · [Tests](https://github.com/tochi-mba/rexplayer/commit/b58626a2dbe4eef45d4ef8eed6fb76d840a0c275)
+- [x] Scope opening a podcast episode to its own show's queue rather than neighboring episodes from a mixed Home or search view. [Source](https://github.com/tochi-mba/rexplayer/commit/64c25d62676aa4ce2119588b55122866a2c3b831)
+- [x] Queue only available, non-corrupt, completed local episodes for “Play unplayed”; do disk availability checks off the window thread and cancel the pending result when the route changes. [Source](https://github.com/tochi-mba/rexplayer/commit/3390491ad66c0c161b5448d05ac95b56a8a2d8a5)
+- [x] Identify podcast shows as local files only; label episode file dates/year tags without asserting an unsupported published date; show known remaining time and recording source/date. [Source](https://github.com/tochi-mba/rexplayer/commit/76dc35d6f0b8220b8569d5bbe128eeab37d2c56f)
+- [x] Add a Windows UI Automation scenario for a local podcast show's unplayed-order action and messaging (committed but not verified passing). [Test](https://github.com/tochi-mba/rexplayer/commit/a6be8152844b3b2a04249de81031691342fa4b87)
+- [ ] Verify the pure suite and required 100% portable coverage on this branch head.
+- [ ] Verify warnings-as-errors Windows build, real UI Automation, screenshot, accessibility, performance and platform/parity checks at the final head.
+- [ ] Complete the 63 larger tasks and all eight release gates; no feature is declared shipped by these commits alone.
 
-**Environment note:** No local .NET SDK or Windows test runtime was available for this edit session. GitHub Actions is the source for actual build/test verification; its results must not be inferred while a run is pending.
+**Verification limitation:** No .NET SDK or Windows desktop runtime is installed in the editing environment, so local compilation and native UI execution were not possible. GitHub Actions was pending at the time of these edits; a pending run is not passing evidence. No generated screenshots are being passed off as real application captures.
 
 ## Detailed task list  -  63 uniquely owned roadmap tasks
 The original, granular task text is reproduced so scope is not lost. No future checkbox was silently marked complete.
@@ -133,7 +136,7 @@ Each future agent should take one unchecked workstream, select bounded tasks and
 - [ ] Tools: subtitle styles, dual captions, kinetic captions, transcript editor/partial progress, transcription jobs, equalizer, picture effects, Subject Lock, stats and info
 
 ## Standard completion gates  -  8 checks per PR
-- [ ] Map current routes, code owners, capability IDs and previously passing UI assertions before changing behavior.
+- [x] Map current routes, code owners, capability IDs and existing UI assertions before changing behavior (see implementation checkpoints; existing assertions are not claimed as freshly passing).
 - [ ] Implement each owned feature in separately reviewable source changes without altering the core decoder/engine contract.
 - [ ] Add deterministic offline fixtures for normal, empty, long/RTL, missing, corrupt, slow and partial data relevant to this scope.
 - [ ] Prove interactions, persistence, cancellation, navigation restoration and errors with executable functional/pure tests.
