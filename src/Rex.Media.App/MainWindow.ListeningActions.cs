@@ -49,6 +49,12 @@ public sealed partial class MainWindow
                 () => Forget(ShowRecordingWaveformAsync(recording))));
         }
 
+        if (audio is [{ } speech] && ShelfOf(speech) is AudioShelf.Podcasts or AudioShelf.Recordings)
+        {
+            menu.Items.Add(MenuItem("Read saved transcript...", "LibraryMenuReadTranscript",
+                () => Forget(ShowTranscriptReaderAsync(speech.Path))));
+        }
+
         foreach (var (shelf, name) in MoveTargets)
         {
             if (audio.Any(entry => ShelfOf(entry) is var now && now != shelf && !(shelf == AudioShelf.Recordings && now == AudioShelf.Sounds)))
