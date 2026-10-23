@@ -56,9 +56,11 @@ public sealed partial class MainWindow
             IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
             HasLyrics: _player.Lyrics is not null,
             HasChapters: info?.Chapters.Any(chapter => chapter.Start.IsKnown && chapter.Start >= MediaTime.Zero) == true,
+            HasCaptions: _player.Subtitles is not null || _player.SecondarySubtitles is not null,
             HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
         var music = stage.ShowAudioPresentation;
         // A picture or unsupported stream must not leave the previous item's seek controls active.
+        SubtitleLayer.Visibility = stage.ShowCaptions ? Visibility.Visible : Visibility.Collapsed;
         SeekBar.IsEnabled = stage.CanSeek;
         StartOverButton.IsEnabled = stage.CanSeek;
         if (stage.Profile is MediaStageProfile.Error or MediaStageProfile.Unsupported)
