@@ -1,3 +1,5 @@
+using Rex.Media.AppCore.Player;
+
 namespace Rex.Media.App.Mac;
 
 /// <summary>The native Up Next window, backed directly by the shared playlist and transport.</summary>
@@ -210,6 +212,118 @@ public sealed partial class MainWindow
         _queueSummary.StringValue = (queue.Count == 1 ? "1 item" : $"{queue.Count} items")
             + (queue.Count > QueuePageSize ? $" • viewing {start + 1}–{end}" : "")
             + (_player.Playlist.PeekNext(automatic: false) is { } nextItem ? $" • Next: {nextItem.Title}" : "");
+    }
+
+    /// <summary>
+    /// CI-only AppKit smoke actions. These exercise the same NSButton callbacks a user presses and
+    /// capture the rendered native window without relying on screen-recording permissions.
+    /// </summary>
+    private bool QueueSmokeAction(string? action)
+    {
+        if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_QUEUE_TESTS") != "1")
+        {
+            return false;
+        }
+
+        if (action == "show")
+        {
+            ShowQueue();
+            return true;
+        }
+
+        if (_queueWindow is null)
+        {
+            return false;
+        }
+
+        if (action == "fill-long")
+        {
+            _player.Playlist.Add(Enumerable.Range(1, 90).Select(index =>
+                new PlaylistItem($"/queue-smoke/track-{index:000}.mp3")
+                {
+                    Title = $"Queue sample {index:000}",
+                }));
+            if (_player.Playlist.Current is null)
+            {
+                _player.Playlist.JumpTo(0);
+            }
+
+            RefreshQueue();
+            return true;
+        }
+
+        if (action == "next-page" || action == "previous-page"
+            || action == "shuffle" || action == "last-play-next")
+        {
+            var pressed = action switch
+            {
+                "next-page" => PressQueueSmokeButton("Next page"),
+                "previous-page" => PressQueueSmokeButton("Previous page"),
+                "shuffle" => PressQueueSmokeButton("Shuffle:", prefix: true),
+                _ => PressQueueSmokeButton("Play next", last: true),
+            };
+            RefreshQueue();
+            return pressed;
+        }
+
+        if (action is "capture-empty" or "capture-current" or "capture-long"
+            or "capture-page-2" or "capture-shuffled")
+        {
+            var folder = Environment.GetEnvironmentVariable("REXPLAYER_MAC_QUEUE_SCREENSHOTS");
+            if (string.IsNullOrWhiteSpace(folder) || _queueWindow.ContentView is not { } view)
+            {
+                return false;
+            }
+
+            Directory.CreateDirectory(folder);
+            view.LayoutSubtreeIfNeeded();
+            using var bitmap = view.BitmapImageRepForCachingDisplayInRect(view.Bounds);
+            if (bitmap is null)
+            {
+                return false;
+            }
+
+            view.CacheDisplay(view.Bounds, bitmap);
+            using var data = bitmap.RepresentationUsingTypeProperties(NSBitmapImageFileType.Png);
+            return data?.Save(Path.Combine(folder, action["capture-".Length..] + ".png"), true) == true;
+        }
+
+        return false;
+    }
+
+    private bool PressQueueSmokeButton(string label, bool prefix = false, bool last = false)
+    {
+        if (_queueWindow?.ContentView is not { } root)
+        {
+            return false;
+        }
+
+        static IEnumerable<NSButton> Buttons(NSView view)
+        {
+            if (view is NSButton button)
+            {
+                yield return button;
+            }
+
+            foreach (var child in view.Subviews)
+            {
+                foreach (var button in Buttons(child))
+                {
+                    yield return button;
+                }
+            }
+        }
+
+        var matches = Buttons(root).Where(button => button.Enabled
+            && (prefix ? button.Title.StartsWith(label, StringComparison.Ordinal) : button.Title == label));
+        var chosen = last ? matches.LastOrDefault() : matches.FirstOrDefault();
+        if (chosen is null)
+        {
+            return false;
+        }
+
+        chosen.PerformClick(null);
+        return true;
     }
 
     private void CloseQueue()
