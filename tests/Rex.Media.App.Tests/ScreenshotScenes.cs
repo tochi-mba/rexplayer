@@ -25,7 +25,8 @@ internal static class ScreenshotScenes
         ExpectedText[] ExpectedVisibleData,
         string ReadinessSignal,
         string Owner,
-        string Baseline)
+        string Baseline,
+        string CaptureMode)
     {
         public string ReadinessId => ReadinessSignal["uia:".Length..];
     }
@@ -66,6 +67,7 @@ internal static class ScreenshotScenes
                 string.IsNullOrWhiteSpace(scene.Theme) ||
                 string.IsNullOrWhiteSpace(scene.Owner) ||
                 scene.Baseline is not ("ci-windows" or "unreviewed") ||
+                scene.CaptureMode is not ("window" or "desktop") ||
                 scene.ExpectedAutomationIds is not { Length: > 0 } ||
                 scene.ExpectedAutomationIds.Any(string.IsNullOrWhiteSpace) ||
                 scene.ExpectedVisibleData is null ||
