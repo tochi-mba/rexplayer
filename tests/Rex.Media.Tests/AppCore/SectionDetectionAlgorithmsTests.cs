@@ -173,6 +173,13 @@ public sealed class SectionDetectionAlgorithmsTests
         Assert.Equal(["Show.S01E03.mkv"], EpisodeGrouping.Siblings(
             "Show.S01E01E02.mkv",
             ["Show.S01E01.mkv", "Show.S01E02.mkv", "Show.S01E03.mkv", "Show.S00E01.mkv"]));
+
+        // Even if the target does not overlap either file, a combined candidate
+        // and its single-episode duplicate cannot both occupy the sibling list.
+        Assert.Equal(["Show.S01E06.mkv", "Show.S01E04.mkv"], EpisodeGrouping.Siblings(
+            "Show.S01E07.mkv",
+            ["Show.S01E05E06.mkv", "Show.S01E06.mkv", "Show.S01E04.mkv"]));
+        Assert.Empty(EpisodeGrouping.Siblings("Show.S01E07.mkv", ["Show.S01E06.mkv"], limit: 0));
     }
 
     [Fact]
