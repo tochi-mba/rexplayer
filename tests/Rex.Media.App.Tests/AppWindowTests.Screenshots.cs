@@ -46,6 +46,8 @@ public sealed partial class AppWindowTests
     {
         using var app = AppStartedAt(1000, 760, "Light");
         app.Run(CommandCatalog.Preferences);
+        Wait.For(() => app.IsShown("PreferencesCategorySearch") && app.IsShown("PreferencesCategoryList"),
+            "the wide Preferences search and category list to be visible");
         var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
         search.SetValue("Artwork detail (%)");
         Wait.For(() => ((SelectionPattern)app.Find("PreferencesSection").GetCurrentPattern(SelectionPattern.Pattern))
@@ -71,9 +73,11 @@ public sealed partial class AppWindowTests
     {
         var film = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
         using var app = AppProcess.Start([film], extraSettings: "\"theme\": \"Light\"");
-        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video to open");
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat" && app.Status().State == "Playing",
+            "the video to start before pausing");
         app.Run(CommandCatalog.PlayPause);
-        Wait.For(() => app.IsShown("PlayPauseButton"), "playback controls");
+        Wait.For(() => app.Status().State == "Paused" && app.IsShown("PlayPauseButton"),
+            "the paused video and playback controls");
         Screenshots.Match(app, "playback-paused");
         Assert.Equal(0, app.Close());
     }
