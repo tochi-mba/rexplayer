@@ -241,6 +241,39 @@ public static class LibraryBackup
         return data with { Folders = data.Folders ?? [], Entries = data.Entries ?? [], Playlists = data.Playlists ?? [] };
     }
 
+    /// <summary>
+    /// Read-only restore preview: counts newly watched folders, unknown entries
+    /// and playlists not already present. Hidden library entries are preserved by
+    /// Restore and can lower the number actually added.
+    /// </summary>
+    public static BackupSummary Preview(LibraryBackupData data, MediaLibrary library, PlayerController controller)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(library);
+        ArgumentNullException.ThrowIfNull(controller);
+        var existing = library.Folders.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var folders = (data.Folders ?? []).Where(folder => !string.IsNullOrWhiteSpace(folder))
+            .Distinct(StringComparer.OrdinalIgnoreCase).Count(folder => !existing.Contains(folder));
+        var entries = (data.Entries ?? []).Where(entry => entry is not null && !string.IsNullOrWhiteSpace(entry.Path))
+            .DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+            .Count(entry => library.Entry(entry.Path) is null);
+        var playlists = 0;
+        var seen = controller.NamedPlaylists.Select(list =>
+            list.Name.ToUpperInvariant() + "\u001f" + string.Join("\u001f", list.Items.Select(item => item.Location.ToUpperInvariant())))
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var list in (data.Playlists ?? []).Where(list => list is not null && !string.IsNullOrWhiteSpace(list.Name)))
+        {
+            var locations = (list.Items ?? []).Where(item => item is not null && !string.IsNullOrWhiteSpace(item.Location))
+                .Select(item => item.Location.ToUpperInvariant());
+            if (seen.Add(list.Name.ToUpperInvariant() + "\u001f" + string.Join("\u001f", locations)))
+            {
+                playlists++;
+            }
+        }
+
+        return new BackupSummary(folders, entries, playlists);
+    }
+
     /// <summary>Brings <paramref name="data"/> into the library and the named playlists, adding to what is there.</summary>
     public static BackupSummary Restore(LibraryBackupData data, MediaLibrary library, PlayerController controller)
     {
