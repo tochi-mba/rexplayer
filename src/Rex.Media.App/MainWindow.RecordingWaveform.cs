@@ -138,7 +138,6 @@ public sealed partial class MainWindow
             var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
             for (var index = 0; index < snapshot.Peaks.Length; index++)
             {
-                var bin = index;
                 var at = RecordingWaveform.At(snapshot.Duration, index, snapshot.Peaks.Length);
                 var bar = new Border
                 {
