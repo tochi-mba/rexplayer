@@ -84,6 +84,8 @@ public sealed partial class MainWindow
 
         if (_librarySource == LibrarySource.Podcasts && (chosen is [{ Item: LibraryGroup show }] ? show : _libraryGroup) is { Entries.Count: > 0 } chosenShow)
         {
+            menu.Items.Add(MenuItem("Read local show notes...", "LibraryMenuShowNotes",
+                () => Forget(ShowPodcastShowNotesAsync(chosenShow))));
             menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () => PlayUnplayedEpisodes(chosenShow)));
             menu.Items.Add(MenuItem("Mark all played", "LibraryMenuMarkAllPlayed", () => MarkListened([.. chosenShow.Entries.Select(episode => episode.Path)])));
         }
