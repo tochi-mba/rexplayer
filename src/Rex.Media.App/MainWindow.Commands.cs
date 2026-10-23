@@ -855,6 +855,18 @@ public sealed partial class MainWindow
     /// </summary>
     private async Task SaveDiagnosticsAsync()
     {
+        var explanation = new TextBlock
+        {
+            Text = "This saves a ZIP on your computer; rexplayer never uploads it. The bundle includes the application log, your settings and this PC's codec/graphics details. Your Windows user-profile path is masked, but filenames, other local folders and addresses may still appear. Review it before sharing.",
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 480,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(explanation, "DiagnosticsPrivacyNotice");
+        if (!await Ask("Save private diagnostics locally?", explanation, "Choose ZIP location"))
+        {
+            return;
+        }
+
         var picker = Prepared(new FileSavePicker { SuggestedStartLocation = PickerLocationId.Desktop, SuggestedFileName = DiagnosticsBundle.FileName(DateTimeOffset.Now) });
         picker.FileTypeChoices.Add("Zip archive", [".zip"]);
         if (await picker.PickSaveFileAsync() is not { } file)
