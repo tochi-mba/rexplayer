@@ -360,7 +360,7 @@ public sealed partial class MainWindow
 
             Directory.CreateDirectory(output);
             File.WriteAllText(Path.Combine(output, "provenance.txt"),
-                "Windows/CI fixture substitution: none" + Environment.NewLine
+                "Capture origin: native AppKit content view" + Environment.NewLine
                 + "Platform: native macOS AppKit" + Environment.NewLine
                 + "Application version: " + typeof(MainWindow).Assembly.GetName().Version + Environment.NewLine
                 + "Source: automated smoke test, synthetic local media fixtures" + Environment.NewLine
