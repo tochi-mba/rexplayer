@@ -76,7 +76,12 @@ Baselines are kept per lane in `tests/screenshot-baselines/<lane>/`: CI's job se
 the `screenshots` artefact. A shot with no baseline passes and says so: copy CI's picture from that
 artefact into `tests/screenshot-baselines/ci-windows/` to start comparing it, and do the same, with
 the reason in the commit, when a change of look is meant. Pictures from a developer's machine never
-become baselines. Screenshots are for layout; behaviour is asserted through UI Automation.
+become baselines. `REXPLAYER_WRITE_SCREENSHOTS=1` cannot silently overwrite
+an image: an existing declared `ci-windows` baseline also requires
+`REXPLAYER_VISUAL_APPROVAL_CONFIRMED=1` after human inspection. A new
+`unreviewed` scene must be inspected, promoted in the inventory and
+reviewed in a commit before an automated writer can replace its baseline.
+Screenshots are for layout; behaviour is asserted through UI Automation.
 
 Every capture must be declared in `tests/screenshot-scenes.json` with its offline fixture,
 route, state, intended dimensions and theme, automation IDs, observable text, readiness signal
