@@ -13,10 +13,10 @@ public sealed class LibrarySectionsTests
     private static readonly ListeningShelves NoListening = new([], [], [], []);
 
     private static LibraryFacts Facts(IReadOnlyCollection<LibraryEntry> entries, ListeningShelves? listening = null, Func<LibraryEntry, bool>? isOther = null,
-        Func<string, TimeSpan?>? leftAt = null, bool recent = false, bool playlists = false, bool folders = false) =>
+        Func<string, TimeSpan?>? leftAt = null, bool recent = false, bool playlists = false, bool folders = false, bool completed = false) =>
         LibraryFacts.Of(entries, [.. entries.Where(entry => entry.Kind != LibraryKind.Music || AudioRules.IsMusic(entry, MusicLookup.NotSearched))], listening ?? NoListening,
             video => !video.Path.Contains("Season", StringComparison.Ordinal), video => video.Path.Contains("Season", StringComparison.Ordinal), isOther,
-            leftAt ?? (_ => null), recent, playlists, folders);
+            leftAt ?? (_ => null), recent, playlists, folders, completed);
 
     private static LibraryEntry Video(string relative) => AudioFile(relative, TimeSpan.FromHours(2)) with { Kind = LibraryKind.Video };
 
@@ -66,6 +66,25 @@ public sealed class LibrarySectionsTests
         // Playlists, recently played and folders, by what the player and library keep.
         Assert.Equal([SidebarView.Home, SidebarView.RecentlyPlayed, SidebarView.Playlists, SidebarView.Folders],
             LibrarySections.Present(Facts([], recent: true, playlists: true, folders: true)).Order());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void CompletedAppearsOnlyWhenSomethingHasActuallyFinished()
+    {
+        var song = AudioFile("Music/Sungba.mp3", TimeSpan.FromMinutes(3), "Asake", "Mr. Money with the Vibe");
+        Assert.DoesNotContain(SidebarView.Completed, LibrarySections.Present(Facts([])));
+        Assert.DoesNotContain(SidebarView.Completed, LibrarySections.Present(Facts([song])));
+        Assert.DoesNotContain(SidebarView.Completed, LibrarySections.Present(Facts([song], leftAt: _ => TimeSpan.FromMinutes(1))));
+
+        var present = LibrarySections.Present(Facts([song], completed: true));
+        Assert.Contains(SidebarView.Completed, present);
+        var sections = new LibrarySections();
+        Assert.True(sections.Observe(present, scanning: false, Now));
+        Assert.Contains(SidebarView.Completed, sections.Shown);
+        Assert.True(sections.Observe(LibrarySections.Present(Facts([song])), scanning: false,
+            Now + LibrarySections.Settle, immediate: true));
+        Assert.DoesNotContain(SidebarView.Completed, sections.Shown);
     }
 
     [Fact]
