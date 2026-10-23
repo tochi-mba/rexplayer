@@ -165,6 +165,21 @@ public sealed class MediaStagePolicyTests
     }
 
     [Fact]
+    public void KineticCaptionsRequireAProvenVideoRatherThanAPictureOrAudioOnlyTrack()
+    {
+        var video = new MediaStageContext(true, StreamsKnown: true, HasVideoTrack: true);
+        Assert.True(MediaStagePolicy.Resolve(video).SupportsKineticCaptions);
+        Assert.True(MediaStagePolicy.Resolve(video with
+            { Kind = LibraryKind.Video, IsMovie = true }).SupportsKineticCaptions);
+        Assert.False(MediaStagePolicy.Resolve(video with { IsPicture = true }).SupportsKineticCaptions);
+        Assert.False(MediaStagePolicy.Resolve(video with { StreamsKnown = false }).SupportsKineticCaptions);
+        Assert.False(MediaStagePolicy.Resolve(video with { HasVideoTrack = false }).SupportsKineticCaptions);
+        Assert.False(MediaStagePolicy.Resolve(video with
+            { HasVideoTrack = false, HasAudioTrack = true }).SupportsKineticCaptions);
+        Assert.False(MediaStagePolicy.Resolve(video with { HasFailure = true }).SupportsKineticCaptions);
+    }
+
+    [Fact]
     public void CaptionsRequireASelectedTrackAndAProvenPlayableStream()
     {
         var audio = new MediaStageContext(true, StreamsKnown: true,
