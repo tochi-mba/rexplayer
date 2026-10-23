@@ -84,6 +84,15 @@ public sealed partial class MainWindow
             return;
         }
 
+        // An author card is a navigation destination, never a request to
+        // play every book in the author's catalogue.
+        if (_librarySource == LibrarySource.Authors && _libraryGroup is null
+            && chosen is [{ Item: LibraryGroup }])
+        {
+            Activate(chosen[0]);
+            return;
+        }
+
         if (chosen is [{ Item: LibraryEntry or NamedPlaylist }])
         {
             Activate(chosen[0]);
@@ -119,8 +128,18 @@ public sealed partial class MainWindow
         }
 
         var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
+        if (NotYetPlayable(chosen) is { } notYet)
+        {
+            // The library stays open over the player, so it says so itself.
+            App.Log.Info(LogSource, notYet);
+            LibraryNotice.Message = notYet;
+            LibraryNotice.IsOpen = true;
+            return;
+        }
+
         // Stop using the previous audiobook's speed before handing music or a
         // podcast to the player; do not rely on its eventual Changed notification.
+        // A rejected play above must never change the book currently sounding.
         if (_bookPlaying is { } previous
             && !previous.Book.Entries.Any(part => LibraryViews.SameLocation(part.Path, chosen.Path)))
         {
@@ -129,15 +148,6 @@ public sealed partial class MainWindow
             {
                 _player.SetSpeed(1);
             }
-        }
-
-        if (NotYetPlayable(chosen) is { } notYet)
-        {
-            // The library stays open over the player, so it says so itself.
-            App.Log.Info(LogSource, notYet);
-            LibraryNotice.Message = notYet;
-            LibraryNotice.IsOpen = true;
-            return;
         }
 
         var resumeAt = resume || _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
