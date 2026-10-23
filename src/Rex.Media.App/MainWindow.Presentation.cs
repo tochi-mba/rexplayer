@@ -300,6 +300,16 @@ public sealed partial class MainWindow
 
         if (!ReferenceEquals(item, _shownChapterItem) || !ReferenceEquals(info, _shownChapterInfo))
         {
+            // Replacing a chaptered stream with another chaptered stream also
+            // replaces the flyout's items. Restore focus before removing the
+            // focused menu item, just as when chapters become unavailable.
+            if (Content.XamlRoot is { } xamlRoot
+                && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot) is MenuFlyoutItemBase focusedChapter
+                && StageChapterMenu.Items.Contains(focusedChapter))
+            {
+                PlayPauseButton.Focus(FocusState.Programmatic);
+            }
+
             StageChapterMenu.Items.Clear();
             foreach (var (index, chapter) in info.Chapters.Index())
             {
@@ -327,7 +337,9 @@ public sealed partial class MainWindow
                 button.Click += (_, _) =>
                 {
                     if (ReferenceEquals(_player.Item, item)
-                        && ReferenceEquals(_player.Info, info) && _player.CanSeek)
+                        && ReferenceEquals(_player.Info, info)
+                        && _stageView.ShowChapters && _stageView.CanSeek && _player.CanSeek
+                        && (!_settings.MinimalInterface || IsFullScreen))
                     {
                         _player.Seek(at);
                     }
