@@ -205,6 +205,38 @@ public sealed partial class AppWindowTests
 
     [Fact]
     [Capability("UI-10")]
+    public void MinimumAllowedWindowKeepsPlayPauseAndSeekInTheVisibleViewport()
+    {
+        using var app = AppProcess.Start([Song(30)], extraSettings: "\"theme\": \"Dark\"");
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
+            && app.Find("SeekBar").Current.IsEnabled,
+            "the real audio stage to be ready for the smallest supported resize");
+
+        var resize = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        resize.Resize(360, 320);
+        Wait.For(() => app.Window.Current.BoundingRectangle is { Width: var w, Height: var h }
+            && Math.Abs(w - 360) < 2 && Math.Abs(h - 320) < 2,
+            "the window to honor its published 360 by 320 lower bound");
+        Assert.Equal("AUDIO playback stage", app.Find("Stage").Current.Name);
+        Assert.True(app.Find("SeekBar").Current.IsEnabled);
+        foreach (var control in new[] { "PlayPauseButton", "SeekBar" })
+        {
+            var window = app.Window.Current.BoundingRectangle;
+            var bounds = app.Find(control).Current.BoundingRectangle;
+            Assert.True(bounds.Width > 0 && bounds.Height > 0
+                && bounds.Left >= window.Left && bounds.Right <= window.Right
+                && bounds.Top >= window.Top && bounds.Bottom <= window.Bottom,
+                control + " must remain present inside the actual minimum-size viewport.");
+        }
+
+        var transport = app.Find("PlayPauseButton");
+        transport.SetFocus();
+        Assert.True(transport.Current.HasKeyboardFocus);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-10")]
     public void CompletedVideoRemainsAccessibleAtCompactAndMinimumWindowSizes()
     {
         var clip = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
