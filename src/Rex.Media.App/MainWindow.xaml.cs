@@ -451,6 +451,24 @@ public sealed partial class MainWindow : Window
         var title = _player.Title;
         Title = title.Length > 0 ? $"{title} \u2014 rexplayer" : "rexplayer";
         var picture = _player.Item?.Location is { } location && MediaFiles.IsPicture(location);
+        if (!picture && PictureIntervalButton.Visibility == Visibility.Visible)
+        {
+            // Popup flyouts have their own focus scope. Dismissing the picture
+            // control during a stream switch must also close its open choices
+            // and move focus away from the removed menu/button.
+            if (Content.XamlRoot is { } xamlRoot)
+            {
+                var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot);
+                if (ReferenceEquals(focused, PictureIntervalButton)
+                    || (focused is MenuFlyoutItemBase menuItem && PictureIntervalMenu.Items.Contains(menuItem)))
+                {
+                    PlayPauseButton.Focus(FocusState.Programmatic);
+                }
+            }
+
+            PictureIntervalMenu.Hide();
+        }
+
         PictureIntervalButton.Visibility = picture ? Visibility.Visible : Visibility.Collapsed;
         if (picture)
         {
