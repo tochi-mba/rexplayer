@@ -424,7 +424,9 @@ public sealed class MediaStageWindowTests : IDisposable
         // currently captioned local video.
         Wait.For(() => app.LogText.Contains("Network streams and remote locations are not supported.", StringComparison.Ordinal),
             "a clear unsupported-network message");
-        Assert.Equal("Captioned", app.Text("NowPlaying"));
+        // The fixture carries a real embedded title (Basquiat), not necessarily
+        // its filesystem name (Captioned). Refusal must preserve that media.
+        Assert.Equal(video, app.Status().Location);
         Assert.Equal("Local video captions", app.Text("SubtitleText"));
         Assert.Contains("Captions are available", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
