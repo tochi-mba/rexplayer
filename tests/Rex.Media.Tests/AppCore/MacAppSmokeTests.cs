@@ -127,6 +127,24 @@ public sealed class MacAppSmokeTests
             Assert.False(string.IsNullOrWhiteSpace(fromLibrary.Title),
                 "The native library row should have started actual local playback.");
 
+            var folders = await Library(pipe, "folders");
+            Assert.Contains("1 item", folders.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-folders");
+            var cleared = await Library(pipe, "remove-folder");
+            Assert.Contains("0 items", cleared.Title, StringComparison.Ordinal);
+            Assert.Contains("0 folders", cleared.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-cleared");
+            Assert.True(File.Exists(Path.Combine(libraryFixture, "Sample Song.mp3")),
+                "Removing a watched folder must never delete an audio file.");
+            Assert.True(File.Exists(Path.Combine(libraryFixture, "Sample Film.mp4")),
+                "Removing a watched folder must never delete a video file.");
+            foreach (var name in new[] { "folders", "cleared" })
+            {
+                var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));
+                Assert.True(file.Exists && file.Length > 1024,
+                    "No usable native watched-folder screenshot: " + file.FullName);
+            }
+
             var quitting = await Ask(pipe, new AutomationRequest { Command = "run", Id = "quit" });
             // The app may exit before the transport can deliver its reply. A clean exit
             // is the stronger proof that the quit command succeeded.
