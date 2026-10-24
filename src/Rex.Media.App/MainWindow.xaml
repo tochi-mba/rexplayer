@@ -709,8 +709,8 @@
         <TextBlock x:Name="Elapsed" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
                    AutomationProperties.AutomationId="Elapsed" />
       </StackPanel>
-      <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" SizeChanged="OnSeekAreaSizeChanged"
-            PointerExited="OnSeekAreaPointerExited">
+      <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" Background="Transparent" SizeChanged="OnSeekAreaSizeChanged"
+            PointerEntered="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
         <!-- Fix the seek-row height: the preview is an overlay and must not
              remeasure the rail when it appears under the pointer. -->
         <Grid.RowDefinitions><RowDefinition Height="32" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

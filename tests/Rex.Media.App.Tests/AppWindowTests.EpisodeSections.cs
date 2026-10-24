@@ -77,6 +77,10 @@ public sealed partial class AppWindowTests
             app.Press("PlayPauseButton");
             Wait.For(() => app.Status().State == "Paused", "the pause");
 
+            // The movie can report a duration before its seek rail becomes
+            // enabled. Wait for the actual control to accept a seek.
+            Wait.For(() => app.Find("SeekBar").Current.IsEnabled, "the video seek rail to become enabled");
+
             // Marked from the Video menu, start and end at the paused position.
             foreach (var (at, mark, said) in new[] { (2, "VideoIntroStart", "Intro start marked at 0:02"), (20, "VideoIntroEnd", "Intro end marked at 0:20") })
             {

@@ -343,6 +343,15 @@ public sealed partial class PlayerController
             case TracksChangedEvent tracks:
                 AudioTrack = tracks.AudioTrack;
                 break;
+            case SeekCompletedEvent completed:
+                // A position tick queued just before a paused seek can report the
+                // old location after Seek() optimistically updates Position. The
+                // completion carries the authoritative target, even when paused
+                // playback produces no further position ticks.
+                var reached = completed.Position.ToTimeSpan();
+                Position = reached > Item!.Start ? reached - Item.Start : TimeSpan.Zero;
+                PositionChanged?.Invoke(this, EventArgs.Empty);
+                break;
             case PositionEvent position:
                 var heard = position.Position.ToTimeSpan();
                 if (Item?.End is { } end && heard >= end)
