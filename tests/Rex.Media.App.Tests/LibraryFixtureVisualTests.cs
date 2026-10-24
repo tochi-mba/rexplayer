@@ -35,6 +35,26 @@ public sealed class LibraryFixtureVisualTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void DisconnectedLibraryFolderShowsRecoveryInsteadOfAFalseEmptyClaim()
+    {
+        using var scene = new LibraryScene();
+        scene.Watched();
+        // The folder was connected when it was chosen and is missing at this launch.
+        // Do not treat an unsuccessful enumeration as proof that its media is gone.
+        System.IO.Directory.Delete(scene.Media, recursive: true);
+        using var app = scene.Start();
+        SetViewport(app, 1000, 760);
+        app.Press("LibraryRescan");
+        Wait.For(() => app.IsShown("LibraryEmptyText") &&
+            app.Text("LibraryEmptyText").Contains("Reconnect its drive or check permissions", StringComparison.Ordinal),
+            "the inaccessible folder to show a recovery action rather than claiming no media exists");
+        Assert.DoesNotContain("There is nothing of this kind", app.Text("LibraryEmptyText"), StringComparison.Ordinal);
+        Screenshots.Match(app, "library-home-disconnected-folder-error", "LibraryPane");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void OneItemLibraryKeepsTheSongBrowsableWithoutOnlineMetadata()
     {
         using var scene = new LibraryScene();
