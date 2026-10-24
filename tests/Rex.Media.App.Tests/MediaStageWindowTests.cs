@@ -354,6 +354,17 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.Window.Current.BoundingRectangle is { Width: var w, Height: var h }
             && Math.Abs(w - 420) < 2 && Math.Abs(h - 340) < 2,
             "a compact picture stage with accessible interval controls");
+        // The native window reports its resized bounds before WinUI has necessarily
+        // completed measure/arrange for the compact playback controls.
+        Wait.For(() =>
+        {
+            var client = app.Window.Current.BoundingRectangle;
+            var button = app.Find("PictureIntervalButton").Current.BoundingRectangle;
+            return button.Left >= client.Left && button.Right <= client.Right
+                && button.Top >= client.Top && button.Bottom <= client.Bottom;
+        }, "the picture interval button to fit inside the compact window",
+            () => $"Window: {app.Window.Current.BoundingRectangle}; " +
+                $"slideshow picker: {app.Find("PictureIntervalButton").Current.BoundingRectangle}.");
         var window = app.Window.Current.BoundingRectangle;
         var bounds = app.Find("PictureIntervalButton").Current.BoundingRectangle;
         Assert.True(bounds.Left >= window.Left && bounds.Right <= window.Right
@@ -361,6 +372,8 @@ public sealed class MediaStageWindowTests : IDisposable
             "The picture interval button must not be clipped by compact playback layout.");
         Assert.True(bounds.Width >= 42 && bounds.Height >= 42,
             "The picture interval picker must be touch-sized at standard DPI.");
+        Assert.Equal("Slideshow interval, 5 seconds per picture",
+            app.Find("PictureIntervalButton").Current.Name);
         Assert.False(app.Find("SeekBar").Current.IsEnabled);
         Pointer.Key(app, "PictureIntervalButton", Pointer.Enter);
         Wait.For(() => app.IsShown("PictureInterval-10"),
