@@ -4,7 +4,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Captions;
-using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.IO;
 

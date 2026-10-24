@@ -54,8 +54,8 @@ public sealed partial class AppWindowTests
 
         // Find works on original and edited speech while leaving the original
         // model file unchanged, and exposes the exact source timestamp.
-        var search = (ValuePattern)app.Find("TranscriptEditSearch").GetCurrentPattern(ValuePattern.Pattern);
-        search.SetValue("words");
+        var searchAgain = (ValuePattern)app.Find("TranscriptEditSearch").GetCurrentPattern(ValuePattern.Pattern);
+        searchAgain.SetValue("words");
         app.Press("TranscriptEditFindNext");
         Wait.For(() => app.Text("TranscriptEditMatch").Contains("word 2 of 2", StringComparison.Ordinal),
             "the transcript search to find its second source-timed word");
@@ -79,7 +79,7 @@ public sealed partial class AppWindowTests
         var media = Song(30);
         var root = Path.Combine(_media, "transcript-error-data");
         Directory.CreateDirectory(root);
-        File.WriteAllText(Path.Combine(root, "settings.json"), $"""
+        File.WriteAllText(Path.Combine(root, "settings.json"), $$"""
             { "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off",
               "transcription": { "writeSrtBesideMedia": true } }
             """);
