@@ -325,9 +325,14 @@ public sealed partial class MainWindow
         // over a dark photograph while high contrast is on.
         var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
         var policy = BrowseHeroPresentation.For(highContrast, _budget.Animations);
-        var standardLabel = policy.UsesSystemColors ? null : new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED));
-        var standardTitle = policy.UsesSystemColors ? null : new SolidColorBrush(Microsoft.UI.Colors.White);
-        var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
+        var colors = policy.UsesSystemColors ? new Windows.UI.ViewManagement.UISettings() : null;
+        var systemText = colors is null ? null : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground));
+        var standardLabel = systemText ?? new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED));
+        var standardTitle = systemText ?? new SolidColorBrush(Microsoft.UI.Colors.White);
+        var background = colors is null
+            ? (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"]
+            : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background));
+        var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = background };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
         frame.Tapped += (_, _) => more();
