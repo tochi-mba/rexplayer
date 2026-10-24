@@ -263,25 +263,14 @@ public sealed partial class MainWindow
             UpdateNavigation();
         }
 
-        var searchedText = search.Text;
         search.TextChanged += (_, _) =>
         {
-            // ValuePattern.SetValue and a following Invoke can be delivered in the
-            // same dispatcher turn.  Do not let that delayed TextChanged callback
-            // erase the result which Find has just announced for this exact query.
-            if (string.Equals(searchedText, search.Text, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            searchedText = search.Text;
             matchIndex = -1;
             jump.IsEnabled = false;
             matchStatus.Text = "Search the words that have been transcribed.";
         };
         find.Click += (_, _) =>
         {
-            searchedText = search.Text;
             matchIndex = TranscriptSearch.FindNext(history.Current.Words, search.Text, matchIndex);
             if (matchIndex < 0)
             {
