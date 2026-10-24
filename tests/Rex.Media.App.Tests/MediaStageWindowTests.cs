@@ -313,6 +313,33 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void FaultingAfterCaptionedVideoClearsThePreviousCaptionAndSeekActions()
+    {
+        var video = _scene.Video("BeforeFault.mp4");
+        File.WriteAllText(Path.Combine(_scene.Media, "BeforeFault.en.srt"),
+            "1\\n00:00:00,000 --> 00:10:00,000\\nCaption before fault\\n");
+        var bad = Path.Combine(_scene.Media, "unreadable.mp4");
+        File.WriteAllText(bad, "not a playable media file");
+
+        using var app = AppProcess.Start([video, bad]);
+        Wait.For(() => app.IsShown("SubtitleText")
+            && app.Text("SubtitleText") == "Caption before fault",
+            "captions from the first playable video to render");
+
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Status().State == "Faulted"
+            && app.Find("Stage").Current.Name == "PLAYBACK ERROR playback stage",
+            "the next item to fault with an accessible error stage");
+        Assert.False(app.IsShown("SubtitleText"));
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Assert.False(app.Find("StartOverButton").Current.IsEnabled);
+        Assert.False(app.IsShown("KineticCaptions"));
+        Assert.DoesNotContain("Captions are available", app.Find("Stage").Current.HelpText,
+            StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void UnreadableMediaShowsAnErrorStageWithoutAudioOrSeekAffordances()
     {
         var broken = Path.Combine(_scene.Media, "broken.mp4");
