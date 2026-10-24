@@ -110,7 +110,7 @@ public sealed partial class MainWindow
         }
 
         ClearMovieVersionMenu();
-        foreach (var edition in editions)
+        foreach (var (index, edition) in editions.Index())
         {
             var selected = LibraryViews.SameLocation(edition.Path, playing);
             var label = LibraryViews.MovieResolution(edition);
@@ -120,6 +120,7 @@ public sealed partial class MainWindow
                 IsChecked = selected,
                 IsEnabled = !selected,
             };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, $"MovieVersion-{index}");
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, label + (selected ? ", currently playing" : ", play this version"));
             ToolTipService.SetToolTip(item, edition.Path);
             item.Click += (_, _) => SwitchMovieVersion(edition.Path);
