@@ -58,6 +58,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         app.Filter("LibraryFilterDownload", "Downloading");
         Wait.For(() => app.Lines().Length == 1 && Shows(app, "LibraryList", detail), "only the partial video", () => string.Join(", ", app.Lines()));
         Assert.Equal("Filter: Still downloading", app.Text("LibraryFilter"));
+        Screenshots.Match(app, "library-video-partial-downloading", "LibraryPane");
         app.Filter("LibraryFilterDownload", "Complete");
         Wait.For(() => app.Lines().Length == 1 && !HasBadge(app, "LibraryList"), "only the whole video", () => string.Join(", ", app.Lines()));
 
@@ -116,6 +117,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         Wait.For(() => app.IsShown("LibraryNotice") && app.Find("LibraryNotice").FindAll(TreeScope.Subtree, Condition.TrueCondition).Cast<AutomationElement>()
             .Any(element => element.Current.Name.Contains("Still downloading: 20% so far", StringComparison.Ordinal)), "the still-downloading notice in the library");
         Assert.True(app.IsShown("LibraryPane"), "the library should stay open rather than show a player that failed");
+        Screenshots.Match(app, "library-video-partial-play-notice", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 }
