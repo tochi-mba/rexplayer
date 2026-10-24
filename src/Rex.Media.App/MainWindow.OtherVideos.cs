@@ -126,12 +126,21 @@ public sealed partial class MainWindow
                 MinWidth = 48,
                 MinHeight = 48,
                 IsChecked = selected,
-                IsEnabled = !selected,
+                // A disabled ToggleMenuFlyoutItem loses its UI Automation
+                // TogglePattern, so screen readers cannot discover which
+                // version is currently playing. Checked items remain inert.
+                IsEnabled = true,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, $"MovieVersion-{index}");
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, label + (selected ? ", currently playing" : ", play this version"));
             ToolTipService.SetToolTip(item, edition.Path);
-            item.Click += (_, _) => SwitchMovieVersion(edition.Path, sourceItem, sourceInfo);
+            item.Click += (_, _) =>
+            {
+                if (!selected)
+                {
+                    SwitchMovieVersion(edition.Path, sourceItem, sourceInfo);
+                }
+            };
             MovieVersionMenu.Items.Add(item);
         }
 
