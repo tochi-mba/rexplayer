@@ -18,6 +18,14 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 
 The [library and shell evidence map](implemented-library-shell-evidence.md) links the new persisted real-album Music Home pins, Unicode and malformed genre handling, exact word-timed lyrics rendering, suspend/resume lyric follow, per-mode visualizer setting isolation, native automation labels, and their focused tests. It does **not** claim a detached lyrics companion, finalized Mac equivalence, all physical-device transitions, or human-reviewed screenshots. The [recovery ledger](merged-pr-followup-audit.md) retains the exact remaining acceptance gates.
 
+## Follow-up #487.6: native lyric-mode capture code authored (2026-10-24)
+
+The five mutually exclusive `LyricsDisplayMode` values have **real WinUI fixture coverage** in `AppWindowTests.LyricsScreenshots.ActualLyricsModesHaveNativeStageCaptures`: missing source (None), plain, line-timed, mixed/partly word-timed, and fully word-timed. The test creates a local 40-second WAV and factual per-test LRC data, waits for the exact `LyricsStatus` explanation, pauses playback, checks native `Lyrics` visibility and the presence or absence of correctly named seek buttons, and records `Stage` captures at **900×700 and 720×640**. `TimedLyricActionsSeekFromAccessibleNativeButtonsAndKeepTheModeHonest` also drives a real timed button through UI Automation and checks that the player seeks to the source's 20-second timestamp.
+
+`MainWindow.Presentation` now uses Windows high-contrast foreground/background for lyric text, timed words, and their small backing chips instead of overriding the system palette with hard-coded translucent white/dark values. It responds to XAML theme and OS high-contrast changes without stealing focus or restarting manually suspended lyric following.
+
+This closes the **screenshot automation/capture authoring** requested by #487.6; it does *not* claim a completed Windows run, reviewed screenshot baselines, high-contrast native pixel checks, screen-reader certification, or a release-ready lyric image. #487.7 and the relevant #486 native verification gates remain open. The screenshot harness records missing baselines but cannot approve them.
+
 ## Honest current delivery state
 - [x] Transfer these requirements to an independently owned, versioned scoped plan in this branch.
 - [ ] **Complete the actual code and tests.** The PR started as a planning-only draft; a first lyrics-model implementation and regression tests now exist, but the full scope and required verification remain unfinished.
