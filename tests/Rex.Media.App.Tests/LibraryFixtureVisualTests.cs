@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows.Automation;
 using Rex.Media.TestKit;
 
@@ -8,8 +9,11 @@ namespace Rex.Media.App.Tests;
 /// A recorded screenshot alone never proves that a fixture was populated correctly.
 /// </summary>
 [Collection("desktop")]
-public sealed class LibraryFixtureVisualTests
+public sealed partial class LibraryFixtureVisualTests
 {
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint window);
+
     private static void SetViewport(AppProcess app, int width, int height)
     {
         ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(width, height);
@@ -156,6 +160,47 @@ public sealed class LibraryFixtureVisualTests
         Assert.Equal(compact ? "Expand library navigation" : "Collapse library navigation",
             app.Find("LibraryNavigationToggle").Current.Name);
         Screenshots.Match(app, "library-home-shell-" + size, "LibraryPane");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-13")]
+    public void HighContrastHomeUsesLiveSystemPaletteAndRetainsAccessibleNavigation()
+    {
+        Assert.SkipWhen(!System.Windows.SystemParameters.HighContrast,
+            "Run this fixture on a Windows runner configured for high contrast; do not silently fake the OS palette.");
+        using var scene = new LibraryScene();
+        scene.WithAsake();
+        using var app = scene.Ready().Start();
+        SetViewport(app, 1000, 760);
+        Wait.For(() => app.IsShown("LibraryNavigationToggle") && app.IsShown("LibraryHome"),
+            "the real high-contrast shell to expose Home and native navigation");
+        Assert.False(app.Find("LibraryNavigationToggle").Current.IsOffscreen);
+        Screenshots.Match(app, "library-home-system-high-contrast", "LibraryPane");
+        app.Visit("Movies");
+        Wait.For(() => app.IsShown("LibraryEmptyText"), "the movie empty state in system high contrast");
+        Screenshots.Match(app, "library-movies-empty-high-contrast", "LibraryPane");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-13")]
+    public void HighDpiHomeKeepsNavigationReachableWithoutASecondLayout()
+    {
+        using var scene = new LibraryScene();
+        scene.WithAsake();
+        using var app = scene.Ready().Start();
+        var dpi = GetDpiForWindow(app.Handle);
+        Assert.SkipWhen(dpi < 120,
+            "Run on a genuinely scaled 125%-or-higher Windows display; resizing alone does not create high-DPI evidence.");
+        SetViewport(app, 1000, 760);
+        Wait.For(() => app.IsShown("LibraryNavigationToggle") && app.IsShown("LibraryHome"),
+            "the per-monitor-DPI native Home shell to render");
+        Assert.False(app.Find("LibraryNavigationToggle").Current.IsOffscreen);
+        var pane = app.Find("LibraryPane").Current.BoundingRectangle;
+        Assert.True(pane.Width > 320 && pane.Height > 240,
+            "The scaled native Home surface must remain usable.");
+        Screenshots.Match(app, "library-home-high-dpi-" + dpi, "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 
