@@ -33,6 +33,12 @@ public static class TimeText
             return (elapsed, null, 0, 1);
         }
 
+        if (position < TimeSpan.Zero)
+        {
+            // An invalid negative clock position must not invent a remaining time.
+            return (TimeSpan.Zero, TimeSpan.Zero, 0, Math.Max(1, duration.TotalSeconds));
+        }
+
         if (elapsed > duration)
         {
             elapsed = duration;

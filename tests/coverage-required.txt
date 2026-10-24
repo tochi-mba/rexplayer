@@ -377,6 +377,8 @@ TranscriptionRetry.cs
 TranscriptionSettings.cs
 TranscriptionStatus.cs
 TranscriptionWorker.cs
+TranscriptFileExport.cs
+TextDirection.cs
 TransferMeter.cs
 TransportAvailability.cs
 TvMaze.cs

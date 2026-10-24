@@ -10,7 +10,7 @@ public sealed record VisualPicture(byte[] Bgra, int Width, int Height)
     public float Sample(double x, double y, int channel)
     {
         if (Width <= 0 || Height <= 0 || channel is < 0 or > 2
-            || Bgra is null || (long)Width * Height * 4 > Bgra.Length)
+            || Bgra is null || Width > Bgra.Length / 4 / Height)
         {
             // Unplugged camera streams and failed decodes can deliver empty or
             // partial frames. Keep a silent black fallback rather than throwing
