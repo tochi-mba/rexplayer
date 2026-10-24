@@ -323,6 +323,14 @@ public sealed partial class MainWindow
             Audiobooks.SetFinished(book, false);
         }
 
+        // Playlist.Clear does not reset shuffle. Without this, a user who
+        // shuffled music immediately before opening a multi-part book hears its
+        // files in random order, even though book pages hide the Shuffle action.
+        if (_player.Playlist.Shuffle)
+        {
+            _player.Playlist.Shuffle = false;
+        }
+
         _bookPlaying = (book, false);
         var speed = Audiobooks.Speed(book) ?? 1;
         if (Math.Abs(_player.Speed - speed) > 0.005)
