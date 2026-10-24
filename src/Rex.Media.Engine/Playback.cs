@@ -197,7 +197,6 @@ public sealed partial class MediaSession
             lock (_seekGate)
             {
                 var request = new SeekRequest(Interlocked.Increment(ref _generation), target, mode);
-                _pendingSeek = request;
                 _latestSeek = request;
                 previous = _generationCancel;
                 _generationCancel = new CancellationTokenSource();
@@ -207,6 +206,13 @@ public sealed partial class MediaSession
             _clock.Rebase(target, _sinkFormat.SampleRate, Volatile.Read(ref _speed));
             _audioQueue.Flush(Generation);
             _videoQueue?.Flush(Generation);
+            // Publish only after the old queues and clock are reset. Otherwise the
+            // demux thread can deliver the new target before Flush discards it.
+            lock (_seekGate)
+            {
+                _pendingSeek = _latestSeek;
+            }
+
             _demuxWake.Set();
         }
 
