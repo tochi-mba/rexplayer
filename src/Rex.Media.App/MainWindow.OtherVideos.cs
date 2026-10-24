@@ -123,8 +123,8 @@ public sealed partial class MainWindow
             var item = new ToggleMenuFlyoutItem
             {
                 Text = label + " · " + Path.GetFileName(edition.Path),
-                MinWidth = 44,
-                MinHeight = 44,
+                MinWidth = 48,
+                MinHeight = 48,
                 IsChecked = selected,
                 IsEnabled = !selected,
             };

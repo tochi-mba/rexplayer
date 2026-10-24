@@ -779,11 +779,11 @@
                         ToolTipService.ToolTip="Choose how long each picture stays; Play/Pause and Previous/Next control the slideshow">
           <DropDownButton.Flyout>
             <MenuFlyout x:Name="PictureIntervalMenu">
-              <MenuFlyoutItem Text="2 seconds" Tag="2" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
-              <MenuFlyoutItem Text="5 seconds" Tag="5" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
-              <MenuFlyoutItem Text="10 seconds" Tag="10" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
-              <MenuFlyoutItem Text="30 seconds" Tag="30" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
-              <MenuFlyoutItem Text="60 seconds" Tag="60" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
+              <MenuFlyoutItem Text="2 seconds" Tag="2" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
+              <MenuFlyoutItem Text="5 seconds" Tag="5" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
+              <MenuFlyoutItem Text="10 seconds" Tag="10" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
+              <MenuFlyoutItem Text="30 seconds" Tag="30" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
+              <MenuFlyoutItem Text="60 seconds" Tag="60" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
             </MenuFlyout>
           </DropDownButton.Flyout>
         </DropDownButton>
