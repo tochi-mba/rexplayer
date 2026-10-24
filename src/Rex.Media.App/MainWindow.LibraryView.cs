@@ -447,8 +447,13 @@ public sealed partial class MainWindow
         var noPlayback = folders || source == LibrarySource.Playlists
             || (source == LibrarySource.TvShows && _libraryGroup is null);
         LibraryPlay.Visibility = noPlayback ? Visibility.Collapsed : Visibility.Visible;
-        LibraryShuffle.Visibility = LibraryEnqueue.Visibility =
-            noPlayback || authorDirectory ? Visibility.Collapsed : Visibility.Visible;
+        // An author's books and a book's chapters are ordered listening tasks,
+        // not a collection of tracks to shuffle. The book queue is scoped.
+        LibraryShuffle.Visibility = noPlayback || source == LibrarySource.Authors
+            || (source == LibrarySource.Audiobooks && _libraryGroup is not null)
+            ? Visibility.Collapsed : Visibility.Visible;
+        LibraryEnqueue.Visibility = noPlayback || authorDirectory
+            ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
         // Scroll anchors are for rebuilding the same layout; a layout change (for
@@ -928,9 +933,10 @@ public sealed partial class MainWindow
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)
     {
-        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        if (_librarySource == LibrarySource.Authors
+            || (_librarySource == LibrarySource.Audiobooks && _libraryGroup is not null))
         {
-            Say("Open an author and choose a book to shuffle.");
+            Say("Audiobook chapters keep their reading order. Choose a book to play.");
             return;
         }
 
