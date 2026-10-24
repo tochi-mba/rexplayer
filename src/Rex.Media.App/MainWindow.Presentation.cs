@@ -501,6 +501,10 @@ public sealed partial class MainWindow
             : narrowControls ? new Thickness(12, 8, 12, 9) : new Thickness(20, 12, 20, 14);
         Controls.ColumnSpacing = narrowControls ? 6 : 12;
         Controls.RowSpacing = minimalControls ? 1 : narrowControls ? 4 : 8;
+        if (PictureIntervalButton.Visibility == Visibility.Visible)
+        {
+            ShowPictureIntervalLabel();
+        }
     }
 
     /// <summary>
