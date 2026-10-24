@@ -352,9 +352,8 @@ public sealed partial class MainWindow
         if (location is null || !book.Entries.Any(part => LibraryViews.SameLocation(part.Path, location))) return false;
         var part = book.Entries.ToList().FindIndex(entry => LibraryViews.SameLocation(entry.Path, location));
         var chapters = ListeningViews.Chapters(book);
-        var active = ListeningViews.CurrentChapterIndex(chapters, book, new BookPlace(part, _player.Position));
-        var targetIndex = active + (direction < 0 ? -1 : 1);
-        if (direction < 0 && active >= 0 && _player.Position - chapters[active].Start > TimeSpan.FromSeconds(3)) targetIndex = active;
+        var targetIndex = ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(part, _player.Position), next: direction > 0);
         if (targetIndex < 0 || targetIndex >= chapters.Count)
         {
             Say(direction < 0 ? "Already at the first chapter" : "Already at the last chapter");
