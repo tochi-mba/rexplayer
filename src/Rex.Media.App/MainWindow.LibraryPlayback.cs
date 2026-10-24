@@ -121,6 +121,15 @@ public sealed partial class MainWindow
             return;
         }
 
+        // A shelf of audiobook cards is not a mixed-file playlist. The
+        // single-card case already routed through PlayBookCard above; no
+        // selection or a multi-selection must never autoplay all books together.
+        if (_librarySource == LibrarySource.Audiobooks && _libraryGroup is null)
+        {
+            Say("Choose one audiobook to play.");
+            return;
+        }
+
         if (chosen is [{ Item: LibraryEntry or NamedPlaylist }])
         {
             Activate(chosen[0]);
