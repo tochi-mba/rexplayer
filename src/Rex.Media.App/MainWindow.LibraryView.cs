@@ -449,8 +449,8 @@ public sealed partial class MainWindow
         LibraryPlay.Visibility = noPlayback ? Visibility.Collapsed : Visibility.Visible;
         // An author's books and a book's chapters are ordered listening tasks,
         // not a collection of tracks to shuffle. The book queue is scoped.
-        LibraryShuffle.Visibility = noPlayback || source == LibrarySource.Authors
-            || (source == LibrarySource.Audiobooks && _libraryGroup is not null)
+        LibraryShuffle.Visibility = noPlayback
+            || source is LibrarySource.Authors or LibrarySource.Audiobooks
             ? Visibility.Collapsed : Visibility.Visible;
         LibraryEnqueue.Visibility = noPlayback || authorDirectory
             ? Visibility.Collapsed : Visibility.Visible;
@@ -933,8 +933,7 @@ public sealed partial class MainWindow
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)
     {
-        if (_librarySource == LibrarySource.Authors
-            || (_librarySource == LibrarySource.Audiobooks && _libraryGroup is not null))
+        if (_librarySource is LibrarySource.Authors or LibrarySource.Audiobooks)
         {
             Say("Audiobook chapters keep their reading order. Choose a book to play.");
             return;
