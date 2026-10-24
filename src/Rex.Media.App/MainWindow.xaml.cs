@@ -904,30 +904,6 @@ public sealed partial class MainWindow : Window
         App.Log.Info(LogSource, failures == 0 ? "rexplayer closed." : $"rexplayer closed; {failures} parts failed to close.");
     }
 
-    private int _lateExceptions;
-
-    /// <summary>
-    /// Once closing begins, an exception thrown anywhere is written down at once (critical entries
-    /// reach the disk before returning): one that escapes a Windows callback now ends the process
-    /// without reaching App, and this line is all it leaves.
-    /// </summary>
-    private void LogLateException(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
-    {
-        // Closing the app cancels the automation pipe after the window's own teardown
-        // handler has run. NamedPipeServerStream reports that normal wake-up as a
-        // first-chance cancellation before AutomationPipe catches it; logging from
-        // this late background callback can race WinUI/process shutdown.
-        if (e.Exception is OperationCanceledException)
-        {
-            return;
-        }
-
-        if (Interlocked.Increment(ref _lateExceptions) <= 10)
-        {
-            App.Log.Critical(LogSource, $"While closing: {e.Exception.GetType().Name}: {e.Exception.Message} (0x{e.Exception.HResult:X8}) at{Environment.NewLine}{new System.Diagnostics.StackTrace(1, false)}");
-        }
-    }
-
     private void ClosePresenter()
     {
         OnPresenterThread(presenter => presenter.Dispose());
