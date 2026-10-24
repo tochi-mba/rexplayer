@@ -141,9 +141,11 @@ public sealed partial class MainWindow
         Show();
         var content = new StackPanel { Spacing = 12, MinWidth = 440 };
         content.Children.Add(which);
+        // Keep the reversible reset action beside the selector even on
+        // compact displays, rather than below a potentially clipped scroll.
+        content.Children.Add(reset);
         content.Children.Add(note);
         content.Children.Add(new ScrollViewer { Content = panel, MaxHeight = 420, Padding = new Thickness(0, 0, 16, 0) });
-        content.Children.Add(reset);
         var keep = await Ask("Visualisation settings", content, "Save");
         if (!keep)
         {
