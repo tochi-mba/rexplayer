@@ -107,6 +107,18 @@ public sealed partial class MainWindow
             return;
         }
 
+        // The preview handler runs before WinUI's list internals can consume Ctrl+End.
+        // Navigate to the final data item, not merely the last realized container.
+        if (e.Key == VirtualKey.End && IsDown(VirtualKey.Control)
+            && IsWithin(FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject, PlaylistView)
+            && _playlistRows.Count > 0)
+        {
+            PlaylistView.ScrollIntoView(_playlistRows[^1]);
+            e.Handled = true;
+            _shortcutKeys.Add(e.Key);
+            return;
+        }
+
         if (VirtualKeys.Chord((int)e.Key, IsDown(VirtualKey.Control), IsDown(VirtualKey.Menu), IsDown(VirtualKey.Shift)) is not { } chord)
         {
             return;
