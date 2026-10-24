@@ -517,7 +517,7 @@ public sealed class ListeningViewsTests
             new BookPlace(2, TimeSpan.Zero), next: true));
         Assert.Equal(-1, ListeningViews.AdjacentChapterIndex([], book,
             new BookPlace(0, TimeSpan.Zero), next: true));
-        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex(chapters[..5], book,
+        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex(chapters.Take(5).ToArray(), book,
             new BookPlace(1, TimeSpan.FromSeconds(-1)), next: true));
 
         Assert.Throws<ArgumentNullException>(() =>
