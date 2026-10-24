@@ -1,6 +1,7 @@
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
+using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
@@ -170,6 +171,31 @@ public sealed class TransportEdgeCaseTests
         harness.Controller.Seek(TimeSpan.FromSeconds(1));
         Assert.False(harness.Controller.PreviousRestarts);
         Assert.Equal("Previous: a", View(harness).Previous.Tooltip);
+    }
+
+    [Fact]
+    [Capability("PB-03")]
+    public void StalePositionBetweenSeekCompletionAndPauseCannotUndoStartOver()
+    {
+        using var harness = new ControllerHarness(autoPlay: false);
+        harness.Files["song.wav"] = ControllerHarness.Count(0, 8000 * 4);
+        harness.Controller.Open(["song.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.CanSeek);
+
+        // A pre-seek tick is queued independently of the seek completion and
+        // Seeking -> Paused state change. Reproduce that delivery order exactly.
+        harness.ReportFromCurrentSession(new PositionEvent(MediaTime.FromSeconds(0.75), MediaTime.FromSeconds(4)));
+        harness.Pump();
+        Assert.Equal(TimeSpan.FromSeconds(0.75), harness.Controller.Position);
+
+        harness.ReportFromCurrentSession(new StateChangedEvent(SessionState.Ready, SessionState.Seeking));
+        harness.ReportFromCurrentSession(new SeekCompletedEvent(MediaTime.Zero));
+        harness.ReportFromCurrentSession(new PositionEvent(MediaTime.FromSeconds(0.75), MediaTime.FromSeconds(4)));
+        harness.ReportFromCurrentSession(new StateChangedEvent(SessionState.Seeking, SessionState.Paused));
+        harness.Pump();
+
+        Assert.Equal(SessionState.Paused, harness.Controller.State);
+        Assert.Equal(TimeSpan.Zero, harness.Controller.Position);
     }
 
     [Fact]
