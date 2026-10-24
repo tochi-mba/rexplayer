@@ -249,9 +249,7 @@ public sealed partial class AppWindowTests : IDisposable
     public void ZCyclesPictureEffectsWhenVideoIsShowing()
     {
         using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
-        Wait.For(() => app.Text("NowPlaying") == "Basquiat"
-            && app.Find("Stage").Current.Name == "VIDEO playback stage",
-            "the video's metadata and decoded geometry to be ready");
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video's details");
 
         app.Run(CommandCatalog.CycleVisualizer);
 
@@ -888,8 +886,10 @@ public sealed partial class AppWindowTests : IDisposable
     public void TheWindowSizesItselfToTheVideo()
     {
         using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
-        // The file's own title replaces its name once its details are read; only then is its size known.
-        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video's details");
+        // A media title can be known before the video decoder has revealed its geometry.
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat"
+            && app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "the video's metadata and decoded geometry to be ready");
         // Half, actual and double size: each step adds the video's height times the step, whatever
         // the display's scale. (Widths are not compared: a window this narrow meets Windows' minimum.)
         var half = Resize(app, CommandCatalog.ScaleHalf);
