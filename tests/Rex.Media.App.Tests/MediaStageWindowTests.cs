@@ -414,8 +414,9 @@ public sealed class MediaStageWindowTests : IDisposable
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
         Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage"
-            && !app.IsShown("MovieVersionButton"),
-            "picture playback to remove the old movie versions");
+            && !app.IsShown("MovieVersionButton")
+            && !app.IsShown("MovieVersion-1"),
+            "picture playback to remove the old picker and its flyout actions");
         Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
             "a permanent transport to receive focus after the focused version picker disappears");
         Assert.False(app.Find("SeekBar").Current.IsEnabled);
