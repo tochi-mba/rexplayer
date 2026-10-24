@@ -40,6 +40,8 @@ def build(inventory_path: Path, root: Path, output: Path) -> int:
             ("Readiness", str(evidence.get("readinessAchieved", "not captured"))),
             ("Pixel witness", str(evidence.get("pixelReadinessAchieved", "not captured"))),
             ("Repeatable", str(evidence.get("repeatabilityAchieved", "not captured"))),
+            ("Declared baseline state", scene.get("baseline", "not declared")),
+            ("Baseline file witness", str(evidence.get("baselineExists", "not captured"))),
             ("DPI / contrast", f'{evidence.get("measuredDpi", "not captured")} / '
                                f'{evidence.get("actualHighContrast", "not captured")}'),
         ]
