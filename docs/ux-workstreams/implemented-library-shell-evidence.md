@@ -53,6 +53,19 @@ These are source and authored regression-test evidence for closing the **unifica
 - `LibraryMusicTests.MusicHomePinsOnlyRealAlbumsAndAllowsRemovingThem` and `UnifiedHomeShowsOnlyAlbumsTheUserActuallyPinned` now capture the actual pinned-album shelf after native assertions, avoiding fabricated pinned media. Existing empty, populated, disconnected, RTL, search/filter, TV and partial-download fixtures remain.
 - Current-head WinUI execution, DPI/contrast, controller/screen-reader review and approved snapshot comparisons remain **open under #486.1/#486.4/#486.7/#486.8**. Adding a `Screenshots.Match` invocation does not prove that a PNG was captured or visually approved.
 
+## Native TV/movie screenshot-automation authoring completed (#479.7, 2026-10-24)
+
+Native UI Automation has now been **authored** for all four requested library screenshot-state categories:
+
+| Requested state | Screenshot-producing native test and data/UIA checks |
+| --- | --- |
+| Empty | `LibraryFixtureVisualTests.EmptyWatchedLibraryShowsARealEmptyState`; Movie/TV Browse filtered-empty in `LibraryBrowseConsistencyTests.AFilteredEmptyBrowseOffersClearFiltersAndRestoresContent` |
+| Populated | `LibraryFoldersTests.SeasonFoldersMakeShowsWhereverTheyLiveAndMoviesStayApart` (TV billboard, film, show, season two), `ASpecialBesideASeasonFolderJoinsItsShow` (specials) and featured Browse fixture |
+| Partial | `LibraryDownloadsTests.AGrowingVideoWearsTheBadgeUntilWholeAndTheFilterAndShelfFollowIt` (progress and download badge), `PlayOnAFileTooShortToOpenSaysHowFarItsDownloadIs` (native graceful refusal) |
+| Error | `LibraryFixtureVisualTests.DisconnectedLibraryFolderShowsRecoveryInsteadOfAFalseEmptyClaim` (unreadable/disconnected root, retry button and no false empty claim) |
+
+`AppProcess.StartInfo` now enables `REXPLAYER_UI_CAPTURE=1` for real native UI test sessions. `MainWindow.LibraryBrowse` respects that switch only to freeze the rotating feature and fade animation; no mock cards or fabricated photos replace the actual native renderer. `Screenshots.Match` records named PNGs to the test artifact folder; a missing baseline is explicitly **record-only**. Thus #479.7's *automation/capture code-authoring* work can be marked implemented, but this does **not** demonstrate a successful current-head Windows run, approved screenshot baselines or high-DPI/accessibility performance. Those distinct gates remain in #479.8 and #468.
+
 ## Windows high-contrast Movie/TV feature banners (2026-10-24)
 
 `MainWindow.LibraryBrowse.Billboard` previously painted a dark photographic gradient under hard-coded white/muted text, irrespective of the OS high-contrast palette. It now reads `AccessibilitySettings.HighContrast`, uses `UISettings.GetColorValue(Foreground/Background)` for the banner in high contrast, and omits photo/backdrop requests and fade-in animation when those preferences apply. The pure `BrowseHeroPresentation.For`/ `BrowseHeroPresentationTests.SystemContrastOverridesPhotographyAndFades` covers all four combinations of animation and high contrast. `MainWindow.Library.WireLibrary` invalidates rendered library surfaces when the XAML theme changes, rather than leaving stale photographic surfaces onscreen. `LibraryBrowseConsistencyTests.AFilteredEmptyBrowseOffersClearFiltersAndRestoresContent` also captures the native featured Movie/TV billboards and checks their action/UIA controls before applying filters.
