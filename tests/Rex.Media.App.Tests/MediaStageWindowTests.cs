@@ -492,11 +492,13 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.IsShown("MovieVersion-1"),
             "the alternate resolution menu action to appear");
         app.Press("MovieVersion-1");
-        Wait.For(() => app.IsShown("MovieVersionButton"),
-            "the new encoding to keep the movie-specific resolution picker");
-        app.Press("MovieVersionButton");
-        Wait.For(() => app.IsShown("MovieVersion-1")
-            && app.Find("MovieVersion-1").Current.Name.Contains("currently playing", StringComparison.Ordinal),
+        // Native MenuFlyout dismissal and replacement stream startup are
+        // asynchronous. Opening the picker while the prior flyout is closing
+        // can reopen its stale toggle state rather than the new stream's menu.
+        Wait.For(() => !app.IsShown("MovieVersion-1") && app.IsShown("MovieVersionButton"),
+            "the old movie resolution flyout to close after switching streams");
+        var currentVersion = app.OpenMenu("MovieVersion-1", "MovieVersionButton");
+        Wait.For(() => currentVersion.Current.Name.Contains("currently playing", StringComparison.Ordinal),
             "the selected native encoding to be announced accessibly");
         Assert.True(app.Find("MovieVersion-1").Current.IsEnabled);
         var selected = (TogglePattern)app.Find("MovieVersion-1").GetCurrentPattern(TogglePattern.Pattern);
