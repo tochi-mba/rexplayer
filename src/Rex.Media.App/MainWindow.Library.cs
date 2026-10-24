@@ -850,6 +850,9 @@ public sealed partial class MainWindow
         }
 
         _libraryRemovalUndo = null;
+        // Move focus off the Undo button before collapsing it. WinUI can
+        // otherwise leave keyboard focus on the removed visual indefinitely.
+        LibraryList.Focus(FocusState.Keyboard);
         LibraryUndoRemove.Visibility = Visibility.Collapsed;
         var available = await Task.Run(() => before.Where(entry => File.Exists(entry.Path)).ToArray());
         if (!_closed && available.Length > 0)
