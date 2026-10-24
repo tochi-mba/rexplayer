@@ -381,12 +381,17 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Press("PictureIntervalButton");
         Wait.For(() => app.IsShown("PictureInterval-10"),
             "the old picture's interval menu to open");
+        app.Find("PictureInterval-10").SetFocus();
+        Wait.For(() => app.Find("PictureInterval-10").Current.HasKeyboardFocus,
+            "the outgoing slideshow choice to own keyboard focus");
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
         Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
             && !app.IsShown("PictureIntervalButton")
             && !app.IsShown("PictureInterval-10"),
             "the audio stage to remove the old picture-specific menu and choices");
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "focus to return to the permanent transport after dismissing picture options");
         Assert.Equal(60, app.SavedSettings.PictureSeconds);
         Assert.Equal(0, app.Close());
     }
