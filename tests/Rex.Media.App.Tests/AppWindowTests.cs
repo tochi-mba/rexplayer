@@ -894,10 +894,19 @@ public sealed partial class AppWindowTests : IDisposable
             && !app.IsShown("StopButton") && !app.IsShown("ShuffleButton"),
             "the timeline and essential controls to remain in compact mode");
         Assert.True(app.Find("SeekBar").Current.IsEnabled);
+        Screenshots.Match(app, "native-minimal-interface-playing");
+        var nativeSize = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        nativeSize.Resize(720, 640);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 720) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - 640) < 2,
+            "the minimal player to honor native compact resizing");
+        Assert.True(app.Find("SeekBar").Current.IsEnabled);
+        Screenshots.Match(app, "native-minimal-interface-compact");
         app.Press("MinimalInterfaceButton");
         Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
             && app.IsShown("StopButton") && app.IsShown("ShuffleButton")
             && app.IsShown("Menu") && !app.IsShown("MinimalInterfaceButton"), "the complete controls to come back");
+        Screenshots.Match(app, "native-minimal-interface-restored");
         Assert.Equal(0, app.Close());
     }
 
