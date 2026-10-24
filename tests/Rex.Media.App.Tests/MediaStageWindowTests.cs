@@ -385,6 +385,32 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void AFocusedMovieVersionPickerReturnsFocusWhenPicturePlaybackReplacesTheFilm()
+    {
+        var movie = _scene.Film("Focus.Film.2023.1080p.mp4");
+        _scene.Film("Focus.Film.2023.720p.mp4");
+        var picture = _scene.Picture("focus-replacement.jpg");
+        _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
+        using var app = AppProcess.Start([movie, picture], root: _scene.Root);
+        Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage"
+            && app.IsShown("MovieVersionButton"),
+            "two editions of the same movie to expose their resolution picker");
+
+        var picker = app.Find("MovieVersionButton");
+        picker.SetFocus();
+        Wait.For(() => picker.Current.HasKeyboardFocus,
+            "the movie version picker to own keyboard focus");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage"
+            && !app.IsShown("MovieVersionButton"),
+            "picture playback to remove the old movie versions");
+        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
+            "a permanent transport to receive focus after the focused version picker disappears");
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void GoToTimeDialogCannotSeekAPictureThatReplacedTheOriginalAudio()
     {
         var song = _scene.Audio("DialogSource.wav", TimeSpan.FromSeconds(20));
