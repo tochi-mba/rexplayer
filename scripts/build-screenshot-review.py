@@ -43,6 +43,25 @@ def build(inventory_path: Path, root: Path, output: Path) -> int:
             ("DPI / contrast", f'{evidence.get("measuredDpi", "not captured")} / '
                                f'{evidence.get("actualHighContrast", "not captured")}'),
         ]
+        if scene["id"].startswith("stage-"):
+            controls = evidence.get("observedStageAffordances")
+            witnesses = []
+            if isinstance(controls, list):
+                for control in controls:
+                    if not isinstance(control, dict):
+                        continue
+                    name = control.get("automationId", "?")
+                    shown = control.get("shown", "?")
+                    enabled = control.get("IsEnabled", control.get("isEnabled", "?"))
+                    focused = control.get("HasKeyboardFocus", control.get("hasKeyboardFocus", "?"))
+                    spoken_name = control.get("Name", control.get("name", ""))
+                    help_text = control.get("HelpText", control.get("helpText", ""))
+                    witnesses.append(
+                        f"{name}: visible={shown}, enabled={enabled}, focused={focused}, "
+                        f"name={spoken_name}, help={help_text}"
+                    )
+            fields.append(("Observed stage UI Automation", " | ".join(witnesses) or "not captured"))
+
         metadata = "".join(f"<dt>{html.escape(k)}</dt><dd>{html.escape(str(v))}</dd>"
                            for k, v in fields)
         images = []
