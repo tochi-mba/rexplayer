@@ -25,6 +25,7 @@ import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import unquote
 
 SITE = Path(__file__).resolve().parents[1] / "site"
 PRODUCT = "rexplayer"
@@ -89,10 +90,12 @@ class PageParser(HTMLParser):
             source = values["data-tour-src"]
             # Walkthrough sources are plain relative asset paths, not external URLs,
             # absolute site paths or paths escaping the published site directory.
-            segments = source.split("/")
-            if (not source.strip() or source.startswith(REMOTE) or source.startswith("/")
+            decoded = unquote(source)
+            segments = decoded.split("/")
+            if (not decoded.strip() or decoded.startswith(REMOTE) or decoded.startswith("/")
                     or any(segment in ("", ".", "..") for segment in segments)
-                    or "?" in source or "#" in source or "\\" in source):
+                    or "?" in decoded or "#" in decoded or "\\" in decoded
+                    or any(control in decoded for control in ("\\x00", "\\r", "\\n"))):
                 self.invalid_tour_sources.append(source)
             else:
                 self.assets.append(source)
