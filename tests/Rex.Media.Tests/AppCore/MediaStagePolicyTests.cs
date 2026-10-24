@@ -223,6 +223,20 @@ public sealed class MediaStagePolicyTests
             MediaStagePolicy.Resolve(new MediaStageContext(true, Shelf: shelf)).Profile);
     }
 
+    [Theory]
+    [InlineData(-1, 20, false)]
+    [InlineData(0, 20, true)]
+    [InlineData(19, 20, true)]
+    [InlineData(20, 20, true)]
+    [InlineData(21, 20, false)]
+    [InlineData(21, 0, true)]
+    public void TimedLyricJumpEligibilityRejectsNegativeAndBeyondDurationTargets(
+        int positionSeconds, int durationSeconds, bool expected)
+    {
+        Assert.Equal(expected, MediaStagePolicy.IsPlayableTimeJump(
+            TimeSpan.FromSeconds(positionSeconds), TimeSpan.FromSeconds(durationSeconds)));
+    }
+
     [Fact]
     public void ChapterJumpEligibilityIsSharedByStageMenuAndActionGuards()
     {
