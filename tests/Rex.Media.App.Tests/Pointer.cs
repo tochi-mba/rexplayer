@@ -35,7 +35,13 @@ internal static partial class Pointer
         var box = element.Current.BoundingRectangle;
         Assert.False(box.IsEmpty, "The hover target has no place on screen.");
         Assert.InRange(fraction, 0, 1);
-        Assert.True(SetCursorPos((int)(box.Left + (box.Width * fraction)), (int)(box.Top + (box.Height * 0.5))),
+        var x = (int)(box.Left + (box.Width * fraction));
+        var y = (int)(box.Top + (box.Height * 0.5));
+        // SetCursorPos does not emit a pointer-moved event when the cursor is
+        // already at the requested pixel (which can happen between UI tests).
+        // Enter the control from outside first so this is a real hover.
+        Assert.True(SetCursorPos((int)box.Left - 2, y), "The pointer could not approach the hover target.");
+        Assert.True(SetCursorPos(x, y),
             "The pointer could not hover over the target.");
     }
 
