@@ -82,6 +82,10 @@ public sealed partial class MainWindow
         };
         AutomationProperties.SetAutomationId(text, automationId);
         AutomationProperties.SetName(text, title + ", read-only and selectable");
+        // The Windows TextBox TextPattern provider can return a partial viewport
+        // after the dialog opens. Expose the complete inert notes to screen readers
+        // independently of visual scrolling and text selection.
+        AutomationProperties.SetHelpText(text, notes);
         panel.Children.Add(notice);
         panel.Children.Add(text);
         var dialog = new ContentDialog
