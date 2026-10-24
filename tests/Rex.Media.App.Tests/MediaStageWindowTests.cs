@@ -386,6 +386,34 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    public void SelectingAnAlternateMovieEncodingUpdatesTheCurrentVersionMenu()
+    {
+        var movie = _scene.Film("Resolution.Film.2023.1080p.mp4");
+        _scene.Film("Resolution.Film.2023.720p.mp4");
+        _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
+        using var app = AppProcess.Start([movie], root: _scene.Root);
+        Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage"
+            && app.IsShown("MovieVersionButton"),
+            "a film with two verified local resolutions");
+
+        app.Press("MovieVersionButton");
+        Wait.For(() => app.IsShown("MovieVersion-1"),
+            "the alternate resolution menu action to appear");
+        app.Press("MovieVersion-1");
+        Wait.For(() => app.IsShown("MovieVersionButton"),
+            "the new encoding to keep the movie-specific resolution picker");
+        app.Press("MovieVersionButton");
+        Wait.For(() => app.IsShown("MovieVersion-1")
+            && app.Find("MovieVersion-1").TryGetCurrentPattern(TogglePattern.Pattern, out _),
+            "the menu to show its current selection after switching");
+
+        var chosen = (TogglePattern)app.Find("MovieVersion-1").GetCurrentPattern(TogglePattern.Pattern);
+        Assert.Equal(ToggleState.On, chosen.Current.ToggleState);
+        Assert.Equal("MOVIE playback stage", app.Find("Stage").Current.Name);
+        Assert.Equal(0, app.Close());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
