@@ -26,6 +26,7 @@ public sealed partial class MainWindow
     private IReadOnlyList<SubtitleCue> _shownSecondary = [];
     private SubtitleLook? _look;
     private readonly Windows.UI.ViewManagement.AccessibilitySettings _subtitleAccessibility = new();
+    private bool _subtitleContrastSubscribed;
 
     private void WireSubtitles()
     {
@@ -36,7 +37,18 @@ public sealed partial class MainWindow
         Stage.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => LayOutSubtitles());
-        _subtitleAccessibility.HighContrastChanged += OnSubtitleContrastChanged;
+        try
+        {
+            _subtitleAccessibility.HighContrastChanged += OnSubtitleContrastChanged;
+            _subtitleContrastSubscribed = true;
+        }
+        catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+        {
+            // Some Windows hosts (including CI desktops) do not register this
+            // optional system event. The current contrast is still read as the
+            // subtitle layout is updated; no event means only live updates stop.
+            App.Log.Warning(LogSource, "Windows high-contrast notifications are unavailable: " + ex.Message);
+        }
     }
 
     private void OnSubtitleContrastChanged(Windows.UI.ViewManagement.AccessibilitySettings sender, object args)
@@ -54,8 +66,14 @@ public sealed partial class MainWindow
         });
     }
 
-    private void UnwireSubtitleContrast() =>
-        _subtitleAccessibility.HighContrastChanged -= OnSubtitleContrastChanged;
+    private void UnwireSubtitleContrast()
+    {
+        if (_subtitleContrastSubscribed)
+        {
+            _subtitleAccessibility.HighContrastChanged -= OnSubtitleContrastChanged;
+            _subtitleContrastSubscribed = false;
+        }
+    }
 
     /// <summary>Shows the cues due now, drawing them again only when they changed.</summary>
     private void ShowSubtitles(bool redraw)

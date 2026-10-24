@@ -136,8 +136,17 @@ public sealed partial class MainWindow
         // changes. A previously rendered movie billboard must not retain white
         // over-photo text after the user switches to a high-contrast theme.
         Root.ActualThemeChanged += (_, _) => RebuildLibraryForSystemPalette();
-        _libraryContrastSettings.HighContrastChanged += (_, _) =>
-            DispatcherQueue.TryEnqueue(RebuildLibraryForSystemPalette);
+        try
+        {
+            _libraryContrastSettings.HighContrastChanged += (_, _) =>
+                DispatcherQueue.TryEnqueue(RebuildLibraryForSystemPalette);
+        }
+        catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+        {
+            // This notification is optional on stripped-down Windows desktops.
+            // Library views still use the current palette when rebuilt.
+            App.Log.Warning(LogSource, "Library contrast notifications are unavailable: " + ex.Message);
+        }
 
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
         ApplyLibraryNavigationWidth();
