@@ -44,6 +44,12 @@ public sealed partial class RepositoryTests
         "tests/site/test_screenshot_review.py",
         "tests/site/test_verify_mac_bundle.py",
         "playwright.config.js",
+        "playwright.live.config.js",
+        "scripts/check_release_media.py",
+        "scripts/check_release_notes.py",
+        "tests/site/pages.live.spec.js",
+        "tests/site/test_release_media.py",
+        "tests/site/test_release_notes.py",
     ];
 
     /// <summary>Folders whose every source file implements a published format and must say which.</summary>
