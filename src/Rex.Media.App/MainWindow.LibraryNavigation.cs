@@ -36,7 +36,23 @@ public sealed partial class MainWindow
         ApplyLibraryNavigationWidth();
     }
 
-    private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e) => ApplyLibraryNavigationWidth();
+    private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e)
+    {
+        ApplyLibraryNavigationWidth();
+        // At the supported 360×430 minimum the 196px expanded header, view
+        // controls and outer margins otherwise leave the Home shelf ScrollViewer
+        // with zero height. Keep the hero's title and Back accessible, but use
+        // the compact 128px header so the actual shelf viewport remains mounted.
+        // Re-expand when there is adequate vertical room.
+        if (e.NewSize.Height > 0 && e.NewSize.Height < 550)
+        {
+            SetLibraryHeaderCompact(true);
+        }
+        else if (e.NewSize.Height >= 550 && LibraryHome.Visibility == Visibility.Visible)
+        {
+            SetLibraryHeaderCompact(false);
+        }
+    }
 
     /// <summary>
     /// A temporary expanded rail is only for choosing a destination on a narrow window.

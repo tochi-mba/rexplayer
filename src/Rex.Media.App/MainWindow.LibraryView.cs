@@ -106,12 +106,25 @@ public sealed partial class MainWindow
 
     private void KeepViewChoice(LibraryViewChoice choice)
     {
-        choice = LibraryViewDefaults.Keep(ViewChoice(_libraryViewKey), choice);
+        var previous = ViewChoice(_libraryViewKey);
+        var orderChanged = previous.Sort != choice.Sort || previous.Descending != choice.Descending;
+        choice = LibraryViewDefaults.Keep(previous, choice);
         _shelfChoice = null;
         _settings = _settings with { LibraryViews = new Dictionary<string, LibraryViewChoice>(_settings.LibraryViews, StringComparer.Ordinal) { [_libraryViewKey] = choice.Normalize() } };
         RememberLater();
         _shownLibrary = "";
         ShowLibrary();
+        // A changed sort starts at its first row, not the old scroll anchor.
+        if (orderChanged)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!_closed && LibraryList.Visibility == Visibility.Visible && LibraryList.Items.Count > 0)
+                {
+                    LibraryList.ScrollIntoView(LibraryList.Items[0]);
+                }
+            });
+        }
     }
 
     /// <summary>Brings the open view in line with the library; the list is replaced only when what it shows has changed.</summary>
@@ -421,7 +434,11 @@ public sealed partial class MainWindow
             }
         }
 
-        var authorDirectory = source == LibrarySource.Authors && _libraryGroup is null;
+        // Searching the Authors directory does not change _librarySource, only
+        // the effective route (source becomes null). Search results can still
+        // be author cards; their primary action must remain navigation.
+        var authorDirectory = _librarySource == LibrarySource.Authors
+            && _libraryGroup is null && _librarySeason is null;
         if (_librarySource == LibrarySource.Pictures && search.Length == 0)
         {
             LibraryPlayText.Text = "Start slideshow";

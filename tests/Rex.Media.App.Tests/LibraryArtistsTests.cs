@@ -62,26 +62,33 @@ public sealed class LibraryArtistsTests : IDisposable
     [Capability("LIB-05")]
     public void SimilarArtistNamesHaveSeparateOfflinePagesAndNoInventedBiography()
     {
-        _scene.Song("Short Name Track", "Demos", 2024, "Alternative", "Asa");
-        _scene.Song("Long Name Track", "Demos", 2024, "Afrobeats", "Asake");
+        var shortTrack = _scene.Song("Short Name Track", "Demos", 2024, "Alternative", "Asa");
+        var longTrack = _scene.Song("Long Name Track", "Demos", 2024, "Afrobeats", "Asake");
+        // An artist page's Top songs only lists songs actually played. Give
+        // both artists one play so the tested rows belong in that section.
         using var app = _scene.Ready(settings => settings with
         {
             Metadata = new Rex.Media.Settings.MetadataSettings { Music = false },
-        }).Start();
+        }, shortTrack, longTrack).Start();
 
         app.Visit("Artists");
         Assert.Equal(["Asa", "Asake"], app.Lines().Order(StringComparer.CurrentCultureIgnoreCase));
         app.Open("Asa");
         Wait.For(() => app.Text("LibraryKicker") == "ARTIST" && app.Text("LibraryTitle") == "Asa",
             "the first artist's own offline page");
+        // Top songs deliberately contains only tracks with a real play history.
+        // An unplayed artist's tracks remain accessible through their album.
+        app.Open("Demos");
         app.Line("Short Name Track");
         Assert.DoesNotContain("Long Name Track", app.Lines());
         Assert.False(app.IsShown("LibraryOverview"), "offline pages cannot invent biographies");
         Assert.False(app.IsShown("LibraryCredit"), "there is no source to credit without metadata");
 
         app.Press("LibraryBack");
+        app.Press("LibraryBack");
         app.Open("Asake");
         Wait.For(() => app.Text("LibraryTitle") == "Asake", "the separately credited artist");
+        app.Open("Demos");
         app.Line("Long Name Track");
         Assert.DoesNotContain("Short Name Track", app.Lines());
         Assert.Equal(0, app.Close());

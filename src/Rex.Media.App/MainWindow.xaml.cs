@@ -944,6 +944,13 @@ public sealed partial class MainWindow : Window
         // the accessible time preview never appears over the actual slider.
         SeekArea.AddHandler(UIElement.PointerMovedEvent,
             new Microsoft.UI.Xaml.Input.PointerEventHandler(OnSeekAreaPointerMoved), handledEventsToo: true);
+        // A mouse entering the seek slider without moving it further must
+        // still show an accessible time preview. The Slider swallows some
+        // bubbled motion events, so observe both its own and parent route.
+        SeekBar.AddHandler(UIElement.PointerMovedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler(OnSeekAreaPointerMoved), handledEventsToo: true);
+        SeekBar.AddHandler(UIElement.PointerEnteredEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler(OnSeekAreaPointerMoved), handledEventsToo: true);
         SeekBar.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => _scrubbing = true), handledEventsToo: true);
         SeekBar.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EndScrub()), handledEventsToo: true);
         SeekBar.AddHandler(UIElement.PointerCaptureLostEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EndScrub()), handledEventsToo: true);

@@ -578,8 +578,9 @@ public sealed partial class MainWindow
                 var button = new MenuFlyoutItem
                 {
                     Text = $"{TimeText.Format(at, _player.Duration)} · {label}",
-                    MinWidth = 44,
-                    MinHeight = 44,
+                    MinWidth = 56,
+                    MinHeight = 56,
+                    Padding = new Thickness(12, 12, 12, 12),
                 };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, $"StageChapter-{index}");
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);

@@ -505,7 +505,11 @@ internal static class Screenshots
         }
 
         var range = Math.Max(maxR - minR, Math.Max(maxG - minG, maxB - minB));
-        return range > 16 && sampled - biggestBin >= Math.Max(8, sampled / 100);
+        // Sparse native list rows (e.g. three chapter labels over a blank
+        // scroll viewport) still provide real, legible pixels: 33 out of
+        // 3808 samples in the reviewed CI capture. Require substantial text,
+        // not a stray antialiased cursor pixel or an empty window.
+        return range > 16 && sampled - biggestBin >= Math.Max(8, sampled * 3 / 400);
     }
 
     /// <summary>The comparison itself, for a picture already taken.</summary>

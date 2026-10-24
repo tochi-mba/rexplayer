@@ -187,10 +187,14 @@ public sealed class LibraryListeningTests : IDisposable
         Pointer.RightClick(app, app.Line("Ep 1"));
         Wait.For(() => app.IsShown("LibraryMenuPodcastNotes"), "local notes menu for a podcast episode");
         app.Press("LibraryMenuPodcastNotes");
-        var notes = (System.Windows.Automation.ValuePattern)app.Find("PodcastNotesText")
-            .GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern);
-        Assert.Contains("<script>", notes.Current.Value, StringComparison.Ordinal);
-        Assert.Contains("Chapter one", notes.Current.Value, StringComparison.Ordinal);
+        // WinUI's multiline read-only TextBox can expose only the first
+        // paragraph through ValuePattern. TextPattern is the text reader's
+        // full accessible document, including literal unexecuted markup.
+        var notes = (System.Windows.Automation.TextPattern)app.Find("PodcastNotesText")
+            .GetCurrentPattern(System.Windows.Automation.TextPattern.Pattern);
+        var document = notes.DocumentRange.GetText(-1);
+        Assert.Contains("<script>", document, StringComparison.Ordinal);
+        Assert.Contains("Chapter one", document, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 
@@ -502,10 +506,11 @@ public sealed class LibraryListeningTests : IDisposable
         // Dismiss the author context flyout before opening its card. Otherwise
         // the first click of the subsequent double-click is consumed closing
         // that flyout, leaving the author shelf open instead of the book list.
-        Pointer.Key(Pointer.Escape);
+        // Focus the actual popup HWND before sending Escape. A bare global
+        // keystroke may go to the owner window while this flyout is active.
+        app.Press("LibraryMenuOpenAuthor");
         Wait.For(() => !app.IsShown("LibraryMenuOpenAuthor"),
-            "the author context menu to close before navigation");
-        app.Open("Ann Writer");
+            "the author context action to dismiss its popup");
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
             && app.Lines().Contains("Alpha") && app.Lines().Contains("Beta"),
             "the author page to show separate playable books");
