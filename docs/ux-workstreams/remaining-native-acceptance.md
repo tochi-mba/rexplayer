@@ -1,4 +1,4 @@
-# PR #488 — remaining acceptance evidence for source version 0.30.8
+# PR #488 - remaining acceptance evidence for source version 0.30.8
 
 This document explains why some consolidated recovery tasks remain unchecked even after
 their code, native screenshot fixtures, and CI workflows have been authored. The
