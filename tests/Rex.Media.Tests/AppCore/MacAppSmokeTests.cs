@@ -73,12 +73,16 @@ public sealed class MacAppSmokeTests
             Assert.Contains("1 item", onlyVideos.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-videos");
             await Library(pipe, "verify-accessibility");
-            foreach (var name in new[] { "empty", "populated", "videos" })
+            await Library(pipe, "minimum");
+            await Library(pipe, "capture-minimum");
+            foreach (var name in new[] { "empty", "populated", "videos", "minimum" })
             {
                 var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));
                 Assert.True(file.Exists && file.Length > 1024,
                     "No usable native library screenshot: " + file.FullName);
             }
+            Assert.Contains("not a finalized-release screenshot",
+                File.ReadAllText(Path.Combine(libraryScreenshots, "provenance.txt")), StringComparison.Ordinal);
 
             var empty = await Queue(pipe, "show");
             Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
@@ -115,6 +119,13 @@ public sealed class MacAppSmokeTests
                 var file = new FileInfo(Path.Combine(screenshots, name + ".png"));
                 Assert.True(file.Exists && file.Length > 1024, "No usable native queue screenshot: " + file.FullName);
             }
+
+            await Library(pipe, "songs");
+            await Library(pipe, "play-first");
+            var fromLibrary = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                reply => reply is { Title: not null, State: "Playing" or "Paused" or "Ended" }, app, root);
+            Assert.False(string.IsNullOrWhiteSpace(fromLibrary.Title),
+                "The native library row should have started actual local playback.");
 
             var quitting = await Ask(pipe, new AutomationRequest { Command = "run", Id = "quit" });
             // The app may exit before the transport can deliver its reply. A clean exit
