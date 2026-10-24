@@ -17,13 +17,17 @@ namespace Rex.Media.Tests.AppCore;
 public sealed class MacAppSmokeTests
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
+    private const string MacAppRequired = "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.";
 
-    [Fact]
+    // xUnit evaluates this gate before invoking a Mac-only test body.
+    public static bool CanDriveMacApp => OperatingSystem.IsMacOS() &&
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP"));
+
+    [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     [Capability("TOOL-03", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
-        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8]);
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
@@ -214,11 +218,10 @@ public sealed class MacAppSmokeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     public async Task TheMacAppShowsASavedLibraryEntryInItsNativeWindow()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
-        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-library-" + Guid.NewGuid().ToString("N")[..8]);
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var mediaFolder = Path.Combine(root, "watched");
@@ -453,11 +456,10 @@ public sealed class MacAppSmokeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     public async Task TheMacLibraryPaginatesMoreThanEightyFiles()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
-        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle), "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-pages-" + Guid.NewGuid().ToString("N")[..8]);
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var folder = Path.Combine(root, "watched");
@@ -541,12 +543,10 @@ public sealed class MacAppSmokeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     public async Task TheMacLibraryWarnsWhenTheStoreCannotBeRead()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
-        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle),
-            "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-read-error-" + Guid.NewGuid().ToString("N")[..8]);
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var watched = Path.Combine(root, "watched");
@@ -596,12 +596,10 @@ public sealed class MacAppSmokeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     public async Task TheMacLibraryReportsWhenFolderChangesCannotBeSaved()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
-        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(bundle),
-            "Set REXPLAYER_MAC_APP to a built rexplayer.app on a Mac to drive it.");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-write-error-" + Guid.NewGuid().ToString("N")[..8]);
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var folder = Path.Combine(root, "watched");
