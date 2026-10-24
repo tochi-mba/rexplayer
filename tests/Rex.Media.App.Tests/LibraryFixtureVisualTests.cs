@@ -48,7 +48,12 @@ public sealed partial class LibraryFixtureVisualTests
         System.IO.Directory.Delete(scene.Media, recursive: true);
         using var app = scene.Start();
         SetViewport(app, 1000, 760);
+        // Rescan belongs to the Folders route's actions, not the Home
+        // route. Drive the exposed native control, then return Home to
+        // verify the disconnected-folder recovery state there.
+        app.Visit("Folders");
         app.Press("LibraryRescan");
+        app.Visit("Home");
         Wait.For(() => app.IsShown("LibraryEmptyText") &&
             app.Text("LibraryEmptyText").Contains("Reconnect its drive or check permissions", StringComparison.Ordinal),
             "the inaccessible folder to show a recovery action rather than claiming no media exists");
