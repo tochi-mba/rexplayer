@@ -222,11 +222,37 @@ public sealed partial class MainWindow
             for (var i = start; i < end; i++)
             {
                 var folder = matchingFolders[i];
-                var open = NSButton.CreateButton(folder, () => NSWorkspace.SharedWorkspace.OpenUrl(NSUrl.FromFilename(folder)));
+                var open = NSButton.CreateButton(folder, () =>
+                {
+                    if (Directory.Exists(folder))
+                    {
+                        NSWorkspace.SharedWorkspace.OpenUrl(NSUrl.FromFilename(folder));
+                    }
+                    else
+                    {
+                        Say("That folder is disconnected. Reconnect it or stop watching it.");
+                    }
+                });
                 open.Alignment = NSTextAlignment.Left;
                 open.ToolTip = "Open folder in Finder";
                 ((NSView)open).AccessibilityLabel = "Open folder: " + folder;
-                rows.Add(open);
+                var stopWatching = NSButton.CreateButton("Stop watching: " + Path.GetFileName(folder), () =>
+                {
+                    // This only removes the watched root and its index entries.
+                    // The user's actual files are never changed or deleted.
+                    if (_library.RemoveFolder(folder))
+                    {
+                        Say("Stopped watching " + folder + ". Your files are unchanged.");
+                        RefreshLibrary();
+                    }
+                });
+                stopWatching.ToolTip = "Remove this watched folder from the library; leave the files on disk";
+                ((NSView)stopWatching).AccessibilityLabel = "Stop watching folder: " + folder;
+                var row = NSStackView.FromViews([open, stopWatching]);
+                row.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+                row.Alignment = NSLayoutAttribute.Leading;
+                row.Spacing = 4;
+                rows.Add(row);
             }
         }
         else
@@ -359,6 +385,13 @@ public sealed partial class MainWindow
                 && queueLabel.EndsWith(" to Up Next", StringComparison.Ordinal)
                 && _librarySearch?.AccessibilityLabel == "Search the local library"
                 && _libraryKind.ToolTip?.Contains("local library", StringComparison.Ordinal) == true;
+        }
+
+        if (action == "remove-folder" && FindLibrarySmokeButton("Stop watching: ") is { } remove)
+        {
+            remove.PerformClick(remove);
+            RefreshLibrary();
+            return true;
         }
 
         if (action == "play-first" && FindLibrarySmokeButton("Play: ") is { } first)
