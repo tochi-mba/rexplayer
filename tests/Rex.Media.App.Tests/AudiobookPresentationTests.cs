@@ -212,6 +212,47 @@ public sealed class AudiobookPresentationTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void SelectingTwoCompletedEditionsNeverBuildsAMixedBookQueue()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition A", "Alpha.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition B", "Beta.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+
+        using var app = _scene.Ready(settings => settings with
+        {
+            ShowPlayerWhenLibraryMediaStarts = false,
+        }).Start();
+        app.Visit("Audiobooks");
+        app.Open("Same Title (Edition A)");
+        Pointer.RightClick(app, app.Line("Alpha"));
+        Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "the first edition completion action");
+        app.Press("LibraryMenuBookFinished");
+        app.Press("LibraryBack");
+        app.Open("Same Title (Edition B)");
+        Pointer.RightClick(app, app.Line("Beta"));
+        Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "the second edition completion action");
+        app.Press("LibraryMenuBookFinished");
+
+        app.Visit("Completed");
+        Wait.For(() => app.Lines().Contains("Same Title (Edition A)")
+            && app.Lines().Contains("Same Title (Edition B)"),
+            "two separately finished editions");
+        app.Choose("Same Title (Edition A)");
+        app.Choose("Same Title (Edition B)", alone: false);
+        Assert.True(app.IsChosen("Same Title (Edition A)"));
+        Assert.True(app.IsChosen("Same Title (Edition B)"));
+        app.Press("LibraryPlay");
+        app.Press("LibraryEnqueue");
+        app.Press("LibraryShuffle");
+        Assert.Empty(app.Queue());
+        Assert.True(app.IsListed("Completed"),
+            "rejecting mixed-book playback must not unfinish either edition");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void CompletedSameTitleEditionsReplayOnlyTheExactSelectedBook()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition A", "Alpha.wav"),
