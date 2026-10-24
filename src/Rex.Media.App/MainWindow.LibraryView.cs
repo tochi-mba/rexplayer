@@ -946,9 +946,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (CompletedSelectionSpansBooks(ChosenRows()))
+        if (_librarySource == LibrarySource.Completed
+            && ChosenRows().Any(row => row.Item is LibraryGroup))
         {
-            Say("Choose one finished audiobook before shuffling other media.");
+            Say("Finished audiobooks play in chapter order, not shuffled.");
             return;
         }
 
