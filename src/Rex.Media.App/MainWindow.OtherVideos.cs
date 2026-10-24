@@ -169,7 +169,20 @@ public sealed partial class MainWindow
         if (target is null || !_player.SwitchLibraryVersion(target))
         {
             Say("That movie version is no longer available.");
+            return;
         }
+
+        // A menu opened immediately after switching must describe the new
+        // playing encoding, not keep the toggle state captured by the old
+        // stream's flyout. Media startup can update Info asynchronously, so
+        // schedule this on the UI queue after the selection popup closes.
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_closed)
+            {
+                ShowMovieVersions();
+            }
+        });
     }
 
     /// <summary>"This is a movie" and "Not a movie" for the chosen videos that are not TV episodes, whichever would move something.</summary>
