@@ -124,11 +124,11 @@ public sealed partial class MainWindow
             return;
         }
 
-        // Alt+Up/Down reorder selected queue entries. The root preview
-        // handler runs before PlaylistView.KeyDown: do not consume those keys
-        // as the global picture-pan shortcuts while keyboard focus is in the queue.
-        if (IsWithin(focused, PlaylistView) && IsDown(VirtualKey.Menu)
-            && (e.Key is VirtualKey.Up or VirtualKey.Down))
+        // Queue navigation/reordering belongs to the list, not the global shortcuts.
+        // In particular Ctrl+End must reach the queue to realize its last virtualized row.
+        if (IsWithin(focused, PlaylistView)
+            && ((IsDown(VirtualKey.Menu) && e.Key is VirtualKey.Up or VirtualKey.Down)
+                || (IsDown(VirtualKey.Control) && e.Key == VirtualKey.End)))
         {
             return;
         }
@@ -397,6 +397,12 @@ public sealed partial class MainWindow
     {
         switch (e.Key)
         {
+            case VirtualKey.End when IsDown(VirtualKey.Control) && _playlistRows.Count > 0:
+                // WinUI's default End navigation may stop at the last realized container.
+                // ScrollIntoView addresses the final item in the data source directly.
+                PlaylistView.ScrollIntoView(_playlistRows[^1]);
+                e.Handled = true;
+                break;
             case VirtualKey.Up when IsDown(VirtualKey.Menu) && PlaylistView.SelectedItems.Count > 0:
                 MoveSelectedPlaylistEntries(-1);
                 e.Handled = true;
