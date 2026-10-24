@@ -55,7 +55,13 @@ public sealed partial class MainWindow
         {
             var clearSearch = new Button { Content = "Clear search" };
             AutomationProperties.SetAutomationId(clearSearch, "LibraryEmptyClearSearch");
-            clearSearch.Click += (_, _) => LibrarySearch.Text = "";
+            clearSearch.Click += (_, _) =>
+            {
+                LibrarySearch.Text = "";
+                // The empty-state button disappears as soon as results return.
+                // Focus must move to a surviving control, not a detached button.
+                LibrarySearch.Focus(FocusState.Programmatic);
+            };
             LibraryFolderButtons.Children.Add(clearSearch);
         }
 
@@ -63,7 +69,11 @@ public sealed partial class MainWindow
         {
             var clear = new Button { Content = "Clear filters" };
             AutomationProperties.SetAutomationId(clear, "LibraryEmptyClearFilters");
-            clear.Click += (_, _) => KeepViewChoice(ViewChoice(_libraryViewKey).Unfiltered());
+            clear.Click += (_, _) =>
+            {
+                KeepViewChoice(ViewChoice(_libraryViewKey).Unfiltered());
+                LibraryFilterButton.Focus(FocusState.Programmatic);
+            };
             LibraryFolderButtons.Children.Add(clear);
         }
 
