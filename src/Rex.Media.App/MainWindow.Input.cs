@@ -124,14 +124,12 @@ public sealed partial class MainWindow
             return;
         }
 
-        // Handle queue reordering in the preview route itself. Depending on
-        // which element inside a realised row owns focus, WinUI does not
-        // consistently bubble Alt+Up/Down to PlaylistView.KeyDown.
+        // Alt+Up/Down reorder selected queue entries. The root preview
+        // handler runs before PlaylistView.KeyDown: do not consume those keys
+        // as the global picture-pan shortcuts while keyboard focus is in the queue.
         if (IsWithin(focused, PlaylistView) && IsDown(VirtualKey.Menu)
             && (e.Key is VirtualKey.Up or VirtualKey.Down))
         {
-            MoveSelectedPlaylistEntries(e.Key == VirtualKey.Up ? -1 : 1);
-            e.Handled = true;
             return;
         }
 
