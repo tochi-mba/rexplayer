@@ -125,7 +125,7 @@ public sealed class LibraryBackupTests
             harness.Controller.CreatePlaylist("Road trip", [new PlaylistItem(In("Sungba.mp3"))]);
             var files = LibraryBackup.Export(library, harness.Controller.NamedPlaylists);
 
-            var published = LibraryBackup.PublishSnapshot(root, files);
+            var published = LibraryBackup.PublishSnapshot(root, files, cancellationToken: TestContext.Current.CancellationToken);
             Assert.StartsWith(LibraryBackup.PublishedPrefix, Path.GetFileName(published), StringComparison.Ordinal);
             Assert.True(File.Exists(Path.Combine(published, LibraryBackup.CompletionName)));
             Assert.True(File.Exists(Path.Combine(published, LibraryBackup.FileName)));
@@ -146,7 +146,7 @@ public sealed class LibraryBackupTests
                     }
 
                     File.WriteAllBytes(path, bytes);
-                }));
+                }, cancellationToken: TestContext.Current.CancellationToken));
             Assert.Equal([published], Directory.EnumerateDirectories(root).ToArray());
             Assert.Equal(4, Assert.Single(LibraryBackup.ReadFromFile(Path.Combine(published, LibraryBackup.FileName)).Entries).Plays);
 
@@ -173,17 +173,17 @@ public sealed class LibraryBackupTests
         var root = Directory.CreateTempSubdirectory("rexplayer-snapshot-errors-").FullName;
         try
         {
-            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), ("../outside.json", [])]));
-            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), (LibraryBackup.FileName.ToUpperInvariant(), [])]));
-            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), (LibraryBackup.CompletionName, [])]));
-            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, []));
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), ("../outside.json", [])], cancellationToken: TestContext.Current.CancellationToken));
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), (LibraryBackup.FileName.ToUpperInvariant(), [])], cancellationToken: TestContext.Current.CancellationToken));
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), (LibraryBackup.CompletionName, [])], cancellationToken: TestContext.Current.CancellationToken));
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [], cancellationToken: TestContext.Current.CancellationToken));
             Assert.Empty(Directory.EnumerateFileSystemEntries(root));
 
-            var published = LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, "{}"u8.ToArray())]);
+            var published = LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, "{}"u8.ToArray())], cancellationToken: TestContext.Current.CancellationToken);
             File.Delete(Path.Combine(published, LibraryBackup.CompletionName));
             Assert.Throws<FormatException>(() => LibraryBackup.ReadFromFile(Path.Combine(published, LibraryBackup.FileName)));
-            Assert.Throws<ArgumentNullException>(() => LibraryBackup.PublishSnapshot(root, null!));
-            Assert.Throws<ArgumentException>(() => LibraryBackup.PublishSnapshot("", []));
+            Assert.Throws<ArgumentNullException>(() => LibraryBackup.PublishSnapshot(root, null!, cancellationToken: TestContext.Current.CancellationToken));
+            Assert.Throws<ArgumentException>(() => LibraryBackup.PublishSnapshot("", [], cancellationToken: TestContext.Current.CancellationToken));
             Assert.Throws<ArgumentException>(() => LibraryBackup.ReadFromFile(""));
         }
         finally
