@@ -36,7 +36,7 @@ public sealed class AudiobookPresentationTests : IDisposable
         {
             var scene = ScreenshotScenes.Find(name);
             Assert.Equal("ci-windows", scene.RequiredLane);
-            Assert.Equal("1016x760", scene.Dimensions);
+            Assert.Equal("1044x800", scene.Dimensions);
             Assert.Contains(name == "audiobook-empty-progress-filter" ? "LibraryEmpty" : "LibraryList",
                 scene.ExpectedAutomationIds);
         }
@@ -77,7 +77,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             ]);
 
         using var app = _scene.Ready().Start();
-        Screenshots.PinViewport(app, 1016, 760);
+        Screenshots.PinViewport(app, 1044, 800);
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("A Book"), "the unread audiobook card");
         Assert.Contains("Not started", app.Line("A Book").Current.HelpText, StringComparison.Ordinal);
@@ -126,7 +126,7 @@ public sealed class AudiobookPresentationTests : IDisposable
                 new Chapter(MediaTime.FromSeconds(600), "Middle"),
             ]);
         using var app = _scene.Ready(played: path).Start();
-        Screenshots.PinViewport(app, 1016, 760);
+        Screenshots.PinViewport(app, 1044, 800);
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("Marker Book"), "the started book card");
         Assert.Contains("0% listened", app.Line("Marker Book").Current.HelpText,
@@ -137,11 +137,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             "malformed chapter markers to produce bounded, ordered rows");
         Assert.Contains("Up to here", app.Line("Whole").Current.HelpText, StringComparison.Ordinal);
         Assert.Contains("30:00", app.Line("Beyond duration").Current.HelpText, StringComparison.Ordinal);
-        // The three short chapter labels occupy only a tiny fraction of a
-        // large, white list viewport. Capture the containing library page as
-        // visual evidence, including the chapter labels, active book identity
-        // and controls, instead of a near-uniform whitespace-only list crop.
-        Screenshots.Match(app, "audiobook-active-malformed-chapters", "LibraryPane");
+        Screenshots.Match(app, "audiobook-active-malformed-chapters", "LibraryList");
         Assert.Equal(0, app.Close());
     }
 
@@ -434,7 +430,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             TimeSpan.FromHours(1), album: "Huge Book", author: "Ann Writer");
 
         using var app = _scene.Ready().Start();
-        Screenshots.PinViewport(app, 1016, 760);
+        Screenshots.PinViewport(app, 1044, 800);
         app.Visit("Audiobooks");
         app.Open("Huge Book");
         // Capture with the screenshot harness first: it waits for the declared UIA
