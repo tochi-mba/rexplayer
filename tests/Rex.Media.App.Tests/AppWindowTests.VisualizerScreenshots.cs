@@ -58,6 +58,7 @@ public sealed partial class AppWindowTests
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }
+
     /// <summary>These two lanes require the real OS setting; a synthetic flag is not pixel evidence.</summary>
     [Fact]
     [Capability("AU-18")]
@@ -67,6 +68,11 @@ public sealed partial class AppWindowTests
             "Native system high contrast is not enabled on this Windows machine.");
         using var app = AppProcess.Start([Music(30)], RootShowing("Spectrum"));
         Wait.For(() => app.IsShown("Visualizer"), "the actual high-contrast spectrum stage");
+        var viewport = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        viewport.Resize(1000, 760);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - 760) < 2,
+            "the fixed high-contrast visualizer viewport");
         app.Run(CommandCatalog.PlayPause);
         Thread.Sleep(2000);
         Assert.True(app.IsShown("Visualizer"));
@@ -92,5 +98,4 @@ public sealed partial class AppWindowTests
         Screenshots.Match(app, "visualizer-spectrum-high-dpi-" + dpi, "Stage");
         Assert.Equal(0, app.Close());
     }
-
 }
