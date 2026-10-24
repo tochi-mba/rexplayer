@@ -66,6 +66,41 @@ public sealed partial class AppWindowTests
         Assert.Equal(0, app.Close());
     }
 
+    /// <summary>
+    /// Real top-level WindowPattern and native titlebar behavior matter for Snap
+    /// and taskbar integration; an ordinary resizable XAML panel cannot replace them.
+    /// </summary>
+    [Fact]
+    [Capability("UI-01")]
+    [Capability("UI-13")]
+    public void NativeTitleBarPreservesMaximizeRestoreAndResizeFromTheOs()
+    {
+        using var app = AppStartedAt(1000, 700, "Dark");
+        var window = (WindowPattern)app.Window.GetCurrentPattern(WindowPattern.Pattern);
+        Assert.True(window.Current.CanMaximize, "Native maximize and Windows Snap eligibility must be preserved.");
+        Assert.True(window.Current.CanMinimize, "The native taskbar must be able to minimize this window.");
+        Assert.Contains("rexplayer", app.Window.Current.Name, StringComparison.OrdinalIgnoreCase);
+        Screenshots.Match(app, "native-titlebar-restored");
+
+        Input.Maximize(app);
+        Wait.For(() => window.Current.WindowVisualState == WindowVisualState.Maximized,
+            "the OS maximize button to control the actual native window");
+        Assert.True(app.IsShown("PlayPauseButton"), "maximize to keep controls accessible");
+        Screenshots.Match(app, "native-titlebar-maximized");
+
+        Input.Restore(app);
+        Wait.For(() => window.Current.WindowVisualState == WindowVisualState.Normal,
+            "the OS restore control to return to a resizable window");
+        var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        transform.Resize(720, 640);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 720) < 2
+            && Math.Abs(app.Window.Current.BoundingRectangle.Height - 640) < 2,
+            "the restored native window to remain resizable");
+        Assert.True(app.IsShown("PlayPauseButton"));
+        Screenshots.Match(app, "native-titlebar-compact-restored");
+        Assert.Equal(0, app.Close());
+    }
+
     [Fact]
     [Capability("UI-11")]
     public void AShortcutClearedInTheEditorIsKeptOnlyWhenSaved()
