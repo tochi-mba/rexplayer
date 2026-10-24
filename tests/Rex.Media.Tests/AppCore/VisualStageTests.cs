@@ -576,8 +576,11 @@ public sealed class VisualStageTests
         Assert.Same(stage.Pulse, stage.Context.Pulse);
         stage.Reset();
         Assert.Throws<ArgumentNullException>(() => stage.Draw(VisualizerChoice.Vinyl, null!, left, right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentException>(() => stage.Draw(VisualizerChoice.Vinyl, Defaults, [0], right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentException>(() => stage.Draw(VisualizerChoice.Vinyl, Defaults, left, [0], 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        // Short audio inputs are valid: they are zero-padded before visualization.
+        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, [0], right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        Assert.Equal(0, stage.Context.Left[^1]);
+        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, left, [0], 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        Assert.Equal(0, stage.Context.Right[^1]);
         Assert.Throws<ArgumentNullException>(() => new VisualContext(null!, new MusicPulse()));
         Assert.Throws<ArgumentNullException>(() => new VisualContext(new Raster(2, 2), null!));
         Assert.Null(VisualScene.For(VisualizerChoice.Meters));
