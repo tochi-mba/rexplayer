@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Player;
 using Rex.Media.Library.Playlists;
 using Windows.Storage.Pickers;
 
@@ -25,6 +26,14 @@ public sealed partial class MainWindow
     /// <summary>Adjusts the dwell time for subsequent pictures without restarting the current image or queue.</summary>
     private void OnPictureIntervalClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
+        // A flyout action queued before a stream switch must not mutate
+        // picture-specific playback settings while a different medium plays.
+        if (_stageView.Profile != MediaStageProfile.Picture
+            || _player.Item?.Location is not { } location || !MediaFiles.IsPicture(location))
+        {
+            return;
+        }
+
         if (sender is not Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Tag: string choice }
             || !int.TryParse(choice, System.Globalization.NumberStyles.None,
                 System.Globalization.CultureInfo.InvariantCulture, out var seconds))
