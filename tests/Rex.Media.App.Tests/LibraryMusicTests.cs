@@ -159,11 +159,12 @@ public sealed class LibraryMusicTests : IDisposable
             ((ScrollPattern)scrolling).SetScrollPercent(ScrollPattern.NoScroll, 0);
         }
 
-        // Re-enter the album page from the catalogue after playback
-        // updated the scroll-linked header. The same real artist link must
-        // still be provided on the page, rather than relying on a temporary
-        // header expansion during an ongoing list-layout animation.
-        app.Visit("Albums");
+        // Return using the page's own Back action. Selecting an already
+        // selected sidebar item through UI Automation does not raise a new
+        // selection event, so it cannot be used to leave an album detail page.
+        app.Press("LibraryBack");
+        Wait.For(() => app.Text("LibraryTitle") == "Albums",
+            "the album catalogue to return after playback");
         app.Open("Lungu Boy");
         Wait.For(() => app.IsShown("LibraryHeroArtist-Asake"),
             "the album artist link to remain accessible when revisiting the album");

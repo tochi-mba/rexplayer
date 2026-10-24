@@ -77,6 +77,22 @@ public sealed class AudiobookPresentationTests : IDisposable
             ]);
 
         using var app = _scene.Ready().Start();
+        // Keep capturing the remaining states if an earlier golden disagrees:
+        // CI must retain the empty-state image even when the unread cover
+        // fails its pixel comparison. Every mismatch still fails this test.
+        var screenshotFailures = new List<string>();
+        void Capture(string name, string control)
+        {
+            try
+            {
+                Screenshots.Match(app, name, control);
+            }
+            catch (Xunit.Sdk.XunitException error)
+            {
+                screenshotFailures.Add($"{name}: {error.Message}");
+            }
+        }
+
         Screenshots.PinViewport(app, 1044, 800);
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("A Book"), "the unread audiobook card");
@@ -103,7 +119,7 @@ public sealed class AudiobookPresentationTests : IDisposable
             return image.Bgra.Length >= 4 * 140 * 170
                 && dark > image.Bgra.Length / 4 * 3 / 5;
         }, "the actual audiobook cover art to replace its loading placeholder");
-        Screenshots.Match(app, "audiobook-unread-card", "LibraryList");
+        Capture("audiobook-unread-card", "LibraryList");
 
         app.Open("A Book");
         Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
@@ -113,14 +129,14 @@ public sealed class AudiobookPresentationTests : IDisposable
         Wait.For(() => app.Lines().Contains("Opening") && app.Lines().Contains("Middle"),
             "virtualized chapter rows");
         Assert.Contains("0:00", app.Line("Opening").Current.HelpText, StringComparison.Ordinal);
-        Screenshots.Match(app, "audiobook-credited-book", "LibraryList");
+        Capture("audiobook-credited-book", "LibraryList");
 
         Pointer.RightClick(app, app.Line("Opening"));
         Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "marking only the book finished");
         app.Press("LibraryMenuBookFinished");
         Wait.For(() => app.Text("LibrarySubtitle").Contains("Finished", StringComparison.Ordinal),
             "the explicitly finished book");
-        Screenshots.Match(app, "audiobook-finished-book", "LibraryList");
+        Capture("audiobook-finished-book", "LibraryList");
 
         app.Press("LibraryBack");
         Wait.For(() => app.Text("LibraryTitle") == "Audiobooks", "back to the book shelf");
@@ -131,8 +147,9 @@ public sealed class AudiobookPresentationTests : IDisposable
             "the genuinely empty unread-book filter with its visible recovery action");
         // Capture the actual empty-state panel. A picture of LibraryList can still
         // contain a stale card while that list is being replaced after filtering.
-        Screenshots.Match(app, "audiobook-empty-progress-filter", "LibraryEmpty");
+        Capture("audiobook-empty-progress-filter", "LibraryEmpty");
         Assert.Equal(0, app.Close());
+        Assert.True(screenshotFailures.Count == 0, string.Join(Environment.NewLine, screenshotFailures));
     }
 
     [Fact]
