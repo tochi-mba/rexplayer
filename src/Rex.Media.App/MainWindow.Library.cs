@@ -795,14 +795,27 @@ public sealed partial class MainWindow
                 return;
             }
 
-            if (LibraryCollage.Visibility == Visibility.Visible)
+            void RestoreFocus()
             {
-                LibraryCollage.Focus(FocusState.Programmatic);
+                if (_closed || !LibraryOpen)
+                {
+                    return;
+                }
+
+                if (LibraryCollage.Visibility == Visibility.Visible)
+                {
+                    LibraryCollage.Focus(FocusState.Programmatic);
+                }
+                else
+                {
+                    LibraryList.Focus(FocusState.Programmatic);
+                }
             }
-            else
-            {
-                LibraryList.Focus(FocusState.Programmatic);
-            }
+
+            RestoreFocus();
+            // A library refresh can replace rows after this callback begins.
+            // Reassert focus once those queued view changes have completed.
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, RestoreFocus);
         });
     }
 
