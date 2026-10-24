@@ -116,8 +116,19 @@ internal static partial class Pointer
     {
         Forward(app);
         // A list line's own clickable point is often refused; the middle of its box is on the line.
-        var box = element.Current.BoundingRectangle;
-        Assert.False(box.IsEmpty, "The line has no place on the screen.");
+        var box = System.Windows.Rect.Empty;
+        Wait.For(() =>
+        {
+            try
+            {
+                box = element.Current.BoundingRectangle;
+                return !box.IsEmpty;
+            }
+            catch (ElementNotAvailableException)
+            {
+                return false;
+            }
+        }, "the pointer target to have a place on the screen");
         // Send a real move before button-down. On an unattended desktop, merely
         // warping the pointer need not update WinUI's hit test to the new control.
         MoveHoverPointer((int)(box.Left + (box.Width / 2)), (int)(box.Top + (box.Height / 2)));
