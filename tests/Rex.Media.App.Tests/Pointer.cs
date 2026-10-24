@@ -118,7 +118,10 @@ internal static partial class Pointer
         // A list line's own clickable point is often refused; the middle of its box is on the line.
         var box = element.Current.BoundingRectangle;
         Assert.False(box.IsEmpty, "The line has no place on the screen.");
-        Assert.True(SetCursorPos((int)(box.Left + (box.Width / 2)), (int)(box.Top + (box.Height / 2))), "The pointer could not be moved over the line.");
+        // Send a real move before button-down. On an unattended desktop, merely
+        // warping the pointer need not update WinUI's hit test to the new control.
+        MoveHoverPointer((int)(box.Left + (box.Width / 2)), (int)(box.Top + (box.Height / 2)));
+        Thread.Sleep(50);
         var inputs = new List<Input>();
         for (var i = 0; i < clicks; i++)
         {
@@ -219,10 +222,6 @@ internal static partial class Pointer
 
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetrics(int index);
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetCursorPos(int x, int y);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
