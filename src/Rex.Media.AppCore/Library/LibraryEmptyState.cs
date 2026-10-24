@@ -37,6 +37,7 @@ public sealed record LibraryEmptyState(string Text, bool OffersFolders, bool Off
     /// <param name="hasFolders">Whether the library watches any folder.</param>
     /// <param name="filters">The quick filters in use, as the filter button says them, or null for none.</param>
     /// <param name="scanning">Whether the library is looking through its folders now.</param>
+    /// <param name="scanProblem">The most recent folder-scan error, if one is available.</param>
     public static LibraryEmptyState For(LibraryEmptyView view, bool searching, bool hasFolders, string? filters, bool scanning, string? scanProblem = null)
     {
         if (searching)
