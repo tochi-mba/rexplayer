@@ -119,6 +119,12 @@ public sealed partial class MainWindow : Window
         Stage.SizeChanged += (_, _) => LayOutMediaStage();
         WireSubjectTools();
         WireSeekBar();
+        // The WinUI Slider may mark pointer motion handled as it moves its thumb.
+        // Listen to routed motion anyway so the real timeline hover time is
+        // updated even when optional thumbnail decoding is switched off.
+        SeekArea.AddHandler(UIElement.PointerMovedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler(OnSeekAreaPointerMoved),
+            handledEventsToo: true);
 
         // UI evidence runs hold a genuine failure notice long enough for two
         // independently rendered screenshots. Normal users keep the brief OSD.
