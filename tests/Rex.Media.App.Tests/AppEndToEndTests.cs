@@ -93,6 +93,12 @@ public sealed class AppEndToEndTests : IDisposable
     public void TheFirstStartDoesNotOptIntoBackgroundNetworkChecksByDefault()
     {
         using var app = AppProcess.Start(firstRun: true);
+        var transform = (System.Windows.Automation.TransformPattern)app.Window.GetCurrentPattern(
+            System.Windows.Automation.TransformPattern.Pattern);
+        transform.Resize(1000, 700);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2
+            && Math.Abs(app.Window.Current.BoundingRectangle.Height - 700) < 2,
+            "the fixed first-run privacy viewport");
 
         var updates = (System.Windows.Automation.TogglePattern)app.Find("WelcomeUpdates")
             .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern);
