@@ -319,6 +319,9 @@ public sealed class LibraryListeningTests : IDisposable
         ((System.Windows.Automation.ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).SetValue("Tolkien");
         Wait.For(() => app.Text("LibraryKicker") == "SEARCH" && app.Lines().SequenceEqual(["J. R. R. Tolkien"]),
             "author search to keep the semantic author result instead of turning it into an artist");
+        Assert.Equal("Open author", app.Text("LibraryPlayText"));
+        Assert.False(app.IsShown("LibraryShuffle"));
+        Assert.False(app.IsShown("LibraryEnqueue"));
         app.Open("J. R. R. Tolkien");
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR" && app.Text("LibraryTitle") == "J. R. R. Tolkien",
             "the author page");
@@ -332,6 +335,194 @@ public sealed class LibraryListeningTests : IDisposable
         app.Press("LibraryBack");
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
             && app.Text("LibraryTitle") == "J. R. R. Tolkien", "back to the author");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void FinishingABookDoesNotMarkItsPhysicalFilesPlayed()
+    {
+        var part = _scene.Audio(Path.Combine("Audiobooks", "Careful Reader", "Book", "Part 1.wav"),
+            TimeSpan.FromMinutes(50), artist: "Careful Reader", album: "Book");
+        using (var app = _scene.Ready().Start())
+        {
+            app.Visit("Audiobooks");
+            app.Open("Book");
+            Pointer.RightClick(app, app.Line("Part 1"));
+            Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "the book completion action");
+            app.Press("LibraryMenuBookFinished");
+            Wait.For(() => app.Text("LibrarySubtitle").Contains("Finished", StringComparison.Ordinal),
+                "book completion to appear without changing media play counts");
+            Pointer.RightClick(app, app.Line("Part 1"));
+            Wait.For(() => app.IsShown("LibraryMenuBookUnfinished"), "undo book completion");
+            app.Press("LibraryMenuBookUnfinished");
+            Wait.For(() => app.Text("LibrarySubtitle").Contains("Not started", StringComparison.Ordinal),
+                "undo to restore the book's own not-started state");
+            Assert.Equal(0, app.Close());
+        }
+
+        var library = new Rex.Media.Library.MediaLibrary(
+            Rex.Media.Library.RexStore.Open(Path.Combine(_scene.Root, "library.log")));
+        Assert.Equal(0, Assert.Single(library.Entries, entry => entry.Path == part).Plays);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void OpeningAChapterFromAnAuthorOnlyQueuesThatBook()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Alpha", "Opening Alpha.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Alpha");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Beta", "Opening Beta.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Beta");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Authors");
+        app.Open("Ann Writer");
+        app.Open("Alpha");
+        Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK", "the selected author's book page");
+        app.Open("Opening Alpha");
+        Wait.For(() => app.Text("NowPlaying") == "Opening Alpha", "the selected chapter to play");
+        var queue = app.Queue();
+        Assert.Single(queue);
+        Assert.Contains("Opening Alpha", queue[0], StringComparison.Ordinal);
+        Assert.DoesNotContain(queue, title => title.Contains("Opening Beta", StringComparison.Ordinal));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ABooksSpeedIsRestoredWithoutLeakingIntoMusic()
+    {
+        _scene.WithAsake();
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Book", "Part 1.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Book");
+        using var app = _scene.Ready().Start();
+
+        app.Visit("Audiobooks");
+        app.Open("Book");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 1", "the book to begin playing");
+        app.Press("SpeedButton");
+        app.Press("SpeedRate-1.5");
+        Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1.5×",
+            "this book's chosen listening speed");
+
+        if (!app.IsShown("LibraryPane"))
+        {
+            app.Run(CommandCatalog.ToggleLibrary);
+        }
+
+        app.Visit("Songs");
+        app.Open("Sungba");
+        Wait.For(() => app.Text("NowPlaying") == "Sungba"
+            && app.Text("SpeedButton") == "Playback speed, 1×",
+            "music to play at normal speed after a faster audiobook");
+
+        if (!app.IsShown("LibraryPane"))
+        {
+            app.Run(CommandCatalog.ToggleLibrary);
+        }
+
+        app.Visit("Audiobooks");
+        app.Open("Book");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 1"
+            && app.Text("SpeedButton") == "Playback speed, 1.5×",
+            "the audiobook's earlier speed to be restored");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void OpeningABookAfterShuffledMusicRestoresChapterOrder()
+    {
+        _scene.WithAsake();
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Ordered Book", "Part 1.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Ordered Book");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Ordered Book", "Part 2.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Ordered Book");
+
+        using var app = _scene.Ready(settings => settings with
+        {
+            ShowPlayerWhenLibraryMediaStarts = false,
+        }).Start();
+        app.Visit("Songs");
+        app.Open("Sungba");
+        Wait.For(() => app.Text("NowPlaying") == "Sungba", "music to begin playing");
+        app.Press("ShuffleButton");
+        Wait.For(() => ((System.Windows.Automation.TogglePattern)app.Find("ShuffleButton")
+                .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern)).Current.ToggleState
+                == System.Windows.Automation.ToggleState.On, "music queue shuffle to be on");
+
+        app.Visit("Audiobooks");
+        app.Open("Ordered Book");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 1",
+            "book playback to start from its first physical part");
+        Wait.For(() => ((System.Windows.Automation.TogglePattern)app.Find("ShuffleButton")
+                .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern)).Current.ToggleState
+                == System.Windows.Automation.ToggleState.Off,
+            "book playback to disable the inherited music shuffle");
+        var queue = app.Queue();
+        Assert.Equal(2, queue.Length);
+        Assert.Contains("Part 1", queue[0], StringComparison.Ordinal);
+        Assert.Contains("Part 2", queue[1], StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AuthorCardsCannotFinishAWholeCatalogueAndBookCardPlayIsScoped()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Alpha", "Opening Alpha.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Alpha");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Beta", "Opening Beta.wav"),
+            TimeSpan.FromMinutes(50), artist: "Ann Writer", album: "Beta");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Authors");
+        // The author shelf is navigational, not a mixed playback queue.
+        Assert.Equal("Open author", app.Text("LibraryPlayText"));
+        Assert.False(app.IsShown("LibraryEnqueue"));
+        Assert.False(app.IsShown("LibraryShuffle"));
+        app.Press("LibraryPlay");
+        Assert.Empty(app.Queue());
+
+        app.Visit("Authors");
+        Pointer.RightClick(app, app.Line("Ann Writer"));
+        Wait.For(() => app.IsShown("LibraryMenuOpenAuthor"),
+            "the author card's navigation-only context action");
+        Assert.False(app.IsShown("LibraryMenuBookFinished"),
+            "An author is not a book and must never offer to complete an entire catalogue");
+        Assert.False(app.IsShown("LibraryMenuPlayNext"),
+            "Author rows must not offer bulk book playback");
+        Assert.False(app.IsShown("LibraryMenuDelete"),
+            "Author rows must not expose deletion of a whole catalogue");
+
+        // Dismiss the author context flyout before opening its card. Otherwise
+        // the first click of the subsequent double-click is consumed closing
+        // that flyout, leaving the author shelf open instead of the book list.
+        Pointer.Key(Pointer.Escape);
+        Wait.For(() => !app.IsShown("LibraryMenuOpenAuthor"),
+            "the author context menu to close before navigation");
+        app.Open("Ann Writer");
+        Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
+            && app.Lines().Contains("Alpha") && app.Lines().Contains("Beta"),
+            "the author page to show separate playable books");
+        Assert.False(app.IsShown("LibraryShuffle"),
+            "book parts must retain listening order instead of being shuffled");
+        app.Press("LibraryPlay");
+        Assert.Empty(app.Queue());
+        app.Press("LibraryEnqueue");
+        Assert.Empty(app.Queue());
+
+        Pointer.RightClick(app, app.Line("Alpha"));
+        Wait.For(() => app.IsShown("LibraryMenuResumeBook"), "the selected book's resume action");
+        app.Press("LibraryMenuResumeBook");
+        Wait.For(() => app.Text("NowPlaying") == "Opening Alpha", "the chosen author's book to play");
+        var queue = app.Queue();
+        Assert.Single(queue);
+        Assert.DoesNotContain(queue, item => item.Contains("Opening Beta", StringComparison.Ordinal));
         Assert.Equal(0, app.Close());
     }
 

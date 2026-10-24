@@ -376,6 +376,9 @@ jobs:
           REXPLAYER_UI_LANE: ci-windows
         run: ./dev.ps1 ui
 
+      # Captures, including failed cases, are available as the retained screenshots artifact
+      # below. The six audiobook screenshots still require committed and reviewed CI goldens.
+
       - name: Repeat offline screenshot fixture suites in fresh processes
         if: success()
         env:

@@ -36,7 +36,12 @@ public sealed class BookCreditsTests
     [InlineData("Downloads/Matilda (written by Roald Dahl).m4b", null)]
     [InlineData("Audiobooks/Matilda/Disc 2/03.mp3", null)]
     [InlineData("Audiobooks/The Long Road/Disc 3/01.mp3", null)]
+    [InlineData("Audiobooks/The Long Road/Disc 3/Opening.mp3", null)]
+    [InlineData("Audiobooks/The Long Road/CD12/Opening.mp3", null)]
+    [InlineData("Audiobooks/The Long Road/Disk_04/Opening.mp3", null)]
     [InlineData("Audiobooks/A Great Book/Part 12/01.mp3", null)]
+    [InlineData("Audiobooks/A Great Book/Part 20/Opening.mp3", null)]
+    [InlineData("Audiobooks/Ann Writer/Novel/Disc 13/Opening.mp3", "Ann Writer")]
     [InlineData("Audiobooks/The Great Gatsby/03.mp3", null)]
     [InlineData("Music/Roald Dahl/Matilda.mp3", null)]
     public void BookFolderInferenceRequiresARecognizableAuthorLayout(string path, string? expected)

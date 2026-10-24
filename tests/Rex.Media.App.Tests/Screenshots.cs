@@ -66,7 +66,8 @@ internal static class Screenshots
     /// settle first (a condition on the controls shown), since a shot is taken at once.
     /// </summary>
     public static void Match(AppProcess app, string name, string? automationId = null,
-        int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
+        int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio,
+        int maxViewportHeightChange = 0, Func<bool>? extraReadiness = null)
     {
         var scene = ScreenshotScenes.Find(name);
         Assert.True(scene.RequiredLane == "ci-windows" || scene.RequiredLane == Lane,
@@ -76,7 +77,8 @@ internal static class Screenshots
         var ready = Wait.Within(AppProcess.Patience, () =>
             scene.ExpectedAutomationIds.All(app.IsShown) &&
             scene.ExpectedVisibleData.All(item =>
-                app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name));
+                app.IsShown(item.AutomationId) && app.Text(item.AutomationId) == item.Name)
+            && (extraReadiness?.Invoke() ?? true));
         if (!ready)
         {
             // A missing UIA witness is still a useful screenshot failure, not an

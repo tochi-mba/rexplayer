@@ -1,4 +1,6 @@
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Library;
 using static Rex.Media.AppCore.Library.LibraryActions;
@@ -73,13 +75,36 @@ public sealed partial class MainWindow
             }
         }
 
-        if ((_librarySource is LibrarySource.Audiobooks or LibrarySource.Authors)
-            && (chosen is [{ Item: LibraryGroup book }] ? book
-                : _librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup) is { Entries.Count: > 0 } chosenBook)
+        if (BookForListeningMenu(chosen) is { Entries.Count: > 0 } chosenBook)
         {
             var finished = Audiobooks.Finished(chosenBook);
             menu.Items.Add(MenuItem(finished ? "Mark as unfinished" : "Mark as finished", finished ? "LibraryMenuBookUnfinished" : "LibraryMenuBookFinished",
                 () => MarkBookFinished(chosenBook, !finished)));
+
+            if (chosen is [{ Item: BookChapter chapter }])
+            {
+                menu.Items.Add(MenuItem("Play from this chapter", "LibraryMenuPlayChapter", () => PlayBook(chosenBook, chapter)));
+            }
+
+            menu.Items.Add(MenuItem(finished ? "Start this book again" : "Resume this book",
+                "LibraryMenuResumeBook", () => PlayBook(chosenBook, null)));
+
+            if (_player.Playlist.Current?.Location is { } current
+                && chosenBook.Entries.Any(part => LibraryViews.SameLocation(part.Path, current)))
+            {
+                var tools = new MenuFlyoutSubItem { Text = "Audiobook playback" };
+                AutomationProperties.SetAutomationId(tools, "LibraryMenuBookTools");
+                tools.Items.Add(MenuItem("Previous chapter", "LibraryMenuBookPreviousChapter", () => MoveBookChapter(chosenBook, -1)));
+                tools.Items.Add(MenuItem("Next chapter", "LibraryMenuBookNextChapter", () => MoveBookChapter(chosenBook, 1)));
+                tools.Items.Add(MenuItem("Back 10 seconds", "LibraryMenuBookBack10", () => Run(CommandCatalog.JumpBackShort)));
+                tools.Items.Add(MenuItem("Forward 10 seconds", "LibraryMenuBookForward10", () => Run(CommandCatalog.JumpForwardShort)));
+                tools.Items.Add(MenuItem("Back 1 minute", "LibraryMenuBookBackMinute", () => Run(CommandCatalog.JumpBackMedium)));
+                tools.Items.Add(MenuItem("Forward 1 minute", "LibraryMenuBookForwardMinute", () => Run(CommandCatalog.JumpForwardMedium)));
+                tools.Items.Add(MenuItem("Bookmark this position", "LibraryMenuBookBookmark", () => Run(CommandCatalog.AddBookmark)));
+                tools.Items.Add(MenuItem("Sleep in 15 minutes", "LibraryMenuBookSleep15", () => Run(CommandCatalog.SleepPrefix + "15")));
+                tools.Items.Add(MenuItem("Sleep at the end of this part", "LibraryMenuBookSleepEnd", () => Run(CommandCatalog.SleepAtEndOfItem)));
+                menu.Items.Add(tools);
+            }
         }
 
         if (_librarySource == LibrarySource.Podcasts && (chosen is [{ Item: LibraryGroup show }] ? show : _libraryGroup) is { Entries.Count: > 0 } chosenShow)
@@ -89,6 +114,34 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem("Play unplayed in order", "LibraryMenuPlayUnplayed", () => PlayUnplayedEpisodes(chosenShow)));
             menu.Items.Add(MenuItem("Mark all played", "LibraryMenuMarkAllPlayed", () => MarkListened([.. chosenShow.Entries.Select(episode => episode.Path)])));
         }
+    }
+
+    /// <summary>Only a book, not the parent author, may receive book completion and playback actions.</summary>
+    private LibraryGroup? BookForListeningMenu(IReadOnlyList<LibraryRow> chosen)
+    {
+        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        {
+            return null;
+        }
+
+        // A completed audiobook is still a logical book. Offer "Mark as
+        // unfinished" for that one edition, without changing its physical files'
+        // play counts or exposing book actions on completed movies or podcasts.
+        if (_librarySource == LibrarySource.Completed)
+        {
+            return chosen is [{ Item: LibraryGroup completed }]
+                && Listening().Audiobooks.Any(book =>
+                    ListeningViews.BookIdentity(book) == ListeningViews.BookIdentity(completed))
+                ? completed : null;
+        }
+
+        if (_librarySource is not (LibrarySource.Authors or LibrarySource.Audiobooks))
+        {
+            return null;
+        }
+
+        return chosen is [{ Item: LibraryGroup book }] ? book
+            : _librarySource == LibrarySource.Authors ? _librarySeason : _libraryGroup;
     }
 
     /// <summary>
@@ -177,18 +230,16 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Marks the book finished (every part played, nowhere to resume) or not.</summary>
+    /// <summary>Marks the logical book finished without altering the files' play counts or resume points.</summary>
     private void MarkBookFinished(LibraryGroup book, bool finished)
     {
         Audiobooks.SetFinished(book, finished);
-        if (finished)
-        {
-            MarkListened([.. book.Entries.Select(part => part.Path)]);
-        }
-
         Say(finished ? $"{book.Name} marked as finished" : $"{book.Name} marked as unfinished");
         _shownLibrary = "";
-        ShowLibrary();
+        if (!UpdateSections(immediate: true))
+        {
+            ShowLibrary();
+        }
     }
 
     /// <summary>Played through: nowhere to go back to, and played at least once.</summary>
@@ -200,6 +251,27 @@ public sealed partial class MainWindow
         }
 
         _library!.MarkPlayed(paths);
+    }
+
+    /// <summary>Treat an audiobook card as a book, not as a generic list of files.</summary>
+    private bool PlayBookCard(LibraryRow? row)
+    {
+        if (row?.Item is not LibraryGroup book)
+        {
+            return false;
+        }
+
+        var bookCard = (_librarySource == LibrarySource.Audiobooks && _libraryGroup is null)
+            || (_librarySource == LibrarySource.Authors && _libraryGroup is not null && _librarySeason is null)
+            || (_librarySource == LibrarySource.Completed && Listening().Audiobooks.Any(candidate =>
+                ListeningViews.BookIdentity(candidate) == ListeningViews.BookIdentity(book)));
+        if (!bookCard)
+        {
+            return false;
+        }
+
+        PlayBook(book, null);
+        return true;
     }
 
     /// <summary>Play on an open book: from the chapter chosen, else on from where the book was left.</summary>
@@ -223,11 +295,40 @@ public sealed partial class MainWindow
     /// </summary>
     private void PlayBook(LibraryGroup book, BookChapter? chapter)
     {
+        if (chapter is not null && IndexOfPart(book, chapter.Part) < 0)
+        {
+            Say("That chapter is no longer in this book.");
+            return;
+        }
+
         var place = chapter is not null ? new BookPlace(IndexOfPart(book, chapter.Part), chapter.Start)
             : Audiobooks.Finished(book) ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
-        if (chapter is null && Audiobooks.Finished(book))
+        if (book.Entries.Count == 0)
+        {
+            LibraryNotice.Message = "This book has no playable parts.";
+            LibraryNotice.IsOpen = true;
+            return;
+        }
+
+        if (NotYetPlayable(book.Entries[Math.Clamp(place.Part, 0, book.Entries.Count - 1)]) is { } blocked)
+        {
+            LibraryNotice.Message = blocked;
+            LibraryNotice.IsOpen = true;
+            return;
+        }
+
+        var wasFinished = Audiobooks.Finished(book);
+        if (wasFinished)
         {
             Audiobooks.SetFinished(book, false);
+        }
+
+        // Playlist.Clear does not reset shuffle. Without this, a user who
+        // shuffled music immediately before opening a multi-part book hears its
+        // files in random order, even though book pages hide the Shuffle action.
+        if (_player.Playlist.Shuffle)
+        {
+            _player.Playlist.Shuffle = false;
         }
 
         _bookPlaying = (book, false);
@@ -243,10 +344,37 @@ public sealed partial class MainWindow
         }
 
         _player.PlayFromLibrary(book.Entries, Math.Max(0, place.Part), place.At > TimeSpan.Zero ? place.At : null);
+        if (wasFinished)
+        {
+            _shownLibrary = "";
+            if (!UpdateSections(immediate: true))
+            {
+                ShowLibrary();
+            }
+        }
+    }
+
+    private bool MoveBookChapter(LibraryGroup book, int direction)
+    {
+        var location = _player.Playlist.Current?.Location;
+        if (location is null || !book.Entries.Any(part => LibraryViews.SameLocation(part.Path, location))) return false;
+        var part = book.Entries.ToList().FindIndex(entry => LibraryViews.SameLocation(entry.Path, location));
+        var chapters = ListeningViews.Chapters(book);
+        var targetIndex = ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(part, _player.Position), next: direction > 0);
+        if (targetIndex < 0 || targetIndex >= chapters.Count)
+        {
+            Say(direction < 0 ? "Already at the first chapter" : "Already at the last chapter");
+            return true;
+        }
+        var target = chapters[targetIndex];
+        if (LibraryViews.SameLocation(target.Part.Path, location)) _player.Seek(target.Start);
+        else PlayBook(book, target);
+        return true;
     }
 
     private static int IndexOfPart(LibraryGroup book, LibraryEntry part) =>
-        Math.Max(0, book.Entries.Select(entry => entry.Path).ToList().IndexOf(part.Path));
+        book.Entries.ToList().FindIndex(entry => LibraryViews.SameLocation(entry.Path, part.Path));
 
     /// <summary>While a book plays, a change of speed is kept for it; when something else plays, normal speed comes back.</summary>
     private void FollowBookSpeed()

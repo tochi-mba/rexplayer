@@ -84,6 +84,21 @@ public sealed partial class MainWindow
     private void RevealLibraryRow(string path)
     {
         var index = _libraryRows.FindIndex(row => row.Item is LibraryEntry entry && LibraryViews.SameLocation(entry.Path, path));
+        if (index < 0 && _librarySource is LibrarySource.Audiobooks or LibrarySource.Authors)
+        {
+            // For a chaptered file, reveal the last chapter mark at or before the
+            // live playhead, not the first chapter in that physical file.
+            var playing = LibraryViews.SameLocation(_player.Playlist.Current?.Location, path);
+            var position = playing ? _player.Position : TimeSpan.Zero;
+            index = _libraryRows.FindLastIndex(row => row.Item is BookChapter chapter
+                && LibraryViews.SameLocation(chapter.Part.Path, path)
+                && chapter.Start <= position);
+            if (index < 0)
+            {
+                index = _libraryRows.FindIndex(row => row.Item is BookChapter chapter
+                    && LibraryViews.SameLocation(chapter.Part.Path, path));
+            }
+        }
         if (index < 0)
         {
             return;

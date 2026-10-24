@@ -17,7 +17,9 @@ public partial class LibraryRow(
     string picturePlaceholder = "",
     string badge = "",
     double progress = 0,
-    bool isPlaying = false) : INotifyPropertyChanged
+    bool isPlaying = false,
+    string accessibilitySuffix = "",
+    bool showProgress = false) : INotifyPropertyChanged
 {
     [ThreadStatic]
     private static Brush? s_defaultTile;
@@ -70,14 +72,19 @@ public partial class LibraryRow(
     /// <summary>How far through a video left part-way it was stopped, 0 to 1; 0 for the rest.</summary>
     public double Progress { get; } = progress;
 
-    public Visibility ProgressVisibility => Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ProgressVisibility => showProgress || Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Whether this row is another representation of the item currently in the player.</summary>
     public bool IsPlaying => _isPlaying;
 
     public Visibility PlayingVisibility => _isPlaying ? Visibility.Visible : Visibility.Collapsed;
 
-    public string AccessibilityName => _isPlaying ? $"{Name}, now playing" : Name;
+    public string AccessibilityName => _isPlaying ? $"{Name}{accessibilitySuffix}, now playing" : Name + accessibilitySuffix;
+
+    /// <summary>Supporting author, chapter, progress and time for screen readers without
+    /// changing the item name used for selection and keyboard navigation.</summary>
+    public string AccessibilityDetails => string.Join(". ",
+        new[] { Detail, Extra }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     /// <summary>The transcription badge's icon (SUB-20), or empty for none.</summary>
     public string TranscriptGlyph => _transcriptGlyph;

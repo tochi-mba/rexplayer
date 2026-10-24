@@ -24,6 +24,7 @@ public sealed partial class MainWindow
     private int _listeningAlbums = -1;
     private int _listeningBooks = -1;
     private AudiobookMemory? _audiobookMemory;
+    private HashSet<string> _duplicateBookCredits = new(StringComparer.Ordinal);
 
     private AudiobookMemory Audiobooks => _audiobookMemory ??= new AudiobookMemory(_library!.Store);
 
@@ -87,6 +88,13 @@ public sealed partial class MainWindow
                         && found.Current && found.WorkId is not null ? found.Author : null;
                 }
             });
+            // Only transfer old title-and-author settings when this complete catalogue
+            // identifies one edition; duplicate titles must never inherit each other's state.
+            Audiobooks.MigrateLegacy(_listening.Audiobooks);
+            _duplicateBookCredits = _listening.Audiobooks
+                .GroupBy(ListeningViews.BookKey, StringComparer.Ordinal)
+                .Where(group => group.Skip(1).Any())
+                .Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
             _listeningBuiltAt = version;
             _listeningAlbums = albums;
             _listeningBooks = books;
@@ -132,7 +140,8 @@ public sealed partial class MainWindow
         switch (_librarySource)
         {
             case LibrarySource.Authors:
-                var authoredBooks = ListeningViews.Books(mine);
+                var authoredBooks = ListeningViews.FilterBooks(ListeningViews.Books(mine),
+                    ViewChoice(_libraryViewKey).Filter, _player.LeftAt, Audiobooks.Finished);
                 var authors = ListeningViews.Authors(authoredBooks);
                 if (_libraryGroup is { } openedAuthor)
                 {
@@ -141,12 +150,15 @@ public sealed partial class MainWindow
                     var theirBooks = ListeningViews.BooksByAuthor(authoredBooks, author.Name);
                     if (_librarySeason is { } openedAuthorBook)
                     {
-                        var book = LibraryViews.RefreshGroup(theirBooks, openedAuthorBook, detailIdentifiesGroup: true);
+                        var book = ListeningViews.RefreshBook(theirBooks, openedAuthorBook);
                         _librarySeason = book;
                         var chapters = book.Entries.Count == 0 ? [] : ListeningViews.Chapters(book);
                         var place = book.Entries.Count == 0 ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
+                        var currentChapter = ListeningViews.CurrentChapterIndex(chapters, book, place);
+                        var started = ListeningViews.Started(book, _player.LeftAt);
+                        var markedParts = MarkedChapterParts(book);
                         return ("AUDIOBOOK", book.Name, BookLine(book, chapters.Count),
-                            [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, place)))], false);
+                            [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, currentChapter, started, markedParts)))], false);
                     }
 
                     return ("AUTHOR", author.Name, Count(theirBooks.Count, "book") + " · " + Total(author.Entries),
@@ -158,15 +170,19 @@ public sealed partial class MainWindow
                         new LibraryRow(author.Name, Count(ListeningViews.BooksByAuthor(authoredBooks, author.Name).Count, "book"),
                             "", author, hasPicture: false, picturePlaceholder: "✎")))], true);
             case LibrarySource.Audiobooks:
-                var books = ListeningViews.Books(mine);
+                var books = ListeningViews.FilterBooks(ListeningViews.Books(mine),
+                    ViewChoice(_libraryViewKey).Filter, _player.LeftAt, Audiobooks.Finished);
                 if (_libraryGroup is { } openedBook)
                 {
-                    var book = LibraryViews.RefreshGroup(books, openedBook, detailIdentifiesGroup: true);
+                    var book = ListeningViews.RefreshBook(books, openedBook);
                     _libraryGroup = book;
                     var chapters = book.Entries.Count == 0 ? [] : ListeningViews.Chapters(book);
                     var place = book.Entries.Count == 0 ? default : ListeningViews.PlaceIn(book, _player.LeftAt);
+                    var currentChapter = ListeningViews.CurrentChapterIndex(chapters, book, place);
+                    var started = ListeningViews.Started(book, _player.LeftAt);
+                    var markedParts = MarkedChapterParts(book);
                     return ("AUDIOBOOK", book.Name, BookLine(book, chapters.Count),
-                        [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, place)))], false);
+                        [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, currentChapter, started, markedParts)))], false);
                 }
 
                 var going = books.Where(book => ListeningViews.Started(book, _player.LeftAt) && !Audiobooks.Finished(book)).ToList();
@@ -197,7 +213,15 @@ public sealed partial class MainWindow
 
     /// <summary>A book's line under its name on its page: author, length, chapters and how far it is.</summary>
     private string BookLine(LibraryGroup book, int chapters) =>
-        string.Join(" · ", new[] { book.Detail ?? "Unknown author", Total(book.Entries), Count(chapters, "chapter"), BookProgressText(book) }.Where(part => part.Length > 0));
+        string.Join(" · ", new[]
+        {
+            book.Detail ?? "Unknown author",
+            BookCredits.Narrator(book) is { } narrator ? "Narrated by " + narrator : null,
+            book.Entries.Count > 0 && book.Entries.All(part => part.Duration is { Ticks: > 0 })
+                ? Total(book.Entries) : "Length unknown",
+            Count(chapters, "chapter"),
+            BookProgressText(book),
+        }.Where(part => !string.IsNullOrEmpty(part)));
 
     private string BookProgressText(LibraryGroup book)
     {
@@ -212,25 +236,43 @@ public sealed partial class MainWindow
         }
 
         var progress = ListeningViews.Progress(book, ListeningViews.PlaceIn(book, _player.LeftAt));
-        return ListeningViews.Started(book, _player.LeftAt) ? string.Create(CultureInfo.CurrentCulture, $"{progress:P0} listened") : "Not started";
+        if (!ListeningViews.Started(book, _player.LeftAt))
+        {
+            return "Not started";
+        }
+
+        var remaining = ListeningViews.Remaining(book, ListeningViews.PlaceIn(book, _player.LeftAt));
+        var listened = string.Create(CultureInfo.CurrentCulture, $"{progress:P0} listened");
+        return remaining is { } left ? listened + " · " + TimeText.Format(left) + " left" : listened;
     }
 
     /// <summary>A book's card: its cover, name and author, how far it is, and a ring of its progress.</summary>
     private LibraryRow BookRow(LibraryGroup book)
     {
         var progress = Audiobooks.Finished(book) ? 1 : ListeningViews.Progress(book, ListeningViews.PlaceIn(book, _player.LeftAt));
-        return new LibraryRow(book.Name, book.Detail ?? "Unknown author", BookProgressText(book), book, hasPicture: true, picturePlaceholder: "▤",
-            progress: ListeningViews.Started(book, _player.LeftAt) || Audiobooks.Finished(book) ? Math.Max(progress, 0.01) : 0);
+        var edition = _duplicateBookCredits.Contains(ListeningViews.BookKey(book))
+            ? ListeningViews.EditionLabel(book, _listening?.Audiobooks ?? []) : null;
+        var detail = (book.Detail ?? "Unknown author") + (edition is null ? "" : " · " + edition);
+        return new LibraryRow(book.Name, detail, BookProgressText(book), book, hasPicture: true, picturePlaceholder: "▤",
+            progress: progress,
+            accessibilitySuffix: edition is null ? "" : " (" + edition + ")",
+            showProgress: ListeningViews.Started(book, _player.LeftAt) || Audiobooks.Finished(book));
     }
 
     /// <summary>One chapter of an open book; the one it is up to says so.</summary>
-    private LibraryRow ChapterRow(LibraryGroup book, BookChapter chapter, int index, BookPlace place)
+    private static IReadOnlySet<string> MarkedChapterParts(LibraryGroup book) =>
+        book.Entries.Count > 1
+            ? book.Entries.Where(part => part.Chapters is { Count: > 0 })
+                .Select(part => part.Path).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    private static LibraryRow ChapterRow(LibraryGroup book, BookChapter chapter, int index, int currentChapter,
+        bool started, IReadOnlySet<string> markedParts)
     {
-        var part = IndexOfPart(book, chapter.Part);
-        var detail = book.Entries.Count > 1 && chapter.Part.Chapters is { Count: > 0 } ? chapter.Part.Title : "";
-        var current = part == place.Part && chapter.Start <= place.At
-            && ListeningViews.Chapters(book).Where(other => other.Part == chapter.Part && other.Start <= place.At).Max(other => other.Start) == chapter.Start;
-        return new LibraryRow(chapter.Title, current && ListeningViews.Started(book, _player.LeftAt) ? (detail.Length > 0 ? detail + " · " : "") + "Up to here" : detail,
+        // ChapterMarks is stored as text and decoded by LibraryEntry.Chapters on access:
+        // testing it for every row would decode all markers N times for a huge book.
+        var detail = book.Entries.Count > 1 && markedParts.Contains(chapter.Part.Path) ? chapter.Part.Title : "";
+        return new LibraryRow(chapter.Title, index == currentChapter && started ? (detail.Length > 0 ? detail + " · " : "") + "Up to here" : detail,
             TimeText.Format(chapter.Start, chapter.Part.Duration), chapter, badge: (index + 1).ToString(CultureInfo.CurrentCulture));
     }
 

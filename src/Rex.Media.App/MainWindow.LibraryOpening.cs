@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Library;
+using Rex.Media.Library;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App;
@@ -16,6 +17,26 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
+    private string SelectionIdentity(LibraryRow row) => row.Item switch
+    {
+        LibraryEntry entry => "file:" + entry.Path,
+        // Book cards across Audiobooks, a selected Author and Completed must
+        // retain distinct editions even when the credits match. The logical
+        // edition key survives a newly scanned earlier part, unlike first-path.
+        LibraryGroup group when _librarySource is LibrarySource.Audiobooks or LibrarySource.Completed
+            || (_librarySource == LibrarySource.Authors && _libraryGroup is not null) =>
+            "book:" + ListeningViews.BookIdentity(group),
+        LibraryGroup group => "group:" + group.Name + "\n"
+            + (_librarySource is LibrarySource.Albums or LibrarySource.Authors ? group.Detail : null)
+            + (_librarySource == LibrarySource.Authors ? "\n" + group.Entries.FirstOrDefault()?.Path : ""),
+        // Never serialize the whole LibraryEntry (and all 10,000 markers) here.
+        // SameMarkIndex distinguishes duplicate marks without tying this chapter's
+        // remembered selection to its shifting 1-based display number.
+        BookChapter chapter => $"chapter:{chapter.Part.Path}\n{chapter.Start.Ticks}\n{chapter.Title}\n{chapter.SameMarkIndex}",
+        Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
+        _ => "folder:" + row.Item,
+    };
+
     private LibraryPlaces _places = new();
 
     /// <summary>The key of the route the list shows now; empty before the first build.</summary>
@@ -135,7 +156,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var selected = place.Selected is null ? -1 : _libraryRows.FindIndex(row => SelectionIdentity(row) == place.Selected);
+        var selected = place.Selected is null ? -1 : _libraryRows.FindIndex(row => string.Equals(SelectionIdentity(row), place.Selected, StringComparison.OrdinalIgnoreCase));
         if (LibraryCollage.Visibility == Visibility.Visible)
         {
             if (selected >= 0)
@@ -156,7 +177,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (place.Anchor is not null && _libraryRows.FindIndex(row => SelectionIdentity(row) == place.Anchor) is >= 0 and var anchor)
+        if (place.Anchor is not null && _libraryRows.FindIndex(row => string.Equals(SelectionIdentity(row), place.Anchor, StringComparison.OrdinalIgnoreCase)) is >= 0 and var anchor)
         {
             LibraryList.ScrollIntoView(_libraryRows[anchor], ScrollIntoViewAlignment.Leading);
         }
@@ -204,7 +225,7 @@ public sealed partial class MainWindow
     /// <summary>Scrolls the rebuilt list so that the first of <paramref name="candidates"/> still in it, the line that was in view, is in view again.</summary>
     private void HoldSurvivingAnchor(List<string?> candidates, bool collage)
     {
-        if (candidates.Count == 0 || LibraryPlaces.SurvivingAnchor(candidates, _libraryRows.Select(SelectionIdentity).ToHashSet(StringComparer.Ordinal)) is not { } anchor)
+        if (candidates.Count == 0 || LibraryPlaces.SurvivingAnchor(candidates, _libraryRows.Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)) is not { } anchor)
         {
             return;
         }
@@ -212,7 +233,7 @@ public sealed partial class MainWindow
         var key = _placeKey;
         OnWindowThread(() =>
         {
-            if (!LibraryOpen || _placeKey != key || _libraryRows.FindIndex(row => SelectionIdentity(row) == anchor) is not (>= 0 and var index))
+            if (!LibraryOpen || _placeKey != key || _libraryRows.FindIndex(row => string.Equals(SelectionIdentity(row), anchor, StringComparison.OrdinalIgnoreCase)) is not (>= 0 and var index))
             {
                 return;
             }

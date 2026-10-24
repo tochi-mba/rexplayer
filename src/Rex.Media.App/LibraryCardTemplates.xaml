@@ -8,7 +8,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Rex.Media.App">
   <DataTemplate x:Key="LibraryBrowseTemplate" x:DataType="local:LibraryRow">
-    <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
+    <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind AccessibilityDetails, Mode=OneWay}" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
@@ -16,6 +16,7 @@
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
+          <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" />
           <Border x:Name="CardPlay" Opacity="0" Width="44" Height="44" CornerRadius="22" Margin="10" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                   Background="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
             <FontIcon Glyph="&#xE768;" FontSize="18" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
@@ -124,7 +125,7 @@
   <DataTemplate x:Key="LibraryCollageTemplate" x:DataType="local:LibraryRow">
     <!-- An items view sets no data context for a compiled template, so the tile binds its row as one:
          loading, hover and taps find the row through it. -->
-    <ItemContainer DataContext="{x:Bind Self}" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" Loaded="OnCollageItemLoaded" DataContextChanged="OnCollageItemDataChanged">
+    <ItemContainer DataContext="{x:Bind Self}" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind AccessibilityDetails, Mode=OneWay}" Loaded="OnCollageItemLoaded" DataContextChanged="OnCollageItemDataChanged">
       <Grid Margin="2" PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
         <Border CornerRadius="9" Background="{x:Bind TileBackground, Mode=OneWay}">
           <Grid>

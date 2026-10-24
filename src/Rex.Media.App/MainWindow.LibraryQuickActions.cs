@@ -50,6 +50,19 @@ public sealed partial class MainWindow
     {
         if (sender is FrameworkElement { DataContext: LibraryRow row })
         {
+            if (PlayBookCard(row))
+            {
+                return;
+            }
+
+            // The author card's Play affordance opens their books rather than
+            // accidentally playing an entire catalogue as one queue.
+            if (_librarySource == LibrarySource.Authors && _libraryGroup is null && row.Item is LibraryGroup)
+            {
+                Activate(row);
+                return;
+            }
+
             if (row.Item is LibraryGroup)
             {
                 Play(EntriesOf([row]), 0);
