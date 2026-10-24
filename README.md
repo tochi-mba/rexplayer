@@ -1,7 +1,7 @@
 # rexplayer
 
-**A REX Technologies product.** A Windows media player built from scratch: its own engine, a
-window to watch and listen in, and a command line made for scripts.
+**A REX Technologies product.** A media player for Windows and macOS, built from scratch: its own engine, a
+native window to watch and listen in, and a command line made for scripts.
 
 [Download](https://github.com/tochi-mba/rexplayer/releases/latest) ·
 [Website](https://tochi-mba.github.io/rexplayer/) ·
@@ -9,7 +9,7 @@ window to watch and listen in, and a command line made for scripts.
 [On a Mac](docs/mac.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.22.0.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
+> **Source version: 0.30.8.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
 > the graphics card; MP3, FLAC, Ogg, Opus, WAV, RF64 and AIFF without a gap from one file to the
 > next; and pictures (JPEG, PNG, animated GIF, WebP, BMP, TIFF), a folder of them as a slideshow.
 > A media library keeps up with the folders you choose, with named playlists, covers and lyrics,
