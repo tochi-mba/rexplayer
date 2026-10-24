@@ -248,8 +248,9 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => focusedChapter.Current.HasKeyboardFocus,
             "a chapter menu item to receive keyboard focus");
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.MinimalInterface);
-        Wait.For(() => !app.IsShown("StageChaptersButton"),
-            "optional chapter controls to hide in minimal player mode");
+        Wait.For(() => !app.IsShown("StageChaptersButton")
+            && !app.IsShown("StageChapter-0") && !app.IsShown("StageChapter-1"),
+            "minimal mode to close the old chapter flyout and remove its actions");
         Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
             "keyboard focus to return to Play/Pause on entering minimal mode");
         Assert.Equal("AUDIOBOOK playback stage", app.Find("Stage").Current.Name);
