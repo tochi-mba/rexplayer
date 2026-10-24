@@ -332,7 +332,7 @@ public sealed partial class MainWindow
 
             if (wasUsingCompanionKeyboard)
             {
-                window.DispatcherQueue.TryEnqueue(() =>
+                void RestoreCompanionFocus()
                 {
                     if (!ReferenceEquals(_lyricsCompanion, window))
                     {
@@ -347,6 +347,14 @@ public sealed partial class MainWindow
                     {
                         _lyricsCompanionScroll?.Focus(FocusState.Keyboard);
                     }
+                }
+
+                window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+                {
+                    RestoreCompanionFocus();
+                    // The native window can finish realizing the rebuilt
+                    // buttons after the first queued callback.
+                    window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, RestoreCompanionFocus);
                 });
             }
         }
