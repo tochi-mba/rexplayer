@@ -954,6 +954,11 @@ public sealed partial class MainWindow : Window
 
     private void WireSeekBar()
     {
+        // The Slider handles pointer movement while dragging or hovering its
+        // thumb. Observe handled events at the containing timeline too, or
+        // the accessible time preview never appears over the actual slider.
+        SeekArea.AddHandler(UIElement.PointerMovedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler(OnSeekAreaPointerMoved), handledEventsToo: true);
         SeekBar.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => _scrubbing = true), handledEventsToo: true);
         SeekBar.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EndScrub()), handledEventsToo: true);
         SeekBar.AddHandler(UIElement.PointerCaptureLostEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EndScrub()), handledEventsToo: true);

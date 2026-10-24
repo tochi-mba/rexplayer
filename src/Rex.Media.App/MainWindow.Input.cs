@@ -124,6 +124,15 @@ public sealed partial class MainWindow
             return;
         }
 
+        // Alt+Up/Down reorder selected queue entries. The root preview
+        // handler runs before PlaylistView.KeyDown: do not consume those keys
+        // as the global picture-pan shortcuts while keyboard focus is in the queue.
+        if (IsWithin(focused, PlaylistView) && IsDown(VirtualKey.Menu)
+            && (e.Key is VirtualKey.Up or VirtualKey.Down))
+        {
+            return;
+        }
+
         if (ShortcutRouting.ListOwns(chord) && (IsWithin(focused, LibraryList)
             || IsWithin(focused, LibraryCollage) || IsWithin(focused, PlaylistView)))
         {

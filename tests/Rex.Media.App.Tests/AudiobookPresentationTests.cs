@@ -137,7 +137,11 @@ public sealed class AudiobookPresentationTests : IDisposable
             "malformed chapter markers to produce bounded, ordered rows");
         Assert.Contains("Up to here", app.Line("Whole").Current.HelpText, StringComparison.Ordinal);
         Assert.Contains("30:00", app.Line("Beyond duration").Current.HelpText, StringComparison.Ordinal);
-        Screenshots.Match(app, "audiobook-active-malformed-chapters", "LibraryList");
+        // The three short chapter labels occupy only a tiny fraction of a
+        // large, white list viewport. Capture the containing library page as
+        // visual evidence, including the chapter labels, active book identity
+        // and controls, instead of a near-uniform whitespace-only list crop.
+        Screenshots.Match(app, "audiobook-active-malformed-chapters", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 

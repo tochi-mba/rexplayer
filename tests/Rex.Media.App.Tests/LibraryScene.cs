@@ -16,6 +16,7 @@ namespace Rex.Media.App.Tests;
 internal sealed class LibraryScene : IDisposable
 {
     private readonly List<(string Path, LibraryKind Kind, MediaInfo? Info)> _files = [];
+    private readonly List<string> _featureFilms = [];
 
     public LibraryScene()
     {
@@ -187,7 +188,16 @@ internal sealed class LibraryScene : IDisposable
     }
 
     /// <summary>A film for Movies: a release-style name at <paramref name="relative"/>, recorded at a feature's length.</summary>
-    public string Film(string relative, string fixture = "h264-aac.mp4") => Video(relative, fixture, TimeSpan.FromHours(2));
+    public string Film(string relative, string fixture = "h264-aac.mp4")
+    {
+        var path = Video(relative, fixture, TimeSpan.FromHours(2));
+        // The on-disk H.264 test clip runs for 0.4 seconds, so a real tag
+        // scan would correctly reclassify it as a short clip. These UI tests
+        // need a stable film route after scanning: persist the same explicit
+        // "This is a movie" choice available in the application.
+        _featureFilms.Add(path);
+        return path;
+    }
 
     /// <summary>What reading an H.264 and AAC video of <paramref name="length"/> finds.</summary>
     public static MediaInfo VideoInfo(TimeSpan length) => new()
@@ -221,6 +231,11 @@ internal sealed class LibraryScene : IDisposable
             return new LibraryFile(file.Path, info.Length, info.LastWriteTimeUtc);
         }), path => kinds[path]).Added);
         library.SetDetails(_files.Where(file => file.Info is not null).Select(file => (file.Path, file.Info)));
+        if (_featureFilms.Count > 0)
+        {
+            library.SetOverride(_featureFilms, new DetailOverride { Movie = true });
+        }
+
         foreach (var path in played)
         {
             library.Played(path);
