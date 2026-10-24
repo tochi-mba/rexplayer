@@ -190,8 +190,14 @@ public sealed class DetailOverrideTests
             Probed = true,
             Override = new DetailOverride
             {
-                Title = "Song", Artist = "Asake", Album = "Album", AlbumArtist = "Various",
-                Track = "2", Disc = "1", Year = "2024", Genre = "Afrobeats",
+                Title = "Song",
+                Artist = "Asake",
+                Album = "Album",
+                AlbumArtist = "Various",
+                Track = "2",
+                Disc = "1",
+                Year = "2024",
+                Genre = "Afrobeats",
             },
         };
         foreach (var key in new[]
