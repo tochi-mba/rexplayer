@@ -46,16 +46,27 @@ public sealed partial class AppWindowTests
         File.WriteAllText(playlist, "Sungba.wav\nAnother.wav\n");
         using var app = AppProcess.Start([playlist]);
 
-        Wait.For(() => app.IsShown("LyricsDetach"), "the native detach control");
-        app.Press("PlayPauseButton");
+        Wait.For(() => app.IsShown("LyricsDetach") && app.Status() is
+            { State: "Playing" or "Paused", Duration: >= 89 },
+            "the first song to open and become seekable before detaching lyrics");
+        if (app.Status().State != "Paused")
+        {
+            app.Press("PlayPauseButton");
+        }
+
+        Wait.For(() => app.Status().State == "Paused", "the first song to pause before the lyric seek");
         app.Press("LyricsDetach");
         var companion = Wait.Until(() => DetachedLyricsOf(app));
         var line = Wait.Until(() => companion.FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.AutomationIdProperty, "CompanionLine-1")));
         Assert.Contains("Go to 0:20", line.Current.Name, StringComparison.Ordinal);
         Assert.InRange(companion.Current.BoundingRectangle.Width, 200, 1500);
+        Wait.For(() => line.Current.IsEnabled, "the detached lyric seek button to become available");
         ((InvokePattern)line.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
-        Wait.For(() => Math.Abs(app.Position - 20) < 1, "a detached lyric to seek its original player");
+        Wait.For(() => Math.Abs(app.Position - 20) < 1,
+            "a detached lyric to seek its original player",
+            () => $"Player state: {app.Status().State}; position: {app.Position:0.##}. " +
+                "Log ends: " + string.Join(" | ", app.LogText.Split(Environment.NewLine).TakeLast(8)));
 
         ((WindowPattern)companion.GetCurrentPattern(WindowPattern.Pattern)).Close();
         Wait.For(() => DetachedLyricsOf(app) is null, "the detached window to close independently");
