@@ -267,7 +267,7 @@ internal static class Screenshots
                     "Stage", "SeekBar", "StartOverButton", "StageChaptersButton",
                     "Lyrics", "Cover", "Subtitles", "KineticCaptions", "PlayPauseButton",
                 }.Select(id => ObserveControl(app, id)).ToArray()
-                : [],
+                : Array.Empty<object>(),
             expectedVisibleData = scene.ExpectedVisibleData,
             owner = scene.Owner,
             baselineReviewState = scene.Baseline,
