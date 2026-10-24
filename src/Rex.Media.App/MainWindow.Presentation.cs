@@ -25,6 +25,7 @@ public sealed partial class MainWindow
     private PlaylistItem? _shownLyricsItem;
     private MediaInfo? _shownLyricsInfo;
     private TimeSpan _shownLyricsDuration;
+    private bool _shownLyricsCanSeek;
     private int _shownLine = -1;
     private readonly List<TextBlock> _lyricTexts = [];
     private PlaylistItem? _shownChapterItem;
@@ -134,7 +135,8 @@ public sealed partial class MainWindow
                 && MediaStagePolicy.IsPlayableTimeJump(at, _shownLyricsDuration)
                 != MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration)) == true;
         if (!ReferenceEquals(lyrics, _shownLyrics) || !ReferenceEquals(item, _shownLyricsItem)
-            || !ReferenceEquals(info, _shownLyricsInfo) || lyricSeekEligibilityChanged)
+            || !ReferenceEquals(info, _shownLyricsInfo) || lyricSeekEligibilityChanged
+            || (lyrics is not null && _shownLyricsCanSeek != stage.CanSeek))
         {
             // Timed lyrics are focusable buttons. Removing the old lines must not
             // strand keyboard/screen-reader focus on an element outside the tree.
@@ -150,6 +152,7 @@ public sealed partial class MainWindow
             _shownLyricsItem = item;
             _shownLyricsInfo = info;
             _shownLyricsDuration = _player.Duration;
+            _shownLyricsCanSeek = stage.CanSeek;
             _shownLine = -1;
             LyricsLines.Children.Clear();
             _lyricTexts.Clear();
