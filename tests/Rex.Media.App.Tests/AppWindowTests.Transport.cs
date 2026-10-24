@@ -132,10 +132,21 @@ public sealed partial class AppWindowTests
     {
         using var app = AppProcess.Start([Named("Hover", 200)], extraSettings: "\"seekPreview\": false");
         Wait.For(() => app.IsShown("SeekBar") && app.Position > 0, "a seekable song");
-        Pointer.Hover(app, app.Find("SeekBar"), fraction: 0.75);
-        Wait.For(() => app.IsShown("SeekPreview")
-            && TimeText.TryParse(app.Text("SeekPreviewTime")) is { TotalSeconds: > 100 and < 200 },
-            "an accurate timeline hover without a decoded picture");
+        // Ask for actual pointer movement again if Windows coalesced the
+        // first motion while the slider was initializing. Do not synthesize
+        // a preview through UI Automation: the real hover still has to appear.
+        var accurateHover = false;
+        for (var attempt = 0; attempt < 6 && !accurateHover; attempt++)
+        {
+            Pointer.Hover(app, app.Find("SeekBar"), fraction: 0.75);
+            accurateHover = Wait.Within(TimeSpan.FromSeconds(2), () =>
+                app.IsShown("SeekPreview")
+                && TimeText.TryParse(app.Text("SeekPreviewTime")) is { TotalSeconds: > 100 and < 200 });
+        }
+
+        Assert.True(accurateHover,
+            $"The real seek hover did not show an accurate time. Preview shown: {app.IsShown("SeekPreview")}; " +
+            $"time shown: {app.IsShown("SeekPreviewTime")}.");
         Assert.False(app.IsShown("SeekPreviewPicture"), "Thumbnails remain disabled; only honest time is shown.");
         Assert.Equal(0, app.Close());
     }
