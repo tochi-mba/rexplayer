@@ -110,6 +110,11 @@ public sealed partial class MainWindow
         }
 
         ClearMovieVersionMenu();
+        // Bind actions to the stream that actually created the flyout. Even if
+        // a later film shares a release name, a queued click from this menu
+        // must not switch an encoding of the replacement item.
+        var sourceItem = _player.Item;
+        var sourceInfo = _player.Info;
         foreach (var (index, edition) in editions.Index())
         {
             var selected = LibraryViews.SameLocation(edition.Path, playing);
@@ -123,7 +128,7 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, $"MovieVersion-{index}");
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, label + (selected ? ", currently playing" : ", play this version"));
             ToolTipService.SetToolTip(item, edition.Path);
-            item.Click += (_, _) => SwitchMovieVersion(edition.Path);
+            item.Click += (_, _) => SwitchMovieVersion(edition.Path, sourceItem, sourceInfo);
             MovieVersionMenu.Items.Add(item);
         }
 
@@ -134,9 +139,11 @@ public sealed partial class MainWindow
         MovieVersionButton.Visibility = Visibility.Visible;
     }
 
-    private void SwitchMovieVersion(string path)
+    private void SwitchMovieVersion(string path, PlaylistItem? sourceItem, MediaInfo? sourceInfo)
     {
-        if (_stageView.Profile != MediaStageProfile.Movie
+        if (!ReferenceEquals(_player.Item, sourceItem)
+            || !ReferenceEquals(_player.Info, sourceInfo)
+            || _stageView.Profile != MediaStageProfile.Movie
             || _player.Info?.FirstTrack(Rex.Media.Primitives.MediaKind.Video) is null
             || _player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current)
         {
