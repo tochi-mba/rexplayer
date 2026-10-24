@@ -151,6 +151,15 @@ public sealed class LibraryMusicTests : IDisposable
         Wait.For(() => app.Lines().Contains("Wave, now playing"), "the playing track marked");
 
         // The artist's link opens their page.
+        // Playing a track may compact the scroll-linked album header.
+        // Return to its top to reveal the existing, real artist link.
+        var albumList = app.Find("LibraryList");
+        if (albumList.TryGetCurrentPattern(ScrollPattern.Pattern, out var scrolling))
+        {
+            ((ScrollPattern)scrolling).SetScrollPercent(ScrollPattern.NoScroll, 0);
+        }
+
+        Wait.For(() => app.IsShown("LibraryHeroArtist-Asake"), "the album artist link to return after scrolling to the header");
         app.Press("LibraryHeroArtist-Asake");
         Wait.For(() => app.Text("LibraryKicker") == "ARTIST" && app.Text("LibraryTitle") == "Asake", "the artist's page");
         Assert.Equal(0, app.Close());
@@ -226,7 +235,7 @@ public sealed class LibraryMusicTests : IDisposable
         app.Press("LibraryRescan");
         app.Visit("Songs");
         Wait.For(() => !app.Lines().Contains("Wave"), "removed media to disappear without a ghost row");
-        Assert.Contains("Terminator", app.Lines());
+        Assert.Contains(app.Lines(), line => line is "Terminator" or "Terminator, now playing");
         Assert.Equal(0, app.Close());
     }
 

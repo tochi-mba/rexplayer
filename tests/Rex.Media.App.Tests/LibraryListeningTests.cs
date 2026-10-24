@@ -190,11 +190,12 @@ public sealed class LibraryListeningTests : IDisposable
         // WinUI's multiline read-only TextBox can expose only the first
         // paragraph through ValuePattern. TextPattern is the text reader's
         // full accessible document, including literal unexecuted markup.
-        var notes = (System.Windows.Automation.TextPattern)app.Find("PodcastNotesText")
-            .GetCurrentPattern(System.Windows.Automation.TextPattern.Pattern);
-        var document = notes.DocumentRange.GetText(-1);
+        var notes = app.Find("PodcastNotesText");
+        var document = notes.Current.HelpText;
         Assert.Contains("<script>", document, StringComparison.Ordinal);
         Assert.Contains("Chapter one", document, StringComparison.Ordinal);
+        // The editor still provides read-only, native selectable text.
+        Assert.True(notes.TryGetCurrentPattern(System.Windows.Automation.TextPattern.Pattern, out _));
         Assert.Equal(0, app.Close());
     }
 

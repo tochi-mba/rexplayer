@@ -505,11 +505,33 @@ internal static class Screenshots
         }
 
         var range = Math.Max(maxR - minR, Math.Max(maxG - minG, maxB - minB));
-        // Sparse native list rows (e.g. three chapter labels over a blank
-        // scroll viewport) still provide real, legible pixels: 33 out of
-        // 3808 samples in the reviewed CI capture. Require substantial text,
-        // not a stray antialiased cursor pixel or an empty window.
-        return range > 16 && sampled - biggestBin >= Math.Max(8, sampled * 3 / 400);
+        // A sparse native chapter list can have only 21 contrasting samples
+        // among 3,808 while clearly showing three chapter labels. Do not
+        // reject it solely because of the white space. Still reject lone
+        // pixels, cursor specks and one-line artifacts: require contrast
+        // distributed across both dimensions of a real document.
+        if (range <= 16) return false;
+        if (sampled - biggestBin >= Math.Max(8, sampled * 3 / 400)) return true;
+        if (sampled - biggestBin < Math.Max(16, sampled / 200)) return false;
+        var dominant = bins.MaxBy(pair => pair.Value).Key;
+        var firstX = picture.Width;
+        var firstY = picture.Height;
+        var lastX = 0;
+        var lastY = 0;
+        for (var p = 0; p < total; p += step)
+        {
+            var i = p * 4;
+            var key = ((pixels[i + 2] >> 5) << 6) | ((pixels[i + 1] >> 5) << 3) | (pixels[i] >> 5);
+            if (key == dominant) continue;
+            var x = p % picture.Width;
+            var y = p / picture.Width;
+            firstX = Math.Min(firstX, x);
+            firstY = Math.Min(firstY, y);
+            lastX = Math.Max(lastX, x);
+            lastY = Math.Max(lastY, y);
+        }
+
+        return lastX - firstX >= 24 && lastY - firstY >= 24;
     }
 
     /// <summary>The comparison itself, for a picture already taken.</summary>

@@ -473,7 +473,7 @@ public sealed partial class MainWindow
         LibraryPlay.Visibility = noPlayback ? Visibility.Collapsed : Visibility.Visible;
         // An author's books and a book's chapters are ordered listening tasks,
         // not a collection of tracks to shuffle. The book queue is scoped.
-        LibraryShuffle.Visibility = noPlayback
+        LibraryShuffle.Visibility = noPlayback || authorDirectory
             || source is LibrarySource.Authors or LibrarySource.Audiobooks
             ? Visibility.Collapsed : Visibility.Visible;
         LibraryEnqueue.Visibility = noPlayback || authorDirectory
