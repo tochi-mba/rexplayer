@@ -28,6 +28,7 @@ public sealed partial class MainWindow
 
     private readonly List<FileSystemWatcher> _watchers = [];
     private IReadOnlyList<LibraryEntry>? _libraryRemovalUndo;
+    private bool _focusLibraryAfterUndoRefresh;
     private readonly HashSet<string> _changedFolders = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _libraryPictures = new();
     private CancellationTokenSource _hoverPictures = new();
@@ -343,6 +344,15 @@ public sealed partial class MainWindow
 
         QueueLibrarySections();
         ShowLibrary();
+        if (_focusLibraryAfterUndoRefresh)
+        {
+            // Restoring a file rebuilds ListView rows after the 400ms refresh timer.
+            // Focusing before that rebuild is not enough: WinUI drops the focused
+            // container as soon as ItemsSource is replaced.
+            _focusLibraryAfterUndoRefresh = false;
+            FocusLibraryAfterFileAction();
+        }
+
         ShowMovieVersions();
     }
 
@@ -864,6 +874,7 @@ public sealed partial class MainWindow
         var available = await Task.Run(() => before.Where(entry => File.Exists(entry.Path)).ToArray());
         if (!_closed && available.Length > 0)
         {
+            _focusLibraryAfterUndoRefresh = true;
             _player.RestoreToLibrary(available);
         }
         else if (!_closed)
