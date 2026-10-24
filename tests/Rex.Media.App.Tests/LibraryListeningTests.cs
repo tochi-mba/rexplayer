@@ -440,15 +440,31 @@ public sealed class LibraryListeningTests : IDisposable
 
         using var app = _scene.Ready().Start();
         app.Visit("Authors");
+        // Neither the toolbar nor the author context menu can silently expand
+        // two entire books into a mixed author-wide playback queue.
+        app.Press("LibraryEnqueue");
+        Assert.Empty(app.Queue());
+        app.Press("LibraryShuffle");
+        Assert.Empty(app.Queue());
+        app.Press("LibraryPlay");
+        Assert.Empty(app.Queue());
+
+        app.Visit("Authors");
         Pointer.RightClick(app, app.Line("Ann Writer"));
+        Wait.For(() => app.IsShown("LibraryMenuOpenAuthor"),
+            "the author card's navigation-only context action");
         Assert.False(app.IsShown("LibraryMenuBookFinished"),
             "An author is not a book and must never offer to complete an entire catalogue");
+        Assert.False(app.IsShown("LibraryMenuPlayNext"),
+            "Author rows must not offer bulk book playback");
+        Assert.False(app.IsShown("LibraryMenuDelete"),
+            "Author rows must not expose deletion of a whole catalogue");
 
         // Dismiss the author context flyout before opening its card. Otherwise
         // the first click of the subsequent double-click is consumed closing
         // that flyout, leaving the author shelf open instead of the book list.
         Pointer.Key(Pointer.Escape);
-        Wait.For(() => !app.IsShown("LibraryMenuMoveToMusic"),
+        Wait.For(() => !app.IsShown("LibraryMenuOpenAuthor"),
             "the author context menu to close before navigation");
         app.Open("Ann Writer");
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
