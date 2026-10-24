@@ -116,9 +116,7 @@ public sealed partial class AppWindowTests
                 new PropertyCondition(AutomationElement.NameProperty, "file-not-on-disk. Missing")));
             return last is not null && !last.Current.IsOffscreen;
         }, "the missing entry at the end of the virtualized queue",
-            () => $"Queue scroll: {scroll.Current.VerticalScrollPercent:0.#}%; " +
-                $"visible list items: {view.FindAll(TreeScope.Descendants, " +
-                "new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)).Count}.");
+            () => $"Queue scroll: {scroll.Current.VerticalScrollPercent:0.#}%.");
         Assert.Equal("501 items", app.Text("PlaylistQueueCount"));
         Screenshots.Match(app, "queue-long-missing-dark", "PlaylistPane");
         Assert.Equal(0, app.Close());
