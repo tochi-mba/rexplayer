@@ -248,6 +248,7 @@ public sealed partial class AppWindowTests
         var resize = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
         foreach (var (width, height, label) in new[]
         {
+            (360, 320, "system-minimum"),
             (720, 540, "compact"),
             (420, 340, "minimum"),
             (1000, 720, "windowed"),
@@ -268,7 +269,12 @@ public sealed partial class AppWindowTests
                 && play.Left >= bounds.Left && play.Right <= bounds.Right
                 && play.Top >= bounds.Top && play.Bottom <= bounds.Bottom,
                 "The video transport must remain reachable at " + label + " size.");
-            Screenshots.Match(app, "stage-video-" + label);
+            // The OS-enforced lower bound is a semantic reachability check; only
+            // the three registered stable viewports enter screenshot comparison.
+            if (label != "system-minimum")
+            {
+                Screenshots.Match(app, "stage-video-" + label);
+            }
         }
 
         Assert.Equal(0, app.Close());
