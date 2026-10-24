@@ -81,6 +81,28 @@ public sealed class AudiobookPresentationTests : IDisposable
         app.Visit("Audiobooks");
         Wait.For(() => app.Lines().Contains("A Book"), "the unread audiobook card");
         Assert.Contains("Not started", app.Line("A Book").Current.HelpText, StringComparison.Ordinal);
+        // ListView rows are announced before their async artwork arrives.
+        // The committed CI golden shows a real dark cover, not the gray
+        // placeholder. Wait for that visible cover instead of approving a
+        // different, still-loading frame as a new baseline.
+        Wait.For(() =>
+        {
+            var list = app.Find("LibraryList").Current.BoundingRectangle;
+            var cover = new System.Windows.Rect(list.Left + 45, list.Top + 12, 140, 170);
+            var image = Screenshots.Crop(WindowPicture.Take(app.Handle),
+                WindowPicture.Bounds(app.Handle), cover);
+            var dark = 0;
+            for (var i = 0; i + 3 < image.Bgra.Length; i += 4)
+            {
+                if (image.Bgra[i] < 100 && image.Bgra[i + 1] < 100 && image.Bgra[i + 2] < 100)
+                {
+                    dark++;
+                }
+            }
+
+            return image.Bgra.Length >= 4 * 140 * 170
+                && dark > image.Bgra.Length / 4 * 3 / 5;
+        }, "the actual audiobook cover art to replace its loading placeholder");
         Screenshots.Match(app, "audiobook-unread-card", "LibraryList");
 
         app.Open("A Book");
