@@ -808,7 +808,14 @@ public sealed partial class MainWindow
                 }
                 else
                 {
-                    LibraryList.Focus(FocusState.Programmatic);
+                    // ListView itself is not consistently a keyboard focus
+                    // target once its rows are regenerated. Prefer a realized
+                    // row, which is also what keyboard users interact with.
+                    if (LibraryList.ContainerFromIndex(0) is not Control row
+                        || !row.Focus(FocusState.Keyboard))
+                    {
+                        LibraryList.Focus(FocusState.Programmatic);
+                    }
                 }
             }
 

@@ -529,7 +529,7 @@
           </Grid>
             </ScrollViewer>
           </Grid>
-          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
+          <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" IsTabStop="True" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
