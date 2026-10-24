@@ -25,7 +25,12 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
         _scene.Video(Path.Combine("Harbour Lights", "Season 1", "Departure.mp4"));
         using var app = _scene.Ready().Start();
         app.Visit(route);
-        Wait.For(() => app.IsShown("LibraryBillboard"), "the browse route to start with a real item");
+        Wait.For(() => app.IsShown("LibraryBillboard") && app.IsShown("LibraryBillboardTitle")
+            && app.IsShown("LibraryBillboardPlay") && app.IsShown("LibraryBillboardMore"),
+            "the browse route to start with an accessible native feature and its actions");
+        Assert.False(string.IsNullOrWhiteSpace(app.Find("LibraryBillboardTitle").Current.Name));
+        Screenshots.Match(app,
+            "library-" + (route == "Movies" ? "movies" : "tv") + "-browse-featured", "LibraryPane");
 
         // Keep the curated browse layout while filtering: all the fixture's media is
         // unwatched, so an In Progress filter must empty every shelf and the billboard.
