@@ -16,7 +16,15 @@ internal static partial class Pointer
     private const uint LeftUp = 0x0004;
     private const uint RightDown = 0x0008;
     private const uint RightUp = 0x0010;
+    private const uint MouseMove = 0x0001;
+    private const uint MouseAbsolute = 0x8000;
+    private const uint MouseVirtualDesktop = 0x4000;
     private const uint KeyUp = 0x0002;
+
+    private const int VirtualDesktopLeft = 76;
+    private const int VirtualDesktopTop = 77;
+    private const int VirtualDesktopWidth = 78;
+    private const int VirtualDesktopHeight = 79;
 
     public const ushort Escape = 0x1B;
     public const ushort Enter = 0x0D;
@@ -35,26 +43,37 @@ internal static partial class Pointer
         var box = element.Current.BoundingRectangle;
         Assert.False(box.IsEmpty, "The hover target has no place on screen.");
         Assert.InRange(fraction, 0, 1);
-        // A single instantaneous cursor warp can be coalesced with a WinUI
-        // Slider's own pointer-enter processing. Enter from outside, allow the
-        // event to be delivered, then approach the requested position as a
-        // physical pointer would. This does not click or alter playback.
+        // SetCursorPos only warps the cursor; on an unattended WinUI desktop
+        // that need not deliver WM_MOUSEMOVE/PointerMoved. Send real mouse-move
+        // input (without buttons) across the rail, as a user would.
         var y = (int)(box.Top + (box.Height * 0.5));
-        Assert.True(SetCursorPos((int)box.Left - 12, y),
-            "The pointer could not approach the target.");
+        MoveHoverPointer((int)box.Left - 12, y);
         Thread.Sleep(80);
-        Assert.True(SetCursorPos((int)(box.Left + (box.Width * 0.15)), y),
-            "The pointer could not enter the slider.");
+        MoveHoverPointer((int)(box.Left + (box.Width * 0.15)), y);
         Thread.Sleep(80);
-        // Deliver several real mouse moves across the rail. A single jump
-        // between far-apart points can be coalesced by the hosted compositor.
         for (var step = 1; step <= 8; step++)
         {
             var along = 0.15 + ((fraction - 0.15) * step / 8);
-            Assert.True(SetCursorPos((int)(box.Left + (box.Width * along)), y),
-                "The pointer could not hover over the target.");
+            MoveHoverPointer((int)(box.Left + (box.Width * along)), y);
             Thread.Sleep(25);
         }
+    }
+
+    /// <summary>Deliver a real, absolute mouse move across the virtual desktop, including secondary monitors.</summary>
+    private static void MoveHoverPointer(int x, int y)
+    {
+        var left = GetSystemMetrics(VirtualDesktopLeft);
+        var top = GetSystemMetrics(VirtualDesktopTop);
+        var width = GetSystemMetrics(VirtualDesktopWidth);
+        var height = GetSystemMetrics(VirtualDesktopHeight);
+        Assert.True(width > 1 && height > 1, "Windows did not report a usable desktop for pointer input.");
+        var normalizedX = (int)((long)(Math.Clamp(x, left, left + width - 1) - left) * 65535 / (width - 1));
+        var normalizedY = (int)((long)(Math.Clamp(y, top, top + height - 1) - top) * 65535 / (height - 1));
+        Send([new Input
+        {
+            Type = InputMouse,
+            Mouse = new MouseInput { X = normalizedX, Y = normalizedY, Flags = MouseMove | MouseAbsolute | MouseVirtualDesktop },
+        }]);
     }
 
     /// <summary>Gives <paramref name="element"/> the keyboard focus and presses <paramref name="key"/> once.</summary>
@@ -197,6 +216,9 @@ internal static partial class Pointer
 
     [LibraryImport("user32.dll")]
     private static partial uint SendInput(uint count, [In] Input[] inputs, int size);
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetrics(int index);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
