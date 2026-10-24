@@ -51,7 +51,12 @@ public sealed class CoreAudioSinkTests
         using var sink = OpenOrSkip(channels: 2, out var format);
 
         Play(sink, format, Rate / 2);
+        // Freeze the device clock before reading its two counters. Reading
+        // PlayedSamples and QueuedSamples separately while the callback runs
+        // can observe opposite sides of the same buffer pull.
+        sink.Pause();
         Assert.InRange(sink.PlayedSamples + sink.QueuedSamples, Rate / 2, Rate / 2);
+        sink.Resume();
         sink.Drain(TestContext.Current.CancellationToken);
 
         Assert.Equal(Rate / 2, sink.PlayedSamples);
