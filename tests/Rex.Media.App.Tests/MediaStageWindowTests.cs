@@ -236,6 +236,27 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void DirectAudioOnlyOffersTimedLyricJumpsInsideItsPlayableDuration()
+    {
+        var song = _scene.Audio("SeekBounded.wav", TimeSpan.FromSeconds(20));
+        File.WriteAllText(Path.ChangeExtension(song, ".lrc"),
+            "[00:00.00]Start\\n[00:10.00]Playable\\n[00:30.00]Beyond the track\\n");
+
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
+            && app.IsShown("Lyrics") && app.Find("SeekBar").Current.IsEnabled
+            && app.IsShown("LyricLine-0"),
+            "seekable direct audio to expose its playable lyric markers");
+        var playable = app.Find("LyricLine-1");
+        Assert.Contains("Playable", playable.Current.Name, StringComparison.Ordinal);
+        var unavailable = app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "LyricLine-2"));
+        Assert.Null(unavailable);
+        Assert.Contains("Lyrics are available", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SwitchingBetweenTwoDirectAudioFilesReplacesTimedLyricsAndRestoresFocus()
     {
         var first = _scene.Audio(Path.Combine("Songs", "First.wav"), TimeSpan.FromSeconds(20));
