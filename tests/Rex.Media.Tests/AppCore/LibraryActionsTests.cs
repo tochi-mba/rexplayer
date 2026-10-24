@@ -108,6 +108,8 @@ public sealed class LibraryActionsTests
         Assert.False(LibraryActions.CanRevealFile("a relative path.mp4"));
         Assert.False(LibraryActions.CanRevealFile("https://example.test/stream.mp4"));
         Assert.False(LibraryActions.CanRevealFile("bad\\0file.mp4"));
+        Assert.False(LibraryActions.CanRevealFile(Path.Combine(music, "broken\0name.mp3")));
+        Assert.False(LibraryActions.CanRevealFile("file://example.test/not-a-local-file.mp3"));
         Assert.True(LibraryActions.CanRevealFile(first));
         Assert.Empty(LibraryActions.RevealGroups([]));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.RevealGroups(null!));
