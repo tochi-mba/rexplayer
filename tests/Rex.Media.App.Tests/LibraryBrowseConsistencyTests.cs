@@ -22,6 +22,7 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
     {
         _scene.Film(Path.Combine("Movies", "Moon Harbour.2024.mp4"));
         _scene.Video(Path.Combine("Harbour Lights", "Season 1", "Arrival.mp4"));
+        _scene.Video(Path.Combine("Harbour Lights", "Season 1", "Departure.mp4"));
         using var app = _scene.Ready().Start();
         app.Visit(route);
         Wait.For(() => app.IsShown("LibraryBillboard"), "the browse route to start with a real item");
