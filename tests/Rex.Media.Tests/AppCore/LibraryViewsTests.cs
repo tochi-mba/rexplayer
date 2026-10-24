@@ -413,7 +413,8 @@ public sealed class LibraryViewsTests
         Assert.Equal("Lanterns (2026) · S01E01", LibraryViews.EpisodeOf(loose)!.DisplayName);
         var show = Assert.Single(LibraryViews.TvShows([loose, next, releaseFolder]));
         Assert.Equal("Lanterns", show.Name);
-        Assert.Equal("1 season · 3 episodes", show.Detail);
+        // Two releases of S01E01 count as one episode, not two.
+        Assert.Equal("1 season · 2 episodes", show.Detail);
         Assert.Equal([loose, releaseFolder, next], show.Entries);
     }
 
