@@ -836,7 +836,7 @@ public sealed partial class MainWindow
         CancelLibraryPictures();
         _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
         _shownLibrary = shown;
- 
+        // Preserve the current shelf scroll position when the route has not changed.
         var place = sameRoute ? CapturePlace() : null;
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
