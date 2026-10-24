@@ -128,6 +128,7 @@ public sealed class LibraryFoldersTests : IDisposable
         var specials = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 0 (Specials)")));
         ((SelectionItemPattern)specials.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Lines() is ["Simpsorama"], "the special in Specials", () => string.Join(", ", app.Lines()));
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-show-specials", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
