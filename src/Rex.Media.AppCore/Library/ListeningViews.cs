@@ -341,11 +341,13 @@ public static partial class ListeningViews
         // Two real markers can share the same timestamp and title. Their occurrence
         // within that exact part/mark is stable when unrelated chapters are inserted
         // earlier, unlike a global row number. Assign it in one linear pass.
-        var seen = new Dictionary<(string Path, long Start, string Title), int>();
+        // Selection identities are compared without case, so duplicate numbering
+        // must use that same comparison or case-variant titles would collide.
+        var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < chapters.Count; index++)
         {
             var chapter = chapters[index];
-            var key = (chapter.Part.Path, chapter.Start.Ticks, chapter.Title);
+            var key = $"{chapter.Part.Path}\n{chapter.Start.Ticks}\n{chapter.Title}";
             seen.TryGetValue(key, out var occurrence);
             if (occurrence > 0)
             {
