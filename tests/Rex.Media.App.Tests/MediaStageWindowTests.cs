@@ -341,7 +341,15 @@ public sealed class MediaStageWindowTests : IDisposable
             && app.IsShown("PictureIntervalButton"),
             "picture playback and its slideshow interval picker");
 
+        ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(420, 340);
+        Wait.For(() => app.Window.Current.BoundingRectangle is { Width: var w, Height: var h }
+            && Math.Abs(w - 420) < 2 && Math.Abs(h - 340) < 2,
+            "a compact picture stage with accessible interval controls");
+        var window = app.Window.Current.BoundingRectangle;
         var bounds = app.Find("PictureIntervalButton").Current.BoundingRectangle;
+        Assert.True(bounds.Left >= window.Left && bounds.Right <= window.Right
+            && bounds.Top >= window.Top && bounds.Bottom <= window.Bottom,
+            "The picture interval button must not be clipped by compact playback layout.");
         Assert.True(bounds.Width >= 42 && bounds.Height >= 42,
             "The picture interval picker must be touch-sized at standard DPI.");
         Assert.False(app.Find("SeekBar").Current.IsEnabled);
