@@ -190,8 +190,9 @@ public sealed partial class MainWindow
     /// A single explicit book remains playable via the normal book action.
     /// </summary>
     private bool CompletedSelectionSpansBooks(IReadOnlyList<LibraryRow> rows) =>
-        _librarySource == LibrarySource.Completed && rows.Count != 1
-        && rows.Any(row => row.Item is LibraryGroup);
+        _librarySource == LibrarySource.Completed
+        && rows.Any(row => row.Item is LibraryGroup)
+        && (rows.Count != 1 || SelectedLibraryRows().Count != 1);
 
     /// <summary>Plays from the visible library view and follows the chosen player transition.</summary>
     private void Play(IReadOnlyList<LibraryEntry> entries, int start, bool resume = false)
