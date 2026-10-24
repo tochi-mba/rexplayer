@@ -350,9 +350,18 @@ public sealed partial class PlayerController
                 // playback produces no further position ticks.
                 var reached = completed.Position.ToTimeSpan();
                 Position = reached > Item!.Start ? reached - Item.Start : TimeSpan.Zero;
+                _seekAwaitingCompletion = false;
                 PositionChanged?.Invoke(this, EventArgs.Empty);
                 break;
             case PositionEvent position:
+                // The event pump coalesces position notifications independently
+                // of discrete seek completion. A tick from the old generation
+                // may otherwise replace the target while playback is paused.
+                if (_seekAwaitingCompletion)
+                {
+                    break;
+                }
+
                 var heard = position.Position.ToTimeSpan();
                 if (Item?.End is { } end && heard >= end)
                 {
