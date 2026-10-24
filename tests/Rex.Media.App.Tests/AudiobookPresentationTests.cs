@@ -363,6 +363,8 @@ public sealed class AudiobookPresentationTests : IDisposable
         Assert.True(app.IsShown("LibraryEnqueue"));
         app.Press("LibraryPlay");
         Assert.Empty(app.Queue());
+        app.Press("LibraryEnqueue");
+        Assert.Empty(app.Queue());
         Assert.Equal(0, app.Close());
     }
 
