@@ -124,6 +124,17 @@ public sealed partial class MainWindow
             return null;
         }
 
+        // A completed audiobook is still a logical book. Offer "Mark as
+        // unfinished" for that one edition, without changing its physical files'
+        // play counts or exposing book actions on completed movies or podcasts.
+        if (_librarySource == LibrarySource.Completed)
+        {
+            return chosen is [{ Item: LibraryGroup completed }]
+                && Listening().Audiobooks.Any(book =>
+                    ListeningViews.BookIdentity(book) == ListeningViews.BookIdentity(completed))
+                ? completed : null;
+        }
+
         if (_librarySource is not (LibrarySource.Authors or LibrarySource.Audiobooks))
         {
             return null;
