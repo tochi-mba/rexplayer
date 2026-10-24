@@ -369,6 +369,29 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void LeavingAPictureWithItsIntervalMenuOpenRemovesObsoleteSlideshowActions()
+    {
+        var picture = _scene.Picture("menu-picture.jpg");
+        var audio = _scene.Audio("next-audio.wav", TimeSpan.FromSeconds(20));
+        LibraryScene.WriteSettings(_scene.Root, settings => settings with { PictureSeconds = 60 });
+        using var app = AppProcess.Start([picture, audio], root: _scene.Root);
+        Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage"
+            && app.IsShown("PictureIntervalButton"),
+            "a long-lived picture before its slideshow controls are opened");
+        app.Press("PictureIntervalButton");
+        Wait.For(() => app.IsShown("PictureInterval-10"),
+            "the old picture's interval menu to open");
+
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
+            && !app.IsShown("PictureIntervalButton")
+            && !app.IsShown("PictureInterval-10"),
+            "the audio stage to remove the old picture-specific menu and choices");
+        Assert.Equal(60, app.SavedSettings.PictureSeconds);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SwitchingFromCaptionedLocalVideoToRemoteLocationClearsOldSubtitleUI()
     {
         var video = _scene.Video("Captioned.mp4");
