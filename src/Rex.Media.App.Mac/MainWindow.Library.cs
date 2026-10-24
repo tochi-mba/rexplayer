@@ -410,7 +410,8 @@ public sealed partial class MainWindow
             return true;
         }
 
-        if (action is "capture-empty" or "capture-populated" or "capture-videos" or "capture-minimum")
+        if (action is "capture-empty" or "capture-populated" or "capture-videos" or "capture-minimum"
+            or "capture-folders" or "capture-cleared")
         {
             var output = Environment.GetEnvironmentVariable("REXPLAYER_MAC_LIBRARY_SCREENSHOTS");
             if (string.IsNullOrWhiteSpace(output))
