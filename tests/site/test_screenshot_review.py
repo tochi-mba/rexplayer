@@ -115,6 +115,56 @@ class ScreenshotReviewTests(unittest.TestCase):
             self.assertIn("StageChaptersButton: visible=False, enabled=False", page)
             self.assertIn("AUDIO playback stage", page)
 
+    def test_wrong_scene_or_accessible_text_is_never_reported_as_matching(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inventory = root / "scenes.json"
+            inventory.write_text(json.dumps({"scenes": [{
+                "id": "stage-audio-windowed",
+                "fixture": "sound",
+                "route": "player/audio",
+                "state": "paused",
+                "dimensions": "1000x720",
+                "theme": "dark",
+                "requiredLane": "ci-windows",
+                "expectedAutomationIds": ["Stage"],
+                "expectedVisibleData": [{
+                    "automationId": "Stage", "name": "AUDIO playback stage"
+                }],
+            }]}), encoding="utf-8")
+            actual = root / "artifacts" / "ci-windows" / "actual"
+            actual.mkdir(parents=True)
+            evidence = {
+                "sceneId": "stage-movie-windowed",
+                "observedVisibleData": [{
+                    "automationId": "Stage", "shown": True,
+                    "Name": "MOVIE playback stage",
+                }],
+            }
+            (actual / "stage-audio-windowed.json").write_text(
+                json.dumps(evidence), encoding="utf-8")
+            output = root / "artifacts" / "review" / "index.html"
+            subprocess.run([
+                sys.executable, str(SCRIPT), "--inventory", str(inventory),
+                "--root", str(root / "artifacts"), "--output", str(output),
+            ], check=True, capture_output=True, text=True)
+            page = output.read_text(encoding="utf-8")
+            self.assertIn("MISMATCH: metadata belongs to", page)
+            self.assertIn("MISMATCH: Stage: expected", page)
+            self.assertIn("MOVIE playback stage", page)
+
+            evidence["sceneId"] = "stage-audio-windowed"
+            evidence["observedVisibleData"][0]["Name"] = "AUDIO playback stage"
+            (actual / "stage-audio-windowed.json").write_text(
+                json.dumps(evidence), encoding="utf-8")
+            subprocess.run([
+                sys.executable, str(SCRIPT), "--inventory", str(inventory),
+                "--root", str(root / "artifacts"), "--output", str(output),
+            ], check=True, capture_output=True, text=True)
+            page = output.read_text(encoding="utf-8")
+            self.assertNotIn("MISMATCH", page)
+            self.assertIn("Semantic text witness</dt><dd>MATCH", page)
+
     def test_missing_evidence_is_visible_but_specialist_lane_is_not_misrepresented(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
