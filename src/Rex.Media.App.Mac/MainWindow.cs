@@ -307,7 +307,8 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
-        app.AddItem(new NSMenuItem("Library…", (_, _) => ShowLibrary()));
+        // Reuse the shared command and its customizable keyboard equivalent.
+        app.AddItem(Entry(CommandCatalog.ToggleLibrary, "Library…"));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
