@@ -7,6 +7,11 @@ public sealed partial class MainWindow
     /// <summary>A card shows its play mark while pointed at or keyboard-focused.</summary>
     internal void OnCardPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
+        if (_closing)
+        {
+            return;
+        }
+
         SetCardPlay(sender, 1);
         if (sender is FrameworkElement { DataContext: LibraryRow row })
         {
@@ -16,6 +21,11 @@ public sealed partial class MainWindow
 
     internal void OnCardGettingFocus(object sender, Microsoft.UI.Xaml.Input.GettingFocusEventArgs e)
     {
+        if (_closing)
+        {
+            return;
+        }
+
         SetCardPlay(sender, 1);
         if (sender is FrameworkElement { DataContext: LibraryRow row })
         {
@@ -31,9 +41,9 @@ public sealed partial class MainWindow
     /// Pointing at a card, or focusing it with the keyboard, reveals its play mark and lifts it a
     /// little. Both are composition transitions the GPU runs on its own: no timers, no per-frame code.
     /// </summary>
-    private static void SetCardPlay(object card, double opacity)
+    private void SetCardPlay(object card, double opacity)
     {
-        if (card is not FrameworkElement element)
+        if (_closing || card is not FrameworkElement element)
         {
             return;
         }
