@@ -832,7 +832,7 @@ public sealed partial class MainWindow
             RestoreFocus();
             // A library refresh can replace rows after this callback begins.
             // Reassert focus once those queued view changes have completed.
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, RestoreFocus);
+            OnWindowThread(DispatcherQueuePriority.Low, RestoreFocus);
         });
     }
 
