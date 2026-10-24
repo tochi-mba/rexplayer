@@ -103,18 +103,19 @@ public sealed partial class MainWindow
             return;
         }
 
-        // The Authors root is navigation, not a playable author-wide
-        // catalogue. Neither an empty selection (which otherwise means "all")
-        // nor multiple author cards may enqueue every one of their books.
-        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        // At both Authors levels, an empty selection normally means "all".
+        // Never interpret that as playing every book in an author's catalogue.
+        // A single book on the author page was already handled by PlayBookCard.
+        if (_librarySource == LibrarySource.Authors && _librarySeason is null)
         {
-            if (chosen is [{ Item: LibraryGroup }])
+            if (_libraryGroup is null && chosen is [{ Item: LibraryGroup }])
             {
                 Activate(chosen[0]);
             }
             else
             {
-                Say("Open an author and choose a book to play.");
+                Say(_libraryGroup is null ? "Open an author and choose a book to play."
+                    : "Choose one book to play.");
             }
 
             return;
@@ -131,9 +132,12 @@ public sealed partial class MainWindow
 
     private void EnqueueChosen()
     {
-        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        // Enqueueing a whole author or several books would mix otherwise scoped
+        // audiobook queues. Only an explicitly selected book may be appended.
+        if (_librarySource == LibrarySource.Authors && _librarySeason is null
+            && (_libraryGroup is null || SelectedLibraryRows() is not [{ Item: LibraryGroup }]))
         {
-            Say("Open an author and choose a book to queue.");
+            Say("Choose one book to queue.");
             return;
         }
 
