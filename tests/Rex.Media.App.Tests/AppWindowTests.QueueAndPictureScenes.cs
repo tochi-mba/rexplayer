@@ -104,26 +104,22 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Text("PlaylistQueueCount") == "501 items", "large queue to load");
         var view = app.Find("PlaylistView");
         var scroll = (ScrollPattern)view.GetCurrentPattern(ScrollPattern.Pattern);
-        // A single SetScrollPercent(100) can run before WinUI realizes the
-        // last virtualized item; further queue layout or playback updates may
-        // also reset the scroll offset. Move to the end with real list keyboard
-        // navigation, then retry the bottom scroll until its accessible row
-        // has actually entered the viewport.
+        // Ctrl+End asks the native queue to ScrollIntoView its last data item,
+        // rather than navigating only as far as WinUI's currently realized rows.
         Input.Focus(app);
         view.SetFocus();
-        Input.Press("End");
+        Input.Press("Ctrl+End");
         Wait.For(() =>
         {
-            var last = view.FindFirst(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.NameProperty, "file-not-on-disk. Missing"));
-            if (last is not null && !last.Current.IsOffscreen)
-            {
-                return true;
-            }
-
-            scroll.SetScrollPercent(ScrollPattern.NoScroll, 100);
-            return false;
-        }, "the missing entry at the end of the virtualized queue");
+            var last = view.FindFirst(TreeScope.Descendants, new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+                new PropertyCondition(AutomationElement.NameProperty, "file-not-on-disk. Missing")));
+            return last is not null && !last.Current.IsOffscreen;
+        }, "the missing entry at the end of the virtualized queue",
+            () => $"Queue scroll: {scroll.Current.VerticalScrollPercent:0.#}%; " +
+                $"visible list items: {view.FindAll(TreeScope.Descendants, " +
+                "new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)).Count}.");
+        Assert.Equal("501 items", app.Text("PlaylistQueueCount"));
         Screenshots.Match(app, "queue-long-missing-dark", "PlaylistPane");
         Assert.Equal(0, app.Close());
     }
