@@ -155,7 +155,15 @@ public sealed partial class MainWindow
         panel.Children.Add(result);
 
         var paragraphs = new StackPanel { Spacing = 8 };
-        var scroll = new ScrollViewer { Content = paragraphs, MaxHeight = 440 };
+        // A single scrolling region must own the transcript paragraphs. A
+        // second ScrollViewer around the whole dialog can clip the inner
+        // viewport, leaving focused paragraph buttons permanently offscreen.
+        var scroll = new ScrollViewer
+        {
+            Content = paragraphs,
+            MaxHeight = 240,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
         panel.Children.Add(scroll);
         const int pageSize = 35;
         var page = 0;
@@ -202,6 +210,14 @@ public sealed partial class MainWindow
                 };
                 AutomationProperties.SetAutomationId(button, "TranscriptReaderCue-" + index);
                 AutomationProperties.SetName(button, $"Jump to {time}. {cue.Text}");
+                // UI Automation can focus an offscreen paragraph without
+                // automatically scrolling its containing reader into view.
+                // This keeps programmatic focus, Tab and screen-reader navigation
+                // consistent with an actual visible paragraph.
+                button.GotFocus += (_, _) => button.StartBringIntoView(new BringIntoViewOptions
+                {
+                    AnimationDesired = false,
+                });
                 button.Click += (_, _) =>
                 {
                     var at = cue.Start < TimeSpan.Zero ? TimeSpan.Zero : cue.Start;
@@ -306,6 +322,7 @@ public sealed partial class MainWindow
             if (buttons.TryGetValue(cueIndex, out var button))
             {
                 button.Focus(FocusState.Programmatic);
+                button.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
             }
         };
 
@@ -318,12 +335,10 @@ public sealed partial class MainWindow
             var dialog = new ContentDialog
             {
                 Title = "Read " + new TranscriptVariant(loaded.Model, false).Quality + " transcript",
-                Content = new ScrollViewer
-                {
-                    Content = panel,
-                    MaxHeight = 490,
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                },
+                // Navigation and search remain fixed; only the paragraph
+                // viewport scrolls. Nested ScrollViewers made the focused
+                // second-page paragraph unreachable on the CI desktop.
+                Content = panel,
                 CloseButtonText = "Done",
                 XamlRoot = Content.XamlRoot,
             };
