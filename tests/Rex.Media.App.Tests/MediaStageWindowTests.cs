@@ -184,6 +184,28 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void ChapterJumpsWorkThroughRealKeyboardInput()
+    {
+        var book = _scene.ChapteredAudiobook();
+        using var app = AppProcess.Start([book]);
+        Wait.For(() => app.IsShown("StageChaptersButton")
+            && app.Find("SeekBar").Current.IsEnabled,
+            "a seekable chaptered audiobook for keyboard navigation");
+        Wait.For(() => app.Status().State == "Playing", "chaptered audiobook playback");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.PlayPause);
+        Wait.For(() => app.Status().State == "Paused", "a stable keyboard chapter seek");
+
+        Pointer.Key(app, "StageChaptersButton", Pointer.Enter);
+        Wait.For(() => app.IsShown("StageChapter-1"), "the chapter menu to open by keyboard");
+        Pointer.Key(app, app.Find("StageChapter-1"), Pointer.Enter);
+        Wait.For(() => Math.Abs(app.Position - 3.0) < 0.5,
+            "the second chapter to be invoked and seeked by keyboard");
+        Assert.Equal("AUDIOBOOK playback stage", app.Find("Stage").Current.Name);
+        Assert.Equal("Paused", app.Status().State);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void ARealChapteredAudiobookExposesOnlyItsOwnChapterJumps()
     {
         var book = _scene.ChapteredAudiobook();
