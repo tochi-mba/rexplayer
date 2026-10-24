@@ -150,6 +150,13 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (_librarySource == LibrarySource.Audiobooks && _libraryGroup is null
+            && SelectedLibraryRows() is not [{ Item: LibraryGroup }])
+        {
+            Say("Choose one audiobook to queue.");
+            return;
+        }
+
         var rows = ChosenRows();
         foreach (var playlist in rows.Select(row => row.Item).OfType<NamedPlaylist>())
         {
