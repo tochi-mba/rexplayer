@@ -338,7 +338,23 @@ public sealed partial class MainWindow
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = background };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
-        frame.Tapped += (_, _) => more();
+        frame.Tapped += (_, args) =>
+        {
+            // Routed Tapped also bubbles out of the hero's Play, More info and
+            // Wikipedia actions. These buttons own their action: a Play tap
+            // must not also navigate to the movie/show information screen.
+            for (var target = args.OriginalSource as DependencyObject;
+                target is not null && !ReferenceEquals(target, frame);
+                target = VisualTreeHelper.GetParent(target))
+            {
+                if (target is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase)
+                {
+                    return;
+                }
+            }
+
+            more();
+        };
         frame.PointerEntered += (_, _) =>
         {
             _browseHeroPointerHeld = true;
@@ -450,6 +466,7 @@ public sealed partial class MainWindow
             Children = { new FontIcon { Glyph = "", FontSize = 14 }, new TextBlock { Text = playLabel } },
         };
         AutomationProperties.SetAutomationId(playButton, "LibraryBillboardPlay");
+        AutomationProperties.SetName(playButton, playLabel + " " + title);
         playButton.Click += (_, _) => play();
         actions.Children.Add(playButton);
         var moreButton = new Button
@@ -462,6 +479,7 @@ public sealed partial class MainWindow
             },
         };
         AutomationProperties.SetAutomationId(moreButton, "LibraryBillboardMore");
+        AutomationProperties.SetName(moreButton, "More info about " + title);
         moreButton.Click += (_, _) => more();
         actions.Children.Add(moreButton);
         words.Children.Add(actions);
