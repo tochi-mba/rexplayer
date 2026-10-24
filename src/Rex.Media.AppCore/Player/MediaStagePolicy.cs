@@ -100,10 +100,13 @@ public static class MediaStagePolicy
         return null;
     }
 
+    /// <summary>Only real, nonnegative points within a known duration are actionable seeks.</summary>
+    public static bool IsPlayableTimeJump(TimeSpan position, TimeSpan duration) =>
+        position >= TimeSpan.Zero && (duration <= TimeSpan.Zero || position <= duration);
+
     /// <summary>A chapter may be selected only when its time belongs to the current stream.</summary>
     public static bool IsPlayableChapter(MediaTime start, TimeSpan duration) =>
-        start.IsKnown && start >= MediaTime.Zero &&
-        (duration <= TimeSpan.Zero || start.ToTimeSpan() <= duration);
+        start.IsKnown && IsPlayableTimeJump(start.ToTimeSpan(), duration);
 
     /// <summary>
     /// An opening chapter at zero alone is not a chapter picker. Require at least
