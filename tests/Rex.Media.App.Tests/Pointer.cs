@@ -46,8 +46,15 @@ internal static partial class Pointer
         Assert.True(SetCursorPos((int)(box.Left + (box.Width * 0.15)), y),
             "The pointer could not enter the slider.");
         Thread.Sleep(80);
-        Assert.True(SetCursorPos((int)(box.Left + (box.Width * fraction)), y),
-            "The pointer could not hover over the target.");
+        // Deliver several real mouse moves across the rail. A single jump
+        // between far-apart points can be coalesced by the hosted compositor.
+        for (var step = 1; step <= 8; step++)
+        {
+            var along = 0.15 + ((fraction - 0.15) * step / 8);
+            Assert.True(SetCursorPos((int)(box.Left + (box.Width * along)), y),
+                "The pointer could not hover over the target.");
+            Thread.Sleep(25);
+        }
     }
 
     /// <summary>Gives <paramref name="element"/> the keyboard focus and presses <paramref name="key"/> once.</summary>
