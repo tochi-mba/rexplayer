@@ -492,26 +492,6 @@ public sealed partial class MainWindow
         }
     }
 
-    private string SelectionIdentity(LibraryRow row) => row.Item switch
-    {
-        LibraryEntry entry => "file:" + entry.Path,
-        // Book cards across Audiobooks, a selected Author and Completed must
-        // retain distinct editions even when the credits match. The logical
-        // edition key survives a newly scanned earlier part, unlike first-path.
-        LibraryGroup group when _librarySource is LibrarySource.Audiobooks or LibrarySource.Completed
-            || (_librarySource == LibrarySource.Authors && _libraryGroup is not null) =>
-            "book:" + ListeningViews.BookIdentity(group),
-        LibraryGroup group => "group:" + group.Name + "\n"
-            + (_librarySource is LibrarySource.Albums or LibrarySource.Authors ? group.Detail : null)
-            + (_librarySource == LibrarySource.Authors ? "\n" + group.Entries.FirstOrDefault()?.Path : ""),
-        // Never serialize the whole LibraryEntry (and all 10,000 markers) here.
-        // SameMarkIndex distinguishes duplicate marks without tying this chapter's
-        // remembered selection to its shifting 1-based display number.
-        BookChapter chapter => $"chapter:{chapter.Part.Path}\n{chapter.Start.Ticks}\n{chapter.Title}\n{chapter.SameMarkIndex}",
-        Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
-        _ => "folder:" + row.Item,
-    };
-
     /// <summary>Updates every visible representation when playback changes without moving the view.</summary>
     private void ShowCurrentLibraryItem()
     {
