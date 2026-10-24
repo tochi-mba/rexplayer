@@ -326,7 +326,7 @@ public sealed partial class MainWindow
     {
         // Respect the user's system text colors instead of drawing white text
         // over a dark photograph while high contrast is on.
-        var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
+        var highContrast = _libraryContrastSettings.HighContrast;
         var policy = BrowseHeroPresentation.For(highContrast, _budget.Animations);
         var colors = policy.UsesSystemColors ? new Windows.UI.ViewManagement.UISettings() : null;
         var systemText = colors is null ? null : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground));
