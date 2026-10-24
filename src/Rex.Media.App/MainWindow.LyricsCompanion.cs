@@ -310,6 +310,9 @@ public sealed partial class MainWindow
                             HorizontalAlignment = HorizontalAlignment.Stretch,
                             HorizontalContentAlignment = HorizontalAlignment.Stretch,
                             Padding = new Thickness(10, 8, 10, 8),
+                            // Lyrics can load from a sidecar before the media session opens.
+                            // Do not offer a seek action until the owner can honor it.
+                            IsEnabled = _player.CanSeek,
                         };
                         AutomationProperties.SetAutomationId(button, $"CompanionLine-{index}");
                         AutomationProperties.SetName(button, $"Go to {TimeText.Format(at, _player.Duration)}: {line.Text}");
@@ -358,6 +361,13 @@ public sealed partial class MainWindow
                     window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, RestoreCompanionFocus);
                 });
             }
+        }
+
+        // MediaOpened updates seekability without rebuilding the lyrics from the
+        // same sidecar. Keep the existing native buttons in sync with the player.
+        foreach (var seekButton in _lyricsCompanionRows.OfType<Button>())
+        {
+            seekButton.IsEnabled = _player.CanSeek;
         }
 
         var current = _player.LyricIndex;
