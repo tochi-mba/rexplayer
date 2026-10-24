@@ -395,11 +395,17 @@ public sealed partial class MainWindow
             return true;
         }
 
-        if (action == "search-song" && _librarySearch is not null && _librarySearchButton is not null)
+        if (action is "search-song" or "search-missing" && _librarySearch is not null && _librarySearchButton is not null)
         {
-            _librarySearch.StringValue = "Sample Song";
+            _librarySearch.StringValue = action == "search-song" ? "Sample Song" : "No fixture with this name";
             _librarySearchButton.PerformClick(_librarySearchButton);
             return true;
+        }
+
+        if (action == "clear-search" && _libraryClearSearch is not null)
+        {
+            _libraryClearSearch.PerformClick(_libraryClearSearch);
+            return _libraryQuery.Length == 0 && _librarySearch?.StringValue.Length == 0;
         }
 
         if (action == "verify-accessibility")
@@ -412,6 +418,7 @@ public sealed partial class MainWindow
                 && queueLabel.StartsWith("Add ", StringComparison.Ordinal)
                 && queueLabel.EndsWith(" to Up Next", StringComparison.Ordinal)
                 && _librarySearch?.AccessibilityLabel == "Search the local library"
+                && _libraryClearSearch?.ToolTip?.Contains("Show every item", StringComparison.Ordinal) == true
                 && _libraryKind.ToolTip?.Contains("local library", StringComparison.Ordinal) == true;
         }
 
@@ -439,7 +446,7 @@ public sealed partial class MainWindow
         }
 
         if (action is "capture-empty" or "capture-populated" or "capture-videos" or "capture-minimum"
-            or "capture-folders" or "capture-cleared")
+            or "capture-folders" or "capture-cleared" or "capture-search-empty")
         {
             var output = Environment.GetEnvironmentVariable("REXPLAYER_MAC_LIBRARY_SCREENSHOTS");
             if (string.IsNullOrWhiteSpace(output))
