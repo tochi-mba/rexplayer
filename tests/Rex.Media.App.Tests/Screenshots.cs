@@ -258,6 +258,12 @@ internal static class Screenshots
             repeatedDifferingRatio = repeatDifference,
             expectedAutomationIds = scene.ExpectedAutomationIds,
             observedAutomationIds = scene.ExpectedAutomationIds.Select(id => ObserveControl(app, id)).ToArray(),
+            // Some semantic text readiness controls (such as LibraryTitle) are
+            // intentionally outside the scene's primary automation-id list.
+            // Record them too, so a reviewer can detect an incorrect title even
+            // if the screenshot captured colorful pixels.
+            observedVisibleData = scene.ExpectedVisibleData
+                .Select(value => ObserveControl(app, value.AutomationId)).ToArray(),
             // Keep an actual UIA witness for every capability-specific action in a
             // media-stage shot, including controls that must be hidden or disabled.
             // Reviewers can correlate these with the unmodified compositor image.
