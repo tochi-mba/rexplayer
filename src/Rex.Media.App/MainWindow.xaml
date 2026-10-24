@@ -710,7 +710,7 @@
                    AutomationProperties.AutomationId="Elapsed" />
       </StackPanel>
       <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" SizeChanged="OnSeekAreaSizeChanged"
-            PointerMoved="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
+            PointerExited="OnSeekAreaPointerExited">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False" MinHeight="32"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
