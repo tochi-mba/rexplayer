@@ -23,6 +23,8 @@ public sealed partial class MainWindow
     private byte[]? _shownCover;
     private Lyrics? _shownLyrics;
     private PlaylistItem? _shownLyricsItem;
+    private MediaInfo? _shownLyricsInfo;
+    private TimeSpan _shownLyricsDuration;
     private int _shownLine = -1;
     private readonly List<TextBlock> _lyricTexts = [];
     private PlaylistItem? _shownChapterItem;
@@ -124,7 +126,8 @@ public sealed partial class MainWindow
         }
 
         var lyrics = stage.ShowLyrics ? _player.Lyrics : null;
-        if (!ReferenceEquals(lyrics, _shownLyrics) || !ReferenceEquals(item, _shownLyricsItem))
+        if (!ReferenceEquals(lyrics, _shownLyrics) || !ReferenceEquals(item, _shownLyricsItem)
+            || !ReferenceEquals(info, _shownLyricsInfo) || _shownLyricsDuration != _player.Duration)
         {
             // Timed lyrics are focusable buttons. Removing the old lines must not
             // strand keyboard/screen-reader focus on an element outside the tree.
@@ -138,6 +141,8 @@ public sealed partial class MainWindow
 
             _shownLyrics = lyrics;
             _shownLyricsItem = item;
+            _shownLyricsInfo = info;
+            _shownLyricsDuration = _player.Duration;
             _shownLine = -1;
             LyricsLines.Children.Clear();
             _lyricTexts.Clear();
@@ -153,7 +158,8 @@ public sealed partial class MainWindow
                     HorizontalAlignment = HorizontalAlignment.Center,
                 };
                 _lyricTexts.Add(text);
-                if (line.At is not { } at || !stage.CanSeek)
+                if (line.At is not { } at || !stage.CanSeek
+                    || !MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration))
                 {
                     // Untimed lyric lines need the same close-fitting contrast as timed lines;
                     // never paint a broad translucent rectangle behind the whole stage.
@@ -169,7 +175,7 @@ public sealed partial class MainWindow
                     continue;
                 }
 
-                var when = TimeText.Format(at < TimeSpan.Zero ? TimeSpan.Zero : at, _player.Duration);
+                var when = TimeText.Format(at, _player.Duration);
                 var button = new Button
                 {
                     Content = text,
@@ -192,7 +198,9 @@ public sealed partial class MainWindow
                     // A queued click from an old lyrics control must never seek a
                     // replacement stream (or a stream that has lost seek support).
                     if (!ReferenceEquals(_player.Item, item)
+                        || !ReferenceEquals(_player.Info, info)
                         || !ReferenceEquals(_player.Lyrics, lyrics)
+                        || !MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration)
                         || !_stageView.ShowLyrics || !_stageView.CanSeek
                         || !_settings.ShowLyrics || !_player.CanSeek)
                     {
