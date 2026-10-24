@@ -460,6 +460,20 @@ public sealed partial class MainWindow : Window
 
     private bool HasVideo => _player.Info?.FirstTrack(MediaKind.Video) is not null;
 
+    /// <summary>Keep the slideshow picker inside narrow windows without shortening its accessible name.</summary>
+    private void ShowPictureIntervalLabel()
+    {
+        var seconds = _settings.PictureSeconds;
+        var label = Root.ActualWidth is > 0 and < 560 ? $"{seconds} s" : $"Slideshow · {seconds} s";
+        if (!Equals(PictureIntervalButton.Content, label))
+        {
+            PictureIntervalButton.Content = label;
+        }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PictureIntervalButton,
+            $"Slideshow interval, {seconds} seconds per picture");
+    }
+
     /// <summary>Brings every control in line with the player's state.</summary>
     private void ShowState()
     {
@@ -491,8 +505,7 @@ public sealed partial class MainWindow : Window
         PictureIntervalButton.Visibility = picture ? Visibility.Visible : Visibility.Collapsed;
         if (picture)
         {
-            PictureIntervalButton.Content = $"Slideshow · {_settings.PictureSeconds} s";
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PictureIntervalButton, $"Slideshow interval, {_settings.PictureSeconds} seconds per picture");
+            ShowPictureIntervalLabel();
         }
         NowPlaying.Text = title;
 
