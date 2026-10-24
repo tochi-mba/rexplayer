@@ -29,6 +29,7 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
             && app.IsShown("LibraryBillboardPlay") && app.IsShown("LibraryBillboardMore"),
             "the browse route to start with an accessible native feature and its actions");
         Assert.False(string.IsNullOrWhiteSpace(app.Find("LibraryBillboardTitle").Current.Name));
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app,
             "library-" + (route == "Movies" ? "movies" : "tv") + "-browse-featured", "LibraryPane");
 
