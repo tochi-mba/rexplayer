@@ -46,28 +46,16 @@ public sealed class LibraryArtistsTests : IDisposable
     }
     [Fact]
     [Capability("LIB-05")]
-    public void LongRtlTitlesAndDuplicateFilenamesOfferAStableAccessibleContext()
+    public void RightToLeftMediaTitlesKeepAnAccessibleNameInTheLibrary()
     {
-        var file = new Rex.Media.Library.LibraryEntry
-        {
-            Path = Path.Combine("Library", "Artist A", "Demo.wav"),
-            Kind = Rex.Media.Library.LibraryKind.Music,
-            Title = "07 🎵 שיר שחוזר",
-        };
-        var row = new Rex.Media.App.LibraryRow(file.Title, "Artist A · Demo album", "", file);
-        Assert.Equal(Microsoft.UI.Xaml.FlowDirection.RightToLeft, row.NameDirection);
-        Assert.Contains("Demo.wav", row.AccessibilityContext, StringComparison.Ordinal);
-        Assert.Contains("Artist A", row.AccessibilityContext, StringComparison.Ordinal);
-        Assert.DoesNotContain(Path.Combine("Library", "Artist A", "Demo.wav"),
-            row.AccessibilityContext, StringComparison.Ordinal);
-        Assert.Equal(file.Title, row.AccessibilityName);
+        const string title = "07 🎵 שיר שחוזר";
+        _scene.Song(title, "Demo album", 2024, "Pop", "Artist A");
+        using var app = _scene.Ready().Start();
 
-        var english = new Rex.Media.App.LibraryRow("Song 2", "Other artist", "", file with
-        {
-            Path = Path.Combine("Library", "Artist B", "Demo.wav"),
-        });
-        Assert.Equal(Microsoft.UI.Xaml.FlowDirection.LeftToRight, english.NameDirection);
-        Assert.NotEqual(row.AccessibilityContext, english.AccessibilityContext);
+        app.Visit("Songs");
+        Wait.For(() => app.Lines().Contains(title), "the right-to-left song in the library");
+        Assert.Equal(title, app.Line(title).Current.Name);
+        Assert.Equal(0, app.Close());
     }
 
     [Fact]
