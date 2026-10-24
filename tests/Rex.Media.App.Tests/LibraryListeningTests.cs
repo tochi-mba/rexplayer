@@ -440,12 +440,10 @@ public sealed class LibraryListeningTests : IDisposable
 
         using var app = _scene.Ready().Start();
         app.Visit("Authors");
-        // Neither the toolbar nor the author context menu can silently expand
-        // two entire books into a mixed author-wide playback queue.
-        app.Press("LibraryEnqueue");
-        Assert.Empty(app.Queue());
-        app.Press("LibraryShuffle");
-        Assert.Empty(app.Queue());
+        // The author shelf is navigational, not a mixed playback queue.
+        Assert.Equal("Open author", app.Text("LibraryPlayText"));
+        Assert.False(app.IsShown("LibraryEnqueue"));
+        Assert.False(app.IsShown("LibraryShuffle"));
         app.Press("LibraryPlay");
         Assert.Empty(app.Queue());
 
