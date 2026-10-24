@@ -234,9 +234,11 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Contains("Opening", first.Current.Name, StringComparison.Ordinal);
         Assert.Contains("Continuation", second.Current.Name, StringComparison.Ordinal);
         Assert.True(second.Current.IsEnabled, "A proven chapter should offer a working jump.");
-        Assert.True(first.Current.BoundingRectangle.Height >= 42
-            && second.Current.BoundingRectangle.Height >= 42,
-            "Each chapter jump must remain a touch-sized menu action.");
+        var firstBounds = first.Current.BoundingRectangle;
+        var secondBounds = second.Current.BoundingRectangle;
+        Assert.True(firstBounds.Width >= 42 && firstBounds.Height >= 42
+            && secondBounds.Width >= 42 && secondBounds.Height >= 42,
+            "Each chapter jump must remain at least a 44 by 44 logical-unit touch target.");
         app.Press("StageChapter-1");
         Wait.For(() => Math.Abs(app.Position - 3.0) < 0.5,
             "the chapter action to seek the paused audiobook to its three-second mark");
