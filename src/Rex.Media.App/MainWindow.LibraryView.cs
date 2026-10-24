@@ -421,17 +421,34 @@ public sealed partial class MainWindow
             }
         }
 
+        var authorDirectory = source == LibrarySource.Authors && _libraryGroup is null && search.Length == 0;
         if (_librarySource == LibrarySource.Pictures && search.Length == 0)
         {
             LibraryPlayText.Text = "Start slideshow";
             ToolTipService.SetToolTip(LibraryPlay,
                 "Play the selected photographs, or all visible photographs, in gallery order. Pause and Next control the show.");
         }
+        else if (authorDirectory)
+        {
+            LibraryPlayText.Text = "Open author";
+            ToolTipService.SetToolTip(LibraryPlay, "Open one author's books, then choose a book to play.");
+        }
+        else
+        {
+            // A picture slideshow's text and tooltip must not leak into a later
+            // audiobook, music or author view when the same button is reused.
+            LibraryPlayText.Text = "Play";
+            ToolTipService.SetToolTip(LibraryPlay, null);
+        }
 
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
-        LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
+        var noPlayback = folders || source == LibrarySource.Playlists
+            || (source == LibrarySource.TvShows && _libraryGroup is null);
+        LibraryPlay.Visibility = noPlayback ? Visibility.Collapsed : Visibility.Visible;
+        LibraryShuffle.Visibility = LibraryEnqueue.Visibility =
+            noPlayback || authorDirectory ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
         // Scroll anchors are for rebuilding the same layout; a layout change (for
