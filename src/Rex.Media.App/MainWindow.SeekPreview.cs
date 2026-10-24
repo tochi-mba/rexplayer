@@ -64,7 +64,18 @@ public sealed partial class MainWindow
         Forget(LoadSeekPreviewAsync(location, TimeSpan.FromSeconds(bucket), key, token));
     }
 
-    private void OnSeekAreaPointerExited(object sender, PointerRoutedEventArgs e) => HideSeekPreview();
+    private void OnSeekAreaPointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        // A Slider can re-route pointer ownership between its rail and thumb
+        // without the cursor ever leaving the timeline. Don't dismiss the
+        // preview merely because one child emitted a synthetic exit.
+        var position = e.GetCurrentPoint(SeekArea).Position;
+        if (position.X < 0 || position.Y < 0
+            || position.X >= SeekArea.ActualWidth || position.Y >= SeekArea.ActualHeight)
+        {
+            HideSeekPreview();
+        }
+    }
 
     private void HideSeekPreview()
     {

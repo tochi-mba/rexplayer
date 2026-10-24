@@ -204,6 +204,7 @@ public sealed partial class MainWindow
         LibraryList.Visibility = home || browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
         LibraryHero.Visibility = browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
+        ApplySmallHomeViewport(home);
         if (home || browse || musicHome)
         {
             ShowMusicPageExtras(null, songsTable: false);
@@ -480,8 +481,7 @@ public sealed partial class MainWindow
             ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
-        // Scroll anchors are for rebuilding the same layout; a layout change (for
-        // instance from list to collage) must first let its new panel realise items.
+        // Rebuild the scroll anchor only after the new layout is realized.
         var previousLook = _shownLook;
         var look = SetLibraryLook(options && !artistPage && albumPage is null ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
@@ -836,7 +836,7 @@ public sealed partial class MainWindow
         CancelLibraryPictures();
         _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
         _shownLibrary = shown;
-        // New shelves start at their left edges; the ones in view stay where they were scrolled.
+        // Preserve the current shelf scroll position when the route has not changed.
         var place = sameRoute ? CapturePlace() : null;
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))

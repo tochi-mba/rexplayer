@@ -443,7 +443,7 @@
             </Grid>
           </Grid>
           <!-- How the view is shown: its layout, order, grouping and card size, each kept per view. -->
-          <Grid Grid.Row="1" Margin="24,0,24,8" RowSpacing="8" HorizontalAlignment="Stretch">
+          <Grid x:Name="LibraryViewOptionsHost" Grid.Row="1" Margin="24,0,24,8" RowSpacing="8" HorizontalAlignment="Stretch">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <Grid Grid.Row="0" ColumnSpacing="12" RowSpacing="6" HorizontalAlignment="Stretch">
               <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

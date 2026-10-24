@@ -46,8 +46,10 @@ public sealed class LibraryCardsTests : IDisposable
         Assert.Contains("Movies", app.ListedViews());
         app.Press("LibraryNavigationToggle");
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation", "narrow navigation to expand on request");
-        Assert.Contains(app.Find("LibrarySources").FindAll(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text)).Cast<AutomationElement>(), text => text.Current.Name == "Movies");
+        Wait.For(() => app.Find("LibrarySources").FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
+            .Cast<AutomationElement>().Any(text => text.Current.Name == "Movies"),
+            "expanded navigation to realize the Movies text after switching templates");
         Assert.False(app.SavedSettings.LibraryNavigationCollapsed, "temporarily expanding a narrow rail must not change the saved preference");
         app.Press("LibraryNavigationToggle");
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation", "narrow navigation to collapse on request");

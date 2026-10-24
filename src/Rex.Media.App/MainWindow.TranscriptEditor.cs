@@ -267,10 +267,22 @@ public sealed partial class MainWindow
         {
             matchIndex = -1;
             jump.IsEnabled = false;
-            matchStatus.Text = search.Text.Length > 0 &&
-                TranscriptSearch.FindNext(history.Current.Words, search.Text) < 0
-                ? "No matching speech was found."
-                : "Search the words that have been transcribed.";
+            // UI Automation can submit Find before the posted TextChanged
+            // callback completes. Publish the first matching word as the query
+            // changes too, so late text delivery cannot reset a valid Find
+            // result back to the generic introduction.
+            var first = TranscriptSearch.FindNext(history.Current.Words, search.Text);
+            if (first >= 0)
+            {
+                var at = history.Current.Words[first].Start;
+                matchStatus.Text = $"Match at word {first + 1} of {history.Current.Words.Count}, {Rex.Media.AppCore.Player.TimeText.Format(at, _player.Duration)}.";
+            }
+            else
+            {
+                matchStatus.Text = string.IsNullOrWhiteSpace(search.Text)
+                    ? "Search the words that have been transcribed."
+                    : "No matching speech was found.";
+            }
         };
         find.Click += (_, _) =>
         {

@@ -159,7 +159,14 @@ public sealed class LibraryMusicTests : IDisposable
             ((ScrollPattern)scrolling).SetScrollPercent(ScrollPattern.NoScroll, 0);
         }
 
-        Wait.For(() => app.IsShown("LibraryHeroArtist-Asake"), "the album artist link to return after scrolling to the header");
+        // Re-enter the album page from the catalogue after playback
+        // updated the scroll-linked header. The same real artist link must
+        // still be provided on the page, rather than relying on a temporary
+        // header expansion during an ongoing list-layout animation.
+        app.Visit("Albums");
+        app.Open("Lungu Boy");
+        Wait.For(() => app.IsShown("LibraryHeroArtist-Asake"),
+            "the album artist link to remain accessible when revisiting the album");
         app.Press("LibraryHeroArtist-Asake");
         Wait.For(() => app.Text("LibraryKicker") == "ARTIST" && app.Text("LibraryTitle") == "Asake", "the artist's page");
         Assert.Equal(0, app.Close());
