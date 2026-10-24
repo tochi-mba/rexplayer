@@ -392,6 +392,58 @@ public static partial class ListeningViews
         return current;
     }
 
+    /// <summary>
+    /// The next or previous seekable chapter in reading order, or -1 at the edge.
+    /// Different markers at an identical position are distinct for accessibility,
+    /// but pressing chapter transport must not repeatedly seek to the same instant.
+    /// Previous restarts the current chapter when more than three seconds into it.
+    /// </summary>
+    public static int AdjacentChapterIndex(IReadOnlyList<BookChapter> chapters, LibraryGroup book, BookPlace place, bool next)
+    {
+        ArgumentNullException.ThrowIfNull(chapters);
+        ArgumentNullException.ThrowIfNull(book);
+        if (place.Part < 0 || place.Part >= book.Entries.Count || chapters.Count == 0)
+        {
+            return -1;
+        }
+
+        var active = CurrentChapterIndex(chapters, book, place);
+        if (active < 0)
+        {
+            // Before the first marker of a physical part: Next starts that part,
+            // Previous moves to the preceding part, never to book chapter zero.
+            var partPath = book.Entries[place.Part].Path;
+            var first = -1;
+            for (var index = 0; index < chapters.Count; index++)
+            {
+                if (string.Equals(chapters[index].Part.Path, partPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    first = index;
+                    break;
+                }
+            }
+
+            return first < 0 ? -1 : next ? first : first - 1;
+        }
+
+        if (!next && place.At - chapters[active].Start > TimeSpan.FromSeconds(3))
+        {
+            return active;
+        }
+
+        var step = next ? 1 : -1;
+        for (var index = active + step; index >= 0 && index < chapters.Count; index += step)
+        {
+            if (!string.Equals(chapters[index].Part.Path, chapters[active].Part.Path, StringComparison.OrdinalIgnoreCase)
+                || chapters[index].Start != chapters[active].Start)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     /// <summary>Where the book is up to: the part played last, at the point it was left (its start when there is none); the first part for a book never played.</summary>
     public static BookPlace PlaceIn(LibraryGroup book, Func<string, TimeSpan?> leftAt)
     {
