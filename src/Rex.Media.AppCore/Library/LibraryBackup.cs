@@ -183,7 +183,7 @@ public static class LibraryBackup
             if (item is null || !SafeRelativePath(item.Path) || !names.Add(item.Path)
                 || item.Sha256 is not { Length: 64 } || item.Length < 0)
             {
-                throw new FormatException("The backup completion marker has an unsafe entry.");
+                throw new FormatException("The backup completion marker contains an invalid entry.");
             }
 
             var file = Path.Combine(folder, item.Path);
