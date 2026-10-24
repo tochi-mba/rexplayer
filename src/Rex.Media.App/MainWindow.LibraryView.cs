@@ -114,9 +114,7 @@ public sealed partial class MainWindow
         RememberLater();
         _shownLibrary = "";
         ShowLibrary();
-        // A new sort begins at the first item in that order. Otherwise the
-        // previous scroll anchor can make a genuinely sorted Songs list look
-        // unordered (and hides its first rows from keyboard navigation).
+        // A changed sort starts at its first row, not the old scroll anchor.
         if (orderChanged)
         {
             DispatcherQueue.TryEnqueue(() =>
