@@ -20,9 +20,16 @@ public sealed partial class AppWindowTests
         return path;
     }
 
-    /// <summary>Waits until the player reports a position within half a second of <paramref name="seconds"/>.</summary>
-    private static void WaitForPosition(AppProcess app, double seconds, string what) =>
-        Wait.For(() => Math.Abs(app.Position - seconds) < 0.5, what, () => $"The player is at {app.Position:0.00} s.");
+    /// <summary>Waits until the player settles within half a second of <paramref name="seconds"/>.</summary>
+    private static void WaitForPosition(AppProcess app, double seconds, string what)
+    {
+        var consecutive = 0;
+        Wait.For(() =>
+        {
+            consecutive = Math.Abs(app.Position - seconds) < 0.5 ? consecutive + 1 : 0;
+            return consecutive >= 5;
+        }, what, () => $"The player is at {app.Position:0.00} s.");
+    }
 
     private static bool IsEnabled(AppProcess app, string automationId) => app.Find(automationId).Current.IsEnabled;
 
