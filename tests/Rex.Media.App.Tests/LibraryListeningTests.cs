@@ -471,6 +471,13 @@ public sealed class LibraryListeningTests : IDisposable
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
             && app.Lines().Contains("Alpha") && app.Lines().Contains("Beta"),
             "the author page to show separate playable books");
+        Assert.False(app.IsShown("LibraryShuffle"),
+            "book parts must retain listening order instead of being shuffled");
+        app.Press("LibraryPlay");
+        Assert.Empty(app.Queue());
+        app.Press("LibraryEnqueue");
+        Assert.Empty(app.Queue());
+
         Pointer.RightClick(app, app.Line("Alpha"));
         Wait.For(() => app.IsShown("LibraryMenuResumeBook"), "the selected book's resume action");
         app.Press("LibraryMenuResumeBook");
