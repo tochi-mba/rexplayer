@@ -32,8 +32,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Check the site
-        run: python3 scripts/check_site.py
+      - name: Check the site and source release version
+        run: |
+          python3 scripts/check_site.py
+          python3 scripts/check_release_notes.py
 
       # The deployed CDN must be provably serving these exact committed files,
       # not a stale prior push with the same screenshot filenames.
