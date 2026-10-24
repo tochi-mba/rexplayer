@@ -48,8 +48,8 @@ public sealed partial class AppWindowTests
         {
             Assert.StartsWith("Go to 0:00: First", app.Find("LyricLine-0").Current.Name,
                 StringComparison.Ordinal);
-            Assert.Contains("Second", app.Find("LyricLine-1").Current.Name,
-                StringComparison.Ordinal);
+            Assert.Contains(mode == "word" ? "Last" : "Second",
+                app.Find("LyricLine-1").Current.Name, StringComparison.Ordinal);
         }
 
         Screenshots.Match(app, "lyrics-mode-" + mode, "Stage");
@@ -64,6 +64,7 @@ public sealed partial class AppWindowTests
         Screenshots.Match(app, "lyrics-mode-" + mode + "-compact", "Stage");
         Assert.Equal(0, app.Close());
     }
+
     [Fact]
     [Capability("META-09")]
     public void TimedLyricActionsSeekFromAccessibleNativeButtonsAndKeepTheModeHonest()
@@ -87,5 +88,4 @@ public sealed partial class AppWindowTests
         Screenshots.Match(app, "lyrics-line-seek-action", "Stage");
         Assert.Equal(0, app.Close());
     }
-
 }
