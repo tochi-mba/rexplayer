@@ -343,7 +343,9 @@ public sealed class MediaStageWindowTests : IDisposable
 
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.OpenLocation);
         var location = (ValuePattern)app.Find("LocationBox").GetCurrentPattern(ValuePattern.Pattern);
-        location.SetValue("https://example.invalid/new-stream.mp3");
+        // A loopback refusal proves the remote transition without depending on
+        // external DNS, internet access, proxies, or a remote server's uptime.
+        location.SetValue("http://127.0.0.1:1/new-stream.mp3");
         app.Press("PrimaryButton");
 
         Wait.For(() => app.Text("NowPlaying") != "Captioned"
