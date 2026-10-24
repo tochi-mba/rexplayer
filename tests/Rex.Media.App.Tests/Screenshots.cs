@@ -271,6 +271,7 @@ internal static class Screenshots
                 ? new[]
                 {
                     "Stage", "SeekBar", "StartOverButton", "StageChaptersButton",
+                    "MovieVersionButton", "PictureIntervalButton",
                     "Lyrics", "Cover", "Subtitles", "KineticCaptions", "PlayPauseButton",
                 }.Select(id => ObserveControl(app, id)).ToArray()
                 : Array.Empty<object>(),
