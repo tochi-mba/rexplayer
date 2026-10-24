@@ -320,8 +320,15 @@ public sealed partial class MainWindow
             return;
         }
 
+        // A growing spoken stream may update its duration without changing
+        // which chapters are actionable. Do not destroy a focused flyout on
+        // every such update; rebuild only when eligibility actually changes.
+        var chapterEligibilityChanged = _shownChapterDuration != _player.Duration
+            && info.Chapters.Any(chapter =>
+                MediaStagePolicy.IsPlayableChapter(chapter.Start, _shownChapterDuration)
+                != MediaStagePolicy.IsPlayableChapter(chapter.Start, _player.Duration));
         if (!ReferenceEquals(item, _shownChapterItem) || !ReferenceEquals(info, _shownChapterInfo)
-            || _shownChapterDuration != _player.Duration)
+            || chapterEligibilityChanged)
         {
             // Replacing a chaptered stream with another chaptered stream also
             // replaces the flyout's items. Restore focus before removing the
