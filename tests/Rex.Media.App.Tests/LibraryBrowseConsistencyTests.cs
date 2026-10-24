@@ -61,7 +61,9 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
             StringComparison.Ordinal);
         Assert.Equal("More info about Moon Harbour", app.Find("LibraryBillboardMore").Current.Name);
 
-        app.Press("LibraryBillboardMore");
+        // Use actual mouse messages, not InvokePattern: pointer Tapped bubbles
+        // through the banner while UIA Invoke does not.
+        Pointer.Click(app, app.Find("LibraryBillboardMore"));
         Wait.For(() => app.Text("LibraryKicker") == "MOVIE" &&
             app.Text("LibraryTitle") == "Moon Harbour",
             "More info to navigate only to the selected film");
@@ -69,7 +71,7 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
         Wait.For(() => app.IsShown("LibraryBillboardPlay"),
             "the movie feature after returning from details");
 
-        app.Press("LibraryBillboardPlay");
+        Pointer.Click(app, app.Find("LibraryBillboardPlay"));
         Wait.For(() => !app.IsShown("LibraryPane") &&
             app.Text("NowPlaying").Contains("Moon Harbour", StringComparison.Ordinal),
             "Play to start only the actual film and reveal the player");
