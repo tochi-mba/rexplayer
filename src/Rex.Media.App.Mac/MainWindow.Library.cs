@@ -12,6 +12,7 @@ public sealed partial class MainWindow
 {
     private MediaLibrary? _library;
     private LibraryScanner? _libraryScanner;
+    private NSTimer? _libraryPeriodicScan;
     private NSWindow? _libraryWindow;
     private NSScrollView? _libraryScroll;
     private NSTextField? _librarySummary;
@@ -49,6 +50,17 @@ public sealed partial class MainWindow
         {
             _libraryScanner.Request();
         }
+
+        // AppKit has no Windows FileSystemWatcher wiring in this shell.
+        // Refresh watched roots periodically so external changes reach the
+        // persistent index even if the user never presses Rescan.
+        _libraryPeriodicScan = NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromMinutes(5), _ =>
+        {
+            if (!_closingLibrary && _library?.Folders.Count > 0)
+            {
+                _libraryScanner?.Request();
+            }
+        });
     }
 
     private void ShowLibrary()
@@ -506,6 +518,9 @@ public sealed partial class MainWindow
     private void CloseLibrary()
     {
         _closingLibrary = true;
+        _libraryPeriodicScan?.Invalidate();
+        _libraryPeriodicScan?.Dispose();
+        _libraryPeriodicScan = null;
         _libraryScanner?.Dispose();
         _libraryWindow?.Close();
         _libraryWindow?.Dispose();
