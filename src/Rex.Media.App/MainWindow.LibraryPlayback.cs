@@ -13,8 +13,10 @@ public sealed partial class MainWindow
         switch (row?.Item)
         {
             case LibraryGroup group when _librarySource == LibrarySource.Completed
-                && Listening().Audiobooks.Any(book => string.Equals(book.Name, group.Name, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(book.Detail, group.Detail, StringComparison.OrdinalIgnoreCase)):
+                && Listening().Audiobooks.Any(book =>
+                    ListeningViews.BookIdentity(book) == ListeningViews.BookIdentity(group)):
+                // A book on Completed is playable directly, but its title and
+                // author alone must not match a different same-credited edition.
                 PlayBook(group, null);
                 break;
             case LibraryGroup group:
