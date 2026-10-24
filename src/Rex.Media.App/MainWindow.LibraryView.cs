@@ -106,12 +106,27 @@ public sealed partial class MainWindow
 
     private void KeepViewChoice(LibraryViewChoice choice)
     {
-        choice = LibraryViewDefaults.Keep(ViewChoice(_libraryViewKey), choice);
+        var previous = ViewChoice(_libraryViewKey);
+        var orderChanged = previous.Sort != choice.Sort || previous.Descending != choice.Descending;
+        choice = LibraryViewDefaults.Keep(previous, choice);
         _shelfChoice = null;
         _settings = _settings with { LibraryViews = new Dictionary<string, LibraryViewChoice>(_settings.LibraryViews, StringComparer.Ordinal) { [_libraryViewKey] = choice.Normalize() } };
         RememberLater();
         _shownLibrary = "";
         ShowLibrary();
+        // A new sort begins at the first item in that order. Otherwise the
+        // previous scroll anchor can make a genuinely sorted Songs list look
+        // unordered (and hides its first rows from keyboard navigation).
+        if (orderChanged)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!_closed && LibraryList.Visibility == Visibility.Visible && LibraryList.Items.Count > 0)
+                {
+                    LibraryList.ScrollIntoView(LibraryList.Items[0]);
+                }
+            });
+        }
     }
 
     /// <summary>Brings the open view in line with the library; the list is replaced only when what it shows has changed.</summary>
