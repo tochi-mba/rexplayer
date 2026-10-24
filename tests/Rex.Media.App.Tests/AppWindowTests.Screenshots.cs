@@ -54,6 +54,15 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.IsShown("IdleTitle") && app.IsShown("PlayPauseButton"),
             "the stage and transport to be visible");
 
+        Wait.For(() =>
+        {
+            var resized = app.Window.Current.BoundingRectangle;
+            var action = app.Find("PlayPauseButton").Current.BoundingRectangle;
+            return action.Width > 0 && action.Height > 0
+                && action.Left >= resized.Left && action.Right <= resized.Right
+                && action.Top >= resized.Top && action.Bottom <= resized.Bottom;
+        }, "the primary playback action to finish laying out inside the resized window");
+
         var window = app.Window.Current.BoundingRectangle;
         var stage = app.Find("Stage").Current.BoundingRectangle;
         var play = app.Find("PlayPauseButton").Current.BoundingRectangle;
