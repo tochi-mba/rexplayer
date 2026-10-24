@@ -564,7 +564,7 @@
                  IsOpen="False" IsClosable="True" Severity="Informational" AutomationProperties.AutomationId="LibraryNotice" />
       </Grid>
       <Grid x:Name="PlaylistPane" Grid.Column="1" Width="344" Visibility="Collapsed" Padding="10,8"
-            Background="{ThemeResource LayerFillColorDefaultBrush}" AutomationProperties.AutomationId="PlaylistPane">
+            Background="{ThemeResource LayerFillColorDefaultBrush}" AutomationProperties.AutomationId="PlaylistPane" AutomationProperties.Name="Up Next queue">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <StackPanel Margin="6,2,0,10" Spacing="2">
           <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" />
