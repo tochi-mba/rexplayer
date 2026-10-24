@@ -25,6 +25,7 @@ public sealed class LibrarySpokenWordScreenshots : IDisposable
         _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromMinutes(3));
         _scene.Audio(Path.Combine("Downloads", "ding.wav"), TimeSpan.FromSeconds(3));
         using var app = _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark }).Start();
+        Screenshots.PinViewport(app, 1000, 760);
         app.Visit("Podcasts");
         app.Open("Night Talk");
         Wait.For(() => app.Lines().SequenceEqual(["Ep 1"]) &&
@@ -50,6 +51,7 @@ public sealed class LibrarySpokenWordScreenshots : IDisposable
         _scene.Audio(Path.Combine("Phone", "Recording 001.wav"), TimeSpan.FromMinutes(3));
         _scene.Audio(Path.Combine("Downloads", "ding.wav"), TimeSpan.FromSeconds(2));
         using var app = _scene.Ready(settings => settings with { Theme = ThemeChoice.Light }).Start();
+        Screenshots.PinViewport(app, 1000, 760);
 
         Wait.For(() => app.IsShown("LibraryShelf-PodcastShows"),
             "the home podcast shelf to settle before its capture");

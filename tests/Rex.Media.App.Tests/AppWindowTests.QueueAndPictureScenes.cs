@@ -45,7 +45,7 @@ public sealed partial class AppWindowTests
     }
 
     [Theory]
-    [InlineData(1060, 760, "Light", "normal-light")]
+    [InlineData(1000, 760, "Light", "normal-light")]
     [InlineData(780, 620, "Dark", "compact-dark")]
     [Capability("UI-13")]
     public void EmptyQueueScreenshotsHaveAccessibleEmptyStates(int width, int height, string theme, string scene)
@@ -61,7 +61,7 @@ public sealed partial class AppWindowTests
     }
 
     [Theory]
-    [InlineData(1060, 760, "Light", "normal-light")]
+    [InlineData(1000, 760, "Light", "normal-light")]
     [InlineData(780, 620, "Dark", "compact-dark")]
     [Capability("UI-13")]
     public void PopulatedQueueScreenshotsKeepNowNextAndMeasuredDuration(int width, int height, string theme, string scene)
@@ -69,8 +69,7 @@ public sealed partial class AppWindowTests
         var song = Song(120);
         var next = Named("Terminator", 120);
         using var app = AppProcess.Start([song, next], extraSettings: $"\"theme\": \"{theme}\"");
-        var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
-        transform.Resize(width, height);
+        Screenshots.PinViewport(app, width, height);
         Wait.For(() => app.Text("NowPlaying") == "Sungba" && app.Find("StartOverButton").Current.IsEnabled,
             "the song and its transport controls");
 
@@ -100,6 +99,7 @@ public sealed partial class AppWindowTests
         File.WriteAllText(playlist, string.Join("\n", Enumerable.Repeat(Path.GetFileName(song), 500)
             .Concat(["file-not-on-disk.mp3"])));
         using var app = AppProcess.Start([playlist], extraSettings: "\"theme\": \"Dark\"");
+        Screenshots.PinViewport(app, 1000, 760);
         app.Run(CommandCatalog.TogglePlaylist);
         Wait.For(() => app.Text("PlaylistQueueCount") == "501 items", "large queue to load");
         var view = app.Find("PlaylistView");
@@ -124,6 +124,7 @@ public sealed partial class AppWindowTests
         library.SetReadDetails([(image, null, "The image header is invalid")]);
 
         using var app = fixture.Start();
+        Screenshots.PinViewport(app, 1000, 760);
         app.Visit("Pictures");
         Wait.For(() => app.Find("LibraryList").FindAll(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text))
@@ -145,6 +146,7 @@ public sealed partial class AppWindowTests
         fixture.Picture("Family.jpg");
         fixture.Picture("Studio.jpg");
         using var app = fixture.Ready().Start();
+        Screenshots.PinViewport(app, 1000, 760);
         app.Visit("Pictures");
         Wait.For(() => app.Text("LibraryTitle") == "Pictures" && app.Text("LibrarySubtitle").StartsWith("3 pictures", StringComparison.Ordinal),
             "the three pictures to appear");

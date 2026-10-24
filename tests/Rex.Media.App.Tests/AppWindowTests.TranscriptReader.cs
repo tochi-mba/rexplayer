@@ -91,6 +91,7 @@ public sealed partial class AppWindowTests
         });
 
         using var app = AppProcess.Start([media], root);
+        Screenshots.PinViewport(app, 1000, 760);
         var menu = (ExpandCollapsePattern)app.Find("SubtitleMenu")
             .GetCurrentPattern(ExpandCollapsePattern.Pattern);
         menu.Expand();

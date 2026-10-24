@@ -48,11 +48,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         var detail = "Downloading · 6 KB of 11 KB";
         Wait.For(() => Shows(app, "LibraryShelfCards-Downloading", detail), "the Downloading shelf with the partial video");
         Assert.True(HasBadge(app, "LibraryShelfCards-Downloading"), "a partial file's card should wear the download badge");
-        var loadingViewport = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
-        loadingViewport.Resize(1000, 760);
-        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2
-            && Math.Abs(app.Window.Current.BoundingRectangle.Height - 760) < 2,
-            "the pinned downloading-state viewport");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-card-downloading", "LibraryShelfCards-Downloading");
 
         // Videos: the Download filter keeps only what is still arriving, or only what is whole.
@@ -114,11 +110,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         BinaryPrimitives.WriteUInt64BigEndian(control.AsSpan(34), 100);
         File.WriteAllBytes(clip + ".aria2", control);
         using var app = _scene.Watched().Start();
-        var noticeViewport = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
-        noticeViewport.Resize(1000, 700);
-        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2
-            && Math.Abs(app.Window.Current.BoundingRectangle.Height - 700) < 2,
-            "the pinned incomplete-file notice viewport");
+        Screenshots.PinViewport(app, 1000, 700);
         app.Visit("All videos");
         app.Pick("LibraryLook", "List");
         app.Choose("Clip");
