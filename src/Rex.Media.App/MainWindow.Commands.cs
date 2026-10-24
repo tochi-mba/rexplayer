@@ -20,9 +20,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private const string HelpUrl = "https://tochi-mba.github.io/rexplayer/";
-
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
-
     /// <summary>The current rate remains visible while the player is paused or changing items.</summary>
     private void ShowSpeed()
     {
@@ -32,9 +30,7 @@ public sealed partial class MainWindow
         var keys = string.Join(" and ", new[] { _keymap.Label(CommandCatalog.Faster), _keymap.Label(CommandCatalog.Slower) }.Where(key => key.Length > 0));
         ToolTipService.SetToolTip(SpeedButton, "Playback speed: " + label + ". Choose a rate" + (keys.Length > 0 ? ", or use " + keys + " to change it." : "."));
     }
-
     private static string SpeedLabel(double speed) => speed.ToString("0.##", CultureInfo.InvariantCulture) + "\u00D7";
-
     /// <summary>Offer slower and faster speeds in one place, including one-touch return to normal.</summary>
     private void OnSpeedButton(object sender, RoutedEventArgs e)
     {
@@ -66,7 +62,6 @@ public sealed partial class MainWindow
 
         menu.ShowAt(SpeedButton);
     }
-
     private void BuildMenus()
     {
         _menuChecks.Clear();
@@ -111,7 +106,6 @@ public sealed partial class MainWindow
         BuildNamedPlaylistMenus();
         BuildTranscriptMenus();
     }
-
     private void Fill(IList<MenuFlyoutItemBase> items, string?[] commands, string prefix)
     {
         foreach (var id in commands)
@@ -143,10 +137,8 @@ public sealed partial class MainWindow
             }
         }
     }
-
     // Menu items that are on or off, ticked to match.
     private readonly List<(ToggleMenuFlyoutItem Item, string Command)> _menuChecks = [];
-
     /// <summary>Whether what <paramref name="command"/> switches is on now.</summary>
     private bool IsOn(string command) => command switch
     {
@@ -166,7 +158,6 @@ public sealed partial class MainWindow
         CommandCatalog.ToggleLibrary => LibraryOpen,
         _ => _settings.MinimalInterface,
     };
-
     /// <summary>Ticks every on-and-off menu item to match what is on now: after every command and every change of the player.</summary>
     private void ShowMenuChecks()
     {
@@ -175,7 +166,6 @@ public sealed partial class MainWindow
             item.IsChecked = IsOn(command);
         }
     }
-
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
     private void Run(string command)
     {
@@ -186,7 +176,6 @@ public sealed partial class MainWindow
             RefreshJumpListLater();
         }
     }
-
     private void RunCommand(string command)
     {
         if (_player.Execute(command))
@@ -340,7 +329,6 @@ public sealed partial class MainWindow
                 break;
         }
     }
-
     private void SetFullScreen(bool fullScreen)
     {
         if (fullScreen == IsFullScreen)
@@ -373,7 +361,6 @@ public sealed partial class MainWindow
         // The update card waits out full-screen playback and comes back on leaving it.
         ShowUpdates();
     }
-
     private void ShowFullScreenControls()
     {
         _pointerTimer.Stop();
@@ -382,7 +369,6 @@ public sealed partial class MainWindow
         _controlsTimer.Stop();
         _controlsTimer.Start();
     }
-
     private void HideFullScreenControls()
     {
         if (IsFullScreen && !FocusIsInside(Controls))
@@ -392,7 +378,6 @@ public sealed partial class MainWindow
             _pointerTimer.Start();
         }
     }
-
     /// <summary>Whether keyboard focus is on <paramref name="bar"/> or on anything inside it, such as one of its buttons.</summary>
     private bool FocusIsInside(UIElement bar)
     {
@@ -403,7 +388,6 @@ public sealed partial class MainWindow
 
         return Rex.Media.AppCore.Shell.FocusWithin.IsInside<DependencyObject>(focused, bar, Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent);
     }
-
     /// <summary>The pointer is the last piece of full-screen chrome to leave.</summary>
     private void HideFullScreenPointer()
     {
@@ -413,7 +397,6 @@ public sealed partial class MainWindow
             App.Log.Debug(LogSource, "Hid the pointer over the full-screen picture.");
         }
     }
-
     /// <summary>The pointer follows full-screen activity without obscuring a settled picture.</summary>
     private static void ShowPointer(bool shown)
     {
@@ -422,7 +405,6 @@ public sealed partial class MainWindow
             Rex.Media.Interop.Windowing.PointerVisibility.SetHidden(!shown);
         }
     }
-
     /// <summary>
     /// Compact window chrome without hiding the timeline, time labels, Play/Pause or volume.
     /// Full-screen controls still follow the separate auto-hide timer.
@@ -468,14 +450,12 @@ public sealed partial class MainWindow
             Controls.Visibility = Visibility.Visible;
         }
     }
-
     /// <summary>Restore the controls and keep keyboard focus on a visible playback action.</summary>
     private void OnRestoreFullInterface(object sender, RoutedEventArgs e)
     {
         Run(CommandCatalog.MinimalInterface);
         PlayPauseButton.Focus(FocusState.Programmatic);
     }
-
     private void ApplyAlwaysOnTop()
     {
         if (AppWindow.Presenter is OverlappedPresenter overlapped)
@@ -484,7 +464,6 @@ public sealed partial class MainWindow
                 || (_settings.AlwaysOnTop == AlwaysOnTop.WhilePlaying && _player.IsPlaying);
         }
     }
-
     /// <summary>Sizes the window so the picture shows at <paramref name="factor"/> times its own size, pixel for pixel.</summary>
     private void ScaleToVideo(double factor)
     {
@@ -513,7 +492,6 @@ public sealed partial class MainWindow
             (int)Math.Round((displayHeight * factor) + chromeHeight)));
         Say(string.Create(CultureInfo.InvariantCulture, $"{factor * 100:0} %"));
     }
-
     /// <summary>Video keeps the screen on; sound alone only keeps the PC awake (VID-29).</summary>
     private void KeepAwake(bool display, bool system)
     {
@@ -527,7 +505,6 @@ public sealed partial class MainWindow
             ApplyAlwaysOnTop();
         }
     }
-
     /// <summary>Saves the picture on screen, at the source's own size and without the overlays, to Pictures\rexplayer.</summary>
     private async Task SnapshotAsync()
     {
@@ -554,7 +531,6 @@ public sealed partial class MainWindow
             Say("The snapshot could not be taken: " + ex.Message);
         }
     }
-
     /// <summary>Hands the chosen aspect ratio and crop to the presenter, redrawing at once when paused.</summary>
     private void ApplyShape()
     {
@@ -570,7 +546,6 @@ public sealed partial class MainWindow
             }
         });
     }
-
     /// <summary>Shows or hides the statistics, refreshed every second while shown.</summary>
     private void ApplyStatsOverlay()
     {
@@ -585,7 +560,6 @@ public sealed partial class MainWindow
             _statsTimer.Stop();
         }
     }
-
     private async Task RefreshStatsAsync()
     {
         var stats = await _player.StatsAsync();
@@ -593,7 +567,6 @@ public sealed partial class MainWindow
         Stats.Text = stats is null ? "Nothing is playing." : StatsText.Describe(stats, _player.Info, _player.AudioTrack, _lastStats, now - _lastStatsAt);
         (_lastStats, _lastStatsAt) = (stats, now);
     }
-
     /// <summary>
     /// Answers the automation pipe (TOOL-03): a later launch's files, a command by id, or the state.
     /// Called on the pipe's thread, so the work is done on the window's.
@@ -656,7 +629,6 @@ public sealed partial class MainWindow
         });
         return queued ? answered.Task : Task.FromResult(AutomationReply.Failed("The player is closing."));
     }
-
     /// <summary>Brings the window back from the taskbar and to the front.</summary>
     private void ComeForward()
     {
@@ -667,15 +639,12 @@ public sealed partial class MainWindow
 
         Activate();
     }
-
     private T Prepared<T>(T picker)
     {
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         return picker;
     }
-
     private void OnWelcomeOpen(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Forget(OpenFilesAsync());
-
     private async Task OpenFilesAsync()
     {
         var picker = Prepared(new FileOpenPicker { SuggestedStartLocation = PickerLocationId.VideosLibrary, ViewMode = PickerViewMode.List });
@@ -686,7 +655,6 @@ public sealed partial class MainWindow
             _player.Open(PathsOf(files));
         }
     }
-
     private async Task OpenFolderAsync()
     {
         var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary });

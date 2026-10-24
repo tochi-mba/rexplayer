@@ -3,9 +3,7 @@ using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
-
 namespace Rex.Media.App.Tests;
-
 /// <summary>
 /// The window's own features, each driven through the menus or the automation pipe and checked
 /// on the real window: menus, full screen, always on top, the minimal interface, subtitles, sizing
@@ -15,18 +13,14 @@ namespace Rex.Media.App.Tests;
 public sealed partial class AppWindowTests : IDisposable
 {
     private readonly string _media = Path.Combine(Path.GetTempPath(), "rexplayer-ui-media-" + Guid.NewGuid().ToString("N"));
-
     public AppWindowTests() => Directory.CreateDirectory(_media);
-
     public void Dispose() => Directory.Delete(_media, recursive: true);
-
     private string Song(int seconds)
     {
         var path = Path.Combine(_media, "Sungba.wav");
         File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * seconds])).Build());
         return path;
     }
-
     /// <summary>
     /// A song with a beat: a kick on every beat at 120 a minute, hardest on the first of each bar,
     /// a snare on two and four, over a held chord. 48 kHz stereo, so the visualisations hear it all.
@@ -45,12 +39,10 @@ public sealed partial class AppWindowTests : IDisposable
             var pad = 0.06 * (Math.Sin(Math.Tau * 220 * t) + Math.Sin(Math.Tau * 277.2 * t) + Math.Sin(Math.Tau * 329.6 * t));
             samples[i * 2] = samples[(i * 2) + 1] = (float)Math.Clamp(kick + snare + pad, -1, 1);
         }
-
         var path = Path.Combine(_media, "Terminator.wav");
         File.WriteAllBytes(path, WavBuilder.Pcm(Rate, 2, 16, Pcm.Int16(samples)).Build());
         return path;
     }
-
     /// <summary>A scratch data folder whose settings start with <paramref name="visualisation"/> showing.</summary>
     private static string RootShowing(string visualisation)
     {
@@ -59,10 +51,8 @@ public sealed partial class AppWindowTests : IDisposable
         File.WriteAllText(Path.Combine(root, "settings.json"), "{ \"firstRunDone\": true, \"lastSeenVersion\": \"" + AppProcess.Version + "\", \"updateChecks\": \"Off\", \"visualizer\": \"" + visualisation + "\" }");
         return root;
     }
-
     private static AutomationElement[] All(AutomationElement root, ControlType type) =>
         [.. root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, type)).Cast<AutomationElement>()];
-
     [Fact]
     [Capability("VID-23")]
     public void VideoLookMenuChangesTheSavedStyleAndReturnsToOriginal()
@@ -74,7 +64,6 @@ public sealed partial class AppWindowTests : IDisposable
         looks.Expand();
         app.Press("VideoLook-Monochrome");
         Wait.For(() => app.SavedSettings.VideoLook == VideoLook.Monochrome, "the picture look to be saved");
-
         videoMenu.Expand();
         looks = (ExpandCollapsePattern)app.Find("VideoLook-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         looks.Expand();
@@ -82,7 +71,6 @@ public sealed partial class AppWindowTests : IDisposable
         Wait.For(() => app.SavedSettings.VideoLook == VideoLook.Original, "Original to restore the video");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("VID-23")]
     public void VideoEffectsAreSelectedInTheirOwnMenuAndSavedIndependentlyFromLooks()
@@ -97,7 +85,6 @@ public sealed partial class AppWindowTests : IDisposable
         app.Press("VideoEffect-NeonEdges");
         Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.NeonEdges, "the effect choice to be saved");
         Assert.Equal(VideoLook.Original, app.SavedSettings.VideoLook);
-
         menu.Expand();
         effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         effects.Expand();
@@ -105,7 +92,6 @@ public sealed partial class AppWindowTests : IDisposable
         Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.Off, "effect Off to be restored");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     public void SubjectLockControlsAreIndependentOfPictureEffectsAndCanCloseCleanly()
     {
@@ -113,7 +99,6 @@ public sealed partial class AppWindowTests : IDisposable
         // picture keeps the presentation surface available for deterministic toolbar checks.
         using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png")]);
         Wait.For(() => !app.IsShown("VideoBlank"), "the picture to be visible");
-
         var videoMenu = (ExpandCollapsePattern)app.Find("VideoMenu")
             .GetCurrentPattern(ExpandCollapsePattern.Pattern);
         videoMenu.Expand();
@@ -125,7 +110,6 @@ public sealed partial class AppWindowTests : IDisposable
         Assert.Equal(50.0, ((RangeValuePattern)app.Find("SubjectTolerance")
             .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         Assert.Equal(VideoEffect.Off, app.SavedSettings.VideoEffect);
-
         // The primary actions must fit horizontally inside the picture. The remaining
         // controls are in a vertically scrollable card, never in a clipped action row.
         var stage = app.Find("Stage").Current.BoundingRectangle;
@@ -135,7 +119,6 @@ public sealed partial class AppWindowTests : IDisposable
             Assert.True(action.Left >= stage.Left && action.Right <= stage.Right + 1,
                 $"{id} is clipped by the right edge of the picture");
         }
-
         Assert.Equal(ToggleState.On, ((TogglePattern)app.Find("SubjectFollow")
             .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
         Assert.Equal(ToggleState.On, ((TogglePattern)app.Find("SubjectShowBox")
@@ -148,7 +131,6 @@ public sealed partial class AppWindowTests : IDisposable
             .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
         app.Toggle("SubjectShowBox");
         app.Toggle("SubjectFollow");
-
         // This invokes actual presenter selection, rather than merely opening the toolbar.
         // Even a low-texture fixture must respond (either a lock or an explicit refusal).
         app.Press("SubjectCenter");
@@ -162,53 +144,44 @@ public sealed partial class AppWindowTests : IDisposable
             "the selection command to reach the video presenter",
             () => $"Last status: {app.Text("SubjectStatusText")}. App log tail: "
                 + string.Join(" | ", app.LogText.Split('\n').TakeLast(15)));
-
         app.Press("SubjectReset");
         Assert.True(app.IsShown("SubjectSelect"));
         app.Press("SubjectClose");
         Wait.For(() => !app.IsShown("SubjectSelect"), "the selection tools to close");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("PB-06")]
     public void PlaybackSpeedCanBeSlowedRaisedAndRestoredFromItsControl()
     {
         using var app = AppProcess.Start([Song(30)]);
-
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1\u00D7", "the normal speed to be shown");
         app.Press("SpeedButton");
         Assert.Contains("current speed", app.Find("SpeedRate-1").Current.Name, StringComparison.Ordinal);
         app.Press("SpeedRate-0.5");
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 0.5\u00D7", "the slower speed to be shown");
-
         app.Run(CommandCatalog.SlightlyFaster);
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 0.6\u00D7", "the fine speed step to be shown");
         app.Press("SpeedButton");
         app.Press("SpeedRate-2");
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 2\u00D7", "the faster speed to be shown");
-
         app.Run(CommandCatalog.NormalSpeed);
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1\u00D7", "the reset speed to be shown");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("VID-03")]
     [Capability("UI-04")]
     public void FullScreenHidesTheMenusAndLeavingBringsThemBack()
     {
         using var app = AppProcess.Start();
-
         app.Run(CommandCatalog.ToggleFullScreen);
         Wait.For(() => !app.IsShown("Menu"), "the menus to go in full screen");
         Assert.True(app.IsShown("PlayPauseButton"), "Moving into full screen shows the controls for a moment.");
-
         app.Run(CommandCatalog.LeaveFullScreen);
         Wait.For(() => app.IsShown("Menu"), "the menus to come back");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("VID-27")]
     public void AlwaysOnTopKeepsTheWindowAboveOthersUntilTurnedOff()
@@ -216,14 +189,12 @@ public sealed partial class AppWindowTests : IDisposable
         using var app = AppProcess.Start();
         var window = (WindowPattern)app.Window.GetCurrentPattern(WindowPattern.Pattern);
         Assert.False(window.Current.IsTopmost);
-
         app.Run(CommandCatalog.ToggleAlwaysOnTop);
         Wait.For(() => window.Current.IsTopmost, "the window to stay on top");
         app.Run(CommandCatalog.ToggleAlwaysOnTop);
         Wait.For(() => !window.Current.IsTopmost, "the window to stop staying on top");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("SUB-14")]
     [Capability("OSD-01")]
@@ -237,9 +208,7 @@ public sealed partial class AppWindowTests : IDisposable
             Hello from the subtitles
             """);
         using var app = AppProcess.Start([film]);
-
         Wait.For(() => app.IsShown("SubtitleText") && app.Text("SubtitleText") == "Hello from the subtitles", "the subtitle to show");
-
         app.Run(CommandCatalog.ToggleSubtitles);
         Wait.For(() => !app.IsShown("SubtitleText"), "the subtitle to go");
         app.Run(CommandCatalog.SubtitlesBigger);
