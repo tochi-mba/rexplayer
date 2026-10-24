@@ -121,6 +121,12 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (CompletedSelectionSpansBooks(ChosenRows()))
+        {
+            Say("Choose one finished audiobook to play.");
+            return;
+        }
+
         // A shelf of audiobook cards is not a mixed-file playlist. The
         // single-card case already routed through PlayBookCard above; no
         // selection or a multi-selection must never autoplay all books together.
@@ -158,6 +164,12 @@ public sealed partial class MainWindow
         }
 
         var rows = ChosenRows();
+        if (CompletedSelectionSpansBooks(rows))
+        {
+            Say("Choose one finished audiobook to queue.");
+            return;
+        }
+
         foreach (var playlist in rows.Select(row => row.Item).OfType<NamedPlaylist>())
         {
             _player.PlayPlaylist(playlist.Id, enqueue: true);
@@ -170,6 +182,16 @@ public sealed partial class MainWindow
             Say($"Added {LibraryActions.Count(entries.Count, "item")} to the playlist");
         }
     }
+
+    /// <summary>
+    /// Completed mixes whole books with individual movies and recordings. The
+    /// implicit "all" selection must never flatten a finished book together
+    /// with another book or unrelated media into a single playback queue.
+    /// A single explicit book remains playable via the normal book action.
+    /// </summary>
+    private bool CompletedSelectionSpansBooks(IReadOnlyList<LibraryRow> rows) =>
+        _librarySource == LibrarySource.Completed && rows.Count != 1
+        && rows.Any(row => row.Item is LibraryGroup);
 
     /// <summary>Plays from the visible library view and follows the chosen player transition.</summary>
     private void Play(IReadOnlyList<LibraryEntry> entries, int start, bool resume = false)
