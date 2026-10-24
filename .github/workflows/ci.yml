@@ -306,6 +306,7 @@ jobs:
         run: |
           python3 scripts/check_site.py
           python3 scripts/check_release_notes.py
+          python3 scripts/check_release_media.py
           python3 -m unittest discover -s tests/site -p "test_*.py"
 
       - name: Test the page script
