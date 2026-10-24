@@ -384,8 +384,10 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
-    [Fact]
-    public void AFocusedMovieVersionPickerReturnsFocusWhenPicturePlaybackReplacesTheFilm()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AFocusedMovieVersionPickerOrFlyoutReturnsFocusWhenPicturePlaybackReplacesTheFilm(bool focusFlyoutItem)
     {
         var movie = _scene.Film("Focus.Film.2023.1080p.mp4");
         _scene.Film("Focus.Film.2023.720p.mp4");
@@ -400,6 +402,16 @@ public sealed class MediaStageWindowTests : IDisposable
         picker.SetFocus();
         Wait.For(() => picker.Current.HasKeyboardFocus,
             "the movie version picker to own keyboard focus");
+        if (focusFlyoutItem)
+        {
+            app.Press("MovieVersionButton");
+            Wait.For(() => app.IsShown("MovieVersion-1"),
+                "a separately focusable alternate resolution menu item");
+            app.Find("MovieVersion-1").SetFocus();
+            Wait.For(() => app.Find("MovieVersion-1").Current.HasKeyboardFocus,
+                "the movie's alternate resolution to own keyboard focus");
+        }
+
         app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
         Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage"
             && !app.IsShown("MovieVersionButton"),
