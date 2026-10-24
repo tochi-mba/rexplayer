@@ -345,13 +345,13 @@ public sealed class MediaStageWindowTests : IDisposable
         Assert.True(bounds.Width >= 42 && bounds.Height >= 42,
             "The picture interval picker must be touch-sized at standard DPI.");
         Assert.False(app.Find("SeekBar").Current.IsEnabled);
-        app.Press("PictureIntervalButton");
+        Pointer.Key(app, "PictureIntervalButton", Pointer.Enter);
         Wait.For(() => app.IsShown("PictureInterval-10"),
             "picture interval options to open");
         bounds = app.Find("PictureInterval-10").Current.BoundingRectangle;
         Assert.True(bounds.Width >= 42 && bounds.Height >= 42,
             "Each slideshow interval choice must have a touch-sized target.");
-        app.Press("PictureInterval-10");
+        Pointer.Key(app, app.Find("PictureInterval-10"), Pointer.Enter);
         Wait.For(() => app.Find("PictureIntervalButton").Current.Name
             == "Slideshow interval, 10 seconds per picture",
             "the selected picture interval to be announced to screen readers");
