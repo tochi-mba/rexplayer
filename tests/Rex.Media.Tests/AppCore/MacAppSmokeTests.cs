@@ -61,6 +61,9 @@ public sealed class MacAppSmokeTests
             var emptyLibrary = await Library(pipe, "show");
             Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-empty");
+            // The reviewed "empty" baseline must be taken now, before adding
+            // a watched folder or resizing the AppKit library to minimum width.
+            await CaptureLibraryScreenshot(pipe, "empty", root);
             await Library(pipe, "add-folder", libraryFixture);
             var populated = await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "mac-library", Id = "status" }),
@@ -97,8 +100,8 @@ public sealed class MacAppSmokeTests
             Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-empty");
 
-            // Exercise the real AppKit library construction and the shared View command on an
-            // empty catalogue before opening a video. A native layout exception kills this smoke test.
+            // Exercise closing and reopening the real AppKit library through the
+            // shared View command. The catalogue is populated at this point.
             // Library smoke actions have already shown the AppKit window.
             // Close it first so this shared toggle really tests opening it.
             var closePreviouslyOpenLibrary = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
@@ -106,7 +109,6 @@ public sealed class MacAppSmokeTests
             var library = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(library?.Ok == true, "The Mac library command did not open: " + (library?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The app stopped answering with its library open." + LogTail(root));
-            await CaptureLibraryScreenshot(pipe, "empty", root);
             var back = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(back?.Ok == true, "The Mac library did not close through its shared command: " + (back?.Error ?? "no reply") + LogTail(root));
 
