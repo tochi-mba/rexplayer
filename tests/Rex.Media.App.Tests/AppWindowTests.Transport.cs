@@ -45,7 +45,10 @@ public sealed partial class AppWindowTests
         // Paused, every jump lands exactly where its length says.
         app.Press("PlayPauseButton");
         Wait.For(() => app.Find("PlayPauseButton").Current.Name == "Play" && app.Status().State == "Paused", "the pause");
-        Pointer.Click(app, app.Find("StartOverButton"));
+        // UI Automation invokes the native button reliably on unattended CI desktops;
+        // synthesized pointer clicks can land before WinUI has updated its hit target.
+        Wait.For(() => IsEnabled(app, "StartOverButton"), "Start over to become available");
+        app.Press("StartOverButton");
         WaitForPosition(app, 0, "the start");
         (string Command, double To)[] jumps =
         [
