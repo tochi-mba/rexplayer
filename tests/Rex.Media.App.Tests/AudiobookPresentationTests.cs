@@ -358,8 +358,11 @@ public sealed class AudiobookPresentationTests : IDisposable
         app.Visit("Audiobooks");
         Wait.For(() => app.Text("LibraryPlayText") == "Play",
             "the audiobook shelf to restore the ordinary play action");
-        Assert.True(app.IsShown("LibraryShuffle"));
+        Assert.False(app.IsShown("LibraryShuffle"),
+            "sequential audiobook parts must never become a shuffled multi-book queue");
         Assert.True(app.IsShown("LibraryEnqueue"));
+        app.Press("LibraryPlay");
+        Assert.Empty(app.Queue());
         Assert.Equal(0, app.Close());
     }
 
