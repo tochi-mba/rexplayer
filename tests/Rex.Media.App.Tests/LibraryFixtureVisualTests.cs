@@ -118,18 +118,21 @@ public sealed partial class LibraryFixtureVisualTests
         app.Press("LibraryNavigationToggle");
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation",
             "the temporary sidebar labels to appear");
+        Screenshots.Match(app, "library-compact-temporary-navigation", "LibraryPane");
 
         app.Visit("Songs");
         Wait.For(() => app.Text("LibraryTitle") == "Songs" &&
             app.Find("LibraryNavigationToggle").Current.Name == "Expand library navigation",
             "the chosen Songs route to reclaim its content width");
         Assert.InRange(app.Find("LibrarySources").Current.BoundingRectangle.Width, 55, 75);
+        Screenshots.Match(app, "library-compact-route-reclaims-width", "LibraryPane");
 
         // Temporary expansion must not change the saved desktop preference or the route.
         SetViewport(app, 1000, 760);
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation",
             "desktop navigation to restore its original expanded preference");
         Assert.Equal("Songs", app.Text("LibraryTitle"));
+        Screenshots.Match(app, "library-desktop-expanded-navigation-restored", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 
