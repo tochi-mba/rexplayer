@@ -35,7 +35,18 @@ internal static partial class Pointer
         var box = element.Current.BoundingRectangle;
         Assert.False(box.IsEmpty, "The hover target has no place on screen.");
         Assert.InRange(fraction, 0, 1);
-        Assert.True(SetCursorPos((int)(box.Left + (box.Width * fraction)), (int)(box.Top + (box.Height * 0.5))),
+        // A single instantaneous cursor warp can be coalesced with a WinUI
+        // Slider's own pointer-enter processing. Enter from outside, allow the
+        // event to be delivered, then approach the requested position as a
+        // physical pointer would. This does not click or alter playback.
+        var y = (int)(box.Top + (box.Height * 0.5));
+        Assert.True(SetCursorPos((int)box.Left - 12, y),
+            "The pointer could not approach the target.");
+        Thread.Sleep(80);
+        Assert.True(SetCursorPos((int)(box.Left + (box.Width * 0.15)), y),
+            "The pointer could not enter the slider.");
+        Thread.Sleep(80);
+        Assert.True(SetCursorPos((int)(box.Left + (box.Width * fraction)), y),
             "The pointer could not hover over the target.");
     }
 
