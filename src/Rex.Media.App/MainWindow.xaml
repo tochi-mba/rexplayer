@@ -820,16 +820,16 @@
             <MenuFlyout x:Name="MovieVersionMenu" />
           </DropDownButton.Flyout>
         </DropDownButton>
-        <DropDownButton x:Name="PictureIntervalButton" Visibility="Collapsed" Content="Slideshow · 5 s" Padding="6,2"
+        <DropDownButton x:Name="PictureIntervalButton" Visibility="Collapsed" Content="Slideshow · 5 s" Padding="10,8" MinWidth="44" MinHeight="44"
                         AutomationProperties.AutomationId="PictureIntervalButton" AutomationProperties.Name="Slideshow interval"
                         ToolTipService.ToolTip="Choose how long each picture stays; Play/Pause and Previous/Next control the slideshow">
           <DropDownButton.Flyout>
             <MenuFlyout>
-              <MenuFlyoutItem Text="2 seconds" Tag="2" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
-              <MenuFlyoutItem Text="5 seconds" Tag="5" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
-              <MenuFlyoutItem Text="10 seconds" Tag="10" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
-              <MenuFlyoutItem Text="30 seconds" Tag="30" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
-              <MenuFlyoutItem Text="60 seconds" Tag="60" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
+              <MenuFlyoutItem Text="2 seconds" Tag="2" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
+              <MenuFlyoutItem Text="5 seconds" Tag="5" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
+              <MenuFlyoutItem Text="10 seconds" Tag="10" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
+              <MenuFlyoutItem Text="30 seconds" Tag="30" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
+              <MenuFlyoutItem Text="60 seconds" Tag="60" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
             </MenuFlyout>
           </DropDownButton.Flyout>
         </DropDownButton>
