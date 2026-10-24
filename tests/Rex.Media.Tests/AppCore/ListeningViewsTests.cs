@@ -424,6 +424,41 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void IdenticalChapterMarkersKeepTheirIdentityWhenEarlierChaptersArrive()
+    {
+        var part = AudioFile("Audiobooks/Writer/Book/Whole.m4b", TimeSpan.FromMinutes(30)) with
+        {
+            Chapters =
+            [
+                new LibraryChapter(TimeSpan.FromMinutes(5), "Repeat"),
+                new LibraryChapter(TimeSpan.FromMinutes(2), "Between"),
+                new LibraryChapter(TimeSpan.FromMinutes(5), "Repeat"),
+                new LibraryChapter(TimeSpan.FromMinutes(5), "Different"),
+            ],
+        };
+        var book = new LibraryGroup("Book", "Writer", [part]);
+        var original = ListeningViews.Chapters(book);
+        Assert.Equal(["Between", "Repeat", "Repeat", "Different"], original.Select(chapter => chapter.Title));
+        Assert.Equal([0, 1], original.Where(chapter => chapter.Title == "Repeat")
+            .Select(chapter => chapter.SameMarkIndex));
+
+        // Adding a different mark at the beginning changes every display badge,
+        // but the identity of either existing "Repeat" chapter is unchanged.
+        var updated = part with
+        {
+            Chapters = [new LibraryChapter(TimeSpan.Zero, "Preface"), .. part.Chapters!],
+        };
+        var afterScan = ListeningViews.Chapters(new LibraryGroup("Book", "Writer", [updated]));
+        var originalKeys = original.Where(chapter => chapter.Title == "Repeat")
+            .Select(chapter => (chapter.Part.Path, chapter.Start, chapter.Title, chapter.SameMarkIndex));
+        var updatedKeys = afterScan.Where(chapter => chapter.Title == "Repeat")
+            .Select(chapter => (chapter.Part.Path, chapter.Start, chapter.Title, chapter.SameMarkIndex));
+        Assert.Equal(originalKeys, updatedKeys);
+        Assert.Equal(0, afterScan[0].SameMarkIndex);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ShowsMergeAcrossFoldersByTheirNameAndListEpisodesNewestFirst()
     {
         var older = AudioFile("Podcasts/The Daily/Ep 1.mp3", TimeSpan.FromMinutes(20), "Host", "The Daily", year: 2023) with { Modified = new DateTime(2023, 5, 1, 0, 0, 0, DateTimeKind.Utc) };
