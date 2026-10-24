@@ -307,7 +307,11 @@ public sealed partial class MainWindow
                 }
             }
 
-            StageChapterMenu.Hide();
+            if (_shownChapterItem is not null || StageChaptersButton.Visibility == Visibility.Visible)
+            {
+                StageChapterMenu.Hide();
+            }
+
             StageChaptersButton.Visibility = Visibility.Collapsed;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(StageChaptersButton, "");
             if (_shownChapterItem is not null)
