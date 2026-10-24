@@ -337,12 +337,17 @@
       "expectedAutomationIds": [
         "LibraryPane",
         "LibraryList",
-        "LibraryTitle"
+        "LibraryTitle",
+        "LibraryKicker"
       ],
       "expectedVisibleData": [
         {
           "automationId": "LibraryTitle",
           "name": "A Book"
+        },
+        {
+          "automationId": "LibraryKicker",
+          "name": "AUDIOBOOK"
         }
       ],
       "readinessSignal": "uia:LibraryList",
@@ -361,12 +366,17 @@
       "expectedAutomationIds": [
         "LibraryPane",
         "LibraryList",
-        "LibraryTitle"
+        "LibraryTitle",
+        "LibraryKicker"
       ],
       "expectedVisibleData": [
         {
           "automationId": "LibraryTitle",
           "name": "A Book"
+        },
+        {
+          "automationId": "LibraryKicker",
+          "name": "AUDIOBOOK"
         }
       ],
       "readinessSignal": "uia:LibraryList",
@@ -411,12 +421,17 @@
       "expectedAutomationIds": [
         "LibraryPane",
         "LibraryList",
-        "LibraryTitle"
+        "LibraryTitle",
+        "LibraryKicker"
       ],
       "expectedVisibleData": [
         {
           "automationId": "LibraryTitle",
           "name": "Marker Book"
+        },
+        {
+          "automationId": "LibraryKicker",
+          "name": "AUDIOBOOK"
         }
       ],
       "readinessSignal": "uia:LibraryList",
@@ -435,12 +450,17 @@
       "expectedAutomationIds": [
         "LibraryPane",
         "LibraryList",
-        "LibraryTitle"
+        "LibraryTitle",
+        "LibraryKicker"
       ],
       "expectedVisibleData": [
         {
           "automationId": "LibraryTitle",
           "name": "Huge Book"
+        },
+        {
+          "automationId": "LibraryKicker",
+          "name": "AUDIOBOOK"
         }
       ],
       "readinessSignal": "uia:LibraryList",
