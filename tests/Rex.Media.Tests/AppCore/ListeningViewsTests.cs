@@ -433,13 +433,14 @@ public sealed class ListeningViewsTests
                 new LibraryChapter(TimeSpan.FromMinutes(5), "Repeat"),
                 new LibraryChapter(TimeSpan.FromMinutes(2), "Between"),
                 new LibraryChapter(TimeSpan.FromMinutes(5), "Repeat"),
+                new LibraryChapter(TimeSpan.FromMinutes(5), "repeat"),
                 new LibraryChapter(TimeSpan.FromMinutes(5), "Different"),
             ],
         };
         var book = new LibraryGroup("Book", "Writer", [part]);
         var original = ListeningViews.Chapters(book);
-        Assert.Equal(["Between", "Repeat", "Repeat", "Different"], original.Select(chapter => chapter.Title));
-        Assert.Equal([0, 1], original.Where(chapter => chapter.Title == "Repeat")
+        Assert.Equal(["Between", "Repeat", "Repeat", "repeat", "Different"], original.Select(chapter => chapter.Title));
+        Assert.Equal([0, 1, 2], original.Where(chapter => chapter.Title.Equals("Repeat", StringComparison.OrdinalIgnoreCase))
             .Select(chapter => chapter.SameMarkIndex));
 
         // Adding a different mark at the beginning changes every display badge,
@@ -449,9 +450,9 @@ public sealed class ListeningViewsTests
             Chapters = [new LibraryChapter(TimeSpan.Zero, "Preface"), .. part.Chapters!],
         };
         var afterScan = ListeningViews.Chapters(new LibraryGroup("Book", "Writer", [updated]));
-        var originalKeys = original.Where(chapter => chapter.Title == "Repeat")
+        var originalKeys = original.Where(chapter => chapter.Title.Equals("Repeat", StringComparison.OrdinalIgnoreCase))
             .Select(chapter => (chapter.Part.Path, chapter.Start, chapter.Title, chapter.SameMarkIndex));
-        var updatedKeys = afterScan.Where(chapter => chapter.Title == "Repeat")
+        var updatedKeys = afterScan.Where(chapter => chapter.Title.Equals("Repeat", StringComparison.OrdinalIgnoreCase))
             .Select(chapter => (chapter.Part.Path, chapter.Start, chapter.Title, chapter.SameMarkIndex));
         Assert.Equal(originalKeys, updatedKeys);
         Assert.Equal(0, afterScan[0].SameMarkIndex);
