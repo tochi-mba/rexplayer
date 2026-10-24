@@ -78,6 +78,24 @@ Previously `MainWindow.LibraryBrowse.Billboard` handled `Tapped` on the whole ca
 
 These changes give a tested *source-level rendering policy*, **not a claimed successful Windows high-contrast visual pass or live theme-switch verification**. The native pixel/screen-reader checks and #486.1/#486.7/#486.8 remain open.
 
+## Shell and Home screenshot fixture-authoring coverage (#486.7, 2026-10-24)
+
+All shell/Home states changed on this branch now have **source-authored native UI Automation fixtures** backed by genuine offline media, not drawings or fixture-free assertions:
+
+| Changed native shell/Home state | Named screenshot source and native data/visibility assertions |
+| --- | --- |
+| First-run empty/Light/Dark, Settings at standard/compact | `AppWindowTests.Screenshots.TheEmptyWindowLooksTheSameInEachTheme` and `PreferencesLooksTheSameAtEachSize` |
+| Home empty and folder recovery error | `LibraryFixtureVisualTests.EmptyWatchedLibraryShowsARealEmptyState` and `DisconnectedLibraryFolderShowsRecoveryInsteadOfAFalseEmptyClaim` |
+| Populated mixed-media Home, wide and compact | `LibraryFixtureVisualTests.MixedOfflineLibraryHasNavigableShelvesInWideAndCompactWindows` |
+| Minimum, compact, standard, wide navigation and Home | `LibraryFixtureVisualTests.HomeNavigationRemainsReachableAcrossNativeWindowWidths`: 360×430, 720×640, 1000×760 and 1280×860 |
+| Compact temporary expanded rail → route restores content width → desktop preference restored | `LibraryFixtureVisualTests.NarrowNavigationReturnsContentWidthAfterAViewIsChosen` with three additional real routed-state screenshot calls |
+| Genuine pinned album Music Home and unified Home | `LibraryMusicTests.MusicHomePinsOnlyRealAlbumsAndAllowsRemovingThem` and `UnifiedHomeShowsOnlyAlbumsTheUserActuallyPinned`, after checking actual pinned album rows |
+| High-contrast Home and empty Movie view | `LibraryFixtureVisualTests.HighContrastHomeUsesLiveSystemPaletteAndRetainsAccessibleNavigation`; only runs when OS high contrast is **really enabled** |
+| Per-monitor high-DPI Home | `LibraryFixtureVisualTests.HighDpiHomeKeepsNavigationReachableWithoutASecondLayout`; checks Win32 `GetDpiForWindow` at 120 DPI or higher, then verifies accessibility/layout |
+| Search/filter empty, Unicode/RTL song row, one-item library | `LibraryBrowsingTests.FiltersSayWhenTheyEmptyAViewAndSearchClearsOnEscape` and `LibraryFixtureVisualTests.UnicodeAndRtlNamesSurviveOfflineIndexingAndRemainFocusable` / `OneItemLibraryKeepsTheSongBrowsableWithoutOnlineMetadata` |
+
+`AppProcess.StartInfo` sets `REXPLAYER_UI_CAPTURE` to hold native Browse heroes steady in screenshot automation. `Screenshots.Match` writes actual PNGs when WinUI tests run; named high-contrast/DPI fixtures *skip* rather than simulating a system setting that is not present. This **completes the source-level fixture authoring in #486.7**, but **does not certify a current-head Windows capture, snapshot approval, DPI/contrast acceptance, accessibility device pass, or performance**. Those are still open and separately enumerated in #486.1/#486.4/#486.8 and #468.
+
 ## Capabilities and platform parity must stay truthful
 
 The source of truth for shipping declarations is `docs/capability-matrix.json`. The currently declared Windows `LIB-05`, `LIB-10`, `META-09` and `AU-18` statuses come from their existing functional tests and must not be changed simply because a follow-up task has source code. macOS is **not** labeled as having equivalent Windows library, visualizer, lyric or shell UI work in this document. `docs/parity.md` is generated and is not hand-edited.
