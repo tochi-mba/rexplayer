@@ -397,6 +397,16 @@ public sealed class MediaStageWindowTests : IDisposable
             && app.IsShown("MovieVersionButton"),
             "a film with two verified local resolutions");
 
+        ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(420, 340);
+        Wait.For(() => app.Window.Current.BoundingRectangle is { Width: var w, Height: var h }
+            && Math.Abs(w - 420) < 2 && Math.Abs(h - 340) < 2,
+            "a compact movie-version playback layout");
+        var window = app.Window.Current.BoundingRectangle;
+        var picker = app.Find("MovieVersionButton").Current.BoundingRectangle;
+        Assert.True(picker.Left >= window.Left && picker.Right <= window.Right
+            && picker.Top >= window.Top && picker.Bottom <= window.Bottom,
+            "The touch-sized movie resolution picker must stay inside the compact window.");
+
         app.Press("MovieVersionButton");
         Wait.For(() => app.IsShown("MovieVersion-1"),
             "the alternate resolution menu action to appear");
