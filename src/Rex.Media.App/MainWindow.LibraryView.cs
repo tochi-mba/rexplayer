@@ -204,6 +204,7 @@ public sealed partial class MainWindow
         LibraryList.Visibility = home || browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
         LibraryHero.Visibility = browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
+        ApplySmallHomeViewport(home);
         if (home || browse || musicHome)
         {
             ShowMusicPageExtras(null, songsTable: false);
@@ -836,7 +837,7 @@ public sealed partial class MainWindow
         CancelLibraryPictures();
         _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
         _shownLibrary = shown;
-        // New shelves start at their left edges; the ones in view stay where they were scrolled.
+ 
         var place = sameRoute ? CapturePlace() : null;
         LibraryShelves.Children.Clear();
         foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
