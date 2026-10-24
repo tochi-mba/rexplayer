@@ -53,6 +53,12 @@ These are source and authored regression-test evidence for closing the **unifica
 - `LibraryMusicTests.MusicHomePinsOnlyRealAlbumsAndAllowsRemovingThem` and `UnifiedHomeShowsOnlyAlbumsTheUserActuallyPinned` now capture the actual pinned-album shelf after native assertions, avoiding fabricated pinned media. Existing empty, populated, disconnected, RTL, search/filter, TV and partial-download fixtures remain.
 - Current-head WinUI execution, DPI/contrast, controller/screen-reader review and approved snapshot comparisons remain **open under #486.1/#486.4/#486.7/#486.8**. Adding a `Screenshots.Match` invocation does not prove that a PNG was captured or visually approved.
 
+## Windows high-contrast Movie/TV feature banners (2026-10-24)
+
+`MainWindow.LibraryBrowse.Billboard` previously painted a dark photographic gradient under hard-coded white/muted text, irrespective of the OS high-contrast palette. It now reads `AccessibilitySettings.HighContrast`, uses `UISettings.GetColorValue(Foreground/Background)` for the banner in high contrast, and omits photo/backdrop requests and fade-in animation when those preferences apply. The pure `BrowseHeroPresentation.For`/ `BrowseHeroPresentationTests.SystemContrastOverridesPhotographyAndFades` covers all four combinations of animation and high contrast. `MainWindow.Library.WireLibrary` invalidates rendered library surfaces when the XAML theme changes, rather than leaving stale photographic surfaces onscreen. `LibraryBrowseConsistencyTests.AFilteredEmptyBrowseOffersClearFiltersAndRestoresContent` also captures the native featured Movie/TV billboards and checks their action/UIA controls before applying filters.
+
+These changes give a tested *source-level rendering policy*, **not a claimed successful Windows high-contrast visual pass or live theme-switch verification**. The native pixel/screen-reader checks and #486.1/#486.7/#486.8 remain open.
+
 ## Capabilities and platform parity must stay truthful
 
 The source of truth for shipping declarations is `docs/capability-matrix.json`. The currently declared Windows `LIB-05`, `LIB-10`, `META-09` and `AU-18` statuses come from their existing functional tests and must not be changed simply because a follow-up task has source code. macOS is **not** labeled as having equivalent Windows library, visualizer, lyric or shell UI work in this document. `docs/parity.md` is generated and is not hand-edited.
