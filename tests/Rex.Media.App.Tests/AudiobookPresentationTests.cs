@@ -181,6 +181,53 @@ public sealed class AudiobookPresentationTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void CompletedSameTitleEditionsReplayOnlyTheExactSelectedBook()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition A", "Alpha.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition B", "Beta.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Same Title");
+
+        using var app = _scene.Ready(settings => settings with
+        {
+            ShowPlayerWhenLibraryMediaStarts = false,
+        }).Start();
+        app.Visit("Audiobooks");
+        app.Open("Same Title (Edition A)");
+        Pointer.RightClick(app, app.Line("Alpha"));
+        Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "marking edition A finished");
+        app.Press("LibraryMenuBookFinished");
+        app.Press("LibraryBack");
+        Wait.For(() => app.Lines().Contains("Same Title (Edition B)"), "the other edition card");
+        app.Open("Same Title (Edition B)");
+        Pointer.RightClick(app, app.Line("Beta"));
+        Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "marking edition B finished");
+        app.Press("LibraryMenuBookFinished");
+
+        app.Visit("Completed");
+        Wait.For(() => app.Lines().Contains("Same Title (Edition A)")
+            && app.Lines().Contains("Same Title (Edition B)"),
+            "two independently finished editions with identical author and title");
+        // Double-click/activation of Completed must not match a book by credits
+        // alone, and the resulting playlist must not include the sibling edition.
+        app.Open("Same Title (Edition B)");
+        Wait.For(() => app.Text("NowPlaying") == "Beta", "replaying only edition B");
+        Assert.Single(app.Queue());
+        Assert.DoesNotContain(app.Queue(), item => item.Contains("Alpha", StringComparison.Ordinal));
+        Wait.For(() => app.Lines().Contains("Same Title (Edition A)")
+            && !app.Lines().Contains("Same Title (Edition B)"),
+            "only the replayed edition to leave Completed");
+
+        app.Choose("Same Title (Edition A)");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Alpha", "playing the remaining finished edition");
+        Assert.Single(app.Queue());
+        Assert.DoesNotContain(app.Queue(), item => item.Contains("Beta", StringComparison.Ordinal));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void TwoEditionsWithTheSameTitleAreDistinguishableAndNeverQueueEachOther()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition A", "Alpha.wav"),
