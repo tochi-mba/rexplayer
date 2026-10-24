@@ -481,8 +481,7 @@ public sealed partial class MainWindow
             ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
-        // Scroll anchors are for rebuilding the same layout; a layout change (for
-        // instance from list to collage) must first let its new panel realise items.
+        // Rebuild the scroll anchor only after the new layout is realized.
         var previousLook = _shownLook;
         var look = SetLibraryLook(options && !artistPage && albumPage is null ? choice : new LibraryViewChoice(LibraryLook.List), rowsForView.FirstOrDefault()?.Item, options);
         var grouped = sections.Count > 1 || (sections.Count == 1 && sections[0].Header.Length > 0);
