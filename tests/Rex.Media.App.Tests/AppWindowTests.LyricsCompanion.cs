@@ -47,7 +47,7 @@ public sealed partial class AppWindowTests
         using var app = AppProcess.Start([playlist]);
 
         Wait.For(() => app.IsShown("LyricsDetach") && app.Status() is
-            { State: "Playing" or "Paused", Duration: >= 89 },
+        { State: "Playing" or "Paused", Duration: >= 89 },
             "the first song to open and become seekable before detaching lyrics");
         if (app.Status().State != "Paused")
         {
