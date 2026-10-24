@@ -37,6 +37,8 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
         Screenshots.Match(app, "library-" + (route == "Movies" ? "movies" : "tv") + "-browse-empty-filter", "LibraryPane");
 
         app.Press("LibraryEmptyClearFilters");
+        Wait.For(() => app.Find("LibraryFilter").Current.HasKeyboardFocus,
+            "focus to return to the persistent filter control, not the removed empty-state button");
         Wait.For(() => app.IsShown("LibraryBillboard"), "the real library's browse shelves to return");
         Assert.Equal(0, app.Close());
     }
