@@ -320,6 +320,26 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void RemovingAnOverlappingLegacyWatchFolderKeepsHistoryOwnedByTheOtherFolder()
+    {
+        var store = RexStore.InMemory();
+        var live = In("Live");
+        store.Set("folders", System.Text.Json.JsonSerializer.Serialize(new[] { Music, live }));
+        var library = new MediaLibrary(store);
+        var recording = File(In("Live", "recording.mp3"));
+        library.Scan(Music, [recording], KindOf);
+        library.Played(recording.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+
+        Assert.True(library.RemoveFolder(Music));
+        Assert.Single(store.WithPrefix("absent/"));
+        Assert.True(library.RemoveFolder(live));
+        Assert.Empty(store.WithPrefix("absent/"));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ExplicitForgetAndHideRemoveArchivedHistoryEvenWhenMediaIsAlreadyAbsent()
     {
         var store = RexStore.InMemory();

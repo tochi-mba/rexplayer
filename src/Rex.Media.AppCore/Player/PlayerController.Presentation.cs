@@ -44,15 +44,7 @@ public sealed partial class PlayerController
         Lyrics? parsed = null;
         if (lyricBytes is not null)
         {
-            try
-            {
-                parsed = Lyrics.Parse(SubtitleText.Decode(lyricBytes, Settings.SubtitleCodePage).Text);
-            }
-            catch (Exception ex) when (ex is ArgumentException or FormatException)
-            {
-                LyricsProblem = "The lyrics file could not be decoded.";
-                _log.Debug(LogSource, $"Invalid local lyrics: {ex.Message}");
-            }
+            parsed = Lyrics.Parse(SubtitleText.Decode(lyricBytes, Settings.SubtitleCodePage).Text);
         }
 
         Lyrics = parsed ?? Lyrics.Parse(info.Metadata.GetValueOrDefault(MetadataKeys.Lyrics));

@@ -125,8 +125,18 @@ public sealed partial class MainWindow
         };
 
         Root.ActualThemeChanged += (_, _) => RepaintLyricPalette();
-        _lyricAccessibility.HighContrastChanged += (_, _) =>
-            DispatcherQueue.TryEnqueue(RepaintLyricPalette);
+        try
+        {
+            _lyricAccessibility.HighContrastChanged += (_, _) =>
+                DispatcherQueue.TryEnqueue(RepaintLyricPalette);
+        }
+        catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+        {
+            // Some Windows hosts (including CI desktops) do not register this
+            // optional event. Lyrics still use the current palette whenever
+            // they are painted; only live contrast-change notifications stop.
+            App.Log.Warning(LogSource, "Lyric contrast notifications are unavailable: " + ex.Message);
+        }
         RepaintLyricPalette();
 
         Stage.SizeChanged += (_, _) =>
