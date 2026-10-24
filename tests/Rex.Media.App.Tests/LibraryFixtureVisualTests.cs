@@ -203,7 +203,7 @@ public sealed partial class LibraryFixtureVisualTests
         var pane = app.Find("LibraryPane").Current.BoundingRectangle;
         Assert.True(pane.Width > 320 && pane.Height > 240,
             "The scaled native Home surface must remain usable.");
-        Screenshots.Match(app, "library-home-high-dpi-" + dpi, "LibraryPane");
+        Screenshots.Match(app, "library-home-high-dpi", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 

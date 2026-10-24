@@ -319,6 +319,12 @@ internal static class Screenshots
     /// </summary>
     private static bool? ViewportMatchesDeclared(ScreenshotScenes.ScreenshotScene scene, AppProcess app)
     {
+        if (scene.Dimensions == "maximized")
+        {
+            var window = (WindowPattern)app.Window.GetCurrentPattern(WindowPattern.Pattern);
+            return window.Current.WindowVisualState == WindowVisualState.Maximized;
+        }
+
         var parts = scene.Dimensions.Split('x');
         if (parts.Length != 2 || !int.TryParse(parts[0], out var width)
             || !int.TryParse(parts[1], out var height))
