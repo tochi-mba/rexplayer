@@ -113,6 +113,17 @@ public sealed partial class MainWindow
         }
 
         var focused = FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject;
+        // Space/Enter on the focused transport belong to the native Button. Let
+        // WinUI invoke it once on key release and keep keyboard focus there.
+        // The global shortcut path below deliberately moves focus to Stage,
+        // which is correct for unrelated controls but not for Play/Pause itself.
+        if (ReferenceEquals(focused, PlayPauseButton)
+            && (e.Key == VirtualKey.Space || e.Key == VirtualKey.Enter)
+            && !IsDown(VirtualKey.Control) && !IsDown(VirtualKey.Menu) && !IsDown(VirtualKey.Shift))
+        {
+            return;
+        }
+
         if (ShortcutRouting.ListOwns(chord) && (IsWithin(focused, LibraryList)
             || IsWithin(focused, LibraryCollage) || IsWithin(focused, PlaylistView)))
         {
