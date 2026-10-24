@@ -103,12 +103,20 @@ public sealed partial class MainWindow
             return;
         }
 
-        // An author card is a navigation destination, never a request to
-        // play every book in the author's catalogue.
-        if (_librarySource == LibrarySource.Authors && _libraryGroup is null
-            && chosen is [{ Item: LibraryGroup }])
+        // The Authors root is navigation, not a playable author-wide
+        // catalogue. Neither an empty selection (which otherwise means "all")
+        // nor multiple author cards may enqueue every one of their books.
+        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
         {
-            Activate(chosen[0]);
+            if (chosen is [{ Item: LibraryGroup }])
+            {
+                Activate(chosen[0]);
+            }
+            else
+            {
+                Say("Open an author and choose a book to play.");
+            }
+
             return;
         }
 
@@ -123,6 +131,12 @@ public sealed partial class MainWindow
 
     private void EnqueueChosen()
     {
+        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        {
+            Say("Open an author and choose a book to queue.");
+            return;
+        }
+
         var rows = ChosenRows();
         foreach (var playlist in rows.Select(row => row.Item).OfType<NamedPlaylist>())
         {
