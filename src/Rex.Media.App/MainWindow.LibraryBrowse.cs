@@ -324,8 +324,9 @@ public sealed partial class MainWindow
         // Respect the user's system text colors instead of drawing white text
         // over a dark photograph while high contrast is on.
         var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
-        var standardLabel = highContrast ? null : new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED));
-        var standardTitle = highContrast ? null : new SolidColorBrush(Microsoft.UI.Colors.White);
+        var policy = BrowseHeroPresentation.For(highContrast, _budget.Animations);
+        var standardLabel = policy.UsesSystemColors ? null : new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED));
+        var standardTitle = policy.UsesSystemColors ? null : new SolidColorBrush(Microsoft.UI.Colors.White);
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
@@ -355,7 +356,7 @@ public sealed partial class MainWindow
                 UpdateBrowseHeroHold();
             });
         };
-        if (_budget.Animations && !highContrast)
+        if (policy.FadesIn)
         {
             frame.Opacity = 0;
             var fade = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(240), EasingFunction = new QuadraticEase() };
@@ -365,7 +366,7 @@ public sealed partial class MainWindow
             transition.Children.Add(fade);
             frame.Loaded += (_, _) => transition.Begin();
         }
-        if (!highContrast)
+        if (policy.DrawsBackdrop)
         {
             // A system-colored solid frame is the correct fallback under high contrast.
             var backdrop = new Image { Stretch = Stretch.UniformToFill };
