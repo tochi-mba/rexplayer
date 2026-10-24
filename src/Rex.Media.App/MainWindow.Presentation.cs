@@ -29,6 +29,62 @@ public sealed partial class MainWindow
     private readonly Dictionary<int, List<Run>> _lyricWordRuns = [];
     private int _shownWordLine = -1;
     private int _shownWordIndex = -2;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _lyricAccessibility = new();
+    private readonly Windows.UI.ViewManagement.UISettings _lyricSystemColors = new();
+
+    // High contrast takes precedence over translucent white lyric text and dark chips.
+    private Brush LyricNeutralBrush() => _lyricAccessibility.HighContrast
+        ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground))
+        : new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+
+    private Brush LyricAccentBrush() => _lyricAccessibility.HighContrast
+        ? LyricNeutralBrush()
+        : (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+
+    private Brush LyricChipBrush() => _lyricAccessibility.HighContrast
+        ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background))
+        : new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19));
+
+    private void RepaintLyricPalette()
+    {
+        if (_closed)
+        {
+            return;
+        }
+
+        LyricsStatus.Foreground = _lyricAccessibility.HighContrast
+            ? LyricNeutralBrush() : new SolidColorBrush(Microsoft.UI.Colors.White);
+        LyricsStatus.Background = _lyricAccessibility.HighContrast ? LyricChipBrush() : null;
+        foreach (var child in LyricsLines.Children)
+        {
+            switch (child)
+            {
+                case Border chip:
+                    chip.Background = LyricChipBrush();
+                    break;
+                case Button button:
+                    button.Background = LyricChipBrush();
+                    break;
+            }
+        }
+
+        foreach (var lyric in _lyricTexts)
+        {
+            lyric.Foreground = LyricNeutralBrush();
+            lyric.FontWeight = FontWeights.Normal;
+        }
+
+        foreach (var run in _lyricWordRuns.Values.SelectMany(words => words))
+        {
+            run.Foreground = LyricNeutralBrush();
+        }
+
+        // Preserve keyboard focus and manually suspended lyric following.
+        _shownLine = -1;
+        _shownWordLine = -1;
+        _shownWordIndex = -2;
+        ShowLyricLine();
+    }
 
     /// <summary>
     /// A manual scroll should not be immediately undone by the next playback tick.
@@ -59,6 +115,11 @@ public sealed partial class MainWindow
             LyricsFollowButton.Visibility = Visibility.Collapsed;
             BringActiveLyricIntoView();
         };
+
+        Root.ActualThemeChanged += (_, _) => RepaintLyricPalette();
+        _lyricAccessibility.HighContrastChanged += (_, _) =>
+            DispatcherQueue.TryEnqueue(RepaintLyricPalette);
+        RepaintLyricPalette();
 
         Stage.SizeChanged += (_, _) =>
         {
@@ -199,7 +260,7 @@ public sealed partial class MainWindow
                 {
                     Text = line.Text.Length == 0 ? " " : line.Text,
                     FontSize = 20,
-                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
+                    Foreground = LyricNeutralBrush(),
                     TextWrapping = TextWrapping.Wrap,
                     TextAlignment = TextAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -227,7 +288,7 @@ public sealed partial class MainWindow
                     // never paint a broad translucent rectangle behind the whole stage.
                     LyricsLines.Children.Add(new Border
                     {
-                        Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19)),
+                        Background = LyricChipBrush(),
                         CornerRadius = new CornerRadius(9),
                         Padding = new Thickness(12, 7, 12, 7),
                         MaxWidth = 640,
@@ -242,7 +303,7 @@ public sealed partial class MainWindow
                 {
                     Content = text,
                     // Keep contrast just behind the words, not across the entire light background.
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19)),
+                    Background = LyricChipBrush(),
                     BorderThickness = new Thickness(0),
                     CornerRadius = new CornerRadius(9),
                     Padding = new Thickness(12, 7, 12, 7),
@@ -388,7 +449,7 @@ public sealed partial class MainWindow
         if (_shownLine >= 0 && _shownLine < _lyricTexts.Count)
         {
             var previous = _lyricTexts[_shownLine];
-            previous.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+            previous.Foreground = LyricNeutralBrush();
             previous.FontWeight = FontWeights.Normal;
             ClearLyricWords(_shownLine);
         }
@@ -400,8 +461,8 @@ public sealed partial class MainWindow
             // With precise timings only the words already sung take the
             // accent, not the entire line ahead of the singer.
             current.Foreground = _lyricWordRuns.ContainsKey(line)
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF))
-                : (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+                ? LyricNeutralBrush()
+                : LyricAccentBrush();
             current.FontWeight = FontWeights.SemiBold;
             UpdateLyricWords(line);
             if (_followCurrentLyric)
@@ -427,8 +488,8 @@ public sealed partial class MainWindow
 
         _shownWordLine = line;
         _shownWordIndex = index;
-        var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
-        var neutral = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+        var accent = LyricAccentBrush();
+        var neutral = LyricNeutralBrush();
         for (var i = 0; i < runs.Count; i++)
         {
             runs[i].Foreground = i <= index ? accent : neutral;
@@ -443,7 +504,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var neutral = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+        var neutral = LyricNeutralBrush();
         foreach (var run in runs)
         {
             run.Foreground = neutral;
