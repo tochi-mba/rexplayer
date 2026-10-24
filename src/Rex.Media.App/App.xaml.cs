@@ -138,9 +138,9 @@ public partial class App : Application
             {
                 try
                 {
-                    File.WriteAllText(diagnostic, ex.ToString());
+                    System.IO.File.WriteAllText(diagnostic, ex.ToString());
                 }
-                catch (IOException)
+                catch (System.IO.IOException)
                 {
                     // Diagnostics must not obscure the original launch failure.
                 }
