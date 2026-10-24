@@ -80,7 +80,11 @@ class CheckSiteTests(unittest.TestCase):
             "index.html: walkthrough image 'https://example.com/remote.png' must use an existing local asset.",
             self.index_problems(html.replace('data-tour-src="mark.svg"', 'data-tour-src="https://example.com/remote.png"')),
         )
-        for source in ("../scripts/check_site.py", "/rexplayer/mark.svg", "mark.svg?version=1"):
+        for source in (
+            "../scripts/check_site.py", "/rexplayer/mark.svg", "mark.svg?version=1",
+            "assets/%2e%2E/secret.png", "assets/%2fescape.png",
+            "%68ttps%3a//example.com/remote.png", "assets/mark.svg%0A",
+        ):
             self.assertIn(
                 f"index.html: walkthrough image '{source}' must use an existing local asset.",
                 self.index_problems(html.replace('data-tour-src="mark.svg"', f'data-tour-src="{source}"')),
