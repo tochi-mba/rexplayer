@@ -676,6 +676,23 @@ public sealed partial class MainWindow
             return;
         }
 
+        // Authors represent a navigation hierarchy, not a file selection.
+        // Never offer a context action that silently queues, completes, edits or
+        // deletes every file in an author's entire catalogue.
+        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        {
+            if (chosen is [{ Item: LibraryGroup }])
+            {
+                menu.Items.Add(MenuItem("Open author", "LibraryMenuOpenAuthor", () => Activate(chosen[0])));
+            }
+            else
+            {
+                menu.Items.Add(new MenuFlyoutItem { Text = "Choose one author to open", IsEnabled = false });
+            }
+
+            return;
+        }
+
         if (chosen[0].Item is string folder)
         {
             menu.Items.Add(MenuItem("Play everything in it", "LibraryMenuPlay", PlayChosen));
