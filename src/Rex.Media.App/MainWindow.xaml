@@ -711,7 +711,9 @@
       </StackPanel>
       <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" SizeChanged="OnSeekAreaSizeChanged"
             PointerExited="OnSeekAreaPointerExited">
-        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <!-- Fix the seek-row height: the preview is an overlay and must not
+             remeasure the rail when it appears under the pointer. -->
+        <Grid.RowDefinitions><RowDefinition Height="32" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False" MinHeight="32"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
         <!-- A second aligned rail for transcript coverage. The whole width maps to the same
