@@ -95,7 +95,7 @@ public sealed partial class AppWindowTests
             "the high-DPI fixed physical viewport");
         app.Run(CommandCatalog.PlayPause);
         Thread.Sleep(2000);
-        Screenshots.Match(app, "visualizer-spectrum-high-dpi-" + dpi, "Stage");
+        Screenshots.Match(app, "visualizer-spectrum-high-dpi", "Stage");
         Assert.Equal(0, app.Close());
     }
 }
