@@ -373,6 +373,23 @@ jobs:
       - name: Build
         run: ./dev.ps1 build
 
+      # The standard hosted Windows desktop starts at 1024×768. Several
+      # required, compositor-backed captures are 1280×800 or 1280×860;
+      # a 1024-pixel desktop cannot physically contain those windows.
+      # Ask Windows for a supported native mode; resizing the app alone is
+      # not evidence of a bigger desktop or a different DPI.
+      - name: Set native screenshot desktop to 1920x1080
+        shell: powershell
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Start-Sleep -Seconds 2
+          Add-Type -AssemblyName System.Windows.Forms
+          $desktop = [System.Windows.Forms.SystemInformation]::VirtualScreen
+          Write-Host "Native desktop: $($desktop.Width)x$($desktop.Height)"
+          if ($desktop.Width -lt 1280 -or $desktop.Height -lt 860) {
+            throw "The Windows display did not switch to a mode capable of containing required 1280x860 screenshot evidence."
+          }
+
       - name: Drive the window
         env:
           REXPLAYER_UI_LANE: ci-windows
