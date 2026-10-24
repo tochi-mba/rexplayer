@@ -8,6 +8,11 @@ on:
       - "site/**"
       - ".github/workflows/pages.yml"
       - "scripts/check_site.py"
+      - "scripts/check_release_notes.py"
+      - "scripts/check_release_media.py"
+      - "CHANGELOG.md"
+      - "Directory.Build.props"
+      - "README.md"
       - "tests/site/pages.live.spec.js"
       - "playwright.live.config.js"
   workflow_dispatch:
@@ -36,6 +41,7 @@ jobs:
         run: |
           python3 scripts/check_site.py
           python3 scripts/check_release_notes.py
+          python3 scripts/check_release_media.py
 
       # The deployed CDN must be provably serving these exact committed files,
       # not a stale prior push with the same screenshot filenames.
