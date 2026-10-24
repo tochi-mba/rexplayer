@@ -1,3 +1,4 @@
+using Rex.Media.TestKit;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 

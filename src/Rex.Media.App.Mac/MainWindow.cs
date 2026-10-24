@@ -296,8 +296,6 @@ public sealed partial class MainWindow : IDisposable
         var stop = NSButton.CreateButton("Stop", () => Run(CommandCatalog.Stop));
         var next = NSButton.CreateButton("Next", () => Run(CommandCatalog.Next));
         var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
-        var library = NSButton.CreateButton("Library", ShowLibrary);
-        library.ToolTip = "Browse your local folders and media";
         var queue = NSButton.CreateButton("Up Next", ShowQueue);
         var library = NSButton.CreateButton("Library", ShowLibrary);
         library.ToolTip = "Browse your own local library and watched folders";
@@ -448,9 +446,6 @@ public sealed partial class MainWindow : IDisposable
         {
             case CommandCatalog.OpenFile or CommandCatalog.OpenFolder:
                 OpenWithPanel(folders: command == CommandCatalog.OpenFolder);
-                return true;
-            case CommandCatalog.ToggleLibrary:
-                ShowLibrary();
                 return true;
             case CommandCatalog.Quit:
                 NSApplication.SharedApplication.Terminate(null);
