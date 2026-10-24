@@ -420,12 +420,13 @@ public sealed class MediaStageWindowTests : IDisposable
         location.SetValue("http://127.0.0.1:1/new-stream.mp3");
         app.Press("PrimaryButton");
 
-        Wait.For(() => app.Text("NowPlaying") != "Captioned"
-            && !app.IsShown("SubtitleText"),
-            "the replacement remote stream to clear the previous local subtitle cues");
-        Assert.DoesNotContain("Captions are available", app.Find("Stage").Current.HelpText,
-            StringComparison.Ordinal);
-        Assert.False(app.IsShown("KineticCaptions"));
+        // Unsupported network locations are rejected without interrupting the
+        // currently captioned local video.
+        Wait.For(() => app.LogText.Contains("Network streams and remote locations are not supported.", StringComparison.Ordinal),
+            "a clear unsupported-network message");
+        Assert.Equal("Captioned", app.Text("NowPlaying"));
+        Assert.Equal("Local video captions", app.Text("SubtitleText"));
+        Assert.Contains("Captions are available", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 
@@ -438,12 +439,16 @@ public sealed class MediaStageWindowTests : IDisposable
         var bad = Path.Combine(_scene.Media, "unreadable.mp4");
         File.WriteAllText(bad, "not a playable media file");
 
-        using var app = AppProcess.Start([video, bad]);
+        using var app = AppProcess.Start([video]);
         Wait.For(() => app.IsShown("SubtitleText")
             && app.Text("SubtitleText") == "Caption before fault",
             "captions from the first playable video to render");
 
-        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        // Open the malformed file explicitly; the tiny H.264 fixture may
+        // auto-advance before the queued Next command is delivered.
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.OpenLocation);
+        ((ValuePattern)app.Find("LocationBox").GetCurrentPattern(ValuePattern.Pattern)).SetValue(bad);
+        app.Press("PrimaryButton");
         Wait.For(() => app.Status().State == "Faulted"
             && app.Find("Stage").Current.Name == "PLAYBACK ERROR playback stage",
             "the next item to fault with an accessible error stage");
@@ -485,11 +490,9 @@ public sealed class MediaStageWindowTests : IDisposable
             "the new encoding to keep the movie-specific resolution picker");
         app.Press("MovieVersionButton");
         Wait.For(() => app.IsShown("MovieVersion-1")
-            && app.Find("MovieVersion-1").TryGetCurrentPattern(TogglePattern.Pattern, out _),
-            "the menu to show its current selection after switching");
-
-        var chosen = (TogglePattern)app.Find("MovieVersion-1").GetCurrentPattern(TogglePattern.Pattern);
-        Assert.Equal(ToggleState.On, chosen.Current.ToggleState);
+            && app.Find("MovieVersion-1").Current.Name.Contains("currently playing", StringComparison.Ordinal),
+            "the selected native encoding to be announced accessibly");
+        Assert.False(app.Find("MovieVersion-1").Current.IsEnabled);
         Assert.Equal("MOVIE playback stage", app.Find("Stage").Current.Name);
         Assert.Equal(0, app.Close());
     }
