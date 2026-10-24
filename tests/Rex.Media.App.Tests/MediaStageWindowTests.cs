@@ -361,6 +361,35 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void GoToTimeDialogCannotSeekAPictureThatReplacedTheOriginalAudio()
+    {
+        var song = _scene.Audio("DialogSource.wav", TimeSpan.FromSeconds(20));
+        var picture = _scene.Picture("dialog-target.jpg");
+        using var app = AppProcess.Start([song, picture]);
+        Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
+            && app.Find("SeekBar").Current.IsEnabled,
+            "seekable audio before opening a time-jump dialog");
+
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.GoToTime);
+        Wait.For(() => app.IsShown("GoToTimeBox"), "the seek dialog to open on audio");
+        ((ValuePattern)app.Find("GoToTimeBox").GetCurrentPattern(ValuePattern.Pattern)).SetValue("0:10");
+
+        // The queued item can change while the dialog is open; accepting the old
+        // text must not seek the picture or resurrect its previous timeline.
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.Next);
+        Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage",
+            "picture playback behind the still-open time-jump dialog");
+        app.Press("PrimaryButton");
+        Wait.For(() => app.LogText.Contains("The media changed before the seek could be applied.",
+            StringComparison.Ordinal), "the stale time-jump request to be rejected");
+
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Assert.False(app.Find("StartOverButton").Current.IsEnabled);
+        Assert.False(app.IsShown("GoToTimeBox"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void UnreadableMediaShowsAnErrorStageWithoutAudioOrSeekAffordances()
     {
         var broken = Path.Combine(_scene.Media, "broken.mp4");
