@@ -50,6 +50,9 @@ public sealed partial class PlayerController : IDisposable
     private PlaylistItem? _queued;
     private bool _queueTried;
     private int _failuresInARow;
+    // A paused seek has no position clock tick until decoding completes. Do not
+    // allow a coalesced pre-seek tick to overwrite the requested position.
+    private bool _seekAwaitingCompletion;
 
     /// <param name="newSession">Makes a session that reports to the given listener.</param>
     /// <param name="openSource">Opens a location for reading; it may throw when the location cannot be read.</param>
@@ -270,6 +273,7 @@ public sealed partial class PlayerController : IDisposable
         }
 
         Position = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
+        _seekAwaitingCompletion = true;
         _log.Debug(LogSource, $"Seeking to {TimeText.Format(Position, Duration)}.");
         _ = Observe(_session.SeekAsync(new MediaTime((Item!.Start + Position).Ticks)));
         PositionChanged?.Invoke(this, EventArgs.Empty);
@@ -304,6 +308,7 @@ public sealed partial class PlayerController : IDisposable
         _log.Info(LogSource, "Stopped.");
         RememberPosition();
         EndSession();
+        _seekAwaitingCompletion = false;
         State = SessionState.Idle;
         Position = TimeSpan.Zero;
         Changed?.Invoke(this, EventArgs.Empty);
@@ -339,6 +344,7 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
+        _seekAwaitingCompletion = false;
         Reach("start");
         startAt = BeforeStart(item, startAt, audioTrack, exactPosition);
         _log.Info(LogSource, $"Starting \"{item.Title}\" ({item.Location})"
