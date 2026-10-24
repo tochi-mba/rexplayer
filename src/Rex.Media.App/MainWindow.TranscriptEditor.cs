@@ -267,7 +267,10 @@ public sealed partial class MainWindow
         {
             matchIndex = -1;
             jump.IsEnabled = false;
-            matchStatus.Text = "Search the words that have been transcribed.";
+            matchStatus.Text = search.Text.Length > 0 &&
+                TranscriptSearch.FindNext(history.Current.Words, search.Text) < 0
+                ? "No matching speech was found."
+                : "Search the words that have been transcribed.";
         };
         find.Click += (_, _) =>
         {
