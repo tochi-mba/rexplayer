@@ -53,6 +53,14 @@ public sealed class AudiobookPresentationTests : IDisposable
         Assert.True(missing.Length == 0,
             "The audiobook visual regression gate requires CI-produced pixel baselines: " +
             string.Join(", ", missing) + ". Promote actual captures from the screenshots artifact.");
+
+        // A stale or misleading committed image is not an accepted golden. Keep
+        // this gate red until every native capture has been inspected and the
+        // corresponding inventory entry explicitly promoted for pixel comparison.
+        var unreviewed = required.Where(name => ScreenshotScenes.Find(name).Baseline != "ci-windows").ToArray();
+        Assert.True(unreviewed.Length == 0,
+            "Audiobook scenes still need native image review and promotion: " +
+            string.Join(", ", unreviewed) + ".");
     }
 
     [Fact]
