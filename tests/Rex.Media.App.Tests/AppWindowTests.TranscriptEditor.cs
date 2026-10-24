@@ -54,8 +54,8 @@ public sealed partial class AppWindowTests
 
         // Find works on original and edited speech while leaving the original
         // model file unchanged, and exposes the exact source timestamp.
-        var search = (ValuePattern)app.Find("TranscriptEditSearch").GetCurrentPattern(ValuePattern.Pattern);
-        search.SetValue("words");
+        var searchAgain = (ValuePattern)app.Find("TranscriptEditSearch").GetCurrentPattern(ValuePattern.Pattern);
+        searchAgain.SetValue("words");
         app.Press("TranscriptEditFindNext");
         Wait.For(() => app.Text("TranscriptEditMatch").Contains("word 2 of 2", StringComparison.Ordinal),
             "the transcript search to find its second source-timed word");
