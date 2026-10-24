@@ -3,7 +3,9 @@ using Microsoft.UI.Xaml.Controls;
 using Rex.Media.Engine;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Metadata;
+using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Primitives;
 
 namespace Rex.Media.App;
 
@@ -42,46 +44,111 @@ public sealed partial class MainWindow
     private LibrarySource SectionOf(LibraryEntry video) =>
         MovieRules.IsMovie(video, MovieLookupOf) ? LibrarySource.Movies : LibrarySource.OtherVideos;
 
+    private PlaylistItem? _shownVersionItem;
+    private MediaInfo? _shownVersionInfo;
+    private string? _shownVersionSignature;
+
+    /// <summary>
+    /// Clear stale movie-version actions before an item/profile switch without
+    /// abandoning keyboard focus on a removed menu item.
+    /// </summary>
+    private void ClearMovieVersionMenu()
+    {
+        if (MovieVersionButton.Visibility == Visibility.Visible && Content.XamlRoot is { } xamlRoot)
+        {
+            var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot);
+            if (ReferenceEquals(focused, MovieVersionButton)
+                || (focused is MenuFlyoutItemBase menuItem && MovieVersionMenu.Items.Contains(menuItem)))
+            {
+                PlayPauseButton.Focus(FocusState.Programmatic);
+            }
+        }
+
+        MovieVersionMenu.Hide();
+        MovieVersionButton.Visibility = Visibility.Collapsed;
+        MovieVersionMenu.Items.Clear();
+        _shownVersionItem = null;
+        _shownVersionInfo = null;
+        _shownVersionSignature = null;
+    }
+
     /// <summary>Show alternate local encodings only for the same film and release year.</summary>
     private void ShowMovieVersions()
     {
-        MovieVersionMenu.Items.Clear();
-        MovieVersionButton.Visibility = Visibility.Collapsed;
-        if (_player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current
+        if (_stageView.Profile != MediaStageProfile.Movie
+            || _player.Info?.FirstTrack(Rex.Media.Primitives.MediaKind.Video) is null
+            || _player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current
             || _player.Playlist.CurrentIndex < 0 || _player.State is SessionState.Idle or SessionState.Faulted)
         {
+            if (_shownVersionItem is not null || MovieVersionMenu.Items.Count > 0)
+            {
+                ClearMovieVersionMenu();
+            }
+
             return;
         }
 
         var editions = LibraryViews.MovieVersions(_library.Entries, current);
         if (editions.Count < 2)
         {
+            if (_shownVersionItem is not null || MovieVersionMenu.Items.Count > 0)
+            {
+                ClearMovieVersionMenu();
+            }
+
             return;
         }
 
-        foreach (var edition in editions)
+        // Playing/paused/position updates must not replace an open flyout.
+        // Rebuild only when the playing stream or the available encodings change.
+        var signature = string.Join("\n", editions.Select(edition =>
+            edition.Path + "\t" + LibraryViews.MovieResolution(edition)));
+        if (ReferenceEquals(_player.Item, _shownVersionItem)
+            && ReferenceEquals(_player.Info, _shownVersionInfo)
+            && string.Equals(signature, _shownVersionSignature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        ClearMovieVersionMenu();
+        // Bind actions to the stream that actually created the flyout. Even if
+        // a later film shares a release name, a queued click from this menu
+        // must not switch an encoding of the replacement item.
+        var sourceItem = _player.Item;
+        var sourceInfo = _player.Info;
+        foreach (var (index, edition) in editions.Index())
         {
             var selected = LibraryViews.SameLocation(edition.Path, playing);
             var label = LibraryViews.MovieResolution(edition);
             var item = new ToggleMenuFlyoutItem
             {
                 Text = label + " · " + Path.GetFileName(edition.Path),
+                MinWidth = 44,
+                MinHeight = 44,
                 IsChecked = selected,
                 IsEnabled = !selected,
             };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, $"MovieVersion-{index}");
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, label + (selected ? ", currently playing" : ", play this version"));
             ToolTipService.SetToolTip(item, edition.Path);
-            item.Click += (_, _) => SwitchMovieVersion(edition.Path);
+            item.Click += (_, _) => SwitchMovieVersion(edition.Path, sourceItem, sourceInfo);
             MovieVersionMenu.Items.Add(item);
         }
 
+        _shownVersionItem = _player.Item;
+        _shownVersionInfo = _player.Info;
+        _shownVersionSignature = signature;
         MovieVersionButton.Content = LibraryViews.MovieResolution(current);
         MovieVersionButton.Visibility = Visibility.Visible;
     }
 
-    private void SwitchMovieVersion(string path)
+    private void SwitchMovieVersion(string path, PlaylistItem? sourceItem, MediaInfo? sourceInfo)
     {
-        if (_player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current)
+        if (!ReferenceEquals(_player.Item, sourceItem)
+            || !ReferenceEquals(_player.Info, sourceInfo)
+            || _stageView.Profile != MediaStageProfile.Movie
+            || _player.Info?.FirstTrack(Rex.Media.Primitives.MediaKind.Video) is null
+            || _player.Item?.Location is not { } playing || _library?.Entry(playing) is not { } current)
         {
             return;
         }

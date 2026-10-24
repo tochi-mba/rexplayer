@@ -74,20 +74,16 @@ public static class LibraryActions
     /// <summary>Whether Explorer can reveal this safe local file path; never treat web URLs as disk files.</summary>
     public static bool CanRevealFile(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
         {
             return false;
         }
 
-        try
-        {
-            return Path.IsPathFullyQualified(path)
-                && (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return false;
-        }
+        // Reject malformed paths explicitly. Path.IsPathFullyQualified and Uri.TryCreate
+        // are nonthrowing for the remaining strings; an unreachable catch hides bad
+        // filename inputs from deterministic tests and the required coverage gate.
+        return Path.IsPathFullyQualified(path)
+            && (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile);
     }
 
     /// <summary>Group existing selected file paths by folder, retaining order and duplicate-free selection.</summary>

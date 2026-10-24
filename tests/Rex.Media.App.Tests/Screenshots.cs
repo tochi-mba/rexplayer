@@ -260,6 +260,23 @@ internal static class Screenshots
             repeatedDifferingRatio = repeatDifference,
             expectedAutomationIds = scene.ExpectedAutomationIds,
             observedAutomationIds = scene.ExpectedAutomationIds.Select(id => ObserveControl(app, id)).ToArray(),
+            // Some semantic text readiness controls (such as LibraryTitle) are
+            // intentionally outside the scene's primary automation-id list.
+            // Record them too, so a reviewer can detect an incorrect title even
+            // if the screenshot captured colorful pixels.
+            observedVisibleData = scene.ExpectedVisibleData
+                .Select(value => ObserveControl(app, value.AutomationId)).ToArray(),
+            // Keep an actual UIA witness for every capability-specific action in a
+            // media-stage shot, including controls that must be hidden or disabled.
+            // Reviewers can correlate these with the unmodified compositor image.
+            observedStageAffordances = scene.Id.StartsWith("stage-", StringComparison.Ordinal)
+                ? new[]
+                {
+                    "Stage", "SeekBar", "StartOverButton", "StageChaptersButton",
+                    "MovieVersionButton", "PictureIntervalButton",
+                    "Lyrics", "Cover", "Subtitles", "KineticCaptions", "PlayPauseButton",
+                }.Select(id => ObserveControl(app, id)).ToArray()
+                : Array.Empty<object>(),
             expectedVisibleData = scene.ExpectedVisibleData,
             owner = scene.Owner,
             baselineReviewState = scene.Baseline,
@@ -354,7 +371,10 @@ internal static class Screenshots
                     automationId,
                     shown = !current.IsOffscreen,
                     current.Name,
+                    current.HelpText,
                     current.IsEnabled,
+                    current.HasKeyboardFocus,
+                    current.IsKeyboardFocusable,
                     bounds = current.BoundingRectangle.ToString(CultureInfo.InvariantCulture),
                 };
             }
@@ -368,7 +388,17 @@ internal static class Screenshots
             // The UIA provider is gone; its absence is itself diagnostic evidence.
         }
 
-        return new { automationId, shown = false, name = (string?)null, isEnabled = false, bounds = (string?)null };
+        return new
+        {
+            automationId,
+            shown = false,
+            name = (string?)null,
+            helpText = (string?)null,
+            isEnabled = false,
+            hasKeyboardFocus = false,
+            isKeyboardFocusable = false,
+            bounds = (string?)null,
+        };
     }
 
     /// <summary>

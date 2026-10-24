@@ -432,6 +432,25 @@ public sealed partial class MainWindow
         var minimal = _settings.MinimalInterface && !IsFullScreen;
         Menu.Visibility = minimal || IsFullScreen ? Visibility.Collapsed : Visibility.Visible;
         MinimalInterfaceButton.Visibility = minimal ? Visibility.Visible : Visibility.Collapsed;
+        if (minimal && StageChaptersButton.Visibility == Visibility.Visible)
+        {
+            if (Content.XamlRoot is { } xamlRoot)
+            {
+                var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot);
+                if (ReferenceEquals(focused, StageChaptersButton)
+                    || (focused is MenuFlyoutItemBase menuItem && StageChapterMenu.Items.Contains(menuItem)))
+                {
+                    PlayPauseButton.Focus(FocusState.Programmatic);
+                }
+            }
+
+            // Hiding the button alone can leave an already-open popup clickable.
+            StageChapterMenu.Hide();
+        }
+
+        StageChaptersButton.Visibility = !minimal && _stageView.ShowChapters && _stageView.CanSeek
+            && _player.CanSeek && StageChapterMenu.Items.Count > 0
+            ? Visibility.Visible : Visibility.Collapsed;
         foreach (var secondary in new UIElement[]
         {
             StartOverButton, PreviousButton, StopButton, NextButton, ShuffleButton,
@@ -728,7 +747,7 @@ public sealed partial class MainWindow
 
     private async Task GoToTimeAsync()
     {
-        if (!_player.CanSeek)
+        if (!_stageView.CanSeek || !_player.CanSeek)
         {
             if (_player.Item is not null)
             {
@@ -738,11 +757,22 @@ public sealed partial class MainWindow
             return;
         }
 
+        var item = _player.Item;
+        var info = _player.Info;
         var box = new TextBox { Text = TimeText.Format(_player.Position, _player.Duration), MinWidth = 200 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "GoToTimeBox");
         box.SelectAll();
         if (await Ask("Go to a time", box, "Go"))
         {
+            // The dialog can remain open while a new item is queued from a second
+            // launch or playback advances. Never apply an old time to a new file.
+            if (!ReferenceEquals(_player.Item, item)
+                || !ReferenceEquals(_player.Info, info) || !_stageView.CanSeek || !_player.CanSeek)
+            {
+                Say("The media changed before the seek could be applied.");
+                return;
+            }
+
             if (TimeText.TryParse(box.Text) is { } time)
             {
                 _player.Seek(time);

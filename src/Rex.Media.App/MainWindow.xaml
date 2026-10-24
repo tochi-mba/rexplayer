@@ -13,14 +13,7 @@
     <DataTemplate x:Key="LibrarySongTemplate" x:DataType="local:LibraryRow">
       <Grid ColumnSpacing="12" Padding="2,5" MinHeight="64" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}"
             PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="32" />
-          <ColumnDefinition Width="54" />
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="32" /><ColumnDefinition Width="54" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
         <TextBlock Text="{x:Bind Badge}" Visibility="{x:Bind BadgeVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
         <Border Grid.Column="1" Width="54" Height="54" CornerRadius="5" Background="{ThemeResource LayerFillColorDefaultBrush}">
@@ -77,11 +70,7 @@
     </DataTemplate>
     </ResourceDictionary>
   </Grid.Resources>
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
-      <RowDefinition Height="Auto" />
-    </Grid.RowDefinitions>
+    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
     <MenuBar x:Name="Menu" Grid.Row="0" AutomationProperties.AutomationId="Menu" AutomationProperties.Name="Menu">
       <MenuBarItem x:Name="MediaMenu" Title="Media" AutomationProperties.AutomationId="MediaMenu" />
       <MenuBarItem x:Name="PlaybackMenu" Title="Playback" AutomationProperties.AutomationId="PlaybackMenu" />
@@ -92,12 +81,9 @@
       <MenuBarItem x:Name="HelpMenu" Title="Help" AutomationProperties.AutomationId="HelpMenu" />
     </MenuBar>
     <Grid Grid.Row="1">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
       <Grid x:Name="Stage" Grid.Column="0" Background="Black" IsTabStop="True" DoubleTapped="OnStageDoubleTapped" PointerMoved="OnStagePointerMoved" PointerExited="OnStagePointerExited" PointerWheelChanged="OnStageWheel"
-            AutomationProperties.AutomationId="Stage" AutomationProperties.Name="Picture">
+            AutomationProperties.AutomationId="Stage" AutomationProperties.Name="Picture" AutomationProperties.LiveSetting="Polite">
         <SwapChainPanel x:Name="Video" AutomationProperties.AutomationId="Video" />
         <!-- Covers a presenter's late or remembered frame as soon as an audio-only item takes over. -->
         <Border x:Name="VideoBlankLayer" Background="Black" />
@@ -121,14 +107,8 @@
                         VerticalScrollMode="Enabled">
             <StackPanel Spacing="8" Padding="12,10,12,12">
               <Grid ColumnSpacing="6" RowSpacing="8">
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Spacing="4" VerticalAlignment="Center">
                   <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="White" FontSize="15" />
                   <Border x:Name="SubjectStatePill" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left"
@@ -147,14 +127,8 @@
               <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap" FontSize="13" AutomationProperties.AutomationId="SubjectStatusText" AutomationProperties.LiveSetting="Polite"
                          Text="Click the object you want to follow, or drag a box around it." />
               <Grid ColumnSpacing="6" RowSpacing="6">
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                 <Button Grid.Column="0" Content="Reset" HorizontalAlignment="Stretch" Click="OnSubjectReset" AutomationProperties.AutomationId="SubjectReset" AutomationProperties.Name="Reset the selection" />
                 <Button Grid.Column="1" Content="Lock centre" HorizontalAlignment="Stretch" Click="OnSubjectCenter" AutomationProperties.AutomationId="SubjectCenter" AutomationProperties.Name="Lock visible centre of picture"
                         ToolTipService.ToolTip="Locks the middle of the visible picture, for the keyboard" />
@@ -192,10 +166,7 @@
                   <TextBlock x:Name="SubjectFillText" Foreground="#FF45ECD2" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectFillText" AutomationProperties.LiveSetting="Polite"
                              AutomationProperties.Name="Where the removal fill comes from" />
                   <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBlock x:Name="SubjectToleranceLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
                     <TextBlock x:Name="SubjectToleranceText" Grid.Column="1" Text="50%, balanced" Foreground="#FF45ECD2" FontSize="13"
                                VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectToleranceText" AutomationProperties.Name="Subject coverage value" />
@@ -203,10 +174,7 @@
                   <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
                           ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance" AutomationProperties.Name="Subject coverage" />
                   <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBlock x:Name="SubjectFeatherLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
                     <TextBlock x:Name="SubjectFeatherText" Grid.Column="1" Text="3 px" Foreground="#FF45ECD2" FontSize="13"
                                VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectFeatherText" AutomationProperties.Name="Edge softness value" />
@@ -231,18 +199,19 @@
           <StackPanel x:Name="SubtitlesMiddle" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2" />
           <StackPanel x:Name="SubtitlesBottom" VerticalAlignment="Bottom" HorizontalAlignment="Center" Spacing="2" />
         </Grid>
+        <!-- Scroll the presentation in tiny windows; never clip the only welcome actions. -->
+        <ScrollViewer x:Name="IdleScroller" HorizontalScrollMode="Disabled" VerticalScrollMode="Auto"
+                      VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
         <!-- Before anything plays, a hint; while music plays, its picture and details (AU-19). -->
         <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" ColumnSpacing="32" Margin="32" AutomationProperties.AutomationId="Idle">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
           <Border x:Name="CoverBox" Grid.Column="0" Width="240" Height="240" CornerRadius="18" Visibility="Collapsed"
                   Background="#20FFFFFF" BorderBrush="#24FFFFFF" BorderThickness="1">
             <Image x:Name="CoverImage" Stretch="UniformToFill" AutomationProperties.AutomationId="Cover" AutomationProperties.Name="Cover" />
           </Border>
           <StackPanel x:Name="IdleText" Grid.Column="1" VerticalAlignment="Center" Spacing="7" MaxWidth="560">
-            <TextBlock x:Name="IdleKicker" Text="WELCOME" FontSize="11" FontWeight="SemiBold" CharacterSpacing="120"
+            <TextBlock x:Name="IdleKicker" Text="WELCOME" FontSize="11" FontWeight="SemiBold" CharacterSpacing="120" AutomationProperties.LiveSetting="Polite"
                        Foreground="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center" TextAlignment="Center" AutomationProperties.AutomationId="IdleKicker" />
             <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="44" FontWeight="SemiBold" Foreground="White"
                        HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxLines="2" TextTrimming="CharacterEllipsis" />
@@ -261,6 +230,7 @@
             </StackPanel>
           </StackPanel>
         </Grid>
+        </ScrollViewer>
         <!-- Lyrics, the line being sung marked and kept in the middle (META-09). -->
         <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="48,0,48,24" MaxWidth="720" CornerRadius="12"
                       VerticalScrollBarVisibility="Hidden" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
@@ -281,7 +251,6 @@
                     AutomationProperties.Name="Play now without waiting for more captions" />
           </StackPanel>
         </Border>
-
         <!-- A growing local file can temporarily run out of downloaded bytes without being over.
              Make that recoverable wait explicit instead of leaving a frozen picture on screen. -->
         <Border x:Name="DownloadBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -295,10 +264,7 @@
                        Foreground="#FFD6DAD7" TextAlignment="Center" TextWrapping="Wrap" AutomationProperties.AutomationId="DownloadBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </Border>
-
-
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720" AutomationProperties.AutomationId="Notice" />
-
         <!-- The navigator: the presenter draws the whole picture here while zoomed; this frames it, marks the view and takes the pointer. -->
         <Grid x:Name="Navigator" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" Background="Transparent"
               BorderBrush="#E0FFFFFF" BorderThickness="1" AutomationProperties.AutomationId="Navigator" AutomationProperties.Name="Navigator">
@@ -306,7 +272,6 @@
             <Rectangle x:Name="NavigatorView" Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2" Fill="#22FFFFFF" />
           </Canvas>
         </Grid>
-
         <!-- Skip intro / Skip credits / Next episode, bottom right above the controls. The options
              button beside them confirms, adjusts or rejects the section; Cancel shows only while an
              opted-in automatic skip counts down. -->
@@ -325,18 +290,15 @@
                   Padding="20,10" CornerRadius="12" Style="{ThemeResource AccentButtonStyle}"
                   Click="OnSkipEpisodeSection" AutomationProperties.AutomationId="EpisodeSkipButton" AutomationProperties.Name="Skip intro" />
         </StackPanel>
-
         <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
                 Background="#C0080A09" Visibility="Collapsed" IsHitTestVisible="False">
           <TextBlock x:Name="Stats" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.AutomationId="Stats" />
         </Border>
-
         <Border x:Name="OsdBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,6" CornerRadius="8"
                 Background="#B0080A09" Visibility="Collapsed" IsHitTestVisible="False">
           <TextBlock x:Name="Osd" Foreground="White" FontSize="18" AutomationProperties.AutomationId="Osd" AutomationProperties.LiveSetting="Polite" />
         </Border>
       </Grid>
-
       <!-- The media library (LIB-05), over the picture while it is open; playback follows the library preference. -->
       <Grid x:Name="LibraryPane" Grid.Column="0" Visibility="Collapsed" Background="{ThemeResource LibraryCanvasBrush}" SizeChanged="OnLibraryPaneSized"
             AutomationProperties.AutomationId="LibraryPane" AutomationProperties.Name="Library">
@@ -344,7 +306,6 @@
           <ColumnDefinition x:Name="LibraryNavigationColumn" Width="200" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-
         <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <StackPanel x:Name="LibraryBrand" Margin="20,18,48,8" Spacing="2" IsHitTestVisible="False">
@@ -369,15 +330,9 @@
             </StackPanel>
           </Button>
         </Grid>
-
         <Grid Grid.Column="1" Margin="10,10,12,12" CornerRadius="16"
               Background="{ThemeResource LibrarySurfaceBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-          </Grid.RowDefinitions>
-
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
           <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
           <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero"
                 AutomationProperties.Name="Expanded library header">
@@ -473,7 +428,6 @@
               </StackPanel>
             </Grid>
           </Grid>
-
           <!-- How the view is shown: its layout, order, grouping and card size, each kept per view. -->
           <Grid Grid.Row="1" Margin="24,0,24,8" RowSpacing="8" HorizontalAlignment="Stretch">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -558,16 +512,13 @@
               <Slider x:Name="LibraryCardSize" Width="110" Minimum="120" Maximum="360" StepFrequency="10" VerticalAlignment="Center"
                       ValueChanged="OnLibraryCardSizeChanged" AutomationProperties.AutomationId="LibraryCardSize" AutomationProperties.Name="Card size" />
             </StackPanel>
-
           </Grid>
             </ScrollViewer>
           </Grid>
-
           <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ItemTemplate="{StaticResource LibrarySongTemplate}" ItemsPanel="{StaticResource LibraryListPanel}"
                     AutomationProperties.AutomationId="LibraryList" AutomationProperties.Name="Songs, compact list" />
-
           <ItemsView x:Name="LibraryCollage" Grid.Row="2" Visibility="Collapsed" Padding="18,0,18,8"
                      SelectionMode="Extended"
                      Tapped="OnCollageTapped" DoubleTapped="OnCollageDoubleTapped" KeyDown="OnCollageKeyDown"
@@ -577,13 +528,11 @@
                                ItemsInfoRequested="OnCollageItemsInfoRequested" />
             </ItemsView.Layout>
           </ItemsView>
-
           <!-- Home: shelves of what to play next. -->
           <ScrollViewer x:Name="LibraryHome" Grid.Row="2" Visibility="Collapsed" VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
                          AutomationProperties.AutomationId="LibraryHome">
             <StackPanel x:Name="LibraryShelves" Spacing="22" Padding="24,4,24,24" />
           </ScrollViewer>
-
           <ScrollViewer x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed" AutomationProperties.AutomationId="LibraryEmpty"
                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                         VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
@@ -600,13 +549,9 @@
         <InfoBar x:Name="LibraryNotice" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16" MaxWidth="560"
                  IsOpen="False" IsClosable="True" Severity="Informational" AutomationProperties.AutomationId="LibraryNotice" />
       </Grid>
-
       <Grid x:Name="PlaylistPane" Grid.Column="1" Width="344" Visibility="Collapsed" Padding="10,8"
             Background="{ThemeResource LayerFillColorDefaultBrush}" AutomationProperties.AutomationId="PlaylistPane">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <StackPanel Margin="6,2,0,10" Spacing="2">
           <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" />
           <TextBlock Text="Drag to reorder · Alt+Up/Down to move selection" FontSize="12"
@@ -657,11 +602,7 @@
                   </Grid>
                 </Border>
                 <Grid Grid.Column="3" RowSpacing="2" VerticalAlignment="Center" MinWidth="0">
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                  </Grid.RowDefinitions>
+                  <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                   <Grid ColumnSpacing="6">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
@@ -739,19 +680,14 @@
         </StackPanel>
       </Border>
     </Grid>
-
     <Grid x:Name="Controls" Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="20,12,20,14" ColumnSpacing="12" RowSpacing="8" VerticalAlignment="Bottom"
           Background="{ThemeResource LayerFillColorAltBrush}">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
-      </Grid.RowDefinitions>
+      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-
       <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <Button x:Name="StartOverButton" Content="Start over" Click="OnStartOver" IsEnabled="False"
                 ToolTipService.ToolTip="Start this media from the beginning"
@@ -761,20 +697,14 @@
       </StackPanel>
       <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" SizeChanged="OnSeekAreaSizeChanged"
             PointerMoved="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False" MinHeight="32"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
         <!-- A second aligned rail for transcript coverage. The whole width maps to the same
              timeline as SeekBar; labels are on their own row and never shift the spans. -->
         <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="14,0,14,3" Visibility="Collapsed"
               AutomationProperties.AutomationId="TranscriptRail" AutomationProperties.Name="Transcript coverage">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <Grid Height="6" VerticalAlignment="Center" IsHitTestVisible="False">
             <Border CornerRadius="3" Background="{ThemeResource ControlFillColorSecondaryBrush}" />
             <Canvas x:Name="SubtitleBuffer" Height="6" IsHitTestVisible="False"
@@ -824,34 +754,35 @@
         </Border>
       </Grid>
       <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <DropDownButton x:Name="MovieVersionButton" Visibility="Collapsed" Content="Versions" Padding="7,2" MinHeight="26"
+        <DropDownButton x:Name="MovieVersionButton" Visibility="Collapsed" Content="Versions" Padding="10,8" MinWidth="44" MinHeight="44"
                         AutomationProperties.AutomationId="MovieVersionButton" AutomationProperties.Name="Choose movie resolution">
           <DropDownButton.Flyout>
             <MenuFlyout x:Name="MovieVersionMenu" />
           </DropDownButton.Flyout>
         </DropDownButton>
-        <DropDownButton x:Name="PictureIntervalButton" Visibility="Collapsed" Content="Slideshow · 5 s" Padding="6,2"
+        <DropDownButton x:Name="PictureIntervalButton" Visibility="Collapsed" Content="Slideshow · 5 s" Padding="10,8" MinWidth="44" MinHeight="44"
                         AutomationProperties.AutomationId="PictureIntervalButton" AutomationProperties.Name="Slideshow interval"
                         ToolTipService.ToolTip="Choose how long each picture stays; Play/Pause and Previous/Next control the slideshow">
           <DropDownButton.Flyout>
-            <MenuFlyout>
-              <MenuFlyoutItem Text="2 seconds" Tag="2" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
-              <MenuFlyoutItem Text="5 seconds" Tag="5" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
-              <MenuFlyoutItem Text="10 seconds" Tag="10" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
-              <MenuFlyoutItem Text="30 seconds" Tag="30" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
-              <MenuFlyoutItem Text="60 seconds" Tag="60" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
+            <MenuFlyout x:Name="PictureIntervalMenu">
+              <MenuFlyoutItem Text="2 seconds" Tag="2" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
+              <MenuFlyoutItem Text="5 seconds" Tag="5" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
+              <MenuFlyoutItem Text="10 seconds" Tag="10" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
+              <MenuFlyoutItem Text="30 seconds" Tag="30" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
+              <MenuFlyoutItem Text="60 seconds" Tag="60" MinWidth="44" MinHeight="44" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
             </MenuFlyout>
           </DropDownButton.Flyout>
         </DropDownButton>
         <TextBlock x:Name="Remaining" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
                    Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
       </StackPanel>
-
       <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="3*" />
+          <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
+        <!-- Keep every transport command keyboard/touch reachable instead of clipping it in narrow windows. -->
+        <ScrollViewer x:Name="TransportScroller" Grid.Column="0" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled">
         <StackPanel Orientation="Horizontal" Spacing="4">
           <Button x:Name="MinimalInterfaceButton" Visibility="Collapsed" Click="OnRestoreFullInterface"
                   AutomationProperties.AutomationId="MinimalInterfaceButton" AutomationProperties.Name="Restore full interface"
@@ -886,7 +817,11 @@
           <Button x:Name="FullScreenButton" ToolTipService.ToolTip="Toggle full screen" VerticalAlignment="Center" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen">
             <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
           </Button>
+          <DropDownButton x:Name="StageChaptersButton" Content="Chapters" MinHeight="44" Visibility="Collapsed" AutomationProperties.AutomationId="StageChaptersButton" AutomationProperties.Name="Chapters">
+            <DropDownButton.Flyout><MenuFlyout x:Name="StageChapterMenu" /></DropDownButton.Flyout>
+          </DropDownButton>
         </StackPanel>
+        </ScrollViewer>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" MaxWidth="480" HorizontalAlignment="Stretch">
           <TextBlock x:Name="NowPlaying" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                      AutomationProperties.AutomationId="NowPlaying" />
@@ -895,8 +830,7 @@
                      AutomationProperties.AutomationId="NowPlayingContext" />
         </StackPanel>
       </Grid>
-
-      <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
+      <StackPanel x:Name="AudioControlStrip" Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
         <!-- Updates (TOOL-09): a quiet indicator while a download runs in the background or an update
              waits; it opens the update panel with the live state. -->
         <Button x:Name="UpdateIndicator" Visibility="Collapsed" VerticalAlignment="Center" Padding="7,5"

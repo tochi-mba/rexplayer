@@ -29,6 +29,7 @@ public sealed partial class MainWindow
     private void WireSubtitles()
     {
         _player.SubtitlesChanged += (_, _) => ShowSubtitles(redraw: true);
+        _player.SubtitlesChanged += (_, _) => ShowPresentation();
         _player.SubtitlesChanged += (_, _) => OnWindowThread(RefreshTranscriptMenus);
         _player.PositionChanged += (_, _) => ShowSubtitles(redraw: false);
         Stage.SizeChanged += (_, _) => LayOutSubtitles();

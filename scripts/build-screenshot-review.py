@@ -29,7 +29,34 @@ def build(inventory_path: Path, root: Path, output: Path) -> int:
         else:
             missing += 1
 
+        expected_text = scene["expectedVisibleData"]
+        observed_text = evidence.get("observedVisibleData")
+        if not expected_text:
+            semantic_status = "no expected text"
+        elif not isinstance(observed_text, list):
+            semantic_status = "NOT CAPTURED"
+        else:
+            seen = {item["automationId"]: item for item in observed_text
+                    if isinstance(item, dict) and "automationId" in item}
+            mismatches = []
+            for expected in expected_text:
+                control = seen.get(expected["automationId"], {})
+                actual_name = control.get("Name", control.get("name"))
+                if not control.get("shown") or actual_name != expected["name"]:
+                    mismatches.append(
+                        f'{expected["automationId"]}: expected {expected["name"]!r}, '
+                        f'observed {actual_name!r}, visible={control.get("shown", "unknown")}'
+                    )
+            semantic_status = "MATCH" if not mismatches else "MISMATCH: " + " | ".join(mismatches)
+
+        actual_scene = evidence.get("sceneId")
+        identity_status = ("MATCH" if actual_scene == scene["id"]
+                           else "NOT CAPTURED" if actual_scene is None
+                           else f'MISMATCH: metadata belongs to {actual_scene!r}')
+
         fields = [
+            ("Scene identity", identity_status),
+            ("Semantic text witness", semantic_status),
             ("Fixture", scene["fixture"]),
             ("Route / state", f'{scene["route"]} / {scene["state"]}'),
             ("Viewport / theme", f'{scene["dimensions"]} / {scene["theme"]}'),
@@ -40,9 +67,30 @@ def build(inventory_path: Path, root: Path, output: Path) -> int:
             ("Readiness", str(evidence.get("readinessAchieved", "not captured"))),
             ("Pixel witness", str(evidence.get("pixelReadinessAchieved", "not captured"))),
             ("Repeatable", str(evidence.get("repeatabilityAchieved", "not captured"))),
+            ("Declared baseline state", scene.get("baseline", "not declared")),
+            ("Baseline file witness", str(evidence.get("baselineExists", "not captured"))),
             ("DPI / contrast", f'{evidence.get("measuredDpi", "not captured")} / '
                                f'{evidence.get("actualHighContrast", "not captured")}'),
         ]
+        if scene["id"].startswith("stage-"):
+            controls = evidence.get("observedStageAffordances")
+            witnesses = []
+            if isinstance(controls, list):
+                for control in controls:
+                    if not isinstance(control, dict):
+                        continue
+                    name = control.get("automationId", "?")
+                    shown = control.get("shown", "?")
+                    enabled = control.get("IsEnabled", control.get("isEnabled", "?"))
+                    focused = control.get("HasKeyboardFocus", control.get("hasKeyboardFocus", "?"))
+                    spoken_name = control.get("Name", control.get("name", ""))
+                    help_text = control.get("HelpText", control.get("helpText", ""))
+                    witnesses.append(
+                        f"{name}: visible={shown}, enabled={enabled}, focused={focused}, "
+                        f"name={spoken_name}, help={help_text}"
+                    )
+            fields.append(("Observed stage UI Automation", " | ".join(witnesses) or "not captured"))
+
         metadata = "".join(f"<dt>{html.escape(k)}</dt><dd>{html.escape(str(v))}</dd>"
                            for k, v in fields)
         images = []
