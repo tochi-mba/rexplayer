@@ -492,7 +492,9 @@ public sealed class MediaStageWindowTests : IDisposable
         Wait.For(() => app.IsShown("MovieVersion-1")
             && app.Find("MovieVersion-1").Current.Name.Contains("currently playing", StringComparison.Ordinal),
             "the selected native encoding to be announced accessibly");
-        Assert.False(app.Find("MovieVersion-1").Current.IsEnabled);
+        Assert.True(app.Find("MovieVersion-1").Current.IsEnabled);
+        var selected = (TogglePattern)app.Find("MovieVersion-1").GetCurrentPattern(TogglePattern.Pattern);
+        Assert.Equal(ToggleState.On, selected.Current.ToggleState);
         Assert.Equal("MOVIE playback stage", app.Find("Stage").Current.Name);
         Assert.Equal(0, app.Close());
     }
