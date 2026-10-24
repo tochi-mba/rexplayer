@@ -37,6 +37,9 @@ public sealed partial class MainWindow
             _library = new MediaLibrary(RexStore.InMemory());
         }
 
+        // The same controller hook as Windows records real play history without
+        // duplicating counts in a window callback or losing album/artist tags.
+        _player.Library = _library;
         _library.Changed += (_, _) => OnWindowThread(RefreshLibrary);
         _libraryScanner = new LibraryScanner(_library, LibraryScanner.ListFolder,
             LibraryScanner.ProbeFile, _log);
@@ -235,7 +238,7 @@ public sealed partial class MainWindow
                 {
                     if (File.Exists(entry.Path))
                     {
-                        _player.Open([entry.Path]);
+                        _player.PlayFromLibrary([entry]);
                     }
                     else
                     {
@@ -250,7 +253,7 @@ public sealed partial class MainWindow
                 {
                     if (File.Exists(entry.Path))
                     {
-                        _player.Open([entry.Path], enqueue: true);
+                        _player.EnqueueFromLibrary([entry]);
                     }
                     else
                     {
