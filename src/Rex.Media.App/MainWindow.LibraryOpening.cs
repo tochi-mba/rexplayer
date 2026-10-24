@@ -135,7 +135,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var selected = place.Selected is null ? -1 : _libraryRows.FindIndex(row => SelectionIdentity(row) == place.Selected);
+        var selected = place.Selected is null ? -1 : _libraryRows.FindIndex(row => string.Equals(SelectionIdentity(row), place.Selected, StringComparison.OrdinalIgnoreCase));
         if (LibraryCollage.Visibility == Visibility.Visible)
         {
             if (selected >= 0)
@@ -156,7 +156,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (place.Anchor is not null && _libraryRows.FindIndex(row => SelectionIdentity(row) == place.Anchor) is >= 0 and var anchor)
+        if (place.Anchor is not null && _libraryRows.FindIndex(row => string.Equals(SelectionIdentity(row), place.Anchor, StringComparison.OrdinalIgnoreCase)) is >= 0 and var anchor)
         {
             LibraryList.ScrollIntoView(_libraryRows[anchor], ScrollIntoViewAlignment.Leading);
         }
@@ -204,7 +204,7 @@ public sealed partial class MainWindow
     /// <summary>Scrolls the rebuilt list so that the first of <paramref name="candidates"/> still in it, the line that was in view, is in view again.</summary>
     private void HoldSurvivingAnchor(List<string?> candidates, bool collage)
     {
-        if (candidates.Count == 0 || LibraryPlaces.SurvivingAnchor(candidates, _libraryRows.Select(SelectionIdentity).ToHashSet(StringComparer.Ordinal)) is not { } anchor)
+        if (candidates.Count == 0 || LibraryPlaces.SurvivingAnchor(candidates, _libraryRows.Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)) is not { } anchor)
         {
             return;
         }
@@ -212,7 +212,7 @@ public sealed partial class MainWindow
         var key = _placeKey;
         OnWindowThread(() =>
         {
-            if (!LibraryOpen || _placeKey != key || _libraryRows.FindIndex(row => SelectionIdentity(row) == anchor) is not (>= 0 and var index))
+            if (!LibraryOpen || _placeKey != key || _libraryRows.FindIndex(row => string.Equals(SelectionIdentity(row), anchor, StringComparison.OrdinalIgnoreCase)) is not (>= 0 and var index))
             {
                 return;
             }
