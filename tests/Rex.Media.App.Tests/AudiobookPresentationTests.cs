@@ -338,6 +338,33 @@ public sealed class AudiobookPresentationTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void SlideshowActionTextAndQueueControlsDoNotLeakIntoAuthorOrBookViews()
+    {
+        _scene.Picture(Path.Combine("Pictures", "Cover.jpg"));
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Only Book", "Whole.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Only Book");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Pictures");
+        Wait.For(() => app.Text("LibraryPlayText") == "Start slideshow",
+            "the gallery's distinctive slideshow button");
+
+        app.Visit("Authors");
+        Wait.For(() => app.Text("LibraryPlayText") == "Open author",
+            "the author directory to replace the slideshow action");
+        Assert.False(app.IsShown("LibraryShuffle"));
+        Assert.False(app.IsShown("LibraryEnqueue"));
+
+        app.Visit("Audiobooks");
+        Wait.For(() => app.Text("LibraryPlayText") == "Play",
+            "the audiobook shelf to restore the ordinary play action");
+        Assert.True(app.IsShown("LibraryShuffle"));
+        Assert.True(app.IsShown("LibraryEnqueue"));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void TenThousandChaptersKeepOnlyTheViewportRealized()
     {
         var chapters = Enumerable.Range(0, 10_000).Reverse()
