@@ -226,7 +226,7 @@ public sealed class LibraryMusicTests : IDisposable
         app.Press("LibraryRescan");
         app.Visit("Songs");
         Wait.For(() => !app.Lines().Contains("Wave"), "removed media to disappear without a ghost row");
-        Assert.Contains("Terminator", app.Lines());
+        Assert.Contains(app.Lines(), line => line is "Terminator" or "Terminator, now playing");
         Assert.Equal(0, app.Close());
     }
 
