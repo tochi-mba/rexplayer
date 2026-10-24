@@ -356,13 +356,20 @@ internal static class Screenshots
 
             var bounds = WindowPicture.Bounds(app.Handle);
             var area = control.Current.BoundingRectangle;
-            if (area.Width <= 0 || area.Height <= 0 || area.Left < bounds.Left || area.Top < bounds.Top
-                || area.Right > bounds.Right || area.Bottom > bounds.Bottom)
+            if (area.Width <= 0 || area.Height <= 0
+                || area.Right <= bounds.Left || area.Bottom <= bounds.Top
+                || area.Left >= bounds.Right || area.Top >= bounds.Bottom)
             {
                 return false;
             }
 
-            crop = Crop(frame, bounds, area);
+            // WinUI flyouts are independent popup HWNDs and can extend a few
+            // pixels outside the owning window. The desktop screenshot contains
+            // their visible intersection with that window, not the off-window
+            // portion. Measure real pixels in that intersection instead of
+            // discarding a genuinely visible popup witness.
+            var visible = System.Windows.Rect.Intersect(bounds, area);
+            crop = Crop(frame, bounds, visible);
             return true;
         }
         catch (ElementNotAvailableException)
