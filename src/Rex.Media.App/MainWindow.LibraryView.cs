@@ -911,6 +911,12 @@ public sealed partial class MainWindow
     /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
     private void OnLibraryShuffle(object sender, RoutedEventArgs e)
     {
+        if (_librarySource == LibrarySource.Authors && _libraryGroup is null)
+        {
+            Say("Open an author and choose a book to shuffle.");
+            return;
+        }
+
         var entries = EntriesOf(ChosenRows());
         if (entries.Count == 0)
         {
