@@ -47,4 +47,33 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
         Wait.For(() => app.IsShown("LibraryBillboard"), "the real library's browse shelves to return");
         Assert.Equal(0, app.Close());
     }
+    [Fact]
+    [Capability("LIB-05")]
+    public void BrowseHeroPlayAndMoreInfoRemainIndependentNativeActions()
+    {
+        _scene.Film(Path.Combine("Movies", "Moon Harbour.2024.mp4"));
+        using var app = _scene.Ready().Start();
+        app.Visit("Movies");
+        Wait.For(() => app.IsShown("LibraryBillboardPlay") &&
+            app.IsShown("LibraryBillboardMore"), "the native feature actions");
+
+        Assert.Contains("Moon Harbour", app.Find("LibraryBillboardPlay").Current.Name,
+            StringComparison.Ordinal);
+        Assert.Equal("More info about Moon Harbour", app.Find("LibraryBillboardMore").Current.Name);
+
+        app.Press("LibraryBillboardMore");
+        Wait.For(() => app.Text("LibraryKicker") == "MOVIE" &&
+            app.Text("LibraryTitle") == "Moon Harbour",
+            "More info to navigate only to the selected film");
+        app.Press("LibraryBack");
+        Wait.For(() => app.IsShown("LibraryBillboardPlay"),
+            "the movie feature after returning from details");
+
+        app.Press("LibraryBillboardPlay");
+        Wait.For(() => !app.IsShown("LibraryPane") &&
+            app.Text("NowPlaying").Contains("Moon Harbour", StringComparison.Ordinal),
+            "Play to start only the actual film and reveal the player");
+        Assert.Equal(0, app.Close());
+    }
+
 }
