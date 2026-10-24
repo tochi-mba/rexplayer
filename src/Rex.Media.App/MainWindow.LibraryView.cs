@@ -937,34 +937,6 @@ public sealed partial class MainWindow
     /// <summary>What tells one row from another when a view is rebuilt; a download's progress is not in it, since the row shows that as it changes.</summary>
     private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}|{row.Summary}";
 
-    /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
-    private void OnLibraryShuffle(object sender, RoutedEventArgs e)
-    {
-        if (_librarySource is LibrarySource.Authors or LibrarySource.Audiobooks)
-        {
-            Say("Audiobook chapters keep their reading order. Choose a book to play.");
-            return;
-        }
-
-        if (_librarySource == LibrarySource.Completed
-            && ChosenRows().Any(row => row.Item is LibraryGroup))
-        {
-            Say("Finished audiobooks play in chapter order, not shuffled.");
-            return;
-        }
-
-        var entries = EntriesOf(ChosenRows());
-        if (entries.Count == 0)
-        {
-            Say("There is nothing here to play yet.");
-            return;
-        }
-
-        _player.Playlist.Shuffle = true;
-        Play(entries, Random.Shared.Next(entries.Count));
-        Say("Shuffle on");
-    }
-
     /// <summary>
     /// A library item template by key: the window's own list templates, else the show page's episode
     /// lines or the card layouts, each dictionary created the first time one of its templates is needed.
