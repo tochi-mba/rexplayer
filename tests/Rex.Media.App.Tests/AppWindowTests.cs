@@ -249,7 +249,9 @@ public sealed partial class AppWindowTests : IDisposable
     public void ZCyclesPictureEffectsWhenVideoIsShowing()
     {
         using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
-        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video's details");
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat"
+            && app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "the video's metadata and decoded geometry to be ready");
 
         app.Run(CommandCatalog.CycleVisualizer);
 
