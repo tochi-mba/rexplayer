@@ -26,6 +26,7 @@ internal sealed class ControllerHarness : IDisposable
     private readonly object _gate = new();
     private readonly Queue<Action> _pending = new();
     private readonly List<SessionEvent> _engineEvents = [];
+    private Action<SessionEvent>? _currentSessionListener;
 
     /// <param name="autoPlay">Whether sessions start playing as soon as they open.</param>
     /// <param name="settings">The controller's settings.</param>
@@ -51,6 +52,7 @@ internal sealed class ControllerHarness : IDisposable
         Controller = new PlayerController(
             listener =>
             {
+                _currentSessionListener = listener;
                 var sink = new RecordingAudioSink(channels: 1);
                 sink.BeforeWrite += beforeAudioWrite;
                 lock (_gate)
@@ -120,6 +122,15 @@ internal sealed class ControllerHarness : IDisposable
             return [.. Sinks.SelectMany(sink => sink.Channel(0))];
         }
     }
+
+    /// <summary>
+    /// Delivers a deliberately delayed event from the current session through the same
+    /// controller dispatcher used by native engine reports. This proves stale
+    /// coalesced position updates cannot undo a completed paused seek.
+    /// </summary>
+    public void ReportFromCurrentSession(SessionEvent sessionEvent) =>
+        (_currentSessionListener ?? throw new InvalidOperationException("No current session."))
+        (sessionEvent);
 
     /// <summary>Runs what the sessions have reported so far, as the window's thread would.</summary>
     public void Pump()
