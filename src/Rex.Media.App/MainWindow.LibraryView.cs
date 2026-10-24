@@ -946,6 +946,12 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (CompletedSelectionSpansBooks(ChosenRows()))
+        {
+            Say("Choose one finished audiobook before shuffling other media.");
+            return;
+        }
+
         var entries = EntriesOf(ChosenRows());
         if (entries.Count == 0)
         {
