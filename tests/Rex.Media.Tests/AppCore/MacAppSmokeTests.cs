@@ -67,6 +67,12 @@ public sealed class MacAppSmokeTests
             await Library(pipe, "capture-populated");
             var searched = await Library(pipe, "search-song");
             Assert.Contains("1 item", searched.Title, StringComparison.Ordinal);
+            var missing = await Library(pipe, "search-missing");
+            Assert.Contains("0 items", missing.Title, StringComparison.Ordinal);
+            Assert.Contains("Search: No fixture with this name", missing.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-search-empty");
+            var restored = await Library(pipe, "clear-search");
+            Assert.Contains("2 items", restored.Title, StringComparison.Ordinal);
             var songs = await Library(pipe, "songs");
             Assert.Contains("1 item", songs.Title, StringComparison.Ordinal);
             var onlyVideos = await Library(pipe, "videos");
@@ -75,7 +81,7 @@ public sealed class MacAppSmokeTests
             await Library(pipe, "verify-accessibility");
             await Library(pipe, "minimum");
             await Library(pipe, "capture-minimum");
-            foreach (var name in new[] { "empty", "populated", "videos", "minimum" })
+            foreach (var name in new[] { "empty", "populated", "search-empty", "videos", "minimum" })
             {
                 var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));
                 Assert.True(file.Exists && file.Length > 1024,
