@@ -119,6 +119,19 @@ public sealed partial class MainWindow
         OnTick(_libraryRescan, () => _scanner.Request());
         _libraryRescan.Start();
 
+        // Re-create theme-specific library visuals when Windows theme/contrast
+        // changes. A previously rendered movie billboard must not retain white
+        // over-photo text after the user switches to a high-contrast theme.
+        Root.ActualThemeChanged += (_, _) =>
+        {
+            if (LibraryOpen)
+            {
+                _shownLibrary = "";
+                _shownHero = "";
+                ShowLibrary();
+            }
+        };
+
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
         ApplyLibraryNavigationWidth();
         WireLibraryView();
