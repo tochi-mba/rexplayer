@@ -67,6 +67,42 @@ the authoritative checkbox ledgers.
    may the site replace its fixture-labelled pictures and the matrix rows
    be changed with legitimate platform verification.
 
+## Promoting genuinely reviewed native release screenshots
+
+`scripts/check_release_media.py` is a fail-closed source guard for any new
+`site/assets/{windows|macos}-*-release.png` file. It runs in Windows/Linux CI
+and GitHub Pages and requires a matching `site/assets/release-media.json`
+manifest. This source guard **does not manufacture images or approve them**.
+Once a human has examined native final-build captures, add a manifest like:
+
+```json
+{
+  "version": "0.30.8",
+  "captures": [
+    {
+      "file": "windows-now-playing-release.png",
+      "platform": "windows",
+      "version": "0.30.8",
+      "operatingSystem": "Windows 11",
+      "screen": "Now playing",
+      "captureMethod": "native-finalized-build",
+      "reviewer": "<actual reviewer>",
+      "reviewDate": "<actual review date>",
+      "sha256": "<sha256 digest of the captured PNG>"
+    }
+  ]
+}
+```
+
+The file names and labels must match their platform and use the actual built
+source version. The manifest checker rejects missing, duplicate, changed-hash,
+mislabeled, outdated or synthetic/CI-test-only records. The independent site
+checker validates PNG headers, chunk CRCs and minimum readable dimensions.
+**Neither automated check establishes visual authenticity:** a reviewer must
+compare the native window with the image and record real provenance before
+promoting a final screenshot. No release-media manifest or final release PNG
+has been invented or added to the PR.
+
 ## GitHub Pages post-merge gate
 
 - `.github/workflows/pages.yml` deploys on `main`, not from this draft branch.
