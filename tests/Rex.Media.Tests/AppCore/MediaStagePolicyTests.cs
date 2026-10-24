@@ -302,6 +302,67 @@ public sealed class MediaStagePolicyTests
     }
 
     [Fact]
+    public void ContradictoryStreamAndLibraryFactsNeverGrantUnavailableActions()
+    {
+        // All combinations of item/readiness/track/seek/lyric/chapter/caption/fault
+        // flags, across direct audio and every spoken/music library shelf.
+        foreach (AudioShelf? shelf in new AudioShelf?[]
+        {
+            null, AudioShelf.Music, AudioShelf.Audiobooks, AudioShelf.Podcasts,
+            AudioShelf.Recordings, AudioShelf.Sounds,
+        })
+        {
+            for (var mask = 0; mask < 1024; mask++)
+            {
+                bool Flag(int bit) => (mask & (1 << bit)) != 0;
+                var context = new MediaStageContext(
+                    HasItem: Flag(0),
+                    IsPicture: Flag(1),
+                    StreamsKnown: Flag(2),
+                    HasVideoTrack: Flag(3),
+                    HasAudioTrack: Flag(4),
+                    CanSeek: Flag(5),
+                    Kind: LibraryKind.Music,
+                    Shelf: shelf,
+                    HasLyrics: Flag(6),
+                    HasChapters: Flag(7),
+                    HasCaptions: Flag(8),
+                    HasFailure: Flag(9));
+                var stage = MediaStagePolicy.Resolve(context);
+                var playable = context.HasItem && !context.IsPicture && !context.HasFailure
+                    && context.StreamsKnown && (context.HasVideoTrack || context.HasAudioTrack);
+                if (!playable)
+                {
+                    Assert.False(stage.CanSeek);
+                    Assert.False(stage.ShowChapters);
+                    Assert.False(stage.ShowLyrics);
+                    Assert.False(stage.ShowCaptions);
+                    Assert.False(stage.SupportsKineticCaptions);
+                }
+
+                Assert.True(!stage.CanSeek || (playable && context.CanSeek));
+                Assert.True(!stage.ShowAudioPresentation || (playable && context.HasAudioTrack
+                    && !context.HasVideoTrack));
+                Assert.True(!stage.ShowChapters || (playable && context.HasAudioTrack
+                    && !context.HasVideoTrack && context.CanSeek && context.HasChapters));
+                Assert.True(!stage.ShowLyrics || (playable && context.HasAudioTrack
+                    && !context.HasVideoTrack && context.HasLyrics));
+                Assert.True(!stage.SupportsKineticCaptions || (playable && context.HasVideoTrack));
+                Assert.True(!stage.ShowCaptions || (playable && context.HasCaptions));
+                if (!stage.ShowChapters)
+                {
+                    Assert.DoesNotContain("Chapter jumps", stage.AutomationHelpText, StringComparison.Ordinal);
+                }
+
+                if (!stage.ShowLyrics)
+                {
+                    Assert.DoesNotContain("Lyrics are available", stage.AutomationHelpText, StringComparison.Ordinal);
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void StreamFactsOverrideWrongLibraryLabelsAndSeekingIsIndependent()
     {
         var audioOnly = MediaStagePolicy.Resolve(new MediaStageContext(true,
