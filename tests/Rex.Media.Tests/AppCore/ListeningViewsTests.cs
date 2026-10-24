@@ -472,6 +472,62 @@ public sealed class ListeningViewsTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void ChapterTransportSkipsUnseekableDuplicateMarkersAndCrossesPhysicalParts()
+    {
+        var one = AudioFile("Audiobooks/Book/Part One.m4b", TimeSpan.FromMinutes(20)) with
+        {
+            Chapters =
+            [
+                new LibraryChapter(TimeSpan.FromMinutes(5), "Repeat"),
+                new LibraryChapter(TimeSpan.Zero, "Opening"),
+                new LibraryChapter(TimeSpan.FromMinutes(10), "Closing"),
+                new LibraryChapter(TimeSpan.FromMinutes(5), "repeat"),
+                new LibraryChapter(TimeSpan.FromMinutes(5), "Another label"),
+            ],
+        };
+        var two = AudioFile("Audiobooks/Book/Part Two.m4b", TimeSpan.FromMinutes(20));
+        var book = new LibraryGroup("Book", "Ann Writer", [one, two]);
+        var chapters = ListeningViews.Chapters(book);
+        Assert.Equal(["Opening", "Repeat", "repeat", "Another label", "Closing", "Part Two"],
+            chapters.Select(chapter => chapter.Title));
+
+        Assert.Equal(4, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(0, TimeSpan.FromMinutes(5)), next: true));
+        Assert.Equal(0, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(0, TimeSpan.FromMinutes(5)), next: false));
+        Assert.Equal(3, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(0, TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(4)), next: false));
+        Assert.Equal(5, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(0, TimeSpan.FromMinutes(10)), next: true));
+        Assert.Equal(4, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(1, TimeSpan.Zero), next: false));
+        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(1, TimeSpan.Zero), next: true));
+        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(0, TimeSpan.Zero), next: false));
+
+        // A damaged negative playback position must still use the selected part.
+        Assert.Equal(0, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(0, TimeSpan.FromSeconds(-1)), next: true));
+        Assert.Equal(4, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(1, TimeSpan.FromSeconds(-1)), next: false));
+        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(-1, TimeSpan.Zero), next: true));
+        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex(chapters, book,
+            new BookPlace(2, TimeSpan.Zero), next: true));
+        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex([], book,
+            new BookPlace(0, TimeSpan.Zero), next: true));
+        Assert.Equal(-1, ListeningViews.AdjacentChapterIndex(chapters[..5], book,
+            new BookPlace(1, TimeSpan.FromSeconds(-1)), next: true));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            ListeningViews.AdjacentChapterIndex(null!, book, default, next: true));
+        Assert.Throws<ArgumentNullException>(() =>
+            ListeningViews.AdjacentChapterIndex(chapters, null!, default, next: false));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ShowsMergeAcrossFoldersByTheirNameAndListEpisodesNewestFirst()
     {
         var older = AudioFile("Podcasts/The Daily/Ep 1.mp3", TimeSpan.FromMinutes(20), "Host", "The Daily", year: 2023) with { Modified = new DateTime(2023, 5, 1, 0, 0, 0, DateTimeKind.Utc) };
