@@ -242,8 +242,11 @@ public sealed class MediaStageWindowTests : IDisposable
         app.Press("StageChapter-1");
         Wait.For(() => Math.Abs(app.Position - 3.0) < 0.5,
             "the chapter action to seek the paused audiobook to its three-second mark");
-        app.Press("StageChaptersButton");
-        var focusedChapter = app.Find("StageChapter-0");
+        Wait.For(() => !app.IsShown("StageChapter-1"),
+            "the first native chapter flyout to dismiss after the chosen jump");
+        // A second click while the old native popup is still closing gets
+        // consumed by that popup. Re-expand until the actual item is visible.
+        var focusedChapter = app.OpenMenu("StageChapter-0", "StageChaptersButton");
         focusedChapter.SetFocus();
         Wait.For(() => focusedChapter.Current.HasKeyboardFocus,
             "a chapter menu item to receive keyboard focus");
