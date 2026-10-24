@@ -37,6 +37,7 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _libraryRefresh;
     private DispatcherQueueTimer? _libraryChanges;
     private DispatcherQueueTimer? _libraryRescan;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _libraryContrastSettings = new();
     private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
 
@@ -72,6 +73,18 @@ public sealed partial class MainWindow
     }
 
     private bool LibraryOpen => LibraryPane.Visibility == Visibility.Visible;
+
+    private void RebuildLibraryForSystemPalette()
+    {
+        if (_closed || !LibraryOpen)
+        {
+            return;
+        }
+
+        _shownLibrary = "";
+        _shownHero = "";
+        ShowLibrary();
+    }
 
     /// <summary>The library's own store beside the other; when it cannot be read, one in memory.</summary>
     internal static RexStore OpenLibraryStore()
@@ -122,15 +135,9 @@ public sealed partial class MainWindow
         // Re-create theme-specific library visuals when Windows theme/contrast
         // changes. A previously rendered movie billboard must not retain white
         // over-photo text after the user switches to a high-contrast theme.
-        Root.ActualThemeChanged += (_, _) =>
-        {
-            if (LibraryOpen)
-            {
-                _shownLibrary = "";
-                _shownHero = "";
-                ShowLibrary();
-            }
-        };
+        Root.ActualThemeChanged += (_, _) => RebuildLibraryForSystemPalette();
+        _libraryContrastSettings.HighContrastChanged += (_, _) =>
+            DispatcherQueue.TryEnqueue(RebuildLibraryForSystemPalette);
 
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
         ApplyLibraryNavigationWidth();
