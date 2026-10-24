@@ -99,6 +99,10 @@ public sealed class MacAppSmokeTests
 
             // Exercise the real AppKit library construction and the shared View command on an
             // empty catalogue before opening a video. A native layout exception kills this smoke test.
+            // Library smoke actions have already shown the AppKit window.
+            // Close it first so this shared toggle really tests opening it.
+            var closePreviouslyOpenLibrary = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
+            Assert.True(closePreviouslyOpenLibrary?.Ok == true, "Could not close the previously opened native library.");
             var library = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(library?.Ok == true, "The Mac library command did not open: " + (library?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The app stopped answering with its library open." + LogTail(root));
@@ -144,6 +148,7 @@ public sealed class MacAppSmokeTests
                 Assert.True(file.Exists && file.Length > 1024, "No usable native queue screenshot: " + file.FullName);
             }
 
+            await Library(pipe, "show");
             await Library(pipe, "songs");
             await Library(pipe, "play-first");
             var fromLibrary = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
@@ -151,6 +156,7 @@ public sealed class MacAppSmokeTests
             Assert.False(string.IsNullOrWhiteSpace(fromLibrary.Title),
                 "The native library row should have started actual local playback.");
 
+            await Library(pipe, "show");
             var folders = await Library(pipe, "folders");
             Assert.Contains("1 item", folders.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-folders");
@@ -311,8 +317,8 @@ public sealed class MacAppSmokeTests
             var restoreResult = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
             Assert.True(restoreResult?.Ok == true, "The native library did not restore its searched result.");
             tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
-            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryFirstPlay" && control.Name.StartsWith("Play ", StringComparison.Ordinal));
-            Assert.Contains(tree.Controls!, control => control.Id == "LibraryFirstQueue" && control.Name.StartsWith("Queue ", StringComparison.Ordinal));
+            Assert.Contains(tree!.Controls!, control => control.Id == "LibraryFirstPlay" && control.Name.StartsWith("Play: ", StringComparison.Ordinal));
+            Assert.Contains(tree.Controls!, control => control.Id == "LibraryFirstQueue" && control.Name.StartsWith("Add ", StringComparison.Ordinal) && control.Name.EndsWith(" to Up Next", StringComparison.Ordinal));
             var playResult = await Ask(pipe, new AutomationRequest { Command = "ui.press", Target = "LibraryFirstPlay" });
             Assert.True(playResult?.Ok == true, "The native Play result button failed: " + (playResult?.Error ?? "no reply") + LogTail(root));
             var selected = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
