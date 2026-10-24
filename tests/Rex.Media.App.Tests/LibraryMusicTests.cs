@@ -83,6 +83,7 @@ public sealed class LibraryMusicTests : IDisposable
         app.Press("MusicHeroPin");
         Wait.For(() => app.IsShown("MusicShelf-Pinned"), "the pinned shelf to appear after saving");
         Card(app, "Pinned", "Work of Art");
+        Screenshots.Match(app, "music-home-with-pinned-album", "LibraryHome");
         app.Press("MusicHeroPin");
         Wait.For(() => !app.IsShown("MusicShelf-Pinned"), "the empty pinned shelf to disappear");
         Assert.Equal(0, app.Close());
@@ -107,6 +108,7 @@ public sealed class LibraryMusicTests : IDisposable
         var pinned = app.Line("Work of Art", "LibraryShelfCards-PinnedAlbums");
         Assert.NotNull(pinned);
         Assert.False(app.IsShown("LibraryShelf-PinnedAlbums"), "Pinned shelf does not falsely offer See all albums as pinned.");
+        Screenshots.Match(app, "library-home-with-pinned-album", "LibraryPane");
 
         app.Visit("Music");
         app.Press("MusicHeroPin");
