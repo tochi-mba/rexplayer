@@ -202,15 +202,21 @@ public sealed class ListeningViewsTests
     {
         var now = new DateTime(2024, 8, 1, 12, 0, 0, DateTimeKind.Utc);
         var episodes = Enumerable.Range(1, 1000)
-            .Select(number => AudioFile($"Podcasts/Big Show/ep-{number:0000}.mp3", TimeSpan.FromMinutes(30), track: number)
-                with
+            .Select(number =>
+            {
+                var episode = AudioFile($"Podcasts/Big Show/ep-{number:0000}.mp3", TimeSpan.FromMinutes(30), track: number);
+                return episode with
                 {
                     Added = now.AddHours(-1),
                     Modified = now.AddDays(-1),
-                })
+                };
+            })
             .Reverse().ToArray();
-        var future = AudioFile("Podcasts/Big Show/ep-future.mp3", TimeSpan.FromMinutes(30))
-            with { Added = now.AddDays(1), Modified = now };
+        var future = AudioFile("Podcasts/Big Show/ep-future.mp3", TimeSpan.FromMinutes(30)) with
+        {
+            Added = now.AddDays(1),
+            Modified = now,
+        };
         var show = Assert.Single(ListeningViews.Shows([.. episodes, future]));
         Assert.Equal(1001, show.Entries.Count);
         Assert.Equal(episodes[^1].Path, ListeningViews.Episodes(show.Entries, oldestFirst: true)[0].Path);
