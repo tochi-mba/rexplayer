@@ -421,7 +421,7 @@ public sealed partial class MainWindow
             }
         }
 
-        var authorDirectory = source == LibrarySource.Authors && _libraryGroup is null && search.Length == 0;
+        var authorDirectory = source == LibrarySource.Authors && _libraryGroup is null;
         if (_librarySource == LibrarySource.Pictures && search.Length == 0)
         {
             LibraryPlayText.Text = "Start slideshow";
