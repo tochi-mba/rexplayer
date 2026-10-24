@@ -18,6 +18,7 @@ public sealed partial class MainWindow
     private NSPopUpButton? _libraryKind;
     private NSTextField? _librarySearch;
     private NSButton? _librarySearchButton;
+    private NSButton? _libraryClearSearch;
     private string _libraryQuery = "";
     private NSButton? _libraryPrevious;
     private NSButton? _libraryNext;
@@ -114,13 +115,25 @@ public sealed partial class MainWindow
                 PlaceholderString = "Search titles, artists and filenames",
             };
             ((NSView)_librarySearch).AccessibilityLabel = "Search the local library";
-            _librarySearchButton = NSButton.CreateButton("Search", () =>
+            void CommitSearch()
             {
                 _libraryQuery = _librarySearch.StringValue.Trim();
                 _libraryPage = 0;
                 RefreshLibrary();
+            }
+
+            // Return from the native text field is the same as selecting Search.
+            _librarySearch.Activated += (_, _) => CommitSearch();
+            _librarySearchButton = NSButton.CreateButton("Search", CommitSearch);
+            _librarySearchButton.ToolTip = "Filter the currently selected media or watched folders";
+            _libraryClearSearch = NSButton.CreateButton("Clear search", () =>
+            {
+                _librarySearch.StringValue = "";
+                CommitSearch();
+                _libraryWindow?.MakeFirstResponder(_librarySearch);
             });
-            var searchRow = NSStackView.FromViews([_librarySearch, _librarySearchButton]);
+            _libraryClearSearch.ToolTip = "Show every item in this library view again";
+            var searchRow = NSStackView.FromViews([_librarySearch, _librarySearchButton, _libraryClearSearch]);
             searchRow.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             searchRow.Spacing = 8;
             _librarySummary = NSTextField.CreateLabel("");
@@ -188,13 +201,20 @@ public sealed partial class MainWindow
         var folders = _library.Folders;
         // The persistent index may still remember an unavailable volume. Never offer
         // its old entries as playable, and never delete their history just for being away.
-        var available = _library.Entries.Where(entry => File.Exists(entry.Path)
-            && (filter == 0 || filter == 1 && entry.Kind == LibraryKind.Music
-                || filter == 2 && entry.Kind == LibraryKind.Video
-                || filter == 3 && entry.Kind == LibraryKind.Picture));
-        var matched = _libraryQuery.Length > 0 ? LibraryViews.Search(available, _libraryQuery) : available;
-        var items = matched.OrderBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase)
-            .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
+        // Folder navigation must stay instant even with a huge media index: it
+        // never needs to enumerate or stat each of the user's indexed files.
+        List<LibraryEntry> items = [];
+        if (filter != 4)
+        {
+            var available = _library.Entries.Where(entry =>
+                (filter == 0 || filter == 1 && entry.Kind == LibraryKind.Music
+                    || filter == 2 && entry.Kind == LibraryKind.Video
+                    || filter == 3 && entry.Kind == LibraryKind.Picture)
+                && File.Exists(entry.Path));
+            var matched = _libraryQuery.Length > 0 ? LibraryViews.Search(available, _libraryQuery) : available;
+            items = matched.OrderBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
+        }
         var matchingFolders = filter == 4 && _libraryQuery.Length > 0
             ? folders.Where(folder => folder.Contains(_libraryQuery, StringComparison.CurrentCultureIgnoreCase)).ToList()
             : folders.ToList();
@@ -204,14 +224,21 @@ public sealed partial class MainWindow
         var end = Math.Min(count, start + LibraryPageSize);
         _libraryPrevious!.Enabled = _libraryPage > 0;
         _libraryNext!.Enabled = end < count;
+        if (_libraryClearSearch is not null)
+        {
+            _libraryClearSearch.Enabled = _librarySearch?.StringValue.Length > 0 || _libraryQuery.Length > 0;
+        }
 
         var rows = new List<NSView>();
         if (count == 0)
         {
-            var why = folders.Count == 0
-                ? "No folders yet. Choose Add folder to build your private library."
-                : filter == 4 ? "No folders are being watched."
-                : "No available files of this kind. Reconnect a drive or rescan its folder.";
+            var why = _libraryQuery.Length > 0
+                ? "No items match this search. Choose Clear search to show everything again."
+                : folders.Count == 0
+                    ? "No folders yet. Choose Add folder to build your private library."
+                    : filter == 4
+                        ? "No folders are being watched."
+                        : "No available files of this kind. Reconnect a drive or rescan its folder.";
             var empty = NSTextField.CreateLabel(why);
             empty.TextColor = NSColor.SecondaryLabel;
             rows.Add(empty);
@@ -317,6 +344,7 @@ public sealed partial class MainWindow
         _librarySummary.StringValue = (count == 1 ? "1 item" : count + " items")
             + (count > LibraryPageSize ? " · viewing " + (start + 1) + "-" + end : "")
             + " · " + folders.Count + (folders.Count == 1 ? " folder" : " folders")
+            + (_libraryQuery.Length > 0 ? " · Search: " + _libraryQuery : "")
             + (problem is not null ? " · " + problem : busy.Length > 0 ? " · " + busy : "");
     }
 
