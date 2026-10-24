@@ -22,7 +22,9 @@ Usage::
 from __future__ import annotations
 
 import re
+import struct
 import sys
+import zlib
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote
@@ -135,6 +137,8 @@ def check(site: Path = SITE, product: str = PRODUCT) -> list[str]:
     for page in pages:
         problems.extend(f"{page.name}: {problem}" for problem in _check_page(page, parsed, product))
     problems.extend(_check_sitemap(site, pages))
+    for asset in sorted((site / "assets").glob("*.png")):
+        problems.extend(f"{asset.name}: {issue}" for issue in _check_png(asset))
     return problems
 
 
@@ -213,6 +217,57 @@ def _check_link(page: Path, parser: PageParser, parsed: dict[str, PageParser], h
         return [f"link '{href}' points at a page that does not exist."]
     if fragment and target.name in parsed and fragment not in parsed[target.name].ids:
         return [f"link '{href}' points at an id that does not exist on {target.name}."]
+    return []
+
+
+def _check_png(asset: Path) -> list[str]:
+    """Validate screenshot bytes, dimensions and chunk checksums without PIL.
+
+    Merely checking that an <img> src exists lets a zero-byte, truncated or
+    accidentally 1×1 preview pass the static gate. This checks the actual
+    committed gallery files; browser tests separately verify decoding/layout.
+    """
+    try:
+        with asset.open("rb") as file:
+            if file.read(8) != b"\x89PNG\r\n\x1a\n":
+                return ["not a PNG image."]
+            chunks = []
+            width = height = 0
+            seen_ihdr = seen_idat = seen_iend = False
+            while True:
+                head = file.read(8)
+                if len(head) != 8:
+                    return ["incomplete PNG: missing IEND chunk."]
+                size, kind = struct.unpack(">I4s", head)
+                if size > 32 * 1024 * 1024:
+                    return ["PNG chunk is unreasonably large."]
+                data = file.read(size)
+                checksum = file.read(4)
+                if len(data) != size or len(checksum) != 4:
+                    return ["truncated PNG chunk."]
+                expected = struct.unpack(">I", checksum)[0]
+                actual = zlib.crc32(kind + data) & 0xffffffff
+                if actual != expected:
+                    return ["PNG chunk checksum mismatch."]
+                chunks.append(kind)
+                if kind == b"IHDR":
+                    if seen_ihdr or len(data) != 13 or len(chunks) != 1:
+                        return ["invalid PNG image header."]
+                    seen_ihdr = True
+                    width, height = struct.unpack(">II", data[:8])
+                elif kind == b"IDAT":
+                    seen_idat = True
+                elif kind == b"IEND":
+                    seen_iend = True
+                    if size != 0 or file.read(1):
+                        return ["invalid trailing PNG data."]
+                    break
+            if not (seen_ihdr and seen_idat and seen_iend):
+                return ["missing required PNG image chunks."]
+            if width < 320 or height < 180:
+                return [f"screenshot {width}×{height} is too small for a readable preview."]
+    except OSError as exc:
+        return [f"could not read PNG asset: {exc}."]
     return []
 
 
