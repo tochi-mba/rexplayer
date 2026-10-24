@@ -62,7 +62,6 @@ public sealed partial class MainWindow
 
         LyricsStatus.Foreground = _lyricAccessibility.HighContrast
             ? LyricNeutralBrush() : new SolidColorBrush(Microsoft.UI.Colors.White);
-        LyricsStatus.Background = _lyricAccessibility.HighContrast ? LyricChipBrush() : null;
         foreach (var child in LyricsLines.Children)
         {
             switch (child)

@@ -810,7 +810,7 @@ public sealed partial class MainWindow
         // Background scanning or local tag edits can change an existing
         // album, file title or credit without changing its path identity.
         var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row =>
-            RowIdentity(row) + "|" + row.Name + "|" + row.Detail + "|" + row.PicturePath))));
+            RowIdentity(row) + "|" + row.Name + "|" + row.Detail + "|" + row.PicturePlaceholder))));
         if (shown == _shownLibrary)
         {
             return;

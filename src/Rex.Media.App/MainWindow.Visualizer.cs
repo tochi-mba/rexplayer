@@ -71,6 +71,7 @@ public sealed partial class MainWindow
     private bool _stageFailed;
     private bool _stageReset;
     private TimeSpan _lastDrawn;
+    private XamlRoot? _visualizerScaleRoot;
     private bool _visualizing;
     private bool _visualDrawing;
     private readonly VisualPacing _visualPacing = new();
@@ -91,12 +92,41 @@ public sealed partial class MainWindow
     private void WireVisualizer()
     {
         Visualizer.SizeChanged += (_, _) => BuildVisualizer();
-        // A per-monitor DPI change can keep the same layout size in effective pixels.
-        // Rebuild the backing bitmap at the new composition scale rather than stretching
-        // the previous monitor's pixel buffer after a drag across displays.
-        Visualizer.CompositionScaleChanged += (_, _) => BuildVisualizer();
+        // WinUI Grid has no CompositionScaleChanged event. XamlRoot.Changed also
+        // reports rasterization scale changes when moving between DPI monitors.
+        Visualizer.Loaded += (_, _) =>
+        {
+            if (Visualizer.XamlRoot is not { } root || ReferenceEquals(root, _visualizerScaleRoot))
+            {
+                return;
+            }
+
+            if (_visualizerScaleRoot is { } previous)
+            {
+                previous.Changed -= OnVisualizerRootChanged;
+            }
+
+            _visualizerScaleRoot = root;
+            root.Changed += OnVisualizerRootChanged;
+        };
+        Visualizer.Unloaded += (_, _) =>
+        {
+            if (_visualizerScaleRoot is { } root)
+            {
+                root.Changed -= OnVisualizerRootChanged;
+                _visualizerScaleRoot = null;
+            }
+        };
         Visualizer.IsHitTestVisible = true;
         Visualizer.ContextFlyout = VisualizerMenu();
+    }
+
+    private void OnVisualizerRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        if (!_closed)
+        {
+            BuildVisualizer();
+        }
     }
 
     /// <summary>The visualisation's right-click menu: every visualisation, the lyrics, and the settings of this one.</summary>

@@ -75,7 +75,7 @@ public sealed partial class MainWindow
             TextWrapping = TextWrapping.Wrap,
         };
         AutomationProperties.SetAutomationId(saveState, "TranscriptEditSaveState");
-        AutomationProperties.SetLiveSetting(saveState, AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(saveState, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
         container.Children.Add(saveState);
 
         var navigation = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
