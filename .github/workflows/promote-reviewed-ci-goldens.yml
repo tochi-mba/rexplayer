@@ -1,0 +1,44 @@
+# Temporary, branch-scoped transport for three manually reviewed native CI PNGs.
+# Remove this workflow from PR #524 once the exact verified screenshots are committed.
+name: Promote reviewed CI goldens
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  promote-reviewed-goldens:
+    if: ${{ github.event.pull_request.number == 524 && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/ci-virtualized-queue-end' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Copy only reviewed and hash-verified captures from CI 2906
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 40098415474 --repo "$GITHUB_REPOSITORY" --name screenshots --dir "$RUNNER_TEMP/reviewed"
+          actual="$RUNNER_TEMP/reviewed/ci-windows/actual"
+          printf '%s  %s\n' \
+            '49eecd87379aa77c69ba7af59a2bac8ba95d6f5ae3a6f30c836df452adfd4564' "$actual/audiobook-unread-card.png" \
+            '378f9fb03cc1a5bb3d098a68e8016a74198a2644e466bfb1f714498189cbb3bf' "$actual/audiobook-huge-virtualized-chapters.png" \
+            'eb65ab4a0c7a3f48a3950a36174cd8b8ff18cd337077c2488081761b36a64487' "$actual/library-movie-card-letterboxed.png" | sha256sum --check --status
+          destination=tests/screenshot-baselines/ci-windows
+          mkdir -p "$destination"
+          for name in audiobook-unread-card audiobook-huge-virtualized-chapters library-movie-card-letterboxed; do
+            cp "$actual/$name.png" "$destination/$name.png"
+          done
+          git add "$destination/audiobook-unread-card.png" "$destination/audiobook-huge-virtualized-chapters.png" "$destination/library-movie-card-letterboxed.png"
+          if git diff --cached --quiet; then
+            echo "Exact native screenshot goldens already committed."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'test(ui): promote three reviewed native Windows screenshot goldens'
+          git push origin "HEAD:refs/heads/$GITHUB_HEAD_REF"
