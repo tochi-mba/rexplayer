@@ -19,6 +19,9 @@ public sealed partial class MainWindow
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _browseHeroTimer;
     private int _browseHeroIndex;
     private string _browseHeroSet = "";
+    // Visual regression tests capture the actual native UI; they only freeze the
+    // rotating hero and fade animation so a slow runner cannot change the frame.
+    private static bool FixedBrowseFixture => Environment.GetEnvironmentVariable("REXPLAYER_UI_CAPTURE") == "1";
     private bool _browseHeroHeld;
     private bool _browseHeroPointerHeld;
     private bool _browseHeroFocusHeld;
@@ -270,12 +273,12 @@ public sealed partial class MainWindow
 
         _browseHeroTimer ??= Timer(TimeSpan.FromSeconds(12), AdvanceBrowseHero);
         _browseHeroTimer.IsRepeating = true;
-        Run(_browseHeroTimer, count > 1 && !_browseHeroHeld && AppWindow.IsVisible);
+        Run(_browseHeroTimer, count > 1 && !_browseHeroHeld && AppWindow.IsVisible && !FixedBrowseFixture);
     }
 
     private void AdvanceBrowseHero()
     {
-        if (_browseHeroHeld || !AppWindow.IsVisible || !BrowseOffered)
+        if (FixedBrowseFixture || _browseHeroHeld || !AppWindow.IsVisible || !BrowseOffered)
         {
             return;
         }
@@ -308,7 +311,7 @@ public sealed partial class MainWindow
         {
             StopBrowseHeroRotation();
         }
-        else if (_browseHeroTimer is not null && AppWindow.IsVisible && BrowseOffered)
+        else if (!FixedBrowseFixture && _browseHeroTimer is not null && AppWindow.IsVisible && BrowseOffered)
         {
             _browseHeroTimer.Start();
         }
@@ -361,7 +364,7 @@ public sealed partial class MainWindow
                 UpdateBrowseHeroHold();
             });
         };
-        if (policy.FadesIn)
+        if (policy.FadesIn && !FixedBrowseFixture)
         {
             frame.Opacity = 0;
             var fade = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(240), EasingFunction = new QuadraticEase() };
