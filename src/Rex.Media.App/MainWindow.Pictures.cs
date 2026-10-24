@@ -457,7 +457,10 @@ public sealed partial class MainWindow
             throw new MediaFormatException("The audio track gave no samples for its artwork.");
         }
 
-        using var picture = AudioArtwork.Render([.. mono], sampleRate, path, options);
+        // Use the media's containing folder and file name, not the absolute path.
+        // A moved library or a new temporary test root must not recolor identical sound.
+        var artworkIdentity = Path.GetFileName(Path.GetDirectoryName(path)) + "/" + Path.GetFileName(path);
+        using var picture = AudioArtwork.Render([.. mono], sampleRate, artworkIdentity, options);
         using var output = new MemoryStream();
         PngWriter.Write(output, picture);
         return output.ToArray();
