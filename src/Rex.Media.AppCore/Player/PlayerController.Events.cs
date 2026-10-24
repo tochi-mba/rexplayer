@@ -354,12 +354,12 @@ public sealed partial class PlayerController
                 PositionChanged?.Invoke(this, EventArgs.Empty);
                 break;
             case PositionEvent position:
-                // The event pump coalesces position notifications independently
-                // of discrete seek completion. A tick from the old generation can
-                // arrive after the seek-completed event and overwrite the paused
-                // target. While paused, only an explicit seek/completion should
-                // move Position; there is no advancing playback clock to follow.
-                if (_seekAwaitingCompletion || State == SessionState.Paused)
+                // Seek completion arrives before the engine's Seeking -> Paused/Playing
+                // state change. A coalesced position tick from the previous generation
+                // can slip between those events, after _seekAwaitingCompletion is cleared.
+                // Ignore position ticks throughout Seeking as well as while paused,
+                // or the previous position can become stuck when playback stays paused.
+                if (_seekAwaitingCompletion || State is SessionState.Seeking or SessionState.Paused)
                 {
                     break;
                 }
