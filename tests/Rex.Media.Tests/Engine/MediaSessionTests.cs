@@ -174,6 +174,31 @@ public sealed class MediaSessionTests
     }
 
     [Fact]
+    public async Task ASeekIsNotPublishedBeforeThePreviousGenerationIsCancelled()
+    {
+        using var harness = new SessionHarness(autoPlay: false);
+        await harness.Session.OpenAsync(SessionHarness.Source(Ramp));
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var playback = typeof(MediaSession).GetField("_playback", flags)!.GetValue(harness.Session)!;
+        var type = playback.GetType();
+        var cancellation = (CancellationTokenSource)type.GetField("_generationCancel", flags)!.GetValue(playback)!;
+        object? published = null;
+        var cancelled = false;
+        using var registration = cancellation.Token.Register(() =>
+        {
+            cancelled = true;
+            published = type.GetField("_pendingSeek", flags)!.GetValue(playback);
+        });
+
+        await harness.Session.SeekAsync(MediaTime.FromSamples(4321, 8000));
+
+        Assert.True(cancelled);
+        Assert.Null(published);
+        Assert.Equal(MediaTime.FromSamples(4321, 8000), harness.WaitFor<SeekCompletedEvent>().Position);
+        harness.WaitForState(SessionState.Paused);
+    }
+
+    [Fact]
     public async Task AKeyframeSeekStartsAtTheContainingPacket()
     {
         using var harness = new SessionHarness(autoPlay: false);
