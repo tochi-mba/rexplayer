@@ -1,4 +1,5 @@
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
@@ -193,6 +194,34 @@ public sealed partial class MainWindow
         _librarySource == LibrarySource.Completed
         && rows.Any(row => row.Item is LibraryGroup)
         && (rows.Count != 1 || SelectedLibraryRows().Count != 1);
+
+    /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
+    private void OnLibraryShuffle(object sender, RoutedEventArgs e)
+    {
+        if (_librarySource is LibrarySource.Authors or LibrarySource.Audiobooks)
+        {
+            Say("Audiobook chapters keep their reading order. Choose a book to play.");
+            return;
+        }
+
+        if (_librarySource == LibrarySource.Completed
+            && ChosenRows().Any(row => row.Item is LibraryGroup))
+        {
+            Say("Finished audiobooks play in chapter order, not shuffled.");
+            return;
+        }
+
+        var entries = EntriesOf(ChosenRows());
+        if (entries.Count == 0)
+        {
+            Say("There is nothing here to play yet.");
+            return;
+        }
+
+        _player.Playlist.Shuffle = true;
+        Play(entries, Random.Shared.Next(entries.Count));
+        Say("Shuffle on");
+    }
 
     /// <summary>Plays from the visible library view and follows the chosen player transition.</summary>
     private void Play(IReadOnlyList<LibraryEntry> entries, int start, bool resume = false)
